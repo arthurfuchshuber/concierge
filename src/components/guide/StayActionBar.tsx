@@ -1,4 +1,4 @@
-import { Check, Loader2, LogIn, LogOut, Undo2 } from "lucide-react";
+import { Check, Loader2, LogIn, LogOut, Lock, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -15,6 +15,15 @@ import { cn } from "@/lib/utils";
  *
  * Esta peça só DESENHA; quem decide quando aparece, o que o toque faz e
  * quando some é a página do guia (a mesma regra vale no onboarding e no guia).
+ *
+ * "BLOQUEADA" (pedido explícito, 24/09/2026): antes do horário previsto de
+ * chegada (o padrão do imóvel, ou um horário antecipado pela EQUIPE), a
+ * faixa "Já acessei o Airbnb!" NÃO PODE sumir — ela continua visível, só
+ * entra num visual "apagado" (cinza, sem o gradiente verde) e o toque não
+ * confirma nada: quem decide o que acontece no toque é a página do guia
+ * (`onTap`), que mostra o motivo (ex.: toast) em vez de marcar o check-in.
+ * Aqui dentro `locked` só troca o visual e a legenda por `lockedReason` —
+ * nunca desliga o `onClick`.
  */
 
 export type StayBarKind = "checkin" | "checkout";
@@ -45,6 +54,8 @@ export function StayActionBar({
   onTap,
   onUndo,
   aboveNav = true,
+  locked = false,
+  lockedReason,
 }: {
   kind: StayBarKind;
   phase: StayBarPhase;
@@ -56,11 +67,17 @@ export function StayActionBar({
   /** false quando o guia não tem menu inferior (só "Início"): a barra encosta
    * no rodapé da tela. */
   aboveNav?: boolean;
+  /** Ainda não chegou o horário previsto de chegada — a barra continua na
+   * tela (nunca some), só troca pro visual "apagado" e a legenda passa a
+   * ser `lockedReason`. O toque continua chamando `onTap` normalmente: quem
+   * decide mostrar o motivo é a página do guia, não este componente. */
+  locked?: boolean;
+  lockedReason?: string;
 }) {
   const copy = COPY[kind];
   const isDark = theme === "dark";
-  const green = kind === "checkin";
-  const Icon = green ? LogIn : LogOut;
+  const green = kind === "checkin" && !locked;
+  const Icon = locked ? Lock : kind === "checkin" ? LogIn : LogOut;
 
   return (
     <div
@@ -82,7 +99,7 @@ export function StayActionBar({
               isDark ? "text-white/60" : "text-slate-700/70",
             )}
           >
-            {copy.caption}
+            {locked && lockedReason ? lockedReason : copy.caption}
           </p>
         )}
 
@@ -127,10 +144,17 @@ export function StayActionBar({
             onClick={onTap}
             disabled={phase === "sending"}
             className={cn(
-              "flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[0.3rem] text-[15px] font-extrabold tracking-[-0.01em] text-white transition-all active:scale-[0.99] disabled:opacity-70",
-              green
-                ? "bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_12px_30px_-10px_rgba(16,185,129,0.7)]"
-                : "bg-gradient-to-r from-orange-400 to-orange-500 shadow-[0_12px_30px_-10px_rgba(249,115,22,0.7)]",
+              "flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[0.3rem] text-[15px] font-extrabold tracking-[-0.01em] transition-all active:scale-[0.99] disabled:opacity-70",
+              locked
+                ? isDark
+                  ? "bg-white/[0.06] text-white/50 border border-white/10"
+                  : "bg-slate-900/[0.05] text-slate-500 border border-slate-900/10"
+                : cn(
+                    "text-white",
+                    green
+                      ? "bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_12px_30px_-10px_rgba(16,185,129,0.7)]"
+                      : "bg-gradient-to-r from-orange-400 to-orange-500 shadow-[0_12px_30px_-10px_rgba(249,115,22,0.7)]",
+                  ),
             )}
           >
             {phase === "sending" ? (

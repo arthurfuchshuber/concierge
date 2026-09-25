@@ -531,15 +531,12 @@ export const createRecordSituation = createServerFn({ method: "POST" })
       .refine((v) => !!v.logId || !!v.reservationId, {
         message: "Informe a reserva ou o registro do hóspede.",
       })
-      .refine((v) => v.media.length > 0 || (v.pendingMedia ?? 0) > 0 || !!(v.title ?? "").trim(), {
-        message: "Uma situação precisa de pelo menos uma mídia ou um título.",
-      })
-      // TÍTULO OBRIGATÓRIO SÓ NAS PENDÊNCIAS (decisão do cliente, 10/09/2026):
-      // dano, manutenção e objeto esquecido viram trabalho para alguém — sem
-      // título ninguém sabe o que executar. Auditoria de limpeza é vídeo de
-      // rotina e segue podendo entrar sem texto.
-      .refine((v) => !TASK_RULES[v.category] || !!(v.title ?? "").trim(), {
-        message: "Dano, manutenção e objeto esquecido precisam de um título.",
+      // TÍTULO SEMPRE OBRIGATÓRIO (decisão do cliente, 25/09/2026).
+      .transform((v) => {
+        if (!(v.title ?? "").trim()) {
+          throw new Error("Escreva um título antes de registrar — em poucas palavras, o que aconteceu.");
+        }
+        return v;
       })
       .parse(input),
   )
@@ -581,7 +578,10 @@ export const createRecordSituation = createServerFn({ method: "POST" })
     // primeira é a principal — o texto e a pendência moram nela.
     const rows =
       data.media.length === 0
-        ? [{ ...base, id: groupId, kind: "note", body }]
+        ? // Só mídia a caminho e sem texto: a principal nasce com corpo vazio
+          // ("" e não null) para respeitar a regra do banco que exige
+          // arquivo ou texto — as mídias entram logo depois no mesmo grupo.
+          [{ ...base, id: groupId, kind: "note", body: body ?? "" }]
         : data.media.map((m, i) => ({
             ...base,
             ...(i === 0 ? { id: groupId, body } : { body: null }),

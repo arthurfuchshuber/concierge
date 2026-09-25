@@ -2,7 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { AI_MODELS } from "@/lib/ai/models";
 
-const Input = z.object({ propertyId: z.string().uuid(), lang: z.enum(["pt", "en", "es", "fr"]).default("pt") });
+const Input = z.object({
+  propertyId: z.string().uuid(),
+  lang: z.enum(["pt", "en", "es", "fr"]).default("pt"),
+  /** Passe de identificação do hóspede (assinado pelo servidor). */
+  pass: z.string().max(1000).optional().nullable(),
+});
 
 export type DailyTip = {
   greeting: string;
@@ -105,6 +110,10 @@ export const getDailyTip = createServerFn({ method: "POST" })
       await import("@/lib/public-rate-limit.server");
     const { getRequest } = await import("@tanstack/react-start/server");
     if (!allowPublicRate(`daily-tip:${clientIpFrom(getRequest())}`, 20, 60_000)) return null;
+    // Só hóspede identificado no guia aciona a IA paga (25/09/2026).
+    const { verifyGuestPassInfo } = await import("@/lib/guest-pass.server");
+    const passInfo = verifyGuestPassInfo(data.pass, `guide:${data.propertyId}`);
+    if (!passInfo) return null;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop } = await supabaseAdmin
@@ -127,7 +136,10 @@ export const getDailyTip = createServerFn({ method: "POST" })
       .maybeSingle();
     if (cached?.content) return cached.content as DailyTip;
 
-    // Cache vazio = geração paga. Teto diário por imóvel e global.
+    // Cache vazio = geração paga: só hóspede com reserva conferida por código
+    // aciona a IA. Os demais veem a dica já gerada no dia (quando houver).
+    if (!passInfo.verified) return null;
+    // Teto diário por imóvel e global.
     if (!allowPaidGuestUse({ scope: "daily-tip", propertyId: prop.id, perProperty: 4, global: 500 })) {
       return null;
     }

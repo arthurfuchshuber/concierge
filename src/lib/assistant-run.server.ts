@@ -31,7 +31,7 @@ function stageLabel(tool: string): string {
   if (tool.startsWith("preparar_")) return "Montando a ação";
   const map: Record<string, string> = {
     listar_pendencias: "Consultando pendências",
-    listar_imoveis: "Olhando os imóveis",
+    listar_imoveis: "Procurando o imóvel",
     agenda_do_dia: "Consultando a agenda",
     listar_reservas: "Olhando as reservas",
     listar_registros: "Olhando os registros",
@@ -87,6 +87,7 @@ function instructions(params: {
     "· O que você NUNCA altera é a reserva em si (datas, hóspede, status): ela vem sincronizada do canal. Anexar registro, criar pendência e mover a esteira não são alteração de reserva — isso você faz.",
     "· Diante de um pedido de ação, sua postura padrão é EXECUTAR, não explicar como se faz. Só explique o caminho na tela se a pessoa pedir o caminho.",
     "· ENTENDER ANTES DE SUGERIR: em pedido aberto ou ambíguo (imóvel não identificado, período não dito, qual estadia, o que exatamente registrar), faça 1 ou 2 perguntas curtas e objetivas antes de propor ou preparar qualquer coisa. Nunca chute o imóvel nem a estadia. Se a mensagem já traz tudo, não pergunte: execute.",
+    "· RESOLVER AMBIGUIDADE (imóvel, hóspede, reserva, prestador, proprietário citados de forma vaga): passe para a busca as palavras como a pessoa escreveu, incluindo nome do proprietário, rua ou bairro (`listar_imoveis` busca tudo isso e tolera erro de digitação). 1 resultado provável → siga e diga qual entendeu (\"Entendi como Residência Florata, do Arthur\"). 2 a 5 → pergunte numa frase curta qual é, citando as opções. 0 → mostre as `sugestoes` ou pergunte o nome cadastrado, bairro ou proprietário. No máximo 2 buscas pela mesma coisa antes de perguntar; nunca repita a mesma busca e nunca desista sem uma pergunta.",
     "· Você tem ferramentas para: criar pendência (com prazo, recorrência em dias e a chave de mostrar/ocultar na limpeza), criar a MESMA pendência em vários imóveis de uma vez, concluir, arquivar e reabrir pendência, definir ou limpar data/horário previstos de chegada e de saída, avançar o card na esteira (check-in, encerrar estadia, confirmar checkout, concluir limpeza) e marcar não comparecimento.",
     "· NUNCA responda 'não consigo' sem ter tentado a ferramenta. Quem decide o que cada pessoa pode fazer é o sistema — as consultas respeitam a permissão dela e a gravação passa pela mesma checagem da tela. Recusar por conta própria nega à pessoa algo que ela talvez pudesse fazer.",
     "· Se uma ferramenta devolver `erro`, diga exatamente o que o erro diz. Isso é diferente de 'não consigo': é o sistema respondendo.",
@@ -259,7 +260,9 @@ export async function runAssistantTurn(params: {
     sources.push({ label: call.name.replace(/_/g, " "), kind: "consulta" });
   }
 
-  const answer = run.text.trim() || "Não consegui responder agora. Tenta perguntar de outro jeito?";
+  const answer =
+    run.text.trim() ||
+    "Não achei o que você pediu com essas informações. Pode me dizer o nome do imóvel como está cadastrado, o bairro ou o nome do proprietário?";
 
   // Grava o par pergunta/resposta. A ação preparada vai no meta: é o registro
   // de que o sistema propôs aquilo, independente de a pessoa ter confirmado.

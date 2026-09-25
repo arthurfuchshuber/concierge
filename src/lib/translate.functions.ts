@@ -26,6 +26,8 @@ const InputSchema = z.object({
     .object({
       slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
       sessionId: z.string().min(8).max(120),
+      /** Passe assinado emitido quando o hóspede se identificou no guia. */
+      pass: z.string().max(1000).optional().nullable(),
     })
     .nullable()
     .optional(),
@@ -54,7 +56,11 @@ async function hasStaffSession(): Promise<boolean> {
 }
 
 /** O hóspede precisa ter uma conversa de verdade naquele guia publicado. */
-async function isKnownGuest(guest: { slug: string; sessionId: string }): Promise<boolean> {
+async function isKnownGuest(guest: {
+  slug: string;
+  sessionId: string;
+  pass?: string | null;
+}): Promise<boolean> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: prop } = await supabaseAdmin
     .from("properties")
@@ -63,6 +69,10 @@ async function isKnownGuest(guest: { slug: string; sessionId: string }): Promise
     .eq("published", true)
     .maybeSingle();
   if (!prop) return false;
+  // Só hóspede identificado no guia (passe assinado pelo servidor) usa a IA paga.
+  const { verifyGuestPassInfo } = await import("@/lib/guest-pass.server");
+  const info = verifyGuestPassInfo(guest.pass, `guide:${(prop as { id: string }).id}`);
+  if (!info || !info.verified) return false;
   const { data: conv } = await supabaseAdmin
     .from("property_chat_conversations")
     .select("id")

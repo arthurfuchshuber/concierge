@@ -1,3 +1,4 @@
+import { placePhotoUrl } from "@/lib/place-photo-sign";
 /**
  * Sistema de Ferramentas (Tool Calling).
  * Cada integração é uma ferramenta independente e auditável. O agente decide
@@ -51,7 +52,7 @@ async function firstPlacePhoto(
     const j = (await res.json()) as { places?: Array<{ photos?: Array<{ name?: string }> }> };
     const photoName = j.places?.[0]?.photos?.[0]?.name;
     if (photoName && /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(photoName)) {
-      return `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=600`;
+      return placePhotoUrl(photoName, 600);
     }
     return null;
   } catch {
@@ -473,7 +474,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
           const photoName = p.photos?.[0]?.name;
           const foto =
             photoName && /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(photoName)
-              ? `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=600`
+              ? placePhotoUrl(photoName, 600)
               : null;
           return {
             nome: p.displayName?.text ?? "",

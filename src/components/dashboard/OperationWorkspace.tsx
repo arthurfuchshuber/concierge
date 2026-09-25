@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { titleCaseName } from "@/lib/masks";
 import { useAntiClipColumns } from "@/hooks/useAntiClipColumns";
 import { useAntiClipBar } from "@/hooks/useAntiClipBar";
 import {
@@ -2596,6 +2597,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     no_show: kanbanNoShowRows.length,
   };
 
+  // Os mesmos 6 status que antes viravam abas roláveis abaixo do quadro
+  // (pedido explícito, 25/09/2026: essa faixa saiu para caber no dropdown
+  // do "Trocar status", na linha do título — ver `actions` do
+  // `OperationShell` mais abaixo). `mobileTab` continua sendo o estado que
+  // decide qual grupo aparece no mobile; no desktop as colunas aparecem
+  // todas juntas e este dropdown não muda o que já está visível ali.
+  const KANBAN_STATUS_TABS = [
+    { key: "checkin" as const, label: "Check-ins", icon: CalendarCheck, count: kanbanCounts.checkin },
+    { key: "checkout" as const, label: "Checkouts", icon: CalendarX, count: kanbanCounts.checkout },
+    { key: "cleaning" as const, label: "Fila Limpeza", icon: Sparkles, count: kanbanCounts.cleaning },
+    { key: "stay" as const, label: "Estadia", icon: BedDouble, count: kanbanCounts.stay },
+    { key: "done" as const, label: "Concluídos", icon: CheckCircle2, count: kanbanCounts.done },
+    { key: "no_show" as const, label: "Não Compareceu", icon: UserX, count: kanbanCounts.no_show },
+  ];
+
   const rangeLabel: Record<typeof range, string> = {
     today: "Hoje",
     tomorrow: "Amanhã",
@@ -3222,6 +3238,45 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   Ver `PendenciasButton` em `pendencias.tsx`. O painel em si
                   (`TasksDialog`) continua morando NESTE arquivo e é importado
                   de lá — mover mil linhas não valia o risco. */}
+              {view === "kanban" &&
+                (() => {
+                  const current =
+                    KANBAN_STATUS_TABS.find((t) => t.key === mobileTab) ?? KANBAN_STATUS_TABS[0];
+                  const CurrentIcon = current.icon;
+                  return (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          title="Trocar status do Kanban"
+                          aria-label="Trocar status do Kanban"
+                          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+                        >
+                          <CurrentIcon className={ACTION_ICON} />
+                          <span className="lg:hidden min-w-0 truncate">{current.label}</span>
+                          <span className="lg:hidden opacity-75 tabular-nums">{current.count}</span>
+                          <ChevronDown className="size-3 shrink-0 opacity-60" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="min-w-[200px]">
+                        {KANBAN_STATUS_TABS.map((t) => {
+                          const Icon = t.icon;
+                          return (
+                            <DropdownMenuItem
+                              key={t.key}
+                              onSelect={() => setMobileTab(t.key)}
+                              className="gap-2"
+                            >
+                              <Icon className="size-3.5 shrink-0" />
+                              <span className="min-w-0 flex-1 truncate">{t.label}</span>
+                              <span className="tabular-nums text-xs opacity-60">{t.count}</span>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                })()}
               <CalendarFiltersButton
                 compactTrigger
                 periodRange={periodRange}
@@ -3607,113 +3662,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 numa linha própria ACIMA da barra de abas — mesma posição que
                 já usam na aba Limpeza (irmã desta, no mesmo header). */}
             <div className="sm:hidden space-y-3">
-              <div className="space-y-2">
-                {/* Wrapper relative só pra ancorar o degrade — regra
-                    "anti-corte" (peek): a barra continua rolável igual antes,
-                    mas agora com uma pista visual de que há mais abas pra
-                    rolar (a última aba nunca fica com o corte seco na
-                    borda). Degrade some sozinho quando a barra cabe inteira,
-                    já que sem overflow não há nada mesmo pra "espiar". */}
-                <div className="relative">
-                  <div
-                    // scroll-px-3.5 (14px) = os mesmos 10px de margem da página
-                    // (px-2.5 no mobile) + os 4px do próprio px-1 desta barra —
-                    // sem isso, ao selecionar uma aba perto do fim o
-                    // `scrollIntoView` colava o botão rente na borda da tela
-                    // (0px), enquanto a 1ª aba (que nunca precisa rolar) ficava
-                    // com a margem cheia. Mesma regra de "scroll-padding" já
-                    // usada no calendário de ocupação (scrollPaddingLeft), só
-                    // que aqui nos dois lados — pedido explícito: as duas pontas
-                    // com o mesmo espaçamento da borda da tela.
-                    className="ds-scroll-x w-full min-w-0 gap-1.5 snap-x scroll-px-3.5 pb-1 -mx-1 px-1"
-                  >
-                    {(
-                      [
-                        {
-                          key: "checkin",
-                          label: "Check-ins",
-                          icon: CalendarCheck,
-                          count: kanbanCounts.checkin,
-                        },
-                        {
-                          key: "checkout",
-                          label: "Checkouts",
-                          icon: CalendarX,
-                          count: kanbanCounts.checkout,
-                        },
-                        {
-                          key: "cleaning",
-                          label: "Fila Limpeza",
-                          icon: Sparkles,
-                          count: kanbanCounts.cleaning,
-                        },
-                        {
-                          key: "stay",
-                          label: "Estadia",
-                          icon: BedDouble,
-                          count: kanbanCounts.stay,
-                        },
-                        {
-                          key: "done",
-                          label: "Concluídos",
-                          icon: CheckCircle2,
-                          count: kanbanCounts.done,
-                        },
-                        {
-                          key: "no_show",
-                          label: "Não Compareceu",
-                          icon: UserX,
-                          count: kanbanCounts.no_show,
-                        },
-                      ] as const
-                    ).map((t) => {
-                      const Icon = t.icon;
-                      const active = mobileTab === t.key;
-                      // Cor por status: só aparece no item selecionado, e apenas
-                      // como borda inferior (sem fundo, sem borda ao redor).
-                      const toneByKey: Record<string, string> = {
-                        checkin: "border-b-emerald-500 text-emerald-500",
-                        checkout: "border-b-orange-500 text-orange-500",
-                        stay: "border-b-violet-400 text-violet-400",
-                        cleaning: "border-b-sky-400 text-sky-400",
-                        done: "border-b-muted-foreground text-muted-foreground",
-                        no_show: "border-b-rose-500 text-rose-500",
-                      };
-                      return (
-                        <button
-                          key={t.key}
-                          type="button"
-                          onClick={(e) => {
-                            setMobileTab(t.key);
-                            // Regra "anti-corte": ao selecionar uma aba, ela
-                            // precisa ficar totalmente visível — sem isso, uma
-                            // aba no meio/fim da lista (ex.: "Limpeza") podia
-                            // continuar parcialmente cortada na borda da tela
-                            // mesmo depois de virar a aba ativa.
-                            e.currentTarget.scrollIntoView({
-                              behavior: "smooth",
-                              inline: "nearest",
-                              block: "nearest",
-                            });
-                          }}
-                          className={`h-9 box-border shrink-0 snap-start inline-flex items-center gap-1.5 rounded-none border-0 border-b-2 bg-transparent px-3.5 text-xs font-medium leading-none whitespace-nowrap transition-colors ${
-                            active
-                              ? `${toneByKey[t.key]} border-b-current`
-                              : "border-b-transparent text-muted-foreground"
-                          }`}
-                        >
-                          <Icon className="size-3.5" />
-                          {t.label}
-                          <span className="opacity-75 tabular-nums">{t.count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {/* Degrade sutil (Opção A) na borda direita — indica que há
-                      mais abas pra rolar sem precisar de seta/sombra dura. */}
-                  <div className="pointer-events-none absolute inset-y-0 right-1 w-8 bg-gradient-to-l from-background to-transparent" />
-                </div>
-              </div>
+              {/* A faixa de abas roláveis (Check-ins/Checkouts/Fila Limpeza/…)
+                  que ficava aqui SAIU (pedido explícito, 25/09/2026): a mesma
+                  troca de status agora mora no dropdown à esquerda de
+                  "Filtros", na linha do título (`KanbanStatusDropdown`, ver
+                  `actions` do `OperationShell` acima) — pra otimizar espaço,
+                  já que as duas faziam a mesma coisa. `mobileTab` continua
+                  sendo o estado que decide o que aparece abaixo; só mudou
+                  quem escreve nele. */}
 
               {/* Ref só pro print (ScreenshotButton acima) — captura sempre a
                   aba atualmente montada, seja qual for. */}
@@ -4018,7 +3974,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           confirmAdvance ? (
             <>
               {confirmAdvance.from === "checkin" ? "O check-in de " : "O checkout de "}
-              <strong className="text-foreground">{confirmAdvance.row.guestName}</strong>
+              <strong className="text-foreground">
+                {titleCaseName(confirmAdvance.row.guestName)}
+              </strong>
               {confirmAdvance.row.propertyName ? ` (${confirmAdvance.row.propertyName})` : ""} está
               previsto para{" "}
               <strong className="text-foreground">
@@ -4058,7 +4016,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               <>
                 Confirme o tipo de limpeza concluída em{" "}
                 <strong className="text-foreground">
-                  {cleaningTypePrompt.row.propertyName ?? cleaningTypePrompt.row.guestName}
+                  {cleaningTypePrompt.row.propertyName ??
+                    titleCaseName(cleaningTypePrompt.row.guestName)}
                 </strong>
                 .
               </>
@@ -4996,39 +4955,50 @@ function EngagementFlags({
 
 /** Alertas agrupados num único acionador expansível (estilo "+N hóspedes"). */
 function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; label: string }> }) {
-  const [open, setOpen] = useState(false);
+  // Virou um Popover de verdade (pedido explícito, 25/09/2026: "precisa
+  // seguir as regras de um botão normal de filtro") — antes era só
+  // `useState` + `<ul>` posicionado à mão, sem nada do Radix por trás. Isso
+  // deixava faltando as DUAS coisas que todo popover/dropdown do painel tem
+  // de graça: o véu (`GlobalOverlayScrim`, ligado via `Popover` em
+  // `ui/popover.tsx`) e o fechar ao clicar fora/Esc (dismissable layer do
+  // Radix). Com `Popover` os dois voltam sozinhos — nada precisa ser
+  // reimplementado aqui.
   return (
-    <div className="relative">
-      {/* Badge fica sobre a borda superior do card (pedido explícito) — por
-          isso precisa de fundo próprio, sem a seta de expandir. */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-        /* Sem borda e com o canto do card (pedido explícito, 08/09/2026): a
-           etiqueta passou a usar o mesmo desenho do resto do sistema, em vez
-           da pílula contornada que era o único objeto assim na tela. */
-        /* Etiqueta menor e mais baixa (pedido explícito, 09/09/2026): ela é um
-           aviso, não um título — cresceu além do peso que merece e passou a
-           competir com o nome do proprietário logo abaixo. */
-        /* SÓ O TRIÂNGULO, NO TAMANHO DA PÍLULA DE CONTAGEM (pedido explícito,
-           24/09/2026: "somente com o ícone do triângulo, sem a palavra... do
-           mesmo tamanho que o ícone da quantidade de reservas"). 20px e
-           redondo, como a `CountPill` do cabeçalho do grupo. A palavra
-           "ALERTA" saiu; o nome acessível e o `title` continuam dizendo o
-           que é.
-           SEM FUNDO (pedido explícito, 24/09/2026, print marcado): só o
-           ícone na cor — o círculo âmbar por trás saiu. */
-        className="grid size-5 place-items-center rounded-full border-0 text-amber-600 transition-opacity hover:opacity-75 dark:text-amber-400"
-        title="Ver alertas"
-        aria-label="Ver alertas"
+    <Popover>
+      <PopoverTrigger asChild>
+        {/* Badge fica sobre a borda superior do card (pedido explícito) — por
+            isso precisa de fundo próprio, sem a seta de expandir. */}
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          /* Sem borda e com o canto do card (pedido explícito, 08/09/2026): a
+             etiqueta passou a usar o mesmo desenho do resto do sistema, em vez
+             da pílula contornada que era o único objeto assim na tela. */
+          /* Etiqueta menor e mais baixa (pedido explícito, 09/09/2026): ela é um
+             aviso, não um título — cresceu além do peso que merece e passou a
+             competir com o nome do proprietário logo abaixo. */
+          /* SÓ O TRIÂNGULO, NO TAMANHO DA PÍLULA DE CONTAGEM (pedido explícito,
+             24/09/2026: "somente com o ícone do triângulo, sem a palavra... do
+             mesmo tamanho que o ícone da quantidade de reservas"). 20px e
+             redondo, como a `CountPill` do cabeçalho do grupo. A palavra
+             "ALERTA" saiu; o nome acessível e o `title` continuam dizendo o
+             que é.
+             SEM FUNDO (pedido explícito, 24/09/2026, print marcado): só o
+             ícone na cor — o círculo âmbar por trás saiu. */
+          className="grid size-5 place-items-center rounded-full border-0 text-amber-600 transition-opacity hover:opacity-75 dark:text-amber-400"
+          title="Ver alertas"
+          aria-label="Ver alertas"
+        >
+          <AlertTriangle className="size-3 shrink-0" strokeWidth={2.4} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={4}
+        className="w-auto min-w-[190px] space-y-1 rounded-[0.3rem] border border-amber-500/25 bg-popover px-2 py-1.5 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
       >
-        <AlertTriangle className="size-3 shrink-0" strokeWidth={2.4} />
-      </button>
-      {open && (
-        <ul className="absolute left-0 top-full z-30 mt-1 min-w-[190px] space-y-1 rounded-[0.3rem] border border-amber-500/25 bg-popover px-2 py-1.5 shadow-lg">
+        <ul className="space-y-1">
           {flags.map((f) => (
             <li
               key={f.label}
@@ -5039,8 +5009,8 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
             </li>
           ))}
         </ul>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -10192,8 +10162,15 @@ function ArrivalCard({
               hospede"). */}
           <div className="-mt-1 flex items-center gap-2 text-[11.5px]">
             {isPendingFill ? (
-              <span className="inline-flex min-w-0 flex-1 items-center gap-1 font-medium">
-                <UserPlus className="size-3 shrink-0 text-orange-500" />
+              <span className={`inline-flex min-w-0 flex-1 items-center gap-1 font-medium ${CARD_MUTED}`}>
+                {/* Ícone na MESMA cor do texto, independente do status de
+                    acesso do hóspede (pedido explícito, 24/09/2026: "o
+                    icone ao lado esquerdo do nome do hospede precisa ficar
+                    na mesma cor que o nome independentemente do status de
+                    acesso dele") — antes só o texto usava `CARD_MUTED` e o
+                    ícone ficava laranja fixo, destoando quando o hóspede
+                    ainda não está identificado. */}
+                <UserPlus className="size-3 shrink-0" />
                 {/* SEM quebra em 2 linhas — regra do card é a linha
                     inteira com reticências quando falta espaço (mesma
                     regra do nome do hóspede logo abaixo), corrigido
@@ -10203,9 +10180,8 @@ function ArrivalCard({
                     `CARD_MUTED` do botão abaixo (pedido explícito,
                     24/09/2026: "coloque a cor das letras de 'hospede
                     pendente' com a mesma cor de letra do codigo da
-                    reserva"). Só o ícone continua laranja, como
-                    sinalizador visual da pendência. */}
-                <span className={`min-w-0 truncate ${CARD_MUTED}`}>Hóspede pendente</span>
+                    reserva"). */}
+                <span className="min-w-0 truncate">Hóspede pendente</span>
               </span>
             ) : row.guestName && row.guestName !== row.reservationCode ? (
               <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 ${CARD_MUTED}`}>
@@ -10215,8 +10191,14 @@ function ArrivalCard({
                     hóspede já está identificado, então ícone e texto usam o
                     mesmo `CARD_MUTED` do bloco inteiro. */}
                 <User className="size-3 shrink-0" />
-                {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
-                <span className="min-w-0 truncate uppercase">{row.guestName}</span>
+                {/* Nome do hóspede em Title Case — primeira letra de cada
+                    palavra maiúscula, EXCETO conectivos ("de", "da", "do",
+                    "dos", "das"...), que ficam minúsculos quando não são a
+                    primeira palavra (pedido explícito, 24/09/2026: "Fraia
+                    Moema da Silva", "Fernando de Noronha"). Antes era tudo
+                    maiúsculo; `titleCaseName` (já usado no formulário do
+                    hóspede) faz essa formatação. */}
+                <span className="min-w-0 truncate">{titleCaseName(row.guestName)}</span>
                 <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
                 <ExtraGuests guests={row.additionalGuests ?? []} />
               </span>

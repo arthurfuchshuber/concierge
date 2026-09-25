@@ -33,7 +33,8 @@ async function signGuestDocs<T extends { guest_documents: unknown }>(
   const urlMap = new Map<string, string>();
   const { data } = await supabaseAdmin.storage
     .from("guest-documents")
-    .createSignedUrls(allPaths, 60 * 60 * 24 * 7);
+    // Links curtos (15 min): quem perde o acesso não segue abrindo documentos.
+    .createSignedUrls(allPaths, 60 * 15);
   (data ?? []).forEach((entry, i) => {
     const p = allPaths[i];
     if (entry?.signedUrl && p) urlMap.set(p, entry.signedUrl);

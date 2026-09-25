@@ -1095,6 +1095,7 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
       note?: string | null;
       arrival_time_override?: string | null;
       arrival_date_override?: string | null;
+      arrival_time_source?: "staff";
       muted_until?: string | null;
     } = {
       property_id: propertyId,
@@ -1109,6 +1110,14 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
     if (typeof data.note !== "undefined") patch.note = data.note;
     if (typeof data.arrivalTimeOverride !== "undefined") patch.arrival_time_override = data.arrivalTimeOverride;
     if (typeof data.arrivalDateOverride !== "undefined") patch.arrival_date_override = data.arrivalDateOverride;
+    // Este editor é o do PAINEL (equipe) — toda vez que a equipe grava uma
+    // previsão aqui, marcamos a origem como "staff" em guest_arrival_status,
+    // pra distinguir de um horário que o próprio hóspede informou. Só essa
+    // origem pode destravar a faixa "Já acessei o Airbnb!" mais cedo (pedido
+    // explícito, 24/09/2026).
+    if (typeof data.arrivalTimeOverride !== "undefined" || typeof data.arrivalDateOverride !== "undefined") {
+      patch.arrival_time_source = "staff";
+    }
     if (typeof data.mutedUntil !== "undefined") patch.muted_until = data.mutedUntil;
 
 

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { guideUrl } from "@/lib/site-url";
+import { propertyTimeZone, todayInTZ } from "@/lib/property-timezone";
 
 const VehicleSchema = z.object({
   plate: z.string().trim().max(20).optional().nullable(),
@@ -89,6 +90,17 @@ function sanitizeGuestDocuments(
     const validPath = !!path && pathRe.test(path) && path.startsWith(`${propertyId}/`);
     return { ...d, file_url: null, file_path: validPath ? path : null };
   });
+}
+
+const STAY_ACCESS_PURPOSE = "guide-stay-access";
+
+/** Confere o comprovante do hóspede e devolve o id do registro dele. */
+async function stayLogFromToken(token: string | null | undefined, propertyId: string) {
+  if (!token) return null;
+  const { verifyGuestToken } = await import("@/lib/guest-access.server");
+  const pl = await verifyGuestToken<{ p: string; l: string; exp: number }>(STAY_ACCESS_PURPOSE, token);
+  if (!pl || pl.exp < Date.now() || pl.p !== propertyId) return null;
+  return pl.l;
 }
 
 export const recordGuideAccess = createServerFn({ method: "POST" })
@@ -255,6 +267,11 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
                 kind: "checkin",
                 arrival_date_override: arrivalOverride,
                 arrival_time_override: arrivalTimeOverride,
+                // Previsão informada pelo PRÓPRIO hóspede no formulário
+                // inicial (pedido explícito, 24/09/2026: nunca destrava a
+                // faixa "Já acessei o Airbnb!" mais cedo — só um horário
+                // gravado pela equipe pode fazer isso).
+                arrival_time_source: "guest",
               } as never,
               { onConflict: "log_id,kind" },
             ),
@@ -269,6 +286,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
                 kind: "checkout",
                 arrival_date_override: departureOverride,
                 arrival_time_override: departureTimeOverride,
+                arrival_time_source: "guest",
               } as never,
               { onConflict: "log_id,kind" },
             ),
@@ -293,8 +311,21 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     }
 
 
+    // Comprovante assinado de QUEM se identificou (liga o navegador ao
+    // registro criado agora) — exigido para marcar check-in/out e previsão.
+    let stay_token: string | null = null;
+    if (logId) {
+      const { signGuestToken } = await import("@/lib/guest-access.server");
+      stay_token = await signGuestToken(STAY_ACCESS_PURPOSE, {
+        p: prop.id,
+        l: logId,
+        exp: Date.now() + 120 * 24 * 3600 * 1000,
+      });
+    }
+
     return {
       ok: true as const,
+      stay_token,
       checkin_time: prop.checkin_time as string | null,
       checkin_date: data.checkin_date,
       checkout_date: data.checkout_date ?? null,
@@ -459,7 +490,15 @@ const StayStatusInput = z.object({
 export const getGuideStayStatus = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => StayStatusInput.parse(i))
   .handler(async ({ data }) => {
-    const empty = { checkinDone: false, checkoutDone: false, noShow: false };
+    const empty = {
+      checkinDone: false,
+      checkoutDone: false,
+      noShow: false,
+      predictedCheckinDate: null as string | null,
+      predictedCheckinTime: null as string | null,
+      cleaningBlocked: false,
+      cleaningBlockedReason: null as string | null,
+    };
     const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
     const { getRequest } = await import("@tanstack/react-start/server");
     if (!allowPublicRate(`guide-stay-status:${clientIpFrom(getRequest())}`, 60, 60_000))
@@ -467,7 +506,7 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const propQuery = supabaseAdmin
       .from("properties")
-      .select("id")
+      .select("id, city, country")
       .eq("slug", data.slug)
       .eq("published", true);
     const { data: prop } = data.property_id
@@ -516,19 +555,34 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
 
     const { data: statuses } = await supabaseAdmin
       .from("guest_arrival_status")
-      .select("kind, status, done_at, log_id, reservation_id")
+      .select(
+        "kind, status, done_at, log_id, reservation_id, arrival_date_override, arrival_time_override, arrival_time_source",
+      )
       .eq("property_id", prop.id)
       .limit(500);
 
     let checkinDone = false;
     let checkoutDone = false;
     let noShow = false;
+    // PREVISÃO DE CHEGADA JÁ INFORMADA PELA EQUIPE (pedido explícito,
+    // 24/09/2026, corrigido em seguida no mesmo dia): a faixa "Já acessei o
+    // Airbnb!" só pode destravar mais cedo com um horário gravado pela
+    // EQUIPE (`arrival_time_source === "staff"`, editor de Previsão do
+    // painel) — o que o PRÓPRIO hóspede informa (formulário inicial ou
+    // seletor no guia) NUNCA entra aqui, mesmo que exista. Sem isso não dava
+    // pra saber quem gravou por último: as duas origens escrevem nas mesmas
+    // colunas. `null` quando não há previsão da equipe gravada.
+    let predictedCheckinDate: string | null = null;
+    let predictedCheckinTime: string | null = null;
     for (const s of (statuses ?? []) as Array<{
       kind: string;
       status: string | null;
       done_at: string | null;
       log_id: string | null;
       reservation_id: string | null;
+      arrival_date_override: string | null;
+      arrival_time_override: string | null;
+      arrival_time_source: string | null;
     }>) {
       if (
         s.kind === "checkin" &&
@@ -542,18 +596,93 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
         (s.log_id && logIds.includes(s.log_id)) ||
         (s.reservation_id && resIds.includes(s.reservation_id));
       if (!belongs) continue;
+      if (
+        s.kind === "checkin" &&
+        s.arrival_time_source === "staff" &&
+        (s.arrival_date_override || s.arrival_time_override)
+      ) {
+        predictedCheckinDate = s.arrival_date_override;
+        predictedCheckinTime = s.arrival_time_override;
+      }
       const done = s.status === "done" || !!s.done_at;
       if (!done) continue;
       if (s.kind === "checkin") checkinDone = true;
       if (s.kind === "checkout") checkoutDone = true;
     }
-    return { checkinDone, checkoutDone, noShow };
+
+    // BLOQUEIO POR LIMPEZA/TURNOVER (pedido explícito, 24/09/2026, critério
+    // 1: "horário INICIAL PADRÃO de checkin quando NÃO HOUVER LIMPEZA
+    // bloqueando"): mesmo já tendo passado o horário de check-in (padrão ou
+    // da equipe), a faixa continua travada enquanto o IMÓVEL ainda não
+    // estiver pronto — ou seja, enquanto existir uma saída ANTERIOR (de
+    // outra estadia, não desta) já vencida (checkout_date de hoje ou antes,
+    // no fuso do imóvel) cujo turnover ainda não foi concluído
+    // (`concluded_at` nulo — o mesmo sinal que a Fila de Limpeza usa). É uma
+    // trava do imóvel, não desta reserva, por isso ignora as próprias linhas
+    // desta estadia (`stayLogIds`/`stayResIds`, já calculadas acima).
+    let cleaningBlocked = false;
+    let cleaningBlockedReason: string | null = null;
+    const { data: openTurnovers } = await supabaseAdmin
+      .from("guest_arrival_status")
+      .select("reservation_id, log_id")
+      .eq("property_id", prop.id)
+      .eq("kind", "checkout")
+      .is("concluded_at", null)
+      .limit(500);
+    const otherTurnovers = (
+      (openTurnovers ?? []) as Array<{ reservation_id: string | null; log_id: string | null }>
+    ).filter(
+      (r) =>
+        (r.reservation_id && !stayResIds.includes(r.reservation_id)) ||
+        (r.log_id && !stayLogIds.includes(r.log_id)),
+    );
+    if (otherTurnovers.length > 0) {
+      const otherResIds = otherTurnovers
+        .map((r) => r.reservation_id)
+        .filter((id): id is string => !!id);
+      const otherLogIds = otherTurnovers.map((r) => r.log_id).filter((id): id is string => !!id);
+      const [{ data: otherRes }, { data: otherLogs }] = await Promise.all([
+        otherResIds.length > 0
+          ? supabaseAdmin
+              .from("property_reservations")
+              .select("id, checkout_date")
+              .in("id", otherResIds)
+          : Promise.resolve({ data: [] as Array<{ id: string; checkout_date: string }> }),
+        otherLogIds.length > 0
+          ? supabaseAdmin.from("guide_access_logs").select("id, checkout_date").in("id", otherLogIds)
+          : Promise.resolve({ data: [] as Array<{ id: string; checkout_date: string | null }> }),
+      ]);
+      const tz = propertyTimeZone(prop.city as string | null, prop.country as string | null);
+      const today = todayInTZ(tz);
+      const checkoutDates = [
+        ...((otherRes ?? []) as Array<{ checkout_date: string }>).map((r) => r.checkout_date),
+        ...((otherLogs ?? []) as Array<{ checkout_date: string | null }>)
+          .map((l) => l.checkout_date)
+          .filter((d): d is string => !!d),
+      ];
+      if (checkoutDates.some((d) => d <= today)) {
+        cleaningBlocked = true;
+        cleaningBlockedReason =
+          "O imóvel ainda está em turnover (saída anterior não concluída) — aguarde a liberação para avisar sua chegada.";
+      }
+    }
+
+    return {
+      checkinDone,
+      checkoutDone,
+      noShow,
+      predictedCheckinDate,
+      predictedCheckinTime,
+      cleaningBlocked,
+      cleaningBlockedReason,
+    };
   });
 
 const MarkStepInput = StayStatusInput.extend({
   kind: z.enum(["checkin", "checkout"]),
   /** Código da reserva do hóspede — exigido nos guias com código (16/09/2026). */
   reservation_code: z.string().trim().max(40).optional().nullable(),
+  stay_token: z.string().max(2000).optional().nullable(),
 });
 
 /**
@@ -595,6 +724,10 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
       const res = await lookup(data.slug, prop.id as string, code);
       if (!res.ok || res.checkin_date !== data.checkin_date) return { ok: false as const };
     }
+    // Comprovante assinado emitido na identificação: só o próprio hóspede
+    // (o navegador que se identificou) consegue alterar o registro dele.
+    const tokenLogId = await stayLogFromToken(data.stay_token, prop.id as string);
+    if (!tokenLogId) return { ok: false as const, reason: "not_identified" as const };
 
     const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
     const guest = norm(guestNameRaw);
@@ -609,6 +742,7 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
     ).find((l) => {
       if (data.checkout_date && l.checkout_date && l.checkout_date !== data.checkout_date)
         return false;
+      if (l.id !== tokenLogId) return false;
       if (guest && l.guest_name && norm(l.guest_name) !== guest) return false;
       return true;
     });
@@ -870,6 +1004,7 @@ export const getReservationLiveStatus = createServerFn({ method: "POST" })
 const PredictedTimeInput = StayStatusInput.extend({
   kind: z.enum(["checkin", "checkout"]),
   reservation_code: z.string().trim().max(40).optional().nullable(),
+  stay_token: z.string().max(2000).optional().nullable(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
 });
@@ -908,6 +1043,10 @@ export const submitPredictedTime = createServerFn({ method: "POST" })
       const res = await lookup(data.slug, prop.id as string, code);
       if (!res.ok || res.checkin_date !== data.checkin_date) return { ok: false as const };
     }
+    // Comprovante assinado emitido na identificação: só o próprio hóspede
+    // (o navegador que se identificou) consegue alterar o registro dele.
+    const tokenLogId = await stayLogFromToken(data.stay_token, prop.id as string);
+    if (!tokenLogId) return { ok: false as const, reason: "not_identified" as const };
 
     const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
     const guest = norm(guestNameRaw);
@@ -927,6 +1066,7 @@ export const submitPredictedTime = createServerFn({ method: "POST" })
     ).find((l) => {
       if (data.checkout_date && l.checkout_date && l.checkout_date !== data.checkout_date)
         return false;
+      if (l.id !== tokenLogId) return false;
       if (guest && l.guest_name && norm(l.guest_name) !== guest) return false;
       return true;
     });
@@ -988,12 +1128,17 @@ export const submitPredictedTime = createServerFn({ method: "POST" })
       kind: "checkin" | "checkout";
       arrival_date_override: string;
       arrival_time_override: string;
+      arrival_time_source: "guest";
     } = {
       log_id: match.id,
       property_id: prop.id as string,
       kind: data.kind,
       arrival_date_override: data.date,
       arrival_time_override: data.time,
+      // Seletor do PRÓPRIO hóspede dentro do guia — mesma regra do
+      // formulário inicial (ver comentário lá): nunca destrava a faixa "Já
+      // acessei o Airbnb!" mais cedo, só um horário gravado pela equipe pode.
+      arrival_time_source: "guest",
     };
     if (reservation?.id) patch.reservation_id = reservation.id;
 

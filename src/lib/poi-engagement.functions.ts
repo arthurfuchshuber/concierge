@@ -27,12 +27,22 @@ const ReactionsInput = z.object({
   anon_id: z.string().trim().min(8).max(80),
 });
 
+/**
+ * O anon_id é um segredo aleatório do navegador. Guardamos só um resumo
+ * assinado dele: quem não tem o segredo original não lê nem apaga reações.
+ */
+async function anonKey(raw: string): Promise<string> {
+  const { anonDigest } = await import("@/lib/guest-pass.server");
+  return anonDigest(raw);
+}
+
 async function resolvePropertyId(slug: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin
     .from("properties")
     .select("id")
     .eq("slug", slug)
+    .eq("published", true)
     .maybeSingle();
   return (data?.id as string | null) ?? null;
 }
@@ -42,6 +52,7 @@ export const recordPoiEngagement = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const propertyId = await resolvePropertyId(data.slug);
     if (!propertyId) return { ok: false as const };
+    const anon = await anonKey(data.anon_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Reactions: like/dislike are mutually exclusive — clicking again toggles off.
@@ -53,7 +64,7 @@ export const recordPoiEngagement = createServerFn({ method: "POST" })
         .delete()
         .eq("property_id", propertyId)
         .eq("poi_key", data.poi_key)
-        .eq("anon_id", data.anon_id)
+        .eq("anon_id", anon)
         .eq("event_type", opposite);
       // Toggle: if same reaction exists, remove it; otherwise insert.
       const { data: existing } = await supabaseAdmin
@@ -61,7 +72,7 @@ export const recordPoiEngagement = createServerFn({ method: "POST" })
         .select("id")
         .eq("property_id", propertyId)
         .eq("poi_key", data.poi_key)
-        .eq("anon_id", data.anon_id)
+        .eq("anon_id", anon)
         .eq("event_type", data.event_type)
         .maybeSingle();
       if (existing?.id) {
@@ -73,7 +84,7 @@ export const recordPoiEngagement = createServerFn({ method: "POST" })
         poi_key: data.poi_key,
         poi_type: data.poi_type,
         event_type: data.event_type,
-        anon_id: data.anon_id,
+        anon_id: anon,
       });
       return { ok: true as const, state: "on" as const };
     }
@@ -87,7 +98,7 @@ export const recordPoiEngagement = createServerFn({ method: "POST" })
         .select("id")
         .eq("property_id", propertyId)
         .eq("poi_key", data.poi_key)
-        .eq("anon_id", data.anon_id)
+        .eq("anon_id", anon)
         .eq("event_type", "view")
         .gte("created_at", sinceMidnight.toISOString())
         .maybeSingle();
@@ -99,7 +110,7 @@ export const recordPoiEngagement = createServerFn({ method: "POST" })
       poi_key: data.poi_key,
       poi_type: data.poi_type,
       event_type: data.event_type,
-      anon_id: data.anon_id,
+      anon_id: anon,
     });
     return { ok: true as const, state: "on" as const };
   });
@@ -138,12 +149,13 @@ export const getMyPoiReactions = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const propertyId = await resolvePropertyId(data.slug);
     if (!propertyId) return { reactions: {} as Record<string, "like" | "dislike"> };
+    const anon = await anonKey(data.anon_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows } = await supabaseAdmin
       .from("poi_engagement_events")
       .select("poi_key,event_type")
       .eq("property_id", propertyId)
-      .eq("anon_id", data.anon_id)
+      .eq("anon_id", anon)
       .in("event_type", ["like", "dislike"]);
     const out: Record<string, "like" | "dislike"> = {};
     for (const r of rows ?? []) {

@@ -52,7 +52,6 @@ import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guid
 import { Route as ApiPublicGuideChatUploadRouteImport } from './routes/api/public/guide-chat-upload'
 import { Route as ApiPublicGuideTranscribeRouteImport } from './routes/api/public/guide-transcribe'
 import { Route as ApiPublicItineraryRouteImport } from './routes/api/public/itinerary'
-import { Route as ApiPublicLandingChatRouteImport } from './routes/api/public/landing-chat'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicVersionRouteImport } from './routes/api/public/version'
 import { Route as ApiPublicWebhookChannexReservasRouteImport } from './routes/api/public/webhook-channex-reservas'
@@ -326,11 +325,6 @@ const ApiPublicItineraryRoute = ApiPublicItineraryRouteImport.update({
   path: '/api/public/itinerary',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicLandingChatRoute = ApiPublicLandingChatRouteImport.update({
-  id: '/api/public/landing-chat',
-  path: '/api/public/landing-chat',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
   id: '/api/public/place-photo',
   path: '/api/public/place-photo',
@@ -592,7 +586,6 @@ export interface FileRoutesByFullPath {
   '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
   '/api/public/guide-transcribe': typeof ApiPublicGuideTranscribeRoute
   '/api/public/itinerary': typeof ApiPublicItineraryRoute
-  '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
   '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
@@ -672,7 +665,6 @@ export interface FileRoutesByTo {
   '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
   '/api/public/guide-transcribe': typeof ApiPublicGuideTranscribeRoute
   '/api/public/itinerary': typeof ApiPublicItineraryRoute
-  '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
   '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
@@ -757,7 +749,6 @@ export interface FileRoutesById {
   '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
   '/api/public/guide-transcribe': typeof ApiPublicGuideTranscribeRoute
   '/api/public/itinerary': typeof ApiPublicItineraryRoute
-  '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
   '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
@@ -842,7 +833,6 @@ export interface FileRouteTypes {
     | '/api/public/guide-chat-upload'
     | '/api/public/guide-transcribe'
     | '/api/public/itinerary'
-    | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/api/public/version'
     | '/api/public/webhook-channex-reservas'
@@ -922,7 +912,6 @@ export interface FileRouteTypes {
     | '/api/public/guide-chat-upload'
     | '/api/public/guide-transcribe'
     | '/api/public/itinerary'
-    | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/api/public/version'
     | '/api/public/webhook-channex-reservas'
@@ -1006,7 +995,6 @@ export interface FileRouteTypes {
     | '/api/public/guide-chat-upload'
     | '/api/public/guide-transcribe'
     | '/api/public/itinerary'
-    | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/api/public/version'
     | '/api/public/webhook-channex-reservas'
@@ -1075,7 +1063,6 @@ export interface RootRouteChildren {
   ApiPublicGuideChatUploadRoute: typeof ApiPublicGuideChatUploadRoute
   ApiPublicGuideTranscribeRoute: typeof ApiPublicGuideTranscribeRoute
   ApiPublicItineraryRoute: typeof ApiPublicItineraryRoute
-  ApiPublicLandingChatRoute: typeof ApiPublicLandingChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   ApiPublicVersionRoute: typeof ApiPublicVersionRoute
   ApiPublicWebhookChannexReservasRoute: typeof ApiPublicWebhookChannexReservasRoute
@@ -1404,13 +1391,6 @@ declare module '@tanstack/react-router' {
       path: '/api/public/itinerary'
       fullPath: '/api/public/itinerary'
       preLoaderRoute: typeof ApiPublicItineraryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/landing-chat': {
-      id: '/api/public/landing-chat'
-      path: '/api/public/landing-chat'
-      fullPath: '/api/public/landing-chat'
-      preLoaderRoute: typeof ApiPublicLandingChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/place-photo': {
@@ -1816,7 +1796,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicGuideChatUploadRoute: ApiPublicGuideChatUploadRoute,
   ApiPublicGuideTranscribeRoute: ApiPublicGuideTranscribeRoute,
   ApiPublicItineraryRoute: ApiPublicItineraryRoute,
-  ApiPublicLandingChatRoute: ApiPublicLandingChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   ApiPublicVersionRoute: ApiPublicVersionRoute,
   ApiPublicWebhookChannexReservasRoute: ApiPublicWebhookChannexReservasRoute,

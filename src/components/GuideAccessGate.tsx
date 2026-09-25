@@ -234,7 +234,11 @@ export function GuideAccessGate({
    * tela aparece; se ele fechar o navegador aqui, nada se perde. */
   const [pushStep, setPushStep] = useState<AccessRecord | null>(null);
   const [name, setName] = useState(prefill?.name ?? "");
+  gateIdentity.name = name;
   const [code, setCode] = useState(prefill?.code ?? "");
+  // Identidade digitada no 1º passo — usada para emitir o passe que libera
+  // a conferência do documento (25/09/2026).
+  gateIdentity.code = code;
   const [codeCheck, setCodeCheck] = useState<
     | { state: "idle" }
     | { state: "checking" }
@@ -627,6 +631,13 @@ export function GuideAccessGate({
               : null,
         },
       });
+      if (res.ok && "stay_token" in res && res.stay_token) {
+        try {
+          localStorage.setItem(`ci-stay:${slug}`, res.stay_token);
+        } catch {
+          /* sem armazenamento: segue */
+        }
+      }
       if (!res.ok) {
         toast.error(
           "reason" in res && res.reason === "no_match"
@@ -1520,6 +1531,9 @@ function QuestionBlock({
   );
 }
 
+/** Nome e código digitados no portão, lidos pelo envio de documento. */
+const gateIdentity: { name: string; code: string } = { name: "", code: "" };
+
 function DocUploadCard({
   slug,
   index,
@@ -1545,7 +1559,24 @@ function DocUploadCard({
       const fd = new FormData();
       fd.append("slug", slug);
       fd.append("file", file);
-      const res = await fetch("/api/public/guest-doc-upload", { method: "POST", body: fd });
+      const { ensureGuidePass } = await import("@/lib/guest-pass-client");
+      const pass = await ensureGuidePass(slug, {
+        name: gateIdentity.name || defaultName,
+        code: gateIdentity.code || null,
+      });
+      if (!pass) {
+        onUpdate({
+          uploading: false,
+          legible: false,
+          reason: "Não conseguimos confirmar sua identificação. Volte ao primeiro passo e confira seu nome e o código da reserva.",
+        });
+        return;
+      }
+      const res = await fetch("/api/public/guest-doc-upload", {
+        method: "POST",
+        body: fd,
+        headers: { "x-guest-pass": pass },
+      });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         toast.error(

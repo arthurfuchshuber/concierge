@@ -216,11 +216,17 @@ export function GuideAiChat({
       const id = m.id as string;
       translatingRef.current.add(id);
       try {
+        const { ensureGuidePass } = await import("@/lib/guest-pass-client");
+        const pass = await ensureGuidePass(slug, {
+          name: readAccessRecord(slug)?.name ?? null,
+          code: readAccessRecord(slug)?.code ?? null,
+        });
+        if (!pass) return;
         const r = await translateMessage({
           data: {
             text: m.content.slice(0, 2000),
             targetLang: myLang,
-            guest: sessionId ? { slug, sessionId } : null,
+            guest: sessionId ? { slug, sessionId, pass } : null,
           },
         });
         setAutoTranslated((p) => ({ ...p, [id]: r.translated }));
@@ -502,9 +508,14 @@ export function GuideAiChat({
           reader.onerror = () => reject(new Error("Não consegui ler o áudio gravado."));
           reader.readAsDataURL(audio.blob);
         });
+        const { ensureGuidePass } = await import("@/lib/guest-pass-client");
+        const tPass = await ensureGuidePass(slug, {
+          name: isPreviewMode() ? PREVIEW_GUEST_NAME : (guestName ?? readAccessRecord(slug)?.name ?? null),
+          code: readAccessRecord(slug)?.code ?? null,
+        });
         const res = await fetch("/api/public/guide-transcribe", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(tPass ? { "x-guest-pass": tPass } : {}) },
           body: JSON.stringify({ slug, sessionId, audioBase64: base64, mimeType: audio.mime }),
         });
         const data = (await res.json()) as { text?: string; error?: string };
@@ -566,9 +577,14 @@ export function GuideAiChat({
       const effectiveGuestName = isPreviewMode()
         ? PREVIEW_GUEST_NAME
         : (guestName ?? readAccessRecord(slug)?.name ?? undefined);
+      const { ensureGuidePass } = await import("@/lib/guest-pass-client");
+      const pass = await ensureGuidePass(slug, {
+        name: effectiveGuestName ?? null,
+        code: readAccessRecord(slug)?.code ?? null,
+      });
       const res = await fetch("/api/public/guide-chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(pass ? { "x-guest-pass": pass } : {}) },
         body: JSON.stringify({
           slug,
           sessionId,

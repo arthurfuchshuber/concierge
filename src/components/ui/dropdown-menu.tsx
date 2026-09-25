@@ -66,7 +66,9 @@ const DropdownMenuSubContent = React.forwardRef<
   <DropdownMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      "z-50 min-w-[8rem] overflow-hidden rounded-[0.3rem] border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-dropdown-menu-content-transform-origin)",
+      // z-[60]: acima do véu global (`GlobalOverlayScrim`, z-[55]) — mesma
+      // correção do Popover (ver comentário em `DropdownMenuContent` abaixo).
+      "z-[60] min-w-[8rem] overflow-hidden rounded-[0.3rem] border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-dropdown-menu-content-transform-origin)",
       className,
     )}
     {...props}
@@ -93,7 +95,13 @@ const DropdownMenuContent = React.forwardRef<
         // que o Radix já calcula. `sg-elegant-scroll`: barra de rolagem fina,
         // visível e na cor da marca (em vez da nativa, que some sozinha em
         // alguns navegadores/SOs — pedido explícito: "elegante e visível").
-        "sg-elegant-scroll z-50 max-h-[min(75dvh,var(--radix-dropdown-menu-content-available-height))] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-[0.3rem] border bg-popover p-1 text-popover-foreground shadow-md",
+        // z-[60]: acima do véu global (`GlobalOverlayScrim`, z-[55]) e do
+        // overlay de Dialog (z-50) — corrigido no mesmo pedido do desfoque:
+        // um DropdownMenu aberto dentro de um Dialog já aberto precisa
+        // continuar nítido POR CIMA do véu que agora também cobre o
+        // conteúdo do Dialog (antes o véu ficava em z-40, abaixo do Dialog,
+        // e nunca aparecia nesse caso).
+        "sg-elegant-scroll z-[60] max-h-[min(75dvh,var(--radix-dropdown-menu-content-available-height))] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-[0.3rem] border bg-popover p-1 text-popover-foreground shadow-md",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-dropdown-menu-content-transform-origin)",
         className,
       )}

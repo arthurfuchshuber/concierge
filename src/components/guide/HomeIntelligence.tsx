@@ -21,6 +21,7 @@ import {
   Sun,
 } from "lucide-react";
 import { getDailyTip, type DailyTip } from "@/lib/daily-tip.functions";
+import { ensureGuidePass } from "@/lib/guest-pass-client";
 import { getLiveWeather, type LiveWeather } from "@/lib/live-weather.functions";
 
 type Lang = "pt" | "en" | "es" | "fr";
@@ -172,12 +173,17 @@ function chipsForCity(city: string | null): ChipDef[] {
 
 export function HomeIntelligence({
   propertyId,
+  slug,
+  reservationCode,
+  guestName,
   city,
   lang,
   theme,
   checkinDate,
 }: {
   propertyId: string;
+  slug?: string;
+  reservationCode?: string | null;
   city: string | null;
   country: string | null;
   lang: Lang;
@@ -196,7 +202,8 @@ export function HomeIntelligence({
   // Dica do dia (IA, cacheada por dia).
   useEffect(() => {
     let alive = true;
-    dailyFn({ data: { propertyId, lang } })
+    (slug ? ensureGuidePass(slug, { name: guestName, code: reservationCode }) : Promise.resolve(null))
+      .then((pass) => dailyFn({ data: { propertyId, lang, pass } }))
       .then((r) => alive && setTip(r))
       .catch(() => {})
       .finally(() => alive && setLoading(false));

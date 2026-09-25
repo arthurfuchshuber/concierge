@@ -451,6 +451,31 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           });
         }
 
+        // PASSE DE IDENTIFICAÇÃO (25/09/2026): a IA só responde a hóspede
+        // identificado no guia — o passe é assinado pelo servidor.
+        {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data: passProp } = await supabaseAdmin
+            .from("properties")
+            .select("id")
+            .eq("slug", body.slug)
+            .eq("published", true)
+            .maybeSingle();
+          const { verifyGuestPassInfo } = await import("@/lib/guest-pass.server");
+          const info = passProp ? verifyGuestPassInfo(request.headers.get("x-guest-pass"), `guide:${passProp.id}`) : null;
+          // IA paga só com reserva conferida por código (25/09/2026).
+          if (!info || !info.verified) {
+            return new Response(
+              JSON.stringify({
+                error: "Para conversar com a IA, informe o código da sua reserva na identificação do guia.",
+                needsPass: true,
+              }),
+              { status: 401, headers: { "Content-Type": "application/json" } },
+            );
+          }
+          if (!body.guestName) body.guestName = info.name;
+        }
+
         // Rate limit checks
         // IP pelo helper comum: prioriza `cf-connecting-ip`. O primeiro item do
         // `x-forwarded-for` é escolhido pelo próprio cliente e anulava o limite.

@@ -71,5 +71,45 @@ export const submitLandingLead = createServerFn({ method: "POST" })
       console.error("[landing-lead] falha ao enviar aviso por e-mail", e);
     }
 
-    return { ok: true as const };
+    // O chat de vendas só libera depois que o visitante confirma o e-mail com
+    // um código de 6 dígitos (25/09/2026).
+    const { signGuestPass, codeDigest } = await import("@/lib/guest-pass.server");
+    const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, "0");
+    let codeSent = false;
+    try {
+      const { sendAppEmail } = await import("@/lib/email/send-app-email.server");
+      const r = await sendAppEmail({
+        templateName: "landing-code",
+        recipientEmail: data.email,
+        idempotencyKey: `landing-code-${inserted.id}`,
+        templateData: { name: data.name, code },
+      });
+      codeSent = r.ok;
+    } catch (e) {
+      console.error("[landing-lead] falha ao enviar código", e);
+    }
+    const challenge = codeSent
+      ? signGuestPass(`landing-otp:${codeDigest(code)}`, data.name, 30 / 1440)
+      : null;
+    return { ok: true as const, challenge };
+  });
+
+const codeSchema = z.object({
+  challenge: z.string().min(10).max(1000),
+  code: z.string().trim().regex(/^\d{6}$/),
+});
+
+/** Confere o código enviado por e-mail e libera o chat de vendas. */
+export const verifyLandingCode = createServerFn({ method: "POST" })
+  .inputValidator((input: z.input<typeof codeSchema>) => codeSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`landing-code:${clientIpFrom(getRequest())}`, 8, 10 * 60_000)) {
+      throw new Error("Muitas tentativas. Aguarde alguns minutos e tente de novo.");
+    }
+    const { verifyGuestPass, signGuestPass, codeDigest } = await import("@/lib/guest-pass.server");
+    const name = verifyGuestPass(data.challenge, `landing-otp:${codeDigest(data.code)}`);
+    if (!name) throw new Error("Código incorreto ou expirado. Confira o e-mail e tente de novo.");
+    return { pass: signGuestPass("landing", name, 7) };
   });

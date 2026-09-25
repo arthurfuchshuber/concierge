@@ -113,6 +113,18 @@ export const Route = createFileRoute("/api/public/guest-doc-upload")({
           return new Response(JSON.stringify({ error: "not_found" }), { status: 404 });
         }
 
+        // PASSE DE IDENTIFICAÇÃO (25/09/2026): só hóspede identificado aciona
+        // a conferência paga do documento.
+        const { verifyGuestPassInfo, GUEST_PASS_MISSING } = await import("@/lib/guest-pass.server");
+        const passInfo = verifyGuestPassInfo(
+          request.headers.get("x-guest-pass"),
+          `guide:${(prop as { id: string }).id}`,
+        );
+        // Só hóspede com código de reserva ativo conferido na 1ª etapa envia documento.
+        if (!passInfo || !passInfo.verified) {
+          return new Response(JSON.stringify({ error: "needs_pass", message: GUEST_PASS_MISSING }), { status: 401 });
+        }
+
         // Guia com PIN: só quem já provou o PIN envia documento (cookie assinado).
         const p = prop as { id: string; access_mode?: string | null; pin_code?: string | null };
         if (p.access_mode === "pin") {
@@ -154,7 +166,8 @@ export const Route = createFileRoute("/api/public/guest-doc-upload")({
           return new Response(JSON.stringify({ error: "upload_failed" }), { status: 500 });
         }
 
-        // Legibility check apenas para imagens.
+        // Checagem paga por IA só para hóspede com código de reserva conferido
+        // (25/09/2026). Os demais enviam o documento sem a checagem de nitidez.
         let legibility = { legible: true, reason: "" };
         if (mime.startsWith("image/") && mime !== "image/heic" && mime !== "image/heif") {
           let bin = "";

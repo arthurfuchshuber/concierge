@@ -1,3 +1,4 @@
+import { readStayToken } from "@/lib/stay-token-client";
 import { createFileRoute, notFound, redirect, Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -727,9 +728,29 @@ function Guide({ data }: { data: GuideOk }) {
   const [checkinConfirmado, setCheckinConfirmado] = useState(false);
   const [checkoutConcluded, setCheckoutConcluded] = useState(false);
   // Status marcado pelo ANFITRIÃO no Kanban da Operação (fonte compartilhada).
-  const [hostStatus, setHostStatus] = useState<{ checkinDone: boolean; checkoutDone: boolean }>({
+  const [hostStatus, setHostStatus] = useState<{
+    checkinDone: boolean;
+    checkoutDone: boolean;
+    /** Previsão de chegada gravada pela EQUIPE (editor de Previsão do
+     * painel) — pedido explícito, 24/09/2026, corrigido no mesmo dia: só
+     * essa origem pode antecipar a liberação da faixa "Já acessei o
+     * Airbnb!"; o que o PRÓPRIO hóspede informa nunca entra aqui (o
+     * servidor já filtra por `arrival_time_source === "staff"`).
+     * `null` = equipe não gravou nenhuma previsão; usa o horário padrão do
+     * imóvel. */
+    predictedCheckinDate: string | null;
+    predictedCheckinTime: string | null;
+    /** Turnover (saída anterior) ainda não concluído no imóvel — trava a
+     * faixa de check-in independente de qualquer horário (critério 1). */
+    cleaningBlocked: boolean;
+    cleaningBlockedReason: string | null;
+  }>({
     checkinDone: false,
     checkoutDone: false,
+    predictedCheckinDate: null,
+    predictedCheckinTime: null,
+    cleaningBlocked: false,
+    cleaningBlockedReason: null,
   });
   // Só depois da 1ª resposta do servidor as barras de "Já acessei"/"Já saí"
   // podem aparecer — senão elas piscariam para quem já teve o card marcado.
@@ -763,7 +784,14 @@ function Guide({ data }: { data: GuideOk }) {
           toast.error(NO_SHOW_MESSAGE);
           return;
         }
-        setHostStatus({ checkinDone: !!res.checkinDone, checkoutDone: !!res.checkoutDone });
+        setHostStatus({
+          checkinDone: !!res.checkinDone,
+          checkoutDone: !!res.checkoutDone,
+          predictedCheckinDate: ("predictedCheckinDate" in res && res.predictedCheckinDate) || null,
+          predictedCheckinTime: ("predictedCheckinTime" in res && res.predictedCheckinTime) || null,
+          cleaningBlocked: ("cleaningBlocked" in res && !!res.cleaningBlocked) || false,
+          cleaningBlockedReason: ("cleaningBlockedReason" in res && res.cleaningBlockedReason) || null,
+        });
         setStayStatusReady(true);
       } catch {
         /* offline: mantém o último estado conhecido */
@@ -849,6 +877,7 @@ function Guide({ data }: { data: GuideOk }) {
             checkin_date: accessRec.checkinDate,
             checkout_date: accessRec?.checkoutDate ?? null,
             reservation_code: accessRec?.code ?? null,
+            stay_token: readStayToken(slug),
           },
         });
         if (!r.ok) {
@@ -1046,6 +1075,76 @@ function Guide({ data }: { data: GuideOk }) {
         ? "checkin"
         : null;
   const stayBarPhase: StayBarPhase = stayBar ? stayBar.phase : "idle";
+
+  // TRAVA da faixa "Já acessei o Airbnb!" (pedido explícito, 24/09/2026,
+  // corrigido no mesmo dia com 3 critérios explícitos). A faixa continua
+  // sempre visível desde o dia do check-in (regra de cima, inalterada); só
+  // o TOQUE fica bloqueado, com o motivo aparecendo ao tentar, enquanto:
+  //   1. Não passou o horário INICIAL PADRÃO de check-in do imóvel — a
+  //      menos que haja LIMPEZA/turnover travando, que manda mais que
+  //      qualquer horário e trava independente da hora;
+  //   2. Havendo um horário gravado pela EQUIPE (nunca pelo hóspede — ver
+  //      critério 3) que seja ANTERIOR ao padrão, e também sem limpeza
+  //      travando, é ELE quem libera mais cedo;
+  //   3. O horário que o PRÓPRIO HÓSPEDE informou NUNCA entra nesta conta —
+  //      só os dois critérios acima. `hostStatus.predictedCheckin*` já vem
+  //      filtrado pelo servidor (`arrival_time_source === "staff"`), então
+  //      aqui não precisa (nem pode) checar a origem de novo.
+  const checkinLockReason: string | null = (() => {
+    if (stayBarKind !== "checkin") return null;
+
+    // Critério 1 (parte limpeza): trava por turnover não concluído — manda
+    // mais que qualquer horário, verificado antes de tudo.
+    if (hostStatus.cleaningBlocked) {
+      return (
+        hostStatus.cleaningBlockedReason ??
+        "O imóvel ainda está em turnover — aguarde a liberação para avisar sua chegada."
+      );
+    }
+
+    const checkinDate = accessRec?.checkinDate || null;
+    const standardTimeRaw = p.checkin_time as string | null;
+    if (!checkinDate || !standardTimeRaw) return null;
+    const stdMatch = String(standardTimeRaw).match(/^(\d{1,2}):(\d{2})/);
+    if (!stdMatch) return null;
+    const [sy, smo, sd] = checkinDate.split("-").map(Number);
+    if (!sy || !smo || !sd) return null;
+
+    // Critério 1: horário padrão do imóvel — ponto de partida.
+    let gateTs = zonedTimeToUtc(
+      sy,
+      smo,
+      sd,
+      Number(stdMatch[1]),
+      Number(stdMatch[2]),
+      guideTz,
+    ).getTime();
+    let gateLabel = `${stdMatch[1].padStart(2, "0")}h${stdMatch[2]}`;
+
+    // Critério 2: só antecipa se for da EQUIPE e ANTERIOR ao padrão.
+    if (hostStatus.predictedCheckinTime) {
+      const staffMatch = String(hostStatus.predictedCheckinTime).match(/^(\d{1,2}):(\d{2})/);
+      const staffDateStr = hostStatus.predictedCheckinDate || checkinDate;
+      const [py, pmo, pd] = staffDateStr.split("-").map(Number);
+      if (staffMatch && py && pmo && pd) {
+        const staffGateTs = zonedTimeToUtc(
+          py,
+          pmo,
+          pd,
+          Number(staffMatch[1]),
+          Number(staffMatch[2]),
+          guideTz,
+        ).getTime();
+        if (staffGateTs < gateTs) {
+          gateTs = staffGateTs;
+          gateLabel = `${staffMatch[1].padStart(2, "0")}h${staffMatch[2]}`;
+        }
+      }
+    }
+
+    if (clockTick >= gateTs) return null;
+    return `Ainda não deu ${gateLabel} — horário previsto da sua chegada. Você poderá avisar a partir daí.`;
+  })();
 
   // Instruções de check-out abrem SOZINHAS à 00:00 do dia da saída (ou na 1ª
   // vez que o hóspede abrir o guia depois disso) — uma vez só por reserva.
@@ -1469,7 +1568,15 @@ function Guide({ data }: { data: GuideOk }) {
               phase={stayBarPhase}
               theme={theme === "light" ? "light" : "dark"}
               undoMs={stayBar ? Math.max(0, stayBar.until - Date.now()) : undefined}
-              onTap={() => void markStay(stayBarKind)}
+              locked={!!checkinLockReason}
+              lockedReason={checkinLockReason ?? undefined}
+              onTap={() => {
+                if (checkinLockReason) {
+                  toast.error(checkinLockReason);
+                  return;
+                }
+                void markStay(stayBarKind);
+              }}
               onUndo={() => void undoStay()}
               aboveNav={guideNavItems.length > 1}
             />
@@ -1792,6 +1899,8 @@ function Guide({ data }: { data: GuideOk }) {
               {accessRec && (
                 <HomeIntelligence
                   propertyId={p.id as string}
+                  slug={p.slug as string}
+                  reservationCode={accessRec?.code ?? null}
                   city={(p.city as string | null) ?? null}
                   country={(p.country as string | null) ?? null}
                   lang={lang as "pt" | "en" | "es" | "fr"}
@@ -2737,7 +2846,15 @@ function Guide({ data }: { data: GuideOk }) {
           phase={stayBarPhase}
           theme={theme === "light" ? "light" : "dark"}
           undoMs={stayBar ? Math.max(0, stayBar.until - Date.now()) : undefined}
-          onTap={() => void markStay(stayBarKind)}
+          locked={!!checkinLockReason}
+          lockedReason={checkinLockReason ?? undefined}
+          onTap={() => {
+            if (checkinLockReason) {
+              toast.error(checkinLockReason);
+              return;
+            }
+            void markStay(stayBarKind);
+          }}
           onUndo={() => void undoStay()}
           aboveNav={guideNavItems.length > 1}
         />

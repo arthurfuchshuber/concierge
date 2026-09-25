@@ -2517,6 +2517,7 @@ export type Database = {
         Row: {
           arrival_date_override: string | null
           arrival_time_override: string | null
+          arrival_time_source: string | null
           cleaning_approval_at: string | null
           cleaning_approval_by: string | null
           cleaning_approval_status: string | null
@@ -2540,6 +2541,7 @@ export type Database = {
         Insert: {
           arrival_date_override?: string | null
           arrival_time_override?: string | null
+          arrival_time_source?: string | null
           cleaning_approval_at?: string | null
           cleaning_approval_by?: string | null
           cleaning_approval_status?: string | null
@@ -2563,6 +2565,7 @@ export type Database = {
         Update: {
           arrival_date_override?: string | null
           arrival_time_override?: string | null
+          arrival_time_source?: string | null
           cleaning_approval_at?: string | null
           cleaning_approval_by?: string | null
           cleaning_approval_status?: string | null
@@ -5505,6 +5508,7 @@ export type Database = {
       tasks: {
         Row: {
           account_owner_id: string
+          amount_paid_cents: number | null
           amount_spent_cents: number | null
           category: string
           completed_at: string | null
@@ -5517,6 +5521,8 @@ export type Database = {
           id: string
           log_id: string | null
           owner_contact_id: string | null
+          paid_by: string | null
+          paid_by_id: string | null
           priority: string
           property_id: string | null
           recurrence_days: number | null
@@ -5530,6 +5536,7 @@ export type Database = {
         }
         Insert: {
           account_owner_id: string
+          amount_paid_cents?: number | null
           amount_spent_cents?: number | null
           category?: string
           completed_at?: string | null
@@ -5542,6 +5549,8 @@ export type Database = {
           id?: string
           log_id?: string | null
           owner_contact_id?: string | null
+          paid_by?: string | null
+          paid_by_id?: string | null
           priority?: string
           property_id?: string | null
           recurrence_days?: number | null
@@ -5555,6 +5564,7 @@ export type Database = {
         }
         Update: {
           account_owner_id?: string
+          amount_paid_cents?: number | null
           amount_spent_cents?: number | null
           category?: string
           completed_at?: string | null
@@ -5567,6 +5577,8 @@ export type Database = {
           id?: string
           log_id?: string | null
           owner_contact_id?: string | null
+          paid_by?: string | null
+          paid_by_id?: string | null
           priority?: string
           property_id?: string | null
           recurrence_days?: number | null
@@ -5778,6 +5790,7 @@ export type Database = {
         Args: { _owner_id: string; _property_id: string; _user_id: string }
         Returns: boolean
       }
+      place_photo_known: { Args: { _name: string }; Returns: boolean }
       property_is_published: {
         Args: { _property_id: string }
         Returns: boolean

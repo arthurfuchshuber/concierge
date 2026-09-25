@@ -128,6 +128,9 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     const ownerId = (propRow?.owner_id as string | undefined) ?? undefined;
     const propertySlug = (propRow?.slug as string | undefined) ?? null;
     if (!ownerId) throw new Error("Propriedade sem dono");
+    // Só o titular ou membro com permissão explícita de responder envia em nome da conta.
+    const { requireMemberPermission } = await import("@/lib/member-permissions.server");
+    await requireMemberPermission(supabase, userId, ownerId, "chat_respond");
 
     // Resolve the guest phone for THIS conversation specifically.
     // Never fall back to "most recent log for the property" — that could address
