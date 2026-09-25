@@ -298,13 +298,6 @@ export function Hero() {
             </span>
           </p>
 
-          <p className="mt-4 max-w-[680px] text-[14px] leading-relaxed text-[#8f8981] lg:text-[15px]">
-            ConciergeIA é uma plataforma de software (SaaS) por assinatura, acessada pelo navegador.
-            Todo o atendimento ao hóspede é feito automaticamente pelo aplicativo, com inteligência
-            artificial — não é um serviço de concierge prestado por pessoas.
-          </p>
-
-          <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:gap-4 lg:mt-10">
             <a
               href="#contato"
               className="inline-flex h-14 items-center justify-center gap-2.5 rounded-[14px] bg-[linear-gradient(100deg,#8b2be2,#e82dae)] px-6 text-[16px] font-bold whitespace-nowrap text-white shadow-[0_12px_40px_-12px_rgba(232,45,174,0.7)] transition-transform duration-200 hover:-translate-y-0.5 sm:w-[272px]"
