@@ -566,9 +566,14 @@ export function GuideAiChat({
       const effectiveGuestName = isPreviewMode()
         ? PREVIEW_GUEST_NAME
         : (guestName ?? readAccessRecord(slug)?.name ?? undefined);
+      const { ensureGuidePass } = await import("@/lib/guest-pass-client");
+      const pass = await ensureGuidePass(slug, {
+        name: effectiveGuestName ?? null,
+        code: readAccessRecord(slug)?.code ?? null,
+      });
       const res = await fetch("/api/public/guide-chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(pass ? { "x-guest-pass": pass } : {}) },
         body: JSON.stringify({
           slug,
           sessionId,

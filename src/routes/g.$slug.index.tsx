@@ -1792,6 +1792,8 @@ function Guide({ data }: { data: GuideOk }) {
               {accessRec && (
                 <HomeIntelligence
                   propertyId={p.id as string}
+                  slug={p.slug as string}
+                  reservationCode={accessRec?.code ?? null}
                   city={(p.city as string | null) ?? null}
                   country={(p.country as string | null) ?? null}
                   lang={lang as "pt" | "en" | "es" | "fr"}
