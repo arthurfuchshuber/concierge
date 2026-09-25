@@ -70,8 +70,9 @@ async function isKnownGuest(guest: {
     .maybeSingle();
   if (!prop) return false;
   // Só hóspede identificado no guia (passe assinado pelo servidor) usa a IA paga.
-  const { verifyGuestPass } = await import("@/lib/guest-pass.server");
-  if (!verifyGuestPass(guest.pass, `guide:${(prop as { id: string }).id}`)) return false;
+  const { verifyGuestPassInfo } = await import("@/lib/guest-pass.server");
+  const info = verifyGuestPassInfo(guest.pass, `guide:${(prop as { id: string }).id}`);
+  if (!info || !info.verified) return false;
   const { data: conv } = await supabaseAdmin
     .from("property_chat_conversations")
     .select("id")
