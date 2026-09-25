@@ -5505,6 +5505,7 @@ export type Database = {
       tasks: {
         Row: {
           account_owner_id: string
+          amount_paid_cents: number | null
           amount_spent_cents: number | null
           category: string
           completed_at: string | null
@@ -5517,6 +5518,8 @@ export type Database = {
           id: string
           log_id: string | null
           owner_contact_id: string | null
+          paid_by: string | null
+          paid_by_id: string | null
           priority: string
           property_id: string | null
           recurrence_days: number | null
@@ -5530,6 +5533,7 @@ export type Database = {
         }
         Insert: {
           account_owner_id: string
+          amount_paid_cents?: number | null
           amount_spent_cents?: number | null
           category?: string
           completed_at?: string | null
@@ -5542,6 +5546,8 @@ export type Database = {
           id?: string
           log_id?: string | null
           owner_contact_id?: string | null
+          paid_by?: string | null
+          paid_by_id?: string | null
           priority?: string
           property_id?: string | null
           recurrence_days?: number | null
@@ -5555,6 +5561,7 @@ export type Database = {
         }
         Update: {
           account_owner_id?: string
+          amount_paid_cents?: number | null
           amount_spent_cents?: number | null
           category?: string
           completed_at?: string | null
@@ -5567,6 +5574,8 @@ export type Database = {
           id?: string
           log_id?: string | null
           owner_contact_id?: string | null
+          paid_by?: string | null
+          paid_by_id?: string | null
           priority?: string
           property_id?: string | null
           recurrence_days?: number | null
