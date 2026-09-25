@@ -581,7 +581,10 @@ export const createRecordSituation = createServerFn({ method: "POST" })
     // primeira é a principal — o texto e a pendência moram nela.
     const rows =
       data.media.length === 0
-        ? [{ ...base, id: groupId, kind: "note", body }]
+        ? // Só mídia a caminho e sem texto: a principal nasce com corpo vazio
+          // ("" e não null) para respeitar a regra do banco que exige
+          // arquivo ou texto — as mídias entram logo depois no mesmo grupo.
+          [{ ...base, id: groupId, kind: "note", body: body ?? "" }]
         : data.media.map((m, i) => ({
             ...base,
             ...(i === 0 ? { id: groupId, body } : { body: null }),
