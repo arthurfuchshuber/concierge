@@ -173,6 +173,9 @@ function chipsForCity(city: string | null): ChipDef[] {
 
 export function HomeIntelligence({
   propertyId,
+  slug,
+  reservationCode,
+  guestName,
   city,
   lang,
   theme,
