@@ -1,3 +1,4 @@
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -33,12 +34,12 @@ export function PendingInviteDialog() {
 
   const accept = useMutation({
     mutationFn: (id: string) => acceptFn({ data: { inviteId: id } }),
-    onError: (e: Error) => setErrorMsg(e.message),
+    onError: (e: Error) => setErrorMsg(friendlyErrorMessage(e)),
     onSuccess: invalidateAll,
   });
   const decline = useMutation({
     mutationFn: (id: string) => declineFn({ data: { inviteId: id } }),
-    onError: (e: Error) => setErrorMsg(e.message),
+    onError: (e: Error) => setErrorMsg(friendlyErrorMessage(e)),
     onSuccess: invalidateAll,
   });
 

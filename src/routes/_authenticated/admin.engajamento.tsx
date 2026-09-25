@@ -1,3 +1,4 @@
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { createFileRoute, redirect, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -71,7 +72,7 @@ export const Route = createFileRoute("/_authenticated/admin/engajamento")({
     <div className="p-6 max-w-md mx-auto text-center space-y-2">
       <p className="text-sm font-medium">Falha ao carregar engajamento</p>
       <p className="text-xs text-muted-foreground">
-        {error instanceof Error ? error.message : "Erro desconhecido"}
+        {friendlyErrorMessage(error)}
       </p>
     </div>
   ),

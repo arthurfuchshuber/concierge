@@ -1151,7 +1151,7 @@ function PropertyEditor() {
         })();
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao enriquecer");
+      toast.error(friendlyErrorMessage(e, "Erro ao enriquecer"));
     } finally {
       setEnriching(false);
     }
@@ -1268,7 +1268,7 @@ function PropertyEditor() {
         }
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao gerar recomendações da cidade");
+      toast.error(friendlyErrorMessage(e, "Erro ao gerar recomendações da cidade"));
     } finally {
       setGeneratingCityRecs(false);
     }
@@ -1329,7 +1329,7 @@ function PropertyEditor() {
       if (r.house_rules || r.cancellation_policy || r.safety_info) bits.push("O que você deve saber");
       toast.success(bits.length ? `Importado: ${bits.join(" · ")}` : "Importado");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao importar");
+      toast.error(friendlyErrorMessage(e, "Erro ao importar"));
     } finally {
       setImportingAirbnb(false);
     }
@@ -1363,7 +1363,7 @@ function PropertyEditor() {
       await reservationsQuery.refetch();
       queryClient.invalidateQueries({ queryKey: ["property", id] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao sincronizar");
+      toast.error(friendlyErrorMessage(e, "Falha ao sincronizar"));
     } finally {
       setSyncingIcal(false);
     }
@@ -1569,7 +1569,7 @@ function PropertyEditor() {
           search: search.returnTo ? { returnTo: search.returnTo } : undefined,
         });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Erro ao salvar";
+      const msg = friendlyErrorMessage(e, "Erro ao salvar");
       if (!silent) toast.error(msg);
       else {
         console.warn("[autosave] guia", e);
@@ -1626,7 +1626,7 @@ function PropertyEditor() {
         setAutoSaveError(null);
       } catch (e) {
         console.warn("[autosave] recs", e);
-        setAutoSaveError(e instanceof Error ? e.message : "Erro ao salvar");
+        setAutoSaveError(friendlyErrorMessage(e, "Erro ao salvar"));
       } finally {
         setAutoSaving(false);
       }
@@ -4617,7 +4617,7 @@ function ManualItemImages({
       }
       onChange([...images, ...added]);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro no upload");
+      toast.error(friendlyErrorMessage(e, "Erro no upload"));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -4931,7 +4931,7 @@ function CityRefsGroup({
       map.delete(id);
       updateFn({ data: { id, patch } })
         .then(() => invalidate())
-        .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao salvar alteração"));
+        .catch((e) => toast.error(friendlyErrorMessage(e, "Erro ao salvar alteração")));
     }, 700);
     map.set(id, t);
   }
