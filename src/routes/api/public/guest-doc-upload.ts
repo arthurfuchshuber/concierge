@@ -113,6 +113,15 @@ export const Route = createFileRoute("/api/public/guest-doc-upload")({
           return new Response(JSON.stringify({ error: "not_found" }), { status: 404 });
         }
 
+        // PASSE DE IDENTIFICAÇÃO (25/09/2026): só hóspede identificado aciona
+        // a conferência paga do documento.
+        {
+          const { verifyGuestPass, GUEST_PASS_MISSING } = await import("@/lib/guest-pass.server");
+          if (!verifyGuestPass(request.headers.get("x-guest-pass"), `guide:${(prop as { id: string }).id}`)) {
+            return new Response(JSON.stringify({ error: "needs_pass", message: GUEST_PASS_MISSING }), { status: 401 });
+          }
+        }
+
         // Guia com PIN: só quem já provou o PIN envia documento (cookie assinado).
         const p = prop as { id: string; access_mode?: string | null; pin_code?: string | null };
         if (p.access_mode === "pin") {
