@@ -108,6 +108,17 @@
   --panel-div: oklch(0.22 0.02 60 / 0.08);
   --panel-well: oklch(0.22 0.02 60 / 0.045);
   --panel-hair: linear-gradient(90deg, transparent, oklch(0.6 0.14 60 / 0.45), transparent);
+
+  /* Grade do "Calendário de ocupação" (pedido explícito, 25/09/2026) —
+   * tokens PRÓPRIOS, sem reaproveitar `--border`: esse token é usado em
+   * praticamente todo o resto do app, então mexer nele pra ajustar só a
+   * intensidade da grade mudaria bordas de outros componentes sem querer.
+   * `-v` = linha vertical por dia, `-h` = linha horizontal por imóvel
+   * (mais discreta). Ajustado (25/09) pra ficar um pouco mais forte do
+   * que o valor inicial (pedido explícito: "aumente, pouca coisa").
+   */
+  --grid-line-v: oklch(0.22 0.02 60 / 0.16);
+  --grid-line-h: oklch(0.22 0.02 60 / 0.1);
 }
 
 .dark {
@@ -166,6 +177,16 @@
   --panel-div: rgba(255, 255, 255, 0.065);
   --panel-well: rgba(255, 255, 255, 0.045);
   --panel-hair: linear-gradient(90deg, transparent, oklch(0.78 0.1 75 / 0.55), transparent);
+
+  /* Grade do "Calendário de ocupação" — ver comentário no `:root` acima.
+   * BRANCA (pedido explícito, 25/09/2026: "as linhas verticais implementadas
+   * no mockup são brancas, e você implementou linhas pretas" — o mockup
+   * aprovado usava sempre branco 100%, então aqui não reaproveitamos
+   * `--border` (que é branco só a 7%, e pra alguns temas escuros pode
+   * confundir com preto). Um pouco mais forte que o mockup original
+   * (pedido explícito: "aumente, pouca coisa"). */
+  --grid-line-v: rgba(255, 255, 255, 0.13);
+  --grid-line-h: rgba(255, 255, 255, 0.08);
 
   --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.4), 0 4px 16px oklch(0 0 0 / 0.3);
   --shadow-elevated: 0 8px 32px oklch(0 0 0 / 0.5);

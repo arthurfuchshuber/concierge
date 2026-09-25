@@ -8574,7 +8574,7 @@ function OccupancyPanel({
                     <thead>
                       <tr>
                         <th
-                          className="sticky left-0 top-0 z-20 border-r border-border bg-card pb-2 pr-3 text-left"
+                          className="sticky left-0 top-0 z-20 border-r border-[var(--grid-line-v)] bg-card pb-2 pr-3 text-left"
                           style={{ width: nameColW, minWidth: nameColW }}
                         >
                           <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
@@ -8585,26 +8585,27 @@ function OccupancyPanel({
                             timeZone: "UTC",
                           });
                           const isToday = d === todayISO;
-                          /* GRADE DO CALENDÁRIO (pedido explícito, 25/09/2026, com
-                             mockup aprovado — "opção A"): uma linha vertical bem
-                             suave cortando cada dia, do cabeçalho até a última
-                             linha de imóvel. Como `border-spacing-x-0` já cola as
-                             colunas umas nas outras, um simples `border-r` em
-                             CADA célula do dia forma uma linha contínua e sem
-                             falhas — e, como o "bar" colorido de cada dia vive
-                             DENTRO da célula (nunca sobre a borda), a linha
-                             aparece por cima do status também, exatamente como
-                             pedido ("corte por cima dos status, não só ao
-                             redor"). Usa o mesmo token `--border` do resto do
-                             app (o "fio de 1px" já estabelecido), sem inventar
-                             uma cor nova — é o mesmo nível de suavidade do
-                             mockup aprovado. Sem linha depois do último dia. */
+                          /* GRADE DO CALENDÁRIO (pedido explícito, 25/09/2026,
+                             mockup aprovado — "opção A", com 2 ajustes depois de ver
+                             no real: (1) cor branca — não o `--border` do resto do
+                             app, que aqui saía fraco/escuro demais — e sim tokens
+                             próprios `--grid-line-v`/`--grid-line-h`
+                             (ver `styles.css`); (2) NÃO cortar por cima da faixa
+                             de status — o pedido original era cortar, mas depois
+                             de ver o resultado o pedido virou o oposto, então no
+                             corpo da tabela (mais abaixo) a linha só aparece nos
+                             trechos SEM reserva contínua atravessando a borda; no
+                             cabeçalho não há status pra proteger, então a grade
+                             fica sempre completa aqui). Como `border-spacing-x-0`
+                             já cola as colunas, um `border-r` por célula forma uma
+                             linha vertical contínua sem falhas. Sem linha depois
+                             do último dia. */
                           return (
                             <th
                               key={d}
                               style={{ width: dayW, minWidth: dayW }}
                               className={`sticky top-0 z-20 snap-start bg-card px-0 pb-2 font-medium tabular-nums ${
-                                i < dayList.length - 1 ? "border-r border-border" : ""
+                                i < dayList.length - 1 ? "border-r border-[var(--grid-line-v)]" : ""
                               }`}
                             >
                               <div
@@ -8639,15 +8640,17 @@ function OccupancyPanel({
                         const halves = dayList.flatMap((d) => cellHalves(p.id, d));
                         const occ = halves.map((h) => h !== "free");
                         // Linha horizontal do grid (ver comentário no cabeçalho) —
-                        // um fio ainda mais discreto que o vertical (`/60` sobre o
-                        // já translúcido `--border`), separando cada imóvel. Sem
-                        // linha depois do último, mesma lógica das colunas.
+                        // um fio ainda mais discreto que o vertical, separando
+                        // cada imóvel. Sem linha depois do último, mesma lógica
+                        // das colunas.
                         const rowDivider =
-                          pIdx < visibleProperties.length - 1 ? "border-b border-border/60" : "";
+                          pIdx < visibleProperties.length - 1
+                            ? "border-b border-[var(--grid-line-h)]"
+                            : "";
                         return (
                           <tr key={p.id} data-whole-card className="group">
                             <td
-                              className={`sticky left-0 z-10 border-r border-border bg-card py-1 pr-3 align-middle ${rowDivider}`}
+                              className={`sticky left-0 z-10 border-r border-[var(--grid-line-v)] bg-card py-1 pr-3 align-middle ${rowDivider}`}
                               style={{ width: nameColW, minWidth: nameColW }}
                             >
                               <PropertyPhotoPeek
@@ -8707,12 +8710,22 @@ function OccupancyPanel({
                                   occ[idx] && !occ[idx - 1] ? "rounded-l-full" : "",
                                   occ[idx] && !occ[idx + 1] ? "rounded-r-full" : "",
                                 ].join(" ");
+                              /* Pedido explícito (25/09/2026, revisão do que foi pedido
+                                 antes): a linha vertical do dia NÃO deve mais cortar
+                                 por cima da faixa de status — só quando os dois
+                                 lados da fronteira (fim do dia atual, começo do
+                                 próximo) estão livres. Se uma reserva atravessa
+                                 (os dois lados ocupados, mesmo "quadrante" colorido
+                                 continuando), a linha some ali. */
+                              const nextIdxA = idxB + 1;
+                              const crossesReservation = occ[idxB] && occ[nextIdxA];
+                              const showVLine = i < dayList.length - 1 && !crossesReservation;
                               return (
                                 <td
                                   key={d}
                                   style={{ width: dayW, minWidth: dayW }}
                                   className={`px-0 py-1 snap-start ${
-                                    i < dayList.length - 1 ? "border-r border-border" : ""
+                                    showVLine ? "border-r border-[var(--grid-line-v)]" : ""
                                   } ${rowDivider}`}
                                   title={title}
                                 >
@@ -8724,7 +8737,20 @@ function OccupancyPanel({
                                       pela ordem no DOM) elas passavam por cima dos
                                       dias fixos no topo. */}
                                   <div className="relative flex h-6 w-full items-center">
-                                    <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/50" />
+                                    {/* Bug real corrigido (25/09/2026, print: "linha
+                                        horizontal cortando a faixa de status"): antes
+                                        era UM fio só, com largura cheia, sempre
+                                        renderizado — e como "Ocupado" usa uma cor com
+                                        opacidade (`bg-primary/35`), o fio aparecia por
+                                        baixo, visível como um traço no meio da faixa
+                                        colorida. Agora é um fio por METADE, e só
+                                        aparece na metade que realmente está "Livre". */}
+                                    {!occ[idxA] && (
+                                      <span className="absolute left-0 top-1/2 h-px w-1/2 -translate-y-1/2 bg-border/50" />
+                                    )}
+                                    {!occ[idxB] && (
+                                      <span className="absolute right-0 top-1/2 h-px w-1/2 -translate-y-1/2 bg-border/50" />
+                                    )}
                                     <div
                                       className={`relative h-full w-1/2 ${clsOf(a)} ${round(idxA)}`}
                                     />
