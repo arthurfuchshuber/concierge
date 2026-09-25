@@ -16,6 +16,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentTool } from "./gateway.server";
+import { scorePropertyMatch } from "./fuzzy-match";
 import type { AssistantAction, PendingAction } from "@/lib/assistant-types";
 import { defaultShowInCleaning, type TaskCategory, type TaskPriority } from "@/lib/tasks-types";
 
@@ -214,21 +215,45 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
     };
   }
 
+  /**
+   * BUSCA APROXIMADA (25/09/2026 — "Florata/Arthur" não achava nada).
+   * Quebra o texto em palavras, ignora acento/ordem/palavras genéricas, tolera
+   * 1 letra errada em palavras longas e procura em nome, proprietário,
+   * endereço e cidade. Sempre dentro de `ctx.propertyIds` — não amplia acesso.
+   */
   async function matchProperties(term: string) {
-    if (!ctx.propertyIds.length) return [];
+    if (!ctx.propertyIds.length) return { hits: [], sugestoes: [] };
     const { data } = await db
       .from("properties")
-      .select(PROP_COLS)
+      .select(
+        `${PROP_COLS}, owner:property_owners!properties_owner_contact_id_fkey(name, trade_name)`,
+      )
       .in("id", ctx.propertyIds)
-      .limit(200);
-    const rows = (data ?? []) as PropRow[];
-    const norm = (s: string) =>
-      s
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
-    const needle = norm(term.trim());
-    return rows.filter((r) => norm(r.name ?? "").includes(needle)).map(shape);
+      .limit(300);
+    const rows = (data ?? []) as Array<
+      PropRow & { owner?: { name?: string | null; trade_name?: string | null } | null }
+    >;
+    const scored = rows
+      .map((r) => {
+        const owner = [r.owner?.name, r.owner?.trade_name].filter(Boolean).join(" ");
+        const { score, motivo } = scorePropertyMatch(term, {
+          nome: r.name ?? "",
+          proprietario: owner,
+          endereco: [r.address, r.address_note].filter(Boolean).join(" "),
+          cidade: r.city ?? "",
+        });
+        return { r, owner, score, motivo };
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score);
+    const out = (x: (typeof scored)[number]) => ({
+      ...shape(x.r),
+      proprietario: x.owner || null,
+      motivo: x.motivo,
+    });
+    const strong = scored.filter((x) => x.score >= 2);
+    if (strong.length) return { hits: strong.slice(0, 8).map(out), sugestoes: [] };
+    return { hits: [], sugestoes: scored.slice(0, 5).map(out) };
   }
 
   return [
@@ -236,12 +261,13 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
     {
       name: "listar_imoveis",
       description:
-        "Lista os imóveis que este usuário pode ver, com cidade, endereço e link do mapa. Use para descobrir o id de um imóvel citado pelo nome antes de qualquer outra ferramenta, e também quando perguntarem o endereço de um imóvel.",
+        "Lista/procura os imóveis que este usuário pode ver, com cidade, endereço, proprietário e link do mapa. A busca é aproximada: aceita nome do imóvel, NOME DO PROPRIETÁRIO, rua, bairro ou cidade, palavras soltas e com erro de digitação (ex.: 'Florata Arthur'). Use antes de qualquer outra ferramenta que precise do imóvel. Se vier 1 resultado, siga com ele dizendo qual escolheu; 2 a 5, pergunte qual; 0, use `sugestoes` ou pergunte nome, bairro ou proprietário. Não repita a mesma busca.",
       parameters: schema(
         {
           busca: {
             type: ["string", "null"],
-            description: 'Parte do nome do imóvel, ex.: "105". Null lista todos.',
+            description:
+              'Palavras do jeito que a pessoa escreveu (nome, proprietário, endereço), ex.: "Florata Arthur" ou "105". Null lista todos.',
           },
         },
         ["busca"],
@@ -249,8 +275,17 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
       execute: async (args) => {
         const term = typeof args.busca === "string" ? args.busca : "";
         if (term) {
-          const hits = await matchProperties(term);
-          return { imoveis: hits, total: hits.length };
+          const { hits, sugestoes } = await matchProperties(term);
+          return hits.length
+            ? { imoveis: hits, total: hits.length }
+            : {
+                imoveis: [],
+                total: 0,
+                sugestoes,
+                orientacao: sugestoes.length
+                  ? "Nada exato. Pergunte à pessoa se é um destes."
+                  : "Nada parecido. Pergunte o nome cadastrado, o bairro ou o proprietário.",
+              };
         }
         const { data } = await db
           .from("properties")

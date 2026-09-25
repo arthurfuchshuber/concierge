@@ -394,9 +394,12 @@ export async function runAgent(params: {
   const toolCalls: AgentToolCall[] = [];
   let text = "";
   let steps = 0;
+  const readCache = new Map<string, unknown>();
+  let lastEndedWithTools = false;
 
   for (let step = 0; step < maxSteps; step += 1) {
     steps = step + 1;
+    lastEndedWithTools = false;
     const payload = await postResponses(
       {
         model,
@@ -456,13 +459,21 @@ export async function runAgent(params: {
         }
         const tool = toolMap.get(name);
         const startedAt = Date.now();
+        // Mesma consulta de leitura repetida na mesma resposta: reaproveita.
+        const cacheKey = `${name}:${JSON.stringify(args)}`;
+        const cacheable = !name.startsWith("preparar_") && !name.startsWith("definir_");
         let result: unknown;
-        try {
-          result = tool ? await tool.execute(args) : { error: `Ferramenta desconhecida: ${name}` };
-        } catch (err) {
-          result = {
-            error: err instanceof Error ? err.message : "Falha ao executar a ferramenta.",
-          };
+        if (cacheable && readCache.has(cacheKey)) {
+          result = readCache.get(cacheKey);
+        } else {
+          try {
+            result = tool ? await tool.execute(args) : { error: `Ferramenta desconhecida: ${name}` };
+            if (cacheable) readCache.set(cacheKey, result);
+          } catch (err) {
+            result = {
+              error: err instanceof Error ? err.message : "Falha ao executar a ferramenta.",
+            };
+          }
         }
         return { name, callId, args, result, durationMs: Date.now() - startedAt };
       }),
@@ -481,6 +492,52 @@ export async function runAgent(params: {
         call_id: call.callId,
         output: JSON.stringify(call.result ?? null).slice(0, 20000),
       });
+    }
+    lastEndedWithTools = true;
+  }
+
+  // Esgotou os passos ainda chamando ferramentas e sem texto: uma rodada final
+  // curta, sem ferramentas, para resumir o que achou e perguntar o que falta —
+  // em vez de "não consegui responder agora" (25/09/2026).
+  if (!text && lastEndedWithTools && !signal?.aborted) {
+    try {
+      steps += 1;
+      const finalStep = steps;
+      const payload = await postResponses(
+        {
+          model,
+          instructions:
+            params.instructions +
+            "\n\nAGORA: não há mais ferramentas nesta resposta. Em até 3 frases, diga o que você encontrou e faça UMA pergunta objetiva sobre o que falta para concluir. Nunca invente dados.",
+          input,
+          stream: true,
+          store: false,
+          ...(toolDefs.length ? { tools: toolDefs, tool_choice: "none" } : {}),
+          reasoning: { effort: "low", summary: "auto" },
+          include: ["reasoning.encrypted_content"],
+        },
+        signal,
+        params.onTextDelta ? (d) => params.onTextDelta?.(d, finalStep) : undefined,
+      );
+      const inT = payload.usage?.input_tokens ?? 0;
+      const outT = payload.usage?.output_tokens ?? 0;
+      usage = mergeUsage(usage, {
+        inputTokens: inT,
+        outputTokens: outT,
+        costUsd: estimateCostUsd(model, inT, outT),
+      });
+      text =
+        (payload.output ?? [])
+          .filter((item) => item.type === "message")
+          .flatMap(
+            (item) => (item as { content?: Array<{ type?: string; text?: string }> }).content ?? [],
+          )
+          .filter((c) => c.type === "output_text")
+          .map((c) => c.text ?? "")
+          .join("")
+          .trim() || (payload.output_text ?? "").trim();
+    } catch {
+      /* segue com o texto vazio; o caller tem a própria frase de apoio */
     }
   }
 

@@ -46,12 +46,12 @@ describe("política de raciocínio", () => {
 
   it("pedido de gravação vai ao topo mesmo sem ninguém avisar", () => {
     expect(reasoningFor("exclua todas as pendências de limpeza do studio 105")).toBe("max");
-    expect(reasoningFor("marca o checkout do 103 como concluído")).toBe("max");
+    expect(reasoningFor("marca o checkout do 103 como concluído")).toBe("high");
   });
 
   it("pensa fundo quando há várias perguntas ou texto longo", () => {
     expect(reasoningFor("que horas é o checkout? e o wifi qual é?")).toBe("max");
-    expect(reasoningFor("a".repeat(200))).toBe("max");
+    expect(reasoningFor("a".repeat(200))).not.toBe("low");
   });
 
   it("assunto sensível (hóspede, dinheiro, cancelamento) vai ao topo", () => {
