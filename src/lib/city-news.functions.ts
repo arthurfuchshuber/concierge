@@ -1,3 +1,4 @@
+import { placePhotoUrl } from "@/lib/place-photo-sign";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { AI_MODELS } from "@/lib/ai/models";
@@ -409,7 +410,7 @@ async function attachPlacePhotos(items: NewsItem[], cityLabel: string, country: 
         const j = (await res.json()) as { places?: Array<{ photos?: Array<{ name?: string }> }> };
         const photoName = j.places?.[0]?.photos?.[0]?.name;
         if (photoName && /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(photoName)) {
-          items[idx].imageUrl = `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=800`;
+          items[idx].imageUrl = placePhotoUrl(photoName, 800);
         }
       } catch {
         // ignora — mantém fallback

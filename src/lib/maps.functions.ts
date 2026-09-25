@@ -1,3 +1,4 @@
+import { placePhotoUrl } from "@/lib/place-photo-sign";
 import { createServerFn } from "@tanstack/react-start";
 import { crossBorderCategory } from "@/lib/poi-country";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -544,7 +545,7 @@ function buildPhotoUrl(photoName: string | undefined): string | null {
   // Servimos via proxy server-side (/api/public/place-photo) que usa o
   // gateway do Google Maps. Não depende de chave de browser nem de restrição
   // de referrer — funciona em domínios custom e em iframes do preview.
-  return `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=1600`;
+  return placePhotoUrl(photoName, 1600);
 }
 
 // Escolhe a melhor foto do lugar: prioriza a MAIOR foto landscape em alta
