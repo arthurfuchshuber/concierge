@@ -19,6 +19,7 @@ import {
 import {
   getGuideStayStatus,
   markGuideStayStep,
+  undoGuideStayStep,
   getReservationLiveStatus,
 } from "@/lib/guide-access.functions";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
@@ -86,12 +87,20 @@ import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
 import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
 import { propertyTimeZone, todayInTZ, zonedTimeToUtc } from "@/lib/property-timezone";
 import { BottomNav, type BottomNavKey } from "@/components/guide/BottomNav";
+import {
+  StayActionBar,
+  StayActionBarSpacer,
+  STAY_BAR_HEIGHT,
+  type StayBarKind,
+  type StayBarPhase,
+} from "@/components/guide/StayActionBar";
 import waterfallImg from "@/assets/rec-waterfall.jpg";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import {
   GuideAccessGate,
   readAccessRecord,
   clearAccessRecord,
+  NO_SHOW_MESSAGE,
   hasPendingOnboarding,
   clearPendingOnboarding,
   type AccessRecord,
@@ -99,6 +108,7 @@ import {
 import { InlineTagText } from "@/components/tags/InlineTagText";
 import { slugForTag, expandInfoTags, type GuideTagKey } from "@/lib/guide-tags";
 import { toast } from "sonner";
+import { UNDO_WINDOW_MS } from "@/components/UndoActionBar";
 import { cn } from "@/lib/utils";
 import { guideUrl } from "@/lib/site-url";
 
@@ -610,7 +620,11 @@ function Guide({ data }: { data: GuideOk }) {
         if (cancelled || r.active !== false) return;
         clearAccessRecord(slug);
         setAccessRec(null);
-        toast.error("Sua reserva não está mais ativa. O acesso a este guia foi encerrado.");
+        toast.error(
+          "reason" in r && r.reason === "no_show"
+            ? NO_SHOW_MESSAGE
+            : "Sua reserva não está mais ativa. O acesso a este guia foi encerrado.",
+        );
       } catch {
         /* rede instável: mantém o acesso e tenta de novo no próximo ciclo */
       }
@@ -716,8 +730,12 @@ function Guide({ data }: { data: GuideOk }) {
     checkinDone: false,
     checkoutDone: false,
   });
+  // Só depois da 1ª resposta do servidor as barras de "Já acessei"/"Já saí"
+  // podem aparecer — senão elas piscariam para quem já teve o card marcado.
+  const [stayStatusReady, setStayStatusReady] = useState(false);
   const fetchStayStatus = useServerFn(getGuideStayStatus);
   const markStayStep = useServerFn(markGuideStayStep);
+  const undoStayStep = useServerFn(undoGuideStayStep);
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (isPreview) return;
@@ -734,8 +752,18 @@ function Guide({ data }: { data: GuideOk }) {
             checkout_date: accessRec?.checkoutDate ?? null,
           },
         });
-        if (!cancelled && res)
-          setHostStatus({ checkinDone: !!res.checkinDone, checkoutDone: !!res.checkoutDone });
+        if (cancelled || !res) return;
+        // "Não compareceu" marcado no sistema derruba o acesso na hora
+        // (pedido explícito, 24/09/2026) — também nos guias sem código de
+        // reserva, que não passam pela revalidação do código acima.
+        if ("noShow" in res && res.noShow) {
+          clearAccessRecord(slug);
+          setAccessRec(null);
+          toast.error(NO_SHOW_MESSAGE);
+          return;
+        }
+        setHostStatus({ checkinDone: !!res.checkinDone, checkoutDone: !!res.checkoutDone });
+        setStayStatusReady(true);
       } catch {
         /* offline: mantém o último estado conhecido */
       }
@@ -757,6 +785,118 @@ function Guide({ data }: { data: GuideOk }) {
     accessRec?.checkoutDate,
     fetchStayStatus,
   ]);
+
+  /* BARRAS "JÁ ACESSEI O AIRBNB!" / "JÁ SAÍ DO AIRBNB!" (mockup aprovado,
+   * 24/09/2026). O toque do hóspede move o card da reserva no sistema
+   * (`markGuideStayStep` → mesmo avanço do botão do painel) e oferece
+   * "Desfazer" por 5 s. As datas contam no fuso do IMÓVEL, nunca no do
+   * aparelho: a barra laranja sobe à 00:00 do dia do check-out lá. */
+  const guideTz = propertyTimeZone(
+    p.city as string | null,
+    (p as { country?: string | null }).country ?? null,
+  );
+  const [clockTick, setClockTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setClockTick(Date.now()), 30_000);
+    const onFocus = () => setClockTick(Date.now());
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
+  const guideToday = todayInTZ(guideTz, new Date(clockTick));
+  const [stayBar, setStayBar] = useState<{
+    kind: StayBarKind;
+    phase: Exclude<StayBarPhase, "idle">;
+    token: string | null;
+    until: number;
+  } | null>(null);
+  const stayBarTimer = useRef<number | null>(null);
+  const stayBusyRef = useRef(false);
+  useEffect(
+    () => () => {
+      if (stayBarTimer.current) window.clearTimeout(stayBarTimer.current);
+    },
+    [],
+  );
+  const applyStayDone = (kind: StayBarKind, done: boolean) => {
+    const k = kind === "checkin" ? `guide-checkin-done:${slug}` : `guide-checkout-done:${slug}`;
+    try {
+      if (done) localStorage.setItem(k, "1");
+      else localStorage.removeItem(k);
+    } catch {
+      /* navegador sem armazenamento: o estado do servidor continua valendo */
+    }
+    setHostStatus((s) =>
+      kind === "checkin" ? { ...s, checkinDone: done } : { ...s, checkoutDone: done },
+    );
+  };
+  const markStay = async (kind: StayBarKind) => {
+    if (stayBusyRef.current) return;
+    stayBusyRef.current = true;
+    if (stayBarTimer.current) window.clearTimeout(stayBarTimer.current);
+    setStayBar({ kind, phase: "sending", token: null, until: 0 });
+    let token: string | null = null;
+    try {
+      if (!isPreview && accessRec?.checkinDate) {
+        const r = await markStayStep({
+          data: {
+            slug,
+            kind,
+            guest_name: accessRec?.name ?? null,
+            checkin_date: accessRec.checkinDate,
+            checkout_date: accessRec?.checkoutDate ?? null,
+            reservation_code: accessRec?.code ?? null,
+          },
+        });
+        if (!r.ok) {
+          setStayBar(null);
+          const reason = "reason" in r ? r.reason : null;
+          toast.error(
+            reason === "no_show"
+              ? NO_SHOW_MESSAGE
+              : reason === "too_early"
+                ? kind === "checkin"
+                  ? "O aviso de chegada fica disponível no dia do check-in."
+                  : "O aviso de saída fica disponível no dia do check-out."
+                : "Não conseguimos registrar agora. Tente de novo em alguns minutos ou avise o anfitrião.",
+          );
+          return;
+        }
+        token = r.undoToken;
+      }
+      applyStayDone(kind, true);
+      setStayBar({ kind, phase: "confirmed", token, until: Date.now() + UNDO_WINDOW_MS });
+      stayBarTimer.current = window.setTimeout(() => setStayBar(null), UNDO_WINDOW_MS);
+    } catch {
+      setStayBar(null);
+      toast.error("Sem conexão agora. Tente de novo em instantes.");
+    } finally {
+      stayBusyRef.current = false;
+    }
+  };
+  const undoStay = async () => {
+    const cur = stayBar;
+    if (!cur || cur.phase !== "confirmed") return;
+    if (stayBarTimer.current) window.clearTimeout(stayBarTimer.current);
+    setStayBar(null);
+    if (cur.token) {
+      try {
+        const r = await undoStayStep({ data: { token: cur.token } });
+        if (!r.ok) {
+          toast.error("Não foi possível desfazer. Fale com o anfitrião.");
+          return;
+        }
+      } catch {
+        toast.error("Sem conexão para desfazer agora. Fale com o anfitrião.");
+        return;
+      }
+    }
+    applyStayDone(cur.kind, false);
+  };
+  const markStayRef = useRef(markStay);
+  markStayRef.current = markStay;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -798,30 +938,11 @@ function Guide({ data }: { data: GuideOk }) {
       setCheckoutConcluded(localStorage.getItem(outKey) === "1" || hostStatus.checkoutDone);
     };
     evaluate();
-    const syncHost = (kind: "checkin" | "checkout") => {
-      if (isPreview || !accessRec?.checkinDate) return;
-      void markStayStep({
-        data: {
-          slug,
-          kind,
-          guest_name: accessRec?.name ?? null,
-          checkin_date: accessRec.checkinDate,
-          checkout_date: accessRec?.checkoutDate ?? null,
-          reservation_code: accessRec?.code ?? null,
-        },
-      }).catch(() => {});
-    };
-    const onDone = () => {
-      localStorage.setItem(key, "1");
-      setCheckinConfirmado(true);
-      setCheckinConcluded(true);
-      syncHost("checkin");
-    };
-    const onCheckout = () => {
-      localStorage.setItem(outKey, "1");
-      setCheckoutConcluded(true);
-      syncHost("checkout");
-    };
+    // "Consegui fazer o check-in!" (tela final do onboarding) e qualquer outro
+    // ponto que dispare estes eventos passam pelo MESMO caminho das barras —
+    // avanço do card no sistema + "Desfazer" por 5 s na barra.
+    const onDone = () => void markStayRef.current("checkin");
+    const onCheckout = () => void markStayRef.current("checkout");
     window.addEventListener("guide-checkin-done", onDone as EventListener);
     window.addEventListener("guide-checkout-done", onCheckout as EventListener);
     const id = window.setInterval(evaluate, 60_000);
@@ -839,7 +960,6 @@ function Guide({ data }: { data: GuideOk }) {
     hostStatus.checkinDone,
     hostStatus.checkoutDone,
     isPreview,
-    markStayStep,
   ]);
 
   // Janela de senhas: liberadas 24h ANTES do horário previsto de check-in e
@@ -897,6 +1017,49 @@ function Guide({ data }: { data: GuideOk }) {
     const now = Date.now();
     return now >= start && now <= end;
   })();
+
+  // Qual barra inferior aparece agora (regras do mockup aprovado, 24/09/2026):
+  // • laranja "Já saí do Airbnb!": da 00:00 do dia do check-out (fuso do
+  //   imóvel) até o card de check-out ser dado como feito;
+  // • verde "Já acessei o Airbnb!": do dia do check-in em diante, até o card
+  //   de check-in ser dado como feito — no onboarding, só a partir da etapa
+  //   de instruções (quem decide isso é o próprio onboarding).
+  // Durante o "Avisando…"/"Desfazer" a barra fica na tela mesmo já feita.
+  const checkoutBarDue =
+    stayStatusReady &&
+    !!accessRec?.checkoutDate &&
+    guideToday >= accessRec.checkoutDate &&
+    !hostStatus.checkoutDone;
+  const checkinBarDue =
+    stayStatusReady &&
+    !checkoutBarDue &&
+    !!accessRec?.checkinDate &&
+    guideToday >= accessRec.checkinDate &&
+    !hostStatus.checkinDone &&
+    !hostStatus.checkoutDone;
+  const stayBarKind: StayBarKind | null = stayBar
+    ? stayBar.kind
+    : checkoutBarDue
+      ? "checkout"
+      : checkinBarDue
+        ? "checkin"
+        : null;
+  const stayBarPhase: StayBarPhase = stayBar ? stayBar.phase : "idle";
+
+  // Instruções de check-out abrem SOZINHAS à 00:00 do dia da saída (ou na 1ª
+  // vez que o hóspede abrir o guia depois disso) — uma vez só por reserva.
+  const [checkoutTipOpen, setCheckoutTipOpen] = useState(false);
+  useEffect(() => {
+    if (!checkoutBarDue || tourActive || needsGate || !accessRec?.checkoutDate) return;
+    const k = `guide-checkout-tip:${slug}:${accessRec.checkoutDate}`;
+    try {
+      if (localStorage.getItem(k)) return;
+      localStorage.setItem(k, "1");
+    } catch {
+      return;
+    }
+    setCheckoutTipOpen(true);
+  }, [checkoutBarDue, tourActive, needsGate, accessRec?.checkoutDate, slug]);
 
   // Shared "access PIN unlock" state — once unlocked, all gated codes/Wi-Fi reveal.
   // The actual PIN never reaches the browser; only the boolean flags do.
@@ -1198,6 +1361,10 @@ function Guide({ data }: { data: GuideOk }) {
   if (hasResidencia) guideNavItems.push({ key: "residencia", label: "Residência" });
   if (hasExplore) guideNavItems.push({ key: "explore", label: "Explorar" });
 
+  // A barra do guia em si (fora do onboarding — lá dentro quem desenha é o
+  // próprio onboarding, a partir da etapa de instruções).
+  const mainStayBarVisible = !!stayBarKind && !!accessRec && !needsGate && !tourActive;
+
   // Check-out concluído: sai de qualquer seção do imóvel/estadia e fecha popups
   useEffect(() => {
     if (!checkoutConcluded) return;
@@ -1290,6 +1457,19 @@ function Guide({ data }: { data: GuideOk }) {
         markPasswordsSeen={markPasswordsSeen}
         theme={theme === "light" ? "light" : "dark"}
         navItems={guideNavItems}
+        actionBar={
+          stayBarKind ? (
+            <StayActionBar
+              kind={stayBarKind}
+              phase={stayBarPhase}
+              theme={theme === "light" ? "light" : "dark"}
+              undoMs={stayBar ? Math.max(0, stayBar.until - Date.now()) : undefined}
+              onTap={() => void markStay(stayBarKind)}
+              onUndo={() => void undoStay()}
+              aboveNav={guideNavItems.length > 1}
+            />
+          ) : null
+        }
         onBackToForm={() => {
           // A flag de onboarding pendente continua lá — reabrir o formulário
           // não conta como "concluir", então o onboarding volta a disparar
@@ -1516,14 +1696,15 @@ function Guide({ data }: { data: GuideOk }) {
                               />
                             </p>
                           )}
+                          {/* O antigo botão "Já fiz o check-out ✓" saiu daqui: quem
+                              avisa a saída agora é a barra laranja "Já saí do
+                              Airbnb!" (mockup aprovado, 24/09/2026). */}
                           <button
                             type="button"
-                            onClick={() =>
-                              window.dispatchEvent(new CustomEvent("guide-checkout-done"))
-                            }
-                            className={`mt-3 h-9 px-3.5 rounded-[0.3rem] text-[12px] font-semibold transition-colors ${theme === "dark" ? "bg-amber-300/15 text-amber-100 hover:bg-amber-300/25" : "bg-amber-900/10 text-amber-950 hover:bg-amber-900/15"}`}
+                            onClick={() => setCheckoutTipOpen(true)}
+                            className={`mt-2 text-[12px] font-bold transition-opacity hover:opacity-80 ${theme === "dark" ? "text-orange-300" : "text-orange-700"}`}
                           >
-                            Já fiz o check-out ✓
+                            Ver instruções de saída →
                           </button>
                         </div>
                       </div>
@@ -2525,6 +2706,18 @@ function Guide({ data }: { data: GuideOk }) {
           )}
         </AnimatePresence>
       </div>
+      {mainStayBarVisible && <StayActionBarSpacer />}
+      {mainStayBarVisible && stayBarKind && (
+        <StayActionBar
+          kind={stayBarKind}
+          phase={stayBarPhase}
+          theme={theme === "light" ? "light" : "dark"}
+          undoMs={stayBar ? Math.max(0, stayBar.until - Date.now()) : undefined}
+          onTap={() => void markStay(stayBarKind)}
+          onUndo={() => void undoStay()}
+          aboveNav={guideNavItems.length > 1}
+        />
+      )}
       {(() => {
         const items: Array<{
           key: import("@/components/guide/BottomNav").BottomNavKey;
@@ -2566,7 +2759,8 @@ function Guide({ data }: { data: GuideOk }) {
           guestName={accessRec?.name ?? null}
           checkinDate={accessRec?.checkinDate ?? null}
           checkoutDate={accessRec?.checkoutDate ?? null}
-          suppressNudge={tourActive || pinDialog.open || locWifiOpen}
+          suppressNudge={tourActive || pinDialog.open || locWifiOpen || checkoutTipOpen}
+          bottomLift={mainStayBarVisible ? STAY_BAR_HEIGHT : 0}
         />
       ) : null}
       <PinDialog
@@ -2609,6 +2803,77 @@ function Guide({ data }: { data: GuideOk }) {
         unlocked={unlocked}
         onRequestUnlock={() => requestUnlock()}
       />
+      {/* INSTRUÇÕES DE CHECK-OUT QUE ABREM SOZINHAS (mockup aprovado,
+          24/09/2026): à 00:00 do dia da saída, no fuso do imóvel, ou na 1ª
+          vez que o hóspede abrir o guia depois disso — uma vez só por
+          reserva. Também abre pelo link "Ver instruções de saída" da faixa. */}
+      <Dialog open={checkoutTipOpen} onOpenChange={setCheckoutTipOpen}>
+        <DialogContent className="max-w-[400px] gap-0 overflow-hidden rounded-[0.3rem] border-orange-400/30 p-0">
+          <div className="flex items-start gap-3 px-4 pb-3 pt-[18px] pr-12">
+            <span className="grid size-10 shrink-0 place-items-center rounded-[0.3rem] bg-orange-500/15 text-orange-500 dark:text-orange-400">
+              <LogOut className="size-5" strokeWidth={2} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-600 dark:text-orange-300">
+                Hoje é dia de check-out
+              </p>
+              <DialogTitle className="mt-0.5 font-display text-[20px] font-bold leading-tight tracking-tight">
+                {(() => {
+                  const t = p.checkout_time ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/) : null;
+                  return t
+                    ? `Saída até ${t[1].padStart(2, "0")}h${t[2] !== "00" ? t[2] : ""}`
+                    : "Seu último dia por aqui";
+                })()}
+              </DialogTitle>
+            </div>
+          </div>
+          <div className="sg-elegant-scroll max-h-[45dvh] overflow-y-auto px-4 pb-2">
+            {p.checkout_instructions ? (
+              <>
+                <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
+                  Antes de sair
+                </p>
+                <StepList
+                  text={expandInfoTags(String(p.checkout_instructions), p as never)}
+                  dense
+                  compact
+                  tone="orange"
+                />
+              </>
+            ) : p.checkout_note ? (
+              <p className="whitespace-pre-line text-[13px] leading-relaxed text-foreground/85">
+                <InlineTagText
+                  text={String(p.checkout_note)}
+                  onNavigate={navigateGuideTag}
+                  info={infoCtx}
+                />
+              </p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-1.5 px-4 pb-4 pt-3">
+            {!hostStatus.checkoutDone && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCheckoutTipOpen(false);
+                  void markStay("checkout");
+                }}
+                className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[0.3rem] bg-gradient-to-r from-orange-400 to-orange-500 text-[15px] font-extrabold text-white shadow-[0_12px_30px_-10px_rgba(249,115,22,0.7)] transition-all active:scale-[0.99]"
+              >
+                <LogOut className="size-5 shrink-0" strokeWidth={2.2} />
+                Já saí do Airbnb!
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setCheckoutTipOpen(false)}
+              className="h-10 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Ver depois
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* Janela rápida de Chegada/Saída — estrutura já programada; o layout
           interno definitivo será definido em seguida. Por enquanto mostra o
           resumo real e leva para a seção completa. */}
@@ -3727,6 +3992,7 @@ function PostAccessOnboarding({
   theme,
   navItems,
   onBackToForm,
+  actionBar,
 }: {
   active: boolean;
   onDone: () => void;
@@ -3758,6 +4024,12 @@ function PostAccessOnboarding({
    * onboarding (Confirmação), já que é a única sem uma etapa anterior DENTRO
    * do próprio onboarding pra voltar. */
   onBackToForm: () => void;
+  /** Barra "Já acessei o Airbnb!"/"Já saí do Airbnb!" já montada pela página
+   * (null quando não cabe agora). Aqui ela só aparece da etapa de instruções
+   * em diante — pedido explícito, 24/09/2026: "a partir do momento em que ele
+   * avança até a etapa instrução, a barra deve subir". Sem instruções
+   * cadastradas, a primeira etapa depois da confirmação já conta. */
+  actionBar?: React.ReactNode;
 }) {
   // O fluxo é montado a partir do que REALMENTE existe cadastrado: sem
   // instruções, a etapa "Passo a passo" não existe; sem nenhuma senha, a etapa
@@ -3803,6 +4075,7 @@ function PostAccessOnboarding({
 
   if (!active) return null;
 
+  const showBar = !!actionBar && current !== "intro";
   const firstName = guestName.split(" ")[0] || guestName;
 
   // Antes das 8h do dia do check-in ainda não faz sentido perguntar "conseguiu
@@ -3846,7 +4119,12 @@ function PostAccessOnboarding({
       <div
         className={cn(
           "mx-auto w-full max-w-[490px] md:max-w-[520px] px-5",
-          step === 3 ? "min-h-[calc(100dvh-86px)] flex flex-col justify-center py-6" : "pt-6",
+          step === 3
+            ? cn(
+                "flex flex-col justify-center py-6",
+                showBar ? "min-h-[calc(100dvh-178px)]" : "min-h-[calc(100dvh-86px)]",
+              )
+            : "pt-6",
         )}
       >
         <div
@@ -4143,6 +4421,8 @@ function PostAccessOnboarding({
           )}
         </div>
       </div>
+      {showBar && <StayActionBarSpacer />}
+      {showBar && actionBar}
       <BottomNav
         theme={theme}
         active="checkin"
@@ -4177,10 +4457,13 @@ function StepList({
   text,
   dense = false,
   compact = false,
+  tone = "accent",
 }: {
   text: string;
   dense?: boolean;
   compact?: boolean;
+  /** "orange" = instruções de SAÍDA (mesma cor da barra "Já saí do Airbnb!"). */
+  tone?: "accent" | "orange";
 }) {
   const tagCtx = useContext(GuideTagCtx);
   const steps = text
@@ -4203,18 +4486,22 @@ function StepList({
     >
       <span
         aria-hidden
-        className={`pointer-events-none absolute ${lineLeft} ${compact ? "top-4 bottom-4" : "top-5 bottom-5"} w-px bg-accent/25`}
+        className={`pointer-events-none absolute ${lineLeft} ${compact ? "top-4 bottom-4" : "top-5 bottom-5"} w-px ${tone === "orange" ? "bg-orange-400/30" : "bg-accent/25"}`}
       />
       {steps.map((step, i) => (
         <li key={i} className={`relative flex items-start ${gap}`}>
           <span
             aria-hidden
-            className={`relative z-10 mt-0.5 shrink-0 grid place-items-center ${badge} rounded-full border border-accent/35 bg-card text-accent font-semibold tabular-nums leading-none shadow-sm`}
+            className={`relative z-10 mt-0.5 shrink-0 grid place-items-center ${badge} rounded-full border bg-card font-semibold tabular-nums leading-none shadow-sm ${tone === "orange" ? "border-orange-400/40 text-orange-500 dark:text-orange-300" : "border-accent/35 text-accent"}`}
           >
             {i + 1}
           </span>
           <div className="flex-1 min-w-0 pt-1">
-            <p className={`${labelCls} font-semibold uppercase text-accent/80`}>Passo {i + 1}</p>
+            <p
+              className={`${labelCls} font-semibold uppercase ${tone === "orange" ? "text-orange-500/80 dark:text-orange-300/80" : "text-accent/80"}`}
+            >
+              Passo {i + 1}
+            </p>
             <p className={`${textCls} text-foreground/90`}>
               <InlineTagText
                 text={step}

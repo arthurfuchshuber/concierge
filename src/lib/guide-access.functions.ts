@@ -167,6 +167,16 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       if (codes.length === 1) icalReservationCode = codes[0];
     }
 
+    // "Não compareceu" trava o guia (pedido explícito, 24/09/2026). Nos guias
+    // com código a trava já veio de `lookupReservationByCode`; aqui cobre os
+    // guias sem código (acesso pelas datas).
+    if (!requiresCode) {
+      const { isStayMarkedNoShow } = await import("@/lib/guest-access.server");
+      if (await isStayMarkedNoShow(prop.id as string, data.checkin_date)) {
+        return { ok: false as const, reason: "no_show" };
+      }
+    }
+
     const userAgent = getRequestHeader("user-agent")?.slice(0, 500) ?? null;
     const { data: insertedLog, error } = await supabaseAdmin
       .from("guide_access_logs")
@@ -449,7 +459,7 @@ const StayStatusInput = z.object({
 export const getGuideStayStatus = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => StayStatusInput.parse(i))
   .handler(async ({ data }) => {
-    const empty = { checkinDone: false, checkoutDone: false };
+    const empty = { checkinDone: false, checkoutDone: false, noShow: false };
     const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
     const { getRequest } = await import("@tanstack/react-start/server");
     if (!allowPublicRate(`guide-stay-status:${clientIpFrom(getRequest())}`, 60, 60_000))
@@ -497,7 +507,12 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
       .filter((r) => !data.checkout_date || r.checkout_date === data.checkout_date)
       .map((r) => r.id);
 
-    if (logIds.length === 0 && resIds.length === 0) return empty;
+    // "Não compareceu" vale para a ESTADIA inteira (imóvel + data de entrada),
+    // sem filtrar por nome/saída — mesma regra do quadro e de
+    // `isStayMarkedNoShow`. Por isso usa todas as linhas da data.
+    const stayLogIds = ((logs ?? []) as Array<{ id: string }>).map((l) => l.id);
+    const stayResIds = ((reservations ?? []) as Array<{ id: string }>).map((r) => r.id);
+    if (stayLogIds.length === 0 && stayResIds.length === 0) return empty;
 
     const { data: statuses } = await supabaseAdmin
       .from("guest_arrival_status")
@@ -507,6 +522,7 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
 
     let checkinDone = false;
     let checkoutDone = false;
+    let noShow = false;
     for (const s of (statuses ?? []) as Array<{
       kind: string;
       status: string | null;
@@ -514,6 +530,14 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
       log_id: string | null;
       reservation_id: string | null;
     }>) {
+      if (
+        s.kind === "checkin" &&
+        s.status === "no_show" &&
+        ((s.log_id && stayLogIds.includes(s.log_id)) ||
+          (s.reservation_id && stayResIds.includes(s.reservation_id)))
+      ) {
+        noShow = true;
+      }
       const belongs =
         (s.log_id && logIds.includes(s.log_id)) ||
         (s.reservation_id && resIds.includes(s.reservation_id));
@@ -523,7 +547,7 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
       if (s.kind === "checkin") checkinDone = true;
       if (s.kind === "checkout") checkoutDone = true;
     }
-    return { checkinDone, checkoutDone };
+    return { checkinDone, checkoutDone, noShow };
   });
 
 const MarkStepInput = StayStatusInput.extend({
@@ -590,17 +614,173 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
     });
     if (!match) return { ok: false as const };
 
-    const { error } = await supabaseAdmin.from("guest_arrival_status").upsert(
-      {
-        log_id: match.id,
-        property_id: prop.id,
-        kind: data.kind,
-        status: "done",
-        done_at: new Date().toISOString(),
-      } as never,
-      { onConflict: "log_id,kind" },
-    );
-    if (error) return { ok: false as const };
+    /* BARRAS "JÁ ACESSEI" / "JÁ SAÍ" (pedido explícito, 24/09/2026: "esses
+     * botões precisam refletir diretamente no card da reserva dentro do
+     * sistema").
+     *
+     * Antes esta função gravava SÓ pela chave do formulário (`log_id`). O
+     * quadro, porém, lê primeiro a linha da RESERVA (`reservation_id`) — então
+     * num card do iCal que já tinha linha própria (ex.: depois de o anfitrião
+     * informar uma previsão) o toque do hóspede nunca movia o card. E pulava
+     * os efeitos do avanço normal (fechar a estadia no check-out, aviso de
+     * limpeza). Agora o avanço é EXATAMENTE o mesmo do botão do painel
+     * (`runAdvanceArrival`), com as duas chaves quando existem. */
+    const { operationalTodayISO, isRealReservation } = await import("@/lib/reservations.server");
+    const { isStayMarkedNoShow, signGuestToken } = await import("@/lib/guest-access.server");
+    if (await isStayMarkedNoShow(prop.id as string, data.checkin_date)) {
+      return { ok: false as const, reason: "no_show" as const };
+    }
+
+    const { data: resRows } = await supabaseAdmin
+      .from("property_reservations")
+      .select("id, checkin_date, checkout_date, raw_summary, status, guest_hint")
+      .eq("property_id", prop.id)
+      .eq("checkin_date", data.checkin_date)
+      .limit(20);
+    const code = (data.reservation_code ?? "").trim().toUpperCase();
+    const reais = (
+      (resRows ?? []) as Array<{
+        id: string;
+        checkin_date: string;
+        checkout_date: string;
+        raw_summary: string | null;
+        status: string | null;
+        guest_hint: string | null;
+      }>
+    ).filter((r) => isRealReservation(r as never));
+    const reservation =
+      (code && reais.find((r) => (r.guest_hint ?? "").toUpperCase() === code)) ||
+      reais.find((r) => !data.checkout_date || r.checkout_date === data.checkout_date) ||
+      null;
+    const checkoutDate =
+      reservation?.checkout_date ?? match.checkout_date ?? data.checkout_date ?? null;
+
+    // Nada de "já saí" antes do dia da saída (nem "já entrei" antes do dia da
+    // entrada). Um dia de folga cobre imóveis em fuso à frente de São Paulo
+    // (o relógio da operação), onde a meia-noite local chega antes.
+    const addDaysISO = (iso: string, n: number) => {
+      const [y, m, d] = iso.split("-").map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d));
+      dt.setUTCDate(dt.getUTCDate() + n);
+      return dt.toISOString().slice(0, 10);
+    };
+    const today = operationalTodayISO();
+    const earliest = data.kind === "checkin" ? data.checkin_date : checkoutDate;
+    if (earliest && addDaysISO(today, 1) < earliest) {
+      return { ok: false as const, reason: "too_early" as const };
+    }
+
+    const logId = match.id;
+    const reservationId = reservation?.id ?? null;
+
+    // Foto de ANTES — é com ela que o "Desfazer" devolve o card exatamente
+    // como estava (mesmo racional do "Desfazer" do painel, 17/09/2026).
+    const before = await readStayStatusRows(supabaseAdmin, logId, reservationId);
+
+    try {
+      const { runAdvanceArrival } = await import("@/lib/dashboard.functions");
+      await runAdvanceArrival(supabaseAdmin as never, {
+        logId,
+        ...(reservationId ? { reservationId } : {}),
+        from: data.kind === "checkin" ? "checkin" : "checkout",
+      });
+    } catch (err) {
+      // A trava operacional do painel continua valendo (ex.: estadia anterior
+      // ainda aberta no imóvel). O hóspede vê um aviso e a equipe resolve.
+      console.error("[markGuideStayStep] avanço recusado:", err);
+      return { ok: false as const, reason: "blocked" as const };
+    }
+
+    const undoToken = await signGuestToken(STAY_UNDO_PURPOSE, {
+      p: prop.id,
+      l: logId,
+      r: reservationId,
+      k: data.kind,
+      b: before,
+      exp: Date.now() + STAY_UNDO_WINDOW_MS,
+    } satisfies StayUndoPayload);
+    return { ok: true as const, undoToken };
+  });
+
+/* ------------------------------------------------------------------ *
+ * "Desfazer" do hóspede (pedido explícito, 24/09/2026: "lembre-se de colocar
+ * também aquele 'Desfazer' com 5 segundos, que implementamos no painel")
+ * ------------------------------------------------------------------ */
+
+const STAY_UNDO_PURPOSE = "guide-stay-undo";
+// A tela oferece 5 s; o servidor aceita um pouco mais para cobrir rede lenta.
+const STAY_UNDO_WINDOW_MS = 60_000;
+
+const STAY_ROW_COLUMNS =
+  "id, kind, status, done_at, concluded_at, cleaning_type, cleaning_price_cents, cleaning_approval_status, cleaning_done_by";
+
+type StayRowSnapshot = {
+  id: string;
+  kind: string;
+  status: string;
+  done_at: string | null;
+  concluded_at: string | null;
+  cleaning_type: string | null;
+  cleaning_price_cents: number | null;
+  cleaning_approval_status: string | null;
+  cleaning_done_by: string | null;
+};
+
+type StayUndoPayload = {
+  p: string;
+  l: string;
+  r: string | null;
+  k: "checkin" | "checkout";
+  b: StayRowSnapshot[];
+  exp: number;
+};
+
+async function readStayStatusRows(
+  db: unknown,
+  logId: string,
+  reservationId: string | null,
+): Promise<StayRowSnapshot[]> {
+  const client = db as { from: (t: string) => any }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const filter = reservationId
+    ? `log_id.eq.${logId},reservation_id.eq.${reservationId}`
+    : `log_id.eq.${logId}`;
+  const { data } = await client
+    .from("guest_arrival_status")
+    .select(STAY_ROW_COLUMNS)
+    .in("kind", ["checkin", "checkout"])
+    .or(filter)
+    .limit(10);
+  return (data ?? []) as StayRowSnapshot[];
+}
+
+export const undoGuideStayStep = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => z.object({ token: z.string().min(10).max(8000) }).parse(i))
+  .handler(async ({ data }) => {
+    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`guide-undo-step:${clientIpFrom(getRequest())}`, 20, 60_000))
+      return { ok: false as const };
+    const { verifyGuestToken } = await import("@/lib/guest-access.server");
+    const payload = await verifyGuestToken<StayUndoPayload>(STAY_UNDO_PURPOSE, data.token);
+    if (!payload || payload.exp < Date.now()) return { ok: false as const };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as unknown as { from: (t: string) => any }; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const current = await readStayStatusRows(supabaseAdmin, payload.l, payload.r);
+    const beforeIds = new Set(payload.b.map((r) => r.id));
+
+    // 1) Linhas que existiam: voltam exatamente ao que eram.
+    for (const row of payload.b) {
+      const { id, kind: _kind, ...cols } = row;
+      const { error } = await db.from("guest_arrival_status").update(cols).eq("id", id);
+      if (error) return { ok: false as const };
+    }
+    // 2) Linhas que o toque CRIOU (não estavam na foto): somem.
+    const created = current.filter((r) => !beforeIds.has(r.id)).map((r) => r.id);
+    if (created.length > 0) {
+      const { error } = await db.from("guest_arrival_status").delete().in("id", created);
+      if (error) return { ok: false as const };
+    }
     return { ok: true as const };
   });
 

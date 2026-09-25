@@ -652,3 +652,173 @@ export function FilterPeriodCalendar({
     </>
   );
 }
+
+/* ------------------------------------------------------------------------ */
+/* Data única com calendário (Previsão)                                      */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Dia de um calendário de DATA ÚNICA — mesma linguagem do `RangeDayButton`
+ * (bolinha cheia rosa no escolhido, anel fino + espelho parado em "hoje"),
+ * só que sem a faixa entre dois dias. Mockup "Previsão — calendário e
+ * horário" aprovado em 24/09/2026.
+ */
+function SingleDayButton({
+  day: _day,
+  modifiers,
+  className: _c,
+  children,
+  ...props
+}: DayButtonProps) {
+  const selected = !!modifiers.selected;
+  const muted = modifiers.outside || modifiers.disabled;
+  const circle = selected
+    ? "bg-accent text-[#0b0908] font-bold"
+    : modifiers.today
+      ? "border-[1.5px] border-accent text-foreground"
+      : muted
+        ? "text-foreground/20"
+        : "text-foreground group-hover/day:bg-foreground/[0.06]";
+  const showTodayMirror = modifiers.today && !selected;
+  return (
+    <button
+      {...props}
+      className="group/day relative grid h-[34px] w-full place-items-center text-[12.5px] font-semibold outline-none disabled:cursor-default focus-visible:[&>span:last-child]:ring-2 focus-visible:[&>span:last-child]:ring-accent/50"
+    >
+      <span
+        className={`relative grid size-[30px] place-items-center rounded-full transition-colors ${circle}`}
+      >
+        {showTodayMirror ? (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/20 via-white/[0.04] to-transparent"
+          />
+        ) : null}
+        <span className="relative">{children}</span>
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Calendário de UMA data (Previsão de chegada/saída) no mesmo desenho do
+ * "Período" dos Filtros: atalhos em pílula (Hoje / Amanhã / Depois de
+ * amanhã), mês com setas próprias em Sora, e o dia escolhido em círculo
+ * cheio. Os atalhos e os dias fora de `min`/`max` ficam desligados.
+ * O mês é interno: abre no mês do dia escolhido (ou de `min`, ou de hoje) —
+ * quem quiser reabrir do zero troca a `key`.
+ */
+export function FilterDateCalendar({
+  value,
+  onChange,
+  today,
+  min,
+  max,
+}: {
+  value: Date | undefined;
+  onChange: (next: Date) => void;
+  today: Date;
+  min?: Date;
+  max?: Date;
+}) {
+  const [month, setMonth] = useState<Date>(() => startOfMonth(value ?? min ?? today));
+  const disabled: Matcher[] = [];
+  if (min) disabled.push({ before: min });
+  if (max) disabled.push({ after: max });
+  const allowed = (d: Date) => !(min && isBefore(d, min)) && !(max && isAfter(d, max));
+
+  const quick: Array<{ key: string; label: string; date: Date }> = [
+    { key: "today", label: "Hoje", date: today },
+    { key: "tomorrow", label: "Amanhã", date: addDays(today, 1) },
+    { key: "after", label: "Depois de amanhã", date: addDays(today, 2) },
+  ];
+
+  const canPrev = !min || isAfter(startOfMonth(month), startOfMonth(min));
+  const canNext = !max || isBefore(startOfMonth(month), startOfMonth(max));
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-1.5 px-3.5 pt-2.5">
+        {quick.map((q) => {
+          const ok = allowed(q.date);
+          const active = !!value && isSameDay(value, q.date);
+          return (
+            <button
+              key={q.key}
+              type="button"
+              disabled={!ok}
+              onClick={() => {
+                setMonth(startOfMonth(q.date));
+                onChange(q.date);
+              }}
+              className={`rounded-full px-[11px] py-[5px] text-[11px] font-semibold transition-colors disabled:opacity-40 ${
+                active
+                  ? "bg-accent/[0.14] text-accent"
+                  : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {q.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="px-3.5 pb-1 pt-2.5">
+        <div className="flex items-center justify-between px-0.5 pb-2 pt-0.5">
+          <button
+            type="button"
+            aria-label="Mês anterior"
+            disabled={!canPrev}
+            onClick={() => setMonth((m) => addMonths(m, -1))}
+            className="grid size-6 place-items-center rounded-[7px] text-foreground/55 transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-30"
+          >
+            <ChevronLeft className="size-3.5" strokeWidth={2.5} />
+          </button>
+          <span className="font-display text-[12.5px] font-bold capitalize text-foreground">
+            {format(month, "MMMM yyyy", { locale: ptBR })}
+          </span>
+          <button
+            type="button"
+            aria-label="Próximo mês"
+            disabled={!canNext}
+            onClick={() => setMonth((m) => addMonths(m, 1))}
+            className="grid size-6 place-items-center rounded-[7px] text-foreground/55 transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-30"
+          >
+            <ChevronRight className="size-3.5" strokeWidth={2.5} />
+          </button>
+        </div>
+        <DayPicker
+          mode="single"
+          required
+          locale={ptBR}
+          showOutsideDays
+          hideNavigation
+          month={month}
+          onMonthChange={setMonth}
+          selected={value}
+          onSelect={(d) => {
+            if (d) onChange(d);
+          }}
+          disabled={disabled.length ? disabled : undefined}
+          today={today}
+          formatters={{
+            formatWeekdayName: (d) => format(d, "cccccc", { locale: ptBR }).replace(".", ""),
+          }}
+          classNames={{
+            root: "w-full",
+            months: "w-full",
+            month: "w-full",
+            month_caption: "hidden",
+            month_grid: "w-full table-fixed border-collapse",
+            weekdays: "",
+            weekday: "pb-1 text-center text-[10.5px] font-bold uppercase text-muted-foreground",
+            weeks: "",
+            week: "",
+            day: "p-0 py-0.5 text-center",
+          }}
+          components={{ DayButton: SingleDayButton }}
+        />
+      </div>
+    </>
+  );
+}

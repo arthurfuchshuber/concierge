@@ -39,7 +39,63 @@ export function isReservationGated(prop: PropLike | null | undefined): boolean {
 
 export type ReservationLookup =
   | { ok: true; checkin_date: string; checkout_date: string }
-  | { ok: false; reason: "not_found" | "no_ical" | "inactive" | "expired" };
+  | { ok: false; reason: "not_found" | "no_ical" | "inactive" | "expired" | "no_show" };
+
+/**
+ * "NÃO COMPARECEU" TRAVA O GUIA (pedido explícito, 24/09/2026: "se um card
+ * foi dado como 'não compareceu', então mesmo que o hóspede tente entrar
+ * colocando o código da reserva, ele não vai conseguir").
+ *
+ * A marca vive em `guest_arrival_status` (kind `checkin`, status `no_show`),
+ * gravada por `markNoShow` com o `log_id` e/ou o `reservation_id` da estadia.
+ * Os dois lados nem sempre compartilham identificador, então a regra é a
+ * mesma do quadro (`checkinNoShowStays` em arrival-board.server.ts): a
+ * ESTADIA — imóvel + data de entrada — é o que decide. Desfazer o "não
+ * compareceu" no sistema volta o status para `pending` e libera o guia de
+ * novo, sem nada a fazer aqui.
+ */
+export async function isStayMarkedNoShow(
+  propertyId: string,
+  checkinDate: string | null | undefined,
+): Promise<boolean> {
+  if (!propertyId || !checkinDate) return false;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as unknown as {
+    from: (t: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  };
+  const { data: marks } = await db
+    .from("guest_arrival_status")
+    .select("log_id, reservation_id")
+    .eq("property_id", propertyId)
+    .eq("kind", "checkin")
+    .eq("status", "no_show")
+    .limit(500);
+  const rows = (marks ?? []) as Array<{ log_id: string | null; reservation_id: string | null }>;
+  if (rows.length === 0) return false;
+  const resIds = rows.map((r) => r.reservation_id).filter((v): v is string => !!v);
+  const logIds = rows.map((r) => r.log_id).filter((v): v is string => !!v);
+  const [byRes, byLog] = await Promise.all([
+    resIds.length > 0
+      ? db
+          .from("property_reservations")
+          .select("id")
+          .in("id", resIds)
+          .eq("checkin_date", checkinDate)
+          .limit(1)
+      : Promise.resolve({ data: [] }),
+    logIds.length > 0
+      ? db
+          .from("guide_access_logs")
+          .select("id")
+          .in("id", logIds)
+          .eq("checkin_date", checkinDate)
+          .limit(1)
+      : Promise.resolve({ data: [] }),
+  ]);
+  return (
+    ((byRes.data ?? []) as unknown[]).length > 0 || ((byLog.data ?? []) as unknown[]).length > 0
+  );
+}
 
 /**
  * Consulta a reserva pelo código (HM…) no espelho do iCal do imóvel. Movida de
@@ -100,6 +156,13 @@ export async function lookupReservationByCode(
   const current = active.find((r) => r.checkout_date >= today);
   if (!current) return { ok: false, reason: "expired" };
 
+  // Esta é a porta única de todo acesso por código (formulário, revalidação
+  // periódica do guia, senhas, chat, "já fiz o check-in/out") — travar aqui
+  // trava todos de uma vez.
+  if (await isStayMarkedNoShow(prop.id as string, current.checkin_date)) {
+    return { ok: false, reason: "no_show" };
+  }
+
   return { ok: true, checkin_date: current.checkin_date, checkout_date: current.checkout_date };
 }
 
@@ -142,6 +205,42 @@ export function safeEqual(a: string, b: string): boolean {
   const len = Math.max(ab.length, bb.length);
   for (let i = 0; i < len; i++) diff |= (ab[i] ?? 0) ^ (bb[i] ?? 0);
   return diff === 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Ficha assinada genérica (ex.: "Desfazer" do hóspede)
+ * ------------------------------------------------------------------ */
+
+/**
+ * `<corpo base64url>.<assinatura>`. O corpo é JSON legível — NÃO guarde nada
+ * secreto aqui; a assinatura só garante que o servidor emitiu exatamente
+ * aquilo e que ninguém alterou. `purpose` separa usos diferentes do mesmo
+ * segredo (uma ficha de um uso não vale para outro).
+ */
+export async function signGuestToken(purpose: string, payload: unknown): Promise<string> {
+  const body = base64url(encoder.encode(JSON.stringify(payload)).buffer as ArrayBuffer);
+  const sig = await hmac(`token:${purpose}|${body}`);
+  return `${body}.${sig}`;
+}
+
+export async function verifyGuestToken<T>(
+  purpose: string,
+  token: string | null | undefined,
+): Promise<T | null> {
+  if (!token) return null;
+  const idx = token.lastIndexOf(".");
+  if (idx <= 0) return null;
+  const body = token.slice(0, idx);
+  const expected = await hmac(`token:${purpose}|${body}`);
+  if (!safeEqual(expected, token.slice(idx + 1))) return null;
+  try {
+    const b64 = body.replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4));
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes)) as T;
+  } catch {
+    return null;
+  }
 }
 
 export type PinCookieKind = "pin" | "accesscodes";

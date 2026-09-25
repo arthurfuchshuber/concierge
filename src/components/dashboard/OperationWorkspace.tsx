@@ -163,6 +163,7 @@ import {
   FILTER_PANEL_OFFSET,
   FilterActionRow,
   FilterCountBadge,
+  FilterDateCalendar,
   FilterHeaderClear,
   FilterMenuRow,
   FilterMultiSelect,
@@ -299,6 +300,36 @@ function todayISOSaoPaulo(): string {
   }).formatToParts(new Date());
   const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
+}
+
+/** "HH:mm" de agora no horário de São Paulo (mesmo relógio da operação). */
+function nowHHMMSaoPaulo(): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  return `${pick("hour")}:${pick("minute")}`;
+}
+
+/**
+ * "Não Comparecerá" x "Não Compareceu" (pedido explícito, 24/09/2026): antes
+ * do horário de check-in LIBERADO da reserva ainda não dá para dizer que o
+ * hóspede não compareceu — ele só não vai vir. Depois desse horário, sim.
+ * Usa a data CONFIRMADA da reserva (`guestCheckin`), nunca a prevista, e o
+ * horário mínimo de entrada do imóvel (15:00 quando não há um cadastrado).
+ * O efeito no sistema é o mesmo nos dois casos; só o texto muda.
+ */
+function noShowLabel(row: ArrivalRow): "Não Comparecerá" | "Não Compareceu" {
+  const day = row.guestCheckin || row.date;
+  const m = (row.propertyCheckinTime ?? row.standardTime ?? "15:00").match(/^(\d{1,2}):(\d{2})/);
+  const time = m ? `${m[1].padStart(2, "0")}:${m[2]}` : "15:00";
+  const today = todayISOSaoPaulo();
+  if (day > today) return "Não Comparecerá";
+  if (day < today) return "Não Compareceu";
+  return nowHHMMSaoPaulo() < time ? "Não Comparecerá" : "Não Compareceu";
 }
 
 /**
@@ -2909,9 +2940,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 toast.error("Não foi possível identificar esse card.");
                 return;
               }
+              const label = noShowLabel(row);
               if (
                 !window.confirm(
-                  `Marcar ${row.guestName || "este hóspede"} como "Não Compareceu"? O card sai da lista de Check-ins e o imóvel fica liberado para o próximo check-in imediatamente.`,
+                  `Marcar ${row.guestName || "este hóspede"} como "${label}"? O card sai da lista de Check-ins, o acesso dele ao guia digital é bloqueado e o imóvel fica liberado para o próximo check-in imediatamente.`,
                 )
               )
                 return;
@@ -2923,7 +2955,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               // coluna "Não Compareceu".
               patchList("checkin", (rows) => rows.filter((r) => r.logId !== row.logId));
               noShow.mutate(target);
-              notifyAction('Marcado como "Não Compareceu".', () => {
+              notifyAction(`Marcado como "${label}".`, () => {
                 setBusyRowId(row.logId);
                 revert.mutate({ ...target, from: "no_show" });
               });
@@ -10572,7 +10604,7 @@ function ArrivalCard({
               )}
               {showNoShowMenuItem && (
                 <DropdownMenuItem onClick={handleNoShowClick} disabled={busy}>
-                  <UserX className="size-3.5 shrink-0" /> Não Compareceu
+                  <UserX className="size-3.5 shrink-0" /> {noShowLabel(row)}
                 </DropdownMenuItem>
               )}
               {showSkipCleaningMenuItem && (
@@ -11041,14 +11073,6 @@ function PredictedEditor({
   const selected = activeDate ? parseISODateLocal(activeDate) : undefined;
   const minDate = active?.dateMin ? parseISODateLocal(active.dateMin) : undefined;
   const maxDate = active?.dateMax ? parseISODateLocal(active.dateMax) : undefined;
-  const disabledMatcher =
-    minDate && maxDate
-      ? [{ before: minDate }, { after: maxDate }]
-      : minDate
-        ? { before: minDate }
-        : maxDate
-          ? { after: maxDate }
-          : undefined;
 
   // A janela do imóvel só vale enquanto a previsão cai no mesmo dia da reserva
   // confirmada: mudou o dia, qualquer horário passa a ser possível.
@@ -11259,20 +11283,22 @@ function PredictedEditor({
               </span>
             </div>
           )}
-          <RangeCalendar
-            mode="single"
-            locale={ptBR}
-            selected={selected}
-            defaultMonth={selected ?? minDate}
-            disabled={disabledMatcher}
-            onSelect={(d) => {
-              if (!d) return;
+          {/* Calendário de DATA ÚNICA no desenho do "Período" dos Filtros
+              (mockup aprovado, 24/09/2026): atalhos Hoje / Amanhã / Depois de
+              amanhã, setas próprias, dia escolhido em círculo cheio. A `key`
+              reabre sempre no mês do dia escolhido do lado em edição. */}
+          <FilterDateCalendar
+            key={`${editing}-${activeDate}`}
+            value={selected}
+            today={parseISODateLocal(todayISOSaoPaulo())}
+            min={minDate}
+            max={maxDate}
+            onChange={(d) =>
               setPending((prev) => ({
                 ...prev,
                 [editing]: { ...prev[editing], date: dateToISOLocal(d) },
-              }));
-            }}
-            className="p-3"
+              }))
+            }
           />
           {/* Resumo do que está selecionado — a confirmação de verdade só
               acontece ao fechar o popover (closeAndCommit), como sempre. */}

@@ -127,6 +127,15 @@ export function readAccessRecord(slug: string, timeZone?: string | null): Access
   }
 }
 
+/**
+ * Texto mostrado ao hóspede quando a estadia foi marcada como "Não
+ * compareceu" no sistema (pedido explícito, 24/09/2026: o guia fica
+ * TRAVADO). Neutro de propósito — não acusa o hóspede, só explica que o
+ * acesso não está disponível e aponta o caminho se for engano.
+ */
+export const NO_SHOW_MESSAGE =
+  "Esta reserva foi encerrada pelo anfitrião e o acesso ao guia não está disponível. Se acha que é um engano, fale com ele pelo Airbnb.";
+
 /** Remove o registro salvo — usado quando o hóspede volta pro formulário
  * a partir do onboarding (senão o gate reabre e destrava na hora). */
 export function clearAccessRecord(slug: string) {
@@ -622,7 +631,9 @@ export function GuideAccessGate({
         toast.error(
           "reason" in res && res.reason === "no_match"
             ? "As datas não correspondem ao calendário do anfitrião."
-            : "Não foi possível registrar seu acesso.",
+            : "reason" in res && res.reason === "no_show"
+              ? NO_SHOW_MESSAGE
+              : "Não foi possível registrar seu acesso.",
         );
         return;
       }
@@ -809,7 +820,9 @@ export function GuideAccessGate({
                         <span>
                           {codeCheck.reason === "expired"
                             ? "Esta reserva já terminou — o acesso ao guia não está mais disponível."
-                            : "Não encontramos uma reserva ativa com este código. Confira o código no seu app do Airbnb."}
+                            : codeCheck.reason === "no_show"
+                              ? NO_SHOW_MESSAGE
+                              : "Não encontramos uma reserva ativa com este código. Confira o código no seu app do Airbnb."}
                         </span>
                       </div>
                     )}

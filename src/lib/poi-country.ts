@@ -60,7 +60,7 @@ export function countryIsoFromText(text: string | null | undefined): string | nu
   const k = text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .trim();
   return COUNTRY_ALIASES[k] ?? null;
 }

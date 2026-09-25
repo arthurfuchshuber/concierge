@@ -165,6 +165,7 @@ export function GuideAiChat({
   checkinDate,
   checkoutDate,
   suppressNudge,
+  bottomLift = 0,
 }: {
   slug: string;
   propertyName: string;
@@ -177,6 +178,9 @@ export function GuideAiChat({
    * primeiro acesso, diálogo de PIN, etc.) — nesse caso o popup sugestivo
    * nunca aparece por cima; só quando a tela estiver limpa. */
   suppressNudge?: boolean;
+  /** Px a mais acima da posição salva — quando a barra "Já acessei"/"Já saí"
+   * está na tela, o botão do assistente sobe junto para não ficar por cima. */
+  bottomLift?: number;
 }) {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
@@ -295,7 +299,9 @@ export function GuideAiChat({
             window.innerHeight - state.startRect.height - 24,
             window.innerHeight - (newTop + state.startRect.height),
           ));
-          const next = { side: pos.side, bottom: bottomPx };
+          // A posição salva é SEM o `bottomLift` (que só existe enquanto a
+          // barra do guia está na tela).
+          const next = { side: pos.side, bottom: Math.max(24, bottomPx - bottomLift) };
           setPos(next);
           setDragOffset(null);
           try { window.localStorage.setItem("guide-chat-pos", JSON.stringify(next)); } catch { /* ignore */ }
@@ -771,7 +777,7 @@ export function GuideAiChat({
     <div
       className={`fixed flex flex-col ${pos.side === "left" ? "items-start" : "items-end"} gap-3 pointer-events-none`}
       style={{
-        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${pos.bottom}px)`,
+        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${pos.bottom + bottomLift}px)`,
         [pos.side]: "16px",
         transform: dragOffset ? `translateY(${dragOffset.dy}px)` : undefined,
         transition: dragOffset ? "none" : "transform 200ms ease",
