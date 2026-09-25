@@ -16,6 +16,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentTool } from "./gateway.server";
+import { scorePropertyMatch } from "./fuzzy-match";
 import type { AssistantAction, PendingAction } from "@/lib/assistant-types";
 import { defaultShowInCleaning, type TaskCategory, type TaskPriority } from "@/lib/tasks-types";
 
