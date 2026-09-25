@@ -37,7 +37,8 @@ export async function ensureGuidePass(
   identity: { name?: string | null; code?: string | null } | null,
 ): Promise<string | null> {
   const existing = readPass(`guide:${slug}`);
-  if (existing) return existing;
+  // Passe antigo sem reserva conferida: se agora há código, emite um novo.
+  if (existing && (passIsVerified(existing) || !identity?.code?.trim())) return existing;
   const name = identity?.name?.trim();
   if (!name || name.length < 2) return null;
   try {
