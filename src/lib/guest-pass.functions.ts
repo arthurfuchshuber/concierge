@@ -29,7 +29,10 @@ export const issueGuestPass = createServerFn({ method: "POST" })
     if (!prop) throw new Error("Este guia não está disponível.");
 
     let verified = false;
-    if ((prop.airbnb_ical_url ?? "").trim()) {
+    if (!(prop.airbnb_ical_url ?? "").trim()) {
+      throw new Error("Este guia ainda não está liberado. Fale com o anfitrião.");
+    }
+    {
       const code = (data.reservationCode ?? "").trim();
       if (!code) throw new Error("Informe o código da reserva para continuar.");
       const { lookupReservationByCode } = await import("@/lib/guest-access.server");
