@@ -15,7 +15,7 @@ const RecordInput = z.object({
   poi_key: z.string().trim().min(1).max(200),
   poi_type: PoiType,
   event_type: EventType,
-  anon_id: z.string().trim().min(16).max(80),
+  anon_id: z.string().trim().min(8).max(80),
 });
 
 const CountsInput = z.object({
@@ -24,7 +24,7 @@ const CountsInput = z.object({
 
 const ReactionsInput = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
-  anon_id: z.string().trim().min(16).max(80),
+  anon_id: z.string().trim().min(8).max(80),
 });
 
 /**
@@ -52,7 +52,7 @@ export const recordPoiEngagement = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const propertyId = await resolvePropertyId(data.slug);
     if (!propertyId) return { ok: false as const };
-    const anon = await anonKey(anon);
+    const anon = await anonKey(data.anon_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Reactions: like/dislike are mutually exclusive — clicking again toggles off.
@@ -149,7 +149,7 @@ export const getMyPoiReactions = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const propertyId = await resolvePropertyId(data.slug);
     if (!propertyId) return { reactions: {} as Record<string, "like" | "dislike"> };
-    const anon = await anonKey(anon);
+    const anon = await anonKey(data.anon_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows } = await supabaseAdmin
       .from("poi_engagement_events")
