@@ -1,11 +1,8 @@
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 
-export const ETIQUETA_OPTIONS = [
-  ETIQUETA_CHECKIN_CHECKOUT,
-  "Recomendações Locais",
-  "Informações do Espaço",
-] as const;
+// Por enquanto só existe este tipo: todo guia exige código de reserva ativo.
+export const ETIQUETA_OPTIONS = [ETIQUETA_CHECKIN_CHECKOUT] as const;
 
 type Props = {
   value: string;

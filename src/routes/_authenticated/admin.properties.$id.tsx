@@ -303,7 +303,7 @@ function emptyForm(): FormState {
     property: {
       name: "",
       slug: "",
-      tagline: "",
+      tagline: ETIQUETA_CHECKIN_CHECKOUT,
       short_description: null,
       hero_image_url: "",
       gallery_images: [],
@@ -1518,8 +1518,7 @@ function PropertyEditor() {
 
           // Guias de Check-In & Check-Out sempre exigem o formulário de
           // primeiro acesso — o campo fica bloqueado na interface.
-          require_access_gate:
-            propertySource.tagline === ETIQUETA_CHECKIN_CHECKOUT ? true : propertySource.require_access_gate,
+          require_access_gate: true,
           pin_code: propertySource.access_mode === "pin" ? propertySource.pin_code || null : null,
           pin_expires_at:
             propertySource.access_mode === "pin" && propertySource.pin_expires_at

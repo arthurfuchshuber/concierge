@@ -32,9 +32,10 @@ type PropLike = {
  * há contra o que validar, e o guia segue a regra antiga (acesso pelo link).
  */
 export function isReservationGated(prop: PropLike | null | undefined): boolean {
-  if (!prop) return false;
-  const hasIcal = !!(prop.airbnb_ical_url ?? "").trim();
-  return hasIcal && (prop.tagline ?? "").trim() === ETIQUETA_CHECKIN_CHECKOUT;
+  // REGRA (25/09/2026): todo guia real exige código de reserva ativo. Sem
+  // iCal a conferência falha ("no_ical") e nada sensível é liberado.
+  void ETIQUETA_CHECKIN_CHECKOUT;
+  return !!prop;
 }
 
 export type ReservationLookup =
