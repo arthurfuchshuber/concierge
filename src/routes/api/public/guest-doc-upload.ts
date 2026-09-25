@@ -120,7 +120,8 @@ export const Route = createFileRoute("/api/public/guest-doc-upload")({
           request.headers.get("x-guest-pass"),
           `guide:${(prop as { id: string }).id}`,
         );
-        if (!passInfo) {
+        // Só hóspede com código de reserva ativo conferido na 1ª etapa envia documento.
+        if (!passInfo || !passInfo.verified) {
           return new Response(JSON.stringify({ error: "needs_pass", message: GUEST_PASS_MISSING }), { status: 401 });
         }
 
@@ -168,7 +169,7 @@ export const Route = createFileRoute("/api/public/guest-doc-upload")({
         // Checagem paga por IA só para hóspede com código de reserva conferido
         // (25/09/2026). Os demais enviam o documento sem a checagem de nitidez.
         let legibility = { legible: true, reason: "" };
-        if (passInfo.verified && mime.startsWith("image/") && mime !== "image/heic" && mime !== "image/heif") {
+        if (mime.startsWith("image/") && mime !== "image/heic" && mime !== "image/heif") {
           let bin = "";
           const chunk = 0x8000;
           for (let i = 0; i < buffer.length; i += chunk) {
