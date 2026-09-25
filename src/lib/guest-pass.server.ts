@@ -40,6 +40,11 @@ export function codeDigest(code: string): string {
   return createHmac("sha256", secret()).update(`otp:${code}`).digest("base64url").slice(0, 32);
 }
 
+/** Resumo assinado do id anônimo do navegador (reações no guia). */
+export function anonDigest(anonId: string): string {
+  return "h:" + createHmac("sha256", secret()).update(`anon:${anonId}`).digest("base64url").slice(0, 43);
+}
+
 /** Como verifyGuestPass, mas diz também se a reserva foi conferida por código. */
 export function verifyGuestPassInfo(
   token: string | null | undefined,
