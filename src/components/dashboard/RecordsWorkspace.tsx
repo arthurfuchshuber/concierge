@@ -1912,77 +1912,73 @@ function ResolveDialog({
 
           {hasCost && (
             <>
-              <label className="block">
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
-                  Valor da resolução
-                </span>
-                <div className="mt-1 flex items-center gap-2 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
-                  <span className="text-[11px] font-bold text-muted-foreground">R$</span>
-                  <input
-                    inputMode="decimal"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0,00"
-                    className="w-full bg-transparent text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground/60"
+              <div className="grid grid-cols-2 gap-2">
+                <div className="min-w-0">
+                  <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem deve arcar</span>
+                  <PayerButtonGroup
+                    value={payer}
+                    onSelect={(k) => {
+                      setPayer(k);
+                      setPayerId(null);
+                    }}
                   />
                 </div>
-              </label>
-
-              <div>
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
-                  Responsável pela despesa
-                </span>
-                <PayerButtonGroup
-                  value={payer}
-                  onSelect={(k) => {
-                    setPayer(k);
-                    setPayerId(null);
-                  }}
-                />
+                <div className="min-w-0">
+                  <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem pagou</span>
+                  <PayerButtonGroup
+                    value={paidBy}
+                    onSelect={(k) => {
+                      setPaidBy(k);
+                      setPaidById(null);
+                    }}
+                  />
+                </div>
               </div>
 
               {needsWho && (
-                <PayerPicker
-                  kind={payer}
-                  options={options}
-                  selectedId={payerId}
-                  onSelect={setPayerId}
-                />
+                <PayerPicker kind={payer} options={options} selectedId={payerId} onSelect={setPayerId} />
+              )}
+              {needsWhoPaid && (
+                <PayerPicker kind={paidBy} options={paidByOptions} selectedId={paidById} onSelect={setPaidById} />
               )}
 
-              <div>
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem pagou?</span>
-                <PayerButtonGroup
-                  value={paidBy}
-                  onSelect={(k) => {
-                    setPaidBy(k);
-                    setPaidById(null);
-                  }}
-                />
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ["Custo total", amount, setAmount, "0,00"],
+                    ["Valor pago", amountPaid, setAmountPaid, amount || "0,00"],
+                  ] as const
+                ).map(([label, val, set, ph]) => (
+                  <label key={label} className="block min-w-0">
+                    <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">{label}</span>
+                    <div className="mt-1 flex items-center gap-1.5 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
+                      <span className="text-[11px] font-bold text-muted-foreground">R$</span>
+                      <input
+                        inputMode="decimal"
+                        value={val}
+                        onChange={(e) => set(e.target.value)}
+                        placeholder={ph}
+                        className="w-full min-w-0 bg-transparent text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground/60"
+                      />
+                    </div>
+                  </label>
+                ))}
               </div>
 
-              {needsWhoPaid && (
-                <PayerPicker
-                  kind={paidBy}
-                  options={paidByOptions}
-                  selectedId={paidById}
-                  onSelect={setPaidById}
-                />
-              )}
-
-              <label className="block">
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Valor pago</span>
-                <div className="mt-1 flex items-center gap-2 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
-                  <span className="text-[11px] font-bold text-muted-foreground">R$</span>
-                  <input
-                    inputMode="decimal"
-                    value={amountPaid}
-                    onChange={(e) => setAmountPaid(e.target.value)}
-                    placeholder="0,00"
-                    className="w-full bg-transparent text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground/60"
-                  />
-                </div>
-              </label>
+              {(() => {
+                const total = parseBRL(amountPaid || amount);
+                if (!Number.isFinite(total) || total <= 0) return null;
+                const brl = total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                const text =
+                  payer === paidBy
+                    ? `${PAYER_LABEL[payer]} arcou e pagou ${brl}. Nada a acertar.`
+                    : `${PAYER_LABEL[payer]} deve reembolsar ${brl} a ${PAYER_LABEL[paidBy].toLowerCase()}.`;
+                return (
+                  <p className="rounded-[0.3rem] bg-primary/10 px-2.5 py-2 text-[11px] font-medium text-foreground/85">
+                    {text}
+                  </p>
+                );
+              })()}
             </>
           )}
 
