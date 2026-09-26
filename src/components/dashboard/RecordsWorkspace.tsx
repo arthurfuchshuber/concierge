@@ -969,9 +969,6 @@ function PropertyCard({
   // a pessoa espera de um "+N".
   // Recolher zera o "+N": reabrir depois mostrando a lista inteira, sem
   // ninguém ter pedido, é surpresa — e surpresa em tela de operação é ruído.
-  useEffect(() => {
-    if (!pendingOpen) setShowAllPending(false);
-  }, [pendingOpen]);
   const hasPending = group.pending.length > 0;
   // Com o andar de pendências em cima, o acervo encolhe para não esticar o
   // cartão; sozinho, ele fica no tamanho de leitura de sempre.
