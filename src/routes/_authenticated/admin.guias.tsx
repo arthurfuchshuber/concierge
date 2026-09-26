@@ -862,27 +862,33 @@ function Dashboard() {
             .map((g) => (
               <section key={g.key} aria-label={g.title} className="relative min-w-0">
                 <div className="space-y-2.5">
-                  <div className="flex min-w-0 items-center gap-2.5" style={{ marginLeft: 2, marginRight: 9 }}>
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5" style={{ marginLeft: 2, marginRight: 9 }}>
                     <span
                       aria-hidden
-                      className="h-px min-w-3 flex-1 bg-gradient-to-l from-[color-mix(in_oklab,var(--foreground)_14%,transparent)] to-transparent"
+                      className="h-px min-w-3"
+                      style={{ background: `linear-gradient(to left, color-mix(in oklab, ${g.color} 70%, transparent), transparent)` }}
                     />
-                    <span
-                      className="grid size-[22px] shrink-0 place-items-center rounded-md"
-                      style={{ background: `color-mix(in oklab, ${g.color} 12%, transparent)`, color: g.color }}
-                    >
-                      <g.Icon className="size-[13px]" strokeWidth={2.2} />
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span
+                        className="grid size-[22px] shrink-0 place-items-center rounded-md"
+                        style={{ background: `color-mix(in oklab, ${g.color} 12%, transparent)`, color: g.color }}
+                      >
+                        <g.Icon className="size-[13px]" strokeWidth={2.2} />
+                      </span>
+                      <span className="ds-eyebrow min-w-0 truncate text-[10px] tracking-[0.2em]" style={{ color: g.color }}>
+                        {g.title}
+                      </span>
                     </span>
-                    <span className="ds-eyebrow min-w-0 truncate text-[10px] tracking-[0.2em] text-muted-foreground">
-                      {g.title}
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        aria-hidden
+                        className="h-px min-w-3 flex-1"
+                        style={{ background: `linear-gradient(to right, color-mix(in oklab, ${g.color} 70%, transparent), transparent)` }}
+                      />
+                      <CountPill>
+                        {g.items.length} {g.items.length === 1 ? "Guia" : "Guias"}
+                      </CountPill>
                     </span>
-                    <span
-                      aria-hidden
-                      className="h-px min-w-3 flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_14%,transparent)] to-transparent"
-                    />
-                    <CountPill>
-                      {g.items.length} {g.items.length === 1 ? "Guia" : "Guias"}
-                    </CountPill>
                   </div>
                   <div className={`ds-five-cap grid gap-3 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
                     {g.items.map((p) => {
