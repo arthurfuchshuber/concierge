@@ -63,7 +63,9 @@ function subscribe(listener: Listener) {
   };
 }
 
-const getSnapshot = () => stack.some((l) => l.kind === "float");
+// Véu só quando a camada do TOPO é flutuante: uma janela aberta por cima de um
+// popover não pode ficar embaixo do véu.
+const getSnapshot = () => stack.length > 0 && stack[stack.length - 1].kind === "float";
 const getServerSnapshot = () => false;
 
 /** true enquanto qualquer Popover/DropdownMenu do app estiver aberto. */
