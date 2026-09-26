@@ -39,7 +39,9 @@ import {
   FILTER_PANEL_COLLISION,
   FILTER_PANEL_OFFSET,
   FilterCountBadge,
+  FilterHeaderClear,
   FilterMenuRow,
+  FilterPeriodCalendar,
   FilterMultiSelect,
   FilterOptionRow,
   FilterRootHeader,
@@ -47,6 +49,22 @@ import {
   FilterToggleRow,
 } from "@/components/dashboard/filter-panel";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import type { DateRange } from "react-day-picker";
+
+type PeriodRange = { start: string; end: string };
+function todayISOSaoPaulo(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+function isoToDate(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+function dateToISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function fmtDDMM(iso: string): string {
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+}
 import {
   PANEL_SHELL,
   PanelHeading,
@@ -109,14 +127,7 @@ const GROUP_OPTIONS: ReadonlyArray<{ value: GroupBy; label: string }> = [
   { value: "day", label: "Por data" },
 ];
 
-type PeriodValue = "all" | "7" | "30" | "90";
 
-const PERIOD_OPTIONS: ReadonlyArray<{ value: PeriodValue; label: string }> = [
-  { value: "all", label: "Todo o período" },
-  { value: "7", label: "7 dias" },
-  { value: "30", label: "30 dias" },
-  { value: "90", label: "90 dias" },
-];
 
 /** Quantas miniaturas aparecem antes do "+N" — quatro, como no mockup. */
 const THUMBS_PER_GROUP = 4;
@@ -291,7 +302,7 @@ export function RecordsWorkspace() {
   const [category, setCategory] = useState<RecordCategory | null>(null);
   const [onlyOpen, setOnlyOpen] = useState(false);
   const [groupBy, setGroupBy] = useState<GroupBy>("property");
-  const [period, setPeriod] = useState<PeriodValue>("all");
+  const [period, setPeriod] = useState<PeriodRange | null>(null);
   /** Nomes (mesma chave do filtro de proprietário das outras telas). */
   const [ownerFilters, setOwnerFilters] = useState<string[]>([]);
   /** Ids de imóvel. */
@@ -316,7 +327,6 @@ export function RecordsWorkspace() {
   const [opened, setOpened] = useState<AccountRecord | null>(null);
   const [resolving, setResolving] = useState<AccountRecord | null>(null);
 
-  const days = period === "all" ? null : Number(period);
 
   // Imóveis e proprietários da conta — a MESMA função que alimenta o
   // vínculo das Pendências, já recortada por perfil.
@@ -359,10 +369,13 @@ export function RecordsWorkspace() {
       activeOwnerId ?? "self",
       category ?? "all",
       onlyOpen,
-      period,
+      period ? `${period.start}_${period.end}` : "all",
       (propertyIds ?? []).join(","),
     ] as const,
-    queryFn: () => listFn({ data: { ownerId: activeOwnerId, category, onlyOpen, days, propertyIds } }),
+    queryFn: () =>
+      listFn({
+        data: { ownerId: activeOwnerId, category, onlyOpen, fromDate: period?.start ?? null, toDate: period?.end ?? null, propertyIds },
+      }),
   });
 
   // Excluir com "Desfazer" e resposta instantânea (17/09/2026).
@@ -490,7 +503,7 @@ export function RecordsWorkspace() {
   const hasCustomFilters =
     category !== null ||
     onlyOpen ||
-    period !== "all" ||
+    period !== null ||
     groupBy !== "property" ||
     ownerFilters.length > 0 ||
     propertyFilters.length > 0;
@@ -498,7 +511,7 @@ export function RecordsWorkspace() {
   function clearAllFilters() {
     setCategory(null);
     setOnlyOpen(false);
-    setPeriod("all");
+    setPeriod(null);
     setGroupBy("property");
     setOwnerFilters([]);
     setPropertyFilters([]);
@@ -506,12 +519,11 @@ export function RecordsWorkspace() {
 
   const pageTitle = (() => {
     const base = category ? (CATEGORY_BY_KEY.get(category)?.short ?? "Registros") : "Registros";
-    return period === "all" ? `${base} Todo o período` : `${base} Últimos ${period}d`;
+    return period ? `${base} Período ${fmtDDMM(period.start)} a ${fmtDDMM(period.end)}` : `${base} Todo o período`;
   })();
-  const pageSubtitle =
-    period === "all"
-      ? "Fotos, vídeos, áudios e notas registrados nos imóveis em todo o período."
-      : `Fotos, vídeos, áudios e notas registrados nos imóveis nos últimos ${period} dias.`;
+  const pageSubtitle = period
+    ? "Fotos, vídeos, áudios e notas registrados nos imóveis no período."
+    : "Fotos, vídeos, áudios e notas registrados nos imóveis em todo o período.";
 
   return (
     /* MESMA MOLDURA DE PÁGINA das outras três telas (Operacional / Kanban /
@@ -538,21 +550,25 @@ export function RecordsWorkspace() {
           subtitle={pageSubtitle}
           actions={
             <>
-              {/* PERÍODO À ESQUERDA, FILTROS À DIREITA — a mesma barra partida
-                  ao meio da Limpeza. Tocar no período passa para o próximo
-                  (Todo o período → 7 → 30 → 90 dias). */}
-              <button
-                type="button"
-                onClick={() => {
-                  const i = PERIOD_OPTIONS.findIndex((o) => o.value === period);
-                  setPeriod(PERIOD_OPTIONS[(i + 1) % PERIOD_OPTIONS.length].value);
-                }}
-                title="Trocar período"
-                className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
-              >
-                <Sparkles className={ACTION_ICON} />
-                <span className="lg:hidden">{period === "all" ? "Todo o período" : `Últimos ${period} dias`}</span>
-              </button>
+              {/* PERÍODO À ESQUERDA, FILTROS À DIREITA — idêntico à Limpeza:
+                  com período escolhido, o botão mostra as datas e tocar limpa. */}
+              {period ? (
+                <button
+                  type="button"
+                  onClick={() => setPeriod(null)}
+                  title="Limpar período"
+                  aria-label={`Período ${fmtDDMM(period.start)} a ${fmtDDMM(period.end)} — limpar período`}
+                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+                >
+                  <CalendarRange className={ACTION_ICON} />
+                  <span className="lg:hidden">{`${fmtDDMM(period.start)} a ${fmtDDMM(period.end)}`}</span>
+                </button>
+              ) : (
+                <span className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`} title="Todo o período">
+                  <Sparkles className={ACTION_ICON} />
+                  <span className="lg:hidden">Todo o período</span>
+                </span>
+              )}
               <RecordsFiltersButton
                 category={category}
                 onCategoryChange={setCategory}
@@ -2178,8 +2194,8 @@ function RecordsFiltersButton({
   onCategoryChange: (v: RecordCategory | null) => void;
   groupBy: GroupBy;
   onGroupByChange: (v: GroupBy) => void;
-  period: PeriodValue;
-  onPeriodChange: (v: PeriodValue) => void;
+  period: PeriodRange | null;
+  onPeriodChange: (v: PeriodRange | null) => void;
   onlyOpen: boolean;
   onOnlyOpenChange: (v: boolean) => void;
   ownerFilters: string[];
@@ -2193,10 +2209,17 @@ function RecordsFiltersButton({
 }) {
   type Screen = "root" | "category" | "group" | "period" | "owner" | "property";
   const [screen, setScreen] = useState<Screen>("root");
+  const [draft, setDraft] = useState<DateRange | undefined>(
+    period ? { from: isoToDate(period.start), to: isoToDate(period.end) } : undefined,
+  );
+  useEffect(() => {
+    setDraft(period ? { from: isoToDate(period.start), to: isoToDate(period.end) } : undefined);
+  }, [period]);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => isoToDate(todayISOSaoPaulo()));
 
   const categoryLabel = category ? (CATEGORY_BY_KEY.get(category)?.short ?? "Todas") : "Todas";
   const groupLabel = GROUP_OPTIONS.find((o) => o.value === groupBy)?.label ?? "Por imóvel";
-  const periodLabel = PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "Todo o período";
+  const periodLabel = period ? `${fmtDDMM(period.start)} – ${fmtDDMM(period.end)}` : "Todos";
   const ownerLabel =
     ownerFilters.length === 0
       ? "Todos"
@@ -2248,7 +2271,7 @@ function RecordsFiltersButton({
           <>
             <FilterRootHeader canClear={hasCustomFilters} onClear={onClearAll} />
             <FilterMenuRow icon={Layers} label="Agrupar" value={groupLabel} active={groupBy !== GROUP_OPTIONS[0].value} onClick={() => setScreen("group")} />
-            <FilterMenuRow icon={CalendarRange} label="Período" value={periodLabel} active={period !== "all"} onClick={() => setScreen("period")} />
+            <FilterMenuRow icon={CalendarRange} label="Período" value={periodLabel} active={period !== null} onClick={() => { setCalendarMonth(isoToDate(todayISOSaoPaulo())); setScreen("period"); }} />
             <FilterMenuRow icon={Users} label="Proprietário" value={ownerLabel} active={ownerFilters.length > 0} onClick={() => setScreen("owner")} />
             <FilterMenuRow icon={Building2} label="Imóvel" value={propertyLabel} active={propertyFilters.length > 0} onClick={() => setScreen("property")} last />
           </>
@@ -2288,16 +2311,30 @@ function RecordsFiltersButton({
 
         {screen === "period" ? (
           <>
-            <FilterScreenHeader icon={CalendarRange} title="Período" onBack={() => setScreen("root")} />
-            {PERIOD_OPTIONS.map((o, i) => (
-              <FilterOptionRow
-                key={o.value}
-                label={o.label}
-                selected={o.value === period}
-                onClick={() => onPeriodChange(o.value)}
-                last={i === PERIOD_OPTIONS.length - 1}
-              />
-            ))}
+            <FilterScreenHeader
+              icon={CalendarRange}
+              title="Período"
+              onBack={() => setScreen("root")}
+              right={
+                <FilterHeaderClear
+                  disabled={!draft && !period}
+                  onClick={() => {
+                    setDraft(undefined);
+                    onPeriodChange(null);
+                  }}
+                />
+              }
+            />
+            <FilterPeriodCalendar
+              value={draft}
+              month={calendarMonth}
+              onMonthChange={setCalendarMonth}
+              today={isoToDate(todayISOSaoPaulo())}
+              onChange={(next) => {
+                setDraft(next);
+                if (next?.from && next?.to) onPeriodChange({ start: dateToISO(next.from), end: dateToISO(next.to) });
+              }}
+            />
           </>
         ) : null}
 
