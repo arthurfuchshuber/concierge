@@ -89,6 +89,7 @@ import {
   History,
   Clock3,
   HardHat,
+  Building2 as PropertyFilterIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -161,6 +162,7 @@ import {
   FilterScreenHeader,
   FilterSection,
 } from "@/components/dashboard/filter-panel";
+import type { FilterMultiOption } from "@/components/dashboard/filter-panel";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -951,13 +953,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // prestador vinculado ao imóvel (`providerName` de `getOccupancyBoard`,
   // ver `propertyProviderById`/`matchesKanbanOwnerCity` mais abaixo).
   const [providerFilters, setProviderFilters] = useState<string[]>([]);
+  // Filtro de Imóveis (pedido explícito, 26/09/2026) — ids, aba Limpeza.
+  const [propertyFilters, setPropertyFilters] = useState<string[]>([]);
   const hasCustomFilters =
-    !!periodRange || ownerFilters.length > 0 || cityFilters.length > 0 || providerFilters.length > 0;
+    !!periodRange ||
+    ownerFilters.length > 0 ||
+    cityFilters.length > 0 ||
+    providerFilters.length > 0 ||
+    propertyFilters.length > 0;
   function clearAllFilters() {
     setPeriodRange(null);
     setOwnerFilters([]);
     setCityFilters([]);
     setProviderFilters([]);
+    setPropertyFilters([]);
   }
 
   const occStart = periodRange?.start ?? todayISOSaoPaulo();
@@ -1055,11 +1064,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }
     return out;
   }, [occupancyProperties]);
+  // Opções do filtro de Imóveis (aba Limpeza): nome + proprietário embaixo.
+  const propertyOptions = useMemo(
+    () =>
+      [...occupancyProperties]
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+        .map((p) => ({ value: p.id, label: p.name, sublabel: p.ownerName ?? p.city ?? null })),
+    [occupancyProperties],
+  );
   const matchesOwnerCity = useCallback(
-    (p: { ownerName?: string | null; city?: string | null }) =>
+    (p: { id?: string; ownerName?: string | null; city?: string | null }) =>
+      (propertyFilters.length === 0 || (!!p.id && propertyFilters.includes(p.id))) &&
       (ownerFilters.length === 0 || (p.ownerName && ownerFilters.includes(p.ownerName))) &&
       (cityFilters.length === 0 || (p.city && cityFilters.includes(p.city))),
-    [ownerFilters, cityFilters],
+    [ownerFilters, cityFilters, propertyFilters],
   );
   // Prestador é aplicado SÓ para o calendário/Kanban (vínculo do imóvel) —
   // nunca entra em `cleaningStatsPropertyIds` abaixo, que continua só
@@ -1075,20 +1093,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     () => occupancyProperties.filter(matchesOwnerCity),
     [occupancyProperties, matchesOwnerCity],
   );
-  // Lista que o CALENDÁRIO exibe: Proprietário/Cidade + Prestador (por
-  // vínculo do imóvel) — separada de `filteredOccupancyProperties` acima
-  // exatamente para não vazar o filtro de Prestador nas limpezas realizadas.
   const calendarProperties = useMemo(
     () => filteredOccupancyProperties.filter(matchesProvider),
     [filteredOccupancyProperties, matchesProvider],
   );
-  // ids que batem com Proprietário/Cidade — só enviado ao servidor quando
-  // algum desses 2 filtros está ativo (sem filtro, o servidor já usa todos
-  // os imóveis acessíveis da conta, sem precisar listar id por id).
   const cleaningStatsPropertyIds = useMemo(
     () =>
-      ownerFilters.length > 0 || cityFilters.length > 0 ? filteredOccupancyProperties.map((p) => p.id) : undefined,
-    [ownerFilters, cityFilters, filteredOccupancyProperties],
+      ownerFilters.length > 0 || cityFilters.length > 0 || propertyFilters.length > 0
+        ? filteredOccupancyProperties.map((p) => p.id)
+        : undefined,
+    [ownerFilters, cityFilters, propertyFilters, filteredOccupancyProperties],
   );
   /**
    * OS CARDS LEEM EXATAMENTE O MESMO INTERVALO DOS GRÁFICOS (pedido explícito,
@@ -1746,6 +1760,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   const matchesKanbanOwnerCity = useCallback(
     (r: ArrivalRow) => {
+      if (propertyFilters.length > 0 && !propertyFilters.includes(r.propertyId)) return false;
       if (ownerFilters.length > 0 && !(r.ownerName && ownerFilters.includes(r.ownerName))) return false;
       if (cityFilters.length > 0) {
         const city = propertyCityById.get(r.propertyId);
@@ -1760,7 +1775,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       }
       return true;
     },
-    [ownerFilters, cityFilters, providerFilters, propertyCityById, propertyProviderById],
+    [ownerFilters, cityFilters, providerFilters, propertyFilters, propertyCityById, propertyProviderById],
   );
 
   /**
@@ -3133,6 +3148,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 providerOptions={providerOptions}
                 providerSubtitles={providerSubtitles}
                 hasCustomFilters={hasCustomFilters}
+                {...(view === "limpeza"
+                  ? {
+                      propertyFilters,
+                      onPropertyFiltersChange: setPropertyFilters,
+                      propertyOptions,
+                    }
+                  : {})}
                 onClearAll={clearAllFilters}
                 screenshot={
                   view === "kanban"
@@ -7273,6 +7295,9 @@ function CalendarFiltersButton({
   compactTrigger,
   demandMin,
   demandMax,
+  propertyFilters,
+  onPropertyFiltersChange,
+  propertyOptions,
 }: {
   periodRange: { start: string; end: string } | null;
   onPeriodRangeChange: (next: { start: string; end: string } | null) => void;
@@ -7303,8 +7328,12 @@ function CalendarFiltersButton({
    * exatamente como sempre foi. */
   demandMin?: string | null;
   demandMax?: string | null;
+  /** Filtro de Imóveis (aba Limpeza). Só aparece quando informado. */
+  propertyFilters?: string[];
+  onPropertyFiltersChange?: (next: string[]) => void;
+  propertyOptions?: FilterMultiOption[];
 }) {
-  type Screen = "root" | "period" | "city" | "owner" | "provider";
+  type Screen = "root" | "period" | "city" | "owner" | "provider" | "property";
   const [screen, setScreen] = useState<Screen>("root");
   const [draft, setDraft] = useState<DateRange | undefined>(
     periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined,
@@ -7363,6 +7392,13 @@ function CalendarFiltersButton({
       : providerFilters.length === 1
         ? providerFilters[0]
         : `${providerFilters.length} selecionados`;
+  const propertyCount = propertyFilters?.length ?? 0;
+  const propertyLabel =
+    propertyCount === 0
+      ? "Todos"
+      : propertyCount === 1
+        ? (propertyOptions?.find((o) => o.value === propertyFilters?.[0])?.label ?? "1 selecionado")
+        : `${propertyCount} selecionados`;
 
   /* O hook roda sempre (regra dos hooks); sem alvo, `shot` fica nulo e as
      duas linhas do print não são desenhadas. */
@@ -7454,6 +7490,15 @@ function CalendarFiltersButton({
               active={ownerFilters.length > 0}
               onClick={() => setScreen("owner")}
             />
+            {propertyOptions && (
+              <FilterMenuRow
+                icon={PropertyFilterIcon}
+                label="Imóveis"
+                value={propertyLabel}
+                active={(propertyFilters?.length ?? 0) > 0}
+                onClick={() => setScreen("property")}
+              />
+            )}
             <FilterMenuRow
               icon={HardHat}
               label="Prestador"
@@ -7576,6 +7621,23 @@ function CalendarFiltersButton({
               selected={providerFilters}
               onChange={onProviderFiltersChange}
               searchPlaceholder="Buscar prestador..."
+            />
+          </>
+        ) : null}
+
+        {screen === "property" && propertyOptions && onPropertyFiltersChange ? (
+          <>
+            <FilterScreenHeader
+              icon={PropertyFilterIcon}
+              title="Imóveis"
+              onBack={() => setScreen("root")}
+              right={<FilterCountBadge count={propertyFilters?.length ?? 0} />}
+            />
+            <FilterMultiSelect
+              options={propertyOptions}
+              selected={propertyFilters ?? []}
+              onChange={onPropertyFiltersChange}
+              searchPlaceholder="Buscar imóvel..."
             />
           </>
         ) : null}
