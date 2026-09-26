@@ -522,63 +522,22 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Welcome */}
-      <WorkspaceHeader
-        title={
-          readOnly
-            ? `Painel de ${impersonation?.name ?? ""}`
-            : statusFilter === "published"
-              ? "Guias Publicados"
-              : statusFilter === "draft"
-                ? "Guias em Rascunho"
-                : "Guias"
-        }
-        subtitle={
-          readOnly
-            ? "Guias dos imóveis desta conta."
-            : guideRows.length === 0
-              ? "Guias digitais dos seus imóveis."
-              : hasActiveFilters
-                ? `${filtered.length} de ${guideRows.length} guias de imóveis no filtro atual.`
-                : `${guideRows.length} guias de imóveis, publicados e em rascunho.`
-        }
-      />
-
-      {/* Barra de ações — mesmo padrão do filtro "Hoje"/"Filtros" da Operação:
-          altura 36px, cantos retos, fundo secondary/50, texto 12px. */}
-      <div className="flex flex-col gap-2 mb-5">
-        <div className="flex items-center gap-1.5">
-          <div className="relative flex-1 min-w-0">
-            <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nome, endereço, cidade…"
-              className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
-                aria-label="Limpar busca"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
-
+      <PageShell
+        title={pageTitle}
+        subtitle={pageSubtitle}
+        actions={
+          <>
           {selected.size > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-normal leading-none text-foreground/80 hover:bg-secondary transition-colors"
+                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
                   aria-label="Ações da seleção"
                   title="Ações da seleção"
                 >
-                  <PenSquare className="size-3.5 opacity-60" />
-                  <span className="hidden sm:inline">Ações</span>
+                  <PenSquare className={ACTION_ICON} />
+                  <span className="lg:hidden">Ações</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -587,34 +546,31 @@ function Dashboard() {
                   onSelect={() => bulkTogglePublished(true)}
                   className="text-xs font-normal"
                 >
-                  <Globe className="size-3.5 opacity-60" /> Publicar
+                  <Globe className={ACTION_ICON} /> Publicar
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={bulkPubBusy}
                   onSelect={() => bulkTogglePublished(false)}
                   className="text-xs font-normal"
                 >
-                  <Lock className="size-3.5 opacity-60" /> Despublicar
+                  <Lock className={ACTION_ICON} /> Despublicar
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setBulkOpen(true)} className="text-xs font-normal">
-                  <PenSquare className="size-3.5 opacity-60" /> Editar
+                  <PenSquare className={ACTION_ICON} /> Editar
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-
-
-
           <Popover onOpenChange={(o) => !o && setFilterScreen("root")}>
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="relative h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+                className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
                 aria-label="Filtros"
                 title="Filtros"
               >
-                <Filter className="size-3.5 opacity-60" />
-                <span className="hidden sm:inline">Filtros</span>
+                <Filter className={ACTION_ICON} />
+                <span className="lg:hidden">Filtros</span>
                 {panelFiltersActive && <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />}
               </button>
             </PopoverTrigger>
@@ -672,23 +628,22 @@ function Dashboard() {
               ) : null}
             </PopoverContent>
           </Popover>
-
           {/* Visualização — um único botão que alterna grade/lista */}
           <button
             type="button"
             onClick={cycleView}
             aria-label={view === "grid" ? "Ver lado a lado" : view === "split" ? "Ver em lista" : "Ver em grade"}
             title={view === "grid" ? "Ver lado a lado" : view === "split" ? "Ver em lista" : "Ver em grade"}
-            className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
           >
             {view === "grid" ? (
-              <Columns2 className="size-3.5 opacity-60" />
+              <Columns2 className={ACTION_ICON} />
             ) : view === "split" ? (
-              <List className="size-3.5 opacity-60" />
+              <List className={ACTION_ICON} />
             ) : (
-              <LayoutGrid className="size-3.5 opacity-60" />
+              <LayoutGrid className={ACTION_ICON} />
             )}
-            <span className="hidden sm:inline">{view === "grid" ? "Lado a lado" : view === "split" ? "Lista" : "Grade"}</span>
+            <span className="lg:hidden">{view === "grid" ? "Lado a lado" : view === "split" ? "Lista" : "Grade"}</span>
           </button>
 
           {!readOnly && canCreate && (
@@ -706,21 +661,52 @@ function Dashboard() {
                       ? "Limite do seu plano atingido. Faça upgrade."
                       : "Novo guia"
               }
-              className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
             >
-              <Plus className="size-3.5 opacity-60" />
-              <span className="hidden sm:inline">Novo</span>
+              <Plus className={ACTION_ICON} />
+              <span className="lg:hidden">Novo</span>
             </button>
           )}
-        </div>
+          </>
+        }
+      />
 
-        {guideRows.length > 0 && hasActiveFilters && (
-          <p className="ds-meta">
-            Mostrando {filtered.length} de {guideRows.length} guia{guideRows.length > 1 ? "s" : ""}
-          </p>
+      <div className="ds-card-grid grid-cols-3">
+        {STAT_CARDS.map((c) => (
+          <StatCard
+            key={c.key}
+            label={c.label}
+            value={statCounts[c.key]}
+            icon={c.icon}
+            loading={isLoading}
+            size="sm"
+            active={statCard === c.key}
+            onClick={() => setStatCard(statCard === c.key ? null : c.key)}
+          />
+        ))}
+      </div>
+
+      <div className="relative min-w-0">
+        <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por nome, endereço, cidade…"
+          className={`${PANEL_SHELL} h-10 w-full pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none`}
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center text-muted-foreground hover:text-foreground"
+            aria-label="Limpar busca"
+          >
+            <X className="size-3.5" />
+          </button>
         )}
       </div>
 
+      <SectionLabel count={filtered.length}>Guias</SectionLabel>
 
       {isLoading ? (
         <LoadingState count={3} />
@@ -790,115 +776,64 @@ function Dashboard() {
             </Button>
           }
         />
-      ) : view === "grid" || view === "split" ? (
-        <div className={view === "split" ? "grid lg:grid-cols-2 gap-1.5" : "grid md:grid-cols-2 lg:grid-cols-3 gap-1.5"}>
-          {filtered.map((p) => {
-            const split = view === "split";
-            const accessBadge = (
-                <span className={`${split ? "bg-secondary" : "absolute top-3 left-3 glass"} rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider font-semibold inline-flex shrink-0 items-center gap-1`}>
-                  {p.access_mode === "pin" ? (
-                    <>
-                      <Lock className="size-2.5" /> PIN
-                    </>
-                  ) : (
-                    <>
-                      <Globe className="size-2.5" /> Público
-                    </>
-                  )}
-                </span>
-            );
-            const pubToggle = (
-                <div
-                  className={`${split ? "bg-secondary" : "absolute top-3 right-3 glass"} rounded-full pl-2.5 pr-1 py-1 flex shrink-0 items-center gap-2`}
-                  title={p.published ? "Publicado — clique para despublicar" : "Rascunho — clique para publicar"}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <span
-                    className={`text-[10px] uppercase tracking-wider font-semibold ${p.published ? "text-emerald-600" : "text-yellow-600"}`}
-                  >
-                    {p.published ? "Publicado" : "Rascunho"}
-                  </span>
-                  <Switch
-                    checked={!!p.published}
-                    disabled={togglingId === p.id}
-                    onCheckedChange={(v) => togglePublished(p.id, v)}
-                    className="scale-75 origin-right"
-                    aria-label="Alternar publicação"
+            ) : (
+        <div className={`ds-blocks ${attentionList.length > 0 && readyList.length > 0 ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-2.5 lg:space-y-0" : ""}`}>
+          {[
+            { key: "att", title: "Precisam de atenção", items: attentionList, color: "#c98c8c", Icon: AlertTriangle },
+            { key: "ok", title: "Prontos", items: readyList, color: "#7fb79a", Icon: Check },
+          ]
+            .filter((g) => g.items.length > 0)
+            .map((g) => (
+              <section key={g.key} aria-label={g.title} className={`${PANEL_SHELL} min-w-0 px-1.5 pb-1.5 pt-3`}>
+                <span
+                  aria-hidden
+                  className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px]"
+                  style={{ background: `linear-gradient(to right, ${g.color}, transparent)` }}
+                />
+                <div className="space-y-1.5">
+                  <PanelHeading
+                    title={g.title}
+                    dot={
+                      <span
+                        className="grid size-[22px] shrink-0 place-items-center rounded-md"
+                        style={{ background: `color-mix(in oklab, ${g.color} 12%, transparent)`, color: g.color }}
+                      >
+                        <g.Icon className="size-[13px]" strokeWidth={2.2} />
+                      </span>
+                    }
+                    right={
+                      <CountPill>
+                        {g.items.length} {g.items.length === 1 ? "guia" : "guias"}
+                      </CountPill>
+                    }
+                    className="mb-1 px-1.5"
                   />
-                </div>
-            );
-            return (
-            <div
-              key={p.id}
-              className={`ds-surface border border-border bg-card overflow-hidden group hover:shadow-elevated transition-shadow ${split ? "flex min-w-0" : ""}`}
-            >
-              <div className={split ? "relative w-[40%] shrink-0 bg-secondary" : "aspect-[16/10] bg-secondary relative"}>
-                {p.hero_image_url ? (
-                  <img src={p.hero_image_url} alt={p.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full grid place-items-center text-muted-foreground text-xs">Sem imagem</div>
-                )}
-                {!split && accessBadge}
-                {!split && pubToggle}
-              </div>
-              <div className={split ? "min-w-0 flex-1 p-3" : "p-4"}>
-                {split && (
-                  <div className="mb-2 flex min-w-0 flex-wrap items-center gap-1.5">
-                    {accessBadge}
-                    {pubToggle}
-                  </div>
-                )}
-                {/* ds-card-lines: espaçamento padrão entre as linhas de
-                    informação do card (styles.css). Antes cada linha
-                    carregava a própria margem (mb-1, mt-0.5, mt-1) e o
-                    resultado era um respiro diferente a cada par. */}
-                <div className="ds-card-lines">
-                {(p as any).ownerName && (
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span
-                      className={`min-w-0 max-w-full truncate text-[11px] ${CARD_OWNER}`}
-                      title={(p as any).ownerName}
-                    >
-                      {ownerLabel((p as any).ownerName)}
-                    </span>
-                    <PhoneActionButton
-                      phone={(p as any).ownerPhone}
-                      country={(p as any).ownerPhoneCountry}
-                      size={12}
-                      alwaysShow
-                      className="shrink-0"
-                    />
-                  </div>
-                )}
-                <h3 className="ds-card-title truncate">{p.name}</h3>
-                {p.city && (
-                  <p className="truncate ds-meta font-semibold text-yellow-500">
-                    {p.city}
-                    {p.country ? `, ${p.country}` : ""}
-                  </p>
-                )}
-                <p className="ds-card-desc">
-                  {p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}
-                </p>
-                </div>
-
-                <div className="mt-2 flex items-center gap-2">
-                  {(() => {
-                    const c = guideCompleteness(p as any);
-                    return (
-                      <>
-                        <div className="flex-1 min-w-0 h-1 rounded-full bg-secondary overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${c.color}`}
-                            style={{ width: `${c.score}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{c.score}%</span>
-                      </>
-                    );
-                  })()}
-                  <div className="flex items-center justify-end gap-0.5 shrink-0">
-
+                  <div className={`ds-five-cap grid gap-1.5 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
+                    {g.items.map((p) => {
+                      const c = guideCompleteness(p as any);
+                      return (
+                        <GuideCard
+                          key={p.id}
+                          p={p as any}
+                          variant={view}
+                          score={c.score}
+                          barClass={c.score >= 90 ? "bg-[#7fb79a]" : c.score >= 60 ? "bg-[#d8b96a]" : "bg-[#c98c8c]"}
+                          toggling={togglingId === p.id}
+                          onTogglePublished={(v) => togglePublished(p.id, v)}
+                          selected={selected.has(p.id)}
+                          onSelectChange={
+                            view === "list" && !readOnly
+                              ? (v) =>
+                                  setSelected((cur) => {
+                                    const n = new Set(cur);
+                                    if (v) n.add(p.id);
+                                    else n.delete(p.id);
+                                    return n;
+                                  })
+                              : undefined
+                          }
+                          actions={
+                            <>
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
@@ -978,254 +913,17 @@ function Dashboard() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                            </>
+                          }
+                        />
+                      );
+                    })}
                   </div>
                 </div>
-
-              </div>
-            </div>
-            );
-          })}
+              </section>
+            ))}
         </div>
-      ) : (
-        (() => {
-          const norm = (s?: string | null) => (s ?? "").toLowerCase().trim().replace(/\s+/g, " ");
-          // O endereço (normalizado) é o sinal mais confiável de "mesmo imóvel
-          // físico": é o texto que o anfitrião efetivamente digitou/colou. As
-          // coordenadas (lat/lng) só entram como fallback quando não há
-          // endereço, porque a geocodificação pode variar por poucos metros
-          // entre unidades de um mesmo prédio com o MESMO texto de endereço
-          // (ex.: studios 101–105 de um mesmo condomínio) — usar lat/lng como
-          // chave principal fragmentava incorretamente esse mesmo endereço em
-          // vários grupos na lista.
-          const keyOf = (p: (typeof filtered)[number]) => {
-            const a = norm(p.address);
-            if (a) return `addr:${a}`;
-            if (p.lat != null && p.lng != null) {
-              return `geo:${Number(p.lat).toFixed(5)},${Number(p.lng).toFixed(5)}`;
-            }
-            return "none";
-          };
-          const groups = new Map<string, { label: string; items: typeof filtered }>();
-          for (const p of filtered) {
-            const k = keyOf(p);
-            if (!groups.has(k)) {
-              groups.set(k, {
-                label: k === "none" ? "Sem endereço" : p.address || `${p.lat}, ${p.lng}`,
-                items: [],
-              });
-            }
-            groups.get(k)!.items.push(p);
-          }
 
-          const groupList = Array.from(groups.entries());
-          const allSelected = selected.size > 0 && selected.size === filtered.length;
-          return (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 px-1 min-w-0">
-                <Checkbox
-                  className="shrink-0"
-                  checked={allSelected}
-                  onCheckedChange={(v) => {
-                    if (v) setSelected(new Set(filtered.map((p) => p.id)));
-                    else setSelected(new Set());
-                  }}
-                />
-                <span className="text-xs font-normal text-muted-foreground min-w-0 truncate">
-                  {selected.size > 0
-                    ? `${selected.size} ${selected.size === 1 ? "selecionado" : "selecionados"}`
-                    : "Selecione para editar em massa"}
-                </span>
-                <div className="flex-1" />
-                {selected.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setSelected(new Set())}
-                    title="Limpar seleção"
-                    aria-label="Limpar seleção"
-                    className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                )}
-              </div>
-
-
-
-              {groupList.map(([gk, grp]) => {
-                const expanded = expandedGroup === gk;
-                const groupIds = grp.items.map((i) => i.id);
-                const allInGroupSelected = groupIds.every((id) => selected.has(id));
-                return (
-                  <div
-                    key={gk}
-                    className="ds-surface border border-border/70 bg-card/60 overflow-hidden backdrop-blur-[2px]"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setExpandedGroup((cur) => (cur === gk ? null : gk))}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors text-left"
-                    >
-                      <ChevronRight
-                        className={`size-3.5 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
-                      />
-                      <MapPin className="size-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-[13px] font-normal leading-snug truncate flex-1">{grp.label}</span>
-                      <span className="text-[11px] font-normal text-muted-foreground tabular-nums shrink-0">
-                        {grp.items.length} {grp.items.length === 1 ? "guia" : "guias"}
-                      </span>
-
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelected((s) => {
-                            const ns = new Set(s);
-                            if (allInGroupSelected) groupIds.forEach((id) => ns.delete(id));
-                            else groupIds.forEach((id) => ns.add(id));
-                            return ns;
-                          });
-                        }}
-                        className="text-[11px] text-accent hover:underline"
-                      >
-                        {allInGroupSelected ? "Desmarcar" : "Selecionar"}
-                      </span>
-                    </button>
-                    {expanded && (
-                      <>
-                      <ul className="divide-y divide-border/60 border-t border-border/60">
-
-
-                        {grp.items.map((p) => {
-                          const isSel = selected.has(p.id);
-                          return (
-                            <li
-                              key={p.id}
-                              className={`relative flex items-center gap-3 px-3 sm:px-4 py-2.5 transition-colors ${isSel ? "bg-accent/[0.06]" : "hover:bg-secondary/30"}`}
-                            >
-                              <Checkbox
-                                checked={isSel}
-                                onCheckedChange={(v) =>
-                                  setSelected((s) => {
-                                    const ns = new Set(s);
-                                    if (v) ns.add(p.id);
-                                    else ns.delete(p.id);
-                                    return ns;
-                                  })
-                                }
-                                className="shrink-0"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => navigate({ to: "/admin/properties/$id", params: { id: p.id } })}
-                                className="size-12 ds-surface bg-secondary overflow-hidden shrink-0 ring-1 ring-border/60 hover:ring-foreground/30 transition"
-                                aria-label={`Editar ${p.name}`}
-                              >
-                                {p.hero_image_url ? (
-                                  <img src={p.hero_image_url} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full grid place-items-center text-[9px] text-muted-foreground">
-                                    Sem foto
-                                  </div>
-                                )}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => navigate({ to: "/admin/properties/$id", params: { id: p.id } })}
-                                className="flex-1 min-w-0 text-left"
-                              >
-                                <h3 className="text-[13px] font-normal leading-snug text-foreground truncate">
-                                  {p.name}
-                                </h3>
-                                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-normal leading-snug text-muted-foreground min-w-0">
-                                  <span className="inline-flex items-center gap-1 shrink-0">
-                                    {p.access_mode === "pin" ? (
-                                      <Lock className="size-3 opacity-60" />
-                                    ) : (
-                                      <Globe className="size-3 opacity-60" />
-                                    )}
-                                    {p.access_mode === "pin" ? "PIN" : "Público"}
-                                  </span>
-                                  {!p.published && (
-                                    <>
-                                      <span className="text-muted-foreground/40">·</span>
-                                      <span className="text-yellow-600/90 dark:text-yellow-400/80">
-                                        Rascunho
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
-
-                              </button>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <button
-                                    type="button"
-                                    className="size-9 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
-                                    aria-label="Mais ações"
-                                  >
-                                    <MoreHorizontal className="size-4" />
-                                  </button>
-                                </PopoverTrigger>
-                                <PopoverContent align="end" className="w-52 p-1.5">
-                                  <Link
-                                    to="/admin/properties/$id"
-                                    params={{ id: p.id }}
-                                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors"
-                                  >
-                                    <Pencil className="size-3.5 text-muted-foreground" /> Editar guia
-                                  </Link>
-                                  <button
-                                    type="button"
-                                    onClick={() => setViewSlug(p.slug)}
-                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                                  >
-                                    <ExternalLink className="size-3.5 text-muted-foreground" /> Pré-visualizar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyLink(p.slug, p.id)}
-                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                                  >
-                                    {copiedId === p.id ? (
-                                      <Check className="size-3.5 text-accent" />
-                                    ) : (
-                                      <Link2 className="size-3.5 text-muted-foreground" />
-                                    )}
-                                    {copiedId === p.id ? "Link copiado" : "Copiar link público"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setDupTarget({ id: p.id, name: p.name });
-                                      setDupCopies(1);
-                                    }}
-                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                                  >
-                                    <Copy className="size-3.5 text-muted-foreground" /> Duplicar
-                                  </button>
-                                  <div className="my-1 h-px bg-border/70" />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDelete(p.id, p.name)}
-                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors text-left"
-                                  >
-                                    <Trash2 className="size-3.5" /> Excluir
-                                  </button>
-                                </PopoverContent>
-                              </Popover>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()
       )}
 
       {/* "Novo guia" nunca cria um imóvel novo — só vincula um guia a um
