@@ -10868,7 +10868,8 @@ function PredictedEditor({
     const janela = allowedWindowPhrase(side.kind, side.standardTime, side.standardTimeMax);
     const infoOpen = infoOpenSlot === slot;
     return (
-      <div className="relative flex items-center gap-2">
+      <div className="relative flex flex-col gap-2">
+        <div className="relative flex items-center gap-2">
         <button
           type="button"
           disabled={!janela}
@@ -10893,8 +10894,9 @@ function PredictedEditor({
             </span>
           </div>
         )}
-        <span className="whitespace-nowrap text-[13px] font-semibold">{side.label}</span>
-        <span className="flex-1" />
+        <span className="text-[13px] font-semibold">{side.label}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           disabled={disabled}
@@ -10902,7 +10904,7 @@ function PredictedEditor({
             e.stopPropagation();
             openPicker(slot, "date");
           }}
-          className="flex h-8 w-[92px] shrink-0 items-center justify-center gap-1.5 rounded-[9px] border border-border bg-[var(--panel-well)] px-2 text-[12px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
+          className="flex h-9 min-w-0 w-full items-center justify-center gap-1.5 rounded-[9px] border border-border bg-[var(--panel-well)] px-2 text-[12px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
         >
           <CalendarRange className="size-3.5 shrink-0 text-muted-foreground" />
           <span className={d ? "" : "text-muted-foreground"}>{d ? fmtDateBR(d) : "Data"}</span>
@@ -10922,11 +10924,12 @@ function PredictedEditor({
             e.stopPropagation();
             openPicker(slot, "time");
           }}
-          className="flex h-8 w-[78px] shrink-0 items-center justify-center gap-1.5 rounded-[9px] border border-border bg-[var(--panel-well)] px-2 text-[12px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
+          className="flex h-9 min-w-0 w-full items-center justify-center gap-1.5 rounded-[9px] border border-border bg-[var(--panel-well)] px-2 text-[12px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
         >
           <Clock3 className="size-3.5 shrink-0 text-muted-foreground" />
           <span className={t ? "" : "text-muted-foreground"}>{t ?? "Horário"}</span>
         </button>
+      </div>
       </div>
     );
   }
@@ -10962,13 +10965,22 @@ function PredictedEditor({
           align="end"
           sideOffset={FILTER_PANEL_OFFSET}
           collisionPadding={FILTER_PANEL_COLLISION}
-          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[280px]`}
+          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px]`}
           onClick={(e) => e.stopPropagation()}
         >
-          <FilterRootHeader
-            canClear
-            onClear={() => setPending((prev) => ({ ...prev, [editing]: { date: "", time: null } }))}
-          />
+          <div className="flex items-center justify-between gap-2 border-b border-[var(--panel-div)] px-3.5 py-3">
+            <span className="ds-eyebrow text-muted-foreground">Previsão</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPending((prev) => ({ ...prev, [editing]: { date: "", time: null } }));
+              }}
+              className="text-[11px] font-semibold text-foreground/70 transition-colors hover:text-foreground"
+            >
+              Limpar
+            </button>
+          </div>
           <div className="border-b border-[var(--panel-div)] px-3.5 py-3">
             <SideBlock slot="primary" />
           </div>
@@ -11001,7 +11013,7 @@ function PredictedEditor({
           align="end"
           sideOffset={FILTER_PANEL_OFFSET}
           collisionPadding={FILTER_PANEL_COLLISION}
-          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[280px]`}
+          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px]`}
           onClick={(e) => e.stopPropagation()}
         >
           <FilterScreenHeader
@@ -11064,7 +11076,7 @@ function PredictedEditor({
           align="end"
           sideOffset={FILTER_PANEL_OFFSET}
           collisionPadding={FILTER_PANEL_COLLISION}
-          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[280px]`}
+          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px]`}
           onClick={(e) => e.stopPropagation()}
         >
           <FilterScreenHeader
