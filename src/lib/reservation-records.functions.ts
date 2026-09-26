@@ -1617,3 +1617,64 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       truncated: all.length >= ACCOUNT_RECORDS_SCAN_LIMIT,
     };
   });
+
+/**
+ * LIMPEZAS SEM REGISTRO — limpezas concluídas (saídas com limpeza marcada)
+ * no recorte pedido que não têm nenhum registro de LIMPEZA ligado à mesma
+ * estadia (mesmo log do hóspede ou mesma reserva). Alimenta o cartão da aba
+ * Registros.
+ */
+export const countCleaningsWithoutRecords = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (i: unknown) =>
+      z
+        .object({
+          ownerId: z.string().uuid().nullable().optional(),
+          days: z.number().int().positive().max(3650).nullable().optional(),
+          propertyIds: z.array(z.string().uuid()).max(500).nullable().optional(),
+        })
+        .optional()
+        .parse(i) ?? {},
+  )
+  .handler(async ({ data, context }): Promise<{ count: number }> => {
+    const supabase = context.supabase as unknown as AnyClient;
+    const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
+    const accessible = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
+    const requested = data.propertyIds ?? null;
+    const propIds =
+      requested && requested.length > 0 ? accessible.filter((id) => requested.includes(id)) : accessible;
+    if (propIds.length === 0) return { count: 0 };
+
+    let q = supabase
+      .from("guest_arrival_status")
+      .select("id, log_id, reservation_id")
+      .eq("kind", "checkout")
+      .not("cleaning_type", "is", null)
+      .not("concluded_at", "is", null)
+      .in("property_id", propIds)
+      .limit(5000);
+    if (data.days) q = q.gte("concluded_at", new Date(Date.now() - data.days * 86_400_000).toISOString());
+    const { data: rows, error } = await q;
+    if (error) throw new Error("Não foi possível contar as limpezas sem registro. Tente de novo.");
+    const cleanings = (rows ?? []) as { id: string; log_id: string | null; reservation_id: string | null }[];
+    if (cleanings.length === 0) return { count: 0 };
+
+    const { data: recs, error: e2 } = await supabase
+      .from("reservation_records")
+      .select("log_id, reservation_id")
+      .eq("category", "cleaning_audit")
+      .in("property_id", propIds)
+      .limit(20000);
+    if (e2) throw new Error("Não foi possível contar as limpezas sem registro. Tente de novo.");
+    const logs = new Set<string>();
+    const resv = new Set<string>();
+    for (const r of (recs ?? []) as { log_id: string | null; reservation_id: string | null }[]) {
+      if (r.log_id) logs.add(r.log_id);
+      if (r.reservation_id) resv.add(r.reservation_id);
+    }
+    const count = cleanings.filter(
+      (c) => !(c.log_id && logs.has(c.log_id)) && !(c.reservation_id && resv.has(c.reservation_id)),
+    ).length;
+    return { count };
+  });

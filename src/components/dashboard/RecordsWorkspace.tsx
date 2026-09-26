@@ -13,6 +13,7 @@ import {
   Pencil,
   LayoutGrid,
   Sparkles,
+  SearchX,
   SlidersHorizontal,
   StickyNote,
   Video,
@@ -70,6 +71,7 @@ import { listTaskLinkOptions, restoreTask, setTaskStatus } from "@/lib/tasks.fun
 import {
   RECORD_TITLE_MAX,
   listAccountRecords,
+  countCleaningsWithoutRecords,
   updateRecordText,
   type AccountRecord,
   type RecordCategory,
@@ -248,7 +250,7 @@ function fmtStayRange(checkin: string | null, checkout: string | null): string |
  * Não mexe em `CATEGORIES`: aquela ordem é do SELETOR que abre antes da
  * câmera (definida pelo cliente em 07/09/2026) e continua valendo lá.
  */
-const CARD_ORDER: readonly RecordCategory[] = ["maintenance", "damage", "forgotten", "cleaning_audit", "other"];
+const CARD_ORDER: readonly RecordCategory[] = ["maintenance", "damage", "forgotten", "other", "cleaning_audit"];
 const CARDS = CARD_ORDER.map((k) => CATEGORY_BY_KEY.get(k)!).filter(Boolean);
 
 /** Quantas pendências o cartão do imóvel lista antes de colapsar em "+N". */
@@ -360,6 +362,12 @@ export function RecordsWorkspace() {
     queryFn: () => listFn({ data: { ownerId: activeOwnerId, category, onlyOpen, days, propertyIds } }),
   });
 
+  const noRecordFn = useServerFn(countCleaningsWithoutRecords);
+  const noRecordQ = useQuery({
+    queryKey: ["cleanings-without-records", activeOwnerId ?? "self", period, (propertyIds ?? []).join(",")] as const,
+    queryFn: () => noRecordFn({ data: { ownerId: activeOwnerId, days, propertyIds } }),
+  });
+
   // Excluir com "Desfazer" e resposta instantânea (17/09/2026).
   const deleteRecord = useUndoableRecordDelete(() => setOpened(null));
 
@@ -370,7 +378,7 @@ export function RecordsWorkspace() {
   useRealtimeInvalidate(
     "records-live",
     [{ table: "reservation_records" }, { table: "tasks" }, { table: "task_completions" }],
-    [["account-records"]],
+    [["account-records"], ["cleanings-without-records"]],
   );
 
   /**
@@ -569,7 +577,6 @@ export function RecordsWorkspace() {
         {/* CARTÕES + GRÁFICO — mesmo grupo da Limpeza (10px entre eles). */}
         <div className="ds-card-grid">
           <div className="ds-card-grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-            <PendenciasButton ownerId={activeOwnerId} enabled variant="card" />
             {CARDS.map((c) => (
               <StatCard
                 key={c.key}
@@ -582,6 +589,13 @@ export function RecordsWorkspace() {
                 onClick={() => setCategory(category === c.key ? null : c.key)}
               />
             ))}
+            <StatCard
+              label="Limpezas sem registros"
+              value={noRecordQ.data?.count ?? 0}
+              icon={SearchX}
+              iconTone={(noRecordQ.data?.count ?? 0) > 0 ? "#c9a962" : undefined}
+              loading={noRecordQ.isLoading}
+            />
           </div>
         </div>
 
