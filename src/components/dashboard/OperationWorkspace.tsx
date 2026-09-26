@@ -162,6 +162,7 @@ import {
   FilterScreenHeader,
   FilterSection,
 } from "@/components/dashboard/filter-panel";
+import type { FilterMultiOption } from "@/components/dashboard/filter-panel";
 import {
   DropdownMenu,
   DropdownMenuContent,
