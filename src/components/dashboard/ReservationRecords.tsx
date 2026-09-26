@@ -414,7 +414,7 @@ function RecordEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] gap-0 rounded-lg border-border/60 p-0 sm:max-w-sm">
+      <DialogContent className="w-[calc(100vw-2rem)] gap-0 p-0 sm:max-w-sm">
         <DialogHeader className="px-4 pb-2 pt-4">
           <DialogTitle className="text-[15px] font-display">Editar registro</DialogTitle>
         </DialogHeader>
@@ -650,7 +650,7 @@ export function RecordBlock({
       )}
 
       <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewing(null)}>
-        <DialogContent className="w-[calc(100vw-1.5rem)] gap-0 overflow-hidden rounded-lg border-border/60 p-0 sm:max-w-lg">
+        <DialogContent className="w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-lg">
           <DialogHeader className="px-4 pb-2 pt-4">
             <DialogTitle className="truncate text-[14px] font-display">
               {viewing?.fileName ?? KIND_LABEL[viewing?.kind ?? "file"]}
@@ -710,7 +710,7 @@ function CategorySheet({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] gap-0 rounded-lg border-border/60 p-0 sm:max-w-sm">
+      <DialogContent className="w-[calc(100vw-2rem)] gap-0 p-0 sm:max-w-sm">
         <DialogHeader className="px-4 pb-2 pt-4">
           <DialogTitle className="text-[15px] font-display">O que você vai registrar?</DialogTitle>
           <p className="ds-meta mt-0.5">Escolha a categoria — só depois a captura começa.</p>
@@ -885,7 +885,7 @@ export function ReservationRecordsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 shadow-2xl backdrop-blur-xl sm:w-full sm:max-w-md">
+        <DialogContent className="w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-md">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
           <DialogHeader className="border-b border-border/50 px-5 pb-3 pt-5">
             <DialogTitle className="truncate text-base font-display leading-tight">

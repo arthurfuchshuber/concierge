@@ -21,6 +21,7 @@ import {
   Tag,
   Layers,
   Building2,
+  ListChecks,
   CalendarRange,
   Users,
 } from "lucide-react";
@@ -59,6 +60,7 @@ import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { PendenciasButton } from "@/components/dashboard/pendencias";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { StatCard } from "@/components/ds/StatCard";
+import { OverlayChip, OverlayHeader } from "@/components/ds/OverlayHeader";
 
 /** Data (AAAA-MM-DD) no fuso de São Paulo. */
 function spDate(iso: string): string {
@@ -1039,11 +1041,38 @@ function PropertyCard({
               <PopoverContent
                 side="top"
                 align="center"
-                className="max-h-[60dvh] w-[min(340px,calc(100vw-32px))] overflow-y-auto p-2"
+                className="max-h-[60dvh] w-[min(360px,calc(100vw-32px))] overflow-y-auto p-0"
               >
-                {group.pending.map((r) => (
-                  <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} onResolve={() => onResolve(r)} />
-                ))}
+                {(() => {
+                  const first = group.pending[0];
+                  const oldest = group.pending.reduce(
+                    (a, r) => (r.createdAt < a ? r.createdAt : a),
+                    first?.createdAt ?? "",
+                  );
+                  return (
+                    <div className="sticky top-0 z-10 border-b border-[var(--panel-border)] bg-[var(--panel)] px-4 pb-3 pt-4">
+                      <OverlayHeader
+                        icon={Building2}
+                        eyebrow="Pendências do imóvel"
+                        title={first?.propertyName ?? group.label}
+                        subtitle={first?.ownerName ? ownerLabel(first.ownerName) : group.sublabel}
+                        chips={
+                          <>
+                            <OverlayChip dot="bg-[var(--falta,#e0707a)]">
+                              {group.pending.length} em aberto
+                            </OverlayChip>
+                            {oldest && <OverlayChip>desde {fmtShortDate(oldest)}</OverlayChip>}
+                          </>
+                        }
+                      />
+                    </div>
+                  );
+                })()}
+                <div className="px-3 py-1.5">
+                  {group.pending.map((r) => (
+                    <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} onResolve={() => onResolve(r)} />
+                  ))}
+                </div>
               </PopoverContent>
             </Popover>
           </>
@@ -1276,7 +1305,7 @@ function RecordViewerDialog({
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-md"
+        className="w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-md"
         aria-describedby={undefined}
       >
         {record && <RecordViewerBody record={record} onDelete={onDelete} onResolve={onResolve} onEdited={onEdited} />}
@@ -1714,7 +1743,7 @@ function PayerButtonGroup({
 }) {
   return (
     <Select value={value} onValueChange={(v) => onSelect(v as PayerKind)}>
-      <SelectTrigger className="mt-1 h-9 rounded-[0.3rem] border-0 bg-foreground/[0.04] text-[12px] font-semibold">
+      <SelectTrigger className="mt-1 h-9 w-full min-w-0 rounded-[0.3rem] border-0 bg-foreground/[0.04] text-[12px] font-semibold [&>span]:truncate">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -1731,6 +1760,13 @@ function PayerButtonGroup({
 const PAYER_LABEL: Record<PayerKind, string> = Object.fromEntries(
   PAYER_OPTIONS.map((o) => [o.key, o.label]),
 ) as Record<PayerKind, string>;
+
+const PAYER_TO: Record<PayerKind, string> = {
+  company: "à empresa",
+  owner: "ao proprietário",
+  provider: "ao prestador",
+  guest: "ao hóspede",
+};
 
 function parseBRL(v: string): number {
   return Number(v.replace(/\./g, "").replace(",", "."));
@@ -1871,21 +1907,34 @@ function ResolveDialog({
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-sm"
+        className="w-[calc(100vw-2rem)] gap-0 p-0 sm:w-full sm:max-w-sm"
         aria-describedby={undefined}
       >
-        <DialogHeader className="space-y-0 px-4 pb-2 pr-11 pt-4 text-left">
-          <DialogTitle className="ds-card-title block w-full truncate">Resolver pendência</DialogTitle>
-          {record && (
-            <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
-              {/* Aqui é identificação, não leitura: sem título, o nome do
-                  arquivo diz de qual registro estamos falando. */}
-              {hasTitle(record) ? recordTitle(record) : (record.fileName ?? UNTITLED)}
-            </span>
-          )}
+        <DialogHeader className="space-y-0 border-b border-[var(--panel-border)] px-4 pb-3 pr-12 pt-4 text-left">
+          <DialogTitle className="sr-only">Resolver pendência</DialogTitle>
+          {record && (() => {
+            const meta = CATEGORY_BY_KEY.get(record.category);
+            return (
+              <OverlayHeader
+                icon={ListChecks}
+                eyebrow="Resolver pendência"
+                title={hasTitle(record) ? recordTitle(record) : (record.fileName ?? UNTITLED)}
+                subtitle={[record.propertyName, record.ownerName ? ownerLabel(record.ownerName) : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+                chips={
+                  <>
+                    <OverlayChip dot={meta?.dot}>{meta?.short ?? "Registro"}</OverlayChip>
+                    <OverlayChip>{fmtShortDate(record.createdAt)}</OverlayChip>
+                    {record.createdByName && <OverlayChip>por {record.createdByName}</OverlayChip>}
+                  </>
+                }
+              />
+            );
+          })()}
         </DialogHeader>
 
-        <div className="space-y-3 px-4 pb-4">
+        <div className="min-w-0 space-y-3 px-4 pb-4 pt-3">
           <p className="text-[11.5px] leading-snug text-muted-foreground">
             Marque se houve gasto. Depois diga quem deve arcar com ele e quem já pagou — o sistema mostra se
             alguém precisa reembolsar.
@@ -1901,7 +1950,7 @@ function ResolveDialog({
 
           {hasCost && (
             <>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
                 <div className="min-w-0">
                   <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem deve arcar</span>
                   <PayerButtonGroup
@@ -1931,7 +1980,7 @@ function ResolveDialog({
                 <PayerPicker kind={paidBy} options={paidByOptions} selectedId={paidById} onSelect={setPaidById} />
               )}
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
                 {(
                   [
                     ["Custo total", amount, setAmount, "0,00"],
@@ -1961,7 +2010,7 @@ function ResolveDialog({
                 const text =
                   payer === paidBy
                     ? `${PAYER_LABEL[payer]} arcou e pagou ${brl}. Nada a acertar.`
-                    : `${PAYER_LABEL[payer]} deve reembolsar ${brl} a ${PAYER_LABEL[paidBy].toLowerCase()}.`;
+                    : `${PAYER_LABEL[payer]} deve reembolsar ${brl} ${PAYER_TO[paidBy]}.`;
                 return (
                   <p className="rounded-[0.3rem] bg-primary/10 px-2.5 py-2 text-[11px] font-medium text-foreground/85">
                     {text}

@@ -628,7 +628,7 @@ export function RecordSituationSheet({
   return (
     <Dialog open={open} onOpenChange={(v) => !saving && onOpenChange(v)}>
       <DialogContent
-        className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-sm"
+        className="w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-sm"
         aria-describedby={undefined}
       >
         <DialogHeader className="space-y-0 border-b border-border/50 px-3.5 pb-2.5 pr-11 pt-3.5 text-left">

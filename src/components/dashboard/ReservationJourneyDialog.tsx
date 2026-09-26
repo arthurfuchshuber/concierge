@@ -104,7 +104,7 @@ export function ReservationJourneyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2.5rem)] sm:w-full sm:max-w-lg p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-lg p-0 overflow-hidden">
         <DialogTitle className="sr-only">Histórico da reserva</DialogTitle>
         <DialogDescription className="sr-only">
           A jornada completa desta reserva: chegada, estadia, saída, limpeza e conclusão.
