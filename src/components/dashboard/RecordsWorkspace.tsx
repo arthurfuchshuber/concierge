@@ -5,6 +5,7 @@ import {
   Camera,
   Check,
   CircleAlert,
+  CircleCheck,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -651,15 +652,33 @@ export function RecordsWorkspace() {
               </section>
             )}
 
-            {/* No computador, "Em dia" vira a coluna da direita. */}
-            <div className="ds-blocks min-w-0">
-              {attentionGroups.length > 0 && calmGroups.length > 0 && (
-                <SectionLabel className="px-1 pt-0 lg:pt-3" count={calmGroups.length}>
-                  Em dia
-                </SectionLabel>
-              )}
-              <div className="ds-card-grid">{calmGroups.map(renderCard)}</div>
-            </div>
+            {/* No computador, "Em dia" vira a coluna da direita. Mesmo
+              cabeçalho de "Precisam de atenção", com o fio em verde sálvia. */}
+            {calmGroups.length > 0 && (
+              <section aria-label="Imóveis em dia" className={`${PANEL_SHELL} min-w-0 px-1.5 pb-1.5 pt-3`}>
+                <span
+                  aria-hidden
+                  className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] bg-gradient-to-r from-[#7fb79a] to-transparent"
+                />
+                <div className="space-y-1.5">
+                  <PanelHeading
+                    title="Em dia"
+                    dot={
+                      <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-[#7fb79a]/12 text-[#7fb79a]">
+                        <CircleCheck className="size-[13px]" strokeWidth={2.2} />
+                      </span>
+                    }
+                    right={
+                      <CountPill>
+                        {calmGroups.length} {calmGroups.length === 1 ? "imóvel" : "imóveis"}
+                      </CountPill>
+                    }
+                    className="mb-1 px-1.5"
+                  />
+                  <div className="ds-card-grid">{calmGroups.map(renderCard)}</div>
+                </div>
+              </section>
+            )}
 
             {q.data?.truncated && (
               <p className="pt-1 text-center lg:col-span-2 text-[11px] text-muted-foreground">
