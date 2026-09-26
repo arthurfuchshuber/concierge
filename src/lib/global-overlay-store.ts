@@ -24,6 +24,7 @@ function emit() {
 export function pushGlobalOverlay(kind: Kind = "float"): { id: number; release: () => void } {
   const id = ++seq;
   stack = [...stack, { id, kind }];
+  if (typeof window !== "undefined") (window as unknown as { __ovl?: unknown }).__ovl = { stack, trace: new Error().stack };
   emit();
   let released = false;
   return {
