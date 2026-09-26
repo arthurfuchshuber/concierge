@@ -1,3 +1,4 @@
+import { guardNestedOutside } from "@/lib/global-overlay-store";
 "use client";
 
 import * as React from "react";
@@ -46,6 +47,8 @@ const DialogContent = React.forwardRef<
         className,
       )}
       {...props}
+      onPointerDownOutside={guardNestedOutside(props.onPointerDownOutside)}
+      onInteractOutside={guardNestedOutside(props.onInteractOutside)}
     >
       {children}
       <DialogPrimitive.Close className="absolute right-4 top-4 grid size-8 place-items-center rounded-full bg-secondary/60 text-muted-foreground opacity-80 cursor-pointer transition-all hover:opacity-100 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:pointer-events-none">

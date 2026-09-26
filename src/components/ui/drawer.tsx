@@ -1,3 +1,4 @@
+import { guardNestedOutside } from "@/lib/global-overlay-store";
 import * as React from "react";
 import { Drawer as DrawerPrimitive } from "vaul";
 
@@ -42,6 +43,8 @@ const DrawerContent = React.forwardRef<
         className,
       )}
       {...props}
+      onPointerDownOutside={guardNestedOutside(props.onPointerDownOutside)}
+      onInteractOutside={guardNestedOutside(props.onInteractOutside)}
     >
       <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
       {children}
