@@ -1727,23 +1727,27 @@ function PayerButtonGroup({
   onSelect: (key: PayerKind) => void;
 }) {
   return (
-    <div className="mt-1 grid grid-cols-2 gap-1">
-      {PAYER_OPTIONS.map((o) => (
-        <button
-          key={o.key}
-          type="button"
-          onClick={() => onSelect(o.key)}
-          className={`rounded-[0.3rem] py-2 text-center text-[10.5px] font-bold transition-colors ${
-            value === o.key
-              ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-              : "bg-foreground/[0.04] text-foreground/70 hover:bg-foreground/[0.08]"
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
+    <Select value={value} onValueChange={(v) => onSelect(v as PayerKind)}>
+      <SelectTrigger className="mt-1 h-9 rounded-[0.3rem] border-0 bg-foreground/[0.04] text-[12px] font-semibold">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {PAYER_OPTIONS.map((o) => (
+          <SelectItem key={o.key} value={o.key} className="text-[12px]">
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
+}
+
+const PAYER_LABEL: Record<PayerKind, string> = Object.fromEntries(
+  PAYER_OPTIONS.map((o) => [o.key, o.label]),
+) as Record<PayerKind, string>;
+
+function parseBRL(v: string): number {
+  return Number(v.replace(/\./g, "").replace(",", "."));
 }
 
 function PayerPicker({
