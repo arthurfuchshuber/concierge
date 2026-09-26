@@ -71,6 +71,7 @@ import { listTaskLinkOptions, restoreTask, setTaskStatus } from "@/lib/tasks.fun
 import {
   RECORD_TITLE_MAX,
   listAccountRecords,
+  countCleaningsWithoutRecords,
   updateRecordText,
   type AccountRecord,
   type RecordCategory,
@@ -377,7 +378,7 @@ export function RecordsWorkspace() {
   useRealtimeInvalidate(
     "records-live",
     [{ table: "reservation_records" }, { table: "tasks" }, { table: "task_completions" }],
-    [["account-records"]],
+    [["account-records"], ["cleanings-without-records"]],
   );
 
   /**
