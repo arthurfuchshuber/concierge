@@ -40,6 +40,8 @@ const PopoverContent = React.forwardRef<
       // viewport. Um chamador específico ainda pode sobrescrever passando
       // seu próprio collisionPadding.
       collisionPadding={collisionPadding}
+      avoidCollisions
+      sticky="always"
       className={cn(
         // Tooltip/popover jamais pode abrir "para fora" da tela: limita a
         // altura ao espaço realmente disponível (a mesma variável que o

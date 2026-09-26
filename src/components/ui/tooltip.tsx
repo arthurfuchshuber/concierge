@@ -25,6 +25,8 @@ const TooltipContent = React.forwardRef<
       // viewport. Um chamador específico ainda pode sobrescrever passando
       // seu próprio collisionPadding.
       collisionPadding={collisionPadding}
+      avoidCollisions
+      sticky="always"
       className={cn(
         "z-50 overflow-hidden ds-overlay-compact max-w-[min(18rem,calc(100vw-32px))] px-3 py-1.5 text-xs leading-snug animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-tooltip-content-transform-origin)",
         className,

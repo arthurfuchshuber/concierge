@@ -80,6 +80,8 @@ const DropdownMenuContent = React.forwardRef<
       // ou cortado pela borda da tela — o Radix empurra o menu pra dentro
       // do viewport sozinho quando tem essa margem mínima.
       collisionPadding={collisionPadding}
+      avoidCollisions
+      sticky="always"
       className={cn(
         // ALTURA (pedido explícito, 24/09/2026): nenhum tooltip/menu deve
         // consumir mais que ~75% da TELA do aparelho (não só o espaço perto
