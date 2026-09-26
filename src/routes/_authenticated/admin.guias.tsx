@@ -569,8 +569,25 @@ function Dashboard() {
       <PageShell
         title={pageTitle}
         subtitle={pageSubtitle}
-        actions={
-          <>
+      />
+
+
+      <div className="ds-card-grid grid-cols-3">
+        {STAT_CARDS.map((c) => (
+          <StatCard
+            key={c.key}
+            label={c.label}
+            value={statCounts[c.key]}
+            icon={c.icon}
+            loading={isLoading}
+            size="sm"
+            active={statCard === c.key}
+            onClick={() => setStatCard(statCard === c.key ? null : c.key)}
+          />
+        ))}
+      </div>
+
+      <div className={ACTION_BAR}>
           {selected.size > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -604,6 +621,44 @@ function Dashboard() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          )}
+          {/* Visualização — um único botão que alterna grade/lista */}
+          <button
+            type="button"
+            onClick={cycleView}
+            aria-label={view === "grid" ? "Ver lado a lado" : view === "split" ? "Ver em lista" : "Ver em grade"}
+            title={view === "grid" ? "Ver lado a lado" : view === "split" ? "Ver em lista" : "Ver em grade"}
+            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+          >
+            {view === "grid" ? (
+              <Columns2 className={ACTION_ICON} />
+            ) : view === "split" ? (
+              <List className={ACTION_ICON} />
+            ) : (
+              <LayoutGrid className={ACTION_ICON} />
+            )}
+            <span className="lg:hidden">{view === "grid" ? "Lado a lado" : view === "split" ? "Lista" : "Grade"}</span>
+          </button>
+          {!readOnly && canCreate && (
+            <button
+              type="button"
+              onClick={openGuidePicker}
+              disabled={reachedLimit || !sub.plan || noOwners}
+              aria-label="Novo guia"
+              title={
+                !sub.plan
+                  ? "Assine um plano para criar guias"
+                  : noOwners
+                    ? "Cadastre um proprietário em Stakeholders antes de criar guias"
+                    : reachedLimit
+                      ? "Limite do seu plano atingido. Faça upgrade."
+                      : "Novo guia"
+              }
+              className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
+            >
+              <Plus className={ACTION_ICON} />
+              <span className="lg:hidden">Novo</span>
+            </button>
           )}
           <Popover onOpenChange={(o) => !o && setFilterScreen("root")}>
             <PopoverTrigger asChild>
@@ -672,62 +727,6 @@ function Dashboard() {
               ) : null}
             </PopoverContent>
           </Popover>
-          {/* Visualização — um único botão que alterna grade/lista */}
-          <button
-            type="button"
-            onClick={cycleView}
-            aria-label={view === "grid" ? "Ver lado a lado" : view === "split" ? "Ver em lista" : "Ver em grade"}
-            title={view === "grid" ? "Ver lado a lado" : view === "split" ? "Ver em lista" : "Ver em grade"}
-            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
-          >
-            {view === "grid" ? (
-              <Columns2 className={ACTION_ICON} />
-            ) : view === "split" ? (
-              <List className={ACTION_ICON} />
-            ) : (
-              <LayoutGrid className={ACTION_ICON} />
-            )}
-            <span className="lg:hidden">{view === "grid" ? "Lado a lado" : view === "split" ? "Lista" : "Grade"}</span>
-          </button>
-
-          {!readOnly && canCreate && (
-            <button
-              type="button"
-              onClick={openGuidePicker}
-              disabled={reachedLimit || !sub.plan || noOwners}
-              aria-label="Novo guia"
-              title={
-                !sub.plan
-                  ? "Assine um plano para criar guias"
-                  : noOwners
-                    ? "Cadastre um proprietário em Stakeholders antes de criar guias"
-                    : reachedLimit
-                      ? "Limite do seu plano atingido. Faça upgrade."
-                      : "Novo guia"
-              }
-              className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
-            >
-              <Plus className={ACTION_ICON} />
-              <span className="lg:hidden">Novo</span>
-            </button>
-          )}
-          </>
-        }
-      />
-
-      <div className="ds-card-grid grid-cols-3">
-        {STAT_CARDS.map((c) => (
-          <StatCard
-            key={c.key}
-            label={c.label}
-            value={statCounts[c.key]}
-            icon={c.icon}
-            loading={isLoading}
-            size="sm"
-            active={statCard === c.key}
-            onClick={() => setStatCard(statCard === c.key ? null : c.key)}
-          />
-        ))}
       </div>
 
       <div className="relative min-w-0">
@@ -750,7 +749,6 @@ function Dashboard() {
         )}
       </div>
 
-      <SectionLabel count={filtered.length}>Guias</SectionLabel>
 
       {isLoading ? (
         <LoadingState count={3} />
@@ -926,37 +924,16 @@ function Dashboard() {
                       >
                         <Copy className="size-3.5 text-muted-foreground" /> Duplicar
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
+                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors text-left"
+                      >
+                        <Trash2 className="size-3.5" /> Excluir guia
+                      </button>
                     </PopoverContent>
                   </Popover>
 
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button
-                        title="Excluir"
-                        className="size-7 inline-flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                        aria-label="Excluir"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Isso removerá permanentemente "{p.name}" e não poderá ser desfeito.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(p.id, p.name)}
-                          className="border border-destructive/40 bg-destructive/15 text-destructive hover:bg-destructive/25"
-                        >
-                          Excluir
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
                             </>
                           }
                         />
@@ -969,6 +946,26 @@ function Dashboard() {
         </div>
 
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso removerá permanentemente "{deleteTarget?.name}" e não poderá ser desfeito.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && handleDelete(deleteTarget.id, deleteTarget.name)}
+              className="border border-destructive/40 bg-destructive/15 text-destructive hover:bg-destructive/25"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* "Novo guia" nunca cria um imóvel novo — só vincula um guia a um
           imóvel já cadastrado (via "Criar nova residência", em Stakeholders)
