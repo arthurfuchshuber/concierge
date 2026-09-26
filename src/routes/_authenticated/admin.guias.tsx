@@ -106,7 +106,6 @@ import {
   CountPill,
   ACTION_BAR,
   PANEL_SHELL,
-  PanelHeading,
   SectionLabel,
 } from "@/components/dashboard/panel-chrome";
 type StatusFilter = "all" | "published" | "draft";
@@ -862,33 +861,30 @@ function Dashboard() {
             .filter((g) => g.items.length > 0)
             .map((g) => (
               <section key={g.key} aria-label={g.title} className="relative min-w-0">
-                <div>
-                  <div className={`${PANEL_SHELL} relative px-2.5 pb-12 pt-3`} style={{ marginLeft: 2, marginRight: 9 }}>
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px]"
-                    style={{ background: `linear-gradient(to right, ${g.color}, transparent)` }}
-                  />
-                  <PanelHeading
-                    title={g.title}
-                    dot={
-                      <span className="flex shrink-0 items-center gap-2.5">
-                      <span
-                        className="grid size-[22px] shrink-0 place-items-center rounded-md"
-                        style={{ background: `color-mix(in oklab, ${g.color} 12%, transparent)`, color: g.color }}
-                      >
-                        <g.Icon className="size-[13px]" strokeWidth={2.2} />
-                      </span>
-                      </span>
-                    }
-                    right={
-                      <CountPill>
-                        {g.items.length} {g.items.length === 1 ? "Guia" : "Guias"}
-                      </CountPill>
-                    }
-                  />
+                <div className="space-y-2.5">
+                  <div className="flex min-w-0 items-center gap-2.5" style={{ marginLeft: 2, marginRight: 9 }}>
+                    <span
+                      aria-hidden
+                      className="h-px min-w-3 flex-1 bg-gradient-to-l from-[color-mix(in_oklab,var(--foreground)_14%,transparent)] to-transparent"
+                    />
+                    <span
+                      className="grid size-[22px] shrink-0 place-items-center rounded-md"
+                      style={{ background: `color-mix(in oklab, ${g.color} 12%, transparent)`, color: g.color }}
+                    >
+                      <g.Icon className="size-[13px]" strokeWidth={2.2} />
+                    </span>
+                    <span className="ds-eyebrow min-w-0 truncate text-[10px] tracking-[0.2em] text-muted-foreground">
+                      {g.title}
+                    </span>
+                    <span
+                      aria-hidden
+                      className="h-px min-w-3 flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_14%,transparent)] to-transparent"
+                    />
+                    <CountPill>
+                      {g.items.length} {g.items.length === 1 ? "Guia" : "Guias"}
+                    </CountPill>
                   </div>
-                  <div className={`ds-five-cap relative z-10 -mt-10 grid gap-3 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
+                  <div className={`ds-five-cap grid gap-3 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
                     {g.items.map((p) => {
                       const c = guideCompleteness(p as any);
                       return (
