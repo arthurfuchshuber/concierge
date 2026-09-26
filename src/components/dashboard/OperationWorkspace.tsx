@@ -10744,6 +10744,8 @@ function PredictedEditor({
   // calendário e a lista de horários. Trocar de tela nunca confirma nada.
   const [view, setView] = useState<"summary" | "date" | "time">("summary");
   const [editing, setEditing] = useState<"primary" | "secondary">("primary");
+  const [guestAsk, setGuestAsk] = useState<{ slot: "primary" | "secondary"; field: "date" | "time" } | null>(null);
+  const [guestOk, setGuestOk] = useState<Record<"primary" | "secondary", boolean>>({ primary: false, secondary: false });
   // undefined = não tocado nesta sessão (mostra o valor gravado).
   const [pending, setPending] = useState<Record<"primary" | "secondary", { date?: string; time?: string | null }>>({
     primary: {},
@@ -10768,6 +10770,8 @@ function PredictedEditor({
     setView("summary");
     setEditing("primary");
     setInfoOpenSlot(null);
+    setGuestAsk(null);
+    setGuestOk({ primary: false, secondary: false });
   }
 
   /** Grava os dois lados de uma vez — só o que de fato mudou. */
@@ -10785,8 +10789,14 @@ function PredictedEditor({
     setOpen(false);
   }
 
-  function openPicker(slot: "primary" | "secondary", field: "date" | "time") {
+  function openPicker(slot: "primary" | "secondary", field: "date" | "time", force = false) {
     if (disabled) return;
+    // Previsão informada pelo hóspede: confirma antes de mexer (26/09/2026).
+    if (!force && sideOf(slot)?.byGuest && !guestOk[slot]) {
+      setGuestAsk({ slot, field });
+      return;
+    }
+    setGuestAsk(null);
     setEditing(slot);
     setView(field);
   }
@@ -10914,6 +10924,11 @@ function PredictedEditor({
           </div>
         )}
         <span className="text-[13px] font-semibold">{side.label}</span>
+        {side.byGuest && (
+          <span className="rounded-full bg-primary/12 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] text-primary">
+            Informado pelo hóspede
+          </span>
+        )}
         </div>
         <div className="grid grid-cols-2 gap-2">
         <button
@@ -10949,6 +10964,37 @@ function PredictedEditor({
           <span className={t ? "" : "text-muted-foreground"}>{t ?? "Horário"}</span>
         </button>
       </div>
+        {guestAsk?.slot === slot && (
+          <div className="rounded-[10px] border border-primary/30 bg-primary/[0.08] p-2.5">
+            <p className="text-[11.5px] font-medium leading-snug">
+              Esta previsão foi informada pelo hóspede. Deseja alterar mesmo assim?
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setGuestAsk(null);
+                }}
+                className="h-8 rounded-[8px] bg-foreground/[0.06] text-[11px] font-bold"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const f = guestAsk.field;
+                  setGuestOk((o) => ({ ...o, [slot]: true }));
+                  openPicker(slot, f, true);
+                }}
+                className="h-8 rounded-[8px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] text-[11px] font-bold text-white"
+              >
+                Alterar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
