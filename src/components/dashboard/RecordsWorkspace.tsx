@@ -1305,7 +1305,7 @@ function RecordViewerDialog({
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-md"
+        className="w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-md"
         aria-describedby={undefined}
       >
         {record && <RecordViewerBody record={record} onDelete={onDelete} onResolve={onResolve} onEdited={onEdited} />}

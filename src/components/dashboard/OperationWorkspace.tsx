@@ -3818,7 +3818,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           if (!v) setCleaningTypePrompt(null);
         }}
       >
-        <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-sm">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-base font-display">Qual limpeza foi realizada?</DialogTitle>
           </DialogHeader>
@@ -4637,7 +4637,7 @@ function KpiCard({
            relatado, 23/09/2026: "os tooltips saíram do centro"). O `fixed`
            da base já é "positioned" o bastante para o `before:absolute` do
            fio de luz funcionar sem precisar de `relative` extra aqui. */
-        className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
+        className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
       >
         <DialogHeader className="px-5 pt-5 pb-0">
           <div className="flex items-center gap-3">
@@ -4853,7 +4853,7 @@ function FreePropertiesCard({
           o `fixed` da base do `DialogContent` no `tailwind-merge` e
           descentralizaria o diálogo — ver comentário completo no `KpiCard`
           acima. */}
-      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
         <DialogHeader className="px-5 pt-5 pb-0">
           <DialogTitle className="text-base font-display">Imóveis livres {dayLabel}</DialogTitle>
         </DialogHeader>
@@ -5729,7 +5729,7 @@ export function TaskResolveDialog({
       {/* Mesmas classes do dialog de PENDÊNCIAS (largura, curva, borda,
           fundo, sombra) — pedido explícito (07/09/2026): esta tela destoava
           do padrão do resto do sistema. */}
-      <DialogContent className="w-[calc(100vw-2.5rem)] sm:w-full sm:max-w-lg p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-lg p-0 overflow-hidden">
         <DialogTitle className="sr-only">Concluir pendência</DialogTitle>
         <DialogDescription className="sr-only">
           Registre quem resolveu, quanto custou e a comprovação da resolução.
@@ -6414,7 +6414,7 @@ export function TasksDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2.5rem)] sm:w-full sm:max-w-lg p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-lg p-0 overflow-hidden">
         <DialogTitle className="sr-only">Pendências</DialogTitle>
         <DialogDescription className="sr-only">
           Tarefas e pendências vinculadas a imóveis e proprietários.
@@ -7052,7 +7052,7 @@ export function TasksDialog({
           if (!v) setDeletePrompt(null);
         }}
       >
-        <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-sm">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-base font-display">Excluir pendência recorrente</DialogTitle>
           </DialogHeader>
@@ -8717,7 +8717,7 @@ function EngagementBreakdownDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
         <DialogHeader className="px-5 pt-5 pb-1 pr-14">
           {/* pr-14 no header: reserva espaço pro botão "X" de fechar do Dialog
