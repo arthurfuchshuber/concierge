@@ -12,6 +12,7 @@ import {
   Mic,
   Pencil,
   LayoutGrid,
+  Sparkles,
   SlidersHorizontal,
   StickyNote,
   Video,
