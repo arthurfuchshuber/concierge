@@ -568,21 +568,8 @@ export function RecordsWorkspace() {
 
         {/* CARTÕES + GRÁFICO — mesmo grupo da Limpeza (10px entre eles). */}
         <div className="ds-card-grid">
-          <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              label="Registros"
-              value={q.data?.total ?? 0}
-              icon={LayoutGrid}
-              loading={q.isLoading}
-              active={category === null && !onlyOpen}
-              onClick={() => {
-                setCategory(null);
-                setOnlyOpen(false);
-              }}
-            />
+          <div className="ds-card-grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
             <PendenciasButton ownerId={activeOwnerId} enabled variant="card" />
-          </div>
-          <div className="ds-card-grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
             {CARDS.map((c) => (
               <StatCard
                 key={c.key}
