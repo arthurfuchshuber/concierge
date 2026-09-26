@@ -81,7 +81,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 type StatusFilter = "all" | "published" | "draft";
 type AccessFilter = "all" | "public" | "pin";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -138,39 +138,10 @@ const GUIA_TABS = [
   { key: "destinos", label: "Destinos" },
 ];
 
+/* Destinos fora por enquanto (pedido explícito, 26/09/2026): a página
+   mostra só os guias de imóveis. Os dados de destinos continuam guardados. */
 function GuiasTabs() {
-  const search = useSearch({ from: "/_authenticated/admin/guias" });
-  const tab = coerceGuiaTab(search.tab);
-  const navigate = useNavigate();
-  return (
-    <Tabs
-      value={tab}
-      onValueChange={(v) => navigate({ to: "/admin/guias", search: { tab: coerceGuiaTab(v) } })}
-      className="w-full"
-    >
-      <TabsContent value="imoveis" className="mt-0">
-        <Dashboard />
-      </TabsContent>
-      <TabsContent value="destinos" className="mt-0">
-        <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
-          <WorkspaceHeader
-            title="Guias"
-            subtitle="Seus imóveis e destinos publicados."
-            tabs={GUIA_TABS}
-            activeTab={tab}
-            onTabChange={(k) => navigate({ to: "/admin/guias", search: { tab: coerceGuiaTab(k) } })}
-          />
-          <div className="py-16 text-center">
-            <Compass className="size-8 mx-auto text-muted-foreground/60 mb-3" />
-            <p className="ds-section-title">Em construção...</p>
-            <p className="ds-page-subtitle mt-1.5">
-              Em breve você poderá criar guias completos por destino.
-            </p>
-          </div>
-        </div>
-      </TabsContent>
-    </Tabs>
-  );
+  return <Dashboard />;
 }
 
 
@@ -212,7 +183,7 @@ function Dashboard() {
   const canCreate = createAccess.loading ? false : createAccess.allowed;
   const NO_PERMISSION_MSG = "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
 
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [view, setView] = useState<"grid" | "list" | "split">("grid");
   const [statCardsOpen, setStatCardsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [viewSlug, setViewSlug] = useState<string | null>(null);
@@ -224,6 +195,18 @@ function Dashboard() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [accessFilter, setAccessFilter] = useState<AccessFilter>("all");
+  const [ownerFilters, setOwnerFilters] = useState<string[]>([]);
+  const [cityFilters, setCityFilters] = useState<string[]>([]);
+  const [filterScreen, setFilterScreen] = useState<"root" | "status" | "access" | "owner" | "city">("root");
+  useEffect(() => {
+    const v = window.localStorage.getItem("guias-view");
+    if (v === "grid" || v === "list" || v === "split") setView(v);
+  }, []);
+  function cycleView() {
+    const next = view === "grid" ? "split" : view === "split" ? "list" : "grid";
+    setView(next);
+    window.localStorage.setItem("guias-view", next);
+  }
 
   function closePreview() {
     setViewSlug(null);
@@ -414,6 +397,9 @@ function Dashboard() {
       if (statusFilter === "published" && !p.published) return false;
       if (statusFilter === "draft" && p.published) return false;
       if (accessFilter !== "all" && p.access_mode !== accessFilter) return false;
+      const own = (p as { ownerName?: string | null }).ownerName ?? "";
+      if (ownerFilters.length > 0 && !ownerFilters.includes(own)) return false;
+      if (cityFilters.length > 0 && !cityFilters.includes(p.city ?? "")) return false;
       if (!q) return true;
       return [p.name, p.tagline, p.address, p.city, p.country, p.slug]
         .filter(Boolean)
@@ -433,7 +419,7 @@ function Dashboard() {
         cmp(txt((a as { ownerName?: string | null }).ownerName), txt((b as { ownerName?: string | null }).ownerName))
       );
     });
-  }, [guideRows, search, statusFilter, accessFilter]);
+  }, [guideRows, search, statusFilter, accessFilter, ownerFilters, cityFilters]);
 
   // Trava: nenhum guia pode ser criado sem um proprietário cadastrado em
   // Stakeholders → Proprietários (fonte da verdade das propriedades).
@@ -459,12 +445,31 @@ function Dashboard() {
   // veio.
   const noOwners = ownersCount.isSuccess && (ownersCount.data?.count ?? 0) === 0;
 
-  const hasActiveFilters = search.trim() !== "" || statusFilter !== "all" || accessFilter !== "all";
+  const panelFiltersActive =
+    statusFilter !== "all" || accessFilter !== "all" || ownerFilters.length > 0 || cityFilters.length > 0;
+  const hasActiveFilters = search.trim() !== "" || panelFiltersActive;
   function clearFilters() {
     setSearch("");
     setStatusFilter("all");
     setAccessFilter("all");
+    setOwnerFilters([]);
+    setCityFilters([]);
   }
+  const ownerOptions = useMemo(
+    () =>
+      Array.from(new Set(guideRows.map((p) => (p as { ownerName?: string | null }).ownerName ?? "").filter(Boolean))).sort(
+        (a, b) => a.localeCompare(b, "pt-BR"),
+      ),
+    [guideRows],
+  );
+  const cityOptions = useMemo(
+    () => Array.from(new Set(guideRows.map((p) => p.city ?? "").filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [guideRows],
+  );
+  const multiLabel = (arr: string[], all: string, many: string) =>
+    arr.length === 0 ? all : arr.length === 1 ? arr[0] : `${arr.length} ${many}`;
+  const statusLabel = statusFilter === "published" ? "Publicados" : statusFilter === "draft" ? "Rascunhos" : "Todos";
+  const accessLabel = accessFilter === "public" ? "Público" : accessFilter === "pin" ? "PIN" : "Todos";
 
   return (
     <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
@@ -506,16 +511,24 @@ function Dashboard() {
 
       {/* Welcome */}
       <WorkspaceHeader
-        title={readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias"}
+        title={
+          readOnly
+            ? `Painel de ${impersonation?.name ?? ""}`
+            : statusFilter === "published"
+              ? "Guias Publicados"
+              : statusFilter === "draft"
+                ? "Guias em Rascunho"
+                : "Guias"
+        }
         subtitle={
           readOnly
-            ? "Imóveis e destinos desta conta."
-            : "Seus imóveis e destinos publicados."
-
+            ? "Guias dos imóveis desta conta."
+            : guideRows.length === 0
+              ? "Guias digitais dos seus imóveis."
+              : hasActiveFilters
+                ? `${filtered.length} de ${guideRows.length} guias de imóveis no filtro atual.`
+                : `${guideRows.length} guias de imóveis, publicados e em rascunho.`
         }
-        tabs={GUIA_TABS}
-        activeTab="imoveis"
-        onTabChange={(k) => navigate({ to: "/admin/guias", search: { tab: coerceGuiaTab(k) } })}
       />
 
       {/* Barra de ações — mesmo padrão do filtro "Hoje"/"Filtros" da Operação:
@@ -579,7 +592,7 @@ function Dashboard() {
 
 
 
-          <Popover>
+          <Popover onOpenChange={(o) => !o && setFilterScreen("root")}>
             <PopoverTrigger asChild>
               <button
                 type="button"
@@ -589,84 +602,80 @@ function Dashboard() {
               >
                 <Filter className="size-3.5 opacity-60" />
                 <span className="hidden sm:inline">Filtros</span>
-                {(statusFilter !== "all" || accessFilter !== "all") && (
-                  <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
-                )}
+                {panelFiltersActive && <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />}
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-72 p-4 space-y-4">
-              {/* Mesmo cabeçalho "Filtros" + link "Limpar tudo" do popover de
-                  Filtros de Proprietários/Guias (StakeholderDirectory) — em
-                  vez do botão "Limpar filtros" cheio no rodapé. */}
-              <div className="flex items-center justify-between">
-                <span className="ds-eyebrow">Filtros</span>
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Limpar tudo
-                  </button>
-                )}
-              </div>
-
-              <div>
-                <div className="ds-eyebrow mb-2">Status</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {(
-                    [
-                      { v: "all", label: "Todos" },
-                      { v: "published", label: "Publicados" },
-                      { v: "draft", label: "Rascunhos" },
-                    ] as { v: StatusFilter; label: string }[]
-                  ).map((opt) => (
-                    <button
-                      key={opt.v}
-                      type="button"
-                      onClick={() => setStatusFilter(opt.v)}
-                      className={`px-3 py-1.5 rounded-none text-xs transition-colors ${statusFilter === opt.v ? "bg-foreground text-background" : "bg-secondary/50 text-muted-foreground hover:text-foreground"}`}
-                    >
-                      {opt.label}
-                    </button>
+            <PopoverContent
+              align="end"
+              sideOffset={FILTER_PANEL_OFFSET}
+              collisionPadding={FILTER_PANEL_COLLISION}
+              className={FILTER_PANEL_CLASS}
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
+              {filterScreen === "root" ? (
+                <>
+                  <FilterRootHeader canClear={panelFiltersActive} onClear={clearFilters} />
+                  <FilterMenuRow icon={Globe} label="Situação" value={statusLabel} active={statusFilter !== "all"} onClick={() => setFilterScreen("status")} />
+                  <FilterMenuRow icon={Lock} label="Acesso" value={accessLabel} active={accessFilter !== "all"} onClick={() => setFilterScreen("access")} />
+                  <FilterMenuRow icon={Users} label="Proprietário" value={multiLabel(ownerFilters, "Todos", "selecionados")} active={ownerFilters.length > 0} onClick={() => setFilterScreen("owner")} />
+                  <FilterMenuRow icon={MapPin} label="Cidade" value={multiLabel(cityFilters, "Todas", "selecionadas")} active={cityFilters.length > 0} onClick={() => setFilterScreen("city")} last />
+                </>
+              ) : null}
+              {filterScreen === "status" ? (
+                <>
+                  <FilterScreenHeader icon={Globe} title="Situação" onBack={() => setFilterScreen("root")} />
+                  {([
+                    { v: "all", label: "Todos" },
+                    { v: "published", label: "Publicados" },
+                    { v: "draft", label: "Rascunhos" },
+                  ] as { v: StatusFilter; label: string }[]).map((o, i, arr) => (
+                    <FilterOptionRow key={o.v} label={o.label} selected={statusFilter === o.v} onClick={() => setStatusFilter(o.v)} last={i === arr.length - 1} />
                   ))}
-                </div>
-              </div>
-
-              <div className="border-t border-border pt-4">
-                <div className="ds-eyebrow mb-2">Acesso</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {(
-                    [
-                      { v: "all", label: "Todos" },
-                      { v: "public", label: "Público" },
-                      { v: "pin", label: "PIN" },
-                    ] as { v: AccessFilter; label: string }[]
-                  ).map((opt) => (
-                    <button
-                      key={opt.v}
-                      type="button"
-                      onClick={() => setAccessFilter(opt.v)}
-                      className={`px-3 py-1.5 rounded-none text-xs transition-colors ${accessFilter === opt.v ? "bg-foreground text-background" : "bg-secondary/50 text-muted-foreground hover:text-foreground"}`}
-                    >
-                      {opt.label}
-                    </button>
+                </>
+              ) : null}
+              {filterScreen === "access" ? (
+                <>
+                  <FilterScreenHeader icon={Lock} title="Acesso" onBack={() => setFilterScreen("root")} />
+                  {([
+                    { v: "all", label: "Todos" },
+                    { v: "public", label: "Público" },
+                    { v: "pin", label: "PIN" },
+                  ] as { v: AccessFilter; label: string }[]).map((o, i, arr) => (
+                    <FilterOptionRow key={o.v} label={o.label} selected={accessFilter === o.v} onClick={() => setAccessFilter(o.v)} last={i === arr.length - 1} />
                   ))}
-                </div>
-              </div>
+                </>
+              ) : null}
+              {filterScreen === "owner" ? (
+                <>
+                  <FilterScreenHeader icon={Users} title="Proprietário" onBack={() => setFilterScreen("root")} right={<FilterCountBadge count={ownerFilters.length} />} />
+                  <FilterMultiSelect options={ownerOptions.map((o) => ({ value: o, label: o }))} selected={ownerFilters} onChange={setOwnerFilters} searchPlaceholder="Buscar proprietário..." />
+                </>
+              ) : null}
+              {filterScreen === "city" ? (
+                <>
+                  <FilterScreenHeader icon={MapPin} title="Cidade" onBack={() => setFilterScreen("root")} right={<FilterCountBadge count={cityFilters.length} />} />
+                  <FilterMultiSelect options={cityOptions.map((o) => ({ value: o, label: o }))} selected={cityFilters} onChange={setCityFilters} searchPlaceholder="Buscar cidade..." />
+                </>
+              ) : null}
             </PopoverContent>
           </Popover>
 
           {/* Visualização — um único botão que alterna grade/lista */}
           <button
             type="button"
-            onClick={() => setView(view === "grid" ? "list" : "grid")}
-            aria-label={view === "grid" ? "Ver em lista" : "Ver em grade"}
-            title={view === "grid" ? "Ver em lista" : "Ver em grade"}
+            onClick={cycleView}
+            aria-label={view === "grid" ? "Ver lado a lado" : view === "split" ? "Ver em lista" : "Ver em grade"}
+            title={view === "grid" ? "Ver lado a lado" : view === "split" ? "Ver em lista" : "Ver em grade"}
             className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
           >
-            {view === "grid" ? <List className="size-3.5 opacity-60" /> : <LayoutGrid className="size-3.5 opacity-60" />}
-            <span className="hidden sm:inline">{view === "grid" ? "Lista" : "Grade"}</span>
+            {view === "grid" ? (
+              <Columns2 className="size-3.5 opacity-60" />
+            ) : view === "split" ? (
+              <List className="size-3.5 opacity-60" />
+            ) : (
+              <LayoutGrid className="size-3.5 opacity-60" />
+            )}
+            <span className="hidden sm:inline">{view === "grid" ? "Lado a lado" : view === "split" ? "Lista" : "Grade"}</span>
           </button>
 
           {!readOnly && canCreate && (
@@ -768,20 +777,12 @@ function Dashboard() {
             </Button>
           }
         />
-      ) : view === "grid" ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-1.5">
-          {filtered.map((p) => (
-            <div
-              key={p.id}
-              className="ds-surface border border-border bg-card overflow-hidden group hover:shadow-elevated transition-shadow"
-            >
-              <div className="aspect-[16/10] bg-secondary relative">
-                {p.hero_image_url ? (
-                  <img src={p.hero_image_url} alt={p.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full grid place-items-center text-muted-foreground text-xs">Sem imagem</div>
-                )}
-                <span className="absolute top-3 left-3 glass rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider font-semibold inline-flex items-center gap-1">
+      ) : view === "grid" || view === "split" ? (
+        <div className={view === "split" ? "grid lg:grid-cols-2 gap-1.5" : "grid md:grid-cols-2 lg:grid-cols-3 gap-1.5"}>
+          {filtered.map((p) => {
+            const split = view === "split";
+            const accessBadge = (
+                <span className={`${split ? "bg-secondary" : "absolute top-3 left-3 glass"} rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider font-semibold inline-flex shrink-0 items-center gap-1`}>
                   {p.access_mode === "pin" ? (
                     <>
                       <Lock className="size-2.5" /> PIN
@@ -792,8 +793,10 @@ function Dashboard() {
                     </>
                   )}
                 </span>
+            );
+            const pubToggle = (
                 <div
-                  className="absolute top-3 right-3 glass rounded-full pl-2.5 pr-1 py-1 flex items-center gap-2"
+                  className={`${split ? "bg-secondary" : "absolute top-3 right-3 glass"} rounded-full pl-2.5 pr-1 py-1 flex shrink-0 items-center gap-2`}
                   title={p.published ? "Publicado — clique para despublicar" : "Rascunho — clique para publicar"}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -810,8 +813,28 @@ function Dashboard() {
                     aria-label="Alternar publicação"
                   />
                 </div>
+            );
+            return (
+            <div
+              key={p.id}
+              className={`ds-surface border border-border bg-card overflow-hidden group hover:shadow-elevated transition-shadow ${split ? "flex min-w-0" : ""}`}
+            >
+              <div className={split ? "relative w-[40%] shrink-0 bg-secondary" : "aspect-[16/10] bg-secondary relative"}>
+                {p.hero_image_url ? (
+                  <img src={p.hero_image_url} alt={p.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full grid place-items-center text-muted-foreground text-xs">Sem imagem</div>
+                )}
+                {!split && accessBadge}
+                {!split && pubToggle}
               </div>
-              <div className="p-4">
+              <div className={split ? "min-w-0 flex-1 p-3" : "p-4"}>
+                {split && (
+                  <div className="mb-2 flex min-w-0 flex-wrap items-center gap-1.5">
+                    {accessBadge}
+                    {pubToggle}
+                  </div>
+                )}
                 {/* ds-card-lines: espaçamento padrão entre as linhas de
                     informação do card (styles.css). Antes cada linha
                     carregava a própria margem (mb-1, mt-0.5, mt-1) e o
@@ -829,6 +852,7 @@ function Dashboard() {
                       phone={(p as any).ownerPhone}
                       country={(p as any).ownerPhoneCountry}
                       size={12}
+                      alwaysShow
                       className="shrink-0"
                     />
                   </div>
@@ -946,7 +970,8 @@ function Dashboard() {
 
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         (() => {
