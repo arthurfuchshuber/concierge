@@ -12,6 +12,7 @@ import {
   Mic,
   Pencil,
   LayoutGrid,
+  Sparkles,
   SlidersHorizontal,
   StickyNote,
   Video,
@@ -55,6 +56,14 @@ import {
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { PendenciasButton } from "@/components/dashboard/pendencias";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
+import { StatCard } from "@/components/ds/StatCard";
+import { DailyBarChartCard, DAY_TD, DAY_TH } from "@/components/ds/DailyBarChartCard";
+import { trimSeries } from "@/lib/trim-series";
+
+/** Data (AAAA-MM-DD) no fuso de São Paulo. */
+function spDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
 import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
 import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import { DictationField } from "@/components/dashboard/RecordSituationSheet";
@@ -492,6 +501,31 @@ export function RecordsWorkspace() {
     setPropertyFilters([]);
   }
 
+  const pageTitle = (() => {
+    const base = category ? (CATEGORY_BY_KEY.get(category)?.short ?? "Registros") : "Registros";
+    return period === "all" ? base : `${base} Últimos ${period}d`;
+  })();
+
+  // Regra global: do primeiro ao último dia com registro, dias vazios do meio incluídos.
+  const dailySeries = useMemo(() => {
+    const byDay = new Map<string, number>();
+    for (const r of records) {
+      const d = spDate(r.createdAt);
+      byDay.set(d, (byDay.get(d) ?? 0) + 1);
+    }
+    const keys = Array.from(byDay.keys()).sort();
+    if (keys.length === 0) return [];
+    const out: { date: string; count: number }[] = [];
+    const cur = new Date(`${keys[0]}T12:00:00Z`);
+    const end = new Date(`${keys[keys.length - 1]}T12:00:00Z`);
+    while (cur <= end) {
+      const k = cur.toISOString().slice(0, 10);
+      out.push({ date: k, count: byDay.get(k) ?? 0 });
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    return trimSeries(out, (p) => p.count > 0);
+  }, [records]);
+
   return (
     /* MESMA MOLDURA DE PÁGINA das outras três telas (Operacional / Kanban /
        Limpeza) — este wrapper é o que dá o respiro lateral, o teto de
@@ -513,14 +547,25 @@ export function RecordsWorkspace() {
       <div className="ds-blocks">
         <OperationShell
           view="registros"
-          subtitle={subtitle}
+          title={pageTitle}
+          subtitle="Fotos, vídeos, áudios e notas registrados nos imóveis."
           actions={
             <>
-              {/* PENDÊNCIAS MORA AQUI AGORA (pedido explícito, 18/09/2026):
-                  veio do Kanban, porque é nesta aba que as pendências já
-                  aparecem ("Precisam de atenção") — é aqui que a mão procura.
-                  Ver `pendencias.tsx`. */}
-              <PendenciasButton ownerId={activeOwnerId} enabled />
+              {/* PERÍODO À ESQUERDA, FILTROS À DIREITA — a mesma barra partida
+                  ao meio da Limpeza. Tocar no período passa para o próximo
+                  (Todo o período → 7 → 30 → 90 dias). */}
+              <button
+                type="button"
+                onClick={() => {
+                  const i = PERIOD_OPTIONS.findIndex((o) => o.value === period);
+                  setPeriod(PERIOD_OPTIONS[(i + 1) % PERIOD_OPTIONS.length].value);
+                }}
+                title="Trocar período"
+                className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+              >
+                <Sparkles className={ACTION_ICON} />
+                <span className="lg:hidden">{period === "all" ? "Todo o período" : `Últimos ${period} dias`}</span>
+              </button>
               <RecordsFiltersButton
                 category={category}
                 onCategoryChange={setCategory}
@@ -543,54 +588,79 @@ export function RecordsWorkspace() {
           }
         />
 
-        {/* 1 — CONTADORES, em DUAS LINHAS de três (pedido explícito): cinco
-          cartões numa linha só deixavam o rótulo cortado ("ESQUECID…",
-          "MANUTEN…") justamente nas categorias que mais importam. Em
-          `grid-cols-3` sobram três em cima e dois embaixo, com o rótulo
-          inteiro. Desde 18/09/2026 os seis são um BLOCO SÓ, com fios internos
-          — cada quadrado continua sendo o seu próprio clique. O número não tem
-          cor própria (padrão "Presença"): a categoria vive na caixinha do
-          ícone e o selecionado ganha luz, não cor. Tocar no selecionado volta
-          para "todos". */}
-        <div className={`${PANEL_SHELL} grid grid-cols-3`}>
-          {/* TODOS é o primeiro cartão e o filtro de entrada da aba (pedido
-            explícito, 10/09/2026). Ele não é "mais uma categoria": é a visão
-            em que os registros de uma MESMA RESERVA vêm empacotados. */}
-          {(() => {
-            /* O ÍNDICE SELECIONADO comanda os fios: a célula acesa e as suas
-               vizinhas de cima/esquerda escondem o fio que encostaria na
-               mancha de seleção — é isso que elimina a "borda" que sobrava
-               na direita e embaixo do cartão selecionado. */
-            const ativo = category === null ? 0 : CARDS.findIndex((c) => c.key === category) + 1;
-            return (
-              <>
-                <CategoriaCelula i={0} ativo={ativo}>
-                  <CategoryCard
-                    label="Todos"
-                    count={q.data?.total ?? 0}
-                    tone={null}
-                    icon={LayoutGrid}
-                    active={category === null}
-                    loading={q.isLoading}
-                    onClick={() => setCategory(null)}
-                  />
-                </CategoriaCelula>
-                {CARDS.map((c, i) => (
-                  <CategoriaCelula key={c.key} i={i + 1} ativo={ativo}>
-                    <CategoryCard
-                      label={c.short}
-                      count={counts?.[c.key] ?? 0}
-                      tone={c.key}
-                      icon={c.icon}
-                      active={category === c.key}
-                      loading={q.isLoading}
-                      onClick={() => setCategory(category === c.key ? null : c.key)}
-                    />
-                  </CategoriaCelula>
-                ))}
-              </>
-            );
-          })()}
+        {/* CARTÕES + GRÁFICO — mesmo grupo da Limpeza (10px entre eles). */}
+        <div className="ds-card-grid">
+          <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Registros"
+              value={q.data?.total ?? 0}
+              icon={LayoutGrid}
+              loading={q.isLoading}
+              active={category === null && !onlyOpen}
+              onClick={() => {
+                setCategory(null);
+                setOnlyOpen(false);
+              }}
+              note={(q.data?.totalOpen ?? 0) > 0 ? `${q.data?.totalOpen} em aberto` : null}
+            />
+            <PendenciasButton ownerId={activeOwnerId} enabled variant="card" />
+          </div>
+          <div className="ds-card-grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
+            {CARDS.map((c) => (
+              <StatCard
+                key={c.key}
+                size="sm"
+                label={c.short}
+                value={counts?.[c.key] ?? 0}
+                icon={c.icon}
+                iconTone={CARD_ICON_TONE[c.key]}
+                loading={q.isLoading}
+                active={category === c.key}
+                onClick={() => setCategory(category === c.key ? null : c.key)}
+              />
+            ))}
+          </div>
+          <DailyBarChartCard
+            title="Registros por dia"
+            data={dailySeries}
+            loading={q.isLoading}
+            unitLabel="Registros"
+            renderDetail={(date) => {
+              const rows = records.filter((r) => spDate(r.createdAt) === date);
+              return {
+                subtitle: `${rows.length} ${rows.length === 1 ? "registro" : "registros"}`,
+                body: (
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
+                        <th className={`${DAY_TH} text-left`}>Imóvel</th>
+                        <th className={`${DAY_TH} text-left`}>Categoria</th>
+                        <th className={`${DAY_TH} text-right`}>Situação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r) => (
+                        <tr key={r.id} className="cursor-pointer" onClick={() => setOpened(r)}>
+                          <td className={`${DAY_TD} pr-2`}>
+                            <span className="block font-bold">{r.propertyName}</span>
+                            <span className="block text-[10.5px] text-muted-foreground">{recordTitle(r)}</span>
+                          </td>
+                          <td className={`${DAY_TD} pr-2`}>
+                            <span className="font-bold" style={{ color: CARD_ICON_TONE[r.category] }}>
+                              {CATEGORY_BY_KEY.get(r.category)?.short ?? "—"}
+                            </span>
+                          </td>
+                          <td className={`${DAY_TD} text-right font-bold`}>
+                            {r.taskTitle ? "Pendência" : "Registrado"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ),
+              };
+            }}
+          />
         </div>
 
         {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
