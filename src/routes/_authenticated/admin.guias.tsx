@@ -861,13 +861,14 @@ function Dashboard() {
           ]
             .filter((g) => g.items.length > 0)
             .map((g) => (
-              <section key={g.key} aria-label={g.title} className={`${PANEL_SHELL} relative min-w-0 px-2.5 pb-2.5 pt-3`}>
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px]"
-                  style={{ background: `linear-gradient(to right, ${g.color}, transparent)` }}
-                />
-                <div className="space-y-1.5">
+              <section key={g.key} aria-label={g.title} className="relative min-w-0">
+                <div className="space-y-3">
+                  <div className={`${PANEL_SHELL} relative px-2.5 pb-1.5 pt-3`} style={{ marginLeft: 2, marginRight: 6 }}>
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px]"
+                    style={{ background: `linear-gradient(to right, ${g.color}, transparent)` }}
+                  />
                   <PanelHeading
                     title={g.title}
                     dot={
@@ -885,9 +886,9 @@ function Dashboard() {
                         {g.items.length} {g.items.length === 1 ? "Guia" : "Guias"}
                       </CountPill>
                     }
-                    className="mb-1"
                   />
-                  <div className={`ds-five-cap grid gap-3 ${view === "grid" ? "sm:grid-cols-2" : ""}`} style={{ marginLeft: -2, marginRight: -13 }}>
+                  </div>
+                  <div className={`ds-five-cap grid gap-3 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
                     {g.items.map((p) => {
                       const c = guideCompleteness(p as any);
                       return (
