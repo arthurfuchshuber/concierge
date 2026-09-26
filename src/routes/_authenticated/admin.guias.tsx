@@ -106,7 +106,6 @@ import {
   CountPill,
   ACTION_BAR,
   PANEL_SHELL,
-  PanelHeading,
   SectionLabel,
 } from "@/components/dashboard/panel-chrome";
 type StatusFilter = "all" | "published" | "draft";
