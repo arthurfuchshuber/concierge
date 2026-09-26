@@ -7336,6 +7336,7 @@ function CalendarFiltersButton({
 }) {
   type Screen = "root" | "period" | "city" | "owner" | "provider" | "property";
   const [screen, setScreen] = useState<Screen>("root");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange | undefined>(
     periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined,
   );
