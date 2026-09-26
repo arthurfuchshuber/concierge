@@ -21,6 +21,7 @@ import {
   Tag,
   Layers,
   Building2,
+  ListChecks,
   CalendarRange,
   Users,
 } from "lucide-react";
