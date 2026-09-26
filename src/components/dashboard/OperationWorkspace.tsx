@@ -92,15 +92,9 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
-import {
-  CleaningApprovalPanel,
-  CLEANING_APPROVALS_KEY,
-} from "@/components/dashboard/CleaningApprovalPanel";
+import { CleaningApprovalPanel, CLEANING_APPROVALS_KEY } from "@/components/dashboard/CleaningApprovalPanel";
 import { notifyAction } from "@/components/UndoActionBar";
-import {
-  ReservationRecordsButton,
-  ReservationRecordsDialog,
-} from "@/components/dashboard/ReservationRecords";
+import { ReservationRecordsButton, ReservationRecordsDialog } from "@/components/dashboard/ReservationRecords";
 import {
   AttachmentPicker,
   AttachmentsSending,
@@ -126,14 +120,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Calendar as RangeCalendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Command,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-} from "@/components/ui/command";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -226,13 +213,7 @@ import type {
   TaskCategory,
   TaskPriority,
 } from "@/lib/tasks-types";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useHasSession } from "@/hooks/useHasSession";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { ConfirmActionDialog } from "@/components/permissions/ConfirmActionDialog";
@@ -268,10 +249,7 @@ function ExtraGuests({
       {open && (
         <ul className="absolute left-0 top-full z-30 mt-1 min-w-[180px] space-y-0.5 rounded-lg border border-border/50 bg-popover px-2 py-1.5 shadow-lg">
           {guests.map((g) => (
-            <li
-              key={g.logId}
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
-            >
+            <li key={g.logId} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className="size-1 rounded-full bg-muted-foreground/60 shrink-0" />
               <span className="min-w-0 truncate" title={g.name}>
                 {g.name}
@@ -518,9 +496,7 @@ function InfoHint({ title, children }: { title?: string; children: React.ReactNo
         className="w-64 max-w-[calc(100vw-2rem)] rounded-lg border-border/70 bg-popover/95 backdrop-blur p-3 text-xs leading-relaxed shadow-xl"
       >
         {title && (
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
-            {title}
-          </div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">{title}</div>
         )}
         <div className="text-foreground/90">{children}</div>
       </PopoverContent>
@@ -529,11 +505,7 @@ function InfoHint({ title, children }: { title?: string; children: React.ReactNo
 }
 
 function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function nowLabelBR(): string {
@@ -554,8 +526,7 @@ function nowLabelBR(): string {
 function buildReceiptNode(title: string, rows: ArrivalRow[]): HTMLDivElement {
   const RECEIPT_WIDTH = 340;
   const container = document.createElement("div");
-  container.className =
-    "bg-card border border-border/60 rounded-lg overflow-hidden text-foreground";
+  container.className = "bg-card border border-border/60 rounded-lg overflow-hidden text-foreground";
   container.style.position = "fixed";
   container.style.left = "-99999px";
   container.style.top = "0";
@@ -575,9 +546,7 @@ function buildReceiptNode(title: string, rows: ArrivalRow[]): HTMLDivElement {
     const dotClass = done ? "bg-emerald-500" : "bg-amber-800";
     const tagClass = done ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-800/15 text-amber-700";
     const guestLabel =
-      row.guestName && row.guestName !== row.reservationCode
-        ? row.guestName
-        : (row.reservationCode ?? "Hóspede");
+      row.guestName && row.guestName !== row.reservationCode ? row.guestName : (row.reservationCode ?? "Hóspede");
     const dates = row.guestCheckin
       ? `${fmtDateBR(row.guestCheckin)}${row.guestCheckout ? ` → ${fmtDateBR(row.guestCheckout)}` : ""}`
       : fmtDateBR(row.date);
@@ -599,8 +568,7 @@ function buildReceiptNode(title: string, rows: ArrivalRow[]): HTMLDivElement {
   }
 
   const foot = document.createElement("div");
-  foot.className =
-    "text-center px-3.5 py-2 border-t border-dashed border-border/60 text-[9px] text-muted-foreground";
+  foot.className = "text-center px-3.5 py-2 border-t border-dashed border-border/60 text-[9px] text-muted-foreground";
   foot.textContent = "Gerado pelo painel · SigmaGuide";
   container.appendChild(foot);
 
@@ -637,12 +605,7 @@ export type ScreenshotTarget = {
  * Limpeza, que não têm linha de título. Duas superfícies, uma lógica: era isso
  * ou duplicar `html-to-image`, `toast` e o estado de ocupado em dois lugares.
  */
-function useScreenshotActions({
-  targetRef,
-  fileName,
-  receiptRows,
-  receiptTitle,
-}: ScreenshotTarget) {
+function useScreenshotActions({ targetRef, fileName, receiptRows, receiptTitle }: ScreenshotTarget) {
   const [busy, setBusy] = useState(false);
   const captureBlob = useCallback(async (): Promise<Blob | null> => {
     if (receiptRows) {
@@ -743,11 +706,7 @@ function ScreenshotButton(props: ScreenshotTarget) {
           aria-label="Tirar um print"
           className="inline-flex h-8 shrink-0 items-center justify-center rounded-[0.3rem] border-0 bg-transparent px-1.5 text-foreground/70 transition-colors hover:text-foreground disabled:opacity-50"
         >
-          {busy ? (
-            <Loader2 className="size-3.5 animate-spin opacity-60" />
-          ) : (
-            <Camera className="size-3.5 opacity-60" />
-          )}
+          {busy ? <Loader2 className="size-3.5 animate-spin opacity-60" /> : <Camera className="size-3.5 opacity-60" />}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-[10rem]">
@@ -858,13 +817,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const [cleaningTypePrompt, setCleaningTypePrompt] = useState<{ row: ArrivalRow } | null>(null);
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
   const engRange: "today" | "tomorrow" | "7d" | "30d" =
-    range === "today"
-      ? "today"
-      : range === "tomorrow"
-        ? "tomorrow"
-        : range === "all"
-          ? "30d"
-          : "7d";
+    range === "today" ? "today" : range === "tomorrow" ? "tomorrow" : range === "all" ? "30d" : "7d";
 
   // KPIs derivam das mesmas listas do kanban para garantir sincronia visual.
 
@@ -913,8 +866,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   });
   const tomorrowCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self", "top-card"],
-    queryFn: () =>
-      listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
+    queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
     ...liveSync,
@@ -958,8 +910,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }, [concludedSearch]);
   const concludedQ = useQuery({
     queryKey: ["dash-list", "concluded", activeOwnerId ?? "self", concludedSearchDebounced],
-    queryFn: () =>
-      concludedFn({ data: { ownerId: activeOwnerId, q: concludedSearchDebounced || undefined } }),
+    queryFn: () => concludedFn({ data: { ownerId: activeOwnerId, q: concludedSearchDebounced || undefined } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
     ...liveSync,
@@ -975,8 +926,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }, [noShowSearch]);
   const noShowQ = useQuery({
     queryKey: ["dash-list", "no_show", activeOwnerId ?? "self", noShowSearchDebounced],
-    queryFn: () =>
-      noShowFn({ data: { ownerId: activeOwnerId, q: noShowSearchDebounced || undefined } }),
+    queryFn: () => noShowFn({ data: { ownerId: activeOwnerId, q: noShowSearchDebounced || undefined } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
     enabled: authed,
@@ -1002,10 +952,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // ver `propertyProviderById`/`matchesKanbanOwnerCity` mais abaixo).
   const [providerFilters, setProviderFilters] = useState<string[]>([]);
   const hasCustomFilters =
-    !!periodRange ||
-    ownerFilters.length > 0 ||
-    cityFilters.length > 0 ||
-    providerFilters.length > 0;
+    !!periodRange || ownerFilters.length > 0 || cityFilters.length > 0 || providerFilters.length > 0;
   function clearAllFilters() {
     setPeriodRange(null);
     setOwnerFilters([]);
@@ -1030,17 +977,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         90,
         Math.max(
           3,
-          differenceInCalendarDays(
-            parseISODateLocal(periodRange.end),
-            parseISODateLocal(periodRange.start),
-          ) + 1,
+          differenceInCalendarDays(parseISODateLocal(periodRange.end), parseISODateLocal(periodRange.start)) + 1,
         ),
       )
     : Math.min(90, Math.max(7, fitDays ?? 21));
   const occupancyQ = useQuery({
     queryKey: ["dash-occupancy", activeOwnerId ?? "self", occStart, occDays],
-    queryFn: () =>
-      occupancyFn({ data: { ownerId: activeOwnerId, days: occDays, start: occStart } }),
+    queryFn: () => occupancyFn({ data: { ownerId: activeOwnerId, days: occDays, start: occStart } }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
     ...liveSync,
@@ -1058,9 +1001,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     providerName?: string | null;
   }> = occupancyQ.data?.properties ?? [];
   const ownerOptions = useMemo(() => {
-    const names: string[] = occupancyProperties
-      .map((p) => p.ownerName)
-      .filter((v): v is string => !!v);
+    const names: string[] = occupancyProperties.map((p) => p.ownerName).filter((v): v is string => !!v);
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [occupancyProperties]);
   // Linha de apoio sob cada proprietário no filtro (mockup aprovado,
@@ -1088,9 +1029,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // imóvel, mais o sentinela "Sem prestador informado" quando existir algum
   // imóvel sem vínculo (mockup aprovado, 23/09/2026, opção em itálico).
   const providerOptions = useMemo(() => {
-    const names: string[] = occupancyProperties
-      .map((p) => p.providerName)
-      .filter((v): v is string => !!v);
+    const names: string[] = occupancyProperties.map((p) => p.providerName).filter((v): v is string => !!v);
     const opts = Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR"));
     if (occupancyProperties.some((p) => !p.providerName)) opts.push(NO_PROVIDER_LABEL);
     return opts;
@@ -1129,9 +1068,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const matchesProvider = useCallback(
     (p: { providerName?: string | null }) =>
       providerFilters.length === 0 ||
-      (p.providerName
-        ? providerFilters.includes(p.providerName)
-        : providerFilters.includes(NO_PROVIDER_LABEL)),
+      (p.providerName ? providerFilters.includes(p.providerName) : providerFilters.includes(NO_PROVIDER_LABEL)),
     [providerFilters],
   );
   const filteredOccupancyProperties = useMemo(
@@ -1150,9 +1087,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // os imóveis acessíveis da conta, sem precisar listar id por id).
   const cleaningStatsPropertyIds = useMemo(
     () =>
-      ownerFilters.length > 0 || cityFilters.length > 0
-        ? filteredOccupancyProperties.map((p) => p.id)
-        : undefined,
+      ownerFilters.length > 0 || cityFilters.length > 0 ? filteredOccupancyProperties.map((p) => p.id) : undefined,
     [ownerFilters, cityFilters, filteredOccupancyProperties],
   );
   /**
@@ -1386,8 +1321,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   function statusTarget(row: ArrivalRow): Pick<UpsertPayload, "logId" | "reservationId"> {
     const logId = /^[0-9a-f-]{36}$/i.test(row.logId) ? row.logId : undefined;
-    const reservationId =
-      row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
+    const reservationId = row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
     return { ...(logId ? { logId } : {}), ...(reservationId ? { reservationId } : {}) };
   }
 
@@ -1434,8 +1368,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       // passa a viver na esteira de saída/limpeza.
       else if (from === "stay") patchList("checkin", (rows) => rows.filter((r) => r.logId !== id));
       else if (from === "checkout") patchList("checkout", (rows) => setStatus(rows, "done"));
-      else if (from === "cleaning")
-        patchList("checkout", (rows) => rows.filter((r) => r.logId !== id));
+      else if (from === "cleaning") patchList("checkout", (rows) => rows.filter((r) => r.logId !== id));
     },
     [patchList],
   );
@@ -1543,16 +1476,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       rows.map((r) => (r.logId === row.logId ? { ...r, arrivalTimeOverride: time } : r)),
     );
     upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: time });
-    notifyAction(
-      time ? `Horário previsto atualizado para ${time}.` : "Horário previsto removido.",
-      () => {
-        setBusyRowId(row.logId);
-        patchList(k, (rows: ArrivalRow[]) =>
-          rows.map((r) => (r.logId === row.logId ? { ...r, arrivalTimeOverride: prev } : r)),
-        );
-        upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: prev });
-      },
-    );
+    notifyAction(time ? `Horário previsto atualizado para ${time}.` : "Horário previsto removido.", () => {
+      setBusyRowId(row.logId);
+      patchList(k, (rows: ArrivalRow[]) =>
+        rows.map((r) => (r.logId === row.logId ? { ...r, arrivalTimeOverride: prev } : r)),
+      );
+      upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: prev });
+    });
   }
 
   // Realtime — sincroniza kanban, pendências e KPIs sem precisar recarregar a
@@ -1650,14 +1580,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // Em Estadia → o hóspede sai automaticamente daqui e entra em Checkouts
   // quando a data de checkout chega (ordenação padrão: data → horário → nome).
   const stayRows = useMemo(
-    () =>
-      ciRows.filter((r) => r.status === "done" && (!r.guestCheckout || r.guestCheckout > todayISO)),
+    () => ciRows.filter((r) => r.status === "done" && (!r.guestCheckout || r.guestCheckout > todayISO)),
     [ciRows, todayISO],
   );
-  const rawCheckinPendingRows = useMemo(
-    () => ciRows.filter((r) => r.status === "pending"),
-    [ciRows],
-  );
+  const rawCheckinPendingRows = useMemo(() => ciRows.filter((r) => r.status === "pending"), [ciRows]);
   // Fonte de check-ins pro critério de "giro" (regras 1-2 da ordenação de
   // checkouts) — TODOS os check-ins do período (pendentes ou já feitos: o
   // giro conta mesmo que o check-in já tenha sido marcado), cobrindo tanto o
@@ -1701,9 +1627,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const cleaningRows = useMemo(() => {
     const done = coRows.filter((r) => r.status === "done");
     const seen = new Set(done.map((r) => r.logId));
-    const early = (tomorrowCheckoutListQ.data?.rows ?? []).filter(
-      (r) => r.status === "done" && !seen.has(r.logId),
-    );
+    const early = (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "done" && !seen.has(r.logId));
     const released = sortCheckoutRows([...done, ...early], turnoverCheckinSources);
     const awaiting = sortCheckoutRows(
       coRows.filter((r) => r.status === "pending"),
@@ -1720,8 +1644,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     const blocked = new Map<string, "checkout" | "cleaning">();
     for (const r of coRows) {
       if (r.status === "pending") blocked.set(r.propertyId, "checkout");
-      else if (r.status === "done" && !blocked.has(r.propertyId))
-        blocked.set(r.propertyId, "cleaning");
+      else if (r.status === "done" && !blocked.has(r.propertyId)) blocked.set(r.propertyId, "cleaning");
     }
     // Imóvel com hóspede ainda "Em Estadia" também não libera novo check-in:
     // a esteira é sequencial (chegada → estadia → saída → limpeza → concluído).
@@ -1790,19 +1713,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    *      reserva: o imóvel continua sem ninguém dentro e disponível para
    *      receber, que é a informação que a pessoa procura ao abrir o dia.
    */
-  const freeProperties = useMemo(
-    () => occupancyQ.data?.freeToday ?? [],
-    [occupancyQ.data?.freeToday],
-  );
+  const freeProperties = useMemo(() => occupancyQ.data?.freeToday ?? [], [occupancyQ.data?.freeToday]);
 
   // Check-ins de hoje já marcados como concluídos → agenda mostra "ocupado".
   const checkedInPropertyIds = useMemo(
-    () =>
-      new Set(
-        ciRows
-          .filter((r) => r.status === "done" && r.guestCheckin === todayISO)
-          .map((r) => r.propertyId),
-      ),
+    () => new Set(ciRows.filter((r) => r.status === "done" && r.guestCheckin === todayISO).map((r) => r.propertyId)),
     [ciRows, todayISO],
   );
 
@@ -1831,8 +1746,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   const matchesKanbanOwnerCity = useCallback(
     (r: ArrivalRow) => {
-      if (ownerFilters.length > 0 && !(r.ownerName && ownerFilters.includes(r.ownerName)))
-        return false;
+      if (ownerFilters.length > 0 && !(r.ownerName && ownerFilters.includes(r.ownerName))) return false;
       if (cityFilters.length > 0) {
         const city = propertyCityById.get(r.propertyId);
         if (!city || !cityFilters.includes(city)) return false;
@@ -1872,17 +1786,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const forecastEnabled = !cleaningPeriod || cleaningPeriod.hasFuture;
   const cleaningForecastListQ = useQuery({
     queryKey: ["dash-list", "checkout", "all-forecast", activeOwnerId ?? "self"],
-    queryFn: () =>
-      listFn({ data: { kind: "checkout", range: forecastRange, ownerId: activeOwnerId } }),
+    queryFn: () => listFn({ data: { kind: "checkout", range: forecastRange, ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "limpeza",
   });
-  const forecastStart =
-    cleaningPeriod && cleaningPeriod.start > cleaningToday ? cleaningPeriod.start : cleaningToday;
-  const forecastEnd = cleaningPeriod
-    ? cleaningPeriod.end
-    : (addDaysISO(cleaningToday, 6) ?? cleaningToday);
+  const forecastStart = cleaningPeriod && cleaningPeriod.start > cleaningToday ? cleaningPeriod.start : cleaningToday;
+  const forecastEnd = cleaningPeriod ? cleaningPeriod.end : (addDaysISO(cleaningToday, 6) ?? cleaningToday);
   /**
    * LIMITES DO CALENDÁRIO DE "PERÍODO" NA ABA LIMPEZA (pedido explícito,
    * 23/09/2026: "restringir tanto para trás, quanto para a frente"). Só
@@ -1925,10 +1835,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const cleaningForecast = useMemo(() => {
     const today = forecastStart;
     const span = forecastEnabled
-      ? Math.max(
-          0,
-          differenceInCalendarDays(parseISODateLocal(forecastEnd), parseISODateLocal(today)) + 1,
-        )
+      ? Math.max(0, differenceInCalendarDays(parseISODateLocal(forecastEnd), parseISODateLocal(today)) + 1)
       : 0;
     const daily: CleaningDailyPoint[] = Array.from({ length: span }, (_, i) => ({
       date: addDaysISO(today, i) ?? today,
@@ -1938,11 +1845,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     const dailyByDate = new Map(daily.map((p) => [p.date, p]));
     const lastDate = daily[daily.length - 1]?.date ?? today;
     const rows = (forecastEnabled ? (cleaningForecastListQ.data?.rows ?? []) : []).filter(
-      (r) =>
-        r.status === "pending" &&
-        r.date >= today &&
-        r.date <= lastDate &&
-        matchesKanbanOwnerCity(r),
+      (r) => r.status === "pending" && r.date >= today && r.date <= lastDate && matchesKanbanOwnerCity(r),
     );
     const byProperty = new Map<string, CleaningBreakdownItem>();
     // Linhas da tabela do dia (toque na barra/ponto da previsão).
@@ -1986,18 +1889,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       breakdown,
       items,
       cleaningsExpected: rows.length,
-      estimatedTotalCents: rows.reduce(
-        (sum: number, r: ArrivalRow) => sum + (r.cleaningPriceNormalCents ?? 0),
-        0,
-      ),
+      estimatedTotalCents: rows.reduce((sum: number, r: ArrivalRow) => sum + (r.cleaningPriceNormalCents ?? 0), 0),
     };
-  }, [
-    cleaningForecastListQ.data?.rows,
-    matchesKanbanOwnerCity,
-    forecastStart,
-    forecastEnd,
-    forecastEnabled,
-  ]);
+  }, [cleaningForecastListQ.data?.rows, matchesKanbanOwnerCity, forecastStart, forecastEnd, forecastEnabled]);
 
   /**
    * O PERÍODO INTEIRO NUMA SÉRIE SÓ (23/09/2026). Junta, dia a dia, a parte
@@ -2009,19 +1903,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const cleaningPeriodView = useMemo(() => {
     if (!cleaningPeriod) return null;
     const kind: "past" | "future" | "mixed" =
-      cleaningPeriod.hasPast && cleaningPeriod.hasFuture
-        ? "mixed"
-        : cleaningPeriod.hasPast
-          ? "past"
-          : "future";
+      cleaningPeriod.hasPast && cleaningPeriod.hasFuture ? "mixed" : cleaningPeriod.hasPast ? "past" : "future";
     const doneByDate = new Map((cleaningTrendData?.daily ?? []).map((p) => [p.date, p]));
     const forecastByDate = new Map(cleaningForecast.daily.map((p) => [p.date, p]));
     const span = Math.max(
       1,
-      differenceInCalendarDays(
-        parseISODateLocal(cleaningPeriod.end),
-        parseISODateLocal(cleaningPeriod.start),
-      ) + 1,
+      differenceInCalendarDays(parseISODateLocal(cleaningPeriod.end), parseISODateLocal(cleaningPeriod.start)) + 1,
     );
     const daily: CleaningPeriodPoint[] = Array.from({ length: span }, (_, i) => {
       const date = addDaysISO(cleaningPeriod.start, i) ?? cleaningPeriod.start;
@@ -2125,12 +2012,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const cleaningScreen = (() => {
     const pv = cleaningPeriodView;
     if (pv) {
-      const approvalNote =
-        pendingApproval.count > 0 ? `+${pendingApproval.count} aguardando aprovação` : null;
+      const approvalNote = pendingApproval.count > 0 ? `+${pendingApproval.count} aguardando aprovação` : null;
       const approvalCostNote =
-        pendingApproval.count > 0
-          ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise`
-          : null;
+        pendingApproval.count > 0 ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise` : null;
       // Nota com as duas parcelas coloridas (pedido explícito, 23/09/2026:
       // "essas infos também precisam carregar as próprias cores definidas
       // concluídos vs previstos"). O aviso de aprovação continua âmbar,
@@ -2161,25 +2045,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         countValue: pv.doneCount + pv.forecastCount,
         countNote: pv.kind === "mixed" ? countNoteMixed : pv.kind === "past" ? approvalNote : null,
         costLabel:
-          pv.kind === "past"
-            ? "Custo Total Limpeza"
-            : pv.kind === "future"
-              ? "Custo Estimado"
-              : "Custo no Período",
+          pv.kind === "past" ? "Custo Total Limpeza" : pv.kind === "future" ? "Custo Estimado" : "Custo no Período",
         costValue: pv.doneCents + pv.forecastCents,
-        costNote:
-          pv.kind === "mixed" ? costNoteMixed : pv.kind === "past" ? approvalCostNote : null,
+        costNote: pv.kind === "mixed" ? costNoteMixed : pv.kind === "past" ? approvalCostNote : null,
         statsLoading: pv.statsLoading,
         trendLoading: pv.trendLoading,
         daily: pv.daily as CleaningDailyPoint[],
         breakdown: pv.breakdown,
         // Verde = realizado, laranja fraco = previsto; as duas só quando o
         // período cruza hoje.
-        series: (pv.kind === "mixed"
-          ? "split"
-          : pv.kind === "future"
-            ? "forecast"
-            : "done") as CleaningSeries,
+        series: (pv.kind === "mixed" ? "split" : pv.kind === "future" ? "forecast" : "done") as CleaningSeries,
         forecastOnly: pv.kind === "future",
         barTitle: pv.kind === "future" ? "Limpezas previstas por dia" : "Limpezas por dia",
         areaTitle:
@@ -2195,17 +2070,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     const past = cleaningWindow === "past";
     return {
       countLabel: past ? "Limpezas Realizadas" : "Limpezas Previstas",
-      countValue: past
-        ? (cleaningStatsData?.cleaningsDone ?? 0)
-        : cleaningForecast.cleaningsExpected,
-      countNote:
-        past && pendingApproval.count > 0 ? `+${pendingApproval.count} aguardando aprovação` : null,
+      countValue: past ? (cleaningStatsData?.cleaningsDone ?? 0) : cleaningForecast.cleaningsExpected,
+      countNote: past && pendingApproval.count > 0 ? `+${pendingApproval.count} aguardando aprovação` : null,
       costLabel: past ? "Custo Total Limpeza" : "Custo Estimado",
       costValue: past ? (cleaningStatsData?.totalCents ?? 0) : cleaningForecast.estimatedTotalCents,
-      costNote:
-        past && pendingApproval.count > 0
-          ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise`
-          : null,
+      costNote: past && pendingApproval.count > 0 ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise` : null,
       statsLoading: past ? cleaningStatsQ.isLoading : cleaningForecastListQ.isLoading,
       trendLoading: past ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading,
       daily: past ? cleaningTrendData?.daily : cleaningForecast.daily,
@@ -2312,12 +2181,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const patchTaskStatus = useCallback(
     (taskId: string, status: "pending" | "done" | "canceled") => {
       void qc.cancelQueries({ queryKey: ["dash-tasks"] });
-      qc.setQueriesData<{ tasks: TaskRow[] } & Record<string, unknown>>(
-        { queryKey: ["dash-tasks"] },
-        (old) =>
-          old?.tasks
-            ? { ...old, tasks: old.tasks.map((t) => (t.id === taskId ? { ...t, status } : t)) }
-            : old,
+      qc.setQueriesData<{ tasks: TaskRow[] } & Record<string, unknown>>({ queryKey: ["dash-tasks"] }, (old) =>
+        old?.tasks ? { ...old, tasks: old.tasks.map((t) => (t.id === taskId ? { ...t, status } : t)) } : old,
       );
     },
     [qc],
@@ -2389,8 +2254,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // nada. Substitui o antigo `expensePrompt`, mas mantém os dois gatilhos
   // que já existiam: concluir na lista de Pendências ("status") e marcar no
   // checklist do card de Limpeza ("cleaning", que fecha só a ocorrência).
-  type ResolvePromptState =
-    { kind: "status"; task: TaskRow } | { kind: "cleaning"; task: TaskRow; row: ArrivalRow };
+  type ResolvePromptState = { kind: "status"; task: TaskRow } | { kind: "cleaning"; task: TaskRow; row: ArrivalRow };
   /* SÓ O GATILHO DA LIMPEZA mora aqui agora (18/09/2026). O outro — concluir
      pela lista de Pendências — foi junto com o botão para os Registros, em
      `pendencias.tsx`. Dois caminhos para a MESMA tela de conclusão, cada um
@@ -2565,17 +2429,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     );
     const released = inWindow.filter((r) => r.status === "done");
     const awaitingCheckout = inWindow.filter((r) => r.status !== "done");
-    return [
-      ...sortCheckoutRows(released, [kanbanCiRowsAll]),
-      ...sortCheckoutRows(awaitingCheckout, [kanbanCiRowsAll]),
-    ];
-  }, [
-    kanbanCoRowsAll,
-    matchesKanbanOwnerCity,
-    kanbanPeriodStart,
-    kanbanPeriodEnd,
-    kanbanCiRowsAll,
-  ]);
+    return [...sortCheckoutRows(released, [kanbanCiRowsAll]), ...sortCheckoutRows(awaitingCheckout, [kanbanCiRowsAll])];
+  }, [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll]);
   // "Concluídos" nunca foi limitado por Hoje/Amanhã/7 dias/Todos (a busca de
   // concluídos já ignorava esse seletor antes) — só ganha os filtros de
   // Cidade/Proprietário agora, mantendo o mesmo comportamento de período.
@@ -2745,8 +2600,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       const already = completions.some(
         (c) =>
           c.taskId === task.id &&
-          ((row.logId && c.logId === row.logId) ||
-            (row.reservationId && c.reservationId === row.reservationId)),
+          ((row.logId && c.logId === row.logId) || (row.reservationId && c.reservationId === row.reservationId)),
       );
       if (!already) {
         setResolvePrompt({ kind: "cleaning", task, row });
@@ -2784,12 +2638,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    * não há como uma sobrescrever a outra.
    */
   const commitPrediction = useCallback(
-    (
-      side: "checkin" | "checkout",
-      target: ArrivalRow,
-      date: string | null,
-      time: string | null,
-    ) => {
+    (side: "checkin" | "checkout", target: ArrivalRow, date: string | null, time: string | null) => {
       const key = target.reservationId ?? target.logId;
       // Mesma regra da leitura: sem linha DAQUELE lado, o valor anterior é
       // vazio — nunca o do outro lado (ver buildPredictionSide).
@@ -2854,9 +2703,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       // O horário que o HÓSPEDE informou é de CHEGADA — não diz nada sobre a
       // saída. Foi essa confusão que fez o checkout automático confirmar na
       // hora errada (06/09/2026), e ela não pode voltar por aqui.
-      const time = own
-        ? (own.arrivalTimeOverride ?? (side === "checkin" ? own.guestArrivalTime : null))
-        : null;
+      const time = own ? (own.arrivalTimeOverride ?? (side === "checkin" ? own.guestArrivalTime : null)) : null;
       const date = own?.arrivalDateOverride ?? "";
       return {
         kind: side,
@@ -2882,9 +2729,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   function arrivalGroupPropsFor(colMode: BoardMode, rows: ArrivalRow[]) {
     const colKind: "checkin" | "checkout" =
-      colMode === "checkout" || colMode === "cleaning" || colMode === "done"
-        ? "checkout"
-        : "checkin";
+      colMode === "checkout" || colMode === "cleaning" || colMode === "done" ? "checkout" : "checkin";
     /**
      * A previsão que a coluna mostra é a do que vem A SEGUIR — não a do lado
      * de onde a lista veio. "Em Estadia" é o caso que revela a diferença: o
@@ -3005,10 +2850,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           upsert.mutate({ ...statusTarget(row), kind: colKind, note: prev });
         });
       },
-      onEditDates: (
-        row: ArrivalRow,
-        dates: { checkinDate?: string; checkoutDate?: string | null },
-      ) => {
+      onEditDates: (row: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => {
         const prev = { checkinDate: row.guestCheckin, checkoutDate: row.guestCheckout ?? null };
         setBusyRowId(row.logId);
         updateDates.mutate({ logId: row.logId, ...dates });
@@ -3045,11 +2887,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         pinRow(row.logId);
 
         patchList(colKind, (rows: ArrivalRow[]) =>
-          rows.map((r) =>
-            r.logId === row.logId
-              ? { ...r, arrivalDateOverride: null, arrivalTimeOverride: null }
-              : r,
-          ),
+          rows.map((r) => (r.logId === row.logId ? { ...r, arrivalDateOverride: null, arrivalTimeOverride: null } : r)),
         );
         upsert.mutate({
           ...statusTarget(row),
@@ -3061,9 +2899,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           setBusyRowId(row.logId);
           patchList(colKind, (rows: ArrivalRow[]) =>
             rows.map((r) =>
-              r.logId === row.logId
-                ? { ...r, arrivalDateOverride: prevDate, arrivalTimeOverride: prevTime }
-                : r,
+              r.logId === row.logId ? { ...r, arrivalDateOverride: prevDate, arrivalTimeOverride: prevTime } : r,
             ),
           );
           upsert.mutate({
@@ -3082,8 +2918,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       muted: false,
       cleaningPendingPropIds,
       expandedId: expandedByColumn[colMode],
-      onExpandedChange: (id: string | null) =>
-        setExpandedByColumn((prev) => ({ ...prev, [colMode]: id })),
+      onExpandedChange: (id: string | null) => setExpandedByColumn((prev) => ({ ...prev, [colMode]: id })),
       // Checklist de pendências — só a coluna de Limpeza usa isso de fato
       // (ArrivalCard ignora fora do modo "cleaning").
       cleaningTasks: colMode === "cleaning" ? cleaningTasksData : undefined,
@@ -3100,8 +2935,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
      é o único com o contorno de neon em movimento — o mesmo da landing — e um
      brilho roxo saindo do canto superior esquerdo. O acento lateral de 3px
      saiu: com o contorno inteiro aceso ele virava um segundo traço. */
-  const engagementCardBg =
-    "radial-gradient(120% 90% at 0% 0%, rgba(124,26,216,0.16), transparent 60%)";
+  const engagementCardBg = "radial-gradient(120% 90% at 0% 0%, rgba(124,26,216,0.16), transparent 60%)";
   const engagementRing = (
     <span aria-hidden="true" className="absolute inset-0 overflow-hidden rounded-[16px]">
       <span
@@ -3129,16 +2963,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       }
       right={
         <InfoHint title="Guia do hóspede">
-          Conta os hóspedes com check-in no período. “Viram instruções Check-In” são os que já
-          abriram as Instruções da sessão “Chegada” pelo menos uma vez; “Viram senha de acesso” são
-          os que já visualizaram as senhas no guia pelo menos uma vez.
+          Conta os hóspedes com check-in no período. “Viram instruções Check-In” são os que já abriram as Instruções da
+          sessão “Chegada” pelo menos uma vez; “Viram senha de acesso” são os que já visualizaram as senhas no guia pelo
+          menos uma vez.
         </InfoHint>
       }
     />
   );
   function renderEngagementTop() {
-    const hasData =
-      (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
+    const hasData = (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
     if (!engQ.isLoading && !hasData) return null;
 
     /* UM CARD SÓ, no celular e no computador (mockup aprovado, 17/09/2026).
@@ -3149,10 +2982,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     return (
       <div className="relative overflow-hidden rounded-[16px] p-px">
         {engagementRing}
-        <div
-          className="relative rounded-[15px] bg-card p-4 lg:px-5"
-          style={{ backgroundImage: engagementCardBg }}
-        >
+        <div className="relative rounded-[15px] bg-card p-4 lg:px-5" style={{ backgroundImage: engagementCardBg }}>
           {engagementEyebrow}
           <EngagementBars
             loading={engQ.isLoading}
@@ -3172,10 +3002,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): respiro lateral de
        14px no celular, um pouco mais de ar entre os blocos (10px) e o halo
        roxo bem fraco no topo — o mesmo efeito da landing. */
-    <div
-      ref={pageRef}
-      className="relative w-full max-w-[1440px] space-y-2.5 px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8"
-    >
+    <div ref={pageRef} className="relative w-full max-w-[1440px] space-y-2.5 px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
       <div aria-hidden className="ds-page-halo" />
       <OperationShell
         view={view}
@@ -3224,11 +3051,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 <button
                   type="button"
                   onClick={() => setCleaningWindow((w) => (w === "past" ? "next" : "past"))}
-                  title={
-                    cleaningWindow === "past"
-                      ? "Ver os próximos 7 dias"
-                      : "Voltar aos últimos 7 dias"
-                  }
+                  title={cleaningWindow === "past" ? "Ver os próximos 7 dias" : "Voltar aos últimos 7 dias"}
                   aria-pressed={cleaningWindow === "next"}
                   /* Cor neutra de volta (pedido explícito, 25/09/2026: "remova
                      as cores dos botoes dos status do kanban e da aba
@@ -3237,9 +3060,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
                 >
                   <Sparkles className={ACTION_ICON} />
-                  <span className="lg:hidden">
-                    {cleaningWindow === "past" ? "Últimos 7 dias" : "Próximos 7 dias"}
-                  </span>
+                  <span className="lg:hidden">{cleaningWindow === "past" ? "Últimos 7 dias" : "Próximos 7 dias"}</span>
                 </button>
               )}
               {/* O BOTÃO "PENDÊNCIAS" MUDOU DE ABA (pedido explícito,
@@ -3250,8 +3071,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   de lá — mover mil linhas não valia o risco. */}
               {view === "kanban" &&
                 (() => {
-                  const current =
-                    KANBAN_STATUS_TABS.find((t) => t.key === mobileTab) ?? KANBAN_STATUS_TABS[0];
+                  const current = KANBAN_STATUS_TABS.find((t) => t.key === mobileTab) ?? KANBAN_STATUS_TABS[0];
                   const CurrentIcon = current.icon;
                   return (
                     <DropdownMenu>
@@ -3286,11 +3106,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                         {KANBAN_STATUS_TABS.map((t) => {
                           const Icon = t.icon;
                           return (
-                            <DropdownMenuItem
-                              key={t.key}
-                              onSelect={() => setMobileTab(t.key)}
-                              className="gap-2"
-                            >
+                            <DropdownMenuItem key={t.key} onSelect={() => setMobileTab(t.key)} className="gap-2">
                               <Icon className="size-3.5 shrink-0" />
                               <span className="min-w-0 flex-1 truncate">{t.label}</span>
                               <span className="tabular-nums text-xs opacity-60">{t.count}</span>
@@ -3337,8 +3153,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             ? cleaningPeriodView
               ? cleaningPeriodLabel
               : cleaningWindow === "past"
-                ? "Limpezas Concluídas"
-                : "Limpezas Previstas"
+                ? "Limpezas Últimos 7d"
+                : "Limpezas Próximos 7d"
             : undefined
         }
         subtitle={
@@ -3612,11 +3428,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
             {/* Limpeza completa só entra no custo depois de aprovada (pedido
               explícito, 17/09/2026). O bloco só existe quando há pendência. */}
-            <CleaningApprovalPanel
-              ownerId={activeOwnerId}
-              propertyIds={cleaningStatsPropertyIds}
-              enabled={authed}
-            />
+            <CleaningApprovalPanel ownerId={activeOwnerId} propertyIds={cleaningStatsPropertyIds} enabled={authed} />
 
             {/* Gráficos de tendência (pedido explícito, combinando as opções A
               e C dos mockups aprovados) — sem mexer no layout dos cards
@@ -3715,11 +3527,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCheckinPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup
-                      title=""
-                      {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)}
-                      compact
-                    />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} compact />
                   ))}
                 {mobileTab === "checkout" &&
                   (kanbanCheckoutListQ.isLoading ? (
@@ -3727,11 +3535,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCheckoutPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup
-                      title=""
-                      {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)}
-                      compact
-                    />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} compact />
                   ))}
                 {mobileTab === "stay" &&
                   (kanbanCheckinListQ.isLoading ? (
@@ -3739,11 +3543,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanStayRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup
-                      title=""
-                      {...arrivalGroupPropsFor("stay", kanbanStayRows)}
-                      compact
-                    />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} compact />
                   ))}
                 {mobileTab === "cleaning" &&
                   (kanbanCheckoutListQ.isLoading ? (
@@ -3751,11 +3551,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCleaningRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup
-                      title=""
-                      {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)}
-                      compact
-                    />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} compact />
                   ))}
                 {mobileTab === "done" &&
                   (concludedQ.isLoading ? (
@@ -3763,11 +3559,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanConcludedRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup
-                      title=""
-                      {...arrivalGroupPropsFor("done", kanbanConcludedRows)}
-                      compact
-                    />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} compact />
                   ))}
                 {mobileTab === "no_show" &&
                   (noShowQ.isLoading ? (
@@ -3775,11 +3567,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanNoShowRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup
-                      title=""
-                      {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)}
-                      compact
-                    />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} compact />
                   ))}
               </div>
             </div>
@@ -3791,10 +3579,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 quanto espaço sobrava (ex.: menu recolhido ou não). Agora cada
                 coluna tem sempre a mesma largura confortável, não importa o
                 espaço disponível. */}
-            <div
-              ref={kanbanRowRef}
-              className="hidden sm:flex gap-3 items-start overflow-x-auto snap-x pb-2 -mx-1 px-1"
-            >
+            <div ref={kanbanRowRef} className="hidden sm:flex gap-3 items-start overflow-x-auto snap-x pb-2 -mx-1 px-1">
               <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
                 <KanbanColumn
                   onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkin: null }))}
@@ -3808,11 +3593,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCheckinPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup
-                      title=""
-                      {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)}
-                      compact
-                    />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} compact />
                   )}
                 </KanbanColumn>
               </div>
@@ -3830,11 +3611,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCheckoutPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup
-                      title=""
-                      {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)}
-                      compact
-                    />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} compact />
                   )}
                 </KanbanColumn>
               </div>
@@ -3852,11 +3629,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCleaningRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup
-                      title=""
-                      {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)}
-                      compact
-                    />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} compact />
                   )}
                 </KanbanColumn>
               </div>
@@ -3874,11 +3647,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanStayRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup
-                      title=""
-                      {...arrivalGroupPropsFor("stay", kanbanStayRows)}
-                      compact
-                    />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} compact />
                   )}
                 </KanbanColumn>
               </div>
@@ -3918,18 +3687,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ColumnLoading />
                   ) : kanbanConcludedRows.length === 0 ? (
                     concludedSearch ? (
-                      <p className="ds-meta px-1 py-6 text-center">
-                        Nenhum resultado para "{concludedSearch}".
-                      </p>
+                      <p className="ds-meta px-1 py-6 text-center">Nenhum resultado para "{concludedSearch}".</p>
                     ) : (
                       <ColumnEmpty />
                     )
                   ) : (
-                    <ArrivalGroup
-                      title=""
-                      {...arrivalGroupPropsFor("done", kanbanConcludedRows)}
-                      compact
-                    />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} compact />
                   )}
                 </KanbanColumn>
               </div>
@@ -3970,18 +3733,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ColumnLoading />
                   ) : kanbanNoShowRows.length === 0 ? (
                     noShowSearch ? (
-                      <p className="ds-meta px-1 py-6 text-center">
-                        Nenhum resultado para "{noShowSearch}".
-                      </p>
+                      <p className="ds-meta px-1 py-6 text-center">Nenhum resultado para "{noShowSearch}".</p>
                     ) : (
                       <ColumnEmpty />
                     )
                   ) : (
-                    <ArrivalGroup
-                      title=""
-                      {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)}
-                      compact
-                    />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} compact />
                   )}
                 </KanbanColumn>
               </div>
@@ -4009,11 +3766,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           confirmAdvance ? (
             <>
               {confirmAdvance.from === "checkin" ? "O check-in de " : "O checkout de "}
-              <strong className="text-foreground">
-                {titleCaseName(confirmAdvance.row.guestName)}
-              </strong>
-              {confirmAdvance.row.propertyName ? ` (${confirmAdvance.row.propertyName})` : ""} está
-              previsto para{" "}
+              <strong className="text-foreground">{titleCaseName(confirmAdvance.row.guestName)}</strong>
+              {confirmAdvance.row.propertyName ? ` (${confirmAdvance.row.propertyName})` : ""} está previsto para{" "}
               <strong className="text-foreground">
                 {new Date(`${confirmAdvance.row.date}T12:00:00`).toLocaleDateString("pt-BR")}
               </strong>
@@ -4042,17 +3796,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       >
         <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-base font-display">
-              Qual limpeza foi realizada?
-            </DialogTitle>
+            <DialogTitle className="text-base font-display">Qual limpeza foi realizada?</DialogTitle>
           </DialogHeader>
           <div className="text-sm text-muted-foreground -mt-2">
             {cleaningTypePrompt ? (
               <>
                 Confirme o tipo de limpeza concluída em{" "}
                 <strong className="text-foreground">
-                  {cleaningTypePrompt.row.propertyName ??
-                    titleCaseName(cleaningTypePrompt.row.guestName)}
+                  {cleaningTypePrompt.row.propertyName ?? titleCaseName(cleaningTypePrompt.row.guestName)}
                 </strong>
                 .
               </>
@@ -4112,15 +3863,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     }}
                   >
                     <span className="font-medium">Limpeza completa</span>
-                    <span className="text-[10.5px] font-semibold opacity-75">
-                      vai para aprovação
-                    </span>
+                    <span className="text-[10.5px] font-semibold opacity-75">vai para aprovação</span>
                   </Button>
                 )}
                 {hasCompleta && (
-                  <p
-                    className={`text-[11.5px] leading-relaxed text-muted-foreground ${showBoth ? "col-span-2" : ""}`}
-                  >
+                  <p className={`text-[11.5px] leading-relaxed text-muted-foreground ${showBoth ? "col-span-2" : ""}`}>
                     A limpeza completa só entra no custo depois que o gestor aprovar.
                   </p>
                 )}
@@ -4278,9 +4025,7 @@ export function OperationShell({
                   key={t.view}
                   to={t.to}
                   className={`flex min-h-[44px] flex-1 items-center justify-center px-2 text-center text-[13px] leading-none transition-colors ${
-                    active
-                      ? "ds-tab-active font-bold"
-                      : "font-semibold text-muted-foreground hover:text-foreground"
+                    active ? "ds-tab-active font-bold" : "font-semibold text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {t.label}
@@ -4495,15 +4240,11 @@ function KanbanColumn({
   return (
     <div className="flex flex-col min-w-0 rounded-[0.3rem]">
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 shrink-0 bg-background/40 rounded-t-[0.3rem]">
-        <div
-          className={`size-7 rounded-lg grid place-items-center ring-1 shrink-0 ${KANBAN_TONE[tone]}`}
-        >
+        <div className={`size-7 rounded-lg grid place-items-center ring-1 shrink-0 ${KANBAN_TONE[tone]}`}>
           <Icon className="size-3.5" />
         </div>
         <span className="ds-card-title truncate">{title}</span>
-        <span className="ml-auto text-xs font-medium text-muted-foreground tabular-nums shrink-0">
-          {count}
-        </span>
+        <span className="ml-auto text-xs font-medium text-muted-foreground tabular-nums shrink-0">{count}</span>
       </div>
       <div
         ref={bodyRef}
@@ -4605,8 +4346,7 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
       // Reserva uma folga visível (pedido explícito: não pode parecer que o
       // último card foi cortado rente à borda do popup), mas sempre encerra
       // antes do primeiro pixel do próximo card — nunca revela uma tira dele.
-      const visualClearance =
-        nextTop === undefined ? 0 : Math.max(0, Math.min(14, nextTop - height - 0.5));
+      const visualClearance = nextTop === undefined ? 0 : Math.max(0, Math.min(14, nextTop - height - 0.5));
       setMaxHeight(Math.ceil(height + visualClearance));
     };
 
@@ -4819,12 +4559,7 @@ function KpiCard({
             type="button"
             className={`relative flex h-full w-full flex-col gap-1 overflow-hidden rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            {topLine && (
-              <span
-                aria-hidden
-                className={`absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] ${topLine}`}
-              />
-            )}
+            {topLine && <span aria-hidden className={`absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] ${topLine}`} />}
             <div className="flex w-full min-w-0 items-center gap-1.5">
               <span
                 className={`grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] ${dotClass.replace("bg-", "text-")}`}
@@ -4888,12 +4623,9 @@ function KpiCard({
               <Icon className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <DialogTitle className="text-base font-display leading-tight truncate">
-                {label}
-              </DialogTitle>
+              <DialogTitle className="text-base font-display leading-tight truncate">{label}</DialogTitle>
               <div className="ds-meta mt-0.5">
-                {rangeLabel} · {displayRows.length}{" "}
-                {displayRows.length === 1 ? "hóspede" : "hóspedes"}
+                {rangeLabel} · {displayRows.length} {displayRows.length === 1 ? "hóspede" : "hóspedes"}
               </div>
             </div>
           </div>
@@ -4925,21 +4657,13 @@ function KpiCard({
               <Loader2 className="size-5 animate-spin" />
             </div>
           ) : displayRows.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              Nenhum registro no período.
-            </div>
+            <div className="py-12 text-center text-sm text-muted-foreground">Nenhum registro no período.</div>
           ) : (
             <div className="pb-3">
               {/* `restLabel`: quando há atrasados, o segundo grupo se chama
                   como o período do card ("Hoje", "Amanhã") em vez de "No
                   prazo" — é o mesmo texto que já aparece no cabeçalho. */}
-              <ArrivalGroup
-                title=""
-                {...cardProps}
-                rows={displayRows}
-                compact
-                restLabel={rangeLabel}
-              />
+              <ArrivalGroup title="" {...cardProps} rows={displayRows} compact restLabel={rangeLabel} />
             </div>
           )}
         </div>
@@ -5028,10 +4752,7 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
       >
         <ul className="space-y-1">
           {flags.map((f) => (
-            <li
-              key={f.label}
-              className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400"
-            >
+            <li key={f.label} className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
               <f.icon className="size-3 shrink-0" />
               <span className="min-w-0">{f.label}</span>
             </li>
@@ -5099,9 +4820,7 @@ function FreePropertiesCard({
           >
             {loading ? "—" : properties.length}
           </div>
-          <span className="ds-card-date">
-            {dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)}
-          </span>
+          <span className="ds-card-date">{dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)}</span>
         </button>
       </DialogTrigger>
       {/* Casca "Grafite Quente" — mesmo padrão do `KpiCard` logo acima
@@ -5124,9 +4843,7 @@ function FreePropertiesCard({
               <Loader2 className="size-5 animate-spin" />
             </div>
           ) : properties.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              Nenhum imóvel livre {dayLabel}.
-            </div>
+            <div className="py-10 text-center text-sm text-muted-foreground">Nenhum imóvel livre {dayLabel}.</div>
           ) : (
             <ul className="space-y-1.5 pb-3">
               {properties.map((p) => (
@@ -5142,10 +4859,7 @@ function FreePropertiesCard({
                   className="relative truncate rounded-[10px] border border-border bg-muted/20 py-2 pl-3.5 pr-3 text-sm"
                   title={p.name}
                 >
-                  <span
-                    aria-hidden
-                    className="absolute inset-y-0 left-0 w-[3px] rounded-l-[10px] bg-emerald-400"
-                  />
+                  <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] rounded-l-[10px] bg-emerald-400" />
                   {p.name}
                 </li>
               ))}
@@ -5163,13 +4877,7 @@ function FreePropertiesCard({
  * botão de print — no modo Lista mostra só proprietário + imóvel + um
  * atalho pro mapa (bem pequeno).
  */
-function CleaningBreakdownContent({
-  label,
-  breakdown,
-}: {
-  label: string;
-  breakdown: CleaningBreakdownItem[];
-}) {
+function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdown: CleaningBreakdownItem[] }) {
   const screenshotRef = useRef<HTMLUListElement | null>(null);
   return (
     <>
@@ -5180,10 +4888,7 @@ function CleaningBreakdownContent({
           fileName={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-imoveis`}
         />
       </div>
-      <ul
-        ref={screenshotRef}
-        className="sg-elegant-scroll max-h-48 space-y-1 overflow-y-auto bg-popover"
-      >
+      <ul ref={screenshotRef} className="sg-elegant-scroll max-h-48 space-y-1 overflow-y-auto bg-popover">
         {breakdown.map((item) => {
           const mapsHref = item.mapsUrl || item.garageMapsUrl;
           return (
@@ -5192,9 +4897,7 @@ function CleaningBreakdownContent({
                   visível — ela era o único ganho real do modo "Completo", e num
                   ranking é justamente o dado que ordena a lista. */}
               <span className="min-w-0 truncate">
-                <span className="text-muted-foreground">
-                  {item.ownerName ?? "Sem proprietário"}
-                </span>
+                <span className="text-muted-foreground">{item.ownerName ?? "Sem proprietário"}</span>
                 <span className="text-foreground/60"> · </span>
                 <span className="text-foreground">{item.propertyName}</span>
               </span>
@@ -5363,19 +5066,11 @@ function CleaningSplitLegend() {
   return (
     <span className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
       <span className="flex items-center gap-1">
-        <span
-          aria-hidden
-          className="size-1.5 rounded-full"
-          style={{ backgroundColor: CLEANING_DONE_COLOR }}
-        />
+        <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: CLEANING_DONE_COLOR }} />
         Realizadas
       </span>
       <span className="flex items-center gap-1">
-        <span
-          aria-hidden
-          className="size-1.5 rounded-full"
-          style={{ backgroundColor: CLEANING_FORECAST_COLOR }}
-        />
+        <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: CLEANING_FORECAST_COLOR }} />
         Previstas
       </span>
     </span>
@@ -5400,9 +5095,7 @@ function dayTick(v: string): string {
 /** O que o gráfico recebe da moldura para destacar e abrir o dia tocado. */
 type ChartPick = {
   selected: string | null;
-  onPick: (
-    state: { activeLabel?: string | number; activeCoordinate?: { x: number } } | null,
-  ) => void;
+  onPick: (state: { activeLabel?: string | number; activeCoordinate?: { x: number } } | null) => void;
 };
 
 /**
@@ -5521,18 +5214,13 @@ function CleaningChartFrame({
               style={{ width: anti.viewportWidth }}
               onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
             >
-              <div
-                className={`h-32 ${detail ? "cursor-pointer" : ""}`}
-                style={{ width: anti.contentWidth }}
-              >
+              <div className={`h-32 ${detail ? "cursor-pointer" : ""}`} style={{ width: anti.contentWidth }}>
                 {anti.contentWidth ? children(anti.contentWidth, pick) : null}
               </div>
             </div>
             {/* Espaçador INVISÍVEL: é a sobra que não dá para um dia inteiro.
                 Sem ele, o dia seguinte apareceria pela metade na borda. */}
-            {anti.spacer > 0 && (
-              <span aria-hidden className="shrink-0" style={{ width: anti.spacer }} />
-            )}
+            {anti.spacer > 0 && <span aria-hidden className="shrink-0" style={{ width: anti.spacer }} />}
           </div>
           {legend ? <div className="mt-2">{legend}</div> : null}
           {/* No período misto o dia de HOJE pode ter as duas tabelas
@@ -5629,10 +5317,7 @@ function CleaningDailyBarChart({
               isAnimationActive={false}
             >
               {(data ?? []).map((d) => (
-                <Cell
-                  key={d.date}
-                  fillOpacity={pick.selected && pick.selected !== d.date ? 0.32 : 1}
-                />
+                <Cell key={d.date} fillOpacity={pick.selected && pick.selected !== d.date ? 0.32 : 1} />
               ))}
             </Bar>
           )}
@@ -5646,10 +5331,7 @@ function CleaningDailyBarChart({
           >
             {/* Dia aberto em cor cheia; os demais esmaecem. */}
             {(data ?? []).map((d) => (
-              <Cell
-                key={d.date}
-                fillOpacity={pick.selected && pick.selected !== d.date ? 0.32 : 1}
-              />
+              <Cell key={d.date} fillOpacity={pick.selected && pick.selected !== d.date ? 0.32 : 1} />
             ))}
             {/* Substitui o eixo vertical removido: o número fica em cima da
                 própria barra, que é onde se olha. */}
@@ -5767,13 +5449,7 @@ function CleaningDailyAreaChart({
             stroke={split ? "none" : lineColor}
             strokeWidth={2}
             strokeDasharray={series === "forecast" ? "4 3" : undefined}
-            fill={
-              split
-                ? "none"
-                : series === "forecast"
-                  ? "url(#cleaningForecastArea)"
-                  : "url(#cleaningCostArea)"
-            }
+            fill={split ? "none" : series === "forecast" ? "url(#cleaningForecastArea)" : "url(#cleaningCostArea)"}
             isAnimationActive={false}
           >
             {/* Mesmo papel do rótulo das barras. Valor arredondado e sem
@@ -5784,9 +5460,7 @@ function CleaningDailyAreaChart({
               dataKey="totalCents"
               position="top"
               offset={6}
-              formatter={(v: number) =>
-                v ? `R$${Math.round(v / 100).toLocaleString("pt-BR")}` : ""
-              }
+              formatter={(v: number) => (v ? `R$${Math.round(v / 100).toLocaleString("pt-BR")}` : "")}
               style={{ fontSize: 9.5, fill: "var(--muted-foreground)" }}
             />
           </Area>
@@ -5799,8 +5473,7 @@ function CleaningDailyAreaChart({
                 // Dia depois de hoje (só tem a linha prevista): ponto na cor
                 // de previsto.
                 split &&
-                (data?.find((d) => d.date === pick.selected) as CleaningPeriodPoint | undefined)
-                  ?.pastLineCents == null
+                (data?.find((d) => d.date === pick.selected) as CleaningPeriodPoint | undefined)?.pastLineCents == null
                   ? CLEANING_FORECAST_COLOR
                   : lineColor
               }
@@ -5841,17 +5514,12 @@ function CleaningTopProperties({
           <Loader2 className="size-4 animate-spin" />
         </div>
       ) : top.length === 0 ? (
-        <div className="py-6 text-center text-xs text-muted-foreground">
-          Nenhuma limpeza no período.
-        </div>
+        <div className="py-6 text-center text-xs text-muted-foreground">Nenhuma limpeza no período.</div>
       ) : (
         <ul className="space-y-1.5">
           {top.map((item) => (
             <li key={item.propertyId} className="flex items-center gap-2">
-              <span
-                className="w-20 shrink-0 truncate text-[10.5px] text-foreground"
-                title={item.propertyName}
-              >
+              <span className="w-20 shrink-0 truncate text-[10.5px] text-foreground" title={item.propertyName}>
                 {item.propertyName}
               </span>
               <span className="h-2 flex-1 rounded-full bg-muted/50 overflow-hidden">
@@ -5920,27 +5588,18 @@ function CleaningEfficiencyPanel({
   const avgCents = totalCount > 0 ? Math.round(totalCents / totalCount) : 0;
   const days = series.length || 1;
   const avgPerDay = totalCount / days;
-  const peak = series.reduce<CleaningDailyPoint | null>(
-    (best, d) => (!best || d.count > best.count ? d : best),
-    null,
-  );
+  const peak = series.reduce<CleaningDailyPoint | null>((best, d) => (!best || d.count > best.count ? d : best), null);
 
   const cells: { label: string; value: string; hint: string }[] = [
     {
       label: forecast ? "Custo médio estimado" : "Custo médio por limpeza",
       value: centsToBRLShort(avgCents),
-      hint:
-        totalCount > 0
-          ? `${totalCount} limpeza${totalCount === 1 ? "" : "s"} no período`
-          : "sem limpezas",
+      hint: totalCount > 0 ? `${totalCount} limpeza${totalCount === 1 ? "" : "s"} no período` : "sem limpezas",
     },
     {
       label: "Imóveis atendidos",
       value: String(breakdown.length),
-      hint:
-        breakdown.length > 0
-          ? `${(totalCount / breakdown.length).toFixed(1)} por imóvel`
-          : "sem imóveis",
+      hint: breakdown.length > 0 ? `${(totalCount / breakdown.length).toFixed(1)} por imóvel` : "sem imóveis",
     },
     {
       label: "Média por dia",
@@ -5950,10 +5609,7 @@ function CleaningEfficiencyPanel({
     {
       label: "Dia de pico",
       value: peak && peak.count > 0 ? fmtDateBR(peak.date) : "—",
-      hint:
-        peak && peak.count > 0
-          ? `${peak.count} limpeza${peak.count === 1 ? "" : "s"}`
-          : "sem movimento",
+      hint: peak && peak.count > 0 ? `${peak.count} limpeza${peak.count === 1 ? "" : "s"}` : "sem movimento",
     },
   ];
 
@@ -5963,11 +5619,7 @@ function CleaningEfficiencyPanel({
         title="Eficiência da limpeza"
         dotColor={forecast ? CLEANING_FORECAST_COLOR : CLEANING_DONE_COLOR}
         className="mb-2.5"
-        right={
-          <span className="text-[10px] text-muted-foreground">
-            {forecast ? "previsto" : "no período"}
-          </span>
-        }
+        right={<span className="text-[10px] text-muted-foreground">{forecast ? "previsto" : "no período"}</span>}
       />
       {loading ? (
         <div className="py-6 grid place-items-center text-muted-foreground">
@@ -5976,16 +5628,9 @@ function CleaningEfficiencyPanel({
       ) : (
         <div className="grid grid-cols-2 gap-2">
           {cells.map((c) => (
-            <div
-              key={c.label}
-              className="min-w-0 rounded-[0.7rem] border border-border/60 bg-muted/20 px-3 py-2.5"
-            >
-              <div className="truncate text-[9.5px] uppercase tracking-wide text-muted-foreground">
-                {c.label}
-              </div>
-              <div className="mt-1 truncate text-[17px] font-semibold tabular-nums text-foreground">
-                {c.value}
-              </div>
+            <div key={c.label} className="min-w-0 rounded-[0.7rem] border border-border/60 bg-muted/20 px-3 py-2.5">
+              <div className="truncate text-[9.5px] uppercase tracking-wide text-muted-foreground">{c.label}</div>
+              <div className="mt-1 truncate text-[17px] font-semibold tabular-nums text-foreground">{c.value}</div>
               <div className="truncate text-[10px] text-muted-foreground">{c.hint}</div>
             </div>
           ))}
@@ -6154,9 +5799,7 @@ export function TaskResolveDialog({
                             </span>
                           )}
                         </span>
-                        {providerId === p.id && (
-                          <Check className="size-3.5 shrink-0 text-emerald-500" />
-                        )}
+                        {providerId === p.id && <Check className="size-3.5 shrink-0 text-emerald-500" />}
                       </CommandItem>
                     ))}
                   </CommandGroup>
@@ -6526,10 +6169,7 @@ export function TasksDialog({
     for (const t of activeTasks) acc[taskBucket(t, todayISO)] += 1;
     return acc;
   }, [activeTasks, todayISO]);
-  const visibleBuckets = useMemo(
-    () => TASK_BUCKET_ORDER.filter((b) => bucketCounts[b] > 0),
-    [bucketCounts],
-  );
+  const visibleBuckets = useMemo(() => TASK_BUCKET_ORDER.filter((b) => bucketCounts[b] > 0), [bucketCounts]);
   // A faixa filtrada pode zerar enquanto a tela está aberta (a última pendência
   // atrasada foi concluída). Sem isto a lista ficaria vazia com um filtro que
   // já não aparece em lugar nenhum — sem como desligar.
@@ -6538,10 +6178,7 @@ export function TasksDialog({
   }, [bucketFilter, bucketCounts]);
 
   const filteredTasks = useMemo(
-    () =>
-      bucketFilter
-        ? activeTasks.filter((t) => taskBucket(t, todayISO) === bucketFilter)
-        : activeTasks,
+    () => (bucketFilter ? activeTasks.filter((t) => taskBucket(t, todayISO) === bucketFilter) : activeTasks),
     [activeTasks, bucketFilter, todayISO],
   );
 
@@ -6565,8 +6202,7 @@ export function TasksDialog({
           if (created(a) !== created(b)) return created(a) < created(b) ? -1 : 1;
           return TASK_PRIORITY_WEIGHT[a.priority] - TASK_PRIORITY_WEIGHT[b.priority];
         }
-        if (a.priority !== b.priority)
-          return TASK_PRIORITY_WEIGHT[a.priority] - TASK_PRIORITY_WEIGHT[b.priority];
+        if (a.priority !== b.priority) return TASK_PRIORITY_WEIGHT[a.priority] - TASK_PRIORITY_WEIGHT[b.priority];
         if (urgency(a) !== urgency(b)) return urgency(a) - urgency(b);
         return due(a) < due(b) ? -1 : due(a) > due(b) ? 1 : 0;
       });
@@ -6595,13 +6231,7 @@ export function TasksDialog({
       none: 0,
     });
     const map = new Map<string, Group>();
-    const push = (
-      key: string,
-      label: string,
-      sublabel: string | null,
-      band: TaskBucket | null,
-      t: TaskRow,
-    ) => {
+    const push = (key: string, label: string, sublabel: string | null, band: TaskBucket | null, t: TaskRow) => {
       let g = map.get(key);
       if (!g) {
         g = { key, label, sublabel, items: [], worst: "none", counts: emptyCounts(), band };
@@ -6640,8 +6270,7 @@ export function TasksDialog({
     if (groupBy === "urgency") {
       // Ordem das faixas é fixa — é ela que dá sentido ao agrupamento.
       return list.sort(
-        (a, b) =>
-          TASK_BUCKET_ORDER.indexOf(a.band ?? "none") - TASK_BUCKET_ORDER.indexOf(b.band ?? "none"),
+        (a, b) => TASK_BUCKET_ORDER.indexOf(a.band ?? "none") - TASK_BUCKET_ORDER.indexOf(b.band ?? "none"),
       );
     }
     // Fora da urgência: o PIOR CASO manda, não a ordem alfabética. Quem tem
@@ -6750,8 +6379,7 @@ export function TasksDialog({
           taskId: created.id,
           isResolution: false,
         });
-        if (res.failed > 0)
-          toast.error(`${res.failed} anexo(s) não subiram. A pendência foi criada.`);
+        if (res.failed > 0) toast.error(`${res.failed} anexo(s) não subiram. A pendência foi criada.`);
       }
       resetForm();
       setShowForm(false);
@@ -6782,11 +6410,7 @@ export function TasksDialog({
                 onClick={() => setShowForm((v) => !v)}
                 className="shrink-0 h-8 inline-flex items-center gap-1.5 rounded-[0.3rem] px-2.5 text-xs font-semibold text-white bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] transition-opacity hover:opacity-90"
               >
-                {showForm ? (
-                  <ChevronRight className="size-3.5 rotate-90" />
-                ) : (
-                  <UserPlus className="size-3.5" />
-                )}
+                {showForm ? <ChevronRight className="size-3.5 rotate-90" /> : <UserPlus className="size-3.5" />}
                 Nova
               </button>
             </div>
@@ -6853,18 +6477,8 @@ export function TasksDialog({
                próprios botões, que é o que compra a largura, e a escolha atual
                continua à vista sem precisar abrir nada. */
             <div className="ds-scroll-x mt-2 gap-1.5">
-              <TaskChoiceMenu
-                icon={LayoutGrid}
-                value={groupBy}
-                onChange={setGroupBy}
-                options={TASK_GROUP_OPTIONS}
-              />
-              <TaskChoiceMenu
-                icon={ArrowDownUp}
-                value={sortBy}
-                onChange={setSortBy}
-                options={TASK_SORT_OPTIONS}
-              />
+              <TaskChoiceMenu icon={LayoutGrid} value={groupBy} onChange={setGroupBy} options={TASK_GROUP_OPTIONS} />
+              <TaskChoiceMenu icon={ArrowDownUp} value={sortBy} onChange={setSortBy} options={TASK_SORT_OPTIONS} />
             </div>
           )}
         </div>
@@ -6900,11 +6514,7 @@ export function TasksDialog({
                   <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
                 </button>
               </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                className="p-0"
-                style={{ width: "var(--radix-popover-trigger-width)" }}
-              >
+              <PopoverContent align="start" className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }}>
                 <Command>
                   <CommandInput
                     value={title}
@@ -6981,10 +6591,7 @@ export function TasksDialog({
                   ))}
                 </SelectContent>
               </Select>
-              <Select
-                value={ownerContactId || "none"}
-                onValueChange={(v) => setOwnerContactId(v === "none" ? "" : v)}
-              >
+              <Select value={ownerContactId || "none"} onValueChange={(v) => setOwnerContactId(v === "none" ? "" : v)}>
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Proprietário" />
                 </SelectTrigger>
@@ -7008,8 +6615,7 @@ export function TasksDialog({
                 poluição que o pedido menciona. */}
             {linkMissing && (
               <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                Escolha um imóvel e/ou um proprietário — o imóvel já traz o proprietário cadastrado
-                dele.
+                Escolha um imóvel e/ou um proprietário — o imóvel já traz o proprietário cadastrado dele.
               </p>
             )}
 
@@ -7103,9 +6709,7 @@ export function TasksDialog({
                     type="button"
                     onClick={() => setPriority(p)}
                     className={`ds-surface h-9 flex-1 border text-[12.5px] font-semibold transition-colors ${
-                      on
-                        ? tone
-                        : "border-border/60 bg-card text-muted-foreground hover:bg-secondary/40"
+                      on ? tone : "border-border/60 bg-card text-muted-foreground hover:bg-secondary/40"
                     }`}
                   >
                     {TASK_PRIORITY_LABEL[p]}
@@ -7123,10 +6727,7 @@ export function TasksDialog({
               {!showInCleaning && (
                 <div className="px-2.5 py-2">
                   <label className="flex items-center gap-2 text-[13px] cursor-pointer">
-                    <Checkbox
-                      checked={recurrenceOn}
-                      onCheckedChange={(v) => setRecurrenceOn(!!v)}
-                    />
+                    <Checkbox checked={recurrenceOn} onCheckedChange={(v) => setRecurrenceOn(!!v)} />
                     <Repeat className="size-3.5 shrink-0 text-muted-foreground" />
                     Repetir esta pendência
                   </label>
@@ -7137,9 +6738,7 @@ export function TasksDialog({
                         type="number"
                         min={1}
                         value={recurrenceDays}
-                        onChange={(e) =>
-                          setRecurrenceDays(Math.max(1, Number(e.target.value) || 1))
-                        }
+                        onChange={(e) => setRecurrenceDays(Math.max(1, Number(e.target.value) || 1))}
                         className="ds-surface h-8 w-16 border border-border bg-background px-1.5 text-center"
                       />
                       <span>dias</span>
@@ -7166,9 +6765,7 @@ export function TasksDialog({
                       }}
                     />
                     <span className="min-w-0">
-                      <span className="block">
-                        {isMaintenance ? "Ocultar da limpeza" : "Mostrar na limpeza"}
-                      </span>
+                      <span className="block">{isMaintenance ? "Ocultar da limpeza" : "Mostrar na limpeza"}</span>
                       <span className="block text-[11px] leading-snug text-muted-foreground">
                         {isMaintenance
                           ? "Manutenção vai sozinha para a próxima limpeza do imóvel. Marque para deixá-la fora do checklist."
@@ -7286,8 +6883,7 @@ export function TasksDialog({
                       // Ver TASK_AGE_VISIBLE_DAYS: idade só a partir de 7 dias.
                       const openedOn = t.createdAt ? isoDateSaoPaulo(t.createdAt) : null;
                       const age = openedOn ? daysBetweenISO(openedOn, todayISO) : null;
-                      const ageLabel =
-                        age != null && age >= TASK_AGE_VISIBLE_DAYS ? `aberta há ${age} d` : null;
+                      const ageLabel = age != null && age >= TASK_AGE_VISIBLE_DAYS ? `aberta há ${age} d` : null;
                       const delta = t.dueDate ? daysBetweenISO(todayISO, t.dueDate) : null;
                       /* UMA data por linha, nunca duas. Aqui havia "08/10" com
                          "em 30 d" logo abaixo — a mesma informação escrita duas
@@ -7308,10 +6904,7 @@ export function TasksDialog({
                         ageLabel,
                       ].filter(Boolean) as string[];
                       return (
-                        <div
-                          key={t.id}
-                          className="flex overflow-hidden rounded-[0.3rem] bg-secondary/40"
-                        >
+                        <div key={t.id} className="flex overflow-hidden rounded-[0.3rem] bg-secondary/40">
                           {/* Recuo de 20px antes do checkbox (mockup aprovado):
                               alinha a caixa com o corpo do texto do rótulo do
                               grupo, então a lista inteira lê como uma coluna
@@ -7319,14 +6912,10 @@ export function TasksDialog({
                           <div className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-5 pr-2">
                             <button
                               type="button"
-                              onClick={() =>
-                                onSetStatus(t.id, t.status === "done" ? "pending" : "done")
-                              }
+                              onClick={() => onSetStatus(t.id, t.status === "done" ? "pending" : "done")}
                               role="checkbox"
                               aria-checked={t.status === "done"}
-                              aria-label={
-                                t.status === "done" ? "Reabrir pendência" : "Concluir pendência"
-                              }
+                              aria-label={t.status === "done" ? "Reabrir pendência" : "Concluir pendência"}
                               title={`${t.status === "done" ? "Reabrir" : "Concluir"} · prioridade ${TASK_PRIORITY_LABEL[t.priority].toLowerCase()}`}
                               /* NEUTRO POR ORA (pedido explícito, 09/09/2026):
                                  borda fina de 1px e sem a cor da prioridade.
@@ -7410,9 +6999,7 @@ export function TasksDialog({
                                   if (t.recurrenceDays != null) setDeletePrompt(t);
                                   else onSetStatus(t.id, "canceled");
                                 }}
-                                title={
-                                  t.recurrenceDays != null ? "Excluir recorrência" : "Arquivar"
-                                }
+                                title={t.recurrenceDays != null ? "Excluir recorrência" : "Arquivar"}
                                 className="size-6 grid place-items-center rounded-[0.25rem] hover:bg-secondary text-muted-foreground hover:text-rose-500"
                               >
                                 <Trash2 className="size-3.5" />
@@ -7443,9 +7030,7 @@ export function TasksDialog({
       >
         <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-base font-display">
-              Excluir pendência recorrente
-            </DialogTitle>
+            <DialogTitle className="text-base font-display">Excluir pendência recorrente</DialogTitle>
           </DialogHeader>
           <DialogDescription className="sr-only">
             Escolha se a exclusão vale só para esta ocorrência ou para todas as futuras.
@@ -7467,8 +7052,7 @@ export function TasksDialog({
                 >
                   <span className="block text-[13px] font-semibold">Somente esta ocorrência</span>
                   <span className="block text-[11px] text-muted-foreground ds-card-lines">
-                    O prazo pula {deletePrompt.recurrenceDays} dias à frente e a rotina continua
-                    ativa.
+                    O prazo pula {deletePrompt.recurrenceDays} dias à frente e a rotina continua ativa.
                   </span>
                 </button>
                 <button
@@ -7528,11 +7112,7 @@ function PeriodRangeFilterButton({
   // Resincroniza o rascunho quando o valor muda por FORA deste popover (ex.:
   // o ícone de "limpar filtros" ao lado, que volta tudo pro dia atual).
   useEffect(() => {
-    setDraft(
-      value
-        ? { from: parseISODateLocal(value.start), to: parseISODateLocal(value.end) }
-        : undefined,
-    );
+    setDraft(value ? { from: parseISODateLocal(value.start), to: parseISODateLocal(value.end) } : undefined);
   }, [value]);
 
   return (
@@ -7544,11 +7124,7 @@ function PeriodRangeFilterButton({
           {value ? FILTER_DOT : null}
         </button>
       </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-auto p-3"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
+      <PopoverContent align="start" className="w-auto p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
         <RangeCalendar
           mode="range"
           numberOfMonths={1}
@@ -7620,11 +7196,7 @@ function MultiSelectFilterButton({
           {selected.length > 0 ? FILTER_DOT : null}
         </button>
       </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-64 p-0"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
+      <PopoverContent align="start" className="w-64 p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
         <Command>
           <CommandInput placeholder={`Buscar ${label.toLowerCase()}...`} />
           <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
@@ -7647,12 +7219,7 @@ function MultiSelectFilterButton({
             <CommandEmpty>Nenhum resultado.</CommandEmpty>
             <CommandGroup>
               {options.map((o) => (
-                <CommandItem
-                  key={o}
-                  value={o}
-                  onSelect={() => toggle(o)}
-                  className="cursor-pointer gap-2"
-                >
+                <CommandItem key={o} value={o} onSelect={() => toggle(o)} className="cursor-pointer gap-2">
                   <Checkbox checked={selected.includes(o)} className="pointer-events-none" />
                   <span className="truncate">{o}</span>
                 </CommandItem>
@@ -7740,17 +7307,13 @@ function CalendarFiltersButton({
   type Screen = "root" | "period" | "city" | "owner" | "provider";
   const [screen, setScreen] = useState<Screen>("root");
   const [draft, setDraft] = useState<DateRange | undefined>(
-    periodRange
-      ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) }
-      : undefined,
+    periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined,
   );
   // Resincroniza quando o valor muda por FORA deste popover (ex.: "limpar
   // todos os filtros" no rodapé, ou o botão de limpar de outro lugar).
   useEffect(() => {
     setDraft(
-      periodRange
-        ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) }
-        : undefined,
+      periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined,
     );
   }, [periodRange]);
   // MÊS DO CALENDÁRIO SEMPRE O DE HOJE AO ABRIR (pedido explícito,
@@ -7763,9 +7326,7 @@ function CalendarFiltersButton({
   // estado reresta pro mês de hoje sempre que a tela "Período" é aberta
   // (`setScreen("period")`, abaixo), então navegar dentro do calendário
   // nunca "gruda" pra próxima vez que a pessoa entrar aqui.
-  const [calendarMonth, setCalendarMonth] = useState<Date>(() =>
-    parseISODateLocal(todayISOSaoPaulo()),
-  );
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => parseISODateLocal(todayISOSaoPaulo()));
 
   const periodLabel = periodRange
     ? `${format(parseISODateLocal(periodRange.start), "dd/MM", { locale: ptBR })} – ${format(parseISODateLocal(periodRange.end), "dd/MM", { locale: ptBR })}`
@@ -7841,9 +7402,7 @@ function CalendarFiltersButton({
           >
             <SlidersHorizontal className={ACTION_ICON} />
             <span className="lg:hidden">Filtros</span>
-            {hasCustomFilters && (
-              <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />
-            )}
+            {hasCustomFilters && <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />}
           </button>
         ) : (
           <button
@@ -7909,12 +7468,7 @@ function CalendarFiltersButton({
             {shot && SHOW_SHOT_ACTIONS && (
               /* O PRINT VIRA ITEM DE MENU (mockup aprovado, 09/09/2026). */
               <FilterSection>
-                <FilterActionRow
-                  icon={Download}
-                  label="Salvar imagem"
-                  disabled={shot.busy}
-                  onClick={shot.handleSave}
-                />
+                <FilterActionRow icon={Download} label="Salvar imagem" disabled={shot.busy} onClick={shot.handleSave} />
                 <FilterActionRow
                   icon={Copy}
                   label="Copiar imagem"
@@ -8103,12 +7657,7 @@ function PropertyPhotoPeek({
         // de sobreposição por completo ("nunca, jamais" — pedido explícito).
         className="pointer-events-none w-[232px] overflow-hidden rounded-[12px] border-border/60 bg-popover p-1.5 shadow-2xl data-[state=closed]:!animate-none data-[state=closed]:!duration-0"
       >
-        <img
-          src={photo}
-          alt={name}
-          loading="lazy"
-          className="h-[150px] w-full rounded-[9px] object-cover"
-        />
+        <img src={photo} alt={name} loading="lazy" className="h-[150px] w-full rounded-[9px] object-cover" />
         <p className="truncate px-1 pb-0.5 pt-1.5 text-[11.5px] font-semibold" title={name}>
           {name}
         </p>
@@ -8313,10 +7862,7 @@ function OccupancyPanel({
          menor contagem que já respeita o teto (colunas no tamanho máximo), sem
          nunca passar do que o mínimo permite — é ele que garante a regra
          anti-corte. */
-      const cabem = Math.max(
-        1,
-        Math.min(Math.ceil(usable / MAX_DAY_W), Math.floor(usable / MIN_DAY_W)),
-      );
+      const cabem = Math.max(1, Math.min(Math.ceil(usable / MAX_DAY_W), Math.floor(usable / MIN_DAY_W)));
       if (isDesktop && fitRef.current !== cabem) {
         fitRef.current = cabem;
         onFitRef.current?.(cabem);
@@ -8335,10 +7881,7 @@ function OccupancyPanel({
            cabem exatamente na largura real da tela. */
         const MOBILE_NAME_MIN = 96;
         const total = w - (scrollbarWRef.current ?? 0);
-        const dayWMobile = Math.max(
-          22,
-          Math.min(MAX_DAY_W, Math.floor((total - MOBILE_NAME_MIN) / MOBILE_DAYS)),
-        );
+        const dayWMobile = Math.max(22, Math.min(MAX_DAY_W, Math.floor((total - MOBILE_NAME_MIN) / MOBILE_DAYS)));
         setVisibleDays(MOBILE_DAYS);
         setDayW(dayWMobile);
         setNameColW(Math.max(MOBILE_NAME_MIN, total - dayWMobile * MOBILE_DAYS));
@@ -8429,8 +7972,7 @@ function OccupancyPanel({
   // confirmado (azul claro) · "in-late" = data de check-in já passou sem
   // confirmação (vermelho) — mesma regra do `isOverdue` dos cards do Kanban.
   // Idem para o checkout: "out-pending"/"out-done"/"out-late".
-  type CellPart =
-    "in" | "in-pending" | "in-late" | "out-pending" | "out-done" | "out-late" | "busy" | "free";
+  type CellPart = "in" | "in-pending" | "in-late" | "out-pending" | "out-done" | "out-late" | "busy" | "free";
 
   /**
    * Cada dia é dividido em duas metades (manhã = saída, tarde = entrada),
@@ -8576,9 +8118,7 @@ function OccupancyPanel({
               <Loader2 className="size-5 animate-spin" />
             </div>
           ) : properties.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              Nenhum imóvel para exibir.
-            </div>
+            <div className="py-8 text-center text-sm text-muted-foreground">Nenhum imóvel para exibir.</div>
           ) : (
             <>
               <div ref={outerRef} className="w-full">
@@ -8729,9 +8269,7 @@ function OccupancyPanel({
                         // cada imóvel. Sem linha depois do último, mesma lógica
                         // das colunas.
                         const isLastRow = pIdx === visibleProperties.length - 1;
-                        const rowDivider = isLastRow
-                          ? ""
-                          : "border-b border-[var(--grid-line-h)]";
+                        const rowDivider = isLastRow ? "" : "border-b border-[var(--grid-line-h)]";
                         // Ver comentário completo no <th> de cada dia: o fio
                         // vertical agora é um <span> absoluto (não `border-r`)
                         // que estica além do próprio rodapé pra "encostar" sem
@@ -8761,10 +8299,7 @@ function OccupancyPanel({
                                       {ownerLabel(p.ownerName)}
                                     </div>
                                   ) : null}
-                                  <div
-                                    className="truncate text-[11.5px] font-semibold leading-tight"
-                                    title={p.name}
-                                  >
+                                  <div className="truncate text-[11.5px] font-semibold leading-tight" title={p.name}>
                                     {p.name}
                                   </div>
                                   {p.city ? (
@@ -8853,12 +8388,8 @@ function OccupancyPanel({
                                     {!occ[idxB] && (
                                       <span className="absolute right-0 top-1/2 h-px w-1/2 -translate-y-1/2 bg-border/50" />
                                     )}
-                                    <div
-                                      className={`relative h-full w-1/2 ${clsOf(a)} ${round(idxA)}`}
-                                    />
-                                    <div
-                                      className={`relative h-full w-1/2 ${clsOf(b)} ${round(idxB)}`}
-                                    />
+                                    <div className={`relative h-full w-1/2 ${clsOf(a)} ${round(idxA)}`} />
+                                    <div className={`relative h-full w-1/2 ${clsOf(b)} ${round(idxB)}`} />
                                   </div>
                                 </td>
                               );
@@ -8944,8 +8475,7 @@ function EngagementBars({
   checkinBreakdown?: Breakdown;
   codesBreakdown?: Breakdown;
 }) {
-  const pctOf = (num: number, total: number) =>
-    Math.min(100, Math.round((num / Math.max(total, 1)) * 100));
+  const pctOf = (num: number, total: number) => Math.min(100, Math.round((num / Math.max(total, 1)) * 100));
   if (loading)
     return (
       <div className="py-6 text-center text-sm text-muted-foreground">
@@ -9015,13 +8545,9 @@ function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off
           {initial}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[12.5px] font-semibold text-foreground/90">
-            {main.name}
-          </span>
+          <span className="block truncate text-[12.5px] font-semibold text-foreground/90">{main.name}</span>
           {main.property ? (
-            <span className="block truncate text-[10.5px] text-muted-foreground">
-              {main.property}
-            </span>
+            <span className="block truncate text-[10.5px] text-muted-foreground">{main.property}</span>
           ) : null}
         </span>
         {rest.length > 0 && (
@@ -9039,10 +8565,7 @@ function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off
       {open && rest.length > 0 && (
         <ul className="ml-9 mt-1.5 space-y-0.5 rounded-lg border border-border/50 bg-background/60 px-2 py-1.5">
           {rest.map((g, i) => (
-            <li
-              key={`${g.name}-${i}`}
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
-            >
+            <li key={`${g.name}-${i}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className="size-1 shrink-0 rounded-full bg-muted-foreground/60" />
               <span className="min-w-0 truncate">{g.name}</span>
             </li>
@@ -9056,9 +8579,7 @@ function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off
 function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off" }) {
   if (items.length === 0)
     return (
-      <div className="rounded-lg bg-muted/20 px-3 py-4 text-center text-[11px] text-muted-foreground">
-        Ninguém
-      </div>
+      <div className="rounded-lg bg-muted/20 px-3 py-4 text-center text-[11px] text-muted-foreground">Ninguém</div>
     );
   const groups: GuestMark[][] = [];
   const index = new Map<string, number>();
@@ -9076,9 +8597,7 @@ function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off"
         <GuestMarkGroup key={`${g[0].name}-${i}`} group={g} tone={tone} />
       ))}
       {groups.length > 12 && (
-        <li className="text-center text-[11px] text-muted-foreground">
-          +{groups.length - 12} outros
-        </li>
+        <li className="text-center text-[11px] text-muted-foreground">+{groups.length - 12} outros</li>
       )}
     </ul>
   );
@@ -9131,9 +8650,7 @@ function EngagementBreakdownDialog({
               (absolute right-4 top-4, size-8), que senão fica por cima do
               badge de percentual quando o título é curto. */}
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="min-w-0 truncate text-base font-display leading-tight">
-              {label}
-            </DialogTitle>
+            <DialogTitle className="min-w-0 truncate text-base font-display leading-tight">{label}</DialogTitle>
             <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
               {pct}%
             </span>
@@ -9148,9 +8665,7 @@ function EngagementBreakdownDialog({
             type="button"
             onClick={() => setTab("viewed")}
             className={`flex-1 rounded-md py-1.5 text-[11.5px] font-semibold transition-colors ${
-              tab === "viewed"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+              tab === "viewed" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Viram ({breakdown.viewed.length})
@@ -9159,9 +8674,7 @@ function EngagementBreakdownDialog({
             type="button"
             onClick={() => setTab("notViewed")}
             className={`flex-1 rounded-md py-1.5 text-[11.5px] font-semibold transition-colors ${
-              tab === "notViewed"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+              tab === "notViewed" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Não viram ({breakdown.notViewed.length})
@@ -9239,10 +8752,7 @@ function RingCell({
           }
         />
       ) : null}
-      <div
-        className="pointer-events-none relative z-[1] shrink-0"
-        style={{ width: RING_D, height: RING_D }}
-      >
+      <div className="pointer-events-none relative z-[1] shrink-0" style={{ width: RING_D, height: RING_D }}>
         <svg
           width={RING_D}
           height={RING_D}
@@ -9355,9 +8865,7 @@ function ArrivalGroupPanel({
           pontinho+rótulo+contagem continua centralizado, só sem o traço. */}
       <div className="mb-2.5 flex items-center justify-center gap-2.5 px-1">
         <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: dot }} />
-        <span className="ds-eyebrow shrink-0 text-[10px] tracking-[0.2em] text-muted-foreground">
-          {label}
-        </span>
+        <span className="ds-eyebrow shrink-0 text-[10px] tracking-[0.2em] text-muted-foreground">{label}</span>
         <CountPill>{count}</CountPill>
       </div>
       <div className="flex flex-col gap-3 px-1 pb-1">{children}</div>
@@ -9405,10 +8913,7 @@ function ArrivalGroup({
   onSkipCleaning?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
-  onEditDates: (
-    r: ArrivalRow,
-    dates: { checkinDate?: string; checkoutDate?: string | null },
-  ) => void;
+  onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   getPrediction?: (r: ArrivalRow) => CardPrediction | null;
   onEditPredictedDate?: (r: ArrivalRow, date: string | null) => void;
@@ -9497,9 +9002,7 @@ function ArrivalGroup({
       busy={busyRowId === r.logId}
       expanded={openId === r.logId}
       onToggleExpanded={(open) => setOpenId(open ? r.logId : null)}
-      cleaningBlocked={
-        mode === "checkin" ? (cleaningPendingPropIds?.get(r.propertyId) ?? null) : null
-      }
+      cleaningBlocked={mode === "checkin" ? (cleaningPendingPropIds?.get(r.propertyId) ?? null) : null}
       compact={compact}
       cleaningTasks={cleaningTasks}
       nextCheckinByProperty={nextCheckinByProperty}
@@ -9566,10 +9069,7 @@ function ArrivalCard({
   onSkipCleaning?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
-  onEditDates: (
-    r: ArrivalRow,
-    dates: { checkinDate?: string; checkoutDate?: string | null },
-  ) => void;
+  onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   /** A previsão que este card exibe/edita — ver CardPrediction. */
   prediction?: CardPrediction | null;
@@ -9608,8 +9108,7 @@ function ArrivalCard({
   const mute = useMutation({
     mutationFn: (hours: number | null) => {
       const logId = /^[0-9a-f-]{36}$/i.test(row.logId) ? row.logId : undefined;
-      const reservationId =
-        row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
+      const reservationId = row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
       return muteFn({
         data: {
           ...(logId ? { logId } : {}),
@@ -9630,8 +9129,7 @@ function ArrivalCard({
       const previous = row.mutedUntil ?? null;
       notifyAction(hours ? `Alertas silenciados por ${hours}h.` : "Alertas reativados.", () => {
         const logId = /^[0-9a-f-]{36}$/i.test(row.logId) ? row.logId : undefined;
-        const reservationId =
-          row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
+        const reservationId = row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
         void muteFn({
           data: {
             ...(logId ? { logId } : {}),
@@ -9658,8 +9156,7 @@ function ArrivalCard({
       cleaningTasks.completions
         .filter(
           (c) =>
-            (!!row.logId && c.logId === row.logId) ||
-            (!!row.reservationId && c.reservationId === row.reservationId),
+            (!!row.logId && c.logId === row.logId) || (!!row.reservationId && c.reservationId === row.reservationId),
         )
         .map((c) => c.taskId),
     );
@@ -9686,8 +9183,7 @@ function ArrivalCard({
     // conclusão.
     const DAY_MS = 86_400_000;
     const stillVisibleWhenDone = (t: TaskRow) =>
-      completedHere.has(t.id) ||
-      (!!t.completedAt && Date.now() - new Date(t.completedAt).getTime() < DAY_MS);
+      completedHere.has(t.id) || (!!t.completedAt && Date.now() - new Date(t.completedAt).getTime() < DAY_MS);
 
     return cleaningTasks.tasks
       .filter((t) => t.showInCleaning && t.status !== "canceled")
@@ -9736,19 +9232,9 @@ function ArrivalCard({
   // 15h, o hóspede obviamente pode entrar às 11h do dia seguinte").
   const confirmedDateForKind = kind === "checkout" ? row.guestCheckout : row.guestCheckin;
   const predictedDayShifted =
-    !!row.arrivalDateOverride &&
-    !!confirmedDateForKind &&
-    row.arrivalDateOverride !== confirmedDateForKind;
-  const effMinTime = predictedDayShifted
-    ? null
-    : kind === "checkout"
-      ? row.standardTimeMax
-      : row.standardTime;
-  const effMaxTime = predictedDayShifted
-    ? null
-    : kind === "checkout"
-      ? row.standardTime
-      : row.standardTimeMax;
+    !!row.arrivalDateOverride && !!confirmedDateForKind && row.arrivalDateOverride !== confirmedDateForKind;
+  const effMinTime = predictedDayShifted ? null : kind === "checkout" ? row.standardTimeMax : row.standardTime;
+  const effMaxTime = predictedDayShifted ? null : kind === "checkout" ? row.standardTime : row.standardTimeMax;
   const divergent = !!guestTime && !!effMinTime && !isTimeWithin(guestTime, effMinTime, effMaxTime);
   const done = row.status === "done";
   const visualDone = done && mode !== "cleaning" && mode !== "stay";
@@ -9793,10 +9279,8 @@ function ArrivalCard({
   // fosse amanhã). O indicador visual "data futura" (borda âmbar) e a
   // confirmação de checkout antecipado continuam usando `row.date`
   // normalmente — só esta trava de ação muda.
-  const confirmedCheckinFuture =
-    kind === "checkin" && !!row.guestCheckin && row.guestCheckin > todayISO;
-  const blockReason =
-    kind === "checkin" && !done && !confirmedCheckinFuture ? (cleaningBlocked ?? null) : null;
+  const confirmedCheckinFuture = kind === "checkin" && !!row.guestCheckin && row.guestCheckin > todayISO;
+  const blockReason = kind === "checkin" && !done && !confirmedCheckinFuture ? (cleaningBlocked ?? null) : null;
   const cleaningBlock = blockReason !== null;
   const blockCheck = (kind === "checkin" && !done && confirmedCheckinFuture) || cleaningBlock;
 
@@ -9996,11 +9480,7 @@ function ArrivalCard({
   const allowedPhrase =
     cleaningWindowPhrase ??
     (predictionPrimary
-      ? allowedWindowPhrase(
-          predictionPrimary.kind,
-          predictionPrimary.standardTime,
-          predictionPrimary.standardTimeMax,
-        )
+      ? allowedWindowPhrase(predictionPrimary.kind, predictionPrimary.standardTime, predictionPrimary.standardTimeMax)
       : null);
   /**
    * HISTÓRICO DA RESERVA (pedido explícito, 08/09/2026).
@@ -10016,8 +9496,7 @@ function ArrivalCard({
    */
   const [journeyOpen, setJourneyOpen] = useState(false);
   const journeyLogId = /^[0-9a-f-]{36}$/i.test(row.logId) ? row.logId : null;
-  const journeyReservationId =
-    row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
+  const journeyReservationId = row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
   const canOpenJourney = !!journeyLogId || !!journeyReservationId;
   const canRevert = !!onRevert && mode !== "checkin" && !awaitingCheckout;
   /* "Voltar ao status anterior" agora mora só no menu "⋮" (pedido explícito,
@@ -10084,9 +9563,7 @@ function ArrivalCard({
    * mundo — por isso é montado uma vez só, fora da área expansível.
    */
   const periodoBlock = !listBare ? (
-    <div
-      className={`flex flex-wrap items-center gap-1.5 text-[11.5px] tabular-nums ${periodoColorClass}`}
-    >
+    <div className={`flex flex-wrap items-center gap-1.5 text-[11.5px] tabular-nums ${periodoColorClass}`}>
       <DateEditor
         value={row.guestCheckin}
         disabled={busy || isPendingFill}
@@ -10228,10 +9705,7 @@ function ArrivalCard({
           inteira dá para ver em que fase cada reserva está sem parar em
           nenhuma. Substitui as antigas bordas de "atrasado"/"data futura",
           que só existiam em dois casos e deixavam o resto sem sinal. */}
-      <span
-        aria-hidden
-        className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[10px] ${stageBarClass(stage)}`}
-      />
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[10px] ${stageBarClass(stage)}`} />
 
       <div className="flex items-start gap-3">
         {/* ds-card-lines: o espaçamento padrão entre linhas de card (styles.css). */}
@@ -10356,9 +9830,7 @@ function ArrivalCard({
                  recuo que o ícone criava vira `pl-[18px]` direto no texto,
                  já que as infos padrão do card recolhido não têm ícone à
                  esquerda. */
-              <span
-                className={`inline-flex min-w-0 flex-1 items-center pl-[18px] font-medium ${CARD_MUTED}`}
-              >
+              <span className={`inline-flex min-w-0 flex-1 items-center pl-[18px] font-medium ${CARD_MUTED}`}>
                 {/* SEM quebra em 2 linhas — regra do card é a linha
                     inteira com reticências quando falta espaço (mesma
                     regra do nome do hóspede logo abaixo), corrigido
@@ -10372,9 +9844,7 @@ function ArrivalCard({
                 <span className="min-w-0 truncate">Hóspede pendente</span>
               </span>
             ) : row.guestName && row.guestName !== row.reservationCode ? (
-              <span
-                className={`inline-flex min-w-0 flex-1 items-center gap-1.5 pl-[18px] ${CARD_MUTED}`}
-              >
+              <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 pl-[18px] ${CARD_MUTED}`}>
                 {/* Nome do hóspede em Title Case — primeira letra de cada
                     palavra maiúscula, EXCETO conectivos ("de", "da", "do",
                     "dos", "das"...), que ficam minúsculos quando não são a
@@ -10458,8 +9928,7 @@ function ArrivalCard({
             row.ical.hasIcal &&
             row.ical.matched &&
             !!iIn &&
-            (iIn !== row.guestCheckin ||
-              (!!iOut && !!row.guestCheckout && iOut !== row.guestCheckout));
+            (iIn !== row.guestCheckin || (!!iOut && !!row.guestCheckout && iOut !== row.guestCheckout));
           if (!row.ical.hasIcal) return null;
           const noMatch = !row.ical.matched;
           // Pedido explícito: quando está tudo certo (reserva encontrada e
@@ -10483,8 +9952,7 @@ function ArrivalCard({
                   </span>
                   <span className="tabular-nums">
                     Informada: {fmtDateBR(row.guestCheckin)}
-                    {row.guestCheckout ? ` → ${fmtDateBR(row.guestCheckout)}` : ""} · Correta:{" "}
-                    {fmtDateBR(iIn)}
+                    {row.guestCheckout ? ` → ${fmtDateBR(row.guestCheckout)}` : ""} · Correta: {fmtDateBR(iIn)}
                     {iOut ? ` → ${fmtDateBR(iOut)}` : ""}
                   </span>
                   <button
@@ -10566,10 +10034,7 @@ function ArrivalCard({
               <span />
             )}
             <div className="flex gap-2">
-              <button
-                onClick={() => setNoteOpen(false)}
-                className="text-xs px-2 py-1 rounded-md hover:bg-secondary"
-              >
+              <button onClick={() => setNoteOpen(false)} className="text-xs px-2 py-1 rounded-md hover:bg-secondary">
                 Cancelar
               </button>
               <button
@@ -10599,9 +10064,7 @@ function ArrivalCard({
           onOpenRecords={() => setRecordsOpen(true)}
         />
       )}
-      {recordsOpen && (
-        <ReservationRecordsDialog open onOpenChange={setRecordsOpen} row={row} mode={mode} />
-      )}
+      {recordsOpen && <ReservationRecordsDialog open onOpenChange={setRecordsOpen} row={row} mode={mode} />}
 
       {/* Action row: botão principal em largura total; Maps + menu à direita.
           No modo "Lista" (pedido explícito), os 3 botões encolhem ao máximo
@@ -10831,8 +10294,7 @@ function ArrivalCard({
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => setNoteOpen((v) => !v)}>
-                <StickyNote className="size-3.5 shrink-0" />{" "}
-                {row.note ? "Editar nota" : "Adicionar nota"}
+                <StickyNote className="size-3.5 shrink-0" /> {row.note ? "Editar nota" : "Adicionar nota"}
               </DropdownMenuItem>
               {isMutedNow ? (
                 <DropdownMenuItem onClick={() => mute.mutate(null)}>
@@ -10870,9 +10332,7 @@ function ArrivalCard({
         aria-hidden
         className="-mx-3 -ml-3.5 mt-1 grid h-4 place-items-center border-t border-border/40 text-muted-foreground/70"
       >
-        <ChevronDown
-          className={`size-3 transition-transform duration-200 ${openFull ? "rotate-180" : ""}`}
-        />
+        <ChevronDown className={`size-3 transition-transform duration-200 ${openFull ? "rotate-180" : ""}`} />
       </div>
 
       {/* Confirmação de check antecipado */}
@@ -11069,17 +10529,12 @@ function TimeDropdown({
           {/* Mesma fonte do rótulo "Previsto Check-in/Checkout" (pedido
               explícito), mas mantendo a cor branca/foreground quando há
               valor selecionado — só o placeholder continua cinza. */}
-          <span
-            className={value ? "font-normal text-foreground" : "font-normal text-muted-foreground"}
-          >
+          <span className={value ? "font-normal text-foreground" : "font-normal text-muted-foreground"}>
             {value ?? "Horário"}
           </span>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="sg-elegant-scroll max-h-64 overflow-y-auto min-w-[6rem] p-1"
-      >
+      <DropdownMenuContent align="end" className="sg-elegant-scroll max-h-64 overflow-y-auto min-w-[6rem] p-1">
         {value && (
           <DropdownMenuItem
             onClick={(e) => {
@@ -11208,9 +10663,7 @@ function PredictedEditor({
   const [view, setView] = useState<"summary" | "date" | "time">("summary");
   const [editing, setEditing] = useState<"primary" | "secondary">("primary");
   // undefined = não tocado nesta sessão (mostra o valor gravado).
-  const [pending, setPending] = useState<
-    Record<"primary" | "secondary", { date?: string; time?: string | null }>
-  >({
+  const [pending, setPending] = useState<Record<"primary" | "secondary", { date?: string; time?: string | null }>>({
     primary: {},
     secondary: {},
   });
@@ -11240,10 +10693,8 @@ function PredictedEditor({
     (["primary", "secondary"] as const).forEach((slot) => {
       const side = sideOf(slot);
       if (!side) return;
-      const finalDate =
-        pending[slot].date !== undefined ? pending[slot].date || null : side.dateValue || null;
-      const finalTime =
-        pending[slot].time !== undefined ? (pending[slot].time ?? null) : (side.timeValue ?? null);
+      const finalDate = pending[slot].date !== undefined ? pending[slot].date || null : side.dateValue || null;
+      const finalTime = pending[slot].time !== undefined ? (pending[slot].time ?? null) : (side.timeValue ?? null);
       const dateChanged = finalDate !== (side.dateValue || null);
       const timeChanged = finalTime !== (side.timeValue ?? null);
       if (dateChanged || timeChanged) side.onCommit(finalDate, finalTime);
@@ -11263,17 +10714,13 @@ function PredictedEditor({
   const activeTime = shownTime(editing);
   // Mesma frase "Permitido entre/até X" da SideBlock, mas para o lado que
   // está aberto nas telas de Data/Horário (mockup "Quadrantes v2").
-  const activeJanela = active
-    ? allowedWindowPhrase(active.kind, active.standardTime, active.standardTimeMax)
-    : null;
+  const activeJanela = active ? allowedWindowPhrase(active.kind, active.standardTime, active.standardTimeMax) : null;
   // Pílula colorida por lado (Saída/Chegada), igual à do card e ao ponto
   // colorido do resumo — reaproveitada no chip dos cabeçalhos de Data e
   // Horário (à DIREITA do título — isso continua com fundo, é um chip de
   // texto, não um ícone).
   const kindPillClass = (kind: "checkin" | "checkout") =>
-    kind === "checkout"
-      ? "bg-[rgba(251,146,60,0.14)] text-[#fb923c]"
-      : "bg-[rgba(56,189,248,0.14)] text-[#38bdf8]";
+    kind === "checkout" ? "bg-[rgba(251,146,60,0.14)] text-[#fb923c]" : "bg-[rgba(56,189,248,0.14)] text-[#38bdf8]";
   /**
    * Cor do ícone de info, SEM fundo (pedido explícito, 24/09/2026: "o icone
    * ao lado esquerdo dos titulos não pode ter o fundo, somente o ícone na
@@ -11500,9 +10947,7 @@ function PredictedEditor({
             onBack={() => setView("summary")}
             right={
               active ? (
-                <span
-                  className={`rounded-full px-2 py-[3px] text-[10.5px] font-bold ${kindPillClass(active.kind)}`}
-                >
+                <span className={`rounded-full px-2 py-[3px] text-[10.5px] font-bold ${kindPillClass(active.kind)}`}>
                   {active.label}
                 </span>
               ) : undefined
@@ -11545,10 +10990,7 @@ function PredictedEditor({
               </span>
               <span className="text-[13px] font-bold text-foreground">
                 {activeDate
-                  ? format(parseISODateLocal(activeDate), "dd/MM · EEEE", { locale: ptBR }).replace(
-                      "-feira",
-                      "",
-                    )
+                  ? format(parseISODateLocal(activeDate), "dd/MM · EEEE", { locale: ptBR }).replace("-feira", "")
                   : "Nenhuma data escolhida"}
               </span>
             </div>
@@ -11568,9 +11010,7 @@ function PredictedEditor({
             onBack={() => setView("summary")}
             right={
               active ? (
-                <span
-                  className={`rounded-full px-2 py-[3px] text-[10.5px] font-bold ${kindPillClass(active.kind)}`}
-                >
+                <span className={`rounded-full px-2 py-[3px] text-[10.5px] font-bold ${kindPillClass(active.kind)}`}>
                   {active.label}
                 </span>
               ) : undefined
@@ -11592,9 +11032,7 @@ function PredictedEditor({
               <button
                 key={t}
                 type="button"
-                onClick={() =>
-                  setPending((prev) => ({ ...prev, [editing]: { ...prev[editing], time: t } }))
-                }
+                onClick={() => setPending((prev) => ({ ...prev, [editing]: { ...prev[editing], time: t } }))}
                 className={`h-8 rounded-[9px] text-[12px] font-semibold tabular-nums ${
                   activeTime === t
                     ? "bg-accent/[0.14] text-accent shadow-[inset_0_0_0_1px_oklch(0.69_0.24_330_/_0.45)]"
@@ -11608,9 +11046,7 @@ function PredictedEditor({
           <div className="flex items-center justify-between border-t border-[var(--panel-div)] px-3.5 py-2.5">
             <button
               type="button"
-              onClick={() =>
-                setPending((prev) => ({ ...prev, [editing]: { ...prev[editing], time: null } }))
-              }
+              onClick={() => setPending((prev) => ({ ...prev, [editing]: { ...prev[editing], time: null } }))}
               className="text-[11px] font-semibold text-foreground/70 transition-colors hover:text-foreground"
             >
               Limpar horário
