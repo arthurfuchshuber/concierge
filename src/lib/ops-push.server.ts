@@ -650,7 +650,7 @@ export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyI
       const r = await sendPushToGuest(c.id, {
         title: "Seu imóvel foi liberado para check-in",
         body: "Antes de sair, confirme pelo chat se já pode acessá-lo neste momento.",
-        data: { url: prop.slug ? `/g/${prop.slug}?chat=1` : "/", tag: `guest-release-${l.id}` },
+        data: { url: prop.slug ? `/g/${prop.slug}` : "/", tag: `guest-release-${l.id}` },
       });
       n += r.sent;
     }
