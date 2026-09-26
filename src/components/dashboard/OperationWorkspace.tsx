@@ -8203,7 +8203,7 @@ function OccupancyPanel({
                     maxWidth: "100%",
                     ...(list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : {}),
                   }}
-                  className="sg-elegant-scroll max-h-[22rem] overflow-auto snap-x snap-mandatory"
+                  className="sg-elegant-scroll max-h-[22rem] overflow-auto snap-x snap-proximity"
                 >
                   <table
                     className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
