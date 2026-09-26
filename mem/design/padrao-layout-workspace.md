@@ -37,3 +37,8 @@ reimplementados no padrão novo.
 - Linha de ações: período à esquerda + Filtros à direita (`ACTION_BAR`/`ACTION_SEGMENT`).
 - Título dinâmico no formato "Limpezas Últimos 7d" / "Danos Últimos 30d".
 - Ordem: Operacional/Kanban/Limpeza (base) → Registros (feito) → demais páginas, uma por vez.
+
+## Janelas flutuantes (26/09/2026)
+- Toda janela suspensa, menu, seletor, cartão de pré-visualização e lista com busca usa a casca `ds-overlay` (mesma do painel de Filtros da Limpeza: fundo `--panel`, borda `--panel-border`, fio dourado no topo, sombra profunda). Itens: `ds-overlay-item` com destaque sutil (sem fundo rosa).
+- Dicas (tooltips): `ds-overlay-compact` (fundo `--panel-2`, sem fio dourado, 12px).
+- Aplicado nas peças-base; telas não devem sobrescrever cor/borda/canto dessas janelas. Filtros continuam usando as peças de `filter-panel.tsx`.

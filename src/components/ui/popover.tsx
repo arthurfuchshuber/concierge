@@ -63,7 +63,7 @@ const PopoverContent = React.forwardRef<
         // overlay de Dialog (z-50) — corrigido no mesmo pedido do desfoque:
         // um Popover aberto dentro de um Dialog já aberto precisa continuar
         // nítido POR CIMA do véu que agora também cobre o conteúdo do Dialog.
-        "sg-elegant-scroll z-[60] w-72 max-h-[min(75dvh,var(--radix-popover-content-available-height))] overflow-y-auto rounded-[0.3rem] border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-popover-content-transform-origin)",
+        "sg-elegant-scroll z-[60] w-72 max-h-[min(75dvh,var(--radix-popover-content-available-height))] overflow-y-auto ds-overlay max-w-[calc(100vw-32px)] p-4  outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-popover-content-transform-origin)",
         className,
       )}
       {...props}

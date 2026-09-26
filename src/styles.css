@@ -1481,3 +1481,36 @@ dd {
      apontar "a cor" — só a sensação de profundidade. */
   background: radial-gradient(50% 50% at 50% 50%, rgba(124, 26, 216, 0.1), transparent 70%);
 }
+
+/* Padrão "Janelas flutuantes" (26/09/2026): casca do painel de Filtros da
+   Limpeza aplicada a toda janela suspensa, menu, seletor e dica. */
+@utility ds-overlay {
+  position: relative;
+  border-radius: 1.5rem;
+  border: 1px solid var(--panel-border);
+  background-color: var(--panel);
+  color: var(--foreground);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
+  &::before {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset-inline: 1.75rem;
+    top: 0;
+    height: 1px;
+    background-image: var(--panel-hair);
+  }
+}
+@utility ds-overlay-compact {
+  border-radius: 0.6rem;
+  border: 1px solid var(--panel-border);
+  background-color: var(--panel-2);
+  color: var(--foreground);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+}
+@utility ds-overlay-item {
+  border-radius: 0.5rem;
+  min-height: 2.25rem;
+  font-size: 13px;
+  font-weight: 600;
+}
