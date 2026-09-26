@@ -57,7 +57,6 @@ import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { PendenciasButton } from "@/components/dashboard/pendencias";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { StatCard } from "@/components/ds/StatCard";
-import { trimSeries } from "@/lib/trim-series";
 
 /** Data (AAAA-MM-DD) no fuso de São Paulo. */
 function spDate(iso: string): string {
@@ -504,26 +503,6 @@ export function RecordsWorkspace() {
     const base = category ? (CATEGORY_BY_KEY.get(category)?.short ?? "Registros") : "Registros";
     return period === "all" ? base : `${base} Últimos ${period}d`;
   })();
-
-  // Regra global: do primeiro ao último dia com registro, dias vazios do meio incluídos.
-  const dailySeries = useMemo(() => {
-    const byDay = new Map<string, number>();
-    for (const r of records) {
-      const d = spDate(r.createdAt);
-      byDay.set(d, (byDay.get(d) ?? 0) + 1);
-    }
-    const keys = Array.from(byDay.keys()).sort();
-    if (keys.length === 0) return [];
-    const out: { date: string; count: number }[] = [];
-    const cur = new Date(`${keys[0]}T12:00:00Z`);
-    const end = new Date(`${keys[keys.length - 1]}T12:00:00Z`);
-    while (cur <= end) {
-      const k = cur.toISOString().slice(0, 10);
-      out.push({ date: k, count: byDay.get(k) ?? 0 });
-      cur.setUTCDate(cur.getUTCDate() + 1);
-    }
-    return trimSeries(out, (p) => p.count > 0);
-  }, [records]);
 
   return (
     /* MESMA MOLDURA DE PÁGINA das outras três telas (Operacional / Kanban /
