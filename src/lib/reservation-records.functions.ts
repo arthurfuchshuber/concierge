@@ -1280,6 +1280,8 @@ export type AccountRecordsResult = {
   totalOpen: number;
   /** true quando o histórico passou do teto de leitura. */
   truncated: boolean;
+  /** Primeiro/último dia (SP) com registro no recorte de imóveis — limita o calendário. */
+  bounds?: { min: string | null; max: string | null };
 };
 
 function emptyCounts(): Record<RecordCategory, number> {
@@ -1349,6 +1351,16 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     }
     if (data.fromDate) scan = scan.gte("created_at", new Date(`${data.fromDate}T00:00:00-03:00`).toISOString());
     if (data.toDate) scan = scan.lte("created_at", new Date(`${data.toDate}T23:59:59.999-03:00`).toISOString());
+    const spDay = (iso: string | undefined) =>
+      iso ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(iso)) : null;
+    const [firstQ, lastQ] = await Promise.all([
+      supabase.from("reservation_records").select("created_at").in("property_id", propIds).order("created_at", { ascending: true }).limit(1),
+      supabase.from("reservation_records").select("created_at").in("property_id", propIds).order("created_at", { ascending: false }).limit(1),
+    ]);
+    const bounds = {
+      min: spDay((firstQ.data as Array<{ created_at: string }> | null)?.[0]?.created_at),
+      max: spDay((lastQ.data as Array<{ created_at: string }> | null)?.[0]?.created_at),
+    };
     const { data: rows, error } = await scan
       .order("created_at", { ascending: false })
       .limit(ACCOUNT_RECORDS_SCAN_LIMIT);
@@ -1635,6 +1647,7 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       total,
       totalOpen,
       truncated: all.length >= ACCOUNT_RECORDS_SCAN_LIMIT,
+      bounds,
     };
   });
 

@@ -1715,6 +1715,12 @@ export async function runAdvanceArrival(
             refKey,
             byUserId: (opts?.byUserId ?? null),
           });
+          try {
+            const { notifyGuestCheckinReleased } = await import("@/lib/ops-push.server");
+            await notifyGuestCheckinReleased(supabaseAdmin as never, { propertyId });
+          } catch (e) {
+            console.error("[advanceArrival] push ao hóspede falhou:", e);
+          }
         } else {
           await notifyCleaningReady(supabaseAdmin as never, { propertyId, refKey });
         }

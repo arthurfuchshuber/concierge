@@ -823,6 +823,18 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
       return { ok: false as const, reason: "blocked" as const };
     }
 
+    try {
+      const { notifyGuestSelfStep } = await import("@/lib/ops-push.server");
+      await notifyGuestSelfStep(supabaseAdmin as never, {
+        propertyId: prop.id as string,
+        kind: data.kind,
+        stayKey: reservationId ?? logId,
+        guestName: guestNameRaw,
+      });
+    } catch (e) {
+      console.error("[markGuideStayStep] push interno falhou:", e);
+    }
+
     const undoToken = await signGuestToken(STAY_UNDO_PURPOSE, {
       p: prop.id,
       l: logId,
