@@ -600,7 +600,13 @@ export function RecordsWorkspace() {
                 : "Os registros feitos nos cards aparecem aqui."}
           </p>
         ) : (
-          <div className="ds-blocks">
+          <div
+            className={`ds-blocks ${
+              attentionGroups.length > 0 && calmGroups.length > 0
+                ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-2.5 lg:space-y-0"
+                : ""
+            }`}
+          >
             {/* PENDÊNCIAS SEMPRE EM CIMA (mockup B aprovado, 17/09/2026): os
               imóveis com pendência aberta sobem para um bloco próprio, com
               borda de luz e o total de pendências; os que estão em dia vêm
@@ -645,16 +651,18 @@ export function RecordsWorkspace() {
               </section>
             )}
 
-            {attentionGroups.length > 0 && calmGroups.length > 0 && (
-              <SectionLabel className="px-1 pt-0" count={calmGroups.length}>
-                Em dia
-              </SectionLabel>
-            )}
-
-            <div className="ds-card-grid">{calmGroups.map(renderCard)}</div>
+            {/* No computador, "Em dia" vira a coluna da direita. */}
+            <div className="ds-blocks min-w-0">
+              {attentionGroups.length > 0 && calmGroups.length > 0 && (
+                <SectionLabel className="px-1 pt-0 lg:pt-3" count={calmGroups.length}>
+                  Em dia
+                </SectionLabel>
+              )}
+              <div className="ds-card-grid">{calmGroups.map(renderCard)}</div>
+            </div>
 
             {q.data?.truncated && (
-              <p className="pt-1 text-center text-[11px] text-muted-foreground">
+              <p className="pt-1 text-center lg:col-span-2 text-[11px] text-muted-foreground">
                 Histórico longo — a lista mostra os mais recentes. Escolher uma categoria ou um período afina o que
                 aparece.
               </p>
