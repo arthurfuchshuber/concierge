@@ -27,8 +27,14 @@ function rawMessage(err: unknown): string {
   return "";
 }
 
+const EN_HINT =
+  /\b(the|is|are|was|not|no|failed|failure|error|invalid|cannot|can't|could|unable|unexpected|missing|of|to|with|for|and|or|request|response|server|denied|exceeded|already|must|should|please)\b/i;
+
 function isClearPortuguese(msg: string): boolean {
-  return msg.length <= 320 && PT_HINT.test(msg) && !TECH.test(msg);
+  if (msg.length > 320 || TECH.test(msg)) return false;
+  // Frases do próprio app sem acento (ex.: "Selecione uma imagem") também passam,
+  // desde que não pareçam inglês.
+  return PT_HINT.test(msg) || !EN_HINT.test(msg);
 }
 
 export function friendlyErrorMessage(

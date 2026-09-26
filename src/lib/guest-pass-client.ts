@@ -31,13 +31,23 @@ export function clearPass(scope: string) {
   }
 }
 
+function passIsVerified(pass: string): boolean {
+  try {
+    const body = pass.split(".")[0].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(body)).v === 1;
+  } catch {
+    return false;
+  }
+}
+
 /** Devolve o passe do guia, emitindo um novo se houver identificação salva. */
 export async function ensureGuidePass(
   slug: string,
   identity: { name?: string | null; code?: string | null } | null,
 ): Promise<string | null> {
   const existing = readPass(`guide:${slug}`);
-  if (existing) return existing;
+  // Passe antigo sem reserva conferida: se agora há código, emite um novo.
+  if (existing && (passIsVerified(existing) || !identity?.code?.trim())) return existing;
   const name = identity?.name?.trim();
   if (!name || name.length < 2) return null;
   try {

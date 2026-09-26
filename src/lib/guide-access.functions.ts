@@ -129,13 +129,11 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     const hasIcal = !!((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
     let icalReservationCode: string | null = null;
 
-    // Guias do tipo "Check-In & Check-Out" com calendário: o código da reserva
-    // é obrigatório e validado ao vivo contra o iCal do Airbnb. As datas do
-    // acesso passam a vir da própria reserva, nunca da escolha do hóspede.
-    const { ETIQUETA_CHECKIN_CHECKOUT } = await import("@/lib/publish-requirements");
-    const requiresCode =
-      hasIcal &&
-      ((prop as { tagline?: string | null }).tagline ?? "").trim() === ETIQUETA_CHECKIN_CHECKOUT;
+    // REGRA (25/09/2026): TODO guia exige código de reserva ATIVO, validado
+    // ao vivo contra o iCal do Airbnb. Sem calendário não há como conferir —
+    // o guia fica fechado para hóspedes.
+    if (!hasIcal) return { ok: false as const, reason: "no_ical" };
+    const requiresCode = true as boolean;
     if (requiresCode) {
       const codeRaw = (data.reservation_code ?? "").trim();
       if (!codeRaw) return { ok: false as const, reason: "code_required" };

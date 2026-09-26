@@ -8676,20 +8676,25 @@ function OccupancyPanel({
                               )}
                               <div
                                 /* "QUASE UM QUADRADO" (mockup aprovado,
-                                   25/09/2026: "o fundo que demarca o dia
-                                   vigente precisa ser quase um quadrado com
-                                   as bordas levemente curvadas e que consuma
-                                   somente o conteúdo, a fim de não ficar
-                                   encostando nas linhas verticais"). Antes era
-                                   `w-full`: ocupava a coluna INTEIRA do dia,
-                                   encostando nas duas linhas verticais da
-                                   grade (Adendo 3/4 do v20). Trocado por uma
-                                   largura fixa pequena (`w-7` = 28px, perto da
-                                   altura do próprio conteúdo) + `mx-auto`, que
-                                   já centralizava — agora sobra respiro dos
-                                   dois lados até a grade, ao "consumir" só o
-                                   texto (dia da semana + número). */
-                                className={`relative mx-auto flex w-7 flex-col items-center overflow-hidden rounded-md py-1 ${
+                                   25/09/2026, revisto no mesmo dia: "o fundo
+                                   que demarca o dia vigente continua redondo..
+                                   preciso que ele seja QUADRADO, com uma leve
+                                   curvatura nas pontas - e que consuma apenas
+                                   a informação e não o quadrante inteiro").
+                                   Antes era `w-full`: ocupava a coluna INTEIRA
+                                   do dia, encostando nas duas linhas verticais
+                                   da grade (Adendo 3/4 do v20); a 1ª correção
+                                   trocou só a LARGURA por `w-7` e deixou a
+                                   ALTURA solta (`flex-col` sem `h-*`), o que
+                                   ainda lia como redondo/pílula por não ser
+                                   um quadrado de verdade. Agora `h-7`
+                                   ao lado de `w-7` — quadrado 28×28 de fato —
+                                   com `justify-center` pra centralizar as
+                                   duas linhas (dia da semana + número) dentro
+                                   dessa altura fixa, e o raio reduzido pra
+                                   `rounded-[6px]` (curvatura leve, não mais
+                                   "quase círculo"). */
+                                className={`relative mx-auto flex h-7 w-7 flex-col items-center justify-center overflow-hidden rounded-[6px] ${
                                   isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"
                                 }`}
                               >
@@ -9890,8 +9895,22 @@ function ArrivalCard({
    * O estado NÃO é lembrado entre aberturas da tela: tudo volta compacto.
    * Lembrar significaria reabrir o quadro com metade dos cards expandidos, o
    * que desfaz exatamente o ganho de espaço que motivou a mudança.
-   */
-  const [openFull, setOpenFull] = useState(false);
+   *
+   * SÓ 1 CARD ABERTO POR VEZ (pedido explícito, 25/09/2026: "a expansividade
+   * pode ser apenas 1 de cada vez, e nao mais de 1 card expandido
+   * simultaneamente") — antes cada card guardava seu `openFull` sozinho, sem
+   * nenhum dos dois saber do outro, e vários abriam ao mesmo tempo na mesma
+   * lista. As props `expanded`/`onToggleExpanded` já existiam prontas (vêm
+   * de `ArrivalGroup`, que já tinha o "só 1 por coluna" implementado para
+   * outro uso e nunca tinha sido ligado aqui) — o card passa a obedecer o pai
+   * quando ele controla, com o estado local como única saída de reserva para
+   * quando não há pai controlando. */
+  const [localOpenFull, setLocalOpenFull] = useState(false);
+  const openFull = onToggleExpanded ? (expanded ?? false) : localOpenFull;
+  const toggleOpenFull = () => {
+    if (onToggleExpanded) onToggleExpanded(!openFull);
+    else setLocalOpenFull((v) => !v);
+  };
   const compact = openFull ? false : (compactProp ?? true);
   const listBare = compact && (mode === "done" || mode === "no_show");
 
@@ -10117,7 +10136,7 @@ function ArrivalCard({
           "button, a, input, select, textarea, label, [role='button'], [role='checkbox'], [data-radix-popper-content-wrapper]",
         );
         if (interactive && interactive !== e.currentTarget) return;
-        setOpenFull((v) => !v);
+        toggleOpenFull();
       }}
       /* MESMO RAIO DE CANTO DAS CÉLULAS DA LIMPEZA (mockup "mesmo ecossistema
          do Dashboard/Limpeza", aprovado 24/09/2026) — 10px, no lugar do
@@ -10251,7 +10270,17 @@ function ArrivalCard({
               <button
                 type="button"
                 title="Clique para ajustar a previsão"
-                className="w-[78px] shrink-0 rounded-[0.3rem] px-0.5 py-0.5 text-right transition-colors hover:bg-foreground/[0.05] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed"
+                /* SEM previsão (só o ícone de calendário): hover vira NEGRITO,
+                   nunca fundo (pedido explícito, 25/09/2026: "ao colocar o
+                   mouse em cima do icone calendário... ele deve apenas mudar
+                   para negrito e não mostrar um fundo") — por isso o
+                   `hover:bg-foreground/[0.05]` só se aplica quando HÁ
+                   previsão (texto de horário, onde o destaque de fundo
+                   continua fazendo sentido); o `group` deixa o ícone reagir
+                   ao hover do botão sem precisar de estado próprio. */
+                className={`group w-[78px] shrink-0 rounded-[0.3rem] px-0.5 py-0.5 text-right transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed ${
+                  predictionTime ? "hover:bg-foreground/[0.05]" : ""
+                }`}
               >
                 {/* Com previsão, o rótulo "PREVISÃO" encima o horário. SEM
                     previsão, o rótulo sairia sobrando: "PREVISÃO / NÃO
@@ -10268,13 +10297,20 @@ function ArrivalCard({
                     </span>
                   </>
                 ) : (
-                  /* Ícone de calendário no lugar do texto "SEM PREVISÃO"
-                     (pedido explícito, 25/09/2026: "altere 'sem previsao'
-                     para o ícone de um calendário (sem fundo) na mesma
-                     tonalidade"). Mesmo tom que o texto que ele substitui
-                     (`text-muted-foreground/70`), sem fundo nem borda. */
-                  <span className="flex items-center justify-end">
-                    <Calendar className="size-4 text-muted-foreground/70" />
+                  // Ícone de calendário no lugar do texto "SEM PREVISÃO"
+                  // (pedido explícito, 25/09/2026: "altere 'sem previsao'
+                  // para o ícone de um calendário (sem fundo) na mesma
+                  // tonalidade"). Mesmo tom que o texto que substitui
+                  // (text-muted-foreground/70), sem fundo nem borda.
+                  // Alinhado ao meio do nome do proprietário (pedido
+                  // explícito, mesmo dia): h-4 é a mesma altura de linha do
+                  // text-xs do OwnerLine, e o -mt-0.5 cancela o py-0.5 do
+                  // botão, centralizando o ícone com a primeira linha do
+                  // card em vez de com o topo do botão. Negrito no hover em
+                  // vez de fundo: group-hover:stroke-[2.5] engrossa o traço
+                  // (o padrão do Lucide é 2).
+                  <span className="-mt-0.5 flex h-4 items-center justify-end">
+                    <Calendar className="size-4 text-muted-foreground/70 transition-[stroke-width] group-hover:stroke-[2.5]" />
                   </span>
                 )}
                 {predictionTime && predictionDay.label && (
@@ -10313,15 +10349,16 @@ function ArrivalCard({
               hospede"). */}
           <div className="-mt-1 flex items-center gap-2 text-[11.5px]">
             {isPendingFill ? (
-              <span className={`inline-flex min-w-0 flex-1 items-center gap-1 font-medium ${CARD_MUTED}`}>
-                {/* Ícone na MESMA cor do texto, independente do status de
-                    acesso do hóspede (pedido explícito, 24/09/2026: "o
-                    icone ao lado esquerdo do nome do hospede precisa ficar
-                    na mesma cor que o nome independentemente do status de
-                    acesso dele") — antes só o texto usava `CARD_MUTED` e o
-                    ícone ficava laranja fixo, destoando quando o hóspede
-                    ainda não está identificado. */}
-                <UserPlus className="size-3 shrink-0" />
+              /* Ícone removido (pedido explícito, 25/09/2026: "exclua os
+                 ícones ao lado esquerdo de código da reserva e nome do
+                 hospede, a fim de manter o mesmo espaçamento entre as
+                 linhas comparado às infos padrao do card recolhido") — o
+                 recuo que o ícone criava vira `pl-[18px]` direto no texto,
+                 já que as infos padrão do card recolhido não têm ícone à
+                 esquerda. */
+              <span
+                className={`inline-flex min-w-0 flex-1 items-center pl-[18px] font-medium ${CARD_MUTED}`}
+              >
                 {/* SEM quebra em 2 linhas — regra do card é a linha
                     inteira com reticências quando falta espaço (mesma
                     regra do nome do hóspede logo abaixo), corrigido
@@ -10335,21 +10372,21 @@ function ArrivalCard({
                 <span className="min-w-0 truncate">Hóspede pendente</span>
               </span>
             ) : row.guestName && row.guestName !== row.reservationCode ? (
-              <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 ${CARD_MUTED}`}>
-                {/* Ícone à esquerda do nome, na MESMA cor da letra do nome
-                    (pedido explícito, 24/09/2026) — paralelo ao ícone de
-                    "Hóspede pendente" acima, só que sem o laranja: aqui o
-                    hóspede já está identificado, então ícone e texto usam o
-                    mesmo `CARD_MUTED` do bloco inteiro. */}
-                <User className="size-3 shrink-0" />
+              <span
+                className={`inline-flex min-w-0 flex-1 items-center gap-1.5 pl-[18px] ${CARD_MUTED}`}
+              >
                 {/* Nome do hóspede em Title Case — primeira letra de cada
                     palavra maiúscula, EXCETO conectivos ("de", "da", "do",
                     "dos", "das"...), que ficam minúsculos quando não são a
                     primeira palavra (pedido explícito, 24/09/2026: "Fraia
                     Moema da Silva", "Fernando de Noronha"). Antes era tudo
                     maiúsculo; `titleCaseName` (já usado no formulário do
-                    hóspede) faz essa formatação. */}
-                <span className="min-w-0 truncate">{titleCaseName(row.guestName)}</span>
+                    hóspede) faz essa formatação.
+                    Rótulo "Hóspede: " (pedido explícito, 25/09/2026: "coloque
+                    a palavra 'Hóspede: ' ao lado esquerdo do nome do hospede
+                    EM TODOS os cards") — mesmo padrão de "Cód. Reserva: " e
+                    "Proprietário: " já usados no resto do card. */}
+                <span className="min-w-0 truncate">Hóspede: {titleCaseName(row.guestName)}</span>
                 <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
                 <ExtraGuests guests={row.additionalGuests ?? []} />
               </span>
@@ -10359,18 +10396,19 @@ function ArrivalCard({
           </div>
           {/* Código da reserva em linha PRÓPRIA, abaixo do nome — pedido
               explícito (25/09/2026): "coloque o código da reserva abaixo do
-              nome do hospede (com um ícone de 'chave' na mesma coloração ao
-              lado esquerdo, exatamente como fizemos com o icone do nome do
-              hospede" + "coloque a palavra 'Cód. Reserva: ' ao lado esquerdo
-              do código" + "remova o fundo do código da reserva". Antes o
-              código vivia dentro de um botão com borda e fundo, colado no
-              canto direito da linha do nome; agora é ícone + rótulo + código,
-              sem casca nenhuma — o MESMO desenho do ícone+nome do hóspede
-              acima, só que para o código. */}
+              nome do hospede... coloque a palavra 'Cód. Reserva: ' ao lado
+              esquerdo do código" + "remova o fundo do código da reserva".
+              Antes o código vivia dentro de um botão com borda e fundo,
+              colado no canto direito da linha do nome; agora é rótulo +
+              código, sem casca nenhuma.
+              Ícone removido de novo (pedido explícito, mesmo dia): "exclua
+              os ícones ao lado esquerdo de código da reserva e nome do
+              hospede... apenas dando um espaçamento no recuo lateral" —
+              mesmo `pl-[18px]` da linha do hóspede acima, no lugar do ícone
+              de chave. */}
           {row.reservationCode && (
             <div className="-mt-0.5 flex items-center gap-1.5 text-[11.5px]">
-              <span className={`inline-flex min-w-0 items-center gap-1.5 ${CARD_MUTED}`}>
-                <KeyRound className="size-3 shrink-0" />
+              <span className={`inline-flex min-w-0 items-center gap-1.5 pl-[18px] ${CARD_MUTED}`}>
                 <span className="shrink-0">Cód. Reserva:</span>
                 <button
                   type="button"
@@ -10576,22 +10614,6 @@ function ArrivalCard({
           card era aberto (`compact ? X : Y`); agora essa fileira usa sempre
           o valor de `compact`, independentemente do estado real do card. */}
       <div className="mt-auto flex flex-nowrap items-center gap-2">
-        {/* Triângulo de alerta de engajamento — ver comentário completo mais
-            acima, perto de `stageBarClass`. Só antes do check-in confirmado
-            (pedido explícito, 25/09/2026), por isso mora aqui e não junto
-            aos ícones de Maps/Registros/"⋮", que continuam em qualquer
-            `mode`. `shrink-0`: é ele quem fica fixo — o botão principal
-            (`flex-1`) é quem cede largura para caber os dois. */}
-        {mode === "checkin" && (
-          <span className="shrink-0">
-            <EngagementFlags
-              openedGuide={row.openedGuide}
-              readInstructions={row.readInstructions}
-              hasPasswords={row.hasPasswords}
-              viewedPasswords={row.viewedPasswords}
-            />
-          </span>
-        )}
         {mode === "done" ? (
           <span
             title="Esteira concluída"
@@ -10704,6 +10726,28 @@ function ArrivalCard({
                       : "Check-in"}
             </span>
           </button>
+        )}
+
+        {/* Triângulo de alerta de engajamento — ver comentário completo mais
+            acima, perto de `stageBarClass`. À DIREITA do botão principal
+            (pedido explícito, 25/09/2026, print marcado: "voce colocou o
+            triangulo no lado errado, tem que ficar à direita do botao") —
+            antes vinha ANTES do botão, empurrando-o pra direita e
+            desalinhando o botão do restante do conteúdo do card (que começa
+            todo na borda esquerda). Só antes do check-in confirmado, por
+            isso mora aqui e não junto aos ícones de Maps/Registros/"⋮", que
+            continuam em qualquer `mode`. `shrink-0`: é ele quem fica fixo —
+            o botão principal (`flex-1`) é quem cede largura para caber os
+            dois. */}
+        {mode === "checkin" && (
+          <span className="shrink-0">
+            <EngagementFlags
+              openedGuide={row.openedGuide}
+              readInstructions={row.readInstructions}
+              hasPasswords={row.hasPasswords}
+              viewedPasswords={row.viewedPasswords}
+            />
+          </span>
         )}
 
         {/* "Voltar ao status anterior" vive só no menu "⋮" (pedido explícito,

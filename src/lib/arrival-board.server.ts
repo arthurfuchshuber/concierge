@@ -119,9 +119,16 @@ export function findLogsForReservation<T extends ArrivalLogRow>(
     }
   }
   // Datas exatas — só quando é seguro (mesma trava do antigo findBest).
+  // `checkout_date` do LOG pode ser nulo (é opcional no formulário do
+  // hóspede) — nesse caso ele não CONTRADIZ a saída da reserva, só não a
+  // informa, então não pode reprovar o match por igualdade estrita (bug
+  // corrigido, 25/09/2026, junto com a busca de `guide_access_logs` acima:
+  // sem isso, um log sem checkout_date só combinava por código de reserva,
+  // e sumia como "Hóspede pendente" quando não havia código).
   for (const l of uniqueLogs) {
     if (l.property_id !== r.property_id) continue;
-    if (l.checkin_date !== r.checkin_date || l.checkout_date !== r.checkout_date) continue;
+    if (l.checkin_date !== r.checkin_date) continue;
+    if (l.checkout_date !== null && l.checkout_date !== r.checkout_date) continue;
     const logCode = normalizeReservationCode(l.reservation_code);
     if (resCode && logCode && logCode !== resCode) continue;
     if (resCode && !logCode && kind === "checkin") continue;
@@ -134,8 +141,9 @@ export function findLogsForReservation<T extends ArrivalLogRow>(
     const aCode = resCode && normalizeReservationCode(a.reservation_code) === resCode ? 1 : 0;
     const bCode = resCode && normalizeReservationCode(b.reservation_code) === resCode ? 1 : 0;
     if (aCode !== bCode) return bCode - aCode;
-    const aExact = a.checkin_date === r.checkin_date && a.checkout_date === r.checkout_date ? 1 : 0;
-    const bExact = b.checkin_date === r.checkin_date && b.checkout_date === r.checkout_date ? 1 : 0;
+    const datesMatch = (l: T) => l.checkin_date === r.checkin_date && (l.checkout_date === null || l.checkout_date === r.checkout_date);
+    const aExact = datesMatch(a) ? 1 : 0;
+    const bExact = datesMatch(b) ? 1 : 0;
     if (aExact !== bExact) return bExact - aExact;
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
   });
@@ -224,9 +232,32 @@ export async function buildArrivalRows(
       .select(
         "id, property_id, guest_name, guest_phone, guest_phone_country, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at",
       )
-      .in("property_id", propIds)
-      .gte(dateCol, from!);
-    if (to) q = q.lte(dateCol, to);
+      .in("property_id", propIds);
+    if (data.kind === "checkin") {
+      q = q.gte("checkin_date", from!);
+      if (to) q = q.lte("checkin_date", to);
+    } else {
+      // BUG CORRIGIDO (pedido explícito, 25/09/2026: "os dados dos hóspedes
+      // não estão sendo mantidos salvos quando o card muda de status").
+      // `checkout_date` é OPCIONAL no formulário do hóspede
+      // (`guide-access.functions.ts`, `AccessInput.checkout_date` —
+      // `.optional().nullable()`): um hóspede pode preencher só a data de
+      // check-in. Filtrar só por `checkout_date >= from` excluía esses logs
+      // inteiros da busca sempre que o card virava assunto de Checkout/Fila
+      // Limpeza (`kind === "checkout"`) — mesmo o MESMO log aparecendo
+      // certinho em Check-ins (que filtra por `checkin_date`, sempre
+      // preenchido). O card não perdia o dado; o servidor é que parava de
+      // buscar o log que tinha esse dado assim que a coluna mudava. Agora
+      // também aceita logs SEM `checkout_date` cujo `checkin_date` cai na
+      // mesma janela.
+      const checkoutBound = to
+        ? `and(checkout_date.gte.${from},checkout_date.lte.${to})`
+        : `checkout_date.gte.${from}`;
+      const fallbackBound = to
+        ? `and(checkout_date.is.null,checkin_date.gte.${from},checkin_date.lte.${to})`
+        : `and(checkout_date.is.null,checkin_date.gte.${from})`;
+      q = q.or(`${checkoutBound},${fallbackBound}`);
+    }
     const { data: logs } = await q.order(dateCol, { ascending: true }).limit(500);
 
     const rawLogs = (logs ?? []) as Array<{

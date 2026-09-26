@@ -39,7 +39,7 @@ const RULES: Array<{ key: string; label: string; check: (p: PublishCandidate) =>
     // Disponível para qualquer plano (ver admin.properties.$id.tsx), mas só
     // é obrigatório para publicar guias do tipo "Check-In & Check-Out" —
     // nos demais tipos de guia, o calendário é opcional.
-    check: (p) => str(p.tagline) !== ETIQUETA_CHECKIN_CHECKOUT || !!str(p.airbnb_ical_url),
+    check: (p) => !!str(p.airbnb_ical_url),
   },
   { key: "name", label: "Identidade visual — Nome do imóvel", check: (p) => !!str(p.name) },
   { key: "slug", label: "Identidade visual — URL pública", check: (p) => !!str(p.slug) },
