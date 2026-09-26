@@ -968,14 +968,12 @@ function PropertyCard({
   // Antes ele recortava a página inteira para aquele imóvel — resolvia, mas
   // custava perder a visão dos outros. Abrir no lugar é mais barato e é o que
   // a pessoa espera de um "+N".
-  const [showAllPending, setShowAllPending] = useState(false);
   // Recolher zera o "+N": reabrir depois mostrando a lista inteira, sem
   // ninguém ter pedido, é surpresa — e surpresa em tela de operação é ruído.
   useEffect(() => {
     if (!pendingOpen) setShowAllPending(false);
   }, [pendingOpen]);
   const hasPending = group.pending.length > 0;
-  const hiddenPending = group.pending.length - PENDING_ROWS;
   // Com o andar de pendências em cima, o acervo encolhe para não esticar o
   // cartão; sozinho, ele fica no tamanho de leitura de sempre.
   const thumbCap = hasPending ? 6 : THUMBS_PER_GROUP;
@@ -1027,40 +1025,31 @@ function PropertyCard({
                 recolhida seguindo as mesmas regras da linha REGISTROS"). A
                 forma não muda em nada: mesma fonte, mesmo fio, mesma contagem
                 à direita, e a cor de alerta continua sendo a de antes. */}
-            <button
-              type="button"
-              onClick={onTogglePending}
-              aria-expanded={pendingOpen}
-              className="mb-1 mt-2.5 flex w-full items-center gap-2 text-left"
-            >
-              <span className="ds-falta shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em]">
-                Pendências
-              </span>
-              <span
-                aria-hidden
-                className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
-              />
-              <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
-                {group.pending.length}
-              </span>
-            </button>
-            {pendingOpen && (
-              <>
-                {(showAllPending ? group.pending : group.pending.slice(0, PENDING_ROWS)).map((r) => (
+            <Popover open={pendingOpen} onOpenChange={(v) => v !== pendingOpen && onTogglePending()}>
+              <PopoverTrigger asChild>
+                <button type="button" className="mb-1 mt-2.5 flex w-full items-center gap-2 text-left">
+                  <span className="ds-falta shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em]">
+                    Pendências
+                  </span>
+                  <span
+                    aria-hidden
+                    className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
+                  />
+                  <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
+                    {group.pending.length}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top"
+                align="center"
+                className="max-h-[60dvh] w-[min(340px,calc(100vw-32px))] overflow-y-auto p-2"
+              >
+                {group.pending.map((r) => (
                   <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} onResolve={() => onResolve(r)} />
                 ))}
-                {hiddenPending > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllPending((v) => !v)}
-                    aria-expanded={showAllPending}
-                    className="mt-1 w-full rounded-[0.25rem] py-1 text-center text-[10px] font-bold text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
-                  >
-                    {showAllPending ? "Mostrar menos" : `+${hiddenPending} pendências`}
-                  </button>
-                )}
-              </>
-            )}
+              </PopoverContent>
+            </Popover>
           </>
         )}
 
