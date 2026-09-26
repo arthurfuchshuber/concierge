@@ -54,3 +54,25 @@ function getServerSnapshot() {
 export function useGlobalOverlayOpen(): boolean {
   return React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
+
+/**
+ * "CLICAR FORA SÓ FECHA A ÚLTIMA JANELA" (pedido explícito, 26/09/2026):
+ * um clique no véu ou dentro de um popover/menu/tooltip aberto por cima de
+ * um Dialog/Sheet/Drawer não pode fechar essa janela de baixo — só a de
+ * cima fecha, e a tela volta para a janela onde o clique aconteceu.
+ */
+export function guardNestedOutside<E extends { target: EventTarget | null; preventDefault: () => void }>(
+  handler?: (e: E) => void,
+) {
+  return (e: E) => {
+    const t = e.target as Element | null;
+    const nested =
+      openCount > 0 ||
+      !!t?.closest?.("[data-global-scrim],[data-radix-popper-content-wrapper]");
+    if (nested) {
+      e.preventDefault();
+      return;
+    }
+    handler?.(e);
+  };
+}
