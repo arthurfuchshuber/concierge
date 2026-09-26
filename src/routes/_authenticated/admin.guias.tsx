@@ -875,7 +875,7 @@ function Dashboard() {
                       >
                         <g.Icon className="size-[13px]" strokeWidth={2.2} />
                       </span>
-                      <span className="ds-eyebrow min-w-0 truncate text-[10px] tracking-[0.2em]" style={{ color: g.color }}>
+                      <span className="ds-eyebrow min-w-0 truncate text-[10px] tracking-[0.2em] text-muted-foreground">
                         {g.title}
                       </span>
                     </span>
