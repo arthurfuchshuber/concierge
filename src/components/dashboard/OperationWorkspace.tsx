@@ -4760,7 +4760,7 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
              só o ícone na cor — sem o círculo âmbar por trás. A palavra
              "ALERTA" saiu; o nome acessível e o `title` continuam dizendo o
              que é. */
-          className="grid size-7 place-items-center rounded-full border-0 text-amber-600 transition-opacity hover:opacity-75 dark:text-amber-400"
+          className="grid size-7 place-items-center rounded-[0.3rem] border border-border/50 bg-background/60 text-amber-600 transition-colors hover:bg-primary/[0.08] dark:text-amber-400"
           title="Ver alertas"
           aria-label="Ver alertas"
         >
@@ -9496,8 +9496,14 @@ function ArrivalCard({
    * para prever.
    */
   const showPrediction = !listBare && mode !== "done" && mode !== "no_show";
-  const predictionPrimary = prediction?.primary ?? null;
-  const predictionSecondary = prediction?.secondary ?? null;
+  // CHECK-IN CONFIRMADO (pedido explícito, 26/09/2026): a previsão de
+  // CHEGADA some — no card e nos campos — e só a de SAÍDA continua.
+  const checkinConfirmed = done || mode === "stay" || mode === "checkout" || mode === "cleaning";
+  const rawPrimary = prediction?.primary ?? null;
+  const rawSecondary = prediction?.secondary ?? null;
+  const dropArrival = checkinConfirmed && rawPrimary?.kind === "checkin";
+  const predictionPrimary = dropArrival ? rawSecondary : rawPrimary;
+  const predictionSecondary = dropArrival ? null : rawSecondary?.kind === "checkin" && checkinConfirmed ? null : rawSecondary;
   const predictionTime = predictionPrimary?.timeValue ?? null;
   const predictionDay = predictionDayLabel(
     predictionPrimary?.dateValue ||
@@ -10949,6 +10955,14 @@ function PredictedEditor({
       <PopoverTrigger asChild disabled={disabled}>
         {trigger}
       </PopoverTrigger>
+      {/* CALENDÁRIO/HORÁRIOS SEMPRE INTEIROS (pedido explícito, 26/09/2026):
+          ancorados no topo da tela, e não no botão do card — perto do botão
+          não sobra altura nem em cima nem embaixo e o calendário era cortado. */}
+      {open && view !== "summary" && (
+        <PopoverAnchor asChild>
+          <span aria-hidden className="pointer-events-none fixed left-1/2 top-3 size-0" />
+        </PopoverAnchor>
+      )}
 
       {/*
        * CASCA "GRAFITE QUENTE" (mockup "Quadrantes v2" aprovado, 23/09/2026):
@@ -11010,10 +11024,10 @@ function PredictedEditor({
         </PopoverContent>
       ) : view === "date" ? (
         <PopoverContent
-          align="end"
+          align="center"
           sideOffset={FILTER_PANEL_OFFSET}
           collisionPadding={FILTER_PANEL_COLLISION}
-          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px]`}
+          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px] !max-h-[calc(100dvh-180px)]`}
           onClick={(e) => e.stopPropagation()}
         >
           <FilterScreenHeader
@@ -11073,7 +11087,7 @@ function PredictedEditor({
         </PopoverContent>
       ) : (
         <PopoverContent
-          align="end"
+          align="center"
           sideOffset={FILTER_PANEL_OFFSET}
           collisionPadding={FILTER_PANEL_COLLISION}
           className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px]`}
