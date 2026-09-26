@@ -11019,7 +11019,7 @@ function PredictedEditor({
           align="end"
           sideOffset={FILTER_PANEL_OFFSET}
           collisionPadding={FILTER_PANEL_COLLISION}
-          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px]`}
+          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px] !max-h-[calc(100dvh-24px)]`}
           onClick={(e) => e.stopPropagation()}
         >
           <FilterScreenHeader
