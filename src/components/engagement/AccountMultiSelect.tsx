@@ -80,7 +80,7 @@ export function AccountMultiSelect({
           <ChevronDown className="size-3.5 opacity-60 shrink-0" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[320px] p-0 rounded-md">
+      <PopoverContent align="start" className="w-[320px] p-0">
         <div className="p-2 border-b border-border">
           <div className="relative">
             <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
