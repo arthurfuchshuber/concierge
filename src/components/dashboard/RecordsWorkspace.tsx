@@ -652,7 +652,7 @@ export function RecordsWorkspace() {
                     }
                     className="mb-1 px-1.5"
                   />
-                  <div className="ds-card-grid">{attentionGroups.map(renderCard)}</div>
+                  <div className="ds-card-grid ds-five-cap">{attentionGroups.map(renderCard)}</div>
                 </div>
               </section>
             )}
@@ -680,7 +680,7 @@ export function RecordsWorkspace() {
                     }
                     className="mb-1 px-1.5"
                   />
-                  <div className="ds-card-grid">{calmGroups.map(renderCard)}</div>
+                  <div className="ds-card-grid ds-five-cap">{calmGroups.map(renderCard)}</div>
                 </div>
               </section>
             )}
@@ -1901,6 +1901,10 @@ function ResolveDialog({
         </DialogHeader>
 
         <div className="space-y-3 px-4 pb-4">
+          <p className="text-[11.5px] leading-snug text-muted-foreground">
+            Marque se houve gasto. Depois diga quem deve arcar com ele e quem já pagou — o sistema mostra se
+            alguém precisa reembolsar.
+          </p>
           <button
             type="button"
             onClick={() => setHasCost((v) => !v)}

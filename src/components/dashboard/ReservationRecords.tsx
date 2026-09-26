@@ -605,27 +605,23 @@ export function RecordBlock({
           {!body && mediaItems.length === 0 && (
             <p className="text-[11px] italic text-muted-foreground">Registro sem conteúdo.</p>
           )}
-          <div className="flex flex-wrap items-center gap-x-1.5 text-[10.5px] text-muted-foreground">
-            <span className="truncate">{head.createdByName ?? "Equipe"}</span>
-            {head.cardMode && (
-              <>
-                <span className="opacity-50">·</span>
-                <span className="truncate">via {MODE_LABEL[head.cardMode]}</span>
-              </>
-            )}
-            {mediaItems.length > 0 && (
-              <>
-                <span className="opacity-50">·</span>
-                <span className="shrink-0">{mediaSummary(mediaItems)}</span>
-              </>
-            )}
-            {mediaItems.length === 1 && head.sizeBytes ? (
-              <>
-                <span className="opacity-50">·</span>
-                <span className="shrink-0">{fmtSize(head.sizeBytes)}</span>
-              </>
-            ) : null}
-          </div>
+          {/* Cada pedaço carrega o "·" junto dele (nunca solto no fim da
+              linha) e quebra linha inteiro. */}
+          <p className="text-[10.5px] leading-snug text-muted-foreground">
+            {[
+              head.createdByName ?? "Equipe",
+              head.cardMode ? `via ${MODE_LABEL[head.cardMode]}` : null,
+              mediaItems.length > 0 ? mediaSummary(mediaItems) : null,
+              mediaItems.length === 1 && head.sizeBytes ? fmtSize(head.sizeBytes) : null,
+            ]
+              .filter(Boolean)
+              .map((t, i) => (
+                <span key={i} className="inline-block whitespace-nowrap">
+                  {i > 0 && <span className="px-1 opacity-50">·</span>}
+                  {t}
+                </span>
+              ))}
+          </p>
         </div>
       </div>
 
