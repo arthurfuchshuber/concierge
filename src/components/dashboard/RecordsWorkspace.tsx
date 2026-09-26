@@ -13,7 +13,6 @@ import {
   Pencil,
   LayoutGrid,
   Sparkles,
-  SearchX,
   SlidersHorizontal,
   StickyNote,
   Video,
@@ -71,7 +70,6 @@ import { listTaskLinkOptions, restoreTask, setTaskStatus } from "@/lib/tasks.fun
 import {
   RECORD_TITLE_MAX,
   listAccountRecords,
-  countCleaningsWithoutRecords,
   updateRecordText,
   type AccountRecord,
   type RecordCategory,
@@ -214,6 +212,7 @@ function hasTitle(r: AccountRecord): boolean {
 const CATEGORY_SOLID: Record<RecordCategory, string> = {
   forgotten: "bg-[#c9a962] text-[#1a1408]",
   damage: "bg-[#c98c8c] text-[#1a0a0a]",
+  incident: "bg-[#c98c8c] text-[#1a0a0a]",
   cleaning_audit: "bg-[#7fb79a] text-[#05140d]",
   maintenance: "bg-[#c98c8c] text-[#1a0a0a]",
   other: "bg-muted-foreground text-background",
@@ -222,6 +221,7 @@ const CATEGORY_SOLID: Record<RecordCategory, string> = {
 const CATEGORY_BAND: Record<RecordCategory, string> = {
   forgotten: "bg-[#c9a962]/15 text-[#c9a962]",
   damage: "bg-[#c98c8c]/15 text-[#c98c8c]",
+  incident: "bg-[#c98c8c]/15 text-[#c98c8c]",
   cleaning_audit: "bg-[#7fb79a]/15 text-[#7fb79a]",
   maintenance: "bg-[#c98c8c]/15 text-[#c98c8c]",
   other: "bg-muted-foreground/15 text-muted-foreground",
@@ -250,7 +250,7 @@ function fmtStayRange(checkin: string | null, checkout: string | null): string |
  * Não mexe em `CATEGORIES`: aquela ordem é do SELETOR que abre antes da
  * câmera (definida pelo cliente em 07/09/2026) e continua valendo lá.
  */
-const CARD_ORDER: readonly RecordCategory[] = ["maintenance", "damage", "forgotten", "other", "cleaning_audit"];
+const CARD_ORDER: readonly RecordCategory[] = ["maintenance", "damage", "incident", "forgotten", "other", "cleaning_audit"];
 const CARDS = CARD_ORDER.map((k) => CATEGORY_BY_KEY.get(k)!).filter(Boolean);
 
 /** Quantas pendências o cartão do imóvel lista antes de colapsar em "+N". */
@@ -362,12 +362,6 @@ export function RecordsWorkspace() {
     queryFn: () => listFn({ data: { ownerId: activeOwnerId, category, onlyOpen, days, propertyIds } }),
   });
 
-  const noRecordFn = useServerFn(countCleaningsWithoutRecords);
-  const noRecordQ = useQuery({
-    queryKey: ["cleanings-without-records", activeOwnerId ?? "self", period, (propertyIds ?? []).join(",")] as const,
-    queryFn: () => noRecordFn({ data: { ownerId: activeOwnerId, days, propertyIds } }),
-  });
-
   // Excluir com "Desfazer" e resposta instantânea (17/09/2026).
   const deleteRecord = useUndoableRecordDelete(() => setOpened(null));
 
@@ -378,7 +372,7 @@ export function RecordsWorkspace() {
   useRealtimeInvalidate(
     "records-live",
     [{ table: "reservation_records" }, { table: "tasks" }, { table: "task_completions" }],
-    [["account-records"], ["cleanings-without-records"]],
+    [["account-records"]],
   );
 
   /**
@@ -589,13 +583,6 @@ export function RecordsWorkspace() {
                 onClick={() => setCategory(category === c.key ? null : c.key)}
               />
             ))}
-            <StatCard
-              label="Limpezas sem registros"
-              value={noRecordQ.data?.count ?? 0}
-              icon={SearchX}
-              iconTone={(noRecordQ.data?.count ?? 0) > 0 ? "#c9a962" : undefined}
-              loading={noRecordQ.isLoading}
-            />
           </div>
         </div>
 
@@ -733,6 +720,7 @@ export function RecordsWorkspace() {
 const CARD_ICON_TONE: Record<RecordCategory, string> = {
   maintenance: "#c98c8c",
   damage: "#c98c8c",
+  incident: "#c98c8c",
   forgotten: "#c9a962",
   cleaning_audit: "#7fb79a",
   other: "#c9a962",
@@ -895,6 +883,7 @@ function CategoriaCelula({
    mais colorida da tela depois dos seis cartões de contagem. */
 const STRIPE_GRADIENT: Record<RecordCategory, string> = {
   damage: "bg-gradient-to-b from-transparent via-[#c98c8c] to-transparent",
+  incident: "bg-gradient-to-b from-transparent via-[#c98c8c] to-transparent",
   maintenance: "bg-gradient-to-b from-transparent via-[#c98c8c] to-transparent",
   forgotten: "bg-gradient-to-b from-transparent via-[#c9a962] to-transparent",
   other: "bg-gradient-to-b from-transparent via-muted-foreground to-transparent",

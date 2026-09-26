@@ -23,6 +23,7 @@ const SIGN_TTL_SECONDS = 60 * 60; // 1h — mesmo prazo de signChatAttachmentUrl
 export const RECORD_CATEGORIES = [
   "forgotten",
   "damage",
+  "incident",
   "cleaning_audit",
   "maintenance",
   "other",
@@ -75,7 +76,13 @@ const TASK_RULES: Record<
     taskCategory: "inspection",
     priority: "high",
     showInCleaning: false,
-    prefix: "Dano/incidente",
+    prefix: "Dano",
+  },
+  incident: {
+    taskCategory: "inspection",
+    priority: "high",
+    showInCleaning: false,
+    prefix: "Incidente",
   },
   maintenance: {
     taskCategory: "maintenance",
@@ -1274,7 +1281,7 @@ export type AccountRecordsResult = {
 };
 
 function emptyCounts(): Record<RecordCategory, number> {
-  return { forgotten: 0, damage: 0, cleaning_audit: 0, maintenance: 0, other: 0 };
+  return { forgotten: 0, damage: 0, incident: 0, cleaning_audit: 0, maintenance: 0, other: 0 };
 }
 
 export const listAccountRecords = createServerFn({ method: "GET" })
