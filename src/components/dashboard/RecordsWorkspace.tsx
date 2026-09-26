@@ -1344,7 +1344,7 @@ function RecordTextEditor({
     <div className="space-y-2.5">
       <DictationField
         label="Título"
-        required={requiresTitle}
+        required
         value={title}
         onChange={setTitle}
         placeholder="Em poucas palavras, o que houve"

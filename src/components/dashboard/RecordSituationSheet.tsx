@@ -133,12 +133,10 @@ export function DictationField({
   return (
     <div>
       <div className="mb-1.5 flex items-center gap-1.5">
-        <span className="ds-eyebrow text-muted-foreground">{label}</span>
-        {required && (
-          <span className="text-[9px] font-bold uppercase tracking-wide text-rose-500">
-            obrigatório
-          </span>
-        )}
+        <span className="ds-eyebrow text-muted-foreground">
+          {label}
+          {required && <RequiredMark />}
+        </span>
         {maxLength && (
           <span className="ml-auto text-[9.5px] font-semibold tabular-nums text-muted-foreground">
             {value.length}/{maxLength}
