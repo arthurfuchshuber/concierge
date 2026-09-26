@@ -880,7 +880,7 @@ function Dashboard() {
                     }
                     className="mb-1"
                   />
-                  <div className={`ds-five-cap grid gap-3 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
+                  <div className={`ds-five-cap grid gap-3 ${view === "grid" ? "sm:grid-cols-2" : ""}`} style={{ marginLeft: -2, marginRight: -13 }}>
                     {g.items.map((p) => {
                       const c = guideCompleteness(p as any);
                       return (
