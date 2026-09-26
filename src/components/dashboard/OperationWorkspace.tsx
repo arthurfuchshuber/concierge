@@ -10955,6 +10955,14 @@ function PredictedEditor({
       <PopoverTrigger asChild disabled={disabled}>
         {trigger}
       </PopoverTrigger>
+      {/* CALENDÁRIO/HORÁRIOS SEMPRE INTEIROS (pedido explícito, 26/09/2026):
+          ancorados no topo da tela, e não no botão do card — perto do botão
+          não sobra altura nem em cima nem embaixo e o calendário era cortado. */}
+      {open && view !== "summary" && (
+        <PopoverAnchor asChild>
+          <span aria-hidden className="pointer-events-none fixed left-1/2 top-3 size-0" />
+        </PopoverAnchor>
+      )}
 
       {/*
        * CASCA "GRAFITE QUENTE" (mockup "Quadrantes v2" aprovado, 23/09/2026):
