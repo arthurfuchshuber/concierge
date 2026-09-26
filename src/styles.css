@@ -504,7 +504,7 @@
 @supports not selector(::-webkit-scrollbar) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: oklch(0.58 0.2 300) transparent;
+    scrollbar-color: color-mix(in oklab, oklch(0.58 0.2 300) 35%, transparent) transparent;
   }
 }
 ::-webkit-scrollbar {
@@ -516,12 +516,21 @@
   margin: 14px;
 }
 ::-webkit-scrollbar-thumb {
-  /* Lilás da marca em tom forte (pedido 26/09/2026). */
-  background: oklch(0.58 0.2 300);
+  /* Lilás da marca, translúcido/sutil (pedido 26/09/2026). */
+  background: color-mix(in oklab, oklch(0.58 0.2 300) 35%, transparent);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.5 0.22 300);
+  background: color-mix(in oklab, oklch(0.58 0.2 300) 60%, transparent);
+}
+/* Página do sistema sem barra de rolagem — só dentro dos quadrantes. */
+html,
+body {
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
@@ -1498,4 +1507,8 @@ dd {
   max-height: min(calc(5 * 132px + 4 * 10px), 70dvh);
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* ANTI-CORTE: folga reservada à barra de rolagem; cartões encolhem. */
+  scrollbar-gutter: stable;
+  padding: 2px 10px 2px 2px;
+  margin-right: -4px;
 }
