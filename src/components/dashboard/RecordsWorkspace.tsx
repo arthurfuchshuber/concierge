@@ -605,7 +605,7 @@ export function RecordsWorkspace() {
             />
             <PendenciasButton ownerId={activeOwnerId} enabled variant="card" />
           </div>
-          <div className="ds-card-grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="ds-card-grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
             {CARDS.map((c) => (
               <StatCard
                 key={c.key}
