@@ -1492,3 +1492,10 @@ dd {
   font-size: 13px;
   font-weight: 600;
 }
+
+/* No máximo 5 cartões visíveis por quadrante; o resto rola dentro dele. */
+@utility ds-five-cap {
+  max-height: min(calc(5 * 132px + 4 * 10px), 70dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

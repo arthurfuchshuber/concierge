@@ -256,7 +256,6 @@ const CARD_ORDER: readonly RecordCategory[] = ["maintenance", "damage", "inciden
 const CARDS = CARD_ORDER.map((k) => CATEGORY_BY_KEY.get(k)!).filter(Boolean);
 
 /** Quantas pendências o cartão do imóvel lista antes de colapsar em "+N". */
-const PENDING_ROWS = 3;
 
 /**
  * O QUE SOBE PARA "A RESOLVER" (pedido explícito, 10/09/2026): DANO e
