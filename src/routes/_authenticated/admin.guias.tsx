@@ -95,6 +95,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useState, useMemo, useEffect } from "react";
+import { PageShell } from "@/components/ds/PageShell";
+import { StatCard } from "@/components/ds/StatCard";
+import { GuideCard } from "@/components/guias/GuideCard";
+import {
+  ACTION_BUTTON_TONE,
+  ACTION_ICON,
+  ACTION_SEGMENT,
+  CountPill,
+  PANEL_SHELL,
+  PanelHeading,
+  SectionLabel,
+} from "@/components/dashboard/panel-chrome";
 type StatusFilter = "all" | "published" | "draft";
 type AccessFilter = "all" | "public" | "pin";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -196,7 +208,8 @@ function Dashboard() {
   const canCreate = createAccess.loading ? false : createAccess.allowed;
   const NO_PERMISSION_MSG = "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
 
-  const [view, setView] = useState<"grid" | "list" | "split">("grid");
+  const [view, setView] = useState<"grid" | "list" | "split">("list");
+  const [statCard, setStatCard] = useState<"published" | "draft" | "incomplete" | null>(null);
   const [statCardsOpen, setStatCardsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [viewSlug, setViewSlug] = useState<string | null>(null);
@@ -216,7 +229,7 @@ function Dashboard() {
     if (v === "grid" || v === "list" || v === "split") setView(v);
   }, []);
   function cycleView() {
-    const next = view === "grid" ? "split" : view === "split" ? "list" : "grid";
+    const next = view === "list" ? "split" : view === "split" ? "grid" : "list";
     setView(next);
     window.localStorage.setItem("guias-view", next);
   }
@@ -410,6 +423,9 @@ function Dashboard() {
       if (statusFilter === "published" && !p.published) return false;
       if (statusFilter === "draft" && p.published) return false;
       if (accessFilter !== "all" && p.access_mode !== accessFilter) return false;
+      if (statCard === "published" && !p.published) return false;
+      if (statCard === "draft" && p.published) return false;
+      if (statCard === "incomplete" && guideCompleteness(p as any).score >= 90) return false;
       const own = (p as { ownerName?: string | null }).ownerName ?? "";
       if (ownerFilters.length > 0 && !ownerFilters.includes(own)) return false;
       if (cityFilters.length > 0 && !cityFilters.includes(p.city ?? "")) return false;
@@ -432,7 +448,19 @@ function Dashboard() {
         cmp(txt((a as { ownerName?: string | null }).ownerName), txt((b as { ownerName?: string | null }).ownerName))
       );
     });
-  }, [guideRows, search, statusFilter, accessFilter, ownerFilters, cityFilters]);
+  }, [guideRows, search, statusFilter, accessFilter, ownerFilters, cityFilters, statCard]);
+  const STAT_CARDS = [
+    { key: "published" as const, label: "Publicados", icon: Globe },
+    { key: "draft" as const, label: "Rascunhos", icon: PenSquare },
+    { key: "incomplete" as const, label: "Incompletos", icon: AlertTriangle },
+  ];
+  const statCounts = {
+    published: guideRows.filter((p) => p.published).length,
+    draft: guideRows.filter((p) => !p.published).length,
+    incomplete: guideRows.filter((p) => guideCompleteness(p as any).score < 90).length,
+  };
+  const attentionList = filtered.filter((p) => !p.published || guideCompleteness(p as any).score < 90);
+  const readyList = filtered.filter((p) => p.published && guideCompleteness(p as any).score >= 90);
 
   // Trava: nenhum guia pode ser criado sem um proprietário cadastrado em
   // Stakeholders → Proprietários (fonte da verdade das propriedades).
@@ -467,7 +495,23 @@ function Dashboard() {
     setAccessFilter("all");
     setOwnerFilters([]);
     setCityFilters([]);
+    setStatCard(null);
   }
+  const pageTitle = readOnly
+    ? `Painel de ${impersonation?.name ?? ""}`
+    : statCard === "published" || statusFilter === "published"
+      ? "Guias Publicados"
+      : statCard === "draft" || statusFilter === "draft"
+        ? "Guias em Rascunho"
+        : statCard === "incomplete"
+          ? "Guias Incompletos"
+          : "Guias Todos";
+  const pageSubtitle =
+    guideRows.length === 0
+      ? "Guias digitais dos seus imóveis."
+      : filtered.length !== guideRows.length
+        ? `${filtered.length} de ${guideRows.length} guias no filtro atual.`
+        : `${guideRows.length} guias de imóveis · ${statCounts.published} publicados.`;
   const ownerOptions = useMemo(
     () =>
       Array.from(new Set(guideRows.map((p) => (p as { ownerName?: string | null }).ownerName ?? "").filter(Boolean))).sort(
@@ -485,7 +529,7 @@ function Dashboard() {
   const accessLabel = accessFilter === "public" ? "Público" : accessFilter === "pin" ? "PIN" : "Todos";
 
   return (
-    <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
+    <div className="ds-blocks w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
       {readOnly && (
         <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
           <Eye className="size-3.5 text-accent shrink-0" />
