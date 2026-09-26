@@ -57,7 +57,6 @@ import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { PendenciasButton } from "@/components/dashboard/pendencias";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { StatCard } from "@/components/ds/StatCard";
-import { DailyBarChartCard, DAY_TD, DAY_TH } from "@/components/ds/DailyBarChartCard";
 import { trimSeries } from "@/lib/trim-series";
 
 /** Data (AAAA-MM-DD) no fuso de São Paulo. */
@@ -601,7 +600,6 @@ export function RecordsWorkspace() {
                 setCategory(null);
                 setOnlyOpen(false);
               }}
-              note={(q.data?.totalOpen ?? 0) > 0 ? `${q.data?.totalOpen} em aberto` : null}
             />
             <PendenciasButton ownerId={activeOwnerId} enabled variant="card" />
           </div>
@@ -609,7 +607,6 @@ export function RecordsWorkspace() {
             {CARDS.map((c) => (
               <StatCard
                 key={c.key}
-                size="sm"
                 label={c.short}
                 value={counts?.[c.key] ?? 0}
                 icon={c.icon}
@@ -620,47 +617,6 @@ export function RecordsWorkspace() {
               />
             ))}
           </div>
-          <DailyBarChartCard
-            title="Registros por dia"
-            data={dailySeries}
-            loading={q.isLoading}
-            unitLabel="Registros"
-            renderDetail={(date) => {
-              const rows = records.filter((r) => spDate(r.createdAt) === date);
-              return {
-                subtitle: `${rows.length} ${rows.length === 1 ? "registro" : "registros"}`,
-                body: (
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr>
-                        <th className={`${DAY_TH} text-left`}>Imóvel</th>
-                        <th className={`${DAY_TH} text-left`}>Categoria</th>
-                        <th className={`${DAY_TH} text-right`}>Situação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((r) => (
-                        <tr key={r.id} className="cursor-pointer" onClick={() => setOpened(r)}>
-                          <td className={`${DAY_TD} pr-2`}>
-                            <span className="block font-bold">{r.propertyName}</span>
-                            <span className="block text-[10.5px] text-muted-foreground">{recordTitle(r)}</span>
-                          </td>
-                          <td className={`${DAY_TD} pr-2`}>
-                            <span className="font-bold" style={{ color: CARD_ICON_TONE[r.category] }}>
-                              {CATEGORY_BY_KEY.get(r.category)?.short ?? "—"}
-                            </span>
-                          </td>
-                          <td className={`${DAY_TD} text-right font-bold`}>
-                            {r.taskTitle ? "Pendência" : "Registrado"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ),
-              };
-            }}
-          />
         </div>
 
         {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
