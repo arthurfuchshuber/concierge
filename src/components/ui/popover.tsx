@@ -28,11 +28,11 @@ const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
 >(({ className, align = "center", sideOffset = 4, collisionPadding = OVERLAY_COLLISION_PADDING, ...props }, ref) => {
-  const layerRef = useOverlayLayer("float");
+  const [layerRef, layerNodeRef] = useOverlayLayer("float", ref);
   return (
   <PopoverPrimitive.Portal>
     <PopoverPrimitive.Content
-      ref={ref}
+      ref={layerNodeRef}
       align={align}
       sideOffset={sideOffset}
       // Espaçamento mínimo da borda da tela (pedido explícito): nenhum

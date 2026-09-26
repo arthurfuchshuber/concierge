@@ -59,11 +59,11 @@ const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
 >(({ side = "right", className, children, ...props }, ref) => {
-  const layerRef = useOverlayLayer("window");
+  const [layerRef, layerNodeRef] = useOverlayLayer("window", ref);
   return (
   <SheetPortal>
     <SheetOverlay />
-    <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}
+    <SheetPrimitive.Content ref={layerNodeRef} className={cn(sheetVariants({ side }), className)} {...props}
       onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
       onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
     >

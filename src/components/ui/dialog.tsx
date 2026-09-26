@@ -34,12 +34,12 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => {
-  const layerRef = useOverlayLayer("window");
+  const [layerRef, layerNodeRef] = useOverlayLayer("window", ref);
   return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
-      ref={ref}
+      ref={layerNodeRef}
       className={cn(
         // Teto de ~75% da altura da tela (pedido explícito, 24/09/2026),
         // ainda descontando o teclado (`--kb-inset`) e a margem de 3rem —

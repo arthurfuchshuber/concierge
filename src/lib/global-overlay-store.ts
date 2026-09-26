@@ -24,7 +24,6 @@ function emit() {
 export function pushGlobalOverlay(kind: Kind = "float"): { id: number; release: () => void } {
   const id = ++seq;
   stack = [...stack, { id, kind }];
-  if (typeof window !== "undefined") (window as unknown as { __ovl?: unknown }).__ovl = { stack, trace: new Error().stack };
   emit();
   let released = false;
   return {
@@ -43,18 +42,38 @@ export function isTopOverlay(id: number | null): boolean {
   return stack.length === 0 || stack[stack.length - 1].id === id;
 }
 
-/** Registra a camada enquanto o componente estiver montado. */
-export function useOverlayLayer(kind: Kind): React.MutableRefObject<number | null> {
+/**
+ * Registra a camada enquanto o NÓ estiver de fato no DOM (ref de callback,
+ * não efeito: árvores ocultas/pré-carregadas reconectam efeitos sem que a
+ * janela esteja visível — isso deixava o véu preso na tela).
+ * Devolve [idRef, ref] — combine `ref` com o ref encaminhado do componente.
+ */
+export function useOverlayLayer<T extends Element>(
+  kind: Kind,
+  forwarded?: React.ForwardedRef<T>,
+): [React.MutableRefObject<number | null>, (node: T | null) => void] {
   const idRef = React.useRef<number | null>(null);
-  React.useEffect(() => {
-    const layer = pushGlobalOverlay(kind);
-    idRef.current = layer.id;
-    return () => {
-      layer.release();
+  const releaseRef = React.useRef<(() => void) | null>(null);
+  const fwd = React.useRef(forwarded);
+  fwd.current = forwarded;
+  const ref = React.useCallback(
+    (node: T | null) => {
+      releaseRef.current?.();
+      releaseRef.current = null;
       idRef.current = null;
-    };
-  }, [kind]);
-  return idRef;
+      if (node) {
+        const layer = pushGlobalOverlay(kind);
+        idRef.current = layer.id;
+        releaseRef.current = layer.release;
+      }
+      const f = fwd.current;
+      if (typeof f === "function") f(node);
+      else if (f) f.current = node;
+    },
+    [kind],
+  );
+  React.useEffect(() => () => releaseRef.current?.(), []);
+  return [idRef, ref];
 }
 
 function subscribe(listener: Listener) {

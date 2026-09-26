@@ -70,11 +70,11 @@ const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
 >(({ className, sideOffset = 4, collisionPadding = OVERLAY_COLLISION_PADDING, ...props }, ref) => {
-  const layerRef = useOverlayLayer("float");
+  const [layerRef, layerNodeRef] = useOverlayLayer("float", ref);
   return (
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.Content
-      ref={ref}
+      ref={layerNodeRef}
       sideOffset={sideOffset}
       // Mesma regra dos outros popovers/tooltips do sistema: nunca "colado"
       // ou cortado pela borda da tela — o Radix empurra o menu pra dentro
