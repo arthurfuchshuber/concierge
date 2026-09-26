@@ -1,3 +1,4 @@
+import { trimSeries } from "@/lib/trim-series";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
@@ -2124,14 +2125,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    * pedido. Só vale com período personalizado: as janelas fixas de 7 dias já
    * são curtas o bastante para não precisar de corte.
    */
-  const cleaningChartDaily = useMemo(() => {
-    const daily = cleaningScreen.daily;
-    if (!cleaningPeriodView || !daily || daily.length <= 1) return daily;
-    let lastIdx = -1;
-    for (let i = 0; i < daily.length; i += 1) if (daily[i].count > 0) lastIdx = i;
-    if (lastIdx < 0) return daily.slice(0, 1);
-    return daily.slice(0, lastIdx + 1);
-  }, [cleaningScreen.daily, cleaningPeriodView]);
+  // Regra global: do primeiro ao último dia com dado dentro do período.
+  const cleaningChartDaily = useMemo(
+    () =>
+      cleaningScreen.daily
+        ? trimSeries(cleaningScreen.daily, (d) => d.count > 0 || (d.totalCents ?? 0) > 0)
+        : cleaningScreen.daily,
+    [cleaningScreen.daily],
+  );
 
   // ---------------------------------------------------------------------
   // Tarefas/Pendências — botão "PENDÊNCIAS" (Kanban, ao lado de "Filtros")
