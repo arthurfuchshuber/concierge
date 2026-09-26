@@ -241,7 +241,7 @@ function Dashboard() {
   const canCreate = createAccess.loading ? false : createAccess.allowed;
   const NO_PERMISSION_MSG = "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
 
-  const [view, setView] = useState<"list" | "split">("list");
+  const [view, setView] = useState<"split" | "grid">("split");
   const [statCard, setStatCard] = useState<"published" | "draft" | "incomplete" | null>(null);
   const [statCardsOpen, setStatCardsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -260,10 +260,10 @@ function Dashboard() {
   const [filterScreen, setFilterScreen] = useState<"root" | "status" | "access" | "owner" | "city">("root");
   useEffect(() => {
     const v = window.localStorage.getItem("guias-view");
-    if (v === "list" || v === "split") setView(v);
+    if (v === "split" || v === "grid") setView(v);
   }, []);
   function cycleView() {
-    const next = view === "list" ? "split" : "list";
+    const next = view === "split" ? "grid" : "split";
     setView(next);
     window.localStorage.setItem("guias-view", next);
   }
@@ -664,12 +664,12 @@ function Dashboard() {
           <button
             type="button"
             onClick={cycleView}
-            aria-label={view === "list" ? "Ver lado a lado" : "Ver em lista"}
-            title={view === "list" ? "Ver lado a lado" : "Ver em lista"}
+            aria-label={view === "split" ? "Ver em grade" : "Ver lado a lado"}
+            title={view === "split" ? "Ver em grade" : "Ver lado a lado"}
             className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
           >
-            {view === "list" ? <List className={ACTION_ICON} /> : <Columns2 className={ACTION_ICON} />}
-            <span className="lg:hidden">{view === "list" ? "Lista" : "Lado a lado"}</span>
+            {view === "split" ? <Columns2 className={ACTION_ICON} /> : <LayoutGrid className={ACTION_ICON} />}
+            <span className="lg:hidden">{view === "split" ? "Lado a lado" : "Grade"}</span>
           </button>
           {!readOnly && canCreate && (
             <button
@@ -869,36 +869,37 @@ function Dashboard() {
                   <PanelHeading
                     title={g.title}
                     dot={
+                      <span className="flex shrink-0 items-center gap-2.5">
+                      {!readOnly && (
+                        <Checkbox
+                          className="ml-2 !size-3 !rounded-[3px]"
+                          aria-label={`Selecionar todos em ${g.title}`}
+                          checked={g.items.every((p) => selected.has(p.id)) ? true : g.items.some((p) => selected.has(p.id)) ? "indeterminate" : false}
+                          onCheckedChange={(v) =>
+                            setSelected((cur) => {
+                              const n = new Set(cur);
+                              g.items.forEach((p) => (v ? n.add(p.id) : n.delete(p.id)));
+                              return n;
+                            })
+                          }
+                        />
+                      )}
                       <span
                         className="grid size-[22px] shrink-0 place-items-center rounded-md"
                         style={{ background: `color-mix(in oklab, ${g.color} 12%, transparent)`, color: g.color }}
                       >
                         <g.Icon className="size-[13px]" strokeWidth={2.2} />
                       </span>
+                      </span>
                     }
                     right={
-                      <span className="flex shrink-0 items-center gap-2">
-                        <CountPill>
-                          {g.items.length} {g.items.length === 1 ? "guia" : "guias"}
-                        </CountPill>
-                        {!readOnly && (
-                          <Checkbox
-                            aria-label={`Selecionar todos em ${g.title}`}
-                            checked={g.items.every((p) => selected.has(p.id)) ? true : g.items.some((p) => selected.has(p.id)) ? "indeterminate" : false}
-                            onCheckedChange={(v) =>
-                              setSelected((cur) => {
-                                const n = new Set(cur);
-                                g.items.forEach((p) => (v ? n.add(p.id) : n.delete(p.id)));
-                                return n;
-                              })
-                            }
-                          />
-                        )}
-                      </span>
+                      <CountPill>
+                        {g.items.length} {g.items.length === 1 ? "guia" : "guias"}
+                      </CountPill>
                     }
                     className="mb-1 px-1.5"
                   />
-                  <div className={`ds-five-cap grid gap-1.5`}>
+                  <div className={`ds-five-cap grid gap-1.5 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
                     {g.items.map((p) => {
                       const c = guideCompleteness(p as any);
                       return (

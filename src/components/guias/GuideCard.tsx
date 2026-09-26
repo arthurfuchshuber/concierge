@@ -6,7 +6,7 @@ import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { ownerLabel } from "@/components/dashboard/card-colors";
 
-export type GuideCardVariant = "list" | "split";
+export type GuideCardVariant = "split" | "grid";
 
 export type GuideCardData = {
   id: string;
@@ -84,17 +84,14 @@ export function GuideCard({
       ) : (
         <div className="absolute inset-0 grid place-items-center text-[10px] text-muted-foreground">Sem foto</div>
       )}
-      {withLabel && <div className="absolute left-1.5 top-1.5">{access}</div>}
+      <div className="absolute bottom-1.5 left-1.5">{access}</div>
       <div className="absolute right-1 top-1">{pub(withLabel)}</div>
     </div>
   );
   const place = [p.city, p.country].filter(Boolean).join(", ");
   const info = (
     <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
-      <div className="relative min-w-0 pr-6">
-        {onSelectChange && (
-          <Checkbox className="absolute right-0 top-0" checked={!!selected} onCheckedChange={(v) => onSelectChange(!!v)} aria-label="Selecionar guia" />
-        )}
+      <div className="min-w-0">
         {p.ownerName && (
           <div className="flex min-w-0 items-center gap-1">
             <span className="min-w-0 truncate text-[10.5px] text-muted-foreground" title={p.ownerName}>
@@ -118,21 +115,25 @@ export function GuideCard({
     </div>
   );
 
-  if (variant === "split") {
+  const check = onSelectChange ? (
+    <span className="absolute left-2 top-2 z-10 grid place-items-center rounded-[4px] bg-background/75 p-[3px] backdrop-blur" onClick={(e) => e.stopPropagation()}>
+      <Checkbox className="!size-3 !rounded-[3px]" checked={!!selected} onCheckedChange={(v) => onSelectChange(!!v)} aria-label="Selecionar guia" />
+    </span>
+  ) : null;
+  if (variant === "grid") {
     return (
-      <div className={`${PANEL_SHELL} flex min-h-[132px] min-w-0`}>
-        {photo("w-[40%]", true)}
-        <div className="flex min-w-0 flex-1 p-3">{info}</div>
+      <div className={`${PANEL_SHELL} relative flex min-w-0 flex-col`}>
+        {check}
+        {photo("aspect-[16/9] w-full", true)}
+        <div className="flex min-w-0 p-3">{info}</div>
       </div>
     );
   }
   return (
-    <div className={`${PANEL_SHELL} flex min-w-0 items-stretch gap-3 p-2.5`}>
-      {photo("w-[76px] min-h-[76px] rounded-[10px]", false)}
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="flex min-w-0 items-center gap-1">{access}</div>
-        {info}
-      </div>
+    <div className={`${PANEL_SHELL} relative flex min-h-[132px] min-w-0`}>
+      {check}
+      {photo("w-[40%]", true)}
+      <div className="flex min-w-0 flex-1 p-3">{info}</div>
     </div>
   );
 }
