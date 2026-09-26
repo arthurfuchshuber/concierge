@@ -1,38 +1,59 @@
 import * as React from "react";
 
 /**
- * FUNDO COM DESFOQUE GLOBAL (pedido explícito, 24/09/2026: "que tal
- * colocarmos um fundo com um desfoque de leve destaque... para toda vez que
- * abrirmos um tooltip/popover/janela/filtro", ajustado depois para 10% de
- * escurecimento — mockup aprovado "Fundo com desfoque").
+ * PILHA ÚNICA DE JANELAS ABERTAS (pedidos de 24 e 26/09/2026).
  *
- * Central mínima (sem Context/Provider) que qualquer Popover/DropdownMenu do
- * sistema avisa quando abre e fecha. `GlobalOverlayScrim` (montado uma única
- * vez no `__root`) lê esse estado e desenha o véu escurecido + desfocado por
- * cima do resto do app enquanto `openCount > 0`. Um contador (não um
- * booleano) porque mais de um pode estar aberto ao mesmo tempo (ex.: um
- * DropdownMenu com um Popover dentro) — o véu só some quando o ÚLTIMO fecha.
+ * Todo Popover/DropdownMenu ("float") e toda Dialog/Sheet/Drawer ("window")
+ * se registra aqui ao montar o conteúdo e sai ao desmontar. Dois usos:
+ *  1. `GlobalOverlayScrim` desenha o véu enquanto houver algum "float".
+ *  2. "CLICAR FORA SÓ FECHA A JANELA DO TOPO": só a última aberta reage ao
+ *     clique fora; as de baixo ignoram — a tela recua exatamente uma janela,
+ *     na ordem em que foram abertas, seja qual for o tipo.
  */
 
+type Kind = "float" | "window";
 type Listener = () => void;
 const listeners = new Set<Listener>();
-let openCount = 0;
+let stack: { id: number; kind: Kind }[] = [];
+let seq = 0;
 
 function emit() {
   listeners.forEach((l) => l());
 }
 
-/** Chame ao abrir; guarde e chame a função devolvida ao fechar. */
-export function pushGlobalOverlay(): () => void {
-  openCount += 1;
+export function pushGlobalOverlay(kind: Kind = "float"): { id: number; release: () => void } {
+  const id = ++seq;
+  stack = [...stack, { id, kind }];
   emit();
   let released = false;
-  return () => {
-    if (released) return;
-    released = true;
-    openCount = Math.max(0, openCount - 1);
-    emit();
+  return {
+    id,
+    release: () => {
+      if (released) return;
+      released = true;
+      stack = stack.filter((l) => l.id !== id);
+      emit();
+    },
   };
+}
+
+export function isTopOverlay(id: number | null): boolean {
+  if (id == null) return true;
+  return stack.length === 0 || stack[stack.length - 1].id === id;
+}
+
+/** Registra a camada enquanto o componente estiver montado. */
+export function useOverlayLayer(kind: Kind): React.MutableRefObject<number | null> {
+  const idRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    const layer = pushGlobalOverlay(kind);
+    idRef.current = layer.id;
+    return () => {
+      layer.release();
+      idRef.current = null;
+    };
+  }, [kind]);
+  return idRef;
 }
 
 function subscribe(listener: Listener) {
@@ -42,34 +63,21 @@ function subscribe(listener: Listener) {
   };
 }
 
-function getSnapshot() {
-  return openCount > 0;
-}
-
-function getServerSnapshot() {
-  return false;
-}
+const getSnapshot = () => stack.some((l) => l.kind === "float");
+const getServerSnapshot = () => false;
 
 /** true enquanto qualquer Popover/DropdownMenu do app estiver aberto. */
 export function useGlobalOverlayOpen(): boolean {
   return React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
-/**
- * "CLICAR FORA SÓ FECHA A ÚLTIMA JANELA" (pedido explícito, 26/09/2026):
- * um clique no véu ou dentro de um popover/menu/tooltip aberto por cima de
- * um Dialog/Sheet/Drawer não pode fechar essa janela de baixo — só a de
- * cima fecha, e a tela volta para a janela onde o clique aconteceu.
- */
-export function guardNestedOutside<E extends { target: EventTarget | null; preventDefault: () => void }>(
+/** Bloqueia o "clique fora" de uma camada que não é a do topo. */
+export function guardNestedOutside<E extends { preventDefault: () => void }>(
+  idRef: React.MutableRefObject<number | null>,
   handler?: (e: E) => void,
 ) {
   return (e: E) => {
-    const t = e.target as Element | null;
-    const nested =
-      openCount > 0 ||
-      !!t?.closest?.("[data-global-scrim],[data-radix-popper-content-wrapper]");
-    if (nested) {
+    if (!isTopOverlay(idRef.current)) {
       e.preventDefault();
       return;
     }
