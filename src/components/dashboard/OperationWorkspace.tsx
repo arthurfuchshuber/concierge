@@ -8205,7 +8205,7 @@ function OccupancyPanel({
                     <thead>
                       <tr>
                         <th
-                          className="sticky left-0 top-0 z-20 relative bg-[color-mix(in_oklab,var(--foreground)_3%,var(--card))] pb-2 pr-3 text-left"
+                          className="sticky left-0 top-0 z-20 relative bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] pb-2 pr-3 text-left"
                           style={{ width: nameColW, minWidth: nameColW }}
                         >
                           <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
@@ -8269,7 +8269,7 @@ function OccupancyPanel({
                             <th
                               key={d}
                               style={{ width: dayW, minWidth: dayW }}
-                              className="sticky top-0 z-20 relative snap-start bg-[color-mix(in_oklab,var(--foreground)_3%,var(--card))] px-0 pb-2 font-medium tabular-nums"
+                              className="sticky top-0 z-20 relative snap-start bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-2 font-medium tabular-nums"
                             >
                               {i < dayList.length - 1 && (
                                 <span
@@ -8342,7 +8342,7 @@ function OccupancyPanel({
                         return (
                           <tr key={p.id} data-whole-card className="group">
                             <td
-                              className={`sticky left-0 z-10 relative bg-[color-mix(in_oklab,var(--foreground)_2%,var(--card))] py-1 pr-3 align-middle ${rowDivider}`}
+                              className={`sticky left-0 z-10 relative bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] py-1 pr-3 align-middle ${rowDivider}`}
                               style={{ width: nameColW, minWidth: nameColW }}
                             >
                               <span
