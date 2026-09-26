@@ -1055,7 +1055,11 @@ function PropertyCard({
                         icon={Building2}
                         eyebrow="Pendências do imóvel"
                         title={first?.propertyName ?? group.label}
-                        subtitle={first?.ownerName ? ownerLabel(first.ownerName) : group.sublabel}
+                        owner={
+                          first?.ownerName
+                            ? { name: first.ownerName, phone: first.ownerPhone, country: first.ownerPhoneCountry }
+                            : null
+                        }
                         chips={
                           <>
                             <OverlayChip dot="bg-[var(--falta,#e0707a)]">
@@ -1919,9 +1923,12 @@ function ResolveDialog({
                 icon={ListChecks}
                 eyebrow="Resolver pendência"
                 title={hasTitle(record) ? recordTitle(record) : (record.fileName ?? UNTITLED)}
-                subtitle={[record.propertyName, record.ownerName ? ownerLabel(record.ownerName) : null]
-                  .filter(Boolean)
-                  .join(" · ")}
+                subtitle={record.propertyName}
+                owner={
+                  record.ownerName
+                    ? { name: record.ownerName, phone: record.ownerPhone, country: record.ownerPhoneCountry }
+                    : null
+                }
                 chips={
                   <>
                     <OverlayChip dot={meta?.dot}>{meta?.short ?? "Registro"}</OverlayChip>

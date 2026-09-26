@@ -2,6 +2,8 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { FilterIconBadge } from "@/components/dashboard/filter-panel";
 import { cn } from "@/lib/utils";
+import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { ownerLabel } from "@/components/dashboard/card-colors";
 
 /**
  * CABEÇALHO PADRÃO DE JANELAS (26/09/2026): selo de ícone, título, subtítulo
@@ -15,8 +17,10 @@ export function OverlayHeader({
   title,
   subtitle,
   chips,
+  owner,
   className,
 }: {
+  owner?: { name: string | null; phone?: string | null; country?: string | null } | null;
   icon?: LucideIcon;
   eyebrow?: ReactNode;
   title: ReactNode;
@@ -33,9 +37,22 @@ export function OverlayHeader({
             {eyebrow}
           </span>
         )}
-        <span className="block break-words text-[14px] font-semibold leading-snug text-foreground">{title}</span>
+        <span
+          className="block truncate text-[14px] font-semibold leading-snug text-foreground"
+          title={typeof title === "string" ? title : undefined}
+        >
+          {title}
+        </span>
         {subtitle && (
           <span className="mt-0.5 block break-words text-[11px] leading-snug text-muted-foreground">{subtitle}</span>
+        )}
+        {owner?.name && (
+          <div className="mt-0.5 flex min-w-0 items-center gap-0.5">
+            <span className="min-w-0 truncate text-[11px] leading-snug text-muted-foreground" title={owner.name}>
+              {ownerLabel(owner.name)}
+            </span>
+            <PhoneActionButton phone={owner.phone} country={owner.country} size={12} alwaysShow className="-my-1" />
+          </div>
         )}
         {chips && <div className="mt-2 flex flex-wrap gap-1">{chips}</div>}
       </div>

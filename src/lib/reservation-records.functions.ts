@@ -1231,6 +1231,8 @@ export type AccountRecord = ReservationRecord & {
   propertyId: string;
   propertyName: string;
   ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
   /** Comprovação de resolução anexada a uma pendência. */
   isResolution: boolean;
   /** Título da pendência gerada, quando houver. */
@@ -1524,18 +1526,22 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       ),
     );
     const ownerNameById = new Map<string, string>();
+    const ownerPhoneById = new Map<string, { phone: string | null; country: string | null }>();
     if (ownerIds.length > 0) {
       const { data: owners } = await supabase
         .from("property_owners")
-        .select("id, name, trade_name")
+        .select("id, name, trade_name, phone, phone_country")
         .in("id", ownerIds);
       for (const o of (owners ?? []) as Array<{
         id: string;
         name: string | null;
         trade_name: string | null;
+        phone: string | null;
+        phone_country: string | null;
       }>) {
         const label = (o.trade_name || o.name || "").trim();
         if (label) ownerNameById.set(o.id, label);
+        ownerPhoneById.set(o.id, { phone: o.phone ?? null, country: o.phone_country ?? null });
       }
     }
 
@@ -1602,6 +1608,8 @@ export const listAccountRecords = createServerFn({ method: "GET" })
         propertyId: r.property_id,
         propertyName: prop?.name ?? "Sem nome",
         ownerName: prop?.ownerContactId ? (ownerNameById.get(prop.ownerContactId) ?? null) : null,
+        ownerPhone: prop?.ownerContactId ? (ownerPhoneById.get(prop.ownerContactId)?.phone ?? null) : null,
+        ownerPhoneCountry: prop?.ownerContactId ? (ownerPhoneById.get(prop.ownerContactId)?.country ?? null) : null,
         isResolution: r.is_resolution,
         taskTitle: task?.title ?? null,
         reservationKey,

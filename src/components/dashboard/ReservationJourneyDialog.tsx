@@ -132,7 +132,7 @@ export function ReservationJourneyDialog({
               {/* Cabeçalho de identidade — mesmas cores do card de origem. */}
               <div className="ds-surface ds-card-lines border border-border/60 bg-secondary/30 px-3 py-2.5">
                 {data.ownerName && (
-                  <div className={`truncate text-xs ${CARD_OWNER}`}>{ownerLabel(data.ownerName)}</div>
+                  <div className="truncate text-xs text-muted-foreground">{ownerLabel(data.ownerName)}</div>
                 )}
                 <div className="ds-card-title truncate">{data.propertyName ?? "Sem nome"}</div>
                 {periodo && (

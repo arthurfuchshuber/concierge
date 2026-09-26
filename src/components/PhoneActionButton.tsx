@@ -17,14 +17,27 @@ type Props = {
   size?: number;
   /** exibe o número por extenso ao lado do ícone (fichas/detalhes) */
   showNumber?: boolean;
+  /** sem telefone: mostra o ícone apagado em vez de sumir */
+  alwaysShow?: boolean;
 };
 
 /**
  * Botão único e padronizado para telefones em todo o app: ícone verde de
  * mensagem que abre as opções "WhatsApp" e "Copiar". Nunca exibe o número.
  */
-export function PhoneActionButton({ phone, country, className, size = 14, showNumber = false }: Props) {
-  if (!phone) return null;
+export function PhoneActionButton({ phone, country, className, size = 14, showNumber = false, alwaysShow = false }: Props) {
+  if (!phone) {
+    if (!alwaysShow) return null;
+    return (
+      <span
+        title="Sem telefone cadastrado"
+        aria-label="Sem telefone cadastrado"
+        className={cn("inline-flex shrink-0 items-center justify-center p-1.5 text-muted-foreground/40", className)}
+      >
+        <MessageCircle style={{ width: size, height: size }} />
+      </span>
+    );
+  }
   const waNumber = toWhatsappNumber(phone, country);
   const label = formatIntlPhone(phone, country) || phone;
 
