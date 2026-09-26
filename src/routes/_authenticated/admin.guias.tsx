@@ -543,7 +543,7 @@ function Dashboard() {
         ? "Guias em Rascunho"
         : statCard === "incomplete"
           ? "Guias Incompletos"
-          : "Guias Todos";
+          : "Todos os Guias";
   const pageSubtitle =
     guideRows.length === 0
       ? "Guias digitais dos seus imóveis."
@@ -625,6 +625,7 @@ function Dashboard() {
         ))}
       </div>
 
+      <div className="flex flex-col gap-2">
       <div className={ACTION_BAR}>
           {selected.size > 0 && (
             <DropdownMenu>
@@ -767,7 +768,7 @@ function Dashboard() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por título, proprietário, cidade…"
-          className={`${PANEL_SHELL} h-10 w-full pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none`}
+          className={`${PANEL_SHELL} h-[var(--ds-action-h)] lg:h-[var(--ds-action-h-lg)] w-full pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none`}
         />
         {search && (
           <button
@@ -779,6 +780,7 @@ function Dashboard() {
             <X className="size-3.5" />
           </button>
         )}
+      </div>
       </div>
 
 
@@ -859,7 +861,12 @@ function Dashboard() {
           ]
             .filter((g) => g.items.length > 0)
             .map((g) => (
-              <section key={g.key} aria-label={g.title} className="min-w-0">
+              <section key={g.key} aria-label={g.title} className={`${PANEL_SHELL} relative min-w-0 px-2.5 pb-2.5 pt-3`}>
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px]"
+                  style={{ background: `linear-gradient(to right, ${g.color}, transparent)` }}
+                />
                 <div className="space-y-1.5">
                   <PanelHeading
                     title={g.title}
@@ -875,7 +882,7 @@ function Dashboard() {
                     }
                     right={
                       <CountPill>
-                        {g.items.length} {g.items.length === 1 ? "guia" : "guias"}
+                        {g.items.length} {g.items.length === 1 ? "Guia" : "Guias"}
                       </CountPill>
                     }
                     className="mb-1"
