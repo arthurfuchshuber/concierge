@@ -59,6 +59,7 @@ import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { PendenciasButton } from "@/components/dashboard/pendencias";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { StatCard } from "@/components/ds/StatCard";
+import { OverlayChip, OverlayHeader } from "@/components/ds/OverlayHeader";
 
 /** Data (AAAA-MM-DD) no fuso de São Paulo. */
 function spDate(iso: string): string {
@@ -1741,7 +1742,7 @@ function PayerButtonGroup({
 }) {
   return (
     <Select value={value} onValueChange={(v) => onSelect(v as PayerKind)}>
-      <SelectTrigger className="mt-1 h-9 rounded-[0.3rem] border-0 bg-foreground/[0.04] text-[12px] font-semibold">
+      <SelectTrigger className="mt-1 h-9 w-full min-w-0 rounded-[0.3rem] border-0 bg-foreground/[0.04] text-[12px] font-semibold [&>span]:truncate">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -1758,6 +1759,13 @@ function PayerButtonGroup({
 const PAYER_LABEL: Record<PayerKind, string> = Object.fromEntries(
   PAYER_OPTIONS.map((o) => [o.key, o.label]),
 ) as Record<PayerKind, string>;
+
+const PAYER_TO: Record<PayerKind, string> = {
+  company: "à empresa",
+  owner: "ao proprietário",
+  provider: "ao prestador",
+  guest: "ao hóspede",
+};
 
 function parseBRL(v: string): number {
   return Number(v.replace(/\./g, "").replace(",", "."));
@@ -1941,7 +1949,7 @@ function ResolveDialog({
 
           {hasCost && (
             <>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
                 <div className="min-w-0">
                   <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem deve arcar</span>
                   <PayerButtonGroup
@@ -1971,7 +1979,7 @@ function ResolveDialog({
                 <PayerPicker kind={paidBy} options={paidByOptions} selectedId={paidById} onSelect={setPaidById} />
               )}
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
                 {(
                   [
                     ["Custo total", amount, setAmount, "0,00"],
@@ -2001,7 +2009,7 @@ function ResolveDialog({
                 const text =
                   payer === paidBy
                     ? `${PAYER_LABEL[payer]} arcou e pagou ${brl}. Nada a acertar.`
-                    : `${PAYER_LABEL[payer]} deve reembolsar ${brl} a ${PAYER_LABEL[paidBy].toLowerCase()}.`;
+                    : `${PAYER_LABEL[payer]} deve reembolsar ${brl} ${PAYER_TO[paidBy]}.`;
                 return (
                   <p className="rounded-[0.3rem] bg-primary/10 px-2.5 py-2 text-[11px] font-medium text-foreground/85">
                     {text}
