@@ -37,6 +37,19 @@ export function pushGlobalOverlay(kind: Kind = "float"): { id: number; release: 
   };
 }
 
+export function layerZ(id: number): number {
+  const i = stack.findIndex((l) => l.id === id);
+  return 60 + 3 * Math.max(0, i);
+}
+
+export function useTopOverlayZ(): number {
+  return React.useSyncExternalStore(
+    subscribe,
+    () => (stack.length ? 60 + 3 * (stack.length - 1) : 55),
+    () => 55,
+  );
+}
+
 export function isTopOverlay(id: number | null): boolean {
   if (id == null) return true;
   return stack.length === 0 || stack[stack.length - 1].id === id;
@@ -65,6 +78,17 @@ export function useOverlayLayer<T extends Element>(
         const layer = pushGlobalOverlay(kind);
         idRef.current = layer.id;
         releaseRef.current = layer.release;
+        // Z-INDEX PELA ORDEM DE ABERTURA: a janela aberta por último fica
+        // sempre por cima (ex.: Resolver pendência sobre a lista de
+        // pendências), e o véu fica logo abaixo dela.
+        const z = String(layerZ(layer.id));
+        (node as unknown as HTMLElement).style.zIndex = z;
+        const wrap = node.parentElement;
+        if (wrap?.hasAttribute("data-radix-popper-content-wrapper")) wrap.style.zIndex = z;
+        const prev = node.previousElementSibling as HTMLElement | null;
+        if (prev && prev.getAttribute("data-state") && !prev.hasAttribute("role")) {
+          prev.style.zIndex = String(Number(z) - 1);
+        }
       }
       const f = fwd.current;
       if (typeof f === "function") f(node);

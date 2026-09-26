@@ -1,4 +1,4 @@
-import { useGlobalOverlayOpen } from "@/lib/global-overlay-store";
+import { useGlobalOverlayOpen, useTopOverlayZ } from "@/lib/global-overlay-store";
 import { cn } from "@/lib/utils";
 
 /**
@@ -26,10 +26,12 @@ import { cn } from "@/lib/utils";
  */
 export function GlobalOverlayScrim() {
   const open = useGlobalOverlayOpen();
+  const z = useTopOverlayZ();
   return (
     <div
       aria-hidden="true"
       data-global-scrim=""
+      style={{ zIndex: z - 1 }}
       className={cn(
         "fixed inset-0 z-[55] bg-black/10 backdrop-blur-[2.5px] transition-opacity duration-150",
         open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
