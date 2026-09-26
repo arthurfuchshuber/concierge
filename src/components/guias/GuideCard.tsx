@@ -80,7 +80,7 @@ export function GuideCard({
   const photo = (cls: string, withBadges: boolean) => (
     <div className={`relative shrink-0 overflow-hidden bg-secondary ${cls}`}>
       {p.hero_image_url ? (
-        <img src={p.hero_image_url} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
+        <img src={p.hero_image_url} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" onError={(e) => (e.currentTarget.style.display = "none")} />
       ) : (
         <div className="absolute inset-0 grid place-items-center text-[10px] text-muted-foreground">Sem foto</div>
       )}

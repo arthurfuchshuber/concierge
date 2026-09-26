@@ -452,7 +452,7 @@ function Dashboard() {
   const STAT_CARDS = [
     { key: "published" as const, label: "Publicados", icon: Globe },
     { key: "draft" as const, label: "Rascunhos", icon: PenSquare },
-    { key: "incomplete" as const, label: "Incompletos", icon: AlertTriangle },
+    { key: "incomplete" as const, label: "Parciais", icon: AlertTriangle },
   ];
   const statCounts = {
     published: guideRows.filter((p) => p.published).length,
