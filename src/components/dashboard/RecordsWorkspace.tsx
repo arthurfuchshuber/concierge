@@ -504,8 +504,12 @@ export function RecordsWorkspace() {
 
   const pageTitle = (() => {
     const base = category ? (CATEGORY_BY_KEY.get(category)?.short ?? "Registros") : "Registros";
-    return period === "all" ? base : `${base} Últimos ${period}d`;
+    return period === "all" ? `${base} Todo o período` : `${base} Últimos ${period}d`;
   })();
+  const pageSubtitle =
+    period === "all"
+      ? "Fotos, vídeos, áudios e notas registrados nos imóveis em todo o período."
+      : `Fotos, vídeos, áudios e notas registrados nos imóveis nos últimos ${period} dias.`;
 
   return (
     /* MESMA MOLDURA DE PÁGINA das outras três telas (Operacional / Kanban /
@@ -529,7 +533,7 @@ export function RecordsWorkspace() {
         <OperationShell
           view="registros"
           title={pageTitle}
-          subtitle="Fotos, vídeos, áudios e notas registrados nos imóveis."
+          subtitle={pageSubtitle}
           actions={
             <>
               {/* PERÍODO À ESQUERDA, FILTROS À DIREITA — a mesma barra partida
