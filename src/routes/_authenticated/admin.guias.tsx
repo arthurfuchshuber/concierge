@@ -1,3 +1,4 @@
+import { normText } from "@/lib/ai/fuzzy-match";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -103,6 +104,7 @@ import {
   ACTION_ICON,
   ACTION_SEGMENT,
   CountPill,
+  ACTION_BAR,
   PANEL_SHELL,
   PanelHeading,
   SectionLabel,
@@ -122,6 +124,37 @@ import { Eye } from "lucide-react";
 
 function coerceGuiaTab(v: unknown): "imoveis" | "destinos" {
   return v === "destinos" ? "destinos" : "imoveis";
+}
+
+function guideSearchScore(q: string, p: any): number {
+  const qs = normText(q).split(" ").filter(Boolean);
+  if (!qs.length) return 1;
+  const fields: [unknown, number][] = [
+    [p.name, 3], [p.ownerName, 2.5], [p.city, 1.5], [p.address, 1], [p.tagline, 1], [p.country, 0.5], [p.slug, 0.5],
+  ];
+  let total = 0;
+  for (const t of qs) {
+    let best = 0;
+    for (const [f, w] of fields) {
+      if (!f) continue;
+      const words = normText(String(f)).split(" ").filter(Boolean);
+      const hit = words.some((x) => x.startsWith(t) || (t.length >= 5 && near1(t, x.slice(0, t.length + 1)) ) );
+      if (hit && w > best) best = w;
+    }
+    if (!best) return 0;
+    total += best;
+  }
+  return total;
+}
+function near1(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  // prefixo com até 1 edição
+  const m = a.length, n = b.length;
+  const d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+  for (let j = 1; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return Math.min(...d[m]) <= 1;
 }
 
 export const Route = createFileRoute("/_authenticated/admin/guias")({
@@ -208,13 +241,14 @@ function Dashboard() {
   const canCreate = createAccess.loading ? false : createAccess.allowed;
   const NO_PERMISSION_MSG = "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
 
-  const [view, setView] = useState<"grid" | "list" | "split">("list");
+  const [view, setView] = useState<"list" | "split">("list");
   const [statCard, setStatCard] = useState<"published" | "draft" | "incomplete" | null>(null);
   const [statCardsOpen, setStatCardsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [viewSlug, setViewSlug] = useState<string | null>(null);
   const viewPreviewUrl = useGuidePreviewUrl(viewSlug);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
@@ -226,10 +260,10 @@ function Dashboard() {
   const [filterScreen, setFilterScreen] = useState<"root" | "status" | "access" | "owner" | "city">("root");
   useEffect(() => {
     const v = window.localStorage.getItem("guias-view");
-    if (v === "grid" || v === "list" || v === "split") setView(v);
+    if (v === "list" || v === "split") setView(v);
   }, []);
   function cycleView() {
-    const next = view === "list" ? "split" : view === "split" ? "grid" : "list";
+    const next = view === "list" ? "split" : "list";
     setView(next);
     window.localStorage.setItem("guias-view", next);
   }
@@ -418,7 +452,7 @@ function Dashboard() {
   }
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim();
     const rows = guideRows.filter((p) => {
       if (statusFilter === "published" && !p.published) return false;
       if (statusFilter === "draft" && p.published) return false;
@@ -430,10 +464,12 @@ function Dashboard() {
       if (ownerFilters.length > 0 && !ownerFilters.includes(own)) return false;
       if (cityFilters.length > 0 && !cityFilters.includes(p.city ?? "")) return false;
       if (!q) return true;
-      return [p.name, p.tagline, p.address, p.city, p.country, p.slug]
-        .filter(Boolean)
-        .some((s) => String(s).toLowerCase().includes(q));
+      return guideSearchScore(q, p) > 0;
     });
+    if (q) {
+      const sc = new Map(rows.map((r) => [r.id, guideSearchScore(q, r)]));
+      return [...rows].sort((a, b) => (sc.get(b.id)! - sc.get(a.id)!) || 0);
+    }
     // Ordem pedida: cidade → título do guia → proprietário (alfabética pt-BR).
     const cmp = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
     const txt = (v: unknown) => String(v ?? "").trim();
@@ -459,8 +495,10 @@ function Dashboard() {
     draft: guideRows.filter((p) => !p.published).length,
     incomplete: guideRows.filter((p) => guideCompleteness(p as any).score < 90).length,
   };
-  const attentionList = filtered.filter((p) => !p.published || guideCompleteness(p as any).score < 90);
-  const readyList = filtered.filter((p) => p.published && guideCompleteness(p as any).score >= 90);
+  const draftList = filtered.filter((p) => !p.published);
+  const attentionList = filtered.filter((p) => p.published && guideCompleteness(p as any).score < 100);
+  const readyList = filtered.filter((p) => p.published && guideCompleteness(p as any).score >= 100);
+  const groupCount = [draftList, attentionList, readyList].filter((l) => l.length > 0).length;
 
   // Trava: nenhum guia pode ser criado sem um proprietário cadastrado em
   // Stakeholders → Proprietários (fonte da verdade das propriedades).
@@ -569,8 +607,25 @@ function Dashboard() {
       <PageShell
         title={pageTitle}
         subtitle={pageSubtitle}
-        actions={
-          <>
+      />
+
+
+      <div className="ds-card-grid grid-cols-3">
+        {STAT_CARDS.map((c) => (
+          <StatCard
+            key={c.key}
+            label={c.label}
+            value={statCounts[c.key]}
+            icon={c.icon}
+            loading={isLoading}
+            size="sm"
+            active={statCard === c.key}
+            onClick={() => setStatCard(statCard === c.key ? null : c.key)}
+          />
+        ))}
+      </div>
+
+      <div className={ACTION_BAR}>
           {selected.size > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -604,6 +659,38 @@ function Dashboard() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          )}
+          {/* Visualização — alterna lista / lado a lado */}
+          <button
+            type="button"
+            onClick={cycleView}
+            aria-label={view === "list" ? "Ver lado a lado" : "Ver em lista"}
+            title={view === "list" ? "Ver lado a lado" : "Ver em lista"}
+            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+          >
+            {view === "list" ? <List className={ACTION_ICON} /> : <Columns2 className={ACTION_ICON} />}
+            <span className="lg:hidden">{view === "list" ? "Lista" : "Lado a lado"}</span>
+          </button>
+          {!readOnly && canCreate && (
+            <button
+              type="button"
+              onClick={openGuidePicker}
+              disabled={reachedLimit || !sub.plan || noOwners}
+              aria-label="Novo guia"
+              title={
+                !sub.plan
+                  ? "Assine um plano para criar guias"
+                  : noOwners
+                    ? "Cadastre um proprietário em Stakeholders antes de criar guias"
+                    : reachedLimit
+                      ? "Limite do seu plano atingido. Faça upgrade."
+                      : "Novo guia"
+              }
+              className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
+            >
+              <Plus className={ACTION_ICON} />
+              <span className="lg:hidden">Novo</span>
+            </button>
           )}
           <Popover onOpenChange={(o) => !o && setFilterScreen("root")}>
             <PopoverTrigger asChild>
@@ -672,62 +759,6 @@ function Dashboard() {
               ) : null}
             </PopoverContent>
           </Popover>
-          {/* Visualização — um único botão que alterna grade/lista */}
-          <button
-            type="button"
-            onClick={cycleView}
-            aria-label={view === "grid" ? "Ver lado a lado" : view === "split" ? "Ver em lista" : "Ver em grade"}
-            title={view === "grid" ? "Ver lado a lado" : view === "split" ? "Ver em lista" : "Ver em grade"}
-            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
-          >
-            {view === "grid" ? (
-              <Columns2 className={ACTION_ICON} />
-            ) : view === "split" ? (
-              <List className={ACTION_ICON} />
-            ) : (
-              <LayoutGrid className={ACTION_ICON} />
-            )}
-            <span className="lg:hidden">{view === "grid" ? "Lado a lado" : view === "split" ? "Lista" : "Grade"}</span>
-          </button>
-
-          {!readOnly && canCreate && (
-            <button
-              type="button"
-              onClick={openGuidePicker}
-              disabled={reachedLimit || !sub.plan || noOwners}
-              aria-label="Novo guia"
-              title={
-                !sub.plan
-                  ? "Assine um plano para criar guias"
-                  : noOwners
-                    ? "Cadastre um proprietário em Stakeholders antes de criar guias"
-                    : reachedLimit
-                      ? "Limite do seu plano atingido. Faça upgrade."
-                      : "Novo guia"
-              }
-              className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
-            >
-              <Plus className={ACTION_ICON} />
-              <span className="lg:hidden">Novo</span>
-            </button>
-          )}
-          </>
-        }
-      />
-
-      <div className="ds-card-grid grid-cols-3">
-        {STAT_CARDS.map((c) => (
-          <StatCard
-            key={c.key}
-            label={c.label}
-            value={statCounts[c.key]}
-            icon={c.icon}
-            loading={isLoading}
-            size="sm"
-            active={statCard === c.key}
-            onClick={() => setStatCard(statCard === c.key ? null : c.key)}
-          />
-        ))}
       </div>
 
       <div className="relative min-w-0">
@@ -735,7 +766,7 @@ function Dashboard() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por nome, endereço, cidade…"
+          placeholder="Buscar por título, proprietário, cidade…"
           className={`${PANEL_SHELL} h-10 w-full pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none`}
         />
         {search && (
@@ -750,7 +781,6 @@ function Dashboard() {
         )}
       </div>
 
-      <SectionLabel count={filtered.length}>Guias</SectionLabel>
 
       {isLoading ? (
         <LoadingState count={3} />
@@ -821,8 +851,9 @@ function Dashboard() {
           }
         />
             ) : (
-        <div className={`ds-blocks ${attentionList.length > 0 && readyList.length > 0 ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-2.5 lg:space-y-0" : ""}`}>
+        <div className={`ds-blocks ${groupCount > 1 ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-2.5 lg:space-y-0" : ""}`}>
           {[
+            { key: "draft", title: "Não publicado", items: draftList, color: "#d8b96a", Icon: PenSquare },
             { key: "att", title: "Precisam de atenção", items: attentionList, color: "#c98c8c", Icon: AlertTriangle },
             { key: "ok", title: "Prontos", items: readyList, color: "#7fb79a", Icon: Check },
           ]
@@ -846,13 +877,28 @@ function Dashboard() {
                       </span>
                     }
                     right={
-                      <CountPill>
-                        {g.items.length} {g.items.length === 1 ? "guia" : "guias"}
-                      </CountPill>
+                      <span className="flex shrink-0 items-center gap-2">
+                        <CountPill>
+                          {g.items.length} {g.items.length === 1 ? "guia" : "guias"}
+                        </CountPill>
+                        {!readOnly && (
+                          <Checkbox
+                            aria-label={`Selecionar todos em ${g.title}`}
+                            checked={g.items.every((p) => selected.has(p.id)) ? true : g.items.some((p) => selected.has(p.id)) ? "indeterminate" : false}
+                            onCheckedChange={(v) =>
+                              setSelected((cur) => {
+                                const n = new Set(cur);
+                                g.items.forEach((p) => (v ? n.add(p.id) : n.delete(p.id)));
+                                return n;
+                              })
+                            }
+                          />
+                        )}
+                      </span>
                     }
                     className="mb-1 px-1.5"
                   />
-                  <div className={`ds-five-cap grid gap-1.5 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
+                  <div className={`ds-five-cap grid gap-1.5`}>
                     {g.items.map((p) => {
                       const c = guideCompleteness(p as any);
                       return (
@@ -866,7 +912,7 @@ function Dashboard() {
                           onTogglePublished={(v) => togglePublished(p.id, v)}
                           selected={selected.has(p.id)}
                           onSelectChange={
-                            view === "list" && !readOnly
+                            !readOnly
                               ? (v) =>
                                   setSelected((cur) => {
                                     const n = new Set(cur);
@@ -926,37 +972,16 @@ function Dashboard() {
                       >
                         <Copy className="size-3.5 text-muted-foreground" /> Duplicar
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
+                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors text-left"
+                      >
+                        <Trash2 className="size-3.5" /> Excluir guia
+                      </button>
                     </PopoverContent>
                   </Popover>
 
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button
-                        title="Excluir"
-                        className="size-7 inline-flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                        aria-label="Excluir"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Isso removerá permanentemente "{p.name}" e não poderá ser desfeito.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(p.id, p.name)}
-                          className="border border-destructive/40 bg-destructive/15 text-destructive hover:bg-destructive/25"
-                        >
-                          Excluir
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
                             </>
                           }
                         />
@@ -969,6 +994,26 @@ function Dashboard() {
         </div>
 
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso removerá permanentemente "{deleteTarget?.name}" e não poderá ser desfeito.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && handleDelete(deleteTarget.id, deleteTarget.name)}
+              className="border border-destructive/40 bg-destructive/15 text-destructive hover:bg-destructive/25"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* "Novo guia" nunca cria um imóvel novo — só vincula um guia a um
           imóvel já cadastrado (via "Criar nova residência", em Stakeholders)
