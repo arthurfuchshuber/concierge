@@ -42,7 +42,12 @@ export function StatCard({
       aria-pressed={clickable ? !!active : undefined}
       className={`ds-3d relative flex h-full w-full flex-col gap-1 overflow-hidden rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition disabled:cursor-default ${
         clickable ? "ds-3d-hover hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" : ""
-      } ${active ? "bg-secondary/50 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]" : ""}`}
+      } ${active ? "bg-secondary/50" : ""}`}
+      style={
+        active
+          ? { boxShadow: `inset 0 0 0 1.5px color-mix(in oklab, ${iconTone ?? "var(--primary)"} 70%, transparent)` }
+          : undefined
+      }
     >
       <div className="flex w-full min-w-0 items-center gap-1.5">
         <span

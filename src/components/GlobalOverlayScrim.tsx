@@ -29,6 +29,7 @@ export function GlobalOverlayScrim() {
   return (
     <div
       aria-hidden="true"
+      data-global-scrim=""
       className={cn(
         "fixed inset-0 z-[55] bg-black/10 backdrop-blur-[2.5px] transition-opacity duration-150",
         open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
