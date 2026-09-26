@@ -6,7 +6,7 @@ import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { ownerLabel } from "@/components/dashboard/card-colors";
 
-export type GuideCardVariant = "list" | "split" | "grid";
+export type GuideCardVariant = "list" | "split";
 
 export type GuideCardData = {
   id: string;
@@ -57,45 +57,44 @@ export function GuideCard({
       {p.access_mode === "pin" ? "PIN" : "Público"}
     </span>
   );
-  const pub = (
+  const pub = (withLabel: boolean) => (
     <span
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-background/75 py-[2px] pl-2 pr-0.5 backdrop-blur"
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-background/75 py-[2px] pr-0.5 backdrop-blur ${withLabel ? "pl-2" : "pl-0.5"}`}
       title={p.published ? "Publicado — toque para despublicar" : "Rascunho — toque para publicar"}
       onClick={(e) => e.stopPropagation()}
     >
-      <span
-        className={`text-[9.5px] font-bold uppercase tracking-[0.12em] ${p.published ? "text-[#7fb79a]" : "text-muted-foreground"}`}
-      >
-        {p.published ? "Publicado" : "Rascunho"}
-      </span>
+      {withLabel && (
+        <span className={`text-[9.5px] font-bold uppercase tracking-[0.12em] ${p.published ? "text-[#7fb79a]" : "text-[#d8b96a]"}`}>
+          {p.published ? "Publicado" : "Rascunho"}
+        </span>
+      )}
       <Switch
         checked={!!p.published}
         disabled={toggling}
         onCheckedChange={onTogglePublished}
-        className="scale-[0.65] origin-right"
+        className="scale-[0.65] origin-right data-[state=checked]:bg-[#7fb79a] data-[state=unchecked]:bg-[#d8b96a]"
         aria-label="Alternar publicação"
       />
     </span>
   );
-  const photo = (cls: string, withBadges: boolean) => (
+  const photo = (cls: string, withLabel: boolean) => (
     <div className={`relative shrink-0 overflow-hidden bg-secondary ${cls}`}>
       {p.hero_image_url ? (
         <img src={p.hero_image_url} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" onError={(e) => (e.currentTarget.style.display = "none")} />
       ) : (
         <div className="absolute inset-0 grid place-items-center text-[10px] text-muted-foreground">Sem foto</div>
       )}
-      {withBadges && (
-        <div className="absolute inset-x-1.5 top-1.5 flex min-w-0 flex-col items-start gap-1">
-          {access}
-          {pub}
-        </div>
-      )}
+      {withLabel && <div className="absolute left-1.5 top-1.5">{access}</div>}
+      <div className="absolute right-1 top-1">{pub(withLabel)}</div>
     </div>
   );
   const place = [p.city, p.country].filter(Boolean).join(", ");
   const info = (
     <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
-      <div className="min-w-0">
+      <div className="relative min-w-0 pr-6">
+        {onSelectChange && (
+          <Checkbox className="absolute right-0 top-0" checked={!!selected} onCheckedChange={(v) => onSelectChange(!!v)} aria-label="Selecionar guia" />
+        )}
         {p.ownerName && (
           <div className="flex min-w-0 items-center gap-1">
             <span className="min-w-0 truncate text-[10.5px] text-muted-foreground" title={p.ownerName}>
@@ -127,25 +126,11 @@ export function GuideCard({
       </div>
     );
   }
-  if (variant === "grid") {
-    return (
-      <div className={`${PANEL_SHELL} flex min-w-0 flex-col`}>
-        {photo("aspect-[16/9] w-full", true)}
-        <div className="flex min-w-0 p-3">{info}</div>
-      </div>
-    );
-  }
   return (
     <div className={`${PANEL_SHELL} flex min-w-0 items-stretch gap-3 p-2.5`}>
-      {onSelectChange && (
-        <Checkbox className="mt-1 shrink-0" checked={!!selected} onCheckedChange={(v) => onSelectChange(!!v)} aria-label="Selecionar guia" />
-      )}
-      {photo("size-[60px] rounded-[10px]", false)}
+      {photo("w-[76px] min-h-[76px] rounded-[10px]", false)}
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="flex min-w-0 flex-wrap items-center gap-1">
-          {access}
-          {pub}
-        </div>
+        <div className="flex min-w-0 items-center gap-1">{access}</div>
         {info}
       </div>
     </div>
