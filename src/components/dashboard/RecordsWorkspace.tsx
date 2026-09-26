@@ -533,7 +533,7 @@ export function RecordsWorkspace() {
         <OperationShell
           view="registros"
           title={pageTitle}
-          subtitle="Fotos, vídeos, áudios e notas registrados nos imóveis."
+          subtitle={pageSubtitle}
           actions={
             <>
               {/* PERÍODO À ESQUERDA, FILTROS À DIREITA — a mesma barra partida
