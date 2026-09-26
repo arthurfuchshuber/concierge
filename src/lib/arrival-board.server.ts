@@ -336,7 +336,7 @@ export async function buildArrivalRows(
         .in("id", propIds),
       context.supabase
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, kind, status, note, arrival_time_override, arrival_date_override, muted_until, done_at, concluded_at")
+        .select("log_id, reservation_id, kind, status, note, arrival_time_override, arrival_date_override, arrival_time_source, muted_until, done_at, concluded_at")
         .in("property_id", propIds)
         .limit(5000),
       reservationsQuery.order(data.kind === "checkin" ? "checkin_date" : "checkout_date", { ascending: true }).limit(10000),
@@ -1003,6 +1003,7 @@ export async function buildArrivalRows(
         mutedUntil: s?.muted_until ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
         arrivalDateOverride: (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null,
+        arrivalTimeSource: (s as { arrival_time_source?: string | null } | undefined)?.arrival_time_source ?? null,
         doneAt: s?.done_at ?? null,
         pendingFill: false,
         ical: forceIcal ?? { hasIcal, matched, icalCheckin, icalCheckout },
@@ -1108,6 +1109,7 @@ export async function buildArrivalRows(
         mutedUntil: s?.muted_until ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
         arrivalDateOverride: (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null,
+        arrivalTimeSource: (s as { arrival_time_source?: string | null } | undefined)?.arrival_time_source ?? null,
         doneAt: s?.done_at ?? null,
         pendingFill: !matchedLog,
         ical: { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date },

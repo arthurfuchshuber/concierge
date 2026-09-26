@@ -2726,6 +2726,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         label: side === "checkout" ? "Saída" : "Chegada",
         dateValue: date,
         timeValue: time,
+        byGuest: own?.arrivalTimeSource === "guest" && !!(date || time),
         confirmedDate: (side === "checkout" ? src.guestCheckout : src.guestCheckin) ?? null,
         // Chegada: nunca antes da reserva, até um dia antes da saída
         // confirmada. Saída: até a data de saída confirmada — sair antes é
@@ -10712,6 +10713,8 @@ export type PredictionSide = {
   /** "" quando não há previsão. */
   dateValue: string;
   timeValue: string | null;
+  /** Previsão informada pelo próprio hóspede no guia. */
+  byGuest?: boolean;
   /** Data confirmada da reserva neste lado — recalcula piso/teto ao vivo. */
   confirmedDate: string | null;
   dateMin?: string;
