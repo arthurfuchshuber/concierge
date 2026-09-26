@@ -84,7 +84,7 @@ export function GuideCard({
       ) : (
         <div className="absolute inset-0 grid place-items-center text-[10px] text-muted-foreground">Sem foto</div>
       )}
-      <div className={`absolute top-1.5 ${onSelectChange ? "left-7" : "left-1.5"}`}>{access}</div>
+      <div className="absolute bottom-1.5 left-1.5">{access}</div>
       <div className="absolute right-1 top-1">{pub(withLabel)}</div>
     </div>
   );
