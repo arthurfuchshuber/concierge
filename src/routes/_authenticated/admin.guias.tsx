@@ -67,7 +67,20 @@ import {
   Copy,
   Filter,
   MoreHorizontal,
+  Columns2,
+  Users,
 } from "lucide-react";
+import {
+  FILTER_PANEL_CLASS,
+  FILTER_PANEL_COLLISION,
+  FILTER_PANEL_OFFSET,
+  FilterCountBadge,
+  FilterMenuRow,
+  FilterMultiSelect,
+  FilterOptionRow,
+  FilterRootHeader,
+  FilterScreenHeader,
+} from "@/components/dashboard/filter-panel";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   AlertDialog,
