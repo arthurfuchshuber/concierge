@@ -54,6 +54,8 @@ export type ArrivalRow = {
   arrivalTimeOverride: string | null;
   /** Data prevista informada manualmente (chegada em dia diferente da reserva) */
   arrivalDateOverride: string | null;
+  /** 'guest' quando a previsão foi informada pelo próprio hóspede no guia. */
+  arrivalTimeSource?: string | null;
   /** ISO: até quando os alertas de atraso deste card estão silenciados */
   mutedUntil: string | null;
   doneAt: string | null;

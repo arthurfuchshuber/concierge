@@ -32,6 +32,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   FILTER_PANEL_CLASS,
   FILTER_PANEL_COLLISION,
@@ -255,7 +256,6 @@ const CARD_ORDER: readonly RecordCategory[] = ["maintenance", "damage", "inciden
 const CARDS = CARD_ORDER.map((k) => CATEGORY_BY_KEY.get(k)!).filter(Boolean);
 
 /** Quantas pendências o cartão do imóvel lista antes de colapsar em "+N". */
-const PENDING_ROWS = 3;
 
 /**
  * O QUE SOBE PARA "A RESOLVER" (pedido explícito, 10/09/2026): DANO e
@@ -651,7 +651,7 @@ export function RecordsWorkspace() {
                     }
                     className="mb-1 px-1.5"
                   />
-                  <div className="ds-card-grid">{attentionGroups.map(renderCard)}</div>
+                  <div className="ds-card-grid ds-five-cap">{attentionGroups.map(renderCard)}</div>
                 </div>
               </section>
             )}
@@ -679,7 +679,7 @@ export function RecordsWorkspace() {
                     }
                     className="mb-1 px-1.5"
                   />
-                  <div className="ds-card-grid">{calmGroups.map(renderCard)}</div>
+                  <div className="ds-card-grid ds-five-cap">{calmGroups.map(renderCard)}</div>
                 </div>
               </section>
             )}
@@ -967,14 +967,9 @@ function PropertyCard({
   // Antes ele recortava a página inteira para aquele imóvel — resolvia, mas
   // custava perder a visão dos outros. Abrir no lugar é mais barato e é o que
   // a pessoa espera de um "+N".
-  const [showAllPending, setShowAllPending] = useState(false);
   // Recolher zera o "+N": reabrir depois mostrando a lista inteira, sem
   // ninguém ter pedido, é surpresa — e surpresa em tela de operação é ruído.
-  useEffect(() => {
-    if (!pendingOpen) setShowAllPending(false);
-  }, [pendingOpen]);
   const hasPending = group.pending.length > 0;
-  const hiddenPending = group.pending.length - PENDING_ROWS;
   // Com o andar de pendências em cima, o acervo encolhe para não esticar o
   // cartão; sozinho, ele fica no tamanho de leitura de sempre.
   const thumbCap = hasPending ? 6 : THUMBS_PER_GROUP;
@@ -1026,40 +1021,31 @@ function PropertyCard({
                 recolhida seguindo as mesmas regras da linha REGISTROS"). A
                 forma não muda em nada: mesma fonte, mesmo fio, mesma contagem
                 à direita, e a cor de alerta continua sendo a de antes. */}
-            <button
-              type="button"
-              onClick={onTogglePending}
-              aria-expanded={pendingOpen}
-              className="mb-1 mt-2.5 flex w-full items-center gap-2 text-left"
-            >
-              <span className="ds-falta shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em]">
-                Pendências
-              </span>
-              <span
-                aria-hidden
-                className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
-              />
-              <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
-                {group.pending.length}
-              </span>
-            </button>
-            {pendingOpen && (
-              <>
-                {(showAllPending ? group.pending : group.pending.slice(0, PENDING_ROWS)).map((r) => (
+            <Popover open={pendingOpen} onOpenChange={(v) => v !== pendingOpen && onTogglePending()}>
+              <PopoverTrigger asChild>
+                <button type="button" className="mb-1 mt-2.5 flex w-full items-center gap-2 text-left">
+                  <span className="ds-falta shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em]">
+                    Pendências
+                  </span>
+                  <span
+                    aria-hidden
+                    className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
+                  />
+                  <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
+                    {group.pending.length}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top"
+                align="center"
+                className="max-h-[60dvh] w-[min(340px,calc(100vw-32px))] overflow-y-auto p-2"
+              >
+                {group.pending.map((r) => (
                   <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} onResolve={() => onResolve(r)} />
                 ))}
-                {hiddenPending > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllPending((v) => !v)}
-                    aria-expanded={showAllPending}
-                    className="mt-1 w-full rounded-[0.25rem] py-1 text-center text-[10px] font-bold text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
-                  >
-                    {showAllPending ? "Mostrar menos" : `+${hiddenPending} pendências`}
-                  </button>
-                )}
-              </>
-            )}
+              </PopoverContent>
+            </Popover>
           </>
         )}
 
@@ -1358,7 +1344,7 @@ function RecordTextEditor({
     <div className="space-y-2.5">
       <DictationField
         label="Título"
-        required={requiresTitle}
+        required
         value={title}
         onChange={setTitle}
         placeholder="Em poucas palavras, o que houve"
@@ -1727,23 +1713,27 @@ function PayerButtonGroup({
   onSelect: (key: PayerKind) => void;
 }) {
   return (
-    <div className="mt-1 grid grid-cols-2 gap-1">
-      {PAYER_OPTIONS.map((o) => (
-        <button
-          key={o.key}
-          type="button"
-          onClick={() => onSelect(o.key)}
-          className={`rounded-[0.3rem] py-2 text-center text-[10.5px] font-bold transition-colors ${
-            value === o.key
-              ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-              : "bg-foreground/[0.04] text-foreground/70 hover:bg-foreground/[0.08]"
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
+    <Select value={value} onValueChange={(v) => onSelect(v as PayerKind)}>
+      <SelectTrigger className="mt-1 h-9 rounded-[0.3rem] border-0 bg-foreground/[0.04] text-[12px] font-semibold">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {PAYER_OPTIONS.map((o) => (
+          <SelectItem key={o.key} value={o.key} className="text-[12px]">
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
+}
+
+const PAYER_LABEL: Record<PayerKind, string> = Object.fromEntries(
+  PAYER_OPTIONS.map((o) => [o.key, o.label]),
+) as Record<PayerKind, string>;
+
+function parseBRL(v: string): number {
+  return Number(v.replace(/\./g, "").replace(",", "."));
 }
 
 function PayerPicker({
@@ -1834,11 +1824,10 @@ function ResolveDialog({
       if (hasCost && (!Number.isFinite(cents) || (cents ?? 0) < 0)) {
         throw new Error("Informe um valor válido.");
       }
-      const paidCents =
-        hasCost && amountPaid.trim()
-          ? Math.round(Number(amountPaid.replace(/\./g, "").replace(",", ".")) * 100)
-          : null;
-      if (hasCost && amountPaid.trim() && (!Number.isFinite(paidCents) || (paidCents ?? 0) < 0)) {
+      // Valor pago vazio = pagou o custo total.
+      const paidRaw = amountPaid.trim() || amount.trim();
+      const paidCents = hasCost && paidRaw ? Math.round(parseBRL(paidRaw) * 100) : null;
+      if (hasCost && paidRaw && (!Number.isFinite(paidCents) || (paidCents ?? 0) < 0)) {
         throw new Error("Informe um valor pago válido.");
       }
       return setStatusFn({
@@ -1897,6 +1886,10 @@ function ResolveDialog({
         </DialogHeader>
 
         <div className="space-y-3 px-4 pb-4">
+          <p className="text-[11.5px] leading-snug text-muted-foreground">
+            Marque se houve gasto. Depois diga quem deve arcar com ele e quem já pagou — o sistema mostra se
+            alguém precisa reembolsar.
+          </p>
           <button
             type="button"
             onClick={() => setHasCost((v) => !v)}
@@ -1908,77 +1901,73 @@ function ResolveDialog({
 
           {hasCost && (
             <>
-              <label className="block">
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
-                  Valor da resolução
-                </span>
-                <div className="mt-1 flex items-center gap-2 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
-                  <span className="text-[11px] font-bold text-muted-foreground">R$</span>
-                  <input
-                    inputMode="decimal"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0,00"
-                    className="w-full bg-transparent text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground/60"
+              <div className="grid grid-cols-2 gap-2">
+                <div className="min-w-0">
+                  <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem deve arcar</span>
+                  <PayerButtonGroup
+                    value={payer}
+                    onSelect={(k) => {
+                      setPayer(k);
+                      setPayerId(null);
+                    }}
                   />
                 </div>
-              </label>
-
-              <div>
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
-                  Responsável pela despesa
-                </span>
-                <PayerButtonGroup
-                  value={payer}
-                  onSelect={(k) => {
-                    setPayer(k);
-                    setPayerId(null);
-                  }}
-                />
+                <div className="min-w-0">
+                  <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem pagou</span>
+                  <PayerButtonGroup
+                    value={paidBy}
+                    onSelect={(k) => {
+                      setPaidBy(k);
+                      setPaidById(null);
+                    }}
+                  />
+                </div>
               </div>
 
               {needsWho && (
-                <PayerPicker
-                  kind={payer}
-                  options={options}
-                  selectedId={payerId}
-                  onSelect={setPayerId}
-                />
+                <PayerPicker kind={payer} options={options} selectedId={payerId} onSelect={setPayerId} />
+              )}
+              {needsWhoPaid && (
+                <PayerPicker kind={paidBy} options={paidByOptions} selectedId={paidById} onSelect={setPaidById} />
               )}
 
-              <div>
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem pagou?</span>
-                <PayerButtonGroup
-                  value={paidBy}
-                  onSelect={(k) => {
-                    setPaidBy(k);
-                    setPaidById(null);
-                  }}
-                />
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ["Custo total", amount, setAmount, "0,00"],
+                    ["Valor pago", amountPaid, setAmountPaid, amount || "0,00"],
+                  ] as const
+                ).map(([label, val, set, ph]) => (
+                  <label key={label} className="block min-w-0">
+                    <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">{label}</span>
+                    <div className="mt-1 flex items-center gap-1.5 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
+                      <span className="text-[11px] font-bold text-muted-foreground">R$</span>
+                      <input
+                        inputMode="decimal"
+                        value={val}
+                        onChange={(e) => set(e.target.value)}
+                        placeholder={ph}
+                        className="w-full min-w-0 bg-transparent text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground/60"
+                      />
+                    </div>
+                  </label>
+                ))}
               </div>
 
-              {needsWhoPaid && (
-                <PayerPicker
-                  kind={paidBy}
-                  options={paidByOptions}
-                  selectedId={paidById}
-                  onSelect={setPaidById}
-                />
-              )}
-
-              <label className="block">
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Valor pago</span>
-                <div className="mt-1 flex items-center gap-2 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
-                  <span className="text-[11px] font-bold text-muted-foreground">R$</span>
-                  <input
-                    inputMode="decimal"
-                    value={amountPaid}
-                    onChange={(e) => setAmountPaid(e.target.value)}
-                    placeholder="0,00"
-                    className="w-full bg-transparent text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground/60"
-                  />
-                </div>
-              </label>
+              {(() => {
+                const total = parseBRL(amountPaid || amount);
+                if (!Number.isFinite(total) || total <= 0) return null;
+                const brl = total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                const text =
+                  payer === paidBy
+                    ? `${PAYER_LABEL[payer]} arcou e pagou ${brl}. Nada a acertar.`
+                    : `${PAYER_LABEL[payer]} deve reembolsar ${brl} a ${PAYER_LABEL[paidBy].toLowerCase()}.`;
+                return (
+                  <p className="rounded-[0.3rem] bg-primary/10 px-2.5 py-2 text-[11px] font-medium text-foreground/85">
+                    {text}
+                  </p>
+                );
+              })()}
             </>
           )}
 
