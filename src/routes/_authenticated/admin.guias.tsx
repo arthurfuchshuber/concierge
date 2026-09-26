@@ -859,31 +859,12 @@ function Dashboard() {
           ]
             .filter((g) => g.items.length > 0)
             .map((g) => (
-              <section key={g.key} aria-label={g.title} className={`${PANEL_SHELL} min-w-0 px-1.5 pb-1.5 pt-3`}>
-                <span
-                  aria-hidden
-                  className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px]"
-                  style={{ background: `linear-gradient(to right, ${g.color}, transparent)` }}
-                />
+              <section key={g.key} aria-label={g.title} className="min-w-0">
                 <div className="space-y-1.5">
                   <PanelHeading
                     title={g.title}
                     dot={
                       <span className="flex shrink-0 items-center gap-2.5">
-                      {!readOnly && (
-                        <Checkbox
-                          className="ml-2 !size-3 !rounded-[3px]"
-                          aria-label={`Selecionar todos em ${g.title}`}
-                          checked={g.items.every((p) => selected.has(p.id)) ? true : g.items.some((p) => selected.has(p.id)) ? "indeterminate" : false}
-                          onCheckedChange={(v) =>
-                            setSelected((cur) => {
-                              const n = new Set(cur);
-                              g.items.forEach((p) => (v ? n.add(p.id) : n.delete(p.id)));
-                              return n;
-                            })
-                          }
-                        />
-                      )}
                       <span
                         className="grid size-[22px] shrink-0 place-items-center rounded-md"
                         style={{ background: `color-mix(in oklab, ${g.color} 12%, transparent)`, color: g.color }}
@@ -897,9 +878,9 @@ function Dashboard() {
                         {g.items.length} {g.items.length === 1 ? "guia" : "guias"}
                       </CountPill>
                     }
-                    className="mb-1 px-1.5"
+                    className="mb-1"
                   />
-                  <div className={`ds-five-cap grid gap-1.5 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
+                  <div className={`ds-five-cap grid gap-3 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
                     {g.items.map((p) => {
                       const c = guideCompleteness(p as any);
                       return (

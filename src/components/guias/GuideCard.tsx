@@ -77,15 +77,29 @@ export function GuideCard({
       />
     </span>
   );
-  const photo = (cls: string, withLabel: boolean) => (
+  const photo = (cls: string, withLabel: boolean, bare = false) => (
     <div className={`relative shrink-0 overflow-hidden bg-secondary ${cls}`}>
       {p.hero_image_url ? (
         <img src={p.hero_image_url} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" onError={(e) => (e.currentTarget.style.display = "none")} />
       ) : (
         <div className="absolute inset-0 grid place-items-center text-[10px] text-muted-foreground">Sem foto</div>
       )}
-      <div className="absolute bottom-1.5 left-1.5">{access}</div>
-      <div className="absolute right-1 top-1">{pub(withLabel)}</div>
+      {bare ? (
+        <div className="absolute right-1.5 top-1.5" onClick={(e) => e.stopPropagation()} title={p.published ? "Publicado — toque para despublicar" : "Rascunho — toque para publicar"}>
+          <Switch
+            checked={!!p.published}
+            disabled={toggling}
+            onCheckedChange={onTogglePublished}
+            className="scale-[0.7] origin-top-right data-[state=checked]:bg-[#7fb79a] data-[state=unchecked]:bg-[#d8b96a]"
+            aria-label="Alternar publicação"
+          />
+        </div>
+      ) : (
+        <>
+          <div className="absolute bottom-1.5 left-1.5">{access}</div>
+          <div className="absolute right-1 top-1">{pub(withLabel)}</div>
+        </>
+      )}
     </div>
   );
   const place = [p.city, p.country].filter(Boolean).join(", ");
@@ -131,9 +145,16 @@ export function GuideCard({
   }
   return (
     <div className={`${PANEL_SHELL} relative flex min-h-[132px] min-w-0`}>
-      {check}
-      {photo("w-[40%]", true)}
-      <div className="flex min-w-0 flex-1 p-3">{info}</div>
+      {onSelectChange && (
+        <Checkbox
+          className="absolute right-2.5 top-2.5 z-10 !size-3 !rounded-[3px]"
+          checked={!!selected}
+          onCheckedChange={(v) => onSelectChange(!!v)}
+          aria-label="Selecionar guia"
+        />
+      )}
+      {photo("w-[40%]", false, true)}
+      <div className="flex min-w-0 flex-1 p-3 pr-7">{info}</div>
     </div>
   );
 }
