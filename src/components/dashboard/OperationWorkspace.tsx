@@ -4760,7 +4760,7 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
              só o ícone na cor — sem o círculo âmbar por trás. A palavra
              "ALERTA" saiu; o nome acessível e o `title` continuam dizendo o
              que é. */
-          className="grid size-7 place-items-center rounded-full border-0 text-amber-600 transition-opacity hover:opacity-75 dark:text-amber-400"
+          className="grid size-7 place-items-center rounded-[0.3rem] border border-border/50 bg-background/60 text-amber-600 transition-colors hover:bg-primary/[0.08] dark:text-amber-400"
           title="Ver alertas"
           aria-label="Ver alertas"
         >
@@ -9496,8 +9496,14 @@ function ArrivalCard({
    * para prever.
    */
   const showPrediction = !listBare && mode !== "done" && mode !== "no_show";
-  const predictionPrimary = prediction?.primary ?? null;
-  const predictionSecondary = prediction?.secondary ?? null;
+  // CHECK-IN CONFIRMADO (pedido explícito, 26/09/2026): a previsão de
+  // CHEGADA some — no card e nos campos — e só a de SAÍDA continua.
+  const checkinConfirmed = done || mode === "stay" || mode === "checkout" || mode === "cleaning";
+  const rawPrimary = prediction?.primary ?? null;
+  const rawSecondary = prediction?.secondary ?? null;
+  const dropArrival = checkinConfirmed && rawPrimary?.kind === "checkin";
+  const predictionPrimary = dropArrival ? rawSecondary : rawPrimary;
+  const predictionSecondary = dropArrival ? null : rawSecondary?.kind === "checkin" && checkinConfirmed ? null : rawSecondary;
   const predictionTime = predictionPrimary?.timeValue ?? null;
   const predictionDay = predictionDayLabel(
     predictionPrimary?.dateValue ||
