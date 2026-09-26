@@ -32,6 +32,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   FILTER_PANEL_CLASS,
   FILTER_PANEL_COLLISION,
@@ -1838,11 +1839,10 @@ function ResolveDialog({
       if (hasCost && (!Number.isFinite(cents) || (cents ?? 0) < 0)) {
         throw new Error("Informe um valor válido.");
       }
-      const paidCents =
-        hasCost && amountPaid.trim()
-          ? Math.round(Number(amountPaid.replace(/\./g, "").replace(",", ".")) * 100)
-          : null;
-      if (hasCost && amountPaid.trim() && (!Number.isFinite(paidCents) || (paidCents ?? 0) < 0)) {
+      // Valor pago vazio = pagou o custo total.
+      const paidRaw = amountPaid.trim() || amount.trim();
+      const paidCents = hasCost && paidRaw ? Math.round(parseBRL(paidRaw) * 100) : null;
+      if (hasCost && paidRaw && (!Number.isFinite(paidCents) || (paidCents ?? 0) < 0)) {
         throw new Error("Informe um valor pago válido.");
       }
       return setStatusFn({
