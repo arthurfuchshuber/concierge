@@ -280,7 +280,7 @@ export function FilterScreenHeader({
       </button>
       <FilterIconBadge icon={icon} size="sm" />
       <span className="ds-card-title min-w-0 flex-1">{title}</span>
-      {right ? <span className="shrink-0">{right}</span> : null}
+      {right ? <span className="flex shrink-0 items-center self-center leading-none">{right}</span> : null}
     </div>
   );
 }

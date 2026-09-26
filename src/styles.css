@@ -504,7 +504,7 @@
 @supports not selector(::-webkit-scrollbar) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklab, var(--foreground) 18%, transparent) transparent;
+    scrollbar-color: oklch(0.58 0.2 300) transparent;
   }
 }
 ::-webkit-scrollbar {
@@ -516,11 +516,12 @@
   margin: 14px;
 }
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in oklab, var(--foreground) 18%, transparent);
+  /* Lilás da marca em tom forte (pedido 26/09/2026). */
+  background: oklch(0.58 0.2 300);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in oklab, var(--foreground) 32%, transparent);
+  background: oklch(0.5 0.22 300);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;

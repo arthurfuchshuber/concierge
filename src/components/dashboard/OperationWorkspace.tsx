@@ -7336,6 +7336,7 @@ function CalendarFiltersButton({
 }) {
   type Screen = "root" | "period" | "city" | "owner" | "provider" | "property";
   const [screen, setScreen] = useState<Screen>("root");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange | undefined>(
     periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined,
   );
@@ -7414,10 +7415,19 @@ function CalendarFiltersButton({
 
   return (
     <Popover
+      open={filtersOpen}
       onOpenChange={(open) => {
-        // Sempre reabre no resumo — ninguém espera "continuar de onde
-        // parou" dentro de um editor específico da última vez.
-        if (!open) setScreen("root");
+        if (open) {
+          setFiltersOpen(true);
+          return;
+        }
+        // CLICAR FORA VOLTA UMA JANELA (26/09/2026): numa subtela, volta ao
+        // resumo dos filtros; só fecha quando já está no resumo.
+        if (screen !== "root") {
+          setScreen("root");
+          return;
+        }
+        setFiltersOpen(false);
       }}
     >
       <PopoverTrigger asChild>
@@ -8128,7 +8138,7 @@ function OccupancyPanel({
             <div> com dois botões independentes (título+ícone / filtros),
             mais a setinha por último. Clicar no título OU na setinha
             expande/recolhe; clicar no botão de filtros não. */}
-      <div className="flex w-full items-center gap-2 px-4 py-3.5 text-left">
+      <div className="flex w-full items-center gap-2 py-3.5 pl-2.5 pr-4 text-left">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -8138,10 +8148,10 @@ function OccupancyPanel({
              numa linha só, com reticências. */
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
-          <span className="grid size-7 shrink-0 place-items-center rounded-[9px] bg-foreground/[0.05] text-foreground">
-            <CalendarRange className="size-[15px]" strokeWidth={2} />
+          <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
+            <CalendarRange className="size-3.5" strokeWidth={2} />
           </span>
-          <span className="ds-card-title min-w-0 flex-1 text-[14px]" title="Calendário de ocupação">
+          <span className="ds-card-title min-w-0 flex-1 text-[14px] !font-medium" title="Calendário de ocupação">
             Calendário de ocupação
           </span>
         </button>
@@ -8193,7 +8203,7 @@ function OccupancyPanel({
                     maxWidth: "100%",
                     ...(list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : {}),
                   }}
-                  className="sg-elegant-scroll max-h-[22rem] overflow-auto snap-x snap-mandatory"
+                  className="sg-elegant-scroll max-h-[22rem] overflow-auto snap-x snap-proximity"
                 >
                   <table
                     className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
@@ -10949,6 +10959,12 @@ function PredictedEditor({
           setOpen(true);
           return;
         }
+        // CLICAR FORA VOLTA UMA JANELA (26/09/2026): dentro de Data/Horário,
+        // o clique fora volta para o resumo da Previsão, não fecha tudo.
+        if (view !== "summary") {
+          setView("summary");
+          return;
+        }
         closeAndCommit();
       }}
     >
@@ -11140,11 +11156,6 @@ function PredictedEditor({
             >
               Limpar horário
             </button>
-            <span className="text-[11px] text-muted-foreground">
-              {active?.label}
-              {activeDate ? ` · ${fmtDateBR(activeDate)}` : ""}
-              {activeTime ? ` · ${activeTime}` : ""}
-            </span>
           </div>
         </PopoverContent>
       )}
