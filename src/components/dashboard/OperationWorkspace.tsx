@@ -11024,10 +11024,10 @@ function PredictedEditor({
         </PopoverContent>
       ) : view === "date" ? (
         <PopoverContent
-          align="end"
+          align="center"
           sideOffset={FILTER_PANEL_OFFSET}
           collisionPadding={FILTER_PANEL_COLLISION}
-          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px] !max-h-[calc(100dvh-24px)]`}
+          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px] !max-h-[calc(100dvh-180px)]`}
           onClick={(e) => e.stopPropagation()}
         >
           <FilterScreenHeader
@@ -11087,7 +11087,7 @@ function PredictedEditor({
         </PopoverContent>
       ) : (
         <PopoverContent
-          align="end"
+          align="center"
           sideOffset={FILTER_PANEL_OFFSET}
           collisionPadding={FILTER_PANEL_COLLISION}
           className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px]`}
