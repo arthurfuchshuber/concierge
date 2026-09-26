@@ -8128,7 +8128,7 @@ function OccupancyPanel({
             <div> com dois botões independentes (título+ícone / filtros),
             mais a setinha por último. Clicar no título OU na setinha
             expande/recolhe; clicar no botão de filtros não. */}
-      <div className="flex w-full items-center gap-2 px-4 py-3.5 text-left">
+      <div className="flex w-full items-center gap-2 py-3.5 pl-2.5 pr-4 text-left">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -8138,10 +8138,10 @@ function OccupancyPanel({
              numa linha só, com reticências. */
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
-          <span className="grid size-7 shrink-0 place-items-center rounded-[9px] bg-foreground/[0.05] text-foreground">
-            <CalendarRange className="size-[15px]" strokeWidth={2} />
+          <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
+            <CalendarRange className="size-3.5" strokeWidth={2} />
           </span>
-          <span className="ds-card-title min-w-0 flex-1 text-[14px]" title="Calendário de ocupação">
+          <span className="ds-card-title min-w-0 flex-1 text-[14px] !font-medium" title="Calendário de ocupação">
             Calendário de ocupação
           </span>
         </button>
@@ -11140,11 +11140,6 @@ function PredictedEditor({
             >
               Limpar horário
             </button>
-            <span className="text-[11px] text-muted-foreground">
-              {active?.label}
-              {activeDate ? ` · ${fmtDateBR(activeDate)}` : ""}
-              {activeTime ? ` · ${activeTime}` : ""}
-            </span>
           </div>
         </PopoverContent>
       )}
