@@ -7454,6 +7454,15 @@ function CalendarFiltersButton({
               active={ownerFilters.length > 0}
               onClick={() => setScreen("owner")}
             />
+            {propertyOptions && (
+              <FilterMenuRow
+                icon={PropertyFilterIcon}
+                label="Imóveis"
+                value={propertyLabel}
+                active={(propertyFilters?.length ?? 0) > 0}
+                onClick={() => setScreen("property")}
+              />
+            )}
             <FilterMenuRow
               icon={HardHat}
               label="Prestador"
@@ -7576,6 +7585,23 @@ function CalendarFiltersButton({
               selected={providerFilters}
               onChange={onProviderFiltersChange}
               searchPlaceholder="Buscar prestador..."
+            />
+          </>
+        ) : null}
+
+        {screen === "property" && propertyOptions && onPropertyFiltersChange ? (
+          <>
+            <FilterScreenHeader
+              icon={PropertyFilterIcon}
+              title="Imóveis"
+              onBack={() => setScreen("root")}
+              right={<FilterCountBadge count={propertyFilters?.length ?? 0} />}
+            />
+            <FilterMultiSelect
+              options={propertyOptions}
+              selected={propertyFilters ?? []}
+              onChange={onPropertyFiltersChange}
+              searchPlaceholder="Buscar imóvel..."
             />
           </>
         ) : null}
