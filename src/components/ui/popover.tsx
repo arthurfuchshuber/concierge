@@ -1,7 +1,7 @@
 import * as React from "react";
 import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { pushGlobalOverlay } from "@/lib/global-overlay-store";
+import { guardNestedOutside, useOverlayLayer } from "@/lib/global-overlay-store";
 
 import { cn } from "@/lib/utils";
 
@@ -17,17 +17,7 @@ const Popover = ({
   onOpenChange,
   ...props
 }: React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Root>) => {
-  const releaseRef = React.useRef<(() => void) | null>(null);
-  const handleOpenChange = React.useCallback(
-    (open: boolean) => {
-      releaseRef.current?.();
-      releaseRef.current = open ? pushGlobalOverlay() : null;
-      onOpenChange?.(open);
-    },
-    [onOpenChange],
-  );
-  React.useEffect(() => () => releaseRef.current?.(), []);
-  return <PopoverPrimitive.Root onOpenChange={handleOpenChange} {...props} />;
+  return <PopoverPrimitive.Root onOpenChange={onOpenChange} {...props} />;
 };
 
 const PopoverTrigger = PopoverPrimitive.Trigger;
@@ -37,7 +27,9 @@ const PopoverAnchor = PopoverPrimitive.Anchor;
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = "center", sideOffset = 4, collisionPadding = OVERLAY_COLLISION_PADDING, ...props }, ref) => (
+>(({ className, align = "center", sideOffset = 4, collisionPadding = OVERLAY_COLLISION_PADDING, ...props }, ref) => {
+  const layerRef = useOverlayLayer("float");
+  return (
   <PopoverPrimitive.Portal>
     <PopoverPrimitive.Content
       ref={ref}
@@ -67,9 +59,12 @@ const PopoverContent = React.forwardRef<
         className,
       )}
       {...props}
+      onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
+      onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
     />
   </PopoverPrimitive.Portal>
-));
+);
+});
 PopoverContent.displayName = PopoverPrimitive.Content.displayName;
 
 export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor };

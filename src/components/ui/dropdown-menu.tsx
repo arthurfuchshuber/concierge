@@ -4,7 +4,7 @@ import * as React from "react";
 import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { Check, ChevronRight, Circle } from "lucide-react";
-import { pushGlobalOverlay } from "@/lib/global-overlay-store";
+import { guardNestedOutside, useOverlayLayer } from "@/lib/global-overlay-store";
 
 import { cn } from "@/lib/utils";
 
@@ -15,17 +15,7 @@ const DropdownMenu = ({
   onOpenChange,
   ...props
 }: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root>) => {
-  const releaseRef = React.useRef<(() => void) | null>(null);
-  const handleOpenChange = React.useCallback(
-    (open: boolean) => {
-      releaseRef.current?.();
-      releaseRef.current = open ? pushGlobalOverlay() : null;
-      onOpenChange?.(open);
-    },
-    [onOpenChange],
-  );
-  React.useEffect(() => () => releaseRef.current?.(), []);
-  return <DropdownMenuPrimitive.Root onOpenChange={handleOpenChange} {...props} />;
+  return <DropdownMenuPrimitive.Root onOpenChange={onOpenChange} {...props} />;
 };
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
@@ -79,7 +69,9 @@ DropdownMenuSubContent.displayName = DropdownMenuPrimitive.SubContent.displayNam
 const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
->(({ className, sideOffset = 4, collisionPadding = OVERLAY_COLLISION_PADDING, ...props }, ref) => (
+>(({ className, sideOffset = 4, collisionPadding = OVERLAY_COLLISION_PADDING, ...props }, ref) => {
+  const layerRef = useOverlayLayer("float");
+  return (
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.Content
       ref={ref}
@@ -106,9 +98,12 @@ const DropdownMenuContent = React.forwardRef<
         className,
       )}
       {...props}
+      onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
+      onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
     />
   </DropdownMenuPrimitive.Portal>
-));
+);
+});
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 
 const DropdownMenuItem = React.forwardRef<

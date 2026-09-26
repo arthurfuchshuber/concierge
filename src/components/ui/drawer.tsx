@@ -1,4 +1,4 @@
-import { guardNestedOutside } from "@/lib/global-overlay-store";
+import { guardNestedOutside, useOverlayLayer } from "@/lib/global-overlay-store";
 import * as React from "react";
 import { Drawer as DrawerPrimitive } from "vaul";
 
@@ -33,7 +33,9 @@ DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName;
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => {
+  const layerRef = useOverlayLayer("window");
+  return (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
@@ -43,14 +45,15 @@ const DrawerContent = React.forwardRef<
         className,
       )}
       {...props}
-      onPointerDownOutside={guardNestedOutside(props.onPointerDownOutside)}
-      onInteractOutside={guardNestedOutside(props.onInteractOutside)}
+      onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
+      onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
     >
       <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
       {children}
     </DrawerPrimitive.Content>
   </DrawerPortal>
-));
+);
+});
 DrawerContent.displayName = "DrawerContent";
 
 const DrawerHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
