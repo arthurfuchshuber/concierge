@@ -1299,6 +1299,9 @@ export const listAccountRecords = createServerFn({ method: "GET" })
           onlyOpen: z.boolean().optional(),
           /** Janela em dias. Vazio/0 = TODO o histórico (padrão pedido). */
           days: z.number().int().positive().max(3650).nullable().optional(),
+          /** Período por datas (dia local de São Paulo, AAAA-MM-DD), igual à Limpeza. */
+          fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+          toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
           /**
            * Recorte por imóvel. O filtro de PROPRIETÁRIO também chega aqui,
            * já resolvido para a lista de imóveis dele — assim os contadores
@@ -1344,6 +1347,8 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     if (data.days) {
       scan = scan.gte("created_at", new Date(Date.now() - data.days * 86_400_000).toISOString());
     }
+    if (data.fromDate) scan = scan.gte("created_at", new Date(`${data.fromDate}T00:00:00-03:00`).toISOString());
+    if (data.toDate) scan = scan.lte("created_at", new Date(`${data.toDate}T23:59:59.999-03:00`).toISOString());
     const { data: rows, error } = await scan
       .order("created_at", { ascending: false })
       .limit(ACCOUNT_RECORDS_SCAN_LIMIT);
