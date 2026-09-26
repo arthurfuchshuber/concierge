@@ -15,7 +15,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Check, Loader2, ListChecks, Paperclip } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { getReservationJourney, type JourneyStep } from "@/lib/reservation-journey.functions";
-import { CARD_MUTED, CARD_OWNER, ownerLabel, periodColorClass } from "@/components/dashboard/card-colors";
+import { CARD_MUTED, ownerLabel, periodColorClass } from "@/components/dashboard/card-colors";
 
 function fmtWhen(iso: string | null): string | null {
   if (!iso) return null;
