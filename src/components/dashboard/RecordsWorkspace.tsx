@@ -2202,12 +2202,10 @@ function RecordsFiltersButton({
         {screen === "root" ? (
           <>
             <FilterRootHeader canClear={hasCustomFilters} onClear={onClearAll} />
-            <FilterMenuRow icon={Tag} label="Categoria" value={categoryLabel} active={!!category} onClick={() => setScreen("category")} />
             <FilterMenuRow icon={Layers} label="Agrupar" value={groupLabel} active={groupBy !== GROUP_OPTIONS[0].value} onClick={() => setScreen("group")} />
             <FilterMenuRow icon={CalendarRange} label="Período" value={periodLabel} active={period !== "all"} onClick={() => setScreen("period")} />
             <FilterMenuRow icon={Users} label="Proprietário" value={ownerLabel} active={ownerFilters.length > 0} onClick={() => setScreen("owner")} />
             <FilterMenuRow icon={Building2} label="Imóvel" value={propertyLabel} active={propertyFilters.length > 0} onClick={() => setScreen("property")} last />
-            <FilterToggleRow label="Só os em aberto" checked={onlyOpen} onChange={onOnlyOpenChange} />
           </>
         ) : null}
 
