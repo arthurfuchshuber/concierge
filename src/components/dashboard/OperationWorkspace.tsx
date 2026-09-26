@@ -7414,10 +7414,19 @@ function CalendarFiltersButton({
 
   return (
     <Popover
+      open={filtersOpen}
       onOpenChange={(open) => {
-        // Sempre reabre no resumo — ninguém espera "continuar de onde
-        // parou" dentro de um editor específico da última vez.
-        if (!open) setScreen("root");
+        if (open) {
+          setFiltersOpen(true);
+          return;
+        }
+        // CLICAR FORA VOLTA UMA JANELA (26/09/2026): numa subtela, volta ao
+        // resumo dos filtros; só fecha quando já está no resumo.
+        if (screen !== "root") {
+          setScreen("root");
+          return;
+        }
+        setFiltersOpen(false);
       }}
     >
       <PopoverTrigger asChild>
@@ -10947,6 +10956,12 @@ function PredictedEditor({
         if (next) {
           reset();
           setOpen(true);
+          return;
+        }
+        // CLICAR FORA VOLTA UMA JANELA (26/09/2026): dentro de Data/Horário,
+        // o clique fora volta para o resumo da Previsão, não fecha tudo.
+        if (view !== "summary") {
+          setView("summary");
           return;
         }
         closeAndCommit();
