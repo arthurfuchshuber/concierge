@@ -1647,6 +1647,7 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       total,
       totalOpen,
       truncated: all.length >= ACCOUNT_RECORDS_SCAN_LIMIT,
+      bounds,
     };
   });
 

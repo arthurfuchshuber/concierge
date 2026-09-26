@@ -576,6 +576,7 @@ export function RecordsWorkspace() {
                 onGroupByChange={setGroupBy}
                 period={period}
                 onPeriodChange={setPeriod}
+                periodBounds={q.data?.bounds ?? null}
                 onlyOpen={onlyOpen}
                 onOnlyOpenChange={setOnlyOpen}
                 ownerFilters={ownerFilters}
@@ -2179,6 +2180,7 @@ function RecordsFiltersButton({
   onGroupByChange,
   period,
   onPeriodChange,
+  periodBounds,
   onlyOpen,
   onOnlyOpenChange,
   ownerFilters,
@@ -2196,6 +2198,7 @@ function RecordsFiltersButton({
   onGroupByChange: (v: GroupBy) => void;
   period: PeriodRange | null;
   onPeriodChange: (v: PeriodRange | null) => void;
+  periodBounds?: { min: string | null; max: string | null } | null;
   onlyOpen: boolean;
   onOnlyOpenChange: (v: boolean) => void;
   ownerFilters: string[];
@@ -2330,6 +2333,8 @@ function RecordsFiltersButton({
               month={calendarMonth}
               onMonthChange={setCalendarMonth}
               today={isoToDate(todayISOSaoPaulo())}
+              min={periodBounds?.min ? isoToDate(periodBounds.min) : undefined}
+              max={periodBounds?.max ? isoToDate(periodBounds.max) : undefined}
               onChange={(next) => {
                 setDraft(next);
                 if (next?.from && next?.to) onPeriodChange({ start: dateToISO(next.from), end: dateToISO(next.to) });
