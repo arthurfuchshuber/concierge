@@ -615,7 +615,6 @@ export function RecordsWorkspace() {
             {attentionGroups.length > 0 && (
               <section
                 aria-label="Imóveis que precisam de atenção"
-                data-col="attention"
                 /* PADRÃO "PRESENÇA" (18/09/2026): era uma moldura vermelha
                  inteira, com fundo tingido e etiqueta vermelha — gritava mais
                  que o próprio conteúdo. Agora é um card normal, com um FIO no
