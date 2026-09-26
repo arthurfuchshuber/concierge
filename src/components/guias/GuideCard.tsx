@@ -108,7 +108,7 @@ export function GuideCard({
       <div className="min-w-0">
         {p.ownerName && (
           <div className="flex min-w-0 items-center gap-1">
-            <span className="min-w-0 truncate text-[10.5px] text-muted-foreground" title={p.ownerName}>
+            <span className="min-w-0 truncate text-[10.5px] text-foreground" title={p.ownerName}>
               {ownerLabel(p.ownerName)}
             </span>
             <PhoneActionButton phone={p.ownerPhone} country={p.ownerPhoneCountry} size={12} alwaysShow className="shrink-0" />
@@ -147,7 +147,7 @@ export function GuideCard({
     <div className={`${PANEL_SHELL} relative flex min-h-[132px] min-w-0`}>
       {onSelectChange && (
         <Checkbox
-          className="absolute right-2.5 top-2.5 z-10 !size-3 !rounded-[3px]"
+          className="absolute right-2.5 top-2.5 z-10 !size-3 !rounded-[3px] opacity-50"
           checked={!!selected}
           onCheckedChange={(v) => onSelectChange(!!v)}
           aria-label="Selecionar guia"

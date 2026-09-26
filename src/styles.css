@@ -1506,7 +1506,7 @@ dd {
 @utility ds-five-cap {
   max-height: min(calc(5 * 132px + 4 * 10px), 70dvh);
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto; /* rolagem passa para a página ao chegar no fim */
   /* ANTI-CORTE: folga reservada à barra de rolagem; cartões encolhem. */
   scrollbar-gutter: stable;
   padding: 2px 10px 2px 2px;
