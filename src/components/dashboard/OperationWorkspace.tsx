@@ -4155,7 +4155,7 @@ function CleaningChecklist({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="relative w-full overflow-hidden rounded-[5px] border border-border/60 bg-card/40 px-3 py-1.5 text-left"
+          className="relative flex w-full items-center overflow-hidden rounded-[5px] border border-border/60 bg-card/40 px-3 py-1.5 text-left"
         >
           <span
             aria-hidden
@@ -4163,6 +4163,7 @@ function CleaningChecklist({
           />
           <PanelHeading
             title="Pendências do Imóvel"
+            className="mb-0 w-full"
             right={
               <CountPill>
                 {feitas}/{items.length}
