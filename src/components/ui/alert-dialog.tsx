@@ -30,7 +30,7 @@ const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
 >(({ className, ...props }, ref) => {
-  const [layerRef, layerNodeRef] = useOverlayLayer("window", ref);
+  const [, layerNodeRef] = useOverlayLayer("window", ref);
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
