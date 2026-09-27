@@ -43,7 +43,10 @@ export async function reconcileSupersededStays(
         !!current &&
         reservation.id !== current.id &&
         !!reservation.checkout_date &&
-        reservation.checkout_date <= current.checkin_date
+        reservation.checkout_date <= current.checkin_date &&
+        // Same-day turnover: never close on the checkout day itself — the
+        // cleaning card must stay on the board until the day is over.
+        reservation.checkout_date < today
       );
     })
     .map((reservation: { id: string }) => reservation.id);
