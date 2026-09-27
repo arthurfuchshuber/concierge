@@ -2,7 +2,7 @@ import * as React from "react";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 
 import { cn } from "@/lib/utils";
-import { useOverlayLayer } from "@/lib/global-overlay-store";
+import { guardNestedOutside, useOverlayLayer } from "@/lib/global-overlay-store";
 import { buttonVariants } from "@/components/ui/button";
 
 const AlertDialog = AlertDialogPrimitive.Root;
@@ -17,7 +17,7 @@ const AlertDialogOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Overlay
     className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-background/70 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}
@@ -30,7 +30,7 @@ const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
 >(({ className, ...props }, ref) => {
-  const [, layerNodeRef] = useOverlayLayer("window", ref);
+  const [layerRef, layerNodeRef] = useOverlayLayer("window", ref);
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
@@ -41,6 +41,8 @@ const AlertDialogContent = React.forwardRef<
           className,
         )}
         {...props}
+        onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
+        onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
       />
     </AlertDialogPortal>
   );
