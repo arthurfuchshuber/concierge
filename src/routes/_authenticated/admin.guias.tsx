@@ -625,7 +625,7 @@ function Dashboard() {
       </div>
 
       <div className="flex min-w-0 items-center gap-2">
-      <div className={`${ACTION_BAR} order-2 shrink-0`}>
+      <div className={`${ACTION_BAR} order-2 !w-auto shrink-0`}>
           {selected.size > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -636,7 +636,6 @@ function Dashboard() {
                   title="Ações da seleção"
                 >
                   <PenSquare className={ACTION_ICON} />
-                  <span className="lg:hidden">Ações</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -669,7 +668,6 @@ function Dashboard() {
             className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
           >
             {view === "split" ? <Columns2 className={ACTION_ICON} /> : <LayoutGrid className={ACTION_ICON} />}
-            <span className="lg:hidden">{view === "split" ? "Lado a lado" : "Grade"}</span>
           </button>
           {!readOnly && canCreate && (
             <button
@@ -689,7 +687,6 @@ function Dashboard() {
               className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
             >
               <Plus className={ACTION_ICON} />
-              <span className="lg:hidden">Novo</span>
             </button>
           )}
           <Popover onOpenChange={(o) => !o && setFilterScreen("root")}>
@@ -701,7 +698,6 @@ function Dashboard() {
                 title="Filtros"
               >
                 <Filter className={ACTION_ICON} />
-                <span className="lg:hidden">Filtros</span>
                 {panelFiltersActive && <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />}
               </button>
             </PopoverTrigger>
