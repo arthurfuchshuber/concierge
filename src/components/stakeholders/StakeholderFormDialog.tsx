@@ -482,11 +482,17 @@ export function StakeholderFormDialog({
           await removeMemberFn({ data: { memberId: access.memberId } });
           toast.success("Acesso ao sistema removido.");
         }
-        void accessQuery.refetch();
+        await accessQuery.refetch();
       } catch (e) {
+        // Mantém a janela aberta e o aviso fixo: antes o "Cadastro atualizado"
+        // aparecia logo em seguida e escondia que o acesso NÃO foi criado.
+        await accessQuery.refetch();
         toast.error(
-          `Cadastro salvo, mas não foi possível atualizar o acesso: ${(e as Error).message}`,
+          `Cadastro salvo, mas o acesso ao sistema não foi liberado: ${(e as Error).message}`,
+          { duration: 15000 },
         );
+        onSaved?.(res.id as string, !form.id, form);
+        return;
       }
 
       toast.success(form.id ? "Cadastro atualizado." : `Cadastro de ${singular} criado.`);

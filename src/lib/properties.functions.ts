@@ -1159,6 +1159,9 @@ export const transferPropertyOwner = createServerFn({ method: "POST" })
       .eq("id", data.propertyId);
     if (updErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", updErr);
 
+    // Auditoria nunca bloqueia a transferência. O construtor do banco não tem
+    // `.catch`, então encadear `.catch` quebrava a 1ª tentativa (após salvar).
+    try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabaseAdmin.from("audit_logs" as never) as any).insert({
       user_id: context.userId,
@@ -1172,7 +1175,8 @@ export const transferPropertyOwner = createServerFn({ method: "POST" })
         newOwnerContactId: data.newOwnerContactId,
         newOwnerName: (newOwner as { name: string }).name,
       },
-    }).catch(() => { /* auditoria nunca bloqueia a transferência */ });
+    });
+    } catch { /* ignore */ }
 
     return { ok: true };
   });
