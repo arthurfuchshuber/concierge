@@ -39,7 +39,7 @@ export function SearchActionRow({
         )}
       </div>
       {actions && (
-        <div className={`${ACTION_BAR} !w-auto shrink-0 [&_.lg\\:hidden]:!hidden`}>{actions}</div>
+        <div className={`${ACTION_BAR} !w-auto shrink-0 ds-icon-actions`}>{actions}</div>
       )}
     </div>
   );
