@@ -2,7 +2,7 @@ import * as React from "react";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 
 import { cn } from "@/lib/utils";
-import { guardNestedOutside, useOverlayLayer } from "@/lib/global-overlay-store";
+import { useOverlayLayer } from "@/lib/global-overlay-store";
 import { buttonVariants } from "@/components/ui/button";
 
 const AlertDialog = AlertDialogPrimitive.Root;
@@ -41,8 +41,6 @@ const AlertDialogContent = React.forwardRef<
           className,
         )}
         {...props}
-        onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
-        onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
       />
     </AlertDialogPortal>
   );
