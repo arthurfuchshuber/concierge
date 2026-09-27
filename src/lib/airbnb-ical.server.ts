@@ -241,7 +241,7 @@ export async function syncPropertyIcal(
       }));
       const { data: existing } = await supabaseAdmin
         .from("property_reservations")
-        .select("external_uid")
+        .select("id, external_uid, checkout_date")
         .eq("property_id", propertyId)
         .eq("source", "airbnb")
         .eq("feed_index", feedIndex);
@@ -253,6 +253,36 @@ export async function syncPropertyIcal(
         .from("property_reservations")
         .upsert(rows, { onConflict: "property_id,source,external_uid" });
       if (upErr) throw upErr;
+
+      // SAÍDA ADIADA (27/09/2026, caso Studio 105): se o calendário empurrou a
+      // saída para depois de hoje e a estadia já tinha sido encerrada (ex.:
+      // pela saída automática na data antiga), reabre — o card volta para
+      // "Em estadia". Só desfaz enquanto a limpeza não foi feita.
+      const todaySP = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+      const oldByUid = new Map((existing ?? []).map((r) => [r.external_uid, r]));
+      for (const r of rows) {
+        const old = oldByUid.get(r.external_uid);
+        if (!old?.checkout_date || !r.checkout_date) continue;
+        if (!(r.checkout_date > old.checkout_date && r.checkout_date > todaySP)) continue;
+        try {
+          const { data: co } = await supabaseAdmin
+            .from("guest_arrival_status")
+            .select("id, cleaning_type, concluded_at")
+            .eq("reservation_id", old.id)
+            .eq("kind", "checkout")
+            .maybeSingle();
+          if (co && (co.cleaning_type || co.concluded_at)) continue;
+          if (co) await supabaseAdmin.from("guest_arrival_status").delete().eq("id", co.id);
+          await supabaseAdmin
+            .from("guest_arrival_status")
+            .update({ concluded_at: null })
+            .eq("reservation_id", old.id)
+            .eq("kind", "checkin")
+            .not("concluded_at", "is", null);
+        } catch (e) {
+          console.error("[ical] falha ao reabrir estadia com saída adiada", old.id, e);
+        }
+      }
     }
 
     // Remove past reservations that vanished from the feed (Airbnb only exposes future window).

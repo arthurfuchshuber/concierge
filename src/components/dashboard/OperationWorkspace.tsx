@@ -3107,13 +3107,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                           className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
                         >
                           <CurrentIcon className={ACTION_ICON} />
-                          <span className="lg:hidden min-w-0 truncate">{current.label}</span>
+                          <span className="min-w-0 truncate">{current.label}</span>
                           {/* Selo SEMPRE dourado, igual ao de "Pendências"
                               (`pendencias.tsx`) — pedido explícito,
                               25/09/2026: "sempre dourado, igual Pendências",
                               não herda a cor do status acima. Mesmas medidas e
                               cores exatas do selo original. */}
-                          <span className="lg:hidden grid h-[15px] min-w-[15px] shrink-0 place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
+                          <span className="grid h-[15px] min-w-[15px] shrink-0 place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
                             {current.count > 99 ? "99+" : current.count}
                           </span>
                           {/* Seta "⌄" removida (pedido explícito, 25/09/2026:
