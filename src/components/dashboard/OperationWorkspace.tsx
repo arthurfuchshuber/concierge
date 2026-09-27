@@ -1,3 +1,5 @@
+import { SearchActionRow } from "./SearchActionRow";
+import { searchScore } from "@/lib/search-score";
 import { trimSeries } from "@/lib/trim-series";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Link } from "@tanstack/react-router";
@@ -3414,7 +3416,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               todos os outros) — sem isso, no mobile os últimos cards ficavam
               colados na barra de navegação inferior fixa. */}
           <div className="h-1.5" />
-        </>
+        </div>
       ) : null}
 
       {view === "limpeza" ? (
@@ -3465,6 +3467,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 />
               </div>
             </div>
+
+            <SearchActionRow
+              value={opSearch}
+              onChange={setOpSearch}
+              placeholder="Buscar por imóvel, proprietário, cidade…"
+              actions={opActions}
+            />
 
             {/* Limpeza completa só entra no custo depois de aprovada (pedido
               explícito, 17/09/2026). O bloco só existe quando há pendência. */}
@@ -3537,6 +3546,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               cards das duas abas não caía na mesma altura quando comparadas
               lado a lado. */}
           <section className="rounded-none bg-transparent p-0 space-y-4 ds-lead-block">
+            <SearchActionRow
+              value={opSearch}
+              onChange={setOpSearch}
+              placeholder="Buscar por imóvel, hóspede, proprietário…"
+              actions={opActions}
+            />
             {/* A faixa de Filtros/Pendências/print que ficava aqui SAIU: as três
                 ações moram na linha do título (ver OperationShell `actions`).
                 No desktop isso devolve uma faixa inteira ao quadro; no mobile,
@@ -7464,7 +7479,7 @@ function CalendarFiltersButton({
             aria-label="Filtros e print"
             className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
           >
-            <SlidersHorizontal className={ACTION_ICON} />
+            <Filter className={ACTION_ICON} />
             <span className="lg:hidden">Filtros</span>
             {hasCustomFilters && <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />}
           </button>
