@@ -28,8 +28,8 @@ export type NewsItem = {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Janela editorial: hoje + próximos 8 dias. */
-export const NEWS_WINDOW_DAYS = 8;
+/** Janela editorial: 7 dias (hoje + 6). A busca roda toda quarta às 8h. */
+export const NEWS_WINDOW_DAYS = 6;
 
 export function addDays(iso: string, days: number): string {
   const [y, m, d] = iso.split("-").map(Number);

@@ -37,6 +37,12 @@ export const Route = createFileRoute("/api/public/cron/guest-followup")({
         for (let i = 0; i < b.length; i++) diff |= (a[i] ?? 0) ^ b[i];
         if (diff !== 0) return new Response("Unauthorized", { status: 401 });
 
+        // DESLIGADO (27/09/2026) a pedido do cliente: nenhuma mensagem
+        // proativa ao hóspede por enquanto. Para religar, mude para true e
+        // reative o agendamento 'guest-followup-hourly'.
+        const GUEST_FOLLOWUP_ENABLED = false;
+        if (!GUEST_FOLLOWUP_ENABLED) return Response.json({ ok: true, disabled: true });
+
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { speakWithAgent } = await import("@/lib/ai/outbound/speak.server");
