@@ -4219,16 +4219,8 @@ function CleaningChecklist({
           );
         })}
       </div>
-      {escondidas > 0 && (
-        <button
-          type="button"
-          onClick={() => setTudo((v) => !v)}
-          aria-expanded={tudo}
-          className="mt-1 w-full rounded-[8px] py-1 text-center text-[10px] font-bold text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
-        >
-          {tudo ? "Mostrar menos" : `+${escondidas} pendências`}
-        </button>
-      )}
+      </PopoverContent>
+    </Popover>
     </div>
   );
 }
