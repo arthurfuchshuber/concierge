@@ -396,8 +396,7 @@ async function attachPlacePhotos(items: NewsItem[], cityLabel: string, country: 
           {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${process.env.LOVABLE_API_KEY ?? ""}`,
-      "X-Connection-Api-Key": apiKey,
+              Authorization: `Bearer ${apiKey}`,
               "X-Connection-Api-Key": mapsKey,
               "Content-Type": "application/json",
               "X-Goog-FieldMask": fieldMask,
