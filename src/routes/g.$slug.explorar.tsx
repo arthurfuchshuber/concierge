@@ -42,6 +42,7 @@ import {
   type PoiCounts,
 } from "@/lib/poi-engagement.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { readPass } from "@/lib/guest-pass-client";
 import { createContext, useContext } from "react";
 import { guideUrl } from "@/lib/site-url";
 
@@ -727,6 +728,7 @@ function ExplorePage() {
                               poi_type: "marketplace_link",
                               event_type: "view",
                               anon_id: getAnonIdClient(),
+                              guest_pass: readPass(`guide:${slug}`),
                             },
                           });
                         } catch {

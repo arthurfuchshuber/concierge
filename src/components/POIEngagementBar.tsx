@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Eye, Share2, Heart, ThumbsDown } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
+import { readPass } from "@/lib/guest-pass-client";
 import { toast } from "sonner";
 import { recordPoiEngagement } from "@/lib/poi-engagement.functions";
 
@@ -108,7 +109,7 @@ export function POIEngagementBar({
     setCounts((c) => ({ ...c, views: c.views + 1 }));
     try {
       await record({
-        data: { slug, poi_key: poiKey, poi_type: poiType, event_type: "view", anon_id: getAnonId() },
+        data: { slug, poi_key: poiKey, poi_type: poiType, event_type: "view", anon_id: getAnonId(), guest_pass: readPass(`guide:${slug}`) },
       });
     } catch {
       // silencioso — não atrapalha o hóspede
@@ -130,7 +131,7 @@ export function POIEngagementBar({
     setReaction(next);
     try {
       await record({
-        data: { slug, poi_key: poiKey, poi_type: poiType, event_type: kind, anon_id: getAnonId() },
+        data: { slug, poi_key: poiKey, poi_type: poiType, event_type: kind, anon_id: getAnonId(), guest_pass: readPass(`guide:${slug}`) },
       });
     } catch {
       toast.error("Não foi possível registrar sua reação agora.");
@@ -151,7 +152,7 @@ export function POIEngagementBar({
         toast.success("Link copiado!");
       }
       await record({
-        data: { slug, poi_key: poiKey, poi_type: poiType, event_type: "share", anon_id: getAnonId() },
+        data: { slug, poi_key: poiKey, poi_type: poiType, event_type: "share", anon_id: getAnonId(), guest_pass: readPass(`guide:${slug}`) },
       });
     } catch {
       // user canceled share — undo optimistic share count
