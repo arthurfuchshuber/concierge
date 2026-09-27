@@ -3107,13 +3107,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                           className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
                         >
                           <CurrentIcon className={ACTION_ICON} />
-                          <span className="lg:hidden min-w-0 truncate">{current.label}</span>
+                          <span className="min-w-0 truncate">{current.label}</span>
                           {/* Selo SEMPRE dourado, igual ao de "Pendências"
                               (`pendencias.tsx`) — pedido explícito,
                               25/09/2026: "sempre dourado, igual Pendências",
                               não herda a cor do status acima. Mesmas medidas e
                               cores exatas do selo original. */}
-                          <span className="lg:hidden grid h-[15px] min-w-[15px] shrink-0 place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
+                          <span className="grid h-[15px] min-w-[15px] shrink-0 place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
                             {current.count > 99 ? "99+" : current.count}
                           </span>
                           {/* Seta "⌄" removida (pedido explícito, 25/09/2026:
@@ -4143,17 +4143,35 @@ function CleaningChecklist({
   onToggle: (task: TaskRow) => void;
   onOpenRecords?: (task: TaskRow) => void;
 }) {
-  const [tudo, setTudo] = useState(false);
+  /* RECOLHIDA NO TÍTULO (27/09/2026): o cartão mostra só a linha
+     "Pendências"; a lista abre numa janela flutuante ao tocar. */
   const feitas = items.filter((c) => c.done).length;
-  const escondidas = items.length - CHECKLIST_VISIVEL;
-  const lista = tudo ? items : items.slice(0, CHECKLIST_VISIVEL);
+  const lista = items;
+  void CHECKLIST_VISIVEL;
 
   return (
-    <div className={`${PANEL_SHELL} px-2.5 pb-2 pt-2.5`} onClick={(e) => e.stopPropagation()}>
-      <span
-        aria-hidden
-        className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] bg-gradient-to-r from-[#c9a962] to-transparent"
-      />
+    <div onClick={(e) => e.stopPropagation()}>
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" className="flex w-full items-center gap-2 py-1 text-left">
+          <span className="ds-falta shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em]">
+            Pendências
+          </span>
+          <span
+            aria-hidden
+            className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
+          />
+          <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
+            {feitas}/{items.length}
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="center"
+        className="max-h-[60dvh] w-[min(360px,calc(100vw-32px))] overflow-y-auto p-3"
+        onClick={(e) => e.stopPropagation()}
+      >
       <PanelHeading
         title="Checklist desta limpeza"
         className="mb-2"
@@ -4201,16 +4219,8 @@ function CleaningChecklist({
           );
         })}
       </div>
-      {escondidas > 0 && (
-        <button
-          type="button"
-          onClick={() => setTudo((v) => !v)}
-          aria-expanded={tudo}
-          className="mt-1 w-full rounded-[8px] py-1 text-center text-[10px] font-bold text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
-        >
-          {tudo ? "Mostrar menos" : `+${escondidas} pendências`}
-        </button>
-      )}
+      </PopoverContent>
+    </Popover>
     </div>
   );
 }
