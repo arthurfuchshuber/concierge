@@ -1,0 +1,1 @@
+select cron.alter_job(jobid, active := false) from cron.job where jobname = 'refresh-airbnb-listings-daily';
