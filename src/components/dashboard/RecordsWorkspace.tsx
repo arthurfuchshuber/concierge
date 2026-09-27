@@ -78,7 +78,6 @@ import {
   ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
-import { PendenciasButton } from "@/components/dashboard/pendencias";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { StatCard } from "@/components/ds/StatCard";
 import { OverlayChip, OverlayHeader } from "@/components/ds/OverlayHeader";
@@ -621,7 +620,6 @@ export function RecordsWorkspace() {
                 onClick={() => setCategory(category === c.key ? null : c.key)}
               />
             ))}
-            <PendenciasButton ownerId={activeOwnerId} enabled variant="card" />
           </div>
           <SearchActionRow
             value={search}
