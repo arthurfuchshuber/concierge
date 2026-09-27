@@ -3,6 +3,7 @@ import * as MenubarPrimitive from "@radix-ui/react-menubar";
 import { Check, ChevronRight, Circle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { guardNestedOutside, useOverlayLayer } from "@/lib/global-overlay-store";
 
 function MenubarMenu({ ...props }: React.ComponentProps<typeof MenubarPrimitive.Menu>) {
   return <MenubarPrimitive.Menu {...props} />;
@@ -78,25 +79,32 @@ MenubarSubTrigger.displayName = MenubarPrimitive.SubTrigger.displayName;
 const MenubarSubContent = React.forwardRef<
   React.ElementRef<typeof MenubarPrimitive.SubContent>,
   React.ComponentPropsWithoutRef<typeof MenubarPrimitive.SubContent>
->(({ className, ...props }, ref) => (
+>(({ className, ...props }, ref) => {
+  const [layerRef, layerNodeRef] = useOverlayLayer("float", ref);
+  return (
   <MenubarPrimitive.SubContent
-    ref={ref}
+    ref={layerNodeRef}
     className={cn(
       "z-50 min-w-[8rem] overflow-hidden ds-overlay max-w-[calc(100vw-32px)] p-1  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-menubar-content-transform-origin)",
       className,
     )}
     {...props}
+    onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
+    onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
   />
-));
+  );
+});
 MenubarSubContent.displayName = MenubarPrimitive.SubContent.displayName;
 
 const MenubarContent = React.forwardRef<
   React.ElementRef<typeof MenubarPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof MenubarPrimitive.Content>
->(({ className, align = "start", alignOffset = -4, sideOffset = 8, ...props }, ref) => (
+>(({ className, align = "start", alignOffset = -4, sideOffset = 8, ...props }, ref) => {
+  const [layerRef, layerNodeRef] = useOverlayLayer("float", ref);
+  return (
   <MenubarPrimitive.Portal>
     <MenubarPrimitive.Content
-      ref={ref}
+      ref={layerNodeRef}
       align={align}
       alignOffset={alignOffset}
       sideOffset={sideOffset}
@@ -105,9 +113,12 @@ const MenubarContent = React.forwardRef<
         className,
       )}
       {...props}
+      onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
+      onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
     />
   </MenubarPrimitive.Portal>
-));
+  );
+});
 MenubarContent.displayName = MenubarPrimitive.Content.displayName;
 
 const MenubarItem = React.forwardRef<

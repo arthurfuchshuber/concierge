@@ -21,6 +21,7 @@ import { Sparkles, Headphones, X } from "lucide-react";
 import { HANDOFF_DOCK_OPEN_EVENT } from "@/lib/handoff-dock";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import { useLockBodyScroll, useVisualViewport, viewportOverlayStyle } from "@/hooks/useVisualViewport";
+import { useManualOverlayLayer } from "@/lib/global-overlay-store";
 
 const POSITION_KEY = "handoff-dock-position-v1";
 
@@ -63,19 +64,12 @@ export function FloatingDock({
   // Com o chat aberto a página atrás não rola — ver useLockBodyScroll.
   useLockBodyScroll(assistantOpen);
   const justDraggedRef = useRef(false);
+  const menuRef = useManualOverlayLayer<HTMLDivElement>(menuOpen, () => setMenuOpen(false));
 
   useEffect(() => {
     setMounted(true);
     setDockBottom(loadDockBottom());
   }, []);
-
-  // Clicar fora fecha só o menu — o painel do assistente tem o X dele.
-  useEffect(() => {
-    if (!menuOpen) return;
-    const close = () => setMenuOpen(false);
-    window.addEventListener("pointerdown", close);
-    return () => window.removeEventListener("pointerdown", close);
-  }, [menuOpen]);
 
   function onPointerDown(e: ReactPointerEvent<HTMLButtonElement>) {
     e.stopPropagation();
@@ -170,6 +164,7 @@ export function FloatingDock({
 
       {menuOpen && !assistantOpen && (
         <div
+          ref={menuRef}
           onPointerDown={(e) => e.stopPropagation()}
           className="fixed right-4 w-56 overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl lg:right-6"
           style={{ ...anchor, bottom: `calc(env(safe-area-inset-bottom,0px) + ${dockBottom + 64}px)` }}

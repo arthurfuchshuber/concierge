@@ -113,6 +113,7 @@ import { EtiquetaSelect } from "@/components/EtiquetaSelect";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useManualOverlayLayer } from "@/lib/global-overlay-store";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -4682,15 +4683,7 @@ export function PlaceAutocomplete({
   const [results, setResults] = useState<PlaceSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  const wrapRef = useManualOverlayLayer<HTMLDivElement>(open, () => setOpen(false));
 
   useEffect(() => {
     const q = query.trim();

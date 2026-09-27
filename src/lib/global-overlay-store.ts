@@ -130,3 +130,39 @@ export function guardNestedOutside<E extends { preventDefault: () => void }>(
     handler?.(e);
   };
 }
+
+/**
+ * Integra listas flutuantes feitas à mão (autocompletes/docks) à mesma pilha
+ * dos componentes Radix. Só a camada visível no topo reage ao clique externo.
+ */
+export function useManualOverlayLayer<T extends HTMLElement>(
+  open: boolean,
+  onDismiss: () => void,
+): React.RefObject<T | null> {
+  const nodeRef = React.useRef<T | null>(null);
+  const idRef = React.useRef<number | null>(null);
+  const dismissRef = React.useRef(onDismiss);
+  dismissRef.current = onDismiss;
+
+  React.useEffect(() => {
+    if (!open) return;
+    const layer = pushGlobalOverlay("float");
+    idRef.current = layer.id;
+    const node = nodeRef.current;
+    if (node) node.style.zIndex = String(layerZ(layer.id));
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!isTopOverlay(idRef.current)) return;
+      if (nodeRef.current?.contains(event.target as Node)) return;
+      dismissRef.current();
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      layer.release();
+      idRef.current = null;
+    };
+  }, [open]);
+
+  return nodeRef;
+}

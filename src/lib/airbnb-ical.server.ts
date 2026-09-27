@@ -298,6 +298,13 @@ export async function syncPropertyIcal(
           console.error("[ical] falha ao reabrir estadia com saída adiada", old.id, e);
         }
       }
+
+      // Depois de receber o calendário mais recente, encerra etapas antigas
+      // que foram superadas por uma estadia posterior já iniciada no imóvel.
+      // Isso não registra limpeza nem custo: só evita duas estadias vigentes
+      // simultaneamente na operação.
+      const { reconcileSupersededStays } = await import("@/lib/stay-reconciliation.server");
+      await reconcileSupersededStays(supabaseAdmin, [propertyId], todaySP);
     }
 
     // Remove past reservations that vanished from the feed (Airbnb only exposes future window).

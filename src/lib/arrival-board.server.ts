@@ -226,6 +226,16 @@ export async function buildArrivalRows(
       await syncStaleIcals(supabase, propIds);
     }
 
+    // Uma nova estadia já iniciada torna impossível manter a anterior como
+    // checkout/limpeza operacional. Reconcilia antes das consultas para que
+    // estados antigos não reapareçam no mesmo carregamento do painel.
+    try {
+      const { reconcileSupersededStays } = await import("@/lib/stay-reconciliation.server");
+      await reconcileSupersededStays(supabase, propIds, today);
+    } catch (error) {
+      console.error("[arrival-board] falha ao reconciliar estadias consecutivas", error);
+    }
+
 
     let q = context.supabase
       .from("guide_access_logs")

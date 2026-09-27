@@ -4,6 +4,7 @@ import { Home, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { searchBrAddress, type AddressSuggestion } from "@/lib/address-lookup.functions";
+import { useManualOverlayLayer } from "@/lib/global-overlay-store";
 
 /** Campo de logradouro com sugestões enquanto a pessoa digita. */
 export function AddressAutocomplete({
@@ -25,7 +26,7 @@ export function AddressAutocomplete({
   const [items, setItems] = useState<AddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const boxRef = useRef<HTMLDivElement>(null);
+  const boxRef = useManualOverlayLayer<HTMLDivElement>(open, () => setOpen(false));
   const typed = useRef(false);
 
   useEffect(() => {
@@ -46,14 +47,6 @@ export function AddressAutocomplete({
     }, 450);
     return () => clearTimeout(t);
   }, [value, cityHint]);
-
-  useEffect(() => {
-    function onDoc(e: MouseEvent) {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
 
   return (
     <div className="space-y-1.5 min-w-0" ref={boxRef}>
