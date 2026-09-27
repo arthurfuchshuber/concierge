@@ -738,7 +738,7 @@ function Dashboard() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por título, proprietário, cidade…"
-          className={`${PANEL_SHELL} h-[var(--ds-action-h)] lg:h-[var(--ds-action-h-lg)] w-full pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none`}
+          className={`${PANEL_SHELL} !rounded-[9px] lg:!rounded-[13px] h-[var(--ds-action-h)] lg:h-[var(--ds-action-h-lg)] w-full pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none`}
         />
         {search && (
           <button

@@ -25,7 +25,7 @@ export function SearchActionRow({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className={`${PANEL_SHELL} h-[var(--ds-action-h)] w-full pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none lg:h-[var(--ds-action-h-lg)]`}
+          className={`${PANEL_SHELL} !rounded-[9px] lg:!rounded-[13px] h-[var(--ds-action-h)] w-full pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none lg:h-[var(--ds-action-h-lg)]`}
         />
         {value && (
           <button
