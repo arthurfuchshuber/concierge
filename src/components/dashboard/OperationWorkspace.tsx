@@ -956,6 +956,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const [providerFilters, setProviderFilters] = useState<string[]>([]);
   // Filtro de Imóveis (pedido explícito, 26/09/2026) — ids, aba Limpeza.
   const [propertyFilters, setPropertyFilters] = useState<string[]>([]);
+  // Busca da linha "buscar + ações" (Kanban/Limpeza) — zera ao trocar de aba.
+  const [opSearch, setOpSearch] = useState("");
+  useEffect(() => setOpSearch(""), [view]);
   const hasCustomFilters =
     !!periodRange ||
     ownerFilters.length > 0 ||
@@ -1077,8 +1080,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     (p: { id?: string; ownerName?: string | null; city?: string | null }) =>
       (propertyFilters.length === 0 || (!!p.id && propertyFilters.includes(p.id))) &&
       (ownerFilters.length === 0 || (p.ownerName && ownerFilters.includes(p.ownerName))) &&
-      (cityFilters.length === 0 || (p.city && cityFilters.includes(p.city))),
-    [ownerFilters, cityFilters, propertyFilters],
+      (cityFilters.length === 0 || (p.city && cityFilters.includes(p.city))) &&
+      (!opSearch.trim() ||
+        searchScore(opSearch, [[(p as { name?: string }).name, 3], [p.ownerName, 2.5], [p.city, 1.5]]) > 0),
+    [ownerFilters, cityFilters, propertyFilters, opSearch],
   );
   // Prestador é aplicado SÓ para o calendário/Kanban (vínculo do imóvel) —
   // nunca entra em `cleaningStatsPropertyIds` abaixo, que continua só
@@ -1100,10 +1105,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   );
   const cleaningStatsPropertyIds = useMemo(
     () =>
-      ownerFilters.length > 0 || cityFilters.length > 0 || propertyFilters.length > 0
+      ownerFilters.length > 0 || cityFilters.length > 0 || propertyFilters.length > 0 || !!opSearch.trim()
         ? filteredOccupancyProperties.map((p) => p.id)
         : undefined,
-    [ownerFilters, cityFilters, propertyFilters, filteredOccupancyProperties],
+    [ownerFilters, cityFilters, propertyFilters, opSearch, filteredOccupancyProperties],
   );
   /**
    * OS CARDS LEEM EXATAMENTE O MESMO INTERVALO DOS GRÁFICOS (pedido explícito,
@@ -1774,9 +1779,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           : providerFilters.includes(NO_PROVIDER_LABEL);
         if (!matches) return false;
       }
+      if (
+        opSearch.trim() &&
+        searchScore(opSearch, [
+          [r.propertyName, 3],
+          [r.guestName, 3],
+          [r.ownerName, 2.5],
+          [r.reservationCode, 2],
+          [propertyCityById.get(r.propertyId), 1.5],
+        ]) === 0
+      )
+        return false;
       return true;
     },
-    [ownerFilters, cityFilters, providerFilters, propertyFilters, propertyCityById, propertyProviderById],
+    [ownerFilters, cityFilters, providerFilters, propertyFilters, propertyCityById, propertyProviderById, opSearch],
   );
 
   /**
@@ -3013,22 +3029,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     );
   }
 
-  return (
-    // Alinhado à esquerda (sem mx-auto): com o menu recolhido a área fica mais
-    // larga e o centramento aumentava a margem esquerda.
-    /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): respiro lateral de
-       14px no celular, um pouco mais de ar entre os blocos (10px) e o halo
-       roxo bem fraco no topo — o mesmo efeito da landing. */
-    <div ref={pageRef} className="relative w-full max-w-[1440px] space-y-2.5 px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
-      <div aria-hidden className="ds-page-halo" />
-      <OperationShell
-        view={view}
-        /* O Operacional NÃO tem ações no título (pedido explícito,
-           09/09/2026): ele não usa filtros de período/cidade/proprietário —
-           quem filtra ali é o próprio calendário de ocupação, com o botão
-           dele. Um botão de filtro que não filtra a tela seria pior do que
-           não ter botão. */
-        actions={
+  const opActions =
           view === "resumo" ? undefined : (
             <>
               {view === "limpeza" && cleaningPeriod && (
@@ -3170,8 +3171,23 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 demandMax={view === "limpeza" ? (cleaningDemandBounds?.max ?? null) : null}
               />
             </>
-          )
-        }
+          );
+
+  return (
+    // Alinhado à esquerda (sem mx-auto): com o menu recolhido a área fica mais
+    // larga e o centramento aumentava a margem esquerda.
+    /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): respiro lateral de
+       14px no celular, um pouco mais de ar entre os blocos (10px) e o halo
+       roxo bem fraco no topo — o mesmo efeito da landing. */
+    <div ref={pageRef} className="relative w-full max-w-[1440px] space-y-2.5 px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
+      <div aria-hidden className="ds-page-halo" />
+      <OperationShell
+        view={view}
+        /* O Operacional NÃO tem ações no título (pedido explícito,
+           09/09/2026): ele não usa filtros de período/cidade/proprietário —
+           quem filtra ali é o próprio calendário de ocupação, com o botão
+           dele. Um botão de filtro que não filtra a tela seria pior do que
+           não ter botão. */
         title={
           view === "limpeza"
             ? cleaningPeriodView
@@ -3197,7 +3213,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       />
 
       {view === "resumo" ? (
-        <>
+        <div className="ds-lead-block mt-6 space-y-2.5">
           {/* Engajamento do guia — fica no topo, antes de tudo (pedido
               explícito), com destaque. Ver renderEngagementTop acima. */}
           {renderEngagementTop()}
