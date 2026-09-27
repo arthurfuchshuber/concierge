@@ -621,6 +621,7 @@ export function RecordsWorkspace() {
                 onClick={() => setCategory(category === c.key ? null : c.key)}
               />
             ))}
+            <PendenciasButton ownerId={activeOwnerId} enabled variant="card" />
           </div>
           <SearchActionRow
             value={search}
