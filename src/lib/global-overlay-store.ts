@@ -14,7 +14,7 @@ import * as React from "react";
 type Kind = "float" | "window";
 type Listener = () => void;
 const listeners = new Set<Listener>();
-let stack: { id: number; kind: Kind }[] = [];
+let stack: { id: number; kind: Kind; z: number }[] = [];
 let seq = 0;
 
 function emit() {
@@ -23,7 +23,11 @@ function emit() {
 
 export function pushGlobalOverlay(kind: Kind = "float"): { id: number; release: () => void } {
   const id = ++seq;
-  stack = [...stack, { id, kind }];
+  // Z sempre acima da camada mais alta ainda aberta — calcular pelo índice
+  // fazia uma janela nova empatar com a de baixo quando alguma camada
+  // intermediária fechava (a nova ficava sob o véu e "fechava sozinha").
+  const top = stack.reduce((m, l) => Math.max(m, l.z), 57);
+  stack = [...stack, { id, kind, z: top + 3 }];
   emit();
   let released = false;
   return {
@@ -38,14 +42,13 @@ export function pushGlobalOverlay(kind: Kind = "float"): { id: number; release: 
 }
 
 export function layerZ(id: number): number {
-  const i = stack.findIndex((l) => l.id === id);
-  return 60 + 3 * Math.max(0, i);
+  return stack.find((l) => l.id === id)?.z ?? 60;
 }
 
 export function useTopOverlayZ(): number {
   return React.useSyncExternalStore(
     subscribe,
-    () => (stack.length ? 60 + 3 * (stack.length - 1) : 55),
+    () => (stack.length ? stack[stack.length - 1].z : 55),
     () => 55,
   );
 }
