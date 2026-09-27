@@ -766,9 +766,16 @@ function Guide({ data }: { data: GuideOk }) {
     let cancelled = false;
     const load = async () => {
       try {
+        const { ensureGuidePass } = await import("@/lib/guest-pass-client");
+        const guestPass = await ensureGuidePass(slug, {
+          name: accessRec?.name ?? null,
+          code: accessRec?.code ?? null,
+        });
+        if (!guestPass) return;
         const res = await fetchStayStatus({
           data: {
             slug,
+            guest_pass: guestPass,
             guest_name: accessRec?.name ?? null,
             checkin_date: checkin,
             checkout_date: accessRec?.checkoutDate ?? null,

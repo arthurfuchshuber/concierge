@@ -103,7 +103,7 @@ function instructions(params: {
     "· Só prepare quando tiver identificado o imóvel, a pendência ou o card certo. Na dúvida entre dois imóveis, pergunte qual — perguntar é diferente de recusar.",
     "",
     `Hoje é ${params.today}.`,
-    params.currentPath ? `A pessoa está agora na tela: ${params.currentPath}` : "",
+    safePath(params.currentPath) ? `A pessoa está agora na tela: ${safePath(params.currentPath)}` : "",
     anexo,
     "",
     "DOCUMENTAÇÃO DO SISTEMA (recuperada para esta pergunta)",
@@ -111,6 +111,13 @@ function instructions(params: {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/** Só aceita um caminho de tela simples; nada de texto livre no prompt. */
+function safePath(p: string | null | undefined): string | null {
+  if (!p) return null;
+  const clean = p.split(/[?#]/)[0];
+  return /^\/[A-Za-z0-9/_.$-]{0,200}$/.test(clean) ? clean : null;
 }
 
 export async function runAssistantTurn(params: {
