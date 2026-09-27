@@ -85,6 +85,19 @@ export function useOverlayLayer<T extends Element>(
         (node as unknown as HTMLElement).style.zIndex = z;
         const wrap = node.parentElement;
         if (wrap?.hasAttribute("data-radix-popper-content-wrapper")) wrap.style.zIndex = z;
+        // O Radix recalcula o z-index do invólucro depois de montar — reaplica
+        // para listas (Select) dentro de janelas não ficarem por trás delas.
+        const el = node as unknown as HTMLElement;
+        const reapply = () => {
+          if (idRef.current !== layer.id) return;
+          el.style.zIndex = z;
+          const w = el.parentElement;
+          if (w?.hasAttribute("data-radix-popper-content-wrapper")) w.style.zIndex = z;
+        };
+        if (typeof requestAnimationFrame !== "undefined") {
+          requestAnimationFrame(() => { reapply(); requestAnimationFrame(reapply); });
+          setTimeout(reapply, 60);
+        }
         const prev = node.previousElementSibling as HTMLElement | null;
         if (prev && prev.getAttribute("data-state") && !prev.hasAttribute("role")) {
           prev.style.zIndex = String(Number(z) - 1);
