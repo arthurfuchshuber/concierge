@@ -119,12 +119,12 @@ export function GuideCard({
         </span>
         {place && <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/80">{place}</span>}
       </div>
-      <div className="flex min-w-0 items-center gap-2">
+      <div className={`flex min-w-0 items-center gap-2 ${variant === "split" && onSelectChange ? "-mr-[18px]" : ""}`}>
         <div className="h-[3px] min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/10">
           <div className={`h-full rounded-full ${barClass}`} style={{ width: `${score}%` }} />
         </div>
         <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">{score}%</span>
-        <div className="flex shrink-0 items-center">{actions}</div>
+        <div className={`flex shrink-0 items-center ${variant === "split" && onSelectChange ? "w-3 justify-center overflow-visible" : ""}`}>{actions}</div>
       </div>
     </div>
   );
