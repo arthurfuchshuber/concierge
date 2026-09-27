@@ -1,0 +1,1 @@
+update public.guide_access_logs set checkout_date='2026-09-28' where id='cc9a8a59-39f3-4b95-a1bb-e0890b075c09';

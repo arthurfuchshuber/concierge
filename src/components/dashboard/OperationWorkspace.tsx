@@ -4153,17 +4153,22 @@ function CleaningChecklist({
     <div onClick={(e) => e.stopPropagation()}>
     <Popover>
       <PopoverTrigger asChild>
-        <button type="button" className="flex w-full items-center gap-2 py-1 text-left">
-          <span className="ds-falta shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em]">
-            Pendências
-          </span>
+        <button
+          type="button"
+          className="relative w-full overflow-hidden rounded-[14px] border border-border/60 bg-card/40 px-3 py-2.5 text-left"
+        >
           <span
             aria-hidden
-            className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
+            className="absolute left-4 right-4 top-0 h-px bg-gradient-to-r from-[#c9a962]/80 via-[#c9a962]/40 to-transparent"
           />
-          <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
-            {feitas}/{items.length}
-          </span>
+          <PanelHeading
+            title="Checklist desta limpeza"
+            right={
+              <CountPill>
+                {feitas}/{items.length}
+              </CountPill>
+            }
+          />
         </button>
       </PopoverTrigger>
       <PopoverContent

@@ -265,6 +265,21 @@ export async function syncPropertyIcal(
         if (!old?.checkout_date || !r.checkout_date) continue;
         if (!(r.checkout_date > old.checkout_date && r.checkout_date > todaySP)) continue;
         try {
+          // Formulário do hóspede ligado a esta reserva acompanha a nova saída;
+          // senão ele vira um card duplicado na data antiga (Fila de Limpeza).
+          const { data: links } = await supabaseAdmin
+            .from("guest_arrival_status")
+            .select("log_id")
+            .eq("reservation_id", old.id)
+            .not("log_id", "is", null);
+          const logIds = [...new Set((links ?? []).map((l) => l.log_id as string))];
+          if (logIds.length) {
+            await supabaseAdmin
+              .from("guide_access_logs")
+              .update({ checkout_date: r.checkout_date })
+              .in("id", logIds)
+              .eq("checkout_date", old.checkout_date);
+          }
           const { data: co } = await supabaseAdmin
             .from("guest_arrival_status")
             .select("id, cleaning_type, concluded_at")
