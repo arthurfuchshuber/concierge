@@ -70,13 +70,45 @@ export function useOverlayLayer<T extends Element>(
 ): [React.MutableRefObject<number | null>, (node: T | null) => void] {
   const idRef = React.useRef<number | null>(null);
   const releaseRef = React.useRef<(() => void) | null>(null);
+  const nodeRef = React.useRef<T | null>(null);
+  const pendingRelease = React.useRef(false);
   const fwd = React.useRef(forwarded);
   fwd.current = forwarded;
   const ref = React.useCallback(
     (node: T | null) => {
+      const forward = () => {
+        const f = fwd.current;
+        if (typeof f === "function") f(node);
+        else if (f) f.current = node;
+      };
+      // MESMO NÓ REANEXADO: o Radix troca a função de ref a cada render de
+      // janelas aninhadas (null → mesmo nó). Tratar isso como "reabriu"
+      // jogava a janela de baixo para o topo da pilha, cobrindo a nova — era
+      // por isso que a janela de anexo "abria e fechava" na Fila de Limpeza.
+      if (node && node === nodeRef.current && idRef.current != null) {
+        pendingRelease.current = false;
+        forward();
+        return;
+      }
+      if (!node) {
+        // Solta só se o nó não voltar no mesmo ciclo.
+        pendingRelease.current = true;
+        queueMicrotask(() => {
+          if (!pendingRelease.current) return;
+          pendingRelease.current = false;
+          releaseRef.current?.();
+          releaseRef.current = null;
+          idRef.current = null;
+          nodeRef.current = null;
+        });
+        forward();
+        return;
+      }
+      pendingRelease.current = false;
       releaseRef.current?.();
       releaseRef.current = null;
       idRef.current = null;
+      nodeRef.current = node;
       if (node) {
         const layer = pushGlobalOverlay(kind);
         idRef.current = layer.id;
