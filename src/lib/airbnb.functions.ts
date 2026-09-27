@@ -162,10 +162,11 @@ const AIRBNB_EXPAND_ACTIONS: FirecrawlAction[] = [
 ];
 
 async function scrapeWithFirecrawl(apiKey: string, url: string, options: FirecrawlScrapeOptions): Promise<unknown> {
-  const response = await fetch("https://api.firecrawl.dev/v2/scrape", {
+  const response = await fetch("https://connector-gateway.lovable.dev/firecrawl/v2/scrape", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${process.env.LOVABLE_API_KEY ?? ""}`,
+      "X-Connection-Api-Key": apiKey,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ url, ...options }),

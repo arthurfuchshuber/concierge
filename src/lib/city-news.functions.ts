@@ -79,9 +79,9 @@ async function firecrawlSearch(query: string, tbs: string = "qdr:w"): Promise<Fi
   }
   // Firecrawl limita requisições por minuto: em 429 esperamos e tentamos de novo.
   for (let attempt = 0; attempt < 3; attempt++) {
-    const r = await fetch("https://api.firecrawl.dev/v2/search", {
+    const r = await fetch("https://connector-gateway.lovable.dev/firecrawl/v2/search", {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${process.env.LOVABLE_API_KEY ?? ""}`, "X-Connection-Api-Key": key, "Content-Type": "application/json" },
       body: JSON.stringify({ query, limit: 20, tbs, lang: "pt", country: "br" }),
       signal: AbortSignal.timeout(20000),
     });
@@ -280,9 +280,9 @@ async function firecrawlScrape(url: string): Promise<string | null> {
   const key = process.env.FIRECRAWL_API_KEY;
   if (!key) return null;
   try {
-    const r = await fetch("https://api.firecrawl.dev/v2/scrape", {
+    const r = await fetch("https://connector-gateway.lovable.dev/firecrawl/v2/scrape", {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${process.env.LOVABLE_API_KEY ?? ""}`, "X-Connection-Api-Key": key, "Content-Type": "application/json" },
       body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true, timeout: 12000 }),
       signal: AbortSignal.timeout(14000),
     });
@@ -396,7 +396,8 @@ async function attachPlacePhotos(items: NewsItem[], cityLabel: string, country: 
           {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${apiKey}`,
+              Authorization: `Bearer ${process.env.LOVABLE_API_KEY ?? ""}`,
+      "X-Connection-Api-Key": apiKey,
               "X-Connection-Api-Key": mapsKey,
               "Content-Type": "application/json",
               "X-Goog-FieldMask": fieldMask,

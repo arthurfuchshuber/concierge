@@ -532,9 +532,9 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       const BLOCKED =
         /(facebook|instagram|tiktok|twitter|x\.com|pinterest|reddit|quora|booking\.com|airbnb|expedia|despegar|hoteis\.com|tripadvisor\.[a-z.]+\/ShowUserReviews)/i;
       try {
-        const res = await fetch("https://api.firecrawl.dev/v2/search", {
+        const res = await fetch("https://connector-gateway.lovable.dev/firecrawl/v2/search", {
           method: "POST",
-          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${process.env.LOVABLE_API_KEY ?? ""}`, "X-Connection-Api-Key": key, "Content-Type": "application/json" },
           body: JSON.stringify({
             query,
             limit: 8,
