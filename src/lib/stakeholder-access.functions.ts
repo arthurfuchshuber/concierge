@@ -11,6 +11,14 @@ import { z } from "zod";
 
 const EmailInput = z.object({ email: z.string().trim().toLowerCase().email().max(200) });
 
+/** Traduz a recusa de senha fraca/vazada (checagem de senhas conhecidas). */
+function friendlyPasswordError(msg: string | undefined): string | null {
+  if (msg && /weak|easy to guess|pwned|leaked|compromised/i.test(msg)) {
+    return "Essa senha provisória é muito fraca ou já apareceu em vazamentos de senhas. Use o botão \"Gerar\" ou crie uma com letras maiúsculas, minúsculas, números e símbolo.";
+  }
+  return null;
+}
+
 async function findUserIdByEmail(email: string): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const found = await (await import("@/lib/admin-users.server")).findAuthUserByEmail(email);
@@ -129,7 +137,7 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
         password: data.password,
         user_metadata: { must_change_password: true },
       });
-      if (error) throw new Error(`Não foi possível definir a senha provisória: ${error.message}`);
+      if (error) throw new Error(friendlyPasswordError(error.message) ?? `Não foi possível definir a senha provisória: ${error.message}`);
     } else {
       const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
         email: data.email,
@@ -138,7 +146,7 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
         user_metadata: { must_change_password: true, full_name: data.name ?? null },
       });
       if (error || !created.user) {
-        throw new Error(`Não foi possível criar o acesso: ${error?.message ?? "erro desconhecido"}`);
+        throw new Error(friendlyPasswordError(error?.message) ?? `Não foi possível criar o acesso: ${error?.message ?? "erro desconhecido"}`);
       }
       memberUserId = created.user.id;
     }
