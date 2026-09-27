@@ -16,6 +16,7 @@ const RecordInput = z.object({
   poi_type: PoiType,
   event_type: EventType,
   anon_id: z.string().trim().min(8).max(80),
+  guest_pass: z.string().max(1000).optional().nullable(),
 });
 
 const CountsInput = z.object({
@@ -52,6 +53,11 @@ export const recordPoiEngagement = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const propertyId = await resolvePropertyId(data.slug);
     if (!propertyId) return { ok: false as const };
+    // Só hóspede identificado neste guia (passe assinado pelo servidor) conta.
+    const { verifyGuestPass } = await import("@/lib/guest-pass.server");
+    if (!verifyGuestPass(data.guest_pass ?? null, `guide:${propertyId}`)) {
+      return { ok: false as const };
+    }
     const anon = await anonKey(data.anon_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 

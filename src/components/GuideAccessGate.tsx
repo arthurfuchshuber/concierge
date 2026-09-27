@@ -443,7 +443,7 @@ export function GuideAccessGate({
             });
           setResCheck({
             state: "no-match",
-            suggestedCheckout: "suggestedCheckout" in r ? r.suggestedCheckout : undefined,
+            suggestedCheckout: undefined,
           });
         })
         .catch(() => {
