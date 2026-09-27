@@ -1512,3 +1512,11 @@ dd {
   padding: 2px 10px 2px 2px;
   margin-right: -4px;
 }
+
+/* Barra de ações ao lado da busca: só ícones em qualquer largura (os rótulos
+   `lg:hidden` dos botões somem aqui para caber numa linha no celular). */
+@utility ds-icon-actions {
+  & .lg\:hidden {
+    display: none !important;
+  }
+}

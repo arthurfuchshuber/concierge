@@ -1,3 +1,5 @@
+import { SearchActionRow } from "./SearchActionRow";
+import { searchScore } from "@/lib/search-score";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -15,6 +17,7 @@ import {
   LayoutGrid,
   Sparkles,
   SlidersHorizontal,
+  Filter,
   StickyNote,
   Video,
   Maximize2,
@@ -428,6 +431,7 @@ export function RecordsWorkspace() {
   );
   const counts = q.data?.counts;
 
+  const [search, setSearch] = useState("");
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
     for (const r of records) {
@@ -458,8 +462,17 @@ export function RecordsWorkspace() {
     for (const g of map.values()) {
       g.pending.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     }
-    return Array.from(map.values());
-  }, [records, groupBy]);
+    const all = Array.from(map.values());
+    if (!search.trim()) return all;
+    return all.filter(
+      (g) =>
+        searchScore(search, [
+          [g.label, 3],
+          [g.sublabel, 2.5],
+          [[...g.pending, ...g.rest].map((r) => (r as { note?: string | null }).note ?? "").join(" "), 1],
+        ]) > 0,
+    );
+  }, [records, groupBy, search]);
 
   // Divisão da lista (mockup B, 17/09/2026). No bloco de cima, o imóvel com a
   // pendência MAIS ANTIGA vem primeiro — ali antiguidade é atraso, a mesma
@@ -525,30 +538,7 @@ export function RecordsWorkspace() {
     ? "Fotos, vídeos, áudios e notas registrados nos imóveis no período."
     : "Fotos, vídeos, áudios e notas registrados nos imóveis em todo o período.";
 
-  return (
-    /* MESMA MOLDURA DE PÁGINA das outras três telas (Operacional / Kanban /
-       Limpeza) — este wrapper é o que dá o respiro lateral, o teto de
-       largura e o alinhamento do título com o conteúdo. Sem ele a tela
-       nasce colada nas bordas e desalinhada de todo o resto do app. */
-    <div className="w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
-      {/* O RESPIRO DA SUBPÁGINA VEM DA REGRA (mockup "Direção A" aprovado,
-          18/09/2026). Era `space-y-1.5` — 6px entre TUDO: a barra de abas
-          encostava nos cartões, os cartões encostavam no bloco de atenção, e
-          a tela inteira lia como um amontoado só. O cliente comparou com o
-          Operacional: "veja como você espaçou bem os cards... isso torna o
-          visual mais limpo".
-
-          `ds-blocks` (24px, ver `styles.css`) separa os BLOCOS; dentro de
-          cada um, o vão continua curto de propósito — o que é da mesma coisa
-          continua junto. Os diálogos ficam FORA deste contêiner: eles não
-          desenham nada em linha, e como irmãos de um flex abririam um vão
-          fantasma no fim da página. */}
-      <div className="ds-blocks">
-        <OperationShell
-          view="registros"
-          title={pageTitle}
-          subtitle={pageSubtitle}
-          actions={
+  const recordActions = (
             <>
               {/* PERÍODO À ESQUERDA, FILTROS À DIREITA — idêntico à Limpeza:
                   com período escolhido, o botão mostra as datas e tocar limpa. */}
@@ -589,7 +579,31 @@ export function RecordsWorkspace() {
                 onClearAll={clearAllFilters}
               />
             </>
-          }
+  );
+
+  return (
+    /* MESMA MOLDURA DE PÁGINA das outras três telas (Operacional / Kanban /
+       Limpeza) — este wrapper é o que dá o respiro lateral, o teto de
+       largura e o alinhamento do título com o conteúdo. Sem ele a tela
+       nasce colada nas bordas e desalinhada de todo o resto do app. */
+    <div className="w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
+      {/* O RESPIRO DA SUBPÁGINA VEM DA REGRA (mockup "Direção A" aprovado,
+          18/09/2026). Era `space-y-1.5` — 6px entre TUDO: a barra de abas
+          encostava nos cartões, os cartões encostavam no bloco de atenção, e
+          a tela inteira lia como um amontoado só. O cliente comparou com o
+          Operacional: "veja como você espaçou bem os cards... isso torna o
+          visual mais limpo".
+
+          `ds-blocks` (24px, ver `styles.css`) separa os BLOCOS; dentro de
+          cada um, o vão continua curto de propósito — o que é da mesma coisa
+          continua junto. Os diálogos ficam FORA deste contêiner: eles não
+          desenham nada em linha, e como irmãos de um flex abririam um vão
+          fantasma no fim da página. */}
+      <div className="ds-blocks">
+        <OperationShell
+          view="registros"
+          title={pageTitle}
+          subtitle={pageSubtitle}
         />
 
         {/* CARTÕES + GRÁFICO — mesmo grupo da Limpeza (10px entre eles). */}
@@ -608,6 +622,12 @@ export function RecordsWorkspace() {
               />
             ))}
           </div>
+          <SearchActionRow
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por imóvel, proprietário…"
+            actions={recordActions}
+          />
         </div>
 
         {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
@@ -2254,7 +2274,7 @@ function RecordsFiltersButton({
           aria-label="Filtros dos registros"
           className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
         >
-          <SlidersHorizontal className={ACTION_ICON} />
+          <Filter className={ACTION_ICON} />
           <span className="lg:hidden">Filtros</span>
           {hasCustomFilters && <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />}
         </button>
