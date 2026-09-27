@@ -817,10 +817,18 @@ export function StakeholderFormDialog({
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      const gen = Array.from(crypto.getRandomValues(new Uint32Array(3)))
-                        .map((n) => n.toString(36))
-                        .join("")
-                        .slice(0, 12);
+                      // Senha forte garantida (maiúscula, minúscula, número e
+                      // símbolo) — senhas simples são recusadas pelo login.
+                      const sets = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnpqrstuvwxyz", "23456789", "!@#$%*?"];
+                      const rnd = (n: number) => crypto.getRandomValues(new Uint32Array(1))[0]! % n;
+                      const chars = sets.map((c) => c[rnd(c.length)]!);
+                      const all = sets.join("");
+                      while (chars.length < 12) chars.push(all[rnd(all.length)]!);
+                      for (let i = chars.length - 1; i > 0; i--) {
+                        const j = rnd(i + 1);
+                        [chars[i], chars[j]] = [chars[j]!, chars[i]!];
+                      }
+                      const gen = chars.join("");
                       setProvisionalPwd(gen);
                       setShowPwd(true);
                     }}
@@ -832,7 +840,7 @@ export function StakeholderFormDialog({
                   <p className="ds-meta text-destructive">A senha precisa ter pelo menos 8 caracteres.</p>
                 )}
                 <p className="ds-meta">
-                  Passe essa senha à pessoa por WhatsApp. Em branco, enviamos convite por e-mail.
+                  Use letras maiúsculas, minúsculas, números e símbolo (senhas simples são recusadas). Passe essa senha à pessoa por WhatsApp. Em branco, enviamos convite por e-mail.
                 </p>
               </div>
             )}
