@@ -624,8 +624,8 @@ function Dashboard() {
         ))}
       </div>
 
-      <div className="flex flex-col gap-2">
-      <div className={ACTION_BAR}>
+      <div className="flex min-w-0 items-center gap-2">
+      <div className={`${ACTION_BAR} order-2 shrink-0`}>
           {selected.size > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -761,7 +761,7 @@ function Dashboard() {
           </Popover>
       </div>
 
-      <div className="relative min-w-0">
+      <div className="relative order-1 min-w-0 flex-1">
         <Search className="pointer-events-none absolute left-3 top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60" />
         <input
           value={search}
