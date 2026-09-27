@@ -447,10 +447,10 @@ export async function generateAndCacheCityNews(input: {
       .from("city_daily_news")
       .select("items, date")
       .eq("city_key", input.cityKey)
-      .gte("date", addDays(today, -3))
+      .gte("date", addDays(today, -8))
       .lte("date", today)
       .order("date", { ascending: false })
-      .limit(3);
+      .limit(8);
     for (const row of (rows ?? []) as Array<{ items: unknown; date: string }>) {
       if (!Array.isArray(row.items) || row.items.length === 0) continue;
       let cachedItems = row.items as NewsItem[];
@@ -572,7 +572,9 @@ export const getCityNews = createServerFn({ method: "POST" })
     // data UTC de hoje: o cron grava pela data local da cidade (à noite, num
     // fuso UTC-3, a data UTC já virou) e uma execução falha deixaria o guia
     // sem manchete nenhuma.
-    const limite = new Date(Date.now() - 3 * 86400_000).toISOString().slice(0, 10);
+    // A busca agora é semanal (quarta, 8h): vale a edição dos últimos 8 dias,
+    // sempre filtrada para nunca mostrar evento que já passou.
+    const limite = new Date(Date.now() - 8 * 86400_000).toISOString().slice(0, 10);
     const { data: cached } = await supabaseAdmin
       .from("city_daily_news")
       .select("items")
@@ -581,7 +583,9 @@ export const getCityNews = createServerFn({ method: "POST" })
       .order("date", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const items = (cached?.items ?? null) as NewsItem[] | null;
+    const raw = (cached?.items ?? null) as NewsItem[] | null;
+    const today = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
+    const items = raw ? filterUpcoming(raw, today) : null;
     return items && items.length > 0 ? { items } : null;
   });
 
