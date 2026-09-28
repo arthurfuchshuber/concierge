@@ -97,6 +97,7 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     let memberUserId = await findUserIdByEmail(data.email);
+    let mode: "created" | "password_changed" | "linked_existing" = "created";
     if (memberUserId) {
       // SEGURANÇA: só é permitido redefinir a senha de quem JÁ pertence a esta
       // conta (membro ou convite pendente). Sem esta trava, informar o e-mail
