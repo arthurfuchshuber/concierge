@@ -403,7 +403,7 @@ async function runGuideChat(
           handoff_at: new Date().toISOString(),
         })
         .eq("id", conversationId);
-      try {
+      if (!body.demo) try {
         const { getPropertyNotifiableUsers, sendHandoffPush } =
           await import("@/lib/handoff.server");
         const userIds = await getPropertyNotifiableUsers(supabaseAdmin, prop.id);

@@ -596,6 +596,8 @@ export function GuideAiChat({
           checkinDate: readAccessRecord(slug)?.checkinDate ?? undefined,
           checkoutDate: readAccessRecord(slug)?.checkoutDate ?? undefined,
           reservationCode: readAccessRecord(slug)?.code ?? undefined,
+          // Vitrine da landing (?demo=1): senhas fictícias e nenhum aviso à equipe.
+          demo: new URLSearchParams(window.location.search).get("demo") === "1" || undefined,
         }),
       });
 
