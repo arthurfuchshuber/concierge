@@ -122,7 +122,7 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
         // equipe em outra empresa) pode ser aproveitado com segurança.
         const [props, subs, otherTeams] = await Promise.all([
           supabaseAdmin.from("properties").select("id", { count: "exact", head: true }).eq("owner_id", memberUserId),
-          supabaseAdmin.from("subscriptions" as never).select("id", { count: "exact", head: true }).eq("user_id", memberUserId),
+          supabaseAdmin.from("subscriptions").select("id", { count: "exact", head: true }).eq("user_id", memberUserId),
           supabaseAdmin
             .from("account_members")
             .select("id", { count: "exact", head: true })
