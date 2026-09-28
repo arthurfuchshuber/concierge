@@ -752,6 +752,17 @@ export function RecordSituationSheet({
                     ) : (
                       <Icon className="size-4 text-muted-foreground" />
                     )}
+                    {/* Progresso do envio antecipado deste arquivo. */}
+                    <span className="absolute inset-x-0 bottom-0 h-[3px] bg-black/40">
+                      <span
+                        className={`block h-full transition-[width] duration-300 ${
+                          (pctPorItem[it.key] ?? 0) >= 100
+                            ? "bg-emerald-500"
+                            : "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+                        }`}
+                        style={{ width: `${pctPorItem[it.key] ?? 0}%` }}
+                      />
+                    </span>
                     <button
                       type="button"
                       onClick={() => removeItem(it.key)}
@@ -775,7 +786,7 @@ export function RecordSituationSheet({
               {items.length < SITUATION_MEDIA_MAX && (
                 <button
                   type="button"
-                  onClick={() => photoRef.current?.click()}
+                  onClick={() => galleryRef.current?.click()}
                   className="grid size-[62px] place-items-center rounded-[0.25rem] border border-dashed border-[#E82DAE]/45 bg-[#E82DAE]/[0.07] text-[#E82DAE] transition-colors hover:bg-[#E82DAE]/[0.12]"
                   aria-label="Adicionar mais uma mídia a esta situação"
                   title="Adicionar mais uma mídia a esta situação"
@@ -806,6 +817,13 @@ export function RecordSituationSheet({
                   className="inline-flex items-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-2 py-1 text-[10.5px] font-medium text-foreground/80 hover:bg-secondary/50"
                 >
                   <Video className="size-3" /> Vídeo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => galleryRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-2 py-1 text-[10.5px] font-medium text-foreground/80 hover:bg-secondary/50"
+                >
+                  <Images className="size-3" /> Galeria
                 </button>
                 <button
                   type="button"
@@ -865,7 +883,17 @@ export function RecordSituationSheet({
           className="hidden"
           onChange={onPicked}
         />
-        <input ref={fileRef} type="file" className="hidden" onChange={onPicked} />
+        {/* Galeria: vários de uma vez, sem abrir a câmera. */}
+        <input
+          ref={galleryRef}
+          type="file"
+          accept="image/*,video/*"
+          multiple
+          className="hidden"
+          onChange={onPicked}
+        />
+        <input ref={fileRef} type="file" multiple className="hidden" onChange={onPicked} />
+
 
         {/* O ERRO MORA NA FOLHA, não num toast que some (11/09/2026): a
             pessoa precisa ler o que houve E ter o botão de tentar de novo
@@ -885,11 +913,11 @@ export function RecordSituationSheet({
             <div className="h-1 w-full overflow-hidden rounded-full bg-amber-500/20">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] transition-[width] duration-300"
-                style={{ width: `${Math.max(3, progresso.pct)}%` }}
+                style={{ width: `${Math.max(3, pctGeral)}%` }}
               />
             </div>
             <p className="mt-1.5 text-center text-[11px] leading-snug text-amber-600 dark:text-amber-400">
-              Enviando os arquivos — mantenha esta tela aberta. O texto já está salvo.
+              Finalizando o envio — mantenha esta tela aberta. O texto já está salvo.
             </p>
           </div>
         )}
@@ -915,7 +943,7 @@ export function RecordSituationSheet({
           >
             {saving && <Loader2 className="size-3.5 animate-spin" />}
             {progresso
-              ? `Enviando ${Math.min(progresso.feitos + 1, progresso.total)} de ${progresso.total}${progresso.pct > 0 ? ` · ${progresso.pct}%` : "…"}`
+              ? `Enviando ${Math.min(progresso.feitos + 1, progresso.total)} de ${progresso.total} · ${pctGeral}%`
               : erro
                 ? "Tentar de novo"
                 : "Registrar situação"}
