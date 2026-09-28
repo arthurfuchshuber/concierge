@@ -165,7 +165,7 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
     if (data.cpf) profilePatch.cpf = data.cpf;
     if (data.birth_date) profilePatch.birth_date = data.birth_date;
     if (data.phone) profilePatch.phone = data.phone;
-    if (Object.keys(profilePatch).length > 1) {
+    if (mode !== "linked_existing" && Object.keys(profilePatch).length > 1) {
       await supabaseAdmin.from("profiles").upsert(profilePatch as never, { onConflict: "id" });
     }
 
@@ -193,5 +193,32 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
       .eq("email", data.email)
       .eq("status", "pending");
 
-    return { ok: true, userId: memberUserId };
+    // REGRA: todo acesso criado/alterado/vinculado é avisado por e-mail.
+    let emailSent = false;
+    try {
+      const { data: prof } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name, trade_name")
+        .eq("id", userId)
+        .maybeSingle();
+      const accountName = ((prof?.trade_name as string) || (prof?.full_name as string)) ?? null;
+      const { sendAppEmail } = await import("@/lib/email/send-app-email.server");
+      const r = await sendAppEmail({
+        templateName: "access-notice",
+        recipientEmail: data.email,
+        idempotencyKey: `access-${mode}-${memberUserId}-${userId}-${Date.now()}`,
+        templateData: {
+          kind: mode,
+          accountName,
+          recipientEmail: data.email,
+          provisionalPassword: mode === "linked_existing" ? null : data.password,
+          actionUrl: "https://conciergeia.app/auth",
+        },
+      });
+      emailSent = r.ok;
+    } catch (e) {
+      console.error("[access-notice] falha no envio", e instanceof Error ? e.message : e);
+    }
+
+    return { ok: true, userId: memberUserId, mode, emailSent };
   });
