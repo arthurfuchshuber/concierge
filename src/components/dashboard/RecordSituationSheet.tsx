@@ -48,6 +48,19 @@ import {
   type SituationTarget,
 } from "@/components/dashboard/record-draft";
 
+/* Envios que continuam depois de a folha fechar (28/09/2026). */
+const progressoGlobal = new Map<string, number>();
+let envios2oPlano = 0;
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", (e) => {
+    if (envios2oPlano > 0) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
+}
+
+
 /**
  * A FOLHA DA SITUAÇÃO (pedido explícito, 10/09/2026).
  *
@@ -907,7 +920,7 @@ export function RecordSituationSheet({
               />
             </div>
             <p className="mt-1.5 text-center text-[11px] leading-snug text-amber-600 dark:text-amber-400">
-              Finalizando o envio — mantenha esta tela aberta. O texto já está salvo.
+              Registrando… os arquivos continuam subindo mesmo com a janela fechada.
             </p>
           </div>
         )}
