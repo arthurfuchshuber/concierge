@@ -840,51 +840,9 @@ export function GuideAccessGate({
                   </>
                 )}
 
-                {/* Com código de reserva as datas vêm da reserva e não aparecem
-                    nesta tela (pedido explícito, 28/09/2026) — ficam na tela
-                    "Tudo certo" junto das outras infos da reserva. */}
-                <div className={cn("grid grid-cols-2 gap-2.5", codeGateActive && "hidden")}>
-                  {codeGateActive ? (
-                    <RangeButton
-                      label="Chegada"
-                      value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
-                      locked
-                    />
-                  ) : (
-                    <RangeButton
-                      themeClass={themeClass}
-                      label="Chegada"
-                      open={checkinPopoverOpen}
-                      onOpenChange={setCheckinPopoverOpen}
-                      emoji="📅"
-                      value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
-                      popover={
-                        <Calendar
-                          mode="single"
-                          selected={range?.from}
-                          onSelect={handleCheckinSelect}
-                          numberOfMonths={1}
-                          initialFocus
-                          locale={ptBR}
-                          disabled={isDateDisabled}
-                          modifiers={{ availableCheckin: availableCheckinDates }}
-                          modifiersClassNames={{ availableCheckin: "guide-available-checkin" }}
-                          classNames={{
-                            today: "rdp-today",
-                            disabled: "rdp-disabled text-neutral-400",
-                            outside: "rdp-outside text-neutral-300",
-                          }}
-                          className="guide-access-calendar p-3 pointer-events-auto"
-                        />
-                      }
-                    />
-                  )}
-                  <RangeButton
-                    label="Saída"
-                    value={range?.to ? format(range.to, "dd MMM", { locale: ptBR }) : "—"}
-                    locked
-                  />
-                </div>
+                {/* Primeira tela: só nome, código e telefone (pedido explícito,
+                    28/09/2026). As datas ficam na tela "Tudo certo". */}
+
 
                 <div className="sg-phone-input">
                   <PhoneInput

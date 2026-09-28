@@ -565,7 +565,10 @@ export const importFromAirbnb = createServerFn({ method: "POST" })
     await assertFeature(context.supabase, context.userId, "autoImport", { propertyId: data.propertyId ?? null });
     const apiKey = process.env.FIRECRAWL_API_KEY;
     if (!apiKey) throw new Error("Integração Firecrawl indisponível");
-    return scrapeAirbnbListing(apiKey, data.url);
+    const r = await scrapeAirbnbListing(apiKey, data.url);
+    const { mirrorExternalPhotos } = await import("@/lib/airbnb-photos.server");
+    const saved = await mirrorExternalPhotos(r.gallery_images.slice(0, 4), context.userId);
+    return { ...r, gallery_images: saved, hero_image_url: saved[0] ?? null };
   });
 
 const FIELD_LABELS_AIRBNB: Record<string, string> = {
