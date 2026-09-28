@@ -691,7 +691,10 @@ export function RecordBlock({
               onScroll={(e) => {
                 const el = e.currentTarget;
                 const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
-                if (i !== viewIndex && i >= 0 && i < total) setViewIndex(i);
+                if (i !== viewIndex && i >= 0 && i < total) {
+                  el.querySelectorAll("video, audio").forEach((m) => (m as HTMLMediaElement).pause());
+                  setViewIndex(i);
+                }
               }}
               className="ds-scroll-x flex w-full snap-x snap-mandatory"
             >
