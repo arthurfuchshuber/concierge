@@ -526,11 +526,16 @@ export function RecordBlock({
   onChanged?: () => void;
 }) {
   const head = group.items[0];
-  const [viewing, setViewing] = useState<ReservationRecord | null>(null);
+  const [viewIndex, setViewIndex] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
 
   const mediaItems = group.items.filter((it) => it.kind !== "note" && it.url);
   const body = group.items.find((it) => it.body)?.body ?? null;
+  const viewing = viewIndex != null ? (mediaItems[viewIndex] ?? null) : null;
+  const total = mediaItems.length;
+  const go = (d: number) =>
+    setViewIndex((i) => (i == null || total === 0 ? i : (i + d + total) % total));
+  const touchX = useRef<number | null>(null);
 
   return (
     <div
@@ -577,28 +582,22 @@ export function RecordBlock({
         />
       )}
 
-      {/* SEMPRE: anexos em quadradinhos na horizontal em cima, texto embaixo
-          em largura total (pedido explícito, 28/09/2026). */}
-      <div className="space-y-2 px-2.5 pb-2.5">
-        {mediaItems.length > 0 && (
-          <div className="ds-scroll-x flex w-full min-w-0 gap-1.5">
-            {mediaItems.map((it) => (
-              <MediaThumb key={it.id} item={it} onOpen={setViewing} />
-            ))}
-          </div>
-        )}
-        <div className="min-w-0 space-y-1">
-          {body && (
-            <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
+      {/* Texto à esquerda, pilha de anexos à direita (28/09/2026) — o cartão
+          não cresce: até 3 quadradinhos sobrepostos, o 3º vira "+N". */}
+      <div className="flex items-center gap-3 px-2.5 pb-2.5">
+        <div className="min-w-0 flex-1 space-y-0.5">
+          {body ? (
+            <p className="whitespace-pre-wrap break-words text-[13px] font-semibold leading-snug text-foreground">
               {body}
             </p>
-          )}
-          {!body && mediaItems.length === 0 && (
+          ) : mediaItems.length === 0 ? (
             <p className="text-[11px] italic text-muted-foreground">Registro sem conteúdo.</p>
-          )}
-          <p className="text-[10.5px] leading-snug text-muted-foreground">
+          ) : null}
+          <p className="text-[11px] leading-snug text-foreground/70">
+            {head.createdByName ?? "Equipe"}
+          </p>
+          <p className="text-[10px] leading-snug text-muted-foreground">
             {[
-              head.createdByName ?? "Equipe",
               head.cardMode ? `via ${MODE_LABEL[head.cardMode]}` : null,
               mediaItems.length > 0 ? mediaSummary(mediaItems) : null,
               mediaItems.length === 1 && head.sizeBytes ? fmtSize(head.sizeBytes) : null,
@@ -612,6 +611,19 @@ export function RecordBlock({
               ))}
           </p>
         </div>
+        {mediaItems.length > 0 && (
+          <div className="flex shrink-0 -space-x-3 pr-0.5">
+            {(mediaItems.length > 3 ? mediaItems.slice(0, 3) : mediaItems).map((it, i) => (
+              <MediaThumb
+                key={it.id}
+                item={it}
+                onOpen={() => setViewIndex(i)}
+                more={mediaItems.length > 3 && i === 2 ? mediaItems.length - 2 : 0}
+                className={i === 0 ? "" : i === 1 ? "rotate-[4deg]" : "rotate-[8deg]"}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {head.taskId && (
