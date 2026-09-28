@@ -31,7 +31,9 @@ import { useEffect, useRef, useState } from "react";
  * 17/09/2026. Se o topo do guia mudar de altura de novo, refaça a medida e
  * ajuste GUIDE_HEIGHT.
  */
-const DEMO_SLUG = "casa-charmosa-prox-a-avenida-das-cataratas";
+// Cópia fiel (dados sensíveis fictícios), sincronizada do guia oficial da
+// Casa Charmosa — ver `lib/landing-demo.server.ts`.
+const DEMO_SLUG = "vitrine-casa-charmosa";
 const GUIDE_WIDTH = 375;
 const GUIDE_HEIGHT = 658;
 

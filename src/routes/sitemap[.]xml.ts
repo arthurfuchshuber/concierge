@@ -20,6 +20,7 @@ export const Route = createFileRoute("/sitemap.xml")({
           .select("slug, updated_at")
           .eq("published", true)
           .eq("access_mode", "public")
+          .neq("slug", "vitrine-casa-charmosa")
           .order("updated_at", { ascending: false })
           .limit(500);
 

@@ -118,7 +118,11 @@ async function runGuideChat(
 
     // Gate: guest AI chat is available from the Pro plan onwards.
     const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
-    const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as SupabaseClient, prop.owner_id);
+    const landing = await import("@/lib/landing-demo.server");
+    const planOwnerId = landing.isLandingCopy(body.slug)
+      ? ((await landing.landingSourceOwnerId(supabaseAdmin as SupabaseClient)) ?? prop.owner_id)
+      : prop.owner_id;
+    const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as SupabaseClient, planOwnerId);
     if (!ownerPlan.features.guestChat) {
       return new Response(
         JSON.stringify({ error: "A assistente IA não está disponível neste guia." }),
@@ -319,7 +323,7 @@ async function runGuideChat(
     /* VITRINE DA LANDING: o lead conversa com a IA real, mas tudo que dá
        acesso ou identifica o imóvel é trocado por valores fictícios. */
     let agentProperty = prop as unknown as Record<string, unknown>;
-    if (body.demo) {
+    if (body.demo && !landing.isLandingCopy(body.slug)) {
       agentProperty = {
         ...agentProperty,
         wifi_ssid: "Rede da casa",
@@ -338,6 +342,7 @@ async function runGuideChat(
       };
       credentialsLocked = false;
     }
+    if (landing.isLandingCopy(body.slug)) credentialsLocked = false;
 
     const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
     const { AiGatewayError } = await import("@/lib/ai/gateway.server");

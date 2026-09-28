@@ -35,6 +35,9 @@ export const getPublicGuide = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SlugInput.parse(i))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const landing = await import("@/lib/landing-demo.server");
+    const isLandingCopy = landing.isLandingCopy(data.slug);
+    if (isLandingCopy) await landing.ensureLandingCopy(supabaseAdmin as never);
     // Pré-visualização do anfitrião: token assinado libera o guia mesmo em rascunho.
     const { verifyGuidePreviewToken } = await import("@/lib/guide-preview.server");
     const isPreview = await verifyGuidePreviewToken(data.slug, data.previewToken ?? null);
@@ -189,7 +192,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // dê acesso ao imóvel real pode sair daqui — endereço, mapa, coordenadas,
     // rede de wi-fi e qualquer número longo dentro das instruções.
     const demoProp = safeProp as Record<string, unknown>;
-    if (isDemo) {
+    if (isDemo && !isLandingCopy) {
       const secrets = [wifi_password, lock_code, gate_code, credsPublic["host_phone"]]
         .filter((value): value is string => typeof value === "string" && value.trim().length > 0);
       const scrub = (value: unknown) => {
@@ -219,7 +222,10 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     const signedProp = await signPropertyImages(supabaseAdmin, safeProp);
     // Resolve owner plan to gate AI chat in the public guide UI.
     const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
-    const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as any, (prop as any).owner_id as string);
+    const planOwnerId = isLandingCopy
+      ? ((await landing.landingSourceOwnerId(supabaseAdmin as never)) ?? ((prop as any).owner_id as string))
+      : ((prop as any).owner_id as string);
+    const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as any, planOwnerId);
     const aiEnabled = !!ownerPlan.features.guestChat;
 
     // Referências macro da cidade — escopo POR IMÓVEL OU POR GRUPO de guias
