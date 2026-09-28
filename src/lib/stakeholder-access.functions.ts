@@ -118,12 +118,27 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
           .maybeSingle(),
       ]);
       if (!existingMember && !pendingInvite && memberUserId !== userId) {
-        throw new Error(
-          "Este e-mail já pertence a um usuário de outra conta. Peça que ele acesse com a senha atual ou use outro e-mail.",
-        );
+        // Cadastro "vazio" (criado sozinho, sem imóveis, sem assinatura e sem
+        // equipe em outra empresa) pode ser aproveitado com segurança.
+        const [props, subs, otherTeams] = await Promise.all([
+          supabaseAdmin.from("properties").select("id", { count: "exact", head: true }).eq("owner_id", memberUserId),
+          supabaseAdmin.from("subscriptions" as never).select("id", { count: "exact", head: true }).eq("user_id", memberUserId),
+          supabaseAdmin
+            .from("account_members")
+            .select("id", { count: "exact", head: true })
+            .eq("member_user_id", memberUserId)
+            .neq("status", "revoked"),
+        ]);
+        const inUse = (props.count ?? 0) > 0 || (subs.count ?? 0) > 0 || (otherTeams.count ?? 0) > 0;
+        if (inUse || props.error || otherTeams.error) {
+          throw new Error(
+            "Este e-mail já é usado por outra empresa no ConciergeIA. Peça para a pessoa entrar com a senha dela (ou usar \"Esqueci minha senha\"), ou cadastre outro e-mail.",
+          );
+        }
       }
       const { error } = await supabaseAdmin.auth.admin.updateUserById(memberUserId, {
         password: data.password,
+        email_confirm: true,
         user_metadata: { must_change_password: true },
       });
       if (error) throw new Error(friendlyPasswordError(error.message) ?? `Não foi possível definir a senha provisória: ${error.message}`);
