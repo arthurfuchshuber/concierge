@@ -1535,6 +1535,9 @@ function Guide({ data }: { data: GuideOk }) {
         onDone={() => {
           clearPendingOnboarding(slug);
           setTourActive(false);
+          // Ao concluir o passo a passo, o hóspede vai para a página inicial.
+          gotoSection("home");
+          window.scrollTo({ top: 0, behavior: "auto" });
         }}
         guestName={accessRec?.name ?? "hóspede"}
         propertyName={(p.name as string | null) ?? ""}
