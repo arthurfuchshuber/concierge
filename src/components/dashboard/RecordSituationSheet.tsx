@@ -374,6 +374,48 @@ export function RecordSituationSheet({
     };
   }, []);
 
+  /* ENVIO ANTECIPADO (28/09/2026): cada arquivo começa a subir no instante
+     em que entra na folha — em QUALIDADE ORIGINAL (auditoria), sem compressão.
+     Enquanto a pessoa escreve o título, o vídeo já está indo. "Registrar" só
+     espera o que ainda faltar. */
+  type Envio = { path: string; ctrl: AbortController; promise: Promise<Awaited<ReturnType<typeof enviarMidia>>> };
+  const enviosRef = useRef(new Map<string, Envio>());
+  const [pctPorItem, setPctPorItem] = useState<Record<string, number>>({});
+  const folderEnvio = target.logId ?? target.reservationId;
+
+  function iniciarEnvio(it: DraftItem): Envio {
+    const ctrl = new AbortController();
+    const path = `${propertyId}/${folderEnvio}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`;
+    const promise = enviarMidia({
+      bucket: "reservation-records",
+      path,
+      blob: it.blob,
+      contentType: it.mime || "application/octet-stream",
+      signal: ctrl.signal,
+      onProgress: (pct) => setPctPorItem((p) => ({ ...p, [it.key]: pct })),
+    }).then((r) => {
+      if (!r.ok) enviosRef.current.delete(it.key);
+      return r;
+    });
+    const e = { path, ctrl, promise };
+    enviosRef.current.set(it.key, e);
+    return e;
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    for (const it of items) if (!enviosRef.current.has(it.key)) iniciarEnvio(it);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, open]);
+
+  // Fechou sem registrar: corta o que estava subindo.
+  useEffect(() => {
+    if (open) return;
+    for (const e of enviosRef.current.values()) e.ctrl.abort();
+    enviosRef.current.clear();
+    setPctPorItem({});
+  }, [open]);
+
   function addItem(item: DraftItem) {
     setItems((prev) => {
       if (prev.length >= SITUATION_MEDIA_MAX) {
@@ -385,10 +427,19 @@ export function RecordSituationSheet({
   }
 
   function onPicked(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!f) return;
-    addItem(draftItemFrom(f, { name: f.name, mime: f.type }));
+    if (!files.length) return;
+    setItems((prev) => {
+      const livres = SITUATION_MEDIA_MAX - prev.length;
+      if (files.length > livres) {
+        toast.error(`Máximo de ${SITUATION_MEDIA_MAX} arquivos por situação.`);
+      }
+      const novos = files
+        .slice(0, Math.max(0, livres))
+        .map((f) => draftItemFrom(f, { name: f.name, mime: f.type }));
+      return [...prev, ...novos];
+    });
   }
 
   function removeItem(key: string) {
