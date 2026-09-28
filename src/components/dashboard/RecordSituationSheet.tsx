@@ -443,6 +443,8 @@ export function RecordSituationSheet({
   }
 
   function removeItem(key: string) {
+    enviosRef.current.get(key)?.ctrl.abort();
+    enviosRef.current.delete(key);
     setItems((prev) => {
       const gone = prev.find((i) => i.key === key);
       if (gone?.previewUrl) URL.revokeObjectURL(gone.previewUrl);
