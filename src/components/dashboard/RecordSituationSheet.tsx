@@ -457,6 +457,9 @@ export function RecordSituationSheet({
   // Título sempre obrigatório (25/09/2026). O botão fica ativo para que, ao
   // tocar sem título, a pessoa receba a explicação clara em vez de nada.
   const canSave = !saving;
+  const pctGeral = items.length
+    ? Math.round(items.reduce((s, it) => s + (pctPorItem[it.key] ?? 0), 0) / items.length)
+    : 0;
 
   function cancelarEnvio() {
     cancelarRef.current?.abort();

@@ -576,54 +576,61 @@ export function RecordBlock({
         />
       )}
 
-      <div className="flex items-start gap-2.5 px-2.5 pb-2.5">
-        {mediaItems.length > 0 && !audioOnly && (
-          /* Mais de uma mídia: fileira rolável (`ds-scroll-x`, sem degradê de
-             fade — regra do projeto), nunca estourando a margem direita. */
-          <div
-            className={
-              mediaItems.length > 1
-                ? "ds-scroll-x flex max-w-[150px] gap-1.5"
-                : "flex shrink-0 gap-1.5"
-            }
-          >
-            {mediaItems.map((it) => (
-              <MediaThumb key={it.id} item={it} onOpen={setViewing} />
-            ))}
-          </div>
-        )}
-
-        <div className="min-w-0 flex-1 space-y-1">
-          {body && (
-            <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
-              {body}
+      {(() => {
+        // 1 mídia: miniatura ao lado do texto. 2+: texto em largura total e a
+        // faixa de mídias embaixo, também em largura total (nada espremido).
+        const lateral = mediaItems.length === 1 && !audioOnly;
+        const faixa = mediaItems.length > 1;
+        const texto = (
+          <div className="min-w-0 flex-1 space-y-1">
+            {body && (
+              <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
+                {body}
+              </p>
+            )}
+            {audioOnly && mediaItems[0].url && (
+              <AudioPlayer url={mediaItems[0].url!} durationMs={mediaItems[0].durationMs} />
+            )}
+            {!body && mediaItems.length === 0 && (
+              <p className="text-[11px] italic text-muted-foreground">Registro sem conteúdo.</p>
+            )}
+            <p className="text-[10.5px] leading-snug text-muted-foreground">
+              {[
+                head.createdByName ?? "Equipe",
+                head.cardMode ? `via ${MODE_LABEL[head.cardMode]}` : null,
+                mediaItems.length > 0 ? mediaSummary(mediaItems) : null,
+                mediaItems.length === 1 && head.sizeBytes ? fmtSize(head.sizeBytes) : null,
+              ]
+                .filter(Boolean)
+                .map((t, i) => (
+                  <span key={i} className="inline-block whitespace-nowrap">
+                    {i > 0 && <span className="px-1 opacity-50">·</span>}
+                    {t}
+                  </span>
+                ))}
             </p>
-          )}
-          {audioOnly && mediaItems[0].url && (
-            <AudioPlayer url={mediaItems[0].url!} durationMs={mediaItems[0].durationMs} />
-          )}
-          {!body && mediaItems.length === 0 && (
-            <p className="text-[11px] italic text-muted-foreground">Registro sem conteúdo.</p>
-          )}
-          {/* Cada pedaço carrega o "·" junto dele (nunca solto no fim da
-              linha) e quebra linha inteiro. */}
-          <p className="text-[10.5px] leading-snug text-muted-foreground">
-            {[
-              head.createdByName ?? "Equipe",
-              head.cardMode ? `via ${MODE_LABEL[head.cardMode]}` : null,
-              mediaItems.length > 0 ? mediaSummary(mediaItems) : null,
-              mediaItems.length === 1 && head.sizeBytes ? fmtSize(head.sizeBytes) : null,
-            ]
-              .filter(Boolean)
-              .map((t, i) => (
-                <span key={i} className="inline-block whitespace-nowrap">
-                  {i > 0 && <span className="px-1 opacity-50">·</span>}
-                  {t}
-                </span>
-              ))}
-          </p>
-        </div>
-      </div>
+          </div>
+        );
+        return (
+          <div className="space-y-2 px-2.5 pb-2.5">
+            <div className="flex items-start gap-2.5">
+              {lateral && (
+                <div className="flex shrink-0">
+                  <MediaThumb item={mediaItems[0]} onOpen={setViewing} />
+                </div>
+              )}
+              {texto}
+            </div>
+            {faixa && (
+              <div className="ds-scroll-x flex w-full min-w-0 gap-1.5">
+                {mediaItems.map((it) => (
+                  <MediaThumb key={it.id} item={it} onOpen={setViewing} />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {head.taskId && (
         <div className="mx-2.5 mb-2.5 flex items-center gap-1.5 rounded-lg border border-[#E82DAE]/30 bg-[#E82DAE]/[0.07] px-2 py-1.5 text-[11px] text-foreground/80">
