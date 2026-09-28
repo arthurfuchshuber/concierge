@@ -451,7 +451,19 @@ export function StakeholderFormDialog({
       // Acesso ao sistema: mesmo fluxo de convite dos membros da equipe.
       try {
         const current = access?.status ?? "none";
-        if (systemAccess && current === "none" && emailValid) {
+        if (systemAccess && current !== "none" && emailValid && provisionalPwd.trim().length >= 8) {
+          await provisionalFn({
+            data: {
+              email: form.email.trim().toLowerCase(),
+              password: provisionalPwd.trim(),
+              name: form.name.trim() || undefined,
+            },
+          });
+          const sent = provisionalPwd.trim();
+          setProvisionalPwd("");
+          void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
+          toast.success("Nova senha provisória definida e copiada. Envie à pessoa por WhatsApp.", { duration: 10000 });
+        } else if (systemAccess && current === "none" && emailValid) {
           if (provisionalPwd.trim().length >= 8) {
             await provisionalFn({
               data: {
@@ -466,9 +478,12 @@ export function StakeholderFormDialog({
               },
             });
 
+            const sent = provisionalPwd.trim();
             setProvisionalPwd("");
+            void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
             toast.success(
-              "Acesso liberado com senha provisória. No primeiro login a pessoa cria a própria senha.",
+              "Acesso liberado e dados copiados. Envie à pessoa por WhatsApp — no primeiro login ela cria a própria senha.",
+              { duration: 10000 },
             );
           } else {
             await inviteFn({ data: { email: form.email.trim().toLowerCase(), role: "agent" as const } });
@@ -788,10 +803,23 @@ export function StakeholderFormDialog({
                 Informe um e-mail válido acima para liberar o acesso ao sistema.
               </p>
             )}
-            {systemAccess && emailValid && access?.status === "none" && (
+            {emailValid && access && (
+              <p className="ds-meta mt-2">
+                Situação:{" "}
+                <span className="font-semibold text-foreground">
+                  {access.status === "active"
+                    ? "acesso ativo"
+                    : access.status === "pending"
+                      ? "convite enviado, aguardando o primeiro acesso"
+                      : "sem acesso"}
+                </span>
+              </p>
+            )}
+            {systemAccess && emailValid && (
               <div className="mt-3 space-y-1.5">
                 <Label className="ds-meta flex items-center gap-1.5">
-                  <KeyRound className="size-3.5" /> Senha provisória
+                  <KeyRound className="size-3.5" />
+                  {access?.status && access.status !== "none" ? "Definir nova senha provisória (opcional)" : "Senha provisória"}
                 </Label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
