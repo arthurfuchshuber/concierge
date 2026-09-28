@@ -195,7 +195,7 @@ function AdminLayout() {
 
   const initials = (email || "?").slice(0, 2).toUpperCase();
 
-  const { info: sub, isLoading: subLoading } = useSubscription();
+  const { info: sub, isSuccess: subSuccess } = useSubscription();
 
   // Team members of another owner's account don't need their own plan — they
   // ride on the owner's subscription. Skip the OnboardingCheckout gate for them.
@@ -239,7 +239,7 @@ function AdminLayout() {
   // (CPF/CNPJ + plan) flow inside OnboardingCheckout. Só decide com respostas
   // confirmadas — falha ou carregamento nunca vira "sem plano".
   const needsPlan =
-    !subLoading && !adminLoading && myAccounts.isSuccess && pendingInvites.isSuccess &&
+    subSuccess && !adminLoading && myAccounts.isSuccess && pendingInvites.isSuccess &&
     !resolvingAccount &&
     !sub.plan && !allowedWithoutPlan && !isAdmin && !isTeamMember && !hasPendingInvite;
 

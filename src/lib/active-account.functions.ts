@@ -7,16 +7,25 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export const listMyAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [{ data: ownedProps }, { data: memberships }] = await Promise.all([
-      supabase.from("properties").select("id").eq("owner_id", userId).limit(1),
-      supabase
+    // Esta consulta define se a pessoa pode entrar no painel. Ela não pode
+    // depender da conta ativa ainda não selecionada nem das permissões de área
+    // dessa própria conta. A identidade já foi validada pelo middleware e o
+    // filtro continua estritamente limitado ao usuário autenticado.
+    const [ownedResult, membershipsResult] = await Promise.all([
+      supabaseAdmin.from("properties").select("id").eq("owner_id", userId).limit(1),
+      supabaseAdmin
         .from("account_members")
         .select("owner_id, role, status")
         .eq("member_user_id", userId)
         .eq("status", "active"),
     ]);
+    if (ownedResult.error) throw ownedResult.error;
+    if (membershipsResult.error) throw membershipsResult.error;
+    const ownedProps = ownedResult.data;
+    const memberships = membershipsResult.data;
 
     const ownerIds = Array.from(new Set((memberships ?? []).map((m) => m.owner_id as string)));
     let accounts: Array<{
@@ -28,7 +37,6 @@ export const listMyAccounts = createServerFn({ method: "GET" })
     }> = [];
 
     if (ownerIds.length > 0) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const [{ data: profs }, { data: users }, { data: subs }] = await Promise.all([
         supabaseAdmin.from("profiles").select("id, full_name, trade_name").in("id", ownerIds),
         // fetch emails via admin auth listUsers isn't ideal; use profiles only for name; email optional
