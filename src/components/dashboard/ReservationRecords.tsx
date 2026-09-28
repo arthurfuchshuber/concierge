@@ -21,6 +21,8 @@ import {
   ListChecks,
   MoreVertical,
   Pencil,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
@@ -650,14 +652,51 @@ export function RecordBlock({
         </div>
       )}
 
-      <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewing(null)}>
+      <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewIndex(null)}>
         <DialogContent className="w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-lg">
           <DialogHeader className="px-4 pb-2 pt-4">
-            <DialogTitle className="truncate text-[14px] font-display">
-              {viewing?.fileName ?? KIND_LABEL[viewing?.kind ?? "file"]}
+            <DialogTitle className="flex min-w-0 items-center gap-2 pr-6 text-[14px] font-display">
+              <span className="min-w-0 truncate">
+                {viewing?.fileName ?? KIND_LABEL[viewing?.kind ?? "file"]}
+              </span>
+              {total > 1 && viewIndex != null && (
+                <span className="shrink-0 text-[11px] font-normal tabular-nums text-muted-foreground">
+                  {viewIndex + 1}/{total}
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
-          <div className="px-3 pb-3">
+          <div
+            className="relative px-3 pb-3"
+            onTouchStart={(e) => (touchX.current = e.touches[0]?.clientX ?? null)}
+            onTouchEnd={(e) => {
+              const start = touchX.current;
+              const end = e.changedTouches[0]?.clientX;
+              touchX.current = null;
+              if (start == null || end == null || total < 2) return;
+              if (Math.abs(end - start) > 50) go(end < start ? 1 : -1);
+            }}
+          >
+            {total > 1 && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Anterior"
+                  onClick={() => go(-1)}
+                  className="absolute left-4 top-1/2 z-10 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-white backdrop-blur-sm"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Próximo"
+                  onClick={() => go(1)}
+                  className="absolute right-4 top-1/2 z-10 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-white backdrop-blur-sm"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              </>
+            )}
             {viewing?.kind === "photo" && viewing.url && (
               <img
                 src={viewing.url}
