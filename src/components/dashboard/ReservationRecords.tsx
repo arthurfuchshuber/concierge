@@ -696,11 +696,11 @@ export function RecordBlock({
               className="ds-scroll-x flex w-full snap-x snap-mandatory"
             >
               {mediaItems.map((it) => (
-                <div key={it.id} className="w-full shrink-0 snap-center px-3">
-                  <div className="grid h-[52vh] max-h-[420px] place-items-center overflow-hidden rounded-lg bg-black/90">
+                <div key={it.id} className="w-full min-w-0 shrink-0 snap-center px-3">
+                  <div className="relative grid h-[52vh] max-h-[420px] w-full min-w-0 place-items-center overflow-hidden rounded-lg bg-black/90">
                     {it.kind === "photo" && it.url && (
-                      <button type="button" onClick={() => setMaxItem(it)} className="size-full" aria-label="Maximizar foto">
-                        <img src={it.url} alt={it.fileName ?? "Foto"} className="size-full object-contain" loading="lazy" />
+                      <button type="button" onClick={() => setMaxItem(it)} className="absolute inset-0" aria-label="Maximizar foto">
+                        <img src={it.url} alt={it.fileName ?? "Foto"} className="absolute inset-0 h-full w-full object-contain" loading="lazy" />
                       </button>
                     )}
                     {it.kind === "video" && it.url && (
@@ -709,7 +709,7 @@ export function RecordBlock({
                         controls
                         preload="metadata"
                         playsInline
-                        className="size-full object-contain"
+                        className="absolute inset-0 h-full w-full object-contain"
                       />
                     )}
                     {it.kind === "audio" && it.url && (
