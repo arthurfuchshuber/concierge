@@ -274,7 +274,7 @@ function MediaThumb({
         </span>
       )}
       {more > 0 ? (
-        <span className="absolute inset-0 grid place-items-center bg-black/60 text-[13px] font-bold text-white backdrop-blur-[1px]">
+        <span className="absolute inset-0 grid place-items-center bg-black/70 text-[15px] font-bold tracking-tight text-white">
           +{more}
         </span>
       ) : (
@@ -535,9 +535,26 @@ export function RecordBlock({
   const body = group.items.find((it) => it.body)?.body ?? null;
   const viewing = viewIndex != null ? (mediaItems[viewIndex] ?? null) : null;
   const total = mediaItems.length;
-  const go = (d: number) =>
-    setViewIndex((i) => (i == null || total === 0 ? i : (i + d + total) % total));
-  const touchX = useRef<number | null>(null);
+  const [maxItem, setMaxItem] = useState<ReservationRecord | null>(null);
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const scrollToIdx = (i: number, smooth = true) => {
+    if (total === 0) return;
+    const idx = (i + total) % total;
+    const el = railRef.current;
+    if (el) el.scrollTo({ left: idx * el.clientWidth, behavior: smooth ? "smooth" : "auto" });
+    setViewIndex(idx);
+  };
+  // Ao abrir a galeria, posiciona o trilho no anexo tocado.
+  const opened = viewIndex != null;
+  useEffect(() => {
+    if (!opened) return;
+    const t = window.setTimeout(() => {
+      const el = railRef.current;
+      if (el && viewIndex != null) el.scrollTo({ left: viewIndex * el.clientWidth });
+    }, 30);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened]);
 
   return (
     <div
@@ -621,7 +638,7 @@ export function RecordBlock({
                 item={it}
                 onOpen={() => setViewIndex(i)}
                 more={mediaItems.length > 3 && i === 2 ? mediaItems.length - 2 : 0}
-                className={i === 0 ? "" : i === 1 ? "rotate-[4deg]" : "rotate-[8deg]"}
+                className={i === 0 ? "" : i === 1 ? "rotate-[3deg]" : "rotate-[6deg]"}
               />
             ))}
           </div>
@@ -666,71 +683,109 @@ export function RecordBlock({
               )}
             </DialogTitle>
           </DialogHeader>
-          <div
-            className="relative px-3 pb-3"
-            onTouchStart={(e) => (touchX.current = e.touches[0]?.clientX ?? null)}
-            onTouchEnd={(e) => {
-              const start = touchX.current;
-              const end = e.changedTouches[0]?.clientX;
-              touchX.current = null;
-              if (start == null || end == null || total < 2) return;
-              if (Math.abs(end - start) > 50) go(end < start ? 1 : -1);
-            }}
-          >
+          {/* GALERIA (28/09/2026): trilho horizontal com todos os anexos, um
+              por vez com encaixe; vídeo nunca toca sozinho; tocar maximiza. */}
+          <div className="relative pb-3">
+            <div
+              ref={railRef}
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+                if (i !== viewIndex && i >= 0 && i < total) setViewIndex(i);
+              }}
+              className="ds-scroll-x flex w-full snap-x snap-mandatory"
+            >
+              {mediaItems.map((it) => (
+                <div key={it.id} className="w-full shrink-0 snap-center px-3">
+                  <div className="grid h-[52vh] max-h-[420px] place-items-center overflow-hidden rounded-lg bg-black/90">
+                    {it.kind === "photo" && it.url && (
+                      <button type="button" onClick={() => setMaxItem(it)} className="size-full" aria-label="Maximizar foto">
+                        <img src={it.url} alt={it.fileName ?? "Foto"} className="size-full object-contain" loading="lazy" />
+                      </button>
+                    )}
+                    {it.kind === "video" && it.url && (
+                      <video
+                        src={`${it.url}#t=0.1`}
+                        controls
+                        preload="metadata"
+                        playsInline
+                        className="size-full object-contain"
+                      />
+                    )}
+                    {it.kind === "audio" && it.url && (
+                      <div className="w-full px-4">
+                        <AudioPlayer url={it.url} durationMs={it.durationMs} />
+                      </div>
+                    )}
+                    {it.kind === "file" && it.url && (
+                      <a
+                        href={it.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex max-w-[90%] items-center gap-2 rounded-md bg-secondary px-3 py-2 text-foreground"
+                      >
+                        <FileText className="size-4 shrink-0" />
+                        <span className="min-w-0 truncate text-xs">{it.fileName ?? "Arquivo"}</span>
+                        <Download className="size-3.5 shrink-0" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
             {total > 1 && (
               <>
                 <button
                   type="button"
                   aria-label="Anterior"
-                  onClick={() => go(-1)}
-                  className="absolute left-4 top-1/2 z-10 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-white backdrop-blur-sm"
+                  onClick={() => scrollToIdx((viewIndex ?? 0) - 1)}
+                  className="absolute left-5 top-[26vh] z-10 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm sm:top-[210px]"
                 >
                   <ChevronLeft className="size-4" />
                 </button>
                 <button
                   type="button"
                   aria-label="Próximo"
-                  onClick={() => go(1)}
-                  className="absolute right-4 top-1/2 z-10 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-white backdrop-blur-sm"
+                  onClick={() => scrollToIdx((viewIndex ?? 0) + 1)}
+                  className="absolute right-5 top-[26vh] z-10 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm sm:top-[210px]"
                 >
                   <ChevronRight className="size-4" />
                 </button>
+                <div className="ds-scroll-x mt-2 flex gap-1.5 px-3">
+                  {mediaItems.map((it, i) => (
+                    <button
+                      key={it.id}
+                      type="button"
+                      onClick={() => scrollToIdx(i)}
+                      aria-label={`Ir para o anexo ${i + 1}`}
+                      className={`relative size-11 shrink-0 overflow-hidden rounded-md bg-secondary transition-opacity ${
+                        i === viewIndex ? "opacity-100 ring-2 ring-primary" : "opacity-55"
+                      }`}
+                    >
+                      {it.kind === "photo" && it.url ? (
+                        <img src={it.url} alt="" className="size-full object-cover" loading="lazy" />
+                      ) : it.kind === "video" && it.url ? (
+                        <video src={`${it.url}#t=0.1`} preload="metadata" muted playsInline className="size-full object-cover" />
+                      ) : (
+                        <span className="grid size-full place-items-center text-muted-foreground">
+                          {it.kind === "audio" ? <Mic className="size-3.5" /> : <FileText className="size-3.5" />}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </>
             )}
-            {viewing?.kind === "photo" && viewing.url && (
-              <img
-                src={viewing.url}
-                alt={viewing.fileName ?? "Foto"}
-                className="max-h-[70vh] w-full rounded-md object-contain"
-              />
-            )}
-            {viewing?.kind === "video" && viewing.url && (
-              <video
-                src={viewing.url}
-                controls
-                autoPlay
-                playsInline
-                className="max-h-[70vh] w-full rounded-md bg-black"
-              />
-            )}
-            {viewing?.kind === "audio" && viewing.url && (
-              <AudioPlayer url={viewing.url} durationMs={viewing.durationMs} />
-            )}
-            {viewing?.kind === "file" && viewing.url && (
-              <a
-                href={viewing.url}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2 rounded-md border border-border/50 bg-secondary/30 px-2 py-2 hover:bg-secondary/50"
-              >
-                <FileText className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-xs">
-                  {viewing.fileName ?? "Arquivo"}
-                </span>
-                <Download className="size-3.5 shrink-0 text-muted-foreground" />
-              </a>
-            )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!maxItem} onOpenChange={(v) => !v && setMaxItem(null)}>
+        <DialogContent className="h-[92vh] w-[calc(100vw-1rem)] max-w-none gap-0 overflow-hidden bg-black p-0 sm:max-w-5xl">
+          <DialogTitle className="sr-only">{maxItem?.fileName ?? "Anexo"}</DialogTitle>
+          {maxItem?.url && (
+            <img src={maxItem.url} alt={maxItem.fileName ?? "Foto"} className="size-full object-contain" />
+          )}
         </DialogContent>
       </Dialog>
     </div>
