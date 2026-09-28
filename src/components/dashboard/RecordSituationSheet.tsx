@@ -397,7 +397,10 @@ export function RecordSituationSheet({
       blob: it.blob,
       contentType: it.mime || "application/octet-stream",
       signal: ctrl.signal,
-      onProgress: (pct) => setPctPorItem((p) => ({ ...p, [it.key]: pct })),
+      onProgress: (pct) => {
+        progressoGlobal.set(path, pct);
+        setPctPorItem((p) => ({ ...p, [it.key]: pct }));
+      },
     }).then((r) => {
       if (!r.ok) enviosRef.current.delete(it.key);
       return r;
@@ -473,6 +476,81 @@ export function RecordSituationSheet({
 
   function cancelarEnvio() {
     cancelarRef.current?.abort();
+  }
+
+  async function enviarEmSegundoPlano(
+    lote: { it: DraftItem; envio: Envio }[],
+    groupId: string,
+    rotulo: string,
+  ) {
+    const id = `bg-${groupId}`;
+    const total = lote.length;
+    const pos = { position: "bottom-right" as const };
+    let ultimo = -1;
+    const atualizar = () => {
+      const media = Math.round(
+        lote.reduce((s, { envio }) => s + (progressoGlobal.get(envio.path) ?? 0), 0) / total,
+      );
+      if (media === ultimo) return;
+      ultimo = media;
+      toast.loading(`Enviando ${total} arquivo(s) · ${media}%`, { id, description: rotulo, ...pos });
+    };
+    envios2oPlano += 1;
+    atualizar();
+    const tick = setInterval(atualizar, 700);
+    let ok = 0;
+    const falhas: string[] = [];
+    await Promise.all(
+      lote.map(async ({ it, envio }) => {
+        const r = await envio.promise;
+        progressoGlobal.set(envio.path, 100);
+        try {
+          if (!r.ok) {
+            falhas.push(it.name || it.kind);
+            track({
+              type: "record_media_failed",
+              label: "Falha ao enviar mídia de situação",
+              category: "ERROR",
+              severity: "error",
+              metadata: { kind: it.kind, mime: it.mime || null, sizeBytes: it.blob.size, motivo: r.motivo, propertyId, groupId },
+            });
+            return;
+          }
+          await chamarServidor(() =>
+            appendFn({
+              data: {
+                groupId,
+                propertyId,
+                path: envio.path,
+                kind: it.kind,
+                mime: it.mime || "application/octet-stream",
+                sizeBytes: it.blob.size,
+                durationMs: it.durationMs,
+              },
+            }),
+          );
+          ok += 1;
+        } catch {
+          falhas.push(it.name || it.kind);
+        } finally {
+          if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
+        }
+      }),
+    );
+    clearInterval(tick);
+    for (const { envio } of lote) progressoGlobal.delete(envio.path);
+    envios2oPlano -= 1;
+    if (falhas.length) {
+      toast.error(`${ok} de ${total} arquivo(s) enviados`, {
+        id,
+        description: `${rotulo} — não subiram: ${falhas.join(", ")}. Anexe de novo na situação.`,
+        duration: 15000,
+        ...pos,
+      });
+    } else {
+      toast.success(`${total} arquivo(s) enviados`, { id, description: rotulo, duration: 5000, ...pos });
+    }
+    onSaved();
   }
 
   async function save() {
