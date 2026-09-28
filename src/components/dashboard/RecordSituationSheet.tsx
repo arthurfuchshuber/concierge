@@ -205,6 +205,7 @@ export function RecordSituationSheet({
   category,
   initial,
   initialTitle,
+  initialExtra,
   onSaved,
 }: {
   open: boolean;
@@ -218,6 +219,8 @@ export function RecordSituationSheet({
   initial: DraftItem | null;
   /** Texto já digitado no campo "Descrever situação" — vira o título. */
   initialTitle?: string;
+  /** Demais arquivos escolhidos junto com o primeiro (seleção múltipla). */
+  initialExtra?: DraftItem[];
   onSaved: () => void;
 }) {
   const createFn = useServerFn(createRecordSituation);
@@ -297,7 +300,7 @@ export function RecordSituationSheet({
   // pedido: registrou uma, a próxima captura abre uma folha limpa.
   useEffect(() => {
     if (!open) return;
-    setItems(initial ? [initial] : []);
+    setItems(initial ? [initial, ...(initialExtra ?? [])] : []);
     setTitle(initialTitle ?? "");
     setDescription("");
     setErro(null);
@@ -409,6 +412,13 @@ export function RecordSituationSheet({
     for (const it of items) if (!enviosRef.current.has(it.key)) iniciarEnvio(it);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, open]);
+
+  useEffect(() => {
+    const envios = enviosRef.current;
+    return () => {
+      for (const e of envios.values()) e.ctrl.abort();
+    };
+  }, []);
 
   // Fechou sem registrar: corta o que estava subindo.
   useEffect(() => {
