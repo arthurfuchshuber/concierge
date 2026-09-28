@@ -21,6 +21,8 @@ import {
   ListChecks,
   MoreVertical,
   Pencil,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
@@ -246,49 +248,51 @@ function fmtDuration(ms: number | null): string | null {
 function MediaThumb({
   item,
   onOpen,
+  more = 0,
+  className = "",
 }: {
   item: ReservationRecord;
   onOpen: (it: ReservationRecord) => void;
+  more?: number;
+  className?: string;
 }) {
   const dur = fmtDuration(item.durationMs);
   return (
     <button
       type="button"
       onClick={() => onOpen(item)}
-      aria-label={`Abrir ${KIND_LABEL[item.kind] ?? "registro"}`}
-      className="relative size-[68px] shrink-0 overflow-hidden rounded-lg border border-border/50 bg-secondary/40"
+      aria-label={more ? `Ver mais ${more} anexos` : `Abrir ${KIND_LABEL[item.kind] ?? "registro"}`}
+      className={`relative size-[52px] shrink-0 overflow-hidden rounded-xl bg-secondary shadow-md ring-2 ring-card transition-transform hover:z-10 hover:-translate-y-0.5 ${className}`}
     >
       {item.kind === "photo" && item.url ? (
-        <img
-          src={item.url}
-          alt={item.fileName ?? "Foto"}
-          className="size-full object-cover"
-          loading="lazy"
-        />
+        <img src={item.url} alt={item.fileName ?? "Foto"} className="size-full object-cover" loading="lazy" />
       ) : item.kind === "video" && item.url ? (
-        <>
-          <video
-            src={`${item.url}#t=0.1`}
-            preload="metadata"
-            muted
-            playsInline
-            className="size-full bg-black object-cover"
-          />
-          <span className="absolute inset-0 grid place-items-center bg-black/25">
-            <span className="grid size-6 place-items-center rounded-full bg-white/20 backdrop-blur-sm">
-              <Play className="size-3 fill-white text-white" />
-            </span>
-          </span>
-        </>
+        <video src={`${item.url}#t=0.1`} preload="metadata" muted playsInline className="size-full bg-black object-cover" />
       ) : (
         <span className="grid size-full place-items-center text-muted-foreground">
           {item.kind === "audio" ? <Mic className="size-4" /> : <FileText className="size-4" />}
         </span>
       )}
-      <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-black/55 px-1 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-white">
-        <span className="truncate">{KIND_LABEL[item.kind] ?? "item"}</span>
-        {dur && <span className="shrink-0 tabular-nums">{dur}</span>}
-      </span>
+      {more > 0 ? (
+        <span className="absolute inset-0 grid place-items-center bg-black/60 text-[13px] font-bold text-white backdrop-blur-[1px]">
+          +{more}
+        </span>
+      ) : (
+        <>
+          {item.kind === "video" && (
+            <span className="absolute inset-0 grid place-items-center">
+              <span className="grid size-5 place-items-center rounded-full bg-black/45 backdrop-blur-sm">
+                <Play className="size-2.5 fill-white text-white" />
+              </span>
+            </span>
+          )}
+          {dur && (
+            <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 text-[8px] font-semibold tabular-nums text-white">
+              {dur}
+            </span>
+          )}
+        </>
+      )}
     </button>
   );
 }
@@ -524,11 +528,16 @@ export function RecordBlock({
   onChanged?: () => void;
 }) {
   const head = group.items[0];
-  const [viewing, setViewing] = useState<ReservationRecord | null>(null);
+  const [viewIndex, setViewIndex] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
 
   const mediaItems = group.items.filter((it) => it.kind !== "note" && it.url);
   const body = group.items.find((it) => it.body)?.body ?? null;
+  const viewing = viewIndex != null ? (mediaItems[viewIndex] ?? null) : null;
+  const total = mediaItems.length;
+  const go = (d: number) =>
+    setViewIndex((i) => (i == null || total === 0 ? i : (i + d + total) % total));
+  const touchX = useRef<number | null>(null);
 
   return (
     <div
@@ -575,28 +584,22 @@ export function RecordBlock({
         />
       )}
 
-      {/* SEMPRE: anexos em quadradinhos na horizontal em cima, texto embaixo
-          em largura total (pedido explícito, 28/09/2026). */}
-      <div className="space-y-2 px-2.5 pb-2.5">
-        {mediaItems.length > 0 && (
-          <div className="ds-scroll-x flex w-full min-w-0 gap-1.5">
-            {mediaItems.map((it) => (
-              <MediaThumb key={it.id} item={it} onOpen={setViewing} />
-            ))}
-          </div>
-        )}
-        <div className="min-w-0 space-y-1">
-          {body && (
-            <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
+      {/* Texto à esquerda, pilha de anexos à direita (28/09/2026) — o cartão
+          não cresce: até 3 quadradinhos sobrepostos, o 3º vira "+N". */}
+      <div className="flex items-center gap-3 px-2.5 pb-2.5">
+        <div className="min-w-0 flex-1 space-y-0.5">
+          {body ? (
+            <p className="whitespace-pre-wrap break-words text-[13px] font-semibold leading-snug text-foreground">
               {body}
             </p>
-          )}
-          {!body && mediaItems.length === 0 && (
+          ) : mediaItems.length === 0 ? (
             <p className="text-[11px] italic text-muted-foreground">Registro sem conteúdo.</p>
-          )}
-          <p className="text-[10.5px] leading-snug text-muted-foreground">
+          ) : null}
+          <p className="text-[11px] leading-snug text-foreground/70">
+            {head.createdByName ?? "Equipe"}
+          </p>
+          <p className="text-[10px] leading-snug text-muted-foreground">
             {[
-              head.createdByName ?? "Equipe",
               head.cardMode ? `via ${MODE_LABEL[head.cardMode]}` : null,
               mediaItems.length > 0 ? mediaSummary(mediaItems) : null,
               mediaItems.length === 1 && head.sizeBytes ? fmtSize(head.sizeBytes) : null,
@@ -610,6 +613,19 @@ export function RecordBlock({
               ))}
           </p>
         </div>
+        {mediaItems.length > 0 && (
+          <div className="flex shrink-0 -space-x-3 pr-0.5">
+            {(mediaItems.length > 3 ? mediaItems.slice(0, 3) : mediaItems).map((it, i) => (
+              <MediaThumb
+                key={it.id}
+                item={it}
+                onOpen={() => setViewIndex(i)}
+                more={mediaItems.length > 3 && i === 2 ? mediaItems.length - 2 : 0}
+                className={i === 0 ? "" : i === 1 ? "rotate-[4deg]" : "rotate-[8deg]"}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {head.taskId && (
@@ -636,14 +652,51 @@ export function RecordBlock({
         </div>
       )}
 
-      <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewing(null)}>
+      <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewIndex(null)}>
         <DialogContent className="w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-lg">
           <DialogHeader className="px-4 pb-2 pt-4">
-            <DialogTitle className="truncate text-[14px] font-display">
-              {viewing?.fileName ?? KIND_LABEL[viewing?.kind ?? "file"]}
+            <DialogTitle className="flex min-w-0 items-center gap-2 pr-6 text-[14px] font-display">
+              <span className="min-w-0 truncate">
+                {viewing?.fileName ?? KIND_LABEL[viewing?.kind ?? "file"]}
+              </span>
+              {total > 1 && viewIndex != null && (
+                <span className="shrink-0 text-[11px] font-normal tabular-nums text-muted-foreground">
+                  {viewIndex + 1}/{total}
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
-          <div className="px-3 pb-3">
+          <div
+            className="relative px-3 pb-3"
+            onTouchStart={(e) => (touchX.current = e.touches[0]?.clientX ?? null)}
+            onTouchEnd={(e) => {
+              const start = touchX.current;
+              const end = e.changedTouches[0]?.clientX;
+              touchX.current = null;
+              if (start == null || end == null || total < 2) return;
+              if (Math.abs(end - start) > 50) go(end < start ? 1 : -1);
+            }}
+          >
+            {total > 1 && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Anterior"
+                  onClick={() => go(-1)}
+                  className="absolute left-4 top-1/2 z-10 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-white backdrop-blur-sm"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Próximo"
+                  onClick={() => go(1)}
+                  className="absolute right-4 top-1/2 z-10 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-white backdrop-blur-sm"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              </>
+            )}
             {viewing?.kind === "photo" && viewing.url && (
               <img
                 src={viewing.url}
