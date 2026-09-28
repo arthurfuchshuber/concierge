@@ -550,26 +550,21 @@ export function RecordSituationSheet({
         /* sem wake lock o envio continua, só fica mais frágil */
       }
 
-      const folder = target.logId ?? target.reservationId;
       const enviados: string[] = [];
       const falharam: string[] = [];
       let ultimaMensagem: string | null = null;
       let feitos = 0;
+      const aoCancelarTudo = () => {
+        for (const e of enviosRef.current.values()) e.ctrl.abort();
+      };
+      ctrl.signal.addEventListener("abort", aoCancelarTudo);
 
       for (const it of items) {
         if (ctrl.signal.aborted) break;
-        const path = `${propertyId}/${folder}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`;
-        const r = await enviarMidia({
-          bucket: "reservation-records",
-          path,
-          blob: it.blob,
-          // Alguns Android devolvem o arquivo SEM tipo. `??` não pega string
-          // vazia, então o tipo ia vazio para o servidor e o registro era
-          // recusado na validação. Aqui há um padrão de verdade.
-          contentType: it.mime || "application/octet-stream",
-          signal: ctrl.signal,
-          onProgress: (pct) => setProgresso({ feitos, total: items.length, pct }),
-        });
+        // Reaproveita o envio que já começou quando o arquivo entrou na folha.
+        const envio = enviosRef.current.get(it.key) ?? iniciarEnvio(it);
+        const path = envio.path;
+        const r = await envio.promise;
 
         if (r.ok) {
           try {
