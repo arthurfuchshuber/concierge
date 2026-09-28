@@ -551,122 +551,19 @@ export function RecordSituationSheet({
         }
       }
 
-      // A tela fica acesa enquanto sobe: com a aba em segundo plano o sistema
-      // operacional mata o envio muito mais cedo.
-      let lock: { release: () => Promise<void> } | null = null;
-      try {
-        const wl = (
-          navigator as Navigator & {
-            wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> };
-          }
-        ).wakeLock;
-        lock = wl ? await wl.request("screen") : null;
-      } catch {
-        /* sem wake lock o envio continua, só fica mais frágil */
+      /* ENVIO EM SEGUNDO PLANO (28/09/2026): a situação já existe; os arquivos
+         seguem subindo depois que a janela fecha, para registrar em várias
+         reservas ao mesmo tempo. Cada término avisa no canto inferior direito.
+         Os envios saem do controle da folha (senão fechar cancelaria). */
+      if (items.length > 0) {
+        const lote = items.map((it) => ({
+          it,
+          envio: enviosRef.current.get(it.key) ?? iniciarEnvio(it),
+        }));
+        enviosRef.current.clear();
+        void enviarEmSegundoPlano(lote, groupId, title.trim() || "Situação");
+        setItems([]);
       }
-
-      const enviados: string[] = [];
-      const falharam: string[] = [];
-      let ultimaMensagem: string | null = null;
-      let feitos = 0;
-      const aoCancelarTudo = () => {
-        for (const e of enviosRef.current.values()) e.ctrl.abort();
-      };
-      ctrl.signal.addEventListener("abort", aoCancelarTudo);
-
-      for (const it of items) {
-        if (ctrl.signal.aborted) break;
-        // Reaproveita o envio que já começou quando o arquivo entrou na folha.
-        const envio = enviosRef.current.get(it.key) ?? iniciarEnvio(it);
-        const path = envio.path;
-        const r = await envio.promise;
-
-        if (r.ok) {
-          try {
-            await chamarServidor(
-              () =>
-                appendFn({
-                  data: {
-                    groupId,
-                    propertyId,
-                    path,
-                    kind: it.kind,
-                    mime: it.mime || "application/octet-stream",
-                    sizeBytes: it.blob.size,
-                    durationMs: it.durationMs,
-                  },
-                }),
-              { signal: ctrl.signal },
-            );
-            enviados.push(it.key);
-          } catch (e) {
-            falharam.push(it.name || it.kind);
-            ultimaMensagem = (e as Error)?.message ?? null;
-          }
-        } else if (r.motivo === "cancelado") {
-          break;
-        } else {
-          falharam.push(it.name || it.kind);
-          ultimaMensagem = r.mensagem;
-          /* A FALHA DEIXA RASTRO (11/09/2026).
-           *
-           * O envio anterior falhava em silêncio: nenhum erro no servidor,
-           * nenhum evento, nada. Só descobrimos porque a equipe reclamou e eu
-           * fui cavar o banco. Agora cada arquivo que não sobe vira um evento
-           * com tamanho, tipo e MOTIVO — se acontecer de novo, aparece
-           * sozinho. */
-          track({
-            type: "record_media_failed",
-            label: "Falha ao enviar mídia de situação",
-            category: "ERROR",
-            severity: "error",
-            metadata: {
-              kind: it.kind,
-              mime: it.mime || null,
-              sizeBytes: it.blob.size,
-              motivo: r.motivo,
-              propertyId,
-              groupId,
-            },
-          });
-        }
-
-        feitos += 1;
-        setProgresso({ feitos, total: items.length, pct: 0 });
-      }
-
-      await lock?.release().catch(() => {});
-
-      // O que subiu sai da folha: "tentar de novo" reenvia só o que faltou, e
-      // nunca duplica o que já está registrado.
-      if (enviados.length) {
-        setItems((prev) => {
-          for (const it of prev) {
-            if (enviados.includes(it.key) && it.previewUrl) URL.revokeObjectURL(it.previewUrl);
-          }
-          return prev.filter((it) => !enviados.includes(it.key));
-        });
-      }
-
-      if (ctrl.signal.aborted) {
-        setErro(
-          enviados.length
-            ? `Envio cancelado. ${enviados.length} arquivo(s) já ficaram guardados; o resto continua aqui.`
-            : "Envio cancelado. O texto já está salvo — toque em registrar quando quiser.",
-        );
-        return;
-      }
-
-      if (falharam.length) {
-        setErro(
-          `${ultimaMensagem ?? "Não consegui enviar."} ${enviados.length} de ${items.length} arquivo(s) subiram. Toque em "Registrar situação" para tentar o resto — o que já subiu está guardado.`,
-        );
-        onSaved();
-        return;
-      }
-
-      if (items.length > 0) avisarComDesfazer("Situação registrada.");
-      // Deu tudo certo: o rascunho cumpriu o papel e sai de cena.
       void apagarRascunho(chave);
       onSaved();
       onOpenChange(false);
