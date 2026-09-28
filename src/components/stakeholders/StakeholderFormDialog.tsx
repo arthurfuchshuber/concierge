@@ -868,7 +868,7 @@ export function StakeholderFormDialog({
                   <p className="ds-meta text-destructive">A senha precisa ter pelo menos 8 caracteres.</p>
                 )}
                 <p className="ds-meta">
-                  Use letras maiúsculas, minúsculas, números e símbolo (senhas simples são recusadas). Passe essa senha à pessoa por WhatsApp. Em branco, enviamos convite por e-mail.
+                  Use letras maiúsculas, minúsculas, números e símbolo (senhas simples são recusadas). Ao salvar, e-mail e senha são copiados para você colar no WhatsApp. Em branco, {access?.status && access.status !== "none" ? "nada muda no acesso atual" : "enviamos convite por e-mail"}.
                 </p>
               </div>
             )}
