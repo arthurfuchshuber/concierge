@@ -48,6 +48,19 @@ import {
   type SituationTarget,
 } from "@/components/dashboard/record-draft";
 
+/* Envios que continuam depois de a folha fechar (28/09/2026). */
+const progressoGlobal = new Map<string, number>();
+let envios2oPlano = 0;
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", (e) => {
+    if (envios2oPlano > 0) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
+}
+
+
 /**
  * A FOLHA DA SITUAÇÃO (pedido explícito, 10/09/2026).
  *
@@ -397,7 +410,10 @@ export function RecordSituationSheet({
       blob: it.blob,
       contentType: it.mime || "application/octet-stream",
       signal: ctrl.signal,
-      onProgress: (pct) => setPctPorItem((p) => ({ ...p, [it.key]: pct })),
+      onProgress: (pct) => {
+        progressoGlobal.set(path, pct);
+        setPctPorItem((p) => ({ ...p, [it.key]: pct }));
+      },
     }).then((r) => {
       if (!r.ok) enviosRef.current.delete(it.key);
       return r;
@@ -473,6 +489,81 @@ export function RecordSituationSheet({
 
   function cancelarEnvio() {
     cancelarRef.current?.abort();
+  }
+
+  async function enviarEmSegundoPlano(
+    lote: { it: DraftItem; envio: Envio }[],
+    groupId: string,
+    rotulo: string,
+  ) {
+    const id = `bg-${groupId}`;
+    const total = lote.length;
+    const pos = { position: "bottom-right" as const };
+    let ultimo = -1;
+    const atualizar = () => {
+      const media = Math.round(
+        lote.reduce((s, { envio }) => s + (progressoGlobal.get(envio.path) ?? 0), 0) / total,
+      );
+      if (media === ultimo) return;
+      ultimo = media;
+      toast.loading(`Enviando ${total} arquivo(s) · ${media}%`, { id, description: rotulo, ...pos });
+    };
+    envios2oPlano += 1;
+    atualizar();
+    const tick = setInterval(atualizar, 700);
+    let ok = 0;
+    const falhas: string[] = [];
+    await Promise.all(
+      lote.map(async ({ it, envio }) => {
+        const r = await envio.promise;
+        progressoGlobal.set(envio.path, 100);
+        try {
+          if (!r.ok) {
+            falhas.push(it.name || it.kind);
+            track({
+              type: "record_media_failed",
+              label: "Falha ao enviar mídia de situação",
+              category: "ERROR",
+              severity: "error",
+              metadata: { kind: it.kind, mime: it.mime || null, sizeBytes: it.blob.size, motivo: r.motivo, propertyId, groupId },
+            });
+            return;
+          }
+          await chamarServidor(() =>
+            appendFn({
+              data: {
+                groupId,
+                propertyId,
+                path: envio.path,
+                kind: it.kind,
+                mime: it.mime || "application/octet-stream",
+                sizeBytes: it.blob.size,
+                durationMs: it.durationMs,
+              },
+            }),
+          );
+          ok += 1;
+        } catch {
+          falhas.push(it.name || it.kind);
+        } finally {
+          if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
+        }
+      }),
+    );
+    clearInterval(tick);
+    for (const { envio } of lote) progressoGlobal.delete(envio.path);
+    envios2oPlano -= 1;
+    if (falhas.length) {
+      toast.error(`${ok} de ${total} arquivo(s) enviados`, {
+        id,
+        description: `${rotulo} — não subiram: ${falhas.join(", ")}. Anexe de novo na situação.`,
+        duration: 15000,
+        ...pos,
+      });
+    } else {
+      toast.success(`${total} arquivo(s) enviados`, { id, description: rotulo, duration: 5000, ...pos });
+    }
+    onSaved();
   }
 
   async function save() {
@@ -551,122 +642,19 @@ export function RecordSituationSheet({
         }
       }
 
-      // A tela fica acesa enquanto sobe: com a aba em segundo plano o sistema
-      // operacional mata o envio muito mais cedo.
-      let lock: { release: () => Promise<void> } | null = null;
-      try {
-        const wl = (
-          navigator as Navigator & {
-            wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> };
-          }
-        ).wakeLock;
-        lock = wl ? await wl.request("screen") : null;
-      } catch {
-        /* sem wake lock o envio continua, só fica mais frágil */
+      /* ENVIO EM SEGUNDO PLANO (28/09/2026): a situação já existe; os arquivos
+         seguem subindo depois que a janela fecha, para registrar em várias
+         reservas ao mesmo tempo. Cada término avisa no canto inferior direito.
+         Os envios saem do controle da folha (senão fechar cancelaria). */
+      if (items.length > 0) {
+        const lote = items.map((it) => ({
+          it,
+          envio: enviosRef.current.get(it.key) ?? iniciarEnvio(it),
+        }));
+        enviosRef.current.clear();
+        void enviarEmSegundoPlano(lote, groupId, title.trim() || "Situação");
+        setItems([]);
       }
-
-      const enviados: string[] = [];
-      const falharam: string[] = [];
-      let ultimaMensagem: string | null = null;
-      let feitos = 0;
-      const aoCancelarTudo = () => {
-        for (const e of enviosRef.current.values()) e.ctrl.abort();
-      };
-      ctrl.signal.addEventListener("abort", aoCancelarTudo);
-
-      for (const it of items) {
-        if (ctrl.signal.aborted) break;
-        // Reaproveita o envio que já começou quando o arquivo entrou na folha.
-        const envio = enviosRef.current.get(it.key) ?? iniciarEnvio(it);
-        const path = envio.path;
-        const r = await envio.promise;
-
-        if (r.ok) {
-          try {
-            await chamarServidor(
-              () =>
-                appendFn({
-                  data: {
-                    groupId,
-                    propertyId,
-                    path,
-                    kind: it.kind,
-                    mime: it.mime || "application/octet-stream",
-                    sizeBytes: it.blob.size,
-                    durationMs: it.durationMs,
-                  },
-                }),
-              { signal: ctrl.signal },
-            );
-            enviados.push(it.key);
-          } catch (e) {
-            falharam.push(it.name || it.kind);
-            ultimaMensagem = (e as Error)?.message ?? null;
-          }
-        } else if (r.motivo === "cancelado") {
-          break;
-        } else {
-          falharam.push(it.name || it.kind);
-          ultimaMensagem = r.mensagem;
-          /* A FALHA DEIXA RASTRO (11/09/2026).
-           *
-           * O envio anterior falhava em silêncio: nenhum erro no servidor,
-           * nenhum evento, nada. Só descobrimos porque a equipe reclamou e eu
-           * fui cavar o banco. Agora cada arquivo que não sobe vira um evento
-           * com tamanho, tipo e MOTIVO — se acontecer de novo, aparece
-           * sozinho. */
-          track({
-            type: "record_media_failed",
-            label: "Falha ao enviar mídia de situação",
-            category: "ERROR",
-            severity: "error",
-            metadata: {
-              kind: it.kind,
-              mime: it.mime || null,
-              sizeBytes: it.blob.size,
-              motivo: r.motivo,
-              propertyId,
-              groupId,
-            },
-          });
-        }
-
-        feitos += 1;
-        setProgresso({ feitos, total: items.length, pct: 0 });
-      }
-
-      await lock?.release().catch(() => {});
-
-      // O que subiu sai da folha: "tentar de novo" reenvia só o que faltou, e
-      // nunca duplica o que já está registrado.
-      if (enviados.length) {
-        setItems((prev) => {
-          for (const it of prev) {
-            if (enviados.includes(it.key) && it.previewUrl) URL.revokeObjectURL(it.previewUrl);
-          }
-          return prev.filter((it) => !enviados.includes(it.key));
-        });
-      }
-
-      if (ctrl.signal.aborted) {
-        setErro(
-          enviados.length
-            ? `Envio cancelado. ${enviados.length} arquivo(s) já ficaram guardados; o resto continua aqui.`
-            : "Envio cancelado. O texto já está salvo — toque em registrar quando quiser.",
-        );
-        return;
-      }
-
-      if (falharam.length) {
-        setErro(
-          `${ultimaMensagem ?? "Não consegui enviar."} ${enviados.length} de ${items.length} arquivo(s) subiram. Toque em "Registrar situação" para tentar o resto — o que já subiu está guardado.`,
-        );
-        onSaved();
-        return;
-      }
-
-      if (items.length > 0) avisarComDesfazer("Situação registrada.");
-      // Deu tudo certo: o rascunho cumpriu o papel e sai de cena.
       void apagarRascunho(chave);
       onSaved();
       onOpenChange(false);
@@ -932,7 +920,7 @@ export function RecordSituationSheet({
               />
             </div>
             <p className="mt-1.5 text-center text-[11px] leading-snug text-amber-600 dark:text-amber-400">
-              Finalizando o envio — mantenha esta tela aberta. O texto já está salvo.
+              Registrando… os arquivos continuam subindo mesmo com a janela fechada.
             </p>
           </div>
         )}
