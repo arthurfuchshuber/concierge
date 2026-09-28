@@ -8,6 +8,7 @@ import {
   Camera,
   RotateCcw,
   FileText,
+  Images,
   Loader2,
   Mic,
   Paperclip,
@@ -204,6 +205,7 @@ export function RecordSituationSheet({
   category,
   initial,
   initialTitle,
+  initialExtra,
   onSaved,
 }: {
   open: boolean;
@@ -217,6 +219,8 @@ export function RecordSituationSheet({
   initial: DraftItem | null;
   /** Texto já digitado no campo "Descrever situação" — vira o título. */
   initialTitle?: string;
+  /** Demais arquivos escolhidos junto com o primeiro (seleção múltipla). */
+  initialExtra?: DraftItem[];
   onSaved: () => void;
 }) {
   const createFn = useServerFn(createRecordSituation);
@@ -290,12 +294,13 @@ export function RecordSituationSheet({
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   // Cada abertura começa uma situação NOVA — é o "e assim por diante" do
   // pedido: registrou uma, a próxima captura abre uma folha limpa.
   useEffect(() => {
     if (!open) return;
-    setItems(initial ? [initial] : []);
+    setItems(initial ? [initial, ...(initialExtra ?? [])] : []);
     setTitle(initialTitle ?? "");
     setDescription("");
     setErro(null);
@@ -374,6 +379,55 @@ export function RecordSituationSheet({
     };
   }, []);
 
+  /* ENVIO ANTECIPADO (28/09/2026): cada arquivo começa a subir no instante
+     em que entra na folha — em QUALIDADE ORIGINAL (auditoria), sem compressão.
+     Enquanto a pessoa escreve o título, o vídeo já está indo. "Registrar" só
+     espera o que ainda faltar. */
+  type Envio = { path: string; ctrl: AbortController; promise: Promise<Awaited<ReturnType<typeof enviarMidia>>> };
+  const enviosRef = useRef(new Map<string, Envio>());
+  const [pctPorItem, setPctPorItem] = useState<Record<string, number>>({});
+  const folderEnvio = target.logId ?? target.reservationId;
+
+  function iniciarEnvio(it: DraftItem): Envio {
+    const ctrl = new AbortController();
+    const path = `${propertyId}/${folderEnvio}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`;
+    const promise = enviarMidia({
+      bucket: "reservation-records",
+      path,
+      blob: it.blob,
+      contentType: it.mime || "application/octet-stream",
+      signal: ctrl.signal,
+      onProgress: (pct) => setPctPorItem((p) => ({ ...p, [it.key]: pct })),
+    }).then((r) => {
+      if (!r.ok) enviosRef.current.delete(it.key);
+      return r;
+    });
+    const e = { path, ctrl, promise };
+    enviosRef.current.set(it.key, e);
+    return e;
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    for (const it of items) if (!enviosRef.current.has(it.key)) iniciarEnvio(it);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, open]);
+
+  useEffect(() => {
+    const envios = enviosRef.current;
+    return () => {
+      for (const e of envios.values()) e.ctrl.abort();
+    };
+  }, []);
+
+  // Fechou sem registrar: corta o que estava subindo.
+  useEffect(() => {
+    if (open) return;
+    for (const e of enviosRef.current.values()) e.ctrl.abort();
+    enviosRef.current.clear();
+    setPctPorItem({});
+  }, [open]);
+
   function addItem(item: DraftItem) {
     setItems((prev) => {
       if (prev.length >= SITUATION_MEDIA_MAX) {
@@ -385,13 +439,24 @@ export function RecordSituationSheet({
   }
 
   function onPicked(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!f) return;
-    addItem(draftItemFrom(f, { name: f.name, mime: f.type }));
+    if (!files.length) return;
+    setItems((prev) => {
+      const livres = SITUATION_MEDIA_MAX - prev.length;
+      if (files.length > livres) {
+        toast.error(`Máximo de ${SITUATION_MEDIA_MAX} arquivos por situação.`);
+      }
+      const novos = files
+        .slice(0, Math.max(0, livres))
+        .map((f) => draftItemFrom(f, { name: f.name, mime: f.type }));
+      return [...prev, ...novos];
+    });
   }
 
   function removeItem(key: string) {
+    enviosRef.current.get(key)?.ctrl.abort();
+    enviosRef.current.delete(key);
     setItems((prev) => {
       const gone = prev.find((i) => i.key === key);
       if (gone?.previewUrl) URL.revokeObjectURL(gone.previewUrl);
@@ -402,6 +467,9 @@ export function RecordSituationSheet({
   // Título sempre obrigatório (25/09/2026). O botão fica ativo para que, ao
   // tocar sem título, a pessoa receba a explicação clara em vez de nada.
   const canSave = !saving;
+  const pctGeral = items.length
+    ? Math.round(items.reduce((s, it) => s + (pctPorItem[it.key] ?? 0), 0) / items.length)
+    : 0;
 
   function cancelarEnvio() {
     cancelarRef.current?.abort();
@@ -497,26 +565,21 @@ export function RecordSituationSheet({
         /* sem wake lock o envio continua, só fica mais frágil */
       }
 
-      const folder = target.logId ?? target.reservationId;
       const enviados: string[] = [];
       const falharam: string[] = [];
       let ultimaMensagem: string | null = null;
       let feitos = 0;
+      const aoCancelarTudo = () => {
+        for (const e of enviosRef.current.values()) e.ctrl.abort();
+      };
+      ctrl.signal.addEventListener("abort", aoCancelarTudo);
 
       for (const it of items) {
         if (ctrl.signal.aborted) break;
-        const path = `${propertyId}/${folder}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`;
-        const r = await enviarMidia({
-          bucket: "reservation-records",
-          path,
-          blob: it.blob,
-          // Alguns Android devolvem o arquivo SEM tipo. `??` não pega string
-          // vazia, então o tipo ia vazio para o servidor e o registro era
-          // recusado na validação. Aqui há um padrão de verdade.
-          contentType: it.mime || "application/octet-stream",
-          signal: ctrl.signal,
-          onProgress: (pct) => setProgresso({ feitos, total: items.length, pct }),
-        });
+        // Reaproveita o envio que já começou quando o arquivo entrou na folha.
+        const envio = enviosRef.current.get(it.key) ?? iniciarEnvio(it);
+        const path = envio.path;
+        const r = await envio.promise;
 
         if (r.ok) {
           try {
@@ -704,6 +767,17 @@ export function RecordSituationSheet({
                     ) : (
                       <Icon className="size-4 text-muted-foreground" />
                     )}
+                    {/* Progresso do envio antecipado deste arquivo. */}
+                    <span className="absolute inset-x-0 bottom-0 h-[3px] bg-black/40">
+                      <span
+                        className={`block h-full transition-[width] duration-300 ${
+                          (pctPorItem[it.key] ?? 0) >= 100
+                            ? "bg-emerald-500"
+                            : "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+                        }`}
+                        style={{ width: `${pctPorItem[it.key] ?? 0}%` }}
+                      />
+                    </span>
                     <button
                       type="button"
                       onClick={() => removeItem(it.key)}
@@ -727,7 +801,7 @@ export function RecordSituationSheet({
               {items.length < SITUATION_MEDIA_MAX && (
                 <button
                   type="button"
-                  onClick={() => photoRef.current?.click()}
+                  onClick={() => galleryRef.current?.click()}
                   className="grid size-[62px] place-items-center rounded-[0.25rem] border border-dashed border-[#E82DAE]/45 bg-[#E82DAE]/[0.07] text-[#E82DAE] transition-colors hover:bg-[#E82DAE]/[0.12]"
                   aria-label="Adicionar mais uma mídia a esta situação"
                   title="Adicionar mais uma mídia a esta situação"
@@ -758,6 +832,13 @@ export function RecordSituationSheet({
                   className="inline-flex items-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-2 py-1 text-[10.5px] font-medium text-foreground/80 hover:bg-secondary/50"
                 >
                   <Video className="size-3" /> Vídeo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => galleryRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-2 py-1 text-[10.5px] font-medium text-foreground/80 hover:bg-secondary/50"
+                >
+                  <Images className="size-3" /> Galeria
                 </button>
                 <button
                   type="button"
@@ -817,7 +898,17 @@ export function RecordSituationSheet({
           className="hidden"
           onChange={onPicked}
         />
-        <input ref={fileRef} type="file" className="hidden" onChange={onPicked} />
+        {/* Galeria: vários de uma vez, sem abrir a câmera. */}
+        <input
+          ref={galleryRef}
+          type="file"
+          accept="image/*,video/*"
+          multiple
+          className="hidden"
+          onChange={onPicked}
+        />
+        <input ref={fileRef} type="file" multiple className="hidden" onChange={onPicked} />
+
 
         {/* O ERRO MORA NA FOLHA, não num toast que some (11/09/2026): a
             pessoa precisa ler o que houve E ter o botão de tentar de novo
@@ -837,11 +928,11 @@ export function RecordSituationSheet({
             <div className="h-1 w-full overflow-hidden rounded-full bg-amber-500/20">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] transition-[width] duration-300"
-                style={{ width: `${Math.max(3, progresso.pct)}%` }}
+                style={{ width: `${Math.max(3, pctGeral)}%` }}
               />
             </div>
             <p className="mt-1.5 text-center text-[11px] leading-snug text-amber-600 dark:text-amber-400">
-              Enviando os arquivos — mantenha esta tela aberta. O texto já está salvo.
+              Finalizando o envio — mantenha esta tela aberta. O texto já está salvo.
             </p>
           </div>
         )}
@@ -867,7 +958,7 @@ export function RecordSituationSheet({
           >
             {saving && <Loader2 className="size-3.5 animate-spin" />}
             {progresso
-              ? `Enviando ${Math.min(progresso.feitos + 1, progresso.total)} de ${progresso.total}${progresso.pct > 0 ? ` · ${progresso.pct}%` : "…"}`
+              ? `Enviando ${Math.min(progresso.feitos + 1, progresso.total)} de ${progresso.total} · ${pctGeral}%`
               : erro
                 ? "Tentar de novo"
                 : "Registrar situação"}
