@@ -274,7 +274,7 @@ function MediaThumb({
         </span>
       )}
       {more > 0 ? (
-        <span className="absolute inset-0 grid place-items-center bg-black/60 text-[13px] font-bold text-white backdrop-blur-[1px]">
+        <span className="absolute inset-0 grid place-items-center bg-black/70 text-[15px] font-bold tracking-tight text-white">
           +{more}
         </span>
       ) : (
@@ -638,7 +638,7 @@ export function RecordBlock({
                 item={it}
                 onOpen={() => setViewIndex(i)}
                 more={mediaItems.length > 3 && i === 2 ? mediaItems.length - 2 : 0}
-                className={i === 0 ? "" : i === 1 ? "rotate-[4deg]" : "rotate-[8deg]"}
+                className={i === 0 ? "" : i === 1 ? "rotate-[3deg]" : "rotate-[6deg]"}
               />
             ))}
           </div>
