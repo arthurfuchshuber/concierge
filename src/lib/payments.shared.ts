@@ -104,6 +104,7 @@ export const PLANS = {
       "Atendimento humano ao vivo",
       "Ensinar a IA com sua base de conhecimento",
       "Gestão de equipe + edição em massa",
+      "Prestadores, proprietários e usuários ilimitados",
       "Insights e relatórios avançados",
     ],
   },
