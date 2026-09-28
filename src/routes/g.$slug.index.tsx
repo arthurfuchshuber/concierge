@@ -3378,7 +3378,7 @@ function HeroCompact({
   name,
   tagline,
   city,
-  photos,
+  photos: rawPhotos,
   theme,
   onToggleTheme,
   brandName,
@@ -3396,6 +3396,16 @@ function HeroCompact({
   brandLogoUrl?: string | null;
 }) {
   const [idx, setIdx] = useState(0);
+  // Foto que não carrega sai do carrossel (nunca mostra ícone quebrado).
+  const [broken, setBroken] = useState<Set<string>>(() => new Set());
+  const photos = rawPhotos.filter((p) => !broken.has(p));
+  const markBroken = (src: string) =>
+    setBroken((b) => {
+      if (b.has(src)) return b;
+      const n = new Set(b);
+      n.add(src);
+      return n;
+    });
   // Vitrine da landing (?demo=1): o guia é só um espelho, sem troca de tema.
   const isDemoView = useRouterState({
     select: (st) => String((st.location.search as { demo?: unknown }).demo ?? "") === "1",
@@ -3490,6 +3500,7 @@ function HeroCompact({
               key={`${src}-${i}`}
               src={src}
               alt=""
+              onError={() => markBroken(src)}
               className={`absolute inset-0 size-full object-cover object-center transition-opacity duration-700 ${
                 i === idx ? "opacity-100" : "opacity-0"
               }`}
