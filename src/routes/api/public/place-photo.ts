@@ -3,7 +3,7 @@ import { tooManyRequests, rateLimitedResponse } from "@/lib/public-rate-limit.se
 
 // Pixel transparente devolvido quando a foto não vem do Google.
 const PIXEL_BASE64 =
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==";
 
 function placeholderResponse() {
   const bin = atob(PIXEL_BASE64);
