@@ -567,7 +567,13 @@ export const importFromAirbnb = createServerFn({ method: "POST" })
     if (!apiKey) throw new Error("Integração Firecrawl indisponível");
     const r = await scrapeAirbnbListing(apiKey, data.url);
     const { mirrorExternalPhotos } = await import("@/lib/airbnb-photos.server");
-    const saved = await mirrorExternalPhotos(r.gallery_images.slice(0, 4), context.userId);
+    // A cada importação as fotos anteriores deste imóvel são apagadas e
+    // substituídas pelo novo lote (regra do cliente, 28/09/2026).
+    const saved = await mirrorExternalPhotos(
+      r.gallery_images.slice(0, 4),
+      `${context.userId}/airbnb/${data.propertyId ?? "novo"}`,
+      { replaceFolder: true },
+    );
     return { ...r, gallery_images: saved, hero_image_url: saved[0] ?? null };
   });
 
