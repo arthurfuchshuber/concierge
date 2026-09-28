@@ -452,7 +452,7 @@ export function StakeholderFormDialog({
       try {
         const current = access?.status ?? "none";
         if (systemAccess && current !== "none" && emailValid && provisionalPwd.trim().length >= 8) {
-          await provisionalFn({
+          const res = await provisionalFn({
             data: {
               email: form.email.trim().toLowerCase(),
               password: provisionalPwd.trim(),
@@ -461,11 +461,15 @@ export function StakeholderFormDialog({
           });
           const sent = provisionalPwd.trim();
           setProvisionalPwd("");
-          void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
-          toast.success("Nova senha provisória definida e copiada. Envie à pessoa por WhatsApp.", { duration: 10000 });
+          if (res.mode === "linked_existing") {
+            toast.success("Esta pessoa já tem conta no ConciergeIA: acesso à sua empresa liberado. Ela entra com a senha que já usa. Aviso enviado por e-mail.", { duration: 10000 });
+          } else {
+            void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
+            toast.success(`Nova senha provisória definida e copiada.${res.emailSent ? " Também enviada por e-mail." : ""}`, { duration: 10000 });
+          }
         } else if (systemAccess && current === "none" && emailValid) {
           if (provisionalPwd.trim().length >= 8) {
-            await provisionalFn({
+            const res = await provisionalFn({
               data: {
                 email: form.email.trim().toLowerCase(),
                 password: provisionalPwd.trim(),
@@ -480,11 +484,15 @@ export function StakeholderFormDialog({
 
             const sent = provisionalPwd.trim();
             setProvisionalPwd("");
-            void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
-            toast.success(
-              "Acesso liberado e dados copiados. Envie à pessoa por WhatsApp — no primeiro login ela cria a própria senha.",
-              { duration: 10000 },
-            );
+            if (res.mode === "linked_existing") {
+              toast.success("Esta pessoa já tem conta no ConciergeIA: acesso à sua empresa liberado. Ela entra com a senha que já usa. Aviso enviado por e-mail.", { duration: 10000 });
+            } else {
+              void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
+              toast.success(
+                `Acesso liberado e dados copiados.${res.emailSent ? " Também enviados por e-mail." : ""} No primeiro login a pessoa cria a própria senha.`,
+                { duration: 10000 },
+              );
+            }
           } else {
             await inviteFn({ data: { email: form.email.trim().toLowerCase(), role: "agent" as const } });
             toast.success("Convite de acesso enviado por e-mail.");

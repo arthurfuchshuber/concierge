@@ -97,6 +97,7 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     let memberUserId = await findUserIdByEmail(data.email);
+    let mode: "created" | "password_changed" | "linked_existing" = "created";
     if (memberUserId) {
       // SEGURANÇA: só é permitido redefinir a senha de quem JÁ pertence a esta
       // conta (membro ou convite pendente). Sem esta trava, informar o e-mail
@@ -117,9 +118,10 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
           .eq("status", "pending")
           .maybeSingle(),
       ]);
+      let belongsElsewhere = false;
       if (!existingMember && !pendingInvite && memberUserId !== userId) {
-        // Cadastro "vazio" (criado sozinho, sem imóveis, sem assinatura e sem
-        // equipe em outra empresa) pode ser aproveitado com segurança.
+        // Quem já usa o ConciergeIA em outra empresa (imóveis, assinatura ou
+        // equipe) é VINCULADO a esta conta sem trocar a senha pessoal dele.
         const [props, subs, otherTeams] = await Promise.all([
           supabaseAdmin.from("properties").select("id", { count: "exact", head: true }).eq("owner_id", memberUserId),
           supabaseAdmin.from("subscriptions").select("id", { count: "exact", head: true }).eq("user_id", memberUserId),
@@ -129,19 +131,20 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
             .eq("member_user_id", memberUserId)
             .neq("status", "revoked"),
         ]);
-        const inUse = (props.count ?? 0) > 0 || (subs.count ?? 0) > 0 || (otherTeams.count ?? 0) > 0;
-        if (inUse || props.error || otherTeams.error) {
-          throw new Error(
-            "Este e-mail já é usado por outra empresa no ConciergeIA. Peça para a pessoa entrar com a senha dela (ou usar \"Esqueci minha senha\"), ou cadastre outro e-mail.",
-          );
-        }
+        belongsElsewhere =
+          (props.count ?? 0) > 0 || (subs.count ?? 0) > 0 || (otherTeams.count ?? 0) > 0 || !!props.error || !!otherTeams.error;
       }
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(memberUserId, {
-        password: data.password,
-        email_confirm: true,
-        user_metadata: { must_change_password: true },
-      });
-      if (error) throw new Error(friendlyPasswordError(error.message) ?? `Não foi possível definir a senha provisória: ${error.message}`);
+      if (belongsElsewhere) {
+        mode = "linked_existing";
+      } else {
+        const { error } = await supabaseAdmin.auth.admin.updateUserById(memberUserId, {
+          password: data.password,
+          email_confirm: true,
+          user_metadata: { must_change_password: true },
+        });
+        if (error) throw new Error(friendlyPasswordError(error.message) ?? `Não foi possível definir a senha provisória: ${error.message}`);
+        mode = existingMember ? "password_changed" : "created";
+      }
     } else {
       const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
         email: data.email,
@@ -162,7 +165,7 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
     if (data.cpf) profilePatch.cpf = data.cpf;
     if (data.birth_date) profilePatch.birth_date = data.birth_date;
     if (data.phone) profilePatch.phone = data.phone;
-    if (Object.keys(profilePatch).length > 1) {
+    if (mode !== "linked_existing" && Object.keys(profilePatch).length > 1) {
       await supabaseAdmin.from("profiles").upsert(profilePatch as never, { onConflict: "id" });
     }
 
@@ -190,5 +193,32 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
       .eq("email", data.email)
       .eq("status", "pending");
 
-    return { ok: true, userId: memberUserId };
+    // REGRA: todo acesso criado/alterado/vinculado é avisado por e-mail.
+    let emailSent = false;
+    try {
+      const { data: prof } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name, trade_name")
+        .eq("id", userId)
+        .maybeSingle();
+      const accountName = ((prof?.trade_name as string) || (prof?.full_name as string)) ?? null;
+      const { sendAppEmail } = await import("@/lib/email/send-app-email.server");
+      const r = await sendAppEmail({
+        templateName: "access-notice",
+        recipientEmail: data.email,
+        idempotencyKey: `access-${mode}-${memberUserId}-${userId}-${Date.now()}`,
+        templateData: {
+          kind: mode,
+          accountName,
+          recipientEmail: data.email,
+          provisionalPassword: mode === "linked_existing" ? null : data.password,
+          actionUrl: "https://conciergeia.app/auth",
+        },
+      });
+      emailSent = r.ok;
+    } catch (e) {
+      console.error("[access-notice] falha no envio", e instanceof Error ? e.message : e);
+    }
+
+    return { ok: true, userId: memberUserId, mode, emailSent };
   });
