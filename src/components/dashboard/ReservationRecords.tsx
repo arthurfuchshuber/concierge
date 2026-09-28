@@ -964,7 +964,7 @@ export function ReservationRecordsDialog({
               <div className="grid place-items-center py-10 text-muted-foreground">
                 <Loader2 className="size-5 animate-spin" />
               </div>
-            ) : visible.length === 0 ? (
+            ) : groups.length === 0 ? (
               <div className="py-8 text-center text-xs text-muted-foreground">
                 {records.length === 0
                   ? "Nenhum registro ainda — fotos, vídeos, áudios, arquivos ou descrições ficam aqui, juntos, não importa em qual etapa forem adicionados."
