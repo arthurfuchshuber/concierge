@@ -800,6 +800,7 @@ export function ReservationRecordsDialog({
   const [situation, setSituation] = useState<{
     category: RecordCategory;
     item: DraftItem | null;
+    extra?: DraftItem[];
     title: string;
   } | null>(null);
 
@@ -852,16 +853,13 @@ export function ReservationRecordsDialog({
   }
 
   function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!f) return;
+    if (!files.length) return;
     // A categoria já foi escolhida na folha, antes da câmera abrir.
     const category = pickedCategory ?? FALLBACK_CATEGORY;
-    setSituation({
-      category,
-      item: draftItemFrom(f, { name: f.name, mime: f.type }),
-      title: "",
-    });
+    const [first, ...rest] = files.map((f) => draftItemFrom(f, { name: f.name, mime: f.type }));
+    setSituation({ category, item: first, extra: rest, title: "" });
   }
 
   function onAudioRecorded(audio: RecordedAudio) {
@@ -1010,7 +1008,7 @@ export function ReservationRecordsDialog({
               className="hidden"
               onChange={onFilePicked}
             />
-            <input ref={fileInputRef} type="file" className="hidden" onChange={onFilePicked} />
+            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFilePicked} />
 
             {recordingAudio ? (
               <div className="mb-2 flex items-center gap-2">
@@ -1106,6 +1104,7 @@ export function ReservationRecordsDialog({
           cardMode={mode}
           category={situation.category}
           initial={situation.item}
+          initialExtra={situation.extra}
           initialTitle={situation.title}
           onSaved={invalidate}
         />
