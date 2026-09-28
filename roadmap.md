@@ -6,3 +6,5 @@
 - [ ] Editor de guia no padrão (próxima rodada)
 - [x] Operação: pendências compactas e reconciliação automática entre estadias consecutivas
 - [x] Sistema: clique fora por camada e desfoque unificados nas janelas compartilhadas
+
+- [ ] WhatsApp pelo botão oficial da Meta (cadastro incorporado): aguardando o usuário criar o app na Meta, verificar a empresa e enviar META_APP_ID, META_APP_SECRET e META_WA_CONFIG_ID
