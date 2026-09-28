@@ -117,9 +117,10 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
           .eq("status", "pending")
           .maybeSingle(),
       ]);
+      let belongsElsewhere = false;
       if (!existingMember && !pendingInvite && memberUserId !== userId) {
-        // Cadastro "vazio" (criado sozinho, sem imóveis, sem assinatura e sem
-        // equipe em outra empresa) pode ser aproveitado com segurança.
+        // Quem já usa o ConciergeIA em outra empresa (imóveis, assinatura ou
+        // equipe) é VINCULADO a esta conta sem trocar a senha pessoal dele.
         const [props, subs, otherTeams] = await Promise.all([
           supabaseAdmin.from("properties").select("id", { count: "exact", head: true }).eq("owner_id", memberUserId),
           supabaseAdmin.from("subscriptions").select("id", { count: "exact", head: true }).eq("user_id", memberUserId),
@@ -129,19 +130,20 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
             .eq("member_user_id", memberUserId)
             .neq("status", "revoked"),
         ]);
-        const inUse = (props.count ?? 0) > 0 || (subs.count ?? 0) > 0 || (otherTeams.count ?? 0) > 0;
-        if (inUse || props.error || otherTeams.error) {
-          throw new Error(
-            "Este e-mail já é usado por outra empresa no ConciergeIA. Peça para a pessoa entrar com a senha dela (ou usar \"Esqueci minha senha\"), ou cadastre outro e-mail.",
-          );
-        }
+        belongsElsewhere =
+          (props.count ?? 0) > 0 || (subs.count ?? 0) > 0 || (otherTeams.count ?? 0) > 0 || !!props.error || !!otherTeams.error;
       }
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(memberUserId, {
-        password: data.password,
-        email_confirm: true,
-        user_metadata: { must_change_password: true },
-      });
-      if (error) throw new Error(friendlyPasswordError(error.message) ?? `Não foi possível definir a senha provisória: ${error.message}`);
+      if (belongsElsewhere) {
+        mode = "linked_existing";
+      } else {
+        const { error } = await supabaseAdmin.auth.admin.updateUserById(memberUserId, {
+          password: data.password,
+          email_confirm: true,
+          user_metadata: { must_change_password: true },
+        });
+        if (error) throw new Error(friendlyPasswordError(error.message) ?? `Não foi possível definir a senha provisória: ${error.message}`);
+        mode = existingMember ? "password_changed" : "created";
+      }
     } else {
       const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
         email: data.email,
