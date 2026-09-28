@@ -8,6 +8,7 @@ import {
   Camera,
   RotateCcw,
   FileText,
+  Images,
   Loader2,
   Mic,
   Paperclip,
@@ -290,6 +291,7 @@ export function RecordSituationSheet({
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   // Cada abertura começa uma situação NOVA — é o "e assim por diante" do
   // pedido: registrou uma, a próxima captura abre uma folha limpa.
