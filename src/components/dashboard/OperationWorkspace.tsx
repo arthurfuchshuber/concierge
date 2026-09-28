@@ -3104,10 +3104,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                              25/09/2026: "remova as cores dos botoes dos
                              status do kanban e da aba limpeza") — a cor por
                              status do mockup de 25/09/2026 saiu. */
-                          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+                          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} lg:w-auto lg:gap-1.5 lg:px-3`}
                         >
                           <CurrentIcon className={ACTION_ICON} />
-                          <span className="min-w-0 truncate">{current.label}</span>
+                          <span className="whitespace-nowrap">{current.label}</span>
                           {/* Selo SEMPRE dourado, igual ao de "Pendências"
                               (`pendencias.tsx`) — pedido explícito,
                               25/09/2026: "sempre dourado, igual Pendências",
