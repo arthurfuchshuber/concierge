@@ -840,7 +840,10 @@ export function GuideAccessGate({
                   </>
                 )}
 
-                <div className="grid grid-cols-2 gap-2.5">
+                {/* Com código de reserva as datas vêm da reserva e não aparecem
+                    nesta tela (pedido explícito, 28/09/2026) — ficam na tela
+                    "Tudo certo" junto das outras infos da reserva. */}
+                <div className={cn("grid grid-cols-2 gap-2.5", codeGateActive && "hidden")}>
                   {codeGateActive ? (
                     <RangeButton
                       label="Chegada"
