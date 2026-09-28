@@ -69,13 +69,11 @@ export async function landingSourceOwnerId(admin: SupabaseClient): Promise<strin
 
 function scrubber(secrets: string[]) {
   const list = secrets.filter((s) => s && s.trim().length >= 3);
-  const digits = /\b\d{4,}\b/g;
   return (value: unknown): unknown => {
     if (typeof value === "string") {
       let out = list.reduce((t, s) => t.split(s).join(DEMO_SECRETS.lock_code), value);
       // Telefones escritos no texto
-      out = out.replace(/(\+?\d[\d\s().-]{8,}\d)/g, DEMO_SECRETS.phone);
-      return out.replace(digits, (m) => (m.length >= 4 && m.length <= 8 ? DEMO_SECRETS.lock_code : m));
+      return out.replace(/(\+?\d[\d\s().-]{8,}\d)/g, DEMO_SECRETS.phone);
     }
     if (Array.isArray(value)) return value.map((v) => scrubber(list)(v));
     if (value && typeof value === "object") {
