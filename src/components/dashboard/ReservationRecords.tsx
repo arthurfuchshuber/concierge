@@ -246,49 +246,51 @@ function fmtDuration(ms: number | null): string | null {
 function MediaThumb({
   item,
   onOpen,
+  more = 0,
+  className = "",
 }: {
   item: ReservationRecord;
   onOpen: (it: ReservationRecord) => void;
+  more?: number;
+  className?: string;
 }) {
   const dur = fmtDuration(item.durationMs);
   return (
     <button
       type="button"
       onClick={() => onOpen(item)}
-      aria-label={`Abrir ${KIND_LABEL[item.kind] ?? "registro"}`}
-      className="relative size-[68px] shrink-0 overflow-hidden rounded-lg border border-border/50 bg-secondary/40"
+      aria-label={more ? `Ver mais ${more} anexos` : `Abrir ${KIND_LABEL[item.kind] ?? "registro"}`}
+      className={`relative size-[52px] shrink-0 overflow-hidden rounded-xl bg-secondary shadow-md ring-2 ring-card transition-transform hover:z-10 hover:-translate-y-0.5 ${className}`}
     >
       {item.kind === "photo" && item.url ? (
-        <img
-          src={item.url}
-          alt={item.fileName ?? "Foto"}
-          className="size-full object-cover"
-          loading="lazy"
-        />
+        <img src={item.url} alt={item.fileName ?? "Foto"} className="size-full object-cover" loading="lazy" />
       ) : item.kind === "video" && item.url ? (
-        <>
-          <video
-            src={`${item.url}#t=0.1`}
-            preload="metadata"
-            muted
-            playsInline
-            className="size-full bg-black object-cover"
-          />
-          <span className="absolute inset-0 grid place-items-center bg-black/25">
-            <span className="grid size-6 place-items-center rounded-full bg-white/20 backdrop-blur-sm">
-              <Play className="size-3 fill-white text-white" />
-            </span>
-          </span>
-        </>
+        <video src={`${item.url}#t=0.1`} preload="metadata" muted playsInline className="size-full bg-black object-cover" />
       ) : (
         <span className="grid size-full place-items-center text-muted-foreground">
           {item.kind === "audio" ? <Mic className="size-4" /> : <FileText className="size-4" />}
         </span>
       )}
-      <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-black/55 px-1 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-white">
-        <span className="truncate">{KIND_LABEL[item.kind] ?? "item"}</span>
-        {dur && <span className="shrink-0 tabular-nums">{dur}</span>}
-      </span>
+      {more > 0 ? (
+        <span className="absolute inset-0 grid place-items-center bg-black/60 text-[13px] font-bold text-white backdrop-blur-[1px]">
+          +{more}
+        </span>
+      ) : (
+        <>
+          {item.kind === "video" && (
+            <span className="absolute inset-0 grid place-items-center">
+              <span className="grid size-5 place-items-center rounded-full bg-black/45 backdrop-blur-sm">
+                <Play className="size-2.5 fill-white text-white" />
+              </span>
+            </span>
+          )}
+          {dur && (
+            <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 text-[8px] font-semibold tabular-nums text-white">
+              {dur}
+            </span>
+          )}
+        </>
+      )}
     </button>
   );
 }
