@@ -385,7 +385,7 @@ function EquipePage() {
               )}
               {feedback && <p className="text-xs text-primary mt-2">{feedback}</p>}
               <p className="text-[11px] text-muted-foreground mt-2">
-                Business: até 2 atendentes além do titular. Enterprise: ilimitado. O convidado
+                Business e Enterprise: ilimitado. O convidado
                 precisa se cadastrar com o mesmo e-mail para ativar.
               </p>
             </div>

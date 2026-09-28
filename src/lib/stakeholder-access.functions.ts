@@ -92,18 +92,7 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
     if (plan.plan !== "business" && plan.plan !== "enterprise") {
       throw new Error("Liberar acesso ao sistema requer plano Business ou Enterprise.");
     }
-    if (plan.plan === "business") {
-      const { count } = await supabase
-        .from("account_members")
-        .select("id", { count: "exact", head: true })
-        .eq("owner_id", userId)
-        .eq("status", "active");
-      if ((count ?? 0) >= 2) {
-        throw new Error(
-          "O plano Business permite até 2 pessoas com acesso além do titular. Faça upgrade para o Enterprise.",
-        );
-      }
-    }
+    // Business e Enterprise: pessoas com acesso ilimitadas (pedido 28/09/2026).
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 

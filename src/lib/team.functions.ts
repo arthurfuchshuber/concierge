@@ -101,16 +101,7 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
     if (plan.plan !== "business" && plan.plan !== "enterprise") {
       throw new Error("Convidar atendentes requer plano Business ou Enterprise.");
     }
-    if (plan.plan === "business") {
-      const { count } = await supabase
-        .from("account_members")
-        .select("id", { count: "exact", head: true })
-        .eq("owner_id", ownerId)
-        .eq("status", "active");
-      if ((count ?? 0) >= 2) {
-        throw new Error("O plano Business permite até 2 atendentes além do titular. Faça upgrade para o Enterprise.");
-      }
-    }
+    // Business e Enterprise: atendentes ilimitados (pedido 28/09/2026).
     const { data: inserted, error } = await supabase
       .from("account_member_invites")
       .insert({ owner_id: ownerId, email: data.email, role: data.role, invited_by: userId })
