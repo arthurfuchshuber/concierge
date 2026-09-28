@@ -878,14 +878,24 @@ export function ReservationRecordsDialog({
   }
 
   const records = q.data?.records ?? [];
+  // CADA REGISTRO (situação) CONTA 1 — não importa quantos arquivos tenha.
+  const allGroups = useMemo(() => groupRecords(records), [records]);
+  const totalCount = allGroups.length;
   const counts = useMemo(() => {
     const m = new Map<RecordCategory, number>();
-    for (const r of records) m.set(r.category, (m.get(r.category) ?? 0) + 1);
+    for (const g of allGroups) {
+      const c = g.items[0]!.category;
+      m.set(c, (m.get(c) ?? 0) + 1);
+    }
     return m;
-  }, [records]);
-  const openTasks = records.filter((r) => r.taskId && r.taskStatus === "pending").length;
-  const visible = filter === "all" ? records : records.filter((r) => r.category === filter);
-  const groups = useMemo(() => groupRecords(visible), [visible]);
+  }, [allGroups]);
+  const openTasks = allGroups.filter((g) =>
+    g.items.some((r) => r.taskId && r.taskStatus === "pending"),
+  ).length;
+  const groups = useMemo(
+    () => (filter === "all" ? allGroups : allGroups.filter((g) => g.items[0]!.category === filter)),
+    [allGroups, filter],
+  );
 
   return (
     <>
@@ -904,7 +914,7 @@ export function ReservationRecordsDialog({
                 <>
                   <span className="opacity-50">·</span>
                   <span>
-                    {records.length} {records.length === 1 ? "registro" : "registros"}
+                    {totalCount} {totalCount === 1 ? "registro" : "registros"}
                   </span>
                 </>
               )}
@@ -930,7 +940,7 @@ export function ReservationRecordsDialog({
                     : "border-border/60 bg-card text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Tudo <span className="tabular-nums opacity-80">{records.length}</span>
+                Tudo <span className="tabular-nums opacity-80">{totalCount}</span>
               </button>
               {CATEGORIES.filter((c) => (counts.get(c.key) ?? 0) > 0).map((c) => (
                 <button
