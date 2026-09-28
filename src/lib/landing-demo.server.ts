@@ -12,7 +12,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const LANDING_SOURCE_SLUG = "casa-charmosa-prox-a-avenida-das-cataratas";
+export const LANDING_SOURCE_SLUG = "charmosa";
 export const LANDING_COPY_SLUG = "vitrine-casa-charmosa";
 const DEMO_OWNER_EMAIL = "vitrine-landing@conciergeia.app";
 
