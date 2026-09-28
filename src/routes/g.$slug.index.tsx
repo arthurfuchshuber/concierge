@@ -4044,6 +4044,13 @@ function OnboardingPasswordCard({
   );
 }
 
+function fmtOnbDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
+
 function fmtOnbTime(raw: unknown): string | null {
   const m = String(raw ?? "").match(/^(\d{1,2}):(\d{2})/);
   if (!m) return null;
