@@ -18,9 +18,22 @@ function hiRes(url: string) {
   }
 }
 
-export async function mirrorExternalPhotos(urls: string[], ownerFolder: string): Promise<string[]> {
+export async function mirrorExternalPhotos(
+  urls: string[],
+  folder: string,
+  opts: { replaceFolder?: boolean } = {},
+): Promise<string[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const storage = supabaseAdmin.storage.from(BUCKET);
+  // Arquivos anteriores da pasta: só são apagados DEPOIS que o novo lote
+  // baixou com sucesso — nunca deixamos o imóvel sem fotos.
+  let previous: string[] = [];
+  if (opts.replaceFolder) {
+    const { data } = await storage.list(folder, { limit: 1000 });
+    previous = (data ?? []).filter((f) => f.id).map((f) => `${folder}/${f.name}`);
+  }
   const out: string[] = [];
+  const newPaths = new Set<string>();
   for (const raw of urls) {
     const url = raw?.trim();
     if (!url) continue;
@@ -37,14 +50,19 @@ export async function mirrorExternalPhotos(urls: string[], ownerFolder: string):
       const buf = new Uint8Array(await res.arrayBuffer());
       if (buf.byteLength < 1000) continue;
       const ext = type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg";
-      const path = `${ownerFolder}/airbnb/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error } = await supabaseAdmin.storage.from(BUCKET).upload(path, buf, { contentType: type, upsert: false });
+      const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await storage.upload(path, buf, { contentType: type, upsert: false });
       if (error) continue;
-      const { data } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(path, 60 * 60 * 24 * 7);
+      newPaths.add(path);
+      const { data } = await storage.createSignedUrl(path, 60 * 60 * 24 * 7);
       if (data?.signedUrl) out.push(data.signedUrl);
     } catch {
       // descarta a foto que não baixou
     }
+  }
+  if (opts.replaceFolder && newPaths.size > 0) {
+    const stale = previous.filter((p) => !newPaths.has(p));
+    if (stale.length) await storage.remove(stale).catch(() => undefined);
   }
   return out;
 }
