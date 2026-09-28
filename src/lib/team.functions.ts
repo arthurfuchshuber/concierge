@@ -325,12 +325,40 @@ export const removeTeamMember = createServerFn({ method: "POST" })
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "equipe.write", { });
-    const { error } = await supabase
+    const { data: removed, error } = await supabase
       .from("account_members")
       .update({ status: "revoked" })
       .eq("id", data.memberId)
-      .eq("owner_id", ownerId);
+      .eq("owner_id", ownerId)
+      .select("member_user_id")
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    // REGRA: toda alteração de acesso é avisada por e-mail ao destinatário.
+    try {
+      const memberId = removed?.member_user_id as string | undefined;
+      if (memberId) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const [{ data: u }, { data: prof }] = await Promise.all([
+          supabaseAdmin.auth.admin.getUserById(memberId),
+          supabaseAdmin.from("profiles").select("full_name, trade_name").eq("id", ownerId).maybeSingle(),
+        ]);
+        const email = u?.user?.email;
+        if (email) {
+          const { sendAppEmail } = await import("@/lib/email/send-app-email.server");
+          await sendAppEmail({
+            templateName: "access-notice",
+            recipientEmail: email,
+            idempotencyKey: `access-removed-${data.memberId}-${Date.now()}`,
+            templateData: {
+              kind: "removed",
+              accountName: ((prof?.trade_name as string) || (prof?.full_name as string)) ?? null,
+            },
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[access-notice] falha no envio", e instanceof Error ? e.message : e);
+    }
     return { ok: true };
   });
 
