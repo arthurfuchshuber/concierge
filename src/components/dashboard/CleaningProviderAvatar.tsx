@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, RotateCcw, Search, UserPlus } from "lucide-react";
+import { Check, RotateCcw, Search, SprayCan } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getCleaningProviderBoard, setCleaningAssignment } from "@/lib/cleaning-assign.functions";
@@ -16,18 +16,21 @@ export function useCleaningBoard() {
   return useQuery({ queryKey: ["cleaning-board"], queryFn: () => fn({ data: {} }), staleTime: 30_000 });
 }
 
-function Face({ name, url, size = 26 }: { name: string; url: string | null; size?: number }) {
+/** Quadrado do perfil. Sem foto: fundo azul bebê com kit de limpeza. */
+function Face({ name, url, size = 28 }: { name: string | null; url: string | null; size?: number }) {
   return url ? (
-    <img src={url} alt={name} className="rounded-full object-cover" style={{ width: size, height: size }} />
+    <img src={url} alt={name ?? ""} className="rounded-[0.3rem] object-cover" style={{ width: size, height: size }} />
   ) : (
     <span
-      className="grid place-items-center rounded-full bg-secondary text-[10px] font-bold text-foreground"
+      title={name ?? undefined}
+      className="grid place-items-center rounded-[0.3rem] bg-[var(--cleaning-soft)] text-[var(--cleaning-soft-foreground)]"
       style={{ width: size, height: size }}
     >
-      {initials(name)}
+      <SprayCan style={{ width: size * 0.55, height: size * 0.55 }} strokeWidth={2} />
     </span>
   );
 }
+void initials;
 
 /** Bolinha do responsável pela limpeza + troca pontual (só esta limpeza). */
 export function CleaningProviderAvatar({
@@ -82,16 +85,10 @@ export function CleaningProviderAvatar({
           onClick={(e) => e.stopPropagation()}
           aria-label={current ? `Responsável: ${current.name}. Trocar` : "Atribuir prestador"}
           title={current ? `Responsável: ${current.name}` : "Atribuir prestador"}
-          className={showName ? "inline-flex min-w-0 items-center gap-2 rounded-full py-0.5 pl-0.5 pr-2 transition hover:bg-secondary/60" : "relative shrink-0 rounded-full ring-1 ring-border transition hover:ring-foreground/40"}
+          className={showName ? "inline-flex min-w-0 items-center gap-2 rounded-[0.3rem] py-0.5 pl-0.5 pr-2 transition hover:bg-secondary/60" : "relative shrink-0 rounded-[0.3rem] transition hover:opacity-85"}
         >
           <span className="relative shrink-0">
-          {current ? (
-            <Face name={current.name} url={current.avatarUrl} />
-          ) : (
-            <span className="grid size-[26px] place-items-center rounded-full border border-dashed border-muted-foreground/50 text-muted-foreground">
-              <UserPlus className="size-3.5" />
-            </span>
-          )}
+          <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={showName ? 26 : 28} />
           {assignedId && (
             <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card bg-primary" />
           )}

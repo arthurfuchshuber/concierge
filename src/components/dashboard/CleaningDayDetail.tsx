@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { CalendarDays, Pencil, X } from "lucide-react";
+import { CalendarDays, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { MoneyInput } from "@/components/ui/money-input";
+import { centsToReaisInput, parseReaisInputToCents } from "@/components/ui/money-input";
+import { CleaningProviderAvatar } from "@/components/dashboard/CleaningProviderAvatar";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -15,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { setCleaningPriceOverride } from "@/lib/cleaning-price.functions";
+import { setCleaningPriceOverride, setCleaningType } from "@/lib/cleaning-price.functions";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ownerLabel } from "@/components/dashboard/card-colors";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
@@ -132,8 +133,13 @@ export function CleaningDayDetailContent({
   source,
   caretX,
   onClose,
+  title,
+  icon: HeaderIcon = CalendarDays,
 }: {
+  /** "all" = todas as limpezas do período (janela dos cards do topo). */
   date: string;
+  title?: string;
+  icon?: React.ElementType;
   source: DayDetailSource;
   /** Posição da seta, em px a partir da borda esquerda do cartão. */
   caretX: number | null;
@@ -145,7 +151,7 @@ export function CleaningDayDetailContent({
   let footer: React.ReactNode = null;
 
   if (source.mode === "forecast") {
-    const rows = source.items.filter((i) => i.date === date);
+    const rows = source.items.filter((i) => date === "all" || i.date === date);
     const total = rows.reduce((n, r) => n + r.estimateCents, 0);
     subtitle =
       rows.length === 0
@@ -187,7 +193,7 @@ export function CleaningDayDetailContent({
       </>
     );
   } else {
-    const rows = source.items.filter((i) => i.date === date);
+    const rows = source.items.filter((i) => date === "all" || i.date === date);
     const counted = rows.filter((r) => !r.pending);
     const pending = rows.filter((r) => r.pending);
     const total = counted.reduce((n, r) => n + (r.priceCents ?? 0), 0);
@@ -214,7 +220,12 @@ export function CleaningDayDetailContent({
                 <tr key={r.id}>
                   <PropertyCell name={r.propertyName} owner={r.ownerName} />
                   <td className={`${TD} pr-2`}>
-                    <TypeLabel type={r.cleaningType} pending={r.pending} />
+                    <TypeToggle statusId={r.id} type={r.cleaningType} pending={r.pending} title={r.propertyName} />
+                    {(r.logId || r.reservationId) && (
+                      <span className="mt-1.5 block">
+                        <CleaningProviderAvatar propertyId={r.propertyId} logId={r.logId ?? ""} reservationId={r.reservationId} />
+                      </span>
+                    )}
                   </td>
                   <td className={`${TD} text-right`}>
                     <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} />
@@ -331,13 +342,13 @@ export function CleaningDayDetailContent({
   }
 
   return (
-    <div aria-label={`Detalhe de ${dayTitle(date)}`}>
+    <div aria-label={`Detalhe de ${title ?? dayTitle(date)}`}>
       <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
         <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-foreground/[0.06] text-muted-foreground">
-          <CalendarDays className="size-5" />
+          <HeaderIcon className="size-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-display text-base font-bold leading-tight">{dayTitle(date)}</p>
+          <p className="font-display text-base font-bold leading-tight break-words">{title ?? dayTitle(date)}</p>
           <p className="ds-meta mt-0.5">{subtitle}</p>
         </div>
         <button
@@ -349,7 +360,7 @@ export function CleaningDayDetailContent({
           <X className="size-3.5" strokeWidth={2.2} />
         </button>
       </div>
-      {body && <div className="sg-elegant-scroll max-h-[60vh] overflow-y-auto px-5 pt-1">{body}</div>}
+      {body && <div className="sg-elegant-scroll max-h-[60vh] overflow-y-auto overflow-x-hidden px-5 pt-1">{body}</div>}
       {footer && (
         <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-border bg-foreground/[0.03] px-5 py-3.5">
           {footer}
@@ -359,14 +370,85 @@ export function CleaningDayDetailContent({
   );
 }
 
-/** Valor clicável: edita e SEMPRE pede confirmação antes de gravar. */
+/** Troca normal ↔ completa com confirmação. */
+function TypeToggle({
+  statusId,
+  type,
+  pending,
+  title,
+}: {
+  statusId: string;
+  type: "normal" | "completa" | null;
+  pending?: boolean;
+  title: string;
+}) {
+  const [target, setTarget] = useState<"normal" | "completa" | null>(null);
+  const [busy, setBusy] = useState(false);
+  const save = useServerFn(setCleaningType);
+  const qc = useQueryClient();
+  if (!type) return <TypeLabel type={type} pending={pending} />;
+  const next = type === "completa" ? "normal" : "completa";
+  async function doSave() {
+    if (!target) return;
+    setBusy(true);
+    try {
+      await save({ data: { statusId, type: target } });
+      toast.success(`Limpeza de ${title} alterada para ${target === "completa" ? "completa" : "normal"}.`);
+      setTarget(null);
+      void qc.invalidateQueries();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível alterar o tipo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setTarget(next)}
+        title={`Mudar para ${next === "completa" ? "Completa" : "Normal"}`}
+        className="-mx-1 rounded px-1 text-left transition-colors hover:bg-secondary/60"
+      >
+        <TypeLabel type={type} pending={pending} />
+      </button>
+      <AlertDialog open={!!target} onOpenChange={(v) => !v && setTarget(null)}>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar alteração?</AlertDialogTitle>
+            <AlertDialogDescription className="break-words">
+              A limpeza de {title} vai passar de {type === "completa" ? "Completa" : "Normal"} para{" "}
+              {next === "completa" ? "Completa" : "Normal"}. O valor passa a ser o cadastrado no imóvel para esse tipo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(e) => {
+                e.preventDefault();
+                void doSave();
+              }}
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+/** Valor clicável: edita no mesmo lugar, com a MESMA letra, e SEMPRE pede
+ * confirmação antes de gravar. */
 function EditablePrice({ statusId, cents, title }: { statusId: string; cents: number | null; title: string }) {
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState<number | null>(cents);
+  const [text, setText] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const save = useServerFn(setCleaningPriceOverride);
   const qc = useQueryClient();
+  const value = parseReaisInputToCents(text);
 
   async function doSave() {
     if (value == null) return;
@@ -384,33 +466,48 @@ function EditablePrice({ statusId, cents, title }: { statusId: string; cents: nu
     }
   }
 
+  const same = "font-bold text-[12.5px] tabular-nums text-foreground";
   if (!editing) {
     return (
       <button
         type="button"
         onClick={() => {
-          setValue(cents);
+          setText(centsToReaisInput(cents));
           setEditing(true);
         }}
         title="Alterar valor"
-        className="inline-flex items-center gap-1 rounded px-1 -mx-1 font-bold transition-colors hover:bg-secondary/60"
+        className={`-mx-1 rounded px-1 transition-colors hover:bg-secondary/60 ${same}`}
       >
         {brl(cents)}
-        <Pencil className="size-3 text-muted-foreground" />
       </button>
     );
   }
   return (
-    <div className="ml-auto flex w-[130px] flex-col items-end gap-1.5">
-      <MoneyInput cents={value} onChange={setValue} placeholder="0,00" disabled={busy} />
+    <div className="ml-auto flex flex-col items-end gap-1">
+      <span className={`inline-flex items-baseline rounded bg-secondary/60 px-1 -mx-1 ${same}`}>
+        R$&nbsp;
+        <input
+          autoFocus
+          inputMode="decimal"
+          value={text}
+          disabled={busy}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && value != null && value !== cents) setConfirm(true);
+            if (e.key === "Escape") setEditing(false);
+          }}
+          style={{ width: `${Math.max(text.length, 3)}ch` }}
+          className={`min-w-0 bg-transparent p-0 text-right outline-none ${same}`}
+        />
+      </span>
       <div className="flex gap-1">
-        <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => setEditing(false)}>
+        <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => setEditing(false)}>
           Cancelar
         </Button>
         <Button
           type="button"
           size="sm"
-          className="h-7 px-2 text-[11px]"
+          className="h-6 px-2 text-[11px]"
           disabled={value == null || value === cents}
           onClick={() => setConfirm(true)}
         >

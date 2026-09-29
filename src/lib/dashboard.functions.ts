@@ -336,6 +336,8 @@ export type CleaningDayItem = {
   pending: boolean;
   concludedAt: string | null;
   doneByName: string | null;
+  logId: string | null;
+  reservationId: string | null;
 };
 
 // "Sem prestador informado" (mockup aprovado, 23/09/2026) — valor sentinela
@@ -396,7 +398,7 @@ export const getCleaningStats = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("guest_arrival_status")
       .select(
-        "id, property_id, cleaning_type, cleaning_price_cents, concluded_at, cleaning_approval_status, cleaning_done_by",
+        "id, property_id, cleaning_type, cleaning_price_cents, concluded_at, cleaning_approval_status, cleaning_done_by, log_id, reservation_id",
       )
       .in("property_id", propIds)
       .eq("kind", "checkout")
@@ -414,6 +416,8 @@ export const getCleaningStats = createServerFn({ method: "GET" })
       concluded_at: string | null;
       cleaning_approval_status: string | null;
       cleaning_done_by: string | null;
+      log_id: string | null;
+      reservation_id: string | null;
     };
     // LIMPEZA COMPLETA SÓ CONTA DEPOIS DE APROVADA (pedido explícito,
     // 17/09/2026): as pendentes ficam fora de TODOS os números desta função
@@ -558,6 +562,8 @@ export const getCleaningStats = createServerFn({ method: "GET" })
             pending: r.cleaning_approval_status === "pending",
             concludedAt: r.concluded_at,
             doneByName: r.cleaning_done_by ? (providerNameByUser.get(r.cleaning_done_by) ?? null) : null,
+            logId: r.log_id,
+            reservationId: r.reservation_id,
           };
         })
         .sort((a, b) => (b.concludedAt ?? "").localeCompare(a.concludedAt ?? ""));

@@ -138,3 +138,54 @@ export const setCleaningPriceOverride = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+/**
+ * Troca o tipo (normal ↔ completa) de uma limpeza JÁ concluída, direto pela
+ * janela. O valor passa a ser o preço cadastrado do imóvel para o novo tipo
+ * (quando existir); a troca feita pelo gestor já vale como aprovada.
+ */
+export const setCleaningType = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({ statusId: z.string().uuid(), type: z.enum(["normal", "completa"]) }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: row } = await context.supabase
+      .from("guest_arrival_status")
+      .select("id, property_id, cleaning_type, cleaning_price_cents")
+      .eq("id", data.statusId)
+      .eq("kind", "checkout")
+      .maybeSingle();
+    const r = row as { id: string; property_id: string; cleaning_type: string | null; cleaning_price_cents: number | null } | null;
+    if (!r || !r.cleaning_type) throw new Error("Esta limpeza ainda não foi concluída.");
+    if (r.cleaning_type === data.type) return { ok: true };
+    const { data: prop } = await context.supabase
+      .from("properties")
+      .select("cleaning_price_normal_cents, cleaning_price_full_cents")
+      .eq("id", r.property_id)
+      .maybeSingle();
+    const p = prop as { cleaning_price_normal_cents: number | null; cleaning_price_full_cents: number | null } | null;
+    const price = data.type === "completa" ? p?.cleaning_price_full_cents : p?.cleaning_price_normal_cents;
+    const { error } = await context.supabase
+      .from("guest_arrival_status")
+      .update({
+        cleaning_type: data.type,
+        cleaning_approval_status: null,
+        ...(price != null ? { cleaning_price_cents: price } : {}),
+      } as never)
+      .eq("id", r.id);
+    if (error) throw new Error("Você não tem permissão para alterar esta limpeza.");
+    try {
+      await context.supabase.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "cleaning_type_change",
+        table_name: "guest_arrival_status",
+        record_id: r.id,
+        old_data: { type: r.cleaning_type, cents: r.cleaning_price_cents },
+        new_data: { type: data.type, cents: price ?? r.cleaning_price_cents },
+      } as never);
+    } catch {
+      /* best-effort */
+    }
+    return { ok: true };
+  });

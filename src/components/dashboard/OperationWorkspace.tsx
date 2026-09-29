@@ -40,6 +40,7 @@ import {
 } from "recharts";
 import {
   CleaningDayDetail,
+  CleaningDayDetailContent,
   type CleaningForecastItem,
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
@@ -196,6 +197,7 @@ import {
   NO_PROVIDER_LABEL,
   type ArrivalRow,
   type CleaningBreakdownItem,
+  type CleaningDayItem,
   type CleaningDailyPoint,
 } from "@/lib/dashboard.functions";
 import {
@@ -3458,6 +3460,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               <div className="col-span-1">
                 <StatDisplayCard
                   label={cleaningScreen.countLabel}
+                  detailItems={cleaningTrendData?.items}
                   value={cleaningScreen.countValue}
                   icon={CheckCircle2}
                   loading={cleaningScreen.statsLoading}
@@ -3468,6 +3471,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               <div className="col-span-1">
                 <StatDisplayCard
                   label={cleaningScreen.costLabel}
+                  detailItems={cleaningTrendData?.items}
                   value={centsToBRLShort(cleaningScreen.costValue)}
                   icon={Banknote}
                   loading={cleaningScreen.statsLoading}
@@ -4901,7 +4905,6 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
       <div ref={screenshotRef} className="sg-elegant-scroll max-h-[60dvh] overflow-y-auto px-3 bg-[var(--panel)]">
         <ul className="space-y-1.5 pb-3">
           {sorted.map((item) => {
-            const mapsHref = item.mapsUrl || item.garageMapsUrl;
             return (
               <li key={item.propertyId} className="flex items-center gap-3 rounded-[10px] border border-border bg-muted/20 px-3 py-2.5">
                 <div className="min-w-0 flex-1">
@@ -4910,25 +4913,7 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
                     <p className="mt-0.5 break-words text-[11.5px] font-semibold text-foreground/80">{ownerLabel(item.ownerName)}</p>
                   )}
                 </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-[13px] font-bold tabular-nums">{centsToBRL(item.totalCents)}</p>
-                  <p className="text-[10.5px] text-muted-foreground tabular-nums">
-                    {item.count} {item.count === 1 ? "limpeza" : "limpezas"}
-                  </p>
-                </div>
-                {mapsHref && (
-                  <a
-                    href={mapsHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    title="Ver no mapa"
-                    aria-label="Ver no mapa"
-                    className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-                  >
-                    <Navigation className="size-3.5" />
-                  </a>
-                )}
+                <p className="shrink-0 text-right text-[13px] font-bold tabular-nums">{centsToBRL(item.totalCents)}</p>
               </li>
             );
           })}
@@ -4962,7 +4947,11 @@ function StatDisplayCard({
   breakdown,
   sparkline,
   note,
+  detailItems,
 }: {
+  /** Limpezas uma a uma — quando vem, a janela é a MESMA do gráfico
+   * (responsável, tipo e valor editáveis, sem corte). */
+  detailItems?: CleaningDayItem[];
   label: string;
   value: string | number;
   icon: React.ElementType;
@@ -4990,6 +4979,21 @@ function StatDisplayCard({
   return (
     <>
     {clickable && (
+      detailItems && detailItems.length > 0 ? (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden">
+          <DialogTitle className="sr-only">{label}</DialogTitle>
+          <CleaningDayDetailContent
+            date="all"
+            title={label}
+            icon={Icon}
+            source={{ mode: "done", items: detailItems }}
+            caretX={null}
+            onClose={() => setOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+      ) : (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)]">
           <DialogHeader className="px-5 pt-5 pb-0">
@@ -5008,6 +5012,7 @@ function StatDisplayCard({
           <CleaningBreakdownContent label={label} breakdown={breakdown!} />
         </DialogContent>
       </Dialog>
+      )
     )}
     <button
       type="button"
@@ -10205,9 +10210,6 @@ function ArrivalCard({
           card era aberto (`compact ? X : Y`); agora essa fileira usa sempre
           o valor de `compact`, independentemente do estado real do card. */}
       <div className="mt-auto flex flex-nowrap items-center gap-2">
-        {(mode === "cleaning" || mode === "done") && (
-          <CleaningProviderAvatar propertyId={row.propertyId} logId={row.logId} reservationId={row.reservationId} />
-        )}
         {mode === "done" ? (
           <span
             title="Esteira concluída"
@@ -10342,6 +10344,13 @@ function ArrivalCard({
               viewedPasswords={row.viewedPasswords}
             />
           </span>
+        )}
+
+        {/* Quadrado do responsável pela limpeza (pedido explícito, 29/09/2026):
+            já aparece desde o checkout/estadia para direcionar antes; fica à
+            DIREITA do triângulo de alerta. */}
+        {(mode === "checkout" || mode === "stay" || mode === "cleaning" || mode === "done") && (
+          <CleaningProviderAvatar propertyId={row.propertyId} logId={row.logId} reservationId={row.reservationId} />
         )}
 
         {/* "Voltar ao status anterior" vive só no menu "⋮" (pedido explícito,
