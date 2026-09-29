@@ -66,3 +66,46 @@ export const ACCOUNT_AREAS: AreaGroup[] = buildGroups(TENANT_NAMESPACE);
 
 /** Categorias do Admin do SaaS. */
 export const SAAS_AREAS: AreaGroup[] = buildGroups(SAAS_NAMESPACE);
+
+const TYPE_LABEL: Record<string, string> = {
+  PAGE: "Página",
+  SUBPAGE: "Subpágina",
+  TAB: "Aba",
+  SECTION: "Seção",
+  RESOURCE: "Ação",
+  FIELD: "Campo",
+};
+
+export type AreaGrantLine = {
+  slug: string;
+  label: string;
+  kind: string;
+  depth: number;
+  route: string | null;
+  description: string | null;
+};
+
+/**
+ * Tudo o que uma permissão libera: o próprio nó e TODOS os descendentes
+ * (páginas, abas, seções, ações), gerado do catálogo — nunca desatualiza.
+ */
+export function describeAreaGrant(namespace: string): AreaGrantLine[] {
+  const out: AreaGrantLine[] = [];
+  const walk = (slug: string, depth: number) => {
+    const node = PERMISSION_CATALOG.find((n) => n.slug === slug);
+    if (!node) return;
+    out.push({
+      slug,
+      label: node.label ?? node.name,
+      kind: TYPE_LABEL[node.type] ?? node.type,
+      depth,
+      route: node.route ?? null,
+      description: node.description ?? null,
+    });
+    PERMISSION_CATALOG.filter((n) => n.parentSlug === slug)
+      .sort(sortDefs)
+      .forEach((c) => walk(c.slug, depth + 1));
+  };
+  walk(namespace, 0);
+  return out;
+}
