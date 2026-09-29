@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, RotateCcw, Search, SprayCan } from "lucide-react";
+import { Check, RotateCcw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getCleaningProviderBoard, setCleaningAssignment } from "@/lib/cleaning-assign.functions";
@@ -23,6 +23,19 @@ export function useCleaningBoard() {
   });
 }
 
+/** Vassoura + balde, no mesmo traço dos ícones lucide (24x24, stroke 2). */
+function BroomBucket({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M17 2 13 11" />
+      <path d="M10.5 10.5 15.5 12.5 14 17 8 15z" />
+      <path d="M10 15.6 9 17M12.5 16.4l-.8 1.5" />
+      <path d="M2 13h7l-1 9H3z" />
+      <path d="M2.5 13a3 3 0 0 1 6 0" />
+    </svg>
+  );
+}
+
 /** Quadrado do perfil. Sem foto: fundo azul bebê com kit de limpeza. */
 function Face({ name, url, size = 28 }: { name: string | null; url: string | null; size?: number }) {
   return url ? (
@@ -33,7 +46,7 @@ function Face({ name, url, size = 28 }: { name: string | null; url: string | nul
       className="grid place-items-center rounded-[0.3rem] border border-border/50 bg-background/60"
       style={{ width: size, height: size }}
     >
-      <SprayCan className="size-3.5 text-[var(--cleaning-soft)]" />
+      <BroomBucket className="size-3.5 text-[var(--cleaning-soft)]" />
     </span>
   );
 }
