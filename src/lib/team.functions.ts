@@ -86,7 +86,7 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
-    await enforce(userId, "equipe.write", { });
+    await enforce(userId, "equipe.write", { tenantId: ownerId });
     /* SÓ O TITULAR CRIA OUTRO TITULAR (23/09/2026).
        Quem administra a equipe podia convidar alguém já como "titular" e, com
        isso, entregar o controle da conta inteira. O papel de titular agora só

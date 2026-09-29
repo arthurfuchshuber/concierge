@@ -9,7 +9,10 @@ import { z } from "zod";
  * aceite no primeiro acesso e o mesmo painel de permissões por área.
  */
 
-const EmailInput = z.object({ email: z.string().trim().toLowerCase().email().max(200) });
+const EmailInput = z.object({
+  accountOwnerId: z.string().uuid().nullish(),
+  email: z.string().trim().toLowerCase().email().max(200),
+});
 
 /** Traduz a recusa de senha fraca/vazada (checagem de senhas conhecidas). */
 function friendlyPasswordError(msg: string | undefined): string | null {
@@ -31,11 +34,13 @@ export const getStakeholderAccess = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => EmailInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
 
     const { data: invite } = await supabase
       .from("account_member_invites")
       .select("id, status")
-      .eq("owner_id", userId)
+      .eq("owner_id", ownerId)
       .eq("email", data.email)
       .eq("status", "pending")
       .maybeSingle();
@@ -46,7 +51,7 @@ export const getStakeholderAccess = createServerFn({ method: "GET" })
       const { data: m } = await supabase
         .from("account_members")
         .select("id, status")
-        .eq("owner_id", userId)
+        .eq("owner_id", ownerId)
         .eq("member_user_id", memberUserId)
         .maybeSingle();
       if (m && (m.status as string) !== "revoked") {
@@ -70,6 +75,7 @@ export const getStakeholderAccess = createServerFn({ method: "GET" })
  * o sistema obriga a criação de uma nova senha (flag `must_change_password`).
  */
 const ProvisionalInput = z.object({
+  accountOwnerId: z.string().uuid().nullish(),
   email: z.string().trim().toLowerCase().email().max(200),
   password: z.string().min(8).max(72),
   name: z.string().trim().max(200).optional(),
@@ -84,11 +90,13 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
   .inputValidator((i: unknown) => ProvisionalInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
-    await enforce(userId, "equipe.write", {});
+    await enforce(userId, "equipe.write", { tenantId: ownerId });
 
     const { resolveUserPlan } = await import("@/lib/plan-guard.server");
-    const plan = await resolveUserPlan(supabase, userId);
+    const plan = await resolveUserPlan(supabase, ownerId);
     if (plan.plan !== "business" && plan.plan !== "enterprise") {
       throw new Error("Liberar acesso ao sistema requer plano Business ou Enterprise.");
     }
@@ -107,13 +115,13 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
         supabaseAdmin
           .from("account_members")
           .select("id")
-          .eq("owner_id", userId)
+          .eq("owner_id", ownerId)
           .eq("member_user_id", memberUserId)
           .maybeSingle(),
         supabaseAdmin
           .from("account_member_invites")
           .select("id")
-          .eq("owner_id", userId)
+          .eq("owner_id", ownerId)
           .eq("email", data.email)
           .eq("status", "pending")
           .maybeSingle(),
@@ -174,22 +182,60 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
       .from("account_members")
       .upsert(
         {
-          owner_id: userId,
+          owner_id: ownerId,
           member_user_id: memberUserId,
           role: "agent" as const,
           status: "active" as const,
           invited_by: userId,
+          all_properties: true,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "owner_id,member_user_id" },
       );
     if (memberError) throw new Error(`Acesso criado, mas o vínculo falhou: ${memberError.message}`);
 
+    // Primeiro acesso útil: libera visualização das áreas operacionais. O
+    // titular ainda pode restringir ou ampliar cada área no painel.
+    const now = new Date().toISOString();
+    const viewPermissions = ["library_view", "ai_view", "chat_view", "operation_view", "guests_view"] as const;
+    const { error: legacyPermissionError } = await supabaseAdmin
+      .from("account_member_permissions")
+      .upsert(
+        viewPermissions.map((permission) => ({
+          owner_id: ownerId,
+          member_user_id: memberUserId,
+          permission,
+          granted: true,
+          updated_by: userId,
+          updated_at: now,
+        })),
+        { onConflict: "owner_id,member_user_id,permission" },
+      );
+    if (legacyPermissionError) throw new Error(`Acesso criado, mas as áreas básicas não foram liberadas: ${legacyPermissionError.message}`);
+
+    const { data: nodes, error: nodesError } = await supabaseAdmin
+      .from("permission_nodes")
+      .select("id, slug")
+      .in("slug", ["tenant.dashboard", "tenant.guias", "tenant.stakeholders", "tenant.ia", "tenant.atendimento"]);
+    if (nodesError) throw new Error(`Acesso criado, mas as áreas do painel não foram localizadas: ${nodesError.message}`);
+    for (const node of nodes ?? []) {
+      const { error: assignmentError } = await supabaseAdmin.rpc("replace_permission_assignment", {
+        _tenant_id: ownerId,
+        _user_id: memberUserId,
+        _permission_node_id: node.id,
+        _access_level: "READ",
+        _scope_type: "TENANT",
+        _scope_id: undefined,
+        _created_by: userId,
+      });
+      if (assignmentError) throw new Error(`Acesso criado, mas uma área do painel não foi liberada: ${assignmentError.message}`);
+    }
+
     // Remove convite pendente antigo para o mesmo e-mail, se existir.
     await supabaseAdmin
       .from("account_member_invites")
       .delete()
-      .eq("owner_id", userId)
+      .eq("owner_id", ownerId)
       .eq("email", data.email)
       .eq("status", "pending");
 
@@ -199,14 +245,14 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
       const { data: prof } = await supabaseAdmin
         .from("profiles")
         .select("full_name, trade_name")
-        .eq("id", userId)
+        .eq("id", ownerId)
         .maybeSingle();
       const accountName = ((prof?.trade_name as string) || (prof?.full_name as string)) ?? null;
       const { sendAppEmail } = await import("@/lib/email/send-app-email.server");
       const r = await sendAppEmail({
         templateName: "access-notice",
         recipientEmail: data.email,
-        idempotencyKey: `access-${mode}-${memberUserId}-${userId}-${Date.now()}`,
+        idempotencyKey: `access-${mode}-${memberUserId}-${ownerId}-${Date.now()}`,
         templateData: {
           kind: mode,
           accountName,
