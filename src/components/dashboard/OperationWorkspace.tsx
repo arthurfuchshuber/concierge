@@ -4904,8 +4904,12 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
                   visível — ela era o único ganho real do modo "Completo", e num
                   ranking é justamente o dado que ordena a lista. */}
               <span className="min-w-0 truncate">
-                <span className="text-muted-foreground">{item.ownerName ?? "Sem proprietário"}</span>
-                <span className="text-foreground/60"> · </span>
+                {item.ownerName && (
+                  <>
+                    <span className="text-muted-foreground">{ownerLabel(item.ownerName)}</span>
+                    <span className="text-foreground/60"> · </span>
+                  </>
+                )}
                 <span className="text-foreground">{item.propertyName}</span>
               </span>
               <span className="shrink-0 flex items-center gap-1.5">
@@ -5734,7 +5738,7 @@ export function TaskResolveDialog({
               {task?.ownerName && (
                 <span className="inline-flex max-w-full items-center gap-1 rounded-[0.3rem] border border-border/60 bg-secondary/40 px-2 py-1 text-[10.5px] text-muted-foreground">
                   <User className="size-3 shrink-0" />
-                  <span className="truncate text-foreground/80">{task.ownerName}</span>
+                  <span className="truncate text-foreground/80">{ownerLabel(task.ownerName)}</span>
                 </span>
               )}
             </div>
