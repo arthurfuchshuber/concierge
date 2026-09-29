@@ -2523,6 +2523,11 @@ export type Database = {
           cleaning_approval_status: string | null
           cleaning_done_by: string | null
           cleaning_price_cents: number | null
+          cleaning_price_original_cents: number | null
+          cleaning_price_override_at: string | null
+          cleaning_price_override_by: string | null
+          cleaning_price_override_cents: number | null
+          cleaning_price_override_reason: string | null
           cleaning_requested_price_cents: number | null
           cleaning_type: string | null
           concluded_at: string | null
@@ -2547,6 +2552,11 @@ export type Database = {
           cleaning_approval_status?: string | null
           cleaning_done_by?: string | null
           cleaning_price_cents?: number | null
+          cleaning_price_original_cents?: number | null
+          cleaning_price_override_at?: string | null
+          cleaning_price_override_by?: string | null
+          cleaning_price_override_cents?: number | null
+          cleaning_price_override_reason?: string | null
           cleaning_requested_price_cents?: number | null
           cleaning_type?: string | null
           concluded_at?: string | null
@@ -2571,6 +2581,11 @@ export type Database = {
           cleaning_approval_status?: string | null
           cleaning_done_by?: string | null
           cleaning_price_cents?: number | null
+          cleaning_price_original_cents?: number | null
+          cleaning_price_override_at?: string | null
+          cleaning_price_override_by?: string | null
+          cleaning_price_override_cents?: number | null
+          cleaning_price_override_reason?: string | null
           cleaning_requested_price_cents?: number | null
           cleaning_type?: string | null
           concluded_at?: string | null
