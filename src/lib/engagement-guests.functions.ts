@@ -108,9 +108,15 @@ async function loadCommon(
   const days = daysFor(input.period);
   const since = new Date(Date.now() - days * 86400_000);
 
-  const { data: props, error: pErr } = await supabase
+  const { data: rawProps, error: pErr } = await supabase
     .from("properties").select("id, name, city, owner_id").in("owner_id", ownerIds);
   if (pErr) throw pErr;
+  // Recorte por residência: membro limitado (ex.: prestador) só vê os imóveis dele.
+  const { visiblePropertyIds } = await import("@/lib/permissions/property-scope.server");
+  const allowedIds = await visiblePropertyIds(ctx.userId);
+  const props = allowedIds === null
+    ? rawProps
+    : (rawProps ?? []).filter((p) => allowedIds.includes(p.id as string));
 
   const allIds = (props ?? []).map((p) => p.id as string);
   const nameById = new Map<string, string>((props ?? []).map((p) => [p.id as string, p.name as string]));

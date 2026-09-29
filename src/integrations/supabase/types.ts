@@ -5815,6 +5815,10 @@ export type Database = {
         Args: { _owner_id: string; _property_id: string; _user_id: string }
         Returns: boolean
       }
+      member_sees_all_properties: {
+        Args: { _owner_id: string; _user_id: string }
+        Returns: boolean
+      }
       place_photo_known: { Args: { _name: string }; Returns: boolean }
       property_is_published: {
         Args: { _property_id: string }
@@ -5902,6 +5906,10 @@ export type Database = {
           source_path: string
           title: string
         }[]
+      }
+      sync_stakeholder_member_scope: {
+        Args: { _owner_id: string; _user_id: string }
+        Returns: undefined
       }
       user_can_access_property: {
         Args: { _property_id: string; _user_id: string }
