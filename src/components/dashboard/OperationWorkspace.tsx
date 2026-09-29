@@ -197,6 +197,7 @@ import {
   NO_PROVIDER_LABEL,
   type ArrivalRow,
   type CleaningBreakdownItem,
+  type CleaningDayItem,
   type CleaningDailyPoint,
 } from "@/lib/dashboard.functions";
 import {
