@@ -105,7 +105,8 @@ export function CleaningDayDetail(props: Parameters<typeof CleaningDayDetailCont
       >
         <DialogTitle className="sr-only">Detalhe do dia</DialogTitle>
         <CleaningDayDetailContent {...props} />
-      </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -121,6 +122,7 @@ export function CleaningDayDetailContent({
   caretX: number | null;
   onClose: () => void;
 }) {
+  void caretX;
   let subtitle = "";
   let body: React.ReactNode = null;
   let footer: React.ReactNode = null;
@@ -311,9 +313,8 @@ export function CleaningDayDetailContent({
     );
   }
 
-  void caretX;
   return (
-    <div role="dialog" aria-label={`Detalhe de ${dayTitle(date)}`}>
+    <div aria-label={`Detalhe de ${dayTitle(date)}`}>
       <div className="flex items-start justify-between gap-2.5 px-3.5 pb-2 pt-3">
         <div className="min-w-0">
           <p className="font-display text-[14px] font-bold">{dayTitle(date)}</p>
