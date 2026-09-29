@@ -3457,6 +3457,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   icon={CheckCircle2}
                   loading={cleaningScreen.statsLoading}
                   note={cleaningScreen.countNote}
+                  breakdown={cleaningScreen.breakdown}
                 />
               </div>
               <div className="col-span-1">
@@ -3466,6 +3467,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   icon={Banknote}
                   loading={cleaningScreen.statsLoading}
                   note={cleaningScreen.costNote}
+                  breakdown={cleaningScreen.breakdown}
                 />
               </div>
             </div>
