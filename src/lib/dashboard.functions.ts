@@ -100,12 +100,14 @@ export async function accessiblePropertyIds(
   userId?: string | null,
 ): Promise<string[]> {
   let authorizedOwnerId = ownerId ?? null;
-  if (userId && ownerId) {
+  if (userId) {
+    // Sempre fixa UMA conta (nunca mistura empresas quando a pessoa participa
+    // de várias): a informada e autorizada, ou a conta padrão do usuário.
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     authorizedOwnerId = await resolveAuthorizedAccountOwnerId(
       supabase as never,
       userId,
-      ownerId,
+      ownerId ?? null,
     );
   }
   // RLS on properties already scopes to owner + active account members.
@@ -124,9 +126,9 @@ export async function accessiblePropertyIds(
   const rows = data ?? [];
   let ids = rows.map((r) => r.id);
   if (userId) {
-    // Recorte por residências atendidas: sem vínculo, o membro não vê nada.
+    // Recorte por residências atendidas NA CONTA ATIVA: sem vínculo, nada.
     const { filterVisiblePropertyIds } = await import("@/lib/permissions/property-scope.server");
-    ids = await filterVisiblePropertyIds(userId, ids);
+    ids = await filterVisiblePropertyIds(userId, ids, authorizedOwnerId);
   }
   return await excludeCanceledOwnerProperties(supabase, rows, ids);
 }
