@@ -64,19 +64,14 @@ export type PermissionWorkspace = {
   blockedFeatures: string[];
 };
 
-let dbChecked = false;
-
 /**
- * Garante que o Registry esteja carregado em memória e que a árvore exista
- * no banco. O sync oficial só dispara quando a tabela está vazia — nunca
- * silenciosamente a cada leitura. Falhas são registradas, não propagadas.
+ * Garante que o Registry esteja carregado e que a árvore do banco reflita
+ * QUALQUER recurso novo imediatamente (checagem barata por impressão digital).
  */
 async function ensureRegistry(): Promise<void> {
   bootstrapPermissionRegistry();
-  if (dbChecked) return;
   try {
     await ensureRegistrySynced("auto:admin-ui");
-    dbChecked = true;
   } catch (err) {
     console.error("[permissions] falha ao garantir a árvore de permissões", err);
   }

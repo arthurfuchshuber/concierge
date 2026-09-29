@@ -267,17 +267,30 @@ export async function listSyncRuns(limit = 10) {
 }
 
 /**
- * Garante que a árvore exista antes de qualquer leitura administrativa.
- * Só dispara o sync quando a tabela está vazia — evita "árvore vazia no boot".
+ * Garante que a árvore no banco reflita o Registry atual ANTES de qualquer
+ * leitura. Sincroniza sempre que houver recurso novo, renomeado ou removido
+ * (compara os slugs ativos), para que permissões apareçam na hora.
  */
+let lastSyncedFingerprint: string | null = null;
 export async function ensureRegistrySynced(
   triggeredBy?: string | null,
 ): Promise<SyncReport | null> {
+  bootstrapPermissionRegistry(true);
+  runAutoDiscovery();
+  const slugs = permissionRegistry.list().map((d) => d.slug).sort();
+  const fingerprint = slugs.join("|");
+  if (fingerprint === lastSyncedFingerprint) return null;
+
   const db = await admin();
-  const { count, error } = await db
-    .from("permission_nodes")
-    .select("id", { count: "exact", head: true });
+  const { data, error } = await db.from("permission_nodes").select("slug").eq("active", true);
   if (error) throw new Error(error.message);
-  if ((count ?? 0) > 0) return null;
-  return syncPermissionRegistry({ triggeredBy: triggeredBy ?? "auto:empty-tree" });
+  const dbSlugs = new Set((data ?? []).map((r) => r.slug as string));
+  const inSync = dbSlugs.size === slugs.length && slugs.every((s) => dbSlugs.has(s));
+  if (inSync) {
+    lastSyncedFingerprint = fingerprint;
+    return null;
+  }
+  const report = await syncPermissionRegistry({ triggeredBy: triggeredBy ?? "auto:registry-drift" });
+  if (report.status === "success") lastSyncedFingerprint = fingerprint;
+  return report;
 }
