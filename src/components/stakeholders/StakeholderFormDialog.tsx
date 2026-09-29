@@ -463,7 +463,10 @@ export function StakeholderFormDialog({
           const sent = provisionalPwd.trim();
           setProvisionalPwd("");
           if (res.mode === "linked_existing") {
-            toast.success("Esta pessoa já tem conta no ConciergeIA: acesso à sua empresa liberado. Ela entra com a senha que já usa. Aviso enviado por e-mail.", { duration: 10000 });
+            toast.success(
+              `Esta pessoa já tem conta no ConciergeIA: acesso à sua empresa liberado. Ela entra com a senha que já usa.${res.emailSent ? " Aviso enviado por e-mail." : " O aviso por e-mail não pôde ser enviado agora."}`,
+              { duration: 10000 },
+            );
           } else {
             void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
             toast.success(`Nova senha provisória definida e copiada.${res.emailSent ? " Também enviada por e-mail." : ""}`, { duration: 10000 });
@@ -487,7 +490,10 @@ export function StakeholderFormDialog({
             const sent = provisionalPwd.trim();
             setProvisionalPwd("");
             if (res.mode === "linked_existing") {
-              toast.success("Esta pessoa já tem conta no ConciergeIA: acesso à sua empresa liberado. Ela entra com a senha que já usa. Aviso enviado por e-mail.", { duration: 10000 });
+              toast.success(
+                `Esta pessoa já tem conta no ConciergeIA: acesso à sua empresa liberado. Ela entra com a senha que já usa.${res.emailSent ? " Aviso enviado por e-mail." : " O aviso por e-mail não pôde ser enviado agora."}`,
+                { duration: 10000 },
+              );
             } else {
               void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
               toast.success(
