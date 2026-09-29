@@ -15,6 +15,8 @@ const base: Omit<
   ownerName: "Dono",
   concludedAt: "2026-09-17T17:20:00.000Z",
   doneByName: "Maria",
+  logId: null,
+  reservationId: null,
 };
 
 const items: CleaningDayItem[] = [
