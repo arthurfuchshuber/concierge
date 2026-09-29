@@ -8359,7 +8359,7 @@ function OccupancyPanel({
                               >
                                 <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
                                   {p.ownerName ? (
-                                    <div className="truncate text-[9.5px] font-semibold uppercase tracking-wide text-accent/80">
+                                    <div className="truncate text-[10.5px] text-muted-foreground">
                                       {ownerLabel(p.ownerName)}
                                     </div>
                                   ) : null}
