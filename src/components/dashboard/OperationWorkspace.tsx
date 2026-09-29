@@ -1,3 +1,4 @@
+import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { SearchActionRow } from "./SearchActionRow";
 import { searchScore } from "@/lib/search-score";
 import { trimSeries } from "@/lib/trim-series";
@@ -7750,8 +7751,8 @@ function PropertyPhotoPeek({
   const open = activeId === id;
   if (!photo) return <>{children}</>;
   return (
-    <Popover open={open} onOpenChange={(next) => onActiveChange(next ? id : null)}>
-      <PopoverTrigger asChild>
+    <PopoverPrimitive.Root open={open} onOpenChange={(next) => onActiveChange(next ? id : null)}>
+      <PopoverPrimitive.Trigger asChild>
         <button
           type="button"
           aria-label={`Ver foto de ${name}`}
@@ -7763,8 +7764,9 @@ function PropertyPhotoPeek({
         >
           {children}
         </button>
-      </PopoverTrigger>
-      <PopoverContent
+      </PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Portal>
+      <PopoverPrimitive.Content
         side="right"
         align="start"
         sideOffset={8}
@@ -7776,14 +7778,16 @@ function PropertyPhotoPeek({
         // enquanto a nova já entra — por uma fração de segundo, duas ficam
         // visíveis ao mesmo tempo. Fechar sem animação elimina essa janela
         // de sobreposição por completo ("nunca, jamais" — pedido explícito).
-        className="pointer-events-none w-[232px] overflow-hidden rounded-[12px] border-border/60 bg-popover p-1.5 shadow-2xl data-[state=closed]:!animate-none data-[state=closed]:!duration-0"
+        // Prévia instantânea: sem véu/desfoque global e sem animação.
+        className="pointer-events-none z-[80] w-[232px] overflow-hidden rounded-[12px] border border-border/60 bg-popover p-1.5 text-popover-foreground shadow-2xl outline-none"
       >
         <img src={photo} alt={name} loading="lazy" className="h-[150px] w-full rounded-[9px] object-cover" />
         <p className="truncate px-1 pb-0.5 pt-1.5 text-[11.5px] font-semibold" title={name}>
           {name}
         </p>
-      </PopoverContent>
-    </Popover>
+      </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   );
 }
 
