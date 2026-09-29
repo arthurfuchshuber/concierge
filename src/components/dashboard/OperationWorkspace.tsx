@@ -21,7 +21,7 @@ import {
   type CardStage,
 } from "@/components/dashboard/card-colors";
 import { ReservationJourneyDialog } from "@/components/dashboard/ReservationJourneyDialog";
-import { CleaningPriceDialog } from "@/components/dashboard/CleaningPriceDialog";
+import { CleaningPriceDialog, CleaningInlineEditor } from "@/components/dashboard/CleaningPriceDialog";
 import {
   ResponsiveContainer,
   BarChart,
@@ -9683,6 +9683,12 @@ function ArrivalCard({
           "button, a, input, select, textarea, label, [role='button'], [role='checkbox'], [data-radix-popper-content-wrapper]",
         );
         if (interactive && interactive !== e.currentTarget) return;
+        // Cards em limpeza/concluídos: o toque abre a janela de detalhes
+        // editáveis (tipo, valor, previsão, histórico) — pedido 29/09/2026.
+        if ((mode === "cleaning" || mode === "done") && canOpenJourney) {
+          setJourneyOpen(true);
+          return;
+        }
         toggleOpenFull();
       }}
       /* MESMO RAIO DE CANTO DAS CÉLULAS DA LIMPEZA (mockup "mesmo ecossistema
@@ -9718,6 +9724,20 @@ function ArrivalCard({
           onOpenChange={setJourneyOpen}
           logId={journeyLogId}
           reservationId={journeyReservationId}
+          title={mode === "cleaning" || mode === "done" ? "Detalhes da limpeza" : undefined}
+          cleaningEditor={
+            mode === "cleaning" || mode === "done" ? (
+              <CleaningInlineEditor
+                row={row}
+                logId={journeyLogId}
+                reservationId={journeyReservationId}
+                onAdjust={() => setPriceOpen(true)}
+                onConclude={mode === "cleaning" ? () => { setJourneyOpen(false); onMark(row); } : undefined}
+                onSkip={mode === "cleaning" && onSkipCleaning ? () => { setJourneyOpen(false); onSkipCleaning(row); } : undefined}
+                onNote={() => { setJourneyOpen(false); setNoteOpen(true); }}
+              />
+            ) : undefined
+          }
           /* As DUAS previsões vão editáveis para o histórico (pedido
              explícito, 08/09/2026). Este é o único lugar do sistema que é
              por RESERVA e não por coluna — então é onde chegada e saída
