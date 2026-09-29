@@ -10205,9 +10205,6 @@ function ArrivalCard({
           card era aberto (`compact ? X : Y`); agora essa fileira usa sempre
           o valor de `compact`, independentemente do estado real do card. */}
       <div className="mt-auto flex flex-nowrap items-center gap-2">
-        {(mode === "cleaning" || mode === "done") && (
-          <CleaningProviderAvatar propertyId={row.propertyId} logId={row.logId} reservationId={row.reservationId} />
-        )}
         {mode === "done" ? (
           <span
             title="Esteira concluída"
@@ -10342,6 +10339,13 @@ function ArrivalCard({
               viewedPasswords={row.viewedPasswords}
             />
           </span>
+        )}
+
+        {/* Quadrado do responsável pela limpeza (pedido explícito, 29/09/2026):
+            já aparece desde o checkout/estadia para direcionar antes; fica à
+            DIREITA do triângulo de alerta. */}
+        {(mode === "checkout" || mode === "stay" || mode === "cleaning" || mode === "done") && (
+          <CleaningProviderAvatar propertyId={row.propertyId} logId={row.logId} reservationId={row.reservationId} />
         )}
 
         {/* "Voltar ao status anterior" vive só no menu "⋮" (pedido explícito,
