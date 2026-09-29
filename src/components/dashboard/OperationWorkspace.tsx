@@ -43,6 +43,7 @@ import {
   type CleaningForecastItem,
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
+import { CleaningProviderAvatar } from "@/components/dashboard/CleaningProviderAvatar";
 import {
   Search,
   X,
