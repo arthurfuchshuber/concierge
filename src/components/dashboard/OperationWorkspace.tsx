@@ -10176,6 +10176,9 @@ function ArrivalCard({
           card era aberto (`compact ? X : Y`); agora essa fileira usa sempre
           o valor de `compact`, independentemente do estado real do card. */}
       <div className="mt-auto flex flex-nowrap items-center gap-2">
+        {(mode === "cleaning" || mode === "done") && (
+          <CleaningProviderAvatar propertyId={row.propertyId} logId={row.logId} reservationId={row.reservationId} />
+        )}
         {mode === "done" ? (
           <span
             title="Esteira concluída"
