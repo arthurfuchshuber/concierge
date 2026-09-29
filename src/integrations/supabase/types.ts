@@ -5903,6 +5903,10 @@ export type Database = {
           title: string
         }[]
       }
+      sync_stakeholder_member_scope: {
+        Args: { _owner_id: string; _user_id: string }
+        Returns: undefined
+      }
       user_can_access_property: {
         Args: { _property_id: string; _user_id: string }
         Returns: boolean
