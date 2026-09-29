@@ -46,7 +46,11 @@ function Face({ name, url, size = 28 }: { name: string | null; url: string | nul
       className="grid place-items-center rounded-[0.3rem] border border-border/50 bg-background/60"
       style={{ width: size, height: size }}
     >
-      <BroomBucket className="size-3.5 text-[var(--cleaning-soft)]" />
+      {name ? (
+        <span className="text-[10.5px] font-bold leading-none tracking-tight text-[var(--cleaning-soft)]">{initials(name)}</span>
+      ) : (
+        <BroomBucket className="size-3.5 text-[var(--cleaning-soft)]" />
+      )}
     </span>
   );
 }
