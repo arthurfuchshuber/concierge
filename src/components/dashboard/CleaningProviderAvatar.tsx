@@ -44,10 +44,10 @@ function Face({ name, url, size = 28 }: { name: string | null; url: string | nul
     <span
       title={name ?? undefined}
       className="grid place-items-center rounded-[0.3rem] border border-border/50 bg-background/60"
-      style={{ width: size, height: size }}
+      style={{ minWidth: size, height: size, paddingInline: name ? 4 : 0 }}
     >
       {name ? (
-        <span className="text-[10.5px] font-bold leading-none tracking-tight text-[var(--cleaning-soft)]">{initials(name)}</span>
+        <span className="flex gap-px leading-none text-[var(--cleaning-soft)]">{initials(name).split("").map((c, i) => (<span key={i} className="grid h-3.5 w-3.5 place-items-center text-[19px] font-bold leading-none">{c}</span>))}</span>
       ) : (
         <BroomBucket className="size-3.5 text-[var(--cleaning-soft)]" />
       )}
