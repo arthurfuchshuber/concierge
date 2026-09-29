@@ -141,9 +141,10 @@ const SCOPE_DESCRIPTION: Record<ScopeType, string> = {
 export async function assertCenterAccess(
   userId: string,
   required: AccessLevel = "READ",
+  tenantId?: string,
 ): Promise<{ allowed: boolean; reason: string; snapshot: SubjectSnapshot }> {
   const { checkAccess } = await import("./permission.enforce.server");
-  const snapshot = await resolveSubjectSnapshot(userId);
+  const snapshot = await resolveSubjectSnapshot(userId, tenantId ? { tenantId } : {});
   const outcome = await checkAccess(userId, PERMISSION_CENTER_SLUG, {
     snapshot,
     required,
@@ -259,10 +260,9 @@ export async function loadCenterOverview(
   userId: string,
   requestedTenantId?: string,
 ): Promise<CenterOverview | CenterDenial> {
-  const guard = await assertCenterAccess(userId);
-  if (!guard.allowed) return { allowed: false, reason: guard.reason };
-
   const { kind, tenantId, tenantName } = await resolveContext(supabase, userId, requestedTenantId);
+  const guard = await assertCenterAccess(userId, "READ", tenantId);
+  if (!guard.allowed) return { allowed: false, reason: guard.reason };
   const client = await db();
 
   const { data: members } = await client
@@ -392,10 +392,9 @@ export async function loadCenterUserDetail(
   targetUserId: string,
   requestedTenantId?: string,
 ): Promise<CenterUserDetail | CenterDenial> {
-  const guard = await assertCenterAccess(userId);
-  if (!guard.allowed) return { allowed: false, reason: guard.reason };
-
   const { kind, tenantId, tenantName } = await resolveContext(supabase, userId, requestedTenantId);
+  const guard = await assertCenterAccess(userId, "READ", tenantId);
+  if (!guard.allowed) return { allowed: false, reason: guard.reason };
   const client = await db();
 
   let role = "owner";
@@ -483,11 +482,11 @@ export async function loadCenterScopes(
   supabase: SupabaseClient,
   userId: string,
   targetUserId?: string | null,
+  requestedTenantId?: string,
 ): Promise<CenterScopes | CenterDenial> {
-  const guard = await assertCenterAccess(userId);
+  const { tenantId } = await resolveContext(supabase, userId, requestedTenantId);
+  const guard = await assertCenterAccess(userId, "READ", tenantId);
   if (!guard.allowed) return { allowed: false, reason: guard.reason };
-
-  const { tenantId } = await resolveContext(supabase, userId);
   const snapshot = targetUserId
     ? await resolveSubjectSnapshot(targetUserId, { tenantId })
     : guard.snapshot;

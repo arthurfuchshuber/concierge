@@ -254,8 +254,8 @@ export function StakeholderFormDialog({
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim());
   const accessQuery = useQuery({
-    queryKey: ["stakeholder-access", form.email.trim().toLowerCase()],
-    queryFn: () => accessFn({ data: { email: form.email.trim().toLowerCase() } }),
+    queryKey: ["stakeholder-access", accountOwnerId, form.email.trim().toLowerCase()],
+    queryFn: () => accessFn({ data: { accountOwnerId, email: form.email.trim().toLowerCase() } }),
     enabled: open && emailValid,
     retry: false,
   });
@@ -454,6 +454,7 @@ export function StakeholderFormDialog({
         if (systemAccess && current !== "none" && emailValid && provisionalPwd.trim().length >= 8) {
           const res = await provisionalFn({
             data: {
+              accountOwnerId,
               email: form.email.trim().toLowerCase(),
               password: provisionalPwd.trim(),
               name: form.name.trim() || undefined,
@@ -471,6 +472,7 @@ export function StakeholderFormDialog({
           if (provisionalPwd.trim().length >= 8) {
             const res = await provisionalFn({
               data: {
+                accountOwnerId,
                 email: form.email.trim().toLowerCase(),
                 password: provisionalPwd.trim(),
                 name: form.name.trim() || undefined,
@@ -494,15 +496,15 @@ export function StakeholderFormDialog({
               );
             }
           } else {
-            await inviteFn({ data: { email: form.email.trim().toLowerCase(), role: "agent" as const } });
-            toast.success("Convite de acesso enviado por e-mail.");
+            const invited = await inviteFn({ data: { accountOwnerId: accountOwnerId ?? undefined, email: form.email.trim().toLowerCase(), role: "agent" as const } });
+            toast.success(invited.emailSent ? "Convite de acesso enviado por e-mail." : "Convite criado, mas o e-mail não pôde ser enviado agora.");
           }
         } else if (!systemAccess && current === "pending" && access?.inviteId) {
 
-          await revokeInviteFn({ data: { inviteId: access.inviteId } });
+          await revokeInviteFn({ data: { accountOwnerId: accountOwnerId ?? undefined, inviteId: access.inviteId } });
           toast.success("Convite de acesso cancelado.");
         } else if (!systemAccess && current === "active" && access?.memberId) {
-          await removeMemberFn({ data: { memberId: access.memberId } });
+          await removeMemberFn({ data: { accountOwnerId: accountOwnerId ?? undefined, memberId: access.memberId } });
           toast.success("Acesso ao sistema removido.");
         }
         await accessQuery.refetch();

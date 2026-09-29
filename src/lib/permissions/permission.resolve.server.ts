@@ -62,6 +62,7 @@ export async function resolveTenantOf(
     .from("account_members")
     .select("owner_id, role, status, all_properties")
     .eq("member_user_id", userId)
+    .eq("status", "active")
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
