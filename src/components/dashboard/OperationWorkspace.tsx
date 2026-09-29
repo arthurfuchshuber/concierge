@@ -21,6 +21,7 @@ import {
   type CardStage,
 } from "@/components/dashboard/card-colors";
 import { ReservationJourneyDialog } from "@/components/dashboard/ReservationJourneyDialog";
+import { CleaningPriceDialog } from "@/components/dashboard/CleaningPriceDialog";
 import {
   ResponsiveContainer,
   BarChart,
@@ -3852,84 +3853,18 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       >
         <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-base font-display">Qual limpeza foi realizada?</DialogTitle>
-          </DialogHeader>
-          <div className="text-sm text-muted-foreground -mt-2">
+            <DialogTitle className="text-base font-display">Qual limpeza foi feita?</DialogTitle>
             {cleaningTypePrompt ? (
-              <>
-                Confirme o tipo de limpeza concluída em{" "}
-                <strong className="text-foreground">
-                  {cleaningTypePrompt.row.propertyName ?? titleCaseName(cleaningTypePrompt.row.guestName)}
-                </strong>
-                .
-              </>
+              <p className="text-[12.5px] text-muted-foreground break-words">
+                {cleaningTypePrompt.row.propertyName ?? titleCaseName(cleaningTypePrompt.row.guestName)}
+              </p>
             ) : null}
-          </div>
-          {(() => {
-            const row = cleaningTypePrompt?.row;
-            if (!row) return null;
-            // Pedido explícito: só mostra a opção "normal"/"completa" quando o
-            // imóvel tem um preço configurado ACIMA de 0 para aquele tipo —
-            // preço em branco ou igual a zero não aparece como opção.
-            const hasNormal = (row.cleaningPriceNormalCents ?? 0) > 0;
-            const hasCompleta = (row.cleaningPriceFullCents ?? 0) > 0;
-            const showBoth = hasNormal && hasCompleta;
-            if (!hasNormal && !hasCompleta) {
-              // Nenhum dos dois preços está configurado — sem valor pra
-              // diferenciar, não faz sentido perguntar o tipo. Conclui direto
-              // (mesmo fallback que o servidor já usa quando nenhum tipo é
-              // enviado), pra não travar a esteira do imóvel.
-              return (
-                <div className="pt-1">
-                  <Button
-                    type="button"
-                    className="h-auto w-full py-3"
-                    onClick={() => {
-                      runAdvance(row, "cleaning");
-                      setCleaningTypePrompt(null);
-                    }}
-                  >
-                    <span className="font-medium">Concluir limpeza</span>
-                  </Button>
-                </div>
-              );
-            }
-            return (
-              <div className={`grid gap-2 pt-1 ${showBoth ? "grid-cols-2" : "grid-cols-1"}`}>
-                {hasNormal && (
-                  <Button
-                    type="button"
-                    variant={showBoth ? "outline" : "default"}
-                    className="h-auto py-3 flex-col gap-0.5"
-                    onClick={() => {
-                      runAdvance(row, "cleaning", "normal");
-                      setCleaningTypePrompt(null);
-                    }}
-                  >
-                    <span className="font-medium">Limpeza normal</span>
-                  </Button>
-                )}
-                {hasCompleta && (
-                  <Button
-                    type="button"
-                    className="h-auto py-3 flex-col gap-0.5"
-                    onClick={() => {
-                      runAdvance(row, "cleaning", "completa");
-                      setCleaningTypePrompt(null);
-                    }}
-                  >
-                    <span className="font-medium">Limpeza completa</span>
-                    <span className="text-[10.5px] font-semibold opacity-75">vai para aprovação</span>
-                  </Button>
-                )}
-                {hasCompleta && (
-                  <p className={`text-[11.5px] leading-relaxed text-muted-foreground ${showBoth ? "col-span-2" : ""}`}>
-                    A limpeza completa só entra no custo depois que o gestor aprovar.
-                  </p>
-                )}
-              </div>
-            );
-          })()}
+          </DialogHeader>
+          {cleaningTypePrompt ? <CleaningTypeChooser row={cleaningTypePrompt.row} onConfirm={(t) => {
+            const row = cleaningTypePrompt.row;
+            setCleaningTypePrompt(null);
+            runAdvance(row, "cleaning", t);
+          }} /> : null}
         </DialogContent>
       </Dialog>
     </div>
@@ -9626,6 +9561,7 @@ function ArrivalCard({
    * log — nesses cards a reserva é quem identifica a estadia.
    */
   const [journeyOpen, setJourneyOpen] = useState(false);
+  const [priceOpen, setPriceOpen] = useState(false);
   const journeyLogId = /^[0-9a-f-]{36}$/i.test(row.logId) ? row.logId : null;
   const journeyReservationId = row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
   const canOpenJourney = !!journeyLogId || !!journeyReservationId;
@@ -9765,7 +9701,16 @@ function ArrivalCard({
       className="group relative isolate flex cursor-pointer snap-start flex-col rounded-[10px] border border-border bg-muted/20 p-3 pl-3.5 pb-0 gap-2 transition-colors hover:bg-muted/35"
     >
       {journeyOpen && (
-        <ReservationJourneyDialog
+        <CleaningPriceDialog
+        open={priceOpen}
+        onOpenChange={setPriceOpen}
+        logId={journeyLogId}
+        reservationId={journeyReservationId}
+        title={row.propertyName ?? row.guestName}
+        normalCents={row.cleaningPriceNormalCents}
+        fullCents={row.cleaningPriceFullCents}
+      />
+      <ReservationJourneyDialog
           open={journeyOpen}
           onOpenChange={setJourneyOpen}
           logId={journeyLogId}
@@ -10417,6 +10362,11 @@ function ArrivalCard({
               {showSkipCleaningMenuItem && (
                 <DropdownMenuItem onClick={() => onSkipCleaning?.(row)} disabled={busy}>
                   <Ban className="size-3.5 shrink-0" /> Limpeza não será realizada
+                </DropdownMenuItem>
+              )}
+              {(mode === "cleaning" || mode === "done") && canOpenJourney && (
+                <DropdownMenuItem onClick={() => setPriceOpen(true)}>
+                  <Banknote className="size-3.5 shrink-0" /> Ajustar valor desta limpeza
                 </DropdownMenuItem>
               )}
               {canOpenJourney && (
@@ -11328,4 +11278,78 @@ function isTimeWithin(t: string, min: string, max: string | null): boolean {
    * horário estava certinho dentro da janela.
    */
   return a > b ? v >= a || v <= b : v >= a && v <= b;
+}
+
+
+/** Escolha do tipo de limpeza: Normal em destaque e pré-selecionada. */
+function CleaningTypeChooser({
+  row,
+  onConfirm,
+}: {
+  row: ArrivalRow;
+  onConfirm: (t: "normal" | "completa" | undefined) => void;
+}) {
+  const hasNormal = (row.cleaningPriceNormalCents ?? 0) > 0;
+  const hasCompleta = (row.cleaningPriceFullCents ?? 0) > 0;
+  const [choice, setChoice] = useState<"normal" | "completa">(hasNormal ? "normal" : "completa");
+  if (!hasNormal && !hasCompleta) {
+    return (
+      <Button type="button" className="w-full" onClick={() => onConfirm(undefined)}>
+        Concluir limpeza
+      </Button>
+    );
+  }
+  const opts: Array<{ key: "normal" | "completa"; label: string; cents: number; note?: string }> = [];
+  if (hasNormal) opts.push({ key: "normal", label: "Limpeza normal", cents: row.cleaningPriceNormalCents ?? 0 });
+  if (hasCompleta)
+    opts.push({
+      key: "completa",
+      label: "Limpeza completa",
+      cents: row.cleaningPriceFullCents ?? 0,
+      note: "Entra no custo após aprovação do gestor",
+    });
+  return (
+    <div className="space-y-3">
+      <div role="radiogroup" className="space-y-2">
+        {opts.map((o) => {
+          const active = choice === o.key;
+          const primary = o.key === "normal";
+          return (
+            <button
+              key={o.key}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => setChoice(o.key)}
+              className={`flex w-full min-w-0 items-center gap-3 rounded-[0.6rem] border px-3 py-2.5 text-left transition-colors ${
+                active
+                  ? primary
+                    ? "border-primary bg-primary/10"
+                    : "border-foreground/40 bg-muted/40"
+                  : "border-border/60 hover:bg-muted/30"
+              }`}
+            >
+              <span
+                className={`grid size-4 shrink-0 place-items-center rounded-full border ${
+                  active ? (primary ? "border-primary" : "border-foreground/60") : "border-border"
+                }`}
+              >
+                {active && <span className={`size-2 rounded-full ${primary ? "bg-primary" : "bg-foreground/70"}`} />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className={`block text-[13.5px] font-semibold ${active && primary ? "text-primary" : ""}`}>
+                  {o.label}
+                </span>
+                {o.note && <span className="block text-[11px] text-muted-foreground">{o.note}</span>}
+              </span>
+              <span className="shrink-0 text-[13px] font-semibold tabular-nums">{centsToBRL(o.cents)}</span>
+            </button>
+          );
+        })}
+      </div>
+      <Button type="button" className="w-full" onClick={() => onConfirm(choice)}>
+        Confirmar
+      </Button>
+    </div>
+  );
 }
