@@ -10,14 +10,15 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, ShieldCheck, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { getMyProfile, updateMyProfile, setMissingCpf } from "@/lib/profile.functions";
-import { formatCPF } from "@/lib/masks";
+import { getMyProfile, updateMyProfile, setMissingCpf, setMyPhone } from "@/lib/profile.functions";
+import { formatCPF, formatBRPhone } from "@/lib/masks";
 import { useHasSession } from "@/hooks/useHasSession";
 
 export function CompleteProfileDialog() {
   const getFn = useServerFn(getMyProfile);
   const updateFn = useServerFn(updateMyProfile);
   const cpfFn = useServerFn(setMissingCpf);
+  const phoneFn = useServerFn(setMyPhone);
   const qc = useQueryClient();
 
   const hasSession = useHasSession();
@@ -31,16 +32,19 @@ export function CompleteProfileDialog() {
 
   const missing = useMemo(() => {
     const p = q.data?.profile;
-    if (!q.data) return { any: false, name: false, birth: false, cpf: false };
+    if (!q.data) return { any: false, name: false, birth: false, cpf: false, phone: false };
     const name = !p?.full_name || !p.full_name.trim();
     const birth = !p?.birth_date;
     const cpf = !p?.cpf || !p.cpf.trim();
-    return { any: name || birth || cpf, name, birth, cpf };
+    // Telefone obrigatório para quem criou uma empresa no sistema.
+    const phone = !!q.data.isAccountOwner && (!p?.phone || p.phone.replace(/\D+/g, "").length < 10);
+    return { any: name || birth || cpf || phone, name, birth, cpf, phone };
   }, [q.data]);
 
   const [fullName, setFullName] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [cpfMasked, setCpfMasked] = useState("");
+  const [phoneMasked, setPhoneMasked] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -49,16 +53,19 @@ export function CompleteProfileDialog() {
     setFullName(p?.full_name ?? "");
     setBirthDate(p?.birth_date ?? "");
     setCpfMasked(p?.cpf ? formatCPF(p.cpf) : "");
+    setPhoneMasked(p?.phone ? formatBRPhone(p.phone) : "");
   }, [q.data]);
 
   const open = !!q.data && missing.any;
 
   const cpfDigits = cpfMasked.replace(/\D+/g, "");
+  const phoneDigits = phoneMasked.replace(/\D+/g, "");
   const canSave =
     (!missing.name || fullName.trim().length >= 3) &&
     (!missing.birth ||
       (/^\d{4}-\d{2}-\d{2}$/.test(birthDate) && new Date(birthDate) <= new Date())) &&
-    (!missing.cpf || cpfDigits.length === 11);
+    (!missing.cpf || cpfDigits.length === 11) &&
+    (!missing.phone || phoneDigits.length >= 10);
 
   async function onSave() {
     if (!canSave || saving) return;
@@ -66,6 +73,9 @@ export function CompleteProfileDialog() {
     try {
       if (missing.cpf) {
         await cpfFn({ data: { cpf: cpfDigits } });
+      }
+      if (missing.phone) {
+        await phoneFn({ data: { phone: phoneDigits, phone_country: "BR" } });
       }
       if (missing.name || missing.birth) {
         // updateMyProfile exige full_name + birth_date; envie ambos usando valores atuais/novos.
@@ -143,6 +153,21 @@ export function CompleteProfileDialog() {
                   setCpfMasked(formatCPF(e.target.value.replace(/\D+/g, "").slice(0, 11)))
                 }
                 placeholder="000.000.000-00"
+              />
+            </Field>
+          )}
+
+          {missing.phone && (
+            <Field label="Telefone (WhatsApp)" required>
+              <input
+                type="tel"
+                inputMode="numeric"
+                className="input"
+                value={phoneMasked}
+                onChange={(e) =>
+                  setPhoneMasked(formatBRPhone(e.target.value.replace(/\D+/g, "").slice(0, 11)))
+                }
+                placeholder="(11) 90000-0000"
               />
             </Field>
           )}
