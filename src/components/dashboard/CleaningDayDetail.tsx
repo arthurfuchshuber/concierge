@@ -1,4 +1,21 @@
-import { CalendarDays, X } from "lucide-react";
+import { useState } from "react";
+import { CalendarDays, Pencil, X } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { MoneyInput } from "@/components/ui/money-input";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { setCleaningPriceOverride } from "@/lib/cleaning-price.functions";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ownerLabel } from "@/components/dashboard/card-colors";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
@@ -200,7 +217,7 @@ export function CleaningDayDetailContent({
                     <TypeLabel type={r.cleaningType} pending={r.pending} />
                   </td>
                   <td className={`${TD} text-right`}>
-                    <span className="block font-bold">{brl(r.priceCents)}</span>
+                    <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} />
                     {meta && (
                       <span className="block whitespace-nowrap text-[10.5px] text-muted-foreground">
                         {meta}
@@ -338,6 +355,90 @@ export function CleaningDayDetailContent({
           {footer}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Valor clicável: edita e SEMPRE pede confirmação antes de gravar. */
+function EditablePrice({ statusId, cents, title }: { statusId: string; cents: number | null; title: string }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState<number | null>(cents);
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const save = useServerFn(setCleaningPriceOverride);
+  const qc = useQueryClient();
+
+  async function doSave() {
+    if (value == null) return;
+    setBusy(true);
+    try {
+      await save({ data: { statusId, cents: value, reason: null } });
+      toast.success(`Valor de ${title} alterado para ${brl(value)}.`);
+      setConfirm(false);
+      setEditing(false);
+      void qc.invalidateQueries();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível alterar o valor.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setValue(cents);
+          setEditing(true);
+        }}
+        title="Alterar valor"
+        className="inline-flex items-center gap-1 rounded px-1 -mx-1 font-bold transition-colors hover:bg-secondary/60"
+      >
+        {brl(cents)}
+        <Pencil className="size-3 text-muted-foreground" />
+      </button>
+    );
+  }
+  return (
+    <div className="ml-auto flex w-[130px] flex-col items-end gap-1.5">
+      <MoneyInput cents={value} onChange={setValue} placeholder="0,00" disabled={busy} />
+      <div className="flex gap-1">
+        <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={() => setEditing(false)}>
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          className="h-7 px-2 text-[11px]"
+          disabled={value == null || value === cents}
+          onClick={() => setConfirm(true)}
+        >
+          OK
+        </Button>
+      </div>
+      <AlertDialog open={confirm} onOpenChange={setConfirm}>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar alteração?</AlertDialogTitle>
+            <AlertDialogDescription className="break-words">
+              O valor da limpeza de {title} vai passar de {brl(cents)} para {brl(value)}. Vale só para esta limpeza.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(e) => {
+                e.preventDefault();
+                void doSave();
+              }}
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
