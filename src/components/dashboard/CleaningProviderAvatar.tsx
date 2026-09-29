@@ -5,6 +5,7 @@ import { Check, RotateCcw, Search, SprayCan } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getCleaningProviderBoard, setCleaningAssignment } from "@/lib/cleaning-assign.functions";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -13,7 +14,13 @@ function initials(name: string) {
 
 export function useCleaningBoard() {
   const fn = useServerFn(getCleaningProviderBoard);
-  return useQuery({ queryKey: ["cleaning-board"], queryFn: () => fn({ data: {} }), staleTime: 30_000 });
+  // Sempre escopado à conta ativa: nunca mistura prestadores de outra conta.
+  const ownerId = useImpersonation().impersonation?.userId ?? null;
+  return useQuery({
+    queryKey: ["cleaning-board", ownerId],
+    queryFn: () => fn({ data: { ownerId } }),
+    staleTime: 30_000,
+  });
 }
 
 /** Quadrado do perfil. Sem foto: fundo azul bebê com kit de limpeza. */
@@ -23,10 +30,10 @@ function Face({ name, url, size = 28 }: { name: string | null; url: string | nul
   ) : (
     <span
       title={name ?? undefined}
-      className="grid place-items-center rounded-[0.3rem] bg-[var(--cleaning-soft)] text-[var(--cleaning-soft-foreground)]"
+      className="grid place-items-center rounded-[0.3rem] border border-border/50 bg-background/60"
       style={{ width: size, height: size }}
     >
-      <SprayCan style={{ width: size * 0.55, height: size * 0.55 }} strokeWidth={2} />
+      <SprayCan className="size-3.5" />
     </span>
   );
 }

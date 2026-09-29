@@ -12,26 +12,34 @@ export type CleaningProvider = { id: string; name: string; avatarUrl: string | n
 
 export const getCleaningProviderBoard = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ propertyIds: z.array(z.string().uuid()).max(2000).optional() }).parse(i ?? {}))
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        propertyIds: z.array(z.string().uuid()).max(2000).optional(),
+        ownerId: z.string().uuid().nullable().optional(),
+      })
+      .parse(i ?? {}),
+  )
   .handler(async ({ data, context }) => {
     const sb = context.supabase;
+    // ISOLAMENTO POR CONTA: tudo aqui fica restrito à conta ativa validada.
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(sb, context.userId, data.ownerId ?? null);
     const empty = {
       providers: [] as CleaningProvider[],
       defaults: {} as Record<string, string>,
       assigned: {} as Record<string, string>,
     };
-    const q = sb.from("properties").select("id, owner_id").limit(2000);
+    const q = sb.from("properties").select("id, owner_id").eq("owner_id", ownerId).limit(2000);
     const { data: props } = data.propertyIds ? await q.in("id", data.propertyIds) : await q;
     const propIds = (props ?? []).map((p) => p.id as string);
     if (propIds.length === 0) return empty;
-    const owners = Array.from(new Set((props ?? []).map((p) => p.owner_id as string).filter(Boolean)));
-    if (owners.length === 0) return empty;
 
     const [{ data: provs }, { data: links }, { data: rows }] = await Promise.all([
       sb
         .from("service_providers")
         .select("id, name, trade_name, member_user_id, status")
-        .in("account_owner_id", owners)
+        .eq("account_owner_id", ownerId)
         .order("name"),
       sb.from("property_providers").select("property_id, provider_id").in("property_id", propIds),
       sb
@@ -43,6 +51,7 @@ export const getCleaningProviderBoard = createServerFn({ method: "POST" })
         .limit(5000),
     ]);
 
+    const provIds = new Set((provs ?? []).map((p) => p.id));
     const list = (provs ?? []).filter((p) => (p.status ?? "").toLowerCase() !== "cancelado" && (p.status ?? "") !== "canceled");
     const userIds = list.map((p) => p.member_user_id).filter(Boolean) as string[];
     const avatars = new Map<string, string | null>();
@@ -56,7 +65,8 @@ export const getCleaningProviderBoard = createServerFn({ method: "POST" })
       avatarUrl: p.member_user_id ? (avatars.get(p.member_user_id) ?? null) : null,
     }));
     const defaults: Record<string, string> = {};
-    for (const l of links ?? []) if (!defaults[l.property_id]) defaults[l.property_id] = l.provider_id;
+    for (const l of links ?? [])
+      if (!defaults[l.property_id] && provIds.has(l.provider_id)) defaults[l.property_id] = l.provider_id;
     const assigned: Record<string, string> = {};
     for (const r of rows ?? []) {
       if (r.reservation_id) assigned[`r:${r.reservation_id}`] = r.assigned_provider_id as string;
