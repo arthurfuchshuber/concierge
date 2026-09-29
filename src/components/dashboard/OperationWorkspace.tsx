@@ -241,22 +241,21 @@ function ExtraGuests({
   const [open, setOpen] = useState(false);
   if (!guests || guests.length === 0) return null;
   return (
-    <span className="relative inline-flex shrink-0">
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-        className="shrink-0 inline-flex items-center border-0 bg-transparent p-0 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
-        title={`${guests.length} outro(s) hóspede(s) nesta reserva`}
-      >
-        +{guests.length}
-      </button>
-      {open && (
-        <ul className="absolute left-0 top-full z-30 mt-1 min-w-[180px] space-y-0.5 rounded-lg border border-border/50 bg-popover px-2 py-1.5 shadow-lg">
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0 inline-flex items-center border-0 bg-transparent p-0 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
+          title={`${guests.length} outro(s) hóspede(s) nesta reserva`}
+        >
+          +{guests.length}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto min-w-[180px] max-w-[calc(100vw-32px)] p-2" onClick={(e) => e.stopPropagation()}>
+        <ul className="space-y-0.5">
           {guests.map((g) => (
-            <li key={g.logId} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <li key={g.logId} className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className="size-1 rounded-full bg-muted-foreground/60 shrink-0" />
               <span className="min-w-0 truncate" title={g.name}>
                 {g.name}
@@ -265,8 +264,8 @@ function ExtraGuests({
             </li>
           ))}
         </ul>
-      )}
-    </span>
+      </PopoverContent>
+    </Popover>
   );
 }
 
