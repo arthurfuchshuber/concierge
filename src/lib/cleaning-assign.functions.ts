@@ -12,7 +12,7 @@ export type CleaningProvider = { id: string; name: string; avatarUrl: string | n
 
 export const getCleaningProviderBoard = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ propertyIds: z.array(z.string().uuid()).max(2000) }).parse(i))
+  .inputValidator((i: unknown) => z.object({ propertyIds: z.array(z.string().uuid()).max(2000).optional() }).parse(i ?? {}))
   .handler(async ({ data, context }) => {
     const sb = context.supabase;
     const empty = {
@@ -20,8 +20,10 @@ export const getCleaningProviderBoard = createServerFn({ method: "POST" })
       defaults: {} as Record<string, string>,
       assigned: {} as Record<string, string>,
     };
-    if (data.propertyIds.length === 0) return empty;
-    const { data: props } = await sb.from("properties").select("id, owner_id").in("id", data.propertyIds);
+    const q = sb.from("properties").select("id, owner_id").limit(2000);
+    const { data: props } = data.propertyIds ? await q.in("id", data.propertyIds) : await q;
+    const propIds = (props ?? []).map((p) => p.id as string);
+    if (propIds.length === 0) return empty;
     const owners = Array.from(new Set((props ?? []).map((p) => p.owner_id as string).filter(Boolean)));
     if (owners.length === 0) return empty;
 
@@ -31,11 +33,11 @@ export const getCleaningProviderBoard = createServerFn({ method: "POST" })
         .select("id, name, trade_name, member_user_id, status")
         .in("account_owner_id", owners)
         .order("name"),
-      sb.from("property_providers").select("property_id, provider_id").in("property_id", data.propertyIds),
+      sb.from("property_providers").select("property_id, provider_id").in("property_id", propIds),
       sb
         .from("guest_arrival_status")
         .select("log_id, reservation_id, assigned_provider_id")
-        .in("property_id", data.propertyIds)
+        .in("property_id", propIds)
         .eq("kind", "checkout")
         .not("assigned_provider_id", "is", null)
         .limit(5000),
