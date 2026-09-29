@@ -30,9 +30,12 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 import {
   ACCOUNT_AREAS,
   SAAS_AREAS,
+  describeAreaGrant,
   type AreaGroup,
   type AreaItem,
 } from "@/lib/permissions/permission.areas";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Info } from "lucide-react";
 
 export type PermissionCenterContext = "account" | "saas";
 
@@ -139,6 +142,57 @@ function buildSubgroups(group: AreaGroup): Array<{ parent: AreaItem; children: A
   return out;
 }
 
+function PermissionInfo({ namespace }: { namespace: string }) {
+  const lines = useMemo(() => describeAreaGrant(namespace), [namespace]);
+  if (!lines.length) return null;
+  const [root, ...rest] = lines;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`O que "${root.label}" libera`}
+          className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Info className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="center"
+        collisionPadding={12}
+        className="w-[min(22rem,calc(100vw-24px))] p-0"
+      >
+        <div className="border-b p-3">
+          <p className="text-sm font-semibold">{root.label}</p>
+          <p className="text-xs text-muted-foreground">
+            {root.kind}
+            {root.route ? ` · ${root.route}` : ""}
+          </p>
+          {root.description ? <p className="mt-1 text-xs">{root.description}</p> : null}
+          <p className="mt-2 text-xs text-muted-foreground">
+            <b>Ver</b> libera consultar tudo abaixo. <b>Editar</b> libera também criar, alterar e excluir.
+          </p>
+        </div>
+        <div className="max-h-72 overflow-y-auto p-2">
+          {rest.length === 0 ? (
+            <p className="p-1 text-xs text-muted-foreground">Esta permissão libera apenas este item.</p>
+          ) : (
+            rest.map((l) => (
+              <div key={l.slug} className="py-1" style={{ paddingLeft: (l.depth - 1) * 12 + 4 }}>
+                <p className="text-xs">
+                  <span className="text-muted-foreground">{l.kind}:</span> {l.label}
+                </p>
+                {l.description ? <p className="text-[11px] text-muted-foreground">{l.description}</p> : null}
+              </div>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function AreaRow({
   item,
   levels,
@@ -165,6 +219,7 @@ function AreaRow({
           <p className="text-xs text-muted-foreground">Herdado da área acima</p>
         ) : null}
       </div>
+      <PermissionInfo namespace={item.namespace} />
       <div className="shrink-0">
         <LevelSwitch
           value={level}
@@ -366,6 +421,7 @@ export function UserAccess({
                   </span>
                 </AccordionTrigger>
               </div>
+              <PermissionInfo namespace={group.namespace} />
               {/* Liberação em massa da categoria inteira. */}
               <div className="ml-auto shrink-0">
                 <LevelSwitch
@@ -405,6 +461,7 @@ export function UserAccess({
                             </span>
                           </AccordionTrigger>
                         </div>
+                        <PermissionInfo namespace={sub.parent.namespace} />
                         <div className="ml-auto shrink-0">
 
                           <LevelSwitch
