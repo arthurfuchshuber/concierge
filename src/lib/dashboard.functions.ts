@@ -1374,6 +1374,7 @@ export async function runAdvanceArrival(
         cleaning_price_cents?: number | null;
         cleaning_approval_status?: "pending" | null;
         cleaning_done_by?: string | null;
+        cleaning_price_original_cents?: number | null;
       },
     ) {
       const body: {
@@ -1388,6 +1389,7 @@ export async function runAdvanceArrival(
         cleaning_price_cents?: number | null;
         cleaning_approval_status?: "pending" | null;
         cleaning_done_by?: string | null;
+        cleaning_price_original_cents?: number | null;
       } = { property_id: propertyId!, kind, ...patch };
       if (data.logId) body.log_id = data.logId;
       if (data.reservationId) body.reservation_id = data.reservationId;
@@ -1708,6 +1710,7 @@ export async function runAdvanceArrival(
         concluded_at: nowIso,
         cleaning_type: cleaningType,
         cleaning_price_cents: cleaningPriceCents,
+        ...(overrideCents != null ? { cleaning_price_original_cents: propertyPriceCents } : {}),
         // Completa entra PENDENTE: só soma no custo depois que o gestor
         // aprovar (cleaning-approval.functions.ts). Gravar "pending" também
         // derruba uma aprovação antiga quando a limpeza é concluída de novo
