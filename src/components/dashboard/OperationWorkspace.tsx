@@ -9700,8 +9700,7 @@ function ArrivalCard({
          ordem em que os cards aparecem no DOM. */
       className="group relative isolate flex cursor-pointer snap-start flex-col rounded-[10px] border border-border bg-muted/20 p-3 pl-3.5 pb-0 gap-2 transition-colors hover:bg-muted/35"
     >
-      {journeyOpen && (
-        <CleaningPriceDialog
+      <CleaningPriceDialog
         open={priceOpen}
         onOpenChange={setPriceOpen}
         logId={journeyLogId}
@@ -9710,7 +9709,8 @@ function ArrivalCard({
         normalCents={row.cleaningPriceNormalCents}
         fullCents={row.cleaningPriceFullCents}
       />
-      <ReservationJourneyDialog
+      {journeyOpen && (
+        <ReservationJourneyDialog
           open={journeyOpen}
           onOpenChange={setJourneyOpen}
           logId={journeyLogId}
