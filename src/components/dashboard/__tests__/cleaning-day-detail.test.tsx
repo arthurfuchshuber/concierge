@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { CleaningDayDetailContent } from "../CleaningDayDetailContent";
+import { CleaningDayDetailContent } from "../CleaningDayDetail";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
 
 const base: Omit<
