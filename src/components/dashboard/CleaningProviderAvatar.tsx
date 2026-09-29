@@ -33,7 +33,7 @@ function Face({ name, url, size = 28 }: { name: string | null; url: string | nul
       className="grid place-items-center rounded-[0.3rem] border border-border/50 bg-background/60"
       style={{ width: size, height: size }}
     >
-      <SprayCan className="size-3.5" />
+      <SprayCan className="size-3.5 text-[var(--cleaning-soft)]" />
     </span>
   );
 }
