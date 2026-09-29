@@ -90,6 +90,16 @@ export const setCleaningAssignment = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const sb = context.supabase;
+    // Prestador precisa ser da MESMA conta do imóvel — nunca cruza contas.
+    if (data.providerId) {
+      const [{ data: prop }, { data: prov }] = await Promise.all([
+        sb.from("properties").select("owner_id").eq("id", data.propertyId).maybeSingle(),
+        sb.from("service_providers").select("account_owner_id").eq("id", data.providerId).maybeSingle(),
+      ]);
+      if (!prop?.owner_id || !prov || prov.account_owner_id !== prop.owner_id) {
+        throw new Error("Este prestador não pertence à conta deste imóvel.");
+      }
+    }
     let existingId: string | null = null;
     for (const [col, val] of [
       ["reservation_id", data.reservationId],
