@@ -2518,6 +2518,7 @@ export type Database = {
           arrival_date_override: string | null
           arrival_time_override: string | null
           arrival_time_source: string | null
+          assigned_provider_id: string | null
           cleaning_approval_at: string | null
           cleaning_approval_by: string | null
           cleaning_approval_status: string | null
@@ -2547,6 +2548,7 @@ export type Database = {
           arrival_date_override?: string | null
           arrival_time_override?: string | null
           arrival_time_source?: string | null
+          assigned_provider_id?: string | null
           cleaning_approval_at?: string | null
           cleaning_approval_by?: string | null
           cleaning_approval_status?: string | null
@@ -2576,6 +2578,7 @@ export type Database = {
           arrival_date_override?: string | null
           arrival_time_override?: string | null
           arrival_time_source?: string | null
+          assigned_provider_id?: string | null
           cleaning_approval_at?: string | null
           cleaning_approval_by?: string | null
           cleaning_approval_status?: string | null
@@ -2602,6 +2605,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "guest_arrival_status_assigned_provider_id_fkey"
+            columns: ["assigned_provider_id"]
+            isOneToOne: false
+            referencedRelation: "service_providers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "guest_arrival_status_log_id_fkey"
             columns: ["log_id"]
