@@ -96,7 +96,20 @@ function TypeLabel({ type, pending }: { type: "normal" | "completa" | null; pend
   );
 }
 
-export function CleaningDayDetail({
+export function CleaningDayDetail(props: Parameters<typeof CleaningDayDetailContent>[0]) {
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) props.onClose(); }}>
+      <DialogContent
+        aria-label="Detalhe do dia"
+        className="w-[calc(100vw-2rem)] max-w-md gap-0 p-0 [&>button.absolute]:hidden"
+      >
+        <DialogTitle className="sr-only">Detalhe do dia</DialogTitle>
+        <CleaningDayDetailContent {...props} />
+      </div>
+  );
+}
+
+export function CleaningDayDetailContent({
   date,
   source,
   caretX,
@@ -300,12 +313,7 @@ export function CleaningDayDetail({
 
   void caretX;
   return (
-    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-    <DialogContent
-      aria-label={`Detalhe de ${dayTitle(date)}`}
-      className="w-[calc(100vw-2rem)] max-w-md gap-0 p-0 [&>button.absolute]:hidden"
-    >
-      <DialogTitle className="sr-only">{dayTitle(date)}</DialogTitle>
+    <div role="dialog" aria-label={`Detalhe de ${dayTitle(date)}`}>
       <div className="flex items-start justify-between gap-2.5 px-3.5 pb-2 pt-3">
         <div className="min-w-0">
           <p className="font-display text-[14px] font-bold">{dayTitle(date)}</p>
@@ -326,7 +334,6 @@ export function CleaningDayDetail({
           {footer}
         </div>
       )}
-    </DialogContent>
-    </Dialog>
+    </div>
   );
 }
