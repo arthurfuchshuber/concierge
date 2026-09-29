@@ -1374,6 +1374,7 @@ export async function runAdvanceArrival(
         cleaning_price_cents?: number | null;
         cleaning_approval_status?: "pending" | null;
         cleaning_done_by?: string | null;
+        cleaning_price_original_cents?: number | null;
       },
     ) {
       const body: {
@@ -1388,6 +1389,7 @@ export async function runAdvanceArrival(
         cleaning_price_cents?: number | null;
         cleaning_approval_status?: "pending" | null;
         cleaning_done_by?: string | null;
+        cleaning_price_original_cents?: number | null;
       } = { property_id: propertyId!, kind, ...patch };
       if (data.logId) body.log_id = data.logId;
       if (data.reservationId) body.reservation_id = data.reservationId;
@@ -1678,10 +1680,29 @@ export async function runAdvanceArrival(
         .select("cleaning_price_normal_cents, cleaning_price_full_cents")
         .eq("id", propertyId)
         .maybeSingle();
-      const cleaningPriceCents =
+      // Valor ajustado antes da conclusão (cleaning-price.functions.ts) vence
+      // o preço cadastrado do imóvel.
+      let overrideCents: number | null = null;
+      {
+        let q = supabase
+          .from("guest_arrival_status")
+          .select("cleaning_price_override_cents")
+          .eq("kind", "checkout");
+        q = data.reservationId && data.logId
+          ? q.or(`log_id.eq.${data.logId},reservation_id.eq.${data.reservationId}`)
+          : data.reservationId
+            ? q.eq("reservation_id", data.reservationId)
+            : q.eq("log_id", data.logId!);
+        const { data: ov } = await q.limit(1);
+        overrideCents =
+          ((ov?.[0] as { cleaning_price_override_cents: number | null } | undefined)
+            ?.cleaning_price_override_cents) ?? null;
+      }
+      const propertyPriceCents =
         cleaningType === "completa"
           ? ((propPrices as { cleaning_price_full_cents: number | null } | null)?.cleaning_price_full_cents ?? null)
           : ((propPrices as { cleaning_price_normal_cents: number | null } | null)?.cleaning_price_normal_cents ?? null);
+      const cleaningPriceCents = overrideCents ?? propertyPriceCents;
 
       await upsertStatus("checkout", {
         status: "done",
@@ -1689,6 +1710,7 @@ export async function runAdvanceArrival(
         concluded_at: nowIso,
         cleaning_type: cleaningType,
         cleaning_price_cents: cleaningPriceCents,
+        ...(overrideCents != null ? { cleaning_price_original_cents: propertyPriceCents } : {}),
         // Completa entra PENDENTE: só soma no custo depois que o gestor
         // aprovar (cleaning-approval.functions.ts). Gravar "pending" também
         // derruba uma aprovação antiga quando a limpeza é concluída de novo
