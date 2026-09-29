@@ -34,10 +34,13 @@ export function CleaningProviderAvatar({
   propertyId,
   logId,
   reservationId,
+  showName,
 }: {
   propertyId: string;
   logId: string;
   reservationId: string | null;
+  /** Mostra o nome ao lado da bolinha (janela de detalhes). */
+  showName?: boolean;
 }) {
   const board = useCleaningBoard();
   const qc = useQueryClient();
@@ -79,8 +82,9 @@ export function CleaningProviderAvatar({
           onClick={(e) => e.stopPropagation()}
           aria-label={current ? `Responsável: ${current.name}. Trocar` : "Atribuir prestador"}
           title={current ? `Responsável: ${current.name}` : "Atribuir prestador"}
-          className="relative shrink-0 rounded-full ring-1 ring-border transition hover:ring-foreground/40"
+          className={showName ? "inline-flex min-w-0 items-center gap-2 rounded-full py-0.5 pl-0.5 pr-2 transition hover:bg-secondary/60" : "relative shrink-0 rounded-full ring-1 ring-border transition hover:ring-foreground/40"}
         >
+          <span className="relative shrink-0">
           {current ? (
             <Face name={current.name} url={current.avatarUrl} />
           ) : (
@@ -90,6 +94,12 @@ export function CleaningProviderAvatar({
           )}
           {assignedId && (
             <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card bg-primary" />
+          )}
+          </span>
+          {showName && (
+            <span className="min-w-0 break-words text-[12.5px] font-semibold">
+              {current ? current.name : "Atribuir prestador"}
+            </span>
           )}
         </button>
       </PopoverTrigger>
