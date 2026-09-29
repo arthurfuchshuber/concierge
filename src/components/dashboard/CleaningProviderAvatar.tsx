@@ -9,7 +9,8 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts[parts.length - 1][0] ?? "") : "")).toUpperCase();
+  const second = parts.length > 1 ? parts[parts.length - 1][0] : parts[0]?.[1];
+  return ((parts[0]?.[0] ?? "") + (second ?? "")).toUpperCase();
 }
 
 export function useCleaningBoard() {
@@ -43,11 +44,11 @@ function Face({ name, url, size = 28 }: { name: string | null; url: string | nul
   ) : (
     <span
       title={name ?? undefined}
-      className="grid place-items-center rounded-[0.3rem] border border-border/50 bg-background/60"
-      style={{ minWidth: size, height: size, paddingInline: name ? 4 : 0 }}
+      className="inline-flex shrink-0 items-center justify-center rounded-[0.3rem] border border-border/50 bg-background/60"
+      style={{ minWidth: size, height: size, paddingInline: name ? 5 : 0 }}
     >
       {name ? (
-        <span className="flex gap-px leading-none text-[var(--cleaning-soft)]">{initials(name).split("").map((c, i) => (<span key={i} className="grid h-3.5 w-3.5 place-items-center text-[19px] font-bold leading-none">{c}</span>))}</span>
+        <span className="block text-[14px] font-semibold leading-none tracking-[-0.02em] text-[var(--cleaning-soft)] [text-box:trim-both_cap_alphabetic]">{initials(name)}</span>
       ) : (
         <BroomBucket className="size-3.5 text-[var(--cleaning-soft)]" />
       )}
