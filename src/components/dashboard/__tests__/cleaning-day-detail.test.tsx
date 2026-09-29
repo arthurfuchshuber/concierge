@@ -1,4 +1,8 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup as rawRender } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
+const renderToStaticMarkup = (el: ReactElement) =>
+  rawRender(<QueryClientProvider client={new QueryClient()}>{el}</QueryClientProvider>);
 import { describe, expect, it } from "vitest";
 import { CleaningDayDetailContent } from "../CleaningDayDetail";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";

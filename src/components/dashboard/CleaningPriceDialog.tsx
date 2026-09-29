@@ -8,6 +8,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { MoneyInput } from "@/components/ui/money-input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { CleaningProviderAvatar } from "@/components/dashboard/CleaningProviderAvatar";
 import { getCleaningPriceInfo, setCleaningPriceOverride } from "@/lib/cleaning-price.functions";
 
 function brl(c: number | null | undefined) {
@@ -44,6 +55,7 @@ export function CleaningPriceDialog({
   const [cents, setCents] = useState<number | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -119,9 +131,25 @@ export function CleaningPriceDialog({
             {info.originalCents != null ? ` · original ${brl(info.originalCents)}` : ""}
           </p>
         )}
-        <Button type="button" className="w-full" disabled={busy || cents == null} onClick={submit}>
+        <Button type="button" className="w-full" disabled={busy || cents == null} onClick={() => setConfirm(true)}>
           {busy ? "Salvando…" : "Salvar valor"}
         </Button>
+        <AlertDialog open={confirm} onOpenChange={setConfirm}>
+          <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar alteração?</AlertDialogTitle>
+              <AlertDialogDescription className="break-words">
+                O valor desta limpeza vai passar a ser {brl(cents)}. Vale só para esta limpeza.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction disabled={busy} onClick={(e) => { e.preventDefault(); setConfirm(false); void submit(); }}>
+                Confirmar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
@@ -161,6 +189,10 @@ export function CleaningInlineEditor({
         <span className="text-[12.5px] font-semibold">
           {type === "completa" ? "Completa" : type === "normal" ? "Normal" : "A definir na conclusão"}
         </span>
+      </div>
+      <div className="flex min-w-0 items-center justify-between gap-3 px-3 py-2">
+        <span className="text-[12px] text-muted-foreground">Responsável</span>
+        <CleaningProviderAvatar propertyId={row.propertyId} logId={row.logId} reservationId={row.reservationId} showName />
       </div>
       <button
         type="button"

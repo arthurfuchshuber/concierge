@@ -27,11 +27,12 @@ const Key = z
 
 async function findCheckoutRow(
   supabase: SupabaseClient<Database>,
-  k: { logId?: string | null; reservationId?: string | null },
+  k: { logId?: string | null; reservationId?: string | null; statusId?: string | null },
 ) {
   const cols =
     "id, cleaning_type, cleaning_price_cents, cleaning_price_override_cents, cleaning_price_original_cents, cleaning_price_override_reason, cleaning_price_override_by, cleaning_price_override_at, concluded_at";
   for (const [col, val] of [
+    ["id", k.statusId],
     ["reservation_id", k.reservationId],
     ["log_id", k.logId],
   ] as const) {
@@ -94,10 +95,11 @@ export const setCleaningPriceOverride = createServerFn({ method: "POST" })
       .object({
         logId: z.string().uuid().nullable().optional(),
         reservationId: z.string().uuid().nullable().optional(),
+        statusId: z.string().uuid().nullable().optional(),
         cents: z.number().int().min(0).max(100_000_00),
         reason: z.string().trim().max(300).nullable().optional(),
       })
-      .refine((v) => !!v.logId || !!v.reservationId)
+      .refine((v) => !!v.logId || !!v.reservationId || !!v.statusId)
       .parse(i),
   )
   .handler(async ({ data, context }) => {
