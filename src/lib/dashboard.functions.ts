@@ -124,9 +124,9 @@ export async function accessiblePropertyIds(
   const rows = data ?? [];
   let ids = rows.map((r) => r.id);
   if (userId) {
-    // Recorte por residências atendidas: sem vínculo, o membro não vê nada.
+    // Recorte por residências atendidas NA CONTA ATIVA: sem vínculo, nada.
     const { filterVisiblePropertyIds } = await import("@/lib/permissions/property-scope.server");
-    ids = await filterVisiblePropertyIds(userId, ids);
+    ids = await filterVisiblePropertyIds(userId, ids, authorizedOwnerId);
   }
   return await excludeCanceledOwnerProperties(supabase, rows, ids);
 }
