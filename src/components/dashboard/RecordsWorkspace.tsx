@@ -627,7 +627,7 @@ export function RecordsWorkspace() {
             placeholder="Buscar por imóvel, proprietário…"
             actions={recordActions}
           />
-        </div>
+
 
         {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
         {q.isLoading ? (
@@ -730,6 +730,7 @@ export function RecordsWorkspace() {
             )}
           </div>
         )}
+        </div>
       </div>
 
       <RecordViewerDialog
