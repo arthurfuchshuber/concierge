@@ -10,7 +10,10 @@ import { z } from "zod";
  */
 
 const TargetInput = z.object({ targetUserId: z.string().uuid(), ownerId: z.string().uuid().nullish() });
-const OptionalTargetInput = z.object({ targetUserId: z.string().uuid().nullish() });
+const OptionalTargetInput = z.object({
+  targetUserId: z.string().uuid().nullish(),
+  ownerId: z.string().uuid().nullish(),
+});
 
 /** Lista de usuários do contexto com resumo de acesso. */
 export const getPermissionCenterOverview = createServerFn({ method: "GET" })
@@ -47,8 +50,10 @@ export const getPermissionCenterScopes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => OptionalTargetInput.parse(i ?? {}))
   .handler(async ({ data, context }) => {
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { loadCenterScopes } = await import("@/lib/permissions/permission.center.server");
-    return loadCenterScopes(context.supabase, context.userId, data.targetUserId ?? null);
+    return loadCenterScopes(context.supabase, context.userId, data.targetUserId ?? null, ownerId);
   });
 
 /** Histórico de alterações de permissões do tenant. */

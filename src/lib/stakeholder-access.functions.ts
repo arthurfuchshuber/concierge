@@ -225,7 +225,7 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
         _permission_node_id: node.id,
         _access_level: "READ",
         _scope_type: "TENANT",
-        _scope_id: undefined,
+        _scope_id: null,
         _created_by: userId,
       });
       if (assignmentError) throw new Error(`Acesso criado, mas uma área do painel não foi liberada: ${assignmentError.message}`);
