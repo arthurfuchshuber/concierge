@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { CalendarDays, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ownerLabel } from "@/components/dashboard/card-colors";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
@@ -60,8 +60,8 @@ function timeSP(iso: string | null): string | null {
   });
 }
 
-const TH = "pb-2 text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground";
-const TD = "border-t border-border py-2 align-top text-[12px]";
+const TH = "pb-2.5 text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground";
+const TD = "border-t border-border/60 py-3 align-top text-[12.5px]";
 
 function PropertyCell({ name, owner }: { name: string; owner: string | null }) {
   return (
@@ -70,7 +70,7 @@ function PropertyCell({ name, owner }: { name: string; owner: string | null }) {
         {name}
       </span>
       {ownerLabel(owner) && (
-        <span className="mt-px block truncate text-[11px] text-muted-foreground" title={owner ?? undefined}>
+        <span className="mt-0.5 block break-words text-[11.5px] font-semibold text-foreground/80">
           {ownerLabel(owner)}
         </span>
       )}
@@ -101,7 +101,7 @@ export function CleaningDayDetail(props: Parameters<typeof CleaningDayDetailCont
     <Dialog open onOpenChange={(v) => { if (!v) props.onClose(); }}>
       <DialogContent
         aria-label="Detalhe do dia"
-        className="w-[calc(100vw-2rem)] max-w-md gap-0 p-0 [&>button.absolute]:hidden"
+        className="w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden"
       >
         <DialogTitle className="sr-only">Detalhe do dia</DialogTitle>
         <CleaningDayDetailContent {...props} />
@@ -315,10 +315,13 @@ export function CleaningDayDetailContent({
 
   return (
     <div aria-label={`Detalhe de ${dayTitle(date)}`}>
-      <div className="flex items-start justify-between gap-2.5 px-3.5 pb-2 pt-3">
-        <div className="min-w-0">
-          <p className="font-display text-[14px] font-bold">{dayTitle(date)}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">{subtitle}</p>
+      <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
+        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-foreground/[0.06] text-muted-foreground">
+          <CalendarDays className="size-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-base font-bold leading-tight">{dayTitle(date)}</p>
+          <p className="ds-meta mt-0.5">{subtitle}</p>
         </div>
         <button
           type="button"
@@ -329,9 +332,9 @@ export function CleaningDayDetailContent({
           <X className="size-3.5" strokeWidth={2.2} />
         </button>
       </div>
-      {body && <div className="max-h-[60vh] overflow-y-auto px-3.5 pt-1">{body}</div>}
+      {body && <div className="sg-elegant-scroll max-h-[60vh] overflow-y-auto px-5 pt-1">{body}</div>}
       {footer && (
-        <div className="mt-0.5 flex items-baseline justify-between gap-3 border-t border-border px-3.5 pb-3 pt-2.5">
+        <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-border bg-foreground/[0.03] px-5 py-3.5">
           {footer}
         </div>
       )}

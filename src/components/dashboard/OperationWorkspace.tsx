@@ -43,6 +43,7 @@ import {
   type CleaningForecastItem,
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
+import { CleaningProviderAvatar } from "@/components/dashboard/CleaningProviderAvatar";
 import {
   Search,
   X,
@@ -4884,37 +4885,30 @@ function FreePropertiesCard({
  * atalho pro mapa (bem pequeno).
  */
 function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdown: CleaningBreakdownItem[] }) {
-  const screenshotRef = useRef<HTMLUListElement | null>(null);
+  const screenshotRef = useRef<HTMLDivElement | null>(null);
+  const total = breakdown.reduce((n, i) => n + i.totalCents, 0);
+  const count = breakdown.reduce((n, i) => n + i.count, 0);
+  const sorted = [...breakdown].sort((x, y) => y.totalCents - x.totalCents);
   return (
-    <>
-      <div className="mb-1 text-foreground/90">Imóveis que entram nesta conta:</div>
-      <div className="flex items-center justify-end gap-1.5 mb-1.5">
-        <ScreenshotButton
-          targetRef={screenshotRef}
-          fileName={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-imoveis`}
-        />
-      </div>
-      <ul ref={screenshotRef} className="sg-elegant-scroll max-h-48 space-y-1 overflow-y-auto bg-popover">
-        {breakdown.map((item) => {
-          const mapsHref = item.mapsUrl || item.garageMapsUrl;
-          return (
-            <li key={item.propertyId} className="flex items-center justify-between gap-2 py-0.5">
-              {/* Uma apresentação só (o alternador saiu), e a contagem SEMPRE
-                  visível — ela era o único ganho real do modo "Completo", e num
-                  ranking é justamente o dado que ordena a lista. */}
-              <span className="min-w-0 truncate">
-                {item.ownerName && (
-                  <>
-                    <span className="text-muted-foreground">{ownerLabel(item.ownerName)}</span>
-                    <span className="text-foreground/60"> · </span>
-                  </>
-                )}
-                <span className="text-foreground">{item.propertyName}</span>
-              </span>
-              <span className="shrink-0 flex items-center gap-1.5">
-                <span className="tabular-nums text-muted-foreground">
-                  {item.count}× · {centsToBRL(item.totalCents)}
-                </span>
+    <div className="pt-3">
+      <div ref={screenshotRef} className="sg-elegant-scroll max-h-[60dvh] overflow-y-auto px-3 bg-[var(--panel)]">
+        <ul className="space-y-1.5 pb-3">
+          {sorted.map((item) => {
+            const mapsHref = item.mapsUrl || item.garageMapsUrl;
+            return (
+              <li key={item.propertyId} className="flex items-center gap-3 rounded-[10px] border border-border bg-muted/20 px-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-[13px] font-bold leading-snug">{item.propertyName}</p>
+                  {ownerLabel(item.ownerName) && (
+                    <p className="mt-0.5 break-words text-[11.5px] font-semibold text-foreground/80">{ownerLabel(item.ownerName)}</p>
+                  )}
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-[13px] font-bold tabular-nums">{centsToBRL(item.totalCents)}</p>
+                  <p className="text-[10.5px] text-muted-foreground tabular-nums">
+                    {item.count} {item.count === 1 ? "limpeza" : "limpezas"}
+                  </p>
+                </div>
                 {mapsHref && (
                   <a
                     href={mapsHref}
@@ -4923,17 +4917,26 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
                     onClick={(e) => e.stopPropagation()}
                     title="Ver no mapa"
                     aria-label="Ver no mapa"
-                    className="grid place-items-center size-5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                    className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                   >
-                    <Navigation className="size-3" />
+                    <Navigation className="size-3.5" />
                   </a>
                 )}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-    </>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
+        <span className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground">
+          Total · {count} {count === 1 ? "limpeza" : "limpezas"}
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="font-display text-[15px] font-bold tabular-nums">{centsToBRL(total)}</span>
+          <ScreenshotButton targetRef={screenshotRef} fileName={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-imoveis`} />
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -4975,11 +4978,35 @@ function StatDisplayCard({
      outros: ícone em caixinha, rótulo em caixa alta numa linha só, número
      CENTRALIZADO no meio do card e o que sobra (aviso, tendência) embaixo. É
      o que faz as três abas parecerem o mesmo produto. */
+  const [open, setOpen] = useState(false);
+  const clickable = !!breakdown && breakdown.length > 0 && !loading;
   return (
+    <>
+    {clickable && (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)]">
+          <DialogHeader className="px-5 pt-5 pb-0">
+            <div className="flex items-center gap-3">
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-foreground/[0.06] text-muted-foreground">
+                <Icon className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="font-display text-base leading-tight break-words">{label}</DialogTitle>
+                <div className="ds-meta mt-0.5">
+                  {value} · {breakdown!.length} {breakdown!.length === 1 ? "imóvel" : "imóveis"}
+                </div>
+              </div>
+            </div>
+          </DialogHeader>
+          <CleaningBreakdownContent label={label} breakdown={breakdown!} />
+        </DialogContent>
+      </Dialog>
+    )}
     <button
       type="button"
-      disabled
-      className="ds-3d flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left disabled:cursor-default"
+      disabled={!clickable}
+      onClick={() => setOpen(true)}
+      className="ds-3d flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition-colors enabled:hover:bg-secondary/40 disabled:cursor-default"
     >
       <div className="flex w-full min-w-0 items-center gap-1.5">
         <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
@@ -4991,13 +5018,7 @@ function StatDisplayCard({
         >
           {label}
         </span>
-        {breakdown && breakdown.length > 0 && (
-          <span className="shrink-0">
-            <InfoHint title={label}>
-              <CleaningBreakdownContent label={label} breakdown={breakdown} />
-            </InfoHint>
-          </span>
-        )}
+        {clickable && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
       </div>
       <div className="w-full pt-1.5 text-center font-display text-[26px] font-bold leading-none tracking-[-0.03em] tabular-nums sm:text-[30px]">
         {loading ? "—" : value}
@@ -5027,6 +5048,7 @@ function StatDisplayCard({
         </div>
       ) : null}
     </button>
+    </>
   );
 }
 
@@ -10176,6 +10198,9 @@ function ArrivalCard({
           card era aberto (`compact ? X : Y`); agora essa fileira usa sempre
           o valor de `compact`, independentemente do estado real do card. */}
       <div className="mt-auto flex flex-nowrap items-center gap-2">
+        {(mode === "cleaning" || mode === "done") && (
+          <CleaningProviderAvatar propertyId={row.propertyId} logId={row.logId} reservationId={row.reservationId} />
+        )}
         {mode === "done" ? (
           <span
             title="Esteira concluída"

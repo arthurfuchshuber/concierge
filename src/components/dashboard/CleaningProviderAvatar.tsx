@@ -1,0 +1,151 @@
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Check, RotateCcw, Search, UserPlus } from "lucide-react";
+import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { getCleaningProviderBoard, setCleaningAssignment } from "@/lib/cleaning-assign.functions";
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts[parts.length - 1][0] ?? "") : "")).toUpperCase();
+}
+
+export function useCleaningBoard() {
+  const fn = useServerFn(getCleaningProviderBoard);
+  return useQuery({ queryKey: ["cleaning-board"], queryFn: () => fn({ data: {} }), staleTime: 30_000 });
+}
+
+function Face({ name, url, size = 26 }: { name: string; url: string | null; size?: number }) {
+  return url ? (
+    <img src={url} alt={name} className="rounded-full object-cover" style={{ width: size, height: size }} />
+  ) : (
+    <span
+      className="grid place-items-center rounded-full bg-secondary text-[10px] font-bold text-foreground"
+      style={{ width: size, height: size }}
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
+/** Bolinha do responsável pela limpeza + troca pontual (só esta limpeza). */
+export function CleaningProviderAvatar({
+  propertyId,
+  logId,
+  reservationId,
+}: {
+  propertyId: string;
+  logId: string;
+  reservationId: string | null;
+}) {
+  const board = useCleaningBoard();
+  const qc = useQueryClient();
+  const setFn = useServerFn(setCleaningAssignment);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const realLog = /^[0-9a-f-]{36}$/i.test(logId) ? logId : null;
+  const resId = reservationId ?? (logId.startsWith("ical:") ? logId.slice(5) : null);
+
+  const b = board.data;
+  const assignedId = (resId && b?.assigned[`r:${resId}`]) || (realLog && b?.assigned[`l:${realLog}`]) || null;
+  const defaultId = b?.defaults[propertyId] ?? null;
+  const currentId = assignedId ?? defaultId;
+  const current = b?.providers.find((p) => p.id === currentId) ?? null;
+
+  const filtered = useMemo(() => {
+    const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+    return (b?.providers ?? []).filter((p) => norm(p.name).includes(norm(q)));
+  }, [b, q]);
+
+  const m = useMutation({
+    mutationFn: (providerId: string | null) =>
+      setFn({ data: { propertyId, logId: realLog, reservationId: resId, providerId } }),
+    onSuccess: () => {
+      setOpen(false);
+      void qc.invalidateQueries({ queryKey: ["cleaning-board"] });
+      toast.success("Responsável desta limpeza atualizado.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível direcionar."),
+  });
+
+  if (!realLog && !resId) return null;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          aria-label={current ? `Responsável: ${current.name}. Trocar` : "Atribuir prestador"}
+          title={current ? `Responsável: ${current.name}` : "Atribuir prestador"}
+          className="relative shrink-0 rounded-full ring-1 ring-border transition hover:ring-foreground/40"
+        >
+          {current ? (
+            <Face name={current.name} url={current.avatarUrl} />
+          ) : (
+            <span className="grid size-[26px] place-items-center rounded-full border border-dashed border-muted-foreground/50 text-muted-foreground">
+              <UserPlus className="size-3.5" />
+            </span>
+          )}
+          {assignedId && (
+            <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card bg-primary" />
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-72 max-w-[calc(100vw-2rem)] p-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="border-b border-border px-3 pb-2 pt-3">
+          <p className="font-display text-[13px] font-bold">Responsável por esta limpeza</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Vale só para esta limpeza.</p>
+          <div className="mt-2 flex h-8 items-center gap-1.5 rounded-[0.3rem] bg-secondary/60 px-2">
+            <Search className="size-3.5 text-muted-foreground" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar prestador"
+              className="min-w-0 flex-1 bg-transparent text-[12px] outline-none"
+            />
+          </div>
+        </div>
+        <ul className="sg-elegant-scroll max-h-64 overflow-y-auto p-1">
+          {filtered.length === 0 && (
+            <li className="px-2 py-4 text-center text-[12px] text-muted-foreground">Nenhum prestador encontrado.</li>
+          )}
+          {filtered.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                disabled={m.isPending}
+                onClick={() => m.mutate(p.id === defaultId ? null : p.id)}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-secondary/60"
+              >
+                <Face name={p.name} url={p.avatarUrl} size={24} />
+                <span className="min-w-0 flex-1 break-words text-[12.5px] font-semibold">{p.name}</span>
+                {p.id === defaultId && (
+                  <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[9.5px] font-bold uppercase text-muted-foreground">
+                    Padrão
+                  </span>
+                )}
+                {p.id === currentId && <Check className="size-3.5 shrink-0 text-primary" />}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {assignedId && (
+          <button
+            type="button"
+            disabled={m.isPending}
+            onClick={() => m.mutate(null)}
+            className="flex w-full items-center justify-center gap-1.5 border-t border-border py-2 text-[12px] font-semibold text-muted-foreground hover:text-foreground"
+          >
+            <RotateCcw className="size-3.5" /> Restaurar prestador padrão
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
