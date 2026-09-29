@@ -48,7 +48,7 @@ function Face({ name, url, size = 28 }: { name: string | null; url: string | nul
       style={{ minWidth: size, height: size, paddingInline: name ? 5 : 0 }}
     >
       {name ? (
-        <span className="block text-[14px] font-semibold leading-none tracking-[-0.02em] text-[var(--cleaning-soft)] [text-box:trim-both_cap_alphabetic]">{initials(name)}</span>
+        <span className="block text-[16px] font-semibold leading-none tracking-[-0.02em] text-[var(--cleaning-soft)] [text-box:trim-both_cap_alphabetic]">{initials(name)}</span>
       ) : (
         <BroomBucket className="size-3.5 text-[var(--cleaning-soft)]" />
       )}
