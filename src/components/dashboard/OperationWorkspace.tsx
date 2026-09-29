@@ -21,7 +21,7 @@ import {
   type CardStage,
 } from "@/components/dashboard/card-colors";
 import { ReservationJourneyDialog } from "@/components/dashboard/ReservationJourneyDialog";
-import { CleaningPriceDialog } from "@/components/dashboard/CleaningPriceDialog";
+import { CleaningPriceDialog, CleaningInlineEditor } from "@/components/dashboard/CleaningPriceDialog";
 import {
   ResponsiveContainer,
   BarChart,
@@ -241,22 +241,21 @@ function ExtraGuests({
   const [open, setOpen] = useState(false);
   if (!guests || guests.length === 0) return null;
   return (
-    <span className="relative inline-flex shrink-0">
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-        className="shrink-0 inline-flex items-center border-0 bg-transparent p-0 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
-        title={`${guests.length} outro(s) hóspede(s) nesta reserva`}
-      >
-        +{guests.length}
-      </button>
-      {open && (
-        <ul className="absolute left-0 top-full z-30 mt-1 min-w-[180px] space-y-0.5 rounded-lg border border-border/50 bg-popover px-2 py-1.5 shadow-lg">
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0 inline-flex items-center border-0 bg-transparent p-0 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
+          title={`${guests.length} outro(s) hóspede(s) nesta reserva`}
+        >
+          +{guests.length}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto min-w-[180px] max-w-[calc(100vw-32px)] p-2" onClick={(e) => e.stopPropagation()}>
+        <ul className="space-y-0.5">
           {guests.map((g) => (
-            <li key={g.logId} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <li key={g.logId} className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className="size-1 rounded-full bg-muted-foreground/60 shrink-0" />
               <span className="min-w-0 truncate" title={g.name}>
                 {g.name}
@@ -265,8 +264,8 @@ function ExtraGuests({
             </li>
           ))}
         </ul>
-      )}
-    </span>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -4904,8 +4903,12 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
                   visível — ela era o único ganho real do modo "Completo", e num
                   ranking é justamente o dado que ordena a lista. */}
               <span className="min-w-0 truncate">
-                <span className="text-muted-foreground">{item.ownerName ?? "Sem proprietário"}</span>
-                <span className="text-foreground/60"> · </span>
+                {item.ownerName && (
+                  <>
+                    <span className="text-muted-foreground">{ownerLabel(item.ownerName)}</span>
+                    <span className="text-foreground/60"> · </span>
+                  </>
+                )}
                 <span className="text-foreground">{item.propertyName}</span>
               </span>
               <span className="shrink-0 flex items-center gap-1.5">
@@ -5734,7 +5737,7 @@ export function TaskResolveDialog({
               {task?.ownerName && (
                 <span className="inline-flex max-w-full items-center gap-1 rounded-[0.3rem] border border-border/60 bg-secondary/40 px-2 py-1 text-[10.5px] text-muted-foreground">
                   <User className="size-3 shrink-0" />
-                  <span className="truncate text-foreground/80">{task.ownerName}</span>
+                  <span className="truncate text-foreground/80">{ownerLabel(task.ownerName)}</span>
                 </span>
               )}
             </div>
@@ -8355,7 +8358,7 @@ function OccupancyPanel({
                               >
                                 <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
                                   {p.ownerName ? (
-                                    <div className="truncate text-[9.5px] font-semibold uppercase tracking-wide text-accent/80">
+                                    <div className="truncate text-[10.5px] text-muted-foreground">
                                       {ownerLabel(p.ownerName)}
                                     </div>
                                   ) : null}
@@ -9680,6 +9683,12 @@ function ArrivalCard({
           "button, a, input, select, textarea, label, [role='button'], [role='checkbox'], [data-radix-popper-content-wrapper]",
         );
         if (interactive && interactive !== e.currentTarget) return;
+        // Cards em limpeza/concluídos: o toque abre a janela de detalhes
+        // editáveis (tipo, valor, previsão, histórico) — pedido 29/09/2026.
+        if ((mode === "cleaning" || mode === "done") && canOpenJourney) {
+          setJourneyOpen(true);
+          return;
+        }
         toggleOpenFull();
       }}
       /* MESMO RAIO DE CANTO DAS CÉLULAS DA LIMPEZA (mockup "mesmo ecossistema
@@ -9715,6 +9724,20 @@ function ArrivalCard({
           onOpenChange={setJourneyOpen}
           logId={journeyLogId}
           reservationId={journeyReservationId}
+          title={mode === "cleaning" || mode === "done" ? "Detalhes da limpeza" : undefined}
+          cleaningEditor={
+            mode === "cleaning" || mode === "done" ? (
+              <CleaningInlineEditor
+                row={row}
+                logId={journeyLogId}
+                reservationId={journeyReservationId}
+                onAdjust={() => setPriceOpen(true)}
+                onConclude={mode === "cleaning" ? () => { setJourneyOpen(false); onMark(row); } : undefined}
+                onSkip={mode === "cleaning" && onSkipCleaning ? () => { setJourneyOpen(false); onSkipCleaning(row); } : undefined}
+                onNote={() => { setJourneyOpen(false); setNoteOpen(true); }}
+              />
+            ) : undefined
+          }
           /* As DUAS previsões vão editáveis para o histórico (pedido
              explícito, 08/09/2026). Este é o único lugar do sistema que é
              por RESERVA e não por coluna — então é onde chegada e saída

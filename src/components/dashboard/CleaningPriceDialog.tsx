@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Banknote, CheckCircle2, Ban, StickyNote, Pencil } from "lucide-react";
+import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -41,6 +44,7 @@ export function CleaningPriceDialog({
   const [cents, setCents] = useState<number | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const qc = useQueryClient();
 
   useEffect(() => {
     if (!open) return;
@@ -69,6 +73,8 @@ export function CleaningPriceDialog({
     try {
       await save({ data: { logId, reservationId, cents, reason: reason.trim() || null } });
       toast.success("Valor da limpeza ajustado.");
+      qc.invalidateQueries({ queryKey: ["cleaning-price-info"] });
+      qc.invalidateQueries({ queryKey: ["reservation-journey"] });
       onSaved?.();
       onOpenChange(false);
     } catch (e) {
@@ -118,5 +124,80 @@ export function CleaningPriceDialog({
         </Button>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Bloco "Limpeza" dentro da janela de detalhes do card. */
+export function CleaningInlineEditor({
+  row,
+  logId,
+  reservationId,
+  onAdjust,
+  onConclude,
+  onSkip,
+  onNote,
+}: {
+  row: ArrivalRow;
+  logId: string | null;
+  reservationId: string | null;
+  onAdjust: () => void;
+  onConclude?: () => void;
+  onSkip?: () => void;
+  onNote: () => void;
+}) {
+  const getInfo = useServerFn(getCleaningPriceInfo);
+  const { data: info } = useQuery({
+    queryKey: ["cleaning-price-info", logId, reservationId],
+    queryFn: () => getInfo({ data: { logId, reservationId } }),
+    staleTime: 10_000,
+  });
+  const type = info?.cleaningType as "normal" | "completa" | null | undefined;
+  const standard = type === "completa" ? row.cleaningPriceFullCents : row.cleaningPriceNormalCents;
+  const value = info?.currentCents ?? standard;
+  return (
+    <div className="ds-surface divide-y divide-border/60 border border-border/60">
+      <div className="flex min-w-0 items-center justify-between gap-3 px-3 py-2">
+        <span className="text-[12px] text-muted-foreground">Tipo</span>
+        <span className="text-[12.5px] font-semibold">
+          {type === "completa" ? "Completa" : type === "normal" ? "Normal" : "A definir na conclusão"}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={onAdjust}
+        className="flex w-full min-w-0 items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-secondary/40"
+      >
+        <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
+          <Banknote className="size-3.5 shrink-0" /> Valor desta limpeza
+        </span>
+        <span className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] font-semibold tabular-nums">
+          {info?.adjusted && (
+            <span className="rounded-full border border-border/60 px-1.5 text-[9.5px] font-bold uppercase text-muted-foreground">
+              ajustado
+            </span>
+          )}
+          {brl(value)}
+          <Pencil className="size-3 text-muted-foreground" />
+        </span>
+      </button>
+      {info?.adjusted && info.reason && (
+        <p className="px-3 py-2 text-[11.5px] text-muted-foreground break-words">Motivo: {info.reason}</p>
+      )}
+      <div className="flex flex-wrap gap-2 px-3 py-2.5">
+        {onConclude && (
+          <Button type="button" size="sm" onClick={onConclude}>
+            <CheckCircle2 className="size-3.5" /> Concluir limpeza
+          </Button>
+        )}
+        <Button type="button" size="sm" variant="outline" onClick={onNote}>
+          <StickyNote className="size-3.5" /> Nota interna
+        </Button>
+        {onSkip && (
+          <Button type="button" size="sm" variant="outline" onClick={onSkip}>
+            <Ban className="size-3.5" /> Não será realizada
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }

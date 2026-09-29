@@ -73,6 +73,8 @@ export function ReservationJourneyDialog({
   logId,
   reservationId,
   predictionEditor,
+  cleaningEditor,
+  title = "Histórico da reserva",
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -89,6 +91,9 @@ export function ReservationJourneyDialog({
    * de gravação, que é a mesma regra que vale para as ações do assistente.
    */
   predictionEditor?: React.ReactNode;
+  /** Seção editável da limpeza (tipo, valor, ações) — cards em limpeza. */
+  cleaningEditor?: React.ReactNode;
+  title?: string;
 }) {
   const fn = useServerFn(getReservationJourney);
   const { data, isLoading, error } = useQuery({
@@ -105,13 +110,13 @@ export function ReservationJourneyDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-lg p-0 overflow-hidden">
-        <DialogTitle className="sr-only">Histórico da reserva</DialogTitle>
+        <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">
           A jornada completa desta reserva: chegada, estadia, saída, limpeza e conclusão.
         </DialogDescription>
 
         <div className="px-5 pt-5 pb-3">
-          <h2 className="ds-page-title min-w-0 truncate pr-9">Histórico da reserva</h2>
+          <h2 className="ds-page-title min-w-0 truncate pr-9">{title}</h2>
           <p className="ds-page-subtitle mt-1.5 truncate">
             {data?.guestName ?? (isLoading ? "Carregando…" : "Reserva")}
             {data?.reservationCode ? ` · ${data.reservationCode}` : ""}
@@ -139,6 +144,13 @@ export function ReservationJourneyDialog({
                   <div className={`text-xs ${periodColorClass({ kind: "checkin" })}`}>{periodo}</div>
                 )}
               </div>
+
+              {cleaningEditor && (
+                <div>
+                  <p className="ds-eyebrow mb-2 text-muted-foreground">Limpeza</p>
+                  {cleaningEditor}
+                </div>
+              )}
 
               {predictionEditor && (
                 <div>

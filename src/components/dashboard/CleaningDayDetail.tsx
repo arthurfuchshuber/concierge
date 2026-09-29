@@ -1,4 +1,6 @@
 import { X } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ownerLabel } from "@/components/dashboard/card-colors";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
 
 /**
@@ -64,11 +66,13 @@ const TD = "border-t border-border py-2 align-top text-[12px]";
 function PropertyCell({ name, owner }: { name: string; owner: string | null }) {
   return (
     <td className={`${TD} pr-2`}>
-      <span className="block max-w-[150px] truncate font-bold sm:max-w-[220px]" title={name}>
+      <span className="block break-words font-bold" title={name}>
         {name}
       </span>
-      {owner && (
-        <span className="mt-px block truncate text-[10.5px] font-bold text-accent">{owner}</span>
+      {ownerLabel(owner) && (
+        <span className="mt-px block truncate text-[11px] text-muted-foreground" title={owner ?? undefined}>
+          {ownerLabel(owner)}
+        </span>
       )}
     </td>
   );
@@ -79,7 +83,7 @@ function TypeLabel({ type, pending }: { type: "normal" | "completa" | null; pend
   return (
     <>
       <span
-        className={`block font-bold ${type === "completa" ? "text-violet-500 dark:text-violet-400" : "text-sky-500 dark:text-sky-400"}`}
+        className={`block font-semibold whitespace-nowrap ${type === "completa" ? "text-foreground" : "text-muted-foreground"}`}
       >
         {type === "completa" ? "Completa" : "Normal"}
       </span>
@@ -92,7 +96,21 @@ function TypeLabel({ type, pending }: { type: "normal" | "completa" | null; pend
   );
 }
 
-export function CleaningDayDetail({
+export function CleaningDayDetail(props: Parameters<typeof CleaningDayDetailContent>[0]) {
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) props.onClose(); }}>
+      <DialogContent
+        aria-label="Detalhe do dia"
+        className="w-[calc(100vw-2rem)] max-w-md gap-0 p-0 [&>button.absolute]:hidden"
+      >
+        <DialogTitle className="sr-only">Detalhe do dia</DialogTitle>
+        <CleaningDayDetailContent {...props} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function CleaningDayDetailContent({
   date,
   source,
   caretX,
@@ -104,6 +122,7 @@ export function CleaningDayDetail({
   caretX: number | null;
   onClose: () => void;
 }) {
+  void caretX;
   let subtitle = "";
   let body: React.ReactNode = null;
   let footer: React.ReactNode = null;
@@ -295,18 +314,7 @@ export function CleaningDayDetail({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-label={`Detalhe de ${dayTitle(date)}`}
-      className="relative mt-3 rounded-[0.6rem] border border-border bg-popover text-popover-foreground shadow-[0_24px_48px_-20px_rgba(0,0,0,0.6)] animate-in fade-in-0 zoom-in-95 duration-150"
-    >
-      {caretX != null && (
-        <span
-          aria-hidden
-          className="absolute -top-[6px] size-[10px] rotate-45 border-l border-t border-border bg-popover"
-          style={{ left: Math.max(12, caretX - 5) }}
-        />
-      )}
+    <div aria-label={`Detalhe de ${dayTitle(date)}`}>
       <div className="flex items-start justify-between gap-2.5 px-3.5 pb-2 pt-3">
         <div className="min-w-0">
           <p className="font-display text-[14px] font-bold">{dayTitle(date)}</p>
@@ -321,7 +329,7 @@ export function CleaningDayDetail({
           <X className="size-3.5" strokeWidth={2.2} />
         </button>
       </div>
-      {body && <div className="max-h-[320px] overflow-y-auto px-3.5 pt-1">{body}</div>}
+      {body && <div className="max-h-[60vh] overflow-y-auto px-3.5 pt-1">{body}</div>}
       {footer && (
         <div className="mt-0.5 flex items-baseline justify-between gap-3 border-t border-border px-3.5 pb-3 pt-2.5">
           {footer}
