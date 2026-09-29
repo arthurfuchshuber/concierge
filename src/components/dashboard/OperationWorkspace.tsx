@@ -43,7 +43,7 @@ import {
   type CleaningForecastItem,
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
-import { CleaningProviderAvatar } from "@/components/dashboard/CleaningProviderAvatar";
+import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import {
   Search,
   X,
@@ -958,6 +958,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // prestador vinculado ao imóvel (`providerName` de `getOccupancyBoard`,
   // ver `propertyProviderById`/`matchesKanbanOwnerCity` mais abaixo).
   const [providerFilters, setProviderFilters] = useState<string[]>([]);
+  const cleaningBoardQ = useCleaningBoard();
   // Filtro de Imóveis (pedido explícito, 26/09/2026) — ids, aba Limpeza.
   const [propertyFilters, setPropertyFilters] = useState<string[]>([]);
   // Busca da linha "buscar + ações" (Kanban/Limpeza) — zera ao trocar de aba.
@@ -1777,7 +1778,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         if (!city || !cityFilters.includes(city)) return false;
       }
       if (providerFilters.length > 0) {
-        const providerName = propertyProviderById.get(r.propertyId) ?? null;
+        const bd = cleaningBoardQ.data;
+        const resId = r.reservationId ?? (r.logId.startsWith("ical:") ? r.logId.slice(5) : null);
+        const assignedId = bd ? (resId && bd.assigned[`r:${resId}`]) || bd.assigned[`l:${r.logId}`] : null;
+        const assignedName = assignedId ? (bd?.providers.find((p) => p.id === assignedId)?.name ?? null) : null;
+        const providerName = assignedName ?? propertyProviderById.get(r.propertyId) ?? null;
         const matches = providerName
           ? providerFilters.includes(providerName)
           : providerFilters.includes(NO_PROVIDER_LABEL);
@@ -1796,7 +1801,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         return false;
       return true;
     },
-    [ownerFilters, cityFilters, providerFilters, propertyFilters, propertyCityById, propertyProviderById, opSearch],
+    [ownerFilters, cityFilters, providerFilters, propertyFilters, propertyCityById, propertyProviderById, opSearch, cleaningBoardQ.data],
   );
 
   /**
