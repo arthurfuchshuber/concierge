@@ -22,10 +22,45 @@ export const getMyProfile = createServerFn({ method: "GET" })
     ]);
     if (error) throw new Error(error.message);
     if (authError) throw new Error("Não foi possível carregar os dados de acesso desta conta.");
+    // Titular de empresa = quem não entrou apenas como membro de outra conta
+    // (ou já possui imóveis/assinatura próprios). Telefone é obrigatório p/ ele.
+    let isAccountOwner = false;
+    if (ownerId === userId) {
+      const [{ count: props }, { count: subs }, { count: memberships }] = await Promise.all([
+        supabaseAdmin.from("properties").select("id", { count: "exact", head: true }).eq("owner_id", userId),
+        supabaseAdmin.from("subscriptions").select("id", { count: "exact", head: true }).eq("user_id", userId),
+        supabaseAdmin
+          .from("account_members")
+          .select("id", { count: "exact", head: true })
+          .eq("member_user_id", userId)
+          .neq("status", "revoked"),
+      ]);
+      isAccountOwner = (props ?? 0) > 0 || (subs ?? 0) > 0 || (memberships ?? 0) === 0;
+    }
     return {
       profile: profile ?? null,
       email: authUser.user?.email ?? null,
+      isAccountOwner,
     };
+  });
+
+export const setMyPhone = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        phone: z.string().trim().regex(/^\d{10,15}$/, "Telefone inválido"),
+        phone_country: z.string().trim().max(8).default("BR"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("profiles")
+      .update({ phone: data.phone, phone_country: data.phone_country })
+      .eq("id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const updateMyProfile = createServerFn({ method: "POST" })
