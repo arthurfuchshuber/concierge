@@ -439,7 +439,16 @@ export function GuideAiChat({
       if (opts.durationMs != null) form.append("durationMs", String(opts.durationMs));
       const file = new File([blob], opts.filename, { type: opts.mime });
       form.append("file", file);
-      const res = await fetch("/api/public/guide-chat-upload", { method: "POST", body: form });
+      const { ensureGuidePass } = await import("@/lib/guest-pass-client");
+      const uPass = await ensureGuidePass(slug, {
+        name: isPreviewMode() ? PREVIEW_GUEST_NAME : (guestName ?? readAccessRecord(slug)?.name ?? null),
+        code: readAccessRecord(slug)?.code ?? null,
+      });
+      const res = await fetch("/api/public/guide-chat-upload", {
+        method: "POST",
+        body: form,
+        headers: uPass ? { "x-guest-pass": uPass } : {},
+      });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j?.error ?? "Falha ao enviar anexo.");
