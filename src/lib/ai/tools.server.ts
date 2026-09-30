@@ -13,6 +13,36 @@ type Admin = SupabaseClient;
 
 const MAPS_GATEWAY = "https://connector-gateway.lovable.dev/google_maps";
 
+type LatLng = { lat: number; lng: number };
+
+function homeCoords(property: Record<string, unknown>): LatLng | null {
+  const lat = property.lat != null ? Number(property.lat) : NaN;
+  const lng = property.lng != null ? Number(property.lng) : NaN;
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+}
+
+function metersBetween(a: LatLng, b: LatLng): number {
+  const R = 6371000;
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(h)));
+}
+
+/** Distância pronta para a IA citar: metros, texto, minutos a pé e se dá para ir a pé. */
+function distanceInfo(m: number | null) {
+  if (m == null || !Number.isFinite(m) || m <= 0) return {};
+  const texto = m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1).replace(".", ",")} km`;
+  return {
+    distancia_m: m,
+    distancia_texto: texto,
+    minutos_a_pe: Math.max(1, Math.round(m / 80)),
+    da_para_ir_a_pe: m <= 1200,
+  };
+}
+
 /** Busca a primeira foto real (Google Places) de um lugar pelo nome — mesmo
  * padrão usado no city-news, reaproveitado aqui pra ilustrar recomendações
  * no chat. Limitado a poucos lugares por chamada (custo/latência). */
