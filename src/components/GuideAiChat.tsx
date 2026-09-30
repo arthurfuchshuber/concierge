@@ -1238,11 +1238,11 @@ export function GuideAiChat({
               <button
                 type="button"
                 onClick={() => void send()}
-                disabled={loading || uploading}
+                disabled={uploading}
                 aria-label="Enviar"
                 className="grid size-8 shrink-0 place-items-center rounded-full bg-emerald-600 text-white transition-all hover:bg-emerald-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" strokeWidth={2} />}
+                {<Send className="size-4" strokeWidth={2} />}
               </button>
             ) : transcribing ? (
               <span className="grid size-8 shrink-0 place-items-center text-zinc-500">
