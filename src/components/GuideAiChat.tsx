@@ -556,14 +556,50 @@ export function GuideAiChat({
     }
   }
 
-  async function send(overrideText?: string) {
+  /* VÁRIAS MENSAGENS = UMA RESPOSTA (30/09/2026).
+   * Cada mensagem aparece na hora, mas a IA espera ~2,5s de silêncio antes
+   * de responder e junta tudo o que chegou nesse intervalo. Se o hóspede
+   * escrever enquanto a IA ainda responde, as novas mensagens entram juntas
+   * no próximo turno. */
+  const pendingTextsRef = useRef<string[]>([]);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messagesRef = useRef<Msg[]>(messages);
+  messagesRef.current = messages;
+  const loadingRef = useRef(false);
+  loadingRef.current = loading;
+  const CONSOLIDATE_MS = 2500;
+
+  function scheduleFlush(delay = CONSOLIDATE_MS) {
+    if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+    flushTimerRef.current = setTimeout(() => {
+      flushTimerRef.current = null;
+      if (loadingRef.current || pendingTextsRef.current.length === 0) return;
+      const combined = pendingTextsRef.current.join("\n");
+      pendingTextsRef.current = [];
+      void runTurn(combined);
+    }, delay);
+  }
+  useEffect(() => () => {
+    if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+  }, []);
+
+  function send(overrideText?: string) {
     const text = (overrideText ?? input).trim();
-    if (!text || loading) return;
-    const next = [...messages, { role: "user" as const, content: text }];
-    const forceAi = forceAiNextRef.current;
-    forceAiNextRef.current = false;
+    if (!text) return;
+    const next = [...messagesRef.current, { role: "user" as const, content: text }];
+    messagesRef.current = next;
     setMessages(next);
     setInput("");
+    pendingTextsRef.current.push(text);
+    // Atalhos (botões de sugestão) respondem sem esperar.
+    if (!loadingRef.current) scheduleFlush(overrideText ? 0 : CONSOLIDATE_MS);
+  }
+
+  async function runTurn(text: string) {
+    const next = messagesRef.current;
+    const forceAi = forceAiNextRef.current;
+    forceAiNextRef.current = false;
+    loadingRef.current = true;
     setLoading(true);
     setStageLabel("Recebi sua mensagem");
     setStreamingText("");
@@ -699,8 +735,10 @@ export function GuideAiChat({
     } finally {
       setStageLabel(null);
       setStreamingText("");
+      loadingRef.current = false;
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 30);
+      if (pendingTextsRef.current.length) scheduleFlush(600);
     }
   }
 
