@@ -604,7 +604,10 @@ export function GuideAiChat({
     setStageLabel("Recebi sua mensagem");
     setStreamingText("");
 
-    const finishWith = (updated: Msg[], convId?: string) => {
+    const finishWith = (base: Msg[], convId?: string) => {
+      // Mantém as mensagens que o hóspede mandou enquanto a IA respondia.
+      const updated = [...base, ...messagesRef.current.slice(next.length)];
+      messagesRef.current = updated;
       setMessages(updated);
       saveCachedMessages(slug, convId ?? conversationId, updated);
     };
