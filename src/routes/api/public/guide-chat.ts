@@ -74,6 +74,7 @@ type StageEvent = { step: string; label: string };
 async function runGuideChat(
   body: z.infer<typeof Body>,
   emitStage: (stage: StageEvent) => void,
+  emitDraft?: (text: string) => void,
 ): Promise<Response> {
   {
     const apiKey = process.env.LOVABLE_API_KEY;
@@ -351,6 +352,7 @@ async function runGuideChat(
     try {
       result = await runHospitalityAgent({
         onStage: emitStage,
+        onDraft: emitDraft,
         supabase: supabaseAdmin as SupabaseClient,
         property: agentProperty,
         conversationId,
@@ -566,8 +568,17 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             };
             send({ type: "stage", step: "start", label: "Recebi sua mensagem" });
             try {
-              const res = await runGuideChat(body, (stage) =>
-                send({ type: "stage", step: stage.step, label: stage.label }),
+              let drafted = false;
+              const res = await runGuideChat(
+                body,
+                (stage) => send({ type: "stage", step: stage.step, label: stage.label }),
+                // Resposta aparecendo enquanto é escrita (30/09/2026). O
+                // rascunho só sai quando as senhas não estão travadas; o texto
+                // validado chega em "done" e substitui o rascunho.
+                (text) => {
+                  drafted = true;
+                  send({ type: "draft", text });
+                },
               );
               const payload = (await res.json().catch(() => ({}))) as {
                 reply?: string;
@@ -584,7 +595,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
                 });
               } else {
                 const reply = payload.reply ?? "";
-                if (reply) {
+                if (reply && !drafted) {
                   send({ type: "reply_start", conversationId: payload.conversationId ?? null });
                   /**
                    * A revelação em pedaços é ENFEITE, e enfeite não pode cobrar
