@@ -154,6 +154,12 @@ export async function runHospitalityAgent(params: {
   /** Progresso em tempo real do pipeline (streaming para a UI do hóspede). */
   onStage?: (stage: { step: string; label: string }) => void;
   /**
+   * Rascunho da resposta enquanto o modelo escreve (30/09/2026). Só é usado
+   * quando as senhas NÃO estão travadas; a resposta validada chega no fim e
+   * substitui o rascunho.
+   */
+  onDraft?: (text: string) => void;
+  /**
    * Trava as senhas/códigos do imóvel para ESTA conversa, mesmo sem PIN de
    * visualização configurado (16/09/2026). O chat do guia liga isto quando o
    * visitante não provou a reserva — antes, qualquer pessoa com o link (ou a
@@ -591,6 +597,21 @@ export async function runHospitalityAgent(params: {
       // chamada paga. Uma pergunta difícil continua com o teto inteiro.
       maxSteps: Math.min(agent.maxSteps, maxStepsFor(effort)),
       reasoningEffort: effort,
+      onTextDelta:
+        params.onDraft && !credentialsLocked
+          ? (() => {
+              let step = -1;
+              let acc = "";
+              return (d: string, s: number) => {
+                if (s !== step) {
+                  step = s;
+                  acc = "";
+                }
+                acc += d;
+                params.onDraft?.(acc);
+              };
+            })()
+          : undefined,
     });
 
     usage = mergeUsage(usage, run.usage);

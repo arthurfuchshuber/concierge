@@ -643,6 +643,10 @@ export function GuideAiChat({
           } else if (type === "reply_start") {
             setStageLabel(null);
             if (evt.conversationId) convId = String(evt.conversationId);
+          } else if (type === "draft") {
+            setStageLabel(null);
+            acc = String(evt.text ?? "");
+            setStreamingText(acc);
           } else if (type === "delta") {
             acc += String(evt.text ?? "");
             setStreamingText(acc);
