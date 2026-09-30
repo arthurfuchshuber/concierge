@@ -347,7 +347,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       const filter = typeof args.categoria === "string" ? args.categoria.toLowerCase() : null;
       const { data: recs } = await ctx.supabase
         .from("property_recommendations")
-        .select("name, category, type, distance_text, note")
+        .select("name, category, type, distance_text, distance_meters, note")
         .eq("property_id", ctx.propertyId)
         .limit(60);
 
@@ -366,7 +366,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       const groupId = (membership as { group_id: string } | null)?.group_id ?? null;
       let cityQ = ctx.supabase
         .from("city_references")
-        .select("name, category, type, note")
+        .select("name, category, type, note, lat, lng")
         .eq("is_hidden", false)
         .order("user_ratings_total", { ascending: false })
         .limit(80);
@@ -379,10 +379,28 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         !filter ||
         `${row.category ?? ""} ${row.type ?? ""} ${row.name ?? ""}`.toLowerCase().includes(filter);
 
-      const proximas = (recs ?? []).filter(matches).slice(0, 25);
+      // Distância real até a casa (30/09/2026): antes a IA recebia só o
+      // nome e respondia "não consegui confirmar a distância".
+      const home = homeCoords(ctx.property);
+      const proximas = ((recs ?? []) as Array<Record<string, unknown>>)
+        .filter(matches)
+        .slice(0, 25)
+        .map((r) => {
+          const { distance_meters, ...rest } = r;
+          return { ...rest, ...distanceInfo(distance_meters != null ? Number(distance_meters) : null) };
+        });
       const cidade = ((cityRefs ?? []) as Array<Record<string, unknown>>)
         .filter(matches)
-        .slice(0, 30);
+        .slice(0, 30)
+        .map((r) => {
+          const { lat, lng, ...rest } = r;
+          const m =
+            home && lat != null && lng != null
+              ? metersBetween(home, { lat: Number(lat), lng: Number(lng) })
+              : null;
+          return { ...rest, ...distanceInfo(m) };
+        });
+
 
       // Ilustra só os primeiros de cada grupo com foto real — o resto fica
       // sem foto (a IA não perde a lista, só não teria como decidir quais
