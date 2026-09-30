@@ -447,8 +447,8 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         return [...enriched, ...rows.slice(limit)];
       };
       const [proximasComFoto, cidadeComFoto] = await Promise.all([
-        withPhotos(proximas, 4),
-        withPhotos(cidade, 4),
+        withPhotos(proximas as Array<{ name?: unknown } & Record<string, unknown>>, 4),
+        withPhotos(cidade as Array<{ name?: unknown } & Record<string, unknown>>, 4),
       ]);
 
       if (proximas.length)
