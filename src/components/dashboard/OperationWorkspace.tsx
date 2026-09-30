@@ -2095,6 +2095,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         trendLoading: pv.trendLoading,
         daily: pv.daily as CleaningDailyPoint[],
         breakdown: pv.breakdown,
+        detailItems: pv.kind === "past" ? cleaningTrendData?.items : undefined,
         // Verde = realizado, laranja fraco = previsto; as duas só quando o
         // período cruza hoje.
         series: (pv.kind === "mixed" ? "split" : pv.kind === "future" ? "forecast" : "done") as CleaningSeries,
@@ -2122,6 +2123,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       trendLoading: past ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading,
       daily: past ? cleaningTrendData?.daily : cleaningForecast.daily,
       breakdown: past ? cleaningTrendData?.breakdown : cleaningForecast.breakdown,
+      detailItems: past ? cleaningTrendData?.items : undefined,
       series: (past ? "done" : "forecast") as CleaningSeries,
       forecastOnly: !past,
       barTitle: past ? "Limpezas por dia" : "Limpezas previstas por dia",
