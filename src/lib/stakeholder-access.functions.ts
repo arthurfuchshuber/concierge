@@ -94,6 +94,8 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "equipe.write", { tenantId: ownerId });
+    const { requireOutboundEmailAuthority } = await import("@/lib/outbound-email-guard.server");
+    await requireOutboundEmailAuthority(supabase, userId, ownerId);
 
     const { resolveUserPlan } = await import("@/lib/plan-guard.server");
     const plan = await resolveUserPlan(supabase, ownerId);
