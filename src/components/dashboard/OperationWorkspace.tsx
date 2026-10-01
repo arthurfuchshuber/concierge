@@ -45,8 +45,11 @@ import {
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
+<<<<<<< HEAD
 import { PropertyMapsButton } from "@/components/dashboard/PropertyMapsButton";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
+=======
+>>>>>>> 004dae8d6647de545b421f30913e8f0f75282eee
 import {
   Search,
   X,
