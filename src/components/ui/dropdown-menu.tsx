@@ -100,7 +100,7 @@ const DropdownMenuContent = React.forwardRef<
         // continuar nítido POR CIMA do véu que agora também cobre o
         // conteúdo do Dialog (antes o véu ficava em z-40, abaixo do Dialog,
         // e nunca aparecia nesse caso).
-        "sg-elegant-scroll z-[60] max-h-[min(75dvh,var(--radix-dropdown-menu-content-available-height))] min-w-[8rem] overflow-y-auto overflow-x-hidden ds-overlay max-w-[calc(100vw-32px)] p-1 ",
+        "sg-elegant-scroll overscroll-contain z-[60] max-h-[min(75dvh,var(--radix-dropdown-menu-content-available-height))] min-w-[8rem] overflow-y-auto overflow-x-hidden ds-overlay max-w-[calc(100vw-32px)] p-1 ",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-dropdown-menu-content-transform-origin)",
         className,
       )}

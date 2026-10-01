@@ -335,6 +335,7 @@ async function runGuideChat(
         host_phone: "+55 (00) 00000-0000",
         address: "Endereço enviado ao hóspede no dia da chegada",
         address_note: null,
+        in_condominium: false,
         maps_url: null,
         garage_maps_url: null,
         lat: null,

@@ -3,6 +3,7 @@
  * Transforma o guia digital, manual, FAQs, regras, recomendações e a base do
  * anfitrião em chunks pesquisáveis por similaridade e por texto.
  */
+import { complementLine, type LocationComplementInput } from "@/lib/property-location";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { embedTexts, EMPTY_USAGE, mergeUsage, type Usage } from "./gateway.server";
 import { confidenceOf } from "./sources";
@@ -78,6 +79,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     ["País", prop.country],
     ["Endereço", prop.address],
     ["Como chegar", prop.address_note],
+    ["Local dentro do prédio", complementLine(prop as LocationComplementInput)],
     ["Localização no mapa", prop.maps_url],
     ["Garagem / estacionamento", prop.garage_maps_url],
     ["Horário de check-in", prop.checkin_time],

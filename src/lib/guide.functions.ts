@@ -44,7 +44,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // First fetch only access-control + display fields (no credentials, no pin_code).
     let baseQuery = supabaseAdmin
       .from("properties")
-      .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,state,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_label,gate_instructions,gate_media,gate_video_url,lock_label,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,collect_arrival_time,collect_vehicles,vehicles_max,collect_document,document_scope,published,created_at,updated_at,airbnb_ical_url")
+      .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,state,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,in_condominium,apartment_number,apartment_floor,parking_spots,has_elevator,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_label,gate_instructions,gate_media,gate_video_url,lock_label,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,collect_arrival_time,collect_vehicles,vehicles_max,collect_document,document_scope,published,created_at,updated_at,airbnb_ical_url")
       .eq("slug", data.slug);
     if (!isPreview) baseQuery = baseQuery.eq("published", true);
     const { data: prop, error } = await baseQuery.maybeSingle();
@@ -201,6 +201,8 @@ export const getPublicGuide = createServerFn({ method: "POST" })
       };
       demoProp["address"] = "Endereço enviado ao hóspede no dia da chegada";
       demoProp["address_note"] = null;
+      // Vitrine: o endereço real não sai, então o complemento (apto, andar, vagas) também não.
+      demoProp["in_condominium"] = false;
       demoProp["maps_url"] = null;
       demoProp["garage_maps_url"] = null;
       demoProp["lat"] = null;

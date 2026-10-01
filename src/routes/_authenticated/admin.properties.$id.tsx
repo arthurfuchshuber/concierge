@@ -161,6 +161,8 @@ import {
 } from "@/components/dashboard/panel-chrome";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { PropertyMapsButton } from "@/components/dashboard/PropertyMapsButton";
+import { ElevatorSegment, ParkingSpotsInput } from "@/components/editor/CondominiumInputs";
+import { normalizeParkingSpots } from "@/lib/property-location";
 import { AirbnbLockedValue, AirbnbLockReason, ADDRESS_LOCK_REASON } from "@/components/editor/AirbnbLockedField";
 import { SectionTopLineBar, type SectionTopLine } from "@/components/editor/Section";
 import { Smartphone, Monitor } from "lucide-react";
@@ -221,6 +223,12 @@ type FormState = {
     address: string;
     maps_url: string;
     garage_maps_url: string;
+    // Local dentro do prédio (01/10/2026) — só valem com `in_condominium` ligado.
+    in_condominium: boolean;
+    apartment_number: string;
+    apartment_floor: string;
+    parking_spots: string[];
+    has_elevator: boolean | null;
     lat: number | null;
     lng: number | null;
     city: string;
@@ -326,6 +334,11 @@ function emptyForm(): FormState {
       address: "",
       maps_url: "",
       garage_maps_url: "",
+      in_condominium: false,
+      apartment_number: "",
+      apartment_floor: "",
+      parking_spots: [],
+      has_elevator: null,
       lat: null,
       lng: null,
       city: "",
@@ -793,6 +806,13 @@ function PropertyEditor() {
       address: (p.address as string) ?? "",
       maps_url: (p.maps_url as string) ?? "",
       garage_maps_url: ((p as Record<string, unknown>).garage_maps_url as string) ?? "",
+      in_condominium: ((p as Record<string, unknown>).in_condominium as boolean | null) === true,
+      apartment_number: ((p as Record<string, unknown>).apartment_number as string | null) ?? "",
+      apartment_floor: ((p as Record<string, unknown>).apartment_floor as string | null) ?? "",
+      parking_spots: Array.isArray((p as Record<string, unknown>).parking_spots)
+        ? ((p as Record<string, unknown>).parking_spots as unknown[]).filter((v): v is string => typeof v === "string")
+        : [],
+      has_elevator: ((p as Record<string, unknown>).has_elevator as boolean | null) ?? null,
       lat: (p.lat as number) ?? null,
       lng: (p.lng as number) ?? null,
       city: (p.city as string) ?? "",
@@ -1503,6 +1523,13 @@ function PropertyEditor() {
           address: propertySource.address || null,
           maps_url: propertySource.maps_url || null,
           garage_maps_url: propertySource.garage_maps_url || null,
+          // Desligar o condomínio NÃO apaga os valores: ficam guardados e
+          // voltam se a chave for religada (decisão do cliente, 01/10/2026).
+          in_condominium: propertySource.in_condominium,
+          apartment_number: propertySource.apartment_number.trim() || null,
+          apartment_floor: propertySource.apartment_floor.trim() || null,
+          parking_spots: normalizeParkingSpots(propertySource.parking_spots),
+          has_elevator: propertySource.has_elevator,
           city: propertySource.city || null,
           state: propertySource.state || null,
           country: propertySource.country || null,
@@ -2109,6 +2136,54 @@ function PropertyEditor() {
             reason={ADDRESS_LOCK_REASON}
           />
         </Field>
+      </div>
+      {/* CONDOMÍNIO? (mockup "Local dentro do prédio", aprovado 01/10/2026):
+          a chave liga os quatro campos; desligada eles somem daqui e de todo
+          lugar onde o complemento do endereço aparece, mas o que já foi
+          preenchido fica guardado. */}
+      <div>
+        <PanelHeading
+          title="Condomínio?"
+          right={
+            <Switch
+              checked={form.property.in_condominium}
+              onCheckedChange={(v) => update("in_condominium", v)}
+              aria-label="Condomínio"
+            />
+          }
+        />
+        {form.property.in_condominium && (
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nº do apartamento">
+                <Input
+                  value={form.property.apartment_number}
+                  maxLength={40}
+                  onChange={(e) => update("apartment_number", e.target.value)}
+                />
+              </Field>
+              <Field label="Andar">
+                <Input
+                  value={form.property.apartment_floor}
+                  maxLength={40}
+                  onChange={(e) => update("apartment_floor", e.target.value)}
+                />
+              </Field>
+            </div>
+            <Field label="Vaga de garagem">
+              <ParkingSpotsInput
+                value={form.property.parking_spots}
+                onChange={(next) => update("parking_spots", next)}
+              />
+            </Field>
+            <Field label="Elevador">
+              <ElevatorSegment
+                value={form.property.has_elevator}
+                onChange={(v) => update("has_elevator", v)}
+              />
+            </Field>
+          </div>
+        )}
       </div>
       <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
         <Textarea
@@ -2769,6 +2844,7 @@ function PropertyEditor() {
                         propertyAddress={propertyAddressLine}
                         mapsUrl={form.property.maps_url || null}
                         garageMapsUrl={form.property.garage_maps_url || null}
+                        complement={form.property}
                         trigger={
                           <button
                             type="button"

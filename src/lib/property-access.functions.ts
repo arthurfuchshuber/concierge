@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import type { LocationComplementInput } from "@/lib/property-location";
 
 /**
  * ACESSO DO IMÓVEL PARA A EQUIPE DE LIMPEZA (mockup "Chave de acesso no card
@@ -55,6 +56,12 @@ export type PropertyAccessInfo = {
   wifiSsid: string | null;
   wifiPassword: string | null;
   provider: { name: string; phone: string | null; phoneCountry: string | null } | null;
+  /** Passo a passo de CHEGADA (o mesmo do guia) — texto pode ter `[[tag:senhas-acesso]]`. */
+  checkinInstructions: string | null;
+  checkinNote: string | null;
+  checkinMedia: AccessMedia[];
+  /** "Local dentro do prédio" (01/10/2026) — só vale com `in_condominium` ligado. */
+  complement: LocationComplementInput;
 };
 
 const clean = (v: string | null | undefined) => {
@@ -84,7 +91,7 @@ export const getPropertyAccessInfo = createServerFn({ method: "POST" })
     const { data: p, error } = await sb
       .from("properties")
       .select(
-        "owner_id, gate_code, gate_instructions, gate_label, gate_video_url, gate_media, lock_code, lock_instructions, lock_label, lock_video_url, lock_media, wifi_ssid, wifi_password",
+        "owner_id, gate_code, gate_instructions, gate_label, gate_video_url, gate_media, lock_code, lock_instructions, lock_label, lock_video_url, lock_media, wifi_ssid, wifi_password, checkin_instructions, checkin_note, checkin_media, in_condominium, apartment_number, apartment_floor, parking_spots, has_elevator",
       )
       .eq("id", data.propertyId)
       .maybeSingle();
@@ -121,5 +128,15 @@ export const getPropertyAccessInfo = createServerFn({ method: "POST" })
       wifiSsid: clean(p.wifi_ssid),
       wifiPassword: clean(p.wifi_password),
       provider,
+      checkinInstructions: clean(p.checkin_instructions),
+      checkinNote: clean(p.checkin_note),
+      checkinMedia: toMedia(p.checkin_media),
+      complement: {
+        in_condominium: p.in_condominium,
+        apartment_number: p.apartment_number,
+        apartment_floor: p.apartment_floor,
+        parking_spots: p.parking_spots,
+        has_elevator: p.has_elevator,
+      },
     };
   });

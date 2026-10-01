@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Section, SectionGroup, type SectionIcon } from "@/components/editor/Section";
 import { MoneyInput } from "@/components/ui/money-input";
+import { ElevatorSegment, ParkingSpotsInput } from "@/components/editor/CondominiumInputs";
 import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
 import {
   Loader2, Plus, Trash2, MapPinned, ClipboardCheck, BookOpen, UserRound, Shield,
@@ -57,6 +58,7 @@ type FieldKey =
   | "host_name" | "host_phone"
   | "brand_name" | "brand_logo_url" | "guide_theme" | "house_rules"
   | "address" | "maps_url" | "garage_maps_url" | "city" | "state" | "country"
+  | "in_condominium" | "apartment_number" | "apartment_floor" | "parking_spots" | "has_elevator"
   | "default_language" | "published"
   | "access_mode" | "pin_code" | "require_access_gate"
   | "collect_arrival_time" | "collect_vehicles" | "vehicles_max"
@@ -67,7 +69,10 @@ type FieldKey =
 
 type FieldKind =
   | "text" | "textarea" | "theme" | "language" | "access_mode" | "boolean" | "collect" | "docscope" | "number"
-  | "select_owner" | "select_property_type" | "money" | "duration";
+  | "select_owner" | "select_property_type" | "money" | "duration"
+  // "Local dentro do prédio" (01/10/2026): vagas = lista (no estado, uma por
+  // linha) e elevador = Tem / Não tem / não informado (true | false | null).
+  | "spots" | "elevator";
 type FieldDef = { key: FieldKey; label: string; kind: FieldKind; placeholder?: string };
 
 type ListKey = "manual" | "checkout" | "emergency" | "faqs" | "property_details";
@@ -128,6 +133,14 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
           { key: "city", label: "Cidade", kind: "text" },
           { key: "country", label: "País", kind: "text" },
           { key: "address_note", label: "Observação sobre o endereço", kind: "textarea" },
+          // Grupo "Condomínio?" (01/10/2026): a chave liga/desliga e os demais
+          // só aparecem com ela ligada (ver isFieldVisible). Desligar NÃO apaga
+          // os valores guardados — só o que for editado aqui é gravado.
+          { key: "in_condominium", label: "Condomínio?", kind: "boolean" },
+          { key: "apartment_number", label: "Nº do apartamento", kind: "text", placeholder: "302" },
+          { key: "apartment_floor", label: "Andar", kind: "text", placeholder: "3" },
+          { key: "parking_spots", label: "Vaga de garagem", kind: "spots", placeholder: "14" },
+          { key: "has_elevator", label: "Elevador", kind: "elevator" },
         ],
       },
       {
@@ -321,10 +334,14 @@ function buildInitialState(d: FetchData): State {
     for (const p of d.properties) {
       const raw = (p as Record<string, unknown>)[f.key];
       if (raw === null || raw === undefined || raw === "") continue;
+      if (Array.isArray(raw) && raw.length === 0) continue;
       if (f.kind === "boolean" && raw === false) continue;
       filled += 1;
       distinct.add(String(raw));
-      if (sample === undefined) sample = raw as string | boolean | number;
+      if (sample === undefined) {
+        // Vagas vêm como lista; no estado do popup viram uma por linha.
+        sample = Array.isArray(raw) ? raw.join("\n") : (raw as string | boolean | number);
+      }
     }
     if (filled === 0) continue;
     // Valores divergentes entre os guias: mostramos o campo vazio (ou nulo,
@@ -334,7 +351,7 @@ function buildInitialState(d: FetchData): State {
       ? (sample as string | boolean | number)
       : f.kind === "boolean" ? false
       : f.kind === "number" ? 0
-      : f.kind === "money" || f.kind === "duration" ? null
+      : f.kind === "money" || f.kind === "duration" || f.kind === "elevator" ? null
       : "";
   }
   const listsEnabled: State["listsEnabled"] = { manual: true, emergency: true, faqs: true, checkout: true, property_details: true };
@@ -523,7 +540,7 @@ export function BulkEditDialog({
       for (const [key, v] of Object.entries(p as Record<string, unknown>)) {
         let e = map.get(key);
         if (!e) { e = { filled: 0, empty: 0, distinct: [] }; map.set(key, e); }
-        if (v === null || v === undefined || v === "") e.empty += 1;
+        if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0)) e.empty += 1;
         else {
           e.filled += 1;
           const s = String(v);
@@ -570,6 +587,12 @@ export function BulkEditDialog({
     // preço combinado ainda) — ao contrário de "number", aqui vazio vira
     // null de verdade, não 0.
     if (f.kind === "money" || f.kind === "duration") return typeof v === "number" ? v : null;
+    // Elevador: "não informado" é um estado válido (null), diferente de "Não tem".
+    if (f.kind === "elevator") return typeof v === "boolean" ? v : null;
+    // Vagas: uma por linha no estado → lista limpa (o servidor normaliza de novo).
+    if (f.kind === "spots") {
+      return String(v ?? "").split("\n").map((x) => x.trim()).filter(Boolean);
+    }
     return v === undefined || v === null ? "" : v;
   }
 
@@ -722,6 +745,10 @@ export function BulkEditDialog({
     const on = (v: unknown) => v === "optional" || v === "required";
     if (key === "vehicles_max") return on(state.values.collect_vehicles);
     if (key === "document_scope") return on(state.values.collect_document);
+    // Campos do prédio só aparecem com "Condomínio?" ligado.
+    if (key === "apartment_number" || key === "apartment_floor" || key === "parking_spots" || key === "has_elevator") {
+      return state.values.in_condominium === true;
+    }
     return true;
   }
 
@@ -1097,6 +1124,20 @@ function renderField(
         <span className="text-xs text-muted-foreground">{value ? "Sim" : "Não"}</span>
       </div>
     );
+  }
+  if (f.kind === "spots") {
+    const list = typeof value === "string" && value !== "" ? value.split("\n") : [];
+    return (
+      <ParkingSpotsInput
+        value={list}
+        placeholder={f.placeholder}
+        idPrefix="bulk-parking-spot"
+        onChange={(next) => onChange(next.join("\n"))}
+      />
+    );
+  }
+  if (f.kind === "elevator") {
+    return <ElevatorSegment value={typeof value === "boolean" ? value : null} onChange={(v) => onChange(v)} />;
   }
   if (f.kind === "number") {
     return <Input type="number" min={0} max={10} value={(value as number | undefined) ?? ""} onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)} className="h-9 rounded-[0.3rem] text-[13px]" />;

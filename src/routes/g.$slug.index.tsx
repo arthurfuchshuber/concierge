@@ -80,6 +80,9 @@ import {
   PlayCircle,
   ListOrdered,
   Loader2,
+  ArrowUpDown,
+  Building2,
+  Layers,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GuideAiChat } from "@/components/GuideAiChat";
@@ -109,6 +112,7 @@ import {
 } from "@/components/GuideAccessGate";
 import { InlineTagText } from "@/components/tags/InlineTagText";
 import { slugForTag, expandInfoTags, type GuideTagKey } from "@/lib/guide-tags";
+import { complementItems } from "@/lib/property-location";
 import { toast } from "sonner";
 import { UNDO_WINDOW_MS } from "@/components/UndoActionBar";
 import { cn } from "@/lib/utils";
@@ -1282,6 +1286,7 @@ function Guide({ data }: { data: GuideOk }) {
     p.address ||
     p.maps_url ||
     p.address_note ||
+    complementItems(p as never).length > 0 ||
     p.gate_code ||
     p.lock_code ||
     p.wifi_ssid ||
@@ -2001,6 +2006,7 @@ function Guide({ data }: { data: GuideOk }) {
                       p.address ||
                       p.maps_url ||
                       p.address_note ||
+                      complementItems(p as never).length > 0 ||
                       p.checkin_instructions ||
                       (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)
                     );
@@ -2159,6 +2165,46 @@ function Guide({ data }: { data: GuideOk }) {
                             hint={p.city || (p.address ? "Como chegar" : undefined)}
                           >
                             <div className="space-y-7">
+                              {(() => {
+                                // "Local dentro do prédio" (01/10/2026): sempre junto
+                                // com as demais infos de localização, quando o
+                                // anfitrião ligou "Condomínio?" e preencheu algo.
+                                const items = complementItems(p as never);
+                                if (items.length === 0) return null;
+                                const icons = {
+                                  apartment: Building2,
+                                  floor: Layers,
+                                  spots: Car,
+                                  elevator: ArrowUpDown,
+                                } as const;
+                                const titles = {
+                                  apartment: "Apartamento",
+                                  floor: "Andar",
+                                  spots: "Garagem",
+                                  elevator: "Elevador",
+                                } as const;
+                                return (
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {items.map((it) => {
+                                      const Icon = icons[it.kind];
+                                      return (
+                                        <div
+                                          key={it.kind}
+                                          className="flex min-w-0 flex-col gap-1 rounded-[0.3rem] border border-border/60 bg-background/40 px-3 py-2.5"
+                                        >
+                                          <span className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">
+                                            <Icon className="size-3 shrink-0" strokeWidth={2} />
+                                            {titles[it.kind]}
+                                          </span>
+                                          <span className="break-words text-[14px] font-semibold text-foreground">
+                                            {it.text}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
                               {p.address_note && (
                                 <div className="space-y-3 text-[14px] leading-relaxed text-foreground/85 px-1">
                                   {String(p.address_note)

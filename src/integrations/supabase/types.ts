@@ -3632,6 +3632,11 @@ export type Database = {
           document_scope: string
           gallery_images: string[]
           garage_maps_url: string | null
+          apartment_floor: string | null
+          apartment_number: string | null
+          has_elevator: boolean | null
+          in_condominium: boolean
+          parking_spots: string[]
           gate_code: string | null
           gate_instructions: string | null
           gate_label: string | null
@@ -3726,6 +3731,11 @@ export type Database = {
           document_scope?: string
           gallery_images?: string[]
           garage_maps_url?: string | null
+          apartment_floor?: string | null
+          apartment_number?: string | null
+          has_elevator?: boolean | null
+          in_condominium?: boolean
+          parking_spots?: string[]
           gate_code?: string | null
           gate_instructions?: string | null
           gate_label?: string | null
@@ -3820,6 +3830,11 @@ export type Database = {
           document_scope?: string
           gallery_images?: string[]
           garage_maps_url?: string | null
+          apartment_floor?: string | null
+          apartment_number?: string | null
+          has_elevator?: boolean | null
+          in_condominium?: boolean
+          parking_spots?: string[]
           gate_code?: string | null
           gate_instructions?: string | null
           gate_label?: string | null

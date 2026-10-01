@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Copy, Link as LinkIcon, MapPin, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { addressWithComplement, type LocationComplementInput } from "@/lib/property-location";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,7 @@ export function PropertyMapsButton({
   mapsUrl,
   garageMapsUrl,
   trigger,
+  complement,
 }: {
   propertyName: string | null;
   propertyAddress: string | null;
@@ -39,6 +41,12 @@ export function PropertyMapsButton({
    * o comportamento são os mesmos — só a cara do botão muda.
    */
   trigger?: ReactNode;
+  /**
+   * Local dentro do prédio (01/10/2026): com o condomínio ligado, "Copiar
+   * Endereço" leva o apartamento, o andar, as vagas e o elevador na linha de
+   * baixo. O link do Maps e o "Abrir App" não mudam.
+   */
+  complement?: LocationComplementInput | null;
 }) {
   // Prefer garage address when available for logistics
   const mapsHref = propertyMapsHref({ propertyAddress, mapsUrl, garageMapsUrl });
@@ -55,7 +63,7 @@ export function PropertyMapsButton({
   const copyAddress = async () => {
     if (!propertyAddress) return;
     try {
-      await navigator.clipboard.writeText(propertyAddress);
+      await navigator.clipboard.writeText(addressWithComplement(propertyAddress, complement));
       toast.success("Endereço copiado.");
     } catch {
       toast.error("Não foi possível copiar.");

@@ -2,8 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  ArrowUpDown,
+  Building2,
+  Car,
   Check,
   Copy,
+  Info,
+  Layers,
   Eye,
   EyeOff,
   Fence,
@@ -36,6 +41,13 @@ import {
 } from "@/lib/property-access.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { toWhatsappNumber } from "@/lib/masks";
+import { tokenizeAll } from "@/lib/guide-tags";
+import {
+  complementItems,
+  complementMessageLines,
+  type ComplementKind,
+} from "@/lib/property-location";
+import { cn } from "@/lib/utils";
 
 /**
  * CHAVE DE ACESSO NO CARD "EM LIMPEZA" (mockup "Chave de acesso no card de
@@ -108,6 +120,8 @@ function buildMessage(row: Row, info: PropertyAccessInfo): string {
   if (row.propertyAddress || maps) {
     lines.push("");
     if (row.propertyAddress) lines.push(`📍 ${row.propertyAddress}`);
+    // "Local dentro do prédio" (01/10/2026): apto/andar/elevador e vagas.
+    lines.push(...complementMessageLines(info.complement));
     if (maps) lines.push(maps);
   }
   const access: string[] = [];
@@ -214,18 +228,103 @@ function CodeBox({
   );
 }
 
-function StepsList({ steps }: { steps: string[] }) {
+/** Ícone de cada item do complemento (mesmos do mockup "Local dentro do prédio"). */
+const COMPLEMENT_ICON: Record<ComplementKind, LucideIcon> = {
+  apartment: Building2,
+  floor: Layers,
+  spots: Car,
+  elevator: ArrowUpDown,
+};
+
+/** Linha de complemento sob o endereço (Opção 1 aprovada em 01/10/2026). */
+function ComplementLine({ items }: { items: { kind: ComplementKind; text: string }[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[11.5px] font-bold text-foreground">
+      {items.map((it) => {
+        const Icon = COMPLEMENT_ICON[it.kind];
+        return (
+          <span key={it.kind} className="inline-flex items-center gap-1">
+            <Icon className="size-3 shrink-0 text-muted-foreground" strokeWidth={2} />
+            {it.text}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Texto de uma etapa de chegada: as tags `[[tag:senhas-acesso]]` viram um chip
+ * (que leva à aba do código) e `[[info:...]]` sem valor conhecido aqui mostra só
+ * o rótulo — o texto cru com colchetes nunca aparece.
+ */
+function StepText({ text, onTag }: { text: string; onTag?: () => void }) {
+  return (
+    <>
+      {tokenizeAll(text).map((t, i) => {
+        if (t.kind === "text") return <span key={i}>{t.value}</span>;
+        if (t.kind === "tag") {
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={onTag}
+              disabled={!onTag}
+              className="mx-0.5 inline-flex h-[19px] items-center gap-1 whitespace-nowrap rounded-full bg-foreground/[0.08] px-[7px] align-[1px] text-[11px] font-bold text-foreground shadow-[inset_0_0_0_1px_rgba(246,243,239,.1)]"
+            >
+              <Fence className="size-[11px] text-muted-foreground" strokeWidth={2} />
+              {t.label}
+            </button>
+          );
+        }
+        return t.label ? <span key={i}>{t.label}</span> : null;
+      })}
+    </>
+  );
+}
+
+/** Etapas numeradas com linha de ligação; `finish` marca a última com "check". */
+function Timeline({
+  steps,
+  finish,
+  onTag,
+}: {
+  steps: string[];
+  finish?: boolean;
+  onTag?: () => void;
+}) {
   if (steps.length === 0) return null;
   return (
-    <ol className="flex flex-col gap-2 px-3.5 pb-3.5">
-      {steps.map((s, i) => (
-        <li key={i} className="flex gap-2.5 text-[12.5px] leading-[1.45] text-foreground">
-          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-accent/[0.14] text-[10.5px] font-bold text-accent">
-            {i + 1}
-          </span>
-          <span className="min-w-0 break-words">{s}</span>
-        </li>
-      ))}
+    <ol className="flex flex-col px-3.5 pb-1.5 pt-0.5">
+      {steps.map((st, i) => {
+        const last = i === steps.length - 1;
+        const done = finish && last;
+        return (
+          <li
+            key={i}
+            className="relative grid grid-cols-[22px_minmax(0,1fr)] gap-2.5 pb-3 text-[12.5px] leading-[1.45] text-foreground"
+          >
+            {!last && (
+              <span
+                aria-hidden
+                className="absolute bottom-0.5 left-[10.5px] top-6 w-px bg-[var(--panel-div)]"
+              />
+            )}
+            <span
+              className={cn(
+                "relative z-[1] grid size-[22px] place-items-center rounded-full text-[10.5px] font-extrabold",
+                done ? "bg-[rgba(127,183,154,.16)] text-[#7fb79a]" : "bg-accent/[0.14] text-accent",
+              )}
+            >
+              {done ? <Check className="size-3" strokeWidth={3} /> : i + 1}
+            </span>
+            <p className="m-0 min-w-0 break-words pt-0.5">
+              <StepText text={st} onTag={onTag} />
+            </p>
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -283,6 +382,7 @@ function AccessExtras({ videoUrl, media }: { videoUrl: string | null; media: Acc
 export function PropertyAccessButton({ row }: { row: Row }) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"root" | "steps">("root");
+  const [stepsTab, setStepsTab] = useState<"arrival" | "gate" | "lock">("arrival");
   // Lado de abertura: o que tem MAIS espaço livre (já descontando o cabeçalho
   // e a barra fixa). O Radix só vira quando não cabe, e como o painel encolhe
   // para caber (altura máxima), ele nunca "não cabia" — ficava embaixo, cortado
@@ -330,9 +430,25 @@ export function PropertyAccessButton({ row }: { row: Row }) {
   // Mesmo critério do guia: instruções, vídeo ou fotos/vídeos do passo.
   const hasGateGuide = !!(gateSteps.length || info?.gateVideoUrl || info?.gateMedia.length);
   const hasLockGuide = !!(lockSteps.length || info?.lockVideoUrl || info?.lockMedia.length);
-  const stepsLabel = [hasGateGuide ? gateName : null, hasLockGuide ? lockName : null]
-    .filter(Boolean)
-    .join(" · ");
+  // Passo a passo de CHEGADA (o mesmo do guia do hóspede) + cadeado/portão e
+  // fechadura: cada um numa aba, abrindo em "Chegada" (decisão de 01/10/2026).
+  const arrivalSteps = splitSteps(info?.checkinInstructions ?? null);
+  const hasArrival = !!(arrivalSteps.length || info?.checkinNote || info?.checkinMedia.length);
+  const showGateTab = !!(info?.gateCode || hasGateGuide);
+  const showLockTab = !!(info?.lockCode || hasLockGuide);
+  const tabs = [
+    hasArrival ? { id: "arrival" as const, label: "Chegada", count: arrivalSteps.length } : null,
+    showGateTab ? { id: "gate" as const, label: gateName, count: gateSteps.length } : null,
+    showLockTab ? { id: "lock" as const, label: lockName, count: lockSteps.length } : null,
+  ].filter((t): t is NonNullable<typeof t> => !!t);
+  const activeTab = tabs.find((t) => t.id === stepsTab)?.id ?? tabs[0]?.id ?? "arrival";
+  const stepsLabel = tabs.map((t) => t.label).join(" · ");
+  const complement = complementItems(info?.complement);
+  const goToCode = showGateTab
+    ? () => setStepsTab("gate")
+    : showLockTab
+      ? () => setStepsTab("lock")
+      : undefined;
 
   const sendLabel = info?.provider
     ? `Enviar à ${firstName(info.provider.name)}`
@@ -423,12 +539,14 @@ export function PropertyAccessButton({ row }: { row: Row }) {
                     {row.propertyAddress}
                   </p>
                 )}
+                <ComplementLine items={complement} />
               </div>
               <PropertyMapsButton
                 propertyName={row.propertyName}
                 propertyAddress={row.propertyAddress}
                 mapsUrl={row.mapsUrl}
                 garageMapsUrl={row.garageMapsUrl}
+                complement={info?.complement ?? null}
               />
             </div>
 
@@ -499,7 +617,10 @@ export function PropertyAccessButton({ row }: { row: Row }) {
                       icon={ListOrdered}
                       label="Passo a passo"
                       value={stepsLabel}
-                      onClick={() => setView("steps")}
+                      onClick={() => {
+                        setStepsTab(tabs[0]?.id ?? "arrival");
+                        setView("steps");
+                      }}
                       last
                     />
                   </FilterSection>
@@ -545,11 +666,55 @@ export function PropertyAccessButton({ row }: { row: Row }) {
                 ) : null
               }
             />
-            {info && (info.gateCode || hasGateGuide) && (
-              <>
-                <div className="ds-eyebrow truncate px-3.5 pb-1.5 pt-0.5 text-muted-foreground">
-                  {gateName}
-                </div>
+            {tabs.length > 1 && (
+              <div role="tablist" className="flex border-b border-[var(--panel-div)] px-2.5">
+                {tabs.map((t) => {
+                  const on = activeTab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={on}
+                      onClick={() => setStepsTab(t.id)}
+                      className={cn(
+                        "relative flex h-[38px] min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap text-[12px] transition-colors",
+                        on
+                          ? "font-bold text-foreground"
+                          : "font-semibold text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <span className="min-w-0 truncate">{t.label}</span>
+                      {t.count > 0 && (
+                        <i className="rounded-full bg-foreground/[0.07] px-1.5 py-px text-[9.5px] font-extrabold not-italic text-muted-foreground">
+                          {t.count}
+                        </i>
+                      )}
+                      {on && (
+                        <span
+                          aria-hidden
+                          className="absolute inset-x-2.5 -bottom-px h-0.5 rounded-sm bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {info && activeTab === "arrival" && hasArrival && (
+              <div className="pt-3">
+                <Timeline steps={arrivalSteps} finish onTag={goToCode} />
+                {info.checkinNote && (
+                  <div className="mx-3.5 mb-3.5 flex gap-2 rounded-[10px] bg-[rgba(201,169,98,.07)] px-3 py-2.5 text-[11.5px] leading-[1.45] text-foreground/85 shadow-[inset_0_0_0_1px_rgba(201,169,98,.2)]">
+                    <Info className="mt-px size-3.5 shrink-0 text-[#c9a962]" />
+                    <span className="min-w-0 break-words">{info.checkinNote}</span>
+                  </div>
+                )}
+                <AccessExtras videoUrl={null} media={info.checkinMedia} />
+              </div>
+            )}
+            {info && activeTab === "gate" && showGateTab && (
+              <div className="pt-3">
                 {info.gateCode && (
                   <CodeBox
                     icon={Fence}
@@ -558,15 +723,12 @@ export function PropertyAccessButton({ row }: { row: Row }) {
                     onCopy={() => void copy(info.gateCode as string, "Código copiado.")}
                   />
                 )}
-                <StepsList steps={gateSteps} />
+                <Timeline steps={gateSteps} />
                 <AccessExtras videoUrl={info.gateVideoUrl} media={info.gateMedia} />
-              </>
+              </div>
             )}
-            {info && (info.lockCode || hasLockGuide) && (
-              <>
-                <div className="ds-eyebrow truncate border-t border-[var(--panel-div)] px-3.5 pb-1.5 pt-2.5 text-muted-foreground">
-                  {lockName}
-                </div>
+            {info && activeTab === "lock" && showLockTab && (
+              <div className="pt-3">
                 {info.lockCode && (
                   <CodeBox
                     icon={Lock}
@@ -575,9 +737,9 @@ export function PropertyAccessButton({ row }: { row: Row }) {
                     onCopy={() => void copy(info.lockCode as string, "Código copiado.")}
                   />
                 )}
-                <StepsList steps={lockSteps} />
+                <Timeline steps={lockSteps} />
                 <AccessExtras videoUrl={info.lockVideoUrl} media={info.lockMedia} />
-              </>
+              </div>
             )}
           </>
         )}

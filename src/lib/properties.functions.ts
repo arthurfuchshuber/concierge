@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { isAllowedIcalUrl } from "@/lib/airbnb-ical-url";
+import { cleanLocationText, normalizeParkingSpots } from "@/lib/property-location";
 
 const slugRe = /^[a-z0-9](?:[a-z0-9-]{1,60}[a-z0-9])?$/;
 
@@ -78,6 +79,14 @@ const PropertyInput = z.object({
   address: z.string().max(500).optional().nullable(),
   maps_url: HttpsUrl,
   garage_maps_url: HttpsUrl,
+  // Local dentro do prédio (01/10/2026). SEM `.default(...)` de propósito: quem
+  // salva sem enviar esses campos (importações, sincronizações) não pode
+  // zerar o condomínio de um imóvel.
+  in_condominium: z.boolean().optional(),
+  apartment_number: z.string().trim().max(40).optional().nullable(),
+  apartment_floor: z.string().trim().max(40).optional().nullable(),
+  parking_spots: z.array(z.string().trim().max(40)).max(10).optional(),
+  has_elevator: z.boolean().optional().nullable(),
   lat: z.number().optional().nullable(),
   lng: z.number().optional().nullable(),
   city: z.string().max(120).optional().nullable(),
@@ -388,6 +397,15 @@ const BulkPatch = z.object({
   address: z.string().max(500).optional(),
   maps_url: HttpsUrl.optional(),
   garage_maps_url: HttpsUrl.optional(),
+  // Local dentro do prédio (01/10/2026) — NÃO são exclusivos de cada residência
+  // no sentido de `PER_PROPERTY_FIELDS`: o pedido é poder igualar em massa
+  // (mesmo andar, elevador…). Valores diferentes entre os guias chegam vazios
+  // ao popup e só gravam o que for editado.
+  in_condominium: z.boolean().optional(),
+  apartment_number: z.string().max(40).optional(),
+  apartment_floor: z.string().max(40).optional(),
+  parking_spots: z.array(z.string().max(40)).max(10).optional(),
+  has_elevator: z.boolean().nullable().optional(),
   city: z.string().max(120).optional(),
   state: z.string().max(60).optional(),
   country: z.string().max(120).optional(),
@@ -532,6 +550,11 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
       Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
     );
 
+    for (const k of ["apartment_number", "apartment_floor"] as const) {
+      if (typeof patch[k] === "string") patch[k] = cleanLocationText(patch[k] as string);
+    }
+    if (Array.isArray(patch.parking_spots)) patch.parking_spots = normalizeParkingSpots(patch.parking_spots as string[]);
+
     // Proprietário: normalmente só muda via "Transferir" (fluxo dedicado, com
     // confirmação explícita) — liberado na edição em massa a pedido do
     // cliente, mas continua validando que o proprietário escolhido pertence à
@@ -601,7 +624,7 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
 
 
     function isEmpty(v: unknown): boolean {
-      return v === null || v === undefined || v === "";
+      return v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
     }
 
     if (patchKeys.length > 0) {
@@ -891,6 +914,15 @@ export const upsertProperty = createServerFn({ method: "POST" })
       propertyData.brand_name = null;
       propertyData.brand_logo_url = null;
     }
+
+    // Local dentro do prédio (01/10/2026): texto limpo e vagas sem vazias nem
+    // repetidas, igual para todo caminho de gravação.
+    if (propertyData.apartment_number !== undefined)
+      propertyData.apartment_number = cleanLocationText(propertyData.apartment_number);
+    if (propertyData.apartment_floor !== undefined)
+      propertyData.apartment_floor = cleanLocationText(propertyData.apartment_floor);
+    if (propertyData.parking_spots !== undefined)
+      propertyData.parking_spots = normalizeParkingSpots(propertyData.parking_spots);
 
     // Regra: "sem imóvel [vinculado a um proprietário cadastrado], sem guia".
     // Trava no backend (além do gate na UI) para que nenhum caminho — direto
