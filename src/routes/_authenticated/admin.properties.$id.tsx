@@ -161,7 +161,7 @@ import {
 } from "@/components/dashboard/panel-chrome";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { PropertyMapsButton } from "@/components/dashboard/PropertyMapsButton";
-import { AirbnbLockedValue, AirbnbLockReason } from "@/components/editor/AirbnbLockedField";
+import { AirbnbLockedValue, AirbnbLockReason, ADDRESS_LOCK_REASON } from "@/components/editor/AirbnbLockedField";
 import { SectionTopLineBar, type SectionTopLine } from "@/components/editor/Section";
 import { Smartphone, Monitor } from "lucide-react";
 
@@ -1065,8 +1065,10 @@ function PropertyEditor() {
           address: r.address || f.property.address,
           lat: r.lat,
           lng: r.lng,
-          // Cidade/País: só do anúncio do Airbnb (01/10/2026) — ver handlePickAddress.
+          // Cidade/País vêm do endereço (01/10/2026) — ver handlePickAddress.
+          city: r.city || f.property.city,
           state: r.state || f.property.state,
+          country: r.country || f.property.country,
           tagline: f.property.tagline || r.tagline || f.property.tagline,
           hero_image_url: f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
           gallery_images: f.property.gallery_images.length
@@ -1203,10 +1205,16 @@ function PropertyEditor() {
         property: {
           ...f.property,
           address: s.address || f.property.address,
-          // Cidade e País NÃO vêm mais da busca de endereço (01/10/2026,
-          // pedido explícito: "endereço completo é o único campo que não deve
-          // ser importado"): os dois passaram a vir só do anúncio do Airbnb.
+          // RECOMENDAÇÕES DEPENDEM DO ENDEREÇO, NÃO DO IMPORTAR (pedido
+          // explícito, 01/10/2026: "isso tem que depender do campo endereço
+          // preenchido por completo e não do botão importar"). Por isso o
+          // endereço completo volta a preencher Cidade/Estado/País — é a
+          // cidade que guia "Aqui pertinho"/"Pela cidade". Os dois campos
+          // continuam travados para digitação; o Importar do Airbnb também
+          // os atualiza.
+          city: s.city || f.property.city,
           state: s.state || f.property.state,
+          country: s.country || f.property.country,
           lat: s.lat ?? f.property.lat,
           lng: s.lng ?? f.property.lng,
           maps_url: nextMapsUrl,
@@ -1221,7 +1229,7 @@ function PropertyEditor() {
   async function handleGenerateCityRecommendations(mode: "replace" | "fill" = "fill") {
     const city = form.property.city.trim();
     if (!city) {
-      toast.error("Preencha a cidade antes de gerar recomendações.");
+      toast.error("Preencha o endereço completo (aba A casa) antes de gerar recomendações.");
       return;
     }
     setGeneratingCityRecs(true);
@@ -2084,10 +2092,22 @@ function PropertyEditor() {
       />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Cidade">
-          <AirbnbLockedValue value={form.property.city} label="Cidade" />
+          <AirbnbLockedValue
+            value={form.property.city}
+            label="Cidade"
+            placeholder="Preenchida pelo endereço"
+            eyebrow="Vem do endereço"
+            reason={ADDRESS_LOCK_REASON}
+          />
         </Field>
         <Field label="País">
-          <AirbnbLockedValue value={form.property.country} label="País" />
+          <AirbnbLockedValue
+            value={form.property.country}
+            label="País"
+            placeholder="Preenchido pelo endereço"
+            eyebrow="Vem do endereço"
+            reason={ADDRESS_LOCK_REASON}
+          />
         </Field>
       </div>
       <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
@@ -4070,7 +4090,7 @@ function PropertyEditor() {
                       } else {
                         const city = (form.property.city || "").trim();
                         if (!city) {
-                          toast.error("Defina a cidade do imóvel antes.");
+                          toast.error("Preencha o endereço completo (aba A casa) antes.");
                           return;
                         }
                         addCityRefFn({
@@ -5144,7 +5164,7 @@ function CityRefsGroup({
     setLocalItems(next);
 
     if (!city) {
-      toast.error("Defina a cidade do imóvel antes de gerenciar referências.");
+      toast.error("Preencha o endereço completo (aba A casa) antes de gerenciar referências.");
       return;
     }
 

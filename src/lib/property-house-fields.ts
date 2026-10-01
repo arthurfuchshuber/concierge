@@ -23,10 +23,10 @@ export function missingRequiredHouseFields(p: HouseFieldsInput): string[] {
   if (!p.property_type_id) missing.push("Tipo do imóvel");
   if (!p.maps_url.trim()) missing.push("Link do Google Maps (entrada principal)");
   if (!p.address.trim()) missing.push("Endereço");
-  // Cidade e País saíram desta trava em 01/10/2026: passaram a vir SÓ do
-  // anúncio do Airbnb (campos travados no editor), e o Importar fica na aba
-  // Airbnb — que esta trava bloqueia. Exigi-los aqui deixaria o imóvel preso
-  // num círculo. Continuam obrigatórios para PUBLICAR (publish-requirements).
+  // Cidade e País não são pedidos à parte desde 01/10/2026: são travados no
+  // editor e preenchidos pelo ENDEREÇO completo (que esta lista já exige) —
+  // e também pelo Importar do Airbnb. Continuam obrigatórios para PUBLICAR
+  // (publish-requirements).
   if (!(p.airbnb_ical_url ?? "").trim()) missing.push("URL do calendário Airbnb");
   return missing;
 }

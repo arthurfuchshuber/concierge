@@ -30,8 +30,26 @@ import { cn } from "@/lib/utils";
 export const AIRBNB_LOCK_REASON =
   "Este campo é preenchido automaticamente pelo anúncio do Airbnb e, por isso, não pode ser editado aqui. Para mudar, altere no Airbnb e clique em Importar, na aba Airbnb.";
 
+/**
+ * Cidade e País (01/10/2026): vêm do ENDEREÇO completo (busca do Google ou
+ * link do Maps) e o Importar do Airbnb também os atualiza — são eles que
+ * guiam as Recomendações, que dependem só do endereço.
+ */
+export const ADDRESS_LOCK_REASON =
+  "Este campo é preenchido automaticamente a partir do Endereço (e atualizado pelo Importar do Airbnb). Para mudar, ajuste o endereço completo acima.";
+
 /** Quadrante do motivo. `children` é o gatilho (o próprio campo travado). */
-export function AirbnbLockReason({ children, label }: { children: ReactNode; label?: string }) {
+export function AirbnbLockReason({
+  children,
+  label,
+  eyebrow = "Vem do Airbnb",
+  reason = AIRBNB_LOCK_REASON,
+}: {
+  children: ReactNode;
+  label?: string;
+  eyebrow?: string;
+  reason?: string;
+}) {
   return (
     <Popover>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
@@ -44,13 +62,13 @@ export function AirbnbLockReason({ children, label }: { children: ReactNode; lab
       >
         <div className="flex items-center gap-2 border-b border-[var(--panel-div)] px-3.5 py-3">
           <Lock className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="ds-eyebrow text-muted-foreground">Vem do Airbnb</span>
+          <span className="ds-eyebrow text-muted-foreground">{eyebrow}</span>
         </div>
         <div className="flex flex-col gap-1.5 px-3.5 py-3">
           {label ? (
             <p className="truncate text-[13px] font-semibold text-foreground">{label}</p>
           ) : null}
-          <p className="text-[12px] leading-relaxed text-muted-foreground">{AIRBNB_LOCK_REASON}</p>
+          <p className="text-[12px] leading-relaxed text-muted-foreground">{reason}</p>
         </div>
       </PopoverContent>
     </Popover>
@@ -67,8 +85,13 @@ export function AirbnbLockedValue({
   placeholder = "Ainda não importado",
   multiline = false,
   className,
+  eyebrow,
+  reason,
 }: {
   value: string | null | undefined;
+  /** Outro motivo (ex.: Cidade/País, que vêm do endereço). Padrão: Airbnb. */
+  eyebrow?: string;
+  reason?: string;
   /** Nome do campo, repetido no quadrante do motivo. */
   label?: string;
   placeholder?: string;
@@ -78,7 +101,7 @@ export function AirbnbLockedValue({
 }) {
   const has = !!(value ?? "").trim();
   return (
-    <AirbnbLockReason label={label}>
+    <AirbnbLockReason label={label} eyebrow={eyebrow} reason={reason}>
       <button
         type="button"
         aria-label={label ? `${label} — por que não posso editar?` : "Por que não posso editar?"}
