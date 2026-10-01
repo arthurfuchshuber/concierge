@@ -118,3 +118,79 @@ export function ElevatorSegment({
     </div>
   );
 }
+
+/**
+ * VAGAS + ELEVADOR NA MESMA GRADE (pedido de 01/10/2026): cada campo ocupa
+ * metade da largura; o "Elevador: Tem / Não tem" fica ao lado direito da
+ * primeira vaga. Vagas novas entram nas células seguintes e EMPURRAM o
+ * elevador para a próxima posição da grade (1 vaga: vaga | elevador;
+ * 2 vagas: vaga 1 | vaga 2 / elevador; 3 vagas: 1 | 2 / 3 | elevador…).
+ * Todas as células levam rótulo, então os campos de uma mesma linha ficam
+ * alinhados. O "Adicionar +" continua colado ao último campo de vaga.
+ */
+export function ParkingElevatorGrid({
+  spots,
+  onSpots,
+  elevator,
+  onElevator,
+}: {
+  spots: string[];
+  onSpots: (next: string[]) => void;
+  elevator: boolean | null | undefined;
+  onElevator: (next: boolean | null) => void;
+}) {
+  const list = spots.length ? spots : [""];
+  const set = (i: number, v: string) => onSpots(list.map((s, j) => (j === i ? v : s)));
+  const remove = (i: number) => onSpots(list.filter((_, j) => j !== i));
+  const labelCls = "block truncate text-[12px] font-semibold text-foreground/90";
+  return (
+    <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
+      {list.map((spot, i) => {
+        const last = i === list.length - 1;
+        return (
+          <div key={i} className="min-w-0">
+            <label htmlFor={`parking-spot-${i}`} className={labelCls}>
+              {i === 0 ? "Vaga de garagem" : `Vaga ${i + 1}`}
+              {i === 0 && <span className="ds-falta"> *</span>}
+            </label>
+            <div className="relative mt-1.5">
+              <Input
+                id={`parking-spot-${i}`}
+                value={spot}
+                maxLength={40}
+                inputMode="text"
+                onChange={(e) => set(i, e.target.value)}
+                className={i > 0 ? "pr-9" : undefined}
+              />
+              {i > 0 && (
+                <button
+                  type="button"
+                  aria-label={`Remover vaga ${i + 1}`}
+                  onClick={() => remove(i)}
+                  className="absolute right-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+            {last && list.length < PARKING_SPOTS_MAX && (
+              <button
+                type="button"
+                onClick={() => onSpots([...list, ""])}
+                className="mt-1 py-0.5 text-[12px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Adicionar +
+              </button>
+            )}
+          </div>
+        );
+      })}
+      <div className="min-w-0">
+        <span className={labelCls}>
+          Elevador<span className="ds-falta"> *</span>
+        </span>
+        <ElevatorSegment value={elevator} onChange={onElevator} className="mt-1.5" />
+      </div>
+    </div>
+  );
+}

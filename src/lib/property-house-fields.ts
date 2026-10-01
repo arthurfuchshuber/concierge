@@ -16,6 +16,12 @@ export type HouseFieldsInput = {
   city: string;
   country: string;
   airbnb_ical_url: string | null;
+  // "Condomínio?" (01/10/2026): com a chave ligada, os 4 campos são obrigatórios.
+  in_condominium?: boolean;
+  apartment_number?: string;
+  apartment_floor?: string;
+  parking_spots?: string[];
+  has_elevator?: boolean | null;
 };
 
 export function missingRequiredHouseFields(p: HouseFieldsInput): string[] {
@@ -28,5 +34,12 @@ export function missingRequiredHouseFields(p: HouseFieldsInput): string[] {
   // e também pelo Importar do Airbnb. Continuam obrigatórios para PUBLICAR
   // (publish-requirements).
   if (!(p.airbnb_ical_url ?? "").trim()) missing.push("URL do calendário Airbnb");
+  if (p.in_condominium === true) {
+    if (!(p.apartment_number ?? "").trim()) missing.push("Condomínio — Nº do apartamento");
+    if (!(p.apartment_floor ?? "").trim()) missing.push("Condomínio — Andar");
+    if (!(p.parking_spots ?? []).some((v) => v.trim()))
+      missing.push("Condomínio — Vaga de garagem");
+    if (typeof p.has_elevator !== "boolean") missing.push("Condomínio — Elevador");
+  }
   return missing;
 }

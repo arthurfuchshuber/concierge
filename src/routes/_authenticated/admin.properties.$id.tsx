@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, useBlocker } from "@tanstack/react-router";
 import { useGuidePreviewUrl } from "@/hooks/useGuidePreviewUrl";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useState, useEffect, useRef } from "react";
@@ -161,7 +161,7 @@ import {
 } from "@/components/dashboard/panel-chrome";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { PropertyMapsButton } from "@/components/dashboard/PropertyMapsButton";
-import { ElevatorSegment, ParkingSpotsInput } from "@/components/editor/CondominiumInputs";
+import { ParkingElevatorGrid } from "@/components/editor/CondominiumInputs";
 import { normalizeParkingSpots } from "@/lib/property-location";
 import { AirbnbLockedValue, AirbnbLockReason, ADDRESS_LOCK_REASON } from "@/components/editor/AirbnbLockedField";
 import { SectionTopLineBar, type SectionTopLine } from "@/components/editor/Section";
@@ -1785,9 +1785,29 @@ function PropertyEditor() {
   // já pede e valida esses mesmos campos.
   const missingOwner = !isNew && !form.property.owner_contact_id;
   const missingHouseFields = form.property.guide_created ? missingRequiredHouseFields(form.property) : [];
-  const allMissingRequiredFields = [...(missingOwner ? ["Proprietário"] : []), ...missingHouseFields];
+  // "CONDOMÍNIO?" (pedido de 01/10/2026): obrigatório SÓ com a chave ligada, e
+  // com ela ligada e algum campo vazio a pessoa não consegue sair da tela —
+  // como o salvamento é automático, deixar pela metade gravaria um cadastro
+  // incompleto. Vale mesmo antes de o guia ser criado.
+  const condoMissing = !isNew
+    ? missingRequiredHouseFields(form.property).filter((m) => m.startsWith("Condomínio"))
+    : [];
+  const condoBlocked = form.property.in_condominium === true && condoMissing.length > 0;
+  useBlocker({
+    shouldBlockFn: () => {
+      if (!condoBlocked) return false;
+      toast.error(`Preencha antes de sair: ${condoMissing.join(", ")}.`);
+      return true;
+    },
+    enableBeforeUnload: () => condoBlocked,
+    disabled: !condoBlocked,
+  });
+  const allMissingRequiredFields = Array.from(
+    new Set([...(missingOwner ? ["Proprietário"] : []), ...missingHouseFields, ...(form.property.in_condominium ? condoMissing : [])]),
+  );
   const needsRequiredHouseInfo =
-    !isNew && form.property.guide_created && (missingOwner || missingHouseFields.length > 0);
+    !isNew &&
+    ((form.property.guide_created && (missingOwner || missingHouseFields.length > 0)) || condoBlocked);
 
   // Mesmo motivo do comentário de useGuidePreviewUrl acima: hooks não podem
   // ser condicionais. Este useEffect ficava depois do early-return de
@@ -2080,7 +2100,16 @@ function PropertyEditor() {
       icon={MapPinned}
       title="Endereço e localização"
       collapsible
-      badge={pendingBadge("Link do Google Maps (entrada principal)", "Endereço", "Cidade", "País")}
+      badge={pendingBadge(
+        "Link do Google Maps (entrada principal)",
+        "Endereço",
+        "Cidade",
+        "País",
+        "Condomínio — Nº do apartamento",
+        "Condomínio — Andar",
+        "Condomínio — Vaga de garagem",
+        "Condomínio — Elevador",
+      )}
     >
       <Field label="Link do Google Maps — Entrada principal" required>
         <Input
@@ -2155,14 +2184,14 @@ function PropertyEditor() {
         {form.property.in_condominium && (
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Nº do apartamento">
+              <Field label="Nº do apartamento" required>
                 <Input
                   value={form.property.apartment_number}
                   maxLength={40}
                   onChange={(e) => update("apartment_number", e.target.value)}
                 />
               </Field>
-              <Field label="Andar">
+              <Field label="Andar" required>
                 <Input
                   value={form.property.apartment_floor}
                   maxLength={40}
@@ -2170,18 +2199,12 @@ function PropertyEditor() {
                 />
               </Field>
             </div>
-            <Field label="Vaga de garagem">
-              <ParkingSpotsInput
-                value={form.property.parking_spots}
-                onChange={(next) => update("parking_spots", next)}
-              />
-            </Field>
-            <Field label="Elevador">
-              <ElevatorSegment
-                value={form.property.has_elevator}
-                onChange={(v) => update("has_elevator", v)}
-              />
-            </Field>
+            <ParkingElevatorGrid
+              spots={form.property.parking_spots}
+              onSpots={(next) => update("parking_spots", next)}
+              elevator={form.property.has_elevator}
+              onElevator={(v) => update("has_elevator", v)}
+            />
           </div>
         )}
       </div>
