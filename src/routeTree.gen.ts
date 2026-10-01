@@ -72,6 +72,7 @@ import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminRecomendacoesSigmaIndexRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.index'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
+import { Route as ApiPublicCronChannexAriRetryRouteImport } from './routes/api/public/cron.channex-ari-retry'
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
 import { Route as ApiPublicCronEvaluationSuiteRouteImport } from './routes/api/public/cron.evaluation-suite'
 import { Route as ApiPublicCronGuestFollowupRouteImport } from './routes/api/public/cron.guest-followup'
@@ -440,6 +441,12 @@ const ApiPublicCronAutoCheckoutRoute =
     path: '/api/public/cron/auto-checkout',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronChannexAriRetryRoute =
+  ApiPublicCronChannexAriRetryRouteImport.update({
+    id: '/api/public/cron/channex-ari-retry',
+    path: '/api/public/cron/channex-ari-retry',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronConversationRemindersRoute =
   ApiPublicCronConversationRemindersRouteImport.update({
     id: '/api/public/cron/conversation-reminders',
@@ -611,6 +618,7 @@ export interface FileRoutesByFullPath {
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
+  '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/guest-followup': typeof ApiPublicCronGuestFollowupRoute
@@ -691,6 +699,7 @@ export interface FileRoutesByTo {
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
+  '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/guest-followup': typeof ApiPublicCronGuestFollowupRoute
@@ -776,6 +785,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
+  '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/guest-followup': typeof ApiPublicCronGuestFollowupRoute
@@ -861,6 +871,7 @@ export interface FileRouteTypes {
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
+    | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/guest-followup'
@@ -941,6 +952,7 @@ export interface FileRouteTypes {
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
+    | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/guest-followup'
@@ -1025,6 +1037,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
+    | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/guest-followup'
@@ -1082,6 +1095,7 @@ export interface RootRouteChildren {
   LovableEmailEventsRoute: typeof LovableEmailEventsRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
+  ApiPublicCronChannexAriRetryRoute: typeof ApiPublicCronChannexAriRetryRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
   ApiPublicCronEvaluationSuiteRoute: typeof ApiPublicCronEvaluationSuiteRoute
   ApiPublicCronGuestFollowupRoute: typeof ApiPublicCronGuestFollowupRoute
@@ -1546,6 +1560,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronAutoCheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/channex-ari-retry': {
+      id: '/api/public/cron/channex-ari-retry'
+      path: '/api/public/cron/channex-ari-retry'
+      fullPath: '/api/public/cron/channex-ari-retry'
+      preLoaderRoute: typeof ApiPublicCronChannexAriRetryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/conversation-reminders': {
       id: '/api/public/cron/conversation-reminders'
       path: '/api/public/cron/conversation-reminders'
@@ -1825,6 +1846,7 @@ const rootRouteChildren: RootRouteChildren = {
   LovableEmailEventsRoute: LovableEmailEventsRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicCronAutoCheckoutRoute: ApiPublicCronAutoCheckoutRoute,
+  ApiPublicCronChannexAriRetryRoute: ApiPublicCronChannexAriRetryRoute,
   ApiPublicCronConversationRemindersRoute:
     ApiPublicCronConversationRemindersRoute,
   ApiPublicCronEvaluationSuiteRoute: ApiPublicCronEvaluationSuiteRoute,
