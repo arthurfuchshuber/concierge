@@ -213,23 +213,37 @@ const PropertyInput = z.object({
 
 
 
+// Recomendações chegam de várias fontes (Google, IA, Airbnb, edição manual).
+// Um número com casas decimais, um texto longo demais ou um tipo novo não
+// podem travar o salvamento do guia inteiro: normaliza antes de validar.
+const toNum = (v: unknown) => {
+  if (v === "" || v == null) return null;
+  const n = typeof v === "string" ? Number(v.replace(",", ".")) : v;
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
+};
+const toInt = (v: unknown) => { const n = toNum(v); return n == null ? null : Math.round(n); };
+const clip = (max: number) => (v: unknown) => (typeof v === "string" ? v.slice(0, max) : v);
+const REC_TYPES = ["restaurant","bar","cafe","beach","attraction","market","pharmacy","park","nightlife","shopping","other"] as const;
 const RecInput = z.object({
-  scope: z.enum(["nearby", "city"]),
-  type: z.enum(["restaurant","bar","cafe","beach","attraction","market","pharmacy","park","nightlife","shopping","other"]),
-  name: z.string().min(1).max(200),
-  category: z.string().max(80).optional().nullable(),
-  rating: z.number().min(0).max(5).optional().nullable(),
-  user_ratings_total: z.number().int().min(0).max(10_000_000).optional().nullable(),
-  distance_text: z.string().max(80).optional().nullable(),
-  distance_meters: z.number().int().optional().nullable(),
-  drive_minutes: z.number().int().optional().nullable(),
-  walk_minutes: z.number().int().optional().nullable(),
-  opening_hours: z.array(z.string().max(200)).max(14).optional().nullable(),
+  scope: z.preprocess((v) => (v === "city" ? "city" : "nearby"), z.enum(["nearby", "city"])),
+  type: z.preprocess((v) => ((REC_TYPES as readonly unknown[]).includes(v) ? v : "other"), z.enum(REC_TYPES)),
+  name: z.preprocess((v) => (typeof v === "string" ? v.trim().slice(0, 200) : v), z.string().min(1, "Toda recomendação precisa de um nome").max(200)),
+  category: z.preprocess(clip(80), z.string().max(80).optional().nullable()),
+  rating: z.preprocess((v) => { const n = toNum(v); return n == null ? null : Math.min(5, Math.max(0, n)); }, z.number().min(0).max(5).optional().nullable()),
+  user_ratings_total: z.preprocess((v) => { const n = toInt(v); return n == null ? null : Math.max(0, n); }, z.number().int().min(0).max(10_000_000).optional().nullable()),
+  distance_text: z.preprocess(clip(80), z.string().max(80).optional().nullable()),
+  distance_meters: z.preprocess(toInt, z.number().int().optional().nullable()),
+  drive_minutes: z.preprocess(toInt, z.number().int().optional().nullable()),
+  walk_minutes: z.preprocess(toInt, z.number().int().optional().nullable()),
+  opening_hours: z.preprocess(
+    (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 14).map((x: string) => x.slice(0, 200)) : v),
+    z.array(z.string().max(200)).max(14).optional().nullable(),
+  ),
 
-  note: z.string().max(1000).optional().nullable(),
-  image_url: ImageUrl,
-  maps_url: HttpsUrl,
-  place_id: z.string().max(200).optional().nullable(),
+  note: z.preprocess(clip(1000), z.string().max(1000).optional().nullable()),
+  image_url: z.preprocess((v) => { const r = ImageUrl.safeParse(v); return r.success ? v : null; }, ImageUrl),
+  maps_url: z.preprocess((v) => { const r = HttpsUrl.safeParse(v); return r.success ? v : null; }, HttpsUrl),
+  place_id: z.preprocess(clip(200), z.string().max(200).optional().nullable()),
 });
 
 
@@ -807,7 +821,19 @@ const SavePropertyInput = z.object({
 
 export const upsertProperty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => SavePropertyInput.parse(i))
+  .inputValidator((i: unknown) => {
+    const r = SavePropertyInput.safeParse(i);
+    if (r.success) return r.data;
+    const issue = r.error.issues[0];
+    console.error("[upsertProperty] validação", JSON.stringify(r.error.issues.slice(0, 5)));
+    const path = issue?.path ?? [];
+    const where = path[0] === "recommendations" && typeof path[1] === "number"
+      ? `na recomendação nº ${path[1] + 1}`
+      : path[0] === "faqs" && typeof path[1] === "number" ? `na pergunta nº ${path[1] + 1} do FAQ`
+      : path[0] === "manual" && typeof path[1] === "number" ? `no item nº ${path[1] + 1} do manual`
+      : "em um dos campos";
+    throw new Error(`Não foi possível salvar: há um valor inválido ${where}. Confira e tente de novo.`);
+  })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
