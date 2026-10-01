@@ -378,6 +378,13 @@ export function RecordsWorkspace() {
       listFn({
         data: { ownerId: activeOwnerId, category, onlyOpen, fromDate: period?.start ?? null, toDate: period?.end ?? null, propertyIds },
       }),
+    // Rede de segurança (01/10/2026): se o aviso ao vivo se perder (celular
+    // em segundo plano, conexão caindo), a tela não fica mostrando pendência
+    // já resolvida — relê ao voltar para a aba e a cada minuto.
+    staleTime: 0,
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
+    refetchInterval: 60_000,
   });
 
   // Excluir com "Desfazer" e resposta instantânea (17/09/2026).
