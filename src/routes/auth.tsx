@@ -67,6 +67,24 @@ function AuthPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function handleForgot() {
+    const target = email.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(target)) {
+      toast.error("Digite seu e-mail no campo acima e toque de novo em \"Esqueci minha senha\".");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(target, {
+      redirectTo: `${window.location.origin}/definir-senha`,
+    });
+    setLoading(false);
+    if (error) {
+      toast.error("Não foi possível enviar o e-mail agora. Tente de novo em alguns minutos.");
+      return;
+    }
+    toast.success("Enviamos um link para criar uma nova senha. Confira seu e-mail (e a caixa de spam).", { duration: 10000 });
+  }
+
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -242,6 +260,17 @@ function AuthPage() {
             <div>
               <Label htmlFor="password" className="text-black">Senha</Label>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} maxLength={72} className="bg-white border-black/10 text-black" />
+              {mode === "signin" && (
+                <div className="mt-1.5 text-right">
+                  <button
+                    type="button"
+                    onClick={handleForgot}
+                    className="text-xs font-semibold text-black/70 underline"
+                  >
+                    Esqueci minha senha
+                  </button>
+                </div>
+              )}
             </div>
             <Button
               type="submit"

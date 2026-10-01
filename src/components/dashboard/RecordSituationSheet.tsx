@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { RequiredMark } from "@/components/ds/RequiredMark";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { notifyAction } from "@/components/UndoActionBar";
@@ -7,6 +8,7 @@ import {
   Camera,
   RotateCcw,
   FileText,
+  Images,
   Loader2,
   Mic,
   Paperclip,
@@ -45,6 +47,19 @@ import {
   type DraftItem,
   type SituationTarget,
 } from "@/components/dashboard/record-draft";
+
+/* Envios que continuam depois de a folha fechar (28/09/2026). */
+const progressoGlobal = new Map<string, number>();
+let envios2oPlano = 0;
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", (e) => {
+    if (envios2oPlano > 0) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
+}
+
 
 /**
  * A FOLHA DA SITUAÇÃO (pedido explícito, 10/09/2026).
@@ -133,12 +148,10 @@ export function DictationField({
   return (
     <div>
       <div className="mb-1.5 flex items-center gap-1.5">
-        <span className="ds-eyebrow text-muted-foreground">{label}</span>
-        {required && (
-          <span className="text-[9px] font-bold uppercase tracking-wide text-rose-500">
-            obrigatório
-          </span>
-        )}
+        <span className="ds-eyebrow text-muted-foreground">
+          {label}
+          {required && <RequiredMark />}
+        </span>
         {maxLength && (
           <span className="ml-auto text-[9.5px] font-semibold tabular-nums text-muted-foreground">
             {value.length}/{maxLength}
@@ -205,6 +218,7 @@ export function RecordSituationSheet({
   category,
   initial,
   initialTitle,
+  initialExtra,
   onSaved,
 }: {
   open: boolean;
@@ -218,6 +232,8 @@ export function RecordSituationSheet({
   initial: DraftItem | null;
   /** Texto já digitado no campo "Descrever situação" — vira o título. */
   initialTitle?: string;
+  /** Demais arquivos escolhidos junto com o primeiro (seleção múltipla). */
+  initialExtra?: DraftItem[];
   onSaved: () => void;
 }) {
   const createFn = useServerFn(createRecordSituation);
@@ -291,12 +307,13 @@ export function RecordSituationSheet({
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   // Cada abertura começa uma situação NOVA — é o "e assim por diante" do
   // pedido: registrou uma, a próxima captura abre uma folha limpa.
   useEffect(() => {
     if (!open) return;
-    setItems(initial ? [initial] : []);
+    setItems(initial ? [initial, ...(initialExtra ?? [])] : []);
     setTitle(initialTitle ?? "");
     setDescription("");
     setErro(null);
@@ -375,6 +392,58 @@ export function RecordSituationSheet({
     };
   }, []);
 
+  /* ENVIO ANTECIPADO (28/09/2026): cada arquivo começa a subir no instante
+     em que entra na folha — em QUALIDADE ORIGINAL (auditoria), sem compressão.
+     Enquanto a pessoa escreve o título, o vídeo já está indo. "Registrar" só
+     espera o que ainda faltar. */
+  type Envio = { path: string; ctrl: AbortController; promise: Promise<Awaited<ReturnType<typeof enviarMidia>>> };
+  const enviosRef = useRef(new Map<string, Envio>());
+  const [pctPorItem, setPctPorItem] = useState<Record<string, number>>({});
+  const folderEnvio = target.logId ?? target.reservationId;
+
+  function iniciarEnvio(it: DraftItem): Envio {
+    const ctrl = new AbortController();
+    const path = `${propertyId}/${folderEnvio}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`;
+    const promise = enviarMidia({
+      bucket: "reservation-records",
+      path,
+      blob: it.blob,
+      contentType: it.mime || "application/octet-stream",
+      signal: ctrl.signal,
+      onProgress: (pct) => {
+        progressoGlobal.set(path, pct);
+        setPctPorItem((p) => ({ ...p, [it.key]: pct }));
+      },
+    }).then((r) => {
+      if (!r.ok) enviosRef.current.delete(it.key);
+      return r;
+    });
+    const e = { path, ctrl, promise };
+    enviosRef.current.set(it.key, e);
+    return e;
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    for (const it of items) if (!enviosRef.current.has(it.key)) iniciarEnvio(it);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, open]);
+
+  useEffect(() => {
+    const envios = enviosRef.current;
+    return () => {
+      for (const e of envios.values()) e.ctrl.abort();
+    };
+  }, []);
+
+  // Fechou sem registrar: corta o que estava subindo.
+  useEffect(() => {
+    if (open) return;
+    for (const e of enviosRef.current.values()) e.ctrl.abort();
+    enviosRef.current.clear();
+    setPctPorItem({});
+  }, [open]);
+
   function addItem(item: DraftItem) {
     setItems((prev) => {
       if (prev.length >= SITUATION_MEDIA_MAX) {
@@ -386,13 +455,24 @@ export function RecordSituationSheet({
   }
 
   function onPicked(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!f) return;
-    addItem(draftItemFrom(f, { name: f.name, mime: f.type }));
+    if (!files.length) return;
+    setItems((prev) => {
+      const livres = SITUATION_MEDIA_MAX - prev.length;
+      if (files.length > livres) {
+        toast.error(`Máximo de ${SITUATION_MEDIA_MAX} arquivos por situação.`);
+      }
+      const novos = files
+        .slice(0, Math.max(0, livres))
+        .map((f) => draftItemFrom(f, { name: f.name, mime: f.type }));
+      return [...prev, ...novos];
+    });
   }
 
   function removeItem(key: string) {
+    enviosRef.current.get(key)?.ctrl.abort();
+    enviosRef.current.delete(key);
     setItems((prev) => {
       const gone = prev.find((i) => i.key === key);
       if (gone?.previewUrl) URL.revokeObjectURL(gone.previewUrl);
@@ -403,9 +483,87 @@ export function RecordSituationSheet({
   // Título sempre obrigatório (25/09/2026). O botão fica ativo para que, ao
   // tocar sem título, a pessoa receba a explicação clara em vez de nada.
   const canSave = !saving;
+  const pctGeral = items.length
+    ? Math.round(items.reduce((s, it) => s + (pctPorItem[it.key] ?? 0), 0) / items.length)
+    : 0;
 
   function cancelarEnvio() {
     cancelarRef.current?.abort();
+  }
+
+  async function enviarEmSegundoPlano(
+    lote: { it: DraftItem; envio: Envio }[],
+    groupId: string,
+    rotulo: string,
+  ) {
+    const id = `bg-${groupId}`;
+    const total = lote.length;
+    const pos = { position: "bottom-right" as const };
+    let ultimo = -1;
+    const atualizar = () => {
+      const media = Math.round(
+        lote.reduce((s, { envio }) => s + (progressoGlobal.get(envio.path) ?? 0), 0) / total,
+      );
+      if (media === ultimo) return;
+      ultimo = media;
+      toast.loading(`Enviando ${total} arquivo(s) · ${media}%`, { id, description: rotulo, ...pos });
+    };
+    envios2oPlano += 1;
+    atualizar();
+    const tick = setInterval(atualizar, 700);
+    let ok = 0;
+    const falhas: string[] = [];
+    await Promise.all(
+      lote.map(async ({ it, envio }) => {
+        const r = await envio.promise;
+        progressoGlobal.set(envio.path, 100);
+        try {
+          if (!r.ok) {
+            falhas.push(it.name || it.kind);
+            track({
+              type: "record_media_failed",
+              label: "Falha ao enviar mídia de situação",
+              category: "ERROR",
+              severity: "error",
+              metadata: { kind: it.kind, mime: it.mime || null, sizeBytes: it.blob.size, motivo: r.motivo, propertyId, groupId },
+            });
+            return;
+          }
+          await chamarServidor(() =>
+            appendFn({
+              data: {
+                groupId,
+                propertyId,
+                path: envio.path,
+                kind: it.kind,
+                mime: it.mime || "application/octet-stream",
+                sizeBytes: it.blob.size,
+                durationMs: it.durationMs,
+              },
+            }),
+          );
+          ok += 1;
+        } catch {
+          falhas.push(it.name || it.kind);
+        } finally {
+          if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
+        }
+      }),
+    );
+    clearInterval(tick);
+    for (const { envio } of lote) progressoGlobal.delete(envio.path);
+    envios2oPlano -= 1;
+    if (falhas.length) {
+      toast.error(`${ok} de ${total} arquivo(s) enviados`, {
+        id,
+        description: `${rotulo} — não subiram: ${falhas.join(", ")}. Anexe de novo na situação.`,
+        duration: 15000,
+        ...pos,
+      });
+    } else {
+      toast.success(`${total} arquivo(s) enviados`, { id, description: rotulo, duration: 5000, ...pos });
+    }
+    onSaved();
   }
 
   async function save() {
@@ -484,127 +642,19 @@ export function RecordSituationSheet({
         }
       }
 
-      // A tela fica acesa enquanto sobe: com a aba em segundo plano o sistema
-      // operacional mata o envio muito mais cedo.
-      let lock: { release: () => Promise<void> } | null = null;
-      try {
-        const wl = (
-          navigator as Navigator & {
-            wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> };
-          }
-        ).wakeLock;
-        lock = wl ? await wl.request("screen") : null;
-      } catch {
-        /* sem wake lock o envio continua, só fica mais frágil */
+      /* ENVIO EM SEGUNDO PLANO (28/09/2026): a situação já existe; os arquivos
+         seguem subindo depois que a janela fecha, para registrar em várias
+         reservas ao mesmo tempo. Cada término avisa no canto inferior direito.
+         Os envios saem do controle da folha (senão fechar cancelaria). */
+      if (items.length > 0) {
+        const lote = items.map((it) => ({
+          it,
+          envio: enviosRef.current.get(it.key) ?? iniciarEnvio(it),
+        }));
+        enviosRef.current.clear();
+        void enviarEmSegundoPlano(lote, groupId, title.trim() || "Situação");
+        setItems([]);
       }
-
-      const folder = target.logId ?? target.reservationId;
-      const enviados: string[] = [];
-      const falharam: string[] = [];
-      let ultimaMensagem: string | null = null;
-      let feitos = 0;
-
-      for (const it of items) {
-        if (ctrl.signal.aborted) break;
-        const path = `${propertyId}/${folder}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`;
-        const r = await enviarMidia({
-          bucket: "reservation-records",
-          path,
-          blob: it.blob,
-          // Alguns Android devolvem o arquivo SEM tipo. `??` não pega string
-          // vazia, então o tipo ia vazio para o servidor e o registro era
-          // recusado na validação. Aqui há um padrão de verdade.
-          contentType: it.mime || "application/octet-stream",
-          signal: ctrl.signal,
-          onProgress: (pct) => setProgresso({ feitos, total: items.length, pct }),
-        });
-
-        if (r.ok) {
-          try {
-            await chamarServidor(
-              () =>
-                appendFn({
-                  data: {
-                    groupId,
-                    propertyId,
-                    path,
-                    kind: it.kind,
-                    mime: it.mime || "application/octet-stream",
-                    sizeBytes: it.blob.size,
-                    durationMs: it.durationMs,
-                  },
-                }),
-              { signal: ctrl.signal },
-            );
-            enviados.push(it.key);
-          } catch (e) {
-            falharam.push(it.name || it.kind);
-            ultimaMensagem = (e as Error)?.message ?? null;
-          }
-        } else if (r.motivo === "cancelado") {
-          break;
-        } else {
-          falharam.push(it.name || it.kind);
-          ultimaMensagem = r.mensagem;
-          /* A FALHA DEIXA RASTRO (11/09/2026).
-           *
-           * O envio anterior falhava em silêncio: nenhum erro no servidor,
-           * nenhum evento, nada. Só descobrimos porque a equipe reclamou e eu
-           * fui cavar o banco. Agora cada arquivo que não sobe vira um evento
-           * com tamanho, tipo e MOTIVO — se acontecer de novo, aparece
-           * sozinho. */
-          track({
-            type: "record_media_failed",
-            label: "Falha ao enviar mídia de situação",
-            category: "ERROR",
-            severity: "error",
-            metadata: {
-              kind: it.kind,
-              mime: it.mime || null,
-              sizeBytes: it.blob.size,
-              motivo: r.motivo,
-              propertyId,
-              groupId,
-            },
-          });
-        }
-
-        feitos += 1;
-        setProgresso({ feitos, total: items.length, pct: 0 });
-      }
-
-      await lock?.release().catch(() => {});
-
-      // O que subiu sai da folha: "tentar de novo" reenvia só o que faltou, e
-      // nunca duplica o que já está registrado.
-      if (enviados.length) {
-        setItems((prev) => {
-          for (const it of prev) {
-            if (enviados.includes(it.key) && it.previewUrl) URL.revokeObjectURL(it.previewUrl);
-          }
-          return prev.filter((it) => !enviados.includes(it.key));
-        });
-      }
-
-      if (ctrl.signal.aborted) {
-        setErro(
-          enviados.length
-            ? `Envio cancelado. ${enviados.length} arquivo(s) já ficaram guardados; o resto continua aqui.`
-            : "Envio cancelado. O texto já está salvo — toque em registrar quando quiser.",
-        );
-        return;
-      }
-
-      if (falharam.length) {
-        setErro(
-          `${ultimaMensagem ?? "Não consegui enviar."} ${enviados.length} de ${items.length} arquivo(s) subiram. Toque em "Registrar situação" para tentar o resto — o que já subiu está guardado.`,
-        );
-        onSaved();
-        return;
-      }
-
-      if (items.length > 0) avisarComDesfazer("Situação registrada.");
-      // Deu tudo certo: o rascunho cumpriu o papel e sai de cena.
       void apagarRascunho(chave);
       onSaved();
       onOpenChange(false);
@@ -629,7 +679,7 @@ export function RecordSituationSheet({
   return (
     <Dialog open={open} onOpenChange={(v) => !saving && onOpenChange(v)}>
       <DialogContent
-        className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-sm"
+        className="w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-sm"
         aria-describedby={undefined}
       >
         <DialogHeader className="space-y-0 border-b border-border/50 px-3.5 pb-2.5 pr-11 pt-3.5 text-left">
@@ -705,6 +755,17 @@ export function RecordSituationSheet({
                     ) : (
                       <Icon className="size-4 text-muted-foreground" />
                     )}
+                    {/* Progresso do envio antecipado deste arquivo. */}
+                    <span className="absolute inset-x-0 bottom-0 h-[3px] bg-black/40">
+                      <span
+                        className={`block h-full transition-[width] duration-300 ${
+                          (pctPorItem[it.key] ?? 0) >= 100
+                            ? "bg-emerald-500"
+                            : "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+                        }`}
+                        style={{ width: `${pctPorItem[it.key] ?? 0}%` }}
+                      />
+                    </span>
                     <button
                       type="button"
                       onClick={() => removeItem(it.key)}
@@ -728,7 +789,7 @@ export function RecordSituationSheet({
               {items.length < SITUATION_MEDIA_MAX && (
                 <button
                   type="button"
-                  onClick={() => photoRef.current?.click()}
+                  onClick={() => galleryRef.current?.click()}
                   className="grid size-[62px] place-items-center rounded-[0.25rem] border border-dashed border-[#E82DAE]/45 bg-[#E82DAE]/[0.07] text-[#E82DAE] transition-colors hover:bg-[#E82DAE]/[0.12]"
                   aria-label="Adicionar mais uma mídia a esta situação"
                   title="Adicionar mais uma mídia a esta situação"
@@ -759,6 +820,13 @@ export function RecordSituationSheet({
                   className="inline-flex items-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-2 py-1 text-[10.5px] font-medium text-foreground/80 hover:bg-secondary/50"
                 >
                   <Video className="size-3" /> Vídeo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => galleryRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-2 py-1 text-[10.5px] font-medium text-foreground/80 hover:bg-secondary/50"
+                >
+                  <Images className="size-3" /> Galeria
                 </button>
                 <button
                   type="button"
@@ -818,7 +886,17 @@ export function RecordSituationSheet({
           className="hidden"
           onChange={onPicked}
         />
-        <input ref={fileRef} type="file" className="hidden" onChange={onPicked} />
+        {/* Galeria: vários de uma vez, sem abrir a câmera. */}
+        <input
+          ref={galleryRef}
+          type="file"
+          accept="image/*,video/*"
+          multiple
+          className="hidden"
+          onChange={onPicked}
+        />
+        <input ref={fileRef} type="file" multiple className="hidden" onChange={onPicked} />
+
 
         {/* O ERRO MORA NA FOLHA, não num toast que some (11/09/2026): a
             pessoa precisa ler o que houve E ter o botão de tentar de novo
@@ -838,11 +916,11 @@ export function RecordSituationSheet({
             <div className="h-1 w-full overflow-hidden rounded-full bg-amber-500/20">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] transition-[width] duration-300"
-                style={{ width: `${Math.max(3, progresso.pct)}%` }}
+                style={{ width: `${Math.max(3, pctGeral)}%` }}
               />
             </div>
             <p className="mt-1.5 text-center text-[11px] leading-snug text-amber-600 dark:text-amber-400">
-              Enviando os arquivos — mantenha esta tela aberta. O texto já está salvo.
+              Registrando… os arquivos continuam subindo mesmo com a janela fechada.
             </p>
           </div>
         )}
@@ -868,7 +946,7 @@ export function RecordSituationSheet({
           >
             {saving && <Loader2 className="size-3.5 animate-spin" />}
             {progresso
-              ? `Enviando ${Math.min(progresso.feitos + 1, progresso.total)} de ${progresso.total}${progresso.pct > 0 ? ` · ${progresso.pct}%` : "…"}`
+              ? `Enviando ${Math.min(progresso.feitos + 1, progresso.total)} de ${progresso.total} · ${pctGeral}%`
               : erro
                 ? "Tentar de novo"
                 : "Registrar situação"}

@@ -86,7 +86,9 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
-    await enforce(userId, "equipe.write", { });
+    await enforce(userId, "equipe.write", { tenantId: ownerId });
+    const { requireOutboundEmailAuthority } = await import("@/lib/outbound-email-guard.server");
+    await requireOutboundEmailAuthority(supabase, userId, ownerId);
     /* SÓ O TITULAR CRIA OUTRO TITULAR (23/09/2026).
        Quem administra a equipe podia convidar alguém já como "titular" e, com
        isso, entregar o controle da conta inteira. O papel de titular agora só
@@ -101,16 +103,7 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
     if (plan.plan !== "business" && plan.plan !== "enterprise") {
       throw new Error("Convidar atendentes requer plano Business ou Enterprise.");
     }
-    if (plan.plan === "business") {
-      const { count } = await supabase
-        .from("account_members")
-        .select("id", { count: "exact", head: true })
-        .eq("owner_id", ownerId)
-        .eq("status", "active");
-      if ((count ?? 0) >= 2) {
-        throw new Error("O plano Business permite até 2 atendentes além do titular. Faça upgrade para o Enterprise.");
-      }
-    }
+    // Business e Enterprise: atendentes ilimitados (pedido 28/09/2026).
     const { data: inserted, error } = await supabase
       .from("account_member_invites")
       .insert({ owner_id: ownerId, email: data.email, role: data.role, invited_by: userId })
@@ -334,12 +327,40 @@ export const removeTeamMember = createServerFn({ method: "POST" })
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "equipe.write", { });
-    const { error } = await supabase
+    const { data: removed, error } = await supabase
       .from("account_members")
       .update({ status: "revoked" })
       .eq("id", data.memberId)
-      .eq("owner_id", ownerId);
+      .eq("owner_id", ownerId)
+      .select("member_user_id")
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    // REGRA: toda alteração de acesso é avisada por e-mail ao destinatário.
+    try {
+      const memberId = removed?.member_user_id as string | undefined;
+      if (memberId) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const [{ data: u }, { data: prof }] = await Promise.all([
+          supabaseAdmin.auth.admin.getUserById(memberId),
+          supabaseAdmin.from("profiles").select("full_name, trade_name").eq("id", ownerId).maybeSingle(),
+        ]);
+        const email = u?.user?.email;
+        if (email) {
+          const { sendAppEmail } = await import("@/lib/email/send-app-email.server");
+          await sendAppEmail({
+            templateName: "access-notice",
+            recipientEmail: email,
+            idempotencyKey: `access-removed-${data.memberId}-${Date.now()}`,
+            templateData: {
+              kind: "removed",
+              accountName: ((prof?.trade_name as string) || (prof?.full_name as string)) ?? null,
+            },
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[access-notice] falha no envio", e instanceof Error ? e.message : e);
+    }
     return { ok: true };
   });
 

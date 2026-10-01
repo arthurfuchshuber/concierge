@@ -1,3 +1,4 @@
+import { trimSeries } from "@/lib/trim-series";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -264,7 +265,7 @@ async function runAnalytics(
     const k = String(c.created_at).slice(0, 10);
     const row = dayMap.get(k); if (row) row.chats++;
   }
-  const timeseries = Array.from(dayMap.values());
+  const timeseries = trimSeries(Array.from(dayMap.values()), (d) => d.accesses > 0 || d.sessions > 0 || d.chats > 0);
 
   // ---- histograma de duração -------------------------------------------
   const durationBuckets = [

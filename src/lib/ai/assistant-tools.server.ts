@@ -1231,7 +1231,7 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           },
           categoria: {
             type: "string",
-            enum: ["cleaning_audit", "damage", "maintenance", "forgotten", "other"],
+            enum: ["cleaning_audit", "damage", "incident", "maintenance", "forgotten", "other"],
           },
           titulo: { type: ["string", "null"], description: "Máx. 120 caracteres." },
           descricao: { type: ["string", "null"] },

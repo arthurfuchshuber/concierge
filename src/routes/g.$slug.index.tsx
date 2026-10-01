@@ -766,9 +766,16 @@ function Guide({ data }: { data: GuideOk }) {
     let cancelled = false;
     const load = async () => {
       try {
+        const { ensureGuidePass } = await import("@/lib/guest-pass-client");
+        const guestPass = await ensureGuidePass(slug, {
+          name: accessRec?.name ?? null,
+          code: accessRec?.code ?? null,
+        });
+        if (!guestPass) return;
         const res = await fetchStayStatus({
           data: {
             slug,
+            guest_pass: guestPass,
             guest_name: accessRec?.name ?? null,
             checkin_date: checkin,
             checkout_date: accessRec?.checkoutDate ?? null,
@@ -1528,6 +1535,9 @@ function Guide({ data }: { data: GuideOk }) {
         onDone={() => {
           clearPendingOnboarding(slug);
           setTourActive(false);
+          // Ao concluir o passo a passo, o hóspede vai para a página inicial.
+          gotoSection("home");
+          window.scrollTo({ top: 0, behavior: "auto" });
         }}
         guestName={accessRec?.name ?? "hóspede"}
         propertyName={(p.name as string | null) ?? ""}
@@ -3368,7 +3378,7 @@ function HeroCompact({
   name,
   tagline,
   city,
-  photos,
+  photos: rawPhotos,
   theme,
   onToggleTheme,
   brandName,
@@ -3386,6 +3396,16 @@ function HeroCompact({
   brandLogoUrl?: string | null;
 }) {
   const [idx, setIdx] = useState(0);
+  // Foto que não carrega sai do carrossel (nunca mostra ícone quebrado).
+  const [broken, setBroken] = useState<Set<string>>(() => new Set());
+  const photos = rawPhotos.filter((p) => !broken.has(p));
+  const markBroken = (src: string) =>
+    setBroken((b) => {
+      if (b.has(src)) return b;
+      const n = new Set(b);
+      n.add(src);
+      return n;
+    });
   // Vitrine da landing (?demo=1): o guia é só um espelho, sem troca de tema.
   const isDemoView = useRouterState({
     select: (st) => String((st.location.search as { demo?: unknown }).demo ?? "") === "1",
@@ -3480,6 +3500,7 @@ function HeroCompact({
               key={`${src}-${i}`}
               src={src}
               alt=""
+              onError={() => markBroken(src)}
               className={`absolute inset-0 size-full object-cover object-center transition-opacity duration-700 ${
                 i === idx ? "opacity-100" : "opacity-0"
               }`}
@@ -4034,6 +4055,13 @@ function OnboardingPasswordCard({
   );
 }
 
+function fmtOnbDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
+
 function fmtOnbTime(raw: unknown): string | null {
   const m = String(raw ?? "").match(/^(\d{1,2}):(\d{2})/);
   if (!m) return null;
@@ -4322,23 +4350,40 @@ function PostAccessOnboarding({
                 Confere os dados e veja onde vai estar sua senha.
               </p>
 
-              {/* SEM "Check-in"/"Check-out" (pedido explícito, 24/09/2026:
-                  "essa informação é mostrada na próxima tela junto a outras
-                  infos da reserva") — antes repetia data e horário que a
-                  etapa seguinte da estadia já mostra junto do resto dos
-                  dados da reserva. Só o endereço continua aqui: é o único
-                  dado que esta tela apresentava e nenhuma outra repete. Sem
-                  endereço cadastrado, a caixa toda some — não sobra vazia. */}
-              {shortAddress(address) && (
-                <div className="rounded-[0.3rem] border border-border bg-foreground/[0.03] px-3.5 mb-3">
-                  <div className="flex items-center justify-between gap-3 py-2.5">
-                    <p className="text-[12.5px] text-muted-foreground shrink-0">Endereço</p>
-                    <p className="text-[12.5px] font-bold text-foreground text-right [text-wrap:auto]">
-                      {shortAddress(address)}
-                    </p>
+              {/* Infos da reserva (restaurado, 28/09/2026): as datas saíram do
+                  formulário e ficam aqui. Linha sem dado não aparece. */}
+              {(() => {
+                const rows = [
+                  checkinDate && {
+                    k: "Check-in",
+                    v: `${fmtOnbDate(checkinDate)}${checkinTime ? ` a partir das ${checkinTime}` : ""}`,
+                  },
+                  checkoutDate && {
+                    k: "Check-out",
+                    v: `${fmtOnbDate(checkoutDate)}${checkoutTime ? ` até ${checkoutTime}` : ""}`,
+                  },
+                  shortAddress(address) && { k: "Endereço", v: shortAddress(address) as string },
+                ].filter(Boolean) as { k: string; v: string }[];
+                if (!rows.length) return null;
+                return (
+                  <div className="rounded-[0.3rem] border border-border bg-foreground/[0.03] px-3.5 mb-3">
+                    {rows.map((r, i) => (
+                      <div
+                        key={r.k}
+                        className={cn(
+                          "flex items-center justify-between gap-3 py-2.5",
+                          i < rows.length - 1 && "border-b border-border",
+                        )}
+                      >
+                        <p className="text-[12.5px] text-muted-foreground shrink-0">{r.k}</p>
+                        <p className="text-[12.5px] font-bold text-foreground text-right [text-wrap:auto]">
+                          {r.v}
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               <div
                 className={cn(

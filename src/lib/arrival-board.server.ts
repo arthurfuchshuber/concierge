@@ -226,6 +226,16 @@ export async function buildArrivalRows(
       await syncStaleIcals(supabase, propIds);
     }
 
+    // Uma nova estadia já iniciada torna impossível manter a anterior como
+    // checkout/limpeza operacional. Reconcilia antes das consultas para que
+    // estados antigos não reapareçam no mesmo carregamento do painel.
+    try {
+      const { reconcileSupersededStays } = await import("@/lib/stay-reconciliation.server");
+      await reconcileSupersededStays(supabase, propIds, today);
+    } catch (error) {
+      console.error("[arrival-board] falha ao reconciliar estadias consecutivas", error);
+    }
+
 
     let q = context.supabase
       .from("guide_access_logs")
@@ -330,13 +340,13 @@ export async function buildArrivalRows(
       context.supabase
         .from("properties")
         .select(
-          "id, name, address, owner_contact_id, maps_url, garage_maps_url, lat, lng, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url, cleaning_price_normal_cents, cleaning_price_full_cents",
+          "id, name, address, owner_contact_id, maps_url, garage_maps_url, lat, lng, wifi_ssid, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url, cleaning_price_normal_cents, cleaning_price_full_cents",
         )
 
         .in("id", propIds),
       context.supabase
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, kind, status, note, arrival_time_override, arrival_date_override, muted_until, done_at, concluded_at")
+        .select("log_id, reservation_id, kind, status, note, arrival_time_override, arrival_date_override, arrival_time_source, muted_until, done_at, concluded_at")
         .in("property_id", propIds)
         .limit(5000),
       reservationsQuery.order(data.kind === "checkin" ? "checkin_date" : "checkout_date", { ascending: true }).limit(10000),
@@ -448,6 +458,7 @@ export async function buildArrivalRows(
         lat: number | null;
         lng: number | null;
         hasPasswords: boolean;
+        hasAccessInfo: boolean;
         accessCodes: Array<"lock" | "gate">;
         checkin_time: string | null;
         checkin_time_max: string | null;
@@ -467,6 +478,7 @@ export async function buildArrivalRows(
       garage_maps_url: string | null;
       lat: number | null;
       lng: number | null;
+      wifi_ssid: string | null;
       wifi_password: string | null;
       lock_code: string | null;
       gate_code: string | null;
@@ -490,6 +502,9 @@ export async function buildArrivalRows(
         lng: p.lng,
         // Senha de ACESSO ao imóvel = fechadura/portão (Wi-Fi não conta aqui).
         hasPasswords: !!(p.lock_code?.trim() || p.gate_code?.trim()),
+        // Chave do card "Em Limpeza" (30/09/2026): aqui o Wi-Fi CONTA — é
+        // informação de chegada da equipe, não só senha de acesso.
+        hasAccessInfo: !!(p.lock_code?.trim() || p.gate_code?.trim() || p.wifi_ssid?.trim() || p.wifi_password?.trim()),
         accessCodes: [
           ...(p.lock_code?.trim() ? (["lock"] as const) : []),
           ...(p.gate_code?.trim() ? (["gate"] as const) : []),
@@ -970,6 +985,7 @@ export async function buildArrivalRows(
         lat: p?.lat ?? null,
         lng: p?.lng ?? null,
         hasPasswords: !!p?.hasPasswords,
+        hasAccessInfo: !!p?.hasAccessInfo,
         openedCheckin: hasSeen(openedCheckin, l.property_id, l.guest_name, l.guest_phone),
         openedGuide: hasSeen(openedGuide, l.property_id, l.guest_name, l.guest_phone),
         readInstructions: hasSeen(readInstructions, l.property_id, l.guest_name, l.guest_phone),
@@ -1003,6 +1019,7 @@ export async function buildArrivalRows(
         mutedUntil: s?.muted_until ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
         arrivalDateOverride: (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null,
+        arrivalTimeSource: (s as { arrival_time_source?: string | null } | undefined)?.arrival_time_source ?? null,
         doneAt: s?.done_at ?? null,
         pendingFill: false,
         ical: forceIcal ?? { hasIcal, matched, icalCheckin, icalCheckout },
@@ -1077,6 +1094,7 @@ export async function buildArrivalRows(
         lat: p?.lat ?? null,
         lng: p?.lng ?? null,
         hasPasswords: !!p?.hasPasswords,
+        hasAccessInfo: !!p?.hasAccessInfo,
         openedCheckin: matchedLog ? hasSeen(openedCheckin, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
         openedGuide: matchedLog ? hasSeen(openedGuide, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
         readInstructions: matchedLog ? hasSeen(readInstructions, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
@@ -1108,6 +1126,7 @@ export async function buildArrivalRows(
         mutedUntil: s?.muted_until ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
         arrivalDateOverride: (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null,
+        arrivalTimeSource: (s as { arrival_time_source?: string | null } | undefined)?.arrival_time_source ?? null,
         doneAt: s?.done_at ?? null,
         pendingFill: !matchedLog,
         ical: { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date },

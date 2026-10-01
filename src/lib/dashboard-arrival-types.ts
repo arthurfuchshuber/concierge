@@ -16,6 +16,14 @@ export type ArrivalRow = {
   lng: number | null;
 
   hasPasswords: boolean;
+  /**
+   * O imóvel tem ALGUM dado de chegada para a equipe (portão, fechadura, rede
+   * ou senha do Wi-Fi)? Decide se a chave aparece no card "Em Limpeza"
+   * (mockup aprovado, 30/09/2026). Só o SIM/NÃO viaja na lista do quadro — os
+   * códigos em si vêm sob demanda, por `getPropertyAccessInfo`. Opcional
+   * porque só a esteira do Kanban (`arrival-board.server.ts`) preenche.
+   */
+  hasAccessInfo?: boolean;
   openedCheckin: boolean;
   openedGuide: boolean;
   readInstructions: boolean;
@@ -54,6 +62,8 @@ export type ArrivalRow = {
   arrivalTimeOverride: string | null;
   /** Data prevista informada manualmente (chegada em dia diferente da reserva) */
   arrivalDateOverride: string | null;
+  /** 'guest' quando a previsão foi informada pelo próprio hóspede no guia. */
+  arrivalTimeSource?: string | null;
   /** ISO: até quando os alertas de atraso deste card estão silenciados */
   mutedUntil: string | null;
   doneAt: string | null;

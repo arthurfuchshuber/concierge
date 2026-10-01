@@ -129,6 +129,14 @@ export const Route = createFileRoute("/api/public/guide-chat-upload")({
             headers: { "Content-Type": "application/json" },
           });
         }
+        // Exige o passe assinado do hóspede identificado neste guia.
+        const { verifyGuestPass } = await import("@/lib/guest-pass.server");
+        if (!verifyGuestPass(request.headers.get("x-guest-pass"), `guide:${prop.id}`)) {
+          return new Response(JSON.stringify({ error: "unauthorized" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
         const { data: conv } = await supabaseAdmin
           .from("property_chat_conversations")
           .select("id, property_id, guest_session_id, ai_paused, status")

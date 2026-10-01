@@ -319,6 +319,19 @@ function RootComponent() {
   // Tratamento global de PERMISSION_DENIED (não quebra a aplicação).
   useEffect(() => installPermissionDeniedHandler(), []);
 
+  // Um som por vez no sistema inteiro: ao dar play numa mídia, pausa as demais.
+  useEffect(() => {
+    const onPlay = (e: Event) => {
+      const t = e.target;
+      if (!(t instanceof HTMLMediaElement)) return;
+      document.querySelectorAll<HTMLMediaElement>("video, audio").forEach((m) => {
+        if (m !== t && !m.paused) m.pause();
+      });
+    };
+    document.addEventListener("play", onPlay, true);
+    return () => document.removeEventListener("play", onPlay, true);
+  }, []);
+
   // Nova versão publicada: recarrega automaticamente a página de todos.
   useAppVersionWatcher();
 

@@ -62,6 +62,7 @@ export async function resolveTenantOf(
     .from("account_members")
     .select("owner_id, role, status, all_properties")
     .eq("member_user_id", userId)
+    .eq("status", "active")
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -117,7 +118,27 @@ export async function resolveSubjectSnapshot(
   const { bootstrapPermissionRegistry } = await import("./permission.bootstrap");
   bootstrapPermissionRegistry();
 
-  const membership = await resolveTenantOf(userId);
+  let membership = await resolveTenantOf(userId);
+  // Multiempresa: quando a conta ativa é informada, usa o vínculo DAQUELA
+  // conta (recorte de imóveis e status), nunca o da primeira empresa.
+  if (ctx.tenantId && ctx.tenantId !== userId && membership.tenantId !== ctx.tenantId) {
+    const db = await admin();
+    const { data: m } = await db
+      .from("account_members")
+      .select("owner_id, role, status, all_properties")
+      .eq("member_user_id", userId)
+      .eq("owner_id", ctx.tenantId)
+      .eq("status", "active")
+      .maybeSingle();
+    membership = m
+      ? {
+          tenantId: ctx.tenantId,
+          status: "active",
+          role: (m.role as string) ?? null,
+          allProperties: (m as { all_properties?: boolean | null }).all_properties !== false,
+        }
+      : { tenantId: ctx.tenantId, status: "revoked", role: null, allProperties: false };
+  }
   const resolvedTenant = ctx.tenantId
     ? { tenantId: ctx.tenantId, status: "unknown" as SubjectStatus, role: null }
     : membership;

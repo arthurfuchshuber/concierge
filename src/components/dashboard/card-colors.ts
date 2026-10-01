@@ -26,8 +26,8 @@
  * arquivo.
  */
 
-/** Proprietário — rosa da marca. */
-export const CARD_OWNER = "text-accent font-bold";
+/** Proprietário — neutro, mesma cor do título do imóvel (padrão Guias). */
+export const CARD_OWNER = "text-foreground font-semibold";
 
 /**
  * O RÓTULO "Proprietário: " + só o primeiro nome.

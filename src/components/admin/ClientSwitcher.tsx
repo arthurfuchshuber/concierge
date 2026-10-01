@@ -97,7 +97,7 @@ export function ClientSwitcher() {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0 rounded-md" align="start" sideOffset={8}>
+      <PopoverContent className="w-80 p-0" align="start" sideOffset={8}>
         <div className="p-3 border-b border-border space-y-2">
           <div className="relative">
             <Search className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />

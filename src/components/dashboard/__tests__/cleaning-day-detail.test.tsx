@@ -1,6 +1,10 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup as rawRender } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
+const renderToStaticMarkup = (el: ReactElement) =>
+  rawRender(<QueryClientProvider client={new QueryClient()}>{el}</QueryClientProvider>);
 import { describe, expect, it } from "vitest";
-import { CleaningDayDetail } from "../CleaningDayDetail";
+import { CleaningDayDetailContent } from "../CleaningDayDetail";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
 
 const base: Omit<
@@ -11,6 +15,8 @@ const base: Omit<
   ownerName: "Dono",
   concludedAt: "2026-09-17T17:20:00.000Z",
   doneByName: "Maria",
+  logId: null,
+  reservationId: null,
 };
 
 const items: CleaningDayItem[] = [
@@ -55,10 +61,10 @@ const items: CleaningDayItem[] = [
 
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
-describe("CleaningDayDetail — tabela do dia", () => {
+describe("CleaningDayDetailContent — tabela do dia", () => {
   it("limpezas: uma linha por limpeza, só do dia; pendente fora do total", () => {
     const html = renderToStaticMarkup(
-      <CleaningDayDetail
+      <CleaningDayDetailContent
         date="2026-09-17"
         source={{ mode: "done", items }}
         caretX={40}
@@ -78,7 +84,7 @@ describe("CleaningDayDetail — tabela do dia", () => {
 
   it("custo: agrupa por imóvel, maior valor primeiro, pendente por último", () => {
     const html = renderToStaticMarkup(
-      <CleaningDayDetail
+      <CleaningDayDetailContent
         date="2026-09-17"
         source={{ mode: "cost", items }}
         caretX={null}
@@ -97,7 +103,7 @@ describe("CleaningDayDetail — tabela do dia", () => {
 
   it("previsão: horário, hóspede e estimativa", () => {
     const html = renderToStaticMarkup(
-      <CleaningDayDetail
+      <CleaningDayDetailContent
         date="2026-09-19"
         source={{
           mode: "forecast",

@@ -453,18 +453,14 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
     // Loose match: same check-in date, any check-out
     const { data: loose } = await supabaseAdmin
       .from("property_reservations")
-      .select("checkin_date, checkout_date")
+      .select("checkin_date")
       .eq("property_id", prop.id)
       .eq("source", "airbnb")
       .eq("checkin_date", data.checkin_date)
       .limit(1);
     if ((loose ?? []).length > 0) {
-      return {
-        hasIcal: true as const,
-        matched: false as const,
-        looseMatch: true as const,
-        suggestedCheckout: (loose![0] as { checkout_date: string }).checkout_date,
-      };
+      // Não revela a data de saída real de outra reserva.
+      return { hasIcal: true as const, matched: false as const, looseMatch: true as const };
     }
     return { hasIcal: true as const, matched: false as const };
   });
@@ -473,6 +469,7 @@ const StayStatusInput = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
   property_id: z.string().uuid().optional(),
   guest_name: z.string().trim().max(200).optional().nullable(),
+  guest_pass: z.string().max(1000).optional().nullable(),
   checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   checkout_date: z
     .string()
@@ -512,8 +509,14 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
       : await propQuery.maybeSingle();
     if (!prop) return empty;
 
+    // Só quem já se identificou neste guia (passe assinado pelo servidor)
+    // pode ver o status da estadia — ninguém consulta datas de terceiros.
+    const { verifyGuestPass } = await import("@/lib/guest-pass.server");
+    const passName = verifyGuestPass(data.guest_pass ?? null, `guide:${prop.id}`);
+    if (!passName) return empty;
+
     const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
-    const guest = data.guest_name ? norm(data.guest_name) : null;
+    const guest = norm(passName);
 
     const [{ data: logs }, { data: reservations }] = await Promise.all([
       supabaseAdmin
@@ -821,6 +824,18 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
       // ainda aberta no imóvel). O hóspede vê um aviso e a equipe resolve.
       console.error("[markGuideStayStep] avanço recusado:", err);
       return { ok: false as const, reason: "blocked" as const };
+    }
+
+    try {
+      const { notifyGuestSelfStep } = await import("@/lib/ops-push.server");
+      await notifyGuestSelfStep(supabaseAdmin as never, {
+        propertyId: prop.id as string,
+        kind: data.kind,
+        stayKey: reservationId ?? logId,
+        guestName: guestNameRaw,
+      });
+    } catch (e) {
+      console.error("[markGuideStayStep] push interno falhou:", e);
     }
 
     const undoToken = await signGuestToken(STAY_UNDO_PURPOSE, {

@@ -23,6 +23,7 @@ const SIGN_TTL_SECONDS = 60 * 60; // 1h — mesmo prazo de signChatAttachmentUrl
 export const RECORD_CATEGORIES = [
   "forgotten",
   "damage",
+  "incident",
   "cleaning_audit",
   "maintenance",
   "other",
@@ -75,7 +76,13 @@ const TASK_RULES: Record<
     taskCategory: "inspection",
     priority: "high",
     showInCleaning: false,
-    prefix: "Dano/incidente",
+    prefix: "Dano",
+  },
+  incident: {
+    taskCategory: "inspection",
+    priority: "high",
+    showInCleaning: false,
+    prefix: "Incidente",
   },
   maintenance: {
     taskCategory: "maintenance",
@@ -1224,6 +1231,8 @@ export type AccountRecord = ReservationRecord & {
   propertyId: string;
   propertyName: string;
   ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
   /** Comprovação de resolução anexada a uma pendência. */
   isResolution: boolean;
   /** Título da pendência gerada, quando houver. */
@@ -1271,10 +1280,12 @@ export type AccountRecordsResult = {
   totalOpen: number;
   /** true quando o histórico passou do teto de leitura. */
   truncated: boolean;
+  /** Primeiro/último dia (SP) com registro no recorte de imóveis — limita o calendário. */
+  bounds?: { min: string | null; max: string | null };
 };
 
 function emptyCounts(): Record<RecordCategory, number> {
-  return { forgotten: 0, damage: 0, cleaning_audit: 0, maintenance: 0, other: 0 };
+  return { forgotten: 0, damage: 0, incident: 0, cleaning_audit: 0, maintenance: 0, other: 0 };
 }
 
 export const listAccountRecords = createServerFn({ method: "GET" })
@@ -1290,6 +1301,9 @@ export const listAccountRecords = createServerFn({ method: "GET" })
           onlyOpen: z.boolean().optional(),
           /** Janela em dias. Vazio/0 = TODO o histórico (padrão pedido). */
           days: z.number().int().positive().max(3650).nullable().optional(),
+          /** Período por datas (dia local de São Paulo, AAAA-MM-DD), igual à Limpeza. */
+          fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+          toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
           /**
            * Recorte por imóvel. O filtro de PROPRIETÁRIO também chega aqui,
            * já resolvido para a lista de imóveis dele — assim os contadores
@@ -1335,6 +1349,18 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     if (data.days) {
       scan = scan.gte("created_at", new Date(Date.now() - data.days * 86_400_000).toISOString());
     }
+    if (data.fromDate) scan = scan.gte("created_at", new Date(`${data.fromDate}T00:00:00-03:00`).toISOString());
+    if (data.toDate) scan = scan.lte("created_at", new Date(`${data.toDate}T23:59:59.999-03:00`).toISOString());
+    const spDay = (iso: string | undefined) =>
+      iso ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(iso)) : null;
+    const [firstQ, lastQ] = await Promise.all([
+      supabase.from("reservation_records").select("created_at").in("property_id", propIds).order("created_at", { ascending: true }).limit(1),
+      supabase.from("reservation_records").select("created_at").in("property_id", propIds).order("created_at", { ascending: false }).limit(1),
+    ]);
+    const bounds = {
+      min: spDay((firstQ.data as Array<{ created_at: string }> | null)?.[0]?.created_at),
+      max: spDay((lastQ.data as Array<{ created_at: string }> | null)?.[0]?.created_at),
+    };
     const { data: rows, error } = await scan
       .order("created_at", { ascending: false })
       .limit(ACCOUNT_RECORDS_SCAN_LIMIT);
@@ -1517,18 +1543,22 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       ),
     );
     const ownerNameById = new Map<string, string>();
+    const ownerPhoneById = new Map<string, { phone: string | null; country: string | null }>();
     if (ownerIds.length > 0) {
       const { data: owners } = await supabase
         .from("property_owners")
-        .select("id, name, trade_name")
+        .select("id, name, trade_name, phone, phone_country")
         .in("id", ownerIds);
       for (const o of (owners ?? []) as Array<{
         id: string;
         name: string | null;
         trade_name: string | null;
+        phone: string | null;
+        phone_country: string | null;
       }>) {
         const label = (o.trade_name || o.name || "").trim();
         if (label) ownerNameById.set(o.id, label);
+        ownerPhoneById.set(o.id, { phone: o.phone ?? null, country: o.phone_country ?? null });
       }
     }
 
@@ -1595,6 +1625,8 @@ export const listAccountRecords = createServerFn({ method: "GET" })
         propertyId: r.property_id,
         propertyName: prop?.name ?? "Sem nome",
         ownerName: prop?.ownerContactId ? (ownerNameById.get(prop.ownerContactId) ?? null) : null,
+        ownerPhone: prop?.ownerContactId ? (ownerPhoneById.get(prop.ownerContactId)?.phone ?? null) : null,
+        ownerPhoneCountry: prop?.ownerContactId ? (ownerPhoneById.get(prop.ownerContactId)?.country ?? null) : null,
         isResolution: r.is_resolution,
         taskTitle: task?.title ?? null,
         reservationKey,
@@ -1615,5 +1647,67 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       total,
       totalOpen,
       truncated: all.length >= ACCOUNT_RECORDS_SCAN_LIMIT,
+      bounds,
     };
+  });
+
+/**
+ * LIMPEZAS SEM REGISTRO — limpezas concluídas (saídas com limpeza marcada)
+ * no recorte pedido que não têm nenhum registro de LIMPEZA ligado à mesma
+ * estadia (mesmo log do hóspede ou mesma reserva). Alimenta o cartão da aba
+ * Registros.
+ */
+export const countCleaningsWithoutRecords = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (i: unknown) =>
+      z
+        .object({
+          ownerId: z.string().uuid().nullable().optional(),
+          days: z.number().int().positive().max(3650).nullable().optional(),
+          propertyIds: z.array(z.string().uuid()).max(500).nullable().optional(),
+        })
+        .optional()
+        .parse(i) ?? {},
+  )
+  .handler(async ({ data, context }): Promise<{ count: number }> => {
+    const supabase = context.supabase as unknown as AnyClient;
+    const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
+    const accessible = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
+    const requested = data.propertyIds ?? null;
+    const propIds =
+      requested && requested.length > 0 ? accessible.filter((id) => requested.includes(id)) : accessible;
+    if (propIds.length === 0) return { count: 0 };
+
+    let q = supabase
+      .from("guest_arrival_status")
+      .select("id, log_id, reservation_id")
+      .eq("kind", "checkout")
+      .not("cleaning_type", "is", null)
+      .not("concluded_at", "is", null)
+      .in("property_id", propIds)
+      .limit(5000);
+    if (data.days) q = q.gte("concluded_at", new Date(Date.now() - data.days * 86_400_000).toISOString());
+    const { data: rows, error } = await q;
+    if (error) throw new Error("Não foi possível contar as limpezas sem registro. Tente de novo.");
+    const cleanings = (rows ?? []) as { id: string; log_id: string | null; reservation_id: string | null }[];
+    if (cleanings.length === 0) return { count: 0 };
+
+    const { data: recs, error: e2 } = await supabase
+      .from("reservation_records")
+      .select("log_id, reservation_id")
+      .eq("category", "cleaning_audit")
+      .in("property_id", propIds)
+      .limit(20000);
+    if (e2) throw new Error("Não foi possível contar as limpezas sem registro. Tente de novo.");
+    const logs = new Set<string>();
+    const resv = new Set<string>();
+    for (const r of (recs ?? []) as { log_id: string | null; reservation_id: string | null }[]) {
+      if (r.log_id) logs.add(r.log_id);
+      if (r.reservation_id) resv.add(r.reservation_id);
+    }
+    const count = cleanings.filter(
+      (c) => !(c.log_id && logs.has(c.log_id)) && !(c.reservation_id && resv.has(c.reservation_id)),
+    ).length;
+    return { count };
   });

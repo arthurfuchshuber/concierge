@@ -12,7 +12,9 @@ export function OwnerLine({
   phone,
   country,
   phonePosition = "end",
+  variant = "brand",
 }: {
+  variant?: "brand" | "neutral";
   name: string | null;
   phone: string | null;
   country: string | null;
@@ -24,7 +26,7 @@ export function OwnerLine({
   return (
     <div className="flex w-full min-w-0 max-w-full items-center gap-1.5 overflow-hidden">
       <span
-        className={`${phonePosition === "end" ? "flex-1" : "shrink"} min-w-0 truncate text-xs ${CARD_OWNER}`}
+        className={`${phonePosition === "end" ? "flex-1" : "shrink"} min-w-0 truncate text-xs ${variant === "neutral" ? "text-muted-foreground" : CARD_OWNER}`}
         title={name ?? undefined}
       >
         {label}
@@ -34,6 +36,7 @@ export function OwnerLine({
         phone={phone}
         country={country}
         size={12}
+        alwaysShow
         className={phonePosition === "end" ? "ml-auto" : ""}
       />
     </div>

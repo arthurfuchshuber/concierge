@@ -439,7 +439,16 @@ export function GuideAiChat({
       if (opts.durationMs != null) form.append("durationMs", String(opts.durationMs));
       const file = new File([blob], opts.filename, { type: opts.mime });
       form.append("file", file);
-      const res = await fetch("/api/public/guide-chat-upload", { method: "POST", body: form });
+      const { ensureGuidePass } = await import("@/lib/guest-pass-client");
+      const uPass = await ensureGuidePass(slug, {
+        name: isPreviewMode() ? PREVIEW_GUEST_NAME : (guestName ?? readAccessRecord(slug)?.name ?? null),
+        code: readAccessRecord(slug)?.code ?? null,
+      });
+      const res = await fetch("/api/public/guide-chat-upload", {
+        method: "POST",
+        body: form,
+        headers: uPass ? { "x-guest-pass": uPass } : {},
+      });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j?.error ?? "Falha ao enviar anexo.");
@@ -556,19 +565,58 @@ export function GuideAiChat({
     }
   }
 
-  async function send(overrideText?: string) {
+  /* VÁRIAS MENSAGENS = UMA RESPOSTA (30/09/2026).
+   * Cada mensagem aparece na hora, mas a IA espera ~2,5s de silêncio antes
+   * de responder e junta tudo o que chegou nesse intervalo. Se o hóspede
+   * escrever enquanto a IA ainda responde, as novas mensagens entram juntas
+   * no próximo turno. */
+  const pendingTextsRef = useRef<string[]>([]);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messagesRef = useRef<Msg[]>(messages);
+  messagesRef.current = messages;
+  const loadingRef = useRef(false);
+  loadingRef.current = loading;
+  const CONSOLIDATE_MS = 2500;
+
+  function scheduleFlush(delay = CONSOLIDATE_MS) {
+    if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+    flushTimerRef.current = setTimeout(() => {
+      flushTimerRef.current = null;
+      if (loadingRef.current || pendingTextsRef.current.length === 0) return;
+      const combined = pendingTextsRef.current.join("\n");
+      pendingTextsRef.current = [];
+      void runTurn(combined);
+    }, delay);
+  }
+  useEffect(() => () => {
+    if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+  }, []);
+
+  function send(overrideText?: string) {
     const text = (overrideText ?? input).trim();
-    if (!text || loading) return;
-    const next = [...messages, { role: "user" as const, content: text }];
-    const forceAi = forceAiNextRef.current;
-    forceAiNextRef.current = false;
+    if (!text) return;
+    const next = [...messagesRef.current, { role: "user" as const, content: text }];
+    messagesRef.current = next;
     setMessages(next);
     setInput("");
+    pendingTextsRef.current.push(text);
+    // Atalhos (botões de sugestão) respondem sem esperar.
+    if (!loadingRef.current) scheduleFlush(overrideText ? 0 : CONSOLIDATE_MS);
+  }
+
+  async function runTurn(text: string) {
+    const next = messagesRef.current;
+    const forceAi = forceAiNextRef.current;
+    forceAiNextRef.current = false;
+    loadingRef.current = true;
     setLoading(true);
     setStageLabel("Recebi sua mensagem");
     setStreamingText("");
 
-    const finishWith = (updated: Msg[], convId?: string) => {
+    const finishWith = (base: Msg[], convId?: string) => {
+      // Mantém as mensagens que o hóspede mandou enquanto a IA respondia.
+      const updated = [...base, ...messagesRef.current.slice(next.length)];
+      messagesRef.current = updated;
       setMessages(updated);
       saveCachedMessages(slug, convId ?? conversationId, updated);
     };
@@ -596,6 +644,8 @@ export function GuideAiChat({
           checkinDate: readAccessRecord(slug)?.checkinDate ?? undefined,
           checkoutDate: readAccessRecord(slug)?.checkoutDate ?? undefined,
           reservationCode: readAccessRecord(slug)?.code ?? undefined,
+          // Vitrine da landing (?demo=1): senhas fictícias e nenhum aviso à equipe.
+          demo: new URLSearchParams(window.location.search).get("demo") === "1" || undefined,
         }),
       });
 
@@ -641,6 +691,10 @@ export function GuideAiChat({
           } else if (type === "reply_start") {
             setStageLabel(null);
             if (evt.conversationId) convId = String(evt.conversationId);
+          } else if (type === "draft") {
+            setStageLabel(null);
+            acc = String(evt.text ?? "");
+            setStreamingText(acc);
           } else if (type === "delta") {
             acc += String(evt.text ?? "");
             setStreamingText(acc);
@@ -693,8 +747,10 @@ export function GuideAiChat({
     } finally {
       setStageLabel(null);
       setStreamingText("");
+      loadingRef.current = false;
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 30);
+      if (pendingTextsRef.current.length) scheduleFlush(600);
     }
   }
 
@@ -1191,11 +1247,11 @@ export function GuideAiChat({
               <button
                 type="button"
                 onClick={() => void send()}
-                disabled={loading || uploading}
+                disabled={uploading}
                 aria-label="Enviar"
                 className="grid size-8 shrink-0 place-items-center rounded-full bg-emerald-600 text-white transition-all hover:bg-emerald-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" strokeWidth={2} />}
+                {<Send className="size-4" strokeWidth={2} />}
               </button>
             ) : transcribing ? (
               <span className="grid size-8 shrink-0 place-items-center text-zinc-500">

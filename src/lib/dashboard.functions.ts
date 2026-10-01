@@ -100,12 +100,14 @@ export async function accessiblePropertyIds(
   userId?: string | null,
 ): Promise<string[]> {
   let authorizedOwnerId = ownerId ?? null;
-  if (userId && ownerId) {
+  if (userId) {
+    // Sempre fixa UMA conta (nunca mistura empresas quando a pessoa participa
+    // de várias): a informada e autorizada, ou a conta padrão do usuário.
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     authorizedOwnerId = await resolveAuthorizedAccountOwnerId(
       supabase as never,
       userId,
-      ownerId,
+      ownerId ?? null,
     );
   }
   // RLS on properties already scopes to owner + active account members.
@@ -124,9 +126,9 @@ export async function accessiblePropertyIds(
   const rows = data ?? [];
   let ids = rows.map((r) => r.id);
   if (userId) {
-    // Recorte por residências atendidas: sem vínculo, o membro não vê nada.
+    // Recorte por residências atendidas NA CONTA ATIVA: sem vínculo, nada.
     const { filterVisiblePropertyIds } = await import("@/lib/permissions/property-scope.server");
-    ids = await filterVisiblePropertyIds(userId, ids);
+    ids = await filterVisiblePropertyIds(userId, ids, authorizedOwnerId);
   }
   return await excludeCanceledOwnerProperties(supabase, rows, ids);
 }
@@ -336,6 +338,8 @@ export type CleaningDayItem = {
   pending: boolean;
   concludedAt: string | null;
   doneByName: string | null;
+  logId: string | null;
+  reservationId: string | null;
 };
 
 // "Sem prestador informado" (mockup aprovado, 23/09/2026) — valor sentinela
@@ -396,7 +400,7 @@ export const getCleaningStats = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("guest_arrival_status")
       .select(
-        "id, property_id, cleaning_type, cleaning_price_cents, concluded_at, cleaning_approval_status, cleaning_done_by",
+        "id, property_id, cleaning_type, cleaning_price_cents, concluded_at, cleaning_approval_status, cleaning_done_by, log_id, reservation_id",
       )
       .in("property_id", propIds)
       .eq("kind", "checkout")
@@ -414,6 +418,8 @@ export const getCleaningStats = createServerFn({ method: "GET" })
       concluded_at: string | null;
       cleaning_approval_status: string | null;
       cleaning_done_by: string | null;
+      log_id: string | null;
+      reservation_id: string | null;
     };
     // LIMPEZA COMPLETA SÓ CONTA DEPOIS DE APROVADA (pedido explícito,
     // 17/09/2026): as pendentes ficam fora de TODOS os números desta função
@@ -558,6 +564,8 @@ export const getCleaningStats = createServerFn({ method: "GET" })
             pending: r.cleaning_approval_status === "pending",
             concludedAt: r.concluded_at,
             doneByName: r.cleaning_done_by ? (providerNameByUser.get(r.cleaning_done_by) ?? null) : null,
+            logId: r.log_id,
+            reservationId: r.reservation_id,
           };
         })
         .sort((a, b) => (b.concludedAt ?? "").localeCompare(a.concludedAt ?? ""));
@@ -1374,6 +1382,7 @@ export async function runAdvanceArrival(
         cleaning_price_cents?: number | null;
         cleaning_approval_status?: "pending" | null;
         cleaning_done_by?: string | null;
+        cleaning_price_original_cents?: number | null;
       },
     ) {
       const body: {
@@ -1388,6 +1397,7 @@ export async function runAdvanceArrival(
         cleaning_price_cents?: number | null;
         cleaning_approval_status?: "pending" | null;
         cleaning_done_by?: string | null;
+        cleaning_price_original_cents?: number | null;
       } = { property_id: propertyId!, kind, ...patch };
       if (data.logId) body.log_id = data.logId;
       if (data.reservationId) body.reservation_id = data.reservationId;
@@ -1678,10 +1688,29 @@ export async function runAdvanceArrival(
         .select("cleaning_price_normal_cents, cleaning_price_full_cents")
         .eq("id", propertyId)
         .maybeSingle();
-      const cleaningPriceCents =
+      // Valor ajustado antes da conclusão (cleaning-price.functions.ts) vence
+      // o preço cadastrado do imóvel.
+      let overrideCents: number | null = null;
+      {
+        let q = supabase
+          .from("guest_arrival_status")
+          .select("cleaning_price_override_cents")
+          .eq("kind", "checkout");
+        q = data.reservationId && data.logId
+          ? q.or(`log_id.eq.${data.logId},reservation_id.eq.${data.reservationId}`)
+          : data.reservationId
+            ? q.eq("reservation_id", data.reservationId)
+            : q.eq("log_id", data.logId!);
+        const { data: ov } = await q.limit(1);
+        overrideCents =
+          ((ov?.[0] as { cleaning_price_override_cents: number | null } | undefined)
+            ?.cleaning_price_override_cents) ?? null;
+      }
+      const propertyPriceCents =
         cleaningType === "completa"
           ? ((propPrices as { cleaning_price_full_cents: number | null } | null)?.cleaning_price_full_cents ?? null)
           : ((propPrices as { cleaning_price_normal_cents: number | null } | null)?.cleaning_price_normal_cents ?? null);
+      const cleaningPriceCents = overrideCents ?? propertyPriceCents;
 
       await upsertStatus("checkout", {
         status: "done",
@@ -1689,6 +1718,7 @@ export async function runAdvanceArrival(
         concluded_at: nowIso,
         cleaning_type: cleaningType,
         cleaning_price_cents: cleaningPriceCents,
+        ...(overrideCents != null ? { cleaning_price_original_cents: propertyPriceCents } : {}),
         // Completa entra PENDENTE: só soma no custo depois que o gestor
         // aprovar (cleaning-approval.functions.ts). Gravar "pending" também
         // derruba uma aprovação antiga quando a limpeza é concluída de novo
@@ -1715,6 +1745,12 @@ export async function runAdvanceArrival(
             refKey,
             byUserId: (opts?.byUserId ?? null),
           });
+          try {
+            const { notifyGuestCheckinReleased } = await import("@/lib/ops-push.server");
+            await notifyGuestCheckinReleased(supabaseAdmin as never, { propertyId });
+          } catch (e) {
+            console.error("[advanceArrival] push ao hóspede falhou:", e);
+          }
         } else {
           await notifyCleaningReady(supabaseAdmin as never, { propertyId, refKey });
         }

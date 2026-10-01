@@ -601,3 +601,84 @@ export async function notifyCleaningDone(
     },
   });
 }
+
+/**
+ * PUSH AO HÓSPEDE: IMÓVEL LIBERADO PARA CHECK-IN (26/09/2026).
+ * Disparado quando a limpeza é finalizada. Vai para as conversas do guia
+ * cujo hóspede tem entrada HOJE no imóvel (nome do formulário do guia).
+ * Uma vez por estadia (dedupe em `ops_push_log`).
+ */
+export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyId: string }) {
+  const { data: prop } = await admin
+    .from("properties")
+    .select("owner_id, slug")
+    .eq("id", opts.propertyId)
+    .maybeSingle();
+  if (!prop) return { sent: 0 };
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const { data: logs } = await admin
+    .from("guide_access_logs")
+    .select("id, guest_name")
+    .eq("property_id", opts.propertyId)
+    .eq("checkin_date", today)
+    .limit(20);
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+  let sent = 0;
+  const { sendPushToGuest } = await import("@/lib/guest-push.server");
+  for (const l of (logs ?? []) as Array<{ id: string; guest_name: string | null }>) {
+    if (!l.guest_name) continue;
+    const dedupeKey = `guest-checkin-released:${l.id}`;
+    const { error: dupErr } = await admin.from("ops_push_log").insert({
+      owner_id: prop.owner_id,
+      kind: "guest-checkin-released",
+      dedupe_key: dedupeKey,
+      payload: {},
+    });
+    if (dupErr) continue;
+    const { data: convs } = await admin
+      .from("property_chat_conversations")
+      .select("id, guest_name")
+      .eq("property_id", opts.propertyId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    const target = norm(l.guest_name);
+    const mine = ((convs ?? []) as Array<{ id: string; guest_name: string | null }>).filter(
+      (c) => c.guest_name && norm(c.guest_name) === target,
+    );
+    let n = 0;
+    for (const c of mine) {
+      const r = await sendPushToGuest(c.id, {
+        title: "Seu imóvel foi liberado para check-in",
+        body: "Antes de sair, confirme pelo chat se já pode acessá-lo neste momento.",
+        data: { url: prop.slug ? `/g/${prop.slug}` : "/", tag: `guest-release-${l.id}` },
+      });
+      n += r.sent;
+    }
+    if (n === 0) await admin.from("ops_push_log").delete().eq("dedupe_key", dedupeKey);
+    sent += n;
+  }
+  return { sent };
+}
+
+/** Push interno: hóspede confirmou check-in/check-out pelo guia. */
+export async function notifyGuestSelfStep(
+  admin: Admin,
+  opts: { propertyId: string; kind: "checkin" | "checkout"; stayKey: string; guestName?: string | null },
+) {
+  const prop = await getPropertyBasics(admin, opts.propertyId);
+  if (!prop) return { sent: 0, skipped: true };
+  const userIds = await getAccountNotifiableUsers(admin, prop.owner_id);
+  const name = (prop.name || "Residência").trim();
+  const label = opts.kind === "checkin" ? "Check-in" : "Check-out";
+  return sendOpsPush(admin, {
+    ownerId: prop.owner_id,
+    kind: `guest-self-${opts.kind}`,
+    dedupeKey: `guest-self-${opts.kind}:${opts.stayKey}`,
+    userIds,
+    payload: {
+      title: `${label} feito pelo hóspede · ${name}`,
+      body: locLine([prop.ownerName, opts.guestName ?? "", prop.cityClean]),
+      data: { url: "/admin/dashboard", tag: `guest-self-${opts.kind}-${opts.stayKey}`, propertyId: opts.propertyId },
+    },
+  });
+}

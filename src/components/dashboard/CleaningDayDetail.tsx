@@ -1,4 +1,24 @@
-import { X } from "lucide-react";
+import { useState } from "react";
+import { CalendarDays, X } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { centsToReaisInput, parseReaisInputToCents } from "@/components/ui/money-input";
+import { CleaningProviderAvatar } from "@/components/dashboard/CleaningProviderAvatar";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { setCleaningPriceOverride, setCleaningType } from "@/lib/cleaning-price.functions";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ownerLabel } from "@/components/dashboard/card-colors";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
 
 /**
@@ -58,17 +78,19 @@ function timeSP(iso: string | null): string | null {
   });
 }
 
-const TH = "pb-2 text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground";
-const TD = "border-t border-border py-2 align-top text-[12px]";
+const TH = "pb-2.5 text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground";
+const TD = "border-t border-border/60 py-3 align-top text-[12.5px]";
 
 function PropertyCell({ name, owner }: { name: string; owner: string | null }) {
   return (
     <td className={`${TD} pr-2`}>
-      <span className="block max-w-[150px] truncate font-bold sm:max-w-[220px]" title={name}>
+      <span className="block break-words font-bold" title={name}>
         {name}
       </span>
-      {owner && (
-        <span className="mt-px block truncate text-[10.5px] font-bold text-accent">{owner}</span>
+      {ownerLabel(owner) && (
+        <span className="mt-0.5 block break-words text-[11.5px] font-semibold text-foreground/80">
+          {ownerLabel(owner)}
+        </span>
       )}
     </td>
   );
@@ -79,7 +101,7 @@ function TypeLabel({ type, pending }: { type: "normal" | "completa" | null; pend
   return (
     <>
       <span
-        className={`block font-bold ${type === "completa" ? "text-violet-500 dark:text-violet-400" : "text-sky-500 dark:text-sky-400"}`}
+        className={`block font-semibold whitespace-nowrap ${type === "completa" ? "text-foreground" : "text-muted-foreground"}`}
       >
         {type === "completa" ? "Completa" : "Normal"}
       </span>
@@ -92,24 +114,44 @@ function TypeLabel({ type, pending }: { type: "normal" | "completa" | null; pend
   );
 }
 
-export function CleaningDayDetail({
+export function CleaningDayDetail(props: Parameters<typeof CleaningDayDetailContent>[0]) {
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) props.onClose(); }}>
+      <DialogContent
+        aria-label="Detalhe do dia"
+        className="w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden"
+      >
+        <DialogTitle className="sr-only">Detalhe do dia</DialogTitle>
+        <CleaningDayDetailContent {...props} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function CleaningDayDetailContent({
   date,
   source,
   caretX,
   onClose,
+  title,
+  icon: HeaderIcon = CalendarDays,
 }: {
+  /** "all" = todas as limpezas do período (janela dos cards do topo). */
   date: string;
+  title?: string;
+  icon?: React.ElementType;
   source: DayDetailSource;
   /** Posição da seta, em px a partir da borda esquerda do cartão. */
   caretX: number | null;
   onClose: () => void;
 }) {
+  void caretX;
   let subtitle = "";
   let body: React.ReactNode = null;
   let footer: React.ReactNode = null;
 
   if (source.mode === "forecast") {
-    const rows = source.items.filter((i) => i.date === date);
+    const rows = source.items.filter((i) => date === "all" || i.date === date);
     const total = rows.reduce((n, r) => n + r.estimateCents, 0);
     subtitle =
       rows.length === 0
@@ -151,7 +193,7 @@ export function CleaningDayDetail({
       </>
     );
   } else {
-    const rows = source.items.filter((i) => i.date === date);
+    const rows = source.items.filter((i) => date === "all" || i.date === date);
     const counted = rows.filter((r) => !r.pending);
     const pending = rows.filter((r) => r.pending);
     const total = counted.reduce((n, r) => n + (r.priceCents ?? 0), 0);
@@ -178,10 +220,15 @@ export function CleaningDayDetail({
                 <tr key={r.id}>
                   <PropertyCell name={r.propertyName} owner={r.ownerName} />
                   <td className={`${TD} pr-2`}>
-                    <TypeLabel type={r.cleaningType} pending={r.pending} />
+                    <TypeToggle statusId={r.id} type={r.cleaningType} pending={r.pending} title={r.propertyName} />
+                    {(r.logId || r.reservationId) && (
+                      <span className="mt-1.5 block">
+                        <CleaningProviderAvatar propertyId={r.propertyId} logId={r.logId ?? ""} reservationId={r.reservationId} />
+                      </span>
+                    )}
                   </td>
                   <td className={`${TD} text-right`}>
-                    <span className="block font-bold">{brl(r.priceCents)}</span>
+                    <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} />
                     {meta && (
                       <span className="block whitespace-nowrap text-[10.5px] text-muted-foreground">
                         {meta}
@@ -295,22 +342,14 @@ export function CleaningDayDetail({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-label={`Detalhe de ${dayTitle(date)}`}
-      className="relative mt-3 rounded-[0.6rem] border border-border bg-popover text-popover-foreground shadow-[0_24px_48px_-20px_rgba(0,0,0,0.6)] animate-in fade-in-0 zoom-in-95 duration-150"
-    >
-      {caretX != null && (
-        <span
-          aria-hidden
-          className="absolute -top-[6px] size-[10px] rotate-45 border-l border-t border-border bg-popover"
-          style={{ left: Math.max(12, caretX - 5) }}
-        />
-      )}
-      <div className="flex items-start justify-between gap-2.5 px-3.5 pb-2 pt-3">
-        <div className="min-w-0">
-          <p className="font-display text-[14px] font-bold">{dayTitle(date)}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">{subtitle}</p>
+    <div aria-label={`Detalhe de ${title ?? dayTitle(date)}`}>
+      <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
+        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-foreground/[0.06] text-muted-foreground">
+          <HeaderIcon className="size-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-base font-bold leading-tight break-words">{title ?? dayTitle(date)}</p>
+          <p className="ds-meta mt-0.5">{subtitle}</p>
         </div>
         <button
           type="button"
@@ -321,12 +360,182 @@ export function CleaningDayDetail({
           <X className="size-3.5" strokeWidth={2.2} />
         </button>
       </div>
-      {body && <div className="max-h-[320px] overflow-y-auto px-3.5 pt-1">{body}</div>}
+      {body && <div className="sg-elegant-scroll max-h-[60vh] overflow-y-auto overflow-x-hidden px-5 pt-1">{body}</div>}
       {footer && (
-        <div className="mt-0.5 flex items-baseline justify-between gap-3 border-t border-border px-3.5 pb-3 pt-2.5">
+        <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-border bg-foreground/[0.03] px-5 py-3.5">
           {footer}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Troca normal ↔ completa com confirmação. */
+function TypeToggle({
+  statusId,
+  type,
+  pending,
+  title,
+}: {
+  statusId: string;
+  type: "normal" | "completa" | null;
+  pending?: boolean;
+  title: string;
+}) {
+  const [target, setTarget] = useState<"normal" | "completa" | null>(null);
+  const [busy, setBusy] = useState(false);
+  const save = useServerFn(setCleaningType);
+  const qc = useQueryClient();
+  if (!type) return <TypeLabel type={type} pending={pending} />;
+  const next = type === "completa" ? "normal" : "completa";
+  async function doSave() {
+    if (!target) return;
+    setBusy(true);
+    try {
+      await save({ data: { statusId, type: target } });
+      toast.success(`Limpeza de ${title} alterada para ${target === "completa" ? "completa" : "normal"}.`);
+      setTarget(null);
+      void qc.invalidateQueries();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível alterar o tipo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setTarget(next)}
+        title={`Mudar para ${next === "completa" ? "Completa" : "Normal"}`}
+        className="-mx-1 rounded px-1 text-left transition-colors hover:bg-secondary/60"
+      >
+        <TypeLabel type={type} pending={pending} />
+      </button>
+      <AlertDialog open={!!target} onOpenChange={(v) => !v && setTarget(null)}>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar alteração?</AlertDialogTitle>
+            <AlertDialogDescription className="break-words">
+              A limpeza de {title} vai passar de {type === "completa" ? "Completa" : "Normal"} para{" "}
+              {next === "completa" ? "Completa" : "Normal"}. O valor passa a ser o cadastrado no imóvel para esse tipo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(e) => {
+                e.preventDefault();
+                void doSave();
+              }}
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+/** Valor clicável: edita no mesmo lugar, com a MESMA letra, e SEMPRE pede
+ * confirmação antes de gravar. */
+function EditablePrice({ statusId, cents, title }: { statusId: string; cents: number | null; title: string }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const save = useServerFn(setCleaningPriceOverride);
+  const qc = useQueryClient();
+  const value = parseReaisInputToCents(text);
+
+  async function doSave() {
+    if (value == null) return;
+    setBusy(true);
+    try {
+      await save({ data: { statusId, cents: value, reason: null } });
+      toast.success(`Valor de ${title} alterado para ${brl(value)}.`);
+      setConfirm(false);
+      setEditing(false);
+      void qc.invalidateQueries();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível alterar o valor.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const same = "font-bold text-[12.5px] tabular-nums text-foreground";
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setText(centsToReaisInput(cents));
+          setEditing(true);
+        }}
+        title="Alterar valor"
+        className={`-mx-1 rounded px-1 transition-colors hover:bg-secondary/60 ${same}`}
+      >
+        {brl(cents)}
+      </button>
+    );
+  }
+  return (
+    <div className="ml-auto flex flex-col items-end gap-1">
+      <span className={`inline-flex items-baseline rounded bg-secondary/60 px-1 -mx-1 ${same}`}>
+        R$&nbsp;
+        <input
+          autoFocus
+          inputMode="decimal"
+          value={text}
+          disabled={busy}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && value != null && value !== cents) setConfirm(true);
+            if (e.key === "Escape") setEditing(false);
+          }}
+          style={{ width: `${Math.max(text.length, 3)}ch` }}
+          className={`min-w-0 bg-transparent p-0 text-right outline-none ${same}`}
+        />
+      </span>
+      <div className="flex gap-1">
+        <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => setEditing(false)}>
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          className="h-6 px-2 text-[11px]"
+          disabled={value == null || value === cents}
+          onClick={() => setConfirm(true)}
+        >
+          OK
+        </Button>
+      </div>
+      <AlertDialog open={confirm} onOpenChange={setConfirm}>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar alteração?</AlertDialogTitle>
+            <AlertDialogDescription className="break-words">
+              O valor da limpeza de {title} vai passar de {brl(cents)} para {brl(value)}. Vale só para esta limpeza.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(e) => {
+                e.preventDefault();
+                void doSave();
+              }}
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

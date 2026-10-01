@@ -5,6 +5,7 @@ import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
 import { cn } from "@/lib/utils";
+import { useOverlayLayer } from "@/lib/global-overlay-store";
 
 const TooltipProvider = TooltipPrimitive.Provider;
 
@@ -15,24 +16,27 @@ const TooltipTrigger = TooltipPrimitive.Trigger;
 const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
->(({ className, sideOffset = 4, collisionPadding = OVERLAY_COLLISION_PADDING, ...props }, ref) => (
-  <TooltipPrimitive.Portal>
+>(({ className, sideOffset = 4, collisionPadding = OVERLAY_COLLISION_PADDING, ...props }, ref) => {
+  const [, layerNodeRef] = useOverlayLayer("float", ref);
+  return <TooltipPrimitive.Portal>
     <TooltipPrimitive.Content
-      ref={ref}
+      ref={layerNodeRef}
       sideOffset={sideOffset}
       // Espaçamento mínimo da borda da tela (pedido explícito): nenhum
       // popover/tooltip do sistema pode ficar "colado" na lateral do
       // viewport. Um chamador específico ainda pode sobrescrever passando
       // seu próprio collisionPadding.
       collisionPadding={collisionPadding}
+      avoidCollisions
+      sticky="always"
       className={cn(
-        "z-50 overflow-hidden rounded-[0.3rem] bg-primary px-3 py-1.5 text-xs text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-tooltip-content-transform-origin)",
+        "z-[60] overflow-hidden ds-overlay-compact max-w-[min(18rem,calc(100vw-32px))] px-3 py-1.5 text-xs leading-snug animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-tooltip-content-transform-origin)",
         className,
       )}
       {...props}
     />
-  </TooltipPrimitive.Portal>
-));
+  </TooltipPrimitive.Portal>;
+});
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };

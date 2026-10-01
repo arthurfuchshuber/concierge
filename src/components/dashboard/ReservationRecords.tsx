@@ -21,6 +21,8 @@ import {
   ListChecks,
   MoreVertical,
   Pencil,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
@@ -246,49 +248,51 @@ function fmtDuration(ms: number | null): string | null {
 function MediaThumb({
   item,
   onOpen,
+  more = 0,
+  className = "",
 }: {
   item: ReservationRecord;
   onOpen: (it: ReservationRecord) => void;
+  more?: number;
+  className?: string;
 }) {
   const dur = fmtDuration(item.durationMs);
   return (
     <button
       type="button"
       onClick={() => onOpen(item)}
-      aria-label={`Abrir ${KIND_LABEL[item.kind] ?? "registro"}`}
-      className="relative size-[68px] shrink-0 overflow-hidden rounded-lg border border-border/50 bg-secondary/40"
+      aria-label={more ? `Ver mais ${more} anexos` : `Abrir ${KIND_LABEL[item.kind] ?? "registro"}`}
+      className={`relative size-[52px] shrink-0 overflow-hidden rounded-xl bg-secondary shadow-md ring-2 ring-card transition-transform hover:z-10 hover:-translate-y-0.5 ${className}`}
     >
       {item.kind === "photo" && item.url ? (
-        <img
-          src={item.url}
-          alt={item.fileName ?? "Foto"}
-          className="size-full object-cover"
-          loading="lazy"
-        />
+        <img src={item.url} alt={item.fileName ?? "Foto"} className="size-full object-cover" loading="lazy" />
       ) : item.kind === "video" && item.url ? (
-        <>
-          <video
-            src={`${item.url}#t=0.1`}
-            preload="metadata"
-            muted
-            playsInline
-            className="size-full bg-black object-cover"
-          />
-          <span className="absolute inset-0 grid place-items-center bg-black/25">
-            <span className="grid size-6 place-items-center rounded-full bg-white/20 backdrop-blur-sm">
-              <Play className="size-3 fill-white text-white" />
-            </span>
-          </span>
-        </>
+        <video src={`${item.url}#t=0.1`} preload="metadata" muted playsInline className="size-full bg-black object-cover" />
       ) : (
         <span className="grid size-full place-items-center text-muted-foreground">
           {item.kind === "audio" ? <Mic className="size-4" /> : <FileText className="size-4" />}
         </span>
       )}
-      <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-black/55 px-1 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-white">
-        <span className="truncate">{KIND_LABEL[item.kind] ?? "item"}</span>
-        {dur && <span className="shrink-0 tabular-nums">{dur}</span>}
-      </span>
+      {more > 0 ? (
+        <span className="absolute inset-0 grid place-items-center bg-black/70 text-[15px] font-bold tracking-tight text-white">
+          +{more}
+        </span>
+      ) : (
+        <>
+          {item.kind === "video" && (
+            <span className="absolute inset-0 grid place-items-center">
+              <span className="grid size-5 place-items-center rounded-full bg-black/45 backdrop-blur-sm">
+                <Play className="size-2.5 fill-white text-white" />
+              </span>
+            </span>
+          )}
+          {dur && (
+            <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 text-[8px] font-semibold tabular-nums text-white">
+              {dur}
+            </span>
+          )}
+        </>
+      )}
     </button>
   );
 }
@@ -414,7 +418,7 @@ function RecordEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] gap-0 rounded-lg border-border/60 p-0 sm:max-w-sm">
+      <DialogContent className="w-[calc(100vw-2rem)] gap-0 p-0 sm:max-w-sm">
         <DialogHeader className="px-4 pb-2 pt-4">
           <DialogTitle className="text-[15px] font-display">Editar registro</DialogTitle>
         </DialogHeader>
@@ -524,12 +528,33 @@ export function RecordBlock({
   onChanged?: () => void;
 }) {
   const head = group.items[0];
-  const [viewing, setViewing] = useState<ReservationRecord | null>(null);
+  const [viewIndex, setViewIndex] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
 
   const mediaItems = group.items.filter((it) => it.kind !== "note" && it.url);
   const body = group.items.find((it) => it.body)?.body ?? null;
-  const audioOnly = mediaItems.length === 1 && mediaItems[0].kind === "audio";
+  const viewing = viewIndex != null ? (mediaItems[viewIndex] ?? null) : null;
+  const total = mediaItems.length;
+  const [maxItem, setMaxItem] = useState<ReservationRecord | null>(null);
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const scrollToIdx = (i: number, smooth = true) => {
+    if (total === 0) return;
+    const idx = (i + total) % total;
+    const el = railRef.current;
+    if (el) el.scrollTo({ left: idx * el.clientWidth, behavior: smooth ? "smooth" : "auto" });
+    setViewIndex(idx);
+  };
+  // Ao abrir a galeria, posiciona o trilho no anexo tocado.
+  const opened = viewIndex != null;
+  useEffect(() => {
+    if (!opened) return;
+    const t = window.setTimeout(() => {
+      const el = railRef.current;
+      if (el && viewIndex != null) el.scrollTo({ left: viewIndex * el.clientWidth });
+    }, 30);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened]);
 
   return (
     <div
@@ -576,57 +601,48 @@ export function RecordBlock({
         />
       )}
 
-      <div className="flex items-start gap-2.5 px-2.5 pb-2.5">
-        {mediaItems.length > 0 && !audioOnly && (
-          /* Mais de uma mídia: fileira rolável (`ds-scroll-x`, sem degradê de
-             fade — regra do projeto), nunca estourando a margem direita. */
-          <div
-            className={
-              mediaItems.length > 1
-                ? "ds-scroll-x flex max-w-[150px] gap-1.5"
-                : "flex shrink-0 gap-1.5"
-            }
-          >
-            {mediaItems.map((it) => (
-              <MediaThumb key={it.id} item={it} onOpen={setViewing} />
+      {/* Texto à esquerda, pilha de anexos à direita (28/09/2026) — o cartão
+          não cresce: até 3 quadradinhos sobrepostos, o 3º vira "+N". */}
+      <div className="flex items-center gap-3 px-2.5 pb-2.5">
+        <div className="min-w-0 flex-1 space-y-0.5">
+          {body ? (
+            <p className="whitespace-pre-wrap break-words text-[13px] font-semibold leading-snug text-foreground">
+              {body}
+            </p>
+          ) : mediaItems.length === 0 ? (
+            <p className="text-[11px] italic text-muted-foreground">Registro sem conteúdo.</p>
+          ) : null}
+          <p className="text-[11px] leading-snug text-foreground/70">
+            {head.createdByName ?? "Equipe"}
+          </p>
+          <p className="text-[10px] leading-snug text-muted-foreground">
+            {[
+              head.cardMode ? `via ${MODE_LABEL[head.cardMode]}` : null,
+              mediaItems.length > 0 ? mediaSummary(mediaItems) : null,
+              mediaItems.length === 1 && head.sizeBytes ? fmtSize(head.sizeBytes) : null,
+            ]
+              .filter(Boolean)
+              .map((t, i) => (
+                <span key={i} className="inline-block whitespace-nowrap">
+                  {i > 0 && <span className="px-1 opacity-50">·</span>}
+                  {t}
+                </span>
+              ))}
+          </p>
+        </div>
+        {mediaItems.length > 0 && (
+          <div className="flex shrink-0 -space-x-3 pr-0.5">
+            {(mediaItems.length > 3 ? mediaItems.slice(0, 3) : mediaItems).map((it, i) => (
+              <MediaThumb
+                key={it.id}
+                item={it}
+                onOpen={() => setViewIndex(i)}
+                more={mediaItems.length > 3 && i === 2 ? mediaItems.length - 2 : 0}
+                className={i === 0 ? "" : i === 1 ? "rotate-[3deg]" : "rotate-[6deg]"}
+              />
             ))}
           </div>
         )}
-
-        <div className="min-w-0 flex-1 space-y-1">
-          {body && (
-            <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
-              {body}
-            </p>
-          )}
-          {audioOnly && mediaItems[0].url && (
-            <AudioPlayer url={mediaItems[0].url!} durationMs={mediaItems[0].durationMs} />
-          )}
-          {!body && mediaItems.length === 0 && (
-            <p className="text-[11px] italic text-muted-foreground">Registro sem conteúdo.</p>
-          )}
-          <div className="flex flex-wrap items-center gap-x-1.5 text-[10.5px] text-muted-foreground">
-            <span className="truncate">{head.createdByName ?? "Equipe"}</span>
-            {head.cardMode && (
-              <>
-                <span className="opacity-50">·</span>
-                <span className="truncate">via {MODE_LABEL[head.cardMode]}</span>
-              </>
-            )}
-            {mediaItems.length > 0 && (
-              <>
-                <span className="opacity-50">·</span>
-                <span className="shrink-0">{mediaSummary(mediaItems)}</span>
-              </>
-            )}
-            {mediaItems.length === 1 && head.sizeBytes ? (
-              <>
-                <span className="opacity-50">·</span>
-                <span className="shrink-0">{fmtSize(head.sizeBytes)}</span>
-              </>
-            ) : null}
-          </div>
-        </div>
       </div>
 
       {head.taskId && (
@@ -653,48 +669,126 @@ export function RecordBlock({
         </div>
       )}
 
-      <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewing(null)}>
-        <DialogContent className="w-[calc(100vw-1.5rem)] gap-0 overflow-hidden rounded-lg border-border/60 p-0 sm:max-w-lg">
+      <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewIndex(null)}>
+        <DialogContent className="w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-lg">
           <DialogHeader className="px-4 pb-2 pt-4">
-            <DialogTitle className="truncate text-[14px] font-display">
-              {viewing?.fileName ?? KIND_LABEL[viewing?.kind ?? "file"]}
+            <DialogTitle className="flex min-w-0 items-center gap-2 pr-6 text-[14px] font-display">
+              <span className="min-w-0 truncate">
+                {viewing?.fileName ?? KIND_LABEL[viewing?.kind ?? "file"]}
+              </span>
+              {total > 1 && viewIndex != null && (
+                <span className="shrink-0 text-[11px] font-normal tabular-nums text-muted-foreground">
+                  {viewIndex + 1}/{total}
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
-          <div className="px-3 pb-3">
-            {viewing?.kind === "photo" && viewing.url && (
-              <img
-                src={viewing.url}
-                alt={viewing.fileName ?? "Foto"}
-                className="max-h-[70vh] w-full rounded-md object-contain"
-              />
-            )}
-            {viewing?.kind === "video" && viewing.url && (
-              <video
-                src={viewing.url}
-                controls
-                autoPlay
-                playsInline
-                className="max-h-[70vh] w-full rounded-md bg-black"
-              />
-            )}
-            {viewing?.kind === "audio" && viewing.url && (
-              <AudioPlayer url={viewing.url} durationMs={viewing.durationMs} />
-            )}
-            {viewing?.kind === "file" && viewing.url && (
-              <a
-                href={viewing.url}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2 rounded-md border border-border/50 bg-secondary/30 px-2 py-2 hover:bg-secondary/50"
-              >
-                <FileText className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-xs">
-                  {viewing.fileName ?? "Arquivo"}
-                </span>
-                <Download className="size-3.5 shrink-0 text-muted-foreground" />
-              </a>
+          {/* GALERIA (28/09/2026): trilho horizontal com todos os anexos, um
+              por vez com encaixe; vídeo nunca toca sozinho; tocar maximiza. */}
+          <div className="relative pb-3">
+            <div
+              ref={railRef}
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+                if (i !== viewIndex && i >= 0 && i < total) {
+                  el.querySelectorAll("video, audio").forEach((m) => (m as HTMLMediaElement).pause());
+                  setViewIndex(i);
+                }
+              }}
+              className="ds-scroll-x flex w-full snap-x snap-mandatory"
+            >
+              {mediaItems.map((it) => (
+                <div key={it.id} className="w-full min-w-0 shrink-0 snap-center px-3">
+                  <div className="relative grid h-[52vh] max-h-[420px] w-full min-w-0 place-items-center overflow-hidden rounded-lg bg-black/90">
+                    {it.kind === "photo" && it.url && (
+                      <button type="button" onClick={() => setMaxItem(it)} className="absolute inset-0" aria-label="Maximizar foto">
+                        <img src={it.url} alt={it.fileName ?? "Foto"} className="absolute inset-0 h-full w-full object-contain" loading="lazy" />
+                      </button>
+                    )}
+                    {it.kind === "video" && it.url && (
+                      <video
+                        src={`${it.url}#t=0.1`}
+                        controls
+                        preload="metadata"
+                        playsInline
+                        className="absolute inset-0 h-full w-full object-contain"
+                      />
+                    )}
+                    {it.kind === "audio" && it.url && (
+                      <div className="w-full px-4">
+                        <AudioPlayer url={it.url} durationMs={it.durationMs} />
+                      </div>
+                    )}
+                    {it.kind === "file" && it.url && (
+                      <a
+                        href={it.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex max-w-[90%] items-center gap-2 rounded-md bg-secondary px-3 py-2 text-foreground"
+                      >
+                        <FileText className="size-4 shrink-0" />
+                        <span className="min-w-0 truncate text-xs">{it.fileName ?? "Arquivo"}</span>
+                        <Download className="size-3.5 shrink-0" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {total > 1 && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Anterior"
+                  onClick={() => scrollToIdx((viewIndex ?? 0) - 1)}
+                  className="absolute left-5 top-[26vh] z-10 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm sm:top-[210px]"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Próximo"
+                  onClick={() => scrollToIdx((viewIndex ?? 0) + 1)}
+                  className="absolute right-5 top-[26vh] z-10 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm sm:top-[210px]"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+                <div className="ds-scroll-x mt-2 flex gap-1.5 px-3">
+                  {mediaItems.map((it, i) => (
+                    <button
+                      key={it.id}
+                      type="button"
+                      onClick={() => scrollToIdx(i)}
+                      aria-label={`Ir para o anexo ${i + 1}`}
+                      className={`relative size-11 shrink-0 overflow-hidden rounded-md bg-secondary transition-opacity ${
+                        i === viewIndex ? "opacity-100 ring-2 ring-primary" : "opacity-55"
+                      }`}
+                    >
+                      {it.kind === "photo" && it.url ? (
+                        <img src={it.url} alt="" className="size-full object-cover" loading="lazy" />
+                      ) : it.kind === "video" && it.url ? (
+                        <video src={`${it.url}#t=0.1`} preload="metadata" muted playsInline className="size-full object-cover" />
+                      ) : (
+                        <span className="grid size-full place-items-center text-muted-foreground">
+                          {it.kind === "audio" ? <Mic className="size-3.5" /> : <FileText className="size-3.5" />}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!maxItem} onOpenChange={(v) => !v && setMaxItem(null)}>
+        <DialogContent className="h-[92vh] w-[calc(100vw-1rem)] max-w-none gap-0 overflow-hidden bg-black p-0 sm:max-w-5xl">
+          <DialogTitle className="sr-only">{maxItem?.fileName ?? "Anexo"}</DialogTitle>
+          {maxItem?.url && (
+            <img src={maxItem.url} alt={maxItem.fileName ?? "Foto"} className="size-full object-contain" />
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -714,7 +808,7 @@ function CategorySheet({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] gap-0 rounded-lg border-border/60 p-0 sm:max-w-sm">
+      <DialogContent className="w-[calc(100vw-2rem)] gap-0 p-0 sm:max-w-sm">
         <DialogHeader className="px-4 pb-2 pt-4">
           <DialogTitle className="text-[15px] font-display">O que você vai registrar?</DialogTitle>
           <p className="ds-meta mt-0.5">Escolha a categoria — só depois a captura começa.</p>
@@ -797,6 +891,7 @@ export function ReservationRecordsDialog({
   const [situation, setSituation] = useState<{
     category: RecordCategory;
     item: DraftItem | null;
+    extra?: DraftItem[];
     title: string;
   } | null>(null);
 
@@ -849,16 +944,13 @@ export function ReservationRecordsDialog({
   }
 
   function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!f) return;
+    if (!files.length) return;
     // A categoria já foi escolhida na folha, antes da câmera abrir.
     const category = pickedCategory ?? FALLBACK_CATEGORY;
-    setSituation({
-      category,
-      item: draftItemFrom(f, { name: f.name, mime: f.type }),
-      title: "",
-    });
+    const [first, ...rest] = files.map((f) => draftItemFrom(f, { name: f.name, mime: f.type }));
+    setSituation({ category, item: first, extra: rest, title: "" });
   }
 
   function onAudioRecorded(audio: RecordedAudio) {
@@ -877,19 +969,29 @@ export function ReservationRecordsDialog({
   }
 
   const records = q.data?.records ?? [];
+  // CADA REGISTRO (situação) CONTA 1 — não importa quantos arquivos tenha.
+  const allGroups = useMemo(() => groupRecords(records), [records]);
+  const totalCount = allGroups.length;
   const counts = useMemo(() => {
     const m = new Map<RecordCategory, number>();
-    for (const r of records) m.set(r.category, (m.get(r.category) ?? 0) + 1);
+    for (const g of allGroups) {
+      const c = g.items[0]!.category;
+      m.set(c, (m.get(c) ?? 0) + 1);
+    }
     return m;
-  }, [records]);
-  const openTasks = records.filter((r) => r.taskId && r.taskStatus === "pending").length;
-  const visible = filter === "all" ? records : records.filter((r) => r.category === filter);
-  const groups = useMemo(() => groupRecords(visible), [visible]);
+  }, [allGroups]);
+  const openTasks = allGroups.filter((g) =>
+    g.items.some((r) => r.taskId && r.taskStatus === "pending"),
+  ).length;
+  const groups = useMemo(
+    () => (filter === "all" ? allGroups : allGroups.filter((g) => g.items[0]!.category === filter)),
+    [allGroups, filter],
+  );
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 shadow-2xl backdrop-blur-xl sm:w-full sm:max-w-md">
+        <DialogContent className="w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-md">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
           <DialogHeader className="border-b border-border/50 px-5 pb-3 pt-5">
             <DialogTitle className="truncate text-base font-display leading-tight">
@@ -903,7 +1005,7 @@ export function ReservationRecordsDialog({
                 <>
                   <span className="opacity-50">·</span>
                   <span>
-                    {records.length} {records.length === 1 ? "registro" : "registros"}
+                    {totalCount} {totalCount === 1 ? "registro" : "registros"}
                   </span>
                 </>
               )}
@@ -929,7 +1031,7 @@ export function ReservationRecordsDialog({
                     : "border-border/60 bg-card text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Tudo <span className="tabular-nums opacity-80">{records.length}</span>
+                Tudo <span className="tabular-nums opacity-80">{totalCount}</span>
               </button>
               {CATEGORIES.filter((c) => (counts.get(c.key) ?? 0) > 0).map((c) => (
                 <button
@@ -953,7 +1055,7 @@ export function ReservationRecordsDialog({
               <div className="grid place-items-center py-10 text-muted-foreground">
                 <Loader2 className="size-5 animate-spin" />
               </div>
-            ) : visible.length === 0 ? (
+            ) : groups.length === 0 ? (
               <div className="py-8 text-center text-xs text-muted-foreground">
                 {records.length === 0
                   ? "Nenhum registro ainda — fotos, vídeos, áudios, arquivos ou descrições ficam aqui, juntos, não importa em qual etapa forem adicionados."
@@ -1007,7 +1109,7 @@ export function ReservationRecordsDialog({
               className="hidden"
               onChange={onFilePicked}
             />
-            <input ref={fileInputRef} type="file" className="hidden" onChange={onFilePicked} />
+            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFilePicked} />
 
             {recordingAudio ? (
               <div className="mb-2 flex items-center gap-2">
@@ -1103,6 +1205,7 @@ export function ReservationRecordsDialog({
           cardMode={mode}
           category={situation.category}
           initial={situation.item}
+          initialExtra={situation.extra}
           initialTitle={situation.title}
           onSaved={invalidate}
         />

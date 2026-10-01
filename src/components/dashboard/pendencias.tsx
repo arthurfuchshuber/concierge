@@ -1,3 +1,4 @@
+import { StatCard } from "@/components/ds/StatCard";
 /**
  * O BOTÃO "PENDÊNCIAS" — autossuficiente, para qualquer tela do dashboard.
  *
@@ -74,7 +75,10 @@ export function PendenciasButton({
   ownerId,
   enabled,
   guestNameForTask,
+  variant = "segment",
 }: {
+  /** "card": gatilho no formato do cartão de número (Registros). */
+  variant?: "segment" | "card";
   /** Conta em uso (impersonação), igual ao resto do dashboard. */
   ownerId: string | null;
   /** Só consulta com sessão pronta — mesma regra das outras queries. */
@@ -279,6 +283,15 @@ export function PendenciasButton({
     <>
       {/* Pendências NÃO entra no menu de filtros: o número dela é um alerta, e
           alerta dentro de menu fechado deixa de alertar. */}
+      {variant === "card" ? (
+        <StatCard
+          label="Pendências em aberto"
+          value={emAberto}
+          icon={ListChecks}
+          iconTone={emAberto > 0 ? "#c9a962" : undefined}
+          onClick={() => setAberto(true)}
+        />
+      ) : (
       <button
         type="button"
         onClick={() => setAberto(true)}
@@ -297,6 +310,7 @@ export function PendenciasButton({
           </span>
         )}
       </button>
+      )}
 
       <TasksDialog
         open={aberto}

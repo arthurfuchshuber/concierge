@@ -162,10 +162,11 @@ const AIRBNB_EXPAND_ACTIONS: FirecrawlAction[] = [
 ];
 
 async function scrapeWithFirecrawl(apiKey: string, url: string, options: FirecrawlScrapeOptions): Promise<unknown> {
-  const response = await fetch("https://api.firecrawl.dev/v2/scrape", {
+  const response = await fetch("https://connector-gateway.lovable.dev/firecrawl/v2/scrape", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${process.env.LOVABLE_API_KEY ?? ""}`,
+      "X-Connection-Api-Key": apiKey,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ url, ...options }),
@@ -378,6 +379,59 @@ function parseAmenities(value: unknown): AirbnbAmenity[] {
     .filter((v): v is AirbnbAmenity => v !== null);
 }
 
+const normAmenity = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+/** Junta as comodidades das duas leituras sem repetir nomes. A página
+ *  dedicada (/amenities) é mais completa, então vem primeiro. */
+function mergeAmenities(main: AirbnbAmenity[], full: AirbnbAmenity[]): AirbnbAmenity[] {
+  const seen = new Set<string>();
+  const out: AirbnbAmenity[] = [];
+  for (const a of [...full, ...main]) {
+    const k = normAmenity(a.name);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(a);
+  }
+  return out;
+}
+
+/** O Airbnb carrega o modal de comodidades aos poucos (conforme rola), por
+ *  isso a leitura do anúncio pegava só parte. A rota /rooms/{id}/amenities
+ *  abre a lista inteira; lemos ela rolando o diálogo até o fim. Se falhar,
+ *  devolve [] e fica o resultado da leitura principal (nunca piora). */
+async function scrapeAirbnbAmenities(apiKey: string, listingUrl: string): Promise<AirbnbAmenity[]> {
+  try {
+    const u = new URL(listingUrl);
+    const m = u.pathname.match(/\/rooms\/(?:plus\/)?(\d+)/);
+    if (!m) return [];
+    const target = `${u.origin}/rooms/${m[1]}/amenities`;
+    const scroll = { type: "scroll", direction: "down", selector: "[role='dialog'] [data-testid='modal-container'], [role='dialog'] section, [role='dialog']" };
+    const actions = [
+      { type: "wait", milliseconds: 2000 },
+      ...Array.from({ length: 8 }, () => [scroll, { type: "wait", milliseconds: 500 }]).flat(),
+    ];
+    const res = (await scrapeWithFirecrawl(apiKey, target, {
+      formats: [
+        {
+          type: "json",
+          schema: { type: "object", properties: { amenities: AIRBNB_EXTRACTION_SCHEMA.properties.amenities } },
+          prompt:
+            "List EVERY amenity on this page, from every category, including strikethrough ones (available=false). Copy names exactly in the original language, never translate.",
+        },
+      ],
+      onlyMainContent: false,
+      waitFor: 2500,
+      actions,
+    } as FirecrawlScrapeOptions)) as { json?: Record<string, unknown>; data?: { json?: Record<string, unknown> } };
+    const j = res.json ?? res.data?.json ?? {};
+    return parseAmenities(j.amenities);
+  } catch (e) {
+    console.warn("[airbnb] leitura da página de comodidades falhou:", e instanceof Error ? e.message : e);
+    return [];
+  }
+}
+
 /** Lê o anúncio público do Airbnb via Firecrawl e devolve os campos já
  *  normalizados. Levanta uma mensagem amigável (bloqueio do Airbnb vs. erro
  *  genérico) em vez do erro cru do Firecrawl. */
@@ -469,7 +523,7 @@ async function scrapeAirbnbListing(apiKey: string, url: string): Promise<AirbnbI
   const descriptionFull =
     typeof j.description_full === "string" && j.description_full.trim() ? unescapeMarkdown(j.description_full.trim()) : null;
   const roomsBeds = parseRoomsBeds(j.rooms_beds);
-  const amenities = parseAmenities(j.amenities);
+  const amenities = mergeAmenities(parseAmenities(j.amenities), await scrapeAirbnbAmenities(apiKey, url));
   const houseRules =
     typeof j.house_rules === "string" && j.house_rules.trim() ? unescapeMarkdown(j.house_rules.trim()) : null;
   const cancellationPolicy =
@@ -511,7 +565,16 @@ export const importFromAirbnb = createServerFn({ method: "POST" })
     await assertFeature(context.supabase, context.userId, "autoImport", { propertyId: data.propertyId ?? null });
     const apiKey = process.env.FIRECRAWL_API_KEY;
     if (!apiKey) throw new Error("Integração Firecrawl indisponível");
-    return scrapeAirbnbListing(apiKey, data.url);
+    const r = await scrapeAirbnbListing(apiKey, data.url);
+    const { mirrorExternalPhotos } = await import("@/lib/airbnb-photos.server");
+    // A cada importação as fotos anteriores deste imóvel são apagadas e
+    // substituídas pelo novo lote (regra do cliente, 28/09/2026).
+    const saved = await mirrorExternalPhotos(
+      r.gallery_images.slice(0, 4),
+      `${context.userId}/airbnb/${data.propertyId ?? "novo"}`,
+      { replaceFolder: true },
+    );
+    return { ...r, gallery_images: saved, hero_image_url: saved[0] ?? null };
   });
 
 const FIELD_LABELS_AIRBNB: Record<string, string> = {

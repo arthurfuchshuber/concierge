@@ -195,18 +195,20 @@ function AdminLayout() {
 
   const initials = (email || "?").slice(0, 2).toUpperCase();
 
-  const { info: sub, isLoading: subLoading } = useSubscription();
+  const { info: sub, isSuccess: subSuccess } = useSubscription();
 
   // Team members of another owner's account don't need their own plan — they
   // ride on the owner's subscription. Skip the OnboardingCheckout gate for them.
   const accountsFn = useServerFn(listMyAccounts);
+  // Mesma consulta (e formato) do useActiveAccount. Só roda com sessão
+  // pronta: antes, após limpar o cache, ela disparava sem token, o erro era
+  // engolido como "0 contas" e o membro de equipe caía na tela de documento.
   const myAccounts = useQuery({
     queryKey: ["my-accounts"],
-    queryFn: async () => {
-      try { return await accountsFn(); } catch { return { accounts: [], ownsProperties: false }; }
-    },
-    staleTime: 60_000,
-    retry: false,
+    queryFn: () => accountsFn(),
+    enabled: hasSession === true,
+    staleTime: 5 * 60_000,
+    retry: 2,
   });
   const isTeamMember = (myAccounts.data?.accounts?.length ?? 0) > 0;
 
@@ -215,11 +217,10 @@ function AdminLayout() {
   const invitesFn = useServerFn(listMyPendingInvites);
   const pendingInvites = useQuery({
     queryKey: ["my-pending-invites"],
-    queryFn: async () => {
-      try { return await invitesFn(); } catch { return []; }
-    },
+    queryFn: () => invitesFn(),
+    enabled: hasSession === true,
     staleTime: 30_000,
-    retry: false,
+    retry: 2,
   });
   const hasPendingInvite = (pendingInvites.data?.length ?? 0) > 0;
 
@@ -235,9 +236,11 @@ function AdminLayout() {
     pathname.startsWith("/admin/admins");
   // Rule: without an invite in play AND without being a team member, the user
   // can only see the panel after completing the account creation + validation
-  // (CPF/CNPJ + plan) flow inside OnboardingCheckout.
+  // (CPF/CNPJ + plan) flow inside OnboardingCheckout. Só decide com respostas
+  // confirmadas — falha ou carregamento nunca vira "sem plano".
   const needsPlan =
-    !subLoading && !adminLoading && !myAccounts.isLoading &&
+    subSuccess && !adminLoading && myAccounts.isSuccess && pendingInvites.isSuccess &&
+    !resolvingAccount &&
     !sub.plan && !allowedWithoutPlan && !isAdmin && !isTeamMember && !hasPendingInvite;
 
 

@@ -28,8 +28,8 @@ export type NewsItem = {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Janela editorial: hoje + próximos 8 dias. */
-export const NEWS_WINDOW_DAYS = 8;
+/** Janela editorial: 7 dias (hoje + 6). A busca roda toda quarta às 8h. */
+export const NEWS_WINDOW_DAYS = 6;
 
 export function addDays(iso: string, days: number): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -79,9 +79,9 @@ async function firecrawlSearch(query: string, tbs: string = "qdr:w"): Promise<Fi
   }
   // Firecrawl limita requisições por minuto: em 429 esperamos e tentamos de novo.
   for (let attempt = 0; attempt < 3; attempt++) {
-    const r = await fetch("https://api.firecrawl.dev/v2/search", {
+    const r = await fetch("https://connector-gateway.lovable.dev/firecrawl/v2/search", {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${process.env.LOVABLE_API_KEY ?? ""}`, "X-Connection-Api-Key": key, "Content-Type": "application/json" },
       body: JSON.stringify({ query, limit: 20, tbs, lang: "pt", country: "br" }),
       signal: AbortSignal.timeout(20000),
     });
@@ -280,9 +280,9 @@ async function firecrawlScrape(url: string): Promise<string | null> {
   const key = process.env.FIRECRAWL_API_KEY;
   if (!key) return null;
   try {
-    const r = await fetch("https://api.firecrawl.dev/v2/scrape", {
+    const r = await fetch("https://connector-gateway.lovable.dev/firecrawl/v2/scrape", {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${process.env.LOVABLE_API_KEY ?? ""}`, "X-Connection-Api-Key": key, "Content-Type": "application/json" },
       body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true, timeout: 12000 }),
       signal: AbortSignal.timeout(14000),
     });
@@ -447,10 +447,10 @@ export async function generateAndCacheCityNews(input: {
       .from("city_daily_news")
       .select("items, date")
       .eq("city_key", input.cityKey)
-      .gte("date", addDays(today, -3))
+      .gte("date", addDays(today, -8))
       .lte("date", today)
       .order("date", { ascending: false })
-      .limit(3);
+      .limit(8);
     for (const row of (rows ?? []) as Array<{ items: unknown; date: string }>) {
       if (!Array.isArray(row.items) || row.items.length === 0) continue;
       let cachedItems = row.items as NewsItem[];
@@ -572,7 +572,9 @@ export const getCityNews = createServerFn({ method: "POST" })
     // data UTC de hoje: o cron grava pela data local da cidade (à noite, num
     // fuso UTC-3, a data UTC já virou) e uma execução falha deixaria o guia
     // sem manchete nenhuma.
-    const limite = new Date(Date.now() - 3 * 86400_000).toISOString().slice(0, 10);
+    // A busca agora é semanal (quarta, 8h): vale a edição dos últimos 8 dias,
+    // sempre filtrada para nunca mostrar evento que já passou.
+    const limite = new Date(Date.now() - 8 * 86400_000).toISOString().slice(0, 10);
     const { data: cached } = await supabaseAdmin
       .from("city_daily_news")
       .select("items")
@@ -581,7 +583,9 @@ export const getCityNews = createServerFn({ method: "POST" })
       .order("date", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const items = (cached?.items ?? null) as NewsItem[] | null;
+    const raw = (cached?.items ?? null) as NewsItem[] | null;
+    const today = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
+    const items = raw ? filterUpcoming(raw, today) : null;
     return items && items.length > 0 ? { items } : null;
   });
 

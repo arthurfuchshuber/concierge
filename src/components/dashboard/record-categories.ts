@@ -4,7 +4,7 @@
  * do tempo dentro da reserva (ReservationRecords) e a aba "Registros"
  * (RecordsWorkspace). Mesmo motivo de `card-colors.ts` existir separado.
  */
-import { Package, AlertTriangle, Sparkles, Wrench, StickyNote } from "lucide-react";
+import { Package, AlertTriangle, Sparkles, Wrench, StickyNote, Siren } from "lucide-react";
 import type { RecordCategory } from "@/lib/reservation-records.functions";
 
 // "Registros da reserva" (pedido explícito, 07/09/2026): mesmo ícone em
@@ -60,10 +60,20 @@ export const CATEGORIES: CategoryMeta[] = [
   },
   {
     key: "damage",
-    label: "Danos ou Incidentes",
+    label: "Danos",
     short: "Danos",
     hint: "Prova pra cobrança",
     icon: AlertTriangle,
+    tone: "bg-[#c98c8c]/10 text-[#c98c8c] border-[#c98c8c]/30",
+    dot: "bg-[#c98c8c]",
+    createsTask: true,
+  },
+  {
+    key: "incident",
+    label: "Incidentes",
+    short: "Incidentes",
+    hint: "Ocorrência durante a estadia",
+    icon: Siren,
     tone: "bg-[#c98c8c]/10 text-[#c98c8c] border-[#c98c8c]/30",
     dot: "bg-[#c98c8c]",
     createsTask: true,

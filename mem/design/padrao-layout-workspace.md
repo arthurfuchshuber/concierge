@@ -30,3 +30,15 @@ Referência oficial: página "Operação" (`OperationWorkspace`). Componente reu
 Ordem acordada: Operação (base) → Guias (feito) → demais páginas, uma a uma.
 Na entrada de cada página, remover blocos de "plano e uso" até serem
 reimplementados no padrão novo.
+
+## Peças compartilhadas (26/09/2026 — Registros alinhado à Limpeza)
+- Cartão de número: `src/components/ds/StatCard.tsx` (ícone em caixinha, rótulo caixa alta, número centralizado; `onClick`/`active` para filtro, `iconTone` só na caixinha).
+- Gráfico por dia: `src/components/ds/DailyBarChartCard.tsx` (PanelHeading + "(N dias)" + "role para o lado" + tabela do dia com seta). Série sempre recortada com `trimSeries` (primeiro→último dia com dado).
+- Linha de ações: período à esquerda + Filtros à direita (`ACTION_BAR`/`ACTION_SEGMENT`).
+- Título dinâmico no formato "Limpezas Últimos 7d" / "Danos Últimos 30d".
+- Ordem: Operacional/Kanban/Limpeza (base) → Registros (feito) → demais páginas, uma por vez.
+
+## Janelas flutuantes (26/09/2026)
+- Toda janela suspensa, menu, seletor, cartão de pré-visualização e lista com busca usa a casca `ds-overlay` (mesma do painel de Filtros da Limpeza: fundo `--panel`, borda `--panel-border`, fio dourado no topo, sombra profunda). Itens: `ds-overlay-item` com destaque sutil (sem fundo rosa).
+- Dicas (tooltips): `ds-overlay-compact` (fundo `--panel-2`, sem fio dourado, 12px).
+- Aplicado nas peças-base; telas não devem sobrescrever cor/borda/canto dessas janelas. Filtros continuam usando as peças de `filter-panel.tsx`.

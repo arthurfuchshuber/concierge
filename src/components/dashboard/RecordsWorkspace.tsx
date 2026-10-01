@@ -1,3 +1,5 @@
+import { SearchActionRow } from "./SearchActionRow";
+import { searchScore } from "@/lib/search-score";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -5,6 +7,7 @@ import {
   Camera,
   Check,
   CircleAlert,
+  CircleCheck,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -12,13 +15,16 @@ import {
   Mic,
   Pencil,
   LayoutGrid,
+  Sparkles,
   SlidersHorizontal,
+  Filter,
   StickyNote,
   Video,
   Maximize2,
   Tag,
   Layers,
   Building2,
+  ListChecks,
   CalendarRange,
   Users,
 } from "lucide-react";
@@ -30,12 +36,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   FILTER_PANEL_CLASS,
   FILTER_PANEL_COLLISION,
   FILTER_PANEL_OFFSET,
   FilterCountBadge,
+  FilterHeaderClear,
   FilterMenuRow,
+  FilterPeriodCalendar,
   FilterMultiSelect,
   FilterOptionRow,
   FilterRootHeader,
@@ -43,6 +52,22 @@ import {
   FilterToggleRow,
 } from "@/components/dashboard/filter-panel";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import type { DateRange } from "react-day-picker";
+
+type PeriodRange = { start: string; end: string };
+function todayISOSaoPaulo(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+function isoToDate(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+function dateToISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function fmtDDMM(iso: string): string {
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+}
 import {
   PANEL_SHELL,
   PanelHeading,
@@ -53,8 +78,14 @@ import {
   ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
-import { PendenciasButton } from "@/components/dashboard/pendencias";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
+import { StatCard } from "@/components/ds/StatCard";
+import { OverlayChip, OverlayHeader } from "@/components/ds/OverlayHeader";
+
+/** Data (AAAA-MM-DD) no fuso de São Paulo. */
+function spDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
 import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
 import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import { DictationField } from "@/components/dashboard/RecordSituationSheet";
@@ -98,14 +129,7 @@ const GROUP_OPTIONS: ReadonlyArray<{ value: GroupBy; label: string }> = [
   { value: "day", label: "Por data" },
 ];
 
-type PeriodValue = "all" | "7" | "30" | "90";
 
-const PERIOD_OPTIONS: ReadonlyArray<{ value: PeriodValue; label: string }> = [
-  { value: "all", label: "Todo o período" },
-  { value: "7", label: "7 dias" },
-  { value: "30", label: "30 dias" },
-  { value: "90", label: "90 dias" },
-];
 
 /** Quantas miniaturas aparecem antes do "+N" — quatro, como no mockup. */
 const THUMBS_PER_GROUP = 4;
@@ -205,6 +229,7 @@ function hasTitle(r: AccountRecord): boolean {
 const CATEGORY_SOLID: Record<RecordCategory, string> = {
   forgotten: "bg-[#c9a962] text-[#1a1408]",
   damage: "bg-[#c98c8c] text-[#1a0a0a]",
+  incident: "bg-[#c98c8c] text-[#1a0a0a]",
   cleaning_audit: "bg-[#7fb79a] text-[#05140d]",
   maintenance: "bg-[#c98c8c] text-[#1a0a0a]",
   other: "bg-muted-foreground text-background",
@@ -213,6 +238,7 @@ const CATEGORY_SOLID: Record<RecordCategory, string> = {
 const CATEGORY_BAND: Record<RecordCategory, string> = {
   forgotten: "bg-[#c9a962]/15 text-[#c9a962]",
   damage: "bg-[#c98c8c]/15 text-[#c98c8c]",
+  incident: "bg-[#c98c8c]/15 text-[#c98c8c]",
   cleaning_audit: "bg-[#7fb79a]/15 text-[#7fb79a]",
   maintenance: "bg-[#c98c8c]/15 text-[#c98c8c]",
   other: "bg-muted-foreground/15 text-muted-foreground",
@@ -241,11 +267,10 @@ function fmtStayRange(checkin: string | null, checkout: string | null): string |
  * Não mexe em `CATEGORIES`: aquela ordem é do SELETOR que abre antes da
  * câmera (definida pelo cliente em 07/09/2026) e continua valendo lá.
  */
-const CARD_ORDER: readonly RecordCategory[] = ["maintenance", "damage", "forgotten", "cleaning_audit", "other"];
+const CARD_ORDER: readonly RecordCategory[] = ["maintenance", "damage", "incident", "forgotten", "other", "cleaning_audit"];
 const CARDS = CARD_ORDER.map((k) => CATEGORY_BY_KEY.get(k)!).filter(Boolean);
 
 /** Quantas pendências o cartão do imóvel lista antes de colapsar em "+N". */
-const PENDING_ROWS = 3;
 
 /**
  * O QUE SOBE PARA "A RESOLVER" (pedido explícito, 10/09/2026): DANO e
@@ -279,7 +304,7 @@ export function RecordsWorkspace() {
   const [category, setCategory] = useState<RecordCategory | null>(null);
   const [onlyOpen, setOnlyOpen] = useState(false);
   const [groupBy, setGroupBy] = useState<GroupBy>("property");
-  const [period, setPeriod] = useState<PeriodValue>("all");
+  const [period, setPeriod] = useState<PeriodRange | null>(null);
   /** Nomes (mesma chave do filtro de proprietário das outras telas). */
   const [ownerFilters, setOwnerFilters] = useState<string[]>([]);
   /** Ids de imóvel. */
@@ -304,7 +329,6 @@ export function RecordsWorkspace() {
   const [opened, setOpened] = useState<AccountRecord | null>(null);
   const [resolving, setResolving] = useState<AccountRecord | null>(null);
 
-  const days = period === "all" ? null : Number(period);
 
   // Imóveis e proprietários da conta — a MESMA função que alimenta o
   // vínculo das Pendências, já recortada por perfil.
@@ -347,10 +371,13 @@ export function RecordsWorkspace() {
       activeOwnerId ?? "self",
       category ?? "all",
       onlyOpen,
-      period,
+      period ? `${period.start}_${period.end}` : "all",
       (propertyIds ?? []).join(","),
     ] as const,
-    queryFn: () => listFn({ data: { ownerId: activeOwnerId, category, onlyOpen, days, propertyIds } }),
+    queryFn: () =>
+      listFn({
+        data: { ownerId: activeOwnerId, category, onlyOpen, fromDate: period?.start ?? null, toDate: period?.end ?? null, propertyIds },
+      }),
   });
 
   // Excluir com "Desfazer" e resposta instantânea (17/09/2026).
@@ -403,6 +430,7 @@ export function RecordsWorkspace() {
   );
   const counts = q.data?.counts;
 
+  const [search, setSearch] = useState("");
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
     for (const r of records) {
@@ -433,8 +461,17 @@ export function RecordsWorkspace() {
     for (const g of map.values()) {
       g.pending.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     }
-    return Array.from(map.values());
-  }, [records, groupBy]);
+    const all = Array.from(map.values());
+    if (!search.trim()) return all;
+    return all.filter(
+      (g) =>
+        searchScore(search, [
+          [g.label, 3],
+          [g.sublabel, 2.5],
+          [[...g.pending, ...g.rest].map((r) => (r as { note?: string | null }).note ?? "").join(" "), 1],
+        ]) > 0,
+    );
+  }, [records, groupBy, search]);
 
   // Divisão da lista (mockup B, 17/09/2026). No bloco de cima, o imóvel com a
   // pendência MAIS ANTIGA vem primeiro — ali antiguidade é atraso, a mesma
@@ -478,7 +515,7 @@ export function RecordsWorkspace() {
   const hasCustomFilters =
     category !== null ||
     onlyOpen ||
-    period !== "all" ||
+    period !== null ||
     groupBy !== "property" ||
     ownerFilters.length > 0 ||
     propertyFilters.length > 0;
@@ -486,11 +523,62 @@ export function RecordsWorkspace() {
   function clearAllFilters() {
     setCategory(null);
     setOnlyOpen(false);
-    setPeriod("all");
+    setPeriod(null);
     setGroupBy("property");
     setOwnerFilters([]);
     setPropertyFilters([]);
   }
+
+  const pageTitle = (() => {
+    const base = category ? (CATEGORY_BY_KEY.get(category)?.short ?? "Registros") : "Registros";
+    return period ? `${base} Período ${fmtDDMM(period.start)} a ${fmtDDMM(period.end)}` : `${base} Todo o período`;
+  })();
+  const pageSubtitle = period
+    ? "Fotos, vídeos, áudios e notas registrados nos imóveis no período."
+    : "Fotos, vídeos, áudios e notas registrados nos imóveis em todo o período.";
+
+  const recordActions = (
+            <>
+              {/* PERÍODO À ESQUERDA, FILTROS À DIREITA — idêntico à Limpeza:
+                  com período escolhido, o botão mostra as datas e tocar limpa. */}
+              {period ? (
+                <button
+                  type="button"
+                  onClick={() => setPeriod(null)}
+                  title="Limpar período"
+                  aria-label={`Período ${fmtDDMM(period.start)} a ${fmtDDMM(period.end)} — limpar período`}
+                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+                >
+                  <CalendarRange className={ACTION_ICON} />
+                  <span className="lg:hidden">{`${fmtDDMM(period.start)} a ${fmtDDMM(period.end)}`}</span>
+                </button>
+              ) : (
+                <span className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`} title="Todo o período">
+                  <Sparkles className={ACTION_ICON} />
+                  <span className="lg:hidden">Todo o período</span>
+                </span>
+              )}
+              <RecordsFiltersButton
+                category={category}
+                onCategoryChange={setCategory}
+                groupBy={groupBy}
+                onGroupByChange={setGroupBy}
+                period={period}
+                onPeriodChange={setPeriod}
+                periodBounds={q.data?.bounds ?? null}
+                onlyOpen={onlyOpen}
+                onOnlyOpenChange={setOnlyOpen}
+                ownerFilters={ownerFilters}
+                onOwnerFiltersChange={setOwnerFilters}
+                ownerOptions={ownerOptions}
+                propertyFilters={propertyFilters}
+                onPropertyFiltersChange={setPropertyFilters}
+                propertyOptions={linkProperties}
+                hasCustomFilters={hasCustomFilters}
+                onClearAll={clearAllFilters}
+              />
+            </>
+  );
 
   return (
     /* MESMA MOLDURA DE PÁGINA das outras três telas (Operacional / Kanban /
@@ -513,85 +601,33 @@ export function RecordsWorkspace() {
       <div className="ds-blocks">
         <OperationShell
           view="registros"
-          subtitle={subtitle}
-          actions={
-            <>
-              {/* PENDÊNCIAS MORA AQUI AGORA (pedido explícito, 18/09/2026):
-                  veio do Kanban, porque é nesta aba que as pendências já
-                  aparecem ("Precisam de atenção") — é aqui que a mão procura.
-                  Ver `pendencias.tsx`. */}
-              <PendenciasButton ownerId={activeOwnerId} enabled />
-              <RecordsFiltersButton
-                category={category}
-                onCategoryChange={setCategory}
-                groupBy={groupBy}
-                onGroupByChange={setGroupBy}
-                period={period}
-                onPeriodChange={setPeriod}
-                onlyOpen={onlyOpen}
-                onOnlyOpenChange={setOnlyOpen}
-                ownerFilters={ownerFilters}
-                onOwnerFiltersChange={setOwnerFilters}
-                ownerOptions={ownerOptions}
-                propertyFilters={propertyFilters}
-                onPropertyFiltersChange={setPropertyFilters}
-                propertyOptions={linkProperties}
-                hasCustomFilters={hasCustomFilters}
-                onClearAll={clearAllFilters}
-              />
-            </>
-          }
+          title={pageTitle}
+          subtitle={pageSubtitle}
         />
 
-        {/* 1 — CONTADORES, em DUAS LINHAS de três (pedido explícito): cinco
-          cartões numa linha só deixavam o rótulo cortado ("ESQUECID…",
-          "MANUTEN…") justamente nas categorias que mais importam. Em
-          `grid-cols-3` sobram três em cima e dois embaixo, com o rótulo
-          inteiro. Desde 18/09/2026 os seis são um BLOCO SÓ, com fios internos
-          — cada quadrado continua sendo o seu próprio clique. O número não tem
-          cor própria (padrão "Presença"): a categoria vive na caixinha do
-          ícone e o selecionado ganha luz, não cor. Tocar no selecionado volta
-          para "todos". */}
-        <div className={`${PANEL_SHELL} grid grid-cols-3`}>
-          {/* TODOS é o primeiro cartão e o filtro de entrada da aba (pedido
-            explícito, 10/09/2026). Ele não é "mais uma categoria": é a visão
-            em que os registros de uma MESMA RESERVA vêm empacotados. */}
-          {(() => {
-            /* O ÍNDICE SELECIONADO comanda os fios: a célula acesa e as suas
-               vizinhas de cima/esquerda escondem o fio que encostaria na
-               mancha de seleção — é isso que elimina a "borda" que sobrava
-               na direita e embaixo do cartão selecionado. */
-            const ativo = category === null ? 0 : CARDS.findIndex((c) => c.key === category) + 1;
-            return (
-              <>
-                <CategoriaCelula i={0} ativo={ativo}>
-                  <CategoryCard
-                    label="Todos"
-                    count={q.data?.total ?? 0}
-                    tone={null}
-                    icon={LayoutGrid}
-                    active={category === null}
-                    loading={q.isLoading}
-                    onClick={() => setCategory(null)}
-                  />
-                </CategoriaCelula>
-                {CARDS.map((c, i) => (
-                  <CategoriaCelula key={c.key} i={i + 1} ativo={ativo}>
-                    <CategoryCard
-                      label={c.short}
-                      count={counts?.[c.key] ?? 0}
-                      tone={c.key}
-                      icon={c.icon}
-                      active={category === c.key}
-                      loading={q.isLoading}
-                      onClick={() => setCategory(category === c.key ? null : c.key)}
-                    />
-                  </CategoriaCelula>
-                ))}
-              </>
-            );
-          })()}
-        </div>
+        {/* CARTÕES + GRÁFICO — mesmo grupo da Limpeza (10px entre eles). */}
+        <div className="ds-card-grid">
+          <div className="ds-card-grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+            {CARDS.map((c) => (
+              <StatCard
+                key={c.key}
+                label={c.short}
+                value={counts?.[c.key] ?? 0}
+                icon={c.icon}
+                iconTone={CARD_ICON_TONE[c.key]}
+                loading={q.isLoading}
+                active={category === c.key}
+                onClick={() => setCategory(category === c.key ? null : c.key)}
+              />
+            ))}
+          </div>
+          <SearchActionRow
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por imóvel, proprietário…"
+            actions={recordActions}
+          />
+
 
         {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
         {q.isLoading ? (
@@ -607,7 +643,13 @@ export function RecordsWorkspace() {
                 : "Os registros feitos nos cards aparecem aqui."}
           </p>
         ) : (
-          <div className="ds-blocks">
+          <div
+            className={`ds-blocks ${
+              attentionGroups.length > 0 && calmGroups.length > 0
+                ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-2.5 lg:space-y-0"
+                : ""
+            }`}
+          >
             {/* PENDÊNCIAS SEMPRE EM CIMA (mockup B aprovado, 17/09/2026): os
               imóveis com pendência aberta sobem para um bloco próprio, com
               borda de luz e o total de pendências; os que estão em dia vêm
@@ -647,27 +689,48 @@ export function RecordsWorkspace() {
                     }
                     className="mb-1 px-1.5"
                   />
-                  <div className="ds-card-grid">{attentionGroups.map(renderCard)}</div>
+                  <div className="ds-card-grid ds-five-cap">{attentionGroups.map(renderCard)}</div>
                 </div>
               </section>
             )}
 
-            {attentionGroups.length > 0 && calmGroups.length > 0 && (
-              <SectionLabel className="px-1 pt-0" count={calmGroups.length}>
-                Em dia
-              </SectionLabel>
+            {/* No computador, "Em dia" vira a coluna da direita. Mesmo
+              cabeçalho de "Precisam de atenção", com o fio em verde sálvia. */}
+            {calmGroups.length > 0 && (
+              <section aria-label="Imóveis em dia" className={`${PANEL_SHELL} min-w-0 px-1.5 pb-1.5 pt-3`}>
+                <span
+                  aria-hidden
+                  className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] bg-gradient-to-r from-[#7fb79a] to-transparent"
+                />
+                <div className="space-y-1.5">
+                  <PanelHeading
+                    title="Em dia"
+                    dot={
+                      <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-[#7fb79a]/12 text-[#7fb79a]">
+                        <CircleCheck className="size-[13px]" strokeWidth={2.2} />
+                      </span>
+                    }
+                    right={
+                      <CountPill>
+                        {calmGroups.length} {calmGroups.length === 1 ? "imóvel" : "imóveis"}
+                      </CountPill>
+                    }
+                    className="mb-1 px-1.5"
+                  />
+                  <div className="ds-card-grid ds-five-cap">{calmGroups.map(renderCard)}</div>
+                </div>
+              </section>
             )}
 
-            <div className="ds-card-grid">{calmGroups.map(renderCard)}</div>
-
             {q.data?.truncated && (
-              <p className="pt-1 text-center text-[11px] text-muted-foreground">
+              <p className="pt-1 text-center lg:col-span-2 text-[11px] text-muted-foreground">
                 Histórico longo — a lista mostra os mais recentes. Escolher uma categoria ou um período afina o que
                 aparece.
               </p>
             )}
           </div>
         )}
+        </div>
       </div>
 
       <RecordViewerDialog
@@ -727,6 +790,7 @@ export function RecordsWorkspace() {
 const CARD_ICON_TONE: Record<RecordCategory, string> = {
   maintenance: "#c98c8c",
   damage: "#c98c8c",
+  incident: "#c98c8c",
   forgotten: "#c9a962",
   cleaning_audit: "#7fb79a",
   other: "#c9a962",
@@ -889,6 +953,7 @@ function CategoriaCelula({
    mais colorida da tela depois dos seis cartões de contagem. */
 const STRIPE_GRADIENT: Record<RecordCategory, string> = {
   damage: "bg-gradient-to-b from-transparent via-[#c98c8c] to-transparent",
+  incident: "bg-gradient-to-b from-transparent via-[#c98c8c] to-transparent",
   maintenance: "bg-gradient-to-b from-transparent via-[#c98c8c] to-transparent",
   forgotten: "bg-gradient-to-b from-transparent via-[#c9a962] to-transparent",
   other: "bg-gradient-to-b from-transparent via-muted-foreground to-transparent",
@@ -941,14 +1006,9 @@ function PropertyCard({
   // Antes ele recortava a página inteira para aquele imóvel — resolvia, mas
   // custava perder a visão dos outros. Abrir no lugar é mais barato e é o que
   // a pessoa espera de um "+N".
-  const [showAllPending, setShowAllPending] = useState(false);
   // Recolher zera o "+N": reabrir depois mostrando a lista inteira, sem
   // ninguém ter pedido, é surpresa — e surpresa em tela de operação é ruído.
-  useEffect(() => {
-    if (!pendingOpen) setShowAllPending(false);
-  }, [pendingOpen]);
   const hasPending = group.pending.length > 0;
-  const hiddenPending = group.pending.length - PENDING_ROWS;
   // Com o andar de pendências em cima, o acervo encolhe para não esticar o
   // cartão; sozinho, ele fica no tamanho de leitura de sempre.
   const thumbCap = hasPending ? 6 : THUMBS_PER_GROUP;
@@ -1000,40 +1060,62 @@ function PropertyCard({
                 recolhida seguindo as mesmas regras da linha REGISTROS"). A
                 forma não muda em nada: mesma fonte, mesmo fio, mesma contagem
                 à direita, e a cor de alerta continua sendo a de antes. */}
-            <button
-              type="button"
-              onClick={onTogglePending}
-              aria-expanded={pendingOpen}
-              className="mb-1 mt-2.5 flex w-full items-center gap-2 text-left"
-            >
-              <span className="ds-falta shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em]">
-                Pendências
-              </span>
-              <span
-                aria-hidden
-                className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
-              />
-              <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
-                {group.pending.length}
-              </span>
-            </button>
-            {pendingOpen && (
-              <>
-                {(showAllPending ? group.pending : group.pending.slice(0, PENDING_ROWS)).map((r) => (
-                  <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} onResolve={() => onResolve(r)} />
-                ))}
-                {hiddenPending > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllPending((v) => !v)}
-                    aria-expanded={showAllPending}
-                    className="mt-1 w-full rounded-[0.25rem] py-1 text-center text-[10px] font-bold text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
-                  >
-                    {showAllPending ? "Mostrar menos" : `+${hiddenPending} pendências`}
-                  </button>
-                )}
-              </>
-            )}
+            <Popover open={pendingOpen} onOpenChange={(v) => v !== pendingOpen && onTogglePending()}>
+              <PopoverTrigger asChild>
+                <button type="button" className="mb-1 mt-2.5 flex w-full items-center gap-2 text-left">
+                  <span className="ds-falta shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em]">
+                    Pendências
+                  </span>
+                  <span
+                    aria-hidden
+                    className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
+                  />
+                  <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
+                    {group.pending.length}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top"
+                align="center"
+                className="max-h-[60dvh] w-[min(360px,calc(100vw-32px))] overflow-y-auto p-0"
+              >
+                {(() => {
+                  const first = group.pending[0];
+                  const oldest = group.pending.reduce(
+                    (a, r) => (r.createdAt < a ? r.createdAt : a),
+                    first?.createdAt ?? "",
+                  );
+                  return (
+                    <div className="sticky top-0 z-10 border-b border-[var(--panel-border)] bg-[var(--panel)] px-4 pb-3 pt-4">
+                      <OverlayHeader
+                        icon={Building2}
+                        eyebrow="Pendências do imóvel"
+                        title={first?.propertyName ?? group.label}
+                        owner={
+                          first?.ownerName
+                            ? { name: first.ownerName, phone: first.ownerPhone, country: first.ownerPhoneCountry }
+                            : null
+                        }
+                        chips={
+                          <>
+                            <OverlayChip dot="bg-[var(--falta,#e0707a)]">
+                              {group.pending.length} em aberto
+                            </OverlayChip>
+                            {oldest && <OverlayChip>desde {fmtShortDate(oldest)}</OverlayChip>}
+                          </>
+                        }
+                      />
+                    </div>
+                  );
+                })()}
+                <div className="px-3 py-1.5">
+                  {group.pending.map((r) => (
+                    <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} onResolve={() => onResolve(r)} />
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </>
         )}
 
@@ -1264,7 +1346,7 @@ function RecordViewerDialog({
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-md"
+        className="w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-md"
         aria-describedby={undefined}
       >
         {record && <RecordViewerBody record={record} onDelete={onDelete} onResolve={onResolve} onEdited={onEdited} />}
@@ -1332,7 +1414,7 @@ function RecordTextEditor({
     <div className="space-y-2.5">
       <DictationField
         label="Título"
-        required={requiresTitle}
+        required
         value={title}
         onChange={setTitle}
         placeholder="Em poucas palavras, o que houve"
@@ -1701,23 +1783,34 @@ function PayerButtonGroup({
   onSelect: (key: PayerKind) => void;
 }) {
   return (
-    <div className="mt-1 grid grid-cols-2 gap-1">
-      {PAYER_OPTIONS.map((o) => (
-        <button
-          key={o.key}
-          type="button"
-          onClick={() => onSelect(o.key)}
-          className={`rounded-[0.3rem] py-2 text-center text-[10.5px] font-bold transition-colors ${
-            value === o.key
-              ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-              : "bg-foreground/[0.04] text-foreground/70 hover:bg-foreground/[0.08]"
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
+    <Select value={value} onValueChange={(v) => onSelect(v as PayerKind)}>
+      <SelectTrigger className="mt-1 h-9 w-full min-w-0 rounded-[0.3rem] border-0 bg-foreground/[0.04] text-[12px] font-semibold [&>span]:truncate">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {PAYER_OPTIONS.map((o) => (
+          <SelectItem key={o.key} value={o.key} className="text-[12px]">
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
+}
+
+const PAYER_LABEL: Record<PayerKind, string> = Object.fromEntries(
+  PAYER_OPTIONS.map((o) => [o.key, o.label]),
+) as Record<PayerKind, string>;
+
+const PAYER_TO: Record<PayerKind, string> = {
+  company: "à empresa",
+  owner: "ao proprietário",
+  provider: "ao prestador",
+  guest: "ao hóspede",
+};
+
+function parseBRL(v: string): number {
+  return Number(v.replace(/\./g, "").replace(",", "."));
 }
 
 function PayerPicker({
@@ -1808,11 +1901,10 @@ function ResolveDialog({
       if (hasCost && (!Number.isFinite(cents) || (cents ?? 0) < 0)) {
         throw new Error("Informe um valor válido.");
       }
-      const paidCents =
-        hasCost && amountPaid.trim()
-          ? Math.round(Number(amountPaid.replace(/\./g, "").replace(",", ".")) * 100)
-          : null;
-      if (hasCost && amountPaid.trim() && (!Number.isFinite(paidCents) || (paidCents ?? 0) < 0)) {
+      // Valor pago vazio = pagou o custo total.
+      const paidRaw = amountPaid.trim() || amount.trim();
+      const paidCents = hasCost && paidRaw ? Math.round(parseBRL(paidRaw) * 100) : null;
+      if (hasCost && paidRaw && (!Number.isFinite(paidCents) || (paidCents ?? 0) < 0)) {
         throw new Error("Informe um valor pago válido.");
       }
       return setStatusFn({
@@ -1856,21 +1948,41 @@ function ResolveDialog({
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-sm"
+        className="w-[calc(100vw-2rem)] gap-0 p-0 sm:w-full sm:max-w-sm"
         aria-describedby={undefined}
       >
-        <DialogHeader className="space-y-0 px-4 pb-2 pr-11 pt-4 text-left">
-          <DialogTitle className="ds-card-title block w-full truncate">Resolver pendência</DialogTitle>
-          {record && (
-            <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
-              {/* Aqui é identificação, não leitura: sem título, o nome do
-                  arquivo diz de qual registro estamos falando. */}
-              {hasTitle(record) ? recordTitle(record) : (record.fileName ?? UNTITLED)}
-            </span>
-          )}
+        <DialogHeader className="space-y-0 border-b border-[var(--panel-border)] px-4 pb-3 pr-12 pt-4 text-left">
+          <DialogTitle className="sr-only">Resolver pendência</DialogTitle>
+          {record && (() => {
+            const meta = CATEGORY_BY_KEY.get(record.category);
+            return (
+              <OverlayHeader
+                icon={ListChecks}
+                eyebrow="Resolver pendência"
+                title={hasTitle(record) ? recordTitle(record) : (record.fileName ?? UNTITLED)}
+                subtitle={record.propertyName}
+                owner={
+                  record.ownerName
+                    ? { name: record.ownerName, phone: record.ownerPhone, country: record.ownerPhoneCountry }
+                    : null
+                }
+                chips={
+                  <>
+                    <OverlayChip dot={meta?.dot}>{meta?.short ?? "Registro"}</OverlayChip>
+                    <OverlayChip>{fmtShortDate(record.createdAt)}</OverlayChip>
+                    {record.createdByName && <OverlayChip>por {record.createdByName}</OverlayChip>}
+                  </>
+                }
+              />
+            );
+          })()}
         </DialogHeader>
 
-        <div className="space-y-3 px-4 pb-4">
+        <div className="min-w-0 space-y-3 px-4 pb-4 pt-3">
+          <p className="text-[11.5px] leading-snug text-muted-foreground">
+            Marque se houve gasto. Depois diga quem deve arcar com ele e quem já pagou — o sistema mostra se
+            alguém precisa reembolsar.
+          </p>
           <button
             type="button"
             onClick={() => setHasCost((v) => !v)}
@@ -1882,77 +1994,73 @@ function ResolveDialog({
 
           {hasCost && (
             <>
-              <label className="block">
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
-                  Valor da resolução
-                </span>
-                <div className="mt-1 flex items-center gap-2 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
-                  <span className="text-[11px] font-bold text-muted-foreground">R$</span>
-                  <input
-                    inputMode="decimal"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0,00"
-                    className="w-full bg-transparent text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground/60"
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+                <div className="min-w-0">
+                  <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem deve arcar</span>
+                  <PayerButtonGroup
+                    value={payer}
+                    onSelect={(k) => {
+                      setPayer(k);
+                      setPayerId(null);
+                    }}
                   />
                 </div>
-              </label>
-
-              <div>
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
-                  Responsável pela despesa
-                </span>
-                <PayerButtonGroup
-                  value={payer}
-                  onSelect={(k) => {
-                    setPayer(k);
-                    setPayerId(null);
-                  }}
-                />
+                <div className="min-w-0">
+                  <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem pagou</span>
+                  <PayerButtonGroup
+                    value={paidBy}
+                    onSelect={(k) => {
+                      setPaidBy(k);
+                      setPaidById(null);
+                    }}
+                  />
+                </div>
               </div>
 
               {needsWho && (
-                <PayerPicker
-                  kind={payer}
-                  options={options}
-                  selectedId={payerId}
-                  onSelect={setPayerId}
-                />
+                <PayerPicker kind={payer} options={options} selectedId={payerId} onSelect={setPayerId} />
+              )}
+              {needsWhoPaid && (
+                <PayerPicker kind={paidBy} options={paidByOptions} selectedId={paidById} onSelect={setPaidById} />
               )}
 
-              <div>
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem pagou?</span>
-                <PayerButtonGroup
-                  value={paidBy}
-                  onSelect={(k) => {
-                    setPaidBy(k);
-                    setPaidById(null);
-                  }}
-                />
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+                {(
+                  [
+                    ["Custo total", amount, setAmount, "0,00"],
+                    ["Valor pago", amountPaid, setAmountPaid, amount || "0,00"],
+                  ] as const
+                ).map(([label, val, set, ph]) => (
+                  <label key={label} className="block min-w-0">
+                    <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">{label}</span>
+                    <div className="mt-1 flex items-center gap-1.5 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
+                      <span className="text-[11px] font-bold text-muted-foreground">R$</span>
+                      <input
+                        inputMode="decimal"
+                        value={val}
+                        onChange={(e) => set(e.target.value)}
+                        placeholder={ph}
+                        className="w-full min-w-0 bg-transparent text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground/60"
+                      />
+                    </div>
+                  </label>
+                ))}
               </div>
 
-              {needsWhoPaid && (
-                <PayerPicker
-                  kind={paidBy}
-                  options={paidByOptions}
-                  selectedId={paidById}
-                  onSelect={setPaidById}
-                />
-              )}
-
-              <label className="block">
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Valor pago</span>
-                <div className="mt-1 flex items-center gap-2 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
-                  <span className="text-[11px] font-bold text-muted-foreground">R$</span>
-                  <input
-                    inputMode="decimal"
-                    value={amountPaid}
-                    onChange={(e) => setAmountPaid(e.target.value)}
-                    placeholder="0,00"
-                    className="w-full bg-transparent text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground/60"
-                  />
-                </div>
-              </label>
+              {(() => {
+                const total = parseBRL(amountPaid || amount);
+                if (!Number.isFinite(total) || total <= 0) return null;
+                const brl = total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                const text =
+                  payer === paidBy
+                    ? `${PAYER_LABEL[payer]} arcou e pagou ${brl}. Nada a acertar.`
+                    : `${PAYER_LABEL[payer]} deve reembolsar ${brl} ${PAYER_TO[paidBy]}.`;
+                return (
+                  <p className="rounded-[0.3rem] bg-primary/10 px-2.5 py-2 text-[11px] font-medium text-foreground/85">
+                    {text}
+                  </p>
+                );
+              })()}
             </>
           )}
 
@@ -2092,6 +2200,7 @@ function RecordsFiltersButton({
   onGroupByChange,
   period,
   onPeriodChange,
+  periodBounds,
   onlyOpen,
   onOnlyOpenChange,
   ownerFilters,
@@ -2107,8 +2216,9 @@ function RecordsFiltersButton({
   onCategoryChange: (v: RecordCategory | null) => void;
   groupBy: GroupBy;
   onGroupByChange: (v: GroupBy) => void;
-  period: PeriodValue;
-  onPeriodChange: (v: PeriodValue) => void;
+  period: PeriodRange | null;
+  onPeriodChange: (v: PeriodRange | null) => void;
+  periodBounds?: { min: string | null; max: string | null } | null;
   onlyOpen: boolean;
   onOnlyOpenChange: (v: boolean) => void;
   ownerFilters: string[];
@@ -2122,10 +2232,17 @@ function RecordsFiltersButton({
 }) {
   type Screen = "root" | "category" | "group" | "period" | "owner" | "property";
   const [screen, setScreen] = useState<Screen>("root");
+  const [draft, setDraft] = useState<DateRange | undefined>(
+    period ? { from: isoToDate(period.start), to: isoToDate(period.end) } : undefined,
+  );
+  useEffect(() => {
+    setDraft(period ? { from: isoToDate(period.start), to: isoToDate(period.end) } : undefined);
+  }, [period]);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => isoToDate(todayISOSaoPaulo()));
 
   const categoryLabel = category ? (CATEGORY_BY_KEY.get(category)?.short ?? "Todas") : "Todas";
   const groupLabel = GROUP_OPTIONS.find((o) => o.value === groupBy)?.label ?? "Por imóvel";
-  const periodLabel = PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "Todo o período";
+  const periodLabel = period ? `${fmtDDMM(period.start)} – ${fmtDDMM(period.end)}` : "Todos";
   const ownerLabel =
     ownerFilters.length === 0
       ? "Todos"
@@ -2157,7 +2274,7 @@ function RecordsFiltersButton({
           aria-label="Filtros dos registros"
           className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
         >
-          <SlidersHorizontal className={ACTION_ICON} />
+          <Filter className={ACTION_ICON} />
           <span className="lg:hidden">Filtros</span>
           {hasCustomFilters && <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />}
         </button>
@@ -2176,12 +2293,10 @@ function RecordsFiltersButton({
         {screen === "root" ? (
           <>
             <FilterRootHeader canClear={hasCustomFilters} onClear={onClearAll} />
-            <FilterMenuRow icon={Tag} label="Categoria" value={categoryLabel} active={!!category} onClick={() => setScreen("category")} />
             <FilterMenuRow icon={Layers} label="Agrupar" value={groupLabel} active={groupBy !== GROUP_OPTIONS[0].value} onClick={() => setScreen("group")} />
-            <FilterMenuRow icon={CalendarRange} label="Período" value={periodLabel} active={period !== "all"} onClick={() => setScreen("period")} />
+            <FilterMenuRow icon={CalendarRange} label="Período" value={periodLabel} active={period !== null} onClick={() => { setCalendarMonth(isoToDate(todayISOSaoPaulo())); setScreen("period"); }} />
             <FilterMenuRow icon={Users} label="Proprietário" value={ownerLabel} active={ownerFilters.length > 0} onClick={() => setScreen("owner")} />
             <FilterMenuRow icon={Building2} label="Imóvel" value={propertyLabel} active={propertyFilters.length > 0} onClick={() => setScreen("property")} last />
-            <FilterToggleRow label="Só os em aberto" checked={onlyOpen} onChange={onOnlyOpenChange} />
           </>
         ) : null}
 
@@ -2219,16 +2334,32 @@ function RecordsFiltersButton({
 
         {screen === "period" ? (
           <>
-            <FilterScreenHeader icon={CalendarRange} title="Período" onBack={() => setScreen("root")} />
-            {PERIOD_OPTIONS.map((o, i) => (
-              <FilterOptionRow
-                key={o.value}
-                label={o.label}
-                selected={o.value === period}
-                onClick={() => onPeriodChange(o.value)}
-                last={i === PERIOD_OPTIONS.length - 1}
-              />
-            ))}
+            <FilterScreenHeader
+              icon={CalendarRange}
+              title="Período"
+              onBack={() => setScreen("root")}
+              right={
+                <FilterHeaderClear
+                  disabled={!draft && !period}
+                  onClick={() => {
+                    setDraft(undefined);
+                    onPeriodChange(null);
+                  }}
+                />
+              }
+            />
+            <FilterPeriodCalendar
+              value={draft}
+              month={calendarMonth}
+              onMonthChange={setCalendarMonth}
+              today={isoToDate(todayISOSaoPaulo())}
+              min={periodBounds?.min ? isoToDate(periodBounds.min) : undefined}
+              max={periodBounds?.max ? isoToDate(periodBounds.max) : undefined}
+              onChange={(next) => {
+                setDraft(next);
+                if (next?.from && next?.to) onPeriodChange({ start: dateToISO(next.from), end: dateToISO(next.to) });
+              }}
+            />
           </>
         ) : null}
 

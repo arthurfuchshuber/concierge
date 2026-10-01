@@ -3,22 +3,29 @@
  *
  * Regra do produto: um membro da equipe só enxerga as residências que ele
  * atende. Se nenhuma residência estiver marcada para ele, ele não vê NENHUMA —
- * listas, cards e indicadores ficam zerados, mesmo com permissão de edição.
+ * listas, cards, calendário e indicadores ficam zerados.
  *
  * Retorna:
- *  - `null` quando não há recorte (titular da conta ou admin do SaaS fora de
- *    uma conta): enxerga tudo o que a RLS permitir.
+ *  - `null` quando não há recorte (titular da conta): enxerga tudo da conta.
  *  - `string[]` (possivelmente vazio) com os IDs permitidos.
+ *
+ * `tenantId` = conta ativa. Obrigatório para quem participa de várias
+ * empresas: o recorte sempre é o da conta aberta.
  */
-export async function visiblePropertyIds(userId: string): Promise<string[] | null> {
+export async function visiblePropertyIds(
+  userId: string,
+  tenantId?: string | null,
+): Promise<string[] | null> {
+  if (tenantId && tenantId === userId) return null;
   const { resolveSubjectSnapshot } = await import("./permission.resolve.server");
-  const snapshot = await resolveSubjectSnapshot(userId);
+  const snapshot = await resolveSubjectSnapshot(userId, tenantId ? { tenantId } : {});
   const roles = snapshot.subject.systemRoles ?? [];
-  const isMember = snapshot.subject.isTenantMember;
-  if (!isMember) return null;
+  if (!snapshot.subject.isTenantMember) return null;
   if (roles.includes("SYSTEM") || roles.includes("CRON")) return null;
-  // "Todas as residências": enxerga tudo da conta, inclusive imóveis criados
-  // depois — só passa a ter recorte quando alguém limita a lista.
+  // Admin do SaaS olhando outra conta: leitura total (auditoria).
+  if (roles.includes("ADMIN_SAAS") && snapshot.status !== "active") return null;
+  // Vínculo inexistente/revogado nesta conta: nada.
+  if (snapshot.status !== "active") return [];
   if (snapshot.allProperties === true) return null;
   return snapshot.properties;
 }
@@ -27,8 +34,9 @@ export async function visiblePropertyIds(userId: string): Promise<string[] | nul
 export async function filterVisiblePropertyIds(
   userId: string,
   ids: string[],
+  tenantId?: string | null,
 ): Promise<string[]> {
-  const allowed = await visiblePropertyIds(userId);
+  const allowed = await visiblePropertyIds(userId, tenantId);
   if (allowed === null) return ids;
   const set = new Set(allowed);
   return ids.filter((id) => set.has(id));

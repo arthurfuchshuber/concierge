@@ -254,8 +254,8 @@ export function StakeholderFormDialog({
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim());
   const accessQuery = useQuery({
-    queryKey: ["stakeholder-access", form.email.trim().toLowerCase()],
-    queryFn: () => accessFn({ data: { email: form.email.trim().toLowerCase() } }),
+    queryKey: ["stakeholder-access", accountOwnerId, form.email.trim().toLowerCase()],
+    queryFn: () => accessFn({ data: { accountOwnerId, email: form.email.trim().toLowerCase() } }),
     enabled: open && emailValid,
     retry: false,
   });
@@ -451,10 +451,31 @@ export function StakeholderFormDialog({
       // Acesso ao sistema: mesmo fluxo de convite dos membros da equipe.
       try {
         const current = access?.status ?? "none";
-        if (systemAccess && current === "none" && emailValid) {
+        if (systemAccess && current !== "none" && emailValid && provisionalPwd.trim().length >= 8) {
+          const res = await provisionalFn({
+            data: {
+              accountOwnerId,
+              email: form.email.trim().toLowerCase(),
+              password: provisionalPwd.trim(),
+              name: form.name.trim() || undefined,
+            },
+          });
+          const sent = provisionalPwd.trim();
+          setProvisionalPwd("");
+          if (res.mode === "linked_existing") {
+            toast.success(
+              `Esta pessoa já tem conta no ConciergeIA: acesso à sua empresa liberado. Ela entra com a senha que já usa.${res.emailSent ? " Aviso enviado por e-mail." : " O aviso por e-mail não pôde ser enviado agora."}`,
+              { duration: 10000 },
+            );
+          } else {
+            void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
+            toast.success(`Nova senha provisória definida e copiada.${res.emailSent ? " Também enviada por e-mail." : ""}`, { duration: 10000 });
+          }
+        } else if (systemAccess && current === "none" && emailValid) {
           if (provisionalPwd.trim().length >= 8) {
-            await provisionalFn({
+            const res = await provisionalFn({
               data: {
+                accountOwnerId,
                 email: form.email.trim().toLowerCase(),
                 password: provisionalPwd.trim(),
                 name: form.name.trim() || undefined,
@@ -466,27 +487,43 @@ export function StakeholderFormDialog({
               },
             });
 
+            const sent = provisionalPwd.trim();
             setProvisionalPwd("");
-            toast.success(
-              "Acesso liberado com senha provisória. No primeiro login a pessoa cria a própria senha.",
-            );
+            if (res.mode === "linked_existing") {
+              toast.success(
+                `Esta pessoa já tem conta no ConciergeIA: acesso à sua empresa liberado. Ela entra com a senha que já usa.${res.emailSent ? " Aviso enviado por e-mail." : " O aviso por e-mail não pôde ser enviado agora."}`,
+                { duration: 10000 },
+              );
+            } else {
+              void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
+              toast.success(
+                `Acesso liberado e dados copiados.${res.emailSent ? " Também enviados por e-mail." : ""} No primeiro login a pessoa cria a própria senha.`,
+                { duration: 10000 },
+              );
+            }
           } else {
-            await inviteFn({ data: { email: form.email.trim().toLowerCase(), role: "agent" as const } });
-            toast.success("Convite de acesso enviado por e-mail.");
+            const invited = await inviteFn({ data: { accountOwnerId: accountOwnerId ?? undefined, email: form.email.trim().toLowerCase(), role: "agent" as const } });
+            toast.success(invited.emailSent ? "Convite de acesso enviado por e-mail." : "Convite criado, mas o e-mail não pôde ser enviado agora.");
           }
         } else if (!systemAccess && current === "pending" && access?.inviteId) {
 
-          await revokeInviteFn({ data: { inviteId: access.inviteId } });
+          await revokeInviteFn({ data: { accountOwnerId: accountOwnerId ?? undefined, inviteId: access.inviteId } });
           toast.success("Convite de acesso cancelado.");
         } else if (!systemAccess && current === "active" && access?.memberId) {
-          await removeMemberFn({ data: { memberId: access.memberId } });
+          await removeMemberFn({ data: { accountOwnerId: accountOwnerId ?? undefined, memberId: access.memberId } });
           toast.success("Acesso ao sistema removido.");
         }
-        void accessQuery.refetch();
+        await accessQuery.refetch();
       } catch (e) {
+        // Mantém a janela aberta e o aviso fixo: antes o "Cadastro atualizado"
+        // aparecia logo em seguida e escondia que o acesso NÃO foi criado.
+        await accessQuery.refetch();
         toast.error(
-          `Cadastro salvo, mas não foi possível atualizar o acesso: ${(e as Error).message}`,
+          `Cadastro salvo, mas o acesso ao sistema não foi liberado: ${(e as Error).message}`,
+          { duration: 15000 },
         );
+        onSaved?.(res.id as string, !form.id, form);
+        return;
       }
 
       toast.success(form.id ? "Cadastro atualizado." : `Cadastro de ${singular} criado.`);
@@ -782,10 +819,23 @@ export function StakeholderFormDialog({
                 Informe um e-mail válido acima para liberar o acesso ao sistema.
               </p>
             )}
-            {systemAccess && emailValid && access?.status === "none" && (
+            {emailValid && access && (
+              <p className="ds-meta mt-2">
+                Situação:{" "}
+                <span className="font-semibold text-foreground">
+                  {access.status === "active"
+                    ? "acesso ativo"
+                    : access.status === "pending"
+                      ? "convite enviado, aguardando o primeiro acesso"
+                      : "sem acesso"}
+                </span>
+              </p>
+            )}
+            {systemAccess && emailValid && (
               <div className="mt-3 space-y-1.5">
                 <Label className="ds-meta flex items-center gap-1.5">
-                  <KeyRound className="size-3.5" /> Senha provisória
+                  <KeyRound className="size-3.5" />
+                  {access?.status && access.status !== "none" ? "Definir nova senha provisória (opcional)" : "Senha provisória"}
                 </Label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -811,10 +861,18 @@ export function StakeholderFormDialog({
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      const gen = Array.from(crypto.getRandomValues(new Uint32Array(3)))
-                        .map((n) => n.toString(36))
-                        .join("")
-                        .slice(0, 12);
+                      // Senha forte garantida (maiúscula, minúscula, número e
+                      // símbolo) — senhas simples são recusadas pelo login.
+                      const sets = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnpqrstuvwxyz", "23456789", "!@#$%*?"];
+                      const rnd = (n: number) => crypto.getRandomValues(new Uint32Array(1))[0]! % n;
+                      const chars = sets.map((c) => c[rnd(c.length)]!);
+                      const all = sets.join("");
+                      while (chars.length < 12) chars.push(all[rnd(all.length)]!);
+                      for (let i = chars.length - 1; i > 0; i--) {
+                        const j = rnd(i + 1);
+                        [chars[i], chars[j]] = [chars[j]!, chars[i]!];
+                      }
+                      const gen = chars.join("");
                       setProvisionalPwd(gen);
                       setShowPwd(true);
                     }}
@@ -826,7 +884,7 @@ export function StakeholderFormDialog({
                   <p className="ds-meta text-destructive">A senha precisa ter pelo menos 8 caracteres.</p>
                 )}
                 <p className="ds-meta">
-                  Passe essa senha à pessoa por WhatsApp. Em branco, enviamos convite por e-mail.
+                  Use letras maiúsculas, minúsculas, números e símbolo (senhas simples são recusadas). Ao salvar, e-mail e senha são copiados para você colar no WhatsApp. Em branco, {access?.status && access.status !== "none" ? "nada muda no acesso atual" : "enviamos convite por e-mail"}.
                 </p>
               </div>
             )}

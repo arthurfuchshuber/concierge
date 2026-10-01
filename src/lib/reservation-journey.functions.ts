@@ -242,7 +242,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
         .or(orParts.join(","))
         .order("created_at", { ascending: true })
         .limit(50),
-      db.from("reservation_records").select("id").or(orParts.join(",")).limit(200),
+      db.from("reservation_records").select("id, group_id").or(orParts.join(",")).limit(200),
     ]);
 
     // ---- 5. A jornada ----
@@ -309,7 +309,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
           category: t.category,
           dueDate: t.due_date,
         })),
-        recordsCount: (recordsRes.data ?? []).length,
+        recordsCount: new Set(((recordsRes.data ?? []) as Array<{ id: string; group_id: string | null }>).map((r) => r.group_id ?? r.id)).size,
       };
     }
 
@@ -385,6 +385,6 @@ export const getReservationJourney = createServerFn({ method: "GET" })
         category: t.category,
         dueDate: t.due_date,
       })),
-      recordsCount: (recordsRes.data ?? []).length,
+      recordsCount: new Set(((recordsRes.data ?? []) as Array<{ id: string; group_id: string | null }>).map((r) => r.group_id ?? r.id)).size,
     };
   });

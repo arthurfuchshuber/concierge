@@ -29,6 +29,12 @@ export const issueGuestPass = createServerFn({ method: "POST" })
     if (!prop) throw new Error("Este guia não está disponível.");
 
     let verified = false;
+    // Cópia da landing: só tem dados fictícios e nenhum bloqueio — passe livre.
+    const { isLandingCopy } = await import("@/lib/landing-demo.server");
+    if (isLandingCopy(data.slug)) {
+      const { signGuestPass } = await import("@/lib/guest-pass.server");
+      return { pass: signGuestPass(`guide:${prop.id}`, data.guestName, 30, false) };
+    }
     if (!(prop.airbnb_ical_url ?? "").trim()) {
       throw new Error("Este guia ainda não está liberado. Fale com o anfitrião.");
     }

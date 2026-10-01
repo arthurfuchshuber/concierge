@@ -65,6 +65,8 @@ const Body = z.object({
    * as senhas do imóvel para a IA nesta conversa (16/09/2026).
    */
   reservationCode: z.string().trim().max(40).optional(),
+  /** Vitrine da landing: a IA responde com dados sensíveis FICTÍCIOS e ninguém é notificado. */
+  demo: z.boolean().optional(),
 });
 
 type StageEvent = { step: string; label: string };
@@ -72,6 +74,7 @@ type StageEvent = { step: string; label: string };
 async function runGuideChat(
   body: z.infer<typeof Body>,
   emitStage: (stage: StageEvent) => void,
+  emitDraft?: (text: string) => void,
 ): Promise<Response> {
   {
     const apiKey = process.env.LOVABLE_API_KEY;
@@ -116,7 +119,11 @@ async function runGuideChat(
 
     // Gate: guest AI chat is available from the Pro plan onwards.
     const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
-    const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as SupabaseClient, prop.owner_id);
+    const landing = await import("@/lib/landing-demo.server");
+    const planOwnerId = landing.isLandingCopy(body.slug)
+      ? ((await landing.landingSourceOwnerId(supabaseAdmin as SupabaseClient)) ?? prop.owner_id)
+      : prop.owner_id;
+    const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as SupabaseClient, planOwnerId);
     if (!ownerPlan.features.guestChat) {
       return new Response(
         JSON.stringify({ error: "A assistente IA não está disponível neste guia." }),
@@ -155,7 +162,7 @@ async function runGuideChat(
       conversationId = created.id;
 
       // Avisa o anfitrião que um hóspede iniciou uma conversa com a IA.
-      try {
+      if (!body.demo) try {
         const { sendConversationStartedPush } = await import("@/lib/ops-push.server");
         await sendConversationStartedPush(supabaseAdmin, {
           propertyId: prop.id,
@@ -248,7 +255,7 @@ async function runGuideChat(
       // mensagem seguinte na mesma conversa (já com um humano) não
       // avisava ninguém. Se há um responsável específico, só ele recebe;
       // sem isso, cai pra todo o time notificável da propriedade.
-      try {
+      if (!body.demo) try {
         const { getPropertyNotifiableUsers, sendGuestReplyPush } =
           await import("@/lib/handoff.server");
         const userIds = convState?.assigned_to
@@ -314,6 +321,30 @@ async function runGuideChat(
       credentialsLocked = !proof?.ok;
     }
 
+    /* VITRINE DA LANDING: o lead conversa com a IA real, mas tudo que dá
+       acesso ou identifica o imóvel é trocado por valores fictícios. */
+    let agentProperty = prop as unknown as Record<string, unknown>;
+    if (body.demo && !landing.isLandingCopy(body.slug)) {
+      agentProperty = {
+        ...agentProperty,
+        wifi_ssid: "Rede da casa",
+        wifi_password: "demo-2026",
+        lock_code: "0000",
+        gate_code: "0000",
+        access_codes_pin: null,
+        host_phone: "+55 (00) 00000-0000",
+        address: "Endereço enviado ao hóspede no dia da chegada",
+        address_note: null,
+        maps_url: null,
+        garage_maps_url: null,
+        lat: null,
+        lng: null,
+        airbnb_ical_url: null,
+      };
+      credentialsLocked = false;
+    }
+    if (landing.isLandingCopy(body.slug)) credentialsLocked = false;
+
     const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
     const { AiGatewayError } = await import("@/lib/ai/gateway.server");
 
@@ -321,8 +352,9 @@ async function runGuideChat(
     try {
       result = await runHospitalityAgent({
         onStage: emitStage,
+        onDraft: emitDraft,
         supabase: supabaseAdmin as SupabaseClient,
-        property: prop as unknown as Record<string, unknown>,
+        property: agentProperty,
         conversationId,
         sessionId: body.sessionId,
         guestName: body.guestName ?? null,
@@ -378,7 +410,7 @@ async function runGuideChat(
           handoff_at: new Date().toISOString(),
         })
         .eq("id", conversationId);
-      try {
+      if (!body.demo) try {
         const { getPropertyNotifiableUsers, sendHandoffPush } =
           await import("@/lib/handoff.server");
         const userIds = await getPropertyNotifiableUsers(supabaseAdmin, prop.id);
@@ -536,8 +568,17 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             };
             send({ type: "stage", step: "start", label: "Recebi sua mensagem" });
             try {
-              const res = await runGuideChat(body, (stage) =>
-                send({ type: "stage", step: stage.step, label: stage.label }),
+              let drafted = false;
+              const res = await runGuideChat(
+                body,
+                (stage) => send({ type: "stage", step: stage.step, label: stage.label }),
+                // Resposta aparecendo enquanto é escrita (30/09/2026). O
+                // rascunho só sai quando as senhas não estão travadas; o texto
+                // validado chega em "done" e substitui o rascunho.
+                (text) => {
+                  drafted = true;
+                  send({ type: "draft", text });
+                },
               );
               const payload = (await res.json().catch(() => ({}))) as {
                 reply?: string;
@@ -554,7 +595,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
                 });
               } else {
                 const reply = payload.reply ?? "";
-                if (reply) {
+                if (reply && !drafted) {
                   send({ type: "reply_start", conversationId: payload.conversationId ?? null });
                   /**
                    * A revelação em pedaços é ENFEITE, e enfeite não pode cobrar

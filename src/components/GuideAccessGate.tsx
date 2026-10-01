@@ -443,7 +443,7 @@ export function GuideAccessGate({
             });
           setResCheck({
             state: "no-match",
-            suggestedCheckout: "suggestedCheckout" in r ? r.suggestedCheckout : undefined,
+            suggestedCheckout: undefined,
           });
         })
         .catch(() => {
@@ -840,48 +840,53 @@ export function GuideAccessGate({
                   </>
                 )}
 
-                <div className="grid grid-cols-2 gap-2.5">
-                  {codeGateActive ? (
+                {/* Primeira tela: só nome, código e telefone (pedido explícito,
+                    28/09/2026) quando o código é conferido no calendário. Sem
+                    essa conferência, as datas não chegam sozinhas — então o
+                    hóspede precisa escolhê-las aqui, senão nunca conclui. */}
+                {!codeGateActive && calendarAvailability.state === "ready" && (
+                  <div className="grid grid-cols-2 gap-2">
                     <RangeButton
                       label="Chegada"
-                      value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
-                      locked
-                    />
-                  ) : (
-                    <RangeButton
-                      themeClass={themeClass}
-                      label="Chegada"
+                      emoji="📅"
+                      value={range?.from ? format(range.from, "dd/MM/yyyy") : "—"}
                       open={checkinPopoverOpen}
                       onOpenChange={setCheckinPopoverOpen}
-                      emoji="📅"
-                      value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
                       popover={
                         <Calendar
                           mode="single"
+                          locale={ptBR}
                           selected={range?.from}
                           onSelect={handleCheckinSelect}
-                          numberOfMonths={1}
-                          initialFocus
-                          locale={ptBR}
                           disabled={isDateDisabled}
-                          modifiers={{ availableCheckin: availableCheckinDates }}
-                          modifiersClassNames={{ availableCheckin: "guide-available-checkin" }}
-                          classNames={{
-                            today: "rdp-today",
-                            disabled: "rdp-disabled text-neutral-400",
-                            outside: "rdp-outside text-neutral-300",
-                          }}
-                          className="guide-access-calendar p-3 pointer-events-auto"
+                          className="p-3"
                         />
                       }
                     />
-                  )}
-                  <RangeButton
-                    label="Saída"
-                    value={range?.to ? format(range.to, "dd MMM", { locale: ptBR }) : "—"}
-                    locked
-                  />
-                </div>
+                    <RangeButton
+                      label="Saída"
+                      emoji="📅"
+                      value={range?.to ? format(range.to, "dd/MM/yyyy") : "—"}
+                      popover={
+                        <Calendar
+                          mode="single"
+                          locale={ptBR}
+                          selected={range?.to}
+                          onSelect={(d) =>
+                            setRange((r) => (d ? { from: r?.from, to: d } : { from: r?.from }))
+                          }
+                          disabled={(d) =>
+                            range?.from ? d <= range.from : isDateDisabled(d)
+                          }
+                          defaultMonth={range?.from}
+                          className="p-3"
+                        />
+                      }
+                    />
+                  </div>
+                )}
+
+
 
                 <div className="sg-phone-input">
                   <PhoneInput
