@@ -25,11 +25,33 @@ import { z } from "zod";
  * MESMA conta do imóvel — mesma trava de `setCleaningAssignment`.
  */
 
+export type AccessMedia = { url: string; type: "image" | "video" };
+
+/** `gate_media`/`lock_media` são JSON livre: só passa o que tem URL e tipo válidos. */
+function toMedia(v: unknown): AccessMedia[] {
+  if (!Array.isArray(v)) return [];
+  const out: AccessMedia[] = [];
+  for (const m of v) {
+    const url =
+      typeof (m as { url?: unknown })?.url === "string" ? (m as { url: string }).url.trim() : "";
+    if (!url) continue;
+    out.push({ url, type: (m as { type?: unknown }).type === "video" ? "video" : "image" });
+  }
+  return out;
+}
+
 export type PropertyAccessInfo = {
   gateCode: string | null;
   gateInstructions: string | null;
+  /** Nome que o anfitrião deu ao portão/fechadura no guia (ex.: "Cadeado-Cofre do Portão"). */
+  gateLabel: string | null;
+  gateVideoUrl: string | null;
+  gateMedia: AccessMedia[];
   lockCode: string | null;
   lockInstructions: string | null;
+  lockLabel: string | null;
+  lockVideoUrl: string | null;
+  lockMedia: AccessMedia[];
   wifiSsid: string | null;
   wifiPassword: string | null;
   provider: { name: string; phone: string | null; phoneCountry: string | null } | null;
@@ -62,7 +84,7 @@ export const getPropertyAccessInfo = createServerFn({ method: "POST" })
     const { data: p, error } = await sb
       .from("properties")
       .select(
-        "owner_id, gate_code, gate_instructions, lock_code, lock_instructions, wifi_ssid, wifi_password",
+        "owner_id, gate_code, gate_instructions, gate_label, gate_video_url, gate_media, lock_code, lock_instructions, lock_label, lock_video_url, lock_media, wifi_ssid, wifi_password",
       )
       .eq("id", data.propertyId)
       .maybeSingle();
@@ -88,8 +110,14 @@ export const getPropertyAccessInfo = createServerFn({ method: "POST" })
     return {
       gateCode: clean(p.gate_code),
       gateInstructions: clean(p.gate_instructions),
+      gateLabel: clean(p.gate_label),
+      gateVideoUrl: clean(p.gate_video_url),
+      gateMedia: toMedia(p.gate_media),
       lockCode: clean(p.lock_code),
       lockInstructions: clean(p.lock_instructions),
+      lockLabel: clean(p.lock_label),
+      lockVideoUrl: clean(p.lock_video_url),
+      lockMedia: toMedia(p.lock_media),
       wifiSsid: clean(p.wifi_ssid),
       wifiPassword: clean(p.wifi_password),
       provider,

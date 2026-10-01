@@ -45,7 +45,6 @@ import {
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
-import { PropertyMapsButton } from "@/components/dashboard/PropertyMapsButton";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
 import {
   Search,
@@ -10322,21 +10321,13 @@ function ArrivalCard({
             handleRevertClick, calculados mais acima). */}
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          {/* Botão do Maps — o MESMO de sempre, agora num componente só
-              (`PropertyMapsButton`) para o quadrante "Acesso" usar igual. */}
-          <PropertyMapsButton
-            propertyName={row.propertyName}
-            propertyAddress={row.propertyAddress}
-            mapsUrl={row.mapsUrl}
-            garageMapsUrl={row.garageMapsUrl}
-          />
-
-          {/* CHAVE DE ACESSO (mockup aprovado, 30/09/2026): só no card "Em
-              Limpeza" e só quando o imóvel tem portão, fechadura ou Wi-Fi
-              cadastrado — entre o pino do Maps e o clipe de Registros, no
-              mesmo tamanho dos outros ícones. Abre o quadrante "Acesso"
-              (`PropertyAccessButton`). */}
-          {mode === "cleaning" && row.hasAccessInfo && <PropertyAccessButton row={row} />}
+          {/* ACESSO (pedido explícito, 01/10/2026): o pino do Maps saiu da
+              fileira de TODOS os cards — o mapa agora mora dentro do
+              quadrante "Acesso" (`PropertyAccessButton`), no mesmo botão de
+              sempre (`PropertyMapsButton`). A chave aparece em todos os
+              cards e em todos os status, mesmo sem portão/fechadura/Wi-Fi
+              cadastrado, para o mapa nunca ficar inalcançável. */}
+          <PropertyAccessButton row={row} />
 
           {/* "Registros da reserva" (pedido explícito, 07/09/2026): mesmo
               ícone em QUALQUER status — abre a linha do tempo única da

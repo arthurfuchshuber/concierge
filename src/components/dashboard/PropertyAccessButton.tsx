@@ -10,11 +10,13 @@ import {
   KeyRound,
   ListOrdered,
   Lock,
+  Play,
   Send,
   Wifi,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   FILTER_PANEL_CLASS_ELEVATED,
@@ -27,7 +29,11 @@ import {
 import { CARD_OWNER, CARD_PROPERTY, ownerLabel } from "@/components/dashboard/card-colors";
 import { PropertyMapsButton, propertyMapsHref } from "@/components/dashboard/PropertyMapsButton";
 import { useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
-import { getPropertyAccessInfo, type PropertyAccessInfo } from "@/lib/property-access.functions";
+import {
+  getPropertyAccessInfo,
+  type AccessMedia,
+  type PropertyAccessInfo,
+} from "@/lib/property-access.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { toWhatsappNumber } from "@/lib/masks";
 
@@ -159,7 +165,7 @@ function AccessChip({
     >
       <span className="flex items-center gap-[5px] pr-4 text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-muted-foreground">
         <Icon className="size-3 shrink-0" strokeWidth={2} />
-        {label}
+        <span className="min-w-0 truncate">{label}</span>
       </span>
       <span
         className={`min-w-0 truncate text-[13px] font-bold text-foreground ${secret ? "font-mono tracking-[0.06em]" : ""} ${
@@ -224,9 +230,65 @@ function StepsList({ steps }: { steps: string[] }) {
   );
 }
 
+/** Vídeo tutorial (link) e fotos/vídeos do passo a passo — os mesmos do guia. */
+function AccessExtras({ videoUrl, media }: { videoUrl: string | null; media: AccessMedia[] }) {
+  if (!videoUrl && media.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2 px-3.5 pb-3.5">
+      {videoUrl && (
+        <a
+          href={videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-8 items-center gap-1.5 self-start rounded-[10px] bg-foreground/[0.06] px-2.5 text-[12px] font-bold text-foreground transition-colors hover:bg-foreground/[0.1]"
+        >
+          <Play className="size-3 shrink-0" />
+          Abrir vídeo tutorial
+        </a>
+      )}
+      {media.length > 0 && (
+        <div className="grid grid-cols-3 gap-1.5">
+          {media.map((m, i) => (
+            <a
+              key={i}
+              href={m.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Ampliar mídia"
+              className="relative block aspect-square overflow-hidden rounded-[10px] bg-[var(--panel-well)]"
+            >
+              {m.type === "video" ? (
+                <>
+                  <video
+                    src={m.url}
+                    muted
+                    preload="metadata"
+                    className="pointer-events-none size-full object-cover"
+                  />
+                  <span className="absolute inset-0 grid place-items-center bg-black/30 text-white">
+                    <Play className="size-4" />
+                  </span>
+                </>
+              ) : (
+                <img src={m.url} alt="" loading="lazy" className="size-full object-cover" />
+              )}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PropertyAccessButton({ row }: { row: Row }) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"root" | "steps">("root");
+  // Lado de abertura: o que tem MAIS espaço livre (já descontando o cabeçalho
+  // e a barra fixa). O Radix só vira quando não cabe, e como o painel encolhe
+  // para caber (altura máxima), ele nunca "não cabia" — ficava embaixo, cortado
+  // e com rolagem. Escolhendo o lado maior, o painel abre inteiro sempre que
+  // couber em algum dos dois (pedido de 01/10/2026).
+  const [side, setSide] = useState<"bottom" | "top">("bottom");
   const [revealed, setRevealed] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -263,7 +325,12 @@ export function PropertyAccessButton({ row }: { row: Row }) {
   const hasSecret = !!(info?.gateCode || info?.lockCode || info?.wifiPassword);
   const gateSteps = splitSteps(info?.gateInstructions ?? null);
   const lockSteps = splitSteps(info?.lockInstructions ?? null);
-  const stepsLabel = [gateSteps.length ? "Portão" : null, lockSteps.length ? "Fechadura" : null]
+  const gateName = info?.gateLabel ?? "Portão";
+  const lockName = info?.lockLabel ?? "Fechadura";
+  // Mesmo critério do guia: instruções, vídeo ou fotos/vídeos do passo.
+  const hasGateGuide = !!(gateSteps.length || info?.gateVideoUrl || info?.gateMedia.length);
+  const hasLockGuide = !!(lockSteps.length || info?.lockVideoUrl || info?.lockMedia.length);
+  const stepsLabel = [hasGateGuide ? gateName : null, hasLockGuide ? lockName : null]
     .filter(Boolean)
     .join(" · ");
 
@@ -309,6 +376,12 @@ export function PropertyAccessButton({ row }: { row: Row }) {
           type="button"
           aria-label="Acesso do imóvel"
           title="Acesso: portão, fechadura e Wi-Fi"
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            const below = window.innerHeight - r.bottom - OVERLAY_COLLISION_PADDING.bottom;
+            const above = r.top - OVERLAY_COLLISION_PADDING.top;
+            setSide(below >= above ? "bottom" : "top");
+          }}
           className={`grid place-items-center rounded-[0.3rem] border border-border/50 size-7 ${
             open ? "bg-primary/[0.08]" : "bg-background/60 hover:bg-primary/[0.08]"
           }`}
@@ -317,6 +390,7 @@ export function PropertyAccessButton({ row }: { row: Row }) {
         </button>
       </PopoverTrigger>
       <PopoverContent
+        side={side}
         align="end"
         sideOffset={FILTER_PANEL_OFFSET}
         collisionPadding={FILTER_PANEL_COLLISION}
@@ -377,7 +451,7 @@ export function PropertyAccessButton({ row }: { row: Row }) {
                   {info.gateCode && (
                     <AccessChip
                       icon={Fence}
-                      label="Portão"
+                      label={gateName}
                       value={info.gateCode}
                       secret
                       revealed={revealed}
@@ -388,7 +462,7 @@ export function PropertyAccessButton({ row }: { row: Row }) {
                   {info.lockCode && (
                     <AccessChip
                       icon={Lock}
-                      label="Fechadura"
+                      label={lockName}
                       value={info.lockCode}
                       secret
                       revealed={revealed}
@@ -458,10 +532,24 @@ export function PropertyAccessButton({ row }: { row: Row }) {
               icon={ListOrdered}
               title="Passo a passo"
               onBack={() => setView("root")}
+              right={
+                hasSecret ? (
+                  <button
+                    type="button"
+                    onClick={() => setRevealed((v) => !v)}
+                    className="inline-flex items-center gap-[5px] text-[11px] font-semibold text-foreground/70 transition-colors hover:text-foreground"
+                  >
+                    {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    {revealed ? "Ocultar" : "Mostrar"}
+                  </button>
+                ) : null
+              }
             />
-            {info && (info.gateCode || gateSteps.length > 0) && (
+            {info && (info.gateCode || hasGateGuide) && (
               <>
-                <div className="ds-eyebrow px-3.5 pb-1.5 pt-0.5 text-muted-foreground">Portão</div>
+                <div className="ds-eyebrow truncate px-3.5 pb-1.5 pt-0.5 text-muted-foreground">
+                  {gateName}
+                </div>
                 {info.gateCode && (
                   <CodeBox
                     icon={Fence}
@@ -471,12 +559,13 @@ export function PropertyAccessButton({ row }: { row: Row }) {
                   />
                 )}
                 <StepsList steps={gateSteps} />
+                <AccessExtras videoUrl={info.gateVideoUrl} media={info.gateMedia} />
               </>
             )}
-            {info && (info.lockCode || lockSteps.length > 0) && (
+            {info && (info.lockCode || hasLockGuide) && (
               <>
-                <div className="ds-eyebrow border-t border-[var(--panel-div)] px-3.5 pb-1.5 pt-2.5 text-muted-foreground">
-                  Fechadura
+                <div className="ds-eyebrow truncate border-t border-[var(--panel-div)] px-3.5 pb-1.5 pt-2.5 text-muted-foreground">
+                  {lockName}
                 </div>
                 {info.lockCode && (
                   <CodeBox
@@ -487,6 +576,7 @@ export function PropertyAccessButton({ row }: { row: Row }) {
                   />
                 )}
                 <StepsList steps={lockSteps} />
+                <AccessExtras videoUrl={info.lockVideoUrl} media={info.lockMedia} />
               </>
             )}
           </>
