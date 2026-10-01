@@ -45,8 +45,13 @@ export const Route = createFileRoute("/api/public/webhook-channex-reservas")({
           });
         }
 
-        // Processamento em segundo plano — não bloqueia a resposta.
-        void processarFilaChannex().catch(() => {});
+        // Processa (revisão → gravação → ACK) antes de responder: em ambiente
+        // serverless uma promessa solta pode ser encerrada junto com a resposta.
+        try {
+          await processarFilaChannex();
+        } catch (err) {
+          console.error("[channex-webhook] processamento falhou; item segue na fila", err);
+        }
 
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
