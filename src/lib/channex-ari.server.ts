@@ -323,7 +323,7 @@ export async function enqueueAri(items: OutboxInput[], source: string, userId: s
   if (error) throw new Error(error.message);
 }
 
-export type FlushResult = { batches: Array<{ kind: string; items: number; ok: boolean; status: number | null; taskId: string | null; error: string | null; warnings: unknown }> };
+export type FlushResult = { batches: Array<{ kind: string; items: number; ok: boolean; status: number | null; taskId: string | null; error: string | null; warnings: string | null }> };
 
 /** Drena a outbox: 1 chamada por tipo (availability / restrictions) com todos os itens pendentes. */
 export async function flushAriOutbox(): Promise<FlushResult> {
@@ -379,7 +379,7 @@ export async function flushAriOutbox(): Promise<FlushResult> {
           .eq("id", r.id);
       }
     }
-    result.batches.push({ kind, items: items.length, ok: res.ok, status: res.status, taskId: res.taskId, error: res.error, warnings: res.json?.meta?.warnings ?? null });
+    result.batches.push({ kind, items: items.length, ok: res.ok, status: res.status, taskId: res.taskId, error: res.error, warnings: res.json?.meta?.warnings ? JSON.stringify(res.json.meta.warnings).slice(0, 1000) : null });
   }
   return result;
 }
