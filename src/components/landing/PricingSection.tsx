@@ -81,7 +81,6 @@ const PLANS: PlanCard[] = [
 
 /** No celular o Business vem primeiro (é o mais escolhido). */
 const ORDEM_CELULAR: Record<PlanKey, string> = {
-  starter: "order-4",
   pro: "order-2",
   business: "order-1",
   enterprise: "order-3",

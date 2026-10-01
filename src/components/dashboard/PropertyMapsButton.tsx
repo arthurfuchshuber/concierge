@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Copy, Link as LinkIcon, MapPin, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -26,11 +27,18 @@ export function PropertyMapsButton({
   propertyAddress,
   mapsUrl,
   garageMapsUrl,
+  trigger,
 }: {
   propertyName: string | null;
   propertyAddress: string | null;
   mapsUrl: string | null;
   garageMapsUrl: string | null;
+  /**
+   * Outro GATILHO para o mesmo menu (01/10/2026): no editor de guia o Maps é a
+   * metade "Localização" da peça partida ao meio (mockup aprovado). O menu e
+   * o comportamento são os mesmos — só a cara do botão muda.
+   */
+  trigger?: ReactNode;
 }) {
   // Prefer garage address when available for logistics
   const mapsHref = propertyMapsHref({ propertyAddress, mapsUrl, garageMapsUrl });
@@ -79,14 +87,16 @@ export function PropertyMapsButton({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label="Opções do Maps"
-          title={garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
-          className="grid shrink-0 place-items-center rounded-[0.3rem] bg-background/60 border border-border/50 hover:bg-primary/[0.08] size-7"
-        >
-          <MapPin className="size-3.5" />
-        </button>
+        {trigger ?? (
+          <button
+            type="button"
+            aria-label="Opções do Maps"
+            title={garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
+            className="grid shrink-0 place-items-center rounded-[0.3rem] bg-background/60 border border-border/50 hover:bg-primary/[0.08] size-7"
+          >
+            <MapPin className="size-3.5" />
+          </button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[12rem]">
         <DropdownMenuItem onClick={copyLink} disabled={!copyText}>

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { cleanRuleLines, extractAdditionalRules } from "@/lib/airbnb-rules";
 
 const AirbnbInput = z.object({
   propertyId: z.string().uuid().optional(),
@@ -59,6 +60,10 @@ export type AirbnbImportResult = {
   rooms_beds: AirbnbRoomBeds[];
   amenities: AirbnbAmenity[];
   house_rules: string | null;
+  /** SÓ a parte "Regras adicionais" do cartão de regras, uma por linha e sem
+   * marcador — é o que preenche "Regras do espaço" (`properties.house_rules`)
+   * ao importar. Pedido explícito, 01/10/2026. Ver `airbnb-rules.ts`. */
+  additional_rules: string | null;
   cancellation_policy: string | null;
   safety_info: string | null;
 };
@@ -287,6 +292,13 @@ const AIRBNB_EXTRACTION_SCHEMA = {
       type: "string",
       description:
         "Full text of 'Regras da casa'/'House rules' — copy EXACTLY as written, original language, never translate. This card has THREE parts inside it; include ALL of them, each as its own paragraph, in this order: (1) 'Durante sua estadia'/'During your stay' — every bullet shown (max guests, pets allowed or not, quiet hours with times, parties/events allowed or not, smoking allowed or not); (2) 'Regras adicionais'/'Additional rules' — the FULL expanded text/bullet list revealed by clicking its OWN 'Mostrar mais'/'Show more' button inside this card, never the short truncated preview; (3) 'Antes de deixar o local'/'Before you leave' — every checklist item shown (e.g. take out trash, turn everything off, return keys, lock up). Do not include check-in/check-out times here — those are captured in separate fields above.",
+    },
+    // SÓ a parte "Regras adicionais" do cartão acima, num campo próprio (01/10/2026):
+    // alimenta o campo "Regras do espaço" do guia, que é uma regra por linha.
+    additional_rules: {
+      type: "string",
+      description:
+        "ONLY the content of the 'Regras adicionais'/'Additional rules' part inside the 'Regras da casa'/'House rules' card — the FULL text/bullet list revealed by clicking its OWN 'Mostrar mais'/'Show more' button, never the short truncated preview. One rule per line. Do NOT include the 'Durante sua estadia'/'During your stay' part, do NOT include the 'Antes de deixar o local'/'Before you leave' part, and do NOT include the 'Regras adicionais' title itself. Copy EXACTLY as written, original language, never translate.",
     },
     cancellation_policy: {
       type: "string",
@@ -526,6 +538,12 @@ async function scrapeAirbnbListing(apiKey: string, url: string): Promise<AirbnbI
   const amenities = mergeAmenities(parseAmenities(j.amenities), await scrapeAirbnbAmenities(apiKey, url));
   const houseRules =
     typeof j.house_rules === "string" && j.house_rules.trim() ? unescapeMarkdown(j.house_rules.trim()) : null;
+  // "Regras adicionais" → "Regras do espaço": o campo próprio do schema
+  // primeiro; se o modelo não o devolveu, o plano B acha a parte dentro do
+  // texto das três partes. Sempre limpo (sem hífen/marcador por linha).
+  const additionalRules =
+    cleanRuleLines(typeof j.additional_rules === "string" ? unescapeMarkdown(j.additional_rules) : null) ??
+    extractAdditionalRules(houseRules);
   const cancellationPolicy =
     typeof j.cancellation_policy === "string" && j.cancellation_policy.trim()
       ? unescapeMarkdown(j.cancellation_policy.trim())
@@ -552,6 +570,7 @@ async function scrapeAirbnbListing(apiKey: string, url: string): Promise<AirbnbI
     rooms_beds: roomsBeds,
     amenities,
     house_rules: houseRules,
+    additional_rules: additionalRules,
     cancellation_policy: cancellationPolicy,
     safety_info: safetyInfo,
   };

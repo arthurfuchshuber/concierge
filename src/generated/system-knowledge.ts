@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-10-01T00:33:49.706Z";
+export const GENERATED_AT = "2026-10-01T02:22:18.047Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -717,6 +717,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "28185f8175a152d2b51af07a8c38af26"
   },
   {
+    "doc_key": "rule:cleanRuleLines",
+    "kind": "rule",
+    "title": "Regra — cleanRuleLines",
+    "content": "Texto cru → uma regra por linha, sem marcador, sem linha em branco e sem o\ntítulo \"Regras adicionais\" (o modelo às vezes o devolve junto). Devolve\n`null` quando não sobra nada. Respeita o limite do campo cortando numa\nlinha inteira — nunca no meio de uma regra.",
+    "source_path": "src/lib/airbnb-rules.ts",
+    "audience": [],
+    "content_hash": "fb768a6a1bec9e95aab0b4f458aa2cdd"
+  },
+  {
     "doc_key": "rule:ClicksignContractStartConflictDialog",
     "kind": "rule",
     "title": "Regra — ClicksignContractStartConflictDialog",
@@ -940,6 +949,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/handoff/ConversationView.tsx",
     "audience": [],
     "content_hash": "a56da7cf0a8af60eb9b3291ffb38a087"
+  },
+  {
+    "doc_key": "rule:DenseSections",
+    "kind": "rule",
+    "title": "Regra — DenseSections",
+    "content": "Aplica a formatação compacta (Design System) a todas as Sections filhas.\n\n`variant=\"presence\"` (01/10/2026, mockup \"Editar guia — padrão Presença\"\naprovado): a MESMA anatomia dos quadrantes do Dashboard — casca\n`PANEL_SHELL` (luz do `ds-3d`, raio 14px), ícone em caixinha, título numa\nlinha com reticências e, à direita, um selo (contagem ou \"Pendente\"). É só\ndo editor de guia: o diálogo de proprietário/prestador, que também usa\n`DenseSections`, tem o próprio mockup aprovado e não muda.",
+    "source_path": "src/components/editor/Section.tsx",
+    "audience": [],
+    "content_hash": "aeab3fadad64e567126021b9f10598d3"
   },
   {
     "doc_key": "rule:describeAreaGrant",
@@ -3192,6 +3210,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "abda222d5c7f7b14809f0a094bc3ec59"
   },
   {
+    "doc_key": "rule:src/components/editor/AirbnbLockedField.tsx:321",
+    "kind": "rule",
+    "title": "Regra em AirbnbLockedField.tsx",
+    "content": "CAMPO PREENCHIDO PELO AIRBNB — travado, e com o MOTIVO a um toque.\n\nPedido explícito (01/10/2026): \"TRAVE TODOS os campos que recebem\ninformações automaticamente do Airbnb... e, quando o usuário tentar clicar\nem cima, deverá visualizar o motivo de não conseguir editar tal campo\".\n\nCom um anúncio conectado, o botão Importar SUBSTITUI esses campos inteiros\n(decisão do cliente, 01/10/2026). Editar à mão seria perder o trabalho no\npróximo Importar — por isso o campo vira só leitura, e quem tenta editar\ndescobre por quê, em vez de achar que a tela travou.\n\nO motivo abre no MESMO quadrante dos Filtros (casca, 16px de folga lateral,\n8px do campo). Véu com desfoque, limite de altura e \"tocar fora fecha\" vêm\ndo `PopoverContent` base — as regras de janela flutuante que valem para o\nsistema inteiro.",
+    "source_path": "src/components/editor/AirbnbLockedField.tsx",
+    "audience": [],
+    "content_hash": "834e922206c18582ec90effcd1c1766d"
+  },
+  {
     "doc_key": "rule:src/components/FloatingDock.tsx:0",
     "kind": "rule",
     "title": "Regra em FloatingDock.tsx",
@@ -3894,13 +3921,31 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "6fb02ab1eb08ffff1fd69c2e5dcc957f"
   },
   {
-    "doc_key": "rule:src/lib/airbnb.functions.ts:1005",
+    "doc_key": "rule:src/lib/airbnb-rules.ts:0",
+    "kind": "rule",
+    "title": "Regra em airbnb-rules.ts",
+    "content": "\"REGRAS ADICIONAIS\" DO AIRBNB → \"REGRAS DO ESPAÇO\" DO GUIA.\n\nPedido explícito (01/10/2026): \"todo o conteúdo que esteja dentro de\n'Regras adicionais' no scrap seja direcionado também para o campo 'regras\nda casa', exatamente como fizemos com os horários — e eu quero o conteúdo\nlimpo: se tiver hífen ou qualquer coisa antes da frase de cada linha, limpa,\npois já temos a nossa estrutura linha a linha\".\n\nO cartão \"Regras da casa\" do Airbnb tem TRÊS partes (Durante sua estadia /\nRegras adicionais / Antes de deixar o local) e `airbnb_house_rules` guarda\nas três juntas, só para leitura. O campo \"Regras do espaço\" (`house_rules`)\né o do guia: uma regra por linha. Só a parte \"Regras adicionais\" vai para\nele, e cada linha chega sem marcador.\n\nMora num arquivo PURO (sem servidor, sem rede) para ser testado de verdade.",
+    "source_path": "src/lib/airbnb-rules.ts",
+    "audience": [],
+    "content_hash": "8b815bec1199be26571cc26f6348c9ba"
+  },
+  {
+    "doc_key": "rule:src/lib/airbnb.functions.ts:1082",
     "kind": "rule",
     "title": "Regra em airbnb.functions.ts",
     "content": "Descrição curta em texto livre. Grava em `properties.short_description`\n— NUNCA em `properties.tagline`, que é um seletor fixo de \"Tipo do\nguia\" (3 opções) e não texto livre; escrever a descrição ali deixava o\ncampo \"sem seleção\" na tela (bug encontrado em 03/09/2026).",
     "source_path": "src/lib/airbnb.functions.ts",
     "audience": [],
     "content_hash": "6d4da53872e2d063d01a89de0ea2c51f"
+  },
+  {
+    "doc_key": "rule:src/lib/airbnb.functions.ts:2615",
+    "kind": "rule",
+    "title": "Regra em airbnb.functions.ts",
+    "content": "SÓ a parte \"Regras adicionais\" do cartão de regras, uma por linha e sem\nmarcador — é o que preenche \"Regras do espaço\" (`properties.house_rules`)\nao importar. Pedido explícito, 01/10/2026. Ver `airbnb-rules.ts`.",
+    "source_path": "src/lib/airbnb.functions.ts",
+    "audience": [],
+    "content_hash": "dbc93c369f394c0a9f6b79b55a7a7b66"
   },
   {
     "doc_key": "rule:src/lib/assistant-run.server.ts:0",

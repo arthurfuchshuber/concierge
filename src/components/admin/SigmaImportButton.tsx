@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
+import { SectionTopLineBar } from "@/components/editor/Section";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -199,12 +201,17 @@ export function SigmaActiveBanner({ propertyId }: { propertyId: string }) {
   });
   if (!q.data?.active_city_key) return null;
   return (
-    <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2.5 flex items-center gap-2 text-xs text-amber-100">
-      <Lock className="size-4 text-amber-300 shrink-0" />
-      <span>
-        <strong>Recomendação SigmaConcierge ativa.</strong> Pontos da cidade e reservas estão bloqueados para edição
-        enquanto você usar esta curadoria.
-      </span>
+    // Padrão Presença (mockup "Editar guia" aprovado, 01/10/2026): card normal
+    // com o fio âmbar no topo, no lugar da moldura âmbar inteira.
+    <div className={PANEL_SHELL}>
+      <SectionTopLineBar tone="amber" />
+      <div className="flex items-start gap-2.5 p-3.5 text-xs leading-relaxed text-muted-foreground">
+        <Lock className="ds-atencao mt-0.5 size-3.5 shrink-0" />
+        <span>
+          <strong className="text-foreground">Recomendação SigmaConcierge ativa.</strong> Pontos da cidade e reservas
+          estão bloqueados para edição enquanto você usar esta curadoria.
+        </span>
+      </div>
     </div>
   );
 }

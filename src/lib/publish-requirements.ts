@@ -13,6 +13,7 @@ export type PublishCandidate = Record<string, unknown>;
 export const ETIQUETA_CHECKIN_CHECKOUT = "Check-In & Check-Out";
 
 export const PUBLISH_REQUIRED_COLUMNS = [
+  "airbnb_listing_url",
   "property_type_id",
   "maps_url",
   "city",
@@ -29,6 +30,13 @@ export const PUBLISH_REQUIRED_COLUMNS = [
 ] as const;
 
 const RULES: Array<{ key: string; label: string; check: (p: PublishCandidate) => boolean }> = [
+  // ANÚNCIO DO AIRBNB OBRIGATÓRIO PARA PUBLICAR (pedido explícito,
+  // 01/10/2026: "é obrigatório ter anúncio vinculado... o campo importar
+  // precisa ser obrigatório"). É do anúncio que vêm nome, fotos, horários,
+  // cidade/país e regras — todos travados no editor —, então sem ele o guia
+  // não tem de onde tirar o essencial. Exigido só na PUBLICAÇÃO (escolha do
+  // cliente): dá para montar o resto do guia antes de importar.
+  { key: "airbnb_listing_url", label: "Anúncio do Airbnb (importar na aba Airbnb)", check: (p) => !!str(p.airbnb_listing_url) },
   { key: "property_type_id", label: "Tipo do imóvel", check: (p) => !!p.property_type_id },
   { key: "maps_url", label: "Link do Google Maps — Entrada principal", check: (p) => !!str(p.maps_url) },
   { key: "city", label: "Endereço — Cidade", check: (p) => !!str(p.city) },

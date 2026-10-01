@@ -38,10 +38,24 @@ export function Stepper({
   // ANTI-CORTE (regra global): toda a lógica que garante que nenhuma aba
   // aparece cortada nas bordas vive agora em `useAntiClipBar`, compartilhada
   // com todas as outras barras de menu/abas do app.
-  const navRef = useAntiClipBar<HTMLElement>();
+  //
+  // Padrão Presença (01/10/2026, mockup "Editar guia" aprovado): a MESMA barra
+  // das abas do Dashboard (`ds-tabs`) — fatias coladas numa casca com fio de
+  // 1px, a ativa numa mancha neutra com o fio de 2px da marca embaixo
+  // (`ds-tab-active`). Como aqui são seis abas e elas não cabem no celular, a
+  // barra continua rolando, e o anti-corte roda em modo `stretch`: só abas
+  // INTEIRAS na vista, e a sobra é dividida entre elas (nunca um vão vazio no
+  // fim — pedido explícito, "replicar a regra dos quadrantes do Dashboard").
+  const navRef = useAntiClipBar<HTMLElement>({ stretch: true });
 
   return (
-    <nav ref={navRef} className="ds-segmented mb-5 -mx-1 px-1 rounded-[0.3rem] bg-foreground/5 p-1">
+    <nav
+      ref={navRef}
+      // `ds-segmented` dá a rolagem sem barra; o resto é a casca do `ds-tabs`.
+      // O `gap` volta a 0: as fatias se encostam, como no Dashboard.
+      style={{ gap: 0 }}
+      className="ds-segmented rounded-[14px] bg-card p-0 shadow-[inset_0_0_0_1px_var(--border)]"
+    >
       {steps.map((s) => {
         const active = s.value === current;
         const locked = lockedValues?.includes(s.value) ?? false;
@@ -57,12 +71,12 @@ export function Stepper({
                 ? (lockedTitle ?? 'Complete as informações obrigatórias em "A casa" para desbloquear')
                 : undefined
             }
-            className={`whitespace-nowrap px-3 py-2 text-center text-[13px] font-normal leading-none flex items-center justify-center gap-1.5 min-h-[34px] rounded-[0.25rem] transition-colors ${
+            className={`relative flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap text-center text-[13px] leading-none transition-colors ${
               active
-                ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+                ? "ds-tab-active font-bold"
                 : locked
-                  ? "text-muted-foreground/40 cursor-not-allowed"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "cursor-not-allowed font-semibold text-muted-foreground/40"
+                  : "font-semibold text-muted-foreground hover:text-foreground"
             }`}
           >
             {locked ? <Lock className="size-3" /> : null}

@@ -19,7 +19,7 @@ export const Route = createFileRoute("/precos")({
           "Escolha o plano ideal para criar guias digitais para seus hóspedes. 7 dias grátis em todos os planos pagos.",
       },
       { property: "og:title", content: "Planos ConciergeIA" },
-      { property: "og:description", content: "Starter, Pro, Business e Enterprise. 7 dias grátis." },
+      { property: "og:description", content: "Pro, Business e Enterprise. 7 dias grátis." },
       { property: "og:url", content: siteUrl("/precos") },
     ],
     links: [{ rel: "canonical", href: siteUrl("/precos") }],
@@ -43,35 +43,21 @@ type Plan = {
 
 const PLANS_UI: Plan[] = [
   {
-    key: "starter",
-    name: "Starter",
-    price: "R$ 99",
-    priceSuffix: "/mês",
-    priceId: "starter_monthly",
-    description: "Pra começar a encantar hóspedes com um guia digital profissional.",
-    features: [
-      "Até 3 guias digitais",
-      "Edição manual completa",
-      "Bilíngue (PT + EN)",
-      "Acesso por link ou PIN",
-      "QR Code por imóvel",
-    ],
-    lockedNext: "Chat com IA para hóspedes",
-    cta: "Testar 7 dias grátis",
-  },
-  {
     key: "pro",
     name: "Pro",
     price: "R$ 199",
     priceSuffix: "/mês",
     priceId: "pro_monthly",
     description: "Automatize a rotina e deixe a IA responder seus hóspedes.",
+    // Plano de entrada desde a exclusão do Starter (01/10/2026): a lista é a
+    // mesma do card Pro da landing (canvas aprovado em 17/09/2026).
     features: [
-      "Tudo do Starter, mais:",
-      "Até 20 guias",
-      "Importação automática (Airbnb)",
-      "Chat com IA para hóspedes",
-      "Formulário de captação + validação de documentos por IA",
+      "Até 20 guias digitais",
+      "Chat com IA dentro do guia",
+      "Importação automática do Airbnb",
+      "Bilíngue (PT + EN)",
+      "QR code e PIN por imóvel",
+      "Captação e validação de documentos",
     ],
     lockedNext: "Atendimento humano ao vivo",
     cta: "Começar agora",
@@ -200,7 +186,7 @@ function PricingPage() {
         </div>
 
         {/* Cards */}
-        <div id="planos" ref={plansRef} className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div id="planos" ref={plansRef} className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {PLANS_UI.map((plan) => {
             const isDark = plan.dark;
             const isHi = plan.featured;
@@ -289,7 +275,6 @@ function PricingPage() {
                   <th className="p-4 text-xs uppercase tracking-wider font-semibold text-muted-foreground w-[38%]">
                     Recurso
                   </th>
-                  <th className="p-4 text-sm font-semibold text-center">Starter</th>
                   <th className="p-4 text-sm font-semibold text-center bg-muted/40">Pro</th>
                   <th className="p-4 text-sm font-semibold text-center">Business</th>
                   <th className="p-4 text-sm font-semibold text-center">Enterprise</th>
@@ -300,7 +285,7 @@ function PricingPage() {
                   <Fragment key={group.group}>
                     <tr className="bg-muted/20">
                       <td
-                        colSpan={5}
+                        colSpan={4}
                         className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
                       >
                         {group.group}
@@ -309,7 +294,7 @@ function PricingPage() {
                     {group.rows.map((row) => (
                       <tr key={row.label}>
                         <td className="p-4 text-sm font-medium">{row.label}</td>
-                        {(["starter", "pro", "business", "enterprise"] as PlanKey[]).map((k) => {
+                        {(["pro", "business", "enterprise"] as PlanKey[]).map((k) => {
                           const v = row.values[k];
                           return (
                             <td

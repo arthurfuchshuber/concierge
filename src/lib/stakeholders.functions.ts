@@ -798,7 +798,10 @@ export const listActivePropertyOwnersForSelect = createServerFn({ method: "GET" 
     const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const { data, error } = await supabase
       .from("property_owners")
-      .select("id, name, trade_name")
+      // phone/phone_country: dado de EXIBIÇÃO (01/10/2026) — o cabeçalho do
+      // editor de guia mostra "Proprietário: <nome>" com o botão de contato,
+      // pela regra "nome do imóvel sempre com o proprietário".
+      .select("id, name, trade_name, phone, phone_country")
       .eq("account_owner_id", accountId)
       .eq("status", "active")
       .order("name", { ascending: true });
@@ -807,6 +810,8 @@ export const listActivePropertyOwnersForSelect = createServerFn({ method: "GET" 
       owners: (data ?? []).map((o) => ({
         id: o.id as string,
         name: (o.trade_name as string | null) || (o.name as string),
+        phone: (o.phone as string | null) ?? null,
+        phoneCountry: (o.phone_country as string | null) ?? null,
       })),
     };
   });

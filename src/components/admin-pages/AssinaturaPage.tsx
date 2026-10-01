@@ -39,7 +39,8 @@ import { PageHeader } from "@/components/ds/PageHeader";
 
 export { AssinaturaPage };
 
-const PLAN_ORDER: PlanKey[] = ["starter", "pro", "business", "enterprise"];
+// Starter excluído em 01/10/2026.
+const PLAN_ORDER: PlanKey[] = ["pro", "business", "enterprise"];
 
 function AssinaturaPage() {
   const { info, isLoading, refetch } = useSubscription();
@@ -312,7 +313,7 @@ function AssinaturaPage() {
                 Faça upgrade ou downgrade a qualquer momento.
               </p>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-1.5">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
               {PLAN_ORDER.map((key) => {
                 const p = PLANS[key];
                 const isCurrent = currentPlan === key;
@@ -541,7 +542,9 @@ function CardTab({
     }
     try {
       await openCheckout({
-        priceId: PLANS.starter.priceId,
+        // Validação de cartão abre o checkout do plano de ENTRADA (com os 7
+        // dias grátis). Era o Starter; com ele excluído (01/10/2026), é o Pro.
+        priceId: PLANS.pro.priceId,
         customerEmail: user.email ?? undefined,
         customData: { userId: user.id },
         frameTarget: useInline ? "sigma-card-validation-checkout" : undefined,

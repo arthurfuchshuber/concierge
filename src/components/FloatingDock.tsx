@@ -124,10 +124,17 @@ export function FloatingDock({
 
   if (!mounted || typeof document === "undefined") return null;
 
+  // NUNCA EM CIMA DE UM RODAPÉ FIXO (01/10/2026, mockup "Editar guia"
+  // aprovado): uma tela com rodapé fixo (ex.: Anterior | Próximo do editor de
+  // guia) publica a altura dele em `--page-footer-h`, e o botão fica pelo
+  // menos 12px acima — sem mexer na posição que a pessoa escolheu arrastando
+  // nas telas sem rodapé.
+  const dockBottomCss = (extra: number) =>
+    `max(calc(env(safe-area-inset-bottom,0px) + ${dockBottom + extra}px), calc(var(--page-footer-h, 0px) + ${12 + extra}px))`;
   const anchor: CSSProperties = {
     zIndex: 2147483000,
     pointerEvents: "auto",
-    bottom: `calc(env(safe-area-inset-bottom,0px) + ${dockBottom}px)`,
+    bottom: dockBottomCss(0),
   };
 
   const node = (
@@ -167,7 +174,7 @@ export function FloatingDock({
           ref={menuRef}
           onPointerDown={(e) => e.stopPropagation()}
           className="fixed right-4 w-56 overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl lg:right-6"
-          style={{ ...anchor, bottom: `calc(env(safe-area-inset-bottom,0px) + ${dockBottom + 64}px)` }}
+          style={{ ...anchor, bottom: dockBottomCss(64) }}
         >
           <button
             onClick={() => {

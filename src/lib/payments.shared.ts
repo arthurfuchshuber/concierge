@@ -53,24 +53,11 @@ const FEATURES_ENTERPRISE: PlanFeatures = {
 };
 
 export const PLANS = {
-  starter: {
-    id: "starter_plan",
-    priceId: "starter_monthly",
-    name: "Starter",
-    priceLabel: "R$ 99",
-    priceNumeric: 99,
-    maxGuides: 3,
-    tier: 1,
-    description: "Para começar a criar guias digitais manualmente.",
-    features: FEATURES_NONE,
-    featureList: [
-      "Até 3 guias digitais",
-      "Edição manual completa",
-      "Acesso por link ou PIN",
-      "Bilíngue (PT / EN)",
-      "QR Code para os hóspedes",
-    ],
-  },
+  // O plano Starter foi EXCLUÍDO em 01/10/2026 (pedido explícito: "EXCLUIR o
+  // plano start — não trabalharemos mais com esse"). Nenhuma assinatura ativa
+  // usava ele (conferido no banco). Motivo: o anúncio do Airbnb virou
+  // obrigatório para publicar, e a importação nunca fez parte do Starter.
+  // O Pro passa a ser o plano de entrada.
   pro: {
     id: "pro_plan",
     priceId: "pro_monthly",
@@ -155,23 +142,23 @@ export const PLAN_COMPARISON_GROUPS: Array<{
     rows: [
       {
         label: "Quantidade de guias",
-        values: { starter: "3", pro: "20", business: "50", enterprise: "Ilimitados" },
+        values: { pro: "20", business: "50", enterprise: "Ilimitados" },
       },
       {
         label: "Edição manual completa",
-        values: { starter: "✓", pro: "✓", business: "✓", enterprise: "✓" },
+        values: { pro: "✓", business: "✓", enterprise: "✓" },
       },
       {
         label: "Bilíngue (PT / EN)",
-        values: { starter: "✓", pro: "✓", business: "✓", enterprise: "✓ + ES" },
+        values: { pro: "✓", business: "✓", enterprise: "✓ + ES" },
       },
       {
         label: "Importação automática (Airbnb)",
-        values: { starter: "—", pro: "✓", business: "✓", enterprise: "✓" },
+        values: { pro: "✓", business: "✓", enterprise: "✓" },
       },
       {
         label: "Recomendações pelo Google Maps",
-        values: { starter: "—", pro: "✓", business: "✓", enterprise: "✓ + curadoria" },
+        values: { pro: "✓", business: "✓", enterprise: "✓ + curadoria" },
       },
     ],
   },
@@ -180,19 +167,19 @@ export const PLAN_COMPARISON_GROUPS: Array<{
     rows: [
       {
         label: "Chat com IA no guia",
-        values: { starter: "—", pro: "✓", business: "✓", enterprise: "✓" },
+        values: { pro: "✓", business: "✓", enterprise: "✓" },
       },
       {
         label: "Ensinar a IA com sua base própria",
-        values: { starter: "—", pro: "—", business: "✓", enterprise: "✓" },
+        values: { pro: "—", business: "✓", enterprise: "✓" },
       },
       {
         label: "Formulário de captação de hóspedes",
-        values: { starter: "Básico", pro: "Avançado", business: "Avançado", enterprise: "Avançado" },
+        values: { pro: "Avançado", business: "Avançado", enterprise: "Avançado" },
       },
       {
         label: "Validação de documentos por IA",
-        values: { starter: "—", pro: "✓", business: "✓", enterprise: "✓" },
+        values: { pro: "✓", business: "✓", enterprise: "✓" },
       },
     ],
   },
@@ -201,16 +188,15 @@ export const PLAN_COMPARISON_GROUPS: Array<{
     rows: [
       {
         label: "Atendimento humano ao vivo",
-        values: { starter: "—", pro: "—", business: "✓", enterprise: "✓" },
+        values: { pro: "—", business: "✓", enterprise: "✓" },
       },
       {
         label: "Relatório de hóspedes com envio por email",
-        values: { starter: "—", pro: "✓", business: "✓", enterprise: "✓" },
+        values: { pro: "✓", business: "✓", enterprise: "✓" },
       },
       {
         label: "Suporte",
         values: {
-          starter: "Email",
           pro: "Prioritário",
           business: "Prioritário",
           enterprise: "SLA 24/7",
@@ -223,15 +209,15 @@ export const PLAN_COMPARISON_GROUPS: Array<{
     rows: [
       {
         label: "Gestão de equipe (multi-usuário)",
-        values: { starter: "—", pro: "—", business: "✓", enterprise: "✓" },
+        values: { pro: "—", business: "✓", enterprise: "✓" },
       },
       {
         label: "Edição em massa",
-        values: { starter: "—", pro: "—", business: "✓", enterprise: "✓" },
+        values: { pro: "—", business: "✓", enterprise: "✓" },
       },
       {
         label: "Insights e relatórios avançados",
-        values: { starter: "—", pro: "Básico", business: "Completo", enterprise: "Completo" },
+        values: { pro: "Básico", business: "Completo", enterprise: "Completo" },
       },
     ],
   },
@@ -240,15 +226,15 @@ export const PLAN_COMPARISON_GROUPS: Array<{
     rows: [
       {
         label: "Marca própria (logo e nome)",
-        values: { starter: "—", pro: "—", business: "—", enterprise: "✓" },
+        values: { pro: "—", business: "—", enterprise: "✓" },
       },
       {
         label: "Integração com sistemas externos",
-        values: { starter: "—", pro: "—", business: "—", enterprise: "✓" },
+        values: { pro: "—", business: "—", enterprise: "✓" },
       },
       {
         label: "Onboarding dedicado",
-        values: { starter: "—", pro: "—", business: "—", enterprise: "✓" },
+        values: { pro: "—", business: "—", enterprise: "✓" },
       },
     ],
   },
@@ -256,7 +242,6 @@ export const PLAN_COMPARISON_GROUPS: Array<{
 
 export function planFromProductId(productId: string | null | undefined): PlanKey | null {
   if (!productId) return null;
-  if (productId === "starter_plan") return "starter";
   if (productId === "pro_plan") return "pro";
   if (productId === "business_plan") return "business";
   if (productId === "enterprise_plan") return "enterprise";

@@ -1116,6 +1116,27 @@ dd {
   height: 2.25rem;
 }
 
+/* CAIXA INTERNA de um quadrante (padrão Presença, mockup "Editar guia"
+   aprovado, 01/10/2026): o que mora DENTRO de um quadrante — um portão, uma
+   pergunta do FAQ, uma categoria de recomendação — é um tom acima do card,
+   com fio de 1px e raio de 12px. Sem borda sólida nem fundo "muted": a mesma
+   luz contida do resto do sistema. */
+@utility ds-well {
+  border-radius: 12px;
+  background-color: color-mix(in oklab, var(--foreground) 2.5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--foreground) 7%, transparent);
+}
+
+/* Editor de guia no padrão Presença (mockup aprovado, 01/10/2026): os campos
+   ganham a cara do diálogo de formulário logo abaixo — 36px, raio 8px, fundo
+   um tom acima. Vem DEPOIS de `.ds-dense-fields` e soma com ela (a altura de
+   36px continua vindo de lá). */
+.ds-presence-fields :is(input:not([type="checkbox"]):not([type="radio"]), textarea, [role="combobox"], select) {
+  border-radius: 0.5rem;
+  font-size: 13px;
+  background-color: color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+
 /* Diálogo de formulário (proprietário/prestador e afins) — replica fielmente
    o mockup aprovado: campos de 36px, raio 8px, tipografia 13px e rótulos 12px. */
 .ds-form-dialog :is(input, textarea, [role="combobox"], select) {

@@ -8,7 +8,8 @@ import { PLANS, type PlanKey } from "@/lib/payments.functions";
 import { formatCPF, formatCNPJ, onlyDigits } from "@/lib/masks";
 import { validateTaxId, type TaxIdCheck } from "@/lib/tax-id.functions";
 
-const PLAN_ORDER: PlanKey[] = ["starter", "pro", "business"];
+// Starter excluído em 01/10/2026 — o Pro é o plano de entrada.
+const PLAN_ORDER: PlanKey[] = ["pro", "business"];
 
 type DocKind = "cpf" | "cnpj";
 

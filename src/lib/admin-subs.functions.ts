@@ -244,7 +244,7 @@ export const adminListCustomers = createServerFn({ method: "GET" })
     return { customers };
   });
 
-const PlanKeySchema = z.enum(["starter", "pro", "business", "enterprise"]);
+const PlanKeySchema = z.enum(["pro", "business", "enterprise"]);
 
 export const adminUpdateSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

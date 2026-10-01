@@ -107,7 +107,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
 import { EtiquetaSelect } from "@/components/EtiquetaSelect";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
@@ -151,6 +150,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { useAccess } from "@/lib/permissions/useAccess";
 import { PageHeader } from "@/components/ds/PageHeader";
+import {
+  PANEL_SHELL,
+  PanelHeading,
+  CountPill,
+  ACTION_BAR,
+  ACTION_SEGMENT,
+  ACTION_BUTTON_TONE,
+  ACTION_ICON,
+} from "@/components/dashboard/panel-chrome";
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
+import { PropertyMapsButton } from "@/components/dashboard/PropertyMapsButton";
+import { AirbnbLockedValue, AirbnbLockReason } from "@/components/editor/AirbnbLockedField";
+import { SectionTopLineBar, type SectionTopLine } from "@/components/editor/Section";
+import { Smartphone, Monitor } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   // `houseOnly`: abre direto (e trava) na aba "A casa", sem a barra de abas —
@@ -660,13 +673,6 @@ function PropertyEditor() {
     if (saved && !airbnbUrl) setAirbnbUrl(saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.property.airbnb_listing_url]);
-  // Campos que a importação do Airbnb preenche ficam só-leitura APENAS
-  // quando existe um anúncio conectado — nesse caso, editar à mão só
-  // criaria conflito com a checagem diária, que sobrescreve tudo de novo.
-  // Sem anúncio conectado, nada será sobrescrito e o anfitrião precisa
-  // poder preencher fotos e horários à mão (senão o guia nunca pode ser
-  // publicado: fotos e horários são obrigatórios em publish-requirements).
-  const airbnbLocked = !!(form.property.airbnb_listing_url || "").trim();
   const [importingAirbnb, setImportingAirbnb] = useState(false);
 
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -1059,9 +1065,8 @@ function PropertyEditor() {
           address: r.address || f.property.address,
           lat: r.lat,
           lng: r.lng,
-          city: r.city || f.property.city,
+          // Cidade/País: só do anúncio do Airbnb (01/10/2026) — ver handlePickAddress.
           state: r.state || f.property.state,
-          country: r.country || f.property.country,
           tagline: f.property.tagline || r.tagline || f.property.tagline,
           hero_image_url: f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
           gallery_images: f.property.gallery_images.length
@@ -1198,9 +1203,10 @@ function PropertyEditor() {
         property: {
           ...f.property,
           address: s.address || f.property.address,
-          city: s.city || f.property.city,
+          // Cidade e País NÃO vêm mais da busca de endereço (01/10/2026,
+          // pedido explícito: "endereço completo é o único campo que não deve
+          // ser importado"): os dois passaram a vir só do anúncio do Airbnb.
           state: s.state || f.property.state,
-          country: s.country || f.property.country,
           lat: s.lat ?? f.property.lat,
           lng: s.lng ?? f.property.lng,
           maps_url: nextMapsUrl,
@@ -1314,6 +1320,12 @@ function PropertyEditor() {
           airbnb_rooms_beds: r.rooms_beds.length ? r.rooms_beds : f.property.airbnb_rooms_beds,
           airbnb_amenities: r.amenities.length ? r.amenities : f.property.airbnb_amenities,
           airbnb_house_rules: r.house_rules ?? f.property.airbnb_house_rules,
+          // "Regras adicionais" do Airbnb → "Regras do espaço" (01/10/2026,
+          // pedido explícito): a importação SUBSTITUI o campo inteiro, uma regra
+          // por linha e sem marcador — igual aos horários. Só acontece ao clicar
+          // em Importar (a leitura diária está desligada desde 27/09/2026).
+          // Se o anúncio não trouxer essa seção, o que está escrito fica.
+          house_rules: r.additional_rules ?? f.property.house_rules,
           airbnb_cancellation_policy: r.cancellation_policy ?? f.property.airbnb_cancellation_policy,
           airbnb_safety_info: r.safety_info ?? f.property.airbnb_safety_info,
         },
@@ -1328,6 +1340,7 @@ function PropertyEditor() {
       if (r.rooms_beds.length) bits.push("quartos e camas");
       if (r.amenities.length) bits.push(`${r.amenities.length} comodidades`);
       if (r.house_rules || r.cancellation_policy || r.safety_info) bits.push("O que você deve saber");
+      if (r.additional_rules) bits.push("regras do espaço");
       toast.success(bits.length ? `Importado: ${bits.join(" · ")}` : "Importado");
     } catch (e) {
       toast.error(friendlyErrorMessage(e, "Erro ao importar"));
@@ -1770,14 +1783,32 @@ function PropertyEditor() {
 
   // Quadrante "Identificação do Imóvel": Proprietário + Tipo do imóvel —
   // antes eram dois cards separados; unificados a pedido num só.
+  // "Pendente" no quadrante que tem campo obrigatório faltando (mockup
+  // aprovado, 01/10/2026). Usa a MESMA lista da trava das abas
+  // (`allMissingRequiredFields`) — nenhuma regra nova, só onde ela aparece.
+  const missingRequired = new Set(allMissingRequiredFields);
+  const pendingBadge = (...fields: string[]) =>
+    fields.some((f) => missingRequired.has(f)) ? <PendingPill /> : undefined;
+
+  // CAMPOS DO AIRBNB SEMPRE TRAVADOS (pedido explícito, 01/10/2026: "é
+  // obrigatório ter anúncio vinculado... todos os campos precisam ficar sempre
+  // travados"). Nome, slug, cidade, país, horários de check-in/check-out,
+  // fotos e regras do espaço só chegam pelo Importar — com ou sem anúncio
+  // conectado ainda, vazios ou não. Tocar num deles mostra o motivo
+  // (`AirbnbLockedValue`). O anúncio é exigido para PUBLICAR
+  // (`publish-requirements.ts`).
+
   const renderIdentitySection = () => (
     <Section
       id="identity"
       icon={Home}
       title="Identificação do Imóvel"
       collapsible
+      badge={pendingBadge("Proprietário", "Tipo do imóvel")}
     >
+      <PanelHeading title="Proprietário" className="" />
       {renderOwnerFields()}
+      <PanelHeading title="Imóvel" className="" />
       {renderPropertyTypeFields()}
     </Section>
   );
@@ -1792,6 +1823,7 @@ function PropertyEditor() {
       icon={Wrench}
       title="Prestadores de Serviço"
       collapsible
+      badge={countBadge(linkedProviders.length)}
     >
       <div className="space-y-3">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
@@ -1814,7 +1846,7 @@ function PropertyEditor() {
             {linkedProviders.map((p) => (
               <div
                 key={p.id}
-                className="ds-surface grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 bg-card px-3 py-2.5"
+                className="ds-well grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5"
               >
                 <p className="min-w-0 break-words text-[13.5px] font-medium text-foreground">{p.name}</p>
                 <button
@@ -2013,6 +2045,7 @@ function PropertyEditor() {
       icon={MapPinned}
       title="Endereço e localização"
       collapsible
+      badge={pendingBadge("Link do Google Maps (entrada principal)", "Endereço", "Cidade", "País")}
     >
       <Field label="Link do Google Maps — Entrada principal" required>
         <Input
@@ -2050,11 +2083,11 @@ function PropertyEditor() {
         onPick={handlePickAddress}
       />
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Cidade" required>
-          <Input value={form.property.city} onChange={(e) => update("city", e.target.value)} />
+        <Field label="Cidade">
+          <AirbnbLockedValue value={form.property.city} label="Cidade" />
         </Field>
-        <Field label="País" required>
-          <Input value={form.property.country} onChange={(e) => update("country", e.target.value)} />
+        <Field label="País">
+          <AirbnbLockedValue value={form.property.country} label="País" />
         </Field>
       </div>
       <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
@@ -2073,9 +2106,10 @@ function PropertyEditor() {
       icon={RefreshCw}
       title="Calendário do Airbnb"
       collapsible
+      badge={pendingBadge("URL do calendário Airbnb")}
     >
       {isNew && (
-        <div className="mb-3 ds-surface border border-border bg-muted/30 p-3 text-xs text-muted-foreground flex items-start gap-2">
+        <div className="ds-well p-3 text-xs text-muted-foreground flex items-start gap-2">
           <Clock className="size-3.5 shrink-0 mt-0.5" />
           <span>
             Salve o imóvel uma vez (botão "Salvar" abaixo) para liberar a sincronização — não precisa preencher o guia.
@@ -2191,7 +2225,7 @@ function PropertyEditor() {
       )}
 
       {reservationsQuery.data?.reservations && reservationsQuery.data.reservations.length > 0 && (
-        <details className="group ds-surface border border-border bg-muted/30">
+        <details className="group ds-well">
           <summary className="list-none cursor-pointer select-none px-3 py-2.5 flex items-center justify-between text-xs font-semibold">
             <span>Próximas reservas ({reservationsQuery.data.reservations.length})</span>
             <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
@@ -2373,16 +2407,10 @@ function PropertyEditor() {
       collapsible
     >
       <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
-        <TagMentionTextarea
-          items={tagItems}
-          value={form.property.house_rules}
-          maxLength={3000}
-          rows={6}
-          onChange={(e) => update("house_rules", e.target.value)}
-          placeholder={
-            "Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."
-          }
-        />
+        {/* Com anúncio conectado, as "Regras adicionais" do Airbnb chegam
+            aqui pelo Importar (01/10/2026) — e o campo trava como os demais
+            importados. */}
+        <AirbnbLockedValue value={form.property.house_rules} label="Regras do espaço" multiline />
       </Field>
     </Section>
   );
@@ -2522,7 +2550,7 @@ function PropertyEditor() {
     // haver edição pendente.
     const isDirty = !isNew && savedPropertyKey !== "" && savedPropertyKey !== JSON.stringify(form.property);
     return (
-      <div className="ds-dense-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
+      <div className="ds-dense-fields ds-presence-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
         <Link
           to={backTo as "/admin/guias"}
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors"
@@ -2551,7 +2579,7 @@ function PropertyEditor() {
         </div>
 
         <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
-          <DenseSections>
+          <DenseSections variant="presence">
             {/* Sem barra de abas aqui: só se fala de "A casa" nesta tela — "O
               guia" e as demais abas só existem depois que o guia é criado. */}
 
@@ -2561,6 +2589,7 @@ function PropertyEditor() {
               nenhum campo a mais e sem nenhuma exceção (nem Nome, nem Tipo do
               guia — ambos vivem só na aba "O guia", como requisito de
               publicação, não de criação). */}
+            <div className={SECTION_LIST}>
             <SectionGroup>
               {renderIdentitySection()}
               {renderCleaningSection()}
@@ -2573,6 +2602,7 @@ function PropertyEditor() {
               {!isNew && renderProvidersSection()}
 
             </SectionGroup>
+            </div>
           </DenseSections>
 
           {/* Mesmo padrão de rodapé do diálogo "Novo Proprietário"
@@ -2613,8 +2643,17 @@ function PropertyEditor() {
     );
   }
 
+  // Data por extenso do topo — o MESMO molde do Dashboard e do `PageShell`.
+  const hojeExtenso = new Date()
+    .toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "numeric", month: "long" })
+    .replace(/^\w/, (c) => c.toUpperCase());
+  const currentOwner = propertyOwnerOptions.find((o) => o.id === form.property.owner_contact_id);
+  const showPreview = !!previewSlug;
+  const showMaps = !!(form.property.garage_maps_url || form.property.maps_url || form.property.address);
+  const propertyAddressLine = [form.property.address, form.property.city].filter((v) => (v ?? "").trim()).join(", ") || null;
+
   return (
-    <div className="ds-dense-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
+    <div className="ds-dense-fields ds-presence-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
       <Link
         to={backTo as "/admin/guias"}
         className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors"
@@ -2622,84 +2661,150 @@ function PropertyEditor() {
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
       {readOnly ? (
-        <div className="mb-4 flex items-center gap-2 rounded-[0.3rem] border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          <Lock className="size-3.5 shrink-0" />
+        <EditorNotice tone="amber" icon={Lock} className="mb-5">
           Você tem acesso apenas para visualizar este guia. A edição está bloqueada.
-        </div>
+        </EditorNotice>
       ) : null}
       <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
-        <header className="mb-3 min-w-0">
-          <h1 className="ds-page-title w-full break-words">{form.property.name || "Sem título"}</h1>
-          <p className="ds-page-subtitle mt-1.5">
-            {houseOnly ? "Edite as informações da casa deste imóvel." : "Edite as informações do guia deste imóvel."}
-          </p>
-        </header>
+        {/* CABEÇALHO NO MOLDE DO DASHBOARD (mockup "Editar guia — padrão
+            Presença", aprovado em 01/10/2026): data por extenso, título numa
+            linha com reticências, "Proprietário: <nome>" logo abaixo (regra de
+            17/09 e 23/09: nome do imóvel SEMPRE com o proprietário e o Maps) e
+            o subtítulo. Os vãos saem de `ds-page-heading`, como no Dashboard.
 
-        {!isNew && !houseOnly ? (
-          <div className="mb-4 ds-scroll-x items-center gap-2">
-            <PresenceAvatars users={presence.users} />
-          </div>
-        ) : (
-          <div className="mb-4" />
-        )}
+            No computador, as abas e a peça de ações ficam na linha do título,
+            à direita (a peça colada à esquerda das abas, mesma altura). No
+            celular, as abas ocupam a largura inteira e a peça vem embaixo. */}
+        <div className="ds-page-heading">
+          <p className="ds-eyebrow ds-data text-[10.5px] tracking-[0.2em]">{hojeExtenso}</p>
+          <div className="lg:flex lg:items-end lg:justify-between lg:gap-8">
+            <div className="ds-page-heading min-w-0 lg:flex-1">
+              <h1 className="ds-page-title !text-lg truncate">{form.property.name || "Sem título"}</h1>
+              {currentOwner ? (
+                <OwnerLine
+                  name={currentOwner.name}
+                  phone={currentOwner.phone}
+                  country={currentOwner.phoneCountry}
+                  phonePosition="adjacent"
+                />
+              ) : null}
+              <p className="ds-page-subtitle">
+                {houseOnly ? "Edite as informações da casa deste imóvel." : "Edite as informações do guia deste imóvel."}
+              </p>
+              {!isNew && !houseOnly ? (
+                <div className="ds-scroll-x items-center gap-2">
+                  <PresenceAvatars users={presence.users} />
+                </div>
+              ) : null}
+            </div>
 
-        <DenseSections>
-          <Tabs value={step} onValueChange={setStep}>
-            {/* Modo "só a casa" (link "Editar" dentro do Proprietário, em
-            Stakeholders): trava em "house" e nunca mostra esta barra — só se
-            fala de informações "da casa" ali, igual à tela de criação. */}
-            {!houseOnly && (
-              <Stepper
-                current={step}
-                onChange={setStep}
-                steps={[
-                  { value: "house", label: "A casa", icon: Home },
-                  { value: "airbnb", label: "Airbnb", icon: Sparkles },
-                  { value: "guide", label: "O Guia", icon: FileText },
-                  { value: "checkin", label: "Check-in & Checkout", icon: DoorOpen },
-                  { value: "faq", label: "FAQ", icon: LifeBuoy },
-                  { value: "recs", label: "Recomendações", icon: Compass },
-                ]}
-                lockedValues={needsRequiredHouseInfo ? ["airbnb", "guide", "checkin", "faq", "recs"] : undefined}
-              />
-            )}
-
-            {/* ================= A CASA ================= */}
-            <TabsContent value="house" className="space-y-4 mt-6">
-              <SectionGroup>
-                {needsRequiredHouseInfo ? (
-                  <div className="flex items-start gap-2 rounded-[0.3rem] border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
-                    <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
-                    <span>
-                      Complete as informações obrigatórias pendentes ({allMissingRequiredFields.join(", ")}) para
-                      desbloquear as demais abas do guia.
-                    </span>
+            {(!houseOnly || showPreview || showMaps) && (
+              <div className="mt-5 flex flex-col gap-2 lg:mt-0 lg:flex-row lg:items-center lg:gap-2">
+                {/* Modo "só a casa" (link "Editar" dentro do Proprietário, em
+                    Stakeholders): trava em "house" e nunca mostra esta barra —
+                    só se fala de informações "da casa" ali. */}
+                {!houseOnly && (
+                  <div className="order-1 min-w-0 lg:order-2 lg:w-[min(680px,52vw)] lg:shrink">
+                    <Stepper
+                      current={step}
+                      onChange={setStep}
+                      steps={[
+                        { value: "house", label: "A casa", icon: Home },
+                        { value: "airbnb", label: "Airbnb", icon: Sparkles },
+                        { value: "guide", label: "O Guia", icon: FileText },
+                        { value: "checkin", label: "Check-in & Checkout", icon: DoorOpen },
+                        { value: "faq", label: "FAQ", icon: LifeBuoy },
+                        { value: "recs", label: "Recomendações", icon: Compass },
+                      ]}
+                      lockedValues={needsRequiredHouseInfo ? ["airbnb", "guide", "checkin", "faq", "recs"] : undefined}
+                    />
                   </div>
-                ) : null}
+                )}
+                {(showPreview || showMaps) && (
+                  /* UMA PEÇA SÓ, PARTIDA AO MEIO — como Filtros|Pendências no
+                     Kanban (pedido explícito, 01/10/2026): à esquerda o olho +
+                     "Pré-Visualizar", à direita o pin + "Localização". O botão
+                     de olho flutuante saiu do canto da tela (ficava em cima do
+                     "Próximo"), e o Maps saiu do lado do título. A Localização
+                     é o MESMO `PropertyMapsButton` dos cards, só com outra cara. */
+                  <div className={`order-2 lg:order-1 lg:shrink-0 ${ACTION_BAR}`}>
+                    {showPreview && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewMode(null);
+                          setPreviewOpen(true);
+                        }}
+                        title="Pré-visualizar guia"
+                        aria-label="Pré-Visualizar"
+                        className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+                      >
+                        <Eye className={ACTION_ICON} />
+                        <span className="lg:hidden">Pré-Visualizar</span>
+                      </button>
+                    )}
+                    {showMaps && (
+                      <PropertyMapsButton
+                        propertyName={form.property.name || null}
+                        propertyAddress={propertyAddressLine}
+                        mapsUrl={form.property.maps_url || null}
+                        garageMapsUrl={form.property.garage_maps_url || null}
+                        trigger={
+                          <button
+                            type="button"
+                            title="Localização do imóvel"
+                            aria-label="Localização"
+                            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+                          >
+                            <MapPin className={ACTION_ICON} />
+                            <span className="lg:hidden">Localização</span>
+                          </button>
+                        }
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
 
-                {renderIdentitySection()}
+        <DenseSections variant="presence">
+          <Tabs value={step} onValueChange={setStep}>
+            {/* ================= A CASA ================= */}
+            <TabsContent value="house" className={TAB_CONTENT}>
+              {needsRequiredHouseInfo ? (
+                <EditorNotice tone="amber" icon={AlertTriangle}>
+                  Complete as informações obrigatórias pendentes ({allMissingRequiredFields.join(", ")}) para
+                  desbloquear as demais abas do guia.
+                </EditorNotice>
+              ) : null}
+              <div className={SECTION_LIST}>
+                <SectionGroup>
+                  {renderIdentitySection()}
 
-                {renderCleaningSection()}
+                  {renderCleaningSection()}
 
-                {renderAddressSection()}
+                  {renderAddressSection()}
 
-                {renderAirbnbCalendarSection()}
+                  {renderAirbnbCalendarSection()}
 
-                {renderHouseRulesSection()}
+                  {renderHouseRulesSection()}
 
-                {renderManualSection()}
+                  {renderManualSection()}
 
-                {renderPropertyDetailsSection()}
+                  {renderPropertyDetailsSection()}
 
-                {renderHostContactSection()}
+                  {renderHostContactSection()}
 
-                {!isNew && renderProvidersSection()}
-
-              </SectionGroup>
+                  {!isNew && renderProvidersSection()}
+                </SectionGroup>
+              </div>
             </TabsContent>
 
             {/* ================= AIRBNB ================= */}
-            <TabsContent value="airbnb" className="space-y-4 mt-6">
+            <TabsContent value="airbnb" className={TAB_CONTENT}>
+              <div className={SECTION_LIST}>
               <SectionGroup>
                 <Section
                   id="import-airbnb"
@@ -2707,10 +2812,12 @@ function PropertyEditor() {
                   tone="accent"
                   title="Importar do Airbnb"
                   collapsible
+                  // Obrigatório para publicar (01/10/2026) — o selo fica até
+                  // o primeiro Importar.
+                  badge={(form.property.airbnb_listing_url ?? "").trim() ? undefined : <PendingPill />}
                 >
                   {!canAirbnb && (
-                    <div className="mb-3 ds-surface border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
-                      <Lock className="size-3.5 shrink-0 mt-0.5" />
+                    <EditorNotice tone="amber" icon={Lock}>
                       <span>
                         Importação automática é exclusiva dos planos <strong>Pro</strong>, <strong>Business</strong> e{" "}
                         <strong>Enterprise</strong>. Faça upgrade em{" "}
@@ -2719,7 +2826,7 @@ function PropertyEditor() {
                         </Link>
                         .
                       </span>
-                    </div>
+                    </EditorNotice>
                   )}
 
                   <div className="flex gap-2">
@@ -2751,12 +2858,9 @@ function PropertyEditor() {
                       falha de sincronização deixaria o host sem saber por
                       que os dados pararam de atualizar sozinhos). */}
                   {!isNew && form.property.airbnb_listing_last_error && (
-                    <div className="mt-3 ds-surface border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive flex items-start gap-2">
-                      <Sparkles className="size-3.5 shrink-0 mt-0.5 opacity-70" />
-                      <span>
-                        A checagem automática diária falhou na última tentativa: {form.property.airbnb_listing_last_error}
-                      </span>
-                    </div>
+                    <EditorNotice tone="rose" icon={Sparkles}>
+                      A checagem automática diária falhou na última tentativa: {form.property.airbnb_listing_last_error}
+                    </EditorNotice>
                   )}
 
                   {(form.property.airbnb_rating != null ||
@@ -2764,22 +2868,22 @@ function PropertyEditor() {
                     form.property.airbnb_bedroom_count != null ||
                     form.property.airbnb_bed_count != null ||
                     form.property.airbnb_bathroom_count != null) && (
-                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 ds-surface border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {form.property.airbnb_rating != null && (
-                        <span>
-                          <span className="text-amber-500 font-semibold">★</span>{" "}
+                        <span className={AIRBNB_STAT_CHIP}>
+                          <span className="ds-atencao font-semibold">★</span>{" "}
                           {form.property.airbnb_rating.toFixed(2).replace(".", ",")}
                         </span>
                       )}
                       {form.property.airbnb_guest_count != null && (
-                        <span>{form.property.airbnb_guest_count} hóspedes</span>
+                        <span className={AIRBNB_STAT_CHIP}>{form.property.airbnb_guest_count} hóspedes</span>
                       )}
                       {form.property.airbnb_bedroom_count != null && (
-                        <span>{form.property.airbnb_bedroom_count} quartos</span>
+                        <span className={AIRBNB_STAT_CHIP}>{form.property.airbnb_bedroom_count} quartos</span>
                       )}
-                      {form.property.airbnb_bed_count != null && <span>{form.property.airbnb_bed_count} camas</span>}
+                      {form.property.airbnb_bed_count != null && <span className={AIRBNB_STAT_CHIP}>{form.property.airbnb_bed_count} camas</span>}
                       {form.property.airbnb_bathroom_count != null && (
-                        <span>{form.property.airbnb_bathroom_count} banheiros</span>
+                        <span className={AIRBNB_STAT_CHIP}>{form.property.airbnb_bathroom_count} banheiros</span>
                       )}
                     </div>
                   )}
@@ -2793,44 +2897,25 @@ function PropertyEditor() {
                       (não faz sentido duplicar). Também a pedido dele, o
                       campo abaixo não tem título/legenda própria dentro da
                       seção (o título da própria Section já basta) — só o
-                      input. "Nome do imóvel" continua sendo o ÚNICO campo
-                      editável desta aba: é o identificador do guia e não
-                      tem nenhum outro lugar na tela onde possa ser digitado
-                      — um imóvel sem link do Airbnb (ou cuja importação
-                      ainda não rodou) ficaria sem nenhuma forma de nomear o
-                      guia. */}
-                  <Input
-                    aria-label="Título do anúncio"
-                    value={form.property.name}
-                    maxLength={80}
-                    onChange={(e) => {
-                      const v = e.target.value.slice(0, 80);
-                      if (e.target.value.length > 80)
-                        toast.info(
-                          "O nome do guia tem limite de 80 caracteres — algo curto e marcante funciona melhor no topo do guia.",
-                          { id: "name-cap" },
-                        );
-                      update("name", v);
-                      if (isNew && !form.property.slug) update("slug", slugify(v));
-                    }}
-                  />
+                      campo. Desde 01/10/2026 o nome vem SÓ do anúncio do
+                      Airbnb (obrigatório para publicar) e fica sempre
+                      travado — tocar mostra o motivo. */}
+                  <AirbnbLockedValue value={form.property.name} label="Título do Anúncio" />
                 </Section>
 
-                <Section id="gallery" icon={ImageIcon} title="Fotos da residência" collapsible>
-                  {/* Com anúncio conectado: só visualização (a importação
-                      manda nas fotos). Sem anúncio: upload manual — é a
-                      única forma de o imóvel ter foto, e foto é obrigatória
-                      pra publicar o guia. */}
-                  {!airbnbLocked ? (
-                    <GalleryEditor
-                      value={form.property.gallery_images}
-                      onChange={(next) => {
-                        update("gallery_images", next);
-                        update("hero_image_url", next[0] ?? null);
-                      }}
-                    />
-                  ) : form.property.gallery_images.length ? (
-                    <div className="grid grid-cols-4 gap-2">
+                <Section
+                  id="gallery"
+                  icon={ImageIcon}
+                  title="Fotos da residência"
+                  collapsible
+                  badge={countBadge(form.property.gallery_images.length)}
+                >
+                  {/* SEMPRE só visualização (01/10/2026): o anúncio do Airbnb é
+                      obrigatório para publicar e é a única fonte das fotos —
+                      o upload manual saiu. Tocar nas fotos mostra o motivo. */}
+                  {form.property.gallery_images.length ? (
+                    <AirbnbLockReason label="Fotos da residência">
+                    <button type="button" aria-label="Fotos da residência — por que não posso editar?" className="grid w-full cursor-help grid-cols-4 gap-2 text-left">
                       {form.property.gallery_images.map((url, i) => (
                         <div key={i} className="relative ds-surface overflow-hidden rounded-lg border border-border/60 aspect-square">
                           <img src={url} alt={`Foto ${i + 1}`} className="size-full object-cover" />
@@ -2842,9 +2927,10 @@ function PropertyEditor() {
                           <Lock className="absolute top-1 right-1 size-3 text-white drop-shadow" />
                         </div>
                       ))}
-                    </div>
+                    </button>
+                    </AirbnbLockReason>
                   ) : (
-                    <EmptyHint text="Nenhuma foto importada ainda." />
+                    <AirbnbLockedValue value={null} label="Fotos da residência" placeholder="Nenhuma foto importada ainda." />
                   )}
                 </Section>
 
@@ -2856,26 +2942,10 @@ function PropertyEditor() {
                       de uma legenda numa linha separada. */}
                   <div className="space-y-2.5">
                     <TimeInlineRow label="Check-in a partir de">
-                      {airbnbLocked ? (
-                        <ReadOnlyValue value={form.property.checkin_time} />
-                      ) : (
-                        <TimePicker
-                          value={form.property.checkin_time}
-                          onChange={(v) => update("checkin_time", v)}
-                          placeholder="15:00"
-                        />
-                      )}
+                      <AirbnbLockedValue value={form.property.checkin_time} label="Check-in a partir de" />
                     </TimeInlineRow>
                     <TimeInlineRow label="Check-in até" optional>
-                      {airbnbLocked ? (
-                        <ReadOnlyValue value={form.property.checkin_time_max} />
-                      ) : (
-                        <TimePicker
-                          value={form.property.checkin_time_max}
-                          onChange={(v) => update("checkin_time_max", v)}
-                          placeholder="16:00"
-                        />
-                      )}
+                      <AirbnbLockedValue value={form.property.checkin_time_max} label="Check-in até" />
                     </TimeInlineRow>
                   </div>
                   <Field
@@ -2915,15 +2985,7 @@ function PropertyEditor() {
                       />
                     </TimeInlineRow>
                     <TimeInlineRow label="Check-out até" optional>
-                      {airbnbLocked ? (
-                        <ReadOnlyValue value={form.property.checkout_time} />
-                      ) : (
-                        <TimePicker
-                          value={form.property.checkout_time}
-                          onChange={(v) => update("checkout_time", v)}
-                          placeholder="11:00"
-                        />
-                      )}
+                      <AirbnbLockedValue value={form.property.checkout_time} label="Check-out até" />
                     </TimeInlineRow>
                   </div>
                   <Field
@@ -2964,7 +3026,13 @@ function PropertyEditor() {
                   )}
                 </Section>
 
-                <Section id="airbnb-amenities" icon={Shield} title="Comodidades (Airbnb)" collapsible>
+                <Section
+                  id="airbnb-amenities"
+                  icon={Shield}
+                  title="Comodidades (Airbnb)"
+                  collapsible
+                  badge={countBadge(form.property.airbnb_amenities.length)}
+                >
                   {form.property.airbnb_amenities.length ? (
                     <AmenitiesList amenities={form.property.airbnb_amenities} />
                   ) : (
@@ -3007,10 +3075,12 @@ function PropertyEditor() {
                   )}
                 </Section>
               </SectionGroup>
+              </div>
             </TabsContent>
 
             {/* ================= O GUIA ================= */}
-            <TabsContent value="guide" className="space-y-4 mt-6">
+            <TabsContent value="guide" className={TAB_CONTENT}>
+              <div className={SECTION_LIST}>
               <SectionGroup>
                 <Section
                   id="identity"
@@ -3019,11 +3089,9 @@ function PropertyEditor() {
                   collapsible
                 >
                   <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
-                    <Input
-                      value={form.property.slug}
-                      maxLength={60}
-                      onChange={(e) => update("slug", slugify(e.target.value))}
-                    />
+                    {/* O Importar refaz o slug a partir do título do anúncio —
+                        com anúncio conectado, trava como os demais (01/10/2026). */}
+                    <AirbnbLockedValue value={form.property.slug} label="URL pública (slug)" />
                   </Field>
                   <Field
                     label="Tipo do guia"
@@ -3054,7 +3122,7 @@ function PropertyEditor() {
                     </Select>
                   </Field>
                   {form.property.access_mode === "pin" && (
-                    <div className="grid grid-cols-2 gap-3 ds-surface bg-muted/40 p-3 border border-border/60">
+                    <div className="ds-well grid grid-cols-2 gap-3 p-3">
                       <Field label="Código de acesso" required>
                         <Input
                           value={form.property.pin_code}
@@ -3072,23 +3140,24 @@ function PropertyEditor() {
                     </div>
                   )}
 
+                  <PanelHeading title="Primeiro acesso" className="" />
                   {/* Formulário de primeiro acesso: obrigatório em guias de
                 Check-In & Check-Out (bloqueado), editável nos demais tipos. */}
                   {(() => {
                     const gateLocked = form.property.tagline === ETIQUETA_CHECKIN_CHECKOUT;
                     const gateOn = gateLocked || form.property.require_access_gate;
                     return (
-                      <div className="flex items-center justify-between gap-3 ds-surface border border-border/60 bg-muted/40 px-3.5 py-2.5">
+                      <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium leading-tight">Exigir formulário de primeiro acesso</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                          <p className="truncate text-[13px] font-semibold leading-tight">Exigir formulário de primeiro acesso</p>
+                          <p className="ds-faint text-[11px] leading-snug mt-0.5">
                             {gateLocked
                               ? "Obrigatório para guias do tipo Check-In & Check-Out."
                               : "O hóspede se identifica antes de ver o guia."}
                           </p>
                         </div>
                         {gateLocked ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold shrink-0">
+                          <span className="inline-flex items-center gap-1 text-[9.5px] uppercase tracking-[0.16em] text-muted-foreground font-bold shrink-0">
                             <Lock className="size-3" /> obrigatório
                           </span>
                         ) : (
@@ -3099,10 +3168,11 @@ function PropertyEditor() {
                   })()}
                 </Section>
               </SectionGroup>
+              </div>
             </TabsContent>
 
             {/* ================= CHECK-IN & CHECKOUT ================= */}
-            <TabsContent value="checkin" className="space-y-4 mt-6">
+            <TabsContent value="checkin" className={TAB_CONTENT}>
               {/* Subabas "Check-in" / "Checkout" dentro da aba "Check-in &
                   Checkout" — pedido do cliente em 03/09/2026: separar o que
                   é logística de chegada do que é logística de saída. Cada
@@ -3126,35 +3196,40 @@ function PropertyEditor() {
                   só ocupa a largura do conteúdo, então não há "espaço
                   sobrando" nele mesmo para centralizar; precisa de um pai
                   block-level de largura total fazendo a centralização. */}
-              <div className="flex justify-center mb-4">
-                <div className="inline-flex gap-1 rounded-[0.3rem] bg-foreground/5 p-1">
-                  {(
-                    [
-                      { value: "checkin" as const, label: "Check-in", icon: DoorOpen },
-                      { value: "checkout" as const, label: "Checkout", icon: LogOut },
-                    ]
-                  ).map((t) => {
-                    const active = checkinSubStep === t.value;
-                    return (
-                      <button
-                        key={t.value}
-                        type="button"
-                        onClick={() => setCheckinSubStep(t.value)}
-                        className={`whitespace-nowrap px-3 py-2 text-center text-[13px] font-normal leading-none flex items-center justify-center gap-1.5 min-h-[34px] rounded-[0.25rem] transition-colors ${
-                          active
-                            ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        <t.icon className="size-3.5" />
-                        {t.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* SUBABAS SEM CAIXA (pedido explícito, 01/10/2026: "não podem
+                  ter o mesmo quadrado que o menu"): só o rótulo e uma linha de
+                  2px embaixo — o gradiente da marca na selecionada, uma linha
+                  neutra e o texto apagado na outra. Centralizadas, cada uma
+                  com a largura fixa do mockup, sem esticar. */}
+              <nav aria-label="Check-in ou Checkout" className="flex justify-center gap-1">
+                {(
+                  [
+                    { value: "checkin" as const, label: "Check-in", icon: DoorOpen },
+                    { value: "checkout" as const, label: "Checkout", icon: LogOut },
+                  ]
+                ).map((t) => {
+                  const active = checkinSubStep === t.value;
+                  return (
+                    <button
+                      key={t.value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setCheckinSubStep(t.value)}
+                      className={`relative flex h-9 w-[118px] items-center justify-center gap-1.5 whitespace-nowrap text-[13px] transition-colors after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:content-[''] ${
+                        active
+                          ? "font-bold text-foreground after:bg-[linear-gradient(120deg,#7c1ad8,#e82dae)]"
+                          : "ds-faint font-semibold after:bg-foreground/10 hover:text-foreground"
+                      }`}
+                    >
+                      <t.icon className="size-3.5" />
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </nav>
 
               {checkinSubStep === "checkin" && (
+              <div className={SECTION_LIST}>
               <SectionGroup>
                 <Section id="checkin-times" icon={Clock} title="Horário de check-in" collapsible>
                   {/* Espelha (mesmo estado do form, não é uma cópia separada)
@@ -3167,26 +3242,10 @@ function PropertyEditor() {
                       editar direto por aqui também. */}
                   <div className="space-y-2.5">
                     <TimeInlineRow label="Check-in a partir de">
-                      {airbnbLocked ? (
-                        <ReadOnlyValue value={form.property.checkin_time} />
-                      ) : (
-                        <TimePicker
-                          value={form.property.checkin_time}
-                          onChange={(v) => update("checkin_time", v)}
-                          placeholder="15:00"
-                        />
-                      )}
+                      <AirbnbLockedValue value={form.property.checkin_time} label="Check-in a partir de" />
                     </TimeInlineRow>
                     <TimeInlineRow label="Check-in até" optional>
-                      {airbnbLocked ? (
-                        <ReadOnlyValue value={form.property.checkin_time_max} />
-                      ) : (
-                        <TimePicker
-                          value={form.property.checkin_time_max}
-                          onChange={(v) => update("checkin_time_max", v)}
-                          placeholder="16:00"
-                        />
-                      )}
+                      <AirbnbLockedValue value={form.property.checkin_time_max} label="Check-in até" />
                     </TimeInlineRow>
                   </div>
                   <Field
@@ -3242,17 +3301,17 @@ function PropertyEditor() {
                   collapsible
                 >
                   {/* Campo inline — Código para visualizar as senhas no Guia */}
-                  <div className="flex items-center justify-between gap-3 ds-surface border border-border/60 bg-muted/40 px-3.5 py-2.5">
+                  <div className="ds-well flex items-center justify-between gap-3 p-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium leading-tight">
+                      <p className="truncate text-[13px] font-semibold leading-tight">
                         Código para visualizar as senhas de acesso no Guia
                       </p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                      <p className="ds-faint text-[11px] leading-snug mt-0.5">
                         Opcional. Deixe em branco para liberar apenas pela janela de horário.
                       </p>
                     </div>
                     <Input
-                      className="w-32 shrink-0 tabular-nums text-center"
+                      className="w-24 shrink-0 tabular-nums text-center tracking-[0.06em]"
                       value={form.property.access_codes_pin}
                       maxLength={20}
                       onChange={(e) => update("access_codes_pin", e.target.value)}
@@ -3260,24 +3319,33 @@ function PropertyEditor() {
                     />
                   </div>
 
-                  <div className="space-y-3 mt-3">
+                  <PanelHeading
+                    title="Acessos"
+                    className=""
+                    right={
+                      <span className="ds-faint text-[10.5px]">
+                        {(gateOpen ? 1 : 0) + (lockOpen ? 1 : 0)} de 2 {(gateOpen ? 1 : 0) + (lockOpen ? 1 : 0) === 1 ? "ativo" : "ativos"}
+                      </span>
+                    }
+                  />
+                  <div className="space-y-3">
                     {/* Portão — sempre recolhido por padrão */}
-                    <details className="group ds-surface border border-border/60 bg-card/30" open={gateOpen}>
+                    <details className="group ds-well overflow-hidden" open={gateOpen}>
                       <summary
-                        className="list-none cursor-pointer select-none w-full flex items-center gap-3 px-4 py-3.5"
+                        className="list-none cursor-pointer select-none w-full flex items-center gap-3 p-3"
                         onClick={(e) => {
                           e.preventDefault();
                           setGateOpen((v) => !v);
                         }}
                       >
                         <div
-                          className={`size-9 rounded-lg grid place-items-center shrink-0 ${gateOpen ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground"}`}
+                          className={`size-7 rounded-[8px] grid place-items-center shrink-0 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_6%,transparent)] ${gateOpen ? "bg-foreground/[0.08] text-foreground" : "bg-foreground/[0.05] text-muted-foreground"}`}
                         >
-                          <KeyRound className="size-[18px]" strokeWidth={1.75} />
+                          <KeyRound className="size-3.5" strokeWidth={2} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[14px] font-semibold leading-tight">Portão com código</p>
-                          <p className="text-[11.5px] text-muted-foreground mt-0.5">
+                          <p className="truncate text-[13px] font-semibold leading-tight">Portão com código</p>
+                          <p className="ds-faint text-[11px] leading-snug mt-0.5">
                             {gateOpen
                               ? "Configure abaixo o código e as instruções."
                               : "Ative se a entrada tem portão com senha."}
@@ -3301,12 +3369,9 @@ function PropertyEditor() {
                           }}
                           onClick={(e) => e.stopPropagation()}
                         />
-                        <ChevronDown
-                          className={`size-4 text-muted-foreground transition-transform ${gateOpen ? "rotate-180" : ""}`}
-                        />
                       </summary>
                       {gateOpen && (
-                        <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
+                        <div className="flex flex-col gap-3.5 border-t border-foreground/[0.06] px-3 py-3.5">
                           <Field label="Código do portão" required>
                             <Input
                               value={form.property.gate_code}
@@ -3357,22 +3422,22 @@ function PropertyEditor() {
                     </details>
 
                     {/* Fechadura — sempre recolhido por padrão */}
-                    <details className="group ds-surface border border-border/60 bg-card/30" open={lockOpen}>
+                    <details className="group ds-well overflow-hidden" open={lockOpen}>
                       <summary
-                        className="list-none cursor-pointer select-none w-full flex items-center gap-3 px-4 py-3.5"
+                        className="list-none cursor-pointer select-none w-full flex items-center gap-3 p-3"
                         onClick={(e) => {
                           e.preventDefault();
                           setLockOpen((v) => !v);
                         }}
                       >
                         <div
-                          className={`size-9 rounded-lg grid place-items-center shrink-0 ${lockOpen ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground"}`}
+                          className={`size-7 rounded-[8px] grid place-items-center shrink-0 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_6%,transparent)] ${lockOpen ? "bg-foreground/[0.08] text-foreground" : "bg-foreground/[0.05] text-muted-foreground"}`}
                         >
-                          <Lock className="size-[18px]" strokeWidth={1.75} />
+                          <Lock className="size-3.5" strokeWidth={2} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[14px] font-semibold leading-tight">Fechadura com código</p>
-                          <p className="text-[11.5px] text-muted-foreground mt-0.5">
+                          <p className="truncate text-[13px] font-semibold leading-tight">Fechadura com código</p>
+                          <p className="ds-faint text-[11px] leading-snug mt-0.5">
                             {lockOpen
                               ? "Configure abaixo o código e as instruções."
                               : "Ative se a porta tem fechadura eletrônica."}
@@ -3396,12 +3461,9 @@ function PropertyEditor() {
                           }}
                           onClick={(e) => e.stopPropagation()}
                         />
-                        <ChevronDown
-                          className={`size-4 text-muted-foreground transition-transform ${lockOpen ? "rotate-180" : ""}`}
-                        />
                       </summary>
                       {lockOpen && (
-                        <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
+                        <div className="flex flex-col gap-3.5 border-t border-foreground/[0.06] px-3 py-3.5">
                           <Field label="Código da fechadura" required>
                             <Input
                               value={form.property.lock_code}
@@ -3452,7 +3514,7 @@ function PropertyEditor() {
                     </details>
 
                     {!gateOpen && !lockOpen ? (
-                      <p className="text-[12px] text-muted-foreground ds-surface border border-dashed border-border/60 bg-background/30 px-4 py-3">
+                      <p className="text-[12px] text-muted-foreground rounded-[12px] border border-dashed border-border/60 px-4 py-3">
                         Ative ao menos um tipo de acesso acima para cadastrar código e instruções.
                       </p>
                     ) : null}
@@ -3501,7 +3563,7 @@ function PropertyEditor() {
                       ].map((it) => (
                         <div
                           key={it.label}
-                          className="flex items-center justify-between ds-surface border border-border/60 bg-muted/40 px-3.5 py-2"
+                          className="ds-well flex items-center justify-between px-3.5 py-2"
                         >
                           <div className="flex items-center gap-2.5">
                             <span className="grid place-items-center size-7 rounded-lg bg-accent/10 text-accent">
@@ -3603,9 +3665,11 @@ function PropertyEditor() {
                   </div>
                 </Section>
               </SectionGroup>
+              </div>
               )}
 
               {checkinSubStep === "checkout" && (
+              <div className={SECTION_LIST}>
               <SectionGroup>
                 <Section id="checkout-times" icon={Clock} title="Horário de check-out" collapsible>
                   {/* Mesmo espelhamento do "Horário de check-in" acima — ver
@@ -3622,15 +3686,7 @@ function PropertyEditor() {
                       />
                     </TimeInlineRow>
                     <TimeInlineRow label="Check-out até" optional>
-                      {airbnbLocked ? (
-                        <ReadOnlyValue value={form.property.checkout_time} />
-                      ) : (
-                        <TimePicker
-                          value={form.property.checkout_time}
-                          onChange={(v) => update("checkout_time", v)}
-                          placeholder="11:00"
-                        />
-                      )}
+                      <AirbnbLockedValue value={form.property.checkout_time} label="Check-out até" />
                     </TimeInlineRow>
                   </div>
                   <Field
@@ -3673,12 +3729,21 @@ function PropertyEditor() {
                   icon={ClipboardCheck}
                   title="Checklist de check-out"
                   collapsible
+                  badge={countBadge(form.checkout.length)}
                 >
+                  {form.checkout.length > 0 && (
+                    <PanelHeading
+                      title="Itens"
+                      className=""
+                      right={<span className="ds-faint text-[10.5px]">{form.checkout.length} {form.checkout.length === 1 ? "item" : "itens"}</span>}
+                    />
+                  )}
                   {form.checkout.length === 0 ? (
                     <EmptyHint text="Ex: trancar a porta, deixar a chave na mesa, fechar janelas." />
                   ) : (
                     form.checkout.map((c, i) => (
                       <ItemCard
+                        row
                         key={i}
                         onRemove={() => setForm((f) => ({ ...f, checkout: f.checkout.filter((_, j) => j !== i) }))}
                       >
@@ -3701,17 +3766,20 @@ function PropertyEditor() {
                   </div>
                 </Section>
               </SectionGroup>
+              </div>
               )}
             </TabsContent>
 
             {/* ================= FAQ & CONTATOS ================= */}
-            <TabsContent value="faq" className="space-y-4 mt-6">
+            <TabsContent value="faq" className={TAB_CONTENT}>
+              <div className={SECTION_LIST}>
               <SectionGroup>
                 <Section
                   id="emergency"
                   icon={Phone}
                   title="Emergências"
                   collapsible
+                  badge={countBadge(form.emergency.length)}
                 >
                   {form.emergency.length === 0 ? (
                     <EmptyHint text="Adicione contatos como polícia, bombeiros, médico de plantão." />
@@ -3760,7 +3828,15 @@ function PropertyEditor() {
                   icon={HelpCircle}
                   title="Perguntas frequentes"
                   collapsible
+                  badge={countBadge(form.faqs.length)}
                 >
+                  {form.faqs.length > 0 && (
+                    <PanelHeading
+                      title="Perguntas"
+                      className=""
+                      right={<span className="ds-faint text-[10.5px]">{form.faqs.length} {form.faqs.length === 1 ? "pergunta" : "perguntas"}</span>}
+                    />
+                  )}
                   {form.faqs.length === 0 ? (
                     <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
                   ) : (
@@ -3789,7 +3865,7 @@ function PropertyEditor() {
                       return (
                         <div
                           key={i}
-                          className={`group bg-background border ds-surface overflow-hidden transition-colors ${isSigma ? "border-amber-400/40" : "border-border/60 hover:border-border"}`}
+                          className={`group ds-well overflow-hidden transition-colors ${isSigma ? "!shadow-[inset_0_0_0_1px_rgba(201,169,98,0.28)]" : ""}`}
                         >
                           <div className="flex items-center gap-2 px-3.5 py-3">
                             <button
@@ -3798,10 +3874,37 @@ function PropertyEditor() {
                               className="flex-1 flex items-center gap-2 min-w-0 text-left"
                               aria-expanded={isOpen}
                             >
-                              {isSigma && <Lock className="size-3.5 text-amber-300 shrink-0" />}
-                              <span className="text-sm font-medium truncate flex-1">
-                                {m.question || <span className="text-muted-foreground italic">Sem pergunta</span>}
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[13px] font-semibold">
+                                  {m.question || <span className="text-muted-foreground italic">Sem pergunta</span>}
+                                </span>
+                                {/* Etiquetas visíveis com a pergunta FECHADA (mockup
+                                    aprovado) — as mesmas que se marcam ao abrir. */}
+                                {!isOpen && m.tags.some((t) => FAQ_TAGS.some((ft) => ft.value === t)) && (
+                                  <span className="mt-1.5 flex gap-1.5 overflow-hidden">
+                                    {FAQ_TAGS.filter((ft) => m.tags.includes(ft.value)).map((ft) => (
+                                      <span
+                                        key={ft.value}
+                                        className="inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded-full bg-foreground/[0.05] px-2 text-[10.5px] font-bold text-muted-foreground"
+                                      >
+                                        {ft.label}
+                                      </span>
+                                    ))}
+                                  </span>
+                                )}
                               </span>
+                              {/* Pergunta do pacote do ConciergeIA (somente leitura):
+                                  etiqueta pequena "IA" com cadeado, colada à
+                                  esquerda da seta (pedido explícito, 01/10/2026). */}
+                              {isSigma && (
+                                <span
+                                  title="Pergunta do ConciergeIA — somente leitura"
+                                  className="ds-atencao inline-flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-[#c9a962]/[0.08] px-1.5 text-[9px] font-extrabold tracking-[0.06em] shadow-[inset_0_0_0_1px_rgba(201,169,98,0.22)]"
+                                >
+                                  <Lock className="size-2.5" strokeWidth={2.6} />
+                                  IA
+                                </span>
+                              )}
                               <ChevronDown
                                 className={`size-4 text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`}
                               />
@@ -3935,19 +4038,21 @@ function PropertyEditor() {
                   </div>
                 </Section>
               </SectionGroup>
+              </div>
             </TabsContent>
 
             {/* ================= RECOMENDAÇÕES ================= */}
-            <TabsContent value="recs" className="space-y-4 mt-6">
+            <TabsContent value="recs" className={TAB_CONTENT}>
               {!isNew && <SigmaActiveBanner propertyId={id} />}
+              <div className={SECTION_LIST}>
               <SectionGroup>
-                <div className="ds-surface border border-border/60 bg-background/40 p-3.5 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Adicionar ponto/estabelecimento
-                    </p>
-                    <span className="text-[10px] text-muted-foreground/70">Decidimos o quadrante pela distância</span>
-                  </div>
+                <div className={`${PANEL_SHELL} flex flex-col gap-3 p-3.5`}>
+                  <PanelHeading
+                    title="Adicionar ponto"
+                    dotColor="#e82dae"
+                    className=""
+                    right={<span className="ds-faint text-[10.5px]">Decidimos o quadrante pela distância</span>}
+                  />
                   <PlaceAutocomplete
                     scope="nearby"
                     lat={form.property.lat}
@@ -4064,7 +4169,7 @@ function PropertyEditor() {
                   }
                 >
                   {sigmaLocked && (
-                    <div className="flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                    <div className="ds-well ds-atencao flex items-center gap-1.5 px-3 py-2 text-xs">
                       <Lock className="size-3.5" /> Links gerenciados pelo ConciergeIA — edição bloqueada.
                     </div>
                   )}
@@ -4171,26 +4276,18 @@ function PropertyEditor() {
                   </fieldset>
                 </Section>
               </SectionGroup>
+              </div>
             </TabsContent>
           </Tabs>
         </DenseSections>
 
         <div aria-hidden="true" className="h-36 sm:h-32 lg:h-28" />
 
+        {/* O botão de olho flutuante saiu daqui (01/10/2026): virou a metade
+            "Pré-Visualizar" da peça de ações do cabeçalho. A janela continua
+            a mesma. */}
         {previewSlug && (
           <>
-            <button
-              type="button"
-              onClick={() => {
-                setPreviewMode(null);
-                setPreviewOpen(true);
-              }}
-              title="Pré-visualizar guia"
-              aria-label="Pré-visualizar guia"
-              className="fixed right-4 bottom-24 z-40 inline-flex items-center justify-center size-11 rounded-full bg-foreground text-background shadow-md hover:shadow-lg hover:scale-105 transition-all"
-            >
-              <Eye className="size-[18px]" />
-            </button>
             <Dialog
               open={previewOpen}
               onOpenChange={(o) => {
@@ -4204,43 +4301,52 @@ function PropertyEditor() {
                     ? "p-0 gap-0 overflow-hidden border-0 bg-transparent shadow-none sm:max-w-[1100px] w-[min(95vw,1100px)] [&>button]:hidden"
                     : previewMode === "mobile"
                       ? "p-0 gap-0 overflow-visible border-0 bg-transparent shadow-none sm:max-w-[340px] w-[min(82vw,340px)] [&>button]:hidden"
-                      : "p-0 gap-0 overflow-hidden sm:max-w-[420px] w-[min(92vw,420px)] [&>button]:hidden"
+                      : "p-0 gap-0 overflow-visible border-0 bg-transparent shadow-none sm:max-w-[400px] w-[min(92vw,400px)] [&>button]:hidden"
                 }
               >
                 <DialogTitle className="sr-only">Pré-visualização do guia</DialogTitle>
                 {previewMode === null ? (
-                  <div className="p-6 bg-background ds-surface border border-border shadow-xl">
-                    <div className="text-center mb-5">
-                      <h3 className="font-display text-xl">Como deseja visualizar?</h3>
+                  /* Padrão "Janelas flutuantes" (`ds-overlay`, mockup aprovado
+                     01/10/2026): eyebrow + fechar, título, as duas opções em
+                     cartões e "toque fora para fechar" — tocar fora já fecha
+                     pelo próprio Dialog. */
+                  <div className="ds-overlay flex flex-col gap-4 p-5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="ds-eyebrow text-[10px] text-muted-foreground">Pré-visualizar</span>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewOpen(false)}
+                        aria-label="Fechar"
+                        className="grid size-7 place-items-center rounded-[8px] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                    <div>
+                      <h3 className="font-display text-lg font-bold tracking-tight">Como deseja visualizar?</h3>
                       <p className="text-xs text-muted-foreground mt-1">Escolha o modo de pré-visualização do guia.</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2.5">
                       <button
                         type="button"
                         onClick={() => setPreviewMode("mobile")}
-                        className="group flex flex-col items-center gap-2 ds-surface border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+                        className="group flex flex-col items-center gap-2 rounded-[14px] bg-foreground/[0.045] px-2.5 py-4 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_6.5%,transparent)] transition-colors hover:bg-foreground/[0.07]"
                       >
-                        <div className="w-10 h-14 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
-                        <span className="text-sm font-medium">Mobile</span>
+                        <Smartphone className="size-7 text-muted-foreground transition-colors group-hover:text-foreground" strokeWidth={1.5} />
+                        <span className="text-[13px] font-bold">Celular</span>
                         <span className="text-[11px] text-muted-foreground">Tela do celular</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setPreviewMode("desktop")}
-                        className="group flex flex-col items-center gap-2 ds-surface border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+                        className="group flex flex-col items-center gap-2 rounded-[14px] bg-foreground/[0.045] px-2.5 py-4 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_6.5%,transparent)] transition-colors hover:bg-foreground/[0.07]"
                       >
-                        <div className="w-14 h-10 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
-                        <span className="text-sm font-medium">Navegador</span>
+                        <Monitor className="size-7 text-muted-foreground transition-colors group-hover:text-foreground" strokeWidth={1.5} />
+                        <span className="text-[13px] font-bold">Navegador</span>
                         <span className="text-[11px] text-muted-foreground">Tela ampla</span>
                       </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setPreviewOpen(false)}
-                      className="mt-5 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Cancelar
-                    </button>
+                    <p className="ds-faint text-center text-[11px]">Toque fora para fechar</p>
                   </div>
                 ) : previewMode === "mobile" ? (
                   <div className="relative mx-auto" style={{ width: "100%" }}>
@@ -4317,26 +4423,29 @@ function PropertyEditor() {
           </>
         )}
 
-        <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur p-3 sm:p-4 z-50">
-          <div className="max-w-4xl mx-auto">
-            {/* ANTI-CORTE (regra global): a barra de ações rola na horizontal
-            (ds-scroll-x) em vez de quebrar linha — o aviso de autosave abaixo
-            é só texto informativo, por isso fica fora dessa barra, na sua
-            própria linha. */}
-            <div className="ds-scroll-x justify-center gap-2 sm:gap-3">
+        {/* RODAPÉ (mockup aprovado, 01/10/2026): Anterior | Próximo como UMA
+            peça partida ao meio — o mesmo desenho de Filtros|Pendências, na
+            altura da barra de abas (44px) — e o aviso do salvamento automático
+            com o ponto verde-sálvia. A ordem e as travas dos botões não mudam. */}
+        <div
+          ref={editorFooterRef}
+          className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/85 px-4 pt-3 pb-3.5 backdrop-blur-[10px]"
+        >
+          <div className="mx-auto flex max-w-[420px] flex-col items-center gap-2">
+            <div className={`${ACTION_BAR} !h-11 !rounded-[13px] lg:!w-full`}>
               {houseOnly ? (
-                <Button
-                  variant="outline"
-                  className="h-10 min-w-[120px]"
+                <button
+                  type="button"
+                  className={`${ACTION_SEGMENT} !w-auto !flex-1 !gap-2 !px-3 text-[13px] text-foreground`}
                   onClick={() => navigate({ to: backTo as "/admin/guias" })}
                 >
                   Fechar
-                </Button>
+                </button>
               ) : (
                 <>
-                  <Button
-                    variant="outline"
-                    className="h-10 min-w-[120px]"
+                  <button
+                    type="button"
+                    className={`${ACTION_SEGMENT} !w-auto !flex-1 !gap-2 !px-3 text-[13px] ${ACTION_BUTTON_TONE} disabled:pointer-events-none disabled:text-muted-foreground/35`}
                     onClick={() => {
                       // Mesma ordem das abas do Stepper acima (house, airbnb, guide,
                       // checkin, faq, recs — checkin já inclui checkout, que foi
@@ -4347,12 +4456,12 @@ function PropertyEditor() {
                     }}
                     disabled={step === "house"}
                   >
-                    <ArrowLeft className="size-3.5 mr-1" />
-                    Anterior
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-10 min-w-[120px]"
+                    <ArrowLeft className={ACTION_ICON} />
+                    <span className="truncate">Anterior</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`${ACTION_SEGMENT} !w-auto !flex-1 !gap-2 !px-3 text-[13px] text-foreground disabled:pointer-events-none disabled:text-muted-foreground/35`}
                     onClick={() => {
                       const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"];
                       const i = order.indexOf(step);
@@ -4360,16 +4469,16 @@ function PropertyEditor() {
                     }}
                     disabled={step === "recs" || (needsRequiredHouseInfo && step === "house")}
                   >
-                    Próximo
-                    <ArrowLeft className="size-3.5 ml-1 rotate-180" />
-                  </Button>
+                    <span className="truncate">Próximo</span>
+                    <ArrowLeft className={`${ACTION_ICON} rotate-180`} />
+                  </button>
                 </>
               )}
             </div>
             {!readOnly && !isNew && (
               <p
-                className={`mt-1.5 text-center text-[11px] inline-flex w-full items-center justify-center gap-1.5 ${
-                  autoSaveError ? "text-destructive" : "text-muted-foreground"
+                className={`text-center text-[11px] inline-flex w-full items-center justify-center gap-1.5 ${
+                  autoSaveError ? "ds-falta" : "ds-faint"
                 }`}
                 // Passe o mouse aqui pra ver o motivo real de uma falha — sem
                 // isso, "Falha ao salvar" sozinho não dava nenhuma pista do
@@ -4385,7 +4494,10 @@ function PropertyEditor() {
                     <AlertTriangle className="size-3" /> Falha ao salvar — passe o mouse aqui pra ver o motivo
                   </>
                 ) : (
-                  "Alterações salvas automaticamente"
+                  <>
+                    <span aria-hidden className="size-1.5 rounded-full bg-[#7fb79a]" />
+                    Alterações salvas automaticamente
+                  </>
                 )}
               </p>
             )}
@@ -4419,6 +4531,87 @@ function PropertyEditor() {
   );
 }
 
+/**
+ * Publica a altura do rodapé fixo em `--page-footer-h`, para o botão flutuante
+ * do Assistente (`FloatingDock`) ficar SEMPRE acima dele, nunca por cima do
+ * "Próximo" (mockup aprovado, 01/10/2026). Ref de callback no nível do módulo:
+ * é estável entre renders e o editor só existe uma vez na tela.
+ */
+let editorFooterObserver: ResizeObserver | null = null;
+function editorFooterRef(node: HTMLDivElement | null) {
+  editorFooterObserver?.disconnect();
+  editorFooterObserver = null;
+  const root = document.documentElement;
+  if (!node) {
+    root.style.removeProperty("--page-footer-h");
+    return;
+  }
+  const publish = () => root.style.setProperty("--page-footer-h", `${node.offsetHeight}px`);
+  publish();
+  editorFooterObserver = new ResizeObserver(publish);
+  editorFooterObserver.observe(node);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Padrão Presença no editor de guia (mockup aprovado, 01/10/2026)          */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * O RITMO DE UMA ABA — os mesmos dois números do Dashboard, sem número novo:
+ * 24px entre BLOCOS (`--ds-block-gap`: cabeçalho → conteúdo, aviso →
+ * quadrantes, subabas → quadrantes) e 10px entre QUADRANTES vizinhos
+ * (`--ds-grid-gap`, `ds-card-grid`). Flex/grid `gap`, nunca margem.
+ */
+const TAB_CONTENT = "mt-6 flex flex-col gap-[var(--ds-block-gap,24px)]";
+const SECTION_LIST = "ds-card-grid grid-cols-[minmax(0,1fr)]";
+
+/** Selo dos números do anúncio (★ nota, hóspedes, quartos…) — pílula neutra. */
+const AIRBNB_STAT_CHIP =
+  "inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-full bg-foreground/[0.04] px-2.5 text-[11.5px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]";
+
+/**
+ * AVISO DENTRO DO EDITOR — card normal com o fio de 2px no topo na cor do tom
+ * (padrão Presença: "Limpezas completas para aprovar" deixou de ser uma
+ * moldura âmbar inteira e virou isto). Vale para pendências, plano, erro da
+ * importação e conteúdo travado pelo ConciergeIA.
+ */
+function EditorNotice({
+  tone,
+  icon: Icon,
+  children,
+  className,
+}: {
+  tone: SectionTopLine;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const iconTone = tone === "rose" ? "ds-falta" : tone === "amber" ? "ds-atencao" : "text-muted-foreground";
+  return (
+    <div className={cn(PANEL_SHELL, className)}>
+      <SectionTopLineBar tone={tone} />
+      <div className="flex items-start gap-2.5 p-3.5">
+        <Icon className={cn("mt-0.5 size-3.5 shrink-0", iconTone)} />
+        <div className="min-w-0 flex-1 text-xs leading-relaxed text-muted-foreground">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Selo "Pendente" (rosa terroso) — quadrante com campo obrigatório faltando. */
+function PendingPill() {
+  return (
+    <span className="ds-falta flex h-5 shrink-0 items-center rounded-full bg-[#c98c8c]/[0.08] px-2 text-[10px] font-extrabold shadow-[inset_0_0_0_1px_rgba(201,140,140,0.22)]">
+      Pendente
+    </span>
+  );
+}
+
+/** Contagem do quadrante (pílula neutra do Dashboard) — some quando é zero. */
+function countBadge(n: number | null | undefined) {
+  return n ? <CountPill>{n}</CountPill> : undefined;
+}
+
 function Field({
   label,
   hint,
@@ -4439,12 +4632,15 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
+    // Padrão Presença (01/10/2026): rótulo 12px em semibold, legenda no tom
+    // mais fraco (`ds-faint`) e o campo com a cara do diálogo de formulário
+    // aprovado (36px, raio 8px — ver `.ds-presence-fields` em styles.css).
     <div className="min-w-0">
-      <Label className="block truncate text-[13px] font-normal text-foreground">
-        {label} {required && <span className="text-destructive">*</span>}
+      <Label className="block truncate text-[12px] font-semibold text-foreground/90">
+        {label} {required && <span className="ds-falta">*</span>}
       </Label>
-      {hint && <p className={cn("text-[11px] text-muted-foreground mt-0.5 leading-snug", hintClassName)}>{hint}</p>}
-      <div className="mt-2">{children}</div>
+      {hint && <p className={cn("ds-faint text-[11px] mt-1 leading-snug", hintClassName)}>{hint}</p>}
+      <div className="mt-1.5">{children}</div>
     </div>
   );
 }
@@ -4459,24 +4655,15 @@ function AddBtn({ onClick }: { onClick: () => void }) {
 
 function EmptyHint({ text }: { text: string }) {
   return (
-    <div className="ds-surface border border-dashed border-border/70 bg-muted/30 px-4 py-5 text-center text-xs text-muted-foreground leading-relaxed">
+    <div className="rounded-[12px] border border-dashed border-border/70 px-4 py-5 text-center text-xs text-muted-foreground leading-relaxed">
       {text}
     </div>
   );
 }
 
-/** Exibe (nunca edita) um campo preenchido pela importação/sincronização do
- *  Airbnb — pedido do cliente em 03/09/2026: todo campo com importação
- *  automática fica só-leitura na tela, pra editar à mão nunca conflitar com
- *  o que a checagem diária vai sobrescrever de qualquer forma. */
-function ReadOnlyValue({ value, placeholder = "Ainda não importado" }: { value: string | null | undefined; placeholder?: string }) {
-  return (
-    <div className="ds-surface border border-border/60 bg-muted/30 px-3 py-2 text-sm min-h-[38px] flex items-center gap-2">
-      <Lock className="size-3.5 shrink-0 text-muted-foreground" />
-      <span className={cn(value ? "text-foreground/90" : "text-muted-foreground italic")}>{value || placeholder}</span>
-    </div>
-  );
-}
+/* `ReadOnlyValue` (03/09/2026) virou `AirbnbLockedValue`
+   (`components/editor/AirbnbLockedField.tsx`, 01/10/2026): mesmo papel — o
+   campo importado do Airbnb é só leitura — e agora tocar nele mostra o motivo. */
 
 /** Linha "rótulo à esquerda, horário à direita" — pedido do cliente em
  *  03/09/2026: os campos de horário (check-in/check-out) devem ficar ao lado
@@ -4650,9 +4837,33 @@ function ManualItemImages({
   );
 }
 
-function ItemCard({ children, onRemove }: { children: React.ReactNode; onRemove: () => void }) {
+function ItemCard({
+  children,
+  onRemove,
+  row = false,
+}: {
+  children: React.ReactNode;
+  onRemove: () => void;
+  /** Uma linha só: o campo e a lixeira ao lado, sem caixa (mockup "Checklist de check-out", 01/10/2026). */
+  row?: boolean;
+}) {
+  if (row) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">{children}</div>
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remover"
+          className="ds-faint grid size-9 shrink-0 place-items-center rounded-[8px] transition-colors hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="size-3.5" />
+        </button>
+      </div>
+    );
+  }
   return (
-    <div className="group bg-background border border-border/60 ds-surface p-3.5 pr-10 space-y-2.5 relative hover:border-border transition-colors">
+    <div className="group ds-well p-3.5 pr-10 space-y-2.5 relative transition-colors">
       {children}
       <button
         onClick={onRemove}
@@ -5231,10 +5442,10 @@ export function RecGroup({
   }
 
   return (
-    <Section icon={scope === "nearby" ? MapPin : Compass} title={title} desc={desc}>
+    <Section icon={scope === "nearby" ? MapPin : Compass} title={title} desc={desc} badge={items.length ? <CountPill>{items.length}</CountPill> : undefined}>
       {locked && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2">
-          <span className="text-xs text-amber-200 inline-flex items-center gap-1.5">
+        <div className="ds-well flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+          <span className="ds-atencao text-xs inline-flex items-center gap-1.5">
             <Lock className="size-3.5" /> Conteúdo gerenciado pelo ConciergeIA — edição bloqueada.
           </span>
           <div className="flex items-center gap-1.5">{headerExtra}</div>
@@ -5476,8 +5687,8 @@ export function RecGroup({
               return (
                 <div
                   key={cat}
-                  className={`ds-surface border bg-background/40 overflow-hidden transition-colors ${
-                    dragOverCat === cat ? "border-primary/70 ring-2 ring-primary/30" : "border-border/60"
+                  className={`ds-well overflow-hidden transition-colors ${
+                    dragOverCat === cat ? "ring-2 ring-primary/30" : ""
                   } ${dragCat === cat ? "opacity-60" : ""}`}
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -5489,7 +5700,7 @@ export function RecGroup({
                   onDrop={() => handleDropOnCat(cat)}
                 >
                   <div
-                    className="flex items-center gap-2 px-3.5 py-2.5 hover:bg-muted/30 transition-colors"
+                    className="flex min-h-12 items-center gap-2.5 px-3 py-2 transition-colors hover:bg-foreground/[0.02]"
                     /* A ORDEM das categorias é a da taxonomia global (vale
                        para todos os guias) — só admin arrasta. Para quem não
                        é admin, arrastar sempre terminava em erro de permissão. */
@@ -5531,18 +5742,19 @@ export function RecGroup({
                           onMove={(to) => renameGroup(cat, to)}
                           onDelete={() => deleteGroup(cat)}
                         />
-                        <span className="text-[11px] text-muted-foreground">
-                          ({g.items.length}
-                          {groupSelected > 0 ? ` · ${groupSelected} sel.` : ""})
-                        </span>
+                        <span className="flex-1" />
+                        <CountPill>
+                          {g.items.length}
+                          {groupSelected > 0 ? ` · ${groupSelected} sel.` : ""}
+                        </CountPill>
                       </div>
                       <ChevronDown
-                        className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+                        className={`size-[14px] shrink-0 transition-transform ${open ? "rotate-180 text-muted-foreground" : "ds-faint"}`}
                       />
                     </button>
                   </div>
                   {open && (
-                    <div className="border-t border-border/50 px-3.5 py-3 space-y-2">
+                    <div className="flex flex-col">
                       {g.items.map((r, k) => {
                         if (filterActive && !matchesFilter(r)) return null;
                         const idx = g.indices[k];
@@ -5552,9 +5764,9 @@ export function RecGroup({
                         return (
                           <div
                             key={idx}
-                            className="rounded-lg border border-border/60 bg-background/60 overflow-hidden"
+                            className="border-t border-foreground/[0.05]"
                           >
-                            <div className="flex items-center gap-2 px-3 py-2">
+                            <div className="flex items-center gap-2.5 px-3 py-2.5">
                               <input
                                 type="checkbox"
                                 checked={checked}
@@ -5568,15 +5780,33 @@ export function RecGroup({
                                 className="flex-1 min-w-0 flex items-center gap-2 text-left"
                                 aria-expanded={itemOpen}
                               >
-                                <span className="truncate text-sm font-medium">{r.name || "(sem nome)"}</span>
-                                {tagLabel && (
-                                  <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                    {tagLabel}
-                                  </span>
-                                )}
-                                <span className="flex-1" />
+                                {/* Linha do ponto (mockup aprovado, 01/10/2026): foto
+                                    de 40px, nome numa linha e, embaixo, nota e
+                                    distância — dados que o ponto já tem. */}
+                                <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-[9px] bg-foreground/[0.05] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent)]">
+                                  {r.image_url ? (
+                                    <img src={r.image_url} alt="" className="size-full object-cover" loading="lazy" />
+                                  ) : (
+                                    <ImageIcon className="ds-faint size-3.5" />
+                                  )}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-[13px] font-semibold">{r.name || "(sem nome)"}</span>
+                                  {(r.rating != null || r.distance_text || tagLabel) && (
+                                    <span className="ds-faint mt-0.5 block truncate text-[11px]">
+                                      {r.rating != null && (
+                                        <>
+                                          <span className="ds-atencao">★</span> {String(r.rating).replace(".", ",")}
+                                        </>
+                                      )}
+                                      {r.rating != null && r.distance_text ? " · " : null}
+                                      {r.distance_text || null}
+                                      {r.rating == null && !r.distance_text ? tagLabel : null}
+                                    </span>
+                                  )}
+                                </span>
                                 <ChevronDown
-                                  className={`size-4 text-muted-foreground transition-transform shrink-0 ${itemOpen ? "rotate-180" : ""}`}
+                                  className={`size-[14px] shrink-0 transition-transform ${itemOpen ? "rotate-180 text-muted-foreground" : "ds-faint"}`}
                                 />
                               </button>
                               {metricsCounts && r._dbId ? (
@@ -5585,7 +5815,7 @@ export function RecGroup({
                               <button
                                 type="button"
                                 onClick={() => removeAt(idx)}
-                                className="shrink-0 inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:text-rose-500 hover:bg-muted"
+                                className="ds-faint shrink-0 inline-flex size-7 items-center justify-center rounded-[8px] hover:text-rose-500 hover:bg-foreground/[0.05]"
                                 aria-label="Remover"
                                 title="Remover"
                               >
@@ -5593,7 +5823,7 @@ export function RecGroup({
                               </button>
                             </div>
                             {itemOpen && (
-                              <div className="border-t border-border/50 px-3 py-3 space-y-2">
+                              <div className="border-t border-foreground/[0.05] px-3 py-3 space-y-2">
                                 <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
                                   <Input
                                     placeholder="Nome"
@@ -5879,43 +6109,6 @@ function CategoryDeleteButton({
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
-}
-
-function GalleryEditor({
-  value,
-  onChange,
-  compact = false,
-}: {
-  value: string[];
-  onChange: (next: string[]) => void;
-  compact?: boolean;
-}) {
-  const slots: string[] = [0, 1, 2, 3].map((i) => value[i] ?? "");
-  function setAt(i: number, v: string) {
-    const next = [...slots];
-    next[i] = v;
-    onChange(next.filter((x) => x.trim()));
-  }
-  return (
-    <div className={compact ? "grid grid-cols-4 gap-1.5 max-w-sm" : "grid grid-cols-2 sm:grid-cols-4 gap-2"}>
-      {slots.map((url, i) => (
-        <div key={i} className="relative">
-          <ImageUpload
-            value={url}
-            folder="gallery"
-            aspect="square"
-            placeholder={i === 0 ? "Capa" : `Foto ${i + 1}`}
-            onChange={(v) => setAt(i, v)}
-          />
-          {i === 0 && url && (
-            <span className="absolute top-1 left-1 rounded bg-background/85 text-[8px] uppercase tracking-widest px-1.5 py-0.5 font-bold z-10 pointer-events-none">
-              Capa
-            </span>
-          )}
-        </div>
-      ))}
-    </div>
   );
 }
 

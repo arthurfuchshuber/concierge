@@ -69,7 +69,7 @@ export const Route = createFileRoute("/_authenticated/admin/clientes")({
   component: ClientesPage,
 });
 
-const PLAN_OPTIONS: PlanKey[] = ["starter", "pro", "business", "enterprise"];
+const PLAN_OPTIONS: PlanKey[] = ["pro", "business", "enterprise"];
 const STATUS_OPTIONS = ["trialing", "active", "past_due", "paused", "canceled"];
 const ENV_OPTIONS = ["sandbox", "live"];
 

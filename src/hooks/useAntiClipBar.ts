@@ -38,7 +38,17 @@ function isSpacer(el: Element) {
   return el.hasAttribute("data-spacer");
 }
 
-export function useAntiClipBar<T extends HTMLElement>() {
+/**
+ * `stretch` (01/10/2026, pedido explícito: "basta replicar a regra que já está
+ * funcionando nos quadrantes do Dashboard"): em vez de abrir vão ENTRE as
+ * opções, a sobra da página é dividida na LARGURA das opções visíveis — cada
+ * fatia cresce até a barra ficar cheia de ponta a ponta, como as colunas do
+ * calendário de ocupação ("nunca deixar sobra vazia"). É o que a barra de
+ * abas com fatias coladas (`ds-tabs`, aba ativa pintando a fatia inteira)
+ * precisa: com margem, a fatia ativa ficava menor que o espaço dela. Vale
+ * também na última página e quando tudo cabe — nenhuma sobra fica vazia.
+ */
+export function useAntiClipBar<T extends HTMLElement>({ stretch = false }: { stretch?: boolean } = {}) {
   const ref = useRef<T | null>(null);
   const hideSpacerRef = useRef<HTMLSpanElement | null>(null);
   const endGutterRef = useRef<HTMLSpanElement | null>(null);
@@ -93,10 +103,11 @@ export function useAntiClipBar<T extends HTMLElement>() {
         b.style.order = String(i * ORDER_STEP);
         // Zera o espaçamento extra da página anterior ANTES de medir.
         b.style.marginRight = "";
+        if (stretch) b.style.minWidth = "";
       });
       if (endGutterRef.current) {
         endGutterRef.current.style.order = String(btns.length * ORDER_STEP);
-        endGutterRef.current.style.width = `${END_GUTTER_PX}px`;
+        endGutterRef.current.style.width = stretch ? "0px" : `${END_GUTTER_PX}px`;
       }
 
       // Zera o espaçador ANTES de medir — senão a medição herda a página
@@ -152,7 +163,21 @@ export function useAntiClipBar<T extends HTMLElement>() {
       pageStartRef.current = bestStart;
       pageEndRef.current = lastIncluded;
 
-      if (!isTrueEnd && leftover > 1) {
+      if (stretch && leftover > 0.5) {
+        // Lê todas as larguras ANTES de escrever, senão cada escrita força
+        // um novo cálculo de layout no meio do laço.
+        const visible = btns.slice(bestStart, lastIncluded + 1);
+        const widths = visible.map((b) => b.getBoundingClientRect().width);
+        // A sobra é recalculada com as larguras EXATAS (`offsetWidth` arredonda
+        // para inteiro e deixava ~1px faltando — na última página isso virava
+        // um fio da aba anterior aparecendo na borda esquerda).
+        const navWidth = nav.getBoundingClientRect().width - padLeft - padRight;
+        const exactLeftover = navWidth - widths.reduce((a, w) => a + w, 0);
+        const extra = Math.max(0, exactLeftover) / visible.length;
+        visible.forEach((b, i) => {
+          b.style.minWidth = `${widths[i] + extra}px`;
+        });
+      } else if (!isTrueEnd && leftover > 1) {
         if (gaps > 0) {
           // REGRA ANTI-CORTE: a sobra vira espaçamento PROPORCIONAL entre as
           // opções visíveis, de modo que a última opção da página termine
@@ -175,11 +200,17 @@ export function useAntiClipBar<T extends HTMLElement>() {
         // Depois de redistribuir as margens, `offsetLeft` do item âncora pode
         // ter mudado — releia antes de rolar, senão a barra para alguns pixels
         // fora do lugar (o sintoma do "primeiro item colado na borda").
-        const target = bestStart === 0 ? 0 : Math.max(0, btns[bestStart].offsetLeft - padLeft);
+        // `offsetLeft` é arredondado para inteiro; com larguras fracionadas a
+        // rolagem parava ~1px antes e um fio da aba anterior aparecia na borda
+        // (medido em 01/10/2026). A posição exata vem do retângulo, e o
+        // arredondamento é sempre PARA CIMA — nunca para dentro da aba de trás.
+        const exactLeft =
+          btns[bestStart].getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft;
+        const target = bestStart === 0 ? 0 : Math.max(0, Math.ceil(exactLeft - padLeft));
         nav.scrollTo({ left: target, behavior: "smooth" });
       }
     },
-    [items],
+    [items, stretch],
   );
 
   const realign = useCallback(
