@@ -123,8 +123,8 @@ export async function channexRequest(call: ChannexCall): Promise<ChannexResult> 
 
 function extractTaskId(json: any): string | null {
   const d = json?.data;
-  if (Array.isArray(d)) return d.find((x: any) => x?.type === "task")?.id ?? d[0]?.id ?? null;
-  return d?.id ?? null;
+  if (Array.isArray(d)) return d.find((x: any) => x?.type === "task")?.id ?? null;
+  return d?.type === "task" ? d.id : null;
 }
 
 // ---------------------------------------------------------------- Mapeamento
