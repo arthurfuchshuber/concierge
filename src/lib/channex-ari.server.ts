@@ -237,7 +237,7 @@ export async function applyCalendarChanges(changes: CalendarChange[], userId: st
     const restrDeltas: Array<{ date: string; values: Record<string, unknown> }> = [];
 
     for (const date of dates) {
-      const cur = byDate.get(date) ?? {};
+      const cur: Row = byDate.get(date) ?? ({ date } as Row);
       const next: Row = {
         channex_property_id: ch.propertyId,
         room_type_id: ch.roomTypeId,
@@ -425,7 +425,7 @@ export async function runFullSync(input: FullSyncInput, userId: string | null) {
   const restr: Array<{ date: string; values: Record<string, unknown> }> = [];
   const upserts: Row[] = [];
   for (const date of eachDate(start, end)) {
-    const cur = byDate.get(date) ?? {};
+    const cur: Row = byDate.get(date) ?? ({ date } as Row);
     const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
     const weekend = dow === 5 || dow === 6;
     const availability = cur.availability ?? Math.max(0, input.countOfRooms - (booked.get(date) ?? 0));
