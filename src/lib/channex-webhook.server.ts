@@ -40,31 +40,32 @@ function asRecord(v: unknown): Record<string, unknown> | null {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
-/** Extrai (ou busca no Channex) os dados completos da reserva de um payload de webhook. */
-async function resolveBooking(payload: unknown): Promise<BookingAttributes | null> {
+type ResolvedBooking = BookingAttributes & { _revisionId?: string | null; _bookingId?: string | null };
+
+/**
+ * Busca sempre a REVISÃO da reserva (exigência da certificação: nunca usar
+ * GET /bookings). Payloads de feed já trazem a revisão completa.
+ */
+async function resolveBooking(payload: unknown): Promise<ResolvedBooking | null> {
   const root = asRecord(payload);
   if (!root) return null;
 
-  // 1) O webhook pode vir com os dados completos (send_data = true).
-  const inner = asRecord(root["payload"]) ?? root;
-  const data = asRecord(inner["data"]) ?? inner;
-  const attributes = asRecord(data["attributes"]) ?? data;
-  if (Array.isArray(attributes["rooms"]) || attributes["arrival_date"]) {
-    return attributes as BookingAttributes;
+  // Revisão vinda do feed (/booking_revisions/feed): { id, type: "booking_revision", attributes }.
+  if (root["type"] === "booking_revision" && asRecord(root["attributes"])) {
+    const a = asRecord(root["attributes"]) as BookingAttributes & { booking_id?: string };
+    return { ...a, _revisionId: String(root["id"]), _bookingId: a.booking_id ?? null };
   }
 
-  // 2) Caso contrário, buscamos a revisão / reserva na API.
-  const revisionId = inner["revision_id"] ?? attributes["revision_id"];
-  const bookingId = inner["booking_id"] ?? attributes["booking_id"] ?? attributes["id"];
+  const inner = asRecord(root["payload"]) ?? root;
+  const revisionId = inner["revision_id"];
+  const bookingId = inner["booking_id"];
   if (typeof revisionId === "string") {
-    const res = await channexGet<{ data?: { attributes?: BookingAttributes } }>(
+    const res = await channexGet<{ data?: { id?: string; attributes?: BookingAttributes & { booking_id?: string } } }>(
       `/booking_revisions/${revisionId}`,
     );
-    if (res?.data?.attributes) return res.data.attributes;
-  }
-  if (typeof bookingId === "string") {
-    const res = await channexGet<{ data?: { attributes?: BookingAttributes } }>(`/bookings/${bookingId}`);
-    if (res?.data?.attributes) return res.data.attributes;
+    if (res?.data?.attributes) {
+      return { ...res.data.attributes, _revisionId: res.data.id ?? revisionId, _bookingId: res.data.attributes.booking_id ?? (typeof bookingId === "string" ? bookingId : null) };
+    }
   }
   return null;
 }
@@ -131,8 +132,8 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
     {
       codigo_reserva_channex: codigo,
       propriedade_id: propriedadeId,
-      channex_booking_id: booking.id ?? null,
-      channex_revision_id: booking.revision_id ?? null,
+      channex_booking_id: booking._bookingId ?? booking.id ?? null,
+      channex_revision_id: booking._revisionId ?? booking.revision_id ?? null,
       channex_room_type_id: roomTypeId,
       channex_rate_plan_id: ratePlanId,
       nome_hospede: nome || null,
@@ -148,6 +149,31 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
     { onConflict: "codigo_reserva_channex" },
   );
   if (error) throw new Error(error.message);
+
+  // Booking Acknowledge (obrigatório): só depois de gravar com sucesso. Idempotente.
+  if (booking._revisionId) {
+    const { ackBookingRevision } = await import("@/lib/channex-ari.server");
+    const ack = await ackBookingRevision(booking._revisionId, booking._bookingId ?? null);
+    if (!ack.ok) throw new Error("Falha ao confirmar (ACK) a revisão na Channex.");
+  }
+}
+
+/** Puxa revisões ainda não confirmadas (feed) e processa + confirma cada uma. */
+export async function puxarFeedReservas(): Promise<{ recebidas: number; processadas: number; falhas: string[] }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const res = await channexGet<{ data?: Array<Record<string, unknown>> }>(`/booking_revisions/feed`);
+  const itens = res?.data ?? [];
+  let processadas = 0;
+  const falhas: string[] = [];
+  for (const item of itens) {
+    try {
+      await aplicarReserva(supabaseAdmin, item);
+      processadas += 1;
+    } catch (e) {
+      falhas.push(e instanceof Error ? e.message : String(e));
+    }
+  }
+  return { recebidas: itens.length, processadas, falhas };
 }
 
 /** Processa os itens pendentes da fila. Seguro para rodar em paralelo/repetidamente. */

@@ -24,6 +24,7 @@ import { Route as TermosRouteImport } from './routes/termos'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedChannexCertificationRouteImport } from './routes/_authenticated/channex-certification'
 import { Route as ApiAssistantStreamRouteImport } from './routes/api/assistant-stream'
 import { Route as GSlugRouteImport } from './routes/g.$slug'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -167,6 +168,12 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedChannexCertificationRoute =
+  AuthenticatedChannexCertificationRouteImport.update({
+    id: '/channex-certification',
+    path: '/channex-certification',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiAssistantStreamRoute = ApiAssistantStreamRouteImport.update({
   id: '/api/assistant-stream',
   path: '/api/assistant-stream',
@@ -559,6 +566,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/channex-certification': typeof AuthenticatedChannexCertificationRoute
   '/api/assistant-stream': typeof ApiAssistantStreamRoute
   '/g/$slug': typeof GSlugRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -640,6 +648,7 @@ export interface FileRoutesByTo {
   '/termos': typeof TermosRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/channex-certification': typeof AuthenticatedChannexCertificationRoute
   '/api/assistant-stream': typeof ApiAssistantStreamRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -722,6 +731,7 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/channex-certification': typeof AuthenticatedChannexCertificationRoute
   '/api/assistant-stream': typeof ApiAssistantStreamRoute
   '/g/$slug': typeof GSlugRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -806,6 +816,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin'
+    | '/channex-certification'
     | '/api/assistant-stream'
     | '/g/$slug'
     | '/.lovable/oauth/consent'
@@ -887,6 +898,7 @@ export interface FileRouteTypes {
     | '/termos'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/channex-certification'
     | '/api/assistant-stream'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -968,6 +980,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/admin'
+    | '/_authenticated/channex-certification'
     | '/api/assistant-stream'
     | '/g/$slug'
     | '/.lovable/oauth/consent'
@@ -1195,6 +1208,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/channex-certification': {
+      id: '/_authenticated/channex-certification'
+      path: '/channex-certification'
+      fullPath: '/channex-certification'
+      preLoaderRoute: typeof AuthenticatedChannexCertificationRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/assistant-stream': {
@@ -1745,10 +1765,13 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedChannexCertificationRoute: typeof AuthenticatedChannexCertificationRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedChannexCertificationRoute:
+    AuthenticatedChannexCertificationRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
