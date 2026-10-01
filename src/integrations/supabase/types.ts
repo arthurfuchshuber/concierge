@@ -3606,6 +3606,8 @@ export type Database = {
           airbnb_rating: number | null
           airbnb_rooms_beds: Json
           airbnb_safety_info: string | null
+          apartment_floor: string | null
+          apartment_number: string | null
           brand_logo_url: string | null
           brand_name: string | null
           checkin_instructions: string | null
@@ -3632,11 +3634,6 @@ export type Database = {
           document_scope: string
           gallery_images: string[]
           garage_maps_url: string | null
-          apartment_floor: string | null
-          apartment_number: string | null
-          has_elevator: boolean | null
-          in_condominium: boolean
-          parking_spots: string[]
           gate_code: string | null
           gate_instructions: string | null
           gate_label: string | null
@@ -3644,11 +3641,13 @@ export type Database = {
           gate_video_url: string | null
           guide_created: boolean
           guide_theme: string
+          has_elevator: boolean | null
           hero_image_url: string | null
           host_name: string | null
           host_phone: string | null
           house_rules: string | null
           id: string
+          in_condominium: boolean
           lat: number | null
           lng: number | null
           lock_code: string | null
@@ -3661,6 +3660,7 @@ export type Database = {
           name: string
           owner_contact_id: string | null
           owner_id: string
+          parking_spots: string[]
           pin_code: string | null
           pin_expires_at: string | null
           portaria_email: string | null
@@ -3705,6 +3705,8 @@ export type Database = {
           airbnb_rating?: number | null
           airbnb_rooms_beds?: Json
           airbnb_safety_info?: string | null
+          apartment_floor?: string | null
+          apartment_number?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
           checkin_instructions?: string | null
@@ -3731,11 +3733,6 @@ export type Database = {
           document_scope?: string
           gallery_images?: string[]
           garage_maps_url?: string | null
-          apartment_floor?: string | null
-          apartment_number?: string | null
-          has_elevator?: boolean | null
-          in_condominium?: boolean
-          parking_spots?: string[]
           gate_code?: string | null
           gate_instructions?: string | null
           gate_label?: string | null
@@ -3743,11 +3740,13 @@ export type Database = {
           gate_video_url?: string | null
           guide_created?: boolean
           guide_theme?: string
+          has_elevator?: boolean | null
           hero_image_url?: string | null
           host_name?: string | null
           host_phone?: string | null
           house_rules?: string | null
           id?: string
+          in_condominium?: boolean
           lat?: number | null
           lng?: number | null
           lock_code?: string | null
@@ -3760,6 +3759,7 @@ export type Database = {
           name: string
           owner_contact_id?: string | null
           owner_id: string
+          parking_spots?: string[]
           pin_code?: string | null
           pin_expires_at?: string | null
           portaria_email?: string | null
@@ -3804,6 +3804,8 @@ export type Database = {
           airbnb_rating?: number | null
           airbnb_rooms_beds?: Json
           airbnb_safety_info?: string | null
+          apartment_floor?: string | null
+          apartment_number?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
           checkin_instructions?: string | null
@@ -3830,11 +3832,6 @@ export type Database = {
           document_scope?: string
           gallery_images?: string[]
           garage_maps_url?: string | null
-          apartment_floor?: string | null
-          apartment_number?: string | null
-          has_elevator?: boolean | null
-          in_condominium?: boolean
-          parking_spots?: string[]
           gate_code?: string | null
           gate_instructions?: string | null
           gate_label?: string | null
@@ -3842,11 +3839,13 @@ export type Database = {
           gate_video_url?: string | null
           guide_created?: boolean
           guide_theme?: string
+          has_elevator?: boolean | null
           hero_image_url?: string | null
           host_name?: string | null
           host_phone?: string | null
           house_rules?: string | null
           id?: string
+          in_condominium?: boolean
           lat?: number | null
           lng?: number | null
           lock_code?: string | null
@@ -3859,6 +3858,7 @@ export type Database = {
           name?: string
           owner_contact_id?: string | null
           owner_id?: string
+          parking_spots?: string[]
           pin_code?: string | null
           pin_expires_at?: string | null
           portaria_email?: string | null
