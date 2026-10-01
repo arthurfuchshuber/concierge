@@ -422,7 +422,10 @@ function AdminLayout() {
           ) : routePermission && !areaAccess.can(routePermission) ? (
             <AccessDenied reason={areaAccess.reasonFor(routePermission)} />
           ) : (
-            <Outlet />
+            <>
+              <LiveSync />
+              <Outlet />
+            </>
           )}
         </main>
 
