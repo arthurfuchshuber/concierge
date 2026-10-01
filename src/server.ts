@@ -74,8 +74,11 @@ export default {
 
     try {
       const response = await serverEntry.fetch(request, env, ctx);
+      // Navegador fechou/recarregou a página no meio do carregamento: não é erro do app.
+      if (request.signal?.aborted) return response;
       return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
+      if (request.signal?.aborted) return new Response(null, { status: 499 });
       console.error(error);
       return new Response(renderErrorPage(), {
         status: 500,
