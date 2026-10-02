@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-10-01T17:23:58.330Z";
+export const GENERATED_AT = "2026-10-02T16:11:06.610Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -148,6 +148,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/routes/auth.tsx",
     "audience": [],
     "content_hash": "99add2912345dccc91b80ce2b553faff"
+  },
+  {
+    "doc_key": "route:/channex-certification",
+    "kind": "route",
+    "title": "Console Channex — ConciergeIA — tela /channex-certification",
+    "content": "Caminho no sistema: /channex-certification\n\nFerramenta interna de integração ARI com a Channex.",
+    "source_path": "src/routes/_authenticated/channex-certification.tsx",
+    "audience": [],
+    "content_hash": "0729aa050c216cdc51cc870702441328"
   },
   {
     "doc_key": "route:/confianca",
@@ -2418,15 +2427,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d17d28e4046881a62efb98bdcbf647d2"
   },
   {
-    "doc_key": "rule:Row",
-    "kind": "rule",
-    "title": "Regra — Row",
-    "content": "CHAVE DE ACESSO NO CARD \"EM LIMPEZA\" (mockup \"Chave de acesso no card de\nlimpeza · v2\", aprovado 30/09/2026 — \"eu quero o ícone da chave + 1 tooltip\nestilo da opção C\").\n\nPor que é assim:\n · A chave fica AO LADO do pino do Maps, nunca no lugar dele: a regra de\n 23/09/2026 diz que o botão do Maps é sempre o mesmo, em todo lugar.\n · O quadrante é o mesmo do editor de Previsão do card: casca Grafite\n Quente (`FILTER_PANEL_CLASS_ELEVATED`, 300px), 16px de folga lateral\n (`FILTER_PANEL_COLLISION`) e 8px do botão. Véu com desfoque, limite de\n 75% da altura, abrir para o lado oposto quando não cabe e \"clicar fora\n só fecha a janela do topo\" vêm do `PopoverContent` base — pedido do\n cliente nesta entrega: \"TODO E QUALQUER AJUSTE EM LAYOUT precisa seguir\n as regras que já implantamos, anti corte, clique ao fundo retorna à\n página anterior, desfoque\".\n · \"Clique ao fundo retorna à página anterior\": com a tela interna \"Passo a\n passo\" aberta, tocar fora VOLTA para \"Acesso\" em vez de fechar — mesmo\n padrão do editor de Previsão (`onOpenChange` intercepta o fechamento).\n · O quadrante mostra o nome do anúncio, então leva \"Proprietário: <primeiro\n nome>\" e o MESMO botão do Maps (`PropertyMapsButton`).\n · Senhas começam DESFOCADAS; \"Mostrar\" revela todas, e elas voltam a ficar\n ocultas sempre que o quadrante fecha. Copiar funciona oculto ou não.\n · Os códigos não vêm na lista do quadro: só são buscados ao abrir, por\n `getPropertyAccessInfo` (regra \"senha só sai do servidor com prova\").\n · \"Enviar à <prestador>\" abre o WhatsApp com tudo pronto para quem está no\n quadrado da limpeza. Sem prestador (ou sem telefone), vira \"Enviar pelo\n WhatsApp\" e a pessoa escolhe o contato.",
-    "source_path": "src/components/dashboard/PropertyAccessButton.tsx",
-    "audience": [],
-    "content_hash": "154ed225e8e2925d40cfb461b0ceb410"
-  },
-  {
     "doc_key": "rule:rowByStay",
     "kind": "rule",
     "title": "Regra — rowByStay",
@@ -3127,6 +3127,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/pendencias.tsx",
     "audience": [],
     "content_hash": "84636e47e3e2224e4752bbd2749f7935"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/PropertyAccessButton.tsx:1457",
+    "kind": "rule",
+    "title": "Regra em PropertyAccessButton.tsx",
+    "content": "CHAVE DE ACESSO NO CARD \"EM LIMPEZA\" (mockup \"Chave de acesso no card de\nlimpeza · v2\", aprovado 30/09/2026 — \"eu quero o ícone da chave + 1 tooltip\nestilo da opção C\").\n\nPor que é assim:\n · A chave fica AO LADO do pino do Maps, nunca no lugar dele: a regra de\n 23/09/2026 diz que o botão do Maps é sempre o mesmo, em todo lugar.\n · O quadrante é o mesmo do editor de Previsão do card: casca Grafite\n Quente (`FILTER_PANEL_CLASS_ELEVATED`, 300px), 16px de folga lateral\n (`FILTER_PANEL_COLLISION`) e 8px do botão. Véu com desfoque, limite de\n 75% da altura, abrir para o lado oposto quando não cabe e \"clicar fora\n só fecha a janela do topo\" vêm do `PopoverContent` base — pedido do\n cliente nesta entrega: \"TODO E QUALQUER AJUSTE EM LAYOUT precisa seguir\n as regras que já implantamos, anti corte, clique ao fundo retorna à\n página anterior, desfoque\".\n · \"Clique ao fundo retorna à página anterior\": com a tela interna \"Passo a\n passo\" aberta, tocar fora VOLTA para \"Acesso\" em vez de fechar — mesmo\n padrão do editor de Previsão (`onOpenChange` intercepta o fechamento).\n · O quadrante mostra o nome do anúncio, então leva \"Proprietário: <primeiro\n nome>\" e o MESMO botão do Maps (`PropertyMapsButton`).\n · Senhas começam DESFOCADAS; \"Mostrar\" revela todas, e elas voltam a ficar\n ocultas sempre que o quadrante fecha. Copiar funciona oculto ou não.\n · Os códigos não vêm na lista do quadro: só são buscados ao abrir, por\n `getPropertyAccessInfo` (regra \"senha só sai do servidor com prova\").\n · \"Enviar à <prestador>\" abre o WhatsApp com tudo pronto para quem está no\n quadrado da limpeza. Sem prestador (ou sem telefone), vira \"Enviar pelo\n WhatsApp\" e a pessoa escolhe o contato.",
+    "source_path": "src/components/dashboard/PropertyAccessButton.tsx",
+    "audience": [],
+    "content_hash": "84617da3b520eba1316a22dde919bc7b"
   },
   {
     "doc_key": "rule:src/components/dashboard/PropertyMapsButton.tsx:1559",

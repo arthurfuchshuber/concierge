@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 /**
- * Drena a fila de webhooks do Channex (rede de segurança para itens que
- * ficaram pendentes). Protegido por chave: exige o header `user-api-key`
- * com o mesmo valor da chave do Channex configurada no servidor.
+ * Drena as filas da Channex (webhooks recebidos + outbox ARI com retries
+ * pendentes). Protegido por chave: exige o header `user-api-key` igual à
+ * chave Channex configurada no servidor.
  */
 export const Route = createFileRoute("/api/public/channex-processar-fila")({
   server: {
@@ -14,8 +14,10 @@ export const Route = createFileRoute("/api/public/channex-processar-fila")({
           return new Response("Unauthorized", { status: 401 });
         }
         const { processarFilaChannex } = await import("@/lib/channex-webhook.server");
-        const result = await processarFilaChannex(50);
-        return Response.json(result);
+        const { flushAriOutbox } = await import("@/lib/channex-ari.server");
+        const webhooks = await processarFilaChannex(50);
+        const ari = await flushAriOutbox();
+        return Response.json({ webhooks, ari });
       },
     },
   },

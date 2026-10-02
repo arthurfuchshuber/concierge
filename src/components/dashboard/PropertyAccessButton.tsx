@@ -16,6 +16,7 @@ import {
   ListOrdered,
   Lock,
   Play,
+  RotateCw,
   Send,
   Wifi,
   type LucideIcon,
@@ -78,6 +79,9 @@ import { cn } from "@/lib/utils";
  *    quadrado da limpeza. Sem prestador (ou sem telefone), vira "Enviar pelo
  *    WhatsApp" e a pessoa escolhe o contato.
  */
+
+/** Prazo para o acesso responder antes de virar aviso (ver a consulta abaixo). */
+const ACCESS_TIMEOUT_MS = 15_000;
 
 type Row = {
   propertyId: string;
@@ -404,9 +408,34 @@ export function PropertyAccessButton({ row }: { row: Row }) {
   const fetchFn = useServerFn(getPropertyAccessInfo);
   const q = useQuery({
     queryKey: ["property-access", row.propertyId, ownerId, provider?.id ?? null],
+    // O QUADRANTE NUNCA FICA PRESO NO "CARREGANDO" (correção de 02/10/2026,
+    // print do cliente: a janela "Acesso" aberta no celular só com os quatro
+    // blocos cinzas, sem código nenhum e sem aviso). Esta é a única consulta
+    // do quadro que NÃO tem cópia guardada no aparelho (senha não é gravada),
+    // então, quando o pedido não sai ou não volta, não há nada para mostrar no
+    // lugar — e a tela ficava no esqueleto para sempre. Três travas:
+    //  · prazo de 15 s: passou disso, vira erro com aviso, em vez de esperar
+    //    indefinidamente;
+    //  · `networkMode: "always"`: o pedido é disparado mesmo quando o
+    //    navegador ACHA que está sem internet (no app instalado no iPhone esse
+    //    aviso às vezes fica preso depois de voltar do segundo plano, e a
+    //    consulta ficava em pausa, sem nunca tentar);
+    //  · uma única nova tentativa automática; depois disso quem decide é a
+    //    pessoa, no "Tentar de novo".
     queryFn: () =>
-      fetchFn({ data: { propertyId: row.propertyId, ownerId, providerId: provider?.id ?? null } }),
+      new Promise<PropertyAccessInfo>((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error("O acesso não carregou a tempo. Confira a conexão.")),
+          ACCESS_TIMEOUT_MS,
+        );
+        fetchFn({ data: { propertyId: row.propertyId, ownerId, providerId: provider?.id ?? null } })
+          .then(resolve, reject)
+          .finally(() => clearTimeout(timer));
+      }),
     enabled: open,
+    networkMode: "always",
+    retry: 1,
+    retryDelay: 800,
     // Senha não fica guardada no navegador além do necessário.
     staleTime: 30_000,
     gcTime: 60_000,
@@ -550,7 +579,7 @@ export function PropertyAccessButton({ row }: { row: Row }) {
               />
             </div>
 
-            {q.isLoading || (!info && !q.isError) ? (
+            {q.isFetching && !info ? (
               <div className="grid grid-cols-2 gap-1.5 px-3.5 py-3">
                 {[0, 1, 2, 3].map((i) => (
                   <div
@@ -560,9 +589,22 @@ export function PropertyAccessButton({ row }: { row: Row }) {
                 ))}
               </div>
             ) : q.isError || !info ? (
-              <p className="px-3.5 py-3 text-[12px] text-muted-foreground">
-                {q.error instanceof Error ? q.error.message : "Não foi possível carregar o acesso."}
-              </p>
+              <div className="flex flex-col items-start gap-2 px-3.5 py-3">
+                <p className="text-[12px] text-muted-foreground">
+                  {q.error instanceof Error
+                    ? q.error.message
+                    : "Não foi possível carregar o acesso."}
+                </p>
+                {/* Mesmo botão de texto do "Mostrar/Ocultar" do cabeçalho. */}
+                <button
+                  type="button"
+                  onClick={() => void q.refetch()}
+                  className="inline-flex items-center gap-[5px] text-[11px] font-semibold text-foreground/70 transition-colors hover:text-foreground"
+                >
+                  <RotateCw className="size-3.5" />
+                  Tentar de novo
+                </button>
+              </div>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-1.5 px-3.5 py-3">

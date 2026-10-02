@@ -2002,6 +2002,201 @@ export type Database = {
         }
         Relationships: []
       }
+      channex_api_logs: {
+        Row: {
+          attempt: number
+          batch_id: string | null
+          created_at: string
+          endpoint: string
+          error: string | null
+          http_status: number | null
+          id: string
+          is_ari: boolean
+          method: string
+          next_retry_at: string | null
+          operation: string
+          request: Json | null
+          response: Json | null
+          task_id: string | null
+        }
+        Insert: {
+          attempt?: number
+          batch_id?: string | null
+          created_at?: string
+          endpoint: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          is_ari?: boolean
+          method: string
+          next_retry_at?: string | null
+          operation: string
+          request?: Json | null
+          response?: Json | null
+          task_id?: string | null
+        }
+        Update: {
+          attempt?: number
+          batch_id?: string | null
+          created_at?: string
+          endpoint?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          is_ari?: boolean
+          method?: string
+          next_retry_at?: string | null
+          operation?: string
+          request?: Json | null
+          response?: Json | null
+          task_id?: string | null
+        }
+        Relationships: []
+      }
+      channex_ari_calendar: {
+        Row: {
+          availability: number | null
+          channex_property_id: string
+          closed_to_arrival: boolean | null
+          closed_to_departure: boolean | null
+          date: string
+          id: string
+          max_stay: number | null
+          min_stay: number | null
+          rate: number | null
+          rate_plan_id: string
+          room_type_id: string
+          stop_sell: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          availability?: number | null
+          channex_property_id: string
+          closed_to_arrival?: boolean | null
+          closed_to_departure?: boolean | null
+          date: string
+          id?: string
+          max_stay?: number | null
+          min_stay?: number | null
+          rate?: number | null
+          rate_plan_id: string
+          room_type_id: string
+          stop_sell?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          availability?: number | null
+          channex_property_id?: string
+          closed_to_arrival?: boolean | null
+          closed_to_departure?: boolean | null
+          date?: string
+          id?: string
+          max_stay?: number | null
+          min_stay?: number | null
+          rate?: number | null
+          rate_plan_id?: string
+          room_type_id?: string
+          stop_sell?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      channex_ari_outbox: {
+        Row: {
+          attempts: number
+          batch_id: string | null
+          channex_property_id: string
+          created_at: string
+          created_by: string | null
+          date_from: string
+          date_to: string
+          dedupe_key: string
+          id: string
+          kind: string
+          last_error: string | null
+          next_attempt_at: string
+          payload: Json
+          rate_plan_id: string | null
+          room_type_id: string | null
+          sent_at: string | null
+          source: string
+          status: string
+          task_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          batch_id?: string | null
+          channex_property_id: string
+          created_at?: string
+          created_by?: string | null
+          date_from: string
+          date_to: string
+          dedupe_key: string
+          id?: string
+          kind: string
+          last_error?: string | null
+          next_attempt_at?: string
+          payload: Json
+          rate_plan_id?: string | null
+          room_type_id?: string | null
+          sent_at?: string | null
+          source?: string
+          status?: string
+          task_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          batch_id?: string | null
+          channex_property_id?: string
+          created_at?: string
+          created_by?: string | null
+          date_from?: string
+          date_to?: string
+          dedupe_key?: string
+          id?: string
+          kind?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          payload?: Json
+          rate_plan_id?: string | null
+          room_type_id?: string | null
+          sent_at?: string | null
+          source?: string
+          status?: string
+          task_id?: string | null
+        }
+        Relationships: []
+      }
+      channex_booking_acks: {
+        Row: {
+          acked_at: string | null
+          attempts: number
+          booking_id: string | null
+          created_at: string
+          last_error: string | null
+          revision_id: string
+          status: string
+        }
+        Insert: {
+          acked_at?: string | null
+          attempts?: number
+          booking_id?: string | null
+          created_at?: string
+          last_error?: string | null
+          revision_id: string
+          status?: string
+        }
+        Update: {
+          acked_at?: string | null
+          attempts?: number
+          booking_id?: string | null
+          created_at?: string
+          last_error?: string | null
+          revision_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       chat_message_feedback: {
         Row: {
           behavior_id: string | null
@@ -3606,6 +3801,8 @@ export type Database = {
           airbnb_rating: number | null
           airbnb_rooms_beds: Json
           airbnb_safety_info: string | null
+          apartment_floor: string | null
+          apartment_number: string | null
           brand_logo_url: string | null
           brand_name: string | null
           checkin_instructions: string | null
@@ -3632,11 +3829,6 @@ export type Database = {
           document_scope: string
           gallery_images: string[]
           garage_maps_url: string | null
-          apartment_floor: string | null
-          apartment_number: string | null
-          has_elevator: boolean | null
-          in_condominium: boolean
-          parking_spots: string[]
           gate_code: string | null
           gate_instructions: string | null
           gate_label: string | null
@@ -3644,11 +3836,13 @@ export type Database = {
           gate_video_url: string | null
           guide_created: boolean
           guide_theme: string
+          has_elevator: boolean | null
           hero_image_url: string | null
           host_name: string | null
           host_phone: string | null
           house_rules: string | null
           id: string
+          in_condominium: boolean
           lat: number | null
           lng: number | null
           lock_code: string | null
@@ -3661,6 +3855,7 @@ export type Database = {
           name: string
           owner_contact_id: string | null
           owner_id: string
+          parking_spots: string[]
           pin_code: string | null
           pin_expires_at: string | null
           portaria_email: string | null
@@ -3705,6 +3900,8 @@ export type Database = {
           airbnb_rating?: number | null
           airbnb_rooms_beds?: Json
           airbnb_safety_info?: string | null
+          apartment_floor?: string | null
+          apartment_number?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
           checkin_instructions?: string | null
@@ -3731,11 +3928,6 @@ export type Database = {
           document_scope?: string
           gallery_images?: string[]
           garage_maps_url?: string | null
-          apartment_floor?: string | null
-          apartment_number?: string | null
-          has_elevator?: boolean | null
-          in_condominium?: boolean
-          parking_spots?: string[]
           gate_code?: string | null
           gate_instructions?: string | null
           gate_label?: string | null
@@ -3743,11 +3935,13 @@ export type Database = {
           gate_video_url?: string | null
           guide_created?: boolean
           guide_theme?: string
+          has_elevator?: boolean | null
           hero_image_url?: string | null
           host_name?: string | null
           host_phone?: string | null
           house_rules?: string | null
           id?: string
+          in_condominium?: boolean
           lat?: number | null
           lng?: number | null
           lock_code?: string | null
@@ -3760,6 +3954,7 @@ export type Database = {
           name: string
           owner_contact_id?: string | null
           owner_id: string
+          parking_spots?: string[]
           pin_code?: string | null
           pin_expires_at?: string | null
           portaria_email?: string | null
@@ -3804,6 +3999,8 @@ export type Database = {
           airbnb_rating?: number | null
           airbnb_rooms_beds?: Json
           airbnb_safety_info?: string | null
+          apartment_floor?: string | null
+          apartment_number?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
           checkin_instructions?: string | null
@@ -3830,11 +4027,6 @@ export type Database = {
           document_scope?: string
           gallery_images?: string[]
           garage_maps_url?: string | null
-          apartment_floor?: string | null
-          apartment_number?: string | null
-          has_elevator?: boolean | null
-          in_condominium?: boolean
-          parking_spots?: string[]
           gate_code?: string | null
           gate_instructions?: string | null
           gate_label?: string | null
@@ -3842,11 +4034,13 @@ export type Database = {
           gate_video_url?: string | null
           guide_created?: boolean
           guide_theme?: string
+          has_elevator?: boolean | null
           hero_image_url?: string | null
           host_name?: string | null
           host_phone?: string | null
           house_rules?: string | null
           id?: string
+          in_condominium?: boolean
           lat?: number | null
           lng?: number | null
           lock_code?: string | null
@@ -3859,6 +4053,7 @@ export type Database = {
           name?: string
           owner_contact_id?: string | null
           owner_id?: string
+          parking_spots?: string[]
           pin_code?: string | null
           pin_expires_at?: string | null
           portaria_email?: string | null
