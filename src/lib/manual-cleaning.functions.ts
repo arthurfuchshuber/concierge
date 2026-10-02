@@ -293,7 +293,7 @@ export const createManualCleaning = createServerFn({ method: "POST" })
       data,
       context,
     }): Promise<
-      | { ok: true; mode: "created" | "replaced"; scheduledFor: string }
+      | { ok: true; mode: "created" | "replaced"; scheduledFor: string; notified: boolean }
       | { ok: false; conflict: ManualCleaningConflict }
     > => {
       const sb = context.supabase as unknown as Sb;
@@ -381,7 +381,14 @@ export const createManualCleaning = createServerFn({ method: "POST" })
           const { error } = await sb.from("guest_arrival_status").update(patch).eq("id", r.id);
           if (error) throw new Error("Você não tem permissão para alterar esta limpeza.");
           await audit(sb, context.userId, "manual_cleaning_replace", r.id, data);
-          return { ok: true, mode: "replaced", scheduledFor: data.date };
+          const notified = await pushToProvider(
+            data.propertyId,
+            data.providerId,
+            r.id,
+            today,
+            today,
+          );
+          return { ok: true, mode: "replaced", scheduledFor: data.date, notified };
         }
       }
 
@@ -405,9 +412,45 @@ export const createManualCleaning = createServerFn({ method: "POST" })
         .maybeSingle();
       if (error) throw new Error("Não foi possível criar a limpeza.");
       await audit(sb, context.userId, "manual_cleaning_create", created?.id ?? null, data);
-      return { ok: true, mode: "created", scheduledFor: data.date };
+      const notified = await pushToProvider(
+        data.propertyId,
+        data.providerId,
+        created?.id ?? `${data.propertyId}:${nowIso}`,
+        data.date,
+        today,
+      );
+      return { ok: true, mode: "created", scheduledFor: data.date, notified };
     },
   );
+
+/**
+ * Aviso por push ao prestador escolhido (02/10/2026: "tem que ir para os
+ * envolvidos"). Nunca derruba a criação: falhou, a limpeza já está gravada.
+ * Devolve se alguém foi de fato avisado — a tela conta para quem criou.
+ */
+async function pushToProvider(
+  propertyId: string,
+  providerId: string,
+  refKey: string,
+  date: string,
+  today: string,
+): Promise<boolean> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { notifyManualCleaningAssigned } = await import("@/lib/ops-push.server");
+    const r = await notifyManualCleaningAssigned(supabaseAdmin as never, {
+      propertyId,
+      providerId,
+      refKey,
+      date,
+      today,
+    });
+    return (r?.sent ?? 0) > 0;
+  } catch (err) {
+    console.error("[manual-cleaning] falha ao enviar push ao prestador:", err);
+    return false;
+  }
+}
 
 async function audit(sb: Sb, userId: string, action: string, recordId: string | null, d: unknown) {
   try {

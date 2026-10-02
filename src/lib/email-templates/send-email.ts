@@ -9,10 +9,10 @@ import { TEMPLATES } from './registry'
 const SITE_NAME = "ConciergeIA | Top01 de Anfitriões"
 // SENDER_DOMAIN is the verified sender subdomain FQDN (e.g., "notify.example.com").
 // It MUST match the subdomain delegated to Lovable's nameservers. NEVER use the root domain.
-const SENDER_DOMAIN = "notify.guia.anfitriaosigma.com.br"
+const SENDER_DOMAIN = "naoresponder.conciergeia.app"
 // FROM_DOMAIN is the domain shown in the From: header (e.g., "example.com").
 // Can be the root domain when display_from_root is enabled — this is cosmetic only.
-const FROM_DOMAIN = "guia.anfitriaosigma.com.br"
+const FROM_DOMAIN = "conciergeia.app"
 
 export type SendTemplateEmailResult =
   | { sent: true }

@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-10-02T16:53:16.408Z";
+export const GENERATED_AT = "2026-10-02T18:06:47.878Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1860,6 +1860,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1589528d6dfd9b5571ac0409e6dc7cf5"
   },
   {
+    "doc_key": "rule:notifyManualCleaningAssigned",
+    "kind": "rule",
+    "title": "Regra — notifyManualCleaningAssigned",
+    "content": "LIMPEZA CRIADA MANUALMENTE → avisa o prestador escolhido (pedido explícito,\n02/10/2026: \"tem que ir para os envolvidos (via push)\").\n\nPor que NÃO reaproveita `notifyCleaningReady`: aquele aviso vai para todos\nos prestadores de limpeza vinculados ao imóvel. Na limpeza manual a pessoa\nescolhe UM prestador — que pode nem ser o do imóvel —, então o aviso vai só\npara ele. Prestador sem login no sistema (ou sem notificação ativa no\naparelho) não recebe nada; quem chama fica sabendo por `sent`.\n\nCom data futura o aviso sai na hora da criação dizendo o dia: não existe\nrotina que avise de novo quando o dia chegar.",
+    "source_path": "src/lib/ops-push.server.ts",
+    "audience": [],
+    "content_hash": "60f605f9bdfab7e7dcb363012a3dfc8b"
+  },
+  {
     "doc_key": "rule:occupiedOnDay",
     "kind": "rule",
     "title": "Regra — occupiedOnDay",
@@ -2272,6 +2281,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/PushNotificationBanner.tsx",
     "audience": [],
     "content_hash": "1703644ed9d6de8b36b6deb3e44a8a49"
+  },
+  {
+    "doc_key": "rule:pushToProvider",
+    "kind": "rule",
+    "title": "Regra — pushToProvider",
+    "content": "Aviso por push ao prestador escolhido (02/10/2026: \"tem que ir para os\nenvolvidos\"). Nunca derruba a criação: falhou, a limpeza já está gravada.\nDevolve se alguém foi de fato avisado — a tela conta para quem criou.",
+    "source_path": "src/lib/manual-cleaning.functions.ts",
+    "audience": [],
+    "content_hash": "4d1258475c664c095e1ef2427be5f64b"
   },
   {
     "doc_key": "rule:QueryResult",

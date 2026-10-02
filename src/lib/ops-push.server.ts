@@ -682,3 +682,52 @@ export async function notifyGuestSelfStep(
     },
   });
 }
+
+/**
+ * LIMPEZA CRIADA MANUALMENTE → avisa o prestador escolhido (pedido explícito,
+ * 02/10/2026: "tem que ir para os envolvidos (via push)").
+ *
+ * Por que NÃO reaproveita `notifyCleaningReady`: aquele aviso vai para todos
+ * os prestadores de limpeza vinculados ao imóvel. Na limpeza manual a pessoa
+ * escolhe UM prestador — que pode nem ser o do imóvel —, então o aviso vai só
+ * para ele. Prestador sem login no sistema (ou sem notificação ativa no
+ * aparelho) não recebe nada; quem chama fica sabendo por `sent`.
+ *
+ * Com data futura o aviso sai na hora da criação dizendo o dia: não existe
+ * rotina que avise de novo quando o dia chegar.
+ */
+export async function notifyManualCleaningAssigned(
+  admin: Admin,
+  opts: { propertyId: string; providerId: string; refKey: string; date: string; today: string },
+) {
+  const prop = await getPropertyBasics(admin, opts.propertyId);
+  if (!prop) return { sent: 0, skipped: true };
+  const { data: prov } = await admin
+    .from("service_providers")
+    .select("member_user_id, account_owner_id")
+    .eq("id", opts.providerId)
+    .maybeSingle();
+  const userId = (prov as { member_user_id?: string | null } | null)?.member_user_id ?? null;
+  if (!userId) return { sent: 0, skipped: true };
+
+  const name = (prop.name || "Residência").trim();
+  const line = locLine([prop.ownerName, name, prop.cityClean, prop.district]);
+  const future = opts.date > opts.today;
+  const ddmm = `${opts.date.slice(8, 10)}/${opts.date.slice(5, 7)}`;
+  return sendOpsPush(admin, {
+    ownerId: prop.owner_id,
+    kind: "cleaning-manual",
+    dedupeKey: `cleaning-manual:${opts.refKey}:${opts.providerId}`,
+    userIds: [userId],
+    payload: {
+      title: future ? `🧹 Limpeza agendada para ${ddmm}` : "🧹 Nova limpeza para você",
+      body: line,
+      data: {
+        url: "/admin/dashboard",
+        tag: `cleaning-manual-${opts.refKey}`,
+        style: "cleaning-ready",
+        propertyId: opts.propertyId,
+      },
+    },
+  });
+}

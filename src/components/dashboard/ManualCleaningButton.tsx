@@ -435,12 +435,18 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
         return;
       }
       const future = isoOf(date) > isoOf(today);
-      toast.success(
+      const base =
         res.mode === "replaced"
           ? "Limpeza da reserva atualizada."
           : future
             ? `Limpeza criada para ${ddmm(isoOf(date))}. Ela entra na fila nesse dia.`
-            : "Limpeza criada. Já está na Fila de Limpeza.",
+            : "Limpeza criada. Já está na Fila de Limpeza.";
+      // O prestador é avisado por push; se ele não tem login ou não ativou as
+      // notificações, quem criou precisa saber que o aviso não saiu.
+      toast.success(
+        res.notified
+          ? `${base} ${provider.name} foi avisado(a).`
+          : `${base} ${provider.name} não tem notificação ativa — avise por fora.`,
       );
       void qc.invalidateQueries({ predicate: (x) => x.queryKey[0] === "dash-list" });
       void qc.invalidateQueries({ queryKey: ["cleaning-board"] });
