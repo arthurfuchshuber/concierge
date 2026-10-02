@@ -66,7 +66,7 @@ import {
   Bell,
   BellOff,
   ChevronDown,
-  UserPlus,
+  Plus,
   MapPin,
   Link as LinkIcon,
   Copy,
@@ -6470,14 +6470,24 @@ export function TasksDialog({
           <div className="min-w-0">
             <div className="flex items-center gap-2 pr-9">
               <h2 className="ds-page-title min-w-0 flex-1 truncate">Pendências</h2>
-              <button
-                type="button"
-                onClick={() => setShowForm((v) => !v)}
-                className="shrink-0 h-8 inline-flex items-center gap-1.5 rounded-[0.3rem] px-2.5 text-xs font-semibold text-white bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] transition-opacity hover:opacity-90"
-              >
-                {showForm ? <ChevronRight className="size-3.5 rotate-90" /> : <UserPlus className="size-3.5" />}
-                Nova
-              </button>
+              {/* "+" no MESMO modelo dos demais botões de adicionar (pedido
+                  explícito, 02/10/2026): peça `ACTION_BAR`, ícone na cor de
+                  destaque. Aberto, o ícone vira seta para cima para fechar. */}
+              <div className={`${ACTION_BAR} !w-auto shrink-0`}>
+                <button
+                  type="button"
+                  onClick={() => setShowForm((v) => !v)}
+                  className={`${ACTION_SEGMENT} text-accent`}
+                  title={showForm ? "Fechar nova pendência" : "Nova pendência"}
+                  aria-label={showForm ? "Fechar nova pendência" : "Nova pendência"}
+                >
+                  {showForm ? (
+                    <ChevronRight className={`${ACTION_ICON} rotate-90`} />
+                  ) : (
+                    <Plus className={ACTION_ICON} />
+                  )}
+                </button>
+              </div>
             </div>
             <p className="ds-page-subtitle mt-1.5 truncate">
               {bucketFilter

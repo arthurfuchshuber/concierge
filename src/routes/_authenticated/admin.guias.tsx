@@ -659,7 +659,7 @@ function Dashboard() {
                       ? "Limite do seu plano atingido. Faça upgrade."
                       : "Novo guia"
               }
-              className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
+              className={`${ACTION_SEGMENT} text-accent disabled:opacity-40`}
             >
               <Plus className={ACTION_ICON} />
             </button>
@@ -795,20 +795,24 @@ function Dashboard() {
                 </div>
               ))}
             </div>
-            <Button
-              className="mt-5 rounded-full"
-              onClick={openGuidePicker}
-              disabled={!sub.plan || noOwners}
-              title={
-                !sub.plan
-                  ? "Assine um plano para criar guias"
-                  : noOwners
-                    ? "Cadastre um proprietário em Stakeholders antes de criar guias"
-                    : undefined
-              }
-            >
-              <Plus className="size-4 mr-1.5" /> Criar meu primeiro guia
-            </Button>
+            <div className={`${ACTION_BAR} mt-5 !w-auto`}>
+              <button
+                type="button"
+                onClick={openGuidePicker}
+                disabled={!sub.plan || noOwners}
+                title={
+                  !sub.plan
+                    ? "Assine um plano para criar guias"
+                    : noOwners
+                      ? "Cadastre um proprietário em Stakeholders antes de criar guias"
+                      : "Criar meu primeiro guia"
+                }
+                className={`${ACTION_SEGMENT} gap-2 text-accent disabled:opacity-40 lg:w-auto lg:gap-2 lg:px-4`}
+              >
+                <Plus className={ACTION_ICON} />
+                <span>Criar meu primeiro guia</span>
+              </button>
+            </div>
           </div>
         )
       ) : filtered.length === 0 ? (
