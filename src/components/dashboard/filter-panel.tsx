@@ -714,12 +714,22 @@ export function FilterDateCalendar({
   today,
   min,
   max,
+  quickNoWrap,
 }: {
   value: Date | undefined;
   onChange: (next: Date) => void;
   today: Date;
   min?: Date;
   max?: Date;
+  /**
+   * Atalhos SEMPRE numa linha só (pedido explícito, 02/10/2026, print do
+   * quadrante "Nova limpeza": "seguir a mesma linha desta regra" — a das
+   * reticências). Onde o calendário fica mais estreito que o painel de
+   * Filtros, "Depois de amanhã" descia para uma segunda linha; com isto os
+   * dois primeiros mantêm a largura e o último corta com reticências.
+   * Desligado por padrão: nos quadrantes de largura cheia nada muda.
+   */
+  quickNoWrap?: boolean;
 }) {
   const [month, setMonth] = useState<Date>(() => startOfMonth(value ?? min ?? today));
   const disabled: Matcher[] = [];
@@ -738,8 +748,8 @@ export function FilterDateCalendar({
 
   return (
     <>
-      <div className="flex flex-wrap gap-1.5 px-3.5 pt-2.5">
-        {quick.map((q) => {
+      <div className={`flex gap-1.5 px-3.5 pt-2.5 ${quickNoWrap ? "min-w-0" : "flex-wrap"}`}>
+        {quick.map((q, qi) => {
           const ok = allowed(q.date);
           const active = !!value && isSameDay(value, q.date);
           return (
@@ -751,7 +761,10 @@ export function FilterDateCalendar({
                 setMonth(startOfMonth(q.date));
                 onChange(q.date);
               }}
+              title={quickNoWrap ? q.label : undefined}
               className={`rounded-full px-[11px] py-[5px] text-[11px] font-semibold transition-colors disabled:opacity-40 ${
+                quickNoWrap ? (qi === quick.length - 1 ? "min-w-0 truncate" : "shrink-0") : ""
+              } ${
                 active
                   ? "bg-accent/[0.14] text-accent"
                   : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground"

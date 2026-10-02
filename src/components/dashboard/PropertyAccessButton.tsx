@@ -100,8 +100,12 @@ function useCurrentProvider(row: Row) {
   const b = board.data;
   const realLog = /^[0-9a-f-]{36}$/i.test(row.logId) ? row.logId : null;
   const resId = row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
+  const manualId = row.logId.startsWith("manual:") ? row.logId.slice(7) : null;
   const assignedId =
-    (resId && b?.assigned[`r:${resId}`]) || (realLog && b?.assigned[`l:${realLog}`]) || null;
+    (manualId && b?.assigned[`s:${manualId}`]) ||
+    (resId && b?.assigned[`r:${resId}`]) ||
+    (realLog && b?.assigned[`l:${realLog}`]) ||
+    null;
   const currentId = assignedId ?? b?.defaults[row.propertyId] ?? null;
   return b?.providers.find((p) => p.id === currentId) ?? null;
 }

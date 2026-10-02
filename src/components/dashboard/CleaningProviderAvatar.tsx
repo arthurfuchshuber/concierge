@@ -77,9 +77,15 @@ export function CleaningProviderAvatar({
   const [q, setQ] = useState("");
   const realLog = /^[0-9a-f-]{36}$/i.test(logId) ? logId : null;
   const resId = reservationId ?? (logId.startsWith("ical:") ? logId.slice(5) : null);
+  // Limpeza criada manualmente (02/10/2026): o card vem como "manual:<id>".
+  const manualId = logId.startsWith("manual:") ? logId.slice(7) : null;
 
   const b = board.data;
-  const assignedId = (resId && b?.assigned[`r:${resId}`]) || (realLog && b?.assigned[`l:${realLog}`]) || null;
+  const assignedId =
+    (manualId && b?.assigned[`s:${manualId}`]) ||
+    (resId && b?.assigned[`r:${resId}`]) ||
+    (realLog && b?.assigned[`l:${realLog}`]) ||
+    null;
   const defaultId = b?.defaults[propertyId] ?? null;
   const currentId = assignedId ?? defaultId;
   const current = b?.providers.find((p) => p.id === currentId) ?? null;
@@ -91,7 +97,7 @@ export function CleaningProviderAvatar({
 
   const m = useMutation({
     mutationFn: (providerId: string | null) =>
-      setFn({ data: { propertyId, logId: realLog, reservationId: resId, providerId } }),
+      setFn({ data: { propertyId, logId: realLog, reservationId: resId, statusId: manualId, providerId } }),
     onSuccess: () => {
       setOpen(false);
       void qc.invalidateQueries({ queryKey: ["cleaning-board"] });
@@ -100,7 +106,7 @@ export function CleaningProviderAvatar({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível direcionar."),
   });
 
-  if (!realLog && !resId) return null;
+  if (!realLog && !resId && !manualId) return null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

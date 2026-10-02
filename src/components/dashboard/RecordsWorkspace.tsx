@@ -614,6 +614,15 @@ export function RecordsWorkspace() {
 
         {/* CARTÕES + GRÁFICO — mesmo grupo da Limpeza (10px entre eles). */}
         <div className="ds-card-grid">
+          {/* BUSCA + AÇÕES ACIMA DOS CARTÕES (pedido explícito, 02/10/2026:
+              "mover essa linha de filtros para cima dos cards, tanto na aba
+              limpeza quanto registros"). Antes vinha logo depois deles. */}
+          <SearchActionRow
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por imóvel, proprietário…"
+            actions={recordActions}
+          />
           <div className="ds-card-grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
             {CARDS.map((c) => (
               <StatCard
@@ -628,12 +637,6 @@ export function RecordsWorkspace() {
               />
             ))}
           </div>
-          <SearchActionRow
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar por imóvel, proprietário…"
-            actions={recordActions}
-          />
 
 
         {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}

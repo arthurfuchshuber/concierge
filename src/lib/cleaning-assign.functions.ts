@@ -44,7 +44,7 @@ export const getCleaningProviderBoard = createServerFn({ method: "POST" })
       sb.from("property_providers").select("property_id, provider_id").in("property_id", propIds),
       sb
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, assigned_provider_id")
+        .select("id, log_id, reservation_id, assigned_provider_id")
         .in("property_id", propIds)
         .eq("kind", "checkout")
         .not("assigned_provider_id", "is", null)
@@ -71,6 +71,9 @@ export const getCleaningProviderBoard = createServerFn({ method: "POST" })
     for (const r of rows ?? []) {
       if (r.reservation_id) assigned[`r:${r.reservation_id}`] = r.assigned_provider_id as string;
       if (r.log_id) assigned[`l:${r.log_id}`] = r.assigned_provider_id as string;
+      // Limpeza criada manualmente (02/10/2026): não tem reserva nem
+      // formulário, então a chave é a própria linha.
+      if (!r.reservation_id && !r.log_id) assigned[`s:${r.id}`] = r.assigned_provider_id as string;
     }
     return { providers, defaults, assigned };
   });
@@ -83,9 +86,11 @@ export const setCleaningAssignment = createServerFn({ method: "POST" })
         propertyId: z.string().uuid(),
         logId: z.string().uuid().nullable().optional(),
         reservationId: z.string().uuid().nullable().optional(),
+        // Limpeza criada manualmente: direcionada pela própria linha.
+        statusId: z.string().uuid().nullable().optional(),
         providerId: z.string().uuid().nullable(),
       })
-      .refine((v) => !!v.logId || !!v.reservationId)
+      .refine((v) => !!v.logId || !!v.reservationId || !!v.statusId)
       .parse(i),
   )
   .handler(async ({ data, context }) => {
@@ -99,6 +104,21 @@ export const setCleaningAssignment = createServerFn({ method: "POST" })
       if (!prop?.owner_id || !prov || prov.account_owner_id !== prop.owner_id) {
         throw new Error("Este prestador não pertence à conta deste imóvel.");
       }
+    }
+    if (data.statusId) {
+      // Só linha MANUAL e do mesmo imóvel: este caminho nunca alcança a
+      // limpeza da saída de uma reserva.
+      const { error: manualErr, data: touched } = await sb
+        .from("guest_arrival_status")
+        .update({ assigned_provider_id: data.providerId } as never)
+        .eq("id", data.statusId)
+        .eq("property_id", data.propertyId)
+        .eq("manual" as never, true as never)
+        .select("id");
+      if (manualErr || !touched?.length) {
+        throw new Error("Você não tem permissão para direcionar esta limpeza.");
+      }
+      return { ok: true };
     }
     let existingId: string | null = null;
     for (const [col, val] of [

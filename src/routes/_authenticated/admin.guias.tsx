@@ -823,7 +823,26 @@ function Dashboard() {
           }
         />
             ) : (
-        <div className={`ds-blocks ${groupCount > 1 ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-2.5 lg:space-y-0" : ""}`}>
+        /* GUIAS EM COLUNAS NO COMPUTADOR (mockup aprovado, 02/10/2026:
+           "tornar o layout dos guias com a largura limitada à linha vermelha
+           demarcada... se tiver mais de um status, a tela fique dividida em
+           colunas, como se fossem kanbans... isso SOMENTE para a visão
+           desktop"). Na visão em lista (`split`), a partir de `lg`:
+            · 1 status: a coluna ocupa só a METADE esquerda (a "linha
+              vermelha" do print), em vez de esticar a tela toda;
+            · 2 status: metade para cada;
+            · 3 status: três colunas iguais.
+           Celular e tablet não mudam. A visão em grade (`grid`) fica como
+           era: duas colunas só quando há mais de um status. */
+        <div
+          className={`ds-blocks ${
+            view === "split"
+              ? `lg:grid lg:items-start lg:gap-2.5 lg:space-y-0 ${groupCount >= 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`
+              : groupCount > 1
+                ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-2.5 lg:space-y-0"
+                : ""
+          }`}
+        >
           {[
             { key: "draft", title: "Não publicado", items: draftList, color: "#d8b96a", Icon: PenSquare },
             { key: "att", title: "Precisam de atenção", items: attentionList, color: "#c98c8c", Icon: AlertTriangle },

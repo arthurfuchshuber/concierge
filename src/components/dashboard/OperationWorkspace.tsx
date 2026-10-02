@@ -46,6 +46,8 @@ import {
 } from "@/components/dashboard/CleaningDayDetail";
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
+import { ManualCleaningButton } from "@/components/dashboard/ManualCleaningButton";
+import { ManualCleaningCard } from "@/components/dashboard/ManualCleaningCard";
 import {
   Search,
   X,
@@ -1671,6 +1673,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const cleaningPendingPropIds = useMemo(() => {
     const blocked = new Map<string, "checkout" | "cleaning">();
     for (const r of coRows) {
+      // Limpeza criada manualmente NÃO trava check-in (02/10/2026): ela não
+      // é a limpeza de uma saída, e o servidor também não a considera na
+      // trava de `advanceArrival`. Sem isto a tela bloquearia o botão e o
+      // servidor aceitaria — as duas pontas discordando.
+      if (r.manual) continue;
       if (r.status === "pending") blocked.set(r.propertyId, "checkout");
       else if (r.status === "done" && !blocked.has(r.propertyId)) blocked.set(r.propertyId, "cleaning");
     }
@@ -1683,6 +1690,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     // e não aparecem em coRows — sem isso o imóvel liberava check-in mesmo com
     // a limpeza da estadia anterior em aberto.
     for (const r of cleaningRows) {
+      if (r.manual) continue;
       if (!blocked.has(r.propertyId)) blocked.set(r.propertyId, "cleaning");
     }
     return blocked;
@@ -3046,6 +3054,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const opActions =
           view === "resumo" ? undefined : (
             <>
+              {/* "NOVA LIMPEZA" (mockup aprovado, 02/10/2026: "sobre o botão
+                  de adicionar, está ótimo"): o "+" entra na mesma peça dos
+                  Filtros, no Kanban e na Limpeza. Só aparece para quem pode
+                  criar — o próprio componente decide e, se não puder, não
+                  desenha nada (a peça fica como era). */}
+              <ManualCleaningButton />
               {view === "limpeza" && cleaningPeriod && (
                 /* PERÍODO NO LUGAR DO INTERRUPTOR (pedido explícito,
                    23/09/2026). Com período personalizado o interruptor
@@ -3459,6 +3473,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               total por dia". Cards e gráficos leem como um grupo só; o que os
               separa do cabeçalho é o `ds-lead-block` (24px). */}
           <div className="ds-card-grid ds-lead-block mt-6">
+            {/* BUSCA + AÇÕES ACIMA DOS CARTÕES (pedido explícito, 02/10/2026,
+                print marcado: "mover essa linha de filtros para cima dos
+                cards, tanto na aba limpeza quanto registros"). Antes ficava
+                entre os cartões e os gráficos. Continua dentro do mesmo
+                grupo de 10px — só mudou de posição. */}
+            <SearchActionRow
+              value={opSearch}
+              onChange={setOpSearch}
+              placeholder="Buscar por imóvel, proprietário, cidade…"
+              actions={opActions}
+            />
             <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
               <div className="col-span-1">
                 <StatDisplayCard
@@ -3483,13 +3508,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 />
               </div>
             </div>
-
-            <SearchActionRow
-              value={opSearch}
-              onChange={setOpSearch}
-              placeholder="Buscar por imóvel, proprietário, cidade…"
-              actions={opActions}
-            />
 
             {/* Limpeza completa só entra no custo depois de aprovada (pedido
               explícito, 17/09/2026). O bloco só existe quando há pendência. */}
@@ -9082,7 +9100,7 @@ function ArrivalGroup({
   const noPrazo = rows.filter((r) => !atrasado(r));
   const separar = atrasados.length > 0 && noPrazo.length > 0;
 
-  const cartao = (r: ArrivalRow) => (
+  const cartaoEstadia = (r: ArrivalRow) => (
     <ArrivalCard
       key={r.logId}
       row={r}
@@ -9109,6 +9127,10 @@ function ArrivalGroup({
       onToggleCleaningTask={onToggleCleaningTask}
     />
   );
+  // Limpeza criada manualmente (02/10/2026): não tem estadia por trás, então
+  // tem card próprio — ver `ManualCleaningCard`.
+  const cartao = (r: ArrivalRow) =>
+    r.manual ? <ManualCleaningCard key={r.logId} row={r} /> : cartaoEstadia(r);
 
   return (
     // gap maior que o "gap-1.5" de antes: dá espaço pro badge de engajamento

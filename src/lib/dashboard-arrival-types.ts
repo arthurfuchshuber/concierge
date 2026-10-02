@@ -70,6 +70,19 @@ export type ArrivalRow = {
   pendingFill: boolean; // true = reserva iCal sem formulário preenchido
   concludedAt?: string | null;
   ical: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null };
+  /**
+   * LIMPEZA CRIADA MANUALMENTE (02/10/2026) — presente só nesses cards, que
+   * não têm estadia por trás (`logId = "manual:<id>"`, `reservationId` nulo).
+   * Tipo e valor já vêm definidos da criação; `reservationLinked` diz se ela
+   * aponta para uma reserva (o hóspede vem em `guestName`). Ver
+   * `manual-cleaning.server.ts`.
+   */
+  manual?: {
+    id: string;
+    cleaningType: "normal" | "completa";
+    priceCents: number | null;
+    reservationLinked: boolean;
+  };
   additionalGuests: Array<{
     logId: string;
     name: string;

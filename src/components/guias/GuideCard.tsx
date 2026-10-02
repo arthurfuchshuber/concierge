@@ -153,7 +153,13 @@ export function GuideCard({
           aria-label="Selecionar guia"
         />
       )}
-      {photo("w-[40%]", false, true)}
+      {/* FOTO QUASE QUADRADA NO COMPUTADOR (mockup aprovado, 02/10/2026: "as
+          imagens dos imóveis fiquem no mesmo formato que o print 2, mais
+          voltadas para quadrados"). No celular os 40% da largura já dão essa
+          proporção; no desktop, com o cartão largo, 40% virava uma faixa
+          comprida. A partir de `lg` a foto tem 141px — com os 132px de altura
+          do cartão, a mesma proporção do celular (1,07:1). */}
+      {photo("w-[40%] lg:w-[141px]", false, true)}
       <div className="flex min-w-0 flex-1 p-3 pr-7">{info}</div>
     </div>
   );

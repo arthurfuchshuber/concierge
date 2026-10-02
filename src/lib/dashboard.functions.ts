@@ -1007,7 +1007,16 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
     if (propIds.length === 0) return { rows: [] };
     const { buildArrivalRows } = await import("@/lib/arrival-board.server");
-    return await buildArrivalRows(context.supabase as never, { kind: data.kind, range: data.range, propIds });
+    const built = await buildArrivalRows(context.supabase as never, { kind: data.kind, range: data.range, propIds });
+    // LIMPEZAS CRIADAS MANUALMENTE (02/10/2026): somadas só aqui, na lista do
+    // painel — ver `manual-cleaning.server.ts`. Ficam fora da lista de
+    // "amanhã": a tela trata uma saída de amanhã já liberada como check-out
+    // antecipado e a puxaria para a fila de hoje, e a manual só pode aparecer
+    // a partir do dia marcado.
+    if (data.kind !== "checkout" || data.range === "tomorrow") return built;
+    const { buildManualCleaningRows } = await import("@/lib/manual-cleaning.server");
+    const manual = await buildManualCleaningRows(context.supabase, propIds, todayISO());
+    return manual.length > 0 ? { rows: [...built.rows, ...manual] } : built;
   });
 
 // ----- Mutations -----
