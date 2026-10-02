@@ -2732,6 +2732,11 @@ export type Database = {
           id: string
           kind: string
           log_id: string | null
+          manual: boolean
+          manual_cleaning_type: string | null
+          manual_created_by: string | null
+          manual_date: string | null
+          manual_reservation_id: string | null
           muted_until: string | null
           note: string | null
           property_id: string
@@ -2762,6 +2767,11 @@ export type Database = {
           id?: string
           kind: string
           log_id?: string | null
+          manual?: boolean
+          manual_cleaning_type?: string | null
+          manual_created_by?: string | null
+          manual_date?: string | null
+          manual_reservation_id?: string | null
           muted_until?: string | null
           note?: string | null
           property_id: string
@@ -2792,6 +2802,11 @@ export type Database = {
           id?: string
           kind?: string
           log_id?: string | null
+          manual?: boolean
+          manual_cleaning_type?: string | null
+          manual_created_by?: string | null
+          manual_date?: string | null
+          manual_reservation_id?: string | null
           muted_until?: string | null
           note?: string | null
           property_id?: string
@@ -2812,6 +2827,13 @@ export type Database = {
             columns: ["log_id"]
             isOneToOne: false
             referencedRelation: "guide_access_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_arrival_status_manual_reservation_id_fkey"
+            columns: ["manual_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "property_reservations"
             referencedColumns: ["id"]
           },
           {
