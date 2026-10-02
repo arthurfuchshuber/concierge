@@ -10,9 +10,9 @@ import { ReauthenticationEmail } from '@/lib/email-templates/reauthentication'
 
 // Configuration
 const SITE_NAME = "ConciergeIA | Top01 de Anfitriões"
-const SENDER_DOMAIN = "notify.guia.anfitriaosigma.com.br"
-const ROOT_DOMAIN = "guia.anfitriaosigma.com.br"
-const FROM_DOMAIN = "guia.anfitriaosigma.com.br"
+const SENDER_DOMAIN = "naoresponder.conciergeia.app"
+const ROOT_DOMAIN = "conciergeia.app"
+const FROM_DOMAIN = "conciergeia.app"
 const SITE_URL = `https://${ROOT_DOMAIN}`
 
 // The SDK handler owns verification, dispatch, and retry semantics; this file
