@@ -1,6 +1,6 @@
 import { SearchActionRow } from "./SearchActionRow";
 import { searchScore } from "@/lib/search-score";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -1505,6 +1505,35 @@ function RecordViewerBody({
   const [cheia, setCheia] = useState(false);
   const current = media[Math.min(idx, media.length - 1)];
   const [editing, setEditing] = useState(false);
+  /* ROLAR PARA O LADO (pedido explícito, 03/10/2026: "não estamos conseguindo
+     rolar a foto para o lado quando tem mais de uma"). Antes só dava para
+     trocar tocando na fileira de miniaturas. Agora o arrasto horizontal no
+     palco troca a mídia — com `touch-action: pan-y` para a rolagem vertical
+     da tela continuar valendo. O toque que termina um arrasto NÃO abre a
+     tela cheia (`arrastou`). No vídeo, o arrasto que nasce na faixa dos
+     controles é do player (barra de progresso), não da troca. */
+  const swipe = useRef<{ x: number; y: number; ok: boolean } | null>(null);
+  const arrastou = useRef(false);
+  const last = media.length - 1;
+  const go = (d: number) => setIdx((i) => Math.max(0, Math.min(last, Math.min(i, last) + d)));
+  const onStageDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (media.length < 2) return;
+    arrastou.current = false;
+    const r = e.currentTarget.getBoundingClientRect();
+    const naBarraDoVideo = current.kind === "video" && e.clientY > r.bottom - 56;
+    swipe.current = { x: e.clientX, y: e.clientY, ok: !naBarraDoVideo };
+  };
+  const onStageUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const st = swipe.current;
+    swipe.current = null;
+    if (!st || !st.ok) return;
+    const dx = e.clientX - st.x;
+    const dy = e.clientY - st.y;
+    if (Math.abs(dx) >= 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      arrastou.current = true;
+      go(dx < 0 ? 1 : -1);
+    }
+  };
 
   return (
     <>
@@ -1531,7 +1560,14 @@ function RecordViewerBody({
         <span className="block truncate text-[10px] leading-tight text-muted-foreground">{reservationLine}</span>
       </DialogHeader>
 
-      <div className={`relative ${VIEWER_STAGE} overflow-hidden bg-black`}>
+      <div
+        className={`relative ${VIEWER_STAGE} touch-pan-y overflow-hidden bg-black`}
+        onPointerDown={onStageDown}
+        onPointerUp={onStageUp}
+        onPointerCancel={() => {
+          swipe.current = null;
+        }}
+      >
         <ViewerStage record={current} />
         {/* A mídia inteira abre a tela cheia. Fica ATRÁS das etiquetas e do
             player de vídeo (z-0), então nem o controle do vídeo nem os
@@ -1541,7 +1577,13 @@ function RecordViewerBody({
             {current.kind === "photo" && (
               <button
                 type="button"
-                onClick={() => setCheia(true)}
+                onClick={() => {
+                  if (arrastou.current) {
+                    arrastou.current = false;
+                    return;
+                  }
+                  setCheia(true);
+                }}
                 aria-label="Abrir em tela cheia"
                 className="absolute inset-0 z-0 cursor-zoom-in"
               />
@@ -1625,7 +1667,13 @@ function RecordViewerBody({
       )}
 
       {media.length > 1 && (
-        <div className="ds-scroll-x flex gap-1.5 px-3.5 pt-2.5">
+        /* FAIXA CINZA LARGA (pedido: "essa faixa abaixo das imagens, não sei do
+            que se trata"). Eram as MINIATURAS: o `ds-scroll-x` põe
+            `min-width: max-content` nos filhos, e o `max-content` da foto é o
+            tamanho ORIGINAL dela — a miniatura de 44px virava uma faixa da
+            largura da tela. Aqui a fileira usa só `flex` + `overflow-x-auto`
+            e a foto fica por cima (`absolute inset-0`), sem tamanho próprio. */
+        <div className="flex gap-1.5 overflow-x-auto px-3.5 pt-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {media.map((m, i) => {
             const on = i === Math.min(idx, media.length - 1);
             return (
@@ -1639,7 +1687,7 @@ function RecordViewerBody({
                 }`}
               >
                 {m.kind === "photo" && m.url ? (
-                  <img src={m.url} alt="" className="size-full object-cover" />
+                  <img src={m.url} alt="" className="absolute inset-0 size-full object-cover" />
                 ) : (
                   <RecordCover record={{ ...record, kind: m.kind }} size="xs" />
                 )}

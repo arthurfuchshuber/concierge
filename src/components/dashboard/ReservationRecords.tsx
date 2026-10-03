@@ -766,9 +766,9 @@ export function RecordBlock({
                       }`}
                     >
                       {it.kind === "photo" && it.url ? (
-                        <img src={it.url} alt="" className="size-full object-cover" loading="lazy" />
+                        <img src={it.url} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
                       ) : it.kind === "video" && it.url ? (
-                        <video src={`${it.url}#t=0.1`} preload="metadata" muted playsInline className="size-full object-cover" />
+                        <video src={`${it.url}#t=0.1`} preload="metadata" muted playsInline className="absolute inset-0 size-full object-cover" />
                       ) : (
                         <span className="grid size-full place-items-center text-muted-foreground">
                           {it.kind === "audio" ? <Mic className="size-3.5" /> : <FileText className="size-3.5" />}
