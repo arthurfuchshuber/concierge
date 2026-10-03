@@ -1317,6 +1317,21 @@ export type RecordMedia = {
   createdAt: string;
 };
 
+/**
+ * UMA PENDÊNCIA EM ABERTO, em forma enxuta — alimenta o tooltip do "Ver só
+ * elas" (resumo por urgência e por imóvel). Vem da MESMA leitura dos
+ * contadores, sem o teto de linhas da lista: o tooltip sempre fecha com o
+ * número da faixa.
+ */
+export type PendingItem = {
+  id: string;
+  propertyId: string;
+  propertyName: string;
+  category: RecordCategory;
+  title: string;
+  createdAt: string;
+};
+
 export type AccountRecordsResult = {
   records: AccountRecord[];
   /** Total por categoria em TODO o histórico visível (alimenta os chips). */
@@ -1334,6 +1349,8 @@ export type AccountRecordsResult = {
    */
   pendingOpen: number;
   pendingProperties: number;
+  /** As pendências em aberto, da mais antiga para a mais nova. */
+  pendingItems: PendingItem[];
   /** true quando o histórico passou do teto de leitura. */
   truncated: boolean;
   /** Primeiro/último dia (SP) com registro no recorte de imóveis — limita o calendário. */
@@ -1394,6 +1411,7 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       totalOpen: 0,
       pendingOpen: 0,
       pendingProperties: 0,
+      pendingItems: [],
       truncated: false,
     };
     if (propIds.length === 0) return empty;
@@ -1508,12 +1526,16 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     const counts = emptyCounts();
     const openCounts = emptyCounts();
     const pendingPropertyIds = new Set<string>();
+    const pendingRows: typeof all = [];
     for (const r of primaries) {
       if (counts[r.category] === undefined) continue;
       counts[r.category] += 1;
       if (isOpen(r.task_id)) {
         openCounts[r.category] += 1;
-        if (isPendingCategory(r.category)) pendingPropertyIds.add(r.property_id);
+        if (isPendingCategory(r.category)) {
+          pendingPropertyIds.add(r.property_id);
+          pendingRows.push(r);
+        }
       }
     }
 
@@ -1584,7 +1606,9 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     }
 
     // Imóvel + proprietário só das linhas que vão de fato aparecer.
-    const usedPropIds = Array.from(new Set(selected.map((r) => r.property_id)));
+    const usedPropIds = Array.from(
+      new Set([...selected.map((r) => r.property_id), ...pendingRows.map((r) => r.property_id)]),
+    );
     const propById = new Map<string, { name: string; ownerContactId: string | null }>();
     if (usedPropIds.length > 0) {
       const { data: props } = await supabase
@@ -1695,6 +1719,19 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     });
 
     const total = primaries.length;
+    const pendingItems: PendingItem[] = pendingRows
+      .map((r) => {
+        const first = (r.body ?? "").trim().split("\n")[0]?.trim() ?? "";
+        return {
+          id: r.id,
+          propertyId: r.property_id,
+          propertyName: propById.get(r.property_id)?.name ?? "Sem nome",
+          category: r.category,
+          title: first || "Sem título",
+          createdAt: r.created_at,
+        };
+      })
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     const totalOpen = Object.values(openCounts).reduce((a, b) => a + b, 0);
     const pendingOpen = (Object.keys(openCounts) as RecordCategory[])
       .filter(isPendingCategory)
@@ -1707,6 +1744,7 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       totalOpen,
       pendingOpen,
       pendingProperties: pendingPropertyIds.size,
+      pendingItems,
       truncated: all.length >= ACCOUNT_RECORDS_SCAN_LIMIT,
       bounds,
     };

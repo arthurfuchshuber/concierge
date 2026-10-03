@@ -92,6 +92,7 @@ import { DictationField } from "@/components/dashboard/RecordSituationSheet";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
 import { PENDING_CATEGORIES } from "@/lib/record-pending";
 import { useAntiClipBar } from "@/hooks/useAntiClipBar";
+import { PendingSummary } from "@/components/dashboard/PendingSummary";
 import { stableMediaUrl, warmImages } from "@/lib/stable-media-url";
 import { listTaskLinkOptions, restoreTask, setTaskStatus } from "@/lib/tasks.functions";
 import {
@@ -566,6 +567,8 @@ export function RecordsWorkspace() {
   const counts = q.data?.counts;
 
   const chipsBarRef = useAntiClipBar<HTMLDivElement>();
+  /** Imóvel escolhido no tooltip de pendências (desfeito junto com "Ver tudo"). */
+  const [pendingFocus, setPendingFocus] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
@@ -711,6 +714,7 @@ export function RecordsWorkspace() {
     setGroupBy("property");
     setOwnerFilters([]);
     setPropertyFilters([]);
+    setPendingFocus(null);
   }
 
   const pageTitle = (() => {
@@ -857,14 +861,43 @@ export function RecordsWorkspace() {
                   "Nada em aberto por aqui."
                 )}
               </p>
-              <button
-                type="button"
-                onClick={() => setOnlyOpen((v) => !v)}
-                aria-pressed={onlyOpen}
-                className="shrink-0 rounded-[10px] bg-[#b4545c] px-3 py-2 text-[11.5px] font-bold text-white transition-opacity hover:opacity-90"
-              >
-                {onlyOpen ? "Ver tudo" : "Ver só elas"}
-              </button>
+              {onlyOpen ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOnlyOpen(false);
+                    // Se o filtro nasceu de um imóvel escolhido no tooltip, "Ver
+                    // tudo" desfaz os dois.
+                    if (pendingFocus) {
+                      setPropertyFilters([]);
+                      setPendingFocus(null);
+                    }
+                  }}
+                  aria-pressed
+                  className="shrink-0 rounded-[10px] bg-[#b4545c] px-3 py-2 text-[11.5px] font-bold text-white transition-opacity hover:opacity-90"
+                >
+                  Ver tudo
+                </button>
+              ) : (
+                <PendingSummary
+                  items={q.data?.pendingItems ?? []}
+                  tones={CARD_ICON_TONE}
+                  onApply={(propertyId) => {
+                    setOnlyOpen(true);
+                    if (propertyId) {
+                      setPropertyFilters([propertyId]);
+                      setPendingFocus(propertyId);
+                    }
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-[10px] bg-[#b4545c] px-3 py-2 text-[11.5px] font-bold text-white transition-opacity hover:opacity-90"
+                  >
+                    Ver só elas
+                  </button>
+                </PendingSummary>
+              )}
             </div>
           )}
 
@@ -1035,29 +1068,36 @@ function CategoryChip({
   active: boolean;
   onClick: () => void;
 }) {
-  const hasOpen = open !== null && open > 0;
+  /* MESMA PEÇA DOS BOTÕES DE FILTRO/BUSCA (03/10/2026): casca `ds-3d` sobre
+     `bg-card`, altura `--ds-action-h`, raio 9px no celular e 13px no computador,
+     texto de 12px/negrito, cinza que acende no hover. A ÚNICA cor é a do
+     status (o ícone da categoria) — o resto é neutro. */
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[11.5px] font-bold transition-colors ${
-        hasOpen ? "bg-[#c98c8c]/15 hover:bg-[#c98c8c]/25" : "bg-foreground/[0.06] hover:bg-foreground/[0.1]"
+      className={`ds-3d ds-3d-hover relative inline-flex h-[var(--ds-action-h)] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[9px] bg-card px-3 text-[12px] font-bold transition-colors lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px] ${
+        active ? "bg-secondary/50 text-foreground" : "text-muted-foreground hover:text-foreground"
       }`}
-      style={active ? { boxShadow: `inset 0 0 0 1.5px ${tone ?? "var(--foreground)"}` } : undefined}
+      style={
+        active
+          ? { boxShadow: `inset 0 0 0 1.5px color-mix(in oklab, ${tone ?? "var(--foreground)"} 70%, transparent)` }
+          : undefined
+      }
     >
-      {Icon && <Icon className="size-3.5" style={{ color: tone }} strokeWidth={2} />}
-      <span style={hasOpen ? { color: tone } : undefined}>{label}</span>
+      {Icon && <Icon className="size-[14px] shrink-0" style={{ color: tone }} strokeWidth={2} />}
+      <span>{label}</span>
       <span className="tabular-nums">
         {loading ? (
           "—"
         ) : open !== null ? (
           <>
-            <span className={hasOpen ? "font-extrabold" : "font-extrabold text-muted-foreground"}>{open}</span>
+            <span className={`font-extrabold ${open > 0 ? "text-foreground" : ""}`}>{open}</span>
             <span className="font-semibold text-muted-foreground">/{total}</span>
           </>
         ) : (
-          <span className="font-extrabold">{total}</span>
+          <span className="font-extrabold text-foreground">{total}</span>
         )}
       </span>
     </button>
