@@ -91,6 +91,7 @@ import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import { DictationField } from "@/components/dashboard/RecordSituationSheet";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
 import { PENDING_CATEGORIES } from "@/lib/record-pending";
+import { useAntiClipBar } from "@/hooks/useAntiClipBar";
 import { stableMediaUrl, warmImages } from "@/lib/stable-media-url";
 import { listTaskLinkOptions, restoreTask, setTaskStatus } from "@/lib/tasks.functions";
 import {
@@ -564,6 +565,7 @@ export function RecordsWorkspace() {
   );
   const counts = q.data?.counts;
 
+  const chipsBarRef = useAntiClipBar<HTMLDivElement>();
   const [search, setSearch] = useState("");
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
@@ -801,7 +803,11 @@ export function RecordsWorkspace() {
           {/* FILTROS EM LINHA (mockup 2, aprovado 03/10/2026): no lugar dos seis
               cartões de contagem. Cada etiqueta filtra por categoria; nas que
               abrem pendência o número é "abertas/total" — colado, sem espaço. */}
-          <div className="-mx-3.5 flex gap-1.5 overflow-x-auto px-3.5 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+          {/* ANTI-CORTE + LARGURA LIMITADA (03/10/2026): a barra fica entre as
+              MESMAS laterais da busca e da faixa (sem sangrar até a borda da
+              tela) e usa a regra global `useAntiClipBar` — nenhuma etiqueta
+              aparece pela metade; a sobra vira espaçamento entre as visíveis. */}
+          <div ref={chipsBarRef} className="ds-scroll-x w-full max-w-full gap-1.5">
             <CategoryChip
               label="Todos"
               total={q.data?.total ?? 0}
@@ -1312,7 +1318,7 @@ const PropertyRow = forwardRef<
     >
       <span
         className={`grid size-[30px] shrink-0 place-items-center rounded-[10px] ${
-          pending ? "bg-[#c98c8c]/25 text-[#c98c8c]" : "bg-secondary text-muted-foreground"
+          pending ? "bg-[#c98c8c]/25 text-[#c98c8c]" : "bg-foreground/[0.1] text-muted-foreground"
         }`}
       >
         {pending ? <CircleAlert className="size-4" /> : <Camera className="size-4" />}
