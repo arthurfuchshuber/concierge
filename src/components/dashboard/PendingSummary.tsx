@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ChevronRight, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   FILTER_PANEL_CLASS,
@@ -61,6 +61,7 @@ export function PendingSummary({
   tones,
   onApply,
   onOpenItem,
+  viewerOpen = false,
   children,
 }: {
   items: PendingItem[];
@@ -69,13 +70,23 @@ export function PendingSummary({
   /** `null` = filtrar todas as pendências; id = só aquele imóvel. */
   onApply: (propertyId: string | null) => void;
   /** Tocar numa pendência da lista: o tooltip fecha e a pendência abre. */
-  onOpenItem: (item: PendingItem) => void;
+  onOpenItem: (item: PendingItem) => boolean;
+  /** A pendência oficial está aberta por cima: o tooltip espera e volta depois. */
+  viewerOpen?: boolean;
   /** O gatilho (o botão "Ver só elas"). */
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"urgency" | "properties">("urgency");
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Voltar ao tooltip depois de fechar a pendência aberta por ele.
+  const returning = useRef(false);
+  useEffect(() => {
+    if (!viewerOpen && returning.current) {
+      returning.current = false;
+      setOpen(true);
+    }
+  }, [viewerOpen]);
 
   const data = useMemo(() => {
     const ages = items.map((i) => daysAgo(i.createdAt));
@@ -130,10 +141,20 @@ export function PendingSummary({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="px-4 pb-4 pt-3.5">
-          <p className="ds-eyebrow flex items-center gap-2 text-[10px] tracking-[0.18em] text-muted-foreground">
-            <span className="shrink-0">Resumo das pendências</span>
-            <span aria-hidden className="h-px min-w-0 flex-1 bg-foreground/10" />
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="ds-eyebrow flex min-w-0 flex-1 items-center gap-2 text-[10px] tracking-[0.18em] text-muted-foreground">
+              <span className="shrink-0">Resumo das pendências</span>
+              <span aria-hidden className="h-px min-w-0 flex-1 bg-foreground/10" />
+            </p>
+            <button
+              type="button"
+              aria-label="Fechar"
+              onClick={close}
+              className="grid size-[26px] shrink-0 place-items-center rounded-md bg-secondary/60 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <X className="size-3.5" strokeWidth={2.2} />
+            </button>
+          </div>
 
           {/* TOPO FIXO */}
           <div className="mt-2.5 flex items-center gap-2.5">
@@ -258,8 +279,14 @@ export function PendingSummary({
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    onOpenItem(it);
-                                    close();
+                                    if (onOpenItem(it)) {
+                                      // Esconde o tooltip, guardando aba e imóvel: ao
+                                      // fechar a pendência, ele reaparece como estava.
+                                      returning.current = true;
+                                      setOpen(false);
+                                    } else {
+                                      close();
+                                    }
                                   }}
                                   className="flex w-full items-center gap-2 rounded-[7px] py-1.5 pr-1 text-left text-[11.5px] transition-colors hover:bg-foreground/[0.06]"
                                 >
@@ -281,25 +308,18 @@ export function PendingSummary({
             )}
           </div>
 
-          <div className="mt-3 flex gap-2">
+          {expandedProp && (
             <button
               type="button"
               onClick={() => {
-                onApply(expandedProp ? expandedProp.id : null);
+                onApply(expandedProp.id);
                 close();
               }}
-              className="min-w-0 flex-1 truncate rounded-[9px] bg-[#b4545c] px-3 py-2.5 text-[12.5px] font-extrabold text-white transition-opacity hover:opacity-90"
+              className="mt-3 block w-full truncate rounded-[9px] bg-[#b4545c] px-3 py-2.5 text-[12.5px] font-extrabold text-white transition-opacity hover:opacity-90"
             >
-              {expandedProp ? `Ver só ${expandedProp.name}` : "Filtrar lista"}
+              Ver só {expandedProp.name}
             </button>
-            <button
-              type="button"
-              onClick={close}
-              className="shrink-0 rounded-[9px] bg-foreground/[0.07] px-3.5 py-2.5 text-[12px] font-bold transition-colors hover:bg-foreground/[0.12]"
-            >
-              Fechar
-            </button>
-          </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>
