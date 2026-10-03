@@ -1791,7 +1791,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       if (providerFilters.length > 0) {
         const bd = cleaningBoardQ.data;
         const resId = r.reservationId ?? (r.logId.startsWith("ical:") ? r.logId.slice(5) : null);
-        const assignedId = bd ? (resId && bd.assigned[`r:${resId}`]) || bd.assigned[`l:${r.logId}`] : null;
+        const manualId = r.logId.startsWith("manual:") ? r.logId.slice(7) : null;
+        const assignedId = bd
+          ? (manualId && bd.assigned[`s:${manualId}`]) ||
+            (resId && bd.assigned[`r:${resId}`]) ||
+            bd.assigned[`l:${r.logId}`]
+          : null;
         const assignedName = assignedId ? (bd?.providers.find((p) => p.id === assignedId)?.name ?? null) : null;
         const providerName = assignedName ?? propertyProviderById.get(r.propertyId) ?? null;
         const matches = providerName
