@@ -44,6 +44,8 @@ export function PanelHeading({
   dotColor,
   right,
   className,
+  afterTitle,
+  titleClassName,
 }: {
   title: string;
   /** Marcador próprio (ícone, ponto degradê). Vence `dotColor`. */
@@ -53,6 +55,10 @@ export function PanelHeading({
   /** O que fecha a linha à direita — contagem, aviso, `InfoHint`. */
   right?: ReactNode;
   className?: string;
+  /** Selo colado ao título (ex.: "4 imóveis") — antes do fio, não depois. */
+  afterTitle?: ReactNode;
+  /** Troca o tamanho/espaçamento do título (padrão: 10px, para as abas densas). */
+  titleClassName?: string;
 }) {
   return (
     <div className={`flex items-center gap-2.5 ${className ?? "mb-3"}`}>
@@ -64,9 +70,10 @@ export function PanelHeading({
             style={{ background: dotColor }}
           />
         ) : null)}
-      <span className="ds-eyebrow shrink-0 text-[10px] tracking-[0.2em] text-muted-foreground">
+      <span className={`ds-eyebrow shrink-0 text-muted-foreground ${titleClassName ?? "text-[10px] tracking-[0.2em]"}`}>
         {title}
       </span>
+      {afterTitle ? <span className="shrink-0">{afterTitle}</span> : null}
       <span
         aria-hidden
         className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"

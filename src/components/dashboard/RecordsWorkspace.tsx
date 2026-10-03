@@ -1,6 +1,6 @@
 import { SearchActionRow } from "./SearchActionRow";
 import { searchScore } from "@/lib/search-score";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -27,6 +27,8 @@ import {
   ListChecks,
   CalendarRange,
   Users,
+  Pointer,
+  ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
@@ -73,6 +75,7 @@ import {
   PanelHeading,
   SectionLabel,
   CountPill,
+  ACTION_BAR,
   ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
   ACTION_ICON,
@@ -173,6 +176,122 @@ function fmtShortDate(iso: string): string {
   if (diff === 0) return "hoje";
   if (diff === 1) return "ontem";
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
+/**
+ * ORDEM DOS QUADRANTES (mockup aprovado, 03/10/2026: "um botão dentro do
+ * quadrante de cada status para ORDENAR a lista" — e, depois, "não quero a
+ * palavra, quero apenas o ícone da seta cima baixo"). Cada quadrante tem a
+ * sua ordem. O PADRÃO de cada um é a ordem que a tela já tinha: em "Precisam
+ * de atenção", a pendência mais antiga primeiro (antiguidade é atraso); em
+ * "Em dia", o imóvel com o registro mais recente primeiro.
+ */
+type AttentionSort = "oldest" | "newest" | "count" | "name" | "owner";
+type CalmSort = "recent" | "oldest" | "count" | "name" | "owner";
+
+const ATTENTION_SORT_OPTIONS: { value: AttentionSort; label: string }[] = [
+  { value: "oldest", label: "Pendência mais antiga primeiro" },
+  { value: "newest", label: "Pendência mais recente primeiro" },
+  { value: "count", label: "Mais pendências primeiro" },
+  { value: "name", label: "Nome do imóvel (A–Z)" },
+  { value: "owner", label: "Proprietário (A–Z)" },
+];
+const CALM_SORT_OPTIONS: { value: CalmSort; label: string }[] = [
+  { value: "recent", label: "Último registro mais recente" },
+  { value: "oldest", label: "Último registro mais antigo" },
+  { value: "count", label: "Mais registros primeiro" },
+  { value: "name", label: "Nome do imóvel (A–Z)" },
+  { value: "owner", label: "Proprietário (A–Z)" },
+];
+
+const byName = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label, "pt-BR");
+const byOwner = (a: { sublabel: string | null; label: string }, b: { sublabel: string | null; label: string }) =>
+  (a.sublabel ?? "").localeCompare(b.sublabel ?? "", "pt-BR") || byName(a, b);
+const latestIso = (rs: { createdAt: string }[]) => rs.reduce((m, r) => (r.createdAt > m ? r.createdAt : m), "");
+const oldestIso = (rs: { createdAt: string }[]) => rs.reduce((m, r) => (m === "" || r.createdAt < m ? r.createdAt : m), "");
+
+/**
+ * O BOTÃO DE ORDENAR: só o ícone de seta para cima e para baixo, na mesma
+ * peça (`ACTION_BAR`) dos botões de ação — mesma cor, altura e raio. Fora da
+ * ordem padrão, um ponto de destaque no canto avisa que a lista está
+ * reordenada (mesmo recurso do botão Filtros).
+ */
+function SortMenu<T extends string>({
+  value,
+  defaultValue,
+  options,
+  onChange,
+}: {
+  value: T;
+  defaultValue: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <div className={`${ACTION_BAR} !w-auto shrink-0`}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+            aria-label="Ordenar a lista"
+            title="Ordenar a lista"
+          >
+            <ArrowUpDown className={ACTION_ICON} />
+            {value !== defaultValue && (
+              <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-accent" />
+            )}
+          </button>
+        </PopoverTrigger>
+      </div>
+      <PopoverContent
+        align="end"
+        sideOffset={FILTER_PANEL_OFFSET}
+        collisionPadding={FILTER_PANEL_COLLISION}
+        className={FILTER_PANEL_CLASS}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div role="radiogroup" aria-label="Ordenar imóveis por">
+          <p className="ds-eyebrow px-3.5 pb-1 pt-3 text-[12px] tracking-[0.09em] text-muted-foreground">
+            Ordenar imóveis por
+          </p>
+          {options.map((o, i) => (
+            <FilterOptionRow
+              key={o.value}
+              label={o.label}
+              selected={value === o.value}
+              last={i === options.length - 1}
+              onClick={() => {
+                onChange(o.value);
+                setOpen(false);
+              }}
+            />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** "há 5 dias" — a idade em palavras, para a linha de pendências. */
+function fmtAgo(iso: string): string {
+  const d = new Date(iso);
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const now = new Date();
+  const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diff = Math.max(0, Math.round((t0.getTime() - day.getTime()) / 86_400_000));
+  if (diff === 0) return "hoje";
+  if (diff === 1) return "há 1 dia";
+  return `há ${diff} dias`;
+}
+
+/** "hoje, 09:33" / "ontem, 14:05" / "01/10" — o último registro do imóvel. */
+function fmtLast(iso: string): string {
+  const base = fmtShortDate(iso);
+  if (base !== "hoje" && base !== "ontem") return base;
+  const hm = new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return `${base}, ${hm}`;
 }
 
 /**
@@ -303,6 +422,8 @@ export function RecordsWorkspace() {
 
   const [category, setCategory] = useState<RecordCategory | null>(null);
   const [onlyOpen, setOnlyOpen] = useState(false);
+  const [attentionSort, setAttentionSort] = useState<AttentionSort>("oldest");
+  const [calmSort, setCalmSort] = useState<CalmSort>("recent");
   const [groupBy, setGroupBy] = useState<GroupBy>("property");
   const [period, setPeriod] = useState<PeriodRange | null>(null);
   /** Nomes (mesma chave do filtro de proprietário das outras telas). */
@@ -487,9 +608,43 @@ export function RecordsWorkspace() {
   const attentionGroups = byProperty
     ? groups
         .filter((g) => g.pending.length > 0)
-        .sort((a, b) => a.pending[0].createdAt.localeCompare(b.pending[0].createdAt))
+        .sort((a, b) => {
+          const oldest = oldestIso(a.pending).localeCompare(oldestIso(b.pending));
+          switch (attentionSort) {
+            case "newest":
+              return latestIso(b.pending).localeCompare(latestIso(a.pending)) || oldest;
+            case "count":
+              return b.pending.length - a.pending.length || oldest;
+            case "name":
+              return byName(a, b);
+            case "owner":
+              return byOwner(a, b);
+            default:
+              return oldest;
+          }
+        })
     : [];
-  const calmGroups = byProperty ? groups.filter((g) => g.pending.length === 0) : groups;
+  // "Em dia": o padrão ("recent") mantém a ordem que já vinha do banco — os
+  // registros chegam do mais novo para o mais antigo, então o imóvel do
+  // registro mais recente já vem primeiro. Só as outras ordens reordenam.
+  const calmGroups = byProperty
+    ? calmSort === "recent"
+      ? groups.filter((g) => g.pending.length === 0)
+      : groups
+          .filter((g) => g.pending.length === 0)
+          .sort((a, b) => {
+            switch (calmSort) {
+              case "oldest":
+                return latestIso(a.rest).localeCompare(latestIso(b.rest));
+              case "count":
+                return b.rest.length - a.rest.length || latestIso(b.rest).localeCompare(latestIso(a.rest));
+              case "name":
+                return byName(a, b);
+              default:
+                return byOwner(a, b);
+            }
+          })
+    : groups;
   const attentionCount = attentionGroups.reduce((n, g) => n + g.pending.length, 0);
 
   const renderCard = (g: Group) => (
@@ -614,15 +769,19 @@ export function RecordsWorkspace() {
 
         {/* CARTÕES + GRÁFICO — mesmo grupo da Limpeza (10px entre eles). */}
         <div className="ds-card-grid">
-          {/* BUSCA + AÇÕES ACIMA DOS CARTÕES (pedido explícito, 02/10/2026:
-              "mover essa linha de filtros para cima dos cards, tanto na aba
-              limpeza quanto registros"). Antes vinha logo depois deles. */}
-          <SearchActionRow
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar por imóvel, proprietário…"
-            actions={recordActions}
-          />
+          {/* O QUE ESTES CARTÕES FAZEM (mockup A1, 03/10/2026: "o usuário não
+              sabe onde tem que clicar"). Eles já eram filtros — mas nada
+              dizia isso. Agora a faixa acima diz o que são e o que o toque
+              faz; o filtro ligado continua marcado no próprio cartão. */}
+          <div className="flex items-center justify-between gap-2 px-0.5">
+            <span className="ds-eyebrow truncate text-[12.5px] tracking-[0.09em] text-muted-foreground">
+              Tipos de registro
+            </span>
+            <span className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] text-muted-foreground">
+              <Pointer className="size-[15px]" />
+              {category ? "Toque de novo para limpar" : "Toque para filtrar"}
+            </span>
+          </div>
           <div className="ds-card-grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
             {CARDS.map((c) => (
               <StatCard
@@ -637,6 +796,48 @@ export function RecordsWorkspace() {
               />
             ))}
           </div>
+          {/* BUSCA + AÇÕES ABAIXO DOS CARTÕES (pedido explícito, 03/10/2026:
+              "retorne a linha de campo de buscas + filtros para baixo dos
+              cards principais"). Desfaz a subida de 02/10/2026. */}
+          <SearchActionRow
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por imóvel, proprietário…"
+            actions={recordActions}
+          />
+
+          {/* RESUMO DO QUE ESTÁ ABERTO (mockup A1, 03/10/2026): a primeira coisa
+              que a pessoa precisa saber — quanto trabalho há — numa frase, com
+              o atalho para ver só isso. Reaproveita o filtro "só em aberto"
+              que já existe; nada novo na consulta. */}
+          {(attentionCount > 0 || onlyOpen) && (
+            <div className="flex items-center gap-3 rounded-[14px] border border-[#c98c8c]/30 bg-[#c98c8c]/12 px-3.5 py-3">
+              <p className="min-w-0 flex-1 text-[13.5px] leading-snug">
+                {attentionCount > 0 ? (
+                  <>
+                    <b className="font-extrabold">
+                      {attentionCount} {attentionCount === 1 ? "pendência" : "pendências"}
+                    </b>{" "}
+                    esperando solução em{" "}
+                    <b className="font-extrabold">
+                      {attentionGroups.length} {attentionGroups.length === 1 ? "imóvel" : "imóveis"}
+                    </b>
+                    .
+                  </>
+                ) : (
+                  "Nada em aberto por aqui."
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => setOnlyOpen((v) => !v)}
+                aria-pressed={onlyOpen}
+                className="shrink-0 rounded-[11px] bg-[#b4545c] px-3 py-2.5 text-[13px] font-extrabold text-white transition-opacity hover:opacity-90"
+              >
+                {onlyOpen ? "Ver tudo" : "Ver só elas"}
+              </button>
+            </div>
+          )}
 
 
         {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
@@ -687,18 +888,31 @@ export function RecordsWorkspace() {
                     some e a contagem na pílula neutra. */}
                   <PanelHeading
                     title="Precisam de atenção"
+                    titleClassName="text-[12.5px] tracking-[0.09em]"
                     dot={
-                      <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-[#c98c8c]/12 text-[#c98c8c]">
-                        <CircleAlert className="size-[13px]" strokeWidth={2.2} />
+                      <span className="grid size-[26px] shrink-0 place-items-center rounded-lg bg-[#c98c8c]/12 text-[#c98c8c]">
+                        <CircleAlert className="size-[15px]" strokeWidth={2.2} />
+                      </span>
+                    }
+                    afterTitle={
+                      <span className="rounded-full bg-foreground/[0.06] px-2.5 py-1 text-[12.5px] font-bold tabular-nums text-muted-foreground">
+                        {attentionGroups.length} {attentionGroups.length === 1 ? "imóvel" : "imóveis"}
                       </span>
                     }
                     right={
-                      <CountPill>
-                        {attentionCount} {attentionCount === 1 ? "pendência" : "pendências"}
-                      </CountPill>
+                      <SortMenu
+                        value={attentionSort}
+                        defaultValue="oldest"
+                        options={ATTENTION_SORT_OPTIONS}
+                        onChange={setAttentionSort}
+                      />
                     }
                     className="mb-1 px-1.5"
                   />
+                  <p className="flex items-center justify-center gap-1.5 pb-1 text-[12.5px] text-muted-foreground">
+                    <Pointer className="size-[15px]" />
+                    Toque numa linha colorida para abrir
+                  </p>
                   <div className="ds-card-grid ds-five-cap">{attentionGroups.map(renderCard)}</div>
                 </div>
               </section>
@@ -715,15 +929,26 @@ export function RecordsWorkspace() {
                 <div className="space-y-1.5">
                   <PanelHeading
                     title="Em dia"
+                    titleClassName="text-[12.5px] tracking-[0.09em]"
                     dot={
-                      <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-[#7fb79a]/12 text-[#7fb79a]">
-                        <CircleCheck className="size-[13px]" strokeWidth={2.2} />
+                      <span className="grid size-[26px] shrink-0 place-items-center rounded-lg bg-[#7fb79a]/12 text-[#7fb79a]">
+                        <CircleCheck className="size-[15px]" strokeWidth={2.2} />
+                      </span>
+                    }
+                    afterTitle={
+                      <span className="rounded-full bg-foreground/[0.06] px-2.5 py-1 text-[12.5px] font-bold tabular-nums text-muted-foreground">
+                        {calmGroups.length} {calmGroups.length === 1 ? "imóvel" : "imóveis"}
                       </span>
                     }
                     right={
-                      <CountPill>
-                        {calmGroups.length} {calmGroups.length === 1 ? "imóvel" : "imóveis"}
-                      </CountPill>
+                      byProperty ? (
+                        <SortMenu
+                          value={calmSort}
+                          defaultValue="recent"
+                          options={CALM_SORT_OPTIONS}
+                          onChange={setCalmSort}
+                        />
+                      ) : undefined
                     }
                     className="mb-1 px-1.5"
                   />
@@ -993,6 +1218,76 @@ function stripeCategory(records: ReadonlyArray<AccountRecord>): RecordCategory |
   return (count.get("cleaning_audit") ?? 0) > 0 ? "cleaning_audit" : null;
 }
 
+/**
+ * A LINHA-BOTÃO DO IMÓVEL (mockup A1 aprovado, 03/10/2026: "podemos seguir
+ * com a Proposta A1 lista fechada"). A queixa era que a tela não dizia onde
+ * tocar: as linhas "Pendências" e "Registros" eram um rótulo de 9px com um
+ * fio — não pareciam botão. Agora cada uma é uma peça inteira, com cor
+ * própria, ícone, texto de 15px/12,5px, as duas primeiras miniaturas e a
+ * seta. Rosa terroso = há o que resolver; neutra = acervo (prova).
+ *
+ * `forwardRef` + spread: o gatilho do Popover (`asChild`) injeta ref, onClick
+ * e aria-* aqui dentro. Título e subtítulo cortam com reticências, nunca
+ * quebram (regra do projeto).
+ */
+const PropertyRow = forwardRef<
+  HTMLButtonElement,
+  {
+    tone: "pending" | "records";
+    title: string;
+    subtitle: string;
+    thumbs: AccountRecord[];
+    open?: boolean;
+  } & React.ButtonHTMLAttributes<HTMLButtonElement>
+>(function PropertyRow({ tone, title, subtitle, thumbs, open, ...rest }, ref) {
+  const pending = tone === "pending";
+  return (
+    <button
+      ref={ref}
+      type="button"
+      {...rest}
+      className={`mt-2.5 flex min-h-[56px] w-full items-center gap-2.5 rounded-[14px] border px-3 py-2 text-left transition-colors ${
+        pending
+          ? "border-[#c98c8c]/30 bg-[#c98c8c]/12 hover:bg-[#c98c8c]/18"
+          : "border-border/50 bg-secondary/40 hover:bg-secondary/60"
+      }`}
+    >
+      <span
+        className={`grid size-[34px] shrink-0 place-items-center rounded-[11px] ${
+          pending ? "bg-[#c98c8c]/25 text-[#c98c8c]" : "bg-secondary text-muted-foreground"
+        }`}
+      >
+        {pending ? <CircleAlert className="size-[18px]" /> : <Camera className="size-[18px]" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={`block truncate text-[15px] font-extrabold leading-tight ${pending ? "ds-falta" : ""}`}>
+          {title}
+        </span>
+        <span className="mt-0.5 block truncate text-[12.5px] leading-tight text-muted-foreground">{subtitle}</span>
+      </span>
+      {thumbs.length > 0 && (
+        <span className="flex shrink-0">
+          {thumbs.slice(0, 2).map((r, i) => (
+            <span
+              key={r.id}
+              className={`relative grid size-[34px] place-items-center overflow-hidden rounded-[9px] bg-gradient-to-br from-secondary/80 to-secondary/40 ring-2 ring-[var(--panel,transparent)] ${
+                i > 0 ? "-ml-2.5" : ""
+              }`}
+            >
+              {r.kind === "photo" && r.url ? (
+                <img src={r.url} alt="" className="absolute inset-0 size-full object-cover" />
+              ) : (
+                <RecordCover record={r} size="xs" />
+              )}
+            </span>
+          ))}
+        </span>
+      )}
+      <ChevronRight className={`size-5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`} />
+    </button>
+  );
+});
+
 function PropertyCard({
   group,
   onOpen,
@@ -1053,7 +1348,7 @@ function PropertyCard({
             mesmo cartão só roubava largura do nome do imóvel. */}
         <span className="ds-card-title block">{group.label}</span>
         {group.sublabel && (
-          <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
+          <span className={`mt-0.5 block truncate text-[12.5px] font-semibold ${CARD_OWNER}`}>
             {ownerLabel(group.sublabel)}
           </span>
         )}
@@ -1072,18 +1367,13 @@ function PropertyCard({
                 à direita, e a cor de alerta continua sendo a de antes. */}
             <Popover open={pendingOpen} onOpenChange={(v) => v !== pendingOpen && onTogglePending()}>
               <PopoverTrigger asChild>
-                <button type="button" className="mb-1 mt-2.5 flex w-full items-center gap-2 text-left">
-                  <span className="ds-falta shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em]">
-                    Pendências
-                  </span>
-                  <span
-                    aria-hidden
-                    className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
-                  />
-                  <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
-                    {group.pending.length}
-                  </span>
-                </button>
+                <PropertyRow
+                  tone="pending"
+                  open={pendingOpen}
+                  title={`${group.pending.length} ${group.pending.length === 1 ? "pendência" : "pendências"}`}
+                  subtitle={`Mais antiga ${fmtAgo(group.pending[0].createdAt)}`}
+                  thumbs={group.pending}
+                />
               </PopoverTrigger>
               <PopoverContent
                 side="top"
@@ -1142,23 +1432,15 @@ function PropertyCard({
                 palavra, linha ou número" — e SEM seta, que o cliente cortou.
                 O acervo abre RECOLHIDO e só um imóvel fica aberto por vez;
                 quem controla isso é a página, não o cartão. */}
-            <button
-              type="button"
+            <PropertyRow
+              tone="records"
+              open={stripOpen}
               onClick={onToggleStrip}
               aria-expanded={stripOpen}
-              className="mb-1 mt-2.5 flex w-full items-center gap-2 text-left"
-            >
-              <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-muted-foreground">
-                Registros
-              </span>
-              <span
-                aria-hidden
-                className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
-              />
-              <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
-                {group.rest.length}
-              </span>
-            </button>
+              title={`${group.rest.length} ${group.rest.length === 1 ? "registro" : "registros"}`}
+              subtitle={`Último: ${fmtLast(group.rest[0].createdAt)}`}
+              thumbs={group.rest}
+            />
             {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
               colunas elásticas elas viravam quadrados gigantes no desktop. */}
             {stripOpen && (

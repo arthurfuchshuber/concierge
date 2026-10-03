@@ -283,7 +283,14 @@ export function MediaLightbox({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex flex-col bg-black"
+      /* `pointer-events-auto` NA RAIZ (pedido explícito, 03/10/2026: "quando a
+         foto/vídeo está expandida, ela não permite ARRASTAR para o lado").
+         A camada vai para o <body>, e o Dialog do Radix que a abriu coloca
+         `pointer-events: none` no <body> enquanto está aberto — a camada
+         herdava isso e o palco NUNCA recebia toque (só os botões, que já
+         tinham `pointer-events-auto`). Arrastar, pinça e toque duplo estavam
+         todos mortos. Medido no navegador: `none` antes, `auto` depois. */
+      className="pointer-events-auto fixed inset-0 z-[100] flex flex-col bg-black"
       role="dialog"
       aria-modal="true"
       aria-label="Mídia em tela cheia"

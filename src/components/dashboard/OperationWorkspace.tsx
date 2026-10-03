@@ -1791,7 +1791,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       if (providerFilters.length > 0) {
         const bd = cleaningBoardQ.data;
         const resId = r.reservationId ?? (r.logId.startsWith("ical:") ? r.logId.slice(5) : null);
-        const assignedId = bd ? (resId && bd.assigned[`r:${resId}`]) || bd.assigned[`l:${r.logId}`] : null;
+        const manualId = r.logId.startsWith("manual:") ? r.logId.slice(7) : null;
+        const assignedId = bd
+          ? (manualId && bd.assigned[`s:${manualId}`]) ||
+            (resId && bd.assigned[`r:${resId}`]) ||
+            bd.assigned[`l:${r.logId}`]
+          : null;
         const assignedName = assignedId ? (bd?.providers.find((p) => p.id === assignedId)?.name ?? null) : null;
         const providerName = assignedName ?? propertyProviderById.get(r.propertyId) ?? null;
         const matches = providerName
@@ -3473,17 +3478,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               total por dia". Cards e gráficos leem como um grupo só; o que os
               separa do cabeçalho é o `ds-lead-block` (24px). */}
           <div className="ds-card-grid ds-lead-block mt-6">
-            {/* BUSCA + AÇÕES ACIMA DOS CARTÕES (pedido explícito, 02/10/2026,
-                print marcado: "mover essa linha de filtros para cima dos
-                cards, tanto na aba limpeza quanto registros"). Antes ficava
-                entre os cartões e os gráficos. Continua dentro do mesmo
-                grupo de 10px — só mudou de posição. */}
-            <SearchActionRow
-              value={opSearch}
-              onChange={setOpSearch}
-              placeholder="Buscar por imóvel, proprietário, cidade…"
-              actions={opActions}
-            />
             <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
               <div className="col-span-1">
                 <StatDisplayCard
@@ -3508,6 +3502,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 />
               </div>
             </div>
+
+            {/* BUSCA + AÇÕES ABAIXO DOS CARTÕES (pedido explícito, 03/10/2026:
+                "retorne a linha de campo de buscas + filtros para baixo dos
+                cards principais — tanto em limpeza quanto em registros").
+                Desfaz a subida de 02/10/2026. */}
+            <SearchActionRow
+              value={opSearch}
+              onChange={setOpSearch}
+              placeholder="Buscar por imóvel, proprietário, cidade…"
+              actions={opActions}
+            />
 
             {/* Limpeza completa só entra no custo depois de aprovada (pedido
               explícito, 17/09/2026). O bloco só existe quando há pendência. */}
