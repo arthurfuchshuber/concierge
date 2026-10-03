@@ -146,4 +146,26 @@ describe("Aba Registros", () => {
     render(<RecordsWorkspace />, { wrapper });
     await waitFor(() => expect(screen.getAllByText(/Casa Charmosa/).length).toBeGreaterThan(0));
   });
+
+  /**
+   * 03/10/2026: a faixa dizia "13 pendências" ao lado de cartões que somavam
+   * 8 + 14 + 1. O número da faixa agora vem do servidor (a mesma leitura dos
+   * cartões) e as etiquetas o decompõem.
+   */
+  it("a faixa de alerta usa o total do servidor", async () => {
+    listMock.mockResolvedValue({
+      records: [rec()],
+      counts: { forgotten: 0, damage: 14, incident: 1, cleaning_audit: 73, maintenance: 8, other: 0 },
+      openCounts: { forgotten: 0, damage: 7, incident: 1, cleaning_audit: 0, maintenance: 5, other: 0 },
+      total: 96,
+      totalOpen: 13,
+      pendingOpen: 13,
+      pendingProperties: 6,
+      truncated: false,
+    });
+    optionsMock.mockResolvedValue({ properties: [], owners: [], providers: [] });
+    render(<RecordsWorkspace />, { wrapper });
+    await waitFor(() => expect(screen.getByText("13 pendências")).toBeTruthy());
+    expect(screen.getByText("6 imóveis")).toBeTruthy();
+  });
 });

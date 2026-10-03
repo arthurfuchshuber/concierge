@@ -27,7 +27,7 @@ import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useImpersonation, useImpersonationQuerySync } from "@/hooks/useImpersonation";
 import { ROUTE_PERMISSION_LIST, permissionForPath } from "@/lib/permissions/routeAreas";
-import { AccessDenied } from "@/components/permissions/AreaGate";
+import { AccessCheckFailed, AccessDenied } from "@/components/permissions/AreaGate";
 import { Skeleton } from "@/components/ui/skeleton";
 
 
@@ -420,6 +420,8 @@ function AdminLayout() {
           ) : needsPlan ? (
             <OnboardingCheckout onSignOut={signOut} />
 
+          ) : routePermission && areaAccess.failed ? (
+            <AccessCheckFailed onRetry={areaAccess.retry} />
           ) : routePermission && !areaAccess.can(routePermission) ? (
             <AccessDenied reason={areaAccess.reasonFor(routePermission)} />
           ) : (

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { isPendingCategory } from "@/lib/record-pending";
 
 // "Registros da reserva" (pedido explícito, 07/09/2026): uma linha do tempo
 // ÚNICA por reserva — foto, vídeo, áudio, arquivo ou nota de
@@ -15,6 +16,52 @@ type AnyClient = { from: (table: string) => any; storage: any; rpc: any };
 
 const BUCKET = "reservation-records";
 const SIGN_TTL_SECONDS = 60 * 60; // 1h — mesmo prazo de signChatAttachmentUrl/signPropertyImages.
+
+/**
+ * URLS ASSINADAS ESTÁVEIS (03/10/2026: "as imagens demoram, deveria ser
+ * instantâneo").
+ *
+ * Cada leitura da aba assinava tudo de novo, e uma assinatura nova é uma URL
+ * nova — o navegador não reconhece como a mesma imagem e baixa de novo. Como a
+ * aba relê a cada minuto, ao voltar para a aba e a cada aviso ao vivo, os
+ * quadradinhos recarregavam sem parar. Aqui a URL de um arquivo é reaproveitada
+ * enquanto ainda tiver folga de validade: mesma URL ⇒ cache do navegador ⇒
+ * imagem na hora (e uma ida a menos ao storage).
+ *
+ * O cache é do processo (cada instância tem o seu); só guarda caminhos que o
+ * chamador já checou que a pessoa pode ver, e some sozinho ao vencer.
+ */
+const SIGNED_URL_CACHE = new Map<string, { url: string; expiresAt: number }>();
+const SIGNED_URL_MIN_REMAINING_MS = 15 * 60_000;
+const SIGNED_URL_CACHE_MAX = 5000;
+
+async function signPathsCached(supabase: AnyClient, paths: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const now = Date.now();
+  const missing: string[] = [];
+  for (const p of paths) {
+    const hit = SIGNED_URL_CACHE.get(p);
+    if (hit && hit.expiresAt - now > SIGNED_URL_MIN_REMAINING_MS) out.set(p, hit.url);
+    else missing.push(p);
+  }
+  if (missing.length === 0) return out;
+  const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrls(missing, SIGN_TTL_SECONDS);
+  const expiresAt = now + SIGN_TTL_SECONDS * 1000;
+  for (const s of (signed ?? []) as Array<{ path: string | null; signedUrl: string | null }>) {
+    if (!s.path || !s.signedUrl) continue;
+    out.set(s.path, s.signedUrl);
+    SIGNED_URL_CACHE.set(s.path, { url: s.signedUrl, expiresAt });
+  }
+  if (SIGNED_URL_CACHE.size > SIGNED_URL_CACHE_MAX) {
+    for (const [k, v] of SIGNED_URL_CACHE) if (v.expiresAt <= now) SIGNED_URL_CACHE.delete(k);
+    // Ainda grande: descarta as mais antigas (Map preserva a ordem de inserção).
+    for (const k of SIGNED_URL_CACHE.keys()) {
+      if (SIGNED_URL_CACHE.size <= SIGNED_URL_CACHE_MAX) break;
+      SIGNED_URL_CACHE.delete(k);
+    }
+  }
+  return out;
+}
 
 /**
  * Categorias na ORDEM definida pelo cliente (07/09/2026) — a mesma ordem em
@@ -1278,6 +1325,15 @@ export type AccountRecordsResult = {
   openCounts: Record<RecordCategory, number>;
   total: number;
   totalOpen: number;
+  /**
+   * PENDÊNCIAS EM ABERTO (dano + manutenção + incidente, ver `record-pending`)
+   * e em quantos imóveis. É o número da faixa de alerta da tela — sai da MESMA
+   * leitura dos contadores, sem depender do que coube na lista (teto de 300
+   * linhas, categoria selecionada ou busca) e, por isso, sempre fecha com a
+   * soma das "em aberto" dos cartões.
+   */
+  pendingOpen: number;
+  pendingProperties: number;
   /** true quando o histórico passou do teto de leitura. */
   truncated: boolean;
   /** Primeiro/último dia (SP) com registro no recorte de imóveis — limita o calendário. */
@@ -1336,6 +1392,8 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       openCounts: emptyCounts(),
       total: 0,
       totalOpen: 0,
+      pendingOpen: 0,
+      pendingProperties: 0,
       truncated: false,
     };
     if (propIds.length === 0) return empty;
@@ -1449,15 +1507,21 @@ export const listAccountRecords = createServerFn({ method: "GET" })
 
     const counts = emptyCounts();
     const openCounts = emptyCounts();
+    const pendingPropertyIds = new Set<string>();
     for (const r of primaries) {
       if (counts[r.category] === undefined) continue;
       counts[r.category] += 1;
-      if (isOpen(r.task_id)) openCounts[r.category] += 1;
+      if (isOpen(r.task_id)) {
+        openCounts[r.category] += 1;
+        if (isPendingCategory(r.category)) pendingPropertyIds.add(r.property_id);
+      }
     }
 
+    // "Ver só elas" mostra exatamente o que a faixa conta: pendência em aberto
+    // das categorias de trabalho — não qualquer registro com tarefa aberta.
     const selected = primaries
       .filter((r) => (data.category ? r.category === data.category : true))
-      .filter((r) => (data.onlyOpen ? isOpen(r.task_id) : true))
+      .filter((r) => (data.onlyOpen ? isOpen(r.task_id) && isPendingCategory(r.category) : true))
       .slice(0, ACCOUNT_RECORDS_PAGE);
 
     // IDENTIDADE DA RESERVA das linhas que vão aparecer. Duas fontes, na
@@ -1581,15 +1645,7 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       }
     }
     const paths = Array.from(new Set([...coverPaths, ...extraPaths])).slice(0, MAX_SIGNED);
-    const urlByPath = new Map<string, string>();
-    if (paths.length > 0) {
-      const { data: signed } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrls(paths, SIGN_TTL_SECONDS);
-      for (const s of (signed ?? []) as Array<{ path: string | null; signedUrl: string | null }>) {
-        if (s.path && s.signedUrl) urlByPath.set(s.path, s.signedUrl);
-      }
-    }
+    const urlByPath = await signPathsCached(supabase, paths);
 
     const records: AccountRecord[] = selected.map((r) => {
       const prop = propById.get(r.property_id);
@@ -1640,12 +1696,17 @@ export const listAccountRecords = createServerFn({ method: "GET" })
 
     const total = primaries.length;
     const totalOpen = Object.values(openCounts).reduce((a, b) => a + b, 0);
+    const pendingOpen = (Object.keys(openCounts) as RecordCategory[])
+      .filter(isPendingCategory)
+      .reduce((n, k) => n + openCounts[k], 0);
     return {
       records,
       counts,
       openCounts,
       total,
       totalOpen,
+      pendingOpen,
+      pendingProperties: pendingPropertyIds.size,
       truncated: all.length >= ACCOUNT_RECORDS_SCAN_LIMIT,
       bounds,
     };

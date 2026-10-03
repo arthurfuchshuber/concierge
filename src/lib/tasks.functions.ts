@@ -490,8 +490,19 @@ export const setTaskStatus = createServerFn({ method: "POST" })
       }
     }
 
-    const { error } = await db.from("tasks").update(patch).eq("id", data.taskId);
+    // GRAVAÇÃO CONFIRMADA: sem `.select()` um UPDATE bloqueado (0 linhas)
+    // voltava "ok" e a tela revertia depois, sem aviso. Agora confere a linha
+    // gravada e falha alto se o status não persistiu.
+    const { data: saved, error } = await db
+      .from("tasks")
+      .update(patch)
+      .eq("id", data.taskId)
+      .select("id, status")
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    if (!saved || (saved as { status: string }).status !== patch.status) {
+      throw new Error("A alteração não foi salva (sem permissão ou pendência indisponível). Tente novamente.");
+    }
     return { ok: true, before };
   });
 

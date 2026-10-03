@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyAccessDecisions } from "@/lib/permissions/permission.access.functions";
+import { useAccessEnv } from "@/lib/permissions/useAccessEnv";
 import {
   accessQueryKey,
   toAccessState,
@@ -31,34 +32,33 @@ export function usePermission(
 ): AccessState {
   const { required = "READ", enabled = true, legacyAllowed, ...scope } = options;
   const fetcher = useServerFn(getMyAccessDecisions);
+  const { sessionReady, accountOwnerId } = useAccessEnv();
 
   const query = useQuery({
-    queryKey: accessQueryKey([permission], required, scope),
-    queryFn: async () => {
-      try {
-        return await fetcher({
-          data: {
-            permissions: [permission],
-            required,
-            propertyId: scope.propertyId ?? null,
-            clientId: scope.clientId ?? null,
-            recordId: scope.recordId ?? null,
-          },
-        });
-      } catch {
-        // Sem sessão o runtime responde 401 — sem decisão, sem acesso.
-        return { decisions: {} } as Awaited<ReturnType<typeof fetcher>>;
-      }
-    },
-    enabled: enabled && !!permission,
+    queryKey: [...accessQueryKey([permission], required, scope), accountOwnerId ?? "self"],
+    // A falha SOBE (não vira "decisão vazia" guardada em cache): `toAccessState`
+    // já trata erro como "sem acesso" no momento, e a próxima tentativa corrige.
+    queryFn: () =>
+      fetcher({
+        data: {
+          permissions: [permission],
+          required,
+          accountOwnerId,
+          propertyId: scope.propertyId ?? null,
+          clientId: scope.clientId ?? null,
+          recordId: scope.recordId ?? null,
+        },
+      }),
+    enabled: enabled && !!permission && sessionReady,
     staleTime: 60_000,
-    retry: false,
+    retry: 2,
+    retryDelay: 300,
   });
 
 
   const state = toAccessState(
     query.data?.decisions?.[permission],
-    enabled && query.isLoading,
+    enabled && (query.isLoading || (!sessionReady && !query.data)),
     query.isError,
   );
 

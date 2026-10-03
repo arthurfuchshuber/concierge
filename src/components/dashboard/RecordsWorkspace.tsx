@@ -80,7 +80,6 @@ import {
 } from "@/components/dashboard/panel-chrome";
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
-import { StatCard } from "@/components/ds/StatCard";
 import { OverlayChip, OverlayHeader } from "@/components/ds/OverlayHeader";
 
 /** Data (AAAA-MM-DD) no fuso de São Paulo. */
@@ -91,6 +90,8 @@ import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
 import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import { DictationField } from "@/components/dashboard/RecordSituationSheet";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
+import { PENDING_CATEGORIES } from "@/lib/record-pending";
+import { stableMediaUrl, warmImages } from "@/lib/stable-media-url";
 import { listTaskLinkOptions, restoreTask, setTaskStatus } from "@/lib/tasks.functions";
 import {
   RECORD_TITLE_MAX,
@@ -391,12 +392,11 @@ const CARDS = CARD_ORDER.map((k) => CATEGORY_BY_KEY.get(k)!).filter(Boolean);
 
 /**
  * O QUE SOBE PARA "A RESOLVER" (pedido explícito, 10/09/2026): DANO e
- * MANUTENÇÃO. Objeto esquecido também abre pendência no Kanban, mas ficou
- * de fora daqui — é devolução, não conserto; continua no acervo e na tela de
- * Pendências. Para incluí-lo, basta acrescentar "forgotten" nesta lista.
- * Auditoria de limpeza nunca gera tarefa: é prova, não trabalho.
+ * MANUTENÇÃO — e, desde 03/10/2026, INCIDENTE, que os cartões de contagem já
+ * mostravam e a faixa de alerta não somava. A lista mora em `record-pending`,
+ * compartilhada com o servidor, para que faixa e cartões nunca divirjam.
  */
-const PENDING_CATEGORIES: readonly RecordCategory[] = ["damage", "maintenance"];
+const PENDING_LIST: readonly RecordCategory[] = PENDING_CATEGORIES;
 
 type Group = {
   key: string;
@@ -531,27 +531,35 @@ export function RecordsWorkspace() {
    */
   const records = useMemo<AccountRecord[]>(
     () =>
-      (q.data?.records ?? []).map((r) =>
-        Array.isArray(r.media)
-          ? r
+      (q.data?.records ?? []).map((r0) => {
+        const r: AccountRecord = Array.isArray(r0.media)
+          ? r0
           : {
-              ...r,
-              media: r.storagePath
+              ...r0,
+              media: r0.storagePath
                 ? [
                     {
-                      id: r.id,
-                      kind: r.kind,
-                      storagePath: r.storagePath,
-                      url: r.url,
-                      mime: r.mime,
-                      durationMs: r.durationMs,
-                      sizeBytes: r.sizeBytes,
-                      createdAt: r.createdAt,
+                      id: r0.id,
+                      kind: r0.kind,
+                      storagePath: r0.storagePath,
+                      url: r0.url,
+                      mime: r0.mime,
+                      durationMs: r0.durationMs,
+                      sizeBytes: r0.sizeBytes,
+                      createdAt: r0.createdAt,
                     },
                   ]
                 : [],
-            },
-      ),
+            };
+        // URL ESTÁVEL por arquivo (03/10/2026): a relida de cada minuto traz
+        // assinaturas novas, e URL nova faz o navegador baixar a imagem de
+        // novo — era isso que fazia os quadradinhos "demorarem" e piscarem.
+        return {
+          ...r,
+          url: stableMediaUrl(r.storagePath, r.url),
+          media: r.media.map((m) => ({ ...m, url: stableMediaUrl(m.storagePath, m.url) })),
+        };
+      }),
     [q.data],
   );
   const counts = q.data?.counts;
@@ -578,7 +586,7 @@ export function RecordsWorkspace() {
       // resolver" quando é dano/manutenção E a pendência que ele abriu no
       // Kanban ainda está de pé. Concluída a pendência, ele desce sozinho
       // para o acervo — o status é lido de `tasks`, nunca copiado.
-      if (r.taskStatus === "pending" && PENDING_CATEGORIES.includes(r.category)) g.pending.push(r);
+      if (r.taskStatus === "pending" && PENDING_LIST.includes(r.category)) g.pending.push(r);
       else g.rest.push(r);
       g.total += 1;
     }
@@ -643,7 +651,21 @@ export function RecordsWorkspace() {
             }
           })
     : groups;
-  const attentionCount = attentionGroups.reduce((n, g) => n + g.pending.length, 0);
+  // O NÚMERO DA FAIXA vem do servidor (mesma leitura dos cartões): não depende
+  // do que coube na lista, da categoria escolhida nem da busca. Sem o campo
+  // (servidor antigo), cai para o que a lista mostra.
+  const pendingOpen = q.data?.pendingOpen ?? attentionGroups.reduce((n, g) => n + g.pending.length, 0);
+  const pendingProperties = q.data?.pendingProperties ?? attentionGroups.length;
+
+  // Aquece o cache com as imagens dos primeiros cartões (sem mudar o visual).
+  useEffect(() => {
+    const urls = [...attentionGroups, ...calmGroups]
+      .slice(0, 8)
+      .flatMap((g) => [...rowSquares(g.pending, 2), ...rowSquares(g.rest, 2)])
+      .filter((t) => t.kind === "photo")
+      .map((t) => t.url);
+    warmImages(urls, 24);
+  }, [attentionGroups, calmGroups]);
 
   const renderCard = (g: Group) => (
     <PropertyCard
@@ -765,22 +787,7 @@ export function RecordsWorkspace() {
           subtitle={pageSubtitle}
         />
 
-        {/* CARTÕES + GRÁFICO — mesmo grupo da Limpeza (10px entre eles). */}
         <div className="ds-card-grid">
-          <div className="ds-card-grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-            {CARDS.map((c) => (
-              <StatCard
-                key={c.key}
-                label={c.short}
-                value={counts?.[c.key] ?? 0}
-                icon={c.icon}
-                iconTone={CARD_ICON_TONE[c.key]}
-                loading={q.isLoading}
-                active={category === c.key}
-                onClick={() => setCategory(category === c.key ? null : c.key)}
-              />
-            ))}
-          </div>
           {/* BUSCA + AÇÕES ABAIXO DOS CARTÕES (pedido explícito, 03/10/2026:
               "retorne a linha de campo de buscas + filtros para baixo dos
               cards principais"). Desfaz a subida de 02/10/2026. */}
@@ -791,23 +798,54 @@ export function RecordsWorkspace() {
             actions={recordActions}
           />
 
+          {/* FILTROS EM LINHA (mockup 2, aprovado 03/10/2026): no lugar dos seis
+              cartões de contagem. Cada etiqueta filtra por categoria; nas que
+              abrem pendência o número é "abertas/total" — colado, sem espaço. */}
+          <div className="-mx-3.5 flex gap-1.5 overflow-x-auto px-3.5 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+            <CategoryChip
+              label="Todos"
+              total={q.data?.total ?? 0}
+              loading={q.isLoading}
+              active={category === null}
+              onClick={() => setCategory(null)}
+            />
+            {CARDS.map((c) => (
+              <CategoryChip
+                key={c.key}
+                label={c.short}
+                icon={c.icon}
+                tone={CARD_ICON_TONE[c.key]}
+                open={PENDING_LIST.includes(c.key) ? (q.data?.openCounts?.[c.key] ?? 0) : null}
+                total={counts?.[c.key] ?? 0}
+                loading={q.isLoading}
+                active={category === c.key}
+                onClick={() => setCategory(category === c.key ? null : c.key)}
+              />
+            ))}
+          </div>
+
           {/* RESUMO DO QUE ESTÁ ABERTO (mockup A1, 03/10/2026): a primeira coisa
-              que a pessoa precisa saber — quanto trabalho há — numa frase, com
-              o atalho para ver só isso. Reaproveita o filtro "só em aberto"
-              que já existe; nada novo na consulta. */}
-          {(attentionCount > 0 || onlyOpen) && (
+              que a pessoa precisa saber — quanto trabalho há — com o atalho para
+              ver só isso. O NÚMERO é o do servidor (dano + manutenção +
+              incidente em aberto) e as etiquetas embaixo o decompõem: a soma
+              delas é exatamente o total, e bate com o "em aberto" de cada
+              cartão acima. Reaproveita o filtro "só em aberto". */}
+          {(pendingOpen > 0 || onlyOpen) && (
             <div className="flex items-center gap-3 rounded-[14px] border border-[#c98c8c]/30 bg-[#c98c8c]/12 px-3.5 py-3">
               <p className="min-w-0 flex-1 text-[12px] leading-snug">
-                {attentionCount > 0 ? (
+                {pendingOpen > 0 ? (
                   <>
                     <b className="font-bold">
-                      {attentionCount} {attentionCount === 1 ? "pendência" : "pendências"}
+                      {pendingOpen} {pendingOpen === 1 ? "pendência" : "pendências"}
                     </b>{" "}
                     esperando solução em{" "}
                     <b className="font-bold">
-                      {attentionGroups.length} {attentionGroups.length === 1 ? "imóvel" : "imóveis"}
+                      {pendingProperties} {pendingProperties === 1 ? "imóvel" : "imóveis"}
                     </b>
                     .
+                    <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                      Nos filtros acima: abertas/total do histórico.
+                    </span>
                   </>
                 ) : (
                   "Nada em aberto por aqui."
@@ -966,6 +1004,59 @@ const CARD_ICON_TONE: Record<RecordCategory, string> = {
   cleaning_audit: "#7fb79a",
   other: "#c9a962",
 };
+
+/**
+ * ETIQUETA DE FILTRO POR CATEGORIA (mockup 2, 03/10/2026).
+ * "5/8" = 5 pendências abertas de 8 registros no histórico; categorias que não
+ * abrem pendência mostram só o total.
+ */
+function CategoryChip({
+  label,
+  icon: Icon,
+  tone,
+  open = null,
+  total,
+  loading,
+  active,
+  onClick,
+}: {
+  label: string;
+  icon?: React.ElementType;
+  tone?: string;
+  open?: number | null;
+  total: number;
+  loading?: boolean;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const hasOpen = open !== null && open > 0;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[11.5px] font-bold transition-colors ${
+        hasOpen ? "bg-[#c98c8c]/15 hover:bg-[#c98c8c]/25" : "bg-foreground/[0.06] hover:bg-foreground/[0.1]"
+      }`}
+      style={active ? { boxShadow: `inset 0 0 0 1.5px ${tone ?? "var(--foreground)"}` } : undefined}
+    >
+      {Icon && <Icon className="size-3.5" style={{ color: tone }} strokeWidth={2} />}
+      <span style={hasOpen ? { color: tone } : undefined}>{label}</span>
+      <span className="tabular-nums">
+        {loading ? (
+          "—"
+        ) : open !== null ? (
+          <>
+            <span className={hasOpen ? "font-extrabold" : "font-extrabold text-muted-foreground"}>{open}</span>
+            <span className="font-semibold text-muted-foreground">/{total}</span>
+          </>
+        ) : (
+          <span className="font-extrabold">{total}</span>
+        )}
+      </span>
+    </button>
+  );
+}
 
 /**
  * Uma CÉLULA do bloco de contadores — não é mais um cartão solto.

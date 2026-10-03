@@ -17,6 +17,12 @@ const ScopeInput = z.object({
 });
 
 const CheckInput = ScopeInput.extend({
+  /**
+   * Empresa ATIVA no painel (a que a pessoa está vendo). Sem ela, a decisão
+   * saía sempre da empresa mais antiga do vínculo — e quem pertence a mais de
+   * uma empresa levava "Você não tem acesso" na empresa nova, mesmo liberado.
+   */
+  accountOwnerId: z.string().uuid().nullish(),
   permissions: z.array(z.string().min(1).max(200)).min(1).max(80),
   required: z.enum(["NONE", "READ", "WRITE"]).default("READ"),
 });
@@ -40,7 +46,26 @@ export const getMyAccessDecisions = createServerFn({ method: "POST" })
       "@/lib/permissions/permission.resolve.server"
     );
 
-    const snapshot = await resolveSubjectSnapshot(context.userId);
+    // Só vale a empresa em que a pessoa TEM vínculo ativo. Para quem não é
+    // membro (titular, admin do SaaS vendo a conta de um cliente) nada muda.
+    let tenantId: string | null = null;
+    if (data.accountOwnerId && data.accountOwnerId !== context.userId) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: link, error: linkErr } = await supabaseAdmin
+        .from("account_members")
+        .select("owner_id")
+        .eq("member_user_id", context.userId)
+        .eq("owner_id", data.accountOwnerId)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+      if (linkErr) throw new Error("Não foi possível verificar o vínculo com a empresa.");
+      if (link) tenantId = data.accountOwnerId;
+    }
+
+    // `strict`: falha de leitura sobe como ERRO. A tela distingue "negado" de
+    // "não consegui verificar" e tenta de novo — nunca mostra bloqueio falso.
+    const snapshot = await resolveSubjectSnapshot(context.userId, { tenantId, strict: true });
     const scopeCtx = {
       snapshot,
       propertyId: data.propertyId ?? null,

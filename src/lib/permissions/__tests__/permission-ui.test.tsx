@@ -15,6 +15,9 @@ vi.mock("@tanstack/react-start", () => ({
   useServerFn: () => (args: unknown) => fetchMock(args),
 }));
 
+vi.mock("@/hooks/useHasSession", () => ({ useHasSession: () => true }));
+vi.mock("@/hooks/useImpersonation", () => ({ useImpersonation: () => ({ impersonation: null }) }));
+
 vi.mock("@/lib/permissions/permission.access.functions", () => ({
   getMyAccessDecisions: vi.fn(),
 }));

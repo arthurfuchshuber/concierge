@@ -41,6 +41,16 @@ export type ResolveContext = {
   tenantId?: string | null;
   systemRoles?: SystemRole[];
   plan?: string | null;
+  /**
+   * Modo estrito: falha de leitura vira ERRO, nunca "lista vazia".
+   *
+   * Sem isto, uma oscilação do banco (timeout, reinício do pooler) fazia o
+   * `listAssignments` devolver `[]` e a pessoa — que tem permissão — recebia
+   * "Você não tem acesso a esta área". Quem só PERGUNTA (a tela) precisa saber
+   * a diferença entre "negado" e "não consegui verificar"; quem EXECUTA
+   * continua com o comportamento de sempre (fecha por padrão).
+   */
+  strict?: boolean;
 };
 
 async function admin() {
@@ -58,7 +68,7 @@ export async function resolveTenantOf(
   allProperties: boolean;
 }> {
   const db = await admin();
-  const { data } = await db
+  const { data, error } = await db
     .from("account_members")
     .select("owner_id, role, status, all_properties")
     .eq("member_user_id", userId)
@@ -66,6 +76,10 @@ export async function resolveTenantOf(
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
+
+  // Erro de leitura NÃO é "sem vínculo": tratar como titular da própria conta
+  // trocava o recorte da pessoa em silêncio.
+  if (error) throw new Error(`Não foi possível ler o vínculo da conta: ${error.message}`);
 
   if (!data) return { tenantId: userId, status: "active", role: "owner", allProperties: true };
 
@@ -109,6 +123,14 @@ async function resolvePlan(tenantId: string): Promise<string | null> {
   }
 }
 
+/** Em modo estrito a falha sobe; fora dele cai no valor seguro de sempre. */
+function softFail<T>(ctx: ResolveContext, fallback: T) {
+  return (e: unknown): T => {
+    if (ctx.strict) throw e instanceof Error ? e : new Error(String(e));
+    return fallback;
+  };
+}
+
 /** Carrega tudo o que uma decisão de autorização precisa, em uma única passada. */
 export async function resolveSubjectSnapshot(
   userId: string,
@@ -123,13 +145,14 @@ export async function resolveSubjectSnapshot(
   // conta (recorte de imóveis e status), nunca o da primeira empresa.
   if (ctx.tenantId && ctx.tenantId !== userId && membership.tenantId !== ctx.tenantId) {
     const db = await admin();
-    const { data: m } = await db
+    const { data: m, error: mErr } = await db
       .from("account_members")
       .select("owner_id, role, status, all_properties")
       .eq("member_user_id", userId)
       .eq("owner_id", ctx.tenantId)
       .eq("status", "active")
       .maybeSingle();
+    if (mErr) throw new Error(`Não foi possível ler o vínculo da conta: ${mErr.message}`);
     membership = m
       ? {
           tenantId: ctx.tenantId,
@@ -155,9 +178,9 @@ export async function resolveSubjectSnapshot(
   const [systemRoles, plan, assignments, nodeIdBySlug, propertyRows] = await Promise.all([
     ctx.systemRoles ? Promise.resolve(ctx.systemRoles) : resolveSystemRoles(userId, tenantId),
     ctx.plan !== undefined ? Promise.resolve(ctx.plan) : resolvePlan(tenantId),
-    permissionRepository.listAssignments(tenantId, userId).catch(() => []),
-    permissionRepository.nodeIdBySlug().catch(() => ({}) as Record<string, string>),
-    permissionRepository.listPropertyAssignments(tenantId, userId).catch(() => []),
+    permissionRepository.listAssignments(tenantId, userId).catch(softFail(ctx, [])),
+    permissionRepository.nodeIdBySlug().catch(softFail(ctx, {} as Record<string, string>)),
+    permissionRepository.listPropertyAssignments(tenantId, userId).catch(softFail(ctx, [])),
   ]);
 
   return {
