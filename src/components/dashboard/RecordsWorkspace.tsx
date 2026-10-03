@@ -889,6 +889,17 @@ export function RecordsWorkspace() {
                       setPendingFocus(propertyId);
                     }
                   }}
+                  onOpenItem={(it) => {
+                    const rec = records.find((r) => r.id === it.id);
+                    if (rec) {
+                      setOpened(rec);
+                      return;
+                    }
+                    // Fora da lista carregada: mostra o imóvel filtrado para achá-la.
+                    setOnlyOpen(true);
+                    setPropertyFilters([it.propertyId]);
+                    setPendingFocus(it.propertyId);
+                  }}
                 >
                   <button
                     type="button"

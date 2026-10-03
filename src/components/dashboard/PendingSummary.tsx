@@ -32,7 +32,8 @@ import type { PendingItem, RecordCategory } from "@/lib/reservation-records.func
  *    e subtítulo com reticências — nada quebra nem fica pela metade;
  *  · "clique ao fundo retorna à página anterior": com um imóvel aberto, tocar
  *    fora recolhe o imóvel em vez de fechar o tooltip;
- *  · altura fixa na área das abas — trocar de aba não faz o tooltip "pular".
+ *  · altura natural (sem vão); a lista de imóveis rola só se passar do limite,
+ *    com folga para a barra não cobrir números, e sem prender a rolagem da página.
  */
 
 const ORDER: RecordCategory[] = ["maintenance", "damage", "incident", "forgotten"];
@@ -59,6 +60,7 @@ export function PendingSummary({
   items,
   tones,
   onApply,
+  onOpenItem,
   children,
 }: {
   items: PendingItem[];
@@ -66,6 +68,8 @@ export function PendingSummary({
   tones: Record<RecordCategory, string>;
   /** `null` = filtrar todas as pendências; id = só aquele imóvel. */
   onApply: (propertyId: string | null) => void;
+  /** Tocar numa pendência da lista: o tooltip fecha e a pendência abre. */
+  onOpenItem: (item: PendingItem) => void;
   /** O gatilho (o botão "Ver só elas"). */
   children: ReactNode;
 }) {
@@ -154,12 +158,13 @@ export function PendingSummary({
               <i key={k} className="block rounded-[2px]" style={{ flex: data.byCat.get(k), background: tones[k] }} />
             ))}
           </div>
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          {/* LEGENDA — grade 2x2 de células iguais: nunca quebra de forma torta */}
+          <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11.5px]">
             {ORDER.map((k) => (
-              <span key={k} className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                <i className="size-[7px] rounded-full" style={{ background: tones[k] }} />
-                {CATEGORY_BY_KEY.get(k)?.short ?? k}{" "}
-                <b className="font-bold text-foreground">{data.byCat.get(k) ?? 0}</b>
+              <span key={k} className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+                <i className="size-[7px] shrink-0 rounded-full" style={{ background: tones[k] }} />
+                <span className="min-w-0 flex-1 truncate">{CATEGORY_BY_KEY.get(k)?.short ?? k}</span>
+                <b className="shrink-0 font-bold tabular-nums text-foreground">{data.byCat.get(k) ?? 0}</b>
               </span>
             ))}
           </div>
@@ -190,10 +195,18 @@ export function PendingSummary({
             ))}
           </div>
 
-          {/* ALTURA FIXA: trocar de aba não faz o tooltip pular */}
-          <div className="h-[196px] overflow-y-auto overscroll-contain sg-elegant-scroll">
+          {/* ALTURA NATURAL: sem vão. Só rola (e só ali) se a lista passar do
+              limite; sem `overscroll-contain`, então quando não há o que rolar
+              a rolagem segue para a página. */}
+          <div
+            className={
+              tab === "properties"
+                ? "max-h-[min(250px,36dvh)] overflow-y-auto overscroll-auto pr-3 sg-elegant-scroll [scrollbar-gutter:stable]"
+                : ""
+            }
+          >
             {tab === "urgency" ? (
-              <div className="space-y-3.5 pt-1">
+              <div className="space-y-3.5 pt-1 pb-1">
                 {data.buckets.map((b) => (
                   <div key={b.key} className="flex items-center gap-2.5 text-[12px]">
                     <span className="w-[84px] shrink-0 truncate text-muted-foreground">{b.label}</span>
@@ -241,12 +254,21 @@ export function PendingSummary({
                           {p.items.map((it) => {
                             const Icon = CATEGORY_BY_KEY.get(it.category)?.icon;
                             return (
-                              <li key={it.id} className="flex items-center gap-2 py-1 text-[11.5px]">
-                                {Icon && <Icon className="size-3 shrink-0" style={{ color: tones[it.category] }} />}
-                                <span className="min-w-0 flex-1 truncate">{it.title}</span>
-                                <span className="shrink-0 text-[10.5px] tabular-nums text-muted-foreground">
-                                  {fmtD(daysAgo(it.createdAt))}
-                                </span>
+                              <li key={it.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onOpenItem(it);
+                                    close();
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-[7px] py-1.5 pr-1 text-left text-[11.5px] transition-colors hover:bg-foreground/[0.06]"
+                                >
+                                  {Icon && <Icon className="size-3 shrink-0" style={{ color: tones[it.category] }} />}
+                                  <span className="min-w-0 flex-1 truncate">{it.title}</span>
+                                  <span className="shrink-0 text-[10.5px] tabular-nums text-muted-foreground">
+                                    {fmtD(daysAgo(it.createdAt))}
+                                  </span>
+                                </button>
                               </li>
                             );
                           })}

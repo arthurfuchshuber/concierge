@@ -34,15 +34,16 @@ const tones = {
   other: "#c9a962",
 };
 
-function setup(onApply = vi.fn()) {
+function setup(onApply = vi.fn(), onOpenItem = vi.fn()) {
   render(
-    <PendingSummary items={items} tones={tones} onApply={onApply}>
+    <PendingSummary items={items} tones={tones} onApply={onApply} onOpenItem={onOpenItem}>
       <button>Ver só elas</button>
     </PendingSummary>,
   );
   fireEvent.click(screen.getByText("Ver só elas"));
   return onApply;
 }
+
 
 describe("Tooltip do 'Ver só elas'", () => {
   it("mostra o total, a mais antiga e a aba Urgência por padrão", async () => {
@@ -66,5 +67,14 @@ describe("Tooltip do 'Ver só elas'", () => {
     expect(screen.getByText("Lâmpada queimada")).toBeTruthy();
     fireEvent.click(screen.getByText("Ver só Casa Charmosa"));
     expect(onApply).toHaveBeenCalledWith("p1");
+  });
+
+  it("tocar numa pendência da lista abre ela e fecha o tooltip", async () => {
+    const onOpenItem = vi.fn();
+    setup(vi.fn(), onOpenItem);
+    fireEvent.click(await screen.findByText("Imóveis"));
+    fireEvent.click(screen.getByText("Casa Charmosa"));
+    fireEvent.click(screen.getByText("Lâmpada queimada"));
+    expect(onOpenItem).toHaveBeenCalledWith(expect.objectContaining({ title: "Lâmpada queimada" }));
   });
 });
