@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-10-03T17:20:00.415Z";
+export const GENERATED_AT = "2026-10-03T17:57:18.566Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -2535,6 +2535,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "17bfb9b914e0facf3b74e9ae9d8842d4"
   },
   {
+    "doc_key": "rule:RowSquare",
+    "kind": "rule",
+    "title": "Regra — RowSquare",
+    "content": "OS QUADRADOS DA LINHA (pedido explícito, 03/10/2026: \"esses quadrados\nprecisam ficar com as imagens mais antigas preenchendo-os\"). Antes eles\nolhavam só o registro PRINCIPAL de cada situação — que quase sempre é a\nnota de texto, sem arquivo — e por isso mostravam um ícone de papel mesmo\nquando a situação tinha fotos e vídeos dentro. Agora juntam TODAS as mídias\nvisuais (foto e vídeo) dos registros da linha e mostram as mais ANTIGAS\nprimeiro. Vídeo aparece pelo primeiro quadro, como na tira de anexos da\npendência. Só quando não há nenhuma imagem a linha volta ao ícone do tipo.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "974b67a5d0b63fc5221089127fb72174"
+  },
+  {
     "doc_key": "rule:runAdvanceArrival",
     "kind": "rule",
     "title": "Regra — runAdvanceArrival",
@@ -3282,7 +3291,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "bb858acdfcfe0c71275a4ebad074241a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:12877",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:12861",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "A FAIXA DA CATEGORIA dentro do quadrante (pedido explícito, 10/09/2026):\nmesma cor da categoria, translúcida, com o texto na versão clara dela. Fica\nde ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a\ntranslucidez deixa a imagem aparecer por baixo.",
@@ -3291,7 +3300,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1ab915fd3496a9a1fb5383c22880b593"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:17218",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:17202",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "ACERVO RECOLHIDO POR PADRÃO, UM DE CADA VEZ (pedido explícito,\n10/09/2026). A tela abre mostrando só o que há para EXECUTAR; as\nminiaturas de prova ficam a um toque. E abrir um imóvel fecha o anterior,\nsenão a página volta a ser uma parede de quadradinhos.",
@@ -3300,7 +3309,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "da56a7e41911b71c751dc4fed78c2097"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:17574",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:17558",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "PENDÊNCIAS TAMBÉM RECOLHIDAS, PELA MESMA REGRA (pedido explícito,\n11/09/2026): \"coloque também a linha PENDÊNCIAS recolhida seguindo as\nmesmas regras da linha REGISTROS\". Mesma mecânica, estado separado — a\nlinha inteira é o botão, sem seta, e abrir um imóvel fecha o anterior.\nSeparado do acervo de propósito: são duas perguntas diferentes (\"o que há\npara fazer aqui?\" e \"que provas existem aqui?\"), e amarrar as duas faria\numa abrir a outra sem ninguém ter pedido.",
@@ -3309,7 +3318,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "921b94e2b28e53f61ef460f4945f7be2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:41712",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:38417",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "Contador/filtro de uma categoria. Mesma casca dos KPIs da Operacional.\n\nA COR DO NÚMERO É UM SEMÁFORO, NÃO UMA ETIQUETA (pedido explícito,\n10/09/2026): zerado é BRANCO em todas as categorias — não há nada ali, nada\na sinalizar. Acima de zero, a cor diz o quanto aquilo pesa: manutenção e\ndano em vermelho (é trabalho parado), esquecidos e outros em âmbar (é\natenção), auditoria de limpeza no violeta de sempre (é rotina, não alarme)\ne \"Todos\" sempre branco, porque somar tudo não é sinal de nada.\n\nCartão zerado NÃO é mais esmaecido — todos têm a mesma tonalidade.",
@@ -3318,7 +3327,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0d8acd5693abba2abe9b8f2962b36ba3"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:46626",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:43331",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O CARTÃO DO IMÓVEL EM DOIS ANDARES (mockup B, aprovado 10/09/2026).\n\nAntes era uma fileira de quadrados cinzentos com um ponto de 6px: um dano\nsem conserto e uma foto de auditoria eram visualmente o mesmo quadrado. O\ncartão passa a admitir que há duas naturezas ali dentro —\n\n A RESOLVER o que abriu pendência e ela ainda está de pé (dano,\n manutenção, objeto esquecido). Vira LINHA, com título\n legível, porque é trabalho e trabalho precisa de nome.\n REGISTROS o resto. Continua miniatura, porque é prova.\n\nSem nada em aberto o primeiro andar não existe e o cartão fica igual ao de\nantes — a mesma regra de sempre: o aviso só aparece quando há aviso.",
@@ -3327,7 +3336,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1bede5e40def9ea40c009fa805397bcc"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:47353",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:44058",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "A FAIXA LATERAL DO CARTÃO DO IMÓVEL (pedido explícito, 10/09/2026).\n\nMesma barra de 3px dos cards do Kanban, mas dizendo outra coisa: aqui ela\nresponde \"o que mais tem neste imóvel?\" antes de a pessoa ler qualquer\nlinha. A cor é a da CATEGORIA MAIS FREQUENTE entre os registros daquele\nimóvel, com UMA exceção pedida pelo cliente:\n\n \"só nunca usar a cor da auditoria de limpeza quando tiver registro de\n outras categorias junto. só usar a cor da auditoria da limpeza quando só\n tiver isso no imóvel\"\n\nFaz sentido: auditoria é ROTINA — todo imóvel limpo gera vídeo, então ela\nganharia quase sempre na contagem e a faixa viraria uma fileira roxa que não\ninforma nada. Tirando-a da disputa, a faixa passa a mostrar o que exige\natenção; roxo então significa exatamente \"aqui só há prova de limpeza, nada\npendente\".\n\nEmpate: vence a mais grave — dano, depois manutenção, depois esquecidos,\ndepois outros.",
@@ -3336,7 +3345,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ac3013773b1e44cf4e096d38a8c66d5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:48319",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:45024",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O DEGRADÊ MORA DENTRO DA BARRA (pedido explícito, 10/09/2026).\n\nA primeira tentativa deixava a cor sangrar para dentro do cartão e o\ncliente cortou na hora: \"eu não quero que a cor vaze para o quadrante, eu\nsó quero que o efeito da barra conceda uma leveza na cor, sem torná-la\ngritante\".\n\nEntão a faixa continua sendo SÓ a faixa — nada invade o conteúdo. O que\nmudou é que ela deixou de ser um bloco chapado: cheia na quina de fora e\ndissolvendo até quase transparente do lado de dentro. De longe continua\ndizendo a cor; de perto é um fio de luz, não um adesivo.\n\nDois botões de ajuste, se quiser calibrar: a LARGURA (`w-[4px]`) e a\nOPACIDADE das duas pontas do degradê.",
@@ -4819,6 +4828,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "545c4cb92effd8e79a487b3b34f797a6"
+  },
+  {
+    "doc_key": "rule:StatusSection",
+    "kind": "rule",
+    "title": "Regra — StatusSection",
+    "content": "SEÇÃO DE STATUS — o MESMO cabeçalho da página Guias (pedido explícito,\n03/10/2026: \"deixar a visão em registros tão clean quanto a da página\nguias... colocar o título/status exatamente como colocamos na aba guias\").\nSaiu o quadrante de fundo: o título fica centrado entre dois fios na cor do\nstatus, e os cartões ocupam a largura inteira, alinhados com a busca e o\nresumo.\n\nAjuste aprovado no mesmo dia (mockup L1b): a contagem é SÓ O NÚMERO, colada\nao título (\"remova a palavra imóveis... coloque ao lado do título\"), e o\nconjunto ícone + título + número fica centrado na LARGURA TOTAL, não no\nespaço que sobra — por isso as duas colunas laterais são iguais\n(`minmax(0,1fr)`) e os fios podem encolher até zero. O ordenar fecha a\nlinha à direita.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "d5d116dba4d2a621c8a988e998b1996b"
   },
   {
     "doc_key": "rule:StayBarKind",

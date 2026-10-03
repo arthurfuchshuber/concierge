@@ -72,7 +72,6 @@ function fmtDDMM(iso: string): string {
 }
 import {
   PANEL_SHELL,
-  PanelHeading,
   SectionLabel,
   CountPill,
   ACTION_BAR,
@@ -774,11 +773,11 @@ export function RecordsWorkspace() {
               dizia isso. Agora a faixa acima diz o que são e o que o toque
               faz; o filtro ligado continua marcado no próprio cartão. */}
           <div className="flex items-center justify-between gap-2 px-0.5">
-            <span className="ds-eyebrow truncate text-[12.5px] tracking-[0.09em] text-muted-foreground">
+            <span className="ds-eyebrow truncate text-[10px] tracking-[0.2em] text-muted-foreground">
               Tipos de registro
             </span>
-            <span className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] text-muted-foreground">
-              <Pointer className="size-[15px]" />
+            <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Pointer className="size-[13px]" />
               {category ? "Toque de novo para limpar" : "Toque para filtrar"}
             </span>
           </div>
@@ -812,14 +811,14 @@ export function RecordsWorkspace() {
               que já existe; nada novo na consulta. */}
           {(attentionCount > 0 || onlyOpen) && (
             <div className="flex items-center gap-3 rounded-[14px] border border-[#c98c8c]/30 bg-[#c98c8c]/12 px-3.5 py-3">
-              <p className="min-w-0 flex-1 text-[13.5px] leading-snug">
+              <p className="min-w-0 flex-1 text-[12px] leading-snug">
                 {attentionCount > 0 ? (
                   <>
-                    <b className="font-extrabold">
+                    <b className="font-bold">
                       {attentionCount} {attentionCount === 1 ? "pendência" : "pendências"}
                     </b>{" "}
                     esperando solução em{" "}
-                    <b className="font-extrabold">
+                    <b className="font-bold">
                       {attentionGroups.length} {attentionGroups.length === 1 ? "imóvel" : "imóveis"}
                     </b>
                     .
@@ -832,7 +831,7 @@ export function RecordsWorkspace() {
                 type="button"
                 onClick={() => setOnlyOpen((v) => !v)}
                 aria-pressed={onlyOpen}
-                className="shrink-0 rounded-[11px] bg-[#b4545c] px-3 py-2.5 text-[13px] font-extrabold text-white transition-opacity hover:opacity-90"
+                className="shrink-0 rounded-[10px] bg-[#b4545c] px-3 py-2 text-[11.5px] font-bold text-white transition-opacity hover:opacity-90"
               >
                 {onlyOpen ? "Ver tudo" : "Ver só elas"}
               </button>
@@ -867,94 +866,45 @@ export function RecordsWorkspace() {
               depois de um divisor discreto. Só vale para "Por imóvel" — em
               "Por data" a ordem do dia é a informação e não é quebrada. */}
             {attentionGroups.length > 0 && (
-              <section
-                aria-label="Imóveis que precisam de atenção"
-                /* PADRÃO "PRESENÇA" (18/09/2026): era uma moldura vermelha
-                 inteira, com fundo tingido e etiqueta vermelha — gritava mais
-                 que o próprio conteúdo. Agora é um card normal, com um FIO no
-                 tom rosa terroso na aresta de cima e a contagem numa pílula
-                 neutra. Continua sendo a primeira coisa que se vê, sem ser a
-                 mais barulhenta. */
-                className={`${PANEL_SHELL} px-1.5 pb-1.5 pt-3`}
-              >
-                <span
-                  aria-hidden
-                  className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] bg-gradient-to-r from-[#c98c8c] to-transparent"
-                />
-                <div className="space-y-1.5">
-                  {/* MESMO CABEÇALHO DE BLOCO das outras duas abas (pedido
-                    explícito, 18/09/2026: "não é só replicar a paleta, mas sim
-                    o layout inteiro") — ponto, rótulo em caixa alta, fio que
-                    some e a contagem na pílula neutra. */}
-                  <PanelHeading
-                    title="Precisam de atenção"
-                    titleClassName="text-[12.5px] tracking-[0.09em]"
-                    dot={
-                      <span className="grid size-[26px] shrink-0 place-items-center rounded-lg bg-[#c98c8c]/12 text-[#c98c8c]">
-                        <CircleAlert className="size-[15px]" strokeWidth={2.2} />
-                      </span>
-                    }
-                    afterTitle={
-                      <span className="rounded-full bg-foreground/[0.06] px-2.5 py-1 text-[12.5px] font-bold tabular-nums text-muted-foreground">
-                        {attentionGroups.length} {attentionGroups.length === 1 ? "imóvel" : "imóveis"}
-                      </span>
-                    }
-                    right={
-                      <SortMenu
-                        value={attentionSort}
-                        defaultValue="oldest"
-                        options={ATTENTION_SORT_OPTIONS}
-                        onChange={setAttentionSort}
-                      />
-                    }
-                    className="mb-1 px-1.5"
+              <StatusSection
+                label="Imóveis que precisam de atenção"
+                title="Precisam de atenção"
+                color="#c98c8c"
+                Icon={CircleAlert}
+                count={attentionGroups.length}
+                sort={
+                  <SortMenu
+                    value={attentionSort}
+                    defaultValue="oldest"
+                    options={ATTENTION_SORT_OPTIONS}
+                    onChange={setAttentionSort}
                   />
-                  <p className="flex items-center justify-center gap-1.5 pb-1 text-[12.5px] text-muted-foreground">
-                    <Pointer className="size-[15px]" />
-                    Toque numa linha colorida para abrir
-                  </p>
-                  <div className="ds-card-grid ds-five-cap">{attentionGroups.map(renderCard)}</div>
-                </div>
-              </section>
+                }
+              >
+                {attentionGroups.map(renderCard)}
+              </StatusSection>
             )}
 
-            {/* No computador, "Em dia" vira a coluna da direita. Mesmo
-              cabeçalho de "Precisam de atenção", com o fio em verde sálvia. */}
             {calmGroups.length > 0 && (
-              <section aria-label="Imóveis em dia" className={`${PANEL_SHELL} min-w-0 px-1.5 pb-1.5 pt-3`}>
-                <span
-                  aria-hidden
-                  className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] bg-gradient-to-r from-[#7fb79a] to-transparent"
-                />
-                <div className="space-y-1.5">
-                  <PanelHeading
-                    title="Em dia"
-                    titleClassName="text-[12.5px] tracking-[0.09em]"
-                    dot={
-                      <span className="grid size-[26px] shrink-0 place-items-center rounded-lg bg-[#7fb79a]/12 text-[#7fb79a]">
-                        <CircleCheck className="size-[15px]" strokeWidth={2.2} />
-                      </span>
-                    }
-                    afterTitle={
-                      <span className="rounded-full bg-foreground/[0.06] px-2.5 py-1 text-[12.5px] font-bold tabular-nums text-muted-foreground">
-                        {calmGroups.length} {calmGroups.length === 1 ? "imóvel" : "imóveis"}
-                      </span>
-                    }
-                    right={
-                      byProperty ? (
-                        <SortMenu
-                          value={calmSort}
-                          defaultValue="recent"
-                          options={CALM_SORT_OPTIONS}
-                          onChange={setCalmSort}
-                        />
-                      ) : undefined
-                    }
-                    className="mb-1 px-1.5"
-                  />
-                  <div className="ds-card-grid ds-five-cap">{calmGroups.map(renderCard)}</div>
-                </div>
-              </section>
+              <StatusSection
+                label="Imóveis em dia"
+                title="Em dia"
+                color="#7fb79a"
+                Icon={CircleCheck}
+                count={calmGroups.length}
+                sort={
+                  byProperty ? (
+                    <SortMenu
+                      value={calmSort}
+                      defaultValue="recent"
+                      options={CALM_SORT_OPTIONS}
+                      onChange={setCalmSort}
+                    />
+                  ) : undefined
+                }
+              >
+                {calmGroups.map(renderCard)}
+              </StatusSection>
             )}
 
             {q.data?.truncated && (
@@ -1219,6 +1169,36 @@ function stripeCategory(records: ReadonlyArray<AccountRecord>): RecordCategory |
 }
 
 /**
+ * OS QUADRADOS DA LINHA (pedido explícito, 03/10/2026: "esses quadrados
+ * precisam ficar com as imagens mais antigas preenchendo-os"). Antes eles
+ * olhavam só o registro PRINCIPAL de cada situação — que quase sempre é a
+ * nota de texto, sem arquivo — e por isso mostravam um ícone de papel mesmo
+ * quando a situação tinha fotos e vídeos dentro. Agora juntam TODAS as mídias
+ * visuais (foto e vídeo) dos registros da linha e mostram as mais ANTIGAS
+ * primeiro. Vídeo aparece pelo primeiro quadro, como na tira de anexos da
+ * pendência. Só quando não há nenhuma imagem a linha volta ao ícone do tipo.
+ */
+type RowSquare = { id: string; kind: AccountRecord["kind"]; url: string | null; record: AccountRecord };
+
+function rowSquares(records: AccountRecord[], max: number): RowSquare[] {
+  const seen = new Set<string>();
+  const visuals: (RowSquare & { at: string })[] = [];
+  const push = (id: string, kind: AccountRecord["kind"], url: string | null, at: string, record: AccountRecord) => {
+    if (!url || (kind !== "photo" && kind !== "video") || seen.has(id)) return;
+    seen.add(id);
+    visuals.push({ id, kind, url, at, record });
+  };
+  for (const r of records) {
+    for (const m of r.media ?? []) push(m.id, m.kind, m.url, m.createdAt, r);
+    push(r.id, r.kind, r.url, r.createdAt, r);
+  }
+  if (visuals.length > 0) {
+    return visuals.sort((a, b) => a.at.localeCompare(b.at)).slice(0, max);
+  }
+  return records.slice(0, max).map((r) => ({ id: r.id, kind: "note" as const, url: null, record: r }));
+}
+
+/**
  * A LINHA-BOTÃO DO IMÓVEL (mockup A1 aprovado, 03/10/2026: "podemos seguir
  * com a Proposta A1 lista fechada"). A queixa era que a tela não dizia onde
  * tocar: as linhas "Pendências" e "Registros" eram um rótulo de 9px com um
@@ -1241,52 +1221,135 @@ const PropertyRow = forwardRef<
   } & React.ButtonHTMLAttributes<HTMLButtonElement>
 >(function PropertyRow({ tone, title, subtitle, thumbs, open, ...rest }, ref) {
   const pending = tone === "pending";
+  const squares = rowSquares(thumbs, 2);
   return (
     <button
       ref={ref}
       type="button"
       {...rest}
-      className={`mt-2.5 flex min-h-[56px] w-full items-center gap-2.5 rounded-[14px] border px-3 py-2 text-left transition-colors ${
+      className={`mt-2.5 flex min-h-[52px] w-full items-center gap-2.5 rounded-[12px] border px-3 py-2 text-left transition-colors ${
         pending
           ? "border-[#c98c8c]/30 bg-[#c98c8c]/12 hover:bg-[#c98c8c]/18"
           : "border-border/50 bg-secondary/40 hover:bg-secondary/60"
       }`}
     >
       <span
-        className={`grid size-[34px] shrink-0 place-items-center rounded-[11px] ${
+        className={`grid size-[30px] shrink-0 place-items-center rounded-[10px] ${
           pending ? "bg-[#c98c8c]/25 text-[#c98c8c]" : "bg-secondary text-muted-foreground"
         }`}
       >
-        {pending ? <CircleAlert className="size-[18px]" /> : <Camera className="size-[18px]" />}
+        {pending ? <CircleAlert className="size-4" /> : <Camera className="size-4" />}
       </span>
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-[15px] font-extrabold leading-tight ${pending ? "ds-falta" : ""}`}>
+        <span className={`block truncate text-[13px] font-bold leading-tight ${pending ? "ds-falta" : ""}`}>
           {title}
         </span>
-        <span className="mt-0.5 block truncate text-[12.5px] leading-tight text-muted-foreground">{subtitle}</span>
+        <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">{subtitle}</span>
       </span>
-      {thumbs.length > 0 && (
+      {squares.length > 0 && (
         <span className="flex shrink-0">
-          {thumbs.slice(0, 2).map((r, i) => (
+          {squares.map((m, i) => (
             <span
-              key={r.id}
+              key={m.id}
               className={`relative grid size-[34px] place-items-center overflow-hidden rounded-[9px] bg-gradient-to-br from-secondary/80 to-secondary/40 ring-2 ring-[var(--panel,transparent)] ${
                 i > 0 ? "-ml-2.5" : ""
               }`}
             >
-              {r.kind === "photo" && r.url ? (
-                <img src={r.url} alt="" className="absolute inset-0 size-full object-cover" />
+              {m.kind === "photo" && m.url ? (
+                <img src={m.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+              ) : m.kind === "video" && m.url ? (
+                <video
+                  src={`${m.url}#t=0.1`}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  tabIndex={-1}
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 size-full bg-black object-cover"
+                />
               ) : (
-                <RecordCover record={r} size="xs" />
+                <RecordCover record={m.record} size="xs" />
               )}
             </span>
           ))}
         </span>
       )}
-      <ChevronRight className={`size-5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`} />
+      <ChevronRight className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`} />
     </button>
   );
 });
+
+/**
+ * SEÇÃO DE STATUS — o MESMO cabeçalho da página Guias (pedido explícito,
+ * 03/10/2026: "deixar a visão em registros tão clean quanto a da página
+ * guias... colocar o título/status exatamente como colocamos na aba guias").
+ * Saiu o quadrante de fundo: o título fica centrado entre dois fios na cor do
+ * status, e os cartões ocupam a largura inteira, alinhados com a busca e o
+ * resumo.
+ *
+ * Ajuste aprovado no mesmo dia (mockup L1b): a contagem é SÓ O NÚMERO, colada
+ * ao título ("remova a palavra imóveis... coloque ao lado do título"), e o
+ * conjunto ícone + título + número fica centrado na LARGURA TOTAL, não no
+ * espaço que sobra — por isso as duas colunas laterais são iguais
+ * (`minmax(0,1fr)`) e os fios podem encolher até zero. O ordenar fecha a
+ * linha à direita.
+ */
+function StatusSection({
+  label,
+  title,
+  color,
+  Icon,
+  count,
+  sort,
+  children,
+}: {
+  label: string;
+  title: string;
+  color: string;
+  Icon: typeof CircleAlert;
+  count: number;
+  sort?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section aria-label={label} className="relative min-w-0">
+      <div className="space-y-2.5">
+        <div
+          className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5"
+        >
+          <span
+            aria-hidden
+            className="h-px min-w-0"
+            style={{ background: `linear-gradient(to left, color-mix(in oklab, ${color} 70%, transparent), transparent)` }}
+          />
+          <span className="flex min-w-0 items-center gap-2">
+            <span
+              className="grid size-[22px] shrink-0 place-items-center rounded-md"
+              style={{ background: `color-mix(in oklab, ${color} 12%, transparent)`, color }}
+            >
+              <Icon className="size-[13px]" strokeWidth={2.2} />
+            </span>
+            <span className="ds-eyebrow min-w-0 truncate text-[10px] tracking-[0.2em] text-muted-foreground">
+              {title}
+            </span>
+            <span aria-label={`${count} ${count === 1 ? "imóvel" : "imóveis"}`}>
+              <CountPill>{count}</CountPill>
+            </span>
+          </span>
+          <span className="flex min-w-0 items-center gap-2.5">
+            <span
+              aria-hidden
+              className="h-px min-w-0 flex-1"
+              style={{ background: `linear-gradient(to right, color-mix(in oklab, ${color} 70%, transparent), transparent)` }}
+            />
+            {sort}
+          </span>
+        </div>
+        <div className="ds-five-cap grid gap-3 max-lg:-ml-[2px]! max-lg:-mr-[10px]!">{children}</div>
+      </div>
+    </section>
+  );
+}
 
 function PropertyCard({
   group,
@@ -1348,7 +1411,7 @@ function PropertyCard({
             mesmo cartão só roubava largura do nome do imóvel. */}
         <span className="ds-card-title block">{group.label}</span>
         {group.sublabel && (
-          <span className={`mt-0.5 block truncate text-[12.5px] font-semibold ${CARD_OWNER}`}>
+          <span className={`mt-0.5 block truncate text-[11.5px] ${CARD_OWNER}`}>
             {ownerLabel(group.sublabel)}
           </span>
         )}
