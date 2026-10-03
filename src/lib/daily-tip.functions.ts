@@ -139,8 +139,9 @@ export const getDailyTip = createServerFn({ method: "POST" })
     // Cache vazio = geração paga: só hóspede com reserva conferida por código
     // aciona a IA. Os demais veem a dica já gerada no dia (quando houver).
     if (!passInfo.verified) return null;
-    // Teto diário por imóvel e global.
-    if (!allowPaidGuestUse({ scope: "daily-tip", propertyId: prop.id, perProperty: 4, global: 500 })) {
+    // Teto diário: UMA geração paga por imóvel/dia (o resultado vai ao cache)
+    // e teto global baixo — nenhum visitante consegue repetir o gasto.
+    if (!allowPaidGuestUse({ scope: "daily-tip", propertyId: prop.id, perProperty: 1, global: 200 })) {
       return null;
     }
 
