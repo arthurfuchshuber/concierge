@@ -27,7 +27,6 @@ import {
   ListChecks,
   CalendarRange,
   Users,
-  Pointer,
   ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -768,19 +767,6 @@ export function RecordsWorkspace() {
 
         {/* CARTÕES + GRÁFICO — mesmo grupo da Limpeza (10px entre eles). */}
         <div className="ds-card-grid">
-          {/* O QUE ESTES CARTÕES FAZEM (mockup A1, 03/10/2026: "o usuário não
-              sabe onde tem que clicar"). Eles já eram filtros — mas nada
-              dizia isso. Agora a faixa acima diz o que são e o que o toque
-              faz; o filtro ligado continua marcado no próprio cartão. */}
-          <div className="flex items-center justify-between gap-2 px-0.5">
-            <span className="ds-eyebrow truncate text-[10px] tracking-[0.2em] text-muted-foreground">
-              Tipos de registro
-            </span>
-            <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Pointer className="size-[13px]" />
-              {category ? "Toque de novo para limpar" : "Toque para filtrar"}
-            </span>
-          </div>
           <div className="ds-card-grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
             {CARDS.map((c) => (
               <StatCard
@@ -1561,6 +1547,9 @@ function PendingRow({
   onResolve?: () => void;
 }) {
   const meta = CATEGORY_BY_KEY.get(record.category);
+  const cascade = rowSquares([record], 3);
+  const totalVisual = (record.media ?? []).filter((m) => m.url && (m.kind === "photo" || m.kind === "video")).length;
+  const extra = Math.max(0, totalVisual - cascade.length);
   return (
     <div className="flex w-full items-start gap-2 border-t border-border/50 py-1.5 first:border-t-0">
       {/* O QUADRANTE FICA CENTRADO no bloco título + subtítulo (pedido
@@ -1572,17 +1561,45 @@ function PendingRow({
         onClick={onOpen}
         className="flex min-w-0 flex-1 items-center gap-2 text-left transition-colors hover:opacity-80"
       >
-        <span className="relative grid size-[34px] shrink-0 place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30">
-          <RecordCover record={record} size="xs" />
-          <span className={`absolute inset-x-0 bottom-0 h-[3px] ${meta?.dot ?? "bg-muted"}`} />
-          {(record.media?.length ?? 0) > 1 && (
+        {/* A CASCATA DE IMAGENS (pedido explícito, 03/10/2026: "aqui também
+            precisa ter a cascatinha mostrando as imagens"): o mesmo desenho
+            da linha do cartão — até três quadrados sobrepostos com as mídias
+            mais ANTIGAS da pendência. Antes ficava um ícone de papel com um
+            "2" mesmo havendo foto e vídeo dentro. Mais mídias que quadrados:
+            o "+N" no último. Sem imagem: volta ao ícone do tipo. */}
+        <span className="flex shrink-0">
+          {cascade.map((m, i) => (
             <span
-              className="absolute right-0 top-0 grid h-[12px] min-w-[12px] place-items-center rounded-bl-[0.25rem] bg-black/65 px-0.5 text-[7.5px] font-extrabold tabular-nums text-white"
-              aria-label={`${record.media?.length ?? 0} mídias`}
+              key={m.id}
+              className={`relative grid size-[34px] place-items-center overflow-hidden rounded-[9px] bg-gradient-to-br from-secondary/80 to-secondary/40 ring-2 ring-[var(--panel,transparent)] ${
+                i > 0 ? "-ml-2.5" : ""
+              }`}
             >
-              {record.media?.length ?? 0}
+              {m.kind === "photo" && m.url ? (
+                <img src={m.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+              ) : m.kind === "video" && m.url ? (
+                <video
+                  src={`${m.url}#t=0.1`}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  tabIndex={-1}
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 size-full bg-black object-cover"
+                />
+              ) : (
+                <RecordCover record={m.record} size="xs" />
+              )}
+              {i === cascade.length - 1 && extra > 0 && (
+                <span
+                  className="absolute inset-0 grid place-items-center bg-black/60 text-[11px] font-extrabold tabular-nums text-white"
+                  aria-label={`mais ${extra} mídias`}
+                >
+                  +{extra}
+                </span>
+              )}
             </span>
-          )}
+          ))}
         </span>
         <span className="min-w-0 flex-1">
           <span
