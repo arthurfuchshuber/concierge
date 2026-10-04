@@ -616,6 +616,9 @@ export function RecordsWorkspace() {
   // pendência MAIS ANTIGA vem primeiro — ali antiguidade é atraso, a mesma
   // regra das linhas dentro do cartão. Embaixo, a ordem de sempre.
   const byProperty = groupBy === "property";
+  // FILTRO ESTRITO (04/10/2026): com Danos/Manutenção/Incidentes escolhido, a tela
+  // mostra SÓ as pendências dessa categoria — sem "Em dia" e sem histórico.
+  const strictPending = category !== null && PENDING_LIST.includes(category);
   const attentionGroups = byProperty
     ? groups
         .filter((g) => g.pending.length > 0)
@@ -638,7 +641,9 @@ export function RecordsWorkspace() {
   // "Em dia": o padrão ("recent") mantém a ordem que já vinha do banco — os
   // registros chegam do mais novo para o mais antigo, então o imóvel do
   // registro mais recente já vem primeiro. Só as outras ordens reordenam.
-  const calmGroups = byProperty
+  const calmGroups = strictPending
+    ? []
+    : byProperty
     ? calmSort === "recent"
       ? groups.filter((g) => g.pending.length === 0)
       : groups
@@ -689,6 +694,7 @@ export function RecordsWorkspace() {
       pendingOpen={openPending === g.key}
       onTogglePending={() => setOpenPending((cur) => (cur === g.key ? null : g.key))}
       category={category}
+      hideHistory={strictPending}
     />
   );
 
@@ -907,10 +913,12 @@ export function RecordsWorkspace() {
           <div className="grid place-items-center py-16 text-muted-foreground">
             <Loader2 className="size-5 animate-spin" />
           </div>
-        ) : groups.length === 0 ? (
+        ) : groups.length === 0 || (strictPending && attentionGroups.length === 0) ? (
           <p className="py-14 text-center text-sm text-muted-foreground">
-            {onlyOpen
-              ? "Nada em aberto por aqui."
+            {onlyOpen || strictPending
+              ? strictPending
+                ? `Nenhuma pendência de ${CATEGORY_BY_KEY.get(category as RecordCategory)?.short ?? "esta categoria"}.`
+                : "Nada em aberto por aqui."
               : category
                 ? "Nenhum registro nesta categoria."
                 : "Os registros feitos nos cards aparecem aqui."}
@@ -1475,9 +1483,12 @@ function PropertyCard({
   pendingOpen,
   onTogglePending,
   category = null,
+  hideHistory = false,
 }: {
   /** Categoria filtrada: o acervo passa a se chamar "Histórico de <categoria>". */
   category?: RecordCategory | null;
+  /** Filtro estrito: o histórico (já resolvido) não aparece. */
+  hideHistory?: boolean;
   group: Group;
   onOpen: (r: AccountRecord) => void;
   onResolve: (r: AccountRecord) => void;
@@ -1600,7 +1611,7 @@ function PropertyCard({
           </>
         )}
 
-        {group.rest.length > 0 && (
+        {group.rest.length > 0 && !hideHistory && (
           <>
             {/* A ETIQUETA DE "REGISTROS" EXISTE SEMPRE (pedido explícito,
               10/09/2026), com o fio e a contagem à direita — a mesma forma de
@@ -1633,7 +1644,14 @@ function PropertyCard({
             {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
               colunas elásticas elas viravam quadrados gigantes no desktop. */}
             {stripOpen && (
-              <div className="flex flex-wrap gap-1 pt-1.5">
+              /* TERMINA ONDE TERMINAM AS IMAGENS DA LINHA DE CIMA (04/10/2026):
+                 colunas fixas que se distribuem de ponta a ponta, com a folga da
+                 setinha (borda 1 + respiro 12 + seta 16 + vão 10 = 39px). */
+              <div
+                className={`mr-[39px] grid justify-between gap-y-1 pt-1.5 ${
+                  hasPending ? "grid-cols-[repeat(auto-fill,44px)]" : "grid-cols-[repeat(auto-fill,68px)] sm:grid-cols-[repeat(auto-fill,76px)]"
+                }`}
+              >
                 {group.rest.slice(0, thumbCap).map((r, i) => {
                   const isLastSlot = i === thumbCap - 1;
                   const hidden = group.rest.length - thumbCap;
