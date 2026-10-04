@@ -91,6 +91,7 @@ import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import { DictationField } from "@/components/dashboard/RecordSituationSheet";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
 import { PENDING_CATEGORIES } from "@/lib/record-pending";
+import { VideoFrame } from "@/components/dashboard/VideoFrame";
 import { PendingSummary } from "@/components/dashboard/PendingSummary";
 import { stableMediaUrl, warmImages } from "@/lib/stable-media-url";
 import { listTaskLinkOptions, restoreTask, setTaskStatus } from "@/lib/tasks.functions";
@@ -1082,23 +1083,48 @@ function StatusCell({
       onClick={onClick}
       aria-pressed={active}
       aria-label={`${label}: ${open} em aberto`}
-      className={`relative flex min-w-0 flex-col items-center px-1.5 pb-2.5 pt-2.5 transition-colors hover:bg-foreground/[0.03] ${
+      className={`relative flex min-w-0 flex-col items-center px-1.5 pb-2.5 pt-2.5 transition-colors ${active ? "" : "hover:bg-foreground/[0.03]"} ${
         first ? "" : "border-l border-[color-mix(in_oklab,var(--foreground)_11%,transparent)]"
-      } ${active ? "bg-secondary/50" : ""}`}
+      }`}
       style={
-        active ? { boxShadow: `inset 0 0 0 1.5px color-mix(in oklab, ${tone} 70%, transparent)` } : undefined
+        active
+          ? {
+              background: `linear-gradient(180deg, color-mix(in oklab, ${tone} 18%, transparent), transparent 75%)`,
+            }
+          : undefined
       }
     >
+      {active && (
+        <>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-[2px]"
+            style={{ background: `linear-gradient(90deg, transparent, ${tone}, transparent)` }}
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-0 left-1/2 h-[3px] w-[26px] -translate-x-1/2 rounded-full"
+            style={{
+              background: `linear-gradient(90deg, color-mix(in oklab, ${tone} 60%, white), ${tone})`,
+            }}
+          />
+        </>
+      )}
       <span
         className={`font-display text-[20px] font-bold leading-none tracking-[-0.02em] tabular-nums ${
           open > 0 || loading ? "" : "text-muted-foreground"
         }`}
+        style={
+          active
+            ? { color: tone, textShadow: `0 0 14px color-mix(in oklab, ${tone} 55%, transparent)` }
+            : undefined
+        }
       >
         {loading ? "—" : open}
       </span>
       <span className="mt-1.5 flex w-full min-w-0 items-center justify-center gap-1 text-[10.5px] font-bold text-muted-foreground">
         <Icon className="size-[12px] shrink-0" style={{ color: tone }} strokeWidth={2} />
-        <span className="min-w-0 truncate">{label}</span>
+        <span className={`min-w-0 truncate ${active ? "text-foreground" : ""}`}>{label}</span>
       </span>
     </button>
   );
@@ -1381,15 +1407,7 @@ const PropertyRow = forwardRef<
               {m.kind === "photo" && m.url ? (
                 <img src={m.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
               ) : m.kind === "video" && m.url ? (
-                <video
-                  src={`${m.url}#t=0.1`}
-                  preload="metadata"
-                  muted
-                  playsInline
-                  tabIndex={-1}
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 size-full bg-black object-cover"
-                />
+                <VideoFrame url={m.url} />
               ) : (
                 <RecordCover record={m.record} size="xs" />
               )}
@@ -1736,15 +1754,7 @@ function PendingRow({
               {m.kind === "photo" && m.url ? (
                 <img src={m.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
               ) : m.kind === "video" && m.url ? (
-                <video
-                  src={`${m.url}#t=0.1`}
-                  preload="metadata"
-                  muted
-                  playsInline
-                  tabIndex={-1}
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 size-full bg-black object-cover"
-                />
+                <VideoFrame url={m.url} />
               ) : (
                 <RecordCover record={m.record} size="xs" />
               )}
