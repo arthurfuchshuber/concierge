@@ -37,9 +37,30 @@ export const getMyProfile = createServerFn({ method: "GET" })
       ]);
       isAccountOwner = (props ?? 0) > 0 || (subs ?? 0) > 0 || (memberships ?? 0) === 0;
     }
+    // Dados pessoais do titular (CPF, nascimento, e-mail, telefone) só para o
+    // próprio titular, co-titular ativo ou admin SaaS. Membros comuns veem
+    // apenas os dados públicos da empresa.
+    let canSeePersonal = ownerId === userId;
+    if (!canSeePersonal) {
+      const [{ data: isAdmin }, { data: member }] = await Promise.all([
+        supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+        supabase
+          .from("account_members")
+          .select("role")
+          .eq("owner_id", ownerId)
+          .eq("member_user_id", userId)
+          .eq("status", "active")
+          .maybeSingle(),
+      ]);
+      canSeePersonal = !!isAdmin || (member as { role?: string } | null)?.role === "owner";
+    }
+    const safeProfile =
+      profile && !canSeePersonal
+        ? { ...profile, cpf: null, birth_date: null, phone: null, phone_country: null }
+        : profile;
     return {
-      profile: profile ?? null,
-      email: authUser.user?.email ?? null,
+      profile: safeProfile ?? null,
+      email: canSeePersonal ? (authUser.user?.email ?? null) : null,
       isAccountOwner,
     };
   });
