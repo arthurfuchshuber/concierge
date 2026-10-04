@@ -53,6 +53,17 @@ export type ResolveContext = {
   strict?: boolean;
 };
 
+/**
+ * Só oscilação de rede/banco (timeout, pooler reiniciando, 502/503/504) conta
+ * como "não consegui verificar". Erro de esquema, política ou tabela ausente
+ * NÃO: esses repetem para sempre e deixariam o painel travado — para eles vale
+ * o comportamento de sempre (fecha por padrão, a decisão segue o modo do tenant).
+ */
+export function isTransientError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e ?? "");
+  return /fetch failed|timeout|timed out|etimedout|econn|network|socket|terminat|pool|\b50[234]\b|temporar/i.test(msg);
+}
+
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
@@ -79,7 +90,9 @@ export async function resolveTenantOf(
 
   // Erro de leitura NÃO é "sem vínculo": tratar como titular da própria conta
   // trocava o recorte da pessoa em silêncio.
-  if (error) throw new Error(`Não foi possível ler o vínculo da conta: ${error.message}`);
+  if (error && isTransientError(error.message)) {
+    throw new Error(`Não foi possível ler o vínculo da conta: ${error.message}`);
+  }
 
   if (!data) return { tenantId: userId, status: "active", role: "owner", allProperties: true };
 
@@ -126,7 +139,7 @@ async function resolvePlan(tenantId: string): Promise<string | null> {
 /** Em modo estrito a falha sobe; fora dele cai no valor seguro de sempre. */
 function softFail<T>(ctx: ResolveContext, fallback: T) {
   return (e: unknown): T => {
-    if (ctx.strict) throw e instanceof Error ? e : new Error(String(e));
+    if (ctx.strict && isTransientError(e)) throw e instanceof Error ? e : new Error(String(e));
     return fallback;
   };
 }
@@ -152,7 +165,9 @@ export async function resolveSubjectSnapshot(
       .eq("owner_id", ctx.tenantId)
       .eq("status", "active")
       .maybeSingle();
-    if (mErr) throw new Error(`Não foi possível ler o vínculo da conta: ${mErr.message}`);
+    if (mErr && isTransientError(mErr.message)) {
+      throw new Error(`Não foi possível ler o vínculo da conta: ${mErr.message}`);
+    }
     membership = m
       ? {
           tenantId: ctx.tenantId,

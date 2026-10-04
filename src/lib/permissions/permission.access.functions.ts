@@ -59,7 +59,10 @@ export const getMyAccessDecisions = createServerFn({ method: "POST" })
         .eq("status", "active")
         .limit(1)
         .maybeSingle();
-      if (linkErr) throw new Error("Não foi possível verificar o vínculo com a empresa.");
+      if (linkErr) {
+        const { isTransientError } = await import("@/lib/permissions/permission.resolve.server");
+        if (isTransientError(linkErr.message)) throw new Error("Não foi possível verificar o vínculo com a empresa.");
+      }
       if (link) tenantId = data.accountOwnerId;
     }
 

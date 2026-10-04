@@ -23,6 +23,23 @@ import { useAccessEnv } from "@/lib/permissions/useAccessEnv";
  * de novo sozinha e, se persistir, a tela oferece "Tentar de novo" em vez de
  * acusar a pessoa de não ter permissão.
  */
+/** Nunca deixa a tela esperando para sempre: passou do prazo, vira falha (com "Tentar de novo"). */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("Tempo esgotado ao verificar o acesso.")), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
 export function useAreaAccess(namespaces: string[], required: AccessLevelInput = "READ") {
   const list = [...new Set(namespaces.filter(Boolean))].sort();
   const fetcher = useServerFn(getMyAccessDecisions);
@@ -31,22 +48,25 @@ export function useAreaAccess(namespaces: string[], required: AccessLevelInput =
   const query = useQuery({
     queryKey: ["area-access", accountOwnerId ?? "self", required, list.join("|")],
     queryFn: () =>
-      fetcher({
-        data: {
-          permissions: list,
-          required,
-          accountOwnerId,
-          propertyId: null,
-          clientId: null,
-          recordId: null,
-        },
-      }),
+      withTimeout(
+        fetcher({
+          data: {
+            permissions: list,
+            required,
+            accountOwnerId,
+            propertyId: null,
+            clientId: null,
+            recordId: null,
+          },
+        }),
+        12_000,
+      ),
     enabled: list.length > 0 && sessionReady,
     staleTime: 30_000,
     // Falha transitória (token a caminho, cold start, rede): tenta de novo
     // antes de desistir — 4 tentativas em ~3,5 s.
-    retry: 3,
-    retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 4_000),
+    retry: 2,
+    retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 2_000),
     // Voltar para a aba revalida; uma decisão boa já guardada NÃO some se a
     // revalidação falhar (o react-query mantém `data`).
     refetchOnWindowFocus: true,
