@@ -1330,6 +1330,10 @@ export type PendingItem = {
   category: RecordCategory;
   title: string;
   createdAt: string;
+  /** Proprietário do imóvel (para a linha "Proprietário(a): nome" + mensagem). */
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
 };
 
 export type AccountRecordsResult = {
@@ -1719,6 +1723,7 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     });
 
     const total = primaries.length;
+    const ownerOf = (propertyId: string) => propById.get(propertyId)?.ownerContactId ?? null;
     const pendingItems: PendingItem[] = pendingRows
       .map((r) => {
         const first = (r.body ?? "").trim().split("\n")[0]?.trim() ?? "";
@@ -1729,6 +1734,13 @@ export const listAccountRecords = createServerFn({ method: "GET" })
           category: r.category,
           title: first || "Sem título",
           createdAt: r.created_at,
+          ownerName: ownerOf(r.property_id)
+            ? (ownerNameById.get(ownerOf(r.property_id) as string) ?? null)
+            : null,
+          ownerPhone: ownerOf(r.property_id) ? (ownerPhoneById.get(ownerOf(r.property_id) as string)?.phone ?? null) : null,
+          ownerPhoneCountry: ownerOf(r.property_id)
+            ? (ownerPhoneById.get(ownerOf(r.property_id) as string)?.country ?? null)
+            : null,
         };
       })
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
