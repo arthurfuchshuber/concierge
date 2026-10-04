@@ -91,7 +91,6 @@ import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import { DictationField } from "@/components/dashboard/RecordSituationSheet";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
 import { PENDING_CATEGORIES } from "@/lib/record-pending";
-import { useAntiClipBar } from "@/hooks/useAntiClipBar";
 import { PendingSummary } from "@/components/dashboard/PendingSummary";
 import { stableMediaUrl, warmImages } from "@/lib/stable-media-url";
 import { listTaskLinkOptions, restoreTask, setTaskStatus } from "@/lib/tasks.functions";
@@ -389,6 +388,8 @@ function fmtStayRange(checkin: string | null, checkout: string | null): string |
  */
 const CARD_ORDER: readonly RecordCategory[] = ["maintenance", "damage", "incident", "forgotten", "other", "cleaning_audit"];
 const CARDS = CARD_ORDER.map((k) => CATEGORY_BY_KEY.get(k)!).filter(Boolean);
+/** As quatro categorias que abrem pendência: as células da faixa de status. */
+const STATUS_CELLS = CARDS.filter((c) => (PENDING_CATEGORIES as readonly string[]).includes(c.key));
 
 /** Quantas pendências o cartão do imóvel lista antes de colapsar em "+N". */
 
@@ -566,8 +567,7 @@ export function RecordsWorkspace() {
   );
   const counts = q.data?.counts;
 
-  const chipsBarRef = useAntiClipBar<HTMLDivElement>();
-  /** Imóvel escolhido no tooltip de pendências (desfeito junto com "Ver tudo"). */
+    /** Imóvel escolhido no tooltip de pendências (desfeito junto com "Ver tudo"). */
   const [pendingFocus, setPendingFocus] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const groups = useMemo<Group[]>(() => {
@@ -659,8 +659,14 @@ export function RecordsWorkspace() {
   // O NÚMERO DA FAIXA vem do servidor (mesma leitura dos cartões): não depende
   // do que coube na lista, da categoria escolhida nem da busca. Sem o campo
   // (servidor antigo), cai para o que a lista mostra.
-  const pendingOpen = q.data?.pendingOpen ?? attentionGroups.reduce((n, g) => n + g.pending.length, 0);
-  const pendingProperties = q.data?.pendingProperties ?? attentionGroups.length;
+  // Com uma categoria escolhida, a faixa e o resumo falam SÓ dela (filtro estrito).
+  const pendingItemsShown = (q.data?.pendingItems ?? []).filter((i) => (category ? i.category === category : true));
+  const pendingOpen = category
+    ? (q.data?.openCounts?.[category] ?? pendingItemsShown.length)
+    : (q.data?.pendingOpen ?? attentionGroups.reduce((n, g) => n + g.pending.length, 0));
+  const pendingProperties = category
+    ? new Set(pendingItemsShown.map((i) => i.propertyId)).size
+    : (q.data?.pendingProperties ?? attentionGroups.length);
 
   // Aquece o cache com as imagens dos primeiros cartões (sem mudar o visual).
   useEffect(() => {
@@ -682,6 +688,7 @@ export function RecordsWorkspace() {
       onToggleStrip={() => setOpenStrip((cur) => (cur === g.key ? null : g.key))}
       pendingOpen={openPending === g.key}
       onTogglePending={() => setOpenPending((cur) => (cur === g.key ? null : g.key))}
+      category={category}
     />
   );
 
@@ -794,45 +801,34 @@ export function RecordsWorkspace() {
         />
 
         <div className="ds-card-grid">
-          {/* BUSCA + AÇÕES ABAIXO DOS CARTÕES (pedido explícito, 03/10/2026:
-              "retorne a linha de campo de buscas + filtros para baixo dos
-              cards principais"). Desfaz a subida de 02/10/2026. */}
-          <SearchActionRow
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar por imóvel, proprietário…"
-            actions={recordActions}
-          />
-
-          {/* FILTROS EM LINHA (mockup 2, aprovado 03/10/2026): no lugar dos seis
-              cartões de contagem. Cada etiqueta filtra por categoria; nas que
-              abrem pendência o número é "abertas/total" — colado, sem espaço. */}
-          {/* ANTI-CORTE + LARGURA LIMITADA (03/10/2026): a barra fica entre as
-              MESMAS laterais da busca e da faixa (sem sangrar até a borda da
-              tela) e usa a regra global `useAntiClipBar` — nenhuma etiqueta
-              aparece pela metade; a sobra vira espaçamento entre as visíveis. */}
-          <div ref={chipsBarRef} className="ds-scroll-x w-full max-w-full gap-1.5">
-            <CategoryChip
-              label="Todos"
-              total={q.data?.total ?? 0}
-              loading={q.isLoading}
-              active={category === null}
-              onClick={() => setCategory(null)}
-            />
-            {CARDS.map((c) => (
-              <CategoryChip
+          {/* STATUS EM FAIXA ÚNICA (mockup C+D, aprovado 03/10/2026): acima da busca
+              e dos botões de filtro. Uma peça só, quatro células iguais — cabe
+              na largura (sem rolagem, nada cortado) e usa as mesmas laterais do
+              resto da tela. O número é o de pendências ABERTAS; o histórico não
+              aparece aqui. Tocar de novo na célula ativa limpa a categoria. A cor
+              é só a do status, no ícone. */}
+          <div className="ds-3d grid grid-cols-4 overflow-hidden rounded-[14px] bg-card">
+            {STATUS_CELLS.map((c, i) => (
+              <StatusCell
                 key={c.key}
+                first={i === 0}
                 label={c.short}
                 icon={c.icon}
                 tone={CARD_ICON_TONE[c.key]}
-                open={PENDING_LIST.includes(c.key) ? (q.data?.openCounts?.[c.key] ?? 0) : null}
-                total={counts?.[c.key] ?? 0}
+                open={q.data?.openCounts?.[c.key] ?? 0}
                 loading={q.isLoading}
                 active={category === c.key}
                 onClick={() => setCategory(category === c.key ? null : c.key)}
               />
             ))}
           </div>
+
+          <SearchActionRow
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por imóvel, proprietário…"
+            actions={recordActions}
+          />
 
           {/* RESUMO DO QUE ESTÁ ABERTO (mockup A1, 03/10/2026): a primeira coisa
               que a pessoa precisa saber — quanto trabalho há — com o atalho para
@@ -847,15 +843,13 @@ export function RecordsWorkspace() {
                   <>
                     <b className="font-bold">
                       {pendingOpen} {pendingOpen === 1 ? "pendência" : "pendências"}
+                      {category ? ` de ${CATEGORY_BY_KEY.get(category)?.short ?? ""}` : ""}
                     </b>{" "}
                     esperando solução em{" "}
                     <b className="font-bold">
                       {pendingProperties} {pendingProperties === 1 ? "imóvel" : "imóveis"}
                     </b>
                     .
-                    <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                      Nos filtros acima: abertas/total do histórico.
-                    </span>
                   </>
                 ) : (
                   "Nada em aberto por aqui."
@@ -880,7 +874,7 @@ export function RecordsWorkspace() {
                 </button>
               ) : (
                 <PendingSummary
-                  items={q.data?.pendingItems ?? []}
+                  items={pendingItemsShown}
                   tones={CARD_ICON_TONE}
                   viewerOpen={!!opened}
                   onOpenItem={(it) => {
@@ -1051,60 +1045,52 @@ const CARD_ICON_TONE: Record<RecordCategory, string> = {
 };
 
 /**
- * ETIQUETA DE FILTRO POR CATEGORIA (mockup 2, 03/10/2026).
- * "5/8" = 5 pendências abertas de 8 registros no histórico; categorias que não
- * abrem pendência mostram só o total.
+ * CÉLULA DA FAIXA DE STATUS (mockup C, 03/10/2026): número grande (pendências
+ * abertas) e, embaixo, o ícone com a cor do status e o nome. O selecionado
+ * ganha uma placa suave por dentro, com o anel na cor do status.
  */
-function CategoryChip({
+function StatusCell({
+  first,
   label,
   icon: Icon,
   tone,
-  open = null,
-  total,
+  open,
   loading,
   active,
   onClick,
 }: {
+  first: boolean;
   label: string;
-  icon?: React.ElementType;
-  tone?: string;
-  open?: number | null;
-  total: number;
+  icon: React.ElementType;
+  tone: string;
+  open: number;
   loading?: boolean;
   active: boolean;
   onClick: () => void;
 }) {
-  /* MESMA PEÇA DOS BOTÕES DE FILTRO/BUSCA (03/10/2026): casca `ds-3d` sobre
-     `bg-card`, altura `--ds-action-h`, raio 9px no celular e 13px no computador,
-     texto de 12px/negrito, cinza que acende no hover. A ÚNICA cor é a do
-     status (o ícone da categoria) — o resto é neutro. */
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`ds-3d ds-3d-hover relative inline-flex h-[var(--ds-action-h)] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[9px] bg-card px-3 text-[12px] font-bold transition-colors lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px] ${
-        active ? "bg-secondary/50 text-foreground" : "text-muted-foreground hover:text-foreground"
-      }`}
+      aria-label={`${label}: ${open} em aberto`}
+      className={`relative flex min-w-0 flex-col items-center px-1.5 pb-2.5 pt-2.5 transition-colors hover:bg-foreground/[0.03] ${
+        first ? "" : "border-l border-[color-mix(in_oklab,var(--foreground)_11%,transparent)]"
+      } ${active ? "bg-secondary/50" : ""}`}
       style={
-        active
-          ? { boxShadow: `inset 0 0 0 1.5px color-mix(in oklab, ${tone ?? "var(--foreground)"} 70%, transparent)` }
-          : undefined
+        active ? { boxShadow: `inset 0 0 0 1.5px color-mix(in oklab, ${tone} 70%, transparent)` } : undefined
       }
     >
-      {Icon && <Icon className="size-[14px] shrink-0" style={{ color: tone }} strokeWidth={2} />}
-      <span>{label}</span>
-      <span className="tabular-nums">
-        {loading ? (
-          "—"
-        ) : open !== null ? (
-          <>
-            <span className={`font-extrabold ${open > 0 ? "text-foreground" : ""}`}>{open}</span>
-            <span className="font-semibold text-muted-foreground">/{total}</span>
-          </>
-        ) : (
-          <span className="font-extrabold text-foreground">{total}</span>
-        )}
+      <span
+        className={`font-display text-[20px] font-bold leading-none tracking-[-0.02em] tabular-nums ${
+          open > 0 || loading ? "" : "text-muted-foreground"
+        }`}
+      >
+        {loading ? "—" : open}
+      </span>
+      <span className="mt-1.5 flex w-full min-w-0 items-center justify-center gap-1 text-[10.5px] font-bold text-muted-foreground">
+        <Icon className="size-[12px] shrink-0" style={{ color: tone }} strokeWidth={2} />
+        <span className="min-w-0 truncate">{label}</span>
       </span>
     </button>
   );
@@ -1488,7 +1474,10 @@ function PropertyCard({
   onToggleStrip,
   pendingOpen,
   onTogglePending,
+  category = null,
 }: {
+  /** Categoria filtrada: o acervo passa a se chamar "Histórico de <categoria>". */
+  category?: RecordCategory | null;
   group: Group;
   onOpen: (r: AccountRecord) => void;
   onResolve: (r: AccountRecord) => void;
@@ -1629,8 +1618,16 @@ function PropertyCard({
               open={stripOpen}
               onClick={onToggleStrip}
               aria-expanded={stripOpen}
-              title={`${group.rest.length} ${group.rest.length === 1 ? "registro" : "registros"}`}
-              subtitle={`Último: ${fmtLast(group.rest[0].createdAt)}`}
+              title={
+                category && PENDING_LIST.includes(category)
+                  ? `Histórico de ${CATEGORY_BY_KEY.get(category)?.short ?? ""}`
+                  : `${group.rest.length} ${group.rest.length === 1 ? "registro" : "registros"}`
+              }
+              subtitle={
+                category && PENDING_LIST.includes(category)
+                  ? `${group.rest.length} ${group.rest.length === 1 ? "resolvido" : "resolvidos"} · Último: ${fmtLast(group.rest[0].createdAt)}`
+                  : `Último: ${fmtLast(group.rest[0].createdAt)}`
+              }
               thumbs={group.rest}
             />
             {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
