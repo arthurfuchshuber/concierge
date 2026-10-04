@@ -360,7 +360,21 @@ export function CleaningDayDetailContent({
           <X className="size-3.5" strokeWidth={2.2} />
         </button>
       </div>
-      {body && <div className="sg-elegant-scroll max-h-[60vh] overflow-y-auto overflow-x-hidden px-5 pt-1">{body}</div>}
+      {body && (
+        /* ANTI-CORTE vertical: nenhuma linha termina seca contra o rodapé.
+           As linhas encaixam no topo ao rolar (snap), a borda de baixo
+           esmaece em vez de cortar, e a folga final garante que a última
+           linha apareça inteira quando a rolagem chega ao fim. */
+        <div
+          className="sg-elegant-scroll max-h-[60vh] snap-y snap-proximity overflow-y-auto overflow-x-hidden px-5 pb-5 pt-1 [&_tbody_tr]:snap-start"
+          style={{
+            maskImage: "linear-gradient(to bottom, #000 calc(100% - 20px), transparent)",
+            WebkitMaskImage: "linear-gradient(to bottom, #000 calc(100% - 20px), transparent)",
+          }}
+        >
+          {body}
+        </div>
+      )}
       {footer && (
         <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-border bg-foreground/[0.03] px-5 py-3.5">
           {footer}

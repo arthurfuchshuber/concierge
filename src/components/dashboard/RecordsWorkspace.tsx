@@ -814,15 +814,17 @@ export function RecordsWorkspace() {
               resto da tela. O número é o de pendências ABERTAS; o histórico não
               aparece aqui. Tocar de novo na célula ativa limpa a categoria. A cor
               é só a do status, no ícone. */}
-          <div className="ds-3d grid grid-cols-4 overflow-hidden rounded-[14px] bg-card">
-            {STATUS_CELLS.map((c, i) => (
+          <div className="grid grid-cols-2 gap-2.5">
+            {STATUS_CELLS.map((c) => (
               <StatusCell
                 key={c.key}
-                first={i === 0}
                 label={c.short}
                 icon={c.icon}
-                tone={CARD_ICON_TONE[c.key]}
                 open={q.data?.openCounts?.[c.key] ?? 0}
+                note={(() => {
+                  const old = oldestIso((q.data?.pendingItems ?? []).filter((i) => i.category === c.key));
+                  return old ? `Mais antiga ${fmtAgo(old)}` : null;
+                })()}
                 loading={q.isLoading}
                 active={category === c.key}
                 onClick={() => setCategory(category === c.key ? null : c.key)}
@@ -844,7 +846,7 @@ export function RecordsWorkspace() {
               delas é exatamente o total, e bate com o "em aberto" de cada
               cartão acima. Reaproveita o filtro "só em aberto". */}
           {(pendingOpen > 0 || onlyOpen) && (
-            <div className="flex items-center gap-3 rounded-[14px] border border-[#c98c8c]/30 bg-[#c98c8c]/12 px-3.5 py-3">
+            <div className="ds-3d flex items-center gap-3 rounded-[14px] bg-card px-3.5 py-3">
               <p className="min-w-0 flex-1 text-[12px] leading-snug">
                 {pendingOpen > 0 ? (
                   <>
@@ -875,7 +877,7 @@ export function RecordsWorkspace() {
                     }
                   }}
                   aria-pressed
-                  className="shrink-0 rounded-[10px] bg-[#b4545c] px-3 py-2 text-[11.5px] font-bold text-white transition-opacity hover:opacity-90"
+                  className="shrink-0 rounded-[10px] border border-border bg-secondary px-3 py-2 text-[11.5px] font-bold text-foreground transition-colors hover:bg-secondary/70"
                 >
                   Ver tudo
                 </button>
@@ -899,7 +901,7 @@ export function RecordsWorkspace() {
                 >
                   <button
                     type="button"
-                    className="shrink-0 rounded-[10px] bg-[#b4545c] px-3 py-2 text-[11.5px] font-bold text-white transition-opacity hover:opacity-90"
+                    className="shrink-0 rounded-[10px] border border-border bg-secondary px-3 py-2 text-[11.5px] font-bold text-foreground transition-colors hover:bg-secondary/70"
                   >
                     Ver só elas
                   </button>
@@ -1054,27 +1056,27 @@ const CARD_ICON_TONE: Record<RecordCategory, string> = {
 };
 
 /**
- * CÉLULA DA FAIXA DE STATUS (mockup C, 03/10/2026): número grande (pendências
- * abertas) e, embaixo, o ícone com a cor do status e o nome. O selecionado
- * ganha uma placa suave por dentro, com o anel na cor do status.
+ * Card de status do filtro — mesma anatomia do `StatCard` (Limpeza): caixinha
+ * de ícone cinza + rótulo em caixa alta + número grande centralizado + aviso.
+ * Paleta neutra (a cor do status fica nos cartões dos imóveis). Selecionado:
+ * luz no topo, fio em gradiente na borda de cima e indicador embaixo, em tom
+ * claro neutro (opção N1 aprovada em 04/10/2026).
  */
 function StatusCell({
-  first,
   label,
   icon: Icon,
-  tone,
   open,
   loading,
   active,
+  note,
   onClick,
 }: {
-  first: boolean;
   label: string;
   icon: React.ElementType;
-  tone: string;
   open: number;
   loading?: boolean;
   active: boolean;
+  note?: string | null;
   onClick: () => void;
 }) {
   return (
@@ -1083,13 +1085,12 @@ function StatusCell({
       onClick={onClick}
       aria-pressed={active}
       aria-label={`${label}: ${open} em aberto`}
-      className={`relative flex min-w-0 flex-col items-center px-1.5 pb-2.5 pt-2.5 transition-colors ${active ? "" : "hover:bg-foreground/[0.03]"} ${
-        first ? "" : "border-l border-[color-mix(in_oklab,var(--foreground)_11%,transparent)]"
-      }`}
+      className="ds-3d ds-3d-hover relative flex h-full w-full flex-col gap-1 overflow-hidden rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       style={
         active
           ? {
-              background: `linear-gradient(180deg, color-mix(in oklab, ${tone} 18%, transparent), transparent 75%)`,
+              background:
+                "linear-gradient(180deg, color-mix(in oklab, var(--foreground) 14%, transparent), transparent 75%), var(--card)",
             }
           : undefined
       }
@@ -1099,33 +1100,33 @@ function StatusCell({
           <span
             aria-hidden
             className="pointer-events-none absolute inset-x-0 top-0 h-[2px]"
-            style={{ background: `linear-gradient(90deg, transparent, ${tone}, transparent)` }}
+            style={{ background: "linear-gradient(90deg, transparent, var(--foreground), transparent)" }}
           />
           <span
             aria-hidden
-            className="pointer-events-none absolute bottom-0 left-1/2 h-[3px] w-[26px] -translate-x-1/2 rounded-full"
-            style={{
-              background: `linear-gradient(90deg, color-mix(in oklab, ${tone} 60%, white), ${tone})`,
-            }}
+            className="pointer-events-none absolute bottom-0 left-1/2 h-[3px] w-[26px] -translate-x-1/2 rounded-t-full bg-foreground"
           />
         </>
       )}
-      <span
-        className={`font-display text-[20px] font-bold leading-none tracking-[-0.02em] tabular-nums ${
+      <div className="flex w-full min-w-0 items-center gap-1.5">
+        <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
+          <Icon className="size-3.5" strokeWidth={2} />
+        </span>
+        <span className="ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]">
+          {label}
+        </span>
+      </div>
+      <div
+        className={`w-full pt-1.5 text-center font-display text-[26px] font-bold leading-none tracking-[-0.03em] tabular-nums ${
           open > 0 || loading ? "" : "text-muted-foreground"
         }`}
-        style={
-          active
-            ? { color: tone, textShadow: `0 0 14px color-mix(in oklab, ${tone} 55%, transparent)` }
-            : undefined
-        }
+        style={active ? { textShadow: "0 0 14px color-mix(in oklab, var(--foreground) 35%, transparent)" } : undefined}
       >
         {loading ? "—" : open}
-      </span>
-      <span className="mt-1.5 flex w-full min-w-0 items-center justify-center gap-1 text-[10.5px] font-bold text-muted-foreground">
-        <Icon className="size-[12px] shrink-0" style={{ color: tone }} strokeWidth={2} />
-        <span className={`min-w-0 truncate ${active ? "text-foreground" : ""}`}>{label}</span>
-      </span>
+      </div>
+      {note && !loading ? (
+        <p className="w-full truncate pt-1 text-center text-[10px] font-bold text-muted-foreground">{note}</p>
+      ) : null}
     </button>
   );
 }
