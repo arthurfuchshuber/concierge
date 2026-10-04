@@ -81,7 +81,6 @@ export const SLUG_ALIASES: Record<string, string> = {
   "tenant.inteligencia": "admin.inteligencia",
   "tenant.clientes": "admin.clientes",
   "tenant.crm.clientes": "admin.clientes",
-  "tenant.cidades": "admin.cidades",
   "tenant.taxonomia": "admin.taxonomia",
   "tenant.recomendacoes-sigma": "admin.recomendacoes-sigma",
 };
