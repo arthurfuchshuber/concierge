@@ -1244,7 +1244,14 @@ export const deleteReservationRecord = createServerFn({ method: "POST" })
         await supabase.from("tasks").upsert(removedTasks, { onConflict: "id" });
       }
       await supabase.from("reservation_records").upsert(removed, { onConflict: "id" });
-      throw new Error(trashErr?.message ?? "Não foi possível excluir.");
+      const faltaTabela = /reservation_records_trash|schema cache|does not exist|42P01|PGRST205/i.test(
+        trashErr?.message ?? "",
+      );
+      throw new Error(
+        faltaTabela
+          ? "A lixeira de registros ainda não existe no banco. Aplique a migração da lixeira e tente de novo — nada foi apagado."
+          : "Não foi possível guardar a cópia na lixeira, então nada foi apagado. Tente de novo.",
+      );
     }
 
     return {
