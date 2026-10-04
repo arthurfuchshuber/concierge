@@ -882,13 +882,6 @@ export function RecordsWorkspace() {
                 <PendingSummary
                   items={q.data?.pendingItems ?? []}
                   tones={CARD_ICON_TONE}
-                  onApply={(propertyId) => {
-                    setOnlyOpen(true);
-                    if (propertyId) {
-                      setPropertyFilters([propertyId]);
-                      setPendingFocus(propertyId);
-                    }
-                  }}
                   viewerOpen={!!opened}
                   onOpenItem={(it) => {
                     const rec = records.find((r) => r.id === it.id);

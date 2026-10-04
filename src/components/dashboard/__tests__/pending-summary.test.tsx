@@ -34,14 +34,13 @@ const tones = {
   other: "#c9a962",
 };
 
-function setup(onApply = vi.fn(), onOpenItem = vi.fn(() => true)) {
+function setup(onOpenItem = vi.fn(() => true)) {
   render(
-    <PendingSummary items={items} tones={tones} onApply={onApply} onOpenItem={onOpenItem}>
+    <PendingSummary items={items} tones={tones} onOpenItem={onOpenItem}>
       <button>Ver só elas</button>
     </PendingSummary>,
   );
   fireEvent.click(screen.getByText("Ver só elas"));
-  return onApply;
 }
 
 
@@ -54,27 +53,27 @@ describe("Tooltip do 'Ver só elas'", () => {
     expect(screen.getByText("+ 15 dias")).toBeTruthy();
   });
 
-  it("só existe o X no topo (sem 'Filtrar lista'/'Fechar' no rodapé)", async () => {
+  it("sem botões de filtrar nem 'Fechar' no rodapé; só o X do sistema", async () => {
     setup();
     await screen.findByText("Resumo das pendências");
     expect(screen.queryByText("Filtrar lista")).toBeNull();
     expect(screen.queryByText("Fechar")).toBeNull();
-    expect(screen.getAllByLabelText("Fechar")).toHaveLength(1);
+    expect(screen.queryByText(/^Ver só (Casa|Studio|Apê)/)).toBeNull();
+    expect(screen.getAllByText("Close")).toHaveLength(1);
   });
 
-  it("na aba Imóveis, tocar num imóvel mostra as pendências e filtra só ele", async () => {
-    const onApply = setup();
+  it("na aba Imóveis, tocar num imóvel mostra as pendências dele", async () => {
+    setup();
     fireEvent.click(await screen.findByText("Imóveis"));
     fireEvent.click(screen.getByText("Casa Charmosa"));
     expect(screen.getByText("Lâmpada queimada")).toBeTruthy();
-    fireEvent.click(screen.getByText("Ver só Casa Charmosa"));
-    expect(onApply).toHaveBeenCalledWith("p1");
+    expect(screen.queryByText(/^Ver só (Casa|Studio|Apê)/)).toBeNull();
   });
 
   it("tocar numa pendência abre ela; ao fechá-la, o tooltip volta como estava", async () => {
     const onOpenItem = vi.fn(() => true);
     const ui = (viewerOpen: boolean) => (
-      <PendingSummary items={items} tones={tones} onApply={vi.fn()} onOpenItem={onOpenItem} viewerOpen={viewerOpen}>
+      <PendingSummary items={items} tones={tones} onOpenItem={onOpenItem} viewerOpen={viewerOpen}>
         <button>Ver só elas</button>
       </PendingSummary>
     );

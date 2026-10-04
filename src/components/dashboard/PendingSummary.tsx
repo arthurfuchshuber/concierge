@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronRight, X } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  FILTER_PANEL_CLASS,
-  FILTER_PANEL_COLLISION,
-  FILTER_PANEL_OFFSET,
-} from "@/components/dashboard/filter-panel";
+import { ChevronRight } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CATEGORY_BY_KEY } from "@/components/dashboard/record-categories";
 import type { PendingItem, RecordCategory } from "@/lib/reservation-records.functions";
 
@@ -23,7 +18,7 @@ import type { PendingItem, RecordCategory } from "@/lib/reservation-records.func
  * lista), então o total sempre fecha com a faixa.
  *
  * REGRAS DO SISTEMA que esta peça cumpre:
- *  · `PopoverContent` — registra na central de sobreposições (véu com
+ *  · `DialogContent` (centralizado, X padrão) — registra na central de sobreposições (véu com
  *    desfoque, ordem de cliques fora), limita a 75% da altura e nunca passa
  *    da tela;
  *  · casca, 16px de folga lateral e 8px do botão são os dos Filtros
@@ -59,7 +54,6 @@ const BUCKETS: { key: string; label: string; test: (d: number) => boolean; color
 export function PendingSummary({
   items,
   tones,
-  onApply,
   onOpenItem,
   viewerOpen = false,
   children,
@@ -67,8 +61,6 @@ export function PendingSummary({
   items: PendingItem[];
   /** Cor de cada categoria (mesmo mapa dos filtros). */
   tones: Record<RecordCategory, string>;
-  /** `null` = filtrar todas as pendências; id = só aquele imóvel. */
-  onApply: (propertyId: string | null) => void;
   /** Tocar numa pendência da lista: o tooltip fecha e a pendência abre. */
   onOpenItem: (item: PendingItem) => boolean;
   /** A pendência oficial está aberta por cima: o tooltip espera e volta depois. */
@@ -110,7 +102,6 @@ export function PendingSummary({
     };
   }, [items]);
 
-  const expandedProp = expanded ? data.properties.find((p) => p.id === expanded) : null;
   const maxBucket = Math.max(1, ...data.buckets.map((b) => b.n));
 
   function close() {
@@ -119,7 +110,7 @@ export function PendingSummary({
   }
 
   return (
-    <Popover
+    <Dialog
       open={open}
       onOpenChange={(v) => {
         // "Clique ao fundo retorna à página anterior": com um imóvel aberto,
@@ -132,28 +123,21 @@ export function PendingSummary({
         if (!v) setExpanded(null);
       }}
     >
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent
-        align="end"
-        sideOffset={FILTER_PANEL_OFFSET}
-        collisionPadding={FILTER_PANEL_COLLISION}
-        className={`${FILTER_PANEL_CLASS} !w-[min(344px,calc(100vw-32px))]`}
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      {/* Centralizado na tela, com o X padrão do sistema (DialogContent). 90% da
+          altura (20% a mais que os 75% padrão); nada é cortado: o corpo cresce
+          com o conteúdo e só a lista de imóveis rola, por dentro. */}
+      <DialogContent
+        aria-describedby={undefined}
+        className="max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] max-w-[min(380px,calc(100vw-32px))] gap-0 overflow-x-hidden rounded-2xl p-0 sm:p-0"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="px-4 pb-4 pt-3.5">
-          <div className="flex items-center gap-2">
-            <p className="ds-eyebrow flex min-w-0 flex-1 items-center gap-2 text-[10px] tracking-[0.18em] text-muted-foreground">
+        <div className="px-5 pb-5 pt-4">
+          <div className="flex min-h-8 items-center pr-11">
+            <DialogTitle className="ds-eyebrow flex min-w-0 flex-1 items-center gap-2 text-[10px] font-normal leading-none tracking-[0.18em] text-muted-foreground">
               <span className="shrink-0">Resumo das pendências</span>
               <span aria-hidden className="h-px min-w-0 flex-1 bg-foreground/10" />
-            </p>
-            <button
-              type="button"
-              aria-label="Fechar"
-              onClick={close}
-              className="grid size-[26px] shrink-0 place-items-center rounded-md bg-secondary/60 text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <X className="size-3.5" strokeWidth={2.2} />
-            </button>
+            </DialogTitle>
           </div>
 
           {/* TOPO FIXO */}
@@ -222,7 +206,7 @@ export function PendingSummary({
           <div
             className={
               tab === "properties"
-                ? "max-h-[min(250px,36dvh)] overflow-y-auto overscroll-auto pr-3 sg-elegant-scroll [scrollbar-gutter:stable]"
+                ? "max-h-[min(300px,42dvh)] overflow-y-auto overscroll-auto pr-3 sg-elegant-scroll [scrollbar-gutter:stable]"
                 : ""
             }
           >
@@ -308,20 +292,8 @@ export function PendingSummary({
             )}
           </div>
 
-          {expandedProp && (
-            <button
-              type="button"
-              onClick={() => {
-                onApply(expandedProp.id);
-                close();
-              }}
-              className="mt-3 block w-full truncate rounded-[9px] bg-[#b4545c] px-3 py-2.5 text-[12.5px] font-extrabold text-white transition-opacity hover:opacity-90"
-            >
-              Ver só {expandedProp.name}
-            </button>
-          )}
         </div>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   );
 }
