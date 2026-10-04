@@ -118,11 +118,15 @@ export const getDailyTip = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop } = await supabaseAdmin
       .from("properties")
-      .select("id, name, city, country, lat, lng")
+      .select("id, name, city, country, lat, lng, owner_id")
       .eq("id", data.propertyId)
       .eq("published", true)
       .maybeSingle();
     if (!prop) return null;
+    // Cópia da landing: nunca gera custo pago.
+    const { isLandingCopy } = await import("@/lib/landing-demo.server");
+    const { data: slugRow } = await supabaseAdmin.from("properties").select("slug").eq("id", prop.id).maybeSingle();
+    const isDemo = !!slugRow?.slug && isLandingCopy(slugRow.slug);
     if (!prop.city && (prop.lat == null || prop.lng == null)) return null;
 
 
@@ -138,12 +142,25 @@ export const getDailyTip = createServerFn({ method: "POST" })
 
     // Cache vazio = geração paga: só hóspede com reserva conferida por código
     // aciona a IA. Os demais veem a dica já gerada no dia (quando houver).
-    if (!passInfo.verified) return null;
-    // Teto diário: UMA geração paga por imóvel/dia (o resultado vai ao cache)
-    // e teto global baixo — nenhum visitante consegue repetir o gasto.
+    if (!passInfo.verified || isDemo) return null;
+    // O custo só existe para imóveis cujo titular tem assinatura ativa: a
+    // geração é um recurso pago do plano do anfitrião, não do visitante.
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("id")
+      .eq("user_id", prop.owner_id)
+      .in("status", ["active", "trialing"])
+      .eq("billing_paused", false)
+      .limit(1)
+      .maybeSingle();
+    if (!sub) return null;
+    // Teto diário: UMA geração paga por imóvel/dia (o resultado vai ao cache),
+    // por titular e global baixo — nenhum visitante consegue repetir o gasto.
     if (!allowPaidGuestUse({ scope: "daily-tip", propertyId: prop.id, perProperty: 1, global: 200 })) {
       return null;
     }
+    const { allowDailyBudget } = await import("@/lib/public-rate-limit.server");
+    if (!allowDailyBudget(`daily-tip:o:${prop.owner_id}`, 20)) return null;
 
     const weather = prop.lat != null && prop.lng != null ? await fetchWeather(Number(prop.lat), Number(prop.lng)) : null;
 
