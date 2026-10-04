@@ -61,8 +61,6 @@ import { Route as GSlugAppDotwebmanifestRouteImport } from './routes/g.$slug.app
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/events'
 import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.google-calendar.return'
-import { Route as AuthenticatedAdminCidadesIndexRouteImport } from './routes/_authenticated/admin.cidades.index'
-import { Route as AuthenticatedAdminCidadesCityKeyRouteImport } from './routes/_authenticated/admin.cidades.$cityKey'
 import { Route as AuthenticatedAdminDashboardIndexRouteImport } from './routes/_authenticated/admin.dashboard.index'
 import { Route as AuthenticatedAdminDashboardCalendarioRouteImport } from './routes/_authenticated/admin.dashboard.calendario'
 import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
@@ -375,18 +373,6 @@ const OauthGoogleCalendarReturnRoute =
     path: '/oauth/google-calendar/return',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AuthenticatedAdminCidadesIndexRoute =
-  AuthenticatedAdminCidadesIndexRouteImport.update({
-    id: '/cidades/',
-    path: '/cidades/',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminCidadesCityKeyRoute =
-  AuthenticatedAdminCidadesCityKeyRouteImport.update({
-    id: '/cidades/$cityKey',
-    path: '/cidades/$cityKey',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
 const AuthenticatedAdminDashboardIndexRoute =
   AuthenticatedAdminDashboardIndexRouteImport.update({
     id: '/',
@@ -610,7 +596,6 @@ export interface FileRoutesByFullPath {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
-  '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
@@ -638,7 +623,6 @@ export interface FileRoutesByFullPath {
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
-  '/admin/cidades/': typeof AuthenticatedAdminCidadesIndexRoute
   '/admin/dashboard/': typeof AuthenticatedAdminDashboardIndexRoute
   '/admin/recomendacoes-sigma/': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
 }
@@ -691,7 +675,6 @@ export interface FileRoutesByTo {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
-  '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
@@ -719,7 +702,6 @@ export interface FileRoutesByTo {
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
-  '/admin/cidades': typeof AuthenticatedAdminCidadesIndexRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardIndexRoute
   '/admin/recomendacoes-sigma': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
 }
@@ -777,7 +759,6 @@ export interface FileRoutesById {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
-  '/_authenticated/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/_authenticated/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/_authenticated/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
@@ -805,7 +786,6 @@ export interface FileRoutesById {
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
-  '/_authenticated/admin/cidades/': typeof AuthenticatedAdminCidadesIndexRoute
   '/_authenticated/admin/dashboard/': typeof AuthenticatedAdminDashboardIndexRoute
   '/_authenticated/admin/recomendacoes-sigma/': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
 }
@@ -863,7 +843,6 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/admin/'
     | '/g/$slug/'
-    | '/admin/cidades/$cityKey'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/kanban'
     | '/admin/dashboard/limpeza'
@@ -891,7 +870,6 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
-    | '/admin/cidades/'
     | '/admin/dashboard/'
     | '/admin/recomendacoes-sigma/'
   fileRoutesByTo: FileRoutesByTo
@@ -944,7 +922,6 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/admin'
     | '/g/$slug'
-    | '/admin/cidades/$cityKey'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/kanban'
     | '/admin/dashboard/limpeza'
@@ -972,7 +949,6 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
-    | '/admin/cidades'
     | '/admin/dashboard'
     | '/admin/recomendacoes-sigma'
   id:
@@ -1029,7 +1005,6 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/_authenticated/admin/'
     | '/g/$slug/'
-    | '/_authenticated/admin/cidades/$cityKey'
     | '/_authenticated/admin/dashboard/calendario'
     | '/_authenticated/admin/dashboard/kanban'
     | '/_authenticated/admin/dashboard/limpeza'
@@ -1057,7 +1032,6 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
-    | '/_authenticated/admin/cidades/'
     | '/_authenticated/admin/dashboard/'
     | '/_authenticated/admin/recomendacoes-sigma/'
   fileRoutesById: FileRoutesById
@@ -1483,20 +1457,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OauthGoogleCalendarReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/admin/cidades/': {
-      id: '/_authenticated/admin/cidades/'
-      path: '/cidades'
-      fullPath: '/admin/cidades/'
-      preLoaderRoute: typeof AuthenticatedAdminCidadesIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/cidades/$cityKey': {
-      id: '/_authenticated/admin/cidades/$cityKey'
-      path: '/cidades/$cityKey'
-      fullPath: '/admin/cidades/$cityKey'
-      preLoaderRoute: typeof AuthenticatedAdminCidadesCityKeyRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
     '/_authenticated/admin/dashboard/': {
       id: '/_authenticated/admin/dashboard/'
       path: '/'
@@ -1747,10 +1707,8 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminStakeholdersRoute: typeof AuthenticatedAdminStakeholdersRoute
   AuthenticatedAdminTaxonomiaRoute: typeof AuthenticatedAdminTaxonomiaRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
-  AuthenticatedAdminCidadesCityKeyRoute: typeof AuthenticatedAdminCidadesCityKeyRoute
   AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRoute
   AuthenticatedAdminRecomendacoesSigmaCityKeyRoute: typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
-  AuthenticatedAdminCidadesIndexRoute: typeof AuthenticatedAdminCidadesIndexRoute
   AuthenticatedAdminRecomendacoesSigmaIndexRoute: typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
 }
 
@@ -1772,11 +1730,9 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminStakeholdersRoute: AuthenticatedAdminStakeholdersRoute,
   AuthenticatedAdminTaxonomiaRoute: AuthenticatedAdminTaxonomiaRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
-  AuthenticatedAdminCidadesCityKeyRoute: AuthenticatedAdminCidadesCityKeyRoute,
   AuthenticatedAdminPropertiesIdRoute: AuthenticatedAdminPropertiesIdRoute,
   AuthenticatedAdminRecomendacoesSigmaCityKeyRoute:
     AuthenticatedAdminRecomendacoesSigmaCityKeyRoute,
-  AuthenticatedAdminCidadesIndexRoute: AuthenticatedAdminCidadesIndexRoute,
   AuthenticatedAdminRecomendacoesSigmaIndexRoute:
     AuthenticatedAdminRecomendacoesSigmaIndexRoute,
 }
