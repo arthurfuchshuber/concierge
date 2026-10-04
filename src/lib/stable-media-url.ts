@@ -8,22 +8,40 @@
  * devolvemos nas leituras seguintes — mesma URL, cache do navegador, imagem na
  * hora. A URL assinada vale 1h; reaproveitamos por 40 min, com folga.
  */
-const TTL_MS = 40 * 60_000;
+const MIN_REMAINING_MS = 5 * 60_000;
+const FALLBACK_TTL_MS = 10 * 60_000;
 const MAX_ENTRIES = 4000;
-const cache = new Map<string, { url: string; at: number }>();
+const cache = new Map<string, { url: string; expiresAt: number }>();
+
+/** Validade REAL da URL assinada (claim `exp` do token), não a hora em que chegou. */
+function signedExpiry(url: string, now: number): number {
+  try {
+    const token = new URL(url, "http://x").searchParams.get("token");
+    if (token) {
+      const part = token.split(".")[1];
+      if (part) {
+        const json = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/")));
+        if (typeof json.exp === "number") return json.exp * 1000;
+      }
+    }
+  } catch {
+    /* sem token legível */
+  }
+  return now + FALLBACK_TTL_MS;
+}
 
 export function stableMediaUrl(storagePath: string | null | undefined, url: string | null): string | null {
   if (!storagePath || !url) return url;
   const now = Date.now();
   const hit = cache.get(storagePath);
-  if (hit && now - hit.at < TTL_MS) return hit.url;
+  if (hit && hit.expiresAt - now > MIN_REMAINING_MS) return hit.url;
   if (cache.size >= MAX_ENTRIES) {
     for (const k of cache.keys()) {
       cache.delete(k);
       if (cache.size < MAX_ENTRIES * 0.8) break;
     }
   }
-  cache.set(storagePath, { url, at: now });
+  cache.set(storagePath, { url, expiresAt: signedExpiry(url, now) });
   return url;
 }
 
