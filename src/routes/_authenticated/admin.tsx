@@ -420,7 +420,7 @@ function AdminLayout() {
           ) : needsPlan ? (
             <OnboardingCheckout onSignOut={signOut} />
 
-          ) : routePermission && areaAccess.failed ? (
+          ) : (routePermission || pathname.replace(/\/+$/, "") === "/admin") && areaAccess.failed ? (
             <AccessCheckFailed onRetry={areaAccess.retry} />
           ) : routePermission && !areaAccess.can(routePermission) ? (
             <AccessDenied reason={areaAccess.reasonFor(routePermission)} />

@@ -61,8 +61,6 @@ import { Route as GSlugAppDotwebmanifestRouteImport } from './routes/g.$slug.app
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/events'
 import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.google-calendar.return'
-import { Route as AuthenticatedAdminCidadesIndexRouteImport } from './routes/_authenticated/admin.cidades.index'
-import { Route as AuthenticatedAdminCidadesCityKeyRouteImport } from './routes/_authenticated/admin.cidades.$cityKey'
 import { Route as AuthenticatedAdminDashboardIndexRouteImport } from './routes/_authenticated/admin.dashboard.index'
 import { Route as AuthenticatedAdminDashboardCalendarioRouteImport } from './routes/_authenticated/admin.dashboard.calendario'
 import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
@@ -72,6 +70,7 @@ import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminRecomendacoesSigmaIndexRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.index'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
+import { Route as ApiPublicCronPurgeRecordTrashRouteImport } from './routes/api/public/cron.purge-record-trash'
 import { Route as ApiPublicCronChannexAriRetryRouteImport } from './routes/api/public/cron.channex-ari-retry'
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
 import { Route as ApiPublicCronEvaluationSuiteRouteImport } from './routes/api/public/cron.evaluation-suite'
@@ -375,18 +374,6 @@ const OauthGoogleCalendarReturnRoute =
     path: '/oauth/google-calendar/return',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AuthenticatedAdminCidadesIndexRoute =
-  AuthenticatedAdminCidadesIndexRouteImport.update({
-    id: '/cidades/',
-    path: '/cidades/',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminCidadesCityKeyRoute =
-  AuthenticatedAdminCidadesCityKeyRouteImport.update({
-    id: '/cidades/$cityKey',
-    path: '/cidades/$cityKey',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
 const AuthenticatedAdminDashboardIndexRoute =
   AuthenticatedAdminDashboardIndexRouteImport.update({
     id: '/',
@@ -439,6 +426,13 @@ const ApiPublicCronAutoCheckoutRoute =
   ApiPublicCronAutoCheckoutRouteImport.update({
     id: '/api/public/cron/auto-checkout',
     path: '/api/public/cron/auto-checkout',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronChannexAriRetryRoute =
+const ApiPublicCronPurgeRecordTrashRoute =
+  ApiPublicCronPurgeRecordTrashRouteImport.update({
+    id: '/api/public/cron/purge-record-trash',
+    path: '/api/public/cron/purge-record-trash',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicCronChannexAriRetryRoute =
@@ -610,7 +604,6 @@ export interface FileRoutesByFullPath {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
-  '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
@@ -618,6 +611,7 @@ export interface FileRoutesByFullPath {
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
+  '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
@@ -638,7 +632,6 @@ export interface FileRoutesByFullPath {
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
-  '/admin/cidades/': typeof AuthenticatedAdminCidadesIndexRoute
   '/admin/dashboard/': typeof AuthenticatedAdminDashboardIndexRoute
   '/admin/recomendacoes-sigma/': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
 }
@@ -691,7 +684,6 @@ export interface FileRoutesByTo {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
-  '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
@@ -699,6 +691,7 @@ export interface FileRoutesByTo {
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
+  '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
@@ -719,7 +712,6 @@ export interface FileRoutesByTo {
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
-  '/admin/cidades': typeof AuthenticatedAdminCidadesIndexRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardIndexRoute
   '/admin/recomendacoes-sigma': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
 }
@@ -777,7 +769,6 @@ export interface FileRoutesById {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
-  '/_authenticated/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/_authenticated/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/_authenticated/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
@@ -785,6 +776,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
+  '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
@@ -805,7 +797,6 @@ export interface FileRoutesById {
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
-  '/_authenticated/admin/cidades/': typeof AuthenticatedAdminCidadesIndexRoute
   '/_authenticated/admin/dashboard/': typeof AuthenticatedAdminDashboardIndexRoute
   '/_authenticated/admin/recomendacoes-sigma/': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
 }
@@ -863,7 +854,6 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/admin/'
     | '/g/$slug/'
-    | '/admin/cidades/$cityKey'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/kanban'
     | '/admin/dashboard/limpeza'
@@ -871,6 +861,7 @@ export interface FileRouteTypes {
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
+    | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
@@ -891,7 +882,6 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
-    | '/admin/cidades/'
     | '/admin/dashboard/'
     | '/admin/recomendacoes-sigma/'
   fileRoutesByTo: FileRoutesByTo
@@ -944,7 +934,6 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/admin'
     | '/g/$slug'
-    | '/admin/cidades/$cityKey'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/kanban'
     | '/admin/dashboard/limpeza'
@@ -952,6 +941,7 @@ export interface FileRouteTypes {
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
+    | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
@@ -972,7 +962,6 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
-    | '/admin/cidades'
     | '/admin/dashboard'
     | '/admin/recomendacoes-sigma'
   id:
@@ -1029,7 +1018,6 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/_authenticated/admin/'
     | '/g/$slug/'
-    | '/_authenticated/admin/cidades/$cityKey'
     | '/_authenticated/admin/dashboard/calendario'
     | '/_authenticated/admin/dashboard/kanban'
     | '/_authenticated/admin/dashboard/limpeza'
@@ -1037,6 +1025,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
+    | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
@@ -1057,7 +1046,6 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
-    | '/_authenticated/admin/cidades/'
     | '/_authenticated/admin/dashboard/'
     | '/_authenticated/admin/recomendacoes-sigma/'
   fileRoutesById: FileRoutesById
@@ -1095,6 +1083,7 @@ export interface RootRouteChildren {
   LovableEmailEventsRoute: typeof LovableEmailEventsRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
+  ApiPublicCronPurgeRecordTrashRoute: typeof ApiPublicCronPurgeRecordTrashRoute
   ApiPublicCronChannexAriRetryRoute: typeof ApiPublicCronChannexAriRetryRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
   ApiPublicCronEvaluationSuiteRoute: typeof ApiPublicCronEvaluationSuiteRoute
@@ -1483,20 +1472,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OauthGoogleCalendarReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/admin/cidades/': {
-      id: '/_authenticated/admin/cidades/'
-      path: '/cidades'
-      fullPath: '/admin/cidades/'
-      preLoaderRoute: typeof AuthenticatedAdminCidadesIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/cidades/$cityKey': {
-      id: '/_authenticated/admin/cidades/$cityKey'
-      path: '/cidades/$cityKey'
-      fullPath: '/admin/cidades/$cityKey'
-      preLoaderRoute: typeof AuthenticatedAdminCidadesCityKeyRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
     '/_authenticated/admin/dashboard/': {
       id: '/_authenticated/admin/dashboard/'
       path: '/'
@@ -1558,6 +1533,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/cron/auto-checkout'
       fullPath: '/api/public/cron/auto-checkout'
       preLoaderRoute: typeof ApiPublicCronAutoCheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/purge-record-trash': {
+      id: '/api/public/cron/purge-record-trash'
+      path: '/api/public/cron/purge-record-trash'
+      fullPath: '/api/public/cron/purge-record-trash'
+      preLoaderRoute: typeof ApiPublicCronPurgeRecordTrashRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cron/channex-ari-retry': {
@@ -1747,10 +1729,8 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminStakeholdersRoute: typeof AuthenticatedAdminStakeholdersRoute
   AuthenticatedAdminTaxonomiaRoute: typeof AuthenticatedAdminTaxonomiaRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
-  AuthenticatedAdminCidadesCityKeyRoute: typeof AuthenticatedAdminCidadesCityKeyRoute
   AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRoute
   AuthenticatedAdminRecomendacoesSigmaCityKeyRoute: typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
-  AuthenticatedAdminCidadesIndexRoute: typeof AuthenticatedAdminCidadesIndexRoute
   AuthenticatedAdminRecomendacoesSigmaIndexRoute: typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
 }
 
@@ -1772,11 +1752,9 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminStakeholdersRoute: AuthenticatedAdminStakeholdersRoute,
   AuthenticatedAdminTaxonomiaRoute: AuthenticatedAdminTaxonomiaRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
-  AuthenticatedAdminCidadesCityKeyRoute: AuthenticatedAdminCidadesCityKeyRoute,
   AuthenticatedAdminPropertiesIdRoute: AuthenticatedAdminPropertiesIdRoute,
   AuthenticatedAdminRecomendacoesSigmaCityKeyRoute:
     AuthenticatedAdminRecomendacoesSigmaCityKeyRoute,
-  AuthenticatedAdminCidadesIndexRoute: AuthenticatedAdminCidadesIndexRoute,
   AuthenticatedAdminRecomendacoesSigmaIndexRoute:
     AuthenticatedAdminRecomendacoesSigmaIndexRoute,
 }
@@ -1846,6 +1824,7 @@ const rootRouteChildren: RootRouteChildren = {
   LovableEmailEventsRoute: LovableEmailEventsRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicCronAutoCheckoutRoute: ApiPublicCronAutoCheckoutRoute,
+  ApiPublicCronPurgeRecordTrashRoute: ApiPublicCronPurgeRecordTrashRoute,
   ApiPublicCronChannexAriRetryRoute: ApiPublicCronChannexAriRetryRoute,
   ApiPublicCronConversationRemindersRoute:
     ApiPublicCronConversationRemindersRoute,

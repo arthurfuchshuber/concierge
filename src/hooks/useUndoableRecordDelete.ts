@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { notifyAction } from "@/components/UndoActionBar";
 import {
   deleteReservationRecord,
-  purgeRecordFile,
   restoreReservationRecord,
 } from "@/lib/reservation-records.functions";
 
@@ -14,8 +13,11 @@ import {
  *
  * - Some da tela no clique (as duas listas: a aba Registros e o clipe da
  *   reserva), sem esperar o servidor.
- * - O arquivo fica guardado durante os 5s do "Desfazer". Desfez: a linha
- *   volta igual, com o mesmo id. Não desfez: o arquivo é apagado.
+ * - LIXEIRA OCULTA (04/10/2026): o servidor guarda uma cópia completa por 30
+ *   dias (arquivos inclusive) e só então apaga de vez. Desfez: a linha volta
+ *   igual, com o mesmo id, e a cópia sai da lixeira.
+ * - O grupo inteiro vai em UMA chamada (antes eram várias em paralelo, e a
+ *   linha principal só perdia a mídia e continuava viva: o registro "voltava").
  * - Falhou no servidor: a lista volta como estava e aparece o erro.
  *
  * Os dois caches guardam `{ records: [...] }`; qualquer outra forma é
@@ -29,7 +31,6 @@ export function useUndoableRecordDelete(onDeleted?: () => void) {
   const qc = useQueryClient();
   const deleteFn = useServerFn(deleteReservationRecord);
   const restoreFn = useServerFn(restoreReservationRecord);
-  const purgeFn = useServerFn(purgeRecordFile);
 
   const refresh = useCallback(() => {
     for (const k of RECORD_KEYS) void qc.invalidateQueries({ queryKey: [k] });
@@ -54,7 +55,7 @@ export function useUndoableRecordDelete(onDeleted?: () => void) {
       }
       onDeleted?.();
 
-      const request = Promise.all(ids.map((id) => deleteFn({ data: { id, keepFile: true } })));
+      const request = deleteFn({ data: { ids } });
       request
         .catch((err) => {
           for (const [key, data] of snapshots) qc.setQueryData(key, data);
@@ -62,45 +63,26 @@ export function useUndoableRecordDelete(onDeleted?: () => void) {
         })
         .finally(refresh);
 
-      notifyAction(
-        "Registro excluído.",
-        () => {
-          for (const [key, data] of snapshots) qc.setQueryData(key, data);
-          void request
-            .then((results) =>
-              Promise.all(
-                results
-                  .filter((res) => res.removed)
-                  .map((res) =>
-                    restoreFn({
-                      data: { removed: res.removed!, removedTask: res.removedTask ?? null },
-                    }),
-                  ),
-              ),
-            )
-            .catch((err) =>
-              toast.error(err instanceof Error ? err.message : "Não foi possível desfazer."),
-            )
-            .finally(refresh);
-        },
-        {
-          onExpire: () => {
-            void request
-              .then((results) =>
-                Promise.all(
-                  results
-                    .map((res) => res.removed?.storage_path)
-                    .filter((p): p is string => !!p)
-                    .map((storagePath) => purgeFn({ data: { storagePath } })),
-                ),
-              )
-              .catch(() => {
-                /* o arquivo fica órfão; não atrapalha ninguém */
-              });
-          },
-        },
-      );
+      notifyAction("Registro excluído.", () => {
+        for (const [key, data] of snapshots) qc.setQueryData(key, data);
+        void request
+          .then((res) =>
+            res.removed.length > 0
+              ? restoreFn({
+                  data: {
+                    trashId: res.trashId,
+                    removed: res.removed,
+                    removedTasks: res.removedTasks,
+                  },
+                })
+              : null,
+          )
+          .catch((err) =>
+            toast.error(err instanceof Error ? err.message : "Não foi possível desfazer."),
+          )
+          .finally(refresh);
+      });
     },
-    [qc, deleteFn, restoreFn, purgeFn, refresh, onDeleted],
+    [qc, deleteFn, restoreFn, refresh, onDeleted],
   );
 }

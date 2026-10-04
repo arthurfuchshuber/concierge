@@ -1880,7 +1880,7 @@ function RecordViewerDialog({
 }: {
   record: AccountRecord | null;
   onClose: () => void;
-  onDelete: (id: string) => void;
+  onDelete: (ids: string[]) => void;
   onResolve?: () => void;
   onEdited?: () => void;
 }) {
@@ -2000,7 +2000,7 @@ function RecordViewerBody({
   onEdited,
 }: {
   record: AccountRecord;
-  onDelete: (id: string) => void;
+  onDelete: (ids: string[]) => void;
   onResolve?: () => void;
   onEdited?: () => void;
 }) {
@@ -2079,7 +2079,7 @@ function RecordViewerBody({
               `text-wrap-style`, que não mexe em quebrar/não quebrar.
           Com o título em uma linha o cabeçalho encolheu; o `pt`/`pb` foram
           junto. */}
-      <DialogHeader className="space-y-0 px-3.5 pb-1.5 pr-11 pt-2.5 text-left">
+      <DialogHeader className="space-y-0 px-3.5 pb-1.5 pr-11 pt-4 text-left">
         <DialogTitle className="ds-card-title block w-full truncate text-[13.5px] leading-tight">
           {record.propertyName}
         </DialogTitle>
@@ -2315,7 +2315,10 @@ function RecordViewerBody({
         )}
         <button
           type="button"
-          onClick={() => onDelete(record.id)}
+          /* A SITUAÇÃO INTEIRA (04/10/2026): todas as mídias do grupo + a linha
+             principal. Mandar só `record.id` deixava as irmãs vivas e o
+             registro "voltava" depois de excluído. */
+          onClick={() => onDelete(Array.from(new Set([record.id, ...media.map((m) => m.id)])))}
           className="flex-1 rounded-[0.3rem] bg-foreground/[0.06] py-2 text-center text-[10.5px] font-bold text-foreground/80 transition-colors hover:bg-foreground/10"
         >
           Excluir

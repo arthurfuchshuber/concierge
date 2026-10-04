@@ -146,7 +146,9 @@ async function sync(admin: SupabaseClient) {
       const out: Record<string, unknown> = { property_id: copyId };
       for (const [k, v] of Object.entries(r as Record<string, unknown>)) {
         if (STRIP.has(k)) continue;
-        out[k] = table === "property_recommendations" ? v : scrub(v);
+        // Datas nunca passam pelo mascaramento de telefone (o regex trocava
+        // "2026-10-04" pelo telefone fictício e o banco recusava a linha).
+        out[k] = table === "property_recommendations" || k === "date" ? v : scrub(v);
       }
       if (table === "property_emergency_contacts" && out.phone) out.phone = DEMO_SECRETS.phone;
       return out;

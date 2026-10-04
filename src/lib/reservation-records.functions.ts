@@ -1087,39 +1087,93 @@ const TASK_COLUMNS = [
 
 export type RemovedTask = Record<string, string | number | boolean | null>;
 
+/**
+ * EXCLUIR = LIXEIRA OCULTA DE 30 DIAS (pedido explícito, 04/10/2026).
+ *
+ * O registro some NA HORA de todo o sistema (sai de `reservation_records`,
+ * então aba Registros, clipe da reserva, contadores e card de limpeza deixam
+ * de enxergá-lo) e uma cópia completa — linhas do grupo, pendência automática
+ * que morreu junto e caminhos dos arquivos — vai para
+ * `reservation_records_trash`, que NINGUÉM lê pelo navegador. Os arquivos
+ * ficam no storage; a varredura diária (`purgeExpiredRecordTrash`) apaga de
+ * vez o que passou de 30 dias.
+ *
+ * O QUE ESTAVA ERRADO ("ao clicar em excluir ele sai e volta"): o botão do
+ * visualizador mandava só o id da linha PRINCIPAL. Numa situação com 2+
+ * mídias a principal tem irmãs, e a regra de "apagar uma foto nunca apaga a
+ * situação" só tirava o arquivo dela e mantinha a linha viva — o refresh
+ * trazia o registro de volta. Agora a tela manda o grupo inteiro numa única
+ * chamada e o servidor decide com o grupo todo à vista (sem corrida entre
+ * apagamentos paralelos). A regra da foto avulsa continua valendo: só quando
+ * sobram irmãs FORA do que está sendo excluído.
+ *
+ * Além disso o apagamento agora é conferido (`select` do que saiu): uma
+ * política de RLS que barre em silêncio vira erro na tela, não um registro
+ * que "volta sozinho".
+ */
 export const deleteReservationRecord = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { id: string; keepFile?: boolean }) =>
-    z.object({ id: z.string().uuid(), keepFile: z.boolean().optional() }).parse(input),
+  .inputValidator((input: { id?: string; ids?: string[]; keepFile?: boolean }) =>
+    z
+      .object({
+        id: z.string().uuid().optional(),
+        ids: z.array(z.string().uuid()).max(100).optional(),
+        // Mantido por compatibilidade: o arquivo agora SEMPRE fica na lixeira.
+        keepFile: z.boolean().optional(),
+      })
+      .refine((v) => !!v.id || (v.ids?.length ?? 0) > 0, "Informe o registro.")
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const supabase = context.supabase as unknown as AnyClient;
-    const { data: existing } = await supabase
+    const wanted = Array.from(new Set([...(data.id ? [data.id] : []), ...(data.ids ?? [])]));
+
+    const { data: found } = await supabase
       .from("reservation_records")
       .select(RECORD_RESTORE_COLUMNS)
-      .eq("id", data.id)
-      .maybeSingle();
-    if (!existing)
-      return { ok: true, removed: null as RemovedRecord | null, removedTask: null as RemovedTask | null };
+      .in("id", wanted);
+    const existing = (found ?? []) as RemovedRecord[];
+    if (existing.length === 0) {
+      return {
+        ok: true,
+        trashId: null as string | null,
+        removed: [] as RemovedRecord[],
+        removedTasks: [] as RemovedTask[],
+      };
+    }
 
-    /* APAGAR UMA FOTO NUNCA APAGA O TEXTO NEM A PENDÊNCIA DA SITUAÇÃO
-       (20/09/2026). A linha PRINCIPAL do grupo (`id = group_id`) é a que
-       guarda o texto digitado e o vínculo com a pendência do Kanban — e,
-       quando a situação nasceu de um vídeo/foto, essa mesma linha é uma
-       mídia. Se ainda existem outras mídias no grupo, tirar essa mídia não
-       pode levar embora a situação inteira: a linha continua viva, só perde
-       o arquivo e vira o texto do grupo. Sem irmãs, o registro some inteiro,
-       como antes. */
-    const { data: irmas } = await supabase
+    /* Linhas principais (`id = group_id` de alguém) que ainda teriam irmãs
+       vivas FORA desta exclusão: só perdem a mídia e viram o texto do grupo. */
+    const wantedSet = new Set(existing.map((r) => r.id));
+    const { data: filhas } = await supabase
       .from("reservation_records")
-      .select("id")
-      .eq("group_id", data.id)
-      .neq("id", data.id)
-      .limit(1);
-    const ehPrincipalComIrmas = (irmas ?? []).length > 0;
+      .select("id, group_id")
+      .in("group_id", existing.map((r) => r.id));
+    const comIrmasFora = new Set<string>();
+    for (const f of (filhas ?? []) as Array<{ id: string; group_id: string | null }>) {
+      if (f.group_id && f.id !== f.group_id && !wantedSet.has(f.id)) comIrmasFora.add(f.group_id);
+    }
 
-    if (ehPrincipalComIrmas) {
-      const { error: stripErr } = await supabase
+    const toStrip = existing.filter((r) => comIrmasFora.has(r.id));
+    const toDelete = existing.filter((r) => !comIrmasFora.has(r.id));
+
+    const gone: RemovedRecord[] = [];
+    if (toDelete.length > 0) {
+      const { data: apagadas, error } = await supabase
+        .from("reservation_records")
+        .delete()
+        .in(
+          "id",
+          toDelete.map((r) => r.id),
+        )
+        .select("id");
+      if (error) throw new Error(error.message);
+      const apagadasIds = new Set(((apagadas ?? []) as Array<{ id: string }>).map((a) => a.id));
+      for (const r of toDelete) if (apagadasIds.has(r.id)) gone.push(r);
+    }
+    const stripped: RemovedRecord[] = [];
+    for (const r of toStrip) {
+      const { data: tiradas, error: stripErr } = await supabase
         .from("reservation_records")
         .update({
           kind: "note",
@@ -1129,84 +1183,103 @@ export const deleteReservationRecord = createServerFn({ method: "POST" })
           duration_ms: null,
           file_name: null,
         })
-        .eq("id", data.id);
+        .eq("id", r.id)
+        .select("id");
       if (stripErr) throw new Error(stripErr.message);
-      if (existing.storage_path && !data.keepFile) {
-        try {
-          await supabase.storage.from(BUCKET).remove([existing.storage_path]);
-        } catch {
-          // ignore
-        }
-      }
-      // "Desfazer" devolve a linha original (com o arquivo) por upsert.
-      return { ok: true, removed: existing as RemovedRecord, removedTask: null as RemovedTask | null };
+      if ((tiradas ?? []).length > 0) stripped.push(r);
     }
 
-    const { error } = await supabase.from("reservation_records").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    if (gone.length + stripped.length === 0) {
+      throw new Error("Não foi possível excluir: sem permissão para este registro.");
+    }
 
-    let removedTask: RemovedTask | null = null;
-    const taskId = (existing as { task_id: string | null }).task_id;
-    if (taskId) {
+    /* PENDÊNCIA AUTOMÁTICA MORRE JUNTO (19/09/2026) — só em aberto, só se
+       nenhum outro registro aponta para ela, só a que o registro abriu. */
+    const removedTasks: RemovedTask[] = [];
+    const taskIds = Array.from(
+      new Set(gone.map((r) => r.task_id).filter((t): t is string => !!t)),
+    );
+    for (const taskId of taskIds) {
       const { data: outros } = await supabase
         .from("reservation_records")
         .select("id")
         .eq("task_id", taskId)
         .limit(1);
-      if ((outros ?? []).length === 0) {
-        const { data: task } = await supabase
-          .from("tasks")
-          .select(TASK_COLUMNS.join(", "))
-          .eq("id", taskId)
-          .maybeSingle();
-        /* SÓ SOME A PENDÊNCIA QUE O PRÓPRIO REGISTRO ABRIU (19/09/2026).
-           Uma pendência criada à mão e que apenas RECEBEU uma foto anexada
-           também guarda o task_id no registro; apagar essa foto não pode
-           levar embora o título, o prazo e a recorrência que a pessoa
-           digitou. Por isso exigimos a marca das abertas automaticamente. */
-        const automatica =
-          (task as { description?: string | null }).description === DESCRICAO_PENDENCIA_AUTOMATICA;
-        if (task && automatica && (task as { status?: string }).status === "pending") {
-          const { error: delErr } = await supabase.from("tasks").delete().eq("id", taskId);
-          if (!delErr) removedTask = task as RemovedTask;
-        }
-      }
+      if ((outros ?? []).length > 0) continue;
+      const { data: task } = await supabase
+        .from("tasks")
+        .select(TASK_COLUMNS.join(", "))
+        .eq("id", taskId)
+        .maybeSingle();
+      if (!task) continue;
+      const automatica =
+        (task as { description?: string | null }).description === DESCRICAO_PENDENCIA_AUTOMATICA;
+      if (!automatica || (task as { status?: string }).status !== "pending") continue;
+      const { data: tarefaApagada, error: delErr } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", taskId)
+        .select("id");
+      if (!delErr && (tarefaApagada ?? []).length > 0) removedTasks.push(task as RemovedTask);
     }
 
-    if (existing.storage_path && !data.keepFile) {
-      // Best-effort: se o arquivo já não existir mais no storage por algum
-      // motivo, a linha ainda assim precisa sumir da lista.
-      try {
-        await supabase.storage.from(BUCKET).remove([existing.storage_path]);
-      } catch {
-        // ignore
+    /* LIXEIRA: cópia completa por 30 dias. Se não conseguir guardar, DESFAZ
+       o apagamento — nunca perder um registro sem cópia. */
+    const removed = [...gone, ...stripped];
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as unknown as AnyClient;
+    const { data: lixo, error: trashErr } = await admin
+      .from("reservation_records_trash")
+      .insert({
+        property_id: removed[0].property_id,
+        records: removed,
+        tasks: removedTasks,
+        storage_paths: removed.map((r) => r.storage_path).filter((p): p is string => !!p),
+        deleted_by: (context as unknown as { userId?: string }).userId ?? null,
+      })
+      .select("id")
+      .single();
+    if (trashErr || !lixo) {
+      if (removedTasks.length > 0) {
+        await supabase.from("tasks").upsert(removedTasks, { onConflict: "id" });
       }
+      await supabase.from("reservation_records").upsert(removed, { onConflict: "id" });
+      throw new Error(trashErr?.message ?? "Não foi possível excluir.");
     }
-    return { ok: true, removed: existing as RemovedRecord, removedTask };
+
+    return {
+      ok: true,
+      trashId: (lixo as { id: string }).id as string | null,
+      removed,
+      removedTasks,
+    };
   });
 
-/** "Desfazer" da exclusão: a mesma linha, com o mesmo id, de volta — e, se a
- *  pendência tiver ido junto, ela volta antes (o registro aponta para ela). */
+/** "Desfazer" da exclusão: as mesmas linhas, com os mesmos ids, de volta — e,
+ *  se a pendência tiver ido junto, ela volta antes (o registro aponta para
+ *  ela). Tira também a cópia da lixeira. */
 export const restoreReservationRecord = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
-        removed: RemovedRecordSchema,
-        removedTask: z
-          .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+        trashId: z.string().uuid().nullish(),
+        removed: z.array(RemovedRecordSchema).min(1).max(100),
+        removedTasks: z
+          .array(z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])))
+          .max(100)
           .nullish(),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     const supabase = context.supabase as unknown as AnyClient;
-    if (data.removedTask) {
+    for (const task of data.removedTasks ?? []) {
       // Só as colunas conhecidas da tabela — nada que venha do navegador
       // entra numa coluna que não seja essa lista.
       const linha: Record<string, string | number | boolean | null> = {};
       for (const col of TASK_COLUMNS) {
-        if (col in data.removedTask) linha[col] = data.removedTask[col];
+        if (col in task) linha[col] = task[col];
       }
       if (linha.id) await supabase.from("tasks").upsert(linha, { onConflict: "id" });
     }
@@ -1214,6 +1287,16 @@ export const restoreReservationRecord = createServerFn({ method: "POST" })
       .from("reservation_records")
       .upsert(data.removed, { onConflict: "id" });
     if (error) throw new Error(error.message);
+    if (data.trashId) {
+      // Só tira da lixeira a cópia do MESMO imóvel que acabou de voltar (o
+      // upsert acima já passou pela checagem de acesso ao imóvel).
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await (supabaseAdmin as unknown as AnyClient)
+        .from("reservation_records_trash")
+        .delete()
+        .eq("id", data.trashId)
+        .eq("property_id", data.removed[0].property_id);
+    }
     return { ok: true };
   });
 

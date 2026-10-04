@@ -67,24 +67,23 @@ export function useAreaAccess(namespaces: string[], required: AccessLevelInput =
     // antes de desistir — 4 tentativas em ~3,5 s.
     retry: 2,
     retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 2_000),
-    // Voltar para a aba revalida; uma decisão boa já guardada NÃO some se a
-    // revalidação falhar (o react-query mantém `data`).
+    // Recuperação automática: se falhou e ainda não há decisão, tenta de novo
+    // sozinho a cada 5 s (sem depender de alguém clicar em "Tentar de novo").
+    refetchInterval: (q) => (q.state.status === "error" && !q.state.data ? 5_000 : false),
+    refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });
 
   const decisions = query.data?.decisions ?? {};
-  // Sem token ainda (`!sessionReady`) também é "carregando": a consulta está
-  // desligada, não negada.
   const loading = list.length > 0 && !query.data && !query.isError;
   const failed = !query.data && query.isError;
 
-  /** Área liberada? Sem uma decisão positiva do backend, o acesso fica fechado. */
+  /** Área liberada? Sem decisão, o menu fica visível enquanto carrega ou se recupera;
+   * as páginas continuam bloqueadas pela tela de verificação até o backend responder. */
   function can(namespace: string): boolean {
     const decision = decisions[namespace];
-    // Carregando: mantém o comportamento de sempre (menu inteiro visível
-    // enquanto a decisão não chega). Falhou ou sem decisão: fechado.
-    if (!decision) return loading;
+    if (!decision) return loading || failed;
     return decision.allowed;
   }
 
