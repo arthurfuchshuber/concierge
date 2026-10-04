@@ -32,10 +32,11 @@ export function AccessCheckFailed({ onRetry }: { onRetry: () => void }) {
         <RefreshCw className="h-8 w-8 text-muted-foreground" />
         <p className="font-medium">Não foi possível verificar o seu acesso</p>
         <p className="max-w-md text-sm text-muted-foreground">
-          Foi uma falha de conexão, não falta de permissão. Tente de novo.
+          Foi uma falha de conexão, não falta de permissão. Estamos tentando de novo
+          automaticamente — a tela volta sozinha assim que a conexão responder.
         </p>
-        <Button size="sm" onClick={onRetry}>
-          Tentar de novo
+        <Button size="sm" variant="outline" onClick={onRetry}>
+          Tentar agora
         </Button>
       </Card>
     </div>
