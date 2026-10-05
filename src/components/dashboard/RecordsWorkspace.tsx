@@ -92,6 +92,7 @@ function spDate(iso: string): string {
 import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
 import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import { DictationField } from "@/components/dashboard/RecordSituationSheet";
+import { CoverImage } from "@/components/ui/cover-image";
 import { NewRecordButton } from "@/components/dashboard/NewRecordButton";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
 import { PENDING_CATEGORIES } from "@/lib/record-pending";
@@ -417,6 +418,8 @@ type Group = {
    * cartão reúne vários imóveis e não mostra foto. `null` = imóvel sem capa.
    */
   coverUrl?: string | null;
+  /** Capa + galeria, em ordem de tentativa. */
+  coverUrls?: string[];
   propertyId: string;
   /** Registros com pendência AINDA EM ABERTO — o que há para executar. */
   pending: AccountRecord[];
@@ -595,6 +598,7 @@ export function RecordsWorkspace() {
           ownerPhone: groupBy === "property" ? r.ownerPhone : null,
           ownerPhoneCountry: groupBy === "property" ? r.ownerPhoneCountry : null,
           coverUrl: groupBy === "property" ? (r.propertyCoverUrl ?? null) : undefined,
+          coverUrls: groupBy === "property" ? (r.propertyCoverUrls ?? []) : undefined,
           propertyId: r.propertyId,
           pending: [],
           rest: [],
@@ -1473,10 +1477,14 @@ const StatChip = forwardRef<
       className={`inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-bold tabular-nums transition-colors ${
         pending
           ? "border-[#c98c8c]/30 bg-[#c98c8c]/12 text-[#c98c8c] hover:bg-[#c98c8c]/18"
-          : "border-border/50 bg-secondary/40 text-foreground hover:bg-secondary/60"
+          : "border-foreground/25 bg-foreground/[0.11] text-foreground hover:bg-foreground/[0.17]"
       } ${open ? "ring-1 ring-foreground/25" : ""}`}
     >
-      {pending ? <CircleAlert className="size-3.5" /> : <Camera className="size-3.5 text-muted-foreground" />}
+      {pending ? <CircleAlert className="size-3.5" /> : <Camera className="size-3.5 text-foreground/70" />}
+      {/* "Pendências" ESCRITO ao lado do ícone (pedido, 05/10/2026): só o
+          número não dizia o que era. O chip de registros continua só com o
+          número — a câmera já diz. */}
+      {pending && <span className="font-semibold">Pendências</span>}
       {count}
     </button>
   );
@@ -1555,17 +1563,7 @@ function PropertyCard({
             largura é a de Guias: 40% no celular e 141px no computador. */}
         {group.coverUrl !== undefined && (
           <div className="relative w-[40%] shrink-0 overflow-hidden bg-secondary lg:w-[141px]">
-            {group.coverUrl ? (
-              <img
-                src={group.coverUrl}
-                alt=""
-                loading="lazy"
-                className="absolute inset-0 size-full object-cover"
-                onError={(e) => (e.currentTarget.style.display = "none")}
-              />
-            ) : (
-              <div className="absolute inset-0 grid place-items-center text-[10px] text-muted-foreground">Sem foto</div>
-            )}
+            <CoverImage urls={[...(group.coverUrls ?? []), group.coverUrl]} />
           </div>
         )}
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-3">
@@ -1578,12 +1576,15 @@ function PropertyCard({
                 <span className="min-w-0 truncate text-[10.5px] text-foreground" title={group.sublabel}>
                   {ownerLabel(group.sublabel)}
                 </span>
+                {/* Ícone maior (pedido, 05/10/2026: "minúsculo para o usuário
+                    clicar"): 18px de desenho e área de toque de 34px; a
+                    margem negativa impede que a linha cresça. */}
                 <PhoneActionButton
                   phone={group.ownerPhone}
                   country={group.ownerPhoneCountry}
-                  size={12}
+                  size={18}
                   alwaysShow
-                  className="shrink-0"
+                  className="-my-2 shrink-0 !p-2"
                 />
               </div>
             )}
@@ -1700,7 +1701,7 @@ function PendingPopoverBody({
 }) {
   const first = group.pending[0];
   const name = first?.propertyName ?? group.label;
-  const cover = group.coverUrl ?? first?.propertyCoverUrl ?? null;
+  const covers = [...(group.coverUrls ?? first?.propertyCoverUrls ?? []), group.coverUrl ?? first?.propertyCoverUrl];
   // Seções por categoria, na ordem em que aparecem.
   const sections: { key: string; label: string; items: AccountRecord[] }[] = [];
   for (const r of group.pending) {
@@ -1714,7 +1715,7 @@ function PendingPopoverBody({
   return (
     <div>
       <div className="relative h-[132px] overflow-hidden bg-secondary/60">
-        {cover && <img src={cover} alt="" className="absolute inset-0 size-full object-cover" />}
+        <CoverImage urls={covers} empty={false} />
         <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/55 to-[var(--panel)]" />
         <div className="absolute inset-x-5 bottom-2.5">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">

@@ -1,3 +1,4 @@
+import { CoverImage } from "@/components/ui/cover-image";
 import type { ReactNode } from "react";
 import { Globe, Lock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -15,6 +16,7 @@ export type GuideCardData = {
   country?: string | null;
   tagline?: string | null;
   hero_image_url?: string | null;
+  gallery_images?: string[] | null;
   access_mode?: string | null;
   published?: boolean | null;
   ownerName?: string | null;
@@ -79,11 +81,7 @@ export function GuideCard({
   );
   const photo = (cls: string, withLabel: boolean, bare = false) => (
     <div className={`relative shrink-0 overflow-hidden bg-secondary ${cls}`}>
-      {p.hero_image_url ? (
-        <img src={p.hero_image_url} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" onError={(e) => (e.currentTarget.style.display = "none")} />
-      ) : (
-        <div className="absolute inset-0 grid place-items-center text-[10px] text-muted-foreground">Sem foto</div>
-      )}
+      <CoverImage urls={[p.hero_image_url, ...(p.gallery_images ?? [])]} />
       {bare ? (
         <div className="absolute right-1.5 top-1.5" onClick={(e) => e.stopPropagation()} title={p.published ? "Publicado — toque para despublicar" : "Rascunho — toque para publicar"}>
           <Switch
