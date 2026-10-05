@@ -95,6 +95,7 @@ import { DictationField } from "@/components/dashboard/RecordSituationSheet";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
 import { PENDING_CATEGORIES } from "@/lib/record-pending";
 import { VideoFrame } from "@/components/dashboard/VideoFrame";
+import { useAntiClipRows } from "@/hooks/useAntiClipRows";
 import { PendingSummary } from "@/components/dashboard/PendingSummary";
 import { stableMediaUrl, warmImages } from "@/lib/stable-media-url";
 import { listTaskLinkOptions, restoreTask, setTaskStatus } from "@/lib/tasks.functions";
@@ -1913,7 +1914,7 @@ function RecordViewerDialog({
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="w-[calc(100vw-2rem)] grid-cols-[minmax(0,1fr)] gap-0 overflow-x-hidden p-0 sm:w-full sm:max-w-md"
+        className="flex w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md"
         aria-describedby={undefined}
       >
         {record && <RecordViewerBody record={record} onDelete={onDelete} onResolve={onResolve} onEdited={onEdited} />}
@@ -2104,6 +2105,8 @@ function RecordViewerBody({
   const [cheia, setCheia] = useState(false);
   const current = media[Math.min(idx, media.length - 1)];
   const [editing, setEditing] = useState(false);
+  // Miolo rolável do quadrante (limite de 75% da tela + anti-corte vertical).
+  const bodyRef = useAntiClipRows<HTMLDivElement>([editing, record]);
   /* ROLAR PARA O LADO (pedido explícito, 03/10/2026: "não estamos conseguindo
      rolar a foto para o lado quando tem mais de uma"). Antes só dava para
      trocar tocando na fileira de miniaturas. Agora o arrasto horizontal no
@@ -2311,7 +2314,7 @@ function RecordViewerBody({
         </div>
       )}
 
-      <div className="min-w-0 px-6 pb-1 pt-4">
+      <div ref={bodyRef} className="sg-elegant-scroll min-h-0 min-w-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain px-6 pb-1 pt-4">
         {editing ? (
           /* EDITAR DEPOIS (decisão do cliente, 10/09/2026): o registro que
              nasceu sem título — ou com o título errado — se conserta aqui,
@@ -2327,7 +2330,7 @@ function RecordViewerBody({
             }}
           />
         ) : (
-          <div className="flex items-start gap-2.5">
+          <div data-clip-row className="flex snap-start items-start gap-2.5">
             <div className="min-w-0 flex-1">
               <p
                 className={`truncate text-[17px] font-bold leading-snug tracking-tight ${
@@ -2375,7 +2378,8 @@ function RecordViewerBody({
             .map(([k, v]) => (
               <div
                 key={k}
-                className="flex items-center justify-between gap-4 border-b border-foreground/[0.07] py-[11px] last:border-b-0"
+                data-clip-row
+                className="flex snap-start items-center justify-between gap-4 border-b border-foreground/[0.07] py-[11px] last:border-b-0"
               >
                 <dt className="shrink-0 text-muted-foreground/70">{k}</dt>
                 <dd className="min-w-0 truncate text-right font-semibold">{v}</dd>
@@ -2395,7 +2399,7 @@ function RecordViewerBody({
               disabled={baixando}
               aria-label="Baixar todas as mídias"
               title="Baixa todas as mídias deste registro"
-              className="grid size-[34px] shrink-0 place-items-center rounded-[9px] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground disabled:opacity-50"
+              className="grid size-[34px] shrink-0 place-items-center rounded-[9px] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
             >
               {baixando ? <Loader2 className="size-[15px] animate-spin" /> : <Download className="size-[15px]" strokeWidth={1.8} />}
             </button>
@@ -2408,7 +2412,7 @@ function RecordViewerBody({
             onClick={() => onDelete(Array.from(new Set([record.id, ...media.map((m) => m.id)])))}
             aria-label="Excluir"
             title="Excluir"
-            className="grid size-[34px] shrink-0 place-items-center rounded-[9px] bg-[#d49a9a]/10 text-[#d49a9a] transition-colors hover:bg-[#d49a9a]/20"
+            className="grid size-[34px] shrink-0 place-items-center rounded-[9px] text-[#d49a9a] transition-colors hover:bg-[#d49a9a]/10"
           >
             <Trash2 className="size-[15px]" strokeWidth={1.8} />
           </button>
