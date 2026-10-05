@@ -1498,7 +1498,7 @@ dd {
    Limpeza aplicada a toda janela suspensa, menu, seletor e dica. */
 @utility ds-overlay {
   position: relative;
-  border-radius: 1.5rem;
+  border-radius: 1rem;
   border: 1px solid var(--panel-border);
   background-color: var(--panel);
   color: var(--foreground);

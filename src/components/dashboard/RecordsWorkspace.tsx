@@ -21,6 +21,8 @@ import {
   StickyNote,
   Video,
   Maximize2,
+  Trash2,
+  Download,
   Tag,
   Layers,
   Building2,
@@ -1609,42 +1611,9 @@ function PropertyCard({
                 <PopoverContent
                   side="top"
                   align="center"
-                  className="max-h-[60dvh] w-[min(360px,calc(100vw-32px))] overflow-y-auto p-0"
+                  className="max-h-[60dvh] w-[min(372px,calc(100vw-32px))] overflow-y-auto p-0"
                 >
-                  {(() => {
-                    const first = group.pending[0];
-                    const oldest = group.pending.reduce(
-                      (a, r) => (r.createdAt < a ? r.createdAt : a),
-                      first?.createdAt ?? "",
-                    );
-                    return (
-                      <div className="sticky top-0 z-10 border-b border-[var(--panel-border)] bg-[var(--panel)] px-4 pb-3 pt-4">
-                        <OverlayHeader
-                          icon={Building2}
-                          eyebrow="Pendências do imóvel"
-                          title={first?.propertyName ?? group.label}
-                          owner={
-                            first?.ownerName
-                              ? { name: first.ownerName, phone: first.ownerPhone, country: first.ownerPhoneCountry }
-                              : null
-                          }
-                          chips={
-                            <>
-                              <OverlayChip dot="bg-[var(--falta,#e0707a)]">
-                                {group.pending.length} em aberto
-                              </OverlayChip>
-                              {oldest && <OverlayChip>desde {fmtShortDate(oldest)}</OverlayChip>}
-                            </>
-                          }
-                        />
-                      </div>
-                    );
-                  })()}
-                  <div className="px-3 py-1.5">
-                    {group.pending.map((r) => (
-                      <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} onResolve={() => onResolve(r)} />
-                    ))}
-                  </div>
+                  <PendingPopoverBody group={group} onOpen={onOpen} onResolve={onResolve} />
                 </PopoverContent>
               </Popover>
             )}
@@ -1706,14 +1675,94 @@ function MoreThumb({ small, count, onClick }: { small?: boolean; count: number; 
 }
 
 /**
- * Uma pendência do cartão: miniatura, título legível, data — e, ABAIXO DA
- * DATA, o quadradinho que resolve (pedido explícito, 10/09/2026).
- *
- * A linha deixou de ser um botão só: um checkbox dentro de um botão não é
- * clicável de forma previsível (nem é HTML válido). Agora são dois alvos
- * lado a lado — o corpo abre o registro, o quadradinho abre a resolução.
+ * JANELA "PENDÊNCIAS DO IMÓVEL" — layout "Capa (por categoria)" aprovado em
+ * 04/10/2026: foto do imóvel como capa (título em UMA linha, reticências),
+ * proprietário com o ícone de mensagem padrão, pílula "N em aberto" e as
+ * pendências em seções por categoria. Cada pendência mostra UMA miniatura
+ * (a mais antiga), título, autor, data e o quadradinho que resolve.
  */
-function PendingRow({
+function PendingPopoverBody({
+  group,
+  onOpen,
+  onResolve,
+}: {
+  group: Group;
+  onOpen: (r: AccountRecord) => void;
+  onResolve: (r: AccountRecord) => void;
+}) {
+  const first = group.pending[0];
+  const name = first?.propertyName ?? group.label;
+  const cover = group.coverUrl ?? first?.propertyCoverUrl ?? null;
+  // Seções por categoria, na ordem em que aparecem.
+  const sections: { key: string; label: string; items: AccountRecord[] }[] = [];
+  for (const r of group.pending) {
+    let sec = sections.find((x) => x.key === r.category);
+    if (!sec) {
+      sec = { key: r.category, label: CATEGORY_BY_KEY.get(r.category)?.label ?? "Registro", items: [] };
+      sections.push(sec);
+    }
+    sec.items.push(r);
+  }
+  return (
+    <div>
+      <div className="relative h-[132px] overflow-hidden bg-secondary/60">
+        {cover && <img src={cover} alt="" className="absolute inset-0 size-full object-cover" />}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/55 to-[var(--panel)]" />
+        <div className="absolute inset-x-5 bottom-2.5">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
+            Pendências do imóvel
+          </div>
+          <div className="mt-1 truncate text-[17px] font-bold leading-tight tracking-tight text-white" title={name}>
+            {name}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-3 px-5 pb-3.5 pt-2">
+        <div className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
+          {first?.ownerName ? (
+            <>
+              <span className="truncate">{ownerLabel(first.ownerName)}</span>
+              <PhoneActionButton
+                phone={first.ownerPhone}
+                country={first.ownerPhoneCountry}
+                size={14}
+                alwaysShow
+                className="shrink-0"
+              />
+            </>
+          ) : null}
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-foreground/[0.06] px-3 py-1.5 text-[11.5px] font-semibold text-foreground">
+          <span className="size-1.5 rounded-full bg-[#d29a9a]" />
+          {group.pending.length} em aberto
+        </span>
+      </div>
+      <div className="grid gap-2 px-3.5 pb-4">
+        {sections.map((sec, i) => (
+          <div key={sec.key} className="grid gap-2">
+            <div className={`flex items-center gap-2.5 px-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground ${i ? "pt-2" : ""}`}>
+              <span className="size-[7px] rounded-full bg-[#d29a9a]" />
+              {sec.label}
+              <em className="not-italic tracking-[0.04em] text-muted-foreground/60">· {sec.items.length}</em>
+              <i className="h-px flex-1 bg-foreground/[0.08]" />
+            </div>
+            {sec.items.map((r) => (
+              <PendingCard key={r.id} record={r} onOpen={() => onOpen(r)} onResolve={() => onResolve(r)} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Uma pendência: UMA miniatura (a primeira mídia visual; "+N" quando há
+ * mais), título, autor, data e — abaixo da data — o checkbox QUADRADO que
+ * resolve (regra: checkbox é sempre quadrado de cantos arredondados).
+ * Dois alvos lado a lado: o corpo abre o registro, o quadradinho resolve.
+ */
+function PendingCard({
   record,
   onOpen,
   onResolve,
@@ -1722,72 +1771,47 @@ function PendingRow({
   onOpen: () => void;
   onResolve?: () => void;
 }) {
-  const meta = CATEGORY_BY_KEY.get(record.category);
-  const cascade = rowSquares([record], 3);
-  const totalVisual = (record.media ?? []).filter((m) => m.url && (m.kind === "photo" || m.kind === "video")).length;
-  const extra = Math.max(0, totalVisual - cascade.length);
+  const visual = (record.media ?? []).filter((m) => m.url && (m.kind === "photo" || m.kind === "video"));
+  const m = visual[0];
   return (
-    <div className="flex w-full items-start gap-2 border-t border-border/50 py-1.5 first:border-t-0">
-      {/* O QUADRANTE FICA CENTRADO no bloco título + subtítulo (pedido
-          explícito, 10/09/2026): ele é mais alto que uma linha, e alinhado ao
-          topo sobrava um degrau embaixo. A DATA continua alinhada à linha do
-          título — por isso o `items-start` fica só na linha de fora. */}
+    <div className="flex w-full items-center gap-3 rounded-[18px] bg-foreground/[0.04] py-2.5 pl-2.5 pr-3.5">
       <button
         type="button"
         onClick={onOpen}
-        className="flex min-w-0 flex-1 items-center gap-2 text-left transition-colors hover:opacity-80"
+        className="flex min-w-0 flex-1 items-center gap-3 text-left transition-opacity hover:opacity-80"
       >
-        {/* A CASCATA DE IMAGENS (pedido explícito, 03/10/2026: "aqui também
-            precisa ter a cascatinha mostrando as imagens"): o mesmo desenho
-            da linha do cartão — até três quadrados sobrepostos com as mídias
-            mais ANTIGAS da pendência. Antes ficava um ícone de papel com um
-            "2" mesmo havendo foto e vídeo dentro. Mais mídias que quadrados:
-            o "+N" no último. Sem imagem: volta ao ícone do tipo. */}
-        <span className="flex shrink-0">
-          {cascade.map((m, i) => (
+        <span className="relative grid size-[52px] shrink-0 place-items-center overflow-hidden rounded-[13px] bg-gradient-to-br from-secondary/80 to-secondary/40">
+          {m?.kind === "photo" ? (
+            <img src={m.url!} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+          ) : m?.kind === "video" ? (
+            <VideoFrame url={m.url!} />
+          ) : (
+            <RecordCover record={record} size="xs" />
+          )}
+          {visual.length > 1 && (
             <span
-              key={m.id}
-              className={`relative grid size-[34px] place-items-center overflow-hidden rounded-[9px] bg-gradient-to-br from-secondary/80 to-secondary/40 ring-2 ring-[var(--panel,transparent)] ${
-                i > 0 ? "-ml-2.5" : ""
-              }`}
+              className="absolute bottom-1 right-1 rounded-[6px] bg-black/65 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+              aria-label={`${visual.length} mídias`}
             >
-              {m.kind === "photo" && m.url ? (
-                <img src={m.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-              ) : m.kind === "video" && m.url ? (
-                <VideoFrame url={m.url} />
-              ) : (
-                <RecordCover record={m.record} size="xs" />
-              )}
-              {i === cascade.length - 1 && extra > 0 && (
-                <span
-                  className="absolute inset-0 grid place-items-center bg-black/60 text-[11px] font-extrabold tabular-nums text-white"
-                  aria-label={`mais ${extra} mídias`}
-                >
-                  +{extra}
-                </span>
-              )}
+              {visual.length}
             </span>
-          ))}
+          )}
         </span>
         <span className="min-w-0 flex-1">
           <span
-            className={`block truncate text-[11.5px] font-semibold leading-tight ${
+            className={`block truncate text-[14px] font-semibold leading-tight ${
               hasTitle(record) ? "" : "italic text-muted-foreground"
             }`}
           >
             {recordTitle(record)}
           </span>
-          <span className="mt-0.5 block truncate text-[9.5px] leading-tight text-muted-foreground">
-            {meta?.short ?? "Registro"}
-            {record.createdByName ? ` · ${record.createdByName}` : ""}
-            {record.cardMode ? ` · ${MODE_LABEL[record.cardMode].toLowerCase()}` : ""}
+          <span className="mt-1 block truncate text-[12px] leading-tight text-muted-foreground">
+            {record.createdByName ?? "Equipe"}
           </span>
         </span>
       </button>
-
-      <div className="flex shrink-0 flex-col items-end gap-1.5">
-        {/* Alinhada à LINHA DO TÍTULO, não ao centro da linha inteira. */}
-        <span className="text-[9.5px] leading-tight tabular-nums text-muted-foreground">
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        <span className="text-[11.5px] leading-tight tabular-nums text-muted-foreground">
           {fmtShortDate(record.createdAt)}
         </span>
         {onResolve && (
@@ -1796,7 +1820,7 @@ function PendingRow({
             onClick={onResolve}
             aria-label="Marcar como resolvido"
             title="Marcar como resolvido"
-            className="grid size-[15px] place-items-center rounded-[3px] border border-muted-foreground/60 transition-colors hover:border-emerald-500 hover:bg-emerald-500/15"
+            className="grid size-[24px] place-items-center rounded-[7px] border-[1.5px] border-foreground/25 transition-colors hover:border-emerald-500 hover:bg-emerald-500/15"
           />
         )}
       </div>
@@ -1868,7 +1892,7 @@ function Thumb({ record, small, onOpen }: { record: AccountRecord; small?: boole
  *  3. TÍTULO E DESCRIÇÃO ABAIXO da mídia, nunca por cima: sobre a imagem o
  *     texto some assim que o vídeo escurece.
  */
-const VIEWER_STAGE = "h-[250px]";
+const VIEWER_STAGE = "h-[160px]";
 
 function RecordViewerDialog({
   record,
@@ -2008,8 +2032,50 @@ function RecordViewerBody({
   const stay = fmtStayRange(record.checkinDate, record.checkoutDate);
   // Linha da reserva: hóspede · código · datas, sem os separadores dos
   // pedaços que não existem.
-  const reservationLine =
-    [record.guestName, record.reservationCode, stay].filter(Boolean).join(" · ") || "Sem reserva vinculada";
+  const reservationValue = [record.reservationCode, stay].filter(Boolean).join(" · ");
+  const [baixando, setBaixando] = useState(false);
+  /* BAIXAR TUDO (04/10/2026): o botão só com o ícone baixa TODAS as mídias do
+     registro, não só a que está na tela. Uma a uma, via blob (para o
+     navegador respeitar o nome); se o armazenamento não permitir o fetch, cai
+     no link direto da mídia. */
+  async function baixarTodas() {
+    if (baixando) return;
+    setBaixando(true);
+    try {
+      const base = record.fileName?.replace(/\.[^.]+$/, "") || "registro";
+      let n = 0;
+      for (const m of media) {
+        if (!m.url) continue;
+        n += 1;
+        try {
+          const resp = await fetch(m.url);
+          const blob = await resp.blob();
+          const ext = m.kind === "video" ? "mp4" : blob.type.includes("png") ? "png" : "jpg";
+          const href = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = href;
+          a.download = `${base}-${n}.${ext}`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(href), 10_000);
+        } catch {
+          const a = document.createElement("a");
+          a.href = m.url;
+          a.target = "_blank";
+          a.rel = "noreferrer";
+          a.download = `${base}-${n}`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        }
+        // Respiro entre downloads: alguns navegadores barram vários seguidos.
+        await new Promise((r) => setTimeout(r, 350));
+      }
+    } finally {
+      setBaixando(false);
+    }
+  }
 
   /* UMA SITUAÇÃO PODE TER VÁRIAS MÍDIAS (10/09/2026). O palco mostra uma de
      cada vez e a fileira embaixo troca — registro antigo, de uma mídia só,
@@ -2078,16 +2144,22 @@ function RecordViewerBody({
               `text-wrap-style`, que não mexe em quebrar/não quebrar.
           Com o título em uma linha o cabeçalho encolheu; o `pt`/`pb` foram
           junto. */}
-      <DialogHeader className="space-y-0 px-3.5 pb-1.5 pr-11 pt-4 text-left">
-        <DialogTitle className="ds-card-title block w-full truncate text-[13.5px] leading-tight">
+      <DialogHeader className="space-y-0 px-[18px] pb-3.5 pr-14 pt-[18px] text-left">
+        <DialogTitle className="block w-full truncate text-[17px] font-bold leading-tight tracking-tight">
           {record.propertyName}
         </DialogTitle>
         {record.ownerName && (
-          <span className={`block truncate text-[10.5px] leading-tight ${CARD_OWNER}`}>
-            {ownerLabel(record.ownerName)}
+          <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[13px] leading-tight text-muted-foreground">
+            <span className="truncate">{ownerLabel(record.ownerName)}</span>
+            <PhoneActionButton
+              phone={record.ownerPhone}
+              country={record.ownerPhoneCountry}
+              size={15}
+              alwaysShow
+              className="shrink-0"
+            />
           </span>
         )}
-        <span className="block truncate text-[10px] leading-tight text-muted-foreground">{reservationLine}</span>
       </DialogHeader>
 
       <div
@@ -2133,7 +2205,7 @@ function RecordViewerBody({
             quadrantes da lista ela segue translúcida — lá não há imagem
             atrás. */}
         <span
-          className={`absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-1 rounded-[0.25rem] px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.06em] text-white shadow-sm ${
+          className={`absolute left-3 top-3 z-10 inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-[11.5px] font-semibold text-white shadow-sm ${
             CATEGORY_SOLID[record.category] ?? CATEGORY_SOLID.other
           }`}
         >
@@ -2144,15 +2216,16 @@ function RecordViewerBody({
             a linha de dados para duas alturas; aqui em cima é lida junto com
             a categoria e não ocupa altura nenhuma. */}
         {record.taskId && (
-          <span
-            className={`absolute right-2.5 top-2.5 z-10 rounded-[0.25rem] px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.06em] text-white shadow-sm ${
-              record.taskStatus === "pending"
-                ? "bg-rose-600"
-                : record.taskStatus === "canceled"
-                  ? "bg-zinc-600"
-                  : "bg-emerald-600"
-            }`}
-          >
+          <span className="absolute right-3 top-3 z-10 inline-flex h-6 items-center gap-1.5 rounded-full border border-white/15 bg-[rgba(20,17,15,.72)] px-2.5 text-[11.5px] font-semibold text-[#f4f0ea] backdrop-blur">
+            <span
+              className={`size-1.5 rounded-full ${
+                record.taskStatus === "pending"
+                  ? "bg-[#d29a9a]"
+                  : record.taskStatus === "canceled"
+                    ? "bg-zinc-400"
+                    : "bg-[#8fc0a6]"
+              }`}
+            />
             {record.taskStatus === "pending"
               ? "Em aberto"
               : record.taskStatus === "canceled"
@@ -2161,9 +2234,17 @@ function RecordViewerBody({
           </span>
         )}
         {media.length > 1 && (
+          <span className="pointer-events-none absolute bottom-3.5 left-14 right-16 z-10 h-[3px] rounded-full bg-white/30">
+            <span
+              className="block h-full rounded-full bg-white"
+              style={{ width: `${((Math.min(idx, media.length - 1) + 1) / media.length) * 100}%` }}
+            />
+          </span>
+        )}
+        {media.length > 1 && (
           /* O contador desceu para o pé do palco: em cima ele brigava com a
              situação da pendência. */
-          <span className="absolute bottom-2.5 right-2.5 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-extrabold tabular-nums text-white">
+          <span className="absolute bottom-2 right-3 z-10 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-white">
             {Math.min(idx, media.length - 1) + 1} / {media.length}
           </span>
         )}
@@ -2227,7 +2308,7 @@ function RecordViewerBody({
         </div>
       )}
 
-      <div className="px-3.5 pb-3 pt-3">
+      <div className="px-[18px] pb-1 pt-4">
         {editing ? (
           /* EDITAR DEPOIS (decisão do cliente, 10/09/2026): o registro que
              nasceu sem título — ou com o título errado — se conserta aqui,
@@ -2243,17 +2324,18 @@ function RecordViewerBody({
             }}
           />
         ) : (
-          <div className="flex items-start gap-2">
+          <div className="flex items-start gap-2.5">
             <div className="min-w-0 flex-1">
               <p
-                className={`text-[13px] font-bold leading-snug ${
+                className={`truncate text-[17px] font-bold leading-snug tracking-tight ${
                   hasTitle(record) ? "" : "italic text-muted-foreground"
                 }`}
+                title={title}
               >
                 {title}
               </p>
               {description && (
-                <p className="mt-1 whitespace-pre-wrap break-words text-[11.5px] leading-relaxed text-muted-foreground">
+                <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-muted-foreground">
                   {description}
                 </p>
               )}
@@ -2263,76 +2345,82 @@ function RecordViewerBody({
               onClick={() => setEditing(true)}
               aria-label="Editar título e descrição"
               title="Editar título e descrição"
-              className="grid size-[26px] shrink-0 place-items-center rounded-[0.3rem] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+              className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
             >
-              <Pencil className="size-3.5" />
+              <Pencil className="size-[15px]" />
             </button>
           </div>
         )}
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2.5 text-[9.5px] text-muted-foreground">
-          {/* O nome do arquivo é IDENTIFICADOR, não assunto: saiu do título e
-              vive aqui, junto com autor, hora e tamanho. */}
-          {record.fileName && (
-            <>
-              <span className="font-bold tabular-nums text-foreground/70">{record.fileName}</span>
-              <span className="opacity-45">·</span>
-            </>
-          )}
-          <b className="font-bold text-foreground/80">{record.createdByName ?? "Equipe"}</b>
-          {record.cardMode && (
-            <>
-              <span className="opacity-45">·</span>
-              <span>via {MODE_LABEL[record.cardMode]}</span>
-            </>
-          )}
-          <span className="opacity-45">·</span>
-          <span className="tabular-nums">
-            {new Date(record.createdAt).toLocaleTimeString("pt-BR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-          {!!record.sizeBytes && (
-            <>
-              <span className="opacity-45">·</span>
-              <span>{fmtSize(record.sizeBytes)}</span>
-            </>
-          )}
-        </div>
+        {/* LISTA DE DADOS (layout "Detalhe B"): rótulo à esquerda, valor à
+            direita, linha fina entre eles. Linhas sem dado somem. */}
+        <dl className="mt-2 text-[13px]">
+          {[
+            ["Hóspede", record.guestName],
+            ["Reserva", reservationValue || (record.guestName ? "" : "Sem reserva vinculada")],
+            ["Registrado por", record.createdByName ?? "Equipe"],
+            [
+              "Origem",
+              [
+                record.cardMode ? MODE_LABEL[record.cardMode] : "",
+                new Date(record.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+              ]
+                .filter(Boolean)
+                .join(" · "),
+            ],
+          ]
+            .filter(([, v]) => !!v)
+            .map(([k, v]) => (
+              <div
+                key={k}
+                className="flex items-center justify-between gap-4 border-b border-foreground/[0.07] py-[11px] last:border-b-0"
+              >
+                <dt className="shrink-0 text-muted-foreground/70">{k}</dt>
+                <dd className="min-w-0 truncate text-right font-semibold">{v}</dd>
+              </div>
+            ))}
+        </dl>
       </div>
 
-      <div className="flex gap-1.5 px-3.5 pb-3.5">
-        {current.url && (
-          <a
-            href={current.url}
-            target="_blank"
-            rel="noreferrer"
-            className="flex-1 rounded-[0.3rem] bg-foreground/[0.06] py-2 text-center text-[10.5px] font-bold text-foreground/80 transition-colors hover:bg-foreground/10"
-          >
-            Baixar
-          </a>
-        )}
-        <button
-          type="button"
-          /* A SITUAÇÃO INTEIRA (04/10/2026): todas as mídias do grupo + a linha
-             principal. Mandar só `record.id` deixava as irmãs vivas e o
-             registro "voltava" depois de excluído. */
-          onClick={() => onDelete(Array.from(new Set([record.id, ...media.map((m) => m.id)])))}
-          className="flex-1 rounded-[0.3rem] bg-foreground/[0.06] py-2 text-center text-[10.5px] font-bold text-foreground/80 transition-colors hover:bg-foreground/10"
-        >
-          Excluir
-        </button>
-        {/* "Resolvido" só existe quando há o que resolver: registro sem
-            pendência, ou com a pendência já fechada, não mostra o botão. */}
-        {record.taskId && record.taskStatus === "pending" && onResolve && (
+      {/* BARRA DE AÇÕES: baixar tudo (só ícone), excluir (só ícone) e
+          "Resolvido" ocupando o resto. */}
+      <div className="px-4 pb-[18px] pt-3">
+        <div className="flex gap-2 rounded-[18px] border border-foreground/[0.07] bg-foreground/[0.035] p-2">
+          {media.some((m) => m.url) && (
+            <button
+              type="button"
+              onClick={baixarTodas}
+              disabled={baixando}
+              aria-label="Baixar todas as mídias"
+              title="Baixa todas as mídias deste registro"
+              className="grid size-[46px] shrink-0 place-items-center rounded-[12px] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
+            >
+              {baixando ? <Loader2 className="size-[17px] animate-spin" /> : <Download className="size-[17px]" strokeWidth={1.8} />}
+            </button>
+          )}
           <button
             type="button"
-            onClick={onResolve}
-            className="flex-1 rounded-[0.3rem] bg-emerald-500/15 py-2 text-center text-[10.5px] font-bold text-emerald-600 transition-colors hover:bg-emerald-500/25 dark:text-emerald-400"
+            /* A SITUAÇÃO INTEIRA (04/10/2026): todas as mídias do grupo + a linha
+               principal. Mandar só `record.id` deixava as irmãs vivas e o
+               registro "voltava" depois de excluído. */
+            onClick={() => onDelete(Array.from(new Set([record.id, ...media.map((m) => m.id)])))}
+            aria-label="Excluir"
+            title="Excluir"
+            className="grid size-[46px] shrink-0 place-items-center rounded-[12px] text-[#d49a9a] transition-colors hover:bg-[#d49a9a]/10"
           >
-            Resolvido
+            <Trash2 className="size-[17px]" strokeWidth={1.8} />
           </button>
-        )}
+          {/* "Resolvido" só existe quando há o que resolver. */}
+          {record.taskId && record.taskStatus === "pending" && onResolve && (
+            <button
+              type="button"
+              onClick={onResolve}
+              className="flex h-[46px] flex-1 items-center justify-center gap-2 rounded-[12px] bg-[#8fc0a6] text-[14px] font-semibold text-[#10201a] transition-colors hover:bg-[#9fcab3]"
+            >
+              <Check className="size-4" strokeWidth={2} />
+              Resolvido
+            </button>
+          )}
+        </div>
       </div>
     </>
   );
