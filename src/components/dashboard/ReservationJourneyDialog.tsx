@@ -263,7 +263,7 @@ export function ReservationJourneyDialog({
           <>
             <div className="flex shrink-0 flex-col gap-2 px-[18px] pb-3 pt-1.5">
               <div className="flex min-w-0 items-center justify-between gap-2.5">
-                <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="flex min-w-0 items-center gap-0 text-xs text-muted-foreground">
                   {data.ownerName ? (
                     <>
                       <span className="truncate">{ownerLabel(data.ownerName)}</span>

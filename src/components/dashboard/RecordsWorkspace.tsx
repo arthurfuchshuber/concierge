@@ -1520,7 +1520,11 @@ function PropertyCard({
   // espera de um "+N". Recolher zera: reabrir mostrando a lista inteira, sem
   // ninguém ter pedido, é surpresa — e surpresa em tela de operação é ruído.
   const hasPending = group.pending.length > 0;
-  const showRest = group.rest.length > 0 && !hideHistory;
+  // A CÂMERA MOSTRA TODOS OS REGISTROS (pedido explícito, 05/10/2026): com ou
+  // sem pendência, ela é o HISTÓRICO inteiro do imóvel — as pendências abertas
+  // também entram, e não só os já resolvidos.
+  const allRecords = [...group.pending, ...group.rest].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const showRest = allRecords.length > 0 && !hideHistory;
   // As miniaturas da gaveta têm sempre o tamanho curto (44px): cabem seis na
   // largura do celular, e o sexto vira o "+N".
   // QUANTOS QUADRADOS CABEM NA LINHA (05/10/2026): antes eram sempre 6, mas a
@@ -1552,7 +1556,7 @@ function PropertyCard({
   const historyOfCategory = !!category && PENDING_LIST.includes(category);
   const restLabel = historyOfCategory
     ? `Histórico de ${CATEGORY_BY_KEY.get(category as RecordCategory)?.short ?? ""}`
-    : `${group.rest.length} ${group.rest.length === 1 ? "registro" : "registros"}`;
+    : `${allRecords.length} ${allRecords.length === 1 ? "registro" : "registros"}`;
   const pendingLabel = `${group.pending.length} ${group.pending.length === 1 ? "pendência" : "pendências"}`;
 
   // A FRASE DE BAIXO DO TÍTULO diz o dado mais urgente: com pendência, há
@@ -1592,7 +1596,7 @@ function PropertyCard({
                 Guias usa (regra do projeto: todo nome de imóvel carrega o
                 proprietário). */}
             {group.sublabel && (
-              <div className="flex min-w-0 items-center gap-1">
+              <div className="flex min-w-0 items-center gap-0">
                 <span className="min-w-0 truncate text-[10.5px] text-foreground" title={group.sublabel}>
                   {ownerLabel(group.sublabel)}
                 </span>
@@ -1604,7 +1608,7 @@ function PropertyCard({
                   country={group.ownerPhoneCountry}
                   size={14}
                   alwaysShow
-                  className="-my-2 shrink-0 !p-2"
+                  className="-my-2 -ml-0.5 shrink-0 !p-2"
                 />
               </div>
             )}
@@ -1649,7 +1653,7 @@ function PropertyCard({
             {showRest && (
               <StatChip
                 tone="records"
-                count={group.rest.length}
+                count={allRecords.length}
                 open={stripOpen}
                 onClick={onToggleStrip}
                 aria-expanded={stripOpen}
@@ -1674,9 +1678,9 @@ function PropertyCard({
             className="grid justify-between gap-y-1"
             style={{ gridTemplateColumns: `repeat(${thumbCap}, 44px)` }}
           >
-            {group.rest.slice(0, thumbCap).map((r, i) => {
+            {allRecords.slice(0, thumbCap).map((r, i) => {
               const isLastSlot = i === thumbCap - 1;
-              const hidden = group.rest.length - thumbCap;
+              const hidden = allRecords.length - thumbCap;
               if (isLastSlot && hidden > 0) {
                 return <MoreThumb key="more" small count={hidden + 1} onClick={() => setMoreOpen(true)} />;
               }
@@ -1695,7 +1699,7 @@ function PropertyCard({
             >
               <MoreRecordsBody
                 group={group}
-                records={group.rest.slice(Math.max(0, thumbCap - 1))}
+                records={allRecords.slice(Math.max(0, thumbCap - 1))}
                 onOpen={onOpen}
               />
             </DialogContent>
@@ -1752,7 +1756,7 @@ function MoreRecordsBody({
         </div>
       </div>
       <div className="flex shrink-0 items-center justify-between gap-3 px-5 pb-3.5 pt-2">
-        <div className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-0 text-[12px] text-muted-foreground">
           {group.sublabel ? (
             <>
               <span className="truncate">{ownerLabel(group.sublabel)}</span>
@@ -1766,8 +1770,9 @@ function MoreRecordsBody({
             </>
           ) : null}
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-foreground/[0.06] px-3 py-1.5 text-[11.5px] font-semibold text-foreground">
-          <span className="size-1.5 rounded-full bg-foreground/60" />
+        {/* Mesma etiqueta do chip de registros do cartão (câmera + número). */}
+        <span className="inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full border border-foreground/25 bg-foreground/[0.11] px-2.5 text-[12px] font-bold tabular-nums text-foreground">
+          <Camera className="size-3.5 text-foreground/70" />
           {records.length} {records.length === 1 ? "registro" : "registros"}
         </span>
       </div>
@@ -1804,7 +1809,7 @@ function MoreThumb({ small, count, onClick }: { small?: boolean; count: number; 
       className={`${small ? "w-[44px]" : "w-[68px] sm:w-[76px]"} shrink-0 text-left`}
     >
       <span
-        className={`${small ? SMALL_THUMB_SIZE : THUMB_SIZE} grid place-items-center rounded-[0.25rem] bg-secondary/40 text-[11px] font-bold tabular-nums text-muted-foreground transition-colors hover:bg-secondary/70`}
+        className={`${small ? SMALL_THUMB_SIZE : THUMB_SIZE} grid place-items-center rounded-[0.25rem] border border-foreground/15 bg-foreground/[0.09] text-[11px] font-bold tabular-nums text-muted-foreground transition-colors hover:bg-foreground/[0.15]`}
       >
         +{count}
       </span>
@@ -1857,7 +1862,7 @@ function PendingPopoverBody({
         </div>
       </div>
       <div className="flex items-center justify-between gap-3 px-5 pb-3.5 pt-2">
-        <div className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-0 text-[12px] text-muted-foreground">
           {first?.ownerName ? (
             <>
               <span className="truncate">{ownerLabel(first.ownerName)}</span>
@@ -1982,7 +1987,7 @@ function Thumb({ record, small, onOpen }: { record: AccountRecord; small?: boole
       className={`${small ? "w-[44px]" : "w-[68px] sm:w-[76px]"} shrink-0 text-left transition-opacity hover:opacity-80`}
     >
       <span
-        className={`${small ? SMALL_THUMB_SIZE : THUMB_SIZE} relative grid place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30 ${
+        className={`${small ? SMALL_THUMB_SIZE : THUMB_SIZE} relative grid place-items-center overflow-hidden rounded-[0.25rem] border border-foreground/15 bg-foreground/[0.09] ${
           small ? "pt-3.5" : "pt-4"
         }`}
       >
@@ -2437,7 +2442,7 @@ function RecordViewerBody({
                 type="button"
                 onClick={() => setIdx(i)}
                 aria-label={`Mídia ${i + 1}`}
-                className={`relative grid size-[44px] shrink-0 place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30 ${
+                className={`relative grid size-[44px] shrink-0 place-items-center overflow-hidden rounded-[0.25rem] border border-foreground/15 bg-foreground/[0.09] ${
                   on ? "outline outline-2 -outline-offset-2 outline-[#E82DAE]" : "opacity-70"
                 }`}
               >

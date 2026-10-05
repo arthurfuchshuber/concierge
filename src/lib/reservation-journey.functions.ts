@@ -400,19 +400,14 @@ export const getReservationJourney = createServerFn({ method: "GET" })
 
     // ---- 6. A ATIVIDADE (tudo que aconteceu, do mais novo ao mais antigo) ----
     const activity: JourneyActivity[] = [];
-    if (log?.created_at) {
-      activity.push({ id: "form", at: log.created_at, tag: "Formulário", title: "Hóspede preencheu o formulário", sub: null, actor: GUEST, opens: null });
-    }
+    // A Atividade NÃO repete o que a Jornada já conta (formulário, check-in,
+    // check-out, limpeza, não comparecimento) — pedido explícito, 05/10/2026:
+    // "a timeline acima possui essa info". Fica só o que a Jornada não mostra:
+    // mudanças de previsão, registros e pendências.
     for (const e of events) {
       const d = e.detail ?? {};
       const a = authorFor(e);
-      if (e.kind === "checkin") activity.push({ id: e.id, at: e.created_at, tag: "Check-in", title: "Check-in confirmado", sub: null, actor: a, opens: null });
-      else if (e.kind === "no_show") activity.push({ id: e.id, at: e.created_at, tag: "Check-in", title: "Marcado como não compareceu", sub: null, actor: a, opens: null });
-      else if (e.kind === "checkout") activity.push({ id: e.id, at: e.created_at, tag: "Check-out", title: "Check-out confirmado", sub: null, actor: a, opens: null });
-      else if (e.kind === "concluded") {
-        const tipo = d.cleaning_type === "completa" ? "Completa" : d.cleaning_type === "normal" ? "Normal" : null;
-        activity.push({ id: e.id, at: e.created_at, tag: "Limpeza", title: "Limpeza concluída", sub: [tipo, brl((d.price_cents as number | null) ?? null)].filter(Boolean).join(" · ") || null, actor: a, opens: null });
-      } else if (e.kind === "previsao_hora" || e.kind === "previsao_data") {
+      if (e.kind === "previsao_hora" || e.kind === "previsao_data") {
         const lado = d.side === "checkout" ? "Saída" : "Chegada";
         const toV = e.kind === "previsao_hora" ? String(d.to ?? "").slice(0, 5) : fmtDateBR((d.to as string | null) ?? null);
         const fromV = e.kind === "previsao_hora" ? String(d.from ?? "").slice(0, 5) : fmtDateBR((d.from as string | null) ?? null);
