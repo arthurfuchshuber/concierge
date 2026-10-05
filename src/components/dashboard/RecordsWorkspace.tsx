@@ -2399,9 +2399,9 @@ function RecordViewerBody({
               disabled={baixando}
               aria-label="Baixar todas as mídias"
               title="Baixa todas as mídias deste registro"
-              className="grid size-[34px] shrink-0 place-items-center rounded-[9px] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground disabled:opacity-50"
+              className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-background/60 text-muted-foreground transition-colors hover:bg-primary/[0.08] hover:text-foreground disabled:opacity-50"
             >
-              {baixando ? <Loader2 className="size-[15px] animate-spin" /> : <Download className="size-[15px]" strokeWidth={1.8} />}
+              {baixando ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
             </button>
           )}
           <button
@@ -2412,19 +2412,19 @@ function RecordViewerBody({
             onClick={() => onDelete(Array.from(new Set([record.id, ...media.map((m) => m.id)])))}
             aria-label="Excluir"
             title="Excluir"
-            className="grid size-[34px] shrink-0 place-items-center rounded-[9px] bg-foreground/[0.06] text-[#d49a9a] transition-colors hover:bg-foreground/10"
+            className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-background/60 text-[#d49a9a] transition-colors hover:bg-primary/[0.08]"
           >
-            <Trash2 className="size-[15px]" strokeWidth={1.8} />
+            <Trash2 className="size-3.5" />
           </button>
           {/* "Resolvido" só existe quando há o que resolver. */}
           {record.taskId && record.taskStatus === "pending" && onResolve && (
             <button
               type="button"
               onClick={onResolve}
-              className="flex h-[34px] flex-1 items-center justify-center gap-1.5 rounded-[9px] bg-[#8fc0a6] text-[12px] font-semibold text-[#10201a] transition-colors hover:bg-[#9fcab3]"
+              className="box-border inline-flex h-7 min-h-7 min-w-0 flex-1 items-center justify-center gap-2 rounded-[0.3rem] bg-[#8fc0a6] px-2.5 text-[11px] font-semibold leading-none tracking-tight text-[#10201a] transition-all hover:bg-[#9fcab3] active:scale-[0.99]"
             >
-              <Check className="size-3.5" strokeWidth={2.2} />
-              Resolvido
+              <Check className="size-3 shrink-0" />
+              <span className="truncate">Resolvido</span>
             </button>
           )}
         </div>
