@@ -1598,24 +1598,27 @@ function PropertyCard({
 
           <div className="flex min-w-0 items-center gap-2">
             {hasPending && (
-              <Popover open={pendingOpen} onOpenChange={(v) => v !== pendingOpen && onTogglePending()}>
-                <PopoverTrigger asChild>
-                  <StatChip
-                    tone="pending"
-                    count={group.pending.length}
-                    open={pendingOpen}
-                    aria-label={pendingLabel}
-                    title={pendingLabel}
-                  />
-                </PopoverTrigger>
-                <PopoverContent
-                  side="top"
-                  align="center"
-                  className="max-h-[60dvh] w-[min(372px,calc(100vw-32px))] overflow-y-auto p-0"
-                >
-                  <PendingPopoverBody group={group} onOpen={onOpen} onResolve={onResolve} />
-                </PopoverContent>
-              </Popover>
+              <>
+                <StatChip
+                  tone="pending"
+                  count={group.pending.length}
+                  open={pendingOpen}
+                  onClick={onTogglePending}
+                  aria-label={pendingLabel}
+                  title={pendingLabel}
+                />
+                {/* JANELA CENTRADA NA TELA (pedido explícito, 05/10/2026): o
+                    popover nascia colado no chip e ficava torto/cortado.
+                    Como Dialog ela centraliza sozinha e herda raio 16. */}
+                <Dialog open={pendingOpen} onOpenChange={(v) => v !== pendingOpen && onTogglePending()}>
+                  <DialogContent
+                    className="max-h-[85dvh] w-[min(372px,calc(100vw-2rem))] gap-0 overflow-x-hidden overflow-y-auto p-0"
+                    aria-describedby={undefined}
+                  >
+                    <PendingPopoverBody group={group} onOpen={onOpen} onResolve={onResolve} />
+                  </DialogContent>
+                </Dialog>
+              </>
             )}
             {showRest && (
               <StatChip
@@ -1712,9 +1715,9 @@ function PendingPopoverBody({
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
             Pendências do imóvel
           </div>
-          <div className="mt-1 truncate text-[17px] font-bold leading-tight tracking-tight text-white" title={name}>
+          <DialogTitle className="mt-1 block truncate text-[17px] font-bold leading-tight tracking-tight text-white" title={name}>
             {name}
-          </div>
+          </DialogTitle>
         </div>
       </div>
       <div className="flex items-center justify-between gap-3 px-5 pb-3.5 pt-2">
@@ -1737,9 +1740,9 @@ function PendingPopoverBody({
           {group.pending.length} em aberto
         </span>
       </div>
-      <div className="grid gap-2 px-3.5 pb-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-2 px-3.5 pb-4">
         {sections.map((sec, i) => (
-          <div key={sec.key} className="grid gap-2">
+          <div key={sec.key} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
             <div className={`flex items-center gap-2.5 px-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground ${i ? "pt-2" : ""}`}>
               <span className="size-[7px] rounded-full bg-[#d29a9a]" />
               {sec.label}
@@ -1774,7 +1777,7 @@ function PendingCard({
   const visual = (record.media ?? []).filter((m) => m.url && (m.kind === "photo" || m.kind === "video"));
   const m = visual[0];
   return (
-    <div className="flex w-full items-center gap-3 rounded-[18px] bg-foreground/[0.04] py-2.5 pl-2.5 pr-3.5">
+    <div className="flex w-full min-w-0 items-center gap-3 rounded-[18px] bg-foreground/[0.04] py-2.5 pl-2.5 pr-3.5">
       <button
         type="button"
         onClick={onOpen}
@@ -2144,7 +2147,7 @@ function RecordViewerBody({
               `text-wrap-style`, que não mexe em quebrar/não quebrar.
           Com o título em uma linha o cabeçalho encolheu; o `pt`/`pb` foram
           junto. */}
-      <DialogHeader className="space-y-0 px-[18px] pb-3.5 pr-14 pt-[18px] text-left">
+      <DialogHeader className="space-y-0 pb-3.5 pl-6 pr-14 pt-[18px] text-left">
         <DialogTitle className="block w-full truncate text-[17px] font-bold leading-tight tracking-tight">
           {record.propertyName}
         </DialogTitle>
@@ -2205,7 +2208,7 @@ function RecordViewerBody({
             quadrantes da lista ela segue translúcida — lá não há imagem
             atrás. */}
         <span
-          className={`absolute left-3 top-3 z-10 inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-[11.5px] font-semibold text-white shadow-sm ${
+          className={`absolute left-3 top-3 z-10 inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-[11.5px] font-semibold leading-none shadow-sm ${
             CATEGORY_SOLID[record.category] ?? CATEGORY_SOLID.other
           }`}
         >
@@ -2216,7 +2219,7 @@ function RecordViewerBody({
             a linha de dados para duas alturas; aqui em cima é lida junto com
             a categoria e não ocupa altura nenhuma. */}
         {record.taskId && (
-          <span className="absolute right-3 top-3 z-10 inline-flex h-6 items-center gap-1.5 rounded-full border border-white/15 bg-[rgba(20,17,15,.72)] px-2.5 text-[11.5px] font-semibold text-[#f4f0ea] backdrop-blur">
+          <span className="absolute right-3 top-3 z-10 inline-flex h-6 items-center gap-1.5 rounded-full border border-white/15 bg-[rgba(20,17,15,.72)] px-2.5 text-[11.5px] font-semibold leading-none text-[#f4f0ea] backdrop-blur">
             <span
               className={`size-1.5 rounded-full ${
                 record.taskStatus === "pending"
@@ -2308,7 +2311,7 @@ function RecordViewerBody({
         </div>
       )}
 
-      <div className="px-[18px] pb-1 pt-4">
+      <div className="px-6 pb-1 pt-4">
         {editing ? (
           /* EDITAR DEPOIS (decisão do cliente, 10/09/2026): o registro que
              nasceu sem título — ou com o título errado — se conserta aqui,
@@ -2383,8 +2386,8 @@ function RecordViewerBody({
 
       {/* BARRA DE AÇÕES: baixar tudo (só ícone), excluir (só ícone) e
           "Resolvido" ocupando o resto. */}
-      <div className="px-4 pb-[18px] pt-3">
-        <div className="flex gap-2 rounded-[18px] border border-foreground/[0.07] bg-foreground/[0.035] p-2">
+      <div className="px-4 pb-4 pt-3">
+        <div className="flex gap-1.5 rounded-[12px] border border-foreground/[0.07] bg-foreground/[0.035] p-1.5">
           {media.some((m) => m.url) && (
             <button
               type="button"
@@ -2392,9 +2395,9 @@ function RecordViewerBody({
               disabled={baixando}
               aria-label="Baixar todas as mídias"
               title="Baixa todas as mídias deste registro"
-              className="grid size-[46px] shrink-0 place-items-center rounded-[12px] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
+              className="grid size-[34px] shrink-0 place-items-center rounded-[9px] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
             >
-              {baixando ? <Loader2 className="size-[17px] animate-spin" /> : <Download className="size-[17px]" strokeWidth={1.8} />}
+              {baixando ? <Loader2 className="size-[15px] animate-spin" /> : <Download className="size-[15px]" strokeWidth={1.8} />}
             </button>
           )}
           <button
@@ -2405,18 +2408,18 @@ function RecordViewerBody({
             onClick={() => onDelete(Array.from(new Set([record.id, ...media.map((m) => m.id)])))}
             aria-label="Excluir"
             title="Excluir"
-            className="grid size-[46px] shrink-0 place-items-center rounded-[12px] text-[#d49a9a] transition-colors hover:bg-[#d49a9a]/10"
+            className="grid size-[34px] shrink-0 place-items-center rounded-[9px] text-[#d49a9a] transition-colors hover:bg-[#d49a9a]/10"
           >
-            <Trash2 className="size-[17px]" strokeWidth={1.8} />
+            <Trash2 className="size-[15px]" strokeWidth={1.8} />
           </button>
           {/* "Resolvido" só existe quando há o que resolver. */}
           {record.taskId && record.taskStatus === "pending" && onResolve && (
             <button
               type="button"
               onClick={onResolve}
-              className="flex h-[46px] flex-1 items-center justify-center gap-2 rounded-[12px] bg-[#8fc0a6] text-[14px] font-semibold text-[#10201a] transition-colors hover:bg-[#9fcab3]"
+              className="flex h-[34px] flex-1 items-center justify-center gap-1.5 rounded-[9px] bg-[#8fc0a6] text-[12px] font-semibold text-[#10201a] transition-colors hover:bg-[#9fcab3]"
             >
-              <Check className="size-4" strokeWidth={2} />
+              <Check className="size-3.5" strokeWidth={2.2} />
               Resolvido
             </button>
           )}
