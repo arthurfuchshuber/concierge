@@ -858,7 +858,7 @@ export function RecordsWorkspace() {
               delas é exatamente o total, e bate com o "em aberto" de cada
               cartão acima. Reaproveita o filtro "só em aberto". */}
           {(pendingOpen > 0 || onlyOpen) && (
-            <div className="ds-3d flex items-center gap-3 rounded-[14px] bg-card px-3.5 py-3">
+            <div className="ds-3d flex items-center gap-3 rounded-[14px] border border-[#c98c8c]/35 bg-[#c98c8c]/20 px-3.5 py-3">
               <p className="min-w-0 flex-1 text-[12px] leading-snug">
                 {pendingOpen > 0 ? (
                   <>
@@ -889,7 +889,7 @@ export function RecordsWorkspace() {
                     }
                   }}
                   aria-pressed
-                  className="shrink-0 rounded-[10px] border border-border bg-secondary px-3 py-2 text-[11.5px] font-bold text-foreground transition-colors hover:bg-secondary/70"
+                  className="shrink-0 rounded-[10px] border border-[#c98c8c]/45 bg-[#c98c8c]/25 px-3 py-2 text-[11.5px] font-bold text-foreground transition-colors hover:bg-[#c98c8c]/35"
                 >
                   Ver tudo
                 </button>
@@ -913,7 +913,7 @@ export function RecordsWorkspace() {
                 >
                   <button
                     type="button"
-                    className="shrink-0 rounded-[10px] border border-border bg-secondary px-3 py-2 text-[11.5px] font-bold text-foreground transition-colors hover:bg-secondary/70"
+                    className="shrink-0 rounded-[10px] border border-[#c98c8c]/45 bg-[#c98c8c]/25 px-3 py-2 text-[11.5px] font-bold text-foreground transition-colors hover:bg-[#c98c8c]/35"
                   >
                     Ver só elas
                   </button>
@@ -1913,7 +1913,7 @@ function RecordViewerDialog({
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-md"
+        className="w-[calc(100vw-2rem)] grid-cols-[minmax(0,1fr)] gap-0 overflow-x-hidden p-0 sm:w-full sm:max-w-md"
         aria-describedby={undefined}
       >
         {record && <RecordViewerBody record={record} onDelete={onDelete} onResolve={onResolve} onEdited={onEdited} />}
@@ -2147,7 +2147,7 @@ function RecordViewerBody({
               `text-wrap-style`, que não mexe em quebrar/não quebrar.
           Com o título em uma linha o cabeçalho encolheu; o `pt`/`pb` foram
           junto. */}
-      <DialogHeader className="space-y-0 pb-3.5 pl-6 pr-14 pt-[18px] text-left">
+      <DialogHeader className="min-w-0 space-y-0 pb-3.5 pl-6 pr-14 pt-[21px] text-left">
         <DialogTitle className="block w-full truncate text-[17px] font-bold leading-tight tracking-tight">
           {record.propertyName}
         </DialogTitle>
@@ -2311,7 +2311,7 @@ function RecordViewerBody({
         </div>
       )}
 
-      <div className="px-6 pb-1 pt-4">
+      <div className="min-w-0 px-6 pb-1 pt-4">
         {editing ? (
           /* EDITAR DEPOIS (decisão do cliente, 10/09/2026): o registro que
              nasceu sem título — ou com o título errado — se conserta aqui,
@@ -2395,7 +2395,7 @@ function RecordViewerBody({
               disabled={baixando}
               aria-label="Baixar todas as mídias"
               title="Baixa todas as mídias deste registro"
-              className="grid size-[34px] shrink-0 place-items-center rounded-[9px] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
+              className="grid size-[34px] shrink-0 place-items-center rounded-[9px] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground disabled:opacity-50"
             >
               {baixando ? <Loader2 className="size-[15px] animate-spin" /> : <Download className="size-[15px]" strokeWidth={1.8} />}
             </button>
@@ -2408,7 +2408,7 @@ function RecordViewerBody({
             onClick={() => onDelete(Array.from(new Set([record.id, ...media.map((m) => m.id)])))}
             aria-label="Excluir"
             title="Excluir"
-            className="grid size-[34px] shrink-0 place-items-center rounded-[9px] text-[#d49a9a] transition-colors hover:bg-[#d49a9a]/10"
+            className="grid size-[34px] shrink-0 place-items-center rounded-[9px] bg-[#d49a9a]/10 text-[#d49a9a] transition-colors hover:bg-[#d49a9a]/20"
           >
             <Trash2 className="size-[15px]" strokeWidth={1.8} />
           </button>
