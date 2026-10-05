@@ -2390,8 +2390,8 @@ function RecordViewerBody({
 
       {/* BARRA DE AÇÕES: baixar tudo (só ícone), excluir (só ícone) e
           "Resolvido" ocupando o resto. */}
-      <div className="px-4 pb-4 pt-3">
-        <div className="flex gap-1.5 rounded-[12px] border border-foreground/[0.07] bg-foreground/[0.035] p-1.5">
+      <div className="shrink-0 px-6 pb-4 pt-3">
+        <div className="flex items-center gap-1.5">
           {media.some((m) => m.url) && (
             <button
               type="button"
