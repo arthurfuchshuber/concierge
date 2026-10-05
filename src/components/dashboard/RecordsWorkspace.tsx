@@ -1529,6 +1529,8 @@ function PropertyCard({
   // largura real decide, e o "+N" é sempre o ÚLTIMO quadrado da linha.
   const gridRef = useRef<HTMLDivElement>(null);
   const [thumbCap, setThumbCap] = useState(6);
+  // "+N": abre a lista dos registros que o número representa (05/10/2026).
+  const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
     const el = gridRef.current;
     if (!el || !stripOpen) return;
@@ -1600,7 +1602,7 @@ function PropertyCard({
                 <PhoneActionButton
                   phone={group.ownerPhone}
                   country={group.ownerPhoneCountry}
-                  size={18}
+                  size={14}
                   alwaysShow
                   className="-my-2 shrink-0 !p-2"
                 />
@@ -1676,14 +1678,120 @@ function PropertyCard({
               const isLastSlot = i === thumbCap - 1;
               const hidden = group.rest.length - thumbCap;
               if (isLastSlot && hidden > 0) {
-                return <MoreThumb key="more" small count={hidden + 1} onClick={() => onOpen(r)} />;
+                return <MoreThumb key="more" small count={hidden + 1} onClick={() => setMoreOpen(true)} />;
               }
               return <Thumb key={r.id} record={r} small onOpen={() => onOpen(r)} />;
             })}
           </div>
+          {/* JANELA DO "+N" (mockup "Mais registros do imóvel", aprovado em
+              05/10/2026): antes o "+9" abria um registro qualquer. Agora abre
+              a lista dos que ele representa, no desenho da janela de
+              Pendências. Tocar numa linha abre o registro por cima; fechar
+              volta para esta lista. */}
+          <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
+            <DialogContent
+              className="flex max-h-[75dvh] w-[min(372px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
+              aria-describedby={undefined}
+            >
+              <MoreRecordsBody
+                group={group}
+                records={group.rest.slice(Math.max(0, thumbCap - 1))}
+                onOpen={onOpen}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Corpo da janela "Mais registros do imóvel": capa, proprietário com o ícone
+ * de mensagem, pílula com a quantidade e as linhas por categoria. Cabeçalho
+ * fixo; só a lista rola, e a rolagem para antes de uma linha ficar cortada
+ * (`useAntiClipRows`), dentro do limite de 75% da altura da tela.
+ */
+function MoreRecordsBody({
+  group,
+  records,
+  onOpen,
+}: {
+  group: Group;
+  records: AccountRecord[];
+  onOpen: (r: AccountRecord) => void;
+}) {
+  const first = records[0];
+  const covers = [...(group.coverUrls ?? first?.propertyCoverUrls ?? []), group.coverUrl ?? first?.propertyCoverUrl];
+  const sections: { key: string; label: string; dot: string; items: AccountRecord[] }[] = [];
+  for (const r of records) {
+    let sec = sections.find((x) => x.key === r.category);
+    if (!sec) {
+      const meta = CATEGORY_BY_KEY.get(r.category);
+      sec = { key: r.category, label: meta?.label ?? "Registro", dot: meta?.dot ?? "bg-muted-foreground/60", items: [] };
+      sections.push(sec);
+    }
+    sec.items.push(r);
+  }
+  const bodyRef = useAntiClipRows<HTMLDivElement>([records.length]);
+  return (
+    <>
+      <div className="relative h-[132px] shrink-0 overflow-hidden bg-secondary/60">
+        <CoverImage urls={covers} empty={false} />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/55 to-[var(--panel)]" />
+        <div className="absolute bottom-2.5 left-5 right-12">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
+            Mais registros do imóvel
+          </div>
+          <DialogTitle
+            className="mt-1 block truncate text-[17px] font-bold leading-tight tracking-tight text-white"
+            title={group.label}
+          >
+            {group.label}
+          </DialogTitle>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center justify-between gap-3 px-5 pb-3.5 pt-2">
+        <div className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
+          {group.sublabel ? (
+            <>
+              <span className="truncate">{ownerLabel(group.sublabel)}</span>
+              <PhoneActionButton
+                phone={group.ownerPhone}
+                country={group.ownerPhoneCountry}
+                size={14}
+                alwaysShow
+                className="shrink-0"
+              />
+            </>
+          ) : null}
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-foreground/[0.06] px-3 py-1.5 text-[11.5px] font-semibold text-foreground">
+          <span className="size-1.5 rounded-full bg-foreground/60" />
+          {records.length} {records.length === 1 ? "registro" : "registros"}
+        </span>
+      </div>
+      <div
+        ref={bodyRef}
+        className="sg-elegant-scroll grid min-h-0 min-w-0 flex-1 snap-y snap-proximity grid-cols-[minmax(0,1fr)] content-start gap-2 overflow-y-auto overscroll-contain px-3.5 pb-4"
+      >
+        {sections.map((sec, i) => (
+          <div key={sec.key} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
+            <div
+              className={`flex items-center gap-2.5 px-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground ${i ? "pt-2" : ""}`}
+            >
+              <span className={`size-[7px] rounded-full ${sec.dot}`} />
+              {sec.label}
+              <em className="not-italic tracking-[0.04em] text-muted-foreground/60">· {sec.items.length}</em>
+              <i className="h-px flex-1 bg-foreground/[0.08]" />
+            </div>
+            {sec.items.map((r) => (
+              <PendingCard key={r.id} record={r} onOpen={() => onOpen(r)} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -1805,7 +1913,10 @@ function PendingCard({
   const visual = (record.media ?? []).filter((m) => m.url && (m.kind === "photo" || m.kind === "video"));
   const m = visual[0];
   return (
-    <div className="flex w-full min-w-0 items-center gap-3 rounded-[18px] bg-foreground/[0.04] py-2.5 pl-2.5 pr-3.5">
+    <div
+      data-clip-row
+      className="flex w-full min-w-0 snap-start items-center gap-3 rounded-[18px] bg-foreground/[0.04] py-2.5 pl-2.5 pr-3.5"
+    >
       <button
         type="button"
         onClick={onOpen}
