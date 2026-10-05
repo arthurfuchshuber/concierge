@@ -51,8 +51,4 @@ SELECT cron.schedule(
     timeout_milliseconds := 30000
   ) AS request_id;
   $$
-<<<<<<< HEAD
 );
-=======
-);
->>>>>>> 810215cd043a2903e8c29d83960bc640411e344a
