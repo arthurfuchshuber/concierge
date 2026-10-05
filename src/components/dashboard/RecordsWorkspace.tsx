@@ -79,6 +79,7 @@ import {
   ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
+import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { OverlayChip, OverlayHeader } from "@/components/ds/OverlayHeader";
 
@@ -135,8 +136,6 @@ const GROUP_OPTIONS: ReadonlyArray<{ value: GroupBy; label: string }> = [
 
 
 
-/** Quantas miniaturas aparecem antes do "+N" — quatro, como no mockup. */
-const THUMBS_PER_GROUP = 4;
 /** Lado da miniatura. Fixo de propósito (ver comentário na tira). */
 const THUMB_SIZE = "size-[68px] sm:size-[76px]";
 /** Versão curta, quando o cartão já gastou altura com "a resolver". */
@@ -406,6 +405,14 @@ type Group = {
   key: string;
   label: string;
   sublabel: string | null;
+  /** Contato do proprietário (ícone de mensagem do cartão). */
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
+  /**
+   * Capa do imóvel (04/10/2026, proposta A). `undefined` = "Por data": o
+   * cartão reúne vários imóveis e não mostra foto. `null` = imóvel sem capa.
+   */
+  coverUrl?: string | null;
   propertyId: string;
   /** Registros com pendência AINDA EM ABERTO — o que há para executar. */
   pending: AccountRecord[];
@@ -581,6 +588,9 @@ export function RecordsWorkspace() {
           key,
           label: groupBy === "property" ? r.propertyName : fmtDayLabel(r.createdAt),
           sublabel: groupBy === "property" ? r.ownerName : null,
+          ownerPhone: groupBy === "property" ? r.ownerPhone : null,
+          ownerPhoneCountry: groupBy === "property" ? r.ownerPhoneCountry : null,
+          coverUrl: groupBy === "property" ? (r.propertyCoverUrl ?? null) : undefined,
           propertyId: r.propertyId,
           pending: [],
           rest: [],
@@ -1349,79 +1359,6 @@ function rowSquares(records: AccountRecord[], max: number): RowSquare[] {
 }
 
 /**
- * A LINHA-BOTÃO DO IMÓVEL (mockup A1 aprovado, 03/10/2026: "podemos seguir
- * com a Proposta A1 lista fechada"). A queixa era que a tela não dizia onde
- * tocar: as linhas "Pendências" e "Registros" eram um rótulo de 9px com um
- * fio — não pareciam botão. Agora cada uma é uma peça inteira, com cor
- * própria, ícone, texto de 15px/12,5px, as duas primeiras miniaturas e a
- * seta. Rosa terroso = há o que resolver; neutra = acervo (prova).
- *
- * `forwardRef` + spread: o gatilho do Popover (`asChild`) injeta ref, onClick
- * e aria-* aqui dentro. Título e subtítulo cortam com reticências, nunca
- * quebram (regra do projeto).
- */
-const PropertyRow = forwardRef<
-  HTMLButtonElement,
-  {
-    tone: "pending" | "records";
-    title: string;
-    subtitle: string;
-    thumbs: AccountRecord[];
-    open?: boolean;
-  } & React.ButtonHTMLAttributes<HTMLButtonElement>
->(function PropertyRow({ tone, title, subtitle, thumbs, open, ...rest }, ref) {
-  const pending = tone === "pending";
-  const squares = rowSquares(thumbs, 2);
-  return (
-    <button
-      ref={ref}
-      type="button"
-      {...rest}
-      className={`mt-2.5 flex min-h-[52px] w-full items-center gap-2.5 rounded-[12px] border px-3 py-2 text-left transition-colors ${
-        pending
-          ? "border-[#c98c8c]/30 bg-[#c98c8c]/12 hover:bg-[#c98c8c]/18"
-          : "border-border/50 bg-secondary/40 hover:bg-secondary/60"
-      }`}
-    >
-      <span
-        className={`grid size-[30px] shrink-0 place-items-center rounded-[10px] ${
-          pending ? "bg-[#c98c8c]/25 text-[#c98c8c]" : "bg-foreground/[0.1] text-muted-foreground"
-        }`}
-      >
-        {pending ? <CircleAlert className="size-4" /> : <Camera className="size-4" />}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className={`block truncate text-[13px] font-bold leading-tight ${pending ? "ds-falta" : ""}`}>
-          {title}
-        </span>
-        <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">{subtitle}</span>
-      </span>
-      {squares.length > 0 && (
-        <span className="flex shrink-0">
-          {squares.map((m, i) => (
-            <span
-              key={m.id}
-              className={`relative grid size-[34px] place-items-center overflow-hidden rounded-[9px] bg-gradient-to-br from-secondary/80 to-secondary/40 ring-2 ring-[var(--panel,transparent)] ${
-                i > 0 ? "-ml-2.5" : ""
-              }`}
-            >
-              {m.kind === "photo" && m.url ? (
-                <img src={m.url} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-              ) : m.kind === "video" && m.url ? (
-                <VideoFrame url={m.url} />
-              ) : (
-                <RecordCover record={m.record} size="xs" />
-              )}
-            </span>
-          ))}
-        </span>
-      )}
-      <ChevronRight className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`} />
-    </button>
-  );
-});
-
-/**
  * SEÇÃO DE STATUS — o MESMO cabeçalho da página Guias (pedido explícito,
  * 03/10/2026: "deixar a visão em registros tão clean quanto a da página
  * guias... colocar o título/status exatamente como colocamos na aba guias").
@@ -1487,11 +1424,56 @@ function StatusSection({
             {sort}
           </span>
         </div>
-        <div className="ds-five-cap grid gap-3 max-lg:-ml-[2px]! max-lg:-mr-[10px]!">{children}</div>
+        {/* SEM QUADRANTE DE ROLAGEM (pedido explícito, 04/10/2026: "retirar os
+            quadrantes de rolagem... colocar os status + cards na página
+            oficial, sem barra de rolagem interna"). Os cartões ficam no fluxo
+            da página e rolam com ela; antes um teto de 5 cartões abria uma
+            barra própria dentro de cada status. Saíram junto os recuos
+            negativos que compensavam o respiro dessa barra. */}
+        <div className="grid gap-3">{children}</div>
       </div>
     </section>
   );
 }
+
+/**
+ * O CHIP DO CARTÃO — proposta A aprovada em 04/10/2026 ("parece ter ficado
+ * bom... vamos implementar para fazer um teste"), a visão de Registros
+ * adaptada ao cartão da página Guias (foto à esquerda, proprietário com o
+ * ícone de mensagem, título em uma linha). No lugar da barra de progresso de
+ * Guias entram dois chips: pendências (rosa terroso = há o que resolver) e
+ * registros (neutro = acervo, prova). Cada um abre a MESMA lista de antes —
+ * nenhuma regra, ordem ou dado mudou, só a forma.
+ *
+ * `forwardRef` + spread: o gatilho do Popover (`asChild`) injeta ref, onClick
+ * e aria-* aqui dentro. O texto que a linha antiga dizia ("2 pendências") vai
+ * para `aria-label` e `title`, para leitor de tela e para o toque longo.
+ */
+const StatChip = forwardRef<
+  HTMLButtonElement,
+  {
+    tone: "pending" | "records";
+    count: number;
+    open?: boolean;
+  } & React.ButtonHTMLAttributes<HTMLButtonElement>
+>(function StatChip({ tone, count, open, ...rest }, ref) {
+  const pending = tone === "pending";
+  return (
+    <button
+      ref={ref}
+      type="button"
+      {...rest}
+      className={`inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-bold tabular-nums transition-colors ${
+        pending
+          ? "border-[#c98c8c]/30 bg-[#c98c8c]/12 text-[#c98c8c] hover:bg-[#c98c8c]/18"
+          : "border-border/50 bg-secondary/40 text-foreground hover:bg-secondary/60"
+      } ${open ? "ring-1 ring-foreground/25" : ""}`}
+    >
+      {pending ? <CircleAlert className="size-3.5" /> : <Camera className="size-3.5 text-muted-foreground" />}
+      {count}
+    </button>
+  );
+});
 
 function PropertyCard({
   group,
@@ -1519,171 +1501,188 @@ function PropertyCard({
   onTogglePending: () => void;
 }) {
   // "+N a resolver" EXPANDE A PRÓPRIA LISTA (pedido explícito, 10/09/2026).
-  // Antes ele recortava a página inteira para aquele imóvel — resolvia, mas
-  // custava perder a visão dos outros. Abrir no lugar é mais barato e é o que
-  // a pessoa espera de um "+N".
-  // Recolher zera o "+N": reabrir depois mostrando a lista inteira, sem
+  // Abrir no lugar é mais barato que recortar a página e é o que a pessoa
+  // espera de um "+N". Recolher zera: reabrir mostrando a lista inteira, sem
   // ninguém ter pedido, é surpresa — e surpresa em tela de operação é ruído.
   const hasPending = group.pending.length > 0;
-  // Com o andar de pendências em cima, o acervo encolhe para não esticar o
-  // cartão; sozinho, ele fica no tamanho de leitura de sempre.
-  const thumbCap = hasPending ? 6 : THUMBS_PER_GROUP;
+  const showRest = group.rest.length > 0 && !hideHistory;
+  // As miniaturas da gaveta têm sempre o tamanho curto (44px): cabem seis na
+  // largura do celular, e o sexto vira o "+N".
+  const thumbCap = 6;
 
   // A faixa lê o cartão INTEIRO — pendências e acervo —, não só o que está
-  // visível depois do corte das 3 linhas.
+  // visível depois do corte.
   const stripe = stripeCategory([...group.pending, ...group.rest]);
 
+  const historyOfCategory = !!category && PENDING_LIST.includes(category);
+  const restLabel = historyOfCategory
+    ? `Histórico de ${CATEGORY_BY_KEY.get(category as RecordCategory)?.short ?? ""}`
+    : `${group.rest.length} ${group.rest.length === 1 ? "registro" : "registros"}`;
+  const pendingLabel = `${group.pending.length} ${group.pending.length === 1 ? "pendência" : "pendências"}`;
+
+  // A FRASE DE BAIXO DO TÍTULO diz o dado mais urgente: com pendência, há
+  // quanto tempo a mais antiga espera; sem, quando foi o último registro.
+  const subtitle = hasPending
+    ? `Mais antiga ${fmtAgo(group.pending[0].createdAt)}`
+    : showRest
+      ? historyOfCategory
+        ? `${group.rest.length} ${group.rest.length === 1 ? "resolvido" : "resolvidos"} · Último: ${fmtLast(group.rest[0].createdAt)}`
+        : `Último registro: ${fmtLast(group.rest[0].createdAt)}`
+      : null;
+
   return (
-    /* MESMA CASCA DOS CARDS DA OPERACIONAL (18/09/2026): o cartão de imóvel
-       usava um canto quase reto (0.3rem) enquanto todo cartão das outras abas
-       tem 14px, e a faixa de categoria era um bloco cheio de 4px na lateral.
-       Agora é o traço de 2px que some nas pontas — o mesmo da faixa de
-       limpeza da Operacional. */
-    <div className={`${PANEL_SHELL} p-3`}>
+    /* MESMA CASCA DOS CARDS DA OPERACIONAL E DE GUIAS (18/09/2026): canto de
+       14px e o traço de 2px de categoria que some nas pontas. */
+    <div className={PANEL_SHELL}>
       {stripe && (
         <span
           aria-hidden
-          className={`pointer-events-none absolute inset-y-0 left-0 w-[2px] ${STRIPE_GRADIENT[stripe]}`}
+          className={`pointer-events-none absolute inset-y-0 left-0 z-10 w-[2px] ${STRIPE_GRADIENT[stripe]}`}
         />
       )}
-      {/* `relative` mantém o conteúdo acima da faixa: elemento posicionado
-          pinta por cima de irmão não posicionado, mesmo vindo antes no DOM. */}
-      <div className="relative">
-        {/* A ETIQUETA DIVIDE A LINHA DO TÍTULO, não o bloco de duas linhas
-          (pedido explícito, 10/09/2026) — é a mesma correção já feita no
-          cabeçalho das páginas: centrada no bloco inteiro, ela caía na altura
-          do vão entre o nome do imóvel e o proprietário e ficava visivelmente
-          baixa. Dentro da mesma linha, o alinhamento é exato por construção. */}
-        {/* A etiqueta de contagem saiu do topo (pedido explícito, 10/09/2026):
-            a linha "Pendências" logo abaixo já diz o mesmo número, e repetir no
-            mesmo cartão só roubava largura do nome do imóvel. */}
-        <span className="ds-card-title block">{group.label}</span>
-        {group.sublabel && (
-          <span className={`mt-0.5 block truncate text-[11.5px] ${CARD_OWNER}`}>
-            {ownerLabel(group.sublabel)}
-          </span>
+      {/* `relative` mantém o conteúdo acima da faixa. */}
+      <div className="relative flex min-h-[132px] min-w-0">
+        {/* A FOTO É A CAPA DO IMÓVEL, como em Guias (escolha do cliente,
+            04/10/2026). `coverUrl` só existe em "Por imóvel": em "Por data" o
+            cartão reúne vários imóveis e não há uma capa que o represente. A
+            largura é a de Guias: 40% no celular e 141px no computador. */}
+        {group.coverUrl !== undefined && (
+          <div className="relative w-[40%] shrink-0 overflow-hidden bg-secondary lg:w-[141px]">
+            {group.coverUrl ? (
+              <img
+                src={group.coverUrl}
+                alt=""
+                loading="lazy"
+                className="absolute inset-0 size-full object-cover"
+                onError={(e) => (e.currentTarget.style.display = "none")}
+              />
+            ) : (
+              <div className="absolute inset-0 grid place-items-center text-[10px] text-muted-foreground">Sem foto</div>
+            )}
+          </div>
         )}
-
-        {hasPending && (
-          <>
-            {/* MESMA FONTE de "Registros" (pedido explícito, 10/09/2026) — e
-                SÓ a fonte: a cor continua sendo a de alerta ("mandei apenas
-                manter na mesma fonte... a cor precisa continuar sendo a
-                anterior"). O nome virou "Pendências", como a operação já chama
-                no Kanban. */}
-            {/* A LINHA INTEIRA É O BOTÃO, sem seta — igualzinho à de
-                "Registros" (pedido explícito, 11/09/2026: "a linha PENDÊNCIAS
-                recolhida seguindo as mesmas regras da linha REGISTROS"). A
-                forma não muda em nada: mesma fonte, mesmo fio, mesma contagem
-                à direita, e a cor de alerta continua sendo a de antes. */}
-            <Popover open={pendingOpen} onOpenChange={(v) => v !== pendingOpen && onTogglePending()}>
-              <PopoverTrigger asChild>
-                <PropertyRow
-                  tone="pending"
-                  open={pendingOpen}
-                  title={`${group.pending.length} ${group.pending.length === 1 ? "pendência" : "pendências"}`}
-                  subtitle={`Mais antiga ${fmtAgo(group.pending[0].createdAt)}`}
-                  thumbs={group.pending}
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-3">
+          <div className="min-w-0">
+            {/* PROPRIETÁRIO COM O ÍCONE DE MENSAGEM PADRÃO — o mesmo botão que
+                Guias usa (regra do projeto: todo nome de imóvel carrega o
+                proprietário). */}
+            {group.sublabel && (
+              <div className="flex min-w-0 items-center gap-1">
+                <span className="min-w-0 truncate text-[10.5px] text-foreground" title={group.sublabel}>
+                  {ownerLabel(group.sublabel)}
+                </span>
+                <PhoneActionButton
+                  phone={group.ownerPhone}
+                  country={group.ownerPhoneCountry}
+                  size={12}
+                  alwaysShow
+                  className="shrink-0"
                 />
-              </PopoverTrigger>
-              <PopoverContent
-                side="top"
-                align="center"
-                className="max-h-[60dvh] w-[min(360px,calc(100vw-32px))] overflow-y-auto p-0"
-              >
-                {(() => {
-                  const first = group.pending[0];
-                  const oldest = group.pending.reduce(
-                    (a, r) => (r.createdAt < a ? r.createdAt : a),
-                    first?.createdAt ?? "",
-                  );
-                  return (
-                    <div className="sticky top-0 z-10 border-b border-[var(--panel-border)] bg-[var(--panel)] px-4 pb-3 pt-4">
-                      <OverlayHeader
-                        icon={Building2}
-                        eyebrow="Pendências do imóvel"
-                        title={first?.propertyName ?? group.label}
-                        owner={
-                          first?.ownerName
-                            ? { name: first.ownerName, phone: first.ownerPhone, country: first.ownerPhoneCountry }
-                            : null
-                        }
-                        chips={
-                          <>
-                            <OverlayChip dot="bg-[var(--falta,#e0707a)]">
-                              {group.pending.length} em aberto
-                            </OverlayChip>
-                            {oldest && <OverlayChip>desde {fmtShortDate(oldest)}</OverlayChip>}
-                          </>
-                        }
-                      />
-                    </div>
-                  );
-                })()}
-                <div className="px-3 py-1.5">
-                  {group.pending.map((r) => (
-                    <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} onResolve={() => onResolve(r)} />
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </>
-        )}
-
-        {group.rest.length > 0 && !hideHistory && (
-          <>
-            {/* A ETIQUETA DE "REGISTROS" EXISTE SEMPRE (pedido explícito,
-              10/09/2026), com o fio e a contagem à direita — a mesma forma de
-              "Pendências". Antes ela só aparecia quando havia pendências, e o
-              cartão sem pendência ficava com uma tira de quadrados sem nome.
-              Com ela, a contagem some do canto superior: dizer o mesmo número
-              duas vezes no mesmo cartão não ajuda ninguém. */}
-            {/* A LINHA INTEIRA É O BOTÃO (pedido explícito, 10/09/2026):
-                "a expansividade tem que acontecer ao clicar em cima da
-                palavra, linha ou número" — e SEM seta, que o cliente cortou.
-                O acervo abre RECOLHIDO e só um imóvel fica aberto por vez;
-                quem controla isso é a página, não o cartão. */}
-            <PropertyRow
-              tone="records"
-              open={stripOpen}
-              onClick={onToggleStrip}
-              aria-expanded={stripOpen}
-              title={
-                category && PENDING_LIST.includes(category)
-                  ? `Histórico de ${CATEGORY_BY_KEY.get(category)?.short ?? ""}`
-                  : `${group.rest.length} ${group.rest.length === 1 ? "registro" : "registros"}`
-              }
-              subtitle={
-                category && PENDING_LIST.includes(category)
-                  ? `${group.rest.length} ${group.rest.length === 1 ? "resolvido" : "resolvidos"} · Último: ${fmtLast(group.rest[0].createdAt)}`
-                  : `Último: ${fmtLast(group.rest[0].createdAt)}`
-              }
-              thumbs={group.rest}
-            />
-            {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
-              colunas elásticas elas viravam quadrados gigantes no desktop. */}
-            {stripOpen && (
-              /* TERMINA ONDE TERMINAM AS IMAGENS DA LINHA DE CIMA (04/10/2026):
-                 colunas fixas que se distribuem de ponta a ponta, com a folga da
-                 setinha (borda 1 + respiro 12 + seta 16 + vão 10 = 39px). */
-              <div
-                className={`mr-[39px] grid justify-between gap-y-1 pt-1.5 ${
-                  hasPending ? "grid-cols-[repeat(auto-fill,44px)]" : "grid-cols-[repeat(auto-fill,68px)] sm:grid-cols-[repeat(auto-fill,76px)]"
-                }`}
-              >
-                {group.rest.slice(0, thumbCap).map((r, i) => {
-                  const isLastSlot = i === thumbCap - 1;
-                  const hidden = group.rest.length - thumbCap;
-                  if (isLastSlot && hidden > 0) {
-                    return <MoreThumb key="more" small={hasPending} count={hidden + 1} onClick={() => onOpen(r)} />;
-                  }
-                  return <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />;
-                })}
               </div>
             )}
-          </>
-        )}
+            <span className="ds-card-title block truncate" title={group.label}>
+              {group.label}
+            </span>
+            {subtitle && (
+              <span
+                className={`mt-0.5 block truncate text-[11px] ${
+                  hasPending ? "text-[#c98c8c]" : "text-muted-foreground/80"
+                }`}
+              >
+                {subtitle}
+              </span>
+            )}
+          </div>
+
+          <div className="flex min-w-0 items-center gap-2">
+            {hasPending && (
+              <Popover open={pendingOpen} onOpenChange={(v) => v !== pendingOpen && onTogglePending()}>
+                <PopoverTrigger asChild>
+                  <StatChip
+                    tone="pending"
+                    count={group.pending.length}
+                    open={pendingOpen}
+                    aria-label={pendingLabel}
+                    title={pendingLabel}
+                  />
+                </PopoverTrigger>
+                <PopoverContent
+                  side="top"
+                  align="center"
+                  className="max-h-[60dvh] w-[min(360px,calc(100vw-32px))] overflow-y-auto p-0"
+                >
+                  {(() => {
+                    const first = group.pending[0];
+                    const oldest = group.pending.reduce(
+                      (a, r) => (r.createdAt < a ? r.createdAt : a),
+                      first?.createdAt ?? "",
+                    );
+                    return (
+                      <div className="sticky top-0 z-10 border-b border-[var(--panel-border)] bg-[var(--panel)] px-4 pb-3 pt-4">
+                        <OverlayHeader
+                          icon={Building2}
+                          eyebrow="Pendências do imóvel"
+                          title={first?.propertyName ?? group.label}
+                          owner={
+                            first?.ownerName
+                              ? { name: first.ownerName, phone: first.ownerPhone, country: first.ownerPhoneCountry }
+                              : null
+                          }
+                          chips={
+                            <>
+                              <OverlayChip dot="bg-[var(--falta,#e0707a)]">
+                                {group.pending.length} em aberto
+                              </OverlayChip>
+                              {oldest && <OverlayChip>desde {fmtShortDate(oldest)}</OverlayChip>}
+                            </>
+                          }
+                        />
+                      </div>
+                    );
+                  })()}
+                  <div className="px-3 py-1.5">
+                    {group.pending.map((r) => (
+                      <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} onResolve={() => onResolve(r)} />
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+            {showRest && (
+              <StatChip
+                tone="records"
+                count={group.rest.length}
+                open={stripOpen}
+                onClick={onToggleStrip}
+                aria-expanded={stripOpen}
+                aria-label={restLabel}
+                title={restLabel}
+              />
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* A GAVETA DE MINIATURAS abre ABAIXO do cartão ao tocar no chip de
+          registros — o mesmo acervo de antes, só que dentro da casca. O acervo
+          abre RECOLHIDO e só um imóvel fica aberto por vez; quem controla
+          isso é a página, não o cartão. Miniaturas de tamanho FIXO, não de
+          largura proporcional: em colunas elásticas elas viravam quadrados
+          gigantes no desktop. */}
+      {stripOpen && showRest && (
+        <div className="relative border-t border-border/50 px-3 pb-3 pt-2.5">
+          <div className="grid grid-cols-[repeat(auto-fill,44px)] justify-between gap-y-1">
+            {group.rest.slice(0, thumbCap).map((r, i) => {
+              const isLastSlot = i === thumbCap - 1;
+              const hidden = group.rest.length - thumbCap;
+              if (isLastSlot && hidden > 0) {
+                return <MoreThumb key="more" small count={hidden + 1} onClick={() => onOpen(r)} />;
+              }
+              return <Thumb key={r.id} record={r} small onOpen={() => onOpen(r)} />;
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

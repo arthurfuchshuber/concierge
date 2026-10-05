@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-10-03T18:19:41.494Z";
+export const GENERATED_AT = "2026-10-05T04:03:42.730Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -229,6 +229,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/reservation-records.functions.ts",
     "audience": [],
     "content_hash": "01d444953dcf5e7fce254d2e3265a71b"
+  },
+  {
+    "doc_key": "rule:AccessCheckFailed",
+    "kind": "rule",
+    "title": "Regra — AccessCheckFailed",
+    "content": "\"Não consegui verificar\" NÃO é \"você não tem acesso\". Quando a consulta de\npermissão falha (rede, servidor reiniciando), dizer ao usuário que ele não\ntem acesso é falso e o leva a pedir liberação sem necessidade.",
+    "source_path": "src/components/permissions/AreaGate.tsx",
+    "audience": [],
+    "content_hash": "d92272de5e79c070e3c4b7eaf5f26ada"
   },
   {
     "doc_key": "rule:AccessMedia",
@@ -996,6 +1005,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "79655ce433b542cf5418297d7d066721"
   },
   {
+    "doc_key": "rule:deleteReservationRecord",
+    "kind": "rule",
+    "title": "Regra — deleteReservationRecord",
+    "content": "EXCLUIR = LIXEIRA OCULTA DE 30 DIAS (pedido explícito, 04/10/2026).\n\nO registro some NA HORA de todo o sistema (sai de `reservation_records`,\nentão aba Registros, clipe da reserva, contadores e card de limpeza deixam\nde enxergá-lo) e uma cópia completa — linhas do grupo, pendência automática\nque morreu junto e caminhos dos arquivos — vai para\n`reservation_records_trash`, que NINGUÉM lê pelo navegador. Os arquivos\nficam no storage; a varredura diária (`purgeExpiredRecordTrash`) apaga de\nvez o que passou de 30 dias.\n\nO QUE ESTAVA ERRADO (\"ao clicar em excluir ele sai e volta\"): o botão do\nvisualizador mandava só o id da linha PRINCIPAL. Numa situação com 2+\nmídias a principal tem irmãs, e a regra de \"apagar uma foto nunca apaga a\nsituação\" só tirava o arquivo dela e mantinha a linha viva — o refresh\ntrazia o registro de volta. Agora a tela manda o grupo inteiro numa única\nchamada e o servidor decide com o grupo todo à vista (sem corrida entre\napagamentos paralelos). A regra da foto avulsa continua valendo: só quando\nsobram irmãs FORA do que está sendo excluído.\n\nAlém disso o apagamento agora é conferido (`select` do que saiu): uma\npolítica de RLS que barre em silêncio vira erro na tela, não um registro\nque \"volta sozinho\".",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "b2d775aa80079ce72c3c68b1b535bcb5"
+  },
+  {
     "doc_key": "rule:DeliveryTicks",
     "kind": "rule",
     "title": "Regra — DeliveryTicks",
@@ -1059,13 +1077,13 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "63b9a471041fc1a614eb08df847578b4"
   },
   {
-    "doc_key": "rule:DropdownMenu",
+    "doc_key": "rule:Drill",
     "kind": "rule",
-    "title": "Regra — DropdownMenu",
-    "content": "Mesmo aviso do Popover (ver `popover.tsx`) para o fundo com desfoque\nglobal — o próprio `DropdownMenuSub` (submenu) não avisa aqui: ele só abre\nquando o `DropdownMenu` pai já está aberto, então o véu já está de pé.",
-    "source_path": "src/components/ui/dropdown-menu.tsx",
+    "title": "Regra — Drill",
+    "content": "TOOLTIP DO \"VER SÓ ELAS\" (mockup \"as três ideias combinadas\", aprovado\n03/10/2026).\n\nTrês leituras do mesmo conjunto de pendências, sem poluir:\n · TOPO FIXO — total, barra proporcional por categoria e a mais antiga;\n · ABA \"URGÊNCIA\" (abre por padrão) — há quanto tempo estão abertas;\n · ABA \"IMÓVEIS\" — onde estão; tocar num imóvel abre as pendências dele e o\n botão de baixo passa a filtrar só aquele imóvel.\n\nTudo sai de `pendingItems` (a mesma leitura dos contadores, sem o teto da\nlista), então o total sempre fecha com a faixa.\n\nREGRAS DO SISTEMA que esta peça cumpre:\n · `DialogContent` (centralizado, X padrão) — registra na central de sobreposições (véu com\n desfoque, ordem de cliques fora), limita a 75% da altura e nunca passa\n da tela;\n · casca, 16px de folga lateral e 8px do botão são os dos Filtros\n (`FILTER_PANEL_*`), com a largura ampliada;\n · anti-corte: duas abas que CABEM na largura (sem rolagem lateral), título\n e subtítulo com reticências — nada quebra nem fica pela metade;\n · \"clique ao fundo retorna à página anterior\": com um imóvel aberto, tocar\n fora recolhe o imóvel em vez de fechar o tooltip;\n · altura natural (sem vão); a lista de imóveis rola só se passar do limite,\n com folga para a barra não cobrir números, e sem prender a rolagem da página.",
+    "source_path": "src/components/dashboard/PendingSummary.tsx",
     "audience": [],
-    "content_hash": "4d1c13be94bccb971d44d33fad678b6d"
+    "content_hash": "eed5445f7a0d940cb04711cc23ed13cd"
   },
   {
     "doc_key": "rule:dropStaleAppShell",
@@ -1590,6 +1608,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "3710e7eee0aea8a0539e618ee4f0bafd"
   },
   {
+    "doc_key": "rule:isTransientError",
+    "kind": "rule",
+    "title": "Regra — isTransientError",
+    "content": "Só oscilação de rede/banco (timeout, pooler reiniciando, 502/503/504) conta\ncomo \"não consegui verificar\". Erro de esquema, política ou tabela ausente\nNÃO: esses repetem para sempre e deixariam o painel travado — para eles vale\no comportamento de sempre (fecha por padrão, a decisão segue o modo do tenant).",
+    "source_path": "src/lib/permissions/permission.resolve.server.ts",
+    "audience": [],
+    "content_hash": "ed24a518f580c445ef36abe8dd4631e7"
+  },
+  {
     "doc_key": "rule:kanbanCheckinFrom",
     "kind": "rule",
     "title": "Regra — kanbanCheckinFrom",
@@ -1750,6 +1777,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/ReservationRecords.tsx",
     "audience": [],
     "content_hash": "83bc1983418c411310451061417a0c52"
+  },
+  {
+    "doc_key": "rule:MEMORY",
+    "kind": "rule",
+    "title": "Regra — MEMORY",
+    "content": "PRIMEIRO QUADRO DO VÍDEO, GUARDADO (04/10/2026).\n\nAntes, cada miniatura de vídeo era um `<video preload=\"metadata\">`: o\nnavegador baixava os metadados de novo a cada tela/atualização e o quadrado\nficava PRETO até o primeiro quadro chegar — a sensação de \"carregando o\ntempo todo\". Agora o primeiro quadro é capturado UMA vez, vira uma imagem\npequena guardada no aparelho e as próximas telas já abrem com ela, na hora.\nEnquanto a primeira captura não termina, aparece um quadrado neutro com o\nícone de play (nunca preto). Se a captura não for possível (arquivo sem\npermissão de leitura), cai no `<video>` de sempre.",
+    "source_path": "src/components/dashboard/VideoFrame.tsx",
+    "audience": [],
+    "content_hash": "92e1b5189b815cd3859ebd066a73b186"
+  },
+  {
+    "doc_key": "rule:MIN_REMAINING_MS",
+    "kind": "rule",
+    "title": "Regra — MIN_REMAINING_MS",
+    "content": "URL ESTÁVEL POR ARQUIVO, NO NAVEGADOR (03/10/2026).\n\nA lista de Registros é relida a cada minuto, ao voltar para a aba e a cada\naviso ao vivo, e cada leitura traz URLs assinadas novas. Para o navegador,\nURL nova = imagem nova: o cache era ignorado e todo quadradinho piscava e\nbaixava de novo. Aqui lembramos a PRIMEIRA URL de cada arquivo e a\ndevolvemos nas leituras seguintes — mesma URL, cache do navegador, imagem na\nhora. A URL assinada vale 1h; reaproveitamos por 40 min, com folga.",
+    "source_path": "src/lib/stable-media-url.ts",
+    "audience": [],
+    "content_hash": "f080b63cf96a1f064223cd18097c780d"
   },
   {
     "doc_key": "rule:MobileTimeline",
@@ -2043,10 +2088,19 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:PENDING_CATEGORIES",
     "kind": "rule",
     "title": "Regra — PENDING_CATEGORIES",
-    "content": "O QUE SOBE PARA \"A RESOLVER\" (pedido explícito, 10/09/2026): DANO e\nMANUTENÇÃO. Objeto esquecido também abre pendência no Kanban, mas ficou\nde fora daqui — é devolução, não conserto; continua no acervo e na tela de\nPendências. Para incluí-lo, basta acrescentar \"forgotten\" nesta lista.\nAuditoria de limpeza nunca gera tarefa: é prova, não trabalho.",
+    "content": "O QUE CONTA COMO \"PENDÊNCIA\" NA ABA REGISTROS — uma definição só.\n\nServidor e tela liam listas diferentes: a tela subia para \"a resolver\" só\nDANO e MANUTENÇÃO, enquanto os cartões de contagem mostravam também\nINCIDENTES. Resultado (03/10/2026): faixa dizendo \"13 pendências\" ao lado de\ncartões que somavam 8 + 14 + 1. Agora o servidor conta com esta lista e a\ntela exibe o número que ele devolve — faixa e filtros não têm como divergir.\n\nPedido explícito (03/10/2026): a faixa soma TODAS as pendências — também as\nde OBJETO ESQUECIDO, que abrem tarefa no Kanban. Auditoria de limpeza e\n\"outros\" nunca geram tarefa: são prova, não trabalho.",
+    "source_path": "src/lib/record-pending.ts",
+    "audience": [],
+    "content_hash": "39a3f9853393b5dd237ebca6d9102ef9"
+  },
+  {
+    "doc_key": "rule:PENDING_LIST",
+    "kind": "rule",
+    "title": "Regra — PENDING_LIST",
+    "content": "O QUE SOBE PARA \"A RESOLVER\" (pedido explícito, 10/09/2026): DANO e\nMANUTENÇÃO — e, desde 03/10/2026, INCIDENTE, que os cartões de contagem já\nmostravam e a faixa de alerta não somava. A lista mora em `record-pending`,\ncompartilhada com o servidor, para que faixa e cartões nunca divirjam.",
     "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
     "audience": [],
-    "content_hash": "720cb79ebe32956b8c460816124906fd"
+    "content_hash": "d09a72de9ca581c3dc4b0fc879ed911a"
   },
   {
     "doc_key": "rule:PendingAttachment",
@@ -2056,6 +2110,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/TaskAttachments.tsx",
     "audience": [],
     "content_hash": "b217301f9e76ab67b8cc8245fd323cea"
+  },
+  {
+    "doc_key": "rule:PendingItem",
+    "kind": "rule",
+    "title": "Regra — PendingItem",
+    "content": "UMA PENDÊNCIA EM ABERTO, em forma enxuta — alimenta o tooltip do \"Ver só\nelas\" (resumo por urgência e por imóvel). Vem da MESMA leitura dos\ncontadores, sem o teto de linhas da lista: o tooltip sempre fecha com o\nnúmero da faixa.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "bab37b56e416c0bca4367ddc128d8a97"
   },
   {
     "doc_key": "rule:pendingNotice",
@@ -2157,15 +2220,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ac3b24999636d5bba4bcaafa627526f7"
   },
   {
-    "doc_key": "rule:Popover",
-    "kind": "rule",
-    "title": "Regra — Popover",
-    "content": "FUNDO COM DESFOQUE GLOBAL (pedido explícito, 24/09/2026): todo Popover do\nsistema avisa a central (`pushGlobalOverlay`) quando abre/fecha — o véu em\nsi é desenhado uma única vez por `GlobalOverlayScrim`, no `__root`. Nada\nmuda para quem já usa `<Popover>` hoje: controlado ou não, com ou sem o\npróprio `onOpenChange`, continua funcionando igual — só ganha esse aviso a\nmais.",
-    "source_path": "src/components/ui/popover.tsx",
-    "audience": [],
-    "content_hash": "a8d36184d04402b13278369421560940"
-  },
-  {
     "doc_key": "rule:postResponses",
     "kind": "rule",
     "title": "Regra — postResponses",
@@ -2263,15 +2317,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "eed9c1ffc9557ff46914da16cb2354a2"
-  },
-  {
-    "doc_key": "rule:PropertyRow",
-    "kind": "rule",
-    "title": "Regra — PropertyRow",
-    "content": "A LINHA-BOTÃO DO IMÓVEL (mockup A1 aprovado, 03/10/2026: \"podemos seguir\ncom a Proposta A1 lista fechada\"). A queixa era que a tela não dizia onde\ntocar: as linhas \"Pendências\" e \"Registros\" eram um rótulo de 9px com um\nfio — não pareciam botão. Agora cada uma é uma peça inteira, com cor\nprópria, ícone, texto de 15px/12,5px, as duas primeiras miniaturas e a\nseta. Rosa terroso = há o que resolver; neutra = acervo (prova).\n\n`forwardRef` + spread: o gatilho do Popover (`asChild`) injeta ref, onClick\ne aria-* aqui dentro. Título e subtítulo cortam com reticências, nunca\nquebram (regra do projeto).",
-    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
-    "audience": [],
-    "content_hash": "6eb19f795241af2d0b1e1e05cd824ee4"
   },
   {
     "doc_key": "rule:PT_HINT",
@@ -2749,6 +2794,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/gateway.server.ts",
     "audience": [],
     "content_hash": "f90e46c50745eaac2597ab4f4f1670dd"
+  },
+  {
+    "doc_key": "rule:SIGNED_URL_CACHE",
+    "kind": "rule",
+    "title": "Regra — SIGNED_URL_CACHE",
+    "content": "URLS ASSINADAS ESTÁVEIS (03/10/2026: \"as imagens demoram, deveria ser\ninstantâneo\").\n\nCada leitura da aba assinava tudo de novo, e uma assinatura nova é uma URL\nnova — o navegador não reconhece como a mesma imagem e baixa de novo. Como a\naba relê a cada minuto, ao voltar para a aba e a cada aviso ao vivo, os\nquadradinhos recarregavam sem parar. Aqui a URL de um arquivo é reaproveitada\nenquanto ainda tiver folga de validade: mesma URL ⇒ cache do navegador ⇒\nimagem na hora (e uma ida a menos ao storage).\n\nO cache é do processo (cada instância tem o seu); só guarda caminhos que o\nchamador já checou que a pessoa pode ver, e some sozinho ao vencer.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "94b2f637fae737db1d1ce11a95f557f8"
   },
   {
     "doc_key": "rule:signGuestToken",
@@ -3291,7 +3345,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "bb858acdfcfe0c71275a4ebad074241a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:12850",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:13026",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "A FAIXA DA CATEGORIA dentro do quadrante (pedido explícito, 10/09/2026):\nmesma cor da categoria, translúcida, com o texto na versão clara dela. Fica\nde ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a\ntranslucidez deixa a imagem aparecer por baixo.",
@@ -3300,7 +3354,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1ab915fd3496a9a1fb5383c22880b593"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:17191",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:16481",
+    "kind": "rule",
+    "title": "Regra em RecordsWorkspace.tsx",
+    "content": "Capa do imóvel (04/10/2026, proposta A). `undefined` = \"Por data\": o\ncartão reúne vários imóveis e não mostra foto. `null` = imóvel sem capa.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "2a36d540280566cf3f361f2e1a5bba3c"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:17794",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "ACERVO RECOLHIDO POR PADRÃO, UM DE CADA VEZ (pedido explícito,\n10/09/2026). A tela abre mostrando só o que há para EXECUTAR; as\nminiaturas de prova ficam a um toque. E abrir um imóvel fecha o anterior,\nsenão a página volta a ser uma parede de quadradinhos.",
@@ -3309,7 +3372,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "da56a7e41911b71c751dc4fed78c2097"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:17547",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:18150",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "PENDÊNCIAS TAMBÉM RECOLHIDAS, PELA MESMA REGRA (pedido explícito,\n11/09/2026): \"coloque também a linha PENDÊNCIAS recolhida seguindo as\nmesmas regras da linha REGISTROS\". Mesma mecânica, estado separado — a\nlinha inteira é o botão, sem seta, e abrir um imóvel fecha o anterior.\nSeparado do acervo de propósito: são duas perguntas diferentes (\"o que há\npara fazer aqui?\" e \"que provas existem aqui?\"), e amarrar as duas faria\numa abrir a outra sem ninguém ter pedido.",
@@ -3318,7 +3381,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "921b94e2b28e53f61ef460f4945f7be2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:37601",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:42664",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "Contador/filtro de uma categoria. Mesma casca dos KPIs da Operacional.\n\nA COR DO NÚMERO É UM SEMÁFORO, NÃO UMA ETIQUETA (pedido explícito,\n10/09/2026): zerado é BRANCO em todas as categorias — não há nada ali, nada\na sinalizar. Acima de zero, a cor diz o quanto aquilo pesa: manutenção e\ndano em vermelho (é trabalho parado), esquecidos e outros em âmbar (é\natenção), auditoria de limpeza no violeta de sempre (é rotina, não alarme)\ne \"Todos\" sempre branco, porque somar tudo não é sinal de nada.\n\nCartão zerado NÃO é mais esmaecido — todos têm a mesma tonalidade.",
@@ -3327,7 +3390,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0d8acd5693abba2abe9b8f2962b36ba3"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:42515",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:50324",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O CARTÃO DO IMÓVEL EM DOIS ANDARES (mockup B, aprovado 10/09/2026).\n\nAntes era uma fileira de quadrados cinzentos com um ponto de 6px: um dano\nsem conserto e uma foto de auditoria eram visualmente o mesmo quadrado. O\ncartão passa a admitir que há duas naturezas ali dentro —\n\n A RESOLVER o que abriu pendência e ela ainda está de pé (dano,\n manutenção, objeto esquecido). Vira LINHA, com título\n legível, porque é trabalho e trabalho precisa de nome.\n REGISTROS o resto. Continua miniatura, porque é prova.\n\nSem nada em aberto o primeiro andar não existe e o cartão fica igual ao de\nantes — a mesma regra de sempre: o aviso só aparece quando há aviso.",
@@ -3336,7 +3399,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1bede5e40def9ea40c009fa805397bcc"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:43242",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:51051",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "A FAIXA LATERAL DO CARTÃO DO IMÓVEL (pedido explícito, 10/09/2026).\n\nMesma barra de 3px dos cards do Kanban, mas dizendo outra coisa: aqui ela\nresponde \"o que mais tem neste imóvel?\" antes de a pessoa ler qualquer\nlinha. A cor é a da CATEGORIA MAIS FREQUENTE entre os registros daquele\nimóvel, com UMA exceção pedida pelo cliente:\n\n \"só nunca usar a cor da auditoria de limpeza quando tiver registro de\n outras categorias junto. só usar a cor da auditoria da limpeza quando só\n tiver isso no imóvel\"\n\nFaz sentido: auditoria é ROTINA — todo imóvel limpo gera vídeo, então ela\nganharia quase sempre na contagem e a faixa viraria uma fileira roxa que não\ninforma nada. Tirando-a da disputa, a faixa passa a mostrar o que exige\natenção; roxo então significa exatamente \"aqui só há prova de limpeza, nada\npendente\".\n\nEmpate: vence a mais grave — dano, depois manutenção, depois esquecidos,\ndepois outros.",
@@ -3345,7 +3408,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ac3013773b1e44cf4e096d38a8c66d5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:44208",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:52017",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O DEGRADÊ MORA DENTRO DA BARRA (pedido explícito, 10/09/2026).\n\nA primeira tentativa deixava a cor sangrar para dentro do cartão e o\ncliente cortou na hora: \"eu não quero que a cor vaze para o quadrante, eu\nsó quero que o efeito da barra conceda uma leveza na cor, sem torná-la\ngritante\".\n\nEntão a faixa continua sendo SÓ a faixa — nada invade o conteúdo. O que\nmudou é que ela deixou de ser um bloco chapado: cheia na quina de fora e\ndissolvendo até quase transparente do lado de dentro. De longe continua\ndizendo a cor; de perto é um fio de luz, não um adesivo.\n\nDois botões de ajuste, se quiser calibrar: a LARGURA (`w-[4px]`) e a\nOPACIDADE das duas pontas do degradê.",
@@ -4443,6 +4506,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "5e21d0791baec6357375b09c2fd393bf"
   },
   {
+    "doc_key": "rule:src/lib/permissions/permission.access.functions.ts:633",
+    "kind": "rule",
+    "title": "Regra em permission.access.functions.ts",
+    "content": "Empresa ATIVA no painel (a que a pessoa está vendo). Sem ela, a decisão\nsaía sempre da empresa mais antiga do vínculo — e quem pertence a mais de\numa empresa levava \"Você não tem acesso\" na empresa nova, mesmo liberado.",
+    "source_path": "src/lib/permissions/permission.access.functions.ts",
+    "audience": [],
+    "content_hash": "0e6d7a4e707c4db0527b92e3646d5f0e"
+  },
+  {
     "doc_key": "rule:src/lib/permissions/permission.areas.ts:0",
     "kind": "rule",
     "title": "Regra em permission.areas.ts",
@@ -4587,6 +4659,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "726cf6ee364cc89a94d96f56ac8d0c7b"
   },
   {
+    "doc_key": "rule:src/lib/permissions/permission.resolve.server.ts:1530",
+    "kind": "rule",
+    "title": "Regra em permission.resolve.server.ts",
+    "content": "Modo estrito: falha de leitura vira ERRO, nunca \"lista vazia\".\n\nSem isto, uma oscilação do banco (timeout, reinício do pooler) fazia o\n`listAssignments` devolver `[]` e a pessoa — que tem permissão — recebia\n\"Você não tem acesso a esta área\". Quem só PERGUNTA (a tela) precisa saber\na diferença entre \"negado\" e \"não consegui verificar\"; quem EXECUTA\ncontinua com o comportamento de sempre (fecha por padrão).",
+    "source_path": "src/lib/permissions/permission.resolve.server.ts",
+    "audience": [],
+    "content_hash": "be822a758f3526c6a0f20e08b931c8e7"
+  },
+  {
     "doc_key": "rule:src/lib/permissions/permission.scanner.ts:0",
     "kind": "rule",
     "title": "Regra em permission.scanner.ts",
@@ -4668,7 +4749,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "87a21b9c3c947e4e3469b3dd1bf3fdd2"
   },
   {
-    "doc_key": "rule:src/lib/permissions/usePermission.ts:514",
+    "doc_key": "rule:src/lib/permissions/useAreaAccess.ts:329",
+    "kind": "rule",
+    "title": "Regra em useAreaAccess.ts",
+    "content": "`useAreaAccess` — decisões do backend para VÁRIAS áreas em uma única consulta.\n\nRegra: o frontend nunca decide permissão; aqui só transportamos a decisão\njá tomada pelo Authorization Runtime. Enquanto carrega, `loading` é true e\na UI deve aguardar (não mostrar nem esconder prematuramente).\n\nTRÊS ESTADOS, NUNCA DOIS (correção de 03/10/2026):\n - liberado / negado — o backend respondeu;\n - `loading` — ainda sem token, consultando ou tentando de novo;\n - `failed` — o backend NÃO respondeu depois das tentativas.\n\nO erro antigo: qualquer falha (token ainda não anexado, rede, reinício do\nservidor) era engolida e virava `{ decisions: {} }`, que o cache guardava\ncomo se fosse resposta. Sem decisão, a tela dizia \"Você não tem acesso a\nesta área\" para quem tinha acesso. Falha NÃO é negação: agora ela é tentada\nde novo sozinha e, se persistir, a tela oferece \"Tentar de novo\" em vez de\nacusar a pessoa de não ter permissão.",
+    "source_path": "src/lib/permissions/useAreaAccess.ts",
+    "audience": [],
+    "content_hash": "77943243f71b37c4cef74300b3ba391a"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/usePermission.ts:577",
     "kind": "rule",
     "title": "Regra em usePermission.ts",
     "content": "Compatibilidade: regra legada já existente na tela (ex.: `isAdmin`).\nEnquanto a conta não estiver em modo bloqueante, mantém o comportamento\natual sem duplicar regra de permissão no frontend.",
@@ -4704,7 +4794,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8df8468b519bbea9643ac2223113b3c4"
   },
   {
-    "doc_key": "rule:src/lib/reservation-records.functions.ts:1458",
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:3606",
     "kind": "rule",
     "title": "Regra em reservation-records.functions.ts",
     "content": "As três categorias que viram pendência no Kanban (pedido explícito): a\ntarefa nasce vinculada AO MESMO TEMPO à reserva (log_id/reservation_id) e\nao imóvel (property_id) — os três campos já existiam em `tasks`, nada\nprecisou mudar lá.\n\n`taskCategory` mapeia para as categorias que a tela de Pendências já\nconhece (ver TaskCategory em tasks-types.ts); `showInCleaning` só é\nligado em \"objeto esquecido\" — quem limpa é quem vai achar e separar o\nobjeto, enquanto dano e manutenção são pra operação resolver, não pra\nfaxina executar.",
@@ -4713,7 +4803,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d4f15feb0a45a65b7b85dc098d3339a8"
   },
   {
-    "doc_key": "rule:src/lib/reservation-records.functions.ts:48772",
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:54495",
+    "kind": "rule",
+    "title": "Regra em reservation-records.functions.ts",
+    "content": "Capa do imóvel (`properties.hero_image_url`), a MESMA foto do cartão de\nGuias. Dado de exibição para o cartão de Registros (04/10/2026, proposta\nA: \"foto à esquerda como em Guias\"); não entra em nenhuma regra.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "61ee6bbe150b038d235f8ba1ded4f08c"
+  },
+  {
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:54932",
     "kind": "rule",
     "title": "Regra em reservation-records.functions.ts",
     "content": "IDENTIDADE DA RESERVA — é por ela que a aba agrupa os registros no filtro\n\"Todos\". Vem de `guide_access_logs` (formulário do hóspede: nome, código\ne as duas datas) e, quando o registro só tem `reservation_id`, do próprio\n`property_reservations` (iCal: só a dica de nome e as datas).\n\n`reservationKey` vazio = registro preso apenas ao imóvel ou a uma\npendência. Esses caem no grupo \"Sem reserva\" — nada some.",
@@ -4722,13 +4821,22 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "23b7afe5ab85d98754e9b12e37d1bd4a"
   },
   {
-    "doc_key": "rule:src/lib/reservation-records.functions.ts:49382",
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:55542",
     "kind": "rule",
     "title": "Regra em reservation-records.functions.ts",
     "content": "TODAS as mídias da situação, em ordem cronológica — a própria incluída.\nUma situação com quatro fotos é UMA linha na tela com quatro mídias\ndentro, não quatro linhas (ver `createRecordSituation`).",
     "source_path": "src/lib/reservation-records.functions.ts",
     "audience": [],
     "content_hash": "9107dae32eda662cf6cded7aa55ac39c"
+  },
+  {
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:56944",
+    "kind": "rule",
+    "title": "Regra em reservation-records.functions.ts",
+    "content": "PENDÊNCIAS EM ABERTO (dano + manutenção + incidente, ver `record-pending`)\ne em quantos imóveis. É o número da faixa de alerta da tela — sai da MESMA\nleitura dos contadores, sem depender do que coube na lista (teto de 300\nlinhas, categoria selecionada ou busca) e, por isso, sempre fecha com a\nsoma das \"em aberto\" dos cartões.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "0f93acecb7b17ebc0f5e1c1814eb17ee"
   },
   {
     "doc_key": "rule:src/lib/site-url.ts:0",
@@ -4819,6 +4927,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/stakeholders/StakeholderStatusControl.tsx",
     "audience": [],
     "content_hash": "4f4bdb312e07754d9b3c496e916632a9"
+  },
+  {
+    "doc_key": "rule:StatChip",
+    "kind": "rule",
+    "title": "Regra — StatChip",
+    "content": "O CHIP DO CARTÃO — proposta A aprovada em 04/10/2026 (\"parece ter ficado\nbom... vamos implementar para fazer um teste\"), a visão de Registros\nadaptada ao cartão da página Guias (foto à esquerda, proprietário com o\nícone de mensagem, título em uma linha). No lugar da barra de progresso de\nGuias entram dois chips: pendências (rosa terroso = há o que resolver) e\nregistros (neutro = acervo, prova). Cada um abre a MESMA lista de antes —\nnenhuma regra, ordem ou dado mudou, só a forma.\n\n`forwardRef` + spread: o gatilho do Popover (`asChild`) injeta ref, onClick\ne aria-* aqui dentro. O texto que a linha antiga dizia (\"2 pendências\") vai\npara `aria-label` e `title`, para leitor de tela e para o toque longo.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "49111109435e6d49fa2d8ca95eb958eb"
   },
   {
     "doc_key": "rule:StatDisplayCard",
@@ -5073,13 +5190,13 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "696f9de4c742c8c978e7d4f5ff8ca7bd"
   },
   {
-    "doc_key": "rule:useAreaAccess",
+    "doc_key": "rule:useAccessEnv",
     "kind": "rule",
-    "title": "Regra — useAreaAccess",
-    "content": "`useAreaAccess` — decisões do backend para VÁRIAS áreas em uma única consulta.\n\nRegra: o frontend nunca decide permissão; aqui só transportamos a decisão\njá tomada pelo Authorization Runtime. Enquanto carrega, `loading` é true e\na UI deve aguardar (não mostrar nem esconder prematuramente).",
-    "source_path": "src/lib/permissions/useAreaAccess.ts",
+    "title": "Regra — useAccessEnv",
+    "content": "O QUE UMA CONSULTA DE PERMISSÃO PRECISA SABER ANTES DE SAIR.\n\n1. `sessionReady` — só consulta com o token já no navegador. Antes, a\n consulta saía no primeiro render (ao abrir o painel ou ao voltar de um\n refresh) SEM cabeçalho de autorização; o servidor respondia 401, a falha\n era engolida e a pessoa via \"Você não tem acesso a esta área\" por 30 s.\n2. `accountOwnerId` — a empresa ativa. Faz parte da chave de cache e do\n pedido: a decisão é por empresa.",
+    "source_path": "src/lib/permissions/useAccessEnv.ts",
     "audience": [],
-    "content_hash": "7c3a001c065f98517444a3fd22165ca7"
+    "content_hash": "0d8a943aa6f38c34ec6e8c17a8f76499"
   },
   {
     "doc_key": "rule:useOverlayLayer",
@@ -5152,6 +5269,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/permissions/property-scope.server.ts",
     "audience": [],
     "content_hash": "9080195521b4f0f61acccbf0949d381d"
+  },
+  {
+    "doc_key": "rule:warmed",
+    "kind": "rule",
+    "title": "Regra — warmed",
+    "content": "Aquece o cache do navegador com as imagens que vão aparecer primeiro, para\nque, quando o cartão pintar, o arquivo já esteja baixado e decodificado.",
+    "source_path": "src/lib/stable-media-url.ts",
+    "audience": [],
+    "content_hash": "85629ce720378d6b45bdff223a0c9a5a"
   },
   {
     "doc_key": "rule:wraps",

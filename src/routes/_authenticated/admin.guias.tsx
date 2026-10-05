@@ -884,7 +884,11 @@ function Dashboard() {
                       </CountPill>
                     </span>
                   </div>
-                  <div className={`ds-five-cap grid gap-3 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
+                  {/* SEM QUADRANTE DE ROLAGEM (pedido explícito, 04/10/2026: "retirar
+                      os quadrantes de rolagem... status + cards na página
+                      oficial, sem barra de rolagem interna"). Os cartões rolam
+                      com a página; o teto de 5 cartões com barra própria saiu. */}
+                  <div className={`grid gap-3 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
                     {g.items.map((p) => {
                       const c = guideCompleteness(p as any);
                       return (

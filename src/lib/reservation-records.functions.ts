@@ -1370,6 +1370,12 @@ export type AccountRecord = ReservationRecord & {
   ownerName: string | null;
   ownerPhone: string | null;
   ownerPhoneCountry: string | null;
+  /**
+   * Capa do imóvel (`properties.hero_image_url`), a MESMA foto do cartão de
+   * Guias. Dado de exibição para o cartão de Registros (04/10/2026, proposta
+   * A: "foto à esquerda como em Guias"); não entra em nenhuma regra.
+   */
+  propertyCoverUrl?: string | null;
   /** Comprovação de resolução anexada a uma pendência. */
   isResolution: boolean;
   /** Título da pendência gerada, quando houver. */
@@ -1703,18 +1709,23 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     const usedPropIds = Array.from(
       new Set([...selected.map((r) => r.property_id), ...pendingRows.map((r) => r.property_id)]),
     );
-    const propById = new Map<string, { name: string; ownerContactId: string | null }>();
+    const propById = new Map<string, { name: string; ownerContactId: string | null; coverUrl: string | null }>();
     if (usedPropIds.length > 0) {
       const { data: props } = await supabase
         .from("properties")
-        .select("id, name, owner_contact_id")
+        .select("id, name, owner_contact_id, hero_image_url")
         .in("id", usedPropIds);
       for (const p of (props ?? []) as Array<{
         id: string;
         name: string | null;
         owner_contact_id: string | null;
+        hero_image_url: string | null;
       }>) {
-        propById.set(p.id, { name: p.name ?? "Sem nome", ownerContactId: p.owner_contact_id });
+        propById.set(p.id, {
+          name: p.name ?? "Sem nome",
+          ownerContactId: p.owner_contact_id,
+          coverUrl: p.hero_image_url ?? null,
+        });
       }
     }
     const ownerIds = Array.from(
@@ -1798,6 +1809,7 @@ export const listAccountRecords = createServerFn({ method: "GET" })
         taskStatus: task?.status ?? null,
         propertyId: r.property_id,
         propertyName: prop?.name ?? "Sem nome",
+        propertyCoverUrl: prop?.coverUrl ?? null,
         ownerName: prop?.ownerContactId ? (ownerNameById.get(prop.ownerContactId) ?? null) : null,
         ownerPhone: prop?.ownerContactId ? (ownerPhoneById.get(prop.ownerContactId)?.phone ?? null) : null,
         ownerPhoneCountry: prop?.ownerContactId ? (ownerPhoneById.get(prop.ownerContactId)?.country ?? null) : null,
