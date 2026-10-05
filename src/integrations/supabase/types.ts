@@ -5199,6 +5199,47 @@ export type Database = {
           },
         ]
       }
+      reservation_records_trash: {
+        Row: {
+          deleted_at: string
+          deleted_by: string | null
+          id: string
+          property_id: string
+          purge_at: string
+          records: Json
+          storage_paths: string[]
+          tasks: Json
+        }
+        Insert: {
+          deleted_at?: string
+          deleted_by?: string | null
+          id?: string
+          property_id: string
+          purge_at?: string
+          records: Json
+          storage_paths?: string[]
+          tasks?: Json
+        }
+        Update: {
+          deleted_at?: string
+          deleted_by?: string | null
+          id?: string
+          property_id?: string
+          purge_at?: string
+          records?: Json
+          storage_paths?: string[]
+          tasks?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_records_trash_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_providers: {
         Row: {
           account_owner_id: string

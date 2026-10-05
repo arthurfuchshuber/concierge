@@ -500,7 +500,7 @@ function RootComponent() {
         queryClient
           .getQueryCache()
           .getAll()
-          .forEach((query) => {
+          .forEach((query: { queryKey?: readonly unknown[] } & Record<string, any>) => {
             const key = String(query.queryKey?.[0] ?? "");
             if (VOLATILE_PREFIXES.some((p) => key.startsWith(p))) {
               // Mantém os dados na tela e revalida em segundo plano.
