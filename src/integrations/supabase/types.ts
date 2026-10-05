@@ -2710,6 +2710,7 @@ export type Database = {
       }
       guest_arrival_status: {
         Row: {
+          arrival_date_base: string | null
           arrival_date_override: string | null
           arrival_time_override: string | null
           arrival_time_source: string | null
@@ -2745,6 +2746,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          arrival_date_base?: string | null
           arrival_date_override?: string | null
           arrival_time_override?: string | null
           arrival_time_source?: string | null
@@ -2780,6 +2782,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          arrival_date_base?: string | null
           arrival_date_override?: string | null
           arrival_time_override?: string | null
           arrival_time_source?: string | null

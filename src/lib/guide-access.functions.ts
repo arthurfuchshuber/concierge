@@ -264,6 +264,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
                 property_id: prop.id,
                 kind: "checkin",
                 arrival_date_override: arrivalOverride,
+                arrival_date_base: arrivalOverride ? stayCheckinDate : null,
                 arrival_time_override: arrivalTimeOverride,
                 // Previsão informada pelo PRÓPRIO hóspede no formulário
                 // inicial (pedido explícito, 24/09/2026: nunca destrava a
@@ -283,6 +284,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
                 property_id: prop.id,
                 kind: "checkout",
                 arrival_date_override: departureOverride,
+                arrival_date_base: departureOverride ? stayCheckoutDate : null,
                 arrival_time_override: departureTimeOverride,
                 arrival_time_source: "guest",
               } as never,
@@ -1140,6 +1142,7 @@ export const submitPredictedTime = createServerFn({ method: "POST" })
       property_id: string;
       kind: "checkin" | "checkout";
       arrival_date_override: string;
+      arrival_date_base: string | null;
       arrival_time_override: string;
       arrival_time_source: "guest";
     } = {
@@ -1147,6 +1150,8 @@ export const submitPredictedTime = createServerFn({ method: "POST" })
       property_id: prop.id as string,
       kind: data.kind,
       arrival_date_override: data.date,
+      // Data da reserva sobre a qual a previsão foi dada (ver arrival-date-base.ts).
+      arrival_date_base: confirmedDate,
       arrival_time_override: data.time,
       // Seletor do PRÓPRIO hóspede dentro do guia — mesma regra do
       // formulário inicial (ver comentário lá): nunca destrava a faixa "Já

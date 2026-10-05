@@ -1112,6 +1112,7 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
       note?: string | null;
       arrival_time_override?: string | null;
       arrival_date_override?: string | null;
+      arrival_date_base?: string | null;
       arrival_time_source?: "staff";
       muted_until?: string | null;
     } = {
@@ -1126,7 +1127,14 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
     }
     if (typeof data.note !== "undefined") patch.note = data.note;
     if (typeof data.arrivalTimeOverride !== "undefined") patch.arrival_time_override = data.arrivalTimeOverride;
-    if (typeof data.arrivalDateOverride !== "undefined") patch.arrival_date_override = data.arrivalDateOverride;
+    if (typeof data.arrivalDateOverride !== "undefined") {
+      patch.arrival_date_override = data.arrivalDateOverride;
+      // Data da reserva sobre a qual esta previsão foi dada (ver
+      // arrival-date-base.ts): se a reserva mudar de data depois, a previsão
+      // antiga deixa de valer.
+      patch.arrival_date_base =
+        data.arrivalDateOverride === null ? null : data.kind === "checkout" ? stayCheckoutDate : stayCheckinDate;
+    }
     // Este editor é o do PAINEL (equipe) — toda vez que a equipe grava uma
     // previsão aqui, marcamos a origem como "staff" em guest_arrival_status,
     // pra distinguir de um horário que o próprio hóspede informou. Só essa

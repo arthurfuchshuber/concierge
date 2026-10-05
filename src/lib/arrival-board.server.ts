@@ -1,6 +1,7 @@
 // Server-only: construtor da esteira (Kanban) de chegadas/saídas.
 // Fonte única de verdade compartilhada entre o dashboard e as notificações push.
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
+import { liveDateOverride } from "@/lib/arrival-date-base";
 
 export type { ArrivalRow };
 
@@ -235,6 +236,14 @@ export async function buildArrivalRows(
     } catch (error) {
       console.error("[arrival-board] falha ao reconciliar estadias consecutivas", error);
     }
+    // Saída adiada pelo calendário com previsão de data já velha: devolve o
+    // card para "Em estadia" antes de qualquer consulta (ver o comentário da função).
+    try {
+      const { reconcilePostponedCheckouts } = await import("@/lib/stay-reconciliation.server");
+      await reconcilePostponedCheckouts(supabase, propIds, today);
+    } catch (error) {
+      console.error("[arrival-board] falha ao reconciliar saídas adiadas", error);
+    }
 
 
     let q = context.supabase
@@ -346,7 +355,7 @@ export async function buildArrivalRows(
         .in("id", propIds),
       context.supabase
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, kind, status, note, arrival_time_override, arrival_date_override, arrival_time_source, muted_until, done_at, concluded_at")
+        .select("log_id, reservation_id, kind, status, note, arrival_time_override, arrival_date_override, arrival_date_base, arrival_time_source, muted_until, done_at, concluded_at")
         .in("property_id", propIds)
         .limit(5000),
       reservationsQuery.order(data.kind === "checkin" ? "checkin_date" : "checkout_date", { ascending: true }).limit(10000),
@@ -591,6 +600,7 @@ export async function buildArrivalRows(
       note: string | null;
       arrival_time_override: string | null;
       arrival_date_override: string | null;
+      arrival_date_base?: string | null;
       muted_until: string | null;
       done_at: string | null;
       concluded_at: string | null;
@@ -647,6 +657,7 @@ export async function buildArrivalRows(
         note: s.note,
         arrival_time_override: s.arrival_time_override,
         arrival_date_override: s.arrival_date_override,
+        arrival_date_base: s.arrival_date_base ?? null,
         muted_until: s.muted_until,
         done_at: s.done_at,
         concluded_at: s.concluded_at,
@@ -853,9 +864,16 @@ export async function buildArrivalRows(
       );
       const resolved =
         reservationStatusMap.get(r.id) ?? legacyStatus ?? (inRangeLog ? statusMap.get(inRangeLog.id) : undefined);
-      const override =
-        (resolved as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null;
-      const date = override ?? (data.kind === "checkin" ? r.checkin_date : r.checkout_date);
+      // A previsão só vale enquanto a reserva continua na data sobre a qual
+      // ela foi dada (arrival-date-base.ts): mudou no calendário, a previsão
+      // antiga cai e a data da reserva volta a mandar.
+      const resDate = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
+      const override = liveDateOverride(
+        (resolved as { arrival_date_override?: string | null } | undefined)?.arrival_date_override,
+        (resolved as { arrival_date_base?: string | null } | undefined)?.arrival_date_base,
+        resDate,
+      );
+      const date = override ?? resDate;
       if (date < (from ?? today)) {
         if (data.kind === "checkin" && data.range !== "tomorrow") {
           // Estadia em andamento continua visível para alimentar "Em Estadia".
@@ -1049,9 +1067,13 @@ export async function buildArrivalRows(
       // quando não há previsão registrada. Cast pelo mesmo motivo de
       // `arrivalDateOverride` logo abaixo: `s` pode vir de `legacy`, cujo
       // tipo não lista esse campo (mesmo ele existindo em runtime).
-      const date =
-        (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ??
-        (data.kind === "checkin" ? r.checkin_date : r.checkout_date);
+      const resDate = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
+      const liveOverride = liveDateOverride(
+        (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override,
+        (s as { arrival_date_base?: string | null } | undefined)?.arrival_date_base,
+        resDate,
+      );
+      const date = liveOverride ?? resDate;
       // IMPORTANTE: nunca usar `synced_at` aqui — ele é reescrito a cada sync do iCal,
       // o que promoveria toda estadia em curso automaticamente. Só a data real de
       // criação do registro (integração nova) pode disparar a auto-distribuição.
@@ -1125,7 +1147,7 @@ export async function buildArrivalRows(
         note: s?.note ?? null,
         mutedUntil: s?.muted_until ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
-        arrivalDateOverride: (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null,
+        arrivalDateOverride: liveOverride,
         arrivalTimeSource: (s as { arrival_time_source?: string | null } | undefined)?.arrival_time_source ?? null,
         doneAt: s?.done_at ?? null,
         pendingFill: !matchedLog,

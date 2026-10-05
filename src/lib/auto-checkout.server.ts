@@ -123,34 +123,65 @@ export async function runAutoCheckoutScan(admin: Admin, now: Date = new Date()) 
   let confirmed = 0;
   let failed = 0;
 
-  for (const r of pending) {
-    // `guestArrivalTime` continua FORA daqui: é o horário de CHEGADA que o
-    // hóspede informou no formulário de check-in, e usá-lo já confirmou
-    // saídas que ninguém confirmou (bug corrigido em 06/09/2026).
-    //
-    // Gatilho 1: previsão explícita de horário.
-    // Gatilho 2: nenhuma previsão (nem data, nem horário) → horário de
-    //            checkout configurado do imóvel.
-    const semPrevisao = !r.arrivalTimeOverride && !r.arrivalDateOverride;
-    const hm = parseHm(r.arrivalTimeOverride) ?? (semPrevisao ? parseHm(r.standardTime) : null);
-    if (!hm) continue; // nada em que se basear: confirmação continua manual
+  /** Quais cards pendentes já passaram do horário em que a saída se confirma sozinha. */
+  const dueNow = (list: typeof rows) => {
+    const due: typeof rows = [];
+    for (const r of list) {
+      if (r.status !== "pending") continue;
+      // `guestArrivalTime` continua FORA daqui: é o horário de CHEGADA que o
+      // hóspede informou no formulário de check-in, e usá-lo já confirmou
+      // saídas que ninguém confirmou (bug corrigido em 06/09/2026).
+      //
+      // Gatilho 1: previsão explícita de horário.
+      // Gatilho 2: nenhuma previsão (nem data, nem horário) → horário de
+      //            checkout configurado do imóvel.
+      const semPrevisao = !r.arrivalTimeOverride && !r.arrivalDateOverride;
+      const hm = parseHm(r.arrivalTimeOverride) ?? (semPrevisao ? parseHm(r.standardTime) : null);
+      if (!hm) continue; // nada em que se basear: confirmação continua manual
 
-    const [y, mo, d] = r.date.split("-").map(Number);
-    if (!y || !mo || !d) continue;
-    const tz = tzByProperty.get(r.propertyId) ?? "America/Sao_Paulo";
-    // Checkouts atrasados de dias anteriores (a lista "today" inclui até
-    // OVERDUE_WINDOW_DAYS para trás) continuam pendentes de confirmação
-    // manual — a automação só age no próprio dia previsto.
-    const todayLocal = new Intl.DateTimeFormat("en-CA", {
-      timeZone: tz,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(now);
-    if (r.date !== todayLocal) continue;
-    const predictedAt = zonedTimeToUtc(y, mo, d, hm[0], hm[1], tz);
-    if (predictedAt.getTime() > nowMs) continue; // ainda não chegou o horário previsto
+      const [y, mo, d] = r.date.split("-").map(Number);
+      if (!y || !mo || !d) continue;
+      const tz = tzByProperty.get(r.propertyId) ?? "America/Sao_Paulo";
+      // Checkouts atrasados de dias anteriores (a lista "today" inclui até
+      // OVERDUE_WINDOW_DAYS para trás) continuam pendentes de confirmação
+      // manual — a automação só age no próprio dia previsto.
+      const todayLocal = new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(now);
+      if (r.date !== todayLocal) continue;
+      const predictedAt = zonedTimeToUtc(y, mo, d, hm[0], hm[1], tz);
+      if (predictedAt.getTime() > nowMs) continue; // ainda não chegou o horário previsto
+      due.push(r);
+    }
+    return due;
+  };
 
+  let due = dueNow(pending);
+  if (due.length === 0) return { checked: pending.length, confirmed: 0, failed: 0 };
+
+  // CONFERE O CALENDÁRIO ANTES DE CONFIRMAR (05/10/2026, caso LF001): este
+  // cron roda a cada 5 minutos, mas o calendário do Airbnb só era relido
+  // quando alguém abria o painel. Uma reserva prorrogada continuava com a
+  // saída "de hoje" aqui dentro e a saída era confirmada por engano. Antes de
+  // agir, relê o calendário dos imóveis envolvidos (só relê quem está com
+  // mais de 10 min) e refaz a conta com as datas atualizadas.
+  try {
+    const dueProps = Array.from(new Set(due.map((r) => r.propertyId)));
+    const { syncStaleIcals } = await import("@/lib/arrival-board.server");
+    await syncStaleIcals(admin as never, dueProps);
+    const fresh = await buildArrivalRows(admin as never, { kind: "checkout", range: "today", propIds: dueProps });
+    due = dueNow(fresh.rows);
+  } catch (err) {
+    // Sem conseguir conferir o calendário, NÃO confirma nada às cegas: a
+    // próxima rodada (5 min) tenta de novo.
+    console.error("[auto-checkout] falha ao reler o calendário antes de confirmar:", err);
+    return { checked: pending.length, confirmed: 0, failed: 0 };
+  }
+
+  for (const r of due) {
     const target = resolveTarget(r);
     if (!target.logId && !target.reservationId) continue;
 

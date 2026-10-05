@@ -305,6 +305,8 @@ export async function syncPropertyIcal(
       // simultaneamente na operação.
       const { reconcileSupersededStays } = await import("@/lib/stay-reconciliation.server");
       await reconcileSupersededStays(supabaseAdmin, [propertyId], todaySP);
+      const { reconcilePostponedCheckouts } = await import("@/lib/stay-reconciliation.server");
+      await reconcilePostponedCheckouts(supabaseAdmin, [propertyId], todaySP);
     }
 
     // Remove past reservations that vanished from the feed (Airbnb only exposes future window).
