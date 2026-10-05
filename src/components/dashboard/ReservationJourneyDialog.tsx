@@ -95,7 +95,7 @@ function WhoLine({ actor }: { actor: JourneyActor }) {
 
 function SectionTitle({ children, extra }: { children: React.ReactNode; extra?: string }) {
   return (
-    <div className="flex items-center gap-2.5 px-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+    <div className="flex snap-start items-center gap-2.5 px-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
       {children}
       {extra && <em className="not-italic tracking-[0.04em] text-muted-foreground/60">{extra}</em>}
       <i className="h-px flex-1 bg-foreground/[0.08]" />

@@ -56,6 +56,7 @@ import {
   CalendarX,
   LogIn,
   LogOut,
+  Pencil,
   StickyNote,
   Check,
   AlertTriangle,
@@ -9772,46 +9773,70 @@ function ArrivalCard({
              convivem sem depender de o card estar na lista certa. */
           predictionEditor={
             prediction ? (
-              <div className="ds-surface divide-y divide-border/60 border border-border/60">
+              /* PREVISÃO EM DOIS CARTÕES (mockup "A" aprovado em 05/10/2026,
+                 com o lápis / "+" no canto superior direito, alinhado ao
+                 título): cada lado vira um cartão com ícone, horário grande,
+                 data e quem informou. O editor continua sendo o mesmo — o
+                 cartão inteiro é o gatilho dele. */
+              <div className="grid grid-cols-2 gap-2">
                 {[prediction.primary, prediction.secondary]
                   .filter((side): side is PredictionSide => !!side)
-                  .map((side) => (
-                    <PredictedEditor
-                      key={side.kind}
-                      disabled={busy}
-                      primary={side}
-                      /* Aqui NÃO existe lado recolhido: o histórico é por
-                         reserva, então os dois já aparecem, cada um com o
-                         seu próprio editor. É a diferença combinada com o
-                         card, onde um vem aberto e o outro a um clique. */
-                      trigger={
-                        <button
-                          type="button"
-                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-secondary/40"
-                        >
-                          <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold">
-                            <span
-                              className={`size-1.5 shrink-0 rounded-full ${side.kind === "checkout" ? "bg-orange-400" : "bg-sky-400"}`}
-                            />
-                            {side.label}
-                          </span>
-                          <span
-                            className={`text-[11.5px] tabular-nums ${
-                              side.dateValue || side.timeValue
-                                ? "font-semibold text-amber-600 dark:text-amber-400"
-                                : "text-muted-foreground"
-                            }`}
+                  .map((side) => {
+                    const hasValue = !!(side.dateValue || side.timeValue);
+                    const isOut = side.kind === "checkout";
+                    const day = predictionDayLabel(
+                      side.dateValue || (isOut ? row.guestCheckout : row.guestCheckin) || row.date,
+                      todayISO,
+                    );
+                    const SideIcon = isOut ? LogOut : LogIn;
+                    return (
+                      <PredictedEditor
+                        key={side.kind}
+                        disabled={busy}
+                        primary={side}
+                        /* Aqui NÃO existe lado recolhido: o histórico é por
+                           reserva, então os dois já aparecem, cada um com o
+                           seu próprio editor. */
+                        trigger={
+                          <button
+                            type="button"
+                            className="min-w-0 rounded-2xl bg-foreground/[0.04] px-3.5 py-3 text-left transition-colors hover:bg-foreground/[0.07]"
                           >
-                            {side.dateValue || side.timeValue
-                              ? [side.dateValue ? fmtDateBR(side.dateValue) : null, side.timeValue]
-                                  .filter(Boolean)
-                                  .join(" · ")
-                              : "sem previsão"}
-                          </span>
-                        </button>
-                      }
-                    />
-                  ))}
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="flex min-w-0 items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                                <span
+                                  className={`grid size-6 shrink-0 place-items-center rounded-full ${
+                                    isOut ? "bg-orange-400/15 text-orange-500 dark:text-orange-300" : "bg-sky-400/15 text-sky-600 dark:text-sky-300"
+                                  }`}
+                                >
+                                  <SideIcon className="size-[15px]" />
+                                </span>
+                                <span className="truncate">{side.label}</span>
+                              </span>
+                              {hasValue ? (
+                                <Pencil className="size-[13px] shrink-0 text-foreground" aria-label="Editar" />
+                              ) : (
+                                <Plus className="size-[13px] shrink-0 text-foreground" aria-label="Informar" />
+                              )}
+                            </span>
+                            <span
+                              className={`mt-2.5 block text-[26px] font-bold leading-none tracking-tight tabular-nums ${
+                                side.timeValue ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground/60"
+                              }`}
+                            >
+                              {side.timeValue ?? "--:--"}
+                            </span>
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              {hasValue ? (day.label ? day.label : "") : "sem previsão"}
+                            </span>
+                            <span className="mt-2.5 block text-[11px] text-muted-foreground">
+                              {hasValue ? (side.byGuest ? "Informado pelo hóspede" : "Informado pela equipe") : "Toque para informar"}
+                            </span>
+                          </button>
+                        }
+                      />
+                    );
+                  })}
               </div>
             ) : null
           }
