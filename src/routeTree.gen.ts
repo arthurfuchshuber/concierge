@@ -56,6 +56,7 @@ import { Route as ApiPublicItineraryRouteImport } from './routes/api/public/itin
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicVersionRouteImport } from './routes/api/public/version'
 import { Route as ApiPublicWebhookChannexReservasRouteImport } from './routes/api/public/webhook-channex-reservas'
+import { Route as GSlugIndexRouteImport } from './routes/g.$slug.index'
 import { Route as GSlugAppDotwebmanifestRouteImport } from './routes/g.$slug.app[.]webmanifest'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/events'
@@ -347,6 +348,11 @@ const ApiPublicWebhookChannexReservasRoute =
     path: '/api/public/webhook-channex-reservas',
     getParentRoute: () => rootRouteImport,
   } as any)
+const GSlugIndexRoute = GSlugIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GSlugRoute,
+} as any)
 const GSlugAppDotwebmanifestRoute = GSlugAppDotwebmanifestRouteImport.update({
   id: '/app.webmanifest',
   path: '/app.webmanifest',
@@ -596,6 +602,7 @@ export interface FileRoutesByFullPath {
   '/lovable/email/events': typeof LovableEmailEventsRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/g/$slug/': typeof GSlugIndexRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
@@ -643,7 +650,6 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/channex-certification': typeof AuthenticatedChannexCertificationRoute
   '/api/assistant-stream': typeof ApiAssistantStreamRoute
-  '/g/$slug': typeof GSlugRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
@@ -676,6 +682,7 @@ export interface FileRoutesByTo {
   '/lovable/email/events': typeof LovableEmailEventsRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/g/$slug': typeof GSlugIndexRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
@@ -760,6 +767,7 @@ export interface FileRoutesById {
   '/lovable/email/events': typeof LovableEmailEventsRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/g/$slug/': typeof GSlugIndexRoute
   '/_authenticated/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/_authenticated/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
@@ -844,6 +852,7 @@ export interface FileRouteTypes {
     | '/lovable/email/events'
     | '/oauth/google-calendar/return'
     | '/admin/'
+    | '/g/$slug/'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/kanban'
     | '/admin/dashboard/limpeza'
@@ -891,7 +900,6 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/channex-certification'
     | '/api/assistant-stream'
-    | '/g/$slug'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/administrativo'
@@ -924,6 +932,7 @@ export interface FileRouteTypes {
     | '/lovable/email/events'
     | '/oauth/google-calendar/return'
     | '/admin'
+    | '/g/$slug'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/kanban'
     | '/admin/dashboard/limpeza'
@@ -1007,6 +1016,7 @@ export interface FileRouteTypes {
     | '/lovable/email/events'
     | '/oauth/google-calendar/return'
     | '/_authenticated/admin/'
+    | '/g/$slug/'
     | '/_authenticated/admin/dashboard/calendario'
     | '/_authenticated/admin/dashboard/kanban'
     | '/_authenticated/admin/dashboard/limpeza'
@@ -1426,6 +1436,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhookChannexReservasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/g/$slug/': {
+      id: '/g/$slug/'
+      path: '/'
+      fullPath: '/g/$slug/'
+      preLoaderRoute: typeof GSlugIndexRouteImport
+      parentRoute: typeof GSlugRoute
+    }
     '/g/$slug/app.webmanifest': {
       id: '/g/$slug/app.webmanifest'
       path: '/app.webmanifest'
@@ -1761,11 +1778,13 @@ const AuthenticatedRouteRouteWithChildren =
 interface GSlugRouteChildren {
   GSlugAppDotwebmanifestRoute: typeof GSlugAppDotwebmanifestRoute
   GSlugExplorarRoute: typeof GSlugExplorarRoute
+  GSlugIndexRoute: typeof GSlugIndexRoute
 }
 
 const GSlugRouteChildren: GSlugRouteChildren = {
   GSlugAppDotwebmanifestRoute: GSlugAppDotwebmanifestRoute,
   GSlugExplorarRoute: GSlugExplorarRoute,
+  GSlugIndexRoute: GSlugIndexRoute,
 }
 
 const GSlugRouteWithChildren = GSlugRoute._addFileChildren(GSlugRouteChildren)
