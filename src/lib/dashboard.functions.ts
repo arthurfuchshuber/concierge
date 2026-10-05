@@ -1746,6 +1746,24 @@ export async function runAdvanceArrival(
       await upsertStatus("checkin", { status: "done", concluded_at: nowIso });
     }
 
+    // Check-in / check-out confirmado por usuário → avisa os demais da equipe.
+    try {
+      const stayStepKind =
+        data.from === "checkin" ? ("checkin" as const) : data.from === "stay" ? ("checkout" as const) : null;
+      if (stayStepKind) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { notifyStaffArrivalStep } = await import("@/lib/ops-push.server");
+        await notifyStaffArrivalStep(supabaseAdmin as never, {
+          propertyId,
+          kind: stayStepKind,
+          stayKey: data.reservationId ?? data.logId ?? today,
+          byUserId: opts?.byUserId ?? null,
+        });
+      }
+    } catch (err) {
+      console.error("[advanceArrival] falha ao avisar a equipe:", err);
+    }
+
     // Notificações de limpeza (não bloqueiam a resposta em caso de falha).
     try {
       const refKey = data.reservationId ?? data.logId ?? today;

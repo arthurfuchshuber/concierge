@@ -173,6 +173,72 @@ function bodyByCity(counts: Map<string, number>, suffix: string): string {
 }
 
 
+/** "A, B e mais 2" — nomes curtos para o corpo de um push. */
+function summarizeNames(names: string[]): string {
+  const uniq = Array.from(new Set(names.filter(Boolean)));
+  if (uniq.length <= 3) return uniq.join(" · ");
+  return `${uniq.slice(0, 3).join(" · ")} e mais ${uniq.length - 3}`;
+}
+
+/**
+ * Plano de limpezas para cada PRESTADOR vinculado: só os imóveis dele.
+ * Retorna quantos avisos saíram. Prestador sem login ou sem notificação
+ * ativa não recebe (sendOpsPush libera o dedupe e tenta na próxima rodada).
+ */
+async function notifyProvidersPlan(
+  admin: Admin,
+  opts: { ownerId: string; rows: Array<{ propertyId: string; name: string }>; day: "Amanhã" | "Hoje"; dedupePrefix: string },
+): Promise<number> {
+  const { data: providersRaw } = await admin
+    .from("service_providers")
+    .select("member_user_id, category, categories, status")
+    .eq("account_owner_id", opts.ownerId)
+    .not("member_user_id", "is", null);
+  const cleanerIds = Array.from(
+    new Set(
+      (providersRaw ?? [])
+        .filter(
+          (p) =>
+            (p.status ?? "active") !== "inactive" &&
+            isCleaningCategory(p as { category?: string | null; categories?: string[] | null }),
+        )
+        .map((p) => p.member_user_id as string),
+    ),
+  );
+  if (cleanerIds.length === 0) return 0;
+  const propIds = Array.from(new Set(opts.rows.map((r) => r.propertyId)));
+  const { data: assignments } = await admin
+    .from("property_assignments")
+    .select("user_id, property_id, status")
+    .in("property_id", propIds)
+    .in("user_id", cleanerIds);
+  const byUser = new Map<string, Set<string>>();
+  for (const a of assignments ?? []) {
+    if ((a.status ?? "active") === "inactive") continue;
+    const set = byUser.get(a.user_id as string) ?? new Set<string>();
+    set.add(a.property_id as string);
+    byUser.set(a.user_id as string, set);
+  }
+  let n = 0;
+  for (const [userId, props] of byUser) {
+    const mine = opts.rows.filter((r) => props.has(r.propertyId));
+    if (mine.length === 0) continue;
+    const r = await sendOpsPush(admin, {
+      ownerId: opts.ownerId,
+      kind: "cleaning-plan-provider",
+      dedupeKey: `cleaning-plan-provider:${opts.dedupePrefix}:${userId}`,
+      userIds: [userId],
+      payload: {
+        title: `🧹 ${opts.day}: ${mine.length} ${plural(mine.length, "limpeza para você", "limpezas para você")}`,
+        body: summarizeNames(mine.map((m) => m.name)),
+        data: { url: "/admin/dashboard", tag: `cleaning-plan-${opts.dedupePrefix}` },
+      },
+    });
+    if (!r.skipped && r.sent > 0) n++;
+  }
+  return n;
+}
+
 /**
  * Varredura operacional. Deve rodar a cada 30 minutos.
  * A fonte de verdade é EXATAMENTE a mesma esteira (Kanban) do dashboard:
@@ -271,6 +337,31 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
         body: bodyByCity(byCity, "Prepare a equipe."),
         data: { url, tag: "ops-checkouts-tomorrow" },
       });
+    }
+
+    // 1b. 20h — PLANEJAMENTO DE LIMPEZA DO DIA SEGUINTE (05/10/2026).
+    // Pedido explícito: "planejamento de limpeza do dia seguinte" e
+    // "informações inteligentes para prestadores". A equipe recebe a lista de
+    // imóveis (não só a contagem por cidade, que já saía em 1) e cada
+    // prestador de limpeza recebe SÓ os imóveis a que está vinculado.
+    if (needTomorrow && checkoutsTomorrow > 0) {
+      const planRows = tomorrowRows.map((r) => ({ propertyId: r.propertyId, name: nameOf(r.propertyId, r.propertyName) }));
+      await fire("cleaning-plan-tomorrow", `cleaning-plan-tomorrow:${ownerId}:${today}`, {
+        title: `🧹 Limpezas de amanhã: ${planRows.length}`,
+        body: summarizeNames(planRows.map((r) => r.name)),
+        data: { url, tag: "ops-cleaning-plan-tomorrow" },
+      });
+      notifications += await notifyProvidersPlan(admin, { ownerId, rows: planRows, day: "Amanhã", dedupePrefix: `plan-tomorrow:${today}` });
+    }
+
+    // 1c. 07h — o mesmo plano, para o prestador, no dia da limpeza.
+    if (t.hour === 7) {
+      const todayRows = checkoutToday.rows
+        .filter((r) => r.date === today)
+        .map((r) => ({ propertyId: r.propertyId, name: nameOf(r.propertyId, r.propertyName) }));
+      if (todayRows.length > 0) {
+        notifications += await notifyProvidersPlan(admin, { ownerId, rows: todayRows, day: "Hoje", dedupePrefix: `plan-today:${today}` });
+      }
     }
 
     // 2. 07h — check-ins de hoje
@@ -728,6 +819,46 @@ export async function notifyManualCleaningAssigned(
         style: "cleaning-ready",
         propertyId: opts.propertyId,
       },
+    },
+  });
+}
+
+/**
+ * Check-in / check-out CONFIRMADO POR UM USUÁRIO → avisa os demais (05/10/2026).
+ * O autor não recebe o próprio aviso. O do hóspede continua em
+ * `notifyGuestSelfStep`; aqui é o lado da equipe.
+ */
+export async function notifyStaffArrivalStep(
+  admin: Admin,
+  opts: { propertyId: string; kind: "checkin" | "checkout"; stayKey: string; byUserId?: string | null },
+) {
+  const prop = await getPropertyBasics(admin, opts.propertyId);
+  if (!prop) return { sent: 0, skipped: true };
+  const all = await getAccountNotifiableUsers(admin, prop.owner_id);
+  const userIds = all.filter((u) => u !== (opts.byUserId ?? null));
+  if (userIds.length === 0) return { sent: 0, skipped: true };
+
+  let who = "";
+  if (opts.byUserId) {
+    const { data: pr } = await admin
+      .from("profiles")
+      .select("full_name, trade_name")
+      .eq("id", opts.byUserId)
+      .maybeSingle();
+    const p = pr as { full_name?: string | null; trade_name?: string | null } | null;
+    who = ((p?.trade_name || p?.full_name) ?? "").trim();
+  }
+  const name = (prop.name || "Residência").trim();
+  const label = opts.kind === "checkin" ? "Check-in" : "Check-out";
+  return sendOpsPush(admin, {
+    ownerId: prop.owner_id,
+    kind: `staff-${opts.kind}`,
+    dedupeKey: `staff-${opts.kind}:${opts.stayKey}`,
+    userIds,
+    payload: {
+      title: `${label} confirmado · ${name}`,
+      body: locLine([prop.ownerName, who ? `Por ${who}` : "", prop.cityClean]),
+      data: { url: "/admin/dashboard", tag: `staff-${opts.kind}-${opts.stayKey}`, propertyId: opts.propertyId },
     },
   });
 }

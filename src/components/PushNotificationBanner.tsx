@@ -30,7 +30,15 @@ export function PushNotificationBanner() {
     (async () => {
       if (typeof window === "undefined") return;
       try {
-        if (localStorage.getItem(DISMISS_KEY) === "1") return;
+        // "Agora não" vale por 3 dias, não para sempre (05/10/2026): quem
+        // fechou o aviso uma vez e nunca mais o viu ficava sem push sem saber.
+        const raw = localStorage.getItem(DISMISS_KEY);
+        if (raw === "1") {
+          /* valor antigo (permanente): trata como dispensado agora */
+          localStorage.setItem(DISMISS_KEY, String(Date.now()));
+          return;
+        }
+        if (raw && Date.now() - Number(raw) < 3 * 24 * 3600 * 1000) return;
       } catch {
         /* ignore */
       }
@@ -105,7 +113,7 @@ export function PushNotificationBanner() {
 
   function dismiss() {
     try {
-      localStorage.setItem(DISMISS_KEY, "1");
+      localStorage.setItem(DISMISS_KEY, String(Date.now()));
     } catch {
       /* ignore */
     }

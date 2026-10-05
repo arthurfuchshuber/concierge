@@ -9752,6 +9752,7 @@ function ArrivalCard({
           logId={journeyLogId}
           reservationId={journeyReservationId}
           title={mode === "cleaning" || mode === "done" ? "Detalhes da limpeza" : undefined}
+          onOpenRecords={() => { setJourneyOpen(false); setRecordsOpen(true); }}
           cleaningEditor={
             mode === "cleaning" || mode === "done" ? (
               <CleaningInlineEditor

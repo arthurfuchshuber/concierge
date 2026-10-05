@@ -51,15 +51,23 @@ const TargetInput = z
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
+/** Quem fez a ação. `name` nulo = dado anterior ao registro de autoria. */
+export type JourneyActor = {
+  name: string | null;
+  role: "Equipe" | "Prestador" | "Hóspede" | "Sistema" | null;
+};
+
 /** Um passo da esteira. `state` é o que a interface pinta. */
 export type JourneyStep = {
-  key: "reserva" | "previsao" | "checkin" | "no_show" | "estadia" | "checkout" | "limpeza" | "concluido";
+  key: "reserva" | "formulario" | "previsao" | "checkin" | "no_show" | "estadia" | "checkout" | "limpeza" | "concluido";
   label: string;
   state: "done" | "pending" | "skipped";
   /** Quando aconteceu (ISO) — nulo quando ainda não aconteceu. */
   at: string | null;
   /** Linha de apoio: o detalhe que só existe naquele passo. */
   detail: string | null;
+  /** Autor da ação; nulo quando o passo não tem autor (estadia, pendentes). */
+  actor: JourneyActor | null;
 };
 
 export type JourneyTask = {
@@ -68,6 +76,18 @@ export type JourneyTask = {
   status: "pending" | "done" | "canceled";
   category: string;
   dueDate: string | null;
+};
+
+/** Uma linha da seção "Atividade": tudo que aconteceu, do mais novo ao mais antigo. */
+export type JourneyActivity = {
+  id: string;
+  at: string;
+  tag: "Registro" | "Pendência" | "Check-in" | "Check-out" | "Limpeza" | "Previsão" | "Formulário" | "Reserva";
+  title: string;
+  sub: string | null;
+  actor: JourneyActor;
+  /** Registros e pendências abrem o item ao tocar. */
+  opens: "records" | null;
 };
 
 export type ReservationJourney = {
@@ -79,6 +99,12 @@ export type ReservationJourney = {
   checkoutDate: string | null;
   steps: JourneyStep[];
   tasks: JourneyTask[];
+  activity: JourneyActivity[];
+  /** Status em uma palavra, para a pílula do cabeçalho. */
+  statusLabel: string;
+  propertyCoverUrls: string[];
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
   /** Quantos registros (fotos, áudios, notas) a reserva acumulou. */
   recordsCount: number;
 };
@@ -121,6 +147,16 @@ type StatusRow = {
 function brl(cents: number | null): string | null {
   if (cents == null) return null;
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+/** "04/10 · 15:46" no fuso de São Paulo. */
+function fmtShort(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const p = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
+  const g = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+  return `${g("day")}/${g("month")} · ${g("hour")}:${g("minute")}`;
 }
 
 function fmtDateBR(iso: string | null): string | null {
@@ -193,19 +229,34 @@ export const getReservationJourney = createServerFn({ method: "GET" })
     // ---- 2. Imóvel e proprietário ----
     const { data: prop } = await db
       .from("properties")
-      .select("id, name, owner_contact_id")
+      .select("id, name, owner_id, owner_contact_id, hero_image_url, gallery_images")
       .eq("id", propertyId)
       .maybeSingle();
-    const property = prop as { name: string | null; owner_contact_id: string | null } | null;
+    const property = prop as {
+      name: string | null;
+      owner_id: string | null;
+      owner_contact_id: string | null;
+      hero_image_url: string | null;
+      gallery_images: string[] | null;
+    } | null;
     let ownerName: string | null = null;
+    let ownerPhone: string | null = null;
+    let ownerPhoneCountry: string | null = null;
     if (property?.owner_contact_id) {
       const { data: owner } = await db
         .from("property_owners")
-        .select("name, trade_name")
+        .select("name, trade_name, phone, phone_country")
         .eq("id", property.owner_contact_id)
         .maybeSingle();
-      const o = owner as { name: string | null; trade_name: string | null } | null;
+      const o = owner as {
+        name: string | null;
+        trade_name: string | null;
+        phone: string | null;
+        phone_country: string | null;
+      } | null;
       ownerName = ((o?.trade_name || o?.name) ?? "").trim() || null;
+      ownerPhone = o?.phone ?? null;
+      ownerPhoneCountry = o?.phone_country ?? null;
     }
 
     // ---- 3. Os carimbos da esteira ----
@@ -234,16 +285,63 @@ export const getReservationJourney = createServerFn({ method: "GET" })
     const ci = pick("checkin");
     const co = pick("checkout");
 
-    // ---- 4. Pendências e registros da reserva ----
-    const [tasksRes, recordsRes] = await Promise.all([
+    // ---- 4. Pendências, registros e EVENTOS (quem fez o quê) ----
+    const [tasksRes, recordsRes, eventsRes] = await Promise.all([
       db
         .from("tasks")
-        .select("id, title, status, category, due_date")
+        .select("id, title, status, category, due_date, created_by, created_at, priority")
         .or(orParts.join(","))
         .order("created_at", { ascending: true })
         .limit(50),
-      db.from("reservation_records").select("id, group_id").or(orParts.join(",")).limit(200),
+      db
+        .from("reservation_records")
+        .select("id, group_id, category, kind, created_by, created_by_name, created_at")
+        .or(orParts.join(","))
+        .limit(200),
+      db
+        .from("reservation_events")
+        .select("id, kind, detail, actor_id, created_at")
+        .or(orParts.join(","))
+        .order("created_at", { ascending: true })
+        .limit(100),
     ]);
+    type EventRow = { id: string; kind: string; detail: Record<string, string | number | null> | null; actor_id: string | null; created_at: string };
+    type TaskRow = { id: string; title: string; status: string; category: string; due_date: string | null; created_by: string | null; created_at: string | null; priority: string | null };
+    type RecRow = { id: string; group_id: string | null; category: string | null; kind: string | null; created_by: string | null; created_by_name: string | null; created_at: string };
+    // Falha de leitura (tabela ainda sem migração, p.ex.) não derruba o histórico.
+    const events = ((eventsRes as { data?: EventRow[] | null }).data ?? []) as EventRow[];
+    const taskRows = ((tasksRes.data ?? []) as TaskRow[]);
+    const recRows = ((recordsRes.data ?? []) as RecRow[]);
+
+    // ---- 4b. Nome e papel de cada autor ----
+    const actorIds = Array.from(
+      new Set([...events.map((e) => e.actor_id), ...taskRows.map((t) => t.created_by), ...recRows.map((r) => r.created_by)].filter((x): x is string => !!x)),
+    );
+    const actorById = new Map<string, JourneyActor>();
+    if (actorIds.length > 0) {
+      const [profRes, provRes, memRes] = await Promise.all([
+        db.from("profiles").select("id, full_name, trade_name").in("id", actorIds),
+        db.from("service_providers").select("member_user_id, name, trade_name").in("member_user_id", actorIds),
+        db.from("account_members").select("member_user_id").in("member_user_id", actorIds).eq("status", "active"),
+      ]);
+      const provIds = new Set(((provRes.data ?? []) as Array<{ member_user_id: string }>).map((p) => p.member_user_id));
+      const memberIds = new Set(((memRes.data ?? []) as Array<{ member_user_id: string }>).map((m) => m.member_user_id));
+      for (const pr of (profRes.data ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>) {
+        const name = ((pr.trade_name || pr.full_name) ?? "").trim() || null;
+        const role: JourneyActor["role"] = provIds.has(pr.id) && !memberIds.has(pr.id) && pr.id !== property?.owner_id ? "Prestador" : "Equipe";
+        actorById.set(pr.id, { name, role });
+      }
+    }
+    const actorOf = (id: string | null | undefined): JourneyActor =>
+      id ? (actorById.get(id) ?? { name: null, role: null }) : { name: "Sincronização", role: "Sistema" };
+    const lastEvent = (kind: string): EventRow | null => {
+      const rows = events.filter((e) => e.kind === kind);
+      return rows.length ? rows[rows.length - 1]! : null;
+    };
+    const SYSTEM: JourneyActor = { name: "Sincronização", role: "Sistema" };
+    const GUEST: JourneyActor = { name: log?.guest_name ?? "Hóspede", role: "Hóspede" };
+    /** Passo feito: autor do evento, ou "não registrado" para dado antigo. */
+    const authorFor = (ev: EventRow | null): JourneyActor => (ev ? actorOf(ev.actor_id) : { name: null, role: null });
 
     // ---- 5. A jornada ----
     const noShow = (ci?.status ?? "") === "no_show";
@@ -259,86 +357,186 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       label: "Reserva registrada",
       state: "done",
       at: reservation?.created_at ?? log?.created_at ?? null,
-      detail: [
-        fmtDateBR(log?.checkin_date ?? reservation?.checkin_date ?? null),
-        fmtDateBR(log?.checkout_date ?? reservation?.checkout_date ?? null),
-      ]
-        .filter(Boolean)
-        .join(" → ") || null,
+      detail:
+        [
+          fmtDateBR(log?.checkin_date ?? reservation?.checkin_date ?? null),
+          fmtDateBR(log?.checkout_date ?? reservation?.checkout_date ?? null),
+        ]
+          .filter(Boolean)
+          .join(" → ") || null,
+      actor: reservation ? SYSTEM : GUEST,
     });
 
+    if (log) {
+      steps.push({
+        key: "formulario",
+        label: "Formulário preenchido",
+        state: "done",
+        at: log.created_at,
+        detail:
+          [log.guest_arrival_time ? `Chegada prevista ${log.guest_arrival_time.slice(0, 5)}` : null]
+            .filter(Boolean)
+            .join(" · ") || null,
+        actor: GUEST,
+      });
+    }
+
+    const evPrevisao = lastEvent("previsao_hora") ?? lastEvent("previsao_data");
     if (previsaoData || previsaoHora) {
       steps.push({
         key: "previsao",
         label: "Previsão informada",
         state: "done",
-        at: null,
-        detail: [previsaoData ? fmtDateBR(previsaoData) : null, previsaoHora].filter(Boolean).join(" · ") || null,
+        at: evPrevisao?.created_at ?? null,
+        detail: [previsaoData ? fmtDateBR(previsaoData) : null, previsaoHora?.slice(0, 5)].filter(Boolean).join(" · ") || null,
+        actor: evPrevisao ? authorFor(evPrevisao) : log?.guest_arrival_time && !ci?.arrival_time_override ? GUEST : authorFor(null),
       });
     }
+
+    const pickResult = (): { checkinDate: string | null; checkoutDate: string | null } => ({
+      checkinDate: log?.checkin_date ?? reservation?.checkin_date ?? null,
+      checkoutDate: log?.checkout_date ?? reservation?.checkout_date ?? null,
+    });
+
+    // ---- 6. A ATIVIDADE (tudo que aconteceu, do mais novo ao mais antigo) ----
+    const activity: JourneyActivity[] = [];
+    if (log?.created_at) {
+      activity.push({ id: "form", at: log.created_at, tag: "Formulário", title: "Hóspede preencheu o formulário", sub: null, actor: GUEST, opens: null });
+    }
+    for (const e of events) {
+      const d = e.detail ?? {};
+      const a = authorFor(e);
+      if (e.kind === "checkin") activity.push({ id: e.id, at: e.created_at, tag: "Check-in", title: "Check-in confirmado", sub: null, actor: a, opens: null });
+      else if (e.kind === "no_show") activity.push({ id: e.id, at: e.created_at, tag: "Check-in", title: "Marcado como não compareceu", sub: null, actor: a, opens: null });
+      else if (e.kind === "checkout") activity.push({ id: e.id, at: e.created_at, tag: "Check-out", title: "Check-out confirmado", sub: null, actor: a, opens: null });
+      else if (e.kind === "concluded") {
+        const tipo = d.cleaning_type === "completa" ? "Completa" : d.cleaning_type === "normal" ? "Normal" : null;
+        activity.push({ id: e.id, at: e.created_at, tag: "Limpeza", title: "Limpeza concluída", sub: [tipo, brl((d.price_cents as number | null) ?? null)].filter(Boolean).join(" · ") || null, actor: a, opens: null });
+      } else if (e.kind === "previsao_hora" || e.kind === "previsao_data") {
+        const lado = d.side === "checkout" ? "Saída" : "Chegada";
+        const toV = e.kind === "previsao_hora" ? String(d.to ?? "").slice(0, 5) : fmtDateBR((d.to as string | null) ?? null);
+        const fromV = e.kind === "previsao_hora" ? String(d.from ?? "").slice(0, 5) : fmtDateBR((d.from as string | null) ?? null);
+        activity.push({
+          id: e.id,
+          at: e.created_at,
+          tag: "Previsão",
+          title: toV ? `${lado} ${e.kind === "previsao_hora" ? "alterada para" : "remarcada para"} ${toV}` : `Previsão de ${lado.toLowerCase()} removida`,
+          sub: fromV ? `Antes: ${fromV}` : null,
+          actor: a,
+          opens: null,
+        });
+      }
+    }
+    // Registros: um item por grupo (várias fotos do mesmo registro = uma linha).
+    const groups = new Map<string, RecRow[]>();
+    for (const r of recRows) {
+      const k = r.group_id ?? r.id;
+      groups.set(k, [...(groups.get(k) ?? []), r]);
+    }
+    for (const [k, items] of groups) {
+      const first = items.slice().sort((x, y) => x.created_at.localeCompare(y.created_at))[0]!;
+      const media = items.filter((r) => r.kind && r.kind !== "note").length;
+      const by = first.created_by_name?.trim()
+        ? { name: first.created_by_name.trim(), role: actorById.get(first.created_by ?? "")?.role ?? ("Equipe" as const) }
+        : first.created_by ? actorOf(first.created_by) : { name: null, role: null };
+      activity.push({
+        id: `rec-${k}`,
+        at: first.created_at,
+        tag: "Registro",
+        title: first.category ? `Registro · ${first.category}` : "Registro",
+        sub: media > 0 ? `${media} ${media === 1 ? "anexo" : "anexos"}` : null,
+        actor: by,
+        opens: "records",
+      });
+    }
+    for (const t of taskRows) {
+      if (!t.created_at) continue;
+      activity.push({
+        id: `task-${t.id}`,
+        at: t.created_at,
+        tag: "Pendência",
+        title: t.title,
+        sub: t.status === "done" ? "Concluída" : t.status === "canceled" ? "Arquivada" : "Aberta",
+        actor: t.created_by ? actorOf(t.created_by) : { name: null, role: null },
+        opens: "records",
+      });
+    }
+    activity.sort((x, y) => y.at.localeCompare(x.at));
+
+    const tasks: JourneyTask[] = taskRows.map((t) => ({
+      id: t.id,
+      title: t.title,
+      status: (t.status as JourneyTask["status"]) ?? "pending",
+      category: t.category,
+      dueDate: t.due_date,
+    }));
+    const recordsCount = groups.size;
+    const base = {
+      guestName: log?.guest_name ?? reservation?.guest_hint ?? null,
+      propertyName: property?.name ?? null,
+      ownerName,
+      ownerPhone,
+      ownerPhoneCountry,
+      propertyCoverUrls: [property?.hero_image_url, ...(property?.gallery_images ?? [])].filter((u): u is string => !!u),
+      reservationCode: log?.reservation_code ?? reservation?.guest_hint ?? null,
+      ...pickResult(),
+      tasks,
+      activity,
+      recordsCount,
+    };
 
     if (noShow) {
       // A jornada PARA aqui, de propósito: quem não chegou não tem saída nem
       // faxina. Mostrar "checkout pendente" depois de um não comparecimento
       // seria repetir na tela o mesmo erro que o quadro já corrigiu.
+      const ev = lastEvent("no_show");
       steps.push({
         key: "no_show",
         label: "Não compareceu",
         state: "done",
-        at: ci?.concluded_at ?? ci?.updated_at ?? null,
+        at: ev?.created_at ?? ci?.concluded_at ?? ci?.updated_at ?? null,
         detail: ci?.note ?? null,
+        actor: authorFor(ev),
       });
-      return {
-        guestName: log?.guest_name ?? reservation?.guest_hint ?? null,
-        propertyName: property?.name ?? null,
-        ownerName,
-        reservationCode: log?.reservation_code ?? reservation?.guest_hint ?? null,
-        checkinDate: log?.checkin_date ?? reservation?.checkin_date ?? null,
-        checkoutDate: log?.checkout_date ?? reservation?.checkout_date ?? null,
-        steps,
-        tasks: ((tasksRes.data ?? []) as Array<{
-          id: string;
-          title: string;
-          status: string;
-          category: string;
-          due_date: string | null;
-        }>).map((t) => ({
-          id: t.id,
-          title: t.title,
-          status: (t.status as JourneyTask["status"]) ?? "pending",
-          category: t.category,
-          dueDate: t.due_date,
-        })),
-        recordsCount: new Set(((recordsRes.data ?? []) as Array<{ id: string; group_id: string | null }>).map((r) => r.group_id ?? r.id)).size,
-      };
+      return { ...base, steps, statusLabel: "Não compareceu" };
     }
 
+    const evCheckin = lastEvent("checkin");
+    const evCheckout = lastEvent("checkout");
+    const evConcluded = lastEvent("concluded");
     steps.push({
       key: "checkin",
       label: "Check-in",
       state: checkinDone ? "done" : "pending",
-      at: ci?.done_at ?? null,
-      detail: checkinDone ? null : "Aguardando confirmação",
+      at: evCheckin?.created_at ?? ci?.done_at ?? null,
+      detail: checkinDone ? "Presença confirmada na entrada" : "Aguardando confirmação",
+      actor: checkinDone ? authorFor(evCheckin) : null,
     });
     steps.push({
       key: "estadia",
       label: "Em estadia",
-      state: checkinDone && !checkoutDone ? "done" : checkoutDone ? "done" : "pending",
+      state: checkinDone ? "done" : "pending",
       at: checkinDone ? (ci?.done_at ?? null) : null,
-      detail: checkinDone && !checkoutDone ? "Hóspede no imóvel" : null,
+      detail: checkinDone
+        ? checkoutDone
+          ? "Estadia encerrada"
+          : `Hóspede no imóvel desde ${fmtShort(ci?.done_at ?? null) ?? "a chegada"}`
+        : null,
+      actor: null,
     });
     steps.push({
       key: "checkout",
       label: "Checkout",
       state: checkoutDone ? "done" : "pending",
-      at: co?.done_at ?? null,
-      detail: checkoutDone ? null : "Aguardando confirmação",
+      at: evCheckout?.created_at ?? co?.done_at ?? null,
+      detail: checkoutDone ? "Saída confirmada" : "Aguardando confirmação",
+      actor: checkoutDone ? authorFor(evCheckout) : null,
     });
     steps.push({
       key: "limpeza",
       label: "Limpeza",
-      state: concluded ? "done" : checkoutDone ? "pending" : "pending",
-      at: concluded ? co?.concluded_at : null,
+      state: concluded ? "done" : "pending",
+      at: concluded ? (evConcluded?.created_at ?? co?.concluded_at ?? null) : null,
       detail: concluded
         ? [
             co?.cleaning_type === "completa" ? "Completa" : co?.cleaning_type === "normal" ? "Normal" : null,
@@ -355,36 +553,23 @@ export const getReservationJourney = createServerFn({ method: "GET" })
         : checkoutDone
           ? "Liberada — aguardando conclusão"
           : "Aguardando o checkout",
+      actor: concluded ? authorFor(evConcluded) : null,
     });
     steps.push({
       key: "concluido",
       label: "Concluído",
       state: concluded ? "done" : "pending",
       at: co?.concluded_at ?? null,
-      detail: null,
+      detail: concluded ? null : "Aguardando a limpeza",
+      actor: concluded ? authorFor(evConcluded) : null,
     });
 
-    return {
-      guestName: log?.guest_name ?? reservation?.guest_hint ?? null,
-      propertyName: property?.name ?? null,
-      ownerName,
-      reservationCode: log?.reservation_code ?? reservation?.guest_hint ?? null,
-      checkinDate: log?.checkin_date ?? reservation?.checkin_date ?? null,
-      checkoutDate: log?.checkout_date ?? reservation?.checkout_date ?? null,
-      steps,
-      tasks: ((tasksRes.data ?? []) as Array<{
-        id: string;
-        title: string;
-        status: string;
-        category: string;
-        due_date: string | null;
-      }>).map((t) => ({
-        id: t.id,
-        title: t.title,
-        status: (t.status as JourneyTask["status"]) ?? "pending",
-        category: t.category,
-        dueDate: t.due_date,
-      })),
-      recordsCount: new Set(((recordsRes.data ?? []) as Array<{ id: string; group_id: string | null }>).map((r) => r.group_id ?? r.id)).size,
-    };
+    const statusLabel = concluded
+      ? "Concluída"
+      : checkoutDone
+        ? "Em limpeza"
+        : checkinDone
+          ? "Em estadia"
+          : "Aguardando chegada";
+    return { ...base, steps, statusLabel };
   });
