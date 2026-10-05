@@ -39,6 +39,7 @@ import { POIMetricsBadge } from "@/components/POIMetricsBadge";
 import { getPropertyPoiCounts, getMarketplaceClicks } from "@/lib/poi-engagement.functions";
 
 import { Input } from "@/components/ui/input";
+import { GuideSlugField } from "@/components/editor/GuideSlugField";
 import { MoneyInput, centsToReaisInput } from "@/components/ui/money-input";
 import { Textarea } from "@/components/ui/textarea";
 import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
@@ -1323,7 +1324,8 @@ function PropertyEditor() {
         property: {
           ...f.property,
           name: r.name ?? f.property.name,
-          slug: r.name ? slugify(r.name) : f.property.slug,
+          // Nunca troca uma URL que já existe (pode ser a personalizada).
+          slug: f.property.slug || (r.name ? slugify(r.name) : f.property.slug),
           short_description: r.short_description ?? f.property.short_description,
           city: r.city ?? f.property.city,
           country: r.country ?? f.property.country,
@@ -3208,9 +3210,13 @@ function PropertyEditor() {
                   collapsible
                 >
                   <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
-                    {/* O Importar refaz o slug a partir do título do anúncio —
-                        com anúncio conectado, trava como os demais (01/10/2026). */}
-                    <AirbnbLockedValue value={form.property.slug} label="URL pública (slug)" />
+                    {/* Editável de novo (05/10/2026): o Importar não troca mais um
+                        slug que já existe, então a URL personalizada fica. */}
+                    <GuideSlugField
+                      value={form.property.slug}
+                      savedSlug={savedSlug}
+                      onChange={(v) => update("slug", v)}
+                    />
                   </Field>
                   <Field
                     label="Tipo do guia"

@@ -92,6 +92,7 @@ function spDate(iso: string): string {
 import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
 import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import { DictationField } from "@/components/dashboard/RecordSituationSheet";
+import { NewRecordButton } from "@/components/dashboard/NewRecordButton";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
 import { PENDING_CATEGORIES } from "@/lib/record-pending";
 import { VideoFrame } from "@/components/dashboard/VideoFrame";
@@ -773,6 +774,9 @@ export function RecordsWorkspace() {
                   <span className="lg:hidden">Todo o período</span>
                 </span>
               )}
+              {/* "+ REGISTRO" (04/10/2026): o mesmo "+" da Limpeza, para registrar
+                  sem depender de um checkout — ligado só ao imóvel ou a uma reserva. */}
+              <NewRecordButton />
               <RecordsFiltersButton
                 category={category}
                 onCategoryChange={setCategory}
@@ -2367,7 +2371,7 @@ function RecordViewerBody({
             [
               "Origem",
               [
-                record.cardMode ? MODE_LABEL[record.cardMode] : "",
+                record.cardMode ? MODE_LABEL[record.cardMode] : "Registros",
                 new Date(record.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
               ]
                 .filter(Boolean)

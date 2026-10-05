@@ -566,7 +566,9 @@ export const createRecordSituation = createServerFn({ method: "POST" })
         propertyId: z.string().uuid(),
         logId: z.string().uuid().optional(),
         reservationId: z.string().uuid().optional(),
-        cardMode: CardMode,
+        /* Vazio quando o registro nasce no "+" da página Registros: não veio de
+         * nenhuma coluna do Kanban (ver migração 20261005130000). */
+        cardMode: CardMode.optional().nullable(),
         category: CategoryEnum,
         title: z.string().trim().max(RECORD_TITLE_MAX).optional().nullable(),
         description: z.string().trim().max(4000).optional().nullable(),
@@ -582,7 +584,9 @@ export const createRecordSituation = createServerFn({ method: "POST" })
          * (ver `appendSituationMedia`). Morrendo no meio, o que já subiu fica. */
         pendingMedia: z.number().int().min(0).max(SITUATION_MEDIA_MAX).optional(),
       })
-      .refine((v) => !!v.logId || !!v.reservationId, {
+      // Sem reserva e sem registro do hóspede = registro só do IMÓVEL ("+" da
+      // página Registros). Só vale sem coluna de origem (cardMode vazio).
+      .refine((v) => !!v.logId || !!v.reservationId || !v.cardMode, {
         message: "Informe a reserva ou o registro do hóspede.",
       })
       // TÍTULO SEMPRE OBRIGATÓRIO (decisão do cliente, 25/09/2026).
@@ -602,6 +606,18 @@ export const createRecordSituation = createServerFn({ method: "POST" })
       if (!m.path.startsWith(`${data.propertyId}/`)) throw new Error("Caminho de anexo inválido.");
     }
 
+    // A reserva escolhida precisa ser do imóvel escolhido (o "+" deixa
+    // escolher as duas coisas separadamente).
+    if (data.reservationId) {
+      const { data: resRow } = await supabase
+        .from("property_reservations")
+        .select("id")
+        .eq("id", data.reservationId)
+        .eq("property_id", data.propertyId)
+        .maybeSingle();
+      if (!resRow) throw new Error("Essa reserva não pertence ao imóvel escolhido.");
+    }
+
     const body = composeBody(data.title, data.description);
     const who = await resolveAuthorName(supabase, context.userId);
     const taskId = await createLinkedTask(supabase, context.userId, {
@@ -610,7 +626,7 @@ export const createRecordSituation = createServerFn({ method: "POST" })
       logId: data.logId,
       reservationId: data.reservationId,
       body: (data.title ?? "").trim() || null,
-      cardMode: data.cardMode,
+      cardMode: data.cardMode ?? undefined,
     });
     const fileName = await nextRecordName(supabase, data.propertyId);
     const groupId = crypto.randomUUID();
@@ -620,7 +636,7 @@ export const createRecordSituation = createServerFn({ method: "POST" })
       log_id: data.logId ?? null,
       reservation_id: data.reservationId ?? null,
       category: data.category,
-      card_mode: data.cardMode,
+      card_mode: data.cardMode ?? null,
       created_by: context.userId,
       created_by_name: who,
       task_id: taskId,
@@ -742,7 +758,7 @@ export const appendSituationMedia = createServerFn({ method: "POST" })
       log_id: string | null;
       reservation_id: string | null;
       category: string;
-      card_mode: string;
+      card_mode: string | null;
       file_name: string | null;
     } | null;
     if (!p) throw new Error("Situação não encontrada.");
@@ -1923,4 +1939,148 @@ export const countCleaningsWithoutRecords = createServerFn({ method: "GET" })
       (c) => !(c.log_id && logs.has(c.log_id)) && !(c.reservation_id && resv.has(c.reservation_id)),
     ).length;
     return { count };
+  });
+
+/* ───────────────────────── "+ REGISTRO" (05/10/2026) ─────────────────────────
+ *
+ * Opções do "+" da página Registros: os imóveis que a pessoa enxerga (com o
+ * proprietário e o contato dele, para o cabeçalho da folha) e as reservas em
+ * curso, recém-encerradas e próximas.
+ *
+ * Quem pode: qualquer pessoa da equipe e o prestador vinculado ao imóvel —
+ * exatamente o alcance de `accessiblePropertyIds`, o mesmo que já decide o que
+ * aparece na própria lista de Registros. Nada de regra de aprovação aqui
+ * (diferente da limpeza avulsa, que mexe em dinheiro).
+ */
+export type NewRecordProperty = {
+  id: string;
+  name: string;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
+};
+export type NewRecordReservation = {
+  id: string;
+  propertyId: string;
+  label: string;
+  checkin: string;
+  checkout: string | null;
+};
+
+export const getNewRecordOptions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({ ownerId: z.string().uuid().nullable().optional() }).parse(i ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as unknown as AnyClient;
+    const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
+    const propIds = await accessiblePropertyIds(
+      context.supabase as never,
+      data.ownerId ?? null,
+      context.userId,
+    );
+    const empty = {
+      properties: [] as NewRecordProperty[],
+      reservations: [] as NewRecordReservation[],
+    };
+    if (propIds.length === 0) return empty;
+
+    const from = new Date(Date.now() - 3 * 3600_000 - 7 * 86400_000).toISOString().slice(0, 10);
+    const to = new Date(Date.now() - 3 * 3600_000 + 90 * 86400_000).toISOString().slice(0, 10);
+    const [{ data: props }, { data: res }] = await Promise.all([
+      sb.from("properties").select("id, name, owner_contact_id").in("id", propIds).order("name"),
+      sb
+        .from("property_reservations")
+        .select("id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
+        .in("property_id", propIds)
+        .gte("checkout_date", from)
+        .lte("checkin_date", to)
+        .order("checkin_date", { ascending: true })
+        .limit(400),
+    ]);
+
+    type PropRow = { id: string; name: string | null; owner_contact_id: string | null };
+    const propRows = (props ?? []) as PropRow[];
+    const ownerIds = Array.from(
+      new Set(propRows.map((p) => p.owner_contact_id).filter((v): v is string => !!v)),
+    );
+    const owner = new Map<string, { name: string; phone: string | null; country: string | null }>();
+    if (ownerIds.length > 0) {
+      const { data: owners } = await sb
+        .from("property_owners")
+        .select("id, name, trade_name, phone, phone_country")
+        .in("id", ownerIds);
+      for (const o of (owners ?? []) as Array<{
+        id: string;
+        name: string | null;
+        trade_name: string | null;
+        phone: string | null;
+        phone_country: string | null;
+      }>) {
+        const label = (o.trade_name || o.name || "").trim();
+        if (label) owner.set(o.id, { name: label, phone: o.phone ?? null, country: o.phone_country ?? null });
+      }
+    }
+
+    type ResRow = {
+      id: string;
+      property_id: string;
+      checkin_date: string;
+      checkout_date: string | null;
+      guest_hint: string | null;
+      status: string | null;
+      raw_summary: string | null;
+    };
+    // Mesmo critério de "reserva de verdade" da limpeza avulsa.
+    const resRows = ((res ?? []) as ResRow[]).filter((r) => {
+      const st = (r.status ?? "").toLowerCase();
+      const sum = (r.raw_summary ?? "").toLowerCase();
+      if (st.includes("cancel") || st.includes("block")) return false;
+      return !(
+        sum.includes("not available") ||
+        sum.includes("unavailable") ||
+        sum.includes("bloqueado")
+      );
+    });
+    const guestByStay = new Map<string, string>();
+    if (resRows.length > 0) {
+      const { data: logs } = await sb
+        .from("guide_access_logs")
+        .select("property_id, checkin_date, guest_name")
+        .in("property_id", propIds)
+        .gte("checkin_date", from)
+        .lte("checkin_date", to)
+        .limit(2000);
+      for (const l of (logs ?? []) as Array<{
+        property_id: string;
+        checkin_date: string;
+        guest_name: string | null;
+      }>) {
+        const n = (l.guest_name ?? "").trim();
+        if (!n || n.toLowerCase() === "hóspede pendente") continue;
+        const k = `${l.property_id}|${l.checkin_date}`;
+        if (!guestByStay.has(k)) guestByStay.set(k, n);
+      }
+    }
+
+    return {
+      properties: propRows.map((p) => {
+        const o = p.owner_contact_id ? owner.get(p.owner_contact_id) : undefined;
+        return {
+          id: p.id,
+          name: (p.name ?? "Imóvel").trim(),
+          ownerName: o?.name ?? null,
+          ownerPhone: o?.phone ?? null,
+          ownerPhoneCountry: o?.country ?? null,
+        };
+      }),
+      reservations: resRows.map((r) => ({
+        id: r.id,
+        propertyId: r.property_id,
+        label: guestByStay.get(`${r.property_id}|${r.checkin_date}`) ?? (r.guest_hint ?? "").trim(),
+        checkin: r.checkin_date,
+        checkout: r.checkout_date,
+      })),
+    };
   });

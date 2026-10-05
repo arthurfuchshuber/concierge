@@ -78,6 +78,9 @@ export function friendlyErrorMessage(
   if (lower.includes("failed to fetch") || lower.includes("network") || lower.includes("load failed") || lower.includes("offline") || lower.includes("aborted")) {
     return "Sem conexão com a internet no momento. Verifique sua rede e tente de novo.";
   }
+  if ((lower.includes("duplicate key") || lower.includes("unique constraint") || lower.includes("23505")) && lower.includes("slug")) {
+    return "Esta URL já está em uso por outro guia. Escolha outra.";
+  }
   if (lower.includes("duplicate key") || lower.includes("already exists") || lower.includes("unique constraint") || lower.includes("23505") || lower.includes("already registered")) {
     return "Este item já está cadastrado.";
   }

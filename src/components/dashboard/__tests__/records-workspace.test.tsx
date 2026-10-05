@@ -16,6 +16,7 @@ const optionsMock = vi.fn();
 vi.mock("@/lib/reservation-records.functions", () => ({
   RECORD_TITLE_MAX: 50,
   SITUATION_MEDIA_MAX: 10,
+  getNewRecordOptions: "newRecordOptions",
   listAccountRecords: "listAccountRecords",
   deleteReservationRecord: "del",
   restoreReservationRecord: "restore",

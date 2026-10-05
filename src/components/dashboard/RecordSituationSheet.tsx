@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { RequiredMark } from "@/components/ds/RequiredMark";
+import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { ownerLabel } from "@/components/dashboard/card-colors";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { notifyAction } from "@/components/UndoActionBar";
@@ -220,14 +222,21 @@ export function RecordSituationSheet({
   initialTitle,
   initialExtra,
   onSaved,
+  owner,
+  contextLine,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   propertyId: string;
   propertyLabel: string;
   target: SituationTarget;
-  cardMode: CardMode;
+  /** Vazio quando o registro nasce no "+" da página Registros (sem coluna). */
+  cardMode: CardMode | null;
   category: RecordCategory;
+  /** Proprietário do imóvel (cabeçalho do "+ Registro"): "Proprietário: nome" + contato. */
+  owner?: { name: string | null; phone: string | null; country: string | null } | null;
+  /** Linha extra do cabeçalho — a reserva, quando o registro é ligado a uma. */
+  contextLine?: string | null;
   /** Primeira mídia, capturada antes da folha abrir. */
   initial: DraftItem | null;
   /** Texto já digitado no campo "Descrever situação" — vira o título. */
@@ -339,7 +348,7 @@ export function RecordSituationSheet({
         propertyId,
         logId: target.logId,
         reservationId: target.reservationId,
-        cardMode,
+        cardMode: cardMode ?? "",
         category,
         title,
         description,
@@ -399,7 +408,7 @@ export function RecordSituationSheet({
   type Envio = { path: string; ctrl: AbortController; promise: Promise<Awaited<ReturnType<typeof enviarMidia>>> };
   const enviosRef = useRef(new Map<string, Envio>());
   const [pctPorItem, setPctPorItem] = useState<Record<string, number>>({});
-  const folderEnvio = target.logId ?? target.reservationId;
+  const folderEnvio = target.logId ?? target.reservationId ?? propertyId;
 
   function iniciarEnvio(it: DraftItem): Envio {
     const ctrl = new AbortController();
@@ -616,7 +625,7 @@ export function RecordSituationSheet({
                 propertyId,
                 logId: target.logId,
                 reservationId: target.reservationId,
-                cardMode,
+                cardMode: cardMode ?? undefined,
                 category,
                 title: title.trim() || null,
                 description: description.trim() || null,
@@ -696,6 +705,19 @@ export function RecordSituationSheet({
           <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
             {propertyLabel}
           </span>
+          {owner && ownerLabel(owner.name) && (
+            <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+              <span className="min-w-0 truncate text-[10.5px] text-muted-foreground" title={owner.name ?? undefined}>
+                {ownerLabel(owner.name)}
+              </span>
+              <PhoneActionButton phone={owner.phone} country={owner.country} size={12} alwaysShow />
+            </div>
+          )}
+          {contextLine && (
+            <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
+              {contextLine}
+            </span>
+          )}
         </DialogHeader>
 
         <div className="max-h-[62vh] space-y-3.5 overflow-y-auto px-3.5 py-3">
