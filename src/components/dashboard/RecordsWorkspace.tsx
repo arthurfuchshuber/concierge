@@ -1523,7 +1523,25 @@ function PropertyCard({
   const showRest = group.rest.length > 0 && !hideHistory;
   // As miniaturas da gaveta têm sempre o tamanho curto (44px): cabem seis na
   // largura do celular, e o sexto vira o "+N".
-  const thumbCap = 6;
+  // QUANTOS QUADRADOS CABEM NA LINHA (05/10/2026): antes eram sempre 6, mas a
+  // grade tem 7 colunas na largura do celular — o "+N" ficava na 6ª e a última
+  // coluna sobrava vazia, em vez de o "+N" ocupar o último espaço. Agora a
+  // largura real decide, e o "+N" é sempre o ÚLTIMO quadrado da linha.
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [thumbCap, setThumbCap] = useState(6);
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el || !stripOpen) return;
+    const measure = () => {
+      // 44px de quadrado e no mínimo 6px entre eles.
+      const cols = Math.max(2, Math.floor((el.clientWidth + 6) / (44 + 6)));
+      setThumbCap(cols);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [stripOpen]);
 
   // A faixa lê o cartão INTEIRO — pendências e acervo —, não só o que está
   // visível depois do corte.
@@ -1649,7 +1667,11 @@ function PropertyCard({
           gigantes no desktop. */}
       {stripOpen && showRest && (
         <div className="relative border-t border-border/50 px-3 pb-3 pt-2.5">
-          <div className="grid grid-cols-[repeat(auto-fill,44px)] justify-between gap-y-1">
+          <div
+            ref={gridRef}
+            className="grid justify-between gap-y-1"
+            style={{ gridTemplateColumns: `repeat(${thumbCap}, 44px)` }}
+          >
             {group.rest.slice(0, thumbCap).map((r, i) => {
               const isLastSlot = i === thumbCap - 1;
               const hidden = group.rest.length - thumbCap;
