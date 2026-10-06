@@ -342,8 +342,8 @@ export function CleaningDayDetailContent({
   }
 
   return (
-    <div aria-label={`Detalhe de ${title ?? dayTitle(date)}`}>
-      <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
+    <div aria-label={`Detalhe de ${title ?? dayTitle(date)}`} className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-3 px-5 pb-3 pt-5">
         <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-foreground/[0.06] text-muted-foreground">
           <HeaderIcon className="size-5" />
         </div>
@@ -366,7 +366,7 @@ export function CleaningDayDetailContent({
            esmaece em vez de cortar, e a folga final garante que a última
            linha apareça inteira quando a rolagem chega ao fim. */
         <div
-          className="sg-elegant-scroll max-h-[60vh] snap-y snap-proximity overflow-y-auto overflow-x-hidden px-5 pb-5 pt-1 [&_tbody_tr]:snap-start"
+          className="sg-elegant-scroll min-h-0 flex-1 [scrollbar-gutter:stable] snap-y snap-proximity overflow-y-auto overflow-x-hidden px-5 pb-5 pt-1 [&_tbody_tr]:snap-start"
           style={{
             maskImage: "linear-gradient(to bottom, #000 calc(100% - 20px), transparent)",
             WebkitMaskImage: "linear-gradient(to bottom, #000 calc(100% - 20px), transparent)",
@@ -376,7 +376,7 @@ export function CleaningDayDetailContent({
         </div>
       )}
       {footer && (
-        <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-border bg-foreground/[0.03] px-5 py-3.5">
+        <div className="mt-1 flex shrink-0 items-baseline justify-between gap-3 border-t border-border bg-foreground/[0.03] px-5 py-3.5">
           {footer}
         </div>
       )}
