@@ -1114,12 +1114,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     () => filteredOccupancyProperties.filter(matchesProvider),
     [filteredOccupancyProperties, matchesProvider],
   );
+  // Filtros movem a página inteira (cards, gráficos, aprovação, ranking),
+  // inclusive prestador; lista vazia = nada encontrado (não "todos").
   const cleaningStatsPropertyIds = useMemo(
     () =>
-      ownerFilters.length > 0 || cityFilters.length > 0 || propertyFilters.length > 0 || !!opSearch.trim()
-        ? filteredOccupancyProperties.map((p) => p.id)
+      ownerFilters.length > 0 || cityFilters.length > 0 || propertyFilters.length > 0 || providerFilters.length > 0 || !!opSearch.trim()
+        ? calendarProperties.map((p) => p.id)
         : undefined,
-    [ownerFilters, cityFilters, propertyFilters, opSearch, filteredOccupancyProperties],
+    [ownerFilters, cityFilters, propertyFilters, providerFilters, opSearch, calendarProperties],
   );
   /**
    * OS CARDS LEEM EXATAMENTE O MESMO INTERVALO DOS GRÁFICOS (pedido explícito,
