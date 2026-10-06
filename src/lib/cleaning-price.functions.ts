@@ -105,6 +105,32 @@ export const setCleaningPriceOverride = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const r = await findCheckoutRow(context.supabase, data);
     if (!r) throw new Error("Esta limpeza ainda não está na fila.");
+    // Autorização no servidor: só o dono da conta do imóvel, um membro ativo
+    // com permissão "Agir na operação" ou admin SaaS pode ajustar o valor.
+    // Ter acesso ao card (RLS) não basta — prestadores também enxergam a linha.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: st } = await supabaseAdmin
+      .from("guest_arrival_status")
+      .select("property_id")
+      .eq("id", r.id)
+      .maybeSingle();
+    const propertyId = (st as { property_id?: string | null } | null)?.property_id;
+    if (!propertyId) throw new Error("Sem permissão para esta ação.");
+    const { data: prop } = await supabaseAdmin
+      .from("properties")
+      .select("owner_id")
+      .eq("id", propertyId)
+      .maybeSingle();
+    const ownerId = (prop as { owner_id?: string | null } | null)?.owner_id;
+    if (!ownerId) throw new Error("Sem permissão para esta ação.");
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!isAdmin) {
+      const { requireMemberPermission } = await import("./member-permissions.server");
+      await requireMemberPermission(context.supabase, context.userId, ownerId, "operation_edit");
+    }
     const nowIso = new Date().toISOString();
     const base = {
       cleaning_price_override_reason: data.reason || null,
