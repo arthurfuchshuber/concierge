@@ -47,7 +47,11 @@ export function LiveSync() {
     let attempt = 0;
     let stopped = false;
 
-    const connect = () => {
+    const connect = async () => {
+      if (stopped) return;
+      // Token no socket ANTES de assinar: sem ele a RLS descarta os eventos.
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.access_token) supabase.realtime.setAuth(data.session.access_token);
       if (stopped) return;
       if (channel) supabase.removeChannel(channel);
       let ch = supabase.channel(`live-sync-${Date.now()}-${attempt}`);
@@ -64,11 +68,15 @@ export function LiveSync() {
           const wait = Math.min(30_000, 1_000 * 2 ** attempt);
           attempt += 1;
           if (retry) clearTimeout(retry);
-          retry = setTimeout(connect, wait);
+          retry = setTimeout(() => void connect(), wait);
         }
       });
     };
-    connect();
+    void connect();
+    const { data: authSub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.access_token) supabase.realtime.setAuth(session.access_token);
+      if (event === "SIGNED_IN") void connect();
+    });
 
     const onVisible = () => {
       if (document.visibilityState === "visible") refresh();
@@ -79,6 +87,7 @@ export function LiveSync() {
 
     return () => {
       stopped = true;
+      authSub.subscription.unsubscribe();
       if (timer) clearTimeout(timer);
       if (retry) clearTimeout(retry);
       if (channel) supabase.removeChannel(channel);
