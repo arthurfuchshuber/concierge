@@ -187,14 +187,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
        * As páginas públicas de guia (g.$slug) sobrescrevem com a foto do imóvel,
        * que é o comportamento certo lá.
        */
-      { property: "og:image", content: siteUrl("/og-cover.png") },
+      { property: "og:image", content: siteUrl("/og-cover-2026-10.png") },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       {
         property: "og:image:alt",
         content: "ConciergeIA — seus hóspedes atendidos em 3 segundos, 24 horas por dia.",
       },
-      { name: "twitter:image", content: siteUrl("/og-cover.png") },
+      { name: "twitter:image", content: siteUrl("/og-cover-2026-10.png") },
       { name: "google-site-verification", content: "o7m2Z68kLI_sgZFwkIsA1VQzKGI1OYfiqw6FKxsup5E" },
     ],
     links: [
