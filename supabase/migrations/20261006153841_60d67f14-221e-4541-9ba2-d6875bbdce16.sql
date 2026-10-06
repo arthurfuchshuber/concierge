@@ -1,0 +1,5 @@
+ALTER TABLE public.guest_arrival_status REPLICA IDENTITY FULL;
+ALTER TABLE public.tasks REPLICA IDENTITY FULL;
+ALTER TABLE public.task_completions REPLICA IDENTITY FULL;
+ALTER TABLE public.reservation_records REPLICA IDENTITY FULL;
+ALTER TABLE public.properties REPLICA IDENTITY FULL;

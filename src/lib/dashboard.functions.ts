@@ -369,7 +369,7 @@ export const getCleaningStats = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => CleaningStatsInput.parse(i ?? {}))
   .handler(async ({ data, context }) => {
     let propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
-    if (data.propertyIds && data.propertyIds.length > 0) {
+    if (data.propertyIds) {
       const allowed = new Set(data.propertyIds);
       propIds = propIds.filter((id) => allowed.has(id));
     }
