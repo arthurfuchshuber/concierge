@@ -191,8 +191,11 @@ export async function processarFilaChannex(limite = 20): Promise<{ processados: 
   for (const item of pendentes ?? []) {
     try {
       const evento = eventOf(item.payload);
-      // Só reservas nos interessam; os demais eventos são apenas marcados como lidos.
-      if (!evento || evento.startsWith("booking")) {
+      // Reservas e mensagens são tratadas; os demais eventos são apenas marcados como lidos.
+      if (evento === "message" || evento === "new_message") {
+        const { handleChannexMessage } = await import("@/lib/channex-messages.server");
+        await handleChannexMessage(item.payload);
+      } else if (!evento || evento.startsWith("booking")) {
         await aplicarReserva(supabaseAdmin, item.payload);
       }
       await supabaseAdmin

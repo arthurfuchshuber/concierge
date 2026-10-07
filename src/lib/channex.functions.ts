@@ -63,3 +63,43 @@ export const importarAnunciosAirbnb = createServerFn({ method: "POST" })
       return { total: 1, importados: 0, jaExistentes: 0, falhas: [{ titulo: "Casa Charmosa", erro: e instanceof Error ? e.message : String(e) }] };
     }
   });
+
+export type AirbnbAiToggle = { propertyId: string; name: string; enabled: boolean };
+
+/** Lista os imóveis conectados ao Airbnb e o estado da chave da IA. */
+export const getAirbnbAiToggles = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AirbnbAiToggle[]> => {
+    await requireAdmin(context as never);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("property_listing_raw_data" as never)
+      .select("property_id, airbnb_ai_enabled, properties(name)");
+    return ((data ?? []) as any[]).map((r) => ({
+      propertyId: r.property_id,
+      name: r.properties?.name ?? "Imóvel",
+      enabled: !!r.airbnb_ai_enabled,
+    }));
+  });
+
+/** Liga/desliga a IA no chat do Airbnb para um imóvel. */
+export const setAirbnbAiToggle = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { propertyId: string; enabled: boolean }) => {
+    if (typeof d?.propertyId !== "string" || typeof d?.enabled !== "boolean") throw new Error("Dados inválidos.");
+    return d;
+  })
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context as never);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("property_listing_raw_data" as never)
+      .update({
+        airbnb_ai_enabled: data.enabled,
+        airbnb_ai_toggled_at: new Date().toISOString(),
+        airbnb_ai_toggled_by: (context as { userId: string }).userId,
+      } as never)
+      .eq("property_id", data.propertyId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
