@@ -52,7 +52,7 @@ async function firstPlacePhoto(
   regionCode: string,
 ): Promise<string | null> {
   const key = process.env.LOVABLE_API_KEY;
-  const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
+  const mapsKey = process.env.GOOGLE_MAPS_API_KEY_1 ?? process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
   if (!key || !mapsKey) return null;
   try {
     const { throttledFetch } = await import("@/lib/places-throttle.server");
@@ -481,7 +481,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     ),
     execute: async (args) => {
       const key = process.env.LOVABLE_API_KEY;
-      const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
+      const mapsKey = process.env.GOOGLE_MAPS_API_KEY_1 ?? process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
       if (!key || !mapsKey) return { disponivel: false };
       const city = (ctx.property.city as string) ?? "";
       const query = `${String(args.consulta ?? "").slice(0, 160)}${city ? ` em ${city}` : ""}`;

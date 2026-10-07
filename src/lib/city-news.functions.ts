@@ -370,7 +370,7 @@ async function verifyEventDates(items: NewsItem[], today: string): Promise<NewsI
 // como query. Se não encontrar, deixa imageUrl null (o cliente mostra fallback).
 async function attachPlacePhotos(items: NewsItem[], cityLabel: string, country: string | null): Promise<NewsItem[]> {
   const apiKey = process.env.LOVABLE_API_KEY;
-  const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
+  const mapsKey = process.env.GOOGLE_MAPS_API_KEY_1 ?? process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey || !mapsKey) return items;
 
   const regionCode = (country ?? "BR").toUpperCase().slice(0, 2);
