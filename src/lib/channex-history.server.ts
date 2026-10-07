@@ -36,7 +36,8 @@ export type BackfillResult = { reservations: number; conversations: number; mess
 
 export async function backfillChannexHistory(): Promise<BackfillResult> {
   const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
-  const { data: rows } = await admin.from("property_listing_raw_data").select("property_id, airbnb_listing_id");
+  const { data: rows } = await admin.from("property_listing_raw_data").select("property_id, airbnb_listing_id, channex_property_id");
+  const byChannexProperty = new Map<string, string>(((rows ?? []) as Array<{ property_id: string; channex_property_id: string | null }>).filter((r) => r.channex_property_id).map((r) => [String(r.channex_property_id), r.property_id]));
   const byListing = new Map<string, string>(((rows ?? []) as Listing[]).map((l) => [String(l.airbnb_listing_id), l.property_id]));
   const result: BackfillResult = { reservations: 0, conversations: 0, messages: 0, reviews: 0 };
   if (!byListing.size) return result;
@@ -85,7 +86,9 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
   const threads = await getAll("/message_threads").catch((e) => { console.error("[channex-history] threads", e); return []; });
   for (const t of threads) {
     const a = t.attributes ?? {};
-    const propertyId = byListing.get(String(a.meta?.listing_id ?? ""));
+    // Conversas importadas podem vir sem listing_id; o vínculo vem pela propriedade Channex (1 anúncio por propriedade no piloto).
+    const propertyId =
+      byListing.get(String(a.meta?.listing_id ?? "")) ?? byChannexProperty.get(String(t.relationships?.property?.data?.id ?? ""));
     if (!propertyId) continue;
     const guestName =
       threadToBooking.get(String(a.ota_message_thread_id ?? ""))?.names?.[0] ??
