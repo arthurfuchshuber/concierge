@@ -96,7 +96,7 @@ async function activeBookingNights(t: SafeMapTarget): Promise<Set<string>> {
     const today = iso(new Date());
     const { data } = await supabaseAdmin
       .from("property_reservations")
-      .select("checkin_date, checkout_date, status")
+      .select("checkin_date, checkout_date, status, source")
       .eq("property_id", t.propertyId)
       .gte("checkout_date", today);
     for (const r of (data ?? []) as any[]) {
@@ -108,6 +108,11 @@ async function activeBookingNights(t: SafeMapTarget): Promise<Set<string>> {
       // A janela já é tratada por max_days_notice; contá-los fecha o ano inteiro.
       const span = (Date.parse(`${r.checkout_date}T00:00:00Z`) - Date.parse(`${r.checkin_date}T00:00:00Z`)) / 86_400_000;
       if (status === "blocked" && span > 30) continue;
+      // "Airbnb (Not available)" do iCal espelha o próprio calendário que a
+      // Channex controla (inclusive bloqueios errados anteriores) — usá-lo cria
+      // um ciclo que nunca reabre. Bloqueios manuais com o anúncio conectado
+      // vêm do ConciergeIA ou do PriceLabs/Channex (stop_sell, que não tocamos).
+      if (status === "blocked" && String(r.source ?? "") === "airbnb") continue;
       for (let d = new Date(`${r.checkin_date}T00:00:00Z`); iso(d) < r.checkout_date; d = new Date(d.getTime() + 86_400_000)) nights.add(iso(d));
     }
   }
