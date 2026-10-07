@@ -46,56 +46,80 @@ async function call(method: string, path: string, body?: unknown): Promise<any> 
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
-/** Garante vaga aberta e só então mapeia. Idempotente. */
+/** Garante calendário REAL aberto e só então mapeia. Idempotente. */
 export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | null) {
-  // 1) Já mapeado? Não mexe em nada.
   const channel = await call("GET", `/channels/${t.channelId}`);
   const mapped = (channel?.data?.attributes?.rate_plans ?? []).some(
     (r: any) => String(r.settings?.listing_id) === t.listingId,
   );
-  if (mapped) return { listingId: t.listingId, status: "already_mapped" as const };
+  // Já mapeado: só realinha a disponibilidade real (nunca abre datas reservadas).
+  if (mapped) {
+    const sync = await syncRealAvailability(t, userId);
+    return { listingId: t.listingId, status: "already_mapped" as const, sync };
+  }
 
-  // 2) Abre 1 vaga/dia provisoriamente (a janela real do anfitrião só é
-  //    exposta pelo Airbnb depois do mapeamento — ver passo 5).
-  const from = new Date();
-  const to = new Date(from.getTime() + 365 * 86_400_000);
-  await applyCalendarChanges(
-    [{ propertyId: t.channexPropertyId, roomTypeId: t.roomTypeId, ratePlanId: t.ratePlanId, dateFrom: iso(from), dateTo: iso(to), fields: { availability: 1 } }],
-    userId,
-    "safe_mapping",
-  );
-  const flush = await flushAriOutbox();
-  const avail = flush.batches.find((b) => b.kind === "availability");
-  if (avail && !avail.ok) throw new Error("A Channex não confirmou a abertura do calendário; mapeamento cancelado para não bloquear o Airbnb.");
+  // 1) Disponibilidade REAL antes de mapear: reservas = 0, livres = 1.
+  const pre = await syncRealAvailability(t, userId);
+  if (!pre.ok) throw new Error("A Channex não confirmou o calendário; mapeamento cancelado para não bloquear o Airbnb.");
 
-  // 3) Confere na Channex que a vaga está realmente aberta hoje.
-  const check = await call("GET", `/availability?filter[property_id]=${t.channexPropertyId}&filter[date]=${iso(from)}`);
-  const today = check?.data?.[t.roomTypeId]?.[iso(from)];
-  if (!(Number(today) >= 1)) throw new Error("Calendário ainda fechado na Channex; mapeamento cancelado para não bloquear o Airbnb.");
-
-  // 4) Mapeia o anúncio e carrega reservas futuras.
+  // 2) Mapeia e carrega reservas futuras.
   await call("POST", `/channels/${t.channelId}/mappings`, { mapping: { rate_plan_id: t.ratePlanId, settings: { listing_id: t.listingId } } });
   await call("POST", `/channels/${t.channelId}/execute/load_future_reservations`, { listing_id: t.listingId }).catch(() => null);
 
-  // 5) Ajusta à janela EXATA do anfitrião (availability_rule.max_days_notice):
-  //    fecha tudo que passar dela, para nunca abrir datas que ele não abriu.
-  const windowDays = await trimToHostWindow(t, userId, from, to).catch(() => null);
-  return { listingId: t.listingId, status: "mapped" as const, windowDays };
+  // 3) Recalcula com a janela exata do anfitrião e as reservas recém-importadas.
+  const sync = await syncRealAvailability(t, userId);
+  return { listingId: t.listingId, status: "mapped" as const, sync };
 }
 
-async function trimToHostWindow(t: SafeMapTarget, userId: string | null, from: Date, to: Date): Promise<number | null> {
-  const ch = await call("GET", `/channels/${t.channelId}`);
+/** Noites ocupadas por reservas ativas do imóvel na Channex (paginado). */
+async function activeBookingNights(t: SafeMapTarget): Promise<Set<string>> {
+  const nights = new Set<string>();
+  for (let page = 1; page <= 50; page++) {
+    const res = await call("GET", `/bookings?filter[property_id]=${t.channexPropertyId}&pagination[page]=${page}&pagination[limit]=100`);
+    const rows = (res?.data ?? []) as any[];
+    for (const b of rows) {
+      const a = b?.attributes ?? {};
+      if (String(a.status ?? "").toLowerCase() === "cancelled") continue;
+      const rooms = (a.rooms ?? []) as any[];
+      const own = rooms.length === 0 || rooms.some((r) => !r.room_type_id || r.room_type_id === t.roomTypeId);
+      if (!own || !a.arrival_date || !a.departure_date) continue;
+      for (let d = new Date(`${a.arrival_date}T00:00:00Z`); iso(d) < a.departure_date; d = new Date(d.getTime() + 86_400_000)) nights.add(iso(d));
+    }
+    if (rows.length < 100) break;
+  }
+  return nights;
+}
+
+/**
+ * Exporta a disponibilidade REAL do anúncio para a Channex (que o PriceLabs lê):
+ * noite reservada = 0, noite livre dentro da janela do anfitrião = 1, além dela = 0.
+ * Só o delta entra na outbox ARI (limitador 20/min). Preços não são tocados.
+ */
+export async function syncRealAvailability(t: SafeMapTarget, userId: string | null, fallbackWindow = 270) {
+  const ch = await call("GET", `/channels/${t.channelId}`).catch(() => null);
   const rp = (ch?.data?.attributes?.rate_plans ?? []).find((r: any) => String(r.settings?.listing_id) === t.listingId);
   const notice = Number(rp?.settings?.availability_rule?.max_days_notice);
-  if (!Number.isFinite(notice) || notice <= 0) return null;
-  const closeFrom = new Date(from.getTime() + (notice + 1) * 86_400_000);
-  if (closeFrom < to) {
-    await applyCalendarChanges(
-      [{ propertyId: t.channexPropertyId, roomTypeId: t.roomTypeId, ratePlanId: t.ratePlanId, dateFrom: iso(closeFrom), dateTo: iso(to), fields: { availability: 0 } }],
-      userId,
-      "safe_mapping_window",
-    );
-    await flushAriOutbox();
+  const windowDays = Number.isFinite(notice) && notice > 0 ? notice : fallbackWindow;
+  const nights = await activeBookingNights(t);
+
+  const from = new Date();
+  const merged: Parameters<typeof applyCalendarChanges>[0] = [];
+  for (let i = 0; i <= 365; i++) {
+    const date = iso(new Date(from.getTime() + i * 86_400_000));
+    const availability = i > windowDays || nights.has(date) ? 0 : 1;
+    const prev = merged[merged.length - 1];
+    if (prev && prev.fields.availability === availability) prev.dateTo = date;
+    else merged.push({ propertyId: t.channexPropertyId, roomTypeId: t.roomTypeId, ratePlanId: t.ratePlanId, dateFrom: date, dateTo: date, fields: { availability } });
   }
-  return notice;
+  await applyCalendarChanges(merged, userId, "real_availability");
+  const flush = await flushAriOutbox();
+  const avail = flush.batches.find((b) => b.kind === "availability");
+  return { ok: !avail || avail.ok, bookedNights: nights.size, windowDays };
+}
+
+/** Realinha a disponibilidade real de todos os anúncios do piloto (após reservas novas/canceladas). */
+export async function syncPilotAvailability(userId: string | null = null) {
+  const out: unknown[] = [];
+  for (const t of PILOT_MAPPINGS) out.push(await syncRealAvailability(t, userId).catch((e) => ({ ok: false, error: String(e) })));
+  return out;
 }

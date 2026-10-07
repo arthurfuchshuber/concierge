@@ -156,6 +156,10 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
     const ack = await ackBookingRevision(booking._revisionId, booking._bookingId ?? null);
     if (!ack.ok) throw new Error("Falha ao confirmar (ACK) a revisão na Channex.");
   }
+
+  // Reserva nova/alterada/cancelada: reexporta a disponibilidade real (Channex → PriceLabs).
+  const { syncPilotAvailability } = await import("@/lib/channex-mapping.server");
+  await syncPilotAvailability().catch((e) => console.error("[channex] sync disponibilidade", e));
 }
 
 /** Puxa revisões ainda não confirmadas (feed) e processa + confirma cada uma. */
