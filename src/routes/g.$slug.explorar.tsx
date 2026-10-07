@@ -1613,11 +1613,8 @@ function EmbeddedMapModal({
   // The Embed API supports "q" for a single search OR we use the place-search
   // mode. For multiple custom pins we use the "search" mode with the property
   // location as center + all maps_url links listed below the map.
-  const GOOGLE_MAPS_KEY = (
-    typeof window !== "undefined"
-      ? ((window as unknown as { __ENV__?: { VITE_GOOGLE_MAPS_KEY?: string } }).__ENV__?.VITE_GOOGLE_MAPS_KEY ?? null)
-      : null
-  ) as string | null;
+  const GOOGLE_MAPS_KEY =
+    (import.meta.env["VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY"] as string | undefined) ?? null;
 
   // Build comma-separated waypoints from recs that have maps_url or a name.
   // The Embed API doesn't support multiple custom pins natively, so we use
