@@ -4484,6 +4484,9 @@ export type Database = {
       }
       property_listing_raw_data: {
         Row: {
+          airbnb_ai_enabled: boolean
+          airbnb_ai_toggled_at: string | null
+          airbnb_ai_toggled_by: string | null
           airbnb_listing_id: string
           channex_channel_id: string | null
           channex_property_id: string | null
@@ -4501,6 +4504,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          airbnb_ai_enabled?: boolean
+          airbnb_ai_toggled_at?: string | null
+          airbnb_ai_toggled_by?: string | null
           airbnb_listing_id: string
           channex_channel_id?: string | null
           channex_property_id?: string | null
@@ -4518,6 +4524,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          airbnb_ai_enabled?: boolean
+          airbnb_ai_toggled_at?: string | null
+          airbnb_ai_toggled_by?: string | null
           airbnb_listing_id?: string
           channex_channel_id?: string | null
           channex_property_id?: string | null
