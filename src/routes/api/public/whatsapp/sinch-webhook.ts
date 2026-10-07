@@ -57,6 +57,25 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
               .update({ delivery_status: mapped })
               .eq("external_id", messageId);
           }
+          if (mapped === "failed") {
+            // Rejeição pela plataforma depois do envio: alerta equipe e admins.
+            const { data: msg } = await supabaseAdmin
+              .from("property_chat_messages")
+              .select("conversation_id, property_chat_conversations(property_id, guest_name)")
+              .eq("external_id", messageId)
+              .maybeSingle();
+            const conv = (msg as any)?.property_chat_conversations;
+            if (msg?.conversation_id && conv?.property_id) {
+              const { reportDeliveryFailure } = await import("@/lib/delivery-failure.server");
+              await reportDeliveryFailure(supabaseAdmin, {
+                conversationId: msg.conversation_id as string,
+                propertyId: conv.property_id,
+                channel: "whatsapp",
+                guestName: conv.guest_name ?? null,
+                detail: status || "rejeitada",
+              });
+            }
+          }
           return new Response("ok");
         }
 
@@ -298,6 +317,16 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
               externalId = sent.messageId ?? null;
             } catch (e) {
               console.error("[sinch-webhook] envio ao WhatsApp falhou", e);
+              const { reportDeliveryFailure } = await import("@/lib/delivery-failure.server");
+              await reportDeliveryFailure(supabaseAdmin, {
+                conversationId: convId,
+                propertyId: log.property_id as string,
+                channel: "whatsapp",
+                propertyName: (prop as { name?: string }).name ?? null,
+                guestName: (log.guest_name as string | null) ?? null,
+                guestMessage: inbound,
+                detail: (e instanceof Error ? e.message : String(e)).slice(0, 120),
+              });
             }
 
             await supabaseAdmin.from("property_chat_messages").insert({
