@@ -50,10 +50,9 @@ export const importarAnunciosAirbnb = createServerFn({ method: "POST" })
     // Fase piloto: somente os anúncios liberados (Casa Charmosa). Os demais
     // anúncios permanecem fora — nada é criado nem alterado na Channex.
     const { syncPilotListings, PILOT_LISTINGS } = await import("@/lib/channex-listing.server");
-    const { safeMapAirbnbListing, PILOT_MAPPINGS } = await import("@/lib/channex-mapping.server");
     try {
-      // Abre o calendário na Channex antes de mapear, para o Airbnb nunca bloquear as datas.
-      for (const t of PILOT_MAPPINGS) await safeMapAirbnbListing(t, (context as { userId: string }).userId);
+      // ConciergeIA não é PMS: nunca mapeia tarifa/calendário na Channex
+      // (o Airbnb bloqueia o calendário quando o canal assume preços sem tarifa válida).
       const done = await syncPilotListings();
       // Puxa todo o histórico disponível (reservas, conversas, avaliações).
       const { backfillChannexHistory } = await import("@/lib/channex-history.server");
