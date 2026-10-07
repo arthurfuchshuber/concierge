@@ -935,6 +935,23 @@ export async function runHospitalityAgent(params: {
     }
   }
 
+  // Todo transbordo vira pergunta respondível no cartão "A IA está te
+  // perguntando" — sem isso, request_human_handoff só deixava um motivo solto.
+  if (handoffReason && !escalationId && params.conversationId) {
+    escalationId = await askHumanSupervisor({
+      supabase,
+      ownerId,
+      propertyId,
+      conversationId: params.conversationId,
+      guestKey,
+      guestName: params.guestName ?? null,
+      agent: agent.key,
+      trigger: "unknown_information",
+      reason: handoffReason,
+      question: handoffReason.replace(/^\[[^\]]+\]\s*/, ""),
+    }).catch(() => null);
+  }
+
   // Botões de resposta rápida — sempre que a IA termina fazendo uma pergunta
   // ao hóspede, ele deve poder responder num toque (e continuar livre para
   // digitar). Só chamamos o modelo quando existe pergunta no texto: antes esta
