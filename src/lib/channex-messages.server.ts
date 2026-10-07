@@ -334,6 +334,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     checkin: null,
     checkout: null,
   }));
+  const inquiry = await loadInquiryDetails(admin, m.threadId).catch(() => null);
   const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
   const result = await runHospitalityAgent({
     supabase: admin,
@@ -347,8 +348,9 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     channel: "airbnb",
     channelReference: m.threadId,
     reservationVerified: reservation.ok,
-    checkinDate: reservation.checkin,
-    checkoutDate: reservation.checkout,
+    checkinDate: reservation.checkin ?? inquiry?.checkin ?? null,
+    checkoutDate: reservation.checkout ?? inquiry?.checkout ?? null,
+    bookingRequest: inquiry,
   });
 
   if (result.handoff) {
@@ -464,4 +466,37 @@ async function pauseOnHostMessage(m: Inbound): Promise<void> {
       delivery_status: "delivered",
     });
   }
+}
+
+/**
+ * Datas/hóspedes da consulta ou pedido de reserva do Airbnb (eventos `inquiry`
+ * e `reservation_request` da Channex), para a IA nunca perguntar o que o
+ * hóspede já informou na plataforma.
+ */
+async function loadInquiryDetails(
+  admin: any,
+  threadId: string | null | undefined,
+): Promise<{ checkin: string; checkout: string; nights: number | null; guests: number | null; stage: string } | null> {
+  if (!threadId) return null;
+  const { data } = await admin
+    .from("fila_webhooks_channex")
+    .select("evento, payload")
+    .in("evento", ["inquiry", "reservation_request"])
+    .eq("payload->payload->>message_thread_id", threadId)
+    .order("id", { ascending: false })
+    .limit(1);
+  const row = (data ?? [])[0] as { evento: string; payload: any } | undefined;
+  if (!row) return null;
+  const p = row.payload?.payload ?? {};
+  const b = p.booking_details;
+  const r = p.bms?.raw_message?.reservation;
+  const checkin = b?.checkin_date ?? r?.start_date ?? p.bms?.arrival_date;
+  const checkout = b?.checkout_date ?? r?.end_date ?? p.bms?.departure_date;
+  if (!checkin || !checkout) return null;
+  const nights = Number(b?.nights ?? r?.nights) || null;
+  const guests =
+    Number(b?.number_of_guests) ||
+    Number(p.bms?.occ_adults ?? 0) + Number(p.bms?.occ_children ?? 0) ||
+    null;
+  return { checkin, checkout, nights, guests, stage: row.evento };
 }
