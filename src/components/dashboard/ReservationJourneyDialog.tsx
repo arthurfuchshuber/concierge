@@ -220,6 +220,8 @@ export function ReservationJourneyDialog({
     queryFn: () => fn({ data: { logId, reservationId } }),
     enabled: open && (!!logId || !!reservationId),
     staleTime: 15_000,
+    retry: 1,
+    retryDelay: 800,
   });
 
   const periodo = [fmtDateBR(data?.checkinDate ?? null), fmtDateBR(data?.checkoutDate ?? null)]
