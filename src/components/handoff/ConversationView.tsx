@@ -70,6 +70,8 @@ import { getTagItemsForConversation } from "@/lib/guide-tag-items.functions";
 import { KnowledgeFillDialog } from "@/components/handoff/KnowledgeFillDialog";
 import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
+import { transcribeAssistantAudio } from "@/lib/assistant.functions";
+import { Mic } from "lucide-react";
 import {
   COMPOSER_FIELD,
   COMPOSER_INPUT,
@@ -205,6 +207,27 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     [escalations],
   );
   const [askText, setAskText] = useState("");
+  const [askRecording, setAskRecording] = useState(false);
+  const [askTranscribing, setAskTranscribing] = useState(false);
+  const transcribeAskFn = useServerFn(transcribeAssistantAudio);
+  async function onAskRecorded(a: RecordedAudio) {
+    setAskRecording(false);
+    setAskTranscribing(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
+        r.onerror = () => reject(new Error("Não consegui ler o áudio."));
+        r.readAsDataURL(a.blob);
+      });
+      const { text } = await transcribeAskFn({ data: { audioBase64: base64, mimeType: a.mime } });
+      setAskText((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Não consegui transcrever o áudio.");
+    } finally {
+      setAskTranscribing(false);
+    }
+  }
   const [saveKnowledge, setSaveKnowledge] = useState(true);
 
   const tagItemsFn = useServerFn(getTagItemsForConversation);
@@ -1226,16 +1249,16 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           tomar posse. Some sozinho quando respondido.
           ------------------------------------------------------------------ */}
       {status !== "resolved" && canChat && pendingAsk && (
-        <div className="shrink-0 border-t border-border bg-surface px-3 pb-2 pt-2.5">
-          <div className="rounded-xl border border-violet-500/45 bg-violet-500/[0.07] p-3">
-            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-violet-600 dark:text-violet-300">
+        <div className="shrink-0 border-t border-zinc-200 bg-white px-3 pb-2 pt-2.5">
+          <div className="rounded-xl border border-violet-300 bg-violet-50 p-3 text-zinc-900">
+            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-violet-700">
               <Sparkles className="size-3" /> a IA está te perguntando
             </div>
-            <p className="text-[13px] font-semibold leading-snug">
+            <p className="text-[13px] font-semibold leading-snug text-zinc-900">
               {pendingAsk.question_to_human || "A IA precisa de uma decisão sua."}
             </p>
             <form
-              className="mt-2.5 flex items-center gap-2 rounded-lg border border-border bg-surface-elevated px-2.5 py-1.5"
+              className="mt-2.5 flex items-center gap-2 rounded-full border border-zinc-300 bg-white py-1 pl-3 pr-1"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!askText.trim() || answer.isPending) return;
@@ -1246,17 +1269,50 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 id="resposta-a-ia"
                 value={askText}
                 onChange={(e) => setAskText(e.target.value)}
-                placeholder="Responda à IA — ela leva ao hóspede na voz dela…"
-                className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-muted-foreground"
+                disabled={askTranscribing}
+                placeholder={
+                  askTranscribing
+                    ? "Transcrevendo seu áudio…"
+                    : "Responda à IA — ela leva ao hóspede na voz dela…"
+                }
+                className="min-w-0 flex-1 bg-transparent text-[13px] text-zinc-900 outline-none placeholder:text-zinc-500"
               />
-              <button
-                type="submit"
-                disabled={!askText.trim() || answer.isPending}
-                className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-[11.5px] font-semibold text-primary-foreground disabled:opacity-45"
-              >
-                {answer.isPending ? <Loader2 className="size-3 animate-spin" /> : null}
-                Enviar
-              </button>
+              {askText.trim() ? (
+                <button
+                  type="submit"
+                  disabled={answer.isPending}
+                  aria-label="Enviar resposta"
+                  className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600 text-white disabled:opacity-45"
+                >
+                  {answer.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Send className="size-4" />
+                  )}
+                </button>
+              ) : askTranscribing ? (
+                <span className="grid size-8 shrink-0 place-items-center text-zinc-500">
+                  <Loader2 className="size-4 animate-spin" />
+                </span>
+              ) : askRecording ? (
+                <AudioRecorderButton
+                  autoStart
+                  compact
+                  maxSeconds={120}
+                  onRecorded={onAskRecorded}
+                  onCancel={() => setAskRecording(false)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAskRecording(true)}
+                  aria-label="Responder por áudio"
+                  title="Responder por áudio"
+                  className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600 text-white hover:bg-violet-700"
+                >
+                  <Mic className="size-4" />
+                </button>
+              )}
             </form>
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               <label
