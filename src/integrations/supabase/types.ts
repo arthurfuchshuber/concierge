@@ -4482,6 +4482,68 @@ export type Database = {
           },
         ]
       }
+      property_listing_raw_data: {
+        Row: {
+          airbnb_listing_id: string
+          channex_channel_id: string | null
+          channex_property_id: string | null
+          channex_rate_plan_id: string | null
+          channex_room_type_id: string | null
+          created_at: string
+          id: string
+          listing_meta: Json
+          normalized: Json
+          owner_id: string
+          property_id: string
+          raw_settings: Json
+          source: string
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          airbnb_listing_id: string
+          channex_channel_id?: string | null
+          channex_property_id?: string | null
+          channex_rate_plan_id?: string | null
+          channex_room_type_id?: string | null
+          created_at?: string
+          id?: string
+          listing_meta?: Json
+          normalized?: Json
+          owner_id: string
+          property_id: string
+          raw_settings?: Json
+          source?: string
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          airbnb_listing_id?: string
+          channex_channel_id?: string | null
+          channex_property_id?: string | null
+          channex_rate_plan_id?: string | null
+          channex_room_type_id?: string | null
+          created_at?: string
+          id?: string
+          listing_meta?: Json
+          normalized?: Json
+          owner_id?: string
+          property_id?: string
+          raw_settings?: Json
+          source?: string
+          synced_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_listing_raw_data_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_manual_items: {
         Row: {
           body: string | null

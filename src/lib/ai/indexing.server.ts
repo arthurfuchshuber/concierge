@@ -254,6 +254,23 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     pushChunk(chunks, { source: "host_behavior", sourceId: String(b.id), title: String(b.title ?? ""), content: String(b.body ?? "") });
   }
 
+  // Anúncio oficial do Airbnb (fonte canônica primária, sincronizado via Channex).
+  const { data: listing } = await supabase
+    .from("property_listing_raw_data" as never)
+    .select("normalized")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  const listingFacts = ((listing as { normalized?: { facts?: Array<{ key: string; title: string; content: string }> } } | null)
+    ?.normalized?.facts ?? []);
+  for (const f of listingFacts) {
+    pushChunk(chunks, {
+      source: "airbnb_listing",
+      sourceId: f.key,
+      title: `Anúncio Airbnb — ${f.title}`,
+      content: f.content,
+    });
+  }
+
   return chunks;
 }
 

@@ -7,14 +7,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * A chave fica apenas no servidor (CHANNEX_STAGING_API_KEY) e é enviada no
  * header `user-api-key`, conforme a documentação do Channex.
  */
-const CHANNEX_BASE = "https://app.channex.io/api/v1";
-const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
-
-type AirbnbListing = {
-  id: string;
-  title: string;
-  occupancies?: number[];
-};
 
 export type ChannexSyncResult = {
   total: number;
@@ -22,26 +14,6 @@ export type ChannexSyncResult = {
   jaExistentes: number;
   falhas: Array<{ titulo: string; erro: string }>;
 };
-
-async function channex<T>(
-  path: string,
-  init: { method?: string; body?: unknown } = {},
-): Promise<T> {
-  const key = (process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"]);
-  if (!key) throw new Error("A chave da integração Channex não está configurada.");
-  const res = await fetch(`${CHANNEX_BASE}${path}`, {
-    method: init.method ?? "GET",
-    headers: {
-      "user-api-key": key,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    ...(init.body ? { body: JSON.stringify(init.body) } : {}),
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`Channex ${res.status}: ${text.slice(0, 300)}`);
-  return (text ? JSON.parse(text) : {}) as T;
-}
 
 async function requireAdmin(context: { supabase: { rpc: (fn: string, args: unknown) => Promise<{ data: unknown }> }; userId: string }) {
   const { data } = await context.supabase.rpc("has_role", {
@@ -75,102 +47,19 @@ export const importarAnunciosAirbnb = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ChannexSyncResult> => {
     await requireAdmin(context as never);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    // Propriedade do Channex onde os quartos serão criados.
-    const props = await channex<{ data: Array<{ id: string }> }>("/properties");
-    const channexPropertyId = props.data?.[0]?.id;
-    if (!channexPropertyId) throw new Error("Nenhuma propriedade encontrada na conta Channex.");
-
-    const listingsRes = await channex<{
-      data: { listing_id_dictionary: { values: AirbnbListing[] } };
-    }>(`/channels/${AIRBNB_CHANNEL_ID}/action/listings`);
-    const listings = listingsRes.data?.listing_id_dictionary?.values ?? [];
-
-    const result: ChannexSyncResult = { total: listings.length, importados: 0, jaExistentes: 0, falhas: [] };
-
-    for (const listing of listings) {
-      const titulo = (listing.title ?? "").trim() || `Anúncio ${listing.id}`;
-      try {
-        const { data: existing } = await supabaseAdmin
-          .from("propriedades")
-          .select("id, channex_room_type_id, channex_rate_plan_id")
-          .eq("channex_listing_id", listing.id)
-          .maybeSingle();
-
-        if (existing?.channex_room_type_id && existing.channex_rate_plan_id) {
-          result.jaExistentes += 1;
-          continue;
-        }
-
-        let rowId = existing?.id ?? null;
-        if (!rowId) {
-          const { data: inserted, error } = await supabaseAdmin
-            .from("propriedades")
-            .insert({
-              nome: titulo,
-              channex_listing_id: listing.id,
-              channex_property_id: channexPropertyId,
-              status: "importando",
-            })
-            .select("id")
-            .single();
-          if (error) throw new Error(error.message);
-          rowId = inserted.id;
-        }
-
-        const maxOcc = Math.max(1, ...(listing.occupancies ?? [2]));
-
-        const roomTypeRes = await channex<{ data: { id: string } }>("/room_types", {
-          method: "POST",
-          body: {
-            room_type: {
-              property_id: channexPropertyId,
-              title: titulo.slice(0, 250),
-              count_of_rooms: 1,
-              occ_adults: maxOcc,
-              occ_children: 0,
-              occ_infants: 0,
-              default_occupancy: maxOcc,
-              facilities: [],
-              room_kind: "room",
-            },
-          },
-        });
-        const roomTypeId = roomTypeRes.data.id;
-
-        const ratePlanRes = await channex<{ data: { id: string } }>("/rate_plans", {
-          method: "POST",
-          body: {
-            rate_plan: {
-              property_id: channexPropertyId,
-              room_type_id: roomTypeId,
-              title: "Tarifa padrão",
-              currency: "BRL",
-              sell_mode: "per_room",
-              rate_mode: "manual",
-              options: [{ occupancy: maxOcc, is_primary: true, rate: 0 }],
-            },
-          },
-        });
-        const ratePlanId = ratePlanRes.data.id;
-
-        const { error: upErr } = await supabaseAdmin
-          .from("propriedades")
-          .update({
-            nome: titulo,
-            channex_room_type_id: roomTypeId,
-            channex_rate_plan_id: ratePlanId,
-            status: "sincronizado",
-          })
-          .eq("id", rowId);
-        if (upErr) throw new Error(upErr.message);
-
-        result.importados += 1;
-      } catch (e) {
-        result.falhas.push({ titulo, erro: e instanceof Error ? e.message : String(e) });
-      }
+    // Fase piloto: somente os anúncios liberados (Casa Charmosa). Os demais
+    // anúncios permanecem fora — nada é criado nem alterado na Channex.
+    const { syncPilotListings, PILOT_LISTINGS } = await import("@/lib/channex-listing.server");
+    try {
+      const done = await syncPilotListings();
+      const total = Object.keys(PILOT_LISTINGS).length;
+      return {
+        total,
+        importados: done.length,
+        jaExistentes: 0,
+        falhas: done.length < total ? [{ titulo: "Anúncio piloto", erro: "Ainda não mapeado na Channex." }] : [],
+      };
+    } catch (e) {
+      return { total: 1, importados: 0, jaExistentes: 0, falhas: [{ titulo: "Casa Charmosa", erro: e instanceof Error ? e.message : String(e) }] };
     }
-
-    return result;
   });

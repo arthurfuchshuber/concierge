@@ -14,6 +14,8 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
   reservation: 1.0,
   database: 0.99,
   property: 0.99,
+  // Anúncio oficial do Airbnb (via Channex) — fonte canônica primária.
+  airbnb_listing: 0.995,
   // Tier 2 — conteúdo oficial publicado pelo anfitrião
   guide: 0.98,
   manual: 0.98,
@@ -49,7 +51,7 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
 };
 
 export const SOURCE_TIERS: Array<{ tier: number; label: string; sources: string[] }> = [
-  { tier: 1, label: "Oficial transacional", sources: ["human_decision", "reservation", "database", "property"] },
+  { tier: 1, label: "Oficial transacional", sources: ["human_decision", "reservation", "airbnb_listing", "database", "property"] },
   {
     tier: 2,
     label: "Conteúdo oficial do anfitrião",
