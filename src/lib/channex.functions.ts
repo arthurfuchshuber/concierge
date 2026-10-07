@@ -75,6 +75,29 @@ export const importarAnunciosAirbnb = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ChannexSyncResult> => {
     await requireAdmin(context as never);
+    // Fase piloto: somente os anúncios liberados (Casa Charmosa). Os demais
+    // anúncios permanecem fora — nada é criado nem alterado na Channex.
+    const { syncPilotListings, PILOT_LISTINGS } = await import("@/lib/channex-listing.server");
+    try {
+      const done = await syncPilotListings();
+      const total = Object.keys(PILOT_LISTINGS).length;
+      return {
+        total,
+        importados: done.length,
+        jaExistentes: 0,
+        falhas: done.length < total ? [{ titulo: "Anúncio piloto", erro: "Ainda não mapeado na Channex." }] : [],
+      };
+    } catch (e) {
+      return { total: 1, importados: 0, jaExistentes: 0, falhas: [{ titulo: "Casa Charmosa", erro: e instanceof Error ? e.message : String(e) }] };
+    }
+  });
+
+/** Importação completa antiga (todos os anúncios) — desativada durante o piloto. */
+export const importarTodosAnunciosAirbnbLegacy = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<ChannexSyncResult> => {
+    await requireAdmin(context as never);
+    throw new Error("Importação de todos os anúncios desativada durante o piloto.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Propriedade do Channex onde os quartos serão criados.
