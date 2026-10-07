@@ -166,7 +166,11 @@ export async function sendChannexThreadMessage(threadId: string, text: string): 
 export async function handleChannexMessage(payload: unknown): Promise<void> {
   const m = parseChannexMessage(payload);
   if (!m || !m.threadId) return;
-  if (m.sender !== "guest") return; // mensagens do anfitrião não disparam IA
+  if (m.sender !== "guest") {
+    // Anfitrião falou direto no Airbnb → IA se cala nessa conversa (30 min, renovável).
+    await pauseOnHostMessage(m).catch((e: unknown) => console.error("[channex-messages] pausa falhou", e));
+    return;
+  }
 
   const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
 
@@ -310,6 +314,15 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
 
   const reply = toAirbnbPlainText(result.reply);
   if (!reply) return;
+
+  // Rechecagem na hora do envio: a chave pode ter sido desligada ou o anfitrião
+  // pode ter falado enquanto a IA pensava. Nesse caso, a resposta é descartada.
+  const [{ data: sw }, { data: conv }] = await Promise.all([
+    admin.from("property_listing_raw_data").select("airbnb_ai_enabled").eq("property_id", listing.property_id).maybeSingle(),
+    admin.from("property_chat_conversations").select("ai_paused, paused_until").eq("id", convId).maybeSingle(),
+  ]);
+  const { isPausedNow } = await import("@/lib/ai/pause");
+  if (!(sw as any)?.airbnb_ai_enabled || isPausedNow(conv as never)) return;
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
   try {
@@ -338,4 +351,49 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     external_id: externalId,
     delivery_status: status,
   });
+}
+
+/** Mensagem do anfitrião vinda do Airbnb: registra e pausa a IA na conversa. */
+async function pauseOnHostMessage(m: Inbound): Promise<void> {
+  if (!m.threadId) return;
+  const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
+  const { pausePatch } = await import("@/lib/ai/pause");
+  const { data: convs } = await admin
+    .from("property_chat_conversations")
+    .select("id")
+    .eq("guest_session_id", `airbnb:${m.threadId}`);
+  const norm = (x: string) => x.replace(/\s+/g, " ").trim();
+  for (const c of (convs ?? []) as Array<{ id: string }>) {
+    // Eco das próprias respostas da IA (enviadas pela API) não conta como anfitrião.
+    const since = new Date(Date.now() - 10 * 60_000).toISOString();
+    const { data: aiRecent } = await admin
+      .from("property_chat_messages")
+      .select("external_id, content")
+      .eq("conversation_id", c.id)
+      .eq("sender_type", "ai")
+      .gte("created_at", since);
+    const isEcho = ((aiRecent ?? []) as Array<{ external_id: string | null; content: string | null }>).some(
+      (r) => (m.messageId && r.external_id === m.messageId) || norm(String(r.content ?? "")) === norm(m.text),
+    );
+    if (isEcho) continue;
+    await admin.from("property_chat_conversations").update(pausePatch()).eq("id", c.id);
+    if (m.messageId) {
+      const { data: dup } = await admin
+        .from("property_chat_messages")
+        .select("id")
+        .eq("channel", "airbnb" as never)
+        .eq("external_id", m.messageId)
+        .maybeSingle();
+      if (dup) continue;
+    }
+    await admin.from("property_chat_messages").insert({
+      conversation_id: c.id,
+      role: "assistant",
+      content: m.text,
+      sender_type: "human",
+      channel: "airbnb" as never,
+      external_id: m.messageId,
+      delivery_status: "delivered",
+    });
+  }
 }
