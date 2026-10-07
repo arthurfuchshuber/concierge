@@ -106,5 +106,18 @@ export const setAirbnbAiToggle = createServerFn({ method: "POST" })
       } as never)
       .eq("property_id", data.propertyId);
     if (error) throw new Error(error.message);
+    if (!data.enabled) {
+      // Expurga mensagens de chat pendentes para a IA não responder após desligar.
+      // Reservas/ARI continuam na fila (não dependem da IA).
+      await supabaseAdmin
+        .from("fila_webhooks_channex" as never)
+        .update({
+          processado: true,
+          processado_em: new Date().toISOString(),
+          erro: "Descartado: IA desativada pelo anfitrião",
+        } as never)
+        .eq("processado", false)
+        .in("evento", ["message", "new_message"]);
+    }
     return { ok: true };
   });
