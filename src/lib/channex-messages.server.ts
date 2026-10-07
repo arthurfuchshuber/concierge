@@ -314,6 +314,15 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
 
   const reply = toAirbnbPlainText(result.reply);
   if (!reply) return;
+
+  // Rechecagem na hora do envio: a chave pode ter sido desligada ou o anfitrião
+  // pode ter falado enquanto a IA pensava. Nesse caso, a resposta é descartada.
+  const [{ data: sw }, { data: conv }] = await Promise.all([
+    admin.from("property_listing_raw_data").select("airbnb_ai_enabled").eq("property_id", listing.property_id).maybeSingle(),
+    admin.from("property_chat_conversations").select("ai_paused, paused_until").eq("id", convId).maybeSingle(),
+  ]);
+  const { isPausedNow } = await import("@/lib/ai/pause");
+  if (!(sw as any)?.airbnb_ai_enabled || isPausedNow(conv as never)) return;
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
   try {
