@@ -260,14 +260,27 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     .select("normalized")
     .eq("property_id", propertyId)
     .maybeSingle();
-  const listingFacts = ((listing as { normalized?: { facts?: Array<{ key: string; title: string; content: string }> } } | null)
-    ?.normalized?.facts ?? []);
-  for (const f of listingFacts) {
+  const norm = (listing as {
+    normalized?: {
+      facts?: Array<{ key: string; title: string; content: string }>;
+      reviews?: Array<{ id: string; content: string; score?: number | null }>;
+    };
+  } | null)?.normalized;
+  for (const f of norm?.facts ?? []) {
     pushChunk(chunks, {
       source: "airbnb_listing",
       sourceId: f.key,
       title: `Anúncio Airbnb — ${f.title}`,
       content: f.content,
+    });
+  }
+  // Avaliações reais de hóspedes (sem nomes) — pontos fortes/atenção da casa.
+  for (const r of norm?.reviews ?? []) {
+    pushChunk(chunks, {
+      source: "airbnb_listing",
+      sourceId: `review:${r.id}`,
+      title: "Avaliação de hóspede no Airbnb",
+      content: r.content,
     });
   }
 
