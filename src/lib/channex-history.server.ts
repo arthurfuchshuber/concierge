@@ -99,7 +99,7 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
       .maybeSingle();
     let convId = existing?.id as string | undefined;
     if (!convId) {
-      const { data: created } = await admin
+      const { data: created, error: cErr } = await admin
         .from("property_chat_conversations")
         .insert({
           property_id: propertyId,
@@ -112,6 +112,7 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
         } as never)
         .select("id")
         .single();
+      if (cErr) console.error("[channex-history] conversa", t.id, cErr.message);
       convId = created?.id as string | undefined;
       if (!convId) continue;
       result.conversations++;
@@ -141,7 +142,8 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
       });
     if (toInsert.length) {
       const { error } = await admin.from("property_chat_messages").insert(toInsert as never);
-      if (!error) result.messages += toInsert.length;
+      if (error) console.error("[channex-history] mensagens", t.id, error.message);
+      else result.messages += toInsert.length;
     }
   }
 
