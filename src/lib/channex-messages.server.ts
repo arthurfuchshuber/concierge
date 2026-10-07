@@ -21,8 +21,39 @@ async function channex<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "user-api-key": apiKey(), Accept: "application/json", "Content-Type": "application/json" },
   });
-  if (!res.ok) throw new Error(`Channex ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Channex ${res.status} ${body.slice(0, 200)}`.trim());
+  }
   return (await res.json()) as T;
+}
+
+/**
+ * Reserva confirmada e vigente (ou futura) vinculada a esta conversa do Airbnb.
+ * Sem reserva confirmada (ex.: consulta pré-reserva), dados sensíveis ficam bloqueados.
+ */
+async function hasConfirmedReservation(admin: any, propertyId: string, m: Inbound): Promise<{ ok: boolean; checkin: string | null; checkout: string | null }> {
+  const today = new Date().toISOString().slice(0, 10);
+  const no = { ok: false, checkin: null, checkout: null };
+  let bookingId = m.bookingId;
+  let otaThreadId: string | null = null;
+  if (m.threadId) {
+    const t = await channex<{ data?: any }>(`/message_threads/${m.threadId}`).catch(() => null);
+    bookingId = bookingId ?? str(t?.data?.relationships?.booking?.data?.id);
+    otaThreadId = str(t?.data?.attributes?.ota_message_thread_id);
+  }
+  const { data: rows } = await admin
+    .from("property_reservations")
+    .select("external_uid, checkin_date, checkout_date, status, guest_contacts")
+    .eq("property_id", propertyId)
+    .eq("status", "confirmed")
+    .gte("checkout_date", today);
+  const match = ((rows ?? []) as any[]).find(
+    (r) =>
+      (bookingId && r.external_uid === bookingId) ||
+      (otaThreadId && r.guest_contacts?.ota_thread_id === otaThreadId),
+  );
+  return match ? { ok: true, checkin: match.checkin_date, checkout: match.checkout_date } : no;
 }
 
 type Inbound = {
@@ -103,9 +134,13 @@ async function resolveListing(admin: any, m: Inbound): Promise<ListingRow | null
 
 /** O chat do Airbnb não renderiza Markdown: remove marcações antes do envio. */
 export function toAirbnbPlainText(text: string): string {
+  // O Airbnb bloqueia mensagens com links (message_has_prohibited_content).
   return text
     .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, "")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1: $2")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
+    .replace(/(https?:\/\/|www\.)\S+/gi, "")
+    .replace(/\b[\w-]+\.(com|gl|ly|br|net|org|app|io)(\/\S*)?\b/gi, "")
+    .replace(/[ \t]*:[ \t]*(?=\n|$)/g, ".")
     .replace(/^\s{0,3}#{1,6}\s+/gm, "")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/__([^_]+)__/g, "$1")
@@ -222,6 +257,11 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
 
   const { loadAgentHistory } = await import("@/lib/chat-audio.server");
   const history = await loadAgentHistory(admin, convId, 20);
+  const reservation = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => ({
+    ok: false,
+    checkin: null,
+    checkout: null,
+  }));
   const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
   const result = await runHospitalityAgent({
     supabase: admin,
@@ -234,6 +274,9 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     surface: "airbnb",
     channel: "airbnb",
     channelReference: m.threadId,
+    reservationVerified: reservation.ok,
+    checkinDate: reservation.checkin,
+    checkoutDate: reservation.checkout,
   });
 
   if (result.handoff) {
@@ -274,6 +317,17 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   } catch (e) {
     status = "failed";
     console.error("[channex-messages] envio ao Airbnb falhou", e);
+    const msg = e instanceof Error ? e.message : String(e);
+    const { reportDeliveryFailure } = await import("@/lib/delivery-failure.server");
+    await reportDeliveryFailure(admin, {
+      conversationId: convId,
+      propertyId: listing.property_id,
+      channel: "airbnb",
+      propertyName,
+      guestName: m.guestName,
+      guestMessage: m.text,
+      detail: /prohibited_content/.test(msg) ? "conteúdo proibido pela plataforma" : msg.slice(0, 120),
+    });
   }
   await admin.from("property_chat_messages").insert({
     conversation_id: convId,

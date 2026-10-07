@@ -166,6 +166,12 @@ export async function runHospitalityAgent(params: {
    * vitrine da landing) recebia o código da fechadura pela IA.
    */
   credentialsLocked?: boolean;
+  /**
+   * Reserva confirmada e ativa validada pelo canal. Sem ela, dados sensíveis
+   * do imóvel (endereço exato, número, senhas, códigos, Wi-Fi, contatos
+   * internos) NUNCA são revelados — regra para todos os canais.
+   */
+  reservationVerified?: boolean;
 }): Promise<OrchestratorResult> {
   const started = Date.now();
   const { supabase, property } = params;
@@ -393,7 +399,16 @@ export async function runHospitalityAgent(params: {
     }
   }
 
-  const credentialsLocked = context.sensitiveLocked || params.credentialsLocked === true;
+  // Reserva confirmada e ativa: o canal informa; sem informação, só vale a
+  // reserva vinculada fora do Airbnb e com estadia ainda não encerrada.
+  const reservationVerified =
+    params.reservationVerified ??
+    (channel !== "airbnb" &&
+      context.keys.includes("reservation") &&
+      context.stayPhase !== "post_checkout" &&
+      context.stayPhase !== "unknown");
+  const credentialsLocked =
+    context.sensitiveLocked || params.credentialsLocked === true || !reservationVerified;
   const retrieved = await hybridRetrieve({
     supabase,
     ownerId,
@@ -559,8 +574,11 @@ export async function runHospitalityAgent(params: {
     reservationModeContext +
     renderHumanAnswers(humanAnswers) +
     `\n\nIDIOMA PROVÁVEL DA MENSAGEM: ${intent.language} (responda no idioma em que o hóspede escreveu)` +
+    (reservationVerified
+      ? ""
+      : `\n\nRESERVA NÃO CONFIRMADA — DADOS SENSÍVEIS BLOQUEADOS (prioridade máxima, vale para qualquer canal)\n- Não há reserva confirmada e ativa validada para esta pessoa.\n- NUNCA informe endereço exato (rua com número, complemento, CEP), link/pin de localização do imóvel, senhas, códigos de portão/fechadura, Wi-Fi, instruções de acesso ou contatos internos.\n- Pode citar apenas bairro, região e distâncias/referências próximas.\n- Se pedirem esses dados, explique com gentileza que o endereço completo e as informações de acesso são enviados assim que a reserva estiver confirmada.`) +
     (channel === "airbnb"
-      ? `\n\nCANAL AIRBNB — TEXTO PURO (prioridade sobre qualquer regra de formato acima)\n- O chat do Airbnb não aceita formatação: escreva só texto corrido.\n- PROIBIDO usar asteriscos, sublinhados, negrito, itálico, títulos com "#", imagens ![...](...) ou links no formato [texto](url). Se precisar de link, escreva a URL pura.\n- Para listas, use quebras de linha e "- " simples, sem destacar palavras.`
+      ? `\n\nCANAL AIRBNB — TEXTO PURO (prioridade sobre qualquer regra de formato acima)\n- O chat do Airbnb não aceita formatação: escreva só texto corrido.\n- PROIBIDO usar asteriscos, sublinhados, negrito, itálico, títulos com "#", imagens ou links.\n- NUNCA envie URLs, links de mapa, sites, e-mails ou telefones: o Airbnb bloqueia a mensagem. Para localizar um lugar, diga o nome e o endereço/bairro para o hóspede buscar no Google Maps.\n- Para listas, use quebras de linha e "- " simples, sem destacar palavras.`
       : "") +
     `\n\nEVIDÊNCIAS PRÉ-RECUPERADAS (busca híbrida: ${retrievalUsed.join("+") || "nenhuma"})\n${renderPassages(passages)}`;
 
