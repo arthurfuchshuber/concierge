@@ -50,7 +50,10 @@ export const importarAnunciosAirbnb = createServerFn({ method: "POST" })
     // Fase piloto: somente os anúncios liberados (Casa Charmosa). Os demais
     // anúncios permanecem fora — nada é criado nem alterado na Channex.
     const { syncPilotListings, PILOT_LISTINGS } = await import("@/lib/channex-listing.server");
+    const { safeMapAirbnbListing, PILOT_MAPPINGS } = await import("@/lib/channex-mapping.server");
     try {
+      // Abre o calendário na Channex antes de mapear, para o Airbnb nunca bloquear as datas.
+      for (const t of PILOT_MAPPINGS) await safeMapAirbnbListing(t, (context as { userId: string }).userId);
       const done = await syncPilotListings();
       const total = Object.keys(PILOT_LISTINGS).length;
       return {
