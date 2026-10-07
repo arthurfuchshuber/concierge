@@ -4836,6 +4836,7 @@ export type Database = {
           created_at: string
           external_uid: string
           feed_index: number
+          guest_contacts: Json
           guest_hint: string | null
           id: string
           property_id: string
@@ -4852,6 +4853,7 @@ export type Database = {
           created_at?: string
           external_uid: string
           feed_index?: number
+          guest_contacts?: Json
           guest_hint?: string | null
           id?: string
           property_id: string
@@ -4868,6 +4870,7 @@ export type Database = {
           created_at?: string
           external_uid?: string
           feed_index?: number
+          guest_contacts?: Json
           guest_hint?: string | null
           id?: string
           property_id?: string
