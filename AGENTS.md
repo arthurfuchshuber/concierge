@@ -12,3 +12,4 @@
 - Airbnb chat messages arrive as Channex `message` webhooks via the same queue and are handled in `src/lib/channex-messages.server.ts`; the AI replies only when the listing is resolved with certainty and its per-property `airbnb_ai_enabled` switch is on, so no guest gets answers from the wrong property or without host consent.
 
 - Airbnb listing data is ingested read-only from Channex into `property_listing_raw_data` (raw + normalized facts) and indexed as AI source `airbnb_listing` (top tier); only listings in `PILOT_LISTINGS` (`src/lib/channex-listing.server.ts`) are synced, so unvalidated properties stay untouched.
+- Airbnb listings are mapped only through `safeMapAirbnbListing` (`src/lib/channex-mapping.server.ts`), which opens availability via the ARI outbox and verifies it before calling `/channels/{id}/mappings`; mapping with zero inventory makes Airbnb block the whole calendar.
