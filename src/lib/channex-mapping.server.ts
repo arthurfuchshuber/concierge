@@ -18,6 +18,8 @@ export type SafeMapTarget = {
   channexPropertyId: string;
   roomTypeId: string;
   ratePlanId: string;
+  /** Imóvel no ConciergeIA (bloqueios e reservas locais também fecham datas). */
+  propertyId?: string;
 };
 
 /** Anúncios liberados no piloto com seus IDs na Channex. */
@@ -28,6 +30,7 @@ export const PILOT_MAPPINGS: SafeMapTarget[] = [
     channexPropertyId: "c1add170-eaed-42b8-bb12-dc2f3adcf9e3",
     roomTypeId: "763011b4-1941-4fa3-978a-641c8d0df782",
     ratePlanId: "164f4b12-c67c-4da9-aebc-ae093689b2e3",
+    propertyId: "9a94ad7f-c259-4a66-aedf-c4e87c449d5c",
   },
 ];
 
@@ -86,6 +89,21 @@ async function activeBookingNights(t: SafeMapTarget): Promise<Set<string>> {
       for (let d = new Date(`${a.arrival_date}T00:00:00Z`); iso(d) < a.departure_date; d = new Date(d.getTime() + 86_400_000)) nights.add(iso(d));
     }
     if (rows.length < 100) break;
+  }
+  // Bloqueios do anfitrião / Airbnb (iCal) e reservas registradas no ConciergeIA também fecham a data.
+  if (t.propertyId) {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const today = iso(new Date());
+    const { data } = await supabaseAdmin
+      .from("property_reservations")
+      .select("checkin_date, checkout_date, status")
+      .eq("property_id", t.propertyId)
+      .gte("checkout_date", today);
+    for (const r of (data ?? []) as any[]) {
+      if (String(r.status ?? "").toLowerCase().includes("cancel")) continue;
+      if (!r.checkin_date || !r.checkout_date) continue;
+      for (let d = new Date(`${r.checkin_date}T00:00:00Z`); iso(d) < r.checkout_date; d = new Date(d.getTime() + 86_400_000)) nights.add(iso(d));
+    }
   }
   return nights;
 }
