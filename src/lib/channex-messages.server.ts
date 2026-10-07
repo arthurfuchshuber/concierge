@@ -166,7 +166,11 @@ export async function sendChannexThreadMessage(threadId: string, text: string): 
 export async function handleChannexMessage(payload: unknown): Promise<void> {
   const m = parseChannexMessage(payload);
   if (!m || !m.threadId) return;
-  if (m.sender !== "guest") return; // mensagens do anfitrião não disparam IA
+  if (m.sender !== "guest") {
+    // Anfitrião falou direto no Airbnb → IA se cala nessa conversa (30 min, renovável).
+    await pauseOnHostMessage(m).catch((e) => console.error("[channex-messages] pausa falhou", e));
+    return;
+  }
 
   const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
 
