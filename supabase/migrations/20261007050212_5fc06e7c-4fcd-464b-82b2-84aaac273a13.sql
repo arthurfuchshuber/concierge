@@ -1,0 +1,3 @@
+ALTER TABLE public.property_chat_messages DROP CONSTRAINT IF EXISTS property_chat_messages_channel_check;
+ALTER TABLE public.property_chat_messages ADD CONSTRAINT property_chat_messages_channel_check CHECK (channel = ANY (ARRAY['web'::text, 'whatsapp'::text, 'airbnb'::text]));
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pcm_airbnb_external ON public.property_chat_messages(external_id) WHERE channel = 'airbnb' AND external_id IS NOT NULL;
