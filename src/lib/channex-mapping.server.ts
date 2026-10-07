@@ -55,9 +55,15 @@ export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | nu
   );
   if (mapped) return { listingId: t.listingId, status: "already_mapped" as const };
 
-  // 2) Abre 1 vaga/dia por 365 dias pelo fluxo ARI oficial (diff → outbox → lote).
+  // 2) Abre 1 vaga/dia SÓ na janela que o anfitrião configurou no Airbnb
+  //    (availability_rule.max_days_notice); nunca estica além disso.
+  const listings = await call("POST", `/channels/${t.channelId}/action/listings`).catch(() => null);
+  const meta = (listings?.data?.listing_id_dictionary?.values ?? []).find((v: any) => String(v.id) === t.listingId);
+  const rule = meta?.availability_rule ?? meta?.settings?.availability_rule ?? {};
+  const notice = Number(rule.max_days_notice);
+  const days = Number.isFinite(notice) && notice > 0 ? Math.min(notice, 730) : 365;
   const from = new Date();
-  const to = new Date(from.getTime() + 365 * 86_400_000);
+  const to = new Date(from.getTime() + days * 86_400_000);
   await applyCalendarChanges(
     [{ propertyId: t.channexPropertyId, roomTypeId: t.roomTypeId, ratePlanId: t.ratePlanId, dateFrom: iso(from), dateTo: iso(to), fields: { availability: 1 } }],
     userId,

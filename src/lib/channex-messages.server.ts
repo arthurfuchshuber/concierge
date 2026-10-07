@@ -47,11 +47,11 @@ export function parseChannexMessage(payload: unknown): Inbound | null {
   return {
     messageId: str(p.id) ?? str(p.ota_message_id),
     text,
-    sender: String(p.sender ?? "guest").toLowerCase(),
+    sender: String(p.sender ?? p.meta?.role ?? "guest").toLowerCase(),
     threadId: str(p.message_thread_id) ?? str(p.thread_id),
     bookingId: str(p.booking_id),
     channexPropertyId: str(p.property_id) ?? str(root.property_id),
-    guestName: str(p.guest_name) ?? str(p.sender_name),
+    guestName: str(p.guest_name) ?? str(p.meta?.name) ?? str(p.sender_name),
   };
 }
 
