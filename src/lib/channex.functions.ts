@@ -55,6 +55,9 @@ export const importarAnunciosAirbnb = createServerFn({ method: "POST" })
       // Abre o calendário na Channex antes de mapear, para o Airbnb nunca bloquear as datas.
       for (const t of PILOT_MAPPINGS) await safeMapAirbnbListing(t, (context as { userId: string }).userId);
       const done = await syncPilotListings();
+      // Puxa todo o histórico disponível (reservas, conversas, avaliações).
+      const { backfillChannexHistory } = await import("@/lib/channex-history.server");
+      await backfillChannexHistory().catch((e) => console.error("[channex-history]", e));
       const total = Object.keys(PILOT_LISTINGS).length;
       return {
         total,
