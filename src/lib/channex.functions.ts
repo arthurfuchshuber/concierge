@@ -7,14 +7,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * A chave fica apenas no servidor (CHANNEX_STAGING_API_KEY) e é enviada no
  * header `user-api-key`, conforme a documentação do Channex.
  */
-const CHANNEX_BASE = "https://app.channex.io/api/v1";
-const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
-
-type AirbnbListing = {
-  id: string;
-  title: string;
-  occupancies?: number[];
-};
 
 export type ChannexSyncResult = {
   total: number;
@@ -22,26 +14,6 @@ export type ChannexSyncResult = {
   jaExistentes: number;
   falhas: Array<{ titulo: string; erro: string }>;
 };
-
-async function channex<T>(
-  path: string,
-  init: { method?: string; body?: unknown } = {},
-): Promise<T> {
-  const key = (process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"]);
-  if (!key) throw new Error("A chave da integração Channex não está configurada.");
-  const res = await fetch(`${CHANNEX_BASE}${path}`, {
-    method: init.method ?? "GET",
-    headers: {
-      "user-api-key": key,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    ...(init.body ? { body: JSON.stringify(init.body) } : {}),
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`Channex ${res.status}: ${text.slice(0, 300)}`);
-  return (text ? JSON.parse(text) : {}) as T;
-}
 
 async function requireAdmin(context: { supabase: { rpc: (fn: string, args: unknown) => Promise<{ data: unknown }> }; userId: string }) {
   const { data } = await context.supabase.rpc("has_role", {
