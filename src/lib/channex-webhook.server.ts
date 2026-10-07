@@ -4,7 +4,7 @@
  * O endpoint público apenas enfileira o JSON bruto e responde 200 na hora;
  * este módulo transforma os itens pendentes em linhas da tabela `reservas`.
  */
-const CHANNEX_BASE = "https://staging.channex.io/api/v1";
+const CHANNEX_BASE = "https://app.channex.io/api/v1";
 
 type BookingAttributes = {
   id?: string;
@@ -27,7 +27,7 @@ type BookingAttributes = {
 };
 
 async function channexGet<T>(path: string): Promise<T | null> {
-  const key = process.env["CHANNEX_STAGING_API_KEY"];
+  const key = (process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"]);
   if (!key) return null;
   const res = await fetch(`${CHANNEX_BASE}${path}`, {
     headers: { "user-api-key": key, Accept: "application/json" },

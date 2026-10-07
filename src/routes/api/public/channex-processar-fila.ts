@@ -9,7 +9,7 @@ export const Route = createFileRoute("/api/public/channex-processar-fila")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const key = process.env["CHANNEX_STAGING_API_KEY"];
+        const key = (process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"]);
         if (!key || request.headers.get("user-api-key") !== key) {
           return new Response("Unauthorized", { status: 401 });
         }

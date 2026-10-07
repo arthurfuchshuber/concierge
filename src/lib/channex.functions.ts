@@ -7,8 +7,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * A chave fica apenas no servidor (CHANNEX_STAGING_API_KEY) e é enviada no
  * header `user-api-key`, conforme a documentação do Channex.
  */
-const CHANNEX_BASE = "https://staging.channex.io/api/v1";
-const AIRBNB_CHANNEL_ID = "33cda52b-db68-4784-ae20-e4e3ec072fb0";
+const CHANNEX_BASE = "https://app.channex.io/api/v1";
+const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
 
 type AirbnbListing = {
   id: string;
@@ -27,7 +27,7 @@ async function channex<T>(
   path: string,
   init: { method?: string; body?: unknown } = {},
 ): Promise<T> {
-  const key = process.env["CHANNEX_STAGING_API_KEY"];
+  const key = (process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"]);
   if (!key) throw new Error("A chave da integração Channex não está configurada.");
   const res = await fetch(`${CHANNEX_BASE}${path}`, {
     method: init.method ?? "GET",
@@ -61,7 +61,7 @@ export const getChannexStatus = createServerFn({ method: "GET" })
       .from("propriedades")
       .select("id", { count: "exact", head: true });
     return {
-      configured: !!process.env["CHANNEX_STAGING_API_KEY"],
+      configured: !!(process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"]),
       imported: count ?? 0,
     };
   });
