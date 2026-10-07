@@ -151,6 +151,14 @@ export async function runHospitalityAgent(params: {
    * celular), e todos precisam ver o mesmo roteiro compartilhado. */
   checkinDate?: string | null;
   checkoutDate?: string | null;
+  /** Consulta/pedido de reserva da plataforma (datas e hóspedes já informados). */
+  bookingRequest?: {
+    checkin: string;
+    checkout: string;
+    nights: number | null;
+    guests: number | null;
+    stage: string;
+  } | null;
   /** Progresso em tempo real do pipeline (streaming para a UI do hóspede). */
   onStage?: (stage: { step: string; label: string }) => void;
   /**

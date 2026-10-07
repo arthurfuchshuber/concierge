@@ -334,6 +334,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     checkin: null,
     checkout: null,
   }));
+  const inquiry = await loadInquiryDetails(admin, m.threadId).catch(() => null);
   const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
   const result = await runHospitalityAgent({
     supabase: admin,
@@ -347,8 +348,9 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     channel: "airbnb",
     channelReference: m.threadId,
     reservationVerified: reservation.ok,
-    checkinDate: reservation.checkin,
-    checkoutDate: reservation.checkout,
+    checkinDate: reservation.checkin ?? inquiry?.checkin ?? null,
+    checkoutDate: reservation.checkout ?? inquiry?.checkout ?? null,
+    bookingRequest: inquiry,
   });
 
   if (result.handoff) {
