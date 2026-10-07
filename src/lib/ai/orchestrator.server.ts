@@ -65,6 +65,7 @@ import { buildAgentTools } from "./agents/tools.server";
 import type { AgentRouting } from "./agents/types";
 import { reasoningFor, maxStepsFor } from "./reasoning";
 import {
+  askHumanSupervisor,
   markAnswersApplied,
   pendingHumanAnswers,
   pendingNotice,
