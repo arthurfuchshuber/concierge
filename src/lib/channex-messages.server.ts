@@ -138,9 +138,9 @@ export function toAirbnbPlainText(text: string): string {
   return text
     .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, "")
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
-    .replace(/^[^\n]*:\s*\n\s*(https?:\/\/|www\.)\S+\s*$/gim, "")
     .replace(/(https?:\/\/|www\.)\S+/gi, "")
     .replace(/\b[\w-]+\.(com|gl|ly|br|net|org|app|io)(\/\S*)?\b/gi, "")
+    .replace(/[ \t]*:[ \t]*(?=\n|$)/g, ".")
     .replace(/^\s{0,3}#{1,6}\s+/gm, "")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/__([^_]+)__/g, "$1")
