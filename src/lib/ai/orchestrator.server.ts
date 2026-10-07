@@ -559,6 +559,9 @@ export async function runHospitalityAgent(params: {
     reservationModeContext +
     renderHumanAnswers(humanAnswers) +
     `\n\nIDIOMA PROVÁVEL DA MENSAGEM: ${intent.language} (responda no idioma em que o hóspede escreveu)` +
+    (channel === "airbnb"
+      ? `\n\nCANAL AIRBNB — TEXTO PURO (prioridade sobre qualquer regra de formato acima)\n- O chat do Airbnb não aceita formatação: escreva só texto corrido.\n- PROIBIDO usar asteriscos, sublinhados, negrito, itálico, títulos com "#", imagens ![...](...) ou links no formato [texto](url). Se precisar de link, escreva a URL pura.\n- Para listas, use quebras de linha e "- " simples, sem destacar palavras.`
+      : "") +
     `\n\nEVIDÊNCIAS PRÉ-RECUPERADAS (busca híbrida: ${retrievalUsed.join("+") || "nenhuma"})\n${renderPassages(passages)}`;
 
   const input = [

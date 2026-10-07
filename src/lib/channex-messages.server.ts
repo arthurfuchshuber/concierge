@@ -101,6 +101,24 @@ async function resolveListing(admin: any, m: Inbound): Promise<ListingRow | null
   return null; // incerto → não responde
 }
 
+/** O chat do Airbnb não renderiza Markdown: remove marcações antes do envio. */
+export function toAirbnbPlainText(text: string): string {
+  return text
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, "")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1: $2")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/(^|[^\w*])\*([^*\n]+)\*(?!\w)/g, "$1$2")
+    .replace(/(^|[^\w_])_([^_\n]+)_(?!\w)/g, "$1$2")
+    .replace(/~~([^~]+)~~/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^\s*\*\s+/gm, "- ")
+    .replace(/\*/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export async function sendChannexThreadMessage(threadId: string, text: string): Promise<string | null> {
   const res = await channex<{ data?: { id?: string } }>(`/message_threads/${threadId}/messages`, {
     method: "POST",
@@ -247,7 +265,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     }
   }
 
-  const reply = result.reply.trim();
+  const reply = toAirbnbPlainText(result.reply);
   if (!reply) return;
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
