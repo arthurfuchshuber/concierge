@@ -7,7 +7,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const CHANNEX_BASE = "https://staging.channex.io/api/v1";
+const CHANNEX_BASE = "https://app.channex.io/api/v1";
 const ARI_LIMIT_PER_MINUTE = 20;
 const MAX_INLINE_ATTEMPTS = 3;
 const MAX_OUTBOX_ATTEMPTS = 6;
@@ -61,7 +61,7 @@ async function acquireAriSlot(maxWaitMs = 25_000): Promise<boolean> {
 }
 
 export async function channexRequest(call: ChannexCall): Promise<ChannexResult> {
-  const key = process.env["CHANNEX_STAGING_API_KEY"];
+  const key = (process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"]);
   if (!key) return { ok: false, status: null, json: null, taskId: null, retriable: false, error: "Chave Channex ausente." };
   const sb = await db();
   let last: ChannexResult = { ok: false, status: null, json: null, taskId: null, retriable: true, error: null };
