@@ -82,7 +82,7 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
   }
 
   // 2) Conversas + mensagens do Airbnb.
-  const threads = await getAll("/message_threads").catch(() => []);
+  const threads = await getAll("/message_threads").catch((e) => { console.error("[channex-history] threads", e); return []; });
   for (const t of threads) {
     const a = t.attributes ?? {};
     const propertyId = byListing.get(String(a.meta?.listing_id ?? ""));
