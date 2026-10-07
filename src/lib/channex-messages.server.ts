@@ -257,6 +257,11 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
 
   const { loadAgentHistory } = await import("@/lib/chat-audio.server");
   const history = await loadAgentHistory(admin, convId, 20);
+  const reservation = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => ({
+    ok: false,
+    checkin: null,
+    checkout: null,
+  }));
   const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
   const result = await runHospitalityAgent({
     supabase: admin,
@@ -269,6 +274,9 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     surface: "airbnb",
     channel: "airbnb",
     channelReference: m.threadId,
+    reservationVerified: reservation.ok,
+    checkinDate: reservation.checkin,
+    checkoutDate: reservation.checkout,
   });
 
   if (result.handoff) {
@@ -309,6 +317,17 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   } catch (e) {
     status = "failed";
     console.error("[channex-messages] envio ao Airbnb falhou", e);
+    const msg = e instanceof Error ? e.message : String(e);
+    const { reportDeliveryFailure } = await import("@/lib/delivery-failure.server");
+    await reportDeliveryFailure(admin, {
+      conversationId: convId,
+      propertyId: listing.property_id,
+      channel: "airbnb",
+      propertyName,
+      guestName: m.guestName,
+      guestMessage: m.text,
+      detail: /prohibited_content/.test(msg) ? "conteúdo proibido pela plataforma" : msg.slice(0, 120),
+    });
   }
   await admin.from("property_chat_messages").insert({
     conversation_id: convId,
