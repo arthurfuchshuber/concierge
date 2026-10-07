@@ -88,7 +88,7 @@ export async function speakToGuest(params: {
 
   const { data: conv } = await params.supabase
     .from("property_chat_conversations")
-    .select("id, ai_paused, paused_until, property_id")
+    .select("id, ai_paused, paused_until, property_id, guest_session_id")
     .eq("id", params.conversationId)
     .maybeSingle();
   if (!conv) return { sent: false, skipped: "no_conversation" };
@@ -131,6 +131,22 @@ export async function speakToGuest(params: {
       const idadeMs = Date.now() - new Date(ultima.created_at).getTime();
       if (idadeMs < JANELA_SILENCIO_MS) return { sent: false, skipped: "double_message" };
     }
+  }
+
+  // Conversa do Airbnb: a mensagem precisa sair pela Channex, não só pelo guia.
+  const session = String((conv as { guest_session_id?: string | null }).guest_session_id ?? "");
+  if (session.startsWith("airbnb:")) {
+    const { deliverToAirbnbThread } = await import("@/lib/channex-messages.server");
+    const r = await deliverToAirbnbThread(params.supabase, {
+      conversationId: params.conversationId,
+      threadId: session.slice("airbnb:".length),
+      propertyId: String((conv as { property_id?: string }).property_id ?? ""),
+      text,
+      senderType: "ai",
+    });
+    return r.ok
+      ? { sent: true, messageId: r.messageId, pushed: 0, text: r.text }
+      : { sent: false, skipped: "empty" };
   }
 
   const { data: inserted, error } = await params.supabase

@@ -1162,7 +1162,7 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     const { data: cur } = await supabase
       .from("property_chat_conversations")
       .select(
-        "assigned_to, handoff_reason, property_id, properties:property_id(owner_id, name, slug, checkin_time, checkin_time_max, checkout_time, checkout_time_min, wifi_ssid, wifi_password, gate_code, lock_code, pin_code, address, host_name, host_phone, house_rules, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, marketplace_links)",
+        "assigned_to, handoff_reason, property_id, guest_session_id, properties:property_id(owner_id, name, slug, checkin_time, checkin_time_max, checkout_time, checkout_time_min, wifi_ssid, wifi_password, gate_code, lock_code, pin_code, address, host_name, host_phone, house_rules, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, marketplace_links)",
       )
       .eq("id", data.conversationId)
       .maybeSingle();
@@ -1218,15 +1218,31 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     } catch {
       // Se algo falhar, envia o texto original.
     }
-    const { error } = await supabase.from("property_chat_messages").insert({
-      conversation_id: data.conversationId,
-      role: data.internalNote ? "assistant" : "assistant",
-      content,
-      sender_type: "human",
-      sender_user_id: userId,
-      is_internal_note: data.internalNote,
-    });
-    if (error) throw new Error(error.message);
+    const session = String((cur as { guest_session_id?: string | null } | null)?.guest_session_id ?? "");
+    if (!data.internalNote && session.startsWith("airbnb:")) {
+      // Hóspede do Airbnb: a resposta sai pela Channex para o chat dele.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { deliverToAirbnbThread } = await import("@/lib/channex-messages.server");
+      const r = await deliverToAirbnbThread(supabaseAdmin, {
+        conversationId: data.conversationId,
+        threadId: session.slice("airbnb:".length),
+        propertyId: String(cur?.property_id ?? ""),
+        text: content,
+        senderType: "human",
+        senderUserId: userId,
+      });
+      if (!r.ok) throw new Error("O Airbnb recusou a mensagem. A equipe foi avisada.");
+    } else {
+      const { error } = await supabase.from("property_chat_messages").insert({
+        conversation_id: data.conversationId,
+        role: "assistant",
+        content,
+        sender_type: "human",
+        sender_user_id: userId,
+        is_internal_note: data.internalNote,
+      });
+      if (error) throw new Error(error.message);
+    }
     // Ensure conversation status stays assigned + ai paused when agent replies
     if (!data.internalNote) {
       await supabase

@@ -162,6 +162,74 @@ export async function sendChannexThreadMessage(threadId: string, text: string): 
   return res?.data?.id ?? null;
 }
 
+/**
+ * Entrega no chat do Airbnb uma mensagem nascida fora do webhook (resposta do
+ * atendente levada pela IA, ou atendente digitando no ConciergeIA). Higieniza
+ * o texto, envia pela Channex, grava com status e reporta falhas.
+ */
+export async function deliverToAirbnbThread(
+  admin: any,
+  p: {
+    conversationId: string;
+    threadId: string;
+    propertyId: string;
+    text: string;
+    senderType: "ai" | "human";
+    senderUserId?: string | null;
+    skipInsert?: boolean;
+  },
+): Promise<{ ok: boolean; messageId?: string; text: string }> {
+  const text = toAirbnbPlainText(p.text);
+  if (!text) return { ok: false, text };
+  let externalId: string | null = null;
+  let status: "sent" | "failed" = "sent";
+  try {
+    externalId = await sendChannexThreadMessage(p.threadId, text);
+  } catch (e) {
+    status = "failed";
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[channex-messages] entrega ao Airbnb falhou", msg);
+    try {
+      const { data: prop } = await admin.from("properties").select("name").eq("id", p.propertyId).maybeSingle();
+      const { reportDeliveryFailure } = await import("@/lib/delivery-failure.server");
+      await reportDeliveryFailure(admin, {
+        conversationId: p.conversationId,
+        propertyId: p.propertyId,
+        channel: "airbnb",
+        propertyName: (prop as { name?: string } | null)?.name ?? "",
+        guestName: null,
+        guestMessage: "",
+        detail: /prohibited_content/.test(msg) ? "conteúdo proibido pela plataforma" : msg.slice(0, 120),
+      } as never);
+    } catch (err) {
+      console.error("[channex-messages] alerta de falha não registrado", err);
+    }
+  }
+  let messageId: string | undefined;
+  if (!p.skipInsert) {
+    const { data: ins } = await admin
+      .from("property_chat_messages")
+      .insert({
+        conversation_id: p.conversationId,
+        role: "assistant",
+        content: text,
+        sender_type: p.senderType,
+        sender_user_id: p.senderUserId ?? null,
+        channel: "airbnb" as never,
+        external_id: externalId,
+        delivery_status: status,
+      })
+      .select("id")
+      .single();
+    messageId = (ins as { id?: string } | null)?.id;
+    await admin
+      .from("property_chat_conversations")
+      .update({ last_message_at: new Date().toISOString() })
+      .eq("id", p.conversationId);
+  }
+  return { ok: status === "sent", messageId, text };
+}
+
 /** Processa um evento `message` da fila Channex. */
 export async function handleChannexMessage(payload: unknown): Promise<void> {
   const m = parseChannexMessage(payload);

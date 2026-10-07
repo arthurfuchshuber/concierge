@@ -43,7 +43,7 @@ function norm(s: string): string {
 const EN = /\b(the|what|where|when|how|please|thanks|hello|hi|check.?in|check.?out|wifi password)\b/;
 const ES = /\b(hola|gracias|donde|dónde|cuando|cuándo|qué|habitacion|habitación|llave|por favor)\b/;
 const FR = /\b(bonjour|merci|où|quand|comment|s'il vous plaît|chambre)\b/;
-const PT = /\b(ola|olá|obrigado|obrigada|onde|quando|como|por favor|quarto|chave|bom dia|boa tarde|boa noite)\b/;
+const PT = /\b(ola|olá|obrigado|obrigada|onde|quando|como|por favor|quarto|chave|bom dia|boa tarde|boa noite|consigo|posso|voce|você|nao|não|sim|tem|mesmo|nossa|nosso|antes|depois|horario|horário|dia|verdade|queria|queriamos|gostaria|perto|proximo|próximo|casa|entrar|chegada|saida|saída|almoçar|almocar|aliás|alias|tudo|bem|até|ate|para|pra|uma|um|de|do|da|que|e|é)\b/;
 
 /** Idioma provável da mensagem. Português é o padrão do produto. */
 export function detectLanguage(message: string): string {
