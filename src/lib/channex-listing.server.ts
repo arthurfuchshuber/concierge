@@ -112,28 +112,38 @@ export async function syncPilotListings(): Promise<Array<{ listingId: string; pr
   const out: Array<{ listingId: string; propertyId: string; facts: number }> = [];
 
   for (const [listingId, slug] of Object.entries(PILOT_LISTINGS)) {
-    const rp = channel.data.attributes.rate_plans.find((r) => String(r.settings?.listing_id) === listingId);
-    if (!rp) continue; // anúncio ainda não mapeado
-    const meta = metas.find((m) => String(m.id) === listingId) ?? {};
     const { data: prop } = await supabaseAdmin.from("properties").select("id, owner_id").eq("slug", slug).maybeSingle();
     if (!prop) continue;
+    // Sem mapeamento de tarifa (não somos PMS): reaproveita as últimas configurações lidas.
+    const { data: prev } = await supabaseAdmin
+      .from("property_listing_raw_data" as never)
+      .select("raw_settings, channex_rate_plan_id, channex_room_type_id, listing_meta, normalized")
+      .eq("property_id", prop.id)
+      .maybeSingle();
+    const prevRow = prev as { raw_settings?: Record<string, any>; channex_rate_plan_id?: string; channex_room_type_id?: string } | null;
+    const live = channel.data.attributes.rate_plans.find((r) => String(r.settings?.listing_id) === listingId);
+    const rp = live ?? (prevRow?.raw_settings ? { rate_plan_id: prevRow.channex_rate_plan_id ?? "", settings: prevRow.raw_settings } : null);
+    if (!rp) continue;
+    const meta = metas.find((m) => String(m.id) === listingId) ?? {};
 
-    const ratePlan = await channexGet<{ data: { relationships?: { room_type?: { data?: { id: string } } } } }>(
-      `/rate_plans/${rp.rate_plan_id}`,
-    ).catch(() => null);
-    const facts = normalizeListing(meta, rp.settings);
+    const ratePlan = live
+      ? await channexGet<{ data: { relationships?: { room_type?: { data?: { id: string } } } } }>(`/rate_plans/${rp.rate_plan_id}`).catch(() => null)
+      : null;
+    // A Channex não entrega descrição nem comodidades: lê do anúncio público do Airbnb.
+    const pub = await fetchPublicListing(listingId).catch(() => null);
+    const facts = [...normalizeListing(meta, rp.settings), ...(pub ? publicFacts(pub) : [])];
     const { error } = await supabaseAdmin.from("property_listing_raw_data" as never).upsert(
       {
         property_id: prop.id,
         owner_id: prop.owner_id,
         channex_channel_id: AIRBNB_CHANNEL_ID,
         channex_property_id: channel.data.attributes.properties[0] ?? null,
-        channex_room_type_id: ratePlan?.data?.relationships?.room_type?.data?.id ?? null,
-        channex_rate_plan_id: rp.rate_plan_id,
+        channex_room_type_id: ratePlan?.data?.relationships?.room_type?.data?.id ?? prevRow?.channex_room_type_id ?? null,
+        channex_rate_plan_id: rp.rate_plan_id || null,
         airbnb_listing_id: listingId,
         listing_meta: meta,
         raw_settings: rp.settings,
-        normalized: { facts },
+        normalized: { ...(((prev as { normalized?: Record<string, unknown> } | null)?.normalized) ?? {}), facts, public_listing: pub },
         synced_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       } as never,
@@ -145,5 +155,46 @@ export async function syncPilotListings(): Promise<Array<{ listingId: string; pr
     await reindexProperty(supabaseAdmin as never, prop.id as string).catch(() => undefined);
     out.push({ listingId, propertyId: prop.id as string, facts: facts.length });
   }
+  return out;
+}
+
+type PublicListing = { descriptions: string[]; amenities: string[]; unavailable: string[] };
+
+const stripHtml = (h: string) =>
+  h.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+
+/** Lê a página pública do anúncio (descrição completa, "o que você vai receber", comodidades). Somente leitura. */
+export async function fetchPublicListing(listingId: string): Promise<PublicListing | null> {
+  const res = await fetch(`https://www.airbnb.com.br/rooms/${listingId}`, {
+    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36", "Accept-Language": "pt-BR,pt;q=0.9" },
+  });
+  if (!res.ok) return null;
+  const html = await res.text();
+  const m = html.match(/<script id="data-deferred-state-0"[^>]*>([\s\S]*?)<\/script>/);
+  if (!m) return null;
+  let root: unknown;
+  try { root = JSON.parse(m[1]!); } catch { return null; }
+  const descriptions = new Set<string>();
+  const amenities = new Set<string>();
+  const unavailable = new Set<string>();
+  const walk = (n: any, depth: number) => {
+    if (!n || typeof n !== "object" || depth > 40) return;
+    if (Array.isArray(n)) { for (const x of n) walk(x, depth + 1); return; }
+    if (typeof n.htmlText === "string") { const t = stripHtml(n.htmlText); if (t.length > 20) descriptions.add(t); }
+    if (typeof n.__typename === "string" && /Amenity/i.test(n.__typename) && typeof n.title === "string") {
+      const label = [n.title, typeof n.subtitle === "string" && n.subtitle ? `(${n.subtitle})` : ""].join(" ").trim();
+      (n.available === false ? unavailable : amenities).add(label);
+    }
+    for (const v of Object.values(n)) walk(v, depth + 1);
+  };
+  walk(root, 0);
+  return { descriptions: [...descriptions], amenities: [...amenities], unavailable: [...unavailable] };
+}
+
+function publicFacts(p: PublicListing): Fact[] {
+  const out: Fact[] = [];
+  p.descriptions.forEach((d, i) => out.push({ key: `descricao_${i}`, title: "Descrição do anúncio no Airbnb (inclui o que o hóspede recebe)", content: d }));
+  if (p.amenities.length) out.push({ key: "comodidades", title: "Comodidades oferecidas (anúncio Airbnb)", content: p.amenities.join("\n") });
+  if (p.unavailable.length) out.push({ key: "comodidades_ausentes", title: "Comodidades NÃO oferecidas (anúncio Airbnb)", content: p.unavailable.join("\n") });
   return out;
 }
