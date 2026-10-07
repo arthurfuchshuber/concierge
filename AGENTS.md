@@ -13,3 +13,5 @@
 
 - Airbnb listing data is ingested read-only from Channex into `property_listing_raw_data` (raw + normalized facts) and indexed as AI source `airbnb_listing` (top tier); only listings in `PILOT_LISTINGS` (`src/lib/channex-listing.server.ts`) are synced, so unvalidated properties stay untouched.
 - Airbnb listings are mapped only through `safeMapAirbnbListing` (`src/lib/channex-mapping.server.ts`), which opens availability via the ARI outbox and verifies it before calling `/channels/{id}/mappings`; mapping with zero inventory makes Airbnb block the whole calendar.
+- Channex history (bookings with guest contacts, Airbnb threads/messages, reviews) is backfilled idempotently by `backfillChannexHistory` (`src/lib/channex-history.server.ts`) into `property_reservations` (source `channex`, `guest_contacts`), chat tables and listing `normalized.reviews`; it is read-only on Channex so re-running never touches the Airbnb.
+- Cross-channel guest identity resolves only against official reservations via the `identify_guest` AI tool (code, phone tail, or exact full name incl. co-guests); ambiguous matches require one contextual validation question before sensitive data.
