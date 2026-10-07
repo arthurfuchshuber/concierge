@@ -55,15 +55,10 @@ export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | nu
   );
   if (mapped) return { listingId: t.listingId, status: "already_mapped" as const };
 
-  // 2) Abre 1 vaga/dia SÓ na janela que o anfitrião configurou no Airbnb
-  //    (availability_rule.max_days_notice); nunca estica além disso.
-  const listings = await call("POST", `/channels/${t.channelId}/action/listings`).catch(() => null);
-  const meta = (listings?.data?.listing_id_dictionary?.values ?? []).find((v: any) => String(v.id) === t.listingId);
-  const rule = meta?.availability_rule ?? meta?.settings?.availability_rule ?? {};
-  const notice = Number(rule.max_days_notice);
-  const days = Number.isFinite(notice) && notice > 0 ? Math.min(notice, 730) : 365;
+  // 2) Abre 1 vaga/dia provisoriamente (a janela real do anfitrião só é
+  //    exposta pelo Airbnb depois do mapeamento — ver passo 5).
   const from = new Date();
-  const to = new Date(from.getTime() + days * 86_400_000);
+  const to = new Date(from.getTime() + 365 * 86_400_000);
   await applyCalendarChanges(
     [{ propertyId: t.channexPropertyId, roomTypeId: t.roomTypeId, ratePlanId: t.ratePlanId, dateFrom: iso(from), dateTo: iso(to), fields: { availability: 1 } }],
     userId,
@@ -81,5 +76,26 @@ export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | nu
   // 4) Mapeia o anúncio e carrega reservas futuras.
   await call("POST", `/channels/${t.channelId}/mappings`, { mapping: { rate_plan_id: t.ratePlanId, settings: { listing_id: t.listingId } } });
   await call("POST", `/channels/${t.channelId}/execute/load_future_reservations`, { listing_id: t.listingId }).catch(() => null);
-  return { listingId: t.listingId, status: "mapped" as const };
+
+  // 5) Ajusta à janela EXATA do anfitrião (availability_rule.max_days_notice):
+  //    fecha tudo que passar dela, para nunca abrir datas que ele não abriu.
+  const windowDays = await trimToHostWindow(t, userId, from, to).catch(() => null);
+  return { listingId: t.listingId, status: "mapped" as const, windowDays };
+}
+
+async function trimToHostWindow(t: SafeMapTarget, userId: string | null, from: Date, to: Date): Promise<number | null> {
+  const ch = await call("GET", `/channels/${t.channelId}`);
+  const rp = (ch?.data?.attributes?.rate_plans ?? []).find((r: any) => String(r.settings?.listing_id) === t.listingId);
+  const notice = Number(rp?.settings?.availability_rule?.max_days_notice);
+  if (!Number.isFinite(notice) || notice <= 0) return null;
+  const closeFrom = new Date(from.getTime() + (notice + 1) * 86_400_000);
+  if (closeFrom < to) {
+    await applyCalendarChanges(
+      [{ propertyId: t.channexPropertyId, roomTypeId: t.roomTypeId, ratePlanId: t.ratePlanId, dateFrom: iso(closeFrom), dateTo: iso(to), fields: { availability: 0 } }],
+      userId,
+      "safe_mapping_window",
+    );
+    await flushAriOutbox();
+  }
+  return notice;
 }
