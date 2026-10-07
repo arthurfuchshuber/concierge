@@ -108,7 +108,7 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
           status: "resolved",
           ai_paused: false,
           created_at: a.inserted_at ? `${a.inserted_at}Z` : undefined,
-          last_message_at: a.last_message_received_at ? `${a.last_message_received_at}Z` : null,
+          last_message_at: a.last_message_received_at ? `${a.last_message_received_at}Z` : a.inserted_at ? `${a.inserted_at}Z` : undefined,
         } as never)
         .select("id")
         .single();
