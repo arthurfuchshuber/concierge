@@ -166,6 +166,12 @@ export async function runHospitalityAgent(params: {
    * vitrine da landing) recebia o código da fechadura pela IA.
    */
   credentialsLocked?: boolean;
+  /**
+   * Reserva confirmada e ativa validada pelo canal. Sem ela, dados sensíveis
+   * do imóvel (endereço exato, número, senhas, códigos, Wi-Fi, contatos
+   * internos) NUNCA são revelados — regra para todos os canais.
+   */
+  reservationVerified?: boolean;
 }): Promise<OrchestratorResult> {
   const started = Date.now();
   const { supabase, property } = params;
