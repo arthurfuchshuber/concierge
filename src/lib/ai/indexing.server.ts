@@ -260,9 +260,9 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     .select("normalized")
     .eq("property_id", propertyId)
     .maybeSingle();
-  const facts = ((listing as { normalized?: { facts?: Array<{ key: string; title: string; content: string }> } } | null)
+  const listingFacts = ((listing as { normalized?: { facts?: Array<{ key: string; title: string; content: string }> } } | null)
     ?.normalized?.facts ?? []);
-  for (const f of facts) {
+  for (const f of listingFacts) {
     pushChunk(chunks, {
       source: "airbnb_listing",
       sourceId: f.key,
