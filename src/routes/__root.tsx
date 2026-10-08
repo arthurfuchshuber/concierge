@@ -22,6 +22,7 @@ import { supabase } from "../integrations/supabase/client";
 import { META_PIXEL_ID, initMetaPixel, metaPixelPageView } from "../lib/meta-pixel";
 import { startTrail, trackPageView } from "../lib/trail";
 import { useAppVersionWatcher, CLIENT_BUILD_ID } from "../lib/app-version";
+import { useInlineFieldFollow } from "../lib/inline-field-follow";
 import {
   esquecerRota,
   lembrarRota,
@@ -334,6 +335,9 @@ function RootComponent() {
 
   // Nova versão publicada: recarrega automaticamente a página de todos.
   useAppVersionWatcher();
+
+  // Campo de uma linha sempre mostra o fim do que está sendo digitado (08/10/2026).
+  useInlineFieldFollow();
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
