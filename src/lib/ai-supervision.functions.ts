@@ -63,7 +63,53 @@ export const listConversationEscalations = createServerFn({ method: "GET" })
       .order("created_at", { ascending: true })
       .limit(20);
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    const list = rows ?? [];
+    if (list.some((r) => r.status === "pending")) return list;
+
+    // Auto-recuperação: conversa em transbordo sem pergunta registrada vira
+    // pergunta respondível no cartão. RLS da leitura confirma o acesso.
+    const { data: conv } = await context.supabase
+      .from("property_chat_conversations")
+      .select("id, property_id, status, handoff_reason, handoff_at, guest_name")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (!conv || conv.status !== "needs_human" || !conv.handoff_reason) return list;
+    const handoffAt = conv.handoff_at ? new Date(conv.handoff_at).getTime() : 0;
+    const coveredByResolved = list.some(
+      (r) => new Date((r as { resolved_at?: string | null }).resolved_at ?? r.created_at).getTime() >= handoffAt,
+    );
+    if (coveredByResolved) return list;
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prop } = await supabaseAdmin
+      .from("properties")
+      .select("owner_id")
+      .eq("id", conv.property_id)
+      .maybeSingle();
+    if (!prop?.owner_id) return list;
+    const reason = String(conv.handoff_reason).slice(0, 800);
+    const { data: created, error: insErr } = await supabaseAdmin
+      .from("ai_human_escalations")
+      .insert({
+        owner_id: prop.owner_id,
+        property_id: conv.property_id,
+        conversation_id: conv.id,
+        guest_name: conv.guest_name,
+        agent_type: "concierge",
+        trigger: "unknown_information",
+        reason,
+        question_to_human: reason.replace(/^\[[^\]]+\]\s*/, ""),
+        status: "pending",
+      } as never)
+      .select(
+        "id, conversation_id, agent_type, reason, trigger, question_to_human, human_response, status, applied_to_guest, created_at, resolved_at",
+      )
+      .maybeSingle();
+    if (insErr || !created) {
+      console.error("[escalations] auto-recuperação falhou", insErr?.message);
+      return list;
+    }
+    return [...list, created];
   });
 
 /** Resposta humana à dúvida da IA — vira verdade absoluta na conversa. */
