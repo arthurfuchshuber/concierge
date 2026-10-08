@@ -903,7 +903,7 @@ export async function notifyStaffArrivalStep(
   }
   if (!guest && opts.reservationId && uuid.test(opts.reservationId)) {
     const { data: rs } = await admin
-      .from("reservations")
+      .from("property_reservations")
       .select("guest_hint")
       .eq("id", opts.reservationId)
       .maybeSingle();
