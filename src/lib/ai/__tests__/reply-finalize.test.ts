@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { finalizeAgentReply } from "../reply-finalize";
 
 describe("finalizeAgentReply", () => {
-  it("Airbnb recebe assinatura em texto puro", () => {
-    expect(finalizeAgentReply("Olá", "airbnb")).toBe("Olá\n\n[Assistente IA]");
+  it("não adiciona assinatura em nenhum canal", () => {
+    expect(finalizeAgentReply("Olá", "airbnb")).toBe("Olá");
+    expect(finalizeAgentReply("Olá", "whatsapp")).toBe("Olá");
   });
-  it("WhatsApp/Guia recebem assinatura em itálico", () => {
-    expect(finalizeAgentReply("Olá", "whatsapp")).toBe("Olá\n\n_[Assistente IA]_");
-    expect(finalizeAgentReply("Olá", "platform_chat")).toBe("Olá\n\n_[Assistente IA]_");
+  it("remove assinatura escrita pelo modelo", () => {
+    expect(finalizeAgentReply("Olá\n\n[Assistente IA]", "airbnb")).toBe("Olá");
   });
   it("silêncio não envia nada", () => {
     expect(finalizeAgentReply("[SILENCIO]", "airbnb")).toBe("");
