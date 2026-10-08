@@ -220,10 +220,29 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         r.onerror = () => reject(new Error("Não consegui ler o áudio."));
         r.readAsDataURL(a.blob);
       });
-      const { text } = await transcribeAskFn({ data: { audioBase64: base64, mimeType: a.mime } });
+      const mimeType = (a.mime || "audio/webm").split(";")[0];
+      const attempt = () =>
+        Promise.race([
+          transcribeAskFn({ data: { audioBase64: base64, mimeType } }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("timeout")), 30000),
+          ),
+        ]);
+      let res: { text: string };
+      try {
+        res = await attempt();
+      } catch {
+        // Redes móveis (Safari/iOS "Load failed") costumam falhar só na 1ª tentativa.
+        res = await attempt();
+      }
+      const text = (res.text ?? "").trim();
+      if (!text) throw new Error("empty");
       setAskText((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Não consegui transcrever o áudio.");
+      setErrorMsg(null);
+    } catch {
+      setErrorMsg(
+        "Não consegui transcrever o áudio (falha de conexão). Grave de novo ou digite sua resposta.",
+      );
     } finally {
       setAskTranscribing(false);
     }
