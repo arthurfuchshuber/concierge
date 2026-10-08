@@ -235,8 +235,10 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   const m = parseChannexMessage(payload);
   if (!m || !m.threadId) return;
   if (m.sender !== "guest") {
-    // Anfitrião falou direto no Airbnb → IA se cala nessa conversa (30 min, renovável).
-    await pauseOnHostMessage(m).catch((e: unknown) => console.error("[channex-messages] pausa falhou", e));
+    // Mensagem programada do Airbnb: vira contexto para a IA, sem pausá-la.
+    // Anfitrião falando de verdade → IA se cala nessa conversa (30 min, renovável).
+    const automated = isAutomatedHostMessage(payload, m.text);
+    await pauseOnHostMessage(m, automated).catch((e: unknown) => console.error("[channex-messages] pausa falhou", e));
     return;
   }
 
@@ -423,8 +425,24 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   });
 }
 
-/** Mensagem do anfitrião vinda do Airbnb: registra e pausa a IA na conversa. */
-async function pauseOnHostMessage(m: Inbound): Promise<void> {
+/**
+ * Mensagens programadas/automáticas do Airbnb chegam como "anfitrião". Sinais:
+ * flag de automação no payload ou conteúdo típico (link do guia ConciergeIA,
+ * código de reserva junto de boas-vindas/instruções).
+ */
+export function isAutomatedHostMessage(payload: unknown, text: string): boolean {
+  const raw = JSON.stringify(payload ?? {}).toLowerCase();
+  if (/"(is_automated|automated|scheduled|is_scheduled|is_template|auto_message)"\s*:\s*true/.test(raw)) return true;
+  if (/"(source|origin|sent_by)"\s*:\s*"(automation|scheduled|template|system)/.test(raw)) return true;
+  const t = text.toLowerCase();
+  if (/conciergeia\.app\/g\//.test(t)) return true;
+  const hasCode = /\bhm[a-z0-9]{8}\b/i.test(text);
+  if (hasCode && /(bem-vind|boas-vindas|check-?in|check-?out|guia|reserva)/.test(t)) return true;
+  return false;
+}
+
+/** Mensagem do anfitrião vinda do Airbnb: registra e (se humana) pausa a IA. */
+async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> {
   if (!m.threadId) return;
   const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
   const { pausePatch } = await import("@/lib/ai/pause");
@@ -446,7 +464,7 @@ async function pauseOnHostMessage(m: Inbound): Promise<void> {
       (r) => (m.messageId && r.external_id === m.messageId) || norm(String(r.content ?? "")) === norm(m.text),
     );
     if (isEcho) continue;
-    await admin.from("property_chat_conversations").update(pausePatch()).eq("id", c.id);
+    if (!automated) await admin.from("property_chat_conversations").update(pausePatch()).eq("id", c.id);
     if (m.messageId) {
       const { data: dup } = await admin
         .from("property_chat_messages")
