@@ -2532,7 +2532,13 @@ function RecordViewerBody({
       </div>
 
       {/* BARRA DE AÇÕES: baixar tudo (só ícone), excluir (só ícone) e
-          "Resolvido" ocupando o resto. */}
+          "Resolvido" ocupando o resto. 
+          PADRÃO DOS BOTÕES DOS CARDS (pedido explícito, 08/10/2026, mockup
+          aprovado): a ORDEM não muda. Os ícones ficam na cor do texto (como a
+          chave e o clipe dos cards) e "Resolvido" usa o verde de ação dos cards
+          (`bg-emerald-600`, texto branco) — antes era um verde-sálvia com texto
+          escuro. A lixeira mantém o rosa: é ação de exclusão, como o triângulo
+          âmbar dos cards mantém a cor de alerta. */}
       <div className="shrink-0 px-6 pb-4 pt-3">
         <div className="flex items-center gap-1.5">
           {media.some((m) => m.url) && (
@@ -2542,7 +2548,7 @@ function RecordViewerBody({
               disabled={baixando}
               aria-label="Baixar todas as mídias"
               title="Baixa todas as mídias deste registro"
-              className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-background/60 text-muted-foreground transition-colors hover:bg-primary/[0.08] hover:text-foreground disabled:opacity-50"
+              className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-background/60 text-foreground transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
             >
               {baixando ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
             </button>
@@ -2564,7 +2570,7 @@ function RecordViewerBody({
             <button
               type="button"
               onClick={onResolve}
-              className="box-border inline-flex h-7 min-h-7 min-w-0 flex-1 items-center justify-center gap-2 rounded-[0.3rem] bg-[#8fc0a6] px-2.5 text-[11px] font-semibold leading-none tracking-tight text-[#10201a] transition-all hover:bg-[#9fcab3] active:scale-[0.99]"
+              className="box-border inline-flex h-7 min-h-7 min-w-0 flex-1 items-center justify-center gap-2 rounded-[0.3rem] bg-emerald-600 px-2.5 text-[11px] font-semibold leading-none tracking-tight text-white transition-all hover:bg-emerald-700 active:scale-[0.99]"
             >
               <Check className="size-3 shrink-0" />
               <span className="truncate">Resolvido</span>
