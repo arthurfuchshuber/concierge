@@ -19,3 +19,4 @@
 - Any platform delivery failure/block (Airbnb, WhatsApp) goes through `reportDeliveryFailure` (`src/lib/delivery-failure.server.ts`): forced handoff, `ai_alerts` row and push to property team plus SaaS admins, so blocked replies are never silent.
 - Channex availability = listing window (`max_days_notice`) + confirmed reservations + manual blocks created in ConciergeIA; Airbnb iCal "Not available" rows are never used, since they mirror the Channex-controlled calendar and would lock it in a loop.
 - A host message arriving from Airbnb via Channex pauses the AI on that thread (`pausePatch`), and every AI reply re-checks the switch and pause right before sending, so the AI never talks over a human.
+- Every Channex API response and webhook is stored unfiltered in `channex_raw_records` (upsert by entity_type+channex_id) via `saveRawRecords` (`src/lib/channex-raw.server.ts`); structured columns are derived, so no Channex field is ever lost.
