@@ -1267,29 +1267,63 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               {pendingAsk.question_to_human || "A IA precisa de uma decisão sua."}
             </p>
             <form
-              className="mt-2.5 flex items-center gap-2 rounded-full border border-zinc-300 bg-white py-1 pl-3 pr-1"
+              className="mt-2.5 rounded-xl border border-zinc-300 bg-white p-2"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!askText.trim() || answer.isPending) return;
                 answer.mutate();
               }}
             >
-              <input
+              <textarea
                 id="resposta-a-ia"
                 value={askText}
-                onChange={(e) => setAskText(e.target.value)}
+                onChange={(e) => {
+                  setAskText(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${Math.min(e.target.scrollHeight, 240)}px`;
+                }}
+                ref={(el) => {
+                  if (el) {
+                    el.style.height = "auto";
+                    el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
+                  }
+                }}
                 disabled={askTranscribing}
+                rows={2}
                 placeholder={
                   askTranscribing
                     ? "Transcrevendo seu áudio…"
                     : "Responda à IA — ela leva ao hóspede na voz dela…"
                 }
-                className="min-w-0 flex-1 bg-transparent text-[13px] text-zinc-900 outline-none placeholder:text-zinc-500"
+                className="block w-full min-w-0 resize-none whitespace-pre-wrap break-words bg-transparent px-1 text-[13px] leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-500"
               />
-              {askText.trim() ? (
+              <div className="mt-1.5 flex items-center justify-end gap-2">
+                {askTranscribing ? (
+                  <span className="grid size-8 shrink-0 place-items-center text-zinc-500">
+                    <Loader2 className="size-4 animate-spin" />
+                  </span>
+                ) : askRecording ? (
+                  <AudioRecorderButton
+                    autoStart
+                    compact
+                    maxSeconds={120}
+                    onRecorded={onAskRecorded}
+                    onCancel={() => setAskRecording(false)}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setAskRecording(true)}
+                    aria-label="Responder por áudio"
+                    title="Responder por áudio"
+                    className="grid size-8 shrink-0 place-items-center rounded-full border border-violet-300 text-violet-700 hover:bg-violet-100"
+                  >
+                    <Mic className="size-4" />
+                  </button>
+                )}
                 <button
                   type="submit"
-                  disabled={answer.isPending}
+                  disabled={answer.isPending || !askText.trim() || askTranscribing}
                   aria-label="Enviar resposta"
                   className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600 text-white disabled:opacity-45"
                 >
@@ -1299,29 +1333,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     <Send className="size-4" />
                   )}
                 </button>
-              ) : askTranscribing ? (
-                <span className="grid size-8 shrink-0 place-items-center text-zinc-500">
-                  <Loader2 className="size-4 animate-spin" />
-                </span>
-              ) : askRecording ? (
-                <AudioRecorderButton
-                  autoStart
-                  compact
-                  maxSeconds={120}
-                  onRecorded={onAskRecorded}
-                  onCancel={() => setAskRecording(false)}
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setAskRecording(true)}
-                  aria-label="Responder por áudio"
-                  title="Responder por áudio"
-                  className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600 text-white hover:bg-violet-700"
-                >
-                  <Mic className="size-4" />
-                </button>
-              )}
+              </div>
             </form>
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               <label
