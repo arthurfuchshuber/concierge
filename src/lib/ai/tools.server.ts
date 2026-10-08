@@ -824,6 +824,39 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
   });
 
   tools.push({
+    name: "register_guest_stay_event",
+    description:
+      "Marca no painel operacional que o hóspede ENTROU no imóvel (checkin_completed) ou SAIU dele " +
+      "(checkout_completed, inclusive antes da data prevista). Só chame com CERTEZA ABSOLUTA, confirmada " +
+      "pelo próprio hóspede: para check-in, ele precisa estar DENTRO do imóvel (\"já chegamos\" ou \"estamos " +
+      "aqui\" NÃO bastam — pode estar na portaria ou em frente). Para checkout, ele precisa já ter saído do " +
+      "imóvel (não apenas planejar sair). Em caso de dúvida, pergunte antes e NÃO chame.",
+    parameters: schema(
+      {
+        evento: { type: "string", enum: ["checkin_completed", "checkout_completed"] },
+        evidencia: {
+          type: "string",
+          description: "Frase literal do hóspede que comprova a entrada/saída.",
+        },
+      },
+      ["evento", "evidencia"],
+    ),
+    execute: async (args) => {
+      const kind = args.evento === "checkout_completed" ? "checkout" : "checkin";
+      const { findStayForEvent, applyStayEvent } = await import("./stay-events.server");
+      const stay = await findStayForEvent(ctx.supabase, {
+        propertyId: ctx.propertyId,
+        checkinDate: ctx.checkinDate,
+        checkoutDate: ctx.checkoutDate,
+      });
+      if (!stay) return { ok: false, motivo: "reserva_nao_encontrada" };
+      const r = await applyStayEvent(ctx.supabase, stay, kind);
+      ctx.collectSource({ source: "operation", title: `${kind}: ${String(args.evidencia ?? "").slice(0, 120)}`, confidence: 1 });
+      return r;
+    },
+  });
+
+  tools.push({
     name: "get_itinerary",
     description:
       "Lê o roteiro/itinerário que já foi montado com o hóspede até agora (dias e itens). Use antes de sugerir " +
