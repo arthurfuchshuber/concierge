@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "../lib/i18n";
 import { installPermissionDeniedHandler } from "@/lib/permissions/permissionClient";
+import { installScrollIndicators } from "@/lib/scroll-indicators";
 import { Toaster } from "../components/ui/sonner";
 import { UndoActionBar } from "../components/UndoActionBar";
 import { OfflineBanner } from "../components/OfflineBanner";
@@ -319,6 +320,10 @@ function RootComponent() {
 
   // Tratamento global de PERMISSION_DENIED (não quebra a aplicação).
   useEffect(() => installPermissionDeniedHandler(), []);
+
+  // Barra de rolagem sempre visível em toda janela que rola (celular/emulador
+  // têm barra nativa "overlay" que some) — ver src/lib/scroll-indicators.ts.
+  useEffect(() => installScrollIndicators(), []);
 
   // Um som por vez no sistema inteiro: ao dar play numa mídia, pausa as demais.
   useEffect(() => {
