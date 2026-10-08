@@ -164,7 +164,7 @@ export function toAirbnbPlainText(text: string): string {
     .replace(/`([^`]+)`/g, "$1")
     .replace(/^\s*\*\s+/gm, "- ")
     .replace(/\*/g, "")
-    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
