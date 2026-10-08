@@ -298,12 +298,8 @@ export const getReservationJourney = createServerFn({ method: "GET" })
         .select("id, group_id, category, kind, created_by, created_by_name, created_at")
         .or(orParts.join(","))
         .limit(200),
-      db
-        .from("reservation_events")
-        .select("id, kind, detail, actor_id, created_at")
-        .or(orParts.join(","))
-        .order("created_at", { ascending: true })
-        .limit(100),
+      // Tabela de eventos não existe no banco: consulta removida (só gerava erro e atraso).
+      Promise.resolve({ data: [] as unknown[] }),
     ]);
     type EventRow = { id: string; kind: string; detail: Record<string, string | number | null> | null; actor_id: string | null; created_at: string };
     type TaskRow = { id: string; title: string; status: string; category: string; due_date: string | null; created_by: string | null; created_at: string | null; priority: string | null };

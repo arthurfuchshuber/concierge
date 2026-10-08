@@ -284,11 +284,12 @@ export function Hero() {
 
           <p className="mt-5 max-w-[680px] text-[16px] leading-relaxed text-[#b7b1a9] lg:mt-7 lg:max-w-none lg:text-[20px] lg:leading-[1.6]">
             <span className="lg:block lg:whitespace-nowrap">
-              Sua equipe sabe exatamente o que fazer. Seu hóspede tem resposta na hora.
+              Sua equipe sabe exatamente o que fazer. Seu hóspede é respondido na hora.
             </span>{" "}
-            <span className="font-semibold text-[#f6f3ef] lg:block">E você para de apagar incêndio.</span>
+            <span className="font-semibold text-[#f6f3ef] lg:block">
+              Chega de apagar incêndios e perder tempo respondendo a perguntas frequentes!
+            </span>
           </p>
-
 
           <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:gap-4 lg:mt-10">
             <a

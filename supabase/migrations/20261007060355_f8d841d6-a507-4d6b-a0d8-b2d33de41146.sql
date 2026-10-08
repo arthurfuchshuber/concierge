@@ -1,0 +1,2 @@
+ALTER TABLE public.property_reservations ADD COLUMN IF NOT EXISTS guest_contacts jsonb NOT NULL DEFAULT '{}'::jsonb;
+CREATE INDEX IF NOT EXISTS property_reservations_guest_contacts_gin ON public.property_reservations USING gin (guest_contacts);

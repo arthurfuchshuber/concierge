@@ -52,7 +52,7 @@ async function firstPlacePhoto(
   regionCode: string,
 ): Promise<string | null> {
   const key = process.env.LOVABLE_API_KEY;
-  const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
+  const mapsKey = process.env.GOOGLE_MAPS_API_KEY_1 ?? process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
   if (!key || !mapsKey) return null;
   try {
     const { throttledFetch } = await import("@/lib/places-throttle.server");
@@ -173,6 +173,62 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
           titulo: p.title,
           conteudo: safe(p.content),
         })),
+      };
+    },
+  });
+
+  tools.push({
+    name: "identify_guest",
+    description:
+      "Cruza a identidade do hóspede entre canais (Airbnb, WhatsApp, Guia) usando as reservas oficiais deste imóvel. " +
+      "Aceita telefone, código da reserva (ex.: HM...) e/ou nome COMPLETO exato — inclusive de acompanhantes. " +
+      "Retorna 'confirmada' só com coincidência forte; 'ambigua' ou 'nao_encontrada' exigem pedir outro dado de validação.",
+    parameters: schema(
+      {
+        telefone: { type: "string", description: "Telefone informado ou do canal (qualquer formato)." },
+        codigo_reserva: { type: "string", description: "Código de confirmação da reserva." },
+        nome_completo: { type: "string", description: "Nome completo exatamente como dito pelo hóspede." },
+      },
+      [],
+    ),
+    execute: async (args) => {
+      const norm = (s: unknown) =>
+        String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+      const phone = String(args.telefone ?? "").replace(/\D/g, "");
+      const code = norm(args.codigo_reserva).replace(/\s/g, "");
+      const name = norm(args.nome_completo);
+      if (!phone && !code && !name) return { status: "sem_dados" };
+      const { data } = await ctx.supabase
+        .from("property_reservations")
+        .select("id, checkin_date, checkout_date, status, guest_contacts")
+        .eq("property_id", ctx.propertyId)
+        .neq("status", "cancelled")
+        .order("checkin_date", { ascending: false })
+        .limit(300);
+      type C = { code?: string | null; names?: string[]; phones?: string[] };
+      const tail = (p: string) => p.slice(-8);
+      const scored = ((data ?? []) as Array<{ id: string; checkin_date: string; checkout_date: string; guest_contacts: C }>)
+        .map((r) => {
+          const c = r.guest_contacts ?? {};
+          const byCode = !!code && norm(c.code).replace(/\s/g, "") === code;
+          const byPhone = phone.length >= 8 && (c.phones ?? []).some((p) => tail(String(p).replace(/\D/g, "")) === tail(phone));
+          const byName = !!name && name.includes(" ") && (c.names ?? []).some((n) => norm(n) === name);
+          return { r, byCode, byPhone, byName, hits: [byCode, byPhone, byName].filter(Boolean).length };
+        })
+        .filter((s) => s.hits > 0)
+        .sort((a, b) => b.hits - a.hits);
+      if (!scored.length) return { status: "nao_encontrada", orientacao: "Peça com gentileza outro dado: código da reserva, nome completo da reserva ou datas." };
+      const top = scored[0];
+      const strong = top.byCode || top.byPhone || (top.byName && scored.filter((s) => s.byName).length === 1);
+      const tied = scored.filter((s) => s.hits === top.hits).length > 1;
+      if (!strong || tied) {
+        return { status: "ambigua", orientacao: "Há mais de uma possibilidade. Faça UMA pergunta de validação com contexto (ex.: datas da estadia ou código da reserva) antes de liberar dados." };
+      }
+      return {
+        status: "confirmada",
+        por: [top.byCode && "codigo", top.byPhone && "telefone", top.byName && "nome"].filter(Boolean),
+        checkin: top.r.checkin_date,
+        checkout: top.r.checkout_date,
       };
     },
   });
@@ -481,7 +537,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     ),
     execute: async (args) => {
       const key = process.env.LOVABLE_API_KEY;
-      const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
+      const mapsKey = process.env.GOOGLE_MAPS_API_KEY_1 ?? process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
       if (!key || !mapsKey) return { disponivel: false };
       const city = (ctx.property.city as string) ?? "";
       const query = `${String(args.consulta ?? "").slice(0, 160)}${city ? ` em ${city}` : ""}`;
@@ -764,6 +820,39 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         vote: args.modo === "group" ? "group" : "individual",
       });
       return { ok: true };
+    },
+  });
+
+  tools.push({
+    name: "register_guest_stay_event",
+    description:
+      "Marca no painel operacional que o hóspede ENTROU no imóvel (checkin_completed) ou SAIU dele " +
+      "(checkout_completed, inclusive antes da data prevista). Só chame com CERTEZA ABSOLUTA, confirmada " +
+      "pelo próprio hóspede: para check-in, ele precisa estar DENTRO do imóvel (\"já chegamos\" ou \"estamos " +
+      "aqui\" NÃO bastam — pode estar na portaria ou em frente). Para checkout, ele precisa já ter saído do " +
+      "imóvel (não apenas planejar sair). Em caso de dúvida, pergunte antes e NÃO chame.",
+    parameters: schema(
+      {
+        evento: { type: "string", enum: ["checkin_completed", "checkout_completed"] },
+        evidencia: {
+          type: "string",
+          description: "Frase literal do hóspede que comprova a entrada/saída.",
+        },
+      },
+      ["evento", "evidencia"],
+    ),
+    execute: async (args) => {
+      const kind = args.evento === "checkout_completed" ? "checkout" : "checkin";
+      const { findStayForEvent, applyStayEvent } = await import("./stay-events.server");
+      const stay = await findStayForEvent(ctx.supabase, {
+        propertyId: ctx.propertyId,
+        checkinDate: ctx.checkinDate,
+        checkoutDate: ctx.checkoutDate,
+      });
+      if (!stay) return { ok: false, motivo: "reserva_nao_encontrada" };
+      const r = await applyStayEvent(ctx.supabase, stay, kind);
+      ctx.collectSource({ source: "operation", title: `${kind}: ${String(args.evidencia ?? "").slice(0, 120)}`, confidence: 1 });
+      return r;
     },
   });
 

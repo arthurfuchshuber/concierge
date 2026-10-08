@@ -2197,6 +2197,45 @@ export type Database = {
         }
         Relationships: []
       }
+      channex_raw_records: {
+        Row: {
+          channex_id: string
+          channex_property_id: string | null
+          entity_type: string
+          first_seen_at: string
+          id: string
+          last_synced_at: string
+          parent_id: string | null
+          payload: Json
+          property_id: string | null
+          source: string
+        }
+        Insert: {
+          channex_id: string
+          channex_property_id?: string | null
+          entity_type: string
+          first_seen_at?: string
+          id?: string
+          last_synced_at?: string
+          parent_id?: string | null
+          payload: Json
+          property_id?: string | null
+          source?: string
+        }
+        Update: {
+          channex_id?: string
+          channex_property_id?: string | null
+          entity_type?: string
+          first_seen_at?: string
+          id?: string
+          last_synced_at?: string
+          parent_id?: string | null
+          payload?: Json
+          property_id?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
       chat_message_feedback: {
         Row: {
           behavior_id: string | null
@@ -4482,6 +4521,77 @@ export type Database = {
           },
         ]
       }
+      property_listing_raw_data: {
+        Row: {
+          airbnb_ai_enabled: boolean
+          airbnb_ai_toggled_at: string | null
+          airbnb_ai_toggled_by: string | null
+          airbnb_listing_id: string
+          channex_channel_id: string | null
+          channex_property_id: string | null
+          channex_rate_plan_id: string | null
+          channex_room_type_id: string | null
+          created_at: string
+          id: string
+          listing_meta: Json
+          normalized: Json
+          owner_id: string
+          property_id: string
+          raw_settings: Json
+          source: string
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          airbnb_ai_enabled?: boolean
+          airbnb_ai_toggled_at?: string | null
+          airbnb_ai_toggled_by?: string | null
+          airbnb_listing_id: string
+          channex_channel_id?: string | null
+          channex_property_id?: string | null
+          channex_rate_plan_id?: string | null
+          channex_room_type_id?: string | null
+          created_at?: string
+          id?: string
+          listing_meta?: Json
+          normalized?: Json
+          owner_id: string
+          property_id: string
+          raw_settings?: Json
+          source?: string
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          airbnb_ai_enabled?: boolean
+          airbnb_ai_toggled_at?: string | null
+          airbnb_ai_toggled_by?: string | null
+          airbnb_listing_id?: string
+          channex_channel_id?: string | null
+          channex_property_id?: string | null
+          channex_rate_plan_id?: string | null
+          channex_room_type_id?: string | null
+          created_at?: string
+          id?: string
+          listing_meta?: Json
+          normalized?: Json
+          owner_id?: string
+          property_id?: string
+          raw_settings?: Json
+          source?: string
+          synced_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_listing_raw_data_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_manual_items: {
         Row: {
           body: string | null
@@ -4760,14 +4870,24 @@ export type Database = {
       }
       property_reservations: {
         Row: {
+          amount: number | null
           checkin_date: string
           checkout_date: string
           created_at: string
+          currency: string | null
+          daily_rates: Json | null
           external_uid: string
           feed_index: number
+          guest_contacts: Json
           guest_hint: string | null
           id: string
+          occupancy: Json | null
+          ota_commission: number | null
+          ota_name: string | null
+          payment_collect: string | null
+          payment_type: string | null
           property_id: string
+          raw_payload: Json | null
           raw_summary: string | null
           reservation_url: string | null
           source: string
@@ -4776,14 +4896,24 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount?: number | null
           checkin_date: string
           checkout_date: string
           created_at?: string
+          currency?: string | null
+          daily_rates?: Json | null
           external_uid: string
           feed_index?: number
+          guest_contacts?: Json
           guest_hint?: string | null
           id?: string
+          occupancy?: Json | null
+          ota_commission?: number | null
+          ota_name?: string | null
+          payment_collect?: string | null
+          payment_type?: string | null
           property_id: string
+          raw_payload?: Json | null
           raw_summary?: string | null
           reservation_url?: string | null
           source?: string
@@ -4792,14 +4922,24 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount?: number | null
           checkin_date?: string
           checkout_date?: string
           created_at?: string
+          currency?: string | null
+          daily_rates?: Json | null
           external_uid?: string
           feed_index?: number
+          guest_contacts?: Json
           guest_hint?: string | null
           id?: string
+          occupancy?: Json | null
+          ota_commission?: number | null
+          ota_name?: string | null
+          payment_collect?: string | null
+          payment_type?: string | null
           property_id?: string
+          raw_payload?: Json | null
           raw_summary?: string | null
           reservation_url?: string | null
           source?: string

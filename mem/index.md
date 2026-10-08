@@ -14,3 +14,5 @@ Sistema de Design obrigatório: escala tipográfica fixa, espaçamento base 4px,
 - [Recomendações — regras permanentes](mem://features/recomendacoes-regras) — Raio de 30 km da residência, excluídos nunca voltam, categorias por guia, isolamento entre contas
 - [Ligações in-app Sinch Voice](mem://features/sinch-voice-plan) — Plano aprovado (WebRTC + click-to-call registrado na timeline), aguardando validação para implementar
 - [Padrão de layout Workspace](mem://design/padrao-layout-workspace) — Cabeçalho, segmented control e botões da página Operação, replicados página a página (Guias já feito)
+- Identidade do hóspede entre canais: cruzar por telefones, código da reserva ou nomes EXATOS (inclui acompanhantes); sem certeza, fazer UMA pergunta de validação com contexto. Ao conectar anúncio, puxar todo histórico disponível. Distâncias: Google Maps é a fonte da verdade.
+- [Tom de fechamento pré-reserva](mem://features/tom-fechamento-reserva) — Frases neutras e diretas, nunca melosas; não perguntar datas já informadas na consulta

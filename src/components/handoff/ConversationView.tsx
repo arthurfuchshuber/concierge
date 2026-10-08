@@ -70,6 +70,8 @@ import { getTagItemsForConversation } from "@/lib/guide-tag-items.functions";
 import { KnowledgeFillDialog } from "@/components/handoff/KnowledgeFillDialog";
 import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
+import { transcribeAssistantAudio } from "@/lib/assistant.functions";
+import { Mic } from "lucide-react";
 import {
   COMPOSER_FIELD,
   COMPOSER_INPUT,
@@ -205,6 +207,46 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     [escalations],
   );
   const [askText, setAskText] = useState("");
+  const [askRecording, setAskRecording] = useState(false);
+  const [askTranscribing, setAskTranscribing] = useState(false);
+  const transcribeAskFn = useServerFn(transcribeAssistantAudio);
+  async function onAskRecorded(a: RecordedAudio) {
+    setAskRecording(false);
+    setAskTranscribing(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
+        r.onerror = () => reject(new Error("Não consegui ler o áudio."));
+        r.readAsDataURL(a.blob);
+      });
+      const mimeType = (a.mime || "audio/webm").split(";")[0];
+      const attempt = () =>
+        Promise.race([
+          transcribeAskFn({ data: { audioBase64: base64, mimeType } }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("timeout")), 30000),
+          ),
+        ]);
+      let res: { text: string };
+      try {
+        res = await attempt();
+      } catch {
+        // Redes móveis (Safari/iOS "Load failed") costumam falhar só na 1ª tentativa.
+        res = await attempt();
+      }
+      const text = (res.text ?? "").trim();
+      if (!text) throw new Error("empty");
+      setAskText((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+      setErrorMsg(null);
+    } catch {
+      setErrorMsg(
+        "Não consegui transcrever o áudio (falha de conexão). Grave de novo ou digite sua resposta.",
+      );
+    } finally {
+      setAskTranscribing(false);
+    }
+  }
   const [saveKnowledge, setSaveKnowledge] = useState(true);
 
   const tagItemsFn = useServerFn(getTagItemsForConversation);
@@ -685,16 +727,6 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               </div>
             )}
 
-            {conv?.handoff_reason && (
-              <button
-                type="button"
-                onClick={() => setReasonOpen(true)}
-                title="Ver motivo completo e ações"
-                className="w-full text-left text-[11px] mt-2 px-2 py-1 rounded bg-amber-500/10 text-amber-700 border border-amber-500/30 line-clamp-2 hover:bg-amber-500/20 transition-colors cursor-pointer"
-              >
-                {conv.handoff_reason}
-              </button>
-            )}
 
             {isLockedByOther && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-secondary text-foreground/80 border border-border inline-flex items-center gap-1">
@@ -1226,37 +1258,82 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           tomar posse. Some sozinho quando respondido.
           ------------------------------------------------------------------ */}
       {status !== "resolved" && canChat && pendingAsk && (
-        <div className="shrink-0 border-t border-border bg-surface px-3 pb-2 pt-2.5">
-          <div className="rounded-xl border border-violet-500/45 bg-violet-500/[0.07] p-3">
-            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-violet-600 dark:text-violet-300">
+        <div className="shrink-0 border-t border-zinc-200 bg-white px-3 pb-2 pt-2.5">
+          <div className="rounded-xl border border-violet-300 bg-violet-50 p-3 text-zinc-900">
+            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-violet-700">
               <Sparkles className="size-3" /> a IA está te perguntando
             </div>
-            <p className="text-[13px] font-semibold leading-snug">
+            <p className="text-[13px] font-semibold leading-snug text-zinc-900">
               {pendingAsk.question_to_human || "A IA precisa de uma decisão sua."}
             </p>
             <form
-              className="mt-2.5 flex items-center gap-2 rounded-lg border border-border bg-surface-elevated px-2.5 py-1.5"
+              className="mt-2.5 rounded-xl border border-zinc-300 bg-white p-2"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!askText.trim() || answer.isPending) return;
                 answer.mutate();
               }}
             >
-              <input
+              <textarea
                 id="resposta-a-ia"
                 value={askText}
-                onChange={(e) => setAskText(e.target.value)}
-                placeholder="Responda à IA — ela leva ao hóspede na voz dela…"
-                className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-muted-foreground"
+                onChange={(e) => {
+                  setAskText(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${Math.min(e.target.scrollHeight, 240)}px`;
+                }}
+                ref={(el) => {
+                  if (el) {
+                    el.style.height = "auto";
+                    el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
+                  }
+                }}
+                disabled={askTranscribing}
+                rows={2}
+                placeholder={
+                  askTranscribing
+                    ? "Transcrevendo seu áudio…"
+                    : "Responda à IA — ela leva ao hóspede na voz dela…"
+                }
+                className="block w-full min-w-0 resize-none whitespace-pre-wrap break-words bg-transparent px-1 text-[13px] leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-500"
               />
-              <button
-                type="submit"
-                disabled={!askText.trim() || answer.isPending}
-                className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-[11.5px] font-semibold text-primary-foreground disabled:opacity-45"
-              >
-                {answer.isPending ? <Loader2 className="size-3 animate-spin" /> : null}
-                Enviar
-              </button>
+              <div className="mt-1.5 flex items-center justify-end gap-2">
+                {askTranscribing ? (
+                  <span className="grid size-8 shrink-0 place-items-center text-zinc-500">
+                    <Loader2 className="size-4 animate-spin" />
+                  </span>
+                ) : askRecording ? (
+                  <AudioRecorderButton
+                    autoStart
+                    compact
+                    maxSeconds={120}
+                    onRecorded={onAskRecorded}
+                    onCancel={() => setAskRecording(false)}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setAskRecording(true)}
+                    aria-label="Responder por áudio"
+                    title="Responder por áudio"
+                    className="grid size-8 shrink-0 place-items-center rounded-full border border-violet-300 text-violet-700 hover:bg-violet-100"
+                  >
+                    <Mic className="size-4" />
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={answer.isPending || !askText.trim() || askTranscribing}
+                  aria-label="Enviar resposta"
+                  className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600 text-white disabled:opacity-45"
+                >
+                  {answer.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Send className="size-4" />
+                  )}
+                </button>
+              </div>
             </form>
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               <label
@@ -1381,7 +1458,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   <StickyNote className="size-3" /> nota interna (só a equipe vê)
                 </div>
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-end gap-2">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1402,10 +1479,17 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   onAttach={() => fileInputRef.current?.click()}
                   onCamera={() => cameraInputRef.current?.click()}
                 />
-                <div className={`${COMPOSER_FIELD} ${note ? "!border-yellow-500/50" : ""}`}>
+                <div
+                  className={`${COMPOSER_FIELD} !h-auto min-h-8 !items-end !rounded-2xl py-1.5 ${note ? "!border-yellow-500/50" : ""}`}
+                >
                   <TagMentionTextarea
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    onChange={(e) => {
+                      setText(e.target.value);
+                      const el = e.target as HTMLTextAreaElement;
+                      el.style.height = "auto";
+                      el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
@@ -1416,32 +1500,30 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     placeholder={note ? "Nota interna…" : "Mensagem…"}
                     rows={1}
                     containerClassName="flex-1 min-w-0"
-                    className={`${COMPOSER_INPUT} border-0 px-0`}
+                    className={`${COMPOSER_INPUT} !max-h-40 whitespace-pre-wrap break-words border-0 px-0`}
                   />
                 </div>
 
-                {text.trim() ? (
-                  <button
-                    type="submit"
-                    disabled={send.isPending}
-                    className={`${COMPOSER_SEND_BTN} ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
-                  >
-                    {send.isPending ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Send className="size-4" />
-                    )}
-                  </button>
-                ) : (
-                  <div className="shrink-0">
-                    <AudioRecorderButton
-                      disabled={uploading}
-                      maxSeconds={60}
-                      onRecorded={onAudioRecorded}
-                      compact
-                    />
-                  </div>
-                )}
+                <div className="shrink-0">
+                  <AudioRecorderButton
+                    disabled={uploading}
+                    maxSeconds={60}
+                    onRecorded={onAudioRecorded}
+                    compact
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={send.isPending || !text.trim()}
+                  aria-label="Enviar mensagem"
+                  className={`${COMPOSER_SEND_BTN} ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
+                >
+                  {send.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Send className="size-4" />
+                  )}
+                </button>
               </div>
             </form>
           </>

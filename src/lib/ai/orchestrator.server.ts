@@ -16,6 +16,7 @@
  *   8. Confidence Threshold do próprio agente (auto | com ressalva | handoff)
  *   9. Gravação seletiva de memória + observabilidade (log completo)
  */
+import { SILENCE_TOKEN, finalizeAgentReply } from "@/lib/ai/reply-finalize";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { EMPTY_USAGE, mergeUsage, runAgent, type Usage } from "./gateway.server";
 import { classifyIntent, type Intent } from "./intent.server";
@@ -65,6 +66,7 @@ import { buildAgentTools } from "./agents/tools.server";
 import type { AgentRouting } from "./agents/types";
 import { reasoningFor, maxStepsFor } from "./reasoning";
 import {
+  askHumanSupervisor,
   markAnswersApplied,
   pendingHumanAnswers,
   pendingNotice,
@@ -151,6 +153,14 @@ export async function runHospitalityAgent(params: {
    * celular), e todos precisam ver o mesmo roteiro compartilhado. */
   checkinDate?: string | null;
   checkoutDate?: string | null;
+  /** Consulta/pedido de reserva da plataforma (datas e hóspedes já informados). */
+  bookingRequest?: {
+    checkin: string;
+    checkout: string;
+    nights: number | null;
+    guests: number | null;
+    stage: string;
+  } | null;
   /** Progresso em tempo real do pipeline (streaming para a UI do hóspede). */
   onStage?: (stage: { step: string; label: string }) => void;
   /**
@@ -166,6 +176,12 @@ export async function runHospitalityAgent(params: {
    * vitrine da landing) recebia o código da fechadura pela IA.
    */
   credentialsLocked?: boolean;
+  /**
+   * Reserva confirmada e ativa validada pelo canal. Sem ela, dados sensíveis
+   * do imóvel (endereço exato, número, senhas, códigos, Wi-Fi, contatos
+   * internos) NUNCA são revelados — regra para todos os canais.
+   */
+  reservationVerified?: boolean;
 }): Promise<OrchestratorResult> {
   const started = Date.now();
   const { supabase, property } = params;
@@ -393,7 +409,16 @@ export async function runHospitalityAgent(params: {
     }
   }
 
-  const credentialsLocked = context.sensitiveLocked || params.credentialsLocked === true;
+  // Reserva confirmada e ativa: o canal informa; sem informação, só vale a
+  // reserva vinculada fora do Airbnb e com estadia ainda não encerrada.
+  const reservationVerified =
+    params.reservationVerified ??
+    (channel !== "airbnb" &&
+      context.keys.includes("reservation") &&
+      context.stayPhase !== "post_checkout" &&
+      context.stayPhase !== "unknown");
+  const credentialsLocked =
+    context.sensitiveLocked || params.credentialsLocked === true || !reservationVerified;
   const retrieved = await hybridRetrieve({
     supabase,
     ownerId,
@@ -559,6 +584,23 @@ export async function runHospitalityAgent(params: {
     reservationModeContext +
     renderHumanAnswers(humanAnswers) +
     `\n\nIDIOMA PROVÁVEL DA MENSAGEM: ${intent.language} (responda no idioma em que o hóspede escreveu)` +
+    (reservationVerified
+      ? ""
+      : `\n\nRESERVA NÃO CONFIRMADA — DADOS SENSÍVEIS BLOQUEADOS (prioridade máxima, vale para qualquer canal)\n- Não há reserva confirmada e ativa validada para esta pessoa.\n- NUNCA informe endereço exato (rua com número, complemento, CEP), link/pin de localização do imóvel, senhas, códigos de portão/fechadura, Wi-Fi, instruções de acesso ou contatos internos.\n- Pode citar apenas bairro, região e distâncias/referências próximas.\n- Se pedirem esses dados, explique com gentileza que o endereço completo e as informações de acesso são enviados assim que a reserva estiver confirmada.`) +
+    (params.bookingRequest && !reservationVerified
+      ? `\n\nCONSULTA PRÉ-RESERVA JÁ INFORMADA PELO HÓSPEDE NA PLATAFORMA (${params.bookingRequest.stage === "reservation_request" ? "pedido de reserva aguardando aprovação" : "consulta, ainda não reservado"})\n- Chegada: ${params.bookingRequest.checkin}\n- Saída: ${params.bookingRequest.checkout}${params.bookingRequest.nights ? ` (${params.bookingRequest.nights} noites)` : ""}${params.bookingRequest.guests ? `\n- Hóspedes: ${params.bookingRequest.guests}` : ""}\n- PROIBIDO perguntar datas de chegada/saída, número de noites ou de hóspedes: use estes dados diretamente (ex.: dia da semana da chegada).`
+      : "") +
+    (!reservationVerified
+      ? `\n\nFECHAMENTO PRÉ-RESERVA (estilo obrigatório)\n- Responda primeiro à dúvida com precisão.\n- Termine com UMA frase curta, neutra e direta conduzindo à reserva, variando a cada mensagem. Exemplos de tom: "Vamos seguir com a reserva?", "Lembre-se de que os valores só ficam garantidos após a reserva confirmada, ok?", "Não prefere já garantir sua reserva para não correr o risco de outra pessoa reservar essas datas?".\n- PROIBIDO tom meloso ou bajulador ("será um prazer imenso", "ficaremos encantados", "prontinha para acolher vocês"), exclamações em excesso ou pressão insistente.\n- Não repita o convite se a mensagem anterior da conversa já terminou com um.`
+      : "") +
+    `\n\nANTI-REPETIÇÃO (obrigatório)\n- Leia suas mensagens anteriores nesta conversa antes de responder.\n- Nunca repita saudação, abertura, frase de fechamento ou informação já dada; se precisar retomar algo, resuma em poucas palavras.\n- Não cumprimente de novo se já cumprimentou nesta conversa.\n- Varie estrutura e vocabulário; nada de frases-modelo recorrentes.` +
+    `\n\nQUANDO NÃO RESPONDER (silêncio inteligente)\n- Responda exatamente ${SILENCE_TOKEN} (e nada mais) SOMENTE quando a mensagem for puro agradecimento, confirmação de recebimento ou fechamento SEM nenhum pedido, dúvida ou problema implícito (ex.: "Ok, obrigado!", "Recebido", "Acessei aqui", "Perfeito, vou finalizar a reserva", "Show").\n- Afirmações que relatam problema ou necessidade ("Cheguei e não acho a chave", "O ar não gela", "O link não abre") NÃO são silêncio: responda e ajude.\n\nTRIAGEM ANTES DE ESCALAR\n- Problema prático: acolha em uma frase, consulte a base do imóvel e, se faltar algo, faça UMA pergunta curta de diagnóstico antes de pedir ajuda humana; ao escalar, descreva o diagnóstico no motivo.\n- Reclamação grave, conflito, ameaça de avaliação ruim ou cobrança agressiva: uma frase neutra de acolhimento (sem debater nem se justificar) e acione atendimento humano imediatamente.\n\nAUTONOMIA DA RESERVA (fale sempre no plural: nós, nossa equipe)\n- Cancelamento, reembolso ou alteração de período/datas: explique com cordialidade que não temos autonomia para isso pelo chat e oriente o hóspede a solicitar diretamente pelo menu da reserva ou pelo suporte da plataforma.\n- Acrescentar noites (estender a estadia) é a única exceção: ofereça verificar a disponibilidade em tom prático e neutro (ex.: "Podemos verificar a disponibilidade para essas noites. Quais datas você gostaria de acrescentar?"). PROIBIDO frases como "temos total interesse".\n\nMENSAGENS AUTOMÁTICAS DO ANFITRIÃO\n- O histórico pode conter mensagens programadas já enviadas ao hóspede (boas-vindas, link do guia, código da reserva). Leia-as antes de responder: se o hóspede comentar ou perguntar sobre elas, baseie-se exatamente no que foi enviado.\n- Não escreva assinatura no fim: ela é adicionada automaticamente.` +
+    (reservationVerified
+      ? `\n\nENTRADA E SAÍDA DO HÓSPEDE (registro no painel operacional)\n- Só chame register_guest_stay_event com CERTEZA ABSOLUTA de que o hóspede está DENTRO do imóvel (check-in) ou já SAIU dele (checkout, mesmo antes da data prevista).\n- Frases como "já chegamos", "estamos aqui", "chegamos no prédio" NÃO confirmam entrada: podem estar na portaria, na garagem ou em frente. Investigue com UMA pergunta natural e contextual, por exemplo: "Que bom! Vocês já conseguiram entrar no imóvel ou ainda estão do lado de fora?". Só registre quando ele afirmar que entrou/está dentro.\n- Planos ("vamos sair amanhã cedo", "que horas é o checkout?") NÃO são checkout. Na dúvida, pergunte se já deixaram o imóvel.\n- Se estiverem com dificuldade para entrar, oriente com as instruções de acesso nesta ordem de prioridade: 1) instruções do próprio anúncio (fonte airbnb_listing); 2) instruções do guia digital do imóvel. Não invente passos.\n- Depois de registrar, confirme de forma breve e natural, sem mencionar sistema ou painel.`
+      : "") +
+    (channel === "airbnb"
+      ? `\n\nCANAL AIRBNB — TEXTO PURO (prioridade sobre qualquer regra de formato acima)\n- O chat do Airbnb não aceita formatação: escreva só texto corrido.\n- PROIBIDO usar asteriscos, sublinhados, negrito, itálico, títulos com "#", imagens ou links.\n- NUNCA envie URLs, links de mapa, sites, e-mails ou telefones: o Airbnb bloqueia a mensagem. Para localizar um lugar, diga o nome e o endereço/bairro para o hóspede buscar no Google Maps.\n- Para listas, use quebras de linha e "- " simples, sem destacar palavras.`
+      : "") +
     `\n\nEVIDÊNCIAS PRÉ-RECUPERADAS (busca híbrida: ${retrievalUsed.join("+") || "nenhuma"})\n${renderPassages(passages)}`;
 
   const input = [
@@ -899,6 +941,23 @@ export async function runHospitalityAgent(params: {
     }
   }
 
+  // Todo transbordo vira pergunta respondível no cartão "A IA está te
+  // perguntando" — sem isso, request_human_handoff só deixava um motivo solto.
+  if (handoffReason && !escalationId && params.conversationId) {
+    escalationId = await askHumanSupervisor({
+      supabase,
+      ownerId,
+      propertyId,
+      conversationId: params.conversationId,
+      guestKey,
+      guestName: params.guestName ?? null,
+      agent: agent.key,
+      trigger: "unknown_information",
+      reason: handoffReason,
+      question: handoffReason.replace(/^\[[^\]]+\]\s*/, ""),
+    }).catch(() => null);
+  }
+
   // Botões de resposta rápida — sempre que a IA termina fazendo uma pergunta
   // ao hóspede, ele deve poder responder num toque (e continuar livre para
   // digitar). Só chamamos o modelo quando existe pergunta no texto: antes esta
@@ -1218,7 +1277,7 @@ export async function runHospitalityAgent(params: {
   }).catch(() => undefined);
 
   return {
-    reply,
+    reply: finalizeAgentReply(reply, channel),
     handoff: !!handoffReason,
     handoffReason,
     handoffUrgency,

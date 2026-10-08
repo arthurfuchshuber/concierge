@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tan
 import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Bot, Home, Contact, Sparkles, ChevronsLeft, ChevronsRight } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { LiveSync } from "@/components/LiveSync";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -384,6 +385,12 @@ function AdminLayout() {
 
       {/* Main */}
       <div className="flex-1 min-w-0 flex flex-col">
+        {/* Desktop: sem cabeçalho, então o botão flutua no canto superior direito
+            (fora do fluxo — não altera o layout). No celular ele ocupa a vaga
+            à direita do cabeçalho, alinhado ao botão de menu. */}
+        <div className="fixed right-4 top-3 z-30 hidden lg:block">
+          <ThemeToggle />
+        </div>
         {/* Mobile topbar */}
         {/* CABEÇALHO DO CELULAR — padrão "A · Noite" (mockup aprovado,
             17/09/2026): fundo do app com transparência e desfoque, fio de 1px
@@ -407,7 +414,7 @@ function AdminLayout() {
               ConciergeIA
             </span>
           </Link>
-          <div className="size-11" />
+          <ThemeToggle />
         </header>
 
         <main className="flex-1 pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-0">

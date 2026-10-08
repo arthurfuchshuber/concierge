@@ -619,6 +619,27 @@ export const createRecordSituation = createServerFn({ method: "POST" })
     }
 
     const body = composeBody(data.title, data.description);
+
+    // Anti-duplicata: mesmo autor, mesmo card, mesma categoria e mesmo texto
+    // nos últimos 60s → reaproveita o registro existente em vez de duplicar.
+    {
+      let q = supabase
+        .from("reservation_records")
+        .select("id, task_id")
+        .eq("property_id", data.propertyId)
+        .eq("created_by", context.userId)
+        .eq("category", data.category)
+        .eq("kind", "note")
+        .eq("body", body ?? "")
+        .gte("created_at", new Date(Date.now() - 60_000).toISOString())
+        .limit(1);
+      q = data.logId ? q.eq("log_id", data.logId) : q.is("log_id", null);
+      q = data.reservationId ? q.eq("reservation_id", data.reservationId) : q.is("reservation_id", null);
+      const { data: dup } = await q.maybeSingle();
+      if (dup && data.media.length === 0) {
+        return { ok: true, groupId: (dup as { id: string }).id, taskId: (dup as { task_id: string | null }).task_id, duplicate: true } as never;
+      }
+    }
     const who = await resolveAuthorName(supabase, context.userId);
     const taskId = await createLinkedTask(supabase, context.userId, {
       category: data.category,

@@ -313,12 +313,14 @@ async function runGuideChat(
      * compartilhado, vitrine da landing, alguém que achou o guia no sitemap),
      * a conversa roda com as senhas travadas — a IA orienta a abrir o guia. */
     let credentialsLocked = false;
+    let reservationVerified: boolean | undefined;
     if (guestAccess.isReservationGated(prop as never)) {
       const code = (body.reservationCode ?? "").trim();
       const proof = code
         ? await guestAccess.lookupReservationByCode(body.slug, prop.id, code)
         : null;
       credentialsLocked = !proof?.ok;
+      reservationVerified = !!proof?.ok;
     }
 
     /* VITRINE DA LANDING: o lead conversa com a IA real, mas tudo que dá
@@ -343,8 +345,12 @@ async function runGuideChat(
         airbnb_ical_url: null,
       };
       credentialsLocked = false;
+      reservationVerified = true; // dados já trocados por fictícios
     }
-    if (landing.isLandingCopy(body.slug)) credentialsLocked = false;
+    if (landing.isLandingCopy(body.slug)) {
+      credentialsLocked = false;
+      reservationVerified = true;
+    }
 
     const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
     const { AiGatewayError } = await import("@/lib/ai/gateway.server");
@@ -364,6 +370,7 @@ async function runGuideChat(
         explorationMode: inExplorationFlow,
         surface: "guide_chat",
         credentialsLocked,
+        reservationVerified,
       });
     } catch (err) {
       const status = err instanceof AiGatewayError ? err.status : 502;

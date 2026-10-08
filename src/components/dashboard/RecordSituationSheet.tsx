@@ -254,6 +254,7 @@ export function RecordSituationSheet({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const savingLockRef = useRef(false);
   /** Quantos arquivos já foram resolvidos e quanto do atual já subiu.
    *
    *  O `pct` existe por causa do relato de 11/09: "o botão ficou carregando
@@ -576,11 +577,14 @@ export function RecordSituationSheet({
   }
 
   async function save() {
-    if (!canSave) return;
+    // Trava síncrona: dois toques rápidos não criam dois registros.
+    if (!canSave || savingLockRef.current) return;
     if (!title.trim()) {
       setErro("Falta o título. Escreva em poucas palavras o que aconteceu (ex.: \"Toalha manchada\") e toque em registrar de novo. Suas fotos e vídeos continuam aqui.");
       return;
     }
+    savingLockRef.current = true;
+    setTimeout(() => { savingLockRef.current = false; }, 3000);
     setErro(null);
     setSaving(true);
     const ctrl = new AbortController();

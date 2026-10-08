@@ -4,7 +4,7 @@
  * O endpoint público apenas enfileira o JSON bruto e responde 200 na hora;
  * este módulo transforma os itens pendentes em linhas da tabela `reservas`.
  */
-const CHANNEX_BASE = "https://staging.channex.io/api/v1";
+const CHANNEX_BASE = "https://app.channex.io/api/v1";
 
 type BookingAttributes = {
   id?: string;
@@ -27,7 +27,7 @@ type BookingAttributes = {
 };
 
 async function channexGet<T>(path: string): Promise<T | null> {
-  const key = process.env["CHANNEX_STAGING_API_KEY"];
+  const key = (process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"]);
   if (!key) return null;
   const res = await fetch(`${CHANNEX_BASE}${path}`, {
     headers: { "user-api-key": key, Accept: "application/json" },
@@ -150,12 +150,22 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
   );
   if (error) throw new Error(error.message);
 
+  // Guarda a revisão completa, sem perder nenhum campo.
+  const { saveRawRecords } = await import("@/lib/channex-raw.server");
+  await saveRawRecords([
+    { entity_type: "booking_revision", channex_id: String(booking._revisionId ?? booking.revision_id ?? codigo), parent_id: booking._bookingId ?? null, payload: booking, source: "webhook" },
+  ]);
+
   // Booking Acknowledge (obrigatório): só depois de gravar com sucesso. Idempotente.
   if (booking._revisionId) {
     const { ackBookingRevision } = await import("@/lib/channex-ari.server");
     const ack = await ackBookingRevision(booking._revisionId, booking._bookingId ?? null);
     if (!ack.ok) throw new Error("Falha ao confirmar (ACK) a revisão na Channex.");
   }
+
+  // Reserva nova/alterada/cancelada: reexporta a disponibilidade real (Channex → PriceLabs).
+  const { syncPilotAvailability } = await import("@/lib/channex-mapping.server");
+  await syncPilotAvailability().catch((e) => console.error("[channex] sync disponibilidade", e));
 }
 
 /** Puxa revisões ainda não confirmadas (feed) e processa + confirma cada uma. */
@@ -191,8 +201,11 @@ export async function processarFilaChannex(limite = 20): Promise<{ processados: 
   for (const item of pendentes ?? []) {
     try {
       const evento = eventOf(item.payload);
-      // Só reservas nos interessam; os demais eventos são apenas marcados como lidos.
-      if (!evento || evento.startsWith("booking")) {
+      // Reservas e mensagens são tratadas; os demais eventos são apenas marcados como lidos.
+      if (evento === "message" || evento === "new_message") {
+        const { handleChannexMessage } = await import("@/lib/channex-messages.server");
+        await handleChannexMessage(item.payload);
+      } else if (!evento || evento.startsWith("booking")) {
         await aplicarReserva(supabaseAdmin, item.payload);
       }
       await supabaseAdmin
@@ -221,6 +234,12 @@ export async function processarFilaChannex(limite = 20): Promise<{ processados: 
 /** Guarda o JSON bruto na fila. */
 export async function enfileirarWebhookChannex(payload: unknown): Promise<void> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const ev = eventOf(payload);
+  const root = asRecord(payload);
+  const { saveRawRecords } = await import("@/lib/channex-raw.server");
+  await saveRawRecords([
+    { entity_type: `webhook:${ev ?? "unknown"}`, channex_id: crypto.randomUUID(), channex_property_id: typeof root?.["property_id"] === "string" ? (root["property_id"] as string) : null, payload, source: "webhook" },
+  ]).catch(() => 0);
   const { error } = await supabaseAdmin.from("fila_webhooks_channex").insert({
     payload: payload as never,
     evento: eventOf(payload),
