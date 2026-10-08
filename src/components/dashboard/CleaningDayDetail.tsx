@@ -440,10 +440,6 @@ export function CleaningDayDetailContent({
            linha apareça inteira quando a rolagem chega ao fim. */
         <div
           className="sg-elegant-scroll min-h-0 flex-1 [scrollbar-gutter:stable] snap-y snap-proximity overflow-y-auto overflow-x-hidden px-5 pb-5 pt-1 [&_tbody_tr]:snap-start"
-          style={{
-            maskImage: "linear-gradient(to bottom, #000 calc(100% - 20px), transparent)",
-            WebkitMaskImage: "linear-gradient(to bottom, #000 calc(100% - 20px), transparent)",
-          }}
         >
           {body}
         </div>

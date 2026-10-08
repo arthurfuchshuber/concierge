@@ -106,7 +106,7 @@ export function comPrazo<T>(promessa: Promise<T>, ms: number, signal?: AbortSign
 
 /** Quanto esperar a sessão e as chamadas ao servidor. Generoso, mas finito. */
 export const PRAZO_AUTH_MS = 12_000;
-export const PRAZO_SERVIDOR_MS = 30_000;
+export const PRAZO_SERVIDOR_MS = 60_000;
 
 /** Falha de REDE do navegador (aba em segundo plano, 4G oscilando, DNS). */
 export function ehFalhaDeRede(e: unknown): boolean {
