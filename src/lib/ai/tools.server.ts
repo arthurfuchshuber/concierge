@@ -830,7 +830,11 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       "(checkout_completed, inclusive antes da data prevista). Só chame com CERTEZA ABSOLUTA, confirmada " +
       "pelo próprio hóspede: para check-in, ele precisa estar DENTRO do imóvel (\"já chegamos\" ou \"estamos " +
       "aqui\" NÃO bastam — pode estar na portaria ou em frente). Para checkout, ele precisa já ter saído do " +
-      "imóvel (não apenas planejar sair). Em caso de dúvida, pergunte antes e NÃO chame.",
+      "imóvel (não apenas planejar sair). Em caso de dúvida, pergunte antes e NÃO chame. " +
+      "CHECK-IN ANTES DO HORÁRIO PERMITIDO: NÃO é registrado sozinho. Primeiro chame " +
+      "search_stay_time_authorization e leia as mensagens da equipe; só se alguma delas autorizar a entrada " +
+      "antecipada, chame esta ferramenta citando em `autorizacao_trecho` o trecho LITERAL dessa mensagem. " +
+      "O sistema confere se o trecho existe de verdade; sem ele, o check-in não é registrado.",
     parameters: schema(
       {
         evento: { type: "string", enum: ["checkin_completed", "checkout_completed"] },
@@ -838,21 +842,81 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
           type: "string",
           description: "Frase literal do hóspede que comprova a entrada/saída.",
         },
+        autorizacao_trecho: {
+          type: ["string", "null"],
+          description:
+            "Só para check-in ANTES do horário permitido: trecho literal (cópia exata) da mensagem da equipe que autorizou a entrada antecipada. null nos demais casos.",
+        },
       },
-      ["evento", "evidencia"],
+      ["evento", "evidencia", "autorizacao_trecho"],
     ),
     execute: async (args) => {
       const kind = args.evento === "checkout_completed" ? "checkout" : "checkin";
-      const { findStayForEvent, applyStayEvent } = await import("./stay-events.server");
+      const { findStayForEvent, applyStayEvent, assessStayTimes, loadStaffMessages, quoteExistsInStaffMessages } =
+        await import("./stay-events.server");
       const stay = await findStayForEvent(ctx.supabase, {
         propertyId: ctx.propertyId,
         checkinDate: ctx.checkinDate,
         checkoutDate: ctx.checkoutDate,
       });
       if (!stay) return { ok: false, motivo: "reserva_nao_encontrada" };
+
+      // CHECK-IN FORA DO HORÁRIO PERMITIDO (08/10/2026): só com autorização da
+      // equipe comprovada em mensagem real; senão a IA pergunta e reforça o horário.
+      if (kind === "checkin") {
+        const t = await assessStayTimes(ctx.supabase, { propertyId: ctx.propertyId, stay });
+        if (t.early) {
+          const quote = typeof args.autorizacao_trecho === "string" ? args.autorizacao_trecho : "";
+          const staffMsgs = quote ? await loadStaffMessages(ctx.supabase, { propertyId: ctx.propertyId, guestName: ctx.guestName }) : [];
+          if (!quote || !quoteExistsInStaffMessages(quote, staffMsgs)) {
+            return {
+              ok: false,
+              motivo: quote ? "autorizacao_nao_comprovada" : "fora_do_horario_sem_autorizacao",
+              horario_permitido_checkin: t.checkinAllowed,
+              instrucao:
+                "NÃO registre. Se ainda não buscou, chame search_stay_time_authorization. Se nenhuma mensagem da equipe autorizar a entrada antecipada, " +
+                `pergunte ao hóspede, com gentileza, se ele já está no imóvel e reforce que o check-in é permitido a partir das ${t.checkinAllowed ?? "horário do imóvel"}.`,
+            };
+          }
+        }
+      }
+
       const r = await applyStayEvent(ctx.supabase, stay, kind);
       ctx.collectSource({ source: "operation", title: `${kind}: ${String(args.evidencia ?? "").slice(0, 120)}`, confidence: 1 });
       return r;
+    },
+  });
+
+  tools.push({
+    name: "search_stay_time_authorization",
+    description:
+      "Busca CONTEXTO para decidir sobre horário de check-in antecipado ou check-out acima do horário. Devolve o " +
+      "horário permitido do imóvel, o horário que a EQUIPE definiu (se houver) e as mensagens da EQUIPE e notas " +
+      "internas deste hóspede em TODOS os canais (guia, chat, WhatsApp, Airbnb…). Leia e entenda se, em algum " +
+      "momento, alguém da equipe autorizou a exceção. Chame sempre que o hóspede disser que já entrou ANTES do " +
+      "horário de check-in, ou pedir/mencionar sair DEPOIS do horário de check-out.",
+    parameters: schema({ evento: { type: "string", enum: ["checkin", "checkout"] } }, ["evento"]),
+    execute: async (args) => {
+      const { findStayForEvent, assessStayTimes, loadStaffMessages } = await import("./stay-events.server");
+      const stay = await findStayForEvent(ctx.supabase, {
+        propertyId: ctx.propertyId,
+        checkinDate: ctx.checkinDate,
+        checkoutDate: ctx.checkoutDate,
+      });
+      if (!stay) return { ok: false, motivo: "reserva_nao_encontrada" };
+      const t = await assessStayTimes(ctx.supabase, { propertyId: ctx.propertyId, stay });
+      const msgs = await loadStaffMessages(ctx.supabase, { propertyId: ctx.propertyId, guestName: ctx.guestName });
+      return {
+        ok: true,
+        evento: args.evento,
+        horario_permitido_checkin: t.checkinAllowed,
+        horario_definido_pela_equipe: t.staffCheckin,
+        ainda_antes_do_horario_de_checkin: t.early,
+        horario_limite_checkout: t.checkoutLimit,
+        mensagens_da_equipe: msgs,
+        regra:
+          "Sem autorização clara da equipe nestas mensagens, não registre check-in antecipado e informe com gentileza o horário permitido; check-out acima do horário permitido não é possível, salvo exceção autorizada.",
+      };
     },
   });
 

@@ -46,3 +46,10 @@ export function ownerPropertyLabel(name: string | null | undefined): string | nu
   if (!first) return null;
   return `${ownerIsFeminine(name) ? "Proprietária" : "Proprietário"} do Imóvel: ${first}`;
 }
+
+/** "Proprietário: Arthur T. Fuchshuber" · "Proprietária: Patrícia" — nome inteiro (usado nos pushes). */
+export function ownerRoleLabel(name: string | null | undefined): string | null {
+  const full = (name ?? "").trim();
+  if (!full) return null;
+  return `${ownerIsFeminine(full) ? "Proprietária" : "Proprietário"}: ${full}`;
+}

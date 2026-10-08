@@ -1365,7 +1365,11 @@ const AdvanceInput = z
 export async function runAdvanceArrival(
   supabase: SupabaseClient<Database>,
   data: z.infer<typeof AdvanceInput>,
-  opts?: { byUserId?: string | null },
+  opts?: {
+    byUserId?: string | null;
+    /** Hóspede confirmou pelo guia: o guia manda o próprio aviso, então o painel NÃO manda o da equipe (08/10/2026: eram 2 pushes). */
+    skipStaffPush?: boolean;
+  },
 ) {
     // Resolve property + stay dates from the source record.
     let propertyId: string | null = null;
@@ -1769,7 +1773,7 @@ export async function runAdvanceArrival(
     try {
       const stayStepKind =
         data.from === "checkin" ? ("checkin" as const) : data.from === "stay" ? ("checkout" as const) : null;
-      if (stayStepKind) {
+      if (stayStepKind && !opts?.skipStaffPush) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { notifyStaffArrivalStep } = await import("@/lib/ops-push.server");
         await notifyStaffArrivalStep(supabaseAdmin as never, {
@@ -1777,6 +1781,8 @@ export async function runAdvanceArrival(
           kind: stayStepKind,
           stayKey: data.reservationId ?? data.logId ?? today,
           byUserId: opts?.byUserId ?? null,
+          logId: data.logId ?? null,
+          reservationId: data.reservationId ?? null,
         });
       }
     } catch (err) {

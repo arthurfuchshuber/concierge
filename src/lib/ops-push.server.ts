@@ -2,6 +2,7 @@
 // Importar somente dentro de handlers (server routes / server functions).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ownerRoleLabel } from "@/lib/owner-gender";
 import type { Database } from "@/integrations/supabase/types";
 import { sendPushToSubscriptions, type PushPayload } from "@/lib/push.server";
 
@@ -751,6 +752,38 @@ export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyI
   return { sent };
 }
 
+/**
+ * PUSH DE CHECK-IN / CHECK-OUT: UM SÓ POR ESTADIA, NA MESMA ORDEM (pedido
+ * explícito, 08/10/2026: "há 2 pushs para o mesmo assunto.. tem que ser apenas
+ * 1"; "informação, título do imóvel, proprietário, hóspede").
+ *
+ * Por que saíam dois: quando o hóspede confirma pelo guia, o painel avançava o
+ * card (e avisava a equipe — "Check-in confirmado") e logo depois o guia
+ * mandava o seu aviso ("Check-in feito pelo hóspede"). Agora o guia avisa o
+ * painel para NÃO mandar o primeiro (`skipStaffPush`), e os dois avisos
+ * dividem a MESMA chave de unicidade: se por qualquer caminho os dois
+ * tentarem sair, só o primeiro sai.
+ *
+ * Ordem das linhas (título = a informação; corpo = uma linha por dado, só o
+ * que existir):
+ *   Check-in feito pelo hóspede / Check-in confirmado por Fulano
+ *   Título do imóvel
+ *   Proprietário(a): nome
+ *   Hóspede: nome
+ */
+function arrivalPushDedupeKey(kind: "checkin" | "checkout", stayKey: string): string {
+  return `arrival-step-${kind}:${stayKey}`;
+}
+
+function arrivalPushBody(parts: { property: string; owner: string; guest: string }): string {
+  const lines = [
+    parts.property,
+    ownerRoleLabel(parts.owner) ?? "",
+    parts.guest ? `Hóspede: ${parts.guest}` : "",
+  ];
+  return lines.map((l) => l.trim()).filter(Boolean).join("\n");
+}
+
 /** Push interno: hóspede confirmou check-in/check-out pelo guia. */
 export async function notifyGuestSelfStep(
   admin: Admin,
@@ -764,12 +797,12 @@ export async function notifyGuestSelfStep(
   return sendOpsPush(admin, {
     ownerId: prop.owner_id,
     kind: `guest-self-${opts.kind}`,
-    dedupeKey: `guest-self-${opts.kind}:${opts.stayKey}`,
+    dedupeKey: arrivalPushDedupeKey(opts.kind, opts.stayKey),
     userIds,
     payload: {
-      title: `${label} feito pelo hóspede · ${name}`,
-      body: locLine([prop.ownerName, opts.guestName ?? "", prop.cityClean]),
-      data: { url: "/admin/dashboard", tag: `guest-self-${opts.kind}-${opts.stayKey}`, propertyId: opts.propertyId },
+      title: `${label} feito pelo hóspede`,
+      body: arrivalPushBody({ property: name, owner: prop.ownerName, guest: (opts.guestName ?? "").trim() }),
+      data: { url: "/admin/dashboard", tag: `arrival-step-${opts.kind}-${opts.stayKey}`, propertyId: opts.propertyId },
     },
   });
 }
@@ -830,7 +863,15 @@ export async function notifyManualCleaningAssigned(
  */
 export async function notifyStaffArrivalStep(
   admin: Admin,
-  opts: { propertyId: string; kind: "checkin" | "checkout"; stayKey: string; byUserId?: string | null },
+  opts: {
+    propertyId: string;
+    kind: "checkin" | "checkout";
+    stayKey: string;
+    byUserId?: string | null;
+    /** Para achar o nome do hóspede (só é usado se for um UUID/reserva reais). */
+    logId?: string | null;
+    reservationId?: string | null;
+  },
 ) {
   const prop = await getPropertyBasics(admin, opts.propertyId);
   if (!prop) return { sent: 0, skipped: true };
@@ -848,17 +889,38 @@ export async function notifyStaffArrivalStep(
     const p = pr as { full_name?: string | null; trade_name?: string | null } | null;
     who = ((p?.trade_name || p?.full_name) ?? "").trim();
   }
+
+  // Hóspede da estadia (08/10/2026): o formato do aviso agora traz "Hóspede: …".
+  let guest = "";
+  const uuid = /^[0-9a-f-]{36}$/i;
+  if (opts.logId && uuid.test(opts.logId)) {
+    const { data: lg } = await admin
+      .from("guide_access_logs")
+      .select("guest_name")
+      .eq("id", opts.logId)
+      .maybeSingle();
+    guest = ((lg as { guest_name?: string | null } | null)?.guest_name ?? "").trim();
+  }
+  if (!guest && opts.reservationId && uuid.test(opts.reservationId)) {
+    const { data: rs } = await admin
+      .from("reservations")
+      .select("guest_hint")
+      .eq("id", opts.reservationId)
+      .maybeSingle();
+    guest = ((rs as { guest_hint?: string | null } | null)?.guest_hint ?? "").trim();
+  }
+
   const name = (prop.name || "Residência").trim();
   const label = opts.kind === "checkin" ? "Check-in" : "Check-out";
   return sendOpsPush(admin, {
     ownerId: prop.owner_id,
     kind: `staff-${opts.kind}`,
-    dedupeKey: `staff-${opts.kind}:${opts.stayKey}`,
+    dedupeKey: arrivalPushDedupeKey(opts.kind, opts.stayKey),
     userIds,
     payload: {
-      title: `${label} confirmado · ${name}`,
-      body: locLine([prop.ownerName, who ? `Por ${who}` : "", prop.cityClean]),
-      data: { url: "/admin/dashboard", tag: `staff-${opts.kind}-${opts.stayKey}`, propertyId: opts.propertyId },
+      title: who ? `${label} confirmado por ${who}` : `${label} confirmado`,
+      body: arrivalPushBody({ property: name, owner: prop.ownerName, guest }),
+      data: { url: "/admin/dashboard", tag: `arrival-step-${opts.kind}-${opts.stayKey}`, propertyId: opts.propertyId },
     },
   });
 }

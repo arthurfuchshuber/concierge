@@ -85,6 +85,16 @@ import {
   Layers,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { GuideAiChat } from "@/components/GuideAiChat";
 import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
 import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
@@ -854,6 +864,14 @@ function Guide({ data }: { data: GuideOk }) {
   } | null>(null);
   const stayBarTimer = useRef<number | null>(null);
   const stayBusyRef = useRef(false);
+  // CHECK-IN ANTES DO HORÁRIO PERMITIDO (pedido explícito, 08/10/2026): em vez
+  // de só bloquear com um aviso, o guia pergunta "Confirma mesmo assim que já
+  // acessou o imóvel? SIM ou NÃO" (janela de confirmação padrão do sistema,
+  // mockup aprovado). NÃO só fecha, sem marcar nada; SIM segue o fluxo normal.
+  // `earlyCheckinRef` é atualizado a cada render (mais abaixo, junto da regra
+  // do horário) para valer também no "Consegui fazer o check-in!" do onboarding.
+  const [earlyCheckinOpen, setEarlyCheckinOpen] = useState(false);
+  const earlyCheckinRef = useRef(false);
   useEffect(
     () => () => {
       if (stayBarTimer.current) window.clearTimeout(stayBarTimer.current);
@@ -872,7 +890,11 @@ function Guide({ data }: { data: GuideOk }) {
       kind === "checkin" ? { ...s, checkinDone: done } : { ...s, checkoutDone: done },
     );
   };
-  const markStay = async (kind: StayBarKind) => {
+  const markStay = async (kind: StayBarKind, opts?: { skipEarlyAsk?: boolean }) => {
+    if (kind === "checkin" && !opts?.skipEarlyAsk && earlyCheckinRef.current) {
+      setEarlyCheckinOpen(true);
+      return;
+    }
     if (stayBusyRef.current) return;
     stayBusyRef.current = true;
     if (stayBarTimer.current) window.clearTimeout(stayBarTimer.current);
@@ -1101,9 +1123,10 @@ function Guide({ data }: { data: GuideOk }) {
   //      só os dois critérios acima. `hostStatus.predictedCheckin*` já vem
   //      filtrado pelo servidor (`arrival_time_source === "staff"`), então
   //      aqui não precisa (nem pode) checar a origem de novo.
-  const checkinLockReason: string | null = (() => {
-    if (stayBarKind !== "checkin") return null;
-
+  // ATUALIZAÇÃO 08/10/2026: no motivo de HORÁRIO (1 e 2) o toque agora abre a
+  // janela "Check-in fora do horário — SIM/NÃO" em vez de só avisar; o motivo de
+  // LIMPEZA continua bloqueando com o aviso.
+  const computeCheckinLock = (): string | null => {
     // Critério 1 (parte limpeza): trava por turnover não concluído — manda
     // mais que qualquer horário, verificado antes de tudo.
     if (hostStatus.cleaningBlocked) {
@@ -1155,7 +1178,11 @@ function Guide({ data }: { data: GuideOk }) {
 
     if (clockTick >= gateTs) return null;
     return `Ainda não deu ${gateLabel} — horário previsto da sua chegada. Você poderá avisar a partir daí.`;
-  })();
+  };
+  const checkinLockReason: string | null = stayBarKind === "checkin" ? computeCheckinLock() : null;
+  // Só o HORÁRIO pergunta; a trava por limpeza/turnover continua bloqueando com
+  // o aviso de sempre (manda mais que qualquer horário).
+  earlyCheckinRef.current = !isPreview && !hostStatus.cleaningBlocked && !!computeCheckinLock();
 
   // Instruções de check-out abrem SOZINHAS à 00:00 do dia da saída (ou na 1ª
   // vez que o hóspede abrir o guia depois disso) — uma vez só por reserva.
@@ -1586,7 +1613,7 @@ function Guide({ data }: { data: GuideOk }) {
               locked={!!checkinLockReason}
               lockedReason={checkinLockReason ?? undefined}
               onTap={() => {
-                if (checkinLockReason) {
+                if (checkinLockReason && hostStatus.cleaningBlocked) {
                   toast.error(checkinLockReason);
                   return;
                 }
@@ -2905,7 +2932,7 @@ function Guide({ data }: { data: GuideOk }) {
           locked={!!checkinLockReason}
           lockedReason={checkinLockReason ?? undefined}
           onTap={() => {
-            if (checkinLockReason) {
+            if (checkinLockReason && hostStatus.cleaningBlocked) {
               toast.error(checkinLockReason);
               return;
             }
@@ -3000,6 +3027,30 @@ function Guide({ data }: { data: GuideOk }) {
         unlocked={unlocked}
         onRequestUnlock={() => requestUnlock()}
       />
+      {/* CONFIRMAÇÃO DE CHECK-IN FORA DO HORÁRIO (08/10/2026) — janela de
+          confirmação PADRÃO do sistema (mesmo painel, título, texto e botões de
+          36px das demais confirmações). NÃO = fecha e volta; SIM = confirma. */}
+      <AlertDialog open={earlyCheckinOpen} onOpenChange={setEarlyCheckinOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Check-in fora do horário</AlertDialogTitle>
+            <AlertDialogDescription>
+              Seu check-in está fora do horário permitido. Confirma mesmo assim que já acessou o imóvel?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>NÃO</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setEarlyCheckinOpen(false);
+                void markStay("checkin", { skipEarlyAsk: true });
+              }}
+            >
+              SIM
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {/* INSTRUÇÕES DE CHECK-OUT QUE ABREM SOZINHAS (mockup aprovado,
           24/09/2026): à 00:00 do dia da saída, no fuso do imóvel, ou na 1ª
           vez que o hóspede abrir o guia depois disso — uma vez só por

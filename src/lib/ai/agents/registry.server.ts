@@ -48,6 +48,10 @@ export const ALL_TOOLS = [
   "check_service_availability",
   "ask_human_supervisor",
   "request_human_handoff",
+  // Entrada/saída do hóspede (08/10/2026): o registro exige comprovar autorização
+  // da equipe quando o check-in é antes do horário permitido.
+  "register_guest_stay_event",
+  "search_stay_time_authorization",
 ];
 
 /** O concierge — agente único do atendimento ao hóspede. */
