@@ -478,7 +478,7 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
       conversation_id: c.id,
       role: "assistant",
       content: m.text,
-      sender_type: "human",
+      sender_type: automated ? "system" : "human",
       channel: "airbnb" as never,
       external_id: m.messageId,
       delivery_status: "delivered",
