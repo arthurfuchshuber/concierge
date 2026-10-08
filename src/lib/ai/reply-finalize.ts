@@ -10,7 +10,7 @@ export const AI_SIGNATURE = "[Assistente IA]";
  */
 export function finalizeAgentReply(reply: string, channel: string | undefined | null): string {
   const text = (reply ?? "").trim();
-  if (!text || text.replace(/[\s.]/g, "").toUpperCase().includes("[SILENCIO]") && text.length < 40) return "";
+  if (!text || (text.replace(/[\s.]/g, "").toUpperCase().includes("[SILENCIO]") && text.length < 40)) return "";
   if (channel === "evaluation") return text;
   if (text.includes(AI_SIGNATURE)) return text;
   const sig = channel === "airbnb" ? AI_SIGNATURE : `_${AI_SIGNATURE}_`;
