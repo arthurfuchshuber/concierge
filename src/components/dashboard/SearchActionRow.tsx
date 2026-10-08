@@ -8,7 +8,16 @@ import { Search, X } from "lucide-react";
  * mockup B aprovado): antes eram dois objetos separados (28px de altura, botões
  * de 36px). Agora o celular tem UMA casca de 40px de altura, com a busca e os
  * botões dentro, separados por fios, e cada botão com 48px de largura. O
- * TAMANHO DOS ÍCONES não mudou (lupa 14px, demais 15px). No computador o
+ * TAMANHO DOS ÍCONES não mudou (lupa 14px, demais 15px).
+ *
+ * PROFUNDIDADE IGUAL À DOS CARDS (pedido explícito, 08/10/2026, mockup A
+ * aprovado): "o campo dos filtros está mais 'fundo' do que os cards". A barra já
+ * tinha o mesmo desenho dos cards (`ds-3d`: degradê + fio de luz + contorno),
+ * mas a sombra de `ds-3d` (`0 10px 24px -16px`) foi calculada para um card alto:
+ * com 40px de altura o recuo de -16px a come por inteiro e a barra parecia
+ * afundada. No celular a sombra é proporcional à altura da barra
+ * (`0 8px 14px -8px`); as camadas de luz e contorno são as mesmas de `ds-3d`.
+ * No computador o
  * desenho continua o de antes — dois objetos, na altura da barra de abas. */
 export function SearchActionRow({
   value,
@@ -25,7 +34,7 @@ export function SearchActionRow({
 }) {
   return (
     <div
-      className={`flex min-w-0 items-stretch max-lg:ds-3d max-lg:ds-3d-hover max-lg:h-10 max-lg:overflow-hidden max-lg:rounded-[9px] max-lg:bg-card lg:items-center lg:gap-2 ${className}`}
+      className={`flex min-w-0 items-stretch max-lg:ds-3d max-lg:ds-3d-hover max-lg:h-10 max-lg:overflow-hidden max-lg:rounded-[9px] max-lg:bg-card max-lg:!shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border),0_8px_14px_-8px_rgb(0_0_0/0.55)] lg:items-center lg:gap-2 ${className}`}
     >
       <div className="relative min-w-0 flex-1">
         <Search className="pointer-events-none absolute left-3 top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60" />
