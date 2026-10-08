@@ -450,6 +450,25 @@ export const getCleaningStats = createServerFn({ method: "GET" })
       }
     }
 
+    // Quem concluiu, SÓ PARA EXIBIÇÃO (08/10/2026): usuário do sistema que não é
+    // prestador cadastrado (ex.: perfil "host" que conclui a limpeza ele mesmo)
+    // ficava sem nome na janela "Limpezas Realizadas". Para esses, usamos o nome
+    // do perfil. É um mapa à parte de propósito: `providerNameByUser` continua
+    // sendo só de prestadores e alimenta o filtro de Prestador — não muda.
+    const displayNameByUser = new Map<string, string>(providerNameByUser);
+    const semNome = doneByIds.filter((id) => !providerNameByUser.has(id));
+    if (semNome.length > 0) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: profs } = await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, trade_name")
+        .in("id", semNome);
+      for (const pf of (profs ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>) {
+        const label = (pf.trade_name || pf.full_name || "").trim();
+        if (label) displayNameByUser.set(pf.id, label);
+      }
+    }
+
     // Filtro de Prestador (pedido explícito, 23/09/2026) — aplicado ANTES de
     // separar aprovadas/pendentes, para os dois grupos (e o aviso de "+N
     // aguardando aprovação") já saírem consistentes com o prestador escolhido.
@@ -563,7 +582,7 @@ export const getCleaningStats = createServerFn({ method: "GET" })
             priceCents: r.cleaning_price_cents,
             pending: r.cleaning_approval_status === "pending",
             concludedAt: r.concluded_at,
-            doneByName: r.cleaning_done_by ? (providerNameByUser.get(r.cleaning_done_by) ?? null) : null,
+            doneByName: r.cleaning_done_by ? (displayNameByUser.get(r.cleaning_done_by) ?? null) : null,
             logId: r.log_id,
             reservationId: r.reservation_id,
           };

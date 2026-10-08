@@ -19,6 +19,8 @@ import {
 import { setCleaningPriceOverride, setCleaningType } from "@/lib/cleaning-price.functions";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ownerLabel } from "@/components/dashboard/card-colors";
+import { ownerPropertyLabel } from "@/lib/owner-gender";
+import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
 
 /**
@@ -69,6 +71,27 @@ function dayTitle(iso: string): string {
   return `${wd}, ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
 }
 
+function dateSP(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+/**
+ * BOTÃO DO DADO EDITÁVEL (mockup aprovado, 08/10/2026): fundo de botão no mesmo
+ * padrão dos botões dos cards, para a pessoa saber que aquele dado pode ser
+ * alterado. Só aparece para quem tem permissão; sem ela o dado é texto simples.
+ */
+const EDIT_BTN =
+  "ds-3d ds-3d-hover inline-flex items-center rounded-[0.3rem] border border-border/70 bg-card shadow-sm transition-colors";
+
+/** Namespace que decide quem pode alterar tipo, valor e prestador da limpeza. */
+const CLEANING_EDIT_PERMISSION = "tenant.dashboard.chegadas.limpeza";
+
 function timeSP(iso: string | null): string | null {
   if (!iso) return null;
   return new Date(iso).toLocaleTimeString("pt-BR", {
@@ -92,6 +115,44 @@ function PropertyCell({ name, owner }: { name: string; owner: string | null }) {
           {ownerLabel(owner)}
         </span>
       )}
+    </td>
+  );
+}
+
+/**
+ * Célula do imóvel na lista "Limpezas Realizadas": título, proprietário e a
+ * linha da ação (data · hora · quem fez) SEMPRE em uma linha, com reticências
+ * quando não couber (texto completo no `title`). Abaixo vem o tipo da limpeza
+ * (`children`), onde só o dado é botão.
+ */
+function DoneCell({
+  name,
+  owner,
+  action,
+  children,
+}: {
+  name: string;
+  owner: string | null;
+  action: string | null;
+  children: React.ReactNode;
+}) {
+  const ownerText = ownerPropertyLabel(owner);
+  return (
+    <td className={`${TD} pr-2`} style={{ maxWidth: 0, width: "100%" }}>
+      <span className="block truncate font-bold" title={name}>
+        {name}
+      </span>
+      {ownerText && (
+        <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-foreground/80" title={ownerText}>
+          {ownerText}
+        </span>
+      )}
+      {action && (
+        <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-foreground/80" title={action}>
+          {action}
+        </span>
+      )}
+      {children}
     </td>
   );
 }
@@ -146,6 +207,11 @@ export function CleaningDayDetailContent({
   onClose: () => void;
 }) {
   void caretX;
+  // Quem pode alterar tipo, valor e prestador (08/10/2026). Enquanto a decisão
+  // não chega — ou se ela falhar — NÃO mostramos botão: sem permissão confirmada,
+  // o dado aparece como texto simples. O servidor continua sendo quem barra.
+  const access = useAreaAccess([CLEANING_EDIT_PERMISSION], "WRITE");
+  const canEdit = access.ready && access.can(CLEANING_EDIT_PERMISSION);
   let subtitle = "";
   let body: React.ReactNode = null;
   let footer: React.ReactNode = null;
@@ -209,31 +275,38 @@ export function CleaningDayDetailContent({
           <thead>
             <tr>
               <th className={`${TH} text-left`}>Imóvel</th>
-              <th className={`${TH} text-left`}>Tipo</th>
-              <th className={`${TH} text-right`}>Valor</th>
+              <th className={`${TH} px-0 text-center !tracking-[0.04em]`}>Prestador</th>
+              <th className={`${TH} px-0 text-center !tracking-[0.04em]`}>Valor</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => {
-              const meta = [timeSP(r.concludedAt), r.doneByName].filter(Boolean).join(" · ");
+              const action = [dateSP(r.concludedAt), timeSP(r.concludedAt), r.doneByName]
+                .filter(Boolean)
+                .join(" · ");
               return (
                 <tr key={r.id}>
-                  <PropertyCell name={r.propertyName} owner={r.ownerName} />
-                  <td className={`${TD} pr-2`}>
-                    <TypeToggle statusId={r.id} type={r.cleaningType} pending={r.pending} title={r.propertyName} />
+                  <DoneCell name={r.propertyName} owner={r.ownerName} action={action}>
+                    <TypeToggle
+                      statusId={r.id}
+                      type={r.cleaningType}
+                      pending={r.pending}
+                      title={r.propertyName}
+                      canEdit={canEdit}
+                    />
+                  </DoneCell>
+                  <td className={`${TD} px-0.5 text-center !align-middle`}>
                     {(r.logId || r.reservationId) && (
-                      <span className="mt-1.5 block">
-                        <CleaningProviderAvatar propertyId={r.propertyId} logId={r.logId ?? ""} reservationId={r.reservationId} />
-                      </span>
+                      <CleaningProviderAvatar
+                        propertyId={r.propertyId}
+                        logId={r.logId ?? ""}
+                        reservationId={r.reservationId}
+                        look={canEdit ? "raised" : "plain"}
+                      />
                     )}
                   </td>
-                  <td className={`${TD} text-right`}>
-                    <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} />
-                    {meta && (
-                      <span className="block whitespace-nowrap text-[10.5px] text-muted-foreground">
-                        {meta}
-                      </span>
-                    )}
+                  <td className={`${TD} text-center !align-middle`}>
+                    <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} canEdit={canEdit} />
                   </td>
                 </tr>
               );
@@ -390,17 +463,22 @@ function TypeToggle({
   type,
   pending,
   title,
+  canEdit,
 }: {
   statusId: string;
   type: "normal" | "completa" | null;
   pending?: boolean;
   title: string;
+  canEdit: boolean;
 }) {
   const [target, setTarget] = useState<"normal" | "completa" | null>(null);
   const [busy, setBusy] = useState(false);
   const save = useServerFn(setCleaningType);
   const qc = useQueryClient();
   if (!type) return <TypeLabel type={type} pending={pending} />;
+  const typeText = type === "completa" ? "Completa" : "Normal";
+  // Rótulo no mesmo estilo da linha do proprietário; só o DADO é botão.
+  const labelCls = "mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px] font-semibold text-foreground/80";
   const next = type === "completa" ? "normal" : "completa";
   async function doSave() {
     if (!target) return;
@@ -416,16 +494,33 @@ function TypeToggle({
       setBusy(false);
     }
   }
+  const emAnalise = pending && (
+    <span className="mt-0.5 block text-[9.5px] font-extrabold text-amber-500 dark:text-amber-400">em análise</span>
+  );
+  if (!canEdit) {
+    return (
+      <>
+        <span className={`${labelCls} block truncate`} title={`Tipo da Limpeza: ${typeText}`}>
+          Tipo da Limpeza: {typeText}
+        </span>
+        {emAnalise}
+      </>
+    );
+  }
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setTarget(next)}
-        title={`Mudar para ${next === "completa" ? "Completa" : "Normal"}`}
-        className="-mx-1 rounded px-1 text-left transition-colors hover:bg-secondary/60"
-      >
-        <TypeLabel type={type} pending={pending} />
-      </button>
+      <span className={labelCls}>
+        <span className="shrink-0">Tipo da Limpeza:</span>
+        <button
+          type="button"
+          onClick={() => setTarget(next)}
+          title={`Mudar para ${next === "completa" ? "Completa" : "Normal"}`}
+          className={`${EDIT_BTN} h-6 min-w-0 px-2 text-[11px] font-bold`}
+        >
+          <span className="truncate">{typeText}</span>
+        </button>
+      </span>
+      {emAnalise}
       <AlertDialog open={!!target} onOpenChange={(v) => !v && setTarget(null)}>
         <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
           <AlertDialogHeader>
@@ -455,7 +550,17 @@ function TypeToggle({
 
 /** Valor clicável: edita no mesmo lugar, com a MESMA letra, e SEMPRE pede
  * confirmação antes de gravar. */
-function EditablePrice({ statusId, cents, title }: { statusId: string; cents: number | null; title: string }) {
+function EditablePrice({
+  statusId,
+  cents,
+  title,
+  canEdit,
+}: {
+  statusId: string;
+  cents: number | null;
+  title: string;
+  canEdit: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   const [confirm, setConfirm] = useState(false);
@@ -481,6 +586,8 @@ function EditablePrice({ statusId, cents, title }: { statusId: string; cents: nu
   }
 
   const same = "font-bold text-[12.5px] tabular-nums text-foreground";
+  // Sem permissão: valor em texto simples, sem fundo de botão e sem toque.
+  if (!canEdit) return <span className={`whitespace-nowrap ${same}`}>{brl(cents)}</span>;
   if (!editing) {
     return (
       <button
@@ -490,7 +597,7 @@ function EditablePrice({ statusId, cents, title }: { statusId: string; cents: nu
           setEditing(true);
         }}
         title="Alterar valor"
-        className={`-mx-1 rounded px-1 transition-colors hover:bg-secondary/60 ${same}`}
+        className={`${EDIT_BTN} h-7 whitespace-nowrap px-1.5 ${same}`}
       >
         {brl(cents)}
       </button>

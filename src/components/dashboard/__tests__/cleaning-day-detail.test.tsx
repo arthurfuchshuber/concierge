@@ -3,7 +3,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 const renderToStaticMarkup = (el: ReactElement) =>
   rawRender(<QueryClientProvider client={new QueryClient()}>{el}</QueryClientProvider>);
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Permissão de editar controlada pelo teste (08/10/2026): a janela só mostra
+// botão de edição quando o backend confirma a permissão.
+const acesso = vi.hoisted(() => ({ liberado: false }));
+vi.mock("@/lib/permissions/useAreaAccess", () => ({
+  useAreaAccess: () => ({ ready: true, can: () => acesso.liberado }),
+}));
 import { CleaningDayDetailContent } from "../CleaningDayDetail";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
 
@@ -128,5 +135,45 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     expect(t).toContain("11:00");
     expect(t).toContain("Ana");
     expect(t).toMatch(/Estimativa · limpeza normal R\$\s120,00/);
+  });
+
+  it("limpezas: data + hora + quem fez e proprietário(a) do imóvel; sem permissão não há botão", () => {
+    acesso.liberado = false;
+    const html = renderToStaticMarkup(
+      <CleaningDayDetailContent
+        date="2026-09-17"
+        source={{
+          mode: "done",
+          items: [
+            { ...items[1], ownerName: "Patrícia Souza" },
+            { ...items[2], ownerName: "Clayton Lima" },
+          ],
+        }}
+        caretX={null}
+        onClose={() => {}}
+      />,
+    );
+    const t = text(html);
+    expect(t).toContain("Proprietária do Imóvel: Patrícia");
+    expect(t).toContain("Proprietário do Imóvel: Clayton");
+    expect(t).toContain("17/09/2026 · 14:20 · Maria");
+    expect(t).toContain("Tipo da Limpeza: Normal");
+    expect(html).not.toContain("<button");
+  });
+
+  it("limpezas: com permissão, tipo e valor viram botão (só o dado)", () => {
+    acesso.liberado = true;
+    const html = renderToStaticMarkup(
+      <CleaningDayDetailContent
+        date="2026-09-17"
+        source={{ mode: "done", items: [items[1]] }}
+        caretX={null}
+        onClose={() => {}}
+      />,
+    );
+    const botoes = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
+    expect(botoes.some((b) => text(b).trim() === "Normal")).toBe(true);
+    expect(botoes.some((b) => /R\$\s120,00/.test(text(b)))).toBe(true);
+    acesso.liberado = false;
   });
 });

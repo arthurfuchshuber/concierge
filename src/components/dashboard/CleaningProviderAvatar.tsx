@@ -38,19 +38,42 @@ function BroomBucket({ className }: { className?: string }) {
 }
 
 /** Quadrado do perfil. Sem foto: fundo azul bebê com kit de limpeza. */
-function Face({ name, url, size = 28 }: { name: string | null; url: string | null; size?: number }) {
+function Face({
+  name,
+  url,
+  size = 28,
+  look = "default",
+}: {
+  name: string | null;
+  url: string | null;
+  size?: number;
+  /**
+   * "default": como sempre foi. "raised": botão com relevo (janela "Limpezas
+   * Realizadas", quem pode editar). "plain": só a letra, sem fundo (quem não
+   * pode editar). Nos dois últimos a letra, no tema claro, usa o azul-escuro
+   * do sistema (`--cleaning-soft-foreground`); no escuro nada muda.
+   */
+  look?: "default" | "raised" | "plain";
+}) {
+  const ink = look === "default" ? "text-[var(--cleaning-soft)]" : "text-[var(--cleaning-soft-foreground)] dark:text-[var(--cleaning-soft)]";
+  const box =
+    look === "raised"
+      ? "ds-3d ds-3d-hover border border-border/70 bg-card shadow-sm"
+      : look === "plain"
+        ? ""
+        : "border border-border/50 bg-background/60";
   return url ? (
     <img src={url} alt={name ?? ""} className="rounded-[0.3rem] object-cover" style={{ width: size, height: size }} />
   ) : (
     <span
       title={name ?? undefined}
-      className="inline-flex shrink-0 items-center justify-center rounded-[0.3rem] border border-border/50 bg-background/60"
+      className={`inline-flex shrink-0 items-center justify-center rounded-[0.3rem] ${box}`}
       style={{ minWidth: size, height: size, paddingInline: name ? 5 : 0 }}
     >
       {name ? (
-        <span className="block text-[16px] font-semibold leading-none tracking-[-0.02em] text-[var(--cleaning-soft)] [text-box:trim-both_cap_alphabetic]">{initials(name)}</span>
+        <span className={`block text-[16px] font-semibold leading-none tracking-[-0.02em] ${ink} [text-box:trim-both_cap_alphabetic]`}>{initials(name)}</span>
       ) : (
-        <BroomBucket className="size-3.5 text-[var(--cleaning-soft)]" />
+        <BroomBucket className={`size-3.5 ${ink}`} />
       )}
     </span>
   );
@@ -63,12 +86,20 @@ export function CleaningProviderAvatar({
   logId,
   reservationId,
   showName,
+  look,
 }: {
   propertyId: string;
   logId: string;
   reservationId: string | null;
   /** Mostra o nome ao lado da bolinha (janela de detalhes). */
   showName?: boolean;
+  /**
+   * Só a janela "Limpezas Realizadas" passa isto (08/10/2026):
+   * "raised" = quem pode trocar o prestador (botão com relevo);
+   * "plain" = quem não pode (só a letra, sem fundo e sem toque).
+   * Sem a prop, o avatar é igual ao de sempre em todo o sistema.
+   */
+  look?: "raised" | "plain";
 }) {
   const board = useCleaningBoard();
   const qc = useQueryClient();
@@ -108,6 +139,11 @@ export function CleaningProviderAvatar({
 
   if (!realLog && !resId && !manualId) return null;
 
+  // Sem permissão de editar: só mostra quem é o responsável, sem popover.
+  if (look === "plain") {
+    return <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={28} look="plain" />;
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -119,7 +155,7 @@ export function CleaningProviderAvatar({
           className={showName ? "inline-flex min-w-0 items-center gap-2 rounded-[0.3rem] py-0.5 pl-0.5 pr-2 transition hover:bg-secondary/60" : "relative shrink-0 rounded-[0.3rem] transition hover:opacity-85"}
         >
           <span className="relative shrink-0">
-          <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={showName ? 26 : 28} />
+          <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={showName ? 26 : 28} look={look ?? "default"} />
           {assignedId && (
             <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card bg-primary" />
           )}
