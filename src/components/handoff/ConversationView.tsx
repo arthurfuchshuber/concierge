@@ -1458,7 +1458,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   <StickyNote className="size-3" /> nota interna (só a equipe vê)
                 </div>
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-end gap-2">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1479,10 +1479,17 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   onAttach={() => fileInputRef.current?.click()}
                   onCamera={() => cameraInputRef.current?.click()}
                 />
-                <div className={`${COMPOSER_FIELD} ${note ? "!border-yellow-500/50" : ""}`}>
+                <div
+                  className={`${COMPOSER_FIELD} !h-auto min-h-8 !items-end !rounded-2xl py-1.5 ${note ? "!border-yellow-500/50" : ""}`}
+                >
                   <TagMentionTextarea
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    onChange={(e) => {
+                      setText(e.target.value);
+                      const el = e.target as HTMLTextAreaElement;
+                      el.style.height = "auto";
+                      el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
@@ -1493,32 +1500,30 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     placeholder={note ? "Nota interna…" : "Mensagem…"}
                     rows={1}
                     containerClassName="flex-1 min-w-0"
-                    className={`${COMPOSER_INPUT} border-0 px-0`}
+                    className={`${COMPOSER_INPUT} !max-h-40 whitespace-pre-wrap break-words border-0 px-0`}
                   />
                 </div>
 
-                {text.trim() ? (
-                  <button
-                    type="submit"
-                    disabled={send.isPending}
-                    className={`${COMPOSER_SEND_BTN} ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
-                  >
-                    {send.isPending ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Send className="size-4" />
-                    )}
-                  </button>
-                ) : (
-                  <div className="shrink-0">
-                    <AudioRecorderButton
-                      disabled={uploading}
-                      maxSeconds={60}
-                      onRecorded={onAudioRecorded}
-                      compact
-                    />
-                  </div>
-                )}
+                <div className="shrink-0">
+                  <AudioRecorderButton
+                    disabled={uploading}
+                    maxSeconds={60}
+                    onRecorded={onAudioRecorded}
+                    compact
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={send.isPending || !text.trim()}
+                  aria-label="Enviar mensagem"
+                  className={`${COMPOSER_SEND_BTN} ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
+                >
+                  {send.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Send className="size-4" />
+                  )}
+                </button>
               </div>
             </form>
           </>
