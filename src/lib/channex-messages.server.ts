@@ -53,7 +53,21 @@ async function hasConfirmedReservation(admin: any, propertyId: string, m: Inboun
       (bookingId && r.external_uid === bookingId) ||
       (otaThreadId && r.guest_contacts?.ota_thread_id === otaThreadId),
   );
-  return match ? { ok: true, checkin: match.checkin_date, checkout: match.checkout_date } : no;
+  if (match) return { ok: true, checkin: match.checkin_date, checkout: match.checkout_date };
+  // Reservas novas chegam por webhook na tabela `reservas` (antes de qualquer importação manual).
+  if (bookingId) {
+    const { data: r } = await admin
+      .from("reservas")
+      .select("data_checkin, data_checkout, status")
+      .eq("channex_booking_id", bookingId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (r && r.status !== "cancelled" && (!r.data_checkout || r.data_checkout >= today)) {
+      return { ok: true, checkin: r.data_checkin ?? null, checkout: r.data_checkout ?? null };
+    }
+  }
+  return no;
 }
 
 type Inbound = {
