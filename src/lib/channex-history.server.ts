@@ -127,12 +127,18 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
 
   // 2) Conversas + mensagens do Airbnb.
   const threads = await getAll("/message_threads").catch((e) => { console.error("[channex-history] threads", e); return []; });
+  await saveAll("message_thread", threads);
   for (const t of threads) {
     const a = t.attributes ?? {};
     // Conversas importadas podem vir sem listing_id; o vínculo vem pela propriedade Channex (1 anúncio por propriedade no piloto).
     const propertyId =
       byListing.get(String(a.meta?.listing_id ?? "")) ?? byChannexProperty.get(String(t.relationships?.property?.data?.id ?? ""));
-    if (!propertyId) continue;
+    if (!propertyId) {
+      // Sem imóvel conhecido: ainda assim guarda todas as mensagens brutas.
+      const msgs = await getAll(`/message_threads/${t.id}/messages`, 20).catch(() => []);
+      await saveAll("message", msgs, String(t.id));
+      continue;
+    }
     const guestName =
       threadToBooking.get(String(a.ota_message_thread_id ?? ""))?.names?.[0] ??
       clean(String(a.title ?? "").replace(/^(Inquiry|Reservation|Booking|Message) from\s+/i, ""));
@@ -165,6 +171,7 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
     }
 
     const msgs = await getAll(`/message_threads/${t.id}/messages`, 20).catch(() => []);
+    await saveAll("message", msgs, String(t.id));
     const { data: known } = await admin
       .from("property_chat_messages")
       .select("external_id")
@@ -195,6 +202,7 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
 
   // 3) Avaliações → anúncio do imóvel (indexadas como conhecimento da IA).
   const reviews = await getAll("/reviews").catch(() => []);
+  await saveAll("review", reviews);
   const perProperty = new Map<string, any[]>();
   for (const r of reviews) {
     const a = r.attributes ?? {};

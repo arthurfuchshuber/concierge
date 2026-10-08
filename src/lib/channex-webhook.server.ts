@@ -150,6 +150,12 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
   );
   if (error) throw new Error(error.message);
 
+  // Guarda a revisão completa, sem perder nenhum campo.
+  const { saveRawRecords } = await import("@/lib/channex-raw.server");
+  await saveRawRecords([
+    { entity_type: "booking_revision", channex_id: String(booking._revisionId ?? booking.revision_id ?? codigo), parent_id: booking._bookingId ?? null, payload: booking, source: "webhook" },
+  ]);
+
   // Booking Acknowledge (obrigatório): só depois de gravar com sucesso. Idempotente.
   if (booking._revisionId) {
     const { ackBookingRevision } = await import("@/lib/channex-ari.server");
@@ -228,6 +234,12 @@ export async function processarFilaChannex(limite = 20): Promise<{ processados: 
 /** Guarda o JSON bruto na fila. */
 export async function enfileirarWebhookChannex(payload: unknown): Promise<void> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const ev = eventOf(payload);
+  const root = asRecord(payload);
+  const { saveRawRecords } = await import("@/lib/channex-raw.server");
+  await saveRawRecords([
+    { entity_type: `webhook:${ev ?? "unknown"}`, channex_id: crypto.randomUUID(), channex_property_id: typeof root?.["property_id"] === "string" ? (root["property_id"] as string) : null, payload, source: "webhook" },
+  ]).catch(() => 0);
   const { error } = await supabaseAdmin.from("fila_webhooks_channex").insert({
     payload: payload as never,
     evento: eventOf(payload),
