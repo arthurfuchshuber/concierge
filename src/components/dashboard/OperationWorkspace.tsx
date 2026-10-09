@@ -859,28 +859,28 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const checkinListQ = useQuery({
     queryKey: ["dash-list", "checkin", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range, ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
   });
   const checkoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
   });
   const tomorrowCheckinListQ = useQuery({
     queryKey: ["dash-list", "checkin", "tomorrow", activeOwnerId ?? "self", "top-card"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow", ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
   });
   const tomorrowCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self", "top-card"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
   });
@@ -896,7 +896,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const kanbanCheckinListQ = useQuery({
     queryKey: ["dash-list", "checkin", "all", activeOwnerId ?? "self", "kanban-filtros"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "all", ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
     enabled: authed && view === "kanban",
@@ -904,7 +904,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const kanbanCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "all", activeOwnerId ?? "self", "kanban-filtros"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "all", ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
     enabled: authed && view === "kanban",
@@ -924,7 +924,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const concludedQ = useQuery({
     queryKey: ["dash-list", "concluded", activeOwnerId ?? "self", concludedSearchDebounced],
     queryFn: () => concludedFn({ data: { ownerId: activeOwnerId, q: concludedSearchDebounced || undefined } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
     enabled: authed && view === "kanban",
@@ -941,7 +941,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const noShowQ = useQuery({
     queryKey: ["dash-list", "no_show", activeOwnerId ?? "self", noShowSearchDebounced],
     queryFn: () => noShowFn({ data: { ownerId: activeOwnerId, q: noShowSearchDebounced || undefined } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "kanban",
   });
@@ -1198,7 +1198,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           providerNames: providerFilters.length > 0 ? providerFilters : undefined,
         },
       }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && cleaningStatsEnabled,
   });
@@ -1224,7 +1224,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           providerNames: providerFilters.length > 0 ? providerFilters : undefined,
         },
       }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "limpeza" && cleaningStatsEnabled,
   });
@@ -1848,7 +1848,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const cleaningForecastListQ = useQuery({
     queryKey: ["dash-list", "checkout", "all-forecast", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range: forecastRange, ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "limpeza",
   });
