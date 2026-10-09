@@ -7,16 +7,16 @@ const CHANNEX_BASE = "https://app.channex.io/api/v1";
 export const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
 const CLAYTON_CHANNEL_ID = "24c871d9-d6fd-46f5-944d-a38b8a4df189";
 
-type PilotListing = { slug: string; channelId: string; roomTypeId?: string };
+type PilotListing = { slug: string; channelId: string; roomTypeId?: string; channexPropertyId?: string };
 
 /** Anúncios principais liberados (piloto). airbnb listing id → imóvel oficial. */
 export const PILOT_LISTING_CONFIG: Record<string, PilotListing> = {
   "1081915824812637088": { slug: "charmosa", channelId: AIRBNB_CHANNEL_ID },
-  "1668247859065922881": { slug: "studio101", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "f5911861-2f36-473a-943d-8c31598c22f6" },
-  "1668250046816777608": { slug: "studio102", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "4151bb96-1bbc-4f75-b54a-e745408a00e1" },
-  "1668251215421954022": { slug: "studio103", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "82acb151-c3b5-4b78-bcff-362ed42ac86b" },
-  "1668252578084352769": { slug: "studio104", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "4f33f351-cfa7-46f6-9184-024b8e4cbac3" },
-  "1668254267295787925": { slug: "studio105", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "8b2f3287-551d-4407-b48c-c5ce0727fe7a" },
+  "1668247859065922881": { slug: "studio101", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "f5911861-2f36-473a-943d-8c31598c22f6", channexPropertyId: "032fb0bc-9d2d-450f-9d9a-cf8da9b9ad60" },
+  "1668250046816777608": { slug: "studio102", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "4151bb96-1bbc-4f75-b54a-e745408a00e1", channexPropertyId: "a9110e74-d7b2-4d72-8b9a-a38f7014f2dc" },
+  "1668251215421954022": { slug: "studio103", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "82acb151-c3b5-4b78-bcff-362ed42ac86b", channexPropertyId: "b94a9b9a-899f-438b-a0a2-3e2e84d31017" },
+  "1668252578084352769": { slug: "studio104", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "4f33f351-cfa7-46f6-9184-024b8e4cbac3", channexPropertyId: "0376fdc7-aedf-49c3-9ee6-d524fd6d2a6c" },
+  "1668254267295787925": { slug: "studio105", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "8b2f3287-551d-4407-b48c-c5ce0727fe7a", channexPropertyId: "45ab6dee-01c4-4c9b-9898-8e43567d1bca" },
 };
 
 /** Anúncios gêmeos (mesma unidade física): anúncio secundário → anúncio principal. */
@@ -165,7 +165,7 @@ export async function syncPilotListings(): Promise<Array<{ listingId: string; pr
         property_id: prop.id,
         owner_id: prop.owner_id,
         channex_channel_id: cfg.channelId,
-        channex_property_id: channel.data.attributes.properties[0] ?? null,
+        channex_property_id: cfg.channexPropertyId ?? channel.data.attributes.properties[0] ?? null,
         channex_room_type_id: ratePlan?.data?.relationships?.room_type?.data?.id ?? cfg.roomTypeId ?? prevRow?.channex_room_type_id ?? null,
         channex_rate_plan_id: rp.rate_plan_id || null,
         airbnb_listing_id: listingId,
