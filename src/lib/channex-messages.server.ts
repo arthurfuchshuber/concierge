@@ -305,6 +305,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     convId = created.id as string;
   }
 
+  const guestMsgAt = new Date().toISOString();
   await admin.from("property_chat_messages").insert({
     conversation_id: convId,
     role: "user",
@@ -370,11 +371,12 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   });
 
   if (result.handoff) {
+    // Nunca mexe em ai_paused aqui: uma pausa gravada por resposta humana
+    // durante o processamento precisa continuar valendo.
     await admin
       .from("property_chat_conversations")
       .update({
         status: "needs_human",
-        ai_paused: false,
         handoff_reason: result.handoffReason ?? "Hóspede pediu atendimento humano.",
         handoff_urgency: result.handoffUrgency,
         handoff_at: new Date().toISOString(),
@@ -403,12 +405,22 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
 
   // Rechecagem na hora do envio: a chave pode ter sido desligada ou o anfitrião
   // pode ter falado enquanto a IA pensava. Nesse caso, a resposta é descartada.
-  const [{ data: sw }, { data: conv }] = await Promise.all([
+  const [{ data: sw }, { data: conv }, { data: humanAfter }] = await Promise.all([
     admin.from("property_listing_raw_data").select("airbnb_ai_enabled").eq("property_id", listing.property_id).maybeSingle(),
     admin.from("property_chat_conversations").select("ai_paused, paused_until").eq("id", convId).maybeSingle(),
+    // Alguém da conta falou depois da mensagem do hóspede? Então a IA cala.
+    admin
+      .from("property_chat_messages")
+      .select("id")
+      .eq("conversation_id", convId)
+      .eq("sender_type", "human")
+      .not("is_internal_note", "is", true)
+      .gte("created_at", guestMsgAt)
+      .limit(1),
   ]);
   const { isPausedNow } = await import("@/lib/ai/pause");
   if (!(sw as any)?.airbnb_ai_enabled || isPausedNow(conv as never)) return;
+  if ((humanAfter ?? []).length > 0) return;
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
   try {
@@ -478,7 +490,10 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
       (r) => (m.messageId && r.external_id === m.messageId) || norm(String(r.content ?? "")) === norm(m.text),
     );
     if (isEcho) continue;
-    if (!automated) await admin.from("property_chat_conversations").update(pausePatch()).eq("id", c.id);
+    if (!automated) {
+      await admin.from("property_chat_conversations").update(pausePatch()).eq("id", c.id);
+      await purgePendingChatForThread(admin, m.threadId);
+    }
     if (m.messageId) {
       const { data: dup } = await admin
         .from("property_chat_messages")
@@ -531,4 +546,26 @@ async function loadInquiryDetails(
     Number(p.bms?.occ_adults ?? 0) + Number(p.bms?.occ_children ?? 0) ||
     null;
   return { checkin, checkout, nights, guests, stage: row.evento };
+}
+
+/**
+ * Alguém da conta respondeu (Airbnb ou painel): descarta mensagens de chat
+ * desse thread ainda na fila, para a IA não responder por cima.
+ */
+export async function purgePendingChatForThread(admin: any, threadId: string | null | undefined): Promise<void> {
+  if (!threadId) return;
+  try {
+    await admin
+      .from("fila_webhooks_channex")
+      .update({
+        processado: true,
+        processado_em: new Date().toISOString(),
+        erro: "Descartado: anfitrião respondeu diretamente",
+      })
+      .eq("processado", false)
+      .in("evento", ["message", "new_message"])
+      .eq("payload->payload->>message_thread_id", threadId);
+  } catch (e) {
+    console.error("[channex-messages] expurgo da fila falhou", e);
+  }
 }
