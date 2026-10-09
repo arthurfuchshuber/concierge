@@ -140,8 +140,13 @@ async function resolveListing(admin: any, m: Inbound): Promise<ListingRow | null
   // 2) Conversa na Channex expõe o listing id do Airbnb.
   if (m.threadId) {
     const t = await channex<{ data?: unknown }>(`/message_threads/${m.threadId}`).catch(() => null);
-    const listingId = findListingId(t?.data);
-    if (listingId) return listings.find((l) => l.airbnb_listing_id === listingId) ?? null;
+    const raw = findListingId(t?.data);
+    if (raw) {
+      // Anúncio gêmeo (mesma unidade física) resolve para o anúncio principal.
+      const { primaryListingId } = await import("@/lib/channex-listing.server");
+      const listingId = primaryListingId(raw);
+      return listings.find((l) => l.airbnb_listing_id === listingId) ?? null;
+    }
   }
   return null; // incerto → não responde
 }

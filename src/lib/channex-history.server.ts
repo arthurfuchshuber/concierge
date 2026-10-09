@@ -39,14 +39,25 @@ const num = (v: unknown) => (v == null || v === "" || !Number.isFinite(Number(v)
 export async function backfillChannexHistory(): Promise<BackfillResult> {
   const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
   const { saveRawRecords, channexPropertyOf } = await import("@/lib/channex-raw.server");
-  const { data: rows } = await admin.from("property_listing_raw_data").select("property_id, airbnb_listing_id, channex_property_id");
-  const byChannexProperty = new Map<string, string>(((rows ?? []) as Array<{ property_id: string; channex_property_id: string | null }>).filter((r) => r.channex_property_id).map((r) => [String(r.channex_property_id), r.property_id]));
-  const byListing = new Map<string, string>(((rows ?? []) as Listing[]).map((l) => [String(l.airbnb_listing_id), l.property_id]));
+  const { primaryListingId } = await import("@/lib/channex-listing.server");
+  const { data: rows } = await admin.from("property_listing_raw_data").select("property_id, airbnb_listing_id, channex_property_id, channex_room_type_id");
+  const typed = (rows ?? []) as Array<Listing & { channex_property_id: string | null; channex_room_type_id: string | null }>;
+  // Propriedade Channex só identifica o imóvel quando há UM imóvel nela (ex.: Studios dividem a mesma).
+  const cpCount = new Map<string, number>();
+  for (const r of typed) if (r.channex_property_id) cpCount.set(r.channex_property_id, (cpCount.get(r.channex_property_id) ?? 0) + 1);
+  const byChannexProperty = new Map<string, string>(typed.filter((r) => r.channex_property_id && cpCount.get(r.channex_property_id) === 1).map((r) => [String(r.channex_property_id), r.property_id]));
+  const byRoomType = new Map<string, string>(typed.filter((r) => r.channex_room_type_id).map((r) => [String(r.channex_room_type_id), r.property_id]));
+  const byListing = new Map<string, string>(typed.map((l) => [String(l.airbnb_listing_id), l.property_id]));
   const result: BackfillResult = { reservations: 0, conversations: 0, messages: 0, reviews: 0, raw: 0 };
 
   const propOf = (item: any) => {
     const cp = channexPropertyOf(item);
-    return byListing.get(String(item?.attributes?.meta?.listing_id ?? "")) ?? (cp ? byChannexProperty.get(String(cp)) : undefined) ?? null;
+    const a = item?.attributes ?? {};
+    const listing = String(a?.meta?.listing_id ?? a?.ota_listing_id ?? "");
+    const roomType = String(a?.rooms?.[0]?.room_type_id ?? a?.room_type_id ?? "");
+    return (listing ? byListing.get(primaryListingId(listing)) : undefined)
+      ?? (roomType ? byRoomType.get(roomType) : undefined)
+      ?? (cp ? byChannexProperty.get(String(cp)) : undefined) ?? null;
   };
   const saveAll = async (entity: string, items: any[], parent?: string) => {
     result.raw += await saveRawRecords(
