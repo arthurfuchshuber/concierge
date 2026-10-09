@@ -41,6 +41,13 @@ export function stableStringify(v: unknown): string {
   return JSON.stringify(v ?? null);
 }
 
+/** A Channex prefixa o título com "<conta> <apelido> · "; o nome público do anúncio é o que vem depois. */
+export const listingTitle = (raw: unknown) => {
+  const s = String(raw ?? "").trim();
+  const i = s.lastIndexOf(" · ");
+  return (i >= 0 ? s.slice(i + 3) : s).trim();
+};
+
 export const normTitle = (s: unknown) => String(s ?? "").trim().replace(/\s+/g, " ").toLowerCase();
 
 export type EntitySyncResult = {
@@ -130,7 +137,7 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
     for (const l of values) {
       const lid = String(l?.id ?? "");
       if (!lid || links.has(lid)) continue;
-      const t = normTitle(prevListingTitle.get(lid) || l.title);
+      const t = normTitle(listingTitle(l.title));
       const matches = rts.filter((r) => normTitle(r.attributes?.title) === t);
       if (matches.length === 1) {
         links.set(lid, matches[0].id);
@@ -146,7 +153,7 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
   for (const values of listingsByChannel.values()) {
     for (const l of values) {
       const rtId = links.get(String(l?.id ?? ""));
-      const title = String(l?.title ?? "").trim();
+      const title = listingTitle(l?.title);
       if (!rtId || !title) continue;
       const rt = roomTypes.find((r) => r.id === rtId);
       if (!rt || String(rt.attributes?.title ?? "").trim() === title) continue;
