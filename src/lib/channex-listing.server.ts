@@ -12,11 +12,11 @@ type PilotListing = { slug: string; channelId: string; roomTypeId?: string };
 /** Anúncios principais liberados (piloto). airbnb listing id → imóvel oficial. */
 export const PILOT_LISTING_CONFIG: Record<string, PilotListing> = {
   "1081915824812637088": { slug: "charmosa", channelId: AIRBNB_CHANNEL_ID },
-  "1668247859065922881": { slug: "studio101", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "aed39032-3c93-40d6-a060-76bdc7832363" },
-  "1668250046816777608": { slug: "studio102", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "46478602-b7ff-4c3e-8389-62e9b9c671d6" },
-  "1668251215421954022": { slug: "studio103", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "c58723c4-32f1-4289-a89f-3053453053f4" },
-  "1668252578084352769": { slug: "studio104", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "ff6ad526-dea8-496e-8a62-6c903d3a3575" },
-  "1668254267295787925": { slug: "studio105", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "39e4b5cf-adb5-4941-8bfd-4f2379d7b91f" },
+  "1668247859065922881": { slug: "studio101", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "f5911861-2f36-473a-943d-8c31598c22f6" },
+  "1668250046816777608": { slug: "studio102", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "4151bb96-1bbc-4f75-b54a-e745408a00e1" },
+  "1668251215421954022": { slug: "studio103", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "82acb151-c3b5-4b78-bcff-362ed42ac86b" },
+  "1668252578084352769": { slug: "studio104", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "4f33f351-cfa7-46f6-9184-024b8e4cbac3" },
+  "1668254267295787925": { slug: "studio105", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "8b2f3287-551d-4407-b48c-c5ce0727fe7a" },
 };
 
 /** Anúncios gêmeos (mesma unidade física): anúncio secundário → anúncio principal. */
