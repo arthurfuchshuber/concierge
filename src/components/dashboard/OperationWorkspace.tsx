@@ -859,28 +859,28 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const checkinListQ = useQuery({
     queryKey: ["dash-list", "checkin", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range, ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
   });
   const checkoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
   });
   const tomorrowCheckinListQ = useQuery({
     queryKey: ["dash-list", "checkin", "tomorrow", activeOwnerId ?? "self", "top-card"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow", ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
   });
   const tomorrowCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self", "top-card"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
   });
@@ -896,7 +896,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const kanbanCheckinListQ = useQuery({
     queryKey: ["dash-list", "checkin", "all", activeOwnerId ?? "self", "kanban-filtros"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "all", ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
     enabled: authed && view === "kanban",
@@ -904,7 +904,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const kanbanCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "all", activeOwnerId ?? "self", "kanban-filtros"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "all", ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
     enabled: authed && view === "kanban",
@@ -924,7 +924,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const concludedQ = useQuery({
     queryKey: ["dash-list", "concluded", activeOwnerId ?? "self", concludedSearchDebounced],
     queryFn: () => concludedFn({ data: { ownerId: activeOwnerId, q: concludedSearchDebounced || undefined } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
     enabled: authed && view === "kanban",
@@ -941,7 +941,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const noShowQ = useQuery({
     queryKey: ["dash-list", "no_show", activeOwnerId ?? "self", noShowSearchDebounced],
     queryFn: () => noShowFn({ data: { ownerId: activeOwnerId, q: noShowSearchDebounced || undefined } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "kanban",
   });
@@ -1198,7 +1198,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           providerNames: providerFilters.length > 0 ? providerFilters : undefined,
         },
       }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && cleaningStatsEnabled,
   });
@@ -1224,7 +1224,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           providerNames: providerFilters.length > 0 ? providerFilters : undefined,
         },
       }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "limpeza" && cleaningStatsEnabled,
   });
@@ -1240,7 +1240,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // seguidas (mutação + eventos em tempo real) — o que deixava o app lento no celular.
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshDashboard = useCallback(
-    (delay = 250) => {
+    (delay = 120) => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       refreshTimer.current = setTimeout(() => {
         qc.invalidateQueries({
@@ -1848,7 +1848,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const cleaningForecastListQ = useQuery({
     queryKey: ["dash-list", "checkout", "all-forecast", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range: forecastRange, ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "limpeza",
   });
@@ -2022,7 +2022,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       forecastCount: cleaningForecast.cleaningsExpected,
       forecastCents: cleaningForecast.estimatedTotalCents,
       statsLoading:
-        (cleaningPeriod.hasPast && cleaningStatsQ.isLoading) ||
+        (cleaningPeriod.hasPast && (cleaningStatsQ.isLoading || cleaningStatsQ.isPlaceholderData)) ||
         (cleaningPeriod.hasFuture && cleaningForecastListQ.isLoading),
       trendLoading:
         (cleaningPeriod.hasPast && cleaningTrendQ.isLoading) ||
@@ -2036,6 +2036,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     cleaningStatsData,
     cleaningForecast,
     cleaningStatsQ.isLoading,
+    cleaningStatsQ.isPlaceholderData,
     cleaningTrendQ.isLoading,
     cleaningForecastListQ.isLoading,
   ]);
@@ -2137,7 +2138,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       costLabel: past ? "Custo Total Limpeza" : "Custo Estimado",
       costValue: past ? (cleaningStatsData?.totalCents ?? 0) : cleaningForecast.estimatedTotalCents,
       costNote: past && pendingApproval.count > 0 ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise` : null,
-      statsLoading: past ? cleaningStatsQ.isLoading : cleaningForecastListQ.isLoading,
+      statsLoading: past ? cleaningStatsQ.isLoading || cleaningStatsQ.isPlaceholderData : cleaningForecastListQ.isLoading,
       trendLoading: past ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading,
       daily: past ? cleaningTrendData?.daily : cleaningForecast.daily,
       breakdown: past ? cleaningTrendData?.breakdown : cleaningForecast.breakdown,
