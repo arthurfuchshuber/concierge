@@ -113,11 +113,6 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
       for (const row of data ?? []) prev.set(`${t}:${row.channex_id}`, stableStringify(row.payload));
     }
   }
-  const prevListingTitle = new Map<string, string>();
-  {
-    const { data } = await admin.from("channex_raw_records").select("channex_id, payload").eq("entity_type", "channel_listing");
-    for (const row of data ?? []) prevListingTitle.set(String(row.channex_id), String((row.payload as any)?.title ?? ""));
-  }
   const changedRecs = recs.filter((r) => prev.get(`${r.entity_type}:${r.channex_id}`) !== stableStringify(r.payload));
   await saveRawRecords(recs.map((r) => ({ ...r, source: opts.source ?? "sync" })));
 
