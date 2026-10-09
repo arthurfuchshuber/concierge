@@ -19,3 +19,14 @@ describe("channex entity sync", () => {
     expect(stableStringify({ a: 1 })).not.toBe(stableStringify({ a: 2 }));
   });
 });
+
+import { namingFor } from "./channex-entity-sync.server";
+describe("namingFor", () => {
+  const raw = "45998276006 Arthur Tenório · Casa Charmosa Próx. a Avenida das Cataratas";
+  it("propriedade exclusiva: propriedade = nome interno, quarto = título público", () => {
+    expect(namingFor(raw, true)).toEqual({ property: "45998276006 Arthur Tenório", room: "Casa Charmosa Próx. a Avenida das Cataratas" });
+  });
+  it("propriedade compartilhada: não renomeia propriedade, quarto composto", () => {
+    expect(namingFor(raw, false)).toEqual({ property: null, room: "45998276006 Arthur Tenório - Casa Charmosa Próx. a Avenida das Cataratas" });
+  });
+});
