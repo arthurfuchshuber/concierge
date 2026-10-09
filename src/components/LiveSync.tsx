@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -30,6 +30,27 @@ const TABLES = [
   "property_assignments",
 ];
 
+/** Saúde do canal ao vivo: com ele conectado, o polling vira só rede de
+ *  segurança espaçada (5 min); sem ele, volta a 30 s até reconectar. */
+let healthy = false;
+const listeners = new Set<() => void>();
+function setHealthy(v: boolean) {
+  if (healthy === v) return;
+  healthy = v;
+  listeners.forEach((l) => l());
+}
+export function useLiveSyncHealthy() {
+  return useSyncExternalStore(
+    (l) => { listeners.add(l); return () => listeners.delete(l); },
+    () => healthy,
+    () => false,
+  );
+}
+/** Intervalo de fallback: espaçado quando o tempo real está saudável. */
+export function useFallbackInterval(unhealthyMs = 30_000) {
+  return useLiveSyncHealthy() ? 5 * 60_000 : unhealthyMs;
+}
+
 export function LiveSync() {
   const qc = useQueryClient();
 
@@ -39,7 +60,7 @@ export function LiveSync() {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         void qc.invalidateQueries({ refetchType: "active" });
-      }, 200);
+      }, 120);
     };
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -62,9 +83,11 @@ export function LiveSync() {
       ch.subscribe((status) => {
         if (stopped) return;
         if (status === "SUBSCRIBED") {
+          setHealthy(true);
           if (attempt > 0) refresh();
           attempt = 0;
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          setHealthy(false);
           const wait = Math.min(30_000, 1_000 * 2 ** attempt);
           attempt += 1;
           if (retry) clearTimeout(retry);
@@ -87,6 +110,7 @@ export function LiveSync() {
 
     return () => {
       stopped = true;
+      setHealthy(false);
       authSub.subscription.unsubscribe();
       if (timer) clearTimeout(timer);
       if (retry) clearTimeout(retry);
