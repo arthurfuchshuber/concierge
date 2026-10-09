@@ -75,7 +75,7 @@ export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | nu
 }
 
 /** Noites ocupadas por reservas ativas do imóvel na Channex (paginado). */
-async function activeBookingNights(t: SafeMapTarget): Promise<Set<string>> {
+async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promise<Set<string>> {
   const nights = new Set<string>();
   for (let page = 1; page <= 50; page++) {
     const res = await call("GET", `/bookings?filter[property_id]=${t.channexPropertyId}&pagination[page]=${page}&pagination[limit]=100`);
@@ -123,7 +123,8 @@ export async function syncRealAvailability(t: SafeMapTarget, userId: string | nu
   const rp = (ch?.data?.attributes?.rate_plans ?? []).find((r: any) => String(r.settings?.listing_id) === t.listingId);
   const notice = Number(rp?.settings?.availability_rule?.max_days_notice);
   const windowDays = Number.isFinite(notice) && notice > 0 ? notice : fallbackWindow;
-  const nights = await activeBookingNights(t);
+  const windowEnd = iso(new Date(Date.now() + windowDays * 86_400_000));
+  const nights = await activeBookingNights(t, windowEnd);
 
   const from = new Date();
   const merged: Parameters<typeof applyCalendarChanges>[0] = [];
