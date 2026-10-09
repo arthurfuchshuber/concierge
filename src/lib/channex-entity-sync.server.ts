@@ -48,11 +48,29 @@ export const listingTitle = (raw: unknown) => {
   return (i >= 0 ? s.slice(i + 3) : s).trim();
 };
 
-/** Nome do quarto na Channex/PriceLabs: "[Nome interno] - [Título do anúncio]". */
+/** Nome interno do anúncio (prefixo antes de " · "), ou "" se não houver. */
+export const internalName = (raw: unknown) => {
+  const s = String(raw ?? "").trim();
+  const i = s.lastIndexOf(" · ");
+  return i >= 0 ? s.slice(0, i).trim() : "";
+};
+
+/** Nome composto "[Nome interno] - [Título do anúncio]" (usado quando a propriedade é compartilhada). */
 export const roomTypeName = (raw: unknown) => {
   const s = String(raw ?? "").trim();
   const i = s.lastIndexOf(" · ");
   return i >= 0 ? `${s.slice(0, i).trim()} - ${s.slice(i + 3).trim()}` : s;
+};
+
+/**
+ * Regra para todo imóvel: PriceLabs exibe "[Propriedade] - [Quarto]".
+ * Propriedade exclusiva do anúncio → propriedade = nome interno, quarto = título público.
+ * Propriedade compartilhada → quarto leva o nome composto (propriedade não é tocada).
+ */
+export const namingFor = (raw: unknown, exclusive: boolean) => {
+  const internal = internalName(raw);
+  if (exclusive && internal) return { property: internal, room: listingTitle(raw) };
+  return { property: null as string | null, room: roomTypeName(raw) };
 };
 
 export const normTitle = (s: unknown) => String(s ?? "").trim().replace(/\s+/g, " ").toLowerCase();
@@ -150,19 +168,32 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
   }
   if (newLinks.length) await saveRawRecords(newLinks.map((r) => ({ ...r, source: "sync" })));
 
-  // Renomeia quartos cujo título divergir do anúncio (fonte de verdade = OTA).
+  // Renomeia propriedade/quarto conforme o anúncio (fonte de verdade = OTA), via `namingFor`.
   const { channexRequest } = await import("@/lib/channex-ari.server");
   let renamed = 0;
+  const rtCount = new Map<string, number>();
+  for (const r of roomTypes) {
+    const p = channexPropertyOf(r) ?? "";
+    rtCount.set(p, (rtCount.get(p) ?? 0) + 1);
+  }
   for (const values of listingsByChannel.values()) {
     for (const l of values) {
       const rtId = links.get(String(l?.id ?? ""));
-      const title = roomTypeName(l?.title);
-      if (!rtId || !title) continue;
+      if (!rtId || !l?.title) continue;
       const rt = roomTypes.find((r) => r.id === rtId);
-      if (!rt || String(rt.attributes?.title ?? "").trim() === title) continue;
-      const res = await channexRequest({ operation: "room_type_rename", method: "PUT", path: `/room_types/${rtId}`, body: { room_type: { title } } });
-      if (res.ok) renamed += 1;
-      else console.error("[channex-entity-sync] rename", rtId, res.error);
+      if (!rt) continue;
+      const propId = channexPropertyOf(rt) ?? "";
+      const { property, room } = namingFor(l.title, rtCount.get(propId) === 1);
+      if (room && String(rt.attributes?.title ?? "").trim() !== room) {
+        const res = await channexRequest({ operation: "room_type_rename", method: "PUT", path: `/room_types/${rtId}`, body: { room_type: { title: room } } });
+        if (res.ok) renamed += 1;
+        else console.error("[channex-entity-sync] rename", rtId, res.error);
+      }
+      const prop = properties.find((p) => p.id === propId);
+      if (property && prop && String(prop.attributes?.title ?? "").trim() !== property) {
+        const res = await channexRequest({ operation: "property_rename", method: "PUT", path: `/properties/${propId}`, body: { property: { title: property } } });
+        if (!res.ok) console.error("[channex-entity-sync] property rename", propId, res.error);
+      }
     }
   }
 
