@@ -11,7 +11,7 @@
  * Nunca envia ARI (preço/disponibilidade) nem cria mapping.
  */
 const BASE = "https://app.channex.io/api/v1";
-const MIN_INTERVAL_MS = 2 * 60_000;
+const MIN_INTERVAL_MS = 5 * 60_000;
 
 async function get(path: string): Promise<any> {
   const key = process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"];
