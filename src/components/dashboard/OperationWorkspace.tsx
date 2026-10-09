@@ -1,3 +1,4 @@
+import { useFallbackInterval } from "@/components/LiveSync";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { SearchActionRow } from "./SearchActionRow";
 import { searchScore } from "@/lib/search-score";
@@ -843,8 +844,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // saem sem cabeçalho de autorização e o servidor responde "Unauthorized",
   // derrubando a tela.
   const authed = useHasSession() === true;
+  const fallbackInterval = useFallbackInterval();
   const liveSync = {
-    refetchInterval: 30_000,
+    refetchInterval: fallbackInterval,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     enabled: authed,

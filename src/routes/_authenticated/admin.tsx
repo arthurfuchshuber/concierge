@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Bot, Home, Contact, Sparkles, ChevronsLeft, ChevronsRight } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
-import { LiveSync } from "@/components/LiveSync";
+import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -101,13 +101,14 @@ function AdminLayout() {
   });
   const { impersonation } = useImpersonation();
   const activeAccountId = impersonation?.userId;
+  const pendingInterval = useFallbackInterval(15_000);
   const pending = useQuery({
     queryKey: ["handoff-pending-count", activeAccountId ?? "self"],
     queryFn: async () => {
       try { return await pendingFn({ data: { accountOwnerId: activeAccountId } }); } catch { return { count: 0 }; }
     },
     enabled: hasSession === true && access.data?.allowed === true,
-    refetchInterval: 15_000,
+    refetchInterval: pendingInterval,
     retry: false,
   });
 
