@@ -434,38 +434,24 @@ export const getCleaningStats = createServerFn({ method: "GET" })
       new Set(rawAll.map((r) => r.cleaning_done_by).filter((v): v is string => !!v)),
     );
     const providerNameByUser = new Map<string, string>();
+    const displayNameByUser = new Map<string, string>();
     if (doneByIds.length > 0) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: providers } = await supabaseAdmin
-        .from("service_providers")
-        .select("member_user_id, name, trade_name")
-        .in("member_user_id", doneByIds);
-      for (const pr of (providers ?? []) as Array<{
-        member_user_id: string | null;
-        name: string | null;
-        trade_name: string | null;
-      }>) {
-        const label = (pr.trade_name || pr.name || "").trim();
-        if (pr.member_user_id && label) providerNameByUser.set(pr.member_user_id, label);
-      }
-    }
-
-    // Quem concluiu, SÓ PARA EXIBIÇÃO (08/10/2026): usuário do sistema que não é
-    // prestador cadastrado (ex.: perfil "host" que conclui a limpeza ele mesmo)
-    // ficava sem nome na janela "Limpezas Realizadas". Para esses, usamos o nome
-    // do perfil. É um mapa à parte de propósito: `providerNameByUser` continua
-    // sendo só de prestadores e alimenta o filtro de Prestador — não muda.
-    const displayNameByUser = new Map<string, string>(providerNameByUser);
-    const semNome = doneByIds.filter((id) => !providerNameByUser.has(id));
-    if (semNome.length > 0) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: profs } = await supabaseAdmin
-        .from("profiles")
-        .select("id, full_name, trade_name")
-        .in("id", semNome);
+      const [{ data: providers }, { data: profs }] = await Promise.all([
+        supabaseAdmin.from("service_providers").select("member_user_id, name, trade_name").in("member_user_id", doneByIds),
+        supabaseAdmin.from("profiles").select("id, full_name, trade_name").in("id", doneByIds),
+      ]);
       for (const pf of (profs ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>) {
         const label = (pf.trade_name || pf.full_name || "").trim();
         if (label) displayNameByUser.set(pf.id, label);
+      }
+      // Prestador cadastrado tem prioridade na exibição e é o único usado no filtro.
+      for (const pr of (providers ?? []) as Array<{ member_user_id: string | null; name: string | null; trade_name: string | null }>) {
+        const label = (pr.trade_name || pr.name || "").trim();
+        if (pr.member_user_id && label) {
+          providerNameByUser.set(pr.member_user_id, label);
+          displayNameByUser.set(pr.member_user_id, label);
+        }
       }
     }
 

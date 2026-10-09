@@ -1240,7 +1240,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // seguidas (mutação + eventos em tempo real) — o que deixava o app lento no celular.
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshDashboard = useCallback(
-    (delay = 250) => {
+    (delay = 120) => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       refreshTimer.current = setTimeout(() => {
         qc.invalidateQueries({
@@ -2022,7 +2022,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       forecastCount: cleaningForecast.cleaningsExpected,
       forecastCents: cleaningForecast.estimatedTotalCents,
       statsLoading:
-        (cleaningPeriod.hasPast && cleaningStatsQ.isLoading) ||
+        (cleaningPeriod.hasPast && (cleaningStatsQ.isLoading || cleaningStatsQ.isPlaceholderData)) ||
         (cleaningPeriod.hasFuture && cleaningForecastListQ.isLoading),
       trendLoading:
         (cleaningPeriod.hasPast && cleaningTrendQ.isLoading) ||
@@ -2036,6 +2036,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     cleaningStatsData,
     cleaningForecast,
     cleaningStatsQ.isLoading,
+    cleaningStatsQ.isPlaceholderData,
     cleaningTrendQ.isLoading,
     cleaningForecastListQ.isLoading,
   ]);
@@ -2137,7 +2138,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       costLabel: past ? "Custo Total Limpeza" : "Custo Estimado",
       costValue: past ? (cleaningStatsData?.totalCents ?? 0) : cleaningForecast.estimatedTotalCents,
       costNote: past && pendingApproval.count > 0 ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise` : null,
-      statsLoading: past ? cleaningStatsQ.isLoading : cleaningForecastListQ.isLoading,
+      statsLoading: past ? cleaningStatsQ.isLoading || cleaningStatsQ.isPlaceholderData : cleaningForecastListQ.isLoading,
       trendLoading: past ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading,
       daily: past ? cleaningTrendData?.daily : cleaningForecast.daily,
       breakdown: past ? cleaningTrendData?.breakdown : cleaningForecast.breakdown,
