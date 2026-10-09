@@ -48,6 +48,13 @@ export const listingTitle = (raw: unknown) => {
   return (i >= 0 ? s.slice(i + 3) : s).trim();
 };
 
+/** Nome do quarto na Channex/PriceLabs: "[Nome interno] - [Título do anúncio]". */
+export const roomTypeName = (raw: unknown) => {
+  const s = String(raw ?? "").trim();
+  const i = s.lastIndexOf(" · ");
+  return i >= 0 ? `${s.slice(0, i).trim()} - ${s.slice(i + 3).trim()}` : s;
+};
+
 export const normTitle = (s: unknown) => String(s ?? "").trim().replace(/\s+/g, " ").toLowerCase();
 
 export type EntitySyncResult = {
@@ -133,7 +140,8 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
       const lid = String(l?.id ?? "");
       if (!lid || links.has(lid)) continue;
       const t = normTitle(listingTitle(l.title));
-      const matches = rts.filter((r) => normTitle(r.attributes?.title) === t);
+      const full = normTitle(roomTypeName(l.title));
+      const matches = rts.filter((r) => [t, full].includes(normTitle(r.attributes?.title)));
       if (matches.length === 1) {
         links.set(lid, matches[0].id);
         newLinks.push({ entity_type: "link:listing_room_type", channex_id: lid, payload: { room_type_id: matches[0].id, channel_id: channelId } });
@@ -148,7 +156,7 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
   for (const values of listingsByChannel.values()) {
     for (const l of values) {
       const rtId = links.get(String(l?.id ?? ""));
-      const title = listingTitle(l?.title);
+      const title = roomTypeName(l?.title);
       if (!rtId || !title) continue;
       const rt = roomTypes.find((r) => r.id === rtId);
       if (!rt || String(rt.attributes?.title ?? "").trim() === title) continue;
