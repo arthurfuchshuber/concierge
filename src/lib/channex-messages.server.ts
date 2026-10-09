@@ -414,7 +414,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
       .select("id")
       .eq("conversation_id", convId)
       .eq("sender_type", "human")
-      .eq("is_internal_note", false)
+      .not("is_internal_note", "is", true)
       .gte("created_at", guestMsgAt)
       .limit(1),
   ]);
@@ -490,7 +490,10 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
       (r) => (m.messageId && r.external_id === m.messageId) || norm(String(r.content ?? "")) === norm(m.text),
     );
     if (isEcho) continue;
-    if (!automated) await admin.from("property_chat_conversations").update(pausePatch()).eq("id", c.id);
+    if (!automated) {
+      await admin.from("property_chat_conversations").update(pausePatch()).eq("id", c.id);
+      await purgePendingChatForThread(admin, m.threadId);
+    }
     if (m.messageId) {
       const { data: dup } = await admin
         .from("property_chat_messages")
@@ -543,4 +546,26 @@ async function loadInquiryDetails(
     Number(p.bms?.occ_adults ?? 0) + Number(p.bms?.occ_children ?? 0) ||
     null;
   return { checkin, checkout, nights, guests, stage: row.evento };
+}
+
+/**
+ * Alguém da conta respondeu (Airbnb ou painel): descarta mensagens de chat
+ * desse thread ainda na fila, para a IA não responder por cima.
+ */
+export async function purgePendingChatForThread(admin: any, threadId: string | null | undefined): Promise<void> {
+  if (!threadId) return;
+  try {
+    await admin
+      .from("fila_webhooks_channex")
+      .update({
+        processado: true,
+        processado_em: new Date().toISOString(),
+        erro: "Descartado: anfitrião respondeu diretamente",
+      })
+      .eq("processado", false)
+      .in("evento", ["message", "new_message"])
+      .eq("payload->payload->>message_thread_id", threadId);
+  } catch (e) {
+    console.error("[channex-messages] expurgo da fila falhou", e);
+  }
 }

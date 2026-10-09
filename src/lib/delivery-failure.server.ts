@@ -29,7 +29,6 @@ export async function reportDeliveryFailure(
       .from("property_chat_conversations")
       .update({
         status: "needs_human",
-        ai_paused: false,
         handoff_reason: reason,
         handoff_urgency: "high",
         handoff_at: new Date().toISOString(),

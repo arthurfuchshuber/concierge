@@ -1222,7 +1222,8 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     if (!data.internalNote && session.startsWith("airbnb:")) {
       // Hóspede do Airbnb: a resposta sai pela Channex para o chat dele.
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { deliverToAirbnbThread } = await import("@/lib/channex-messages.server");
+      const { deliverToAirbnbThread, purgePendingChatForThread } = await import("@/lib/channex-messages.server");
+      await purgePendingChatForThread(supabaseAdmin, session.slice("airbnb:".length));
       const r = await deliverToAirbnbThread(supabaseAdmin, {
         conversationId: data.conversationId,
         threadId: session.slice("airbnb:".length),
