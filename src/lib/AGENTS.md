@@ -1,0 +1,5 @@
+# Channex sync rules
+
+- Channex history (bookings with guest contacts, Airbnb threads/messages, reviews) is backfilled idempotently by `backfillChannexHistory` (`src/lib/channex-history.server.ts`) into `property_reservations` (source `channex`, `guest_contacts`), chat tables and listing `normalized.reviews`; it is read-only on Channex so re-running never touches the Airbnb.
+- Twin Airbnb listings of one physical unit share one Channex room type and resolve to the primary listing via `LISTING_ALIASES` (`src/lib/channex-listing.server.ts`); a Channex property only identifies a local property when exactly one property uses it, so shared-property units (Studios) never get mixed up.
+- Channex non-booking entities (properties, room types, rate plans, channels, per-channel listing catalog) are synced by `syncChannexEntities` (`src/lib/channex-entity-sync.server.ts`) from the existing 1-min Channex cron and any non-booking webhook, throttled in DB; every entity is stored raw and diffed, and room type titles follow the OTA listing title so PriceLabs names stay identical — never sends ARI or creates mappings.
