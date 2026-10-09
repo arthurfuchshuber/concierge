@@ -75,7 +75,7 @@ export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | nu
 }
 
 /** Noites ocupadas por reservas ativas do imóvel na Channex (paginado). */
-async function activeBookingNights(t: SafeMapTarget): Promise<Set<string>> {
+async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promise<Set<string>> {
   const nights = new Set<string>();
   for (let page = 1; page <= 50; page++) {
     const res = await call("GET", `/bookings?filter[property_id]=${t.channexPropertyId}&pagination[page]=${page}&pagination[limit]=100`);
@@ -103,16 +103,10 @@ async function activeBookingNights(t: SafeMapTarget): Promise<Set<string>> {
       const status = String(r.status ?? "").toLowerCase();
       if (status.includes("cancel")) continue;
       if (!r.checkin_date || !r.checkout_date) continue;
-      // Bloqueios longos (> 30 dias) são artefatos do iCal do Airbnb (janela de
-      // antecedência/"Not available" sintético), não bloqueios manuais reais.
-      // A janela já é tratada por max_days_notice; contá-los fecha o ano inteiro.
-      const span = (Date.parse(`${r.checkout_date}T00:00:00Z`) - Date.parse(`${r.checkin_date}T00:00:00Z`)) / 86_400_000;
-      if (status === "blocked" && span > 30) continue;
-      // "Airbnb (Not available)" do iCal espelha o próprio calendário que a
-      // Channex controla (inclusive bloqueios errados anteriores) — usá-lo cria
-      // um ciclo que nunca reabre. Bloqueios manuais com o anúncio conectado
-      // vêm do ConciergeIA ou do PriceLabs/Channex (stop_sell, que não tocamos).
-      if (status === "blocked" && String(r.source ?? "") === "airbnb") continue;
+      // Todo bloqueio (manual ou do Airbnb) dentro da janela de venda fecha a data.
+      // Só ignoramos o "Not available" sintético do iCal que encosta no fim da
+      // janela (max_days_notice): ele representa o horizonte, não um bloqueio.
+      if (status === "blocked" && windowEnd && r.checkout_date > windowEnd) continue;
       for (let d = new Date(`${r.checkin_date}T00:00:00Z`); iso(d) < r.checkout_date; d = new Date(d.getTime() + 86_400_000)) nights.add(iso(d));
     }
   }
@@ -129,7 +123,8 @@ export async function syncRealAvailability(t: SafeMapTarget, userId: string | nu
   const rp = (ch?.data?.attributes?.rate_plans ?? []).find((r: any) => String(r.settings?.listing_id) === t.listingId);
   const notice = Number(rp?.settings?.availability_rule?.max_days_notice);
   const windowDays = Number.isFinite(notice) && notice > 0 ? notice : fallbackWindow;
-  const nights = await activeBookingNights(t);
+  const windowEnd = iso(new Date(Date.now() + windowDays * 86_400_000));
+  const nights = await activeBookingNights(t, windowEnd);
 
   const from = new Date();
   const merged: Parameters<typeof applyCalendarChanges>[0] = [];
