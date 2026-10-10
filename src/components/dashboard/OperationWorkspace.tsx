@@ -3495,12 +3495,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               total por dia". Cards e gráficos leem como um grupo só; o que os
               separa do cabeçalho é o `ds-lead-block` (24px). */}
           <div className="ds-card-grid ds-lead-block mt-6">
+            {(() => null)()}
             <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
               <div className="col-span-1">
                 <StatDisplayCard
                   label={cleaningScreen.countLabel}
                   detailItems={cleaningTrendData?.items}
                   value={cleaningScreen.countValue}
+                  valueSizeClass={bigSize}
                   icon={CheckCircle2}
                   loading={cleaningScreen.statsLoading}
                   note={cleaningScreen.countNote}
@@ -3512,6 +3514,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   label={cleaningScreen.costLabel}
                   detailItems={cleaningTrendData?.items}
                   value={centsToBRLShort(cleaningScreen.costValue)}
+                  valueSizeClass={bigSize}
                   icon={Banknote}
                   loading={cleaningScreen.statsLoading}
                   note={cleaningScreen.costNote}
@@ -4991,6 +4994,19 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
 }
 
 /**
+ * FONTE DOS BIG NUMBERS SINCRONIZADA (pedido explícito, 10/10/2026): se um
+ * valor ficar longo demais para o card, a fonte encolhe — e TODOS os cards
+ * irmãos do grupo adotam o mesmo tamanho, para manter a simetria.
+ */
+export function bigNumberSizeClass(values: Array<string | number>): string {
+  const len = Math.max(0, ...values.map((v) => String(v ?? "").length));
+  if (len <= 6) return "text-[26px] sm:text-[30px]";
+  if (len <= 8) return "text-[22px] sm:text-[26px]";
+  if (len <= 10) return "text-[18px] sm:text-[22px]";
+  return "text-[15px] sm:text-[18px]";
+}
+
+/**
  * Card de estatística pura (sem lista/detalhe por trás) — usado para
  * "Limpezas Realizadas" e "Custo Total Limpeza". Mesmo visual dos KpiCards,
  * mas não abre popup: é só um número agregado, "Hoje" (fuso de São Paulo).
@@ -5006,7 +5022,10 @@ function StatDisplayCard({
   sparkline,
   note,
   detailItems,
+  valueSizeClass = "text-[26px] sm:text-[30px]",
 }: {
+  /** Tamanho do número COMPARTILHADO pelo grupo (ver `bigNumberSizeClass`). */
+  valueSizeClass?: string;
   /** Limpezas uma a uma — quando vem, a janela é a MESMA do gráfico
    * (responsável, tipo e valor editáveis, sem corte). */
   detailItems?: CleaningDayItem[];
@@ -5090,7 +5109,7 @@ function StatDisplayCard({
         </span>
         {clickable && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
       </div>
-      <div className="w-full pt-1.5 text-center font-display text-[26px] font-bold leading-none tracking-[-0.03em] tabular-nums sm:text-[30px]">
+      <div className={`w-full whitespace-nowrap pt-1.5 text-center font-display font-bold leading-none tracking-[-0.03em] tabular-nums ${valueSizeClass}`}>
         {loading ? "—" : value}
       </div>
       {note && !loading ? (
