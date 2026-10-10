@@ -1,7 +1,7 @@
 import { createStart, createMiddleware, createCsrfMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+import { attachFreshSupabaseAuth } from "@/lib/fresh-auth-middleware";
 import { auditServerCalls } from "@/lib/audit-fn-middleware";
 import { translateServerErrors } from "@/lib/translate-errors-middleware";
 
@@ -39,5 +39,7 @@ export const startInstance = createStart(() => ({
   requestMiddleware: [csrfMiddleware, errorMiddleware],
   // translateServerErrors fica FORA da auditoria: o log guarda o erro técnico
   // original, e o usuário recebe a frase em português.
-  functionMiddleware: [attachSupabaseAuth, translateServerErrors, auditServerCalls],
+  // attachFreshSupabaseAuth substitui o attacher gerado de propósito: renova o
+  // token antes de vencer (queda horária). Não re-adicionar attachSupabaseAuth.
+  functionMiddleware: [attachFreshSupabaseAuth, translateServerErrors, auditServerCalls],
 }));
