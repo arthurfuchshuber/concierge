@@ -20,7 +20,7 @@ export const signChatAttachmentUrl = createServerFn({ method: "POST" })
     // RLS on storage.objects enforces property access.
     const { data: signed, error } = await context.supabase.storage
       .from("chat-attachments")
-      .createSignedUrl(data.path, 60 * 60);
+      .createSignedUrl(data.path, 5 * 60); // curto: acesso revogado expira logo
     if (error || !signed) throw new Error("Não consegui gerar o link do anexo.");
     return { url: signed.signedUrl };
   });

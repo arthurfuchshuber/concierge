@@ -376,12 +376,23 @@ function AdminLayout() {
                           <Link
                             key={c.to}
                             to={c.to}
-                            className={`flex h-9 items-center rounded-[9px] px-3 text-[13px] transition-colors ${
+                            /* 10/10/2026 (mockup E + barra do D, aprovados): sub-opção
+                               NÃO selecionada = mesma cor e formatação das opções
+                               principais não selecionadas (14px, semibold, cinza);
+                               selecionada = fundo cinza quente neutro, negrito e a
+                               barrinha de gradiente sobre o fio vertical. */
+                            className={`relative flex h-10 items-center rounded-[10px] px-3 text-sm transition-colors ${
                               active
-                                ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] font-extrabold text-white"
-                                : "font-semibold text-foreground hover:bg-secondary/60"
+                                ? "bg-foreground/[0.06] font-bold text-foreground"
+                                : "font-semibold text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                             }`}
                           >
+                            {active && (
+                              <span
+                                aria-hidden
+                                className="absolute -left-[15px] top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-[3px] bg-gradient-to-b from-[#7C1AD8] to-[#E82DAE]"
+                              />
+                            )}
                             {c.label}
                           </Link>
                         );

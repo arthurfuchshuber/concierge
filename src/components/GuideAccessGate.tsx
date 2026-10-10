@@ -381,6 +381,8 @@ export function GuideAccessGate({
   // check-out days here would let guests pick a day that isn't a real arrival.
   const selectableDateSet = useMemo(() => {
     if (calendarAvailability.state !== "ready" || !calendarAvailability.hasIcal) return null;
+    // Sem chegadas próximas na janela pública: seleção livre, validada depois.
+    if (reservationMap.size === 0) return null;
     const set = new Set<string>();
     for (const checkin of reservationMap.keys()) set.add(checkin);
     return set;

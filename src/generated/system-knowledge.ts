@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-10-10T06:49:50.646Z";
+export const GENERATED_AT = "2026-10-10T23:41:06.321Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -3741,7 +3741,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2dc2f5a02f7f41d617d3a1bc59dba09e"
   },
   {
-    "doc_key": "rule:src/components/GuideAccessGate.tsx:38845",
+    "doc_key": "rule:src/components/GuideAccessGate.tsx:38973",
     "kind": "rule",
     "title": "Regra em GuideAccessGate.tsx",
     "content": "Datas confirmadas da reserva (yyyy-MM-dd) — limites da previsão de\nchegada/saída: chegada nunca antes de `checkinISO`; saída nunca depois\nde `checkoutISO`.",
