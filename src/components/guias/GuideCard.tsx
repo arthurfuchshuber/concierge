@@ -41,6 +41,7 @@ export function GuideCard({
   selected,
   onSelectChange,
   actions,
+  onOpenMenu,
 }: {
   p: GuideCardData;
   variant: GuideCardVariant;
@@ -52,7 +53,24 @@ export function GuideCard({
   onSelectChange?: (v: boolean) => void;
   /** Menu "..." + lixeira. */
   actions: ReactNode;
+  /**
+   * Toque em qualquer ponto do card (10/10/2026, pedido explícito) abre o menu
+   * "⋯" que já existe. Mesmo guarda dos cards do Kanban: cliques nascidos em
+   * algo interativo (checkbox, chat, interruptor, o próprio ⋯) são ignorados,
+   * então todo controle novo já nasce protegido.
+   */
+  onOpenMenu?: () => void;
 }) {
+  const openMenuOnClick = onOpenMenu
+    ? (e: React.MouseEvent<HTMLElement>) => {
+        const el = e.target as HTMLElement | null;
+        const interactive = el?.closest(
+          "button, a, input, select, textarea, label, [role='button'], [role='checkbox'], [role='switch'], [data-radix-popper-content-wrapper]",
+        );
+        if (interactive && interactive !== e.currentTarget) return;
+        onOpenMenu();
+      }
+    : undefined;
   const access = (
     <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-background/75 px-2 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.12em] text-foreground/80 backdrop-blur">
       {p.access_mode === "pin" ? <Lock className="size-2.5" /> : <Globe className="size-2.5" />}
@@ -134,7 +152,7 @@ export function GuideCard({
   ) : null;
   if (variant === "grid") {
     return (
-      <div className={`${PANEL_SHELL} relative flex min-w-0 flex-col`}>
+      <div onClick={openMenuOnClick} className={`${PANEL_SHELL} relative flex min-w-0 flex-col ${onOpenMenu ? "cursor-pointer" : ""}`}>
         {check}
         {photo("aspect-[16/9] w-full", true)}
         <div className="flex min-w-0 p-3">{info}</div>
@@ -142,7 +160,7 @@ export function GuideCard({
     );
   }
   return (
-    <div className={`${PANEL_SHELL} relative flex min-h-[132px] min-w-0`}>
+    <div onClick={openMenuOnClick} className={`${PANEL_SHELL} relative flex min-h-[132px] min-w-0 ${onOpenMenu ? "cursor-pointer" : ""}`}>
       {onSelectChange && (
         <Checkbox
           className="absolute right-2.5 top-2.5 z-10 !size-3 !rounded-[3px] opacity-50"

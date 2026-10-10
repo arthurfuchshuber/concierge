@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-10-10T05:54:54.688Z";
+export const GENERATED_AT = "2026-10-10T06:03:44.175Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -3633,7 +3633,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "9b8943a8c106021c4494aa13fb3284c5"
   },
   {
-    "doc_key": "rule:src/components/dashboard/ReservationJourneyDialog.tsx:11716",
+    "doc_key": "rule:src/components/dashboard/ReservationJourneyDialog.tsx:12628",
     "kind": "rule",
     "title": "Regra em ReservationJourneyDialog.tsx",
     "content": "Chegada e saída, as duas editáveis (pedido explícito, 08/09/2026).\n\nChega pronto do card, como nó já montado, e não como dados: o editor de\nprevisão vive dentro do quadro (é lá que estão as duas listas da esteira\ne a gravação otimista), e importá-lo daqui criaria um ciclo — o quadro já\nimporta este diálogo. Passar o nó pronto mantém uma única implementação\nde gravação, que é a mesma regra que vale para as ações do assistente.",
@@ -3642,7 +3642,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "05695c4506d7fc3e0183fd55b62a5aae"
   },
   {
-    "doc_key": "rule:src/components/dashboard/ReservationJourneyDialog.tsx:12230",
+    "doc_key": "rule:src/components/dashboard/ReservationJourneyDialog.tsx:13142",
     "kind": "rule",
     "title": "Regra em ReservationJourneyDialog.tsx",
     "content": "Ícone do chat/telefone do hóspede e a \"quantidade\" (+N acompanhantes) ao\nlado do nome — os mesmos controles do card (pedido explícito, 09/10/2026).\nChegam como nó pronto: o telefone e a lista de acompanhantes moram no card.",
@@ -3694,6 +3694,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/GuestPushStep.tsx",
     "audience": [],
     "content_hash": "761bb7887d9e424202b492fd9eec4277"
+  },
+  {
+    "doc_key": "rule:src/components/guias/GuideCard.tsx:1669",
+    "kind": "rule",
+    "title": "Regra em GuideCard.tsx",
+    "content": "Toque em qualquer ponto do card (10/10/2026, pedido explícito) abre o menu\n\"⋯\" que já existe. Mesmo guarda dos cards do Kanban: cliques nascidos em\nalgo interativo (checkbox, chat, interruptor, o próprio ⋯) são ignorados,\nentão todo controle novo já nasce protegido.",
+    "source_path": "src/components/guias/GuideCard.tsx",
+    "audience": [],
+    "content_hash": "e530d47f41036478426105a52cc8e369"
   },
   {
     "doc_key": "rule:src/components/guide/BottomNav.tsx:505",
@@ -5557,6 +5566,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/stable-media-url.ts",
     "audience": [],
     "content_hash": "85629ce720378d6b45bdff223a0c9a5a"
+  },
+  {
+    "doc_key": "rule:whoVerb",
+    "kind": "rule",
+    "title": "Regra — whoVerb",
+    "content": "\"Aberta por Esther Villar\", \"Registrado por…\" (pedido explícito, 09/10/2026):\no nome de quem fez vem sempre precedido do verbo da ação, nunca solto nem\nseparado por \"·\". Pendência usa o próprio estado (Aberta/Concluída/Arquivada).",
+    "source_path": "src/components/dashboard/ReservationJourneyDialog.tsx",
+    "audience": [],
+    "content_hash": "fda1f9f3775aab814bf4312d80ebe6de"
   },
   {
     "doc_key": "rule:wraps",

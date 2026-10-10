@@ -286,6 +286,8 @@ function Dashboard() {
   const qc = useQueryClient();
   const bulkUpdate = useServerFn(bulkUpdateProperties);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  // Guia cujo menu "⋯" está aberto (o toque no card também o abre — 10/10/2026).
+  const [menuGuideId, setMenuGuideId] = useState<string | null>(null);
   const [bulkPubBusy, setBulkPubBusy] = useState(false);
 
   async function togglePublished(id: string, next: boolean) {
@@ -600,6 +602,11 @@ function Dashboard() {
         ))}
       </div>
 
+      {/* 10/10/2026 (pedido explícito): entre os cards de número e a barra de
+          busca/filtros vale o MESMO vão da Limpeza — 10px (`--ds-grid-gap`),
+          não os 24px de bloco. -mt-3.5 = 24 − 10. Os blocos seguintes (listas
+          de guias) continuam a 24px. */}
+      <div className="-mt-3.5">
       <SearchActionRow
         value={search}
         onChange={setSearch}
@@ -738,6 +745,7 @@ function Dashboard() {
           </>
         }
       />
+      </div>
 
 
       {isLoading ? (
@@ -885,6 +893,7 @@ function Dashboard() {
                           score={c.score}
                           barClass={c.score >= 90 ? "bg-[#7fb79a]" : c.score >= 60 ? "bg-[#d8b96a]" : "bg-[#c98c8c]"}
                           toggling={togglingId === p.id}
+                          onOpenMenu={() => setMenuGuideId(p.id)}
                           onTogglePublished={(v) => togglePublished(p.id, v)}
                           selected={selected.has(p.id)}
                           onSelectChange={
@@ -900,7 +909,7 @@ function Dashboard() {
                           }
                           actions={
                             <>
-                  <Popover>
+                  <Popover open={menuGuideId === p.id} onOpenChange={(o) => setMenuGuideId(o ? p.id : null)}>
                     <PopoverTrigger asChild>
                       <button
                         type="button"

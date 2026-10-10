@@ -73,7 +73,7 @@ const AVATAR: Record<string, string> = {
 };
 
 /** Quem fez: avatar com iniciais, nome e papel. Sem nome → "Autor não registrado". */
-function WhoLine({ actor }: { actor: JourneyActor }) {
+function WhoLine({ actor, prefix }: { actor: JourneyActor; prefix?: string }) {
   const unknown = !actor.name;
   return (
     <div className="flex min-w-0 items-center gap-[7px]">
@@ -87,7 +87,7 @@ function WhoLine({ actor }: { actor: JourneyActor }) {
       <span
         className={`min-w-0 truncate text-xs ${unknown ? "font-medium italic text-muted-foreground" : "font-semibold"}`}
       >
-        {unknown ? "Autor não registrado" : actor.name}
+        {unknown ? "Autor não registrado" : prefix ? `${prefix} ${actor.name}` : actor.name}
       </span>
       {!unknown && actor.role && (
         <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
@@ -180,10 +180,25 @@ function StepRow({ step, first, last }: { step: JourneyStep; first: boolean; las
           {when && <span className="shrink-0 whitespace-nowrap text-[11.5px] tabular-nums text-muted-foreground">{when}</span>}
         </div>
         {step.detail && <p className="text-xs leading-snug text-muted-foreground">{step.detail}</p>}
-        {step.actor && <WhoLine actor={step.actor} />}
+        {step.actor && <WhoLine actor={step.actor} prefix="Feito por" />}
       </div>
     </TimelineRow>
   );
+}
+
+/**
+ * "Aberta por Esther Villar", "Registrado por…" (pedido explícito, 09/10/2026):
+ * o nome de quem fez vem sempre precedido do verbo da ação, nunca solto nem
+ * separado por "·". Pendência usa o próprio estado (Aberta/Concluída/Arquivada).
+ */
+function whoVerb(item: JourneyActivity): { prefix: string; hideSub: boolean } {
+  if (item.tag === "Pendência") {
+    const st = item.sub === "Concluída" || item.sub === "Arquivada" || item.sub === "Aberta" ? item.sub : "Aberta";
+    return { prefix: `${st} por`, hideSub: item.sub === st };
+  }
+  if (item.tag === "Registro") return { prefix: "Registrado por", hideSub: false };
+  if (item.tag === "Previsão") return { prefix: "Alterado por", hideSub: false };
+  return { prefix: "Feito por", hideSub: false };
 }
 
 const TAG_STYLE: Record<JourneyActivity["tag"], string> = {
@@ -210,6 +225,7 @@ function ActivityRow({
   onOpen?: () => void;
 }) {
   const when = fmtWhen(item.at) ?? "";
+  const verb = whoVerb(item);
   const clickable = item.opens && onOpen;
   const Tag = clickable ? "button" : "div";
   return (
@@ -233,10 +249,10 @@ function ActivityRow({
           <div className="min-w-0 text-[13px] font-semibold leading-snug">{item.title}</div>
           {when && <span className="shrink-0 whitespace-nowrap text-[11.5px] tabular-nums text-muted-foreground">{when}</span>}
         </div>
-        {item.sub && <div className="text-xs text-muted-foreground">{item.sub}</div>}
+        {item.sub && !verb.hideSub && <div className="text-xs text-muted-foreground">{item.sub}</div>}
         {/* Última linha: quem fez à esquerda, etiqueta no canto inferior direito. */}
         <div className="flex items-end justify-between gap-2">
-          <WhoLine actor={item.actor} />
+          <WhoLine actor={item.actor} prefix={verb.prefix} />
           <span
             className={`shrink-0 rounded px-[6px] py-px text-[8.5px] font-extrabold uppercase tracking-[0.04em] ${TAG_STYLE[item.tag]}`}
           >
