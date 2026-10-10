@@ -3495,7 +3495,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               total por dia". Cards e gráficos leem como um grupo só; o que os
               separa do cabeçalho é o `ds-lead-block` (24px). */}
           <div className="ds-card-grid ds-lead-block mt-6">
-            {(() => null)()}
+            {(() => {
+              bigSize = bigNumberSizeClass([
+                String(cleaningScreen.countValue),
+                centsToBRLShort(cleaningScreen.costValue),
+              ]);
+              return null;
+            })()}
             <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
               <div className="col-span-1">
                 <StatDisplayCard
