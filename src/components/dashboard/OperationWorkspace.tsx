@@ -5037,7 +5037,11 @@ function StatDisplayCard({
     {clickable && (
       detailItems && detailItems.length > 0 ? (
       <Dialog open={open} onOpenChange={setOpen}>
+<<<<<<< HEAD
         <DialogContent className="flex flex-col w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden">
+=======
+        <DialogContent className="flex flex-col w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden">
+>>>>>>> 726f82dd563fb6c7eff6c86086594a0bd691d8fe
           <DialogTitle className="sr-only">{label}</DialogTitle>
           <CleaningDayDetailContent
             date="all"
