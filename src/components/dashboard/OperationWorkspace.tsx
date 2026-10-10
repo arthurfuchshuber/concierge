@@ -3073,7 +3073,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   Filtros, no Kanban e na Limpeza. Só aparece para quem pode
                   criar — o próprio componente decide e, se não puder, não
                   desenha nada (a peça fica como era). */}
-              <ManualCleaningButton />
+              {/* Só na aba LIMPEZA (pedido explícito, 09/10/2026): o Kanban não é
+                  lugar de criar limpeza — o "+" saiu daqui. */}
+              {view === "limpeza" && <ManualCleaningButton />}
               {view === "limpeza" && cleaningPeriod && (
                 /* PERÍODO NO LUGAR DO INTERRUPTOR (pedido explícito,
                    23/09/2026). Com período personalizado o interruptor
