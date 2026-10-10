@@ -1,4 +1,5 @@
 import { searchScore } from "@/lib/search-score";
+import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
