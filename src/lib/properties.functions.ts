@@ -576,7 +576,7 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
       if (ownerErr) throw new Error("Não foi possível validar o proprietário selecionado.");
       if (!ownerRow || accountOwnerIds.some((oid) => oid !== (ownerRow as { account_owner_id: string }).account_owner_id)) {
         throw new Error(
-          "Proprietário inválido ou não pertence à conta de um ou mais guias selecionados. Selecione um proprietário cadastrado em Stakeholders → Proprietários.",
+          "Proprietário inválido ou não pertence à conta de um ou mais guias selecionados. Selecione um proprietário cadastrado em Proprietários.",
         );
       }
     }
@@ -929,7 +929,7 @@ export const upsertProperty = createServerFn({ method: "POST" })
     // por aqui, futuros botões, etc. — consiga salvar um imóvel órfão.
     if (!propertyData.owner_contact_id) {
       throw new Error(
-        "Este imóvel precisa estar vinculado a um proprietário. Selecione um proprietário cadastrado em Stakeholders → Proprietários antes de salvar.",
+        "Este imóvel precisa estar vinculado a um proprietário. Selecione um proprietário cadastrado em Proprietários antes de salvar.",
       );
     }
     {
@@ -953,7 +953,7 @@ export const upsertProperty = createServerFn({ method: "POST" })
       if (ownerErr) throw new Error("Não foi possível validar o proprietário selecionado.");
       if (!ownerRow) {
         throw new Error(
-          "Proprietário inválido ou não pertence a esta conta. Selecione um proprietário cadastrado em Stakeholders → Proprietários.",
+          "Proprietário inválido ou não pertence a esta conta. Selecione um proprietário cadastrado em Proprietários.",
         );
       }
     }
@@ -1204,7 +1204,7 @@ export const transferPropertyOwner = createServerFn({ method: "POST" })
     if (ownerErr) throw new Error("Não foi possível validar o novo proprietário.");
     if (!newOwner) {
       throw new Error(
-        "Proprietário inválido ou não pertence a esta conta. Selecione um proprietário cadastrado em Stakeholders → Proprietários.",
+        "Proprietário inválido ou não pertence a esta conta. Selecione um proprietário cadastrado em Proprietários.",
       );
     }
     if (previousOwnerContactId === data.newOwnerContactId) {
@@ -1370,7 +1370,7 @@ export const duplicateProperty = createServerFn({ method: "POST" })
     // herda o mesmo proprietário do original, então o original precisa ter um.
     if (!(src as { owner_contact_id?: string | null }).owner_contact_id) {
       throw new Error(
-        "Vincule um proprietário a este imóvel antes de duplicá-lo (abra o imóvel e vincule em Stakeholders → Proprietários).",
+        "Vincule um proprietário a este imóvel antes de duplicá-lo (abra o imóvel e vincule em Proprietários).",
       );
     }
     const sourceOwnerId = (src as { owner_id: string }).owner_id;

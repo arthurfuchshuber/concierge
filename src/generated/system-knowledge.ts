@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-10-10T06:30:41.901Z";
+export const GENERATED_AT = "2026-10-10T06:39:41.119Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -98,11 +98,11 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
     "doc_key": "route:/admin/guias",
     "kind": "route",
-    "title": "Guias — tela /admin/guias",
-    "content": "Caminho no sistema: /admin/guias\n\nNo menu do painel esta tela se chama \"Guias\".",
+    "title": "Guias Digitais — tela /admin/guias",
+    "content": "Caminho no sistema: /admin/guias\n\nNo menu do painel esta tela se chama \"Guias Digitais\".",
     "source_path": "src/routes/_authenticated/admin.guias.tsx",
     "audience": [],
-    "content_hash": "e21346780d8aa5c0546fbb2f122bad45"
+    "content_hash": "fcdcf681b735200dde58d86f560bacb1"
   },
   {
     "doc_key": "route:/admin/inteligencia",
@@ -114,6 +114,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "10a0338d171222da340800c41c589aee"
   },
   {
+    "doc_key": "route:/admin/prestadores",
+    "kind": "route",
+    "title": "Prestadores — tela /admin/prestadores",
+    "content": "Caminho no sistema: /admin/prestadores\n\nNo menu do painel esta tela se chama \"Prestadores\".\n\nLimpeza, manutenção e parceiros da operação.",
+    "source_path": "src/routes/_authenticated/admin.prestadores.tsx",
+    "audience": [],
+    "content_hash": "e6744b832effcc95b7cbdd664a12deaf"
+  },
+  {
+    "doc_key": "route:/admin/proprietarios",
+    "kind": "route",
+    "title": "Proprietários — tela /admin/proprietarios",
+    "content": "Caminho no sistema: /admin/proprietarios\n\nNo menu do painel esta tela se chama \"Proprietários\".\n\nCadastro e acompanhamento dos proprietários dos imóveis.",
+    "source_path": "src/routes/_authenticated/admin.proprietarios.tsx",
+    "audience": [],
+    "content_hash": "bd3d4ada219afe89445efa100d17132f"
+  },
+  {
     "doc_key": "route:/admin/recomendacoes-sigma",
     "kind": "route",
     "title": "Recomendações — tela /admin/recomendacoes-sigma",
@@ -121,15 +139,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/routes/_authenticated/admin.recomendacoes-sigma.index.tsx",
     "audience": [],
     "content_hash": "2de03867ae936c79d01db98a98f568b5"
-  },
-  {
-    "doc_key": "route:/admin/stakeholders",
-    "kind": "route",
-    "title": "Stakeholders — tela /admin/stakeholders",
-    "content": "Caminho no sistema: /admin/stakeholders\n\nNo menu do painel esta tela se chama \"Stakeholders\".\n\nProprietários, hóspedes e prestadores da sua operação em um só lugar.",
-    "source_path": "src/routes/_authenticated/admin.stakeholders.tsx",
-    "audience": [],
-    "content_hash": "1ecdf7bde55e5dc77c55fbc9e8fe3ca2"
   },
   {
     "doc_key": "route:/auth",

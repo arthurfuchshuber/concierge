@@ -401,13 +401,13 @@ function Dashboard() {
 
   // Só entram na aba Guias os imóveis que já têm um guia efetivamente criado
   // (guide_created) — um imóvel recém-cadastrado via "Criar nova residência"
-  // (Stakeholders → Proprietários) fica de fora desta lista até alguém clicar
+  // (Proprietários) fica de fora desta lista até alguém clicar
   // em "Criar guia" para ele. Ele continua existindo normalmente (dashboard,
   // calendário, kanban funcionam sem guia) — só não aparece aqui.
   const guideRows = useMemo(() => (data ?? []).filter((p: any) => !!p.guide_created), [data]);
   // Candidatos para o picker do "Novo guia": imóveis já cadastrados que ainda
   // não têm guia. "Novo guia" nunca cria um imóvel do zero — isso só acontece
-  // em "Criar nova residência", dentro do proprietário em Stakeholders.
+  // em "Criar nova residência", dentro do proprietário em Proprietários.
   const propertiesWithoutGuide = useMemo(() => (data ?? []).filter((p: any) => !p.guide_created), [data]);
   const [guidePickerOpen, setGuidePickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
@@ -478,7 +478,7 @@ function Dashboard() {
   const groupCount = [draftList, attentionList, readyList].filter((l) => l.length > 0).length;
 
   // Trava: nenhum guia pode ser criado sem um proprietário cadastrado em
-  // Stakeholders → Proprietários (fonte da verdade das propriedades).
+  // Proprietários (fonte da verdade das propriedades).
   const ownersCountFn = useServerFnGuias(countPropertyOwners);
   const ownersCount = useQueryGuias({
     queryKey: ["property-owners-count", impersonation?.userId ?? "self"],
@@ -520,7 +520,7 @@ function Dashboard() {
         ? "Guias em Rascunho"
         : statCard === "incomplete"
           ? "Guias Incompletos"
-          : "Todos os Guias";
+          : "Guias Digitais";
   const pageSubtitle =
     guideRows.length === 0
       ? "Guias digitais dos seus imóveis."
@@ -569,12 +569,10 @@ function Dashboard() {
           <AlertTriangle className="size-4 text-amber-500 shrink-0" />
           <span className="flex-1">
             Cadastre ao menos um proprietário em{" "}
-            <Link
-              to="/admin/stakeholders"
-              search={{ tab: "proprietarios" as const }}
+            <Link to="/admin/proprietarios"
               className="underline underline-offset-2 font-medium"
             >
-              Stakeholders → Proprietários
+              Proprietários
             </Link>{" "}
             para liberar a criação de novos guias.
           </span>
@@ -666,7 +664,7 @@ function Dashboard() {
                 !sub.plan
                   ? "Assine um plano para criar guias"
                   : noOwners
-                    ? "Cadastre um proprietário em Stakeholders antes de criar guias"
+                    ? "Cadastre um proprietário em Proprietários antes de criar guias"
                     : reachedLimit
                       ? "Limite do seu plano atingido. Faça upgrade."
                       : "Novo guia"
@@ -798,7 +796,7 @@ function Dashboard() {
                   !sub.plan
                     ? "Assine um plano para criar guias"
                     : noOwners
-                      ? "Cadastre um proprietário em Stakeholders antes de criar guias"
+                      ? "Cadastre um proprietário em Proprietários antes de criar guias"
                       : "Criar meu primeiro guia"
                 }
                 className={`${ACTION_SEGMENT} gap-2 text-accent disabled:opacity-40 lg:w-auto lg:gap-2 lg:px-4`}
@@ -1001,7 +999,7 @@ function Dashboard() {
       </AlertDialog>
 
       {/* "Novo guia" nunca cria um imóvel novo — só vincula um guia a um
-          imóvel já cadastrado (via "Criar nova residência", em Stakeholders)
+          imóvel já cadastrado (via "Criar nova residência", em Proprietários)
           que ainda não tem guia. */}
       <Dialog open={guidePickerOpen} onOpenChange={setGuidePickerOpen}>
         {/* rounded-lg (8px) — mesmo raio de "diálogo de formulário" (ds-form-dialog,
@@ -1047,12 +1045,12 @@ function Dashboard() {
               icon={Home}
               title="Nenhuma residência sem guia"
               description={
-                "Todas as residências já têm guia. Para cadastrar uma residência nova, use “Criar nova residência” dentro do proprietário, em Stakeholders."
+                "Todas as residências já têm guia. Para cadastrar uma residência nova, use “Criar nova residência” dentro do proprietário, em Proprietários."
               }
               action={
                 <Button variant="outline" asChild onClick={() => setGuidePickerOpen(false)}>
-                  <Link to="/admin/stakeholders" search={{ tab: "proprietarios" as const }}>
-                    Ir para Stakeholders
+                  <Link to="/admin/proprietarios">
+                    Ir para Proprietários
                   </Link>
                 </Button>
               }

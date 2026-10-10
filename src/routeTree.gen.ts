@@ -42,6 +42,8 @@ import { Route as AuthenticatedAdminGuiasRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminHospedesRouteImport } from './routes/_authenticated/admin.hospedes'
 import { Route as AuthenticatedAdminIntegracoesRouteImport } from './routes/_authenticated/admin.integracoes'
 import { Route as AuthenticatedAdminInteligenciaRouteImport } from './routes/_authenticated/admin.inteligencia'
+import { Route as AuthenticatedAdminPrestadoresRouteImport } from './routes/_authenticated/admin.prestadores'
+import { Route as AuthenticatedAdminProprietariosRouteImport } from './routes/_authenticated/admin.proprietarios'
 import { Route as AuthenticatedAdminStakeholdersRouteImport } from './routes/_authenticated/admin.stakeholders'
 import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
 import { Route as ApiPublicChannexProcessarFilaRouteImport } from './routes/api/public/channex-processar-fila'
@@ -268,6 +270,18 @@ const AuthenticatedAdminInteligenciaRoute =
   AuthenticatedAdminInteligenciaRouteImport.update({
     id: '/inteligencia',
     path: '/inteligencia',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPrestadoresRoute =
+  AuthenticatedAdminPrestadoresRouteImport.update({
+    id: '/prestadores',
+    path: '/prestadores',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminProprietariosRoute =
+  AuthenticatedAdminProprietariosRouteImport.update({
+    id: '/proprietarios',
+    path: '/proprietarios',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminStakeholdersRoute =
@@ -577,6 +591,8 @@ export interface FileRoutesByFullPath {
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
   '/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
+  '/admin/prestadores': typeof AuthenticatedAdminPrestadoresRoute
+  '/admin/proprietarios': typeof AuthenticatedAdminProprietariosRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/channex-processar-fila': typeof ApiPublicChannexProcessarFilaRoute
@@ -656,6 +672,8 @@ export interface FileRoutesByTo {
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
   '/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
+  '/admin/prestadores': typeof AuthenticatedAdminPrestadoresRoute
+  '/admin/proprietarios': typeof AuthenticatedAdminProprietariosRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/channex-processar-fila': typeof ApiPublicChannexProcessarFilaRoute
@@ -740,6 +758,8 @@ export interface FileRoutesById {
   '/_authenticated/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/_authenticated/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
   '/_authenticated/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
+  '/_authenticated/admin/prestadores': typeof AuthenticatedAdminPrestadoresRoute
+  '/_authenticated/admin/proprietarios': typeof AuthenticatedAdminProprietariosRoute
   '/_authenticated/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
   '/api/public/channex-processar-fila': typeof ApiPublicChannexProcessarFilaRoute
@@ -824,6 +844,8 @@ export interface FileRouteTypes {
     | '/admin/hospedes'
     | '/admin/integracoes'
     | '/admin/inteligencia'
+    | '/admin/prestadores'
+    | '/admin/proprietarios'
     | '/admin/stakeholders'
     | '/admin/taxonomia'
     | '/api/public/channex-processar-fila'
@@ -903,6 +925,8 @@ export interface FileRouteTypes {
     | '/admin/hospedes'
     | '/admin/integracoes'
     | '/admin/inteligencia'
+    | '/admin/prestadores'
+    | '/admin/proprietarios'
     | '/admin/stakeholders'
     | '/admin/taxonomia'
     | '/api/public/channex-processar-fila'
@@ -986,6 +1010,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/hospedes'
     | '/_authenticated/admin/integracoes'
     | '/_authenticated/admin/inteligencia'
+    | '/_authenticated/admin/prestadores'
+    | '/_authenticated/admin/proprietarios'
     | '/_authenticated/admin/stakeholders'
     | '/_authenticated/admin/taxonomia'
     | '/api/public/channex-processar-fila'
@@ -1324,6 +1350,20 @@ declare module '@tanstack/react-router' {
       path: '/inteligencia'
       fullPath: '/admin/inteligencia'
       preLoaderRoute: typeof AuthenticatedAdminInteligenciaRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/prestadores': {
+      id: '/_authenticated/admin/prestadores'
+      path: '/prestadores'
+      fullPath: '/admin/prestadores'
+      preLoaderRoute: typeof AuthenticatedAdminPrestadoresRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/proprietarios': {
+      id: '/_authenticated/admin/proprietarios'
+      path: '/proprietarios'
+      fullPath: '/admin/proprietarios'
+      preLoaderRoute: typeof AuthenticatedAdminProprietariosRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/stakeholders': {
@@ -1705,6 +1745,8 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminHospedesRoute: typeof AuthenticatedAdminHospedesRoute
   AuthenticatedAdminIntegracoesRoute: typeof AuthenticatedAdminIntegracoesRoute
   AuthenticatedAdminInteligenciaRoute: typeof AuthenticatedAdminInteligenciaRoute
+  AuthenticatedAdminPrestadoresRoute: typeof AuthenticatedAdminPrestadoresRoute
+  AuthenticatedAdminProprietariosRoute: typeof AuthenticatedAdminProprietariosRoute
   AuthenticatedAdminStakeholdersRoute: typeof AuthenticatedAdminStakeholdersRoute
   AuthenticatedAdminTaxonomiaRoute: typeof AuthenticatedAdminTaxonomiaRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -1727,6 +1769,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminHospedesRoute: AuthenticatedAdminHospedesRoute,
   AuthenticatedAdminIntegracoesRoute: AuthenticatedAdminIntegracoesRoute,
   AuthenticatedAdminInteligenciaRoute: AuthenticatedAdminInteligenciaRoute,
+  AuthenticatedAdminPrestadoresRoute: AuthenticatedAdminPrestadoresRoute,
+  AuthenticatedAdminProprietariosRoute: AuthenticatedAdminProprietariosRoute,
   AuthenticatedAdminStakeholdersRoute: AuthenticatedAdminStakeholdersRoute,
   AuthenticatedAdminTaxonomiaRoute: AuthenticatedAdminTaxonomiaRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,

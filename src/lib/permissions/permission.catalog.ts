@@ -106,7 +106,7 @@ const DASHBOARD: Def[] = [
 
 /** Guias — /admin/guias */
 const GUIAS: Def[] = [
-  page("tenant.guias", "Guias", "/admin/guias", "Home", 20,
+  page("tenant.guias", "Guias Digitais", "/admin/guias", "Home", 20,
     "Residências, guias públicos e conteúdo do hóspede."),
 
   tab("tenant.guias.imoveis", "Imóveis", 10),
@@ -137,7 +137,7 @@ const STAKEHOLDERS: Def[] = [
   page("tenant.stakeholders", "Stakeholders", "/admin/stakeholders", "Contact", 30,
     "Proprietários, hóspedes e prestadores de serviço."),
 
-  tab("tenant.stakeholders.proprietarios", "Proprietários", 10),
+  tab("tenant.stakeholders.proprietarios", "Proprietários", 10, { route: "/admin/proprietarios" }),
   act("tenant.stakeholders.proprietarios.cadastrar", "Cadastrar proprietário", 10),
   act("tenant.stakeholders.proprietarios.editar", "Editar proprietário", 20),
   act("tenant.stakeholders.proprietarios.documentos", "Documentos", 30),
@@ -150,7 +150,7 @@ const STAKEHOLDERS: Def[] = [
   act("tenant.stakeholders.hospedes.captacao", "Dados de captação", 20),
   act("tenant.stakeholders.hospedes.enviar-guia", "Enviar guia por e-mail", 30),
 
-  tab("tenant.stakeholders.prestadores", "Prestadores", 30),
+  tab("tenant.stakeholders.prestadores", "Prestadores", 30, { route: "/admin/prestadores" }),
   act("tenant.stakeholders.prestadores.cadastrar", "Cadastrar prestador", 10),
   act("tenant.stakeholders.prestadores.editar", "Editar prestador", 20),
   act("tenant.stakeholders.prestadores.imoveis", "Imóveis atendidos", 30),

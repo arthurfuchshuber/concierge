@@ -2461,11 +2461,10 @@ function PropertyEditor() {
               <p className="mt-1.5 text-xs text-amber-500">
                 Nenhum proprietário cadastrado.{" "}
                 <Link
-                  to="/admin/stakeholders"
-                  search={{ tab: "proprietarios" as const }}
+                  to="/admin/proprietarios"
                   className="underline underline-offset-2"
                 >
-                  Cadastre um em Stakeholders
+                  Cadastre um em Proprietários
                 </Link>{" "}
                 antes de continuar.
               </p>

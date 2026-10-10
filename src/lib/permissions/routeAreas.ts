@@ -8,6 +8,8 @@ export const ROUTE_PERMISSIONS: Array<{ prefix: string; permission: string }> = 
   { prefix: "/admin/guias", permission: "tenant.guias" },
   { prefix: "/admin/properties", permission: "tenant.guias.editor" },
   { prefix: "/admin/stakeholders", permission: "tenant.stakeholders" },
+  { prefix: "/admin/proprietarios", permission: "tenant.stakeholders" },
+  { prefix: "/admin/prestadores", permission: "tenant.stakeholders" },
   { prefix: "/admin/hospedes", permission: "tenant.stakeholders.hospedes" },
   { prefix: "/admin/atendimento", permission: "tenant.atendimento" },
   { prefix: "/admin/administrativo", permission: "tenant.administrativo" },

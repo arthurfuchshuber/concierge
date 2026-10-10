@@ -67,6 +67,8 @@ export const SLUG_ALIASES: Record<string, string> = {
   "admin.guias": "tenant.guias",
   "admin.properties": "tenant.guias.editor",
   "admin.stakeholders": "tenant.stakeholders",
+  "admin.proprietarios": "tenant.stakeholders",
+  "admin.prestadores": "tenant.stakeholders",
   "admin.hospedes": "tenant.stakeholders.hospedes",
   "admin.atendimento": "tenant.atendimento",
   "admin.administrativo": "tenant.administrativo",

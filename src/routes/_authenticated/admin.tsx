@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Home, Contact, Sparkles, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Wrench, Home, Contact, Sparkles, ChevronsLeft, ChevronsRight } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -39,8 +39,9 @@ export const Route = createFileRoute("/_authenticated/admin")({
 
 const baseNav = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: false },
-  { to: "/admin/guias", label: "Guias", icon: Home, exact: false },
-  { to: "/admin/stakeholders", label: "Stakeholders", icon: Contact, exact: false },
+  { to: "/admin/guias", label: "Guias Digitais", icon: Home, exact: false },
+  { to: "/admin/proprietarios", label: "Proprietários", icon: Contact, exact: false },
+  { to: "/admin/prestadores", label: "Prestadores", icon: Wrench, exact: false },
   
 ] as const;
 const adminOnlyNav = [
@@ -59,7 +60,7 @@ const adminOnlyNav = [
 // (nunca na sidebar desktop nem na gaveta mobile, que têm espaço de sobra)
 // usa-se uma versão encurtada do nome real da seção.
 const BOTTOM_NAV_SHORT_LABEL: Record<string, string> = {
-  "Stakeholders": "Pessoas",
+  "Guias Digitais": "Guias",
   "Atendimento": "Suporte",
   "Administrativo": "Config.",
 };
@@ -141,7 +142,8 @@ function AdminLayout() {
   const BOTTOM_NAV_PATHS = [
     "/admin/dashboard",
     "/admin/guias",
-    "/admin/stakeholders",
+    "/admin/proprietarios",
+    "/admin/prestadores",
     "/admin/atendimento",
   ];
   const bottomNav = nav.filter((item) => BOTTOM_NAV_PATHS.includes(item.to));
@@ -228,6 +230,8 @@ function AdminLayout() {
     pathname.startsWith("/admin/engajamento") ||
     pathname.startsWith("/admin/hospedes") ||
     pathname.startsWith("/admin/stakeholders") ||
+    pathname.startsWith("/admin/proprietarios") ||
+    pathname.startsWith("/admin/prestadores") ||
     pathname.startsWith("/admin/clientes") ||
     pathname.startsWith("/admin/taxonomia") ||
     pathname.startsWith("/admin/recomendacoes-sigma") ||
