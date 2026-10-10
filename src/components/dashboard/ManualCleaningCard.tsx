@@ -150,7 +150,7 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
                 type="button"
                 aria-label="Mais opções"
                 title="Mais opções"
-                className="grid size-7 place-items-center rounded-[0.3rem] border border-border/50 bg-background/60 hover:bg-primary/[0.08]"
+                className="grid size-7 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] hover:bg-primary/[0.08]"
               >
                 <MoreVertical className="size-3.5" />
               </button>

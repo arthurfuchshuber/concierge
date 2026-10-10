@@ -532,7 +532,7 @@ export function PropertyAccessButton({ row }: { row: Row }) {
             setSide(below >= above ? "bottom" : "top");
           }}
           className={`grid place-items-center rounded-[0.3rem] border border-border/50 size-7 ${
-            open ? "bg-primary/[0.08]" : "bg-background/60 hover:bg-primary/[0.08]"
+            open ? "bg-primary/[0.08]" : "bg-[var(--chip-bg)] hover:bg-primary/[0.08]"
           }`}
         >
           <KeyRound className="size-3.5" />

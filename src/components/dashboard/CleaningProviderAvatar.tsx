@@ -24,20 +24,7 @@ export function useCleaningBoard() {
   });
 }
 
-/** Vassoura + balde, no mesmo traço dos ícones lucide (24x24, stroke 2). */
-function BroomBucket({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <path d="M17 2 13 11" />
-      <path d="M10.5 10.5 15.5 12.5 14 17 8 15z" />
-      <path d="M10 15.6 9 17M12.5 16.4l-.8 1.5" />
-      <path d="M2 13h7l-1 9H3z" />
-      <path d="M2.5 13a3 3 0 0 1 6 0" />
-    </svg>
-  );
-}
-
-/** Quadrado do perfil. Sem foto: fundo azul bebê com kit de limpeza. */
+/** Quadrado do perfil. Sem foto: as iniciais do prestador. */
 function Face({
   name,
   url,
@@ -55,13 +42,16 @@ function Face({
    */
   look?: "default" | "raised" | "plain";
 }) {
-  const ink = look === "default" ? "text-[var(--cleaning-soft)]" : "text-[var(--cleaning-soft-foreground)] dark:text-[var(--cleaning-soft)]";
+  // 09/10/2026: o azul-bebê sumia no tema claro (letras "EV" quase invisíveis
+  // sobre o quadradinho). Agora TODO modo usa o azul-escuro do sistema no
+  // claro; no escuro nada muda.
+  const ink = "text-[var(--cleaning-soft-foreground)] dark:text-[var(--cleaning-soft)]";
   const box =
     look === "raised"
       ? "ds-3d ds-3d-hover border border-border/70 bg-card shadow-sm"
       : look === "plain"
         ? ""
-        : "border border-border/50 bg-background/60";
+        : "border border-border/50 bg-[var(--chip-bg)]";
   return url ? (
     <img src={url} alt={name ?? ""} className="rounded-[0.3rem] object-cover" style={{ width: size, height: size }} />
   ) : (
@@ -70,11 +60,11 @@ function Face({
       className={`inline-flex shrink-0 items-center justify-center rounded-[0.3rem] ${box}`}
       style={{ minWidth: size, height: size, paddingInline: name ? 5 : 0 }}
     >
-      {name ? (
-        <span className={`block text-[16px] font-semibold leading-none tracking-[-0.02em] ${ink} [text-box:trim-both_cap_alphabetic]`}>{initials(name)}</span>
-      ) : (
-        <BroomBucket className={`size-3.5 ${ink}`} />
-      )}
+      {/* Pedido explícito (09/10/2026): SEMPRE as letras do prestador, nunca a
+          vassoura. Sem prestador definido ainda, um "?" no mesmo traço. */}
+      <span className={`block text-[16px] font-semibold leading-none tracking-[-0.02em] ${ink} [text-box:trim-both_cap_alphabetic]`}>
+        {name ? initials(name) : "?"}
+      </span>
     </span>
   );
 }

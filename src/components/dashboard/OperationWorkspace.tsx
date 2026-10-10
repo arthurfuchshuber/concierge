@@ -1758,6 +1758,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    *      receber, que é a informação que a pessoa procura ao abrir o dia.
    */
   const freeProperties = useMemo(() => occupancyQ.data?.freeToday ?? [], [occupancyQ.data?.freeToday]);
+  // Fonte única para TODOS os números grandes da página operacional.
+  const opBigSize = kpiSizeClass([
+    checkinPendingRows.length,
+    checkoutPendingRows.length,
+    tomorrowCheckinPendingRows.length,
+    tomorrowCheckoutPendingRows.length,
+    stayRows.length,
+    freeProperties.length,
+  ]);
 
   // Check-ins de hoje já marcados como concluídos → agenda mostra "ocupado".
   const checkedInPropertyIds = useMemo(
@@ -3307,6 +3316,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 shadowTone={checkinPendingRows.length > 0 ? "sky" : "emerald"}
                 pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkin", checkinPendingRows)}
+                valueSizeClass={opBigSize}
               />
             </div>
             <div className="order-3 lg:order-2">
@@ -3323,6 +3333,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 shadowTone={checkoutPendingRows.length > 0 ? "amber" : "emerald"}
                 pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkout", checkoutPendingRows)}
+                valueSizeClass={opBigSize}
               />
             </div>
             <SectionLabel className="col-span-2 order-5 lg:hidden">Amanhã</SectionLabel>
@@ -3337,6 +3348,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 rangeLabel="Amanhã"
                 pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkin", tomorrowCheckinPendingRows)}
+                valueSizeClass={opBigSize}
               />
             </div>
             <div className="order-7 lg:order-4">
@@ -3350,6 +3362,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 rangeLabel="Amanhã"
                 pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkout", tomorrowCheckoutPendingRows)}
+                valueSizeClass={opBigSize}
               />
             </div>
 
@@ -3447,6 +3460,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   rangeLabel={rangeLabel[range]}
                   pinnedIds={pinnedRowIds}
                   cardProps={arrivalGroupPropsFor("stay", stayRows)}
+                valueSizeClass={opBigSize}
                 />
               </div>
               <div className="order-11 col-span-1">
@@ -3454,6 +3468,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   loading={occupancyQ.isLoading}
                   properties={freeProperties}
                   day={occStart}
+                  valueSizeClass={opBigSize}
                   onRefresh={() => occupancyQ.refetch()}
                 />
               </div>
@@ -3501,6 +3516,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   label={cleaningScreen.countLabel}
                   detailItems={cleaningTrendData?.items}
                   value={cleaningScreen.countValue}
+                  valueSizeClass={bigNumberSizeClass([String(cleaningScreen.countValue), centsToBRLShort(cleaningScreen.costValue)])}
                   icon={CheckCircle2}
                   loading={cleaningScreen.statsLoading}
                   note={cleaningScreen.countNote}
@@ -3512,6 +3528,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   label={cleaningScreen.costLabel}
                   detailItems={cleaningTrendData?.items}
                   value={centsToBRLShort(cleaningScreen.costValue)}
+                  valueSizeClass={bigNumberSizeClass([String(cleaningScreen.countValue), centsToBRLShort(cleaningScreen.costValue)])}
                   icon={Banknote}
                   loading={cleaningScreen.statsLoading}
                   note={cleaningScreen.costNote}
@@ -4462,7 +4479,10 @@ function KpiCard({
   highlight,
   pinnedIds,
   cardProps,
+  valueSizeClass,
 }: {
+  /** Tamanho compartilhado por todos os números da página (ver `kpiSizeClass`). */
+  valueSizeClass?: string;
   label: string;
   rows: ArrivalRow[];
   icon: React.ElementType;
@@ -4642,8 +4662,8 @@ function KpiCard({
                 de texto, sem carnaval. */}
             <div
               className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none tracking-[-0.03em] ${
-                shadowTone ? "text-[30px] sm:text-[34px]" : "text-[28px] sm:text-[32px]"
-              } ${
+                valueSizeClass ?? (shadowTone ? "text-[30px] sm:text-[34px]" : "text-[28px] sm:text-[32px]")
+              } whitespace-nowrap ${
                 !loading && rows.length > 0 && shadowTone === "sky"
                   ? "text-sky-500 dark:text-sky-400"
                   : !loading && rows.length > 0 && shadowTone === "amber"
@@ -4798,7 +4818,7 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
              só o ícone na cor — sem o círculo âmbar por trás. A palavra
              "ALERTA" saiu; o nome acessível e o `title` continuam dizendo o
              que é. */
-          className="grid size-7 place-items-center rounded-[0.3rem] border border-border/50 bg-background/60 text-amber-600 transition-colors hover:bg-primary/[0.08] dark:text-amber-400"
+          className="grid size-7 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-amber-600 transition-colors hover:bg-primary/[0.08] dark:text-amber-400"
           title="Ver alertas"
           aria-label="Ver alertas"
         >
@@ -4830,7 +4850,9 @@ function FreePropertiesCard({
   properties,
   onRefresh,
   day,
+  valueSizeClass = "text-[30px] sm:text-[34px]",
 }: {
+  valueSizeClass?: string;
   loading: boolean;
   properties: FreeProperty[];
   onRefresh: () => void;
@@ -4876,7 +4898,7 @@ function FreePropertiesCard({
             </span>
           </div>
           <div
-            className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none text-[30px] sm:text-[34px] ${hasFree ? "text-red-500 dark:text-red-400" : "text-foreground"}`}
+            className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none whitespace-nowrap ${valueSizeClass} ${hasFree ? "text-red-500 dark:text-red-400" : "text-foreground"}`}
           >
             {loading ? "—" : properties.length}
           </div>
@@ -4991,6 +5013,28 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
 }
 
 /**
+ * FONTE DOS BIG NUMBERS SINCRONIZADA (pedido explícito, 10/10/2026): se um
+ * valor ficar longo demais para o card, a fonte encolhe — e TODOS os cards
+ * irmãos do grupo adotam o mesmo tamanho, para manter a simetria.
+ */
+/** Mesma regra para a página operacional: todos os cards adotam o tamanho
+ *  que o número mais longo da página exigir. */
+export function kpiSizeClass(values: Array<string | number>): string {
+  const len = Math.max(0, ...values.map((v) => String(v ?? "").length));
+  if (len <= 3) return "text-[30px] sm:text-[34px]";
+  if (len <= 5) return "text-[24px] sm:text-[28px]";
+  return "text-[19px] sm:text-[22px]";
+}
+
+export function bigNumberSizeClass(values: Array<string | number>): string {
+  const len = Math.max(0, ...values.map((v) => String(v ?? "").length));
+  if (len <= 6) return "text-[26px] sm:text-[30px]";
+  if (len <= 8) return "text-[22px] sm:text-[26px]";
+  if (len <= 10) return "text-[18px] sm:text-[22px]";
+  return "text-[15px] sm:text-[18px]";
+}
+
+/**
  * Card de estatística pura (sem lista/detalhe por trás) — usado para
  * "Limpezas Realizadas" e "Custo Total Limpeza". Mesmo visual dos KpiCards,
  * mas não abre popup: é só um número agregado, "Hoje" (fuso de São Paulo).
@@ -5006,7 +5050,10 @@ function StatDisplayCard({
   sparkline,
   note,
   detailItems,
+  valueSizeClass = "text-[26px] sm:text-[30px]",
 }: {
+  /** Tamanho do número COMPARTILHADO pelo grupo (ver `bigNumberSizeClass`). */
+  valueSizeClass?: string;
   /** Limpezas uma a uma — quando vem, a janela é a MESMA do gráfico
    * (responsável, tipo e valor editáveis, sem corte). */
   detailItems?: CleaningDayItem[];
@@ -5090,7 +5137,7 @@ function StatDisplayCard({
         </span>
         {clickable && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
       </div>
-      <div className="w-full pt-1.5 text-center font-display text-[26px] font-bold leading-none tracking-[-0.03em] tabular-nums sm:text-[30px]">
+      <div className={`w-full whitespace-nowrap pt-1.5 text-center font-display font-bold leading-none tracking-[-0.03em] tabular-nums ${valueSizeClass}`}>
         {loading ? "—" : value}
       </div>
       {note && !loading ? (
@@ -9746,14 +9793,10 @@ function ArrivalCard({
           "button, a, input, select, textarea, label, [role='button'], [role='checkbox'], [data-radix-popper-content-wrapper]",
         );
         if (interactive && interactive !== e.currentTarget) return;
-        // Cards em limpeza/concluídos: o toque abre a janela de detalhes
-        // editáveis (tipo, valor, previsão, histórico) — pedido 29/09/2026.
-        // Concluídos e Não Compareceu também (09/10/2026): toque em qualquer
-        // ponto do card abre o histórico da reserva.
-        if ((mode === "cleaning" || mode === "done" || mode === "no_show") && canOpenJourney) {
-          setJourneyOpen(true);
-          return;
-        }
+        // 09/10/2026 (2º pedido): o toque em QUALQUER card do Kanban — inclusive
+        // Limpeza, Concluídos e Não Compareceu — expande as infos (Hóspede,
+        // Cód. Reserva, Permitido…), como nos Check-ins Pendentes. O
+        // Histórico da reserva segue no item "Histórico da reserva" do menu "⋮".
         toggleOpenFull();
       }}
       /* MESMO RAIO DE CANTO DAS CÉLULAS DA LIMPEZA (mockup "mesmo ecossistema
@@ -9791,6 +9834,12 @@ function ArrivalCard({
           reservationId={journeyReservationId}
           title={mode === "cleaning" || mode === "done" ? "Detalhes da limpeza" : undefined}
           onOpenRecords={() => { setJourneyOpen(false); setRecordsOpen(true); }}
+          guestAside={
+            <>
+              <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+              <ExtraGuests guests={row.additionalGuests ?? []} />
+            </>
+          }
           cleaningEditor={
             mode === "cleaning" || mode === "done" ? (
               <CleaningInlineEditor
@@ -9815,7 +9864,7 @@ function ArrivalCard({
                  título): cada lado vira um cartão com ícone, horário grande,
                  data e quem informou. O editor continua sendo o mesmo — o
                  cartão inteiro é o gatilho dele. */
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-1.5">
                 {[prediction.primary, prediction.secondary]
                   .filter((side): side is PredictionSide => !!side)
                   .map((side) => {
@@ -9837,38 +9886,36 @@ function ArrivalCard({
                         trigger={
                           <button
                             type="button"
-                            className="min-w-0 rounded-2xl bg-foreground/[0.04] px-3.5 py-3 text-left transition-colors hover:bg-foreground/[0.07]"
+                            title={hasValue ? (side.byGuest ? "Informado pelo hóspede" : "Informado pela equipe") : "Toque para informar"}
+                            className="flex h-[52px] min-w-0 items-center gap-2 rounded-[var(--win-radius)] bg-foreground/[0.04] px-2.5 text-left transition-colors hover:bg-foreground/[0.07]"
                           >
-                            <span className="flex items-center justify-between gap-2">
-                              <span className="flex min-w-0 items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                                <span
-                                  className={`grid size-6 shrink-0 place-items-center rounded-full ${
-                                    isOut ? "bg-orange-400/15 text-orange-500 dark:text-orange-300" : "bg-sky-400/15 text-sky-600 dark:text-sky-300"
-                                  }`}
-                                >
-                                  <SideIcon className="size-[15px]" />
-                                </span>
-                                <span className="truncate">{side.label}</span>
-                              </span>
-                              {hasValue ? (
-                                <Pencil className="size-[13px] shrink-0 text-foreground" aria-label="Editar" />
-                              ) : (
-                                <Plus className="size-[13px] shrink-0 text-foreground" aria-label="Informar" />
-                              )}
-                            </span>
                             <span
-                              className={`mt-2.5 block text-[26px] font-bold leading-none tracking-tight tabular-nums ${
-                                side.timeValue ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground/60"
+                              className={`grid size-[26px] shrink-0 place-items-center rounded-full ${
+                                isOut ? "bg-orange-400/15 text-orange-500 dark:text-orange-300" : "bg-sky-400/15 text-sky-600 dark:text-sky-300"
                               }`}
                             >
-                              {side.timeValue ?? "--:--"}
+                              <SideIcon className="size-[15px]" />
                             </span>
-                            <span className="mt-1 block text-xs text-muted-foreground">
-                              {hasValue ? (day.label ? day.label : "") : "sem previsão"}
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[9px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground">
+                                {side.label}
+                              </span>
+                              <span
+                                className={`block text-[15px] font-extrabold leading-[1.1] tabular-nums ${
+                                  side.timeValue ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground/60"
+                                }`}
+                              >
+                                {side.timeValue ?? "--:--"}
+                                {hasValue && day.label ? (
+                                  <span className="ml-1.5 text-[10.5px] font-medium text-muted-foreground">{day.label}</span>
+                                ) : null}
+                              </span>
                             </span>
-                            <span className="mt-2.5 block text-[11px] text-muted-foreground">
-                              {hasValue ? (side.byGuest ? "Informado pelo hóspede" : "Informado pela equipe") : "Toque para informar"}
-                            </span>
+                            {hasValue ? (
+                              <Pencil className="size-[13px] shrink-0 text-foreground" aria-label="Editar" />
+                            ) : (
+                              <Plus className="size-[13px] shrink-0 text-foreground" aria-label="Informar" />
+                            )}
                           </button>
                         }
                       />
@@ -10450,7 +10497,7 @@ function ArrivalCard({
                 className={`grid place-items-center rounded-[0.3rem] border size-7 ${
                   isMutedNow
                     ? "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400"
-                    : "bg-background/60 border-border/50 hover:bg-primary/[0.08]"
+                    : "bg-[var(--chip-bg)] border-border/50 hover:bg-primary/[0.08]"
                 }`}
               >
                 <MoreVertical className="size-3.5" />

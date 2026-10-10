@@ -109,6 +109,10 @@
      ainda discreto — mesma lógica do .dark, adaptada pro dia. */
   --faint: oklch(0.6 0.018 60);
   --panel: oklch(0.965 0.014 75);
+  /* Fundo dos quadradinhos de ação dos cards (chave, clipe, ⋮, mapa, prestador).
+     No tema claro `bg-background/60` era quase branco sobre card branco e
+     "conflitava" (pedido explícito, 09/10/2026): agora um bege quente. */
+  --chip-bg: oklch(0.935 0.016 75);
   --panel-2: oklch(0.93 0.016 72);
   --panel-border: oklch(0.4 0.03 60 / 0.14);
   --panel-div: oklch(0.22 0.02 60 / 0.08);
@@ -180,6 +184,8 @@
      `--card`/`--popover` globais — é uma cor só do "quadrante", não do app
      inteiro. */
   --panel: #211d1a;
+  /* Igual ao que `bg-background/60` sempre foi no escuro — nada muda. */
+  --chip-bg: color-mix(in oklab, var(--background) 60%, transparent);
   --panel-2: #2a2521;
   --panel-border: rgba(255, 205, 150, 0.12);
   --panel-div: rgba(255, 255, 255, 0.065);
@@ -1421,7 +1427,12 @@ dd {
   color: #c9a962;
 }
 @utility ds-data {
-  color: #cbb87f;
+  /* Tema claro (pedido explícito, 09/10/2026): o dourado fraco do escuro
+     sumia no fundo claro e destoava; aqui um bronze mais fundo, legível. */
+  color: #8a6d1f;
+  @variant dark {
+    color: #cbb87f;
+  }
 }
 
 @utility ds-faint {

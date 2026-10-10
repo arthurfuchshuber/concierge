@@ -1237,7 +1237,7 @@ export function ReservationRecordsButton({
            `rounded-lg` e `size-6` eram os únicos do trio fora do padrão — a
            curva de 0.3rem é a do Design System e o compacto dos vizinhos é
            `size-7`. Com três botões colados, um pixel de diferença aparece. */
-        className={`grid place-items-center rounded-[0.3rem] border border-border/50 bg-background/60 hover:bg-primary/[0.08] ${compact ? "size-7" : "size-9"}`}
+        className={`grid place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] hover:bg-primary/[0.08] ${compact ? "size-7" : "size-9"}`}
       >
         <Paperclip className={compact ? "size-3.5" : "size-4"} />
       </button>

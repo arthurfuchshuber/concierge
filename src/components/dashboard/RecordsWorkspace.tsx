@@ -2549,7 +2549,7 @@ function RecordViewerBody({
               disabled={baixando}
               aria-label="Baixar todas as mídias"
               title="Baixa todas as mídias deste registro"
-              className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-background/60 text-foreground transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
+              className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-foreground transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
             >
               {baixando ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
             </button>
@@ -2562,7 +2562,7 @@ function RecordViewerBody({
             onClick={() => onDelete(Array.from(new Set([record.id, ...media.map((m) => m.id)])))}
             aria-label="Excluir"
             title="Excluir"
-            className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-background/60 text-[#d49a9a] transition-colors hover:bg-primary/[0.08]"
+            className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-[#d49a9a] transition-colors hover:bg-primary/[0.08]"
           >
             <Trash2 className="size-3.5" />
           </button>

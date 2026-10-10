@@ -100,7 +100,7 @@ export function PropertyMapsButton({
             type="button"
             aria-label="Opções do Maps"
             title={garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
-            className="grid shrink-0 place-items-center rounded-[0.3rem] bg-background/60 border border-border/50 hover:bg-primary/[0.08] size-7"
+            className="grid shrink-0 place-items-center rounded-[0.3rem] bg-[var(--chip-bg)] border border-border/50 hover:bg-primary/[0.08] size-7"
           >
             <MapPin className="size-3.5" />
           </button>

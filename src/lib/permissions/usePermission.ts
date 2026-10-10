@@ -51,15 +51,21 @@ export function usePermission(
       }),
     enabled: enabled && !!permission && sessionReady,
     staleTime: 60_000,
-    retry: 2,
-    retryDelay: 300,
+    retry: 3,
+    retryDelay: (n) => Math.min(500 * 2 ** n, 4000),
+    // Falha persistente: continua tentando sozinho até a conexão voltar.
+    refetchInterval: (q) => (q.state.status === "error" ? 5_000 : false),
   });
 
-
+  // FALHA NÃO É NEGAÇÃO: erro de rede/sessão (ex.: renovação do token na
+  // virada da hora) mantém a última decisão conhecida; sem decisão ainda,
+  // fica "carregando" — nunca vira "sem permissão" (travava o editor em
+  // "apenas visualizar").
+  const hasDecision = !!query.data?.decisions?.[permission];
   const state = toAccessState(
     query.data?.decisions?.[permission],
-    enabled && (query.isLoading || (!sessionReady && !query.data)),
-    query.isError,
+    enabled && (query.isLoading || (!sessionReady && !query.data) || (query.isError && !hasDecision)),
+    false,
   );
 
   if (!enabled) return { ...state, loading: false };

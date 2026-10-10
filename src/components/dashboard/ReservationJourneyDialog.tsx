@@ -1,7 +1,12 @@
 /**
  * O HISTÓRICO DA RESERVA — mesma moldura das janelas novas (Registros, "Mais
  * registros"): capa do imóvel, "Proprietário: nome" com o ícone de mensagem
- * padrão, pílula de status e cartões. Layout aprovado no canvas em 05/10/2026.
+ * padrão e cartões. Layout aprovado no canvas em 05/10/2026 e REFATORADO em
+ * 09/10/2026 (opção B do canvas, pedido explícito): UMA info por linha com o
+ * rótulo à esquerda (Hóspede / Código / Período / Status), proprietário logo
+ * abaixo do título na faixa de capa, Chegada/Saída em dois quadrados lado a
+ * lado, e cartões da timeline com data/hora no canto superior direito e a
+ * etiqueta (Pendência, Dano…) no canto inferior direito.
  *
  *   · TODOS os passos usam o mesmo cartão (feitos ou pendentes), com a bolinha
  *     sempre no MEIO do cartão e o fio contínuo (primeiro/último começam e
@@ -71,7 +76,7 @@ const AVATAR: Record<string, string> = {
 function WhoLine({ actor }: { actor: JourneyActor }) {
   const unknown = !actor.name;
   return (
-    <div className="mt-2 flex min-w-0 items-center gap-[7px]">
+    <div className="flex min-w-0 items-center gap-[7px]">
       <span
         className={`grid size-5 shrink-0 place-items-center rounded-full text-[8.5px] font-extrabold ${
           unknown ? AVATAR.Sistema : AVATAR[actor.role ?? "Sistema"]
@@ -89,6 +94,19 @@ function WhoLine({ actor }: { actor: JourneyActor }) {
           {actor.role}
         </span>
       )}
+    </div>
+  );
+}
+
+/** Linha do quadro de infos: rótulo à esquerda, valor ao lado (uma info por linha). */
+function InfoRow({ label, children, aside }: { label: string; children: React.ReactNode; aside?: React.ReactNode }) {
+  return (
+    <div className="grid h-[34px] grid-cols-[78px_minmax(0,1fr)] items-center gap-2 px-3">
+      <span className="text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground">{label}</span>
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span className="min-w-0 truncate text-[13px] font-bold">{children}</span>
+        {aside}
+      </span>
     </div>
   );
 }
@@ -154,14 +172,14 @@ function StepRow({ step, first, last }: { step: JourneyStep; first: boolean; las
         </span>
       }
     >
-      <div className="min-w-0 rounded-[var(--win-radius)] bg-foreground/[0.04] px-3 py-2.5">
+      <div className="flex min-w-0 flex-col gap-1 rounded-[var(--win-radius)] bg-foreground/[0.04] px-3 py-2.5">
         <div className="flex items-baseline justify-between gap-2">
-          <span className={`text-[13.5px] ${done ? "font-semibold" : "font-medium text-muted-foreground"}`}>
+          <span className={`min-w-0 truncate text-[13.5px] ${done ? "font-semibold" : "font-medium text-muted-foreground"}`}>
             {step.label}
           </span>
           {when && <span className="shrink-0 whitespace-nowrap text-[11.5px] tabular-nums text-muted-foreground">{when}</span>}
         </div>
-        {step.detail && <p className="mt-[3px] text-xs leading-snug text-muted-foreground">{step.detail}</p>}
+        {step.detail && <p className="text-xs leading-snug text-muted-foreground">{step.detail}</p>}
         {step.actor && <WhoLine actor={step.actor} />}
       </div>
     </TimelineRow>
@@ -206,23 +224,25 @@ function ActivityRow({
     >
       <Tag
         {...(clickable ? { type: "button" as const, onClick: onOpen } : {})}
-        className={`min-w-0 w-full rounded-[var(--win-radius)] bg-foreground/[0.04] px-3 py-2.5 text-left ${
+        className={`flex min-w-0 w-full flex-col gap-1 rounded-[var(--win-radius)] bg-foreground/[0.04] px-3 py-2.5 text-left ${
           clickable ? "transition-colors hover:bg-foreground/[0.07]" : ""
         }`}
       >
+        {/* Linha 1: título à esquerda, data/hora no canto superior direito. */}
         <div className="flex items-baseline justify-between gap-2">
-          <div className="min-w-0 text-[13px] font-semibold leading-snug">
-            <span
-              className={`mr-1.5 inline-block rounded px-[5px] py-px align-[1px] text-[8.5px] font-extrabold uppercase tracking-[0.04em] ${TAG_STYLE[item.tag]}`}
-            >
-              {item.tag}
-            </span>
-            {item.title}
-          </div>
+          <div className="min-w-0 text-[13px] font-semibold leading-snug">{item.title}</div>
           {when && <span className="shrink-0 whitespace-nowrap text-[11.5px] tabular-nums text-muted-foreground">{when}</span>}
         </div>
-        {item.sub && <div className="mt-0.5 text-xs text-muted-foreground">{item.sub}</div>}
-        <WhoLine actor={item.actor} />
+        {item.sub && <div className="text-xs text-muted-foreground">{item.sub}</div>}
+        {/* Última linha: quem fez à esquerda, etiqueta no canto inferior direito. */}
+        <div className="flex items-end justify-between gap-2">
+          <WhoLine actor={item.actor} />
+          <span
+            className={`shrink-0 rounded px-[6px] py-px text-[8.5px] font-extrabold uppercase tracking-[0.04em] ${TAG_STYLE[item.tag]}`}
+          >
+            {item.tag}
+          </span>
+        </div>
       </Tag>
     </TimelineRow>
   );
@@ -266,6 +286,7 @@ export function ReservationJourneyDialog({
   reservationId,
   predictionEditor,
   cleaningEditor,
+  guestAside,
   onOpenRecords,
   title = "Histórico da reserva",
 }: {
@@ -284,6 +305,12 @@ export function ReservationJourneyDialog({
    * de gravação, que é a mesma regra que vale para as ações do assistente.
    */
   predictionEditor?: React.ReactNode;
+  /**
+   * Ícone do chat/telefone do hóspede e a "quantidade" (+N acompanhantes) ao
+   * lado do nome — os mesmos controles do card (pedido explícito, 09/10/2026).
+   * Chegam como nó pronto: o telefone e a lista de acompanhantes moram no card.
+   */
+  guestAside?: React.ReactNode;
   /** Seção editável da limpeza (tipo, valor, ações) — cards em limpeza. */
   cleaningEditor?: React.ReactNode;
   /** Toque num registro/pendência da Atividade: o card fecha esta janela e abre os registros. */
@@ -312,17 +339,31 @@ export function ReservationJourneyDialog({
         className="flex max-h-[75dvh] w-[min(420px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
         aria-describedby={undefined}
       >
-        <div className="relative h-[112px] shrink-0 overflow-hidden bg-secondary/60">
+        <div className="relative h-[88px] shrink-0 overflow-hidden bg-secondary/60">
           <CoverImage urls={data?.propertyCoverUrls ?? []} empty={false} />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/55 to-[var(--panel)]" />
+          {/* Degradê ESCURO até embaixo (não mais até `--panel`): no tema claro
+              o texto branco do título/proprietário precisa de fundo escuro. */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/35 to-black/70" />
           <div className="absolute bottom-2 left-[18px] right-12">
             <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">{title}</div>
             <DialogTitle
-              className="mt-[3px] block truncate text-[17px] font-bold leading-tight tracking-tight text-white"
+              className="mt-[3px] block truncate text-[16px] font-bold leading-tight tracking-tight text-white"
               title={data?.propertyName ?? undefined}
             >
               {data?.propertyName ?? (isLoading ? "Carregando…" : "Reserva")}
             </DialogTitle>
+            {data?.ownerName ? (
+              <div className="mt-[3px] flex min-w-0 items-center gap-0 text-[11.5px] font-medium text-white/90">
+                <span className="truncate">{ownerLabel(data.ownerName)}</span>
+                <PhoneActionButton
+                  phone={data.ownerPhone}
+                  country={data.ownerPhoneCountry}
+                  size={14}
+                  alwaysShow
+                  className="shrink-0"
+                />
+              </div>
+            ) : null}
           </div>
         </div>
         <DialogDescription className="sr-only">
@@ -339,36 +380,22 @@ export function ReservationJourneyDialog({
           </div>
         ) : (
           <>
-            <div className="flex shrink-0 flex-col gap-2 px-[18px] pb-3 pt-1.5">
-              <div className="flex min-w-0 items-center justify-between gap-2.5">
-                <div className="flex min-w-0 items-center gap-0 text-xs text-muted-foreground">
-                  {data.ownerName ? (
-                    <>
-                      <span className="truncate">{ownerLabel(data.ownerName)}</span>
-                      <PhoneActionButton
-                        phone={data.ownerPhone}
-                        country={data.ownerPhoneCountry}
-                        size={14}
-                        alwaysShow
-                        className="shrink-0"
-                      />
-                    </>
-                  ) : null}
-                </div>
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-foreground/[0.06] px-[11px] py-[5px] text-[11.5px] font-semibold text-foreground">
-                  <span className="size-1.5 rounded-full bg-emerald-500/80" />
-                  {data.statusLabel}
-                </span>
+            <div className="flex shrink-0 flex-col gap-1.5 px-4 pb-1 pt-3">
+              {/* Uma info por linha, rótulo à esquerda (opção B, 09/10/2026). */}
+              <div className="divide-y divide-foreground/[0.08] overflow-hidden rounded-[var(--win-radius)] bg-foreground/[0.04]">
+                {data.guestName && <InfoRow label="Hóspede" aside={guestAside}>{data.guestName}</InfoRow>}
+                {data.reservationCode && data.reservationCode !== data.guestName && (
+                  <InfoRow label="Código">{data.reservationCode}</InfoRow>
+                )}
+                {periodo && <InfoRow label="Período">{periodo}</InfoRow>}
+                <InfoRow label="Status">
+                  <span className="inline-flex items-center gap-[7px]">
+                    <span className="size-[7px] shrink-0 rounded-full bg-emerald-500/80" />
+                    {data.statusLabel}
+                  </span>
+                </InfoRow>
               </div>
-              <div className="truncate text-xs text-muted-foreground">
-                {data.guestName && <b className="font-semibold text-foreground">{data.guestName}</b>}
-                {data.reservationCode && data.reservationCode !== data.guestName ? ` · ${data.reservationCode}` : ""}
-              </div>
-              {periodo && (
-                <div className="truncate text-xs text-muted-foreground">
-                  Período: <span className="font-semibold text-foreground">{periodo}</span>
-                </div>
-              )}
+              {predictionEditor}
             </div>
 
             <div
@@ -380,14 +407,8 @@ export function ReservationJourneyDialog({
                   <div>{cleaningEditor}</div>
                 </>
               )}
-              {predictionEditor && (
-                <>
-                  <SectionTitle>Previsão</SectionTitle>
-                  <div>{predictionEditor}</div>
-                </>
-              )}
 
-              <div className={cleaningEditor || predictionEditor ? "pt-2" : ""}>
+              <div className={cleaningEditor ? "pt-2" : ""}>
                 <SectionTitle>Jornada</SectionTitle>
               </div>
               <ol className="flex flex-col">
