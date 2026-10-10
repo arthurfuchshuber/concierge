@@ -114,11 +114,29 @@ function NotFoundComponent() {
   );
 }
 
+const TRANSIENT_ERROR_RE =
+  /unauthori[sz]ed|jwt|token|sess[ãa]o|session|401|network|failed to fetch|aborted|load failed|tempo esgotado|timeout|conex[ãa]o/i;
+const AUTO_RECOVER_KEY = "sg-auto-recover-at";
+
 function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
+    // Erro passageiro (sessão renovando, rede oscilando): tenta de novo
+    // sozinho uma vez, sem mostrar a tela de erro como definitiva.
+    const msg = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
+    if (!TRANSIENT_ERROR_RE.test(msg)) return;
+    try {
+      const last = Number(window.sessionStorage.getItem(AUTO_RECOVER_KEY) ?? 0);
+      if (Date.now() - last < 30_000) return;
+      window.sessionStorage.setItem(AUTO_RECOVER_KEY, String(Date.now()));
+    } catch { /* segue */ }
+    const t = window.setTimeout(() => {
+      void router.invalidate();
+      reset();
+    }, 1500);
+    return () => window.clearTimeout(t);
+  }, [error, reset, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
