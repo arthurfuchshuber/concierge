@@ -19,3 +19,6 @@
 - Channex availability = listing window (`max_days_notice`) + confirmed reservations + manual blocks created in ConciergeIA; Airbnb iCal "Not available" rows are never used, since they mirror the Channex-controlled calendar and would lock it in a loop.
 - A host message arriving from Airbnb via Channex pauses the AI on that thread (`pausePatch`), and every AI reply re-checks the switch and pause right before sending, so the AI never talks over a human.
 - Every Channex API response and webhook is stored unfiltered in `channex_raw_records` (upsert by entity_type+channex_id) via `saveRawRecords` (`src/lib/channex-raw.server.ts`); structured columns are derived, so no Channex field is ever lost.
+
+- Server-function bearer tokens come from `attachFreshSupabaseAuth` (`src/lib/fresh-auth-middleware.ts`), which refreshes the session shortly before expiry with a single shared refresh; the generated attacher is intentionally replaced so hourly token rollover never fails calls.
+- Permission checks treat a failed lookup as "still loading" and keep the last known decision, never as denial, so transient network/session errors never lock screens into read-only.
