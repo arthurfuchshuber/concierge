@@ -3316,6 +3316,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 shadowTone={checkinPendingRows.length > 0 ? "sky" : "emerald"}
                 pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkin", checkinPendingRows)}
+                valueSizeClass={opBigSize}
               />
             </div>
             <div className="order-3 lg:order-2">
@@ -3332,6 +3333,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 shadowTone={checkoutPendingRows.length > 0 ? "amber" : "emerald"}
                 pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkout", checkoutPendingRows)}
+                valueSizeClass={opBigSize}
               />
             </div>
             <SectionLabel className="col-span-2 order-5 lg:hidden">Amanhã</SectionLabel>
@@ -3346,6 +3348,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 rangeLabel="Amanhã"
                 pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkin", tomorrowCheckinPendingRows)}
+                valueSizeClass={opBigSize}
               />
             </div>
             <div className="order-7 lg:order-4">
@@ -3359,6 +3362,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 rangeLabel="Amanhã"
                 pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkout", tomorrowCheckoutPendingRows)}
+                valueSizeClass={opBigSize}
               />
             </div>
 
@@ -3456,6 +3460,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   rangeLabel={rangeLabel[range]}
                   pinnedIds={pinnedRowIds}
                   cardProps={arrivalGroupPropsFor("stay", stayRows)}
+                valueSizeClass={opBigSize}
                 />
               </div>
               <div className="order-11 col-span-1">
@@ -3463,6 +3468,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   loading={occupancyQ.isLoading}
                   properties={freeProperties}
                   day={occStart}
+                  valueSizeClass={opBigSize}
                   onRefresh={() => occupancyQ.refetch()}
                 />
               </div>
@@ -4473,7 +4479,10 @@ function KpiCard({
   highlight,
   pinnedIds,
   cardProps,
+  valueSizeClass,
 }: {
+  /** Tamanho compartilhado por todos os números da página (ver `kpiSizeClass`). */
+  valueSizeClass?: string;
   label: string;
   rows: ArrivalRow[];
   icon: React.ElementType;
@@ -4653,8 +4662,8 @@ function KpiCard({
                 de texto, sem carnaval. */}
             <div
               className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none tracking-[-0.03em] ${
-                shadowTone ? "text-[30px] sm:text-[34px]" : "text-[28px] sm:text-[32px]"
-              } ${
+                valueSizeClass ?? (shadowTone ? "text-[30px] sm:text-[34px]" : "text-[28px] sm:text-[32px]")
+              } whitespace-nowrap ${
                 !loading && rows.length > 0 && shadowTone === "sky"
                   ? "text-sky-500 dark:text-sky-400"
                   : !loading && rows.length > 0 && shadowTone === "amber"
@@ -4841,7 +4850,9 @@ function FreePropertiesCard({
   properties,
   onRefresh,
   day,
+  valueSizeClass = "text-[30px] sm:text-[34px]",
 }: {
+  valueSizeClass?: string;
   loading: boolean;
   properties: FreeProperty[];
   onRefresh: () => void;
@@ -4887,7 +4898,7 @@ function FreePropertiesCard({
             </span>
           </div>
           <div
-            className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none text-[30px] sm:text-[34px] ${hasFree ? "text-red-500 dark:text-red-400" : "text-foreground"}`}
+            className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none whitespace-nowrap ${valueSizeClass} ${hasFree ? "text-red-500 dark:text-red-400" : "text-foreground"}`}
           >
             {loading ? "—" : properties.length}
           </div>
@@ -5006,6 +5017,15 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
  * valor ficar longo demais para o card, a fonte encolhe — e TODOS os cards
  * irmãos do grupo adotam o mesmo tamanho, para manter a simetria.
  */
+/** Mesma regra para a página operacional: todos os cards adotam o tamanho
+ *  que o número mais longo da página exigir. */
+export function kpiSizeClass(values: Array<string | number>): string {
+  const len = Math.max(0, ...values.map((v) => String(v ?? "").length));
+  if (len <= 3) return "text-[30px] sm:text-[34px]";
+  if (len <= 5) return "text-[24px] sm:text-[28px]";
+  return "text-[19px] sm:text-[22px]";
+}
+
 export function bigNumberSizeClass(values: Array<string | number>): string {
   const len = Math.max(0, ...values.map((v) => String(v ?? "").length));
   if (len <= 6) return "text-[26px] sm:text-[30px]";
