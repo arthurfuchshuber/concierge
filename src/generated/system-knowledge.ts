@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-10-10T06:39:41.119Z";
+export const GENERATED_AT = "2026-10-10T06:49:50.646Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -103,6 +103,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/routes/_authenticated/admin.guias.tsx",
     "audience": [],
     "content_hash": "fcdcf681b735200dde58d86f560bacb1"
+  },
+  {
+    "doc_key": "route:/admin/hospedes",
+    "kind": "route",
+    "title": "Hóspedes — tela /admin/hospedes",
+    "content": "Caminho no sistema: /admin/hospedes\n\nNo menu do painel esta tela se chama \"Hóspedes\".",
+    "source_path": "src/routes/_authenticated/admin.hospedes.tsx",
+    "audience": [],
+    "content_hash": "58a8eb16edd4af3f40bb39fcd15a1ef1"
   },
   {
     "doc_key": "route:/admin/inteligencia",

@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Wrench, Home, Contact, Sparkles, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Wrench, Home, Contact, Sparkles, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -41,9 +41,41 @@ const baseNav = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: false },
   { to: "/admin/guias", label: "Guias Digitais", icon: Home, exact: false },
   { to: "/admin/proprietarios", label: "Proprietários", icon: Contact, exact: false },
+  { to: "/admin/hospedes", label: "Hóspedes", icon: Users, exact: false },
   { to: "/admin/prestadores", label: "Prestadores", icon: Wrench, exact: false },
   
 ] as const;
+/**
+ * MENU LATERAL COM LISTAS EXPANSIVAS (mockups D/E aprovados no canvas,
+ * 10/10/2026): grupos com um "+" (vira "−" aberto); só UM grupo fica aberto
+ * por vez; clicar no título ou no "+" abre/fecha. O grupo da página atual
+ * abre sozinho. Itens soltos (Guias Digitais, Atendimento, Administrativo)
+ * continuam links simples.
+ */
+const SIDEBAR_GROUPS = [
+  {
+    key: "dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    // Por ora (pedido explícito, 10/10/2026) TODAS as páginas do Dashboard —
+    // Operacional, Kanban, Limpeza, Registros — ficam dentro de "Operacional":
+    // continuam acessíveis pelas abas da própria página.
+    children: [{ to: "/admin/dashboard", label: "Operacional", exact: false }],
+  },
+  {
+    key: "stakeholders",
+    label: "Stakeholders",
+    icon: Contact,
+    children: [
+      { to: "/admin/proprietarios", label: "Proprietários", exact: false },
+      { to: "/admin/hospedes", label: "Hóspedes", exact: false },
+      { to: "/admin/prestadores", label: "Prestadores", exact: false },
+    ],
+  },
+] as const;
+/** Itens soltos, na ordem do menu: antes do grupo "Stakeholders" só Guias Digitais. */
+const SIDEBAR_ORDER = ["group:dashboard", "/admin/guias", "group:stakeholders", "/admin/atendimento", "/admin/administrativo"] as const;
+
 const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
   { to: "/admin/clientes", label: "Clientes", icon: Users, exact: false },
@@ -181,6 +213,15 @@ function AdminLayout() {
   }, []);
 
   useEffect(() => { setOpen(false); }, [pathname]);
+  // Só UM grupo aberto por vez; ao mudar de página, abre o grupo dela.
+  const groupOfPath = (p: string) =>
+    SIDEBAR_GROUPS.find((g) => g.children.some((c) => (c.exact ? p === c.to : p.startsWith(c.to))))?.key ?? null;
+  const [openGroup, setOpenGroup] = useState<string | null>(() => groupOfPath(pathname));
+  useEffect(() => {
+    const k = groupOfPath(pathname);
+    if (k) setOpenGroup(k);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   async function signOut() {
     try {
@@ -282,7 +323,76 @@ function AdminLayout() {
               <AccountSwitcher />
             </div>
           ))}
-          {nav.map((item) => {
+          {SIDEBAR_ORDER.map((entry) => {
+            const canSee = (to: string) => {
+              if (awaitingAccountChoice) return false;
+              const permission = permissionForPath(to);
+              return !permission || areaAccess.can(permission);
+            };
+            if (entry.startsWith("group:")) {
+              const group = SIDEBAR_GROUPS.find((g) => `group:${g.key}` === entry)!;
+              const kids = group.children.filter((c) => canSee(c.to));
+              if (kids.length === 0) return null;
+              const Icon = group.icon;
+              const isOpen = openGroup === group.key && !collapsed;
+              const hasActive = kids.some((c) => (c.exact ? pathname === c.to : pathname.startsWith(c.to)));
+              return (
+                <div key={group.key}>
+                  {collapsed ? (
+                    <Link
+                      to={kids[0].to}
+                      title={group.label}
+                      className={`flex h-11 items-center justify-center rounded-xl text-sm transition-colors ${
+                        hasActive ? "bg-accent/10 text-foreground" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                      }`}
+                    >
+                      <Icon className={`size-4 shrink-0 ${hasActive ? "text-accent" : ""}`} strokeWidth={2} />
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-expanded={isOpen}
+                      onClick={() => setOpenGroup(isOpen ? null : group.key)}
+                      className={`flex h-11 w-full items-center gap-3 rounded-xl px-3.5 text-left text-sm transition-colors hover:bg-secondary/60 ${
+                        hasActive || isOpen ? "font-bold text-foreground" : "font-semibold text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Icon className={`size-4 shrink-0 ${hasActive ? "text-accent" : ""}`} strokeWidth={2} />
+                      <span className="flex-1 truncate">{group.label}</span>
+                      <span
+                        className={`grid size-6 shrink-0 place-items-center rounded-lg ${
+                          isOpen ? "bg-accent/15 text-accent" : "bg-foreground/[0.06] text-foreground"
+                        }`}
+                      >
+                        {isOpen ? <Minus className="size-3.5" strokeWidth={2.4} /> : <Plus className="size-3.5" strokeWidth={2.4} />}
+                      </span>
+                    </button>
+                  )}
+                  {isOpen && (
+                    <div className="ml-[23px] mt-0.5 mb-1.5 flex flex-col gap-0.5 border-l border-border pl-3.5">
+                      {kids.map((c) => {
+                        const active = c.exact ? pathname === c.to : pathname.startsWith(c.to);
+                        return (
+                          <Link
+                            key={c.to}
+                            to={c.to}
+                            className={`flex h-9 items-center rounded-[9px] px-3 text-[13px] transition-colors ${
+                              active
+                                ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] font-extrabold text-white"
+                                : "font-semibold text-foreground hover:bg-secondary/60"
+                            }`}
+                          >
+                            {c.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            const item = nav.find((n) => n.to === entry);
+            if (!item) return null;
             const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
             const Icon = item.icon;
             const badge = ("badge" in item ? item.badge : 0) ?? 0;
@@ -311,12 +421,15 @@ function AdminLayout() {
                   className={`size-4 shrink-0 ${active ? "text-accent" : ""}`}
                   strokeWidth={2}
                 />
-                {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                {/* Número de atendimentos COLADO ao nome (pedido explícito,
+                    10/10/2026: "para não confundir"), não mais no canto. */}
+                {!collapsed && <span className="truncate">{item.label}</span>}
                 {badge > 0 && !collapsed && (
-                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-1.5 text-[10px] font-extrabold text-white">
+                  <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-1.5 text-[10px] font-extrabold text-white">
                     {badge}
                   </span>
                 )}
+                {!collapsed && <span className="flex-1" />}
                 {badge > 0 && collapsed && (
                   <span className="absolute ml-6 -mt-5 size-2 rounded-full bg-red-500" aria-hidden />
                 )}
