@@ -207,6 +207,11 @@ export async function processarFilaChannex(limite = 20): Promise<{ processados: 
         await handleChannexMessage(item.payload);
       } else if (!evento || evento.startsWith("booking")) {
         await aplicarReserva(supabaseAdmin, item.payload);
+      } else {
+        // Qualquer outro evento (quarto, propriedade, tarifa, canal, anúncio...):
+        // relê as entidades da Channex e grava tudo (throttle de 5 min no banco).
+        const { syncChannexEntities } = await import("@/lib/channex-entity-sync.server");
+        await syncChannexEntities({ source: `webhook:${evento}` });
       }
       await supabaseAdmin
         .from("fila_webhooks_channex")

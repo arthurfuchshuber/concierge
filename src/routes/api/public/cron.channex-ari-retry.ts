@@ -14,6 +14,9 @@ export const Route = createFileRoute("/api/public/cron/channex-ari-retry")({
         const { flushAriOutbox } = await import("@/lib/channex-ari.server");
         try {
           const ari = await flushAriOutbox();
+          // Mesma batida de 1 min: sincroniza entidades/anúncios Channex (throttle de 5 min no banco).
+          const { syncChannexEntities } = await import("@/lib/channex-entity-sync.server");
+          await syncChannexEntities({ source: "cron" }).catch((e) => console.error("[cron:channex-entity-sync]", e));
           return Response.json({ ok: true, batches: ari.batches.length });
         } catch (err) {
           console.error("[cron:channex-ari-retry]", err);

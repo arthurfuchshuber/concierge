@@ -12,15 +12,15 @@
  *     pendências abrem o item ao tocar;
  *   · a janela é SEMPRE centralizada na tela (DialogContent) e limitada a 75%
  *     da altura: cabeçalho fixo, só o corpo rola, e a rolagem não deixa um
- *     cartão cortado (`useAntiClipRows`).
+ *     cartão cortado (anticorte global das janelas, `useAntiClipWindow`).
  */
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { CoverImage } from "@/components/ui/cover-image";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { useAntiClipRows } from "@/hooks/useAntiClipRows";
 import {
   getReservationJourney,
   type JourneyActivity,
@@ -103,10 +103,23 @@ function SectionTitle({ children, extra }: { children: React.ReactNode; extra?: 
   );
 }
 
-/** Um passo da esteira: o MESMO cartão para feito e pendente; bolinha no meio. */
-function StepRow({ step, first, last }: { step: JourneyStep; first: boolean; last: boolean }) {
-  const done = step.state === "done";
-  const when = fmtWhen(step.at);
+/**
+ * Uma linha da LINHA DO TEMPO ÚNICA (pedido explícito, 09/10/2026: "toda
+ * movimentação, status e atividade deve seguir a ordem da timeline"): passos
+ * da reserva e ações da equipe moram na MESMA esteira, no mesmo fio, na ordem
+ * em que aconteceram. A bolinha fica sempre no MEIO do cartão.
+ */
+function TimelineRow({
+  first,
+  last,
+  dot,
+  children,
+}: {
+  first: boolean;
+  last: boolean;
+  dot: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <li data-clip-row className="relative grid snap-start grid-cols-[22px_minmax(0,1fr)] items-center gap-2.5 py-1">
       {/* Fio contínuo: o primeiro começa e o último termina no MEIO do cartão. */}
@@ -117,14 +130,31 @@ function StepRow({ step, first, last }: { step: JourneyStep; first: boolean; las
           style={{ top: first ? "50%" : 0, bottom: last ? "50%" : 0 }}
         />
       )}
-      <span
-        className={`relative z-10 grid size-[22px] place-items-center rounded-full ${
-          done ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-foreground/[0.06] text-transparent"
-        }`}
-      >
-        {done && <Check className="size-3" strokeWidth={3} />}
-      </span>
-      <div className="min-w-0 rounded-2xl bg-foreground/[0.04] px-3 py-2.5">
+      {dot}
+      {children}
+    </li>
+  );
+}
+
+/** Um passo da esteira: o MESMO cartão para feito e pendente; bolinha no meio. */
+function StepRow({ step, first, last }: { step: JourneyStep; first: boolean; last: boolean }) {
+  const done = step.state === "done";
+  const when = fmtWhen(step.at);
+  return (
+    <TimelineRow
+      first={first}
+      last={last}
+      dot={
+        <span
+          className={`relative z-10 grid size-[22px] place-items-center rounded-full ${
+            done ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-foreground/[0.06] text-transparent"
+          }`}
+        >
+          {done && <Check className="size-3" strokeWidth={3} />}
+        </span>
+      }
+    >
+      <div className="min-w-0 rounded-[var(--win-radius)] bg-foreground/[0.04] px-3 py-2.5">
         <div className="flex items-baseline justify-between gap-2">
           <span className={`text-[13.5px] ${done ? "font-semibold" : "font-medium text-muted-foreground"}`}>
             {step.label}
@@ -134,7 +164,7 @@ function StepRow({ step, first, last }: { step: JourneyStep; first: boolean; las
         {step.detail && <p className="mt-[3px] text-xs leading-snug text-muted-foreground">{step.detail}</p>}
         {step.actor && <WhoLine actor={step.actor} />}
       </div>
-    </li>
+    </TimelineRow>
   );
 }
 
@@ -149,38 +179,84 @@ const TAG_STYLE: Record<JourneyActivity["tag"], string> = {
   Reserva: "bg-foreground/10 text-muted-foreground",
 };
 
-/** Uma linha da Atividade: hora à esquerda, o que foi feito e por quem. */
-function ActivityRow({ item, onOpen }: { item: JourneyActivity; onOpen?: () => void }) {
+/** Uma ação da equipe NA timeline: bolinha menor (ponto), mesmo fio e mesmo cartão. */
+function ActivityRow({
+  item,
+  first,
+  last,
+  onOpen,
+}: {
+  item: JourneyActivity;
+  first: boolean;
+  last: boolean;
+  onOpen?: () => void;
+}) {
   const when = fmtWhen(item.at) ?? "";
-  const [day, time] = when.split(" · ");
   const clickable = item.opens && onOpen;
   const Tag = clickable ? "button" : "div";
   return (
-    <Tag
-      {...(clickable ? { type: "button" as const, onClick: onOpen } : {})}
-      data-clip-row
-      className={`grid w-full snap-start grid-cols-[44px_minmax(0,1fr)] gap-2.5 rounded-2xl bg-foreground/[0.04] px-3 py-2.5 text-left ${
-        clickable ? "transition-colors hover:bg-foreground/[0.07]" : ""
-      }`}
+    <TimelineRow
+      first={first}
+      last={last}
+      dot={
+        <span className="relative z-10 grid size-[22px] place-items-center rounded-full bg-[var(--panel)]">
+          <span className="size-2 rounded-full bg-foreground/30" />
+        </span>
+      }
     >
-      <div className="text-[11.5px] leading-[1.3] tabular-nums text-muted-foreground">
-        <div className="text-[12.5px] font-bold text-foreground">{time}</div>
-        <div>{day}</div>
-      </div>
-      <div className="min-w-0">
-        <div className="text-[13px] font-semibold leading-snug">
-          <span
-            className={`mr-1.5 inline-block rounded px-[5px] py-px align-[1px] text-[8.5px] font-extrabold uppercase tracking-[0.04em] ${TAG_STYLE[item.tag]}`}
-          >
-            {item.tag}
-          </span>
-          {item.title}
+      <Tag
+        {...(clickable ? { type: "button" as const, onClick: onOpen } : {})}
+        className={`min-w-0 w-full rounded-[var(--win-radius)] bg-foreground/[0.04] px-3 py-2.5 text-left ${
+          clickable ? "transition-colors hover:bg-foreground/[0.07]" : ""
+        }`}
+      >
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="min-w-0 text-[13px] font-semibold leading-snug">
+            <span
+              className={`mr-1.5 inline-block rounded px-[5px] py-px align-[1px] text-[8.5px] font-extrabold uppercase tracking-[0.04em] ${TAG_STYLE[item.tag]}`}
+            >
+              {item.tag}
+            </span>
+            {item.title}
+          </div>
+          {when && <span className="shrink-0 whitespace-nowrap text-[11.5px] tabular-nums text-muted-foreground">{when}</span>}
         </div>
         {item.sub && <div className="mt-0.5 text-xs text-muted-foreground">{item.sub}</div>}
         <WhoLine actor={item.actor} />
-      </div>
-    </Tag>
+      </Tag>
+    </TimelineRow>
   );
+}
+
+type TimelineEntry =
+  | { kind: "step"; step: JourneyStep }
+  | { kind: "activity"; item: JourneyActivity };
+
+/**
+ * Junta passos e ações numa ordem só. Passos mantêm a sequência original; cada
+ * ação entra antes do primeiro passo JÁ DATADO que aconteceu depois dela (ou,
+ * se nenhum, logo após o último passo feito — antes dos pendentes). Ações da
+ * mesma hora mantêm a ordem em que o servidor as mandou, invertida para
+ * cronológica (o servidor manda a mais recente primeiro).
+ */
+export function mergeTimeline(steps: JourneyStep[], activity: JourneyActivity[]): TimelineEntry[] {
+  const ts = (iso: string | null) => (iso ? new Date(iso).getTime() : NaN);
+  const acts = [...activity].reverse().sort((a, b) => ts(a.at) - ts(b.at) || 0);
+  const out: TimelineEntry[] = [];
+  let ai = 0;
+  const lastDoneIdx = steps.reduce((acc, st, i) => (st.state === "done" ? i : acc), -1);
+  steps.forEach((st, i) => {
+    const t = ts(st.at);
+    if (st.state === "done" && !Number.isNaN(t)) {
+      while (ai < acts.length && ts(acts[ai]!.at) <= t) out.push({ kind: "activity", item: acts[ai++]! });
+    }
+    out.push({ kind: "step", step: st });
+    if (i === lastDoneIdx) {
+      while (ai < acts.length) out.push({ kind: "activity", item: acts[ai++]! });
+    }
+  });
+  while (ai < acts.length) out.push({ kind: "activity", item: acts[ai++]! });
+  return out;
 }
 
 export function ReservationJourneyDialog({
@@ -227,7 +303,7 @@ export function ReservationJourneyDialog({
   const periodo = [fmtDateBR(data?.checkinDate ?? null), fmtDateBR(data?.checkoutDate ?? null)]
     .filter(Boolean)
     .join(" → ");
-  const bodyRef = useAntiClipRows<HTMLDivElement>([data?.steps.length, data?.activity.length]);
+  const timeline = useMemo(() => mergeTimeline(data?.steps ?? [], data?.activity ?? []), [data]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -287,12 +363,15 @@ export function ReservationJourneyDialog({
               <div className="truncate text-xs text-muted-foreground">
                 {data.guestName && <b className="font-semibold text-foreground">{data.guestName}</b>}
                 {data.reservationCode && data.reservationCode !== data.guestName ? ` · ${data.reservationCode}` : ""}
-                {periodo ? ` · ${periodo}` : ""}
               </div>
+              {periodo && (
+                <div className="truncate text-xs text-muted-foreground">
+                  Período: <span className="font-semibold text-foreground">{periodo}</span>
+                </div>
+              )}
             </div>
 
             <div
-              ref={bodyRef}
               className="sg-elegant-scroll grid min-h-0 min-w-0 flex-1 snap-y snap-proximity grid-cols-[minmax(0,1fr)] content-start gap-2 overflow-y-auto overscroll-contain px-3 pb-4"
             >
               {cleaningEditor && (
@@ -312,23 +391,20 @@ export function ReservationJourneyDialog({
                 <SectionTitle>Jornada</SectionTitle>
               </div>
               <ol className="flex flex-col">
-                {data.steps.map((st, i) => (
-                  <StepRow key={st.key} step={st} first={i === 0} last={i === data.steps.length - 1} />
-                ))}
+                {timeline.map((e, i) =>
+                  e.kind === "step" ? (
+                    <StepRow key={e.step.key} step={e.step} first={i === 0} last={i === timeline.length - 1} />
+                  ) : (
+                    <ActivityRow
+                      key={e.item.id}
+                      item={e.item}
+                      first={i === 0}
+                      last={i === timeline.length - 1}
+                      onOpen={onOpenRecords}
+                    />
+                  ),
+                )}
               </ol>
-
-              {data.activity.length > 0 && (
-                <>
-                  <div className="pt-2">
-                    <SectionTitle extra={`· ${data.activity.length} ${data.activity.length === 1 ? "ação" : "ações"}`}>
-                      Atividade
-                    </SectionTitle>
-                  </div>
-                  {data.activity.map((a) => (
-                    <ActivityRow key={a.id} item={a} onOpen={onOpenRecords} />
-                  ))}
-                </>
-              )}
             </div>
           </>
         )}

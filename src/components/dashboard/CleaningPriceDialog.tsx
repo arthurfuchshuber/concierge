@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, CheckCircle2, Ban, StickyNote, Pencil } from "lucide-react";
+import { Banknote, CheckCircle2, Ban, Pencil } from "lucide-react";
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -163,7 +163,6 @@ export function CleaningInlineEditor({
   onAdjust,
   onConclude,
   onSkip,
-  onNote,
 }: {
   row: ArrivalRow;
   logId: string | null;
@@ -171,7 +170,8 @@ export function CleaningInlineEditor({
   onAdjust: () => void;
   onConclude?: () => void;
   onSkip?: () => void;
-  onNote: () => void;
+  /** Não usado mais (a linha da nota saiu da janela); mantido para não quebrar chamadas. */
+  onNote?: () => void;
 }) {
   const getInfo = useServerFn(getCleaningPriceInfo);
   const { data: info } = useQuery({
@@ -215,21 +215,23 @@ export function CleaningInlineEditor({
       {info?.adjusted && info.reason && (
         <p className="px-3 py-2 text-[11.5px] text-muted-foreground break-words">Motivo: {info.reason}</p>
       )}
+      {/* "Nota interna" SAIU desta janela (pedido explícito, 09/10/2026: "remover
+          a linha da nota interna"). A nota continua no menu "⋮" do card. Sem
+          Concluir/Não será realizada, a linha de ações some inteira. */}
+      {(onConclude || onSkip) && (
       <div className="flex flex-wrap gap-2 px-3 py-2.5">
         {onConclude && (
           <Button type="button" size="sm" onClick={onConclude}>
             <CheckCircle2 className="size-3.5" /> Concluir limpeza
           </Button>
         )}
-        <Button type="button" size="sm" variant="outline" onClick={onNote}>
-          <StickyNote className="size-3.5" /> Nota interna
-        </Button>
         {onSkip && (
           <Button type="button" size="sm" variant="outline" onClick={onSkip}>
             <Ban className="size-3.5" /> Não será realizada
           </Button>
         )}
       </div>
+      )}
     </div>
   );
 }

@@ -57,7 +57,7 @@ import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
  * rolagem fina e visível pedida.
  */
 export const FILTER_PANEL_CLASS =
-  "sg-elegant-scroll overscroll-contain relative before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] w-[280px] max-w-[calc(100vw-32px)] max-h-[min(75dvh,var(--radix-popover-content-available-height))] overflow-y-auto overflow-x-hidden rounded-2xl border border-[var(--panel-border)] bg-[var(--panel)] p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)]";
+  "sg-elegant-scroll overscroll-contain relative before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] w-[280px] max-w-[calc(100vw-32px)] max-h-[min(75dvh,var(--radix-popover-content-available-height))] overflow-y-auto overflow-x-hidden rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)]";
 
 /**
  * Mesma casca, um tom mais claro (`--panel-2`) — para um quadrante que flutua

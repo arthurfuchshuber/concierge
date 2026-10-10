@@ -56,7 +56,7 @@ export function SearchActionRow({
         )}
       </div>
       {actions && (
-        <div className="ds-icon-actions flex shrink-0 divide-x divide-[color-mix(in_oklab,var(--foreground)_11%,transparent)] max-lg:border-l max-lg:border-[color-mix(in_oklab,var(--foreground)_11%,transparent)] max-lg:[&>*]:!w-12 max-lg:[&>*]:!flex-none max-lg:[&>*]:!px-0 lg:ds-3d lg:ds-3d-hover lg:relative lg:h-[var(--ds-action-h-lg)] lg:overflow-hidden lg:rounded-[13px] lg:bg-card">
+        <div className="ds-icon-actions flex shrink-0 divide-x divide-[color-mix(in_oklab,var(--foreground)_11%,transparent)] max-lg:border-l max-lg:border-[color-mix(in_oklab,var(--foreground)_11%,transparent)] max-lg:[&>*:not([data-action-wide])]:!w-12 max-lg:[&>*]:!flex-none max-lg:[&>*:not([data-action-wide])]:!px-0 max-lg:[&>[data-action-wide]]:!w-auto max-lg:[&>[data-action-wide]]:!px-2.5 lg:ds-3d lg:ds-3d-hover lg:relative lg:h-[var(--ds-action-h-lg)] lg:overflow-hidden lg:rounded-[13px] lg:bg-card">
           {actions}
         </div>
       )}

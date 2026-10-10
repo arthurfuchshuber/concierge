@@ -1,7 +1,7 @@
 import { SearchActionRow } from "./SearchActionRow";
 import { searchScore } from "@/lib/search-score";
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Camera,
@@ -519,6 +519,7 @@ export function RecordsWorkspace() {
     // em segundo plano, conexão caindo), a tela não fica mostrando pendência
     // já resolvida — relê ao voltar para a aba e a cada minuto.
     staleTime: 0,
+    placeholderData: keepPreviousData,
     refetchOnWindowFocus: "always",
     refetchOnReconnect: "always",
     refetchInterval: 60_000,
@@ -1642,7 +1643,7 @@ function PropertyCard({
                     Como Dialog ela centraliza sozinha e herda raio 16. */}
                 <Dialog open={pendingOpen} onOpenChange={(v) => v !== pendingOpen && onTogglePending()}>
                   <DialogContent
-                    className="max-h-[85dvh] w-[min(372px,calc(100vw-2rem))] gap-0 overflow-x-hidden overflow-y-auto p-0"
+                    className="max-h-[75dvh] w-[min(372px,calc(100vw-2rem))] gap-0 overflow-x-hidden overflow-y-auto p-0"
                     aria-describedby={undefined}
                   >
                     <PendingPopoverBody group={group} onOpen={onOpen} onResolve={onResolve} />

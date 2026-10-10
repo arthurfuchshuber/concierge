@@ -40,55 +40,58 @@ type Trio = [string, string, string];
 type ByLanguage = { pt: Trio; en: Trio; es: Trio };
 
 const LINES: Record<ContinuityKind, ByLanguage> = {
+  // Frases curtas e diretas, sem justificativa ("prefiro a resposta certa à
+  // rápida" etc.) — esse tipo de fala só cabe se o hóspede cobrar pressa, e aí
+  // quem escreve é o modelo, com contexto.
   confirming: {
     pt: [
-      "Vou confirmar isso direitinho e já te respondo.",
-      "Prefiro checar esse ponto antes de te dar um número errado — volto aqui rapidinho.",
-      "Deixa eu confirmar esse detalhe para não te passar nada furado. Já te falo.",
+      "Vou confirmar isso e já te respondo.",
+      "Vou checar esse ponto e já te falo.",
+      "Deixa eu confirmar esse detalhe. Já te aviso.",
     ],
     en: [
-      "Let me confirm this properly and come right back to you.",
-      "I'd rather double-check this before giving you the wrong detail — back in a moment.",
-      "Let me make sure of this one so I don't tell you something inaccurate. One moment.",
+      "Let me confirm this and get back to you.",
+      "I'll check this and let you know shortly.",
+      "Let me confirm that detail. I'll be right back.",
     ],
     es: [
-      "Voy a confirmarlo bien y te respondo enseguida.",
-      "Prefiero verificar ese punto antes de darte un dato equivocado — vuelvo en un momento.",
-      "Déjame confirmar ese detalle para no pasarte nada incorrecto. Ya te aviso.",
+      "Voy a confirmarlo y te respondo.",
+      "Voy a revisar ese punto y te aviso.",
+      "Déjame confirmar ese detalle. Ya te digo.",
     ],
   },
   pending: {
     pt: [
-      "Estou confirmando esse ponto para te passar a informação certa — já te retorno aqui mesmo.",
-      "Esse caso eu preciso confirmar antes de responder. Assim que tiver a resposta, te falo por aqui.",
-      "Já estou checando isso. Volto aqui com a resposta certa, não precisa perguntar de novo.",
+      "Vou verificar isso e já te respondo por aqui.",
+      "Estou checando essa informação e já te retorno.",
+      "Vou confirmar esse detalhe e já te aviso.",
     ],
     en: [
-      "I'm confirming this so I can give you the right answer — I'll come back to you right here.",
-      "This one I need to confirm before answering. As soon as I have it, I'll tell you here.",
-      "I'm checking this now. I'll come back with the right answer — no need to ask again.",
+      "I'll look into this and reply here shortly.",
+      "I'm checking this and will get back to you.",
+      "I'll confirm this detail and let you know.",
     ],
     es: [
-      "Estoy confirmando este punto para darte la información correcta — te respondo aquí mismo.",
-      "Este caso necesito confirmarlo antes de responder. En cuanto lo tenga, te aviso por aquí.",
-      "Ya lo estoy verificando. Vuelvo con la respuesta correcta, no hace falta preguntar de nuevo.",
+      "Voy a verificarlo y te respondo por aquí.",
+      "Estoy revisando esa información y te aviso.",
+      "Voy a confirmar ese detalle y te digo.",
     ],
   },
   no_answer: {
     pt: [
-      "Não quero te responder isso por cima. Vou confirmar e te falo aqui mesmo.",
-      "Esse ponto eu não consigo confirmar agora sem risco de errar — estou verificando e volto para você.",
-      "Prefiro te dar a resposta certa a te dar uma resposta rápida. Estou checando e já te retorno.",
+      "Vou verificar e te respondo por aqui.",
+      "Vou checar isso e já te retorno.",
+      "Estou confirmando e já te falo.",
     ],
     en: [
-      "I don't want to answer this off the top of my head. Let me confirm and tell you right here.",
-      "I can't confirm this one right now without risking a mistake — I'm checking and I'll come back to you.",
-      "I'd rather give you the right answer than a fast one. Checking now, back shortly.",
+      "I'll check and reply here.",
+      "Let me look into it and get back to you.",
+      "Confirming now, I'll let you know.",
     ],
     es: [
-      "No quiero responderte esto a la ligera. Voy a confirmarlo y te cuento aquí mismo.",
-      "Ese punto no puedo confirmarlo ahora sin riesgo de equivocarme — lo estoy verificando y vuelvo.",
-      "Prefiero darte la respuesta correcta antes que una rápida. Lo estoy revisando y ya te aviso.",
+      "Voy a verificar y te respondo por aquí.",
+      "Lo reviso y te aviso.",
+      "Lo estoy confirmando y te digo.",
     ],
   },
 };

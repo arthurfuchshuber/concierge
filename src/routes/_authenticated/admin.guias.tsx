@@ -1015,7 +1015,7 @@ function Dashboard() {
             cards da lista e a busca já seguem, cada um, seu próprio padrão
             estabelecido (ds-surface nos cards, cantos retos na busca). */}
         <DialogContent
-          className="max-w-md rounded-lg"
+          className="max-w-md rounded-[var(--win-radius)]"
           // Sem subtítulo (economiza altura) e sem autofoco no campo de busca —
           // abrir o diálogo já puxando o teclado no mobile atrapalha a
           // visualização da lista.

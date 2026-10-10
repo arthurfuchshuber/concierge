@@ -100,7 +100,7 @@ export function CompleteProfileDialog() {
   return (
     <Dialog open={open}>
       <DialogContent
-        className="max-w-sm p-5 rounded-2xl [&>button]:hidden"
+        className="max-w-sm p-5 rounded-[var(--win-radius)] [&>button]:hidden"
         onEscapeKeyDown={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}

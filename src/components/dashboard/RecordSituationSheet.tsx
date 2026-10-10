@@ -692,10 +692,10 @@ export function RecordSituationSheet({
   return (
     <Dialog open={open} onOpenChange={(v) => !saving && onOpenChange(v)}>
       <DialogContent
-        className="w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-sm"
+        className="flex w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-sm"
         aria-describedby={undefined}
       >
-        <DialogHeader className="space-y-0 border-b border-border/50 px-3.5 pb-2.5 pr-11 pt-3.5 text-left">
+        <DialogHeader className="shrink-0 space-y-0 border-b border-border/50 px-3.5 pb-2.5 pr-11 pt-3.5 text-left">
           <div className="flex items-center gap-2">
             <DialogTitle className="ds-card-title min-w-0 flex-1 truncate">
               Nova situação
@@ -724,7 +724,7 @@ export function RecordSituationSheet({
           )}
         </DialogHeader>
 
-        <div className="max-h-[62vh] space-y-3.5 overflow-y-auto px-3.5 py-3">
+        <div className="sg-elegant-scroll min-h-0 flex-1 space-y-3.5 overflow-y-auto px-3.5 py-3">
           {/* O QUE FICOU PARA TRÁS (11/09/2026). Aparece só quando existe algo
               guardado deste mesmo imóvel e reserva — na folha limpa do dia a
               dia esta faixa não existe. */}
@@ -928,7 +928,7 @@ export function RecordSituationSheet({
             pessoa precisa ler o que houve E ter o botão de tentar de novo
             embaixo, sem perder nada do que já digitou. */}
         {erro && (
-          <p className="flex items-start gap-1.5 border-t border-amber-500/30 bg-amber-500/[0.08] px-3.5 py-2 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
+          <p className="flex shrink-0 items-start gap-1.5 border-t border-amber-500/30 bg-amber-500/[0.08] px-3.5 py-2 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
             <AlertTriangle className="mt-px size-3.5 shrink-0" />
             <span>{erro}</span>
           </p>
@@ -938,7 +938,7 @@ export function RecordSituationSheet({
             operacional mata o envio. A barra e a porcentagem existem para
             segurá-la aqui — foi a falta delas que fez o envio parecer travado. */}
         {progresso && (
-          <div className="border-t border-border/60 bg-amber-500/[0.07] px-3.5 py-2">
+          <div className="shrink-0 border-t border-border/60 bg-amber-500/[0.07] px-3.5 py-2">
             <div className="h-1 w-full overflow-hidden rounded-full bg-amber-500/20">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] transition-[width] duration-300"
@@ -951,7 +951,7 @@ export function RecordSituationSheet({
           </div>
         )}
 
-        <div className="flex items-center gap-2 border-t border-border/50 bg-secondary/20 px-3.5 py-2.5">
+        <div className="flex shrink-0 items-center gap-2 border-t border-border/50 bg-secondary/20 px-3.5 py-2.5">
           {/* NUNCA PRENDER NINGUÉM (11/09/2026): antes este botão ficava
               desabilitado durante o envio e o diálogo não fechava, então um
               envio pendurado só saía recarregando a página — e aí perdia

@@ -450,7 +450,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           side={isMobile ? "bottom" : "right"}
           className={
             isMobile
-              ? "w-full h-[92dvh] max-h-[92dvh] rounded-t-2xl overflow-y-auto p-0"
+              ? "w-full max-h-[75dvh] rounded-t-[var(--win-radius)] overflow-y-auto p-0"
               : "w-full sm:max-w-3xl overflow-y-auto p-0"
           }
         >

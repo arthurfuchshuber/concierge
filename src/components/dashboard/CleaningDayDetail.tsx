@@ -180,7 +180,7 @@ export function CleaningDayDetail(props: Parameters<typeof CleaningDayDetailCont
     <Dialog open onOpenChange={(v) => { if (!v) props.onClose(); }}>
       <DialogContent
         aria-label="Detalhe do dia"
-        className="flex max-h-[min(85dvh,720px)] w-[calc(100vw-2rem)] flex-col sm:max-w-md gap-0 p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden"
+        className="flex max-h-[75dvh] w-[calc(100vw-2rem)] flex-col sm:max-w-md gap-0 p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden"
       >
         <DialogTitle className="sr-only">Detalhe do dia</DialogTitle>
         <CleaningDayDetailContent {...props} />
@@ -440,10 +440,6 @@ export function CleaningDayDetailContent({
            linha apareça inteira quando a rolagem chega ao fim. */
         <div
           className="sg-elegant-scroll min-h-0 flex-1 [scrollbar-gutter:stable] snap-y snap-proximity overflow-y-auto overflow-x-hidden px-5 pb-5 pt-1 [&_tbody_tr]:snap-start"
-          style={{
-            maskImage: "linear-gradient(to bottom, #000 calc(100% - 20px), transparent)",
-            WebkitMaskImage: "linear-gradient(to bottom, #000 calc(100% - 20px), transparent)",
-          }}
         >
           {body}
         </div>

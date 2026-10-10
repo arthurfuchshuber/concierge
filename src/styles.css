@@ -54,6 +54,10 @@
 
 :root {
   --radius: 1rem;
+  /* RAIO ÚNICO DE JANELAS (09/10/2026): toda janela, tooltip, menu e folha
+     usa esta variável — a curvatura de referência é a do Histórico da
+     reserva. Mudou aqui, mudou em todas. */
+  --win-radius: 8px;
 
   /* Warm boutique daylight palette */
   --background: oklch(0.985 0.005 80);
@@ -1498,7 +1502,7 @@ dd {
    Limpeza aplicada a toda janela suspensa, menu, seletor e dica. */
 @utility ds-overlay {
   position: relative;
-  border-radius: 1rem;
+  border-radius: var(--win-radius);
   border: 1px solid var(--panel-border);
   background-color: var(--panel);
   color: var(--foreground);
@@ -1514,7 +1518,7 @@ dd {
   }
 }
 @utility ds-overlay-compact {
-  border-radius: 0.6rem;
+  border-radius: var(--win-radius);
   border: 1px solid var(--panel-border);
   background-color: var(--panel-2);
   color: var(--foreground);

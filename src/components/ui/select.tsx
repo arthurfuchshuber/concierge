@@ -7,6 +7,7 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useOverlayLayer } from "@/lib/global-overlay-store";
+import { useAntiClipWindow } from "@/hooks/useAntiClipWindow";
 
 const Select = SelectPrimitive.Root;
 
@@ -66,7 +67,7 @@ const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = "popper", collisionPadding = OVERLAY_COLLISION_PADDING, ...props }, ref) => {
-  const [, layerNodeRef] = useOverlayLayer("float", ref);
+  const [, layerNodeRef] = useOverlayLayer("float", useAntiClipWindow(ref));
   return (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content

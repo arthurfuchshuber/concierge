@@ -804,7 +804,7 @@ export function BulkEditDialog({
       }}
     >
       <ResponsiveDialogContent
-        className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-x-hidden"
+        className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[75dvh] overflow-x-hidden"
         scrollable={false}
       >
         <>

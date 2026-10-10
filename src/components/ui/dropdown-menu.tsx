@@ -5,6 +5,7 @@ import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { Check, ChevronRight, Circle } from "lucide-react";
 import { guardNestedOutside, useOverlayLayer } from "@/lib/global-overlay-store";
+import { useAntiClipWindow } from "@/hooks/useAntiClipWindow";
 
 import { cn } from "@/lib/utils";
 
@@ -53,7 +54,7 @@ const DropdownMenuSubContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.SubContent>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>
 >(({ className, ...props }, ref) => {
-  const [layerRef, layerNodeRef] = useOverlayLayer("float", ref);
+  const [layerRef, layerNodeRef] = useOverlayLayer("float", useAntiClipWindow(ref));
   return (
   <DropdownMenuPrimitive.SubContent
     ref={layerNodeRef}
@@ -75,7 +76,7 @@ const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
 >(({ className, sideOffset = 4, collisionPadding = OVERLAY_COLLISION_PADDING, ...props }, ref) => {
-  const [layerRef, layerNodeRef] = useOverlayLayer("float", ref);
+  const [layerRef, layerNodeRef] = useOverlayLayer("float", useAntiClipWindow(ref));
   return (
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.Content

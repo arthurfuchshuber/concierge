@@ -301,6 +301,18 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     };
   });
 
+/** Imóvel livre no dia aberto, com o que a janela "Imóveis livres" mostra. */
+export type FreeProperty = {
+  id: string;
+  name: string;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
+  propertyAddress: string | null;
+  mapsUrl: string | null;
+  garageMapsUrl: string | null;
+};
+
 // ----- Estatísticas de limpeza (cards "Limpezas Realizadas" / "Custo Total Limpeza") -----
 // Padrão "Hoje" (fuso de São Paulo), reinicia diariamente — mesmo padrão dos
 // outros KPIs "tempo real" do dashboard — mas aceita um período e uma lista
@@ -434,38 +446,24 @@ export const getCleaningStats = createServerFn({ method: "GET" })
       new Set(rawAll.map((r) => r.cleaning_done_by).filter((v): v is string => !!v)),
     );
     const providerNameByUser = new Map<string, string>();
+    const displayNameByUser = new Map<string, string>();
     if (doneByIds.length > 0) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: providers } = await supabaseAdmin
-        .from("service_providers")
-        .select("member_user_id, name, trade_name")
-        .in("member_user_id", doneByIds);
-      for (const pr of (providers ?? []) as Array<{
-        member_user_id: string | null;
-        name: string | null;
-        trade_name: string | null;
-      }>) {
-        const label = (pr.trade_name || pr.name || "").trim();
-        if (pr.member_user_id && label) providerNameByUser.set(pr.member_user_id, label);
-      }
-    }
-
-    // Quem concluiu, SÓ PARA EXIBIÇÃO (08/10/2026): usuário do sistema que não é
-    // prestador cadastrado (ex.: perfil "host" que conclui a limpeza ele mesmo)
-    // ficava sem nome na janela "Limpezas Realizadas". Para esses, usamos o nome
-    // do perfil. É um mapa à parte de propósito: `providerNameByUser` continua
-    // sendo só de prestadores e alimenta o filtro de Prestador — não muda.
-    const displayNameByUser = new Map<string, string>(providerNameByUser);
-    const semNome = doneByIds.filter((id) => !providerNameByUser.has(id));
-    if (semNome.length > 0) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: profs } = await supabaseAdmin
-        .from("profiles")
-        .select("id, full_name, trade_name")
-        .in("id", semNome);
+      const [{ data: providers }, { data: profs }] = await Promise.all([
+        supabaseAdmin.from("service_providers").select("member_user_id, name, trade_name").in("member_user_id", doneByIds),
+        supabaseAdmin.from("profiles").select("id, full_name, trade_name").in("id", doneByIds),
+      ]);
       for (const pf of (profs ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>) {
         const label = (pf.trade_name || pf.full_name || "").trim();
         if (label) displayNameByUser.set(pf.id, label);
+      }
+      // Prestador cadastrado tem prioridade na exibição e é o único usado no filtro.
+      for (const pr of (providers ?? []) as Array<{ member_user_id: string | null; name: string | null; trade_name: string | null }>) {
+        const label = (pr.trade_name || pr.name || "").trim();
+        if (pr.member_user_id && label) {
+          providerNameByUser.set(pr.member_user_id, label);
+          displayNameByUser.set(pr.member_user_id, label);
+        }
       }
     }
 
@@ -2140,7 +2138,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
     const end = addDaysISO(start, days - 1);
     const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
     if (propIds.length === 0) {
-      return { start, days, properties: [], stays: [] as OccupancyStay[], freeToday: [] as Array<{ id: string; name: string }> };
+      return { start, days, properties: [], stays: [] as OccupancyStay[], freeToday: [] as FreeProperty[] };
     }
 
     // Mesma fonte da verdade do Kanban: garante que alterações de reserva no
@@ -2157,7 +2155,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
     ] = await Promise.all([
       // `hero_image_url`: a foto de capa do imóvel. Serve só para a prévia que
       // abre ao passar o mouse (ou tocar) no nome, no calendário de ocupação.
-      context.supabase.from("properties").select("id, name, city, owner_contact_id, hero_image_url").in("id", propIds).order("name"),
+      context.supabase.from("properties").select("id, name, city, owner_contact_id, hero_image_url, address, maps_url, garage_maps_url").in("id", propIds).order("name"),
       context.supabase
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
@@ -2297,19 +2295,32 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       city: string | null;
       owner_contact_id?: string | null;
       hero_image_url?: string | null;
+      address?: string | null;
+      maps_url?: string | null;
+      garage_maps_url?: string | null;
     }>;
     const occOwnerIds = Array.from(
       new Set(propsRaw.map((p) => p.owner_contact_id).filter((v): v is string => !!v)),
     );
     const occOwnerName = new Map<string, string>();
+    // Telefone do proprietário: o ícone de mensagem da janela "Imóveis livres"
+    // (09/10/2026) usa o mesmo botão padrão dos cards.
+    const occOwnerPhone = new Map<string, { phone: string | null; country: string | null }>();
     if (occOwnerIds.length > 0) {
       const { data: owners } = await context.supabase
         .from("property_owners")
-        .select("id, name, trade_name")
+        .select("id, name, trade_name, phone, phone_country")
         .in("id", occOwnerIds);
-      for (const o of (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
+      for (const o of (owners ?? []) as Array<{
+        id: string;
+        name: string | null;
+        trade_name: string | null;
+        phone: string | null;
+        phone_country: string | null;
+      }>) {
         const label = (o.trade_name || o.name || "").trim();
         if (label) occOwnerName.set(o.id, label);
+        occOwnerPhone.set(o.id, { phone: o.phone ?? null, country: o.phone_country ?? null });
       }
     }
 
@@ -2380,9 +2391,26 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         })
         .map((s) => s.propertyId),
     );
-    const freeToday = properties
+    // IMÓVEIS LIVRES COM PROPRIETÁRIO E MAPS (pedido explícito, 09/10/2026,
+    // mockup C aprovado): a janela mostra "Proprietário: nome" + mensagem e o
+    // botão do Maps em cada imóvel (regra de todo lugar que cita um anúncio).
+    const rawById = new Map(propsRaw.map((r) => [r.id, r]));
+    const freeToday: FreeProperty[] = properties
       .filter((p) => !occupiedOnDay.has(p.id))
-      .map((p) => ({ id: p.id, name: p.name }));
+      .map((p) => {
+        const raw = rawById.get(p.id);
+        const ownerId = raw?.owner_contact_id ?? null;
+        return {
+          id: p.id,
+          name: p.name,
+          ownerName: p.ownerName,
+          ownerPhone: ownerId ? (occOwnerPhone.get(ownerId)?.phone ?? null) : null,
+          ownerPhoneCountry: ownerId ? (occOwnerPhone.get(ownerId)?.country ?? null) : null,
+          propertyAddress: raw?.address ?? null,
+          mapsUrl: raw?.maps_url ?? null,
+          garageMapsUrl: raw?.garage_maps_url ?? null,
+        };
+      });
 
     return { start, days, properties, stays, freeToday };
   });

@@ -5,11 +5,33 @@
  */
 const CHANNEX_BASE = "https://app.channex.io/api/v1";
 export const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
+const CLAYTON_CHANNEL_ID = "24c871d9-d6fd-46f5-944d-a38b8a4df189";
 
-/** Anúncios liberados para o Cérebro de IA (piloto). airbnb listing id → slug do imóvel oficial. */
-export const PILOT_LISTINGS: Record<string, string> = {
-  "1081915824812637088": "charmosa",
+type PilotListing = { slug: string; channelId: string; roomTypeId?: string; channexPropertyId?: string };
+
+/** Anúncios principais liberados (piloto). airbnb listing id → imóvel oficial. */
+export const PILOT_LISTING_CONFIG: Record<string, PilotListing> = {
+  "1081915824812637088": { slug: "charmosa", channelId: AIRBNB_CHANNEL_ID },
+  "1668247859065922881": { slug: "studio101", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "f5911861-2f36-473a-943d-8c31598c22f6", channexPropertyId: "032fb0bc-9d2d-450f-9d9a-cf8da9b9ad60" },
+  "1668250046816777608": { slug: "studio102", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "4151bb96-1bbc-4f75-b54a-e745408a00e1", channexPropertyId: "a9110e74-d7b2-4d72-8b9a-a38f7014f2dc" },
+  "1668251215421954022": { slug: "studio103", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "82acb151-c3b5-4b78-bcff-362ed42ac86b", channexPropertyId: "b94a9b9a-899f-438b-a0a2-3e2e84d31017" },
+  "1668252578084352769": { slug: "studio104", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "4f33f351-cfa7-46f6-9184-024b8e4cbac3", channexPropertyId: "0376fdc7-aedf-49c3-9ee6-d524fd6d2a6c" },
+  "1668254267295787925": { slug: "studio105", channelId: CLAYTON_CHANNEL_ID, roomTypeId: "8b2f3287-551d-4407-b48c-c5ce0727fe7a", channexPropertyId: "45ab6dee-01c4-4c9b-9898-8e43567d1bca" },
 };
+
+/** Anúncios gêmeos (mesma unidade física): anúncio secundário → anúncio principal. */
+export const LISTING_ALIASES: Record<string, string> = {
+  "1792880398875841438": "1668247859065922881", // Apartamento 101 → Studio 101
+  "1792882876333057974": "1668250046816777608", // Apartamento 102 → Studio 102
+  "1792868987771365608": "1668251215421954022", // Studio 103 Ponte da Amizade → Studio 103
+};
+
+export const primaryListingId = (id: string) => LISTING_ALIASES[id] ?? id;
+
+/** Compat: airbnb listing id → slug. */
+export const PILOT_LISTINGS: Record<string, string> = Object.fromEntries(
+  Object.entries(PILOT_LISTING_CONFIG).map(([id, c]) => [id, c.slug]),
+);
 
 type Fact = { key: string; title: string; content: string };
 
@@ -102,16 +124,22 @@ export function normalizeListing(meta: Record<string, unknown>, s: Record<string
 /** Sincroniza apenas os anúncios piloto. Retorna o que foi gravado. */
 export async function syncPilotListings(): Promise<Array<{ listingId: string; propertyId: string; facts: number }>> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const [channel, listings] = await Promise.all([
-    channexGet<{ data: { attributes: { properties: string[]; rate_plans: Array<{ rate_plan_id: string; settings: Record<string, any> }> } } }>(
-      `/channels/${AIRBNB_CHANNEL_ID}`,
-    ),
-    channexGet<{ data: { listing_id_dictionary: { values: Array<Record<string, unknown>> } } }>(`/channels/${AIRBNB_CHANNEL_ID}/action/listings`),
-  ]);
-  const metas = listings.data?.listing_id_dictionary?.values ?? [];
+  type Ch = { data: { attributes: { properties: string[]; rate_plans: Array<{ rate_plan_id: string; settings: Record<string, any> }> } } };
+  const channels = new Map<string, { channel: Ch; metas: Array<Record<string, unknown>> }>();
+  for (const channelId of new Set(Object.values(PILOT_LISTING_CONFIG).map((c) => c.channelId))) {
+    const [channel, listings] = await Promise.all([
+      channexGet<Ch>(`/channels/${channelId}`),
+      channexGet<{ data: { listing_id_dictionary: { values: Array<Record<string, unknown>> } } }>(`/channels/${channelId}/action/listings`),
+    ]);
+    channels.set(channelId, { channel, metas: listings.data?.listing_id_dictionary?.values ?? [] });
+  }
   const out: Array<{ listingId: string; propertyId: string; facts: number }> = [];
 
-  for (const [listingId, slug] of Object.entries(PILOT_LISTINGS)) {
+  for (const [listingId, cfg] of Object.entries(PILOT_LISTING_CONFIG)) {
+    const slug = cfg.slug;
+    const ctx = channels.get(cfg.channelId);
+    if (!ctx) continue;
+    const { channel, metas } = ctx;
     const { data: prop } = await supabaseAdmin.from("properties").select("id, owner_id").eq("slug", slug).maybeSingle();
     if (!prop) continue;
     // Sem mapeamento de tarifa (não somos PMS): reaproveita as últimas configurações lidas.
@@ -122,8 +150,8 @@ export async function syncPilotListings(): Promise<Array<{ listingId: string; pr
       .maybeSingle();
     const prevRow = prev as { raw_settings?: Record<string, any>; channex_rate_plan_id?: string; channex_room_type_id?: string } | null;
     const live = channel.data.attributes.rate_plans.find((r) => String(r.settings?.listing_id) === listingId);
-    const rp = live ?? (prevRow?.raw_settings ? { rate_plan_id: prevRow.channex_rate_plan_id ?? "", settings: prevRow.raw_settings } : null);
-    if (!rp) continue;
+    // Sem mapeamento: ainda grava identidade + anúncio público (somente leitura).
+    const rp = live ?? { rate_plan_id: prevRow?.channex_rate_plan_id ?? "", settings: prevRow?.raw_settings ?? {} };
     const meta = metas.find((m) => String(m.id) === listingId) ?? {};
 
     const ratePlan = live
@@ -136,9 +164,9 @@ export async function syncPilotListings(): Promise<Array<{ listingId: string; pr
       {
         property_id: prop.id,
         owner_id: prop.owner_id,
-        channex_channel_id: AIRBNB_CHANNEL_ID,
-        channex_property_id: channel.data.attributes.properties[0] ?? null,
-        channex_room_type_id: ratePlan?.data?.relationships?.room_type?.data?.id ?? prevRow?.channex_room_type_id ?? null,
+        channex_channel_id: cfg.channelId,
+        channex_property_id: cfg.channexPropertyId ?? channel.data.attributes.properties[0] ?? null,
+        channex_room_type_id: ratePlan?.data?.relationships?.room_type?.data?.id ?? cfg.roomTypeId ?? prevRow?.channex_room_type_id ?? null,
         channex_rate_plan_id: rp.rate_plan_id || null,
         airbnb_listing_id: listingId,
         listing_meta: meta,

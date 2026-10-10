@@ -1,3 +1,4 @@
+import { useFallbackInterval } from "@/components/LiveSync";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { SearchActionRow } from "./SearchActionRow";
 import { searchScore } from "@/lib/search-score";
@@ -145,6 +146,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { MoneyInput } from "@/components/ui/money-input";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
+import { PropertyMapsButton } from "@/components/dashboard/PropertyMapsButton";
 import { CATEGORY_BY_KEY } from "@/components/dashboard/record-categories";
 import type { RecordCategory } from "@/lib/reservation-records.functions";
 import {
@@ -203,6 +205,7 @@ import {
   type CleaningBreakdownItem,
   type CleaningDayItem,
   type CleaningDailyPoint,
+  type FreeProperty,
 } from "@/lib/dashboard.functions";
 import {
   listTaskLinkOptions,
@@ -843,8 +846,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // saem sem cabeçalho de autorização e o servidor responde "Unauthorized",
   // derrubando a tela.
   const authed = useHasSession() === true;
+  const fallbackInterval = useFallbackInterval();
   const liveSync = {
-    refetchInterval: 30_000,
+    refetchInterval: fallbackInterval,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     enabled: authed,
@@ -859,28 +863,28 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const checkinListQ = useQuery({
     queryKey: ["dash-list", "checkin", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range, ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
   });
   const checkoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
   });
   const tomorrowCheckinListQ = useQuery({
     queryKey: ["dash-list", "checkin", "tomorrow", activeOwnerId ?? "self", "top-card"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow", ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
   });
   const tomorrowCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self", "top-card"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
   });
@@ -896,7 +900,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const kanbanCheckinListQ = useQuery({
     queryKey: ["dash-list", "checkin", "all", activeOwnerId ?? "self", "kanban-filtros"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "all", ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
     enabled: authed && view === "kanban",
@@ -904,7 +908,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const kanbanCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "all", activeOwnerId ?? "self", "kanban-filtros"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "all", ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
     enabled: authed && view === "kanban",
@@ -924,7 +928,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const concludedQ = useQuery({
     queryKey: ["dash-list", "concluded", activeOwnerId ?? "self", concludedSearchDebounced],
     queryFn: () => concludedFn({ data: { ownerId: activeOwnerId, q: concludedSearchDebounced || undefined } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
     enabled: authed && view === "kanban",
@@ -941,7 +945,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const noShowQ = useQuery({
     queryKey: ["dash-list", "no_show", activeOwnerId ?? "self", noShowSearchDebounced],
     queryFn: () => noShowFn({ data: { ownerId: activeOwnerId, q: noShowSearchDebounced || undefined } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "kanban",
   });
@@ -1198,7 +1202,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           providerNames: providerFilters.length > 0 ? providerFilters : undefined,
         },
       }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && cleaningStatsEnabled,
   });
@@ -1224,7 +1228,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           providerNames: providerFilters.length > 0 ? providerFilters : undefined,
         },
       }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "limpeza" && cleaningStatsEnabled,
   });
@@ -1240,7 +1244,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // seguidas (mutação + eventos em tempo real) — o que deixava o app lento no celular.
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshDashboard = useCallback(
-    (delay = 250) => {
+    (delay = 120) => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       refreshTimer.current = setTimeout(() => {
         qc.invalidateQueries({
@@ -1848,7 +1852,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const cleaningForecastListQ = useQuery({
     queryKey: ["dash-list", "checkout", "all-forecast", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range: forecastRange, ownerId: activeOwnerId } }),
-    staleTime: 180_000,
+    staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "limpeza",
   });
@@ -2022,7 +2026,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       forecastCount: cleaningForecast.cleaningsExpected,
       forecastCents: cleaningForecast.estimatedTotalCents,
       statsLoading:
-        (cleaningPeriod.hasPast && cleaningStatsQ.isLoading) ||
+        (cleaningPeriod.hasPast && (cleaningStatsQ.isLoading || cleaningStatsQ.isPlaceholderData)) ||
         (cleaningPeriod.hasFuture && cleaningForecastListQ.isLoading),
       trendLoading:
         (cleaningPeriod.hasPast && cleaningTrendQ.isLoading) ||
@@ -2036,6 +2040,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     cleaningStatsData,
     cleaningForecast,
     cleaningStatsQ.isLoading,
+    cleaningStatsQ.isPlaceholderData,
     cleaningTrendQ.isLoading,
     cleaningForecastListQ.isLoading,
   ]);
@@ -2137,7 +2142,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       costLabel: past ? "Custo Total Limpeza" : "Custo Estimado",
       costValue: past ? (cleaningStatsData?.totalCents ?? 0) : cleaningForecast.estimatedTotalCents,
       costNote: past && pendingApproval.count > 0 ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise` : null,
-      statsLoading: past ? cleaningStatsQ.isLoading : cleaningForecastListQ.isLoading,
+      statsLoading: past ? cleaningStatsQ.isLoading || cleaningStatsQ.isPlaceholderData : cleaningForecastListQ.isLoading,
       trendLoading: past ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading,
       daily: past ? cleaningTrendData?.daily : cleaningForecast.daily,
       breakdown: past ? cleaningTrendData?.breakdown : cleaningForecast.breakdown,
@@ -3135,6 +3140,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                           type="button"
                           title="Trocar status do Kanban"
                           aria-label="Trocar status do Kanban"
+                          /* Botão LARGO (09/10/2026): rótulo + selo não cabem
+                             nos 48px dos outros ícones — os botões ficavam um
+                             sobre o outro. `data-action-wide` o tira da regra
+                             de 48px; a busca (flex-1 min-w-0) encolhe para
+                             dar o espaço. */
+                          data-action-wide
                           /* Cor neutra de volta (pedido explícito,
                              25/09/2026: "remova as cores dos botoes dos
                              status do kanban e da aba limpeza") — a cor por
@@ -4661,7 +4672,7 @@ function KpiCard({
            relatado, 23/09/2026: "os tooltips saíram do centro"). O `fixed`
            da base já é "positioned" o bastante para o `before:absolute` do
            fio de luz funcionar sem precisar de `relative` extra aqui. */
-        className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
+        className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
       >
         <DialogHeader className="px-5 pt-5 pb-0">
           <div className="flex items-center gap-3">
@@ -4819,13 +4830,12 @@ function FreePropertiesCard({
   day,
 }: {
   loading: boolean;
-  properties: Array<{ id: string; name: string }>;
+  properties: FreeProperty[];
   onRefresh: () => void;
   /** Dia a que o número se refere (o primeiro do período aberto). */
   day: string;
 }) {
   const [open, setOpen] = useState(false);
-  const list = useWholeCardsMaxHeight(2, `${open}:${properties.length}:${loading}`);
   // O número sempre foi o do dia ABERTO, não necessariamente o de hoje — mas
   // o título dizia "hoje" em qualquer caso. Abrir outro dia no calendário e
   // ler "Imóveis livres hoje" com o número de outro dia é o tipo de erro que
@@ -4877,15 +4887,16 @@ function FreePropertiesCard({
           o `fixed` da base do `DialogContent` no `tailwind-merge` e
           descentralizaria o diálogo — ver comentário completo no `KpiCard`
           acima. */}
-      <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
-        <DialogHeader className="px-5 pt-5 pb-0">
+      {/* JANELA "IMÓVEIS LIVRES" (mockup C aprovado, 09/10/2026): cresce com o
+          conteúdo até 75% da tela; passando disso, o cabeçalho fica fixo, só a
+          lista rola e o anticorte global (`useAntiClipWindow`) encolhe a área
+          até o último cartão inteiro. Cada imóvel leva "Proprietário: nome" +
+          mensagem e o botão do Maps (regra de todo lugar que cita um anúncio). */}
+      <DialogContent className="flex max-h-[75dvh] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
+        <DialogHeader className="shrink-0 px-5 pt-5 pb-0">
           <DialogTitle className="text-base font-display">Imóveis livres {dayLabel}</DialogTitle>
         </DialogHeader>
-        <div
-          ref={list.ref}
-          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[75dvh] overflow-y-auto px-4 pt-3"
-        >
+        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3">
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
@@ -4903,12 +4914,27 @@ function FreePropertiesCard({
                    `ArrivalCard`. O conteúdo continua só o nome do imóvel. */
                 <li
                   key={p.id}
-                  data-whole-card
-                  className="relative truncate rounded-[10px] border border-border bg-muted/20 py-2 pl-3.5 pr-3 text-sm"
-                  title={p.name}
+                  data-clip-row
+                  className="relative flex items-center gap-2.5 rounded-[var(--win-radius)] border border-border bg-muted/20 py-2.5 pl-3.5 pr-2.5"
                 >
-                  <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] rounded-l-[10px] bg-emerald-400" />
-                  {p.name}
+                  <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] rounded-l-[var(--win-radius)] bg-emerald-400" />
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <OwnerLine
+                      name={p.ownerName}
+                      phone={p.ownerPhone}
+                      country={p.ownerPhoneCountry}
+                      phonePosition="adjacent"
+                    />
+                    <div className="truncate text-[14px] font-bold leading-tight" title={p.name}>
+                      {p.name}
+                    </div>
+                  </div>
+                  <PropertyMapsButton
+                    propertyName={p.name}
+                    propertyAddress={p.propertyAddress}
+                    mapsUrl={p.mapsUrl}
+                    garageMapsUrl={p.garageMapsUrl}
+                  />
                 </li>
               ))}
             </ul>
@@ -5011,7 +5037,7 @@ function StatDisplayCard({
     {clickable && (
       detailItems && detailItems.length > 0 ? (
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden">
+        <DialogContent className="flex flex-col w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden">
           <DialogTitle className="sr-only">{label}</DialogTitle>
           <CleaningDayDetailContent
             date="all"
@@ -5025,7 +5051,7 @@ function StatDisplayCard({
       </Dialog>
       ) : (
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)]">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)]">
           <DialogHeader className="px-5 pt-5 pb-0">
             <div className="flex items-center gap-3">
               <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-foreground/[0.06] text-muted-foreground">
@@ -9490,7 +9516,11 @@ function ArrivalCard({
     else setLocalOpenFull((v) => !v);
   };
   const compact = openFull ? false : (compactProp ?? true);
-  const listBare = compact && (mode === "done" || mode === "no_show");
+  // O "card mínimo" de Concluídos/Não Compareceu SAIU (pedido explícito,
+  // 09/10/2026: "os cards de concluídos, não compareceu etc. precisam ser do
+  // mesmo estilo dos de check-ins pendentes — todas as mesmas infos no próprio
+  // card, e ao clicar em qualquer lugar abre o histórico"). Substitui a regra
+  // de 08/09/2026 (card só com proprietário, título e botões).
 
   /**
    * A ETAPA que a barra lateral pinta. Atraso sobrepõe a fase: uma data que já
@@ -9526,7 +9556,7 @@ function ArrivalCard({
    * Concluído e Não Compareceu não têm previsão a exibir: não há próxima ação
    * para prever.
    */
-  const showPrediction = !listBare && mode !== "done" && mode !== "no_show";
+  const showPrediction = mode !== "done" && mode !== "no_show";
   // CHECK-IN CONFIRMADO (pedido explícito, 26/09/2026): a previsão de
   // CHEGADA some — no card e nos campos — e só a de SAÍDA continua.
   const checkinConfirmed = done || mode === "stay" || mode === "checkout" || mode === "cleaning";
@@ -9663,7 +9693,7 @@ function ArrivalCard({
    * com o card aberto. Agora o bloco sai de dentro do `!compact` para todo
    * mundo — por isso é montado uma vez só, fora da área expansível.
    */
-  const periodoBlock = !listBare ? (
+  const periodoBlock = (
     <div className={`flex flex-wrap items-center gap-1.5 text-[11.5px] tabular-nums ${periodoColorClass}`}>
       <DateEditor
         value={row.guestCheckin}
@@ -9681,7 +9711,7 @@ function ArrivalCard({
         </>
       )}
     </div>
-  ) : null;
+  );
 
   return (
     <div
@@ -9716,7 +9746,9 @@ function ArrivalCard({
         if (interactive && interactive !== e.currentTarget) return;
         // Cards em limpeza/concluídos: o toque abre a janela de detalhes
         // editáveis (tipo, valor, previsão, histórico) — pedido 29/09/2026.
-        if ((mode === "cleaning" || mode === "done") && canOpenJourney) {
+        // Concluídos e Não Compareceu também (09/10/2026): toque em qualquer
+        // ponto do card abre o histórico da reserva.
+        if ((mode === "cleaning" || mode === "done" || mode === "no_show") && canOpenJourney) {
           setJourneyOpen(true);
           return;
         }
@@ -9969,7 +10001,7 @@ function ArrivalCard({
           cortado cedo. Agora fica fora dessa coluna: o código encosta na
           mesma margem direita da previsão e dos botões. `-mt-1` mantém o
           mesmo respiro de 4px das outras linhas (o card usa gap-2). */}
-      {!listBare && !compact && (
+      {!compact && (
         <>
           {/* Nome e código na MESMA linha, código sempre no canto
               direito (pedido explícito, 24/09/2026 — de volta à versão de
@@ -10146,7 +10178,7 @@ function ArrivalCard({
           );
         })()}
 
-      {!listBare && row.note && !noteOpen && (
+      {row.note && !noteOpen && (
         <button
           type="button"
           onClick={() => {
@@ -10161,7 +10193,7 @@ function ArrivalCard({
         </button>
       )}
 
-      {!listBare && noteOpen && (
+      {noteOpen && (
         <div className="space-y-2">
           <textarea
             value={noteText}
@@ -10210,7 +10242,7 @@ function ArrivalCard({
       {/* Checklist de pendências desta limpeza — só aparece quando existe
           pelo menos 1 pendência marcada "aparece na limpeza" pra este
           imóvel/estadia (pedido explícito). */}
-      {!listBare && cleaningChecklist.length > 0 && (
+      {cleaningChecklist.length > 0 && (
         <CleaningChecklist
           items={cleaningChecklist}
           onToggle={(task) => onToggleCleaningTask?.(task, row)}

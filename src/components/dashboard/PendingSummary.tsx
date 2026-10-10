@@ -279,7 +279,7 @@ export function PendingSummary({
           com o conteúdo e só a lista de imóveis rola, por dentro. */}
       <DialogContent
         aria-describedby={undefined}
-        className="max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] max-w-[min(380px,calc(100vw-32px))] grid-cols-[minmax(0,1fr)] gap-0 overflow-x-hidden rounded-2xl p-0 sm:p-0"
+        className="max-h-[min(75dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] max-w-[min(380px,calc(100vw-32px))] grid-cols-[minmax(0,1fr)] gap-0 overflow-x-hidden rounded-[var(--win-radius)] p-0 sm:p-0"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="min-w-0 px-5 pb-5 pt-4">
