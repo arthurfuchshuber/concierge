@@ -40,7 +40,6 @@ import { Route as AuthenticatedAdminEngajamentoRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminEquipeRouteImport } from './routes/_authenticated/admin.equipe'
 import { Route as AuthenticatedAdminGuiasRouteImport } from './routes/_authenticated/admin.guias'
 import { Route as AuthenticatedAdminHospedesRouteImport } from './routes/_authenticated/admin.hospedes'
-import { Route as AuthenticatedAdminIaRouteImport } from './routes/_authenticated/admin.ia'
 import { Route as AuthenticatedAdminIntegracoesRouteImport } from './routes/_authenticated/admin.integracoes'
 import { Route as AuthenticatedAdminInteligenciaRouteImport } from './routes/_authenticated/admin.inteligencia'
 import { Route as AuthenticatedAdminStakeholdersRouteImport } from './routes/_authenticated/admin.stakeholders'
@@ -259,11 +258,6 @@ const AuthenticatedAdminHospedesRoute =
     path: '/hospedes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminIaRoute = AuthenticatedAdminIaRouteImport.update({
-  id: '/ia',
-  path: '/ia',
-  getParentRoute: () => AuthenticatedAdminRoute,
-} as any)
 const AuthenticatedAdminIntegracoesRoute =
   AuthenticatedAdminIntegracoesRouteImport.update({
     id: '/integracoes',
@@ -581,7 +575,6 @@ export interface FileRoutesByFullPath {
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
-  '/admin/ia': typeof AuthenticatedAdminIaRoute
   '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
   '/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
@@ -661,7 +654,6 @@ export interface FileRoutesByTo {
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
-  '/admin/ia': typeof AuthenticatedAdminIaRoute
   '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
   '/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
@@ -746,7 +738,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/_authenticated/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/_authenticated/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
-  '/_authenticated/admin/ia': typeof AuthenticatedAdminIaRoute
   '/_authenticated/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
   '/_authenticated/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
   '/_authenticated/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
@@ -831,7 +822,6 @@ export interface FileRouteTypes {
     | '/admin/equipe'
     | '/admin/guias'
     | '/admin/hospedes'
-    | '/admin/ia'
     | '/admin/integracoes'
     | '/admin/inteligencia'
     | '/admin/stakeholders'
@@ -911,7 +901,6 @@ export interface FileRouteTypes {
     | '/admin/equipe'
     | '/admin/guias'
     | '/admin/hospedes'
-    | '/admin/ia'
     | '/admin/integracoes'
     | '/admin/inteligencia'
     | '/admin/stakeholders'
@@ -995,7 +984,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/equipe'
     | '/_authenticated/admin/guias'
     | '/_authenticated/admin/hospedes'
-    | '/_authenticated/admin/ia'
     | '/_authenticated/admin/integracoes'
     | '/_authenticated/admin/inteligencia'
     | '/_authenticated/admin/stakeholders'
@@ -1322,13 +1310,6 @@ declare module '@tanstack/react-router' {
       path: '/hospedes'
       fullPath: '/admin/hospedes'
       preLoaderRoute: typeof AuthenticatedAdminHospedesRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/ia': {
-      id: '/_authenticated/admin/ia'
-      path: '/ia'
-      fullPath: '/admin/ia'
-      preLoaderRoute: typeof AuthenticatedAdminIaRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/integracoes': {
@@ -1722,7 +1703,6 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminEquipeRoute: typeof AuthenticatedAdminEquipeRoute
   AuthenticatedAdminGuiasRoute: typeof AuthenticatedAdminGuiasRoute
   AuthenticatedAdminHospedesRoute: typeof AuthenticatedAdminHospedesRoute
-  AuthenticatedAdminIaRoute: typeof AuthenticatedAdminIaRoute
   AuthenticatedAdminIntegracoesRoute: typeof AuthenticatedAdminIntegracoesRoute
   AuthenticatedAdminInteligenciaRoute: typeof AuthenticatedAdminInteligenciaRoute
   AuthenticatedAdminStakeholdersRoute: typeof AuthenticatedAdminStakeholdersRoute
@@ -1745,7 +1725,6 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminEquipeRoute: AuthenticatedAdminEquipeRoute,
   AuthenticatedAdminGuiasRoute: AuthenticatedAdminGuiasRoute,
   AuthenticatedAdminHospedesRoute: AuthenticatedAdminHospedesRoute,
-  AuthenticatedAdminIaRoute: AuthenticatedAdminIaRoute,
   AuthenticatedAdminIntegracoesRoute: AuthenticatedAdminIntegracoesRoute,
   AuthenticatedAdminInteligenciaRoute: AuthenticatedAdminInteligenciaRoute,
   AuthenticatedAdminStakeholdersRoute: AuthenticatedAdminStakeholdersRoute,

@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-10-10T06:03:44.175Z";
+export const GENERATED_AT = "2026-10-10T06:30:41.901Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -103,15 +103,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/routes/_authenticated/admin.guias.tsx",
     "audience": [],
     "content_hash": "e21346780d8aa5c0546fbb2f122bad45"
-  },
-  {
-    "doc_key": "route:/admin/ia",
-    "kind": "route",
-    "title": "IA Concierge — tela /admin/ia",
-    "content": "Caminho no sistema: /admin/ia\n\nNo menu do painel esta tela se chama \"IA Concierge\".\n\nGovernança do conhecimento do ConciergeIA: memória da operação, regras da empresa e aprendizados pendentes de aprovação.",
-    "source_path": "src/routes/_authenticated/admin.ia.tsx",
-    "audience": [],
-    "content_hash": "efd064d64a1041dfcac4f448878648b6"
   },
   {
     "doc_key": "route:/admin/inteligencia",

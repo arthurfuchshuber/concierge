@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Bot, Home, Contact, Sparkles, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Home, Contact, Sparkles, ChevronsLeft, ChevronsRight } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -41,7 +41,6 @@ const baseNav = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: false },
   { to: "/admin/guias", label: "Guias", icon: Home, exact: false },
   { to: "/admin/stakeholders", label: "Stakeholders", icon: Contact, exact: false },
-  { to: "/admin/ia", label: "IA Concierge", icon: Bot, exact: false },
   
 ] as const;
 const adminOnlyNav = [
@@ -61,7 +60,6 @@ const adminOnlyNav = [
 // usa-se uma versão encurtada do nome real da seção.
 const BOTTOM_NAV_SHORT_LABEL: Record<string, string> = {
   "Stakeholders": "Pessoas",
-  "IA Concierge": "IA",
   "Atendimento": "Suporte",
   "Administrativo": "Config.",
 };
@@ -144,7 +142,6 @@ function AdminLayout() {
     "/admin/dashboard",
     "/admin/guias",
     "/admin/stakeholders",
-    "/admin/ia",
     "/admin/atendimento",
   ];
   const bottomNav = nav.filter((item) => BOTTOM_NAV_PATHS.includes(item.to));

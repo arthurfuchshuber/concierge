@@ -156,25 +156,6 @@ const STAKEHOLDERS: Def[] = [
   act("tenant.stakeholders.prestadores.imoveis", "Imóveis atendidos", 30),
 ];
 
-/** IA Concierge — /admin/ia */
-const IA: Def[] = [
-  page("tenant.ia", "IA Concierge", "/admin/ia", "BrainCircuit", 40,
-    "Memória, conhecimento e aprendizados do concierge."),
-
-  tab("tenant.ia.memoria", "Memória da Operação", 10),
-  act("tenant.ia.memoria.consultar", "Consultar memórias", 10),
-  act("tenant.ia.memoria.editar", "Editar memória", 20),
-
-  tab("tenant.ia.conhecimento", "Conhecimento da Operação", 20),
-  act("tenant.ia.conhecimento.criar", "Criar conhecimento", 10),
-  act("tenant.ia.conhecimento.editar", "Editar conhecimento", 20),
-  act("tenant.ia.conhecimento.excluir", "Excluir conhecimento", 30),
-
-  tab("tenant.ia.aprendizados", "Aprendizados Pendentes", 30),
-  act("tenant.ia.aprendizados.aprovar", "Aprovar aprendizado", 10),
-  act("tenant.ia.aprendizados.rejeitar", "Rejeitar aprendizado", 20),
-];
-
 /** Atendimento — /admin/atendimento */
 const ATENDIMENTO: Def[] = [
   page("tenant.atendimento", "Atendimento", "/admin/atendimento", "Headphones", 50,
@@ -310,7 +291,6 @@ const RAW_CATALOG: Def[] = [
   ...DASHBOARD,
   ...GUIAS,
   ...STAKEHOLDERS,
-  ...IA,
   ...ATENDIMENTO,
   ...ADMINISTRATIVO,
   ...SAAS_ENGAJAMENTO,

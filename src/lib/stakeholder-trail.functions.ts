@@ -85,7 +85,6 @@ const PAGE_PT: Array<[RegExp, string]> = [
   [/^\/admin\/administrativo/, "Página Administrativo"],
   [/^\/admin\/permissoes/, "Página Permissões"],
   [/^\/admin\/clientes/, "Página Clientes"],
-  [/^\/admin\/ia|^\/admin\/concierge/, "Página IA Concierge"],
   [/^\/admin\/proprietarios/, "Página Proprietários"],
   [/^\/admin\/prestadores/, "Página Prestadores"],
   [/^\/admin\/assinatura/, "Página Assinatura"],
