@@ -1,4 +1,5 @@
 import { searchScore } from "@/lib/search-score";
+import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -599,8 +600,12 @@ function Dashboard() {
         ))}
       </div>
 
-      <div className="flex min-w-0 items-center gap-2">
-      <div className={`${ACTION_BAR} order-2 !w-auto shrink-0`}>
+      <SearchActionRow
+        value={search}
+        onChange={setSearch}
+        placeholder="Buscar por título, proprietário, cidade…"
+        actions={
+          <>
           {selected.size > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -730,28 +735,9 @@ function Dashboard() {
               ) : null}
             </PopoverContent>
           </Popover>
-      </div>
-
-      <div className="relative order-1 min-w-0 flex-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por título, proprietário, cidade…"
-          className={`${PANEL_SHELL} !rounded-[9px] lg:!rounded-[13px] h-[var(--ds-action-h)] lg:h-[var(--ds-action-h-lg)] w-full pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none`}
-        />
-        {search && (
-          <button
-            type="button"
-            onClick={() => setSearch("")}
-            className="absolute right-2 top-1/2 z-10 -translate-y-1/2 size-6 grid place-items-center text-muted-foreground hover:text-foreground"
-            aria-label="Limpar busca"
-          >
-            <X className="size-3.5" />
-          </button>
-        )}
-      </div>
-      </div>
+          </>
+        }
+      />
 
 
       {isLoading ? (
