@@ -1758,6 +1758,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    *      receber, que é a informação que a pessoa procura ao abrir o dia.
    */
   const freeProperties = useMemo(() => occupancyQ.data?.freeToday ?? [], [occupancyQ.data?.freeToday]);
+  // Fonte única para TODOS os números grandes da página operacional.
+  const opBigSize = kpiSizeClass([
+    checkinPendingRows.length,
+    checkoutPendingRows.length,
+    tomorrowCheckinPendingRows.length,
+    tomorrowCheckoutPendingRows.length,
+    stayRows.length,
+    freeProperties.length,
+  ]);
 
   // Check-ins de hoje já marcados como concluídos → agenda mostra "ocupado".
   const checkedInPropertyIds = useMemo(
