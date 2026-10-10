@@ -344,6 +344,12 @@ const AvailabilityInput = z.object({
   property_id: z.string().uuid().optional(),
 });
 
+function addDaysISO(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AvailabilityInput.parse(i))
   .handler(async ({ data }) => {
@@ -390,8 +396,11 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
       // Estadias em andamento também ocupam o calendário: filtramos pelo
       // checkout, não pelo checkin.
       .gte("checkout_date", today)
+      // Segurança: só expõe chegadas próximas (até 14 dias), para que o
+      // calendário público não revele a ocupação futura do imóvel.
+      .lte("checkin_date", addDaysISO(today, 14))
       .order("checkin_date", { ascending: true })
-      .limit(500);
+      .limit(50);
 
     const periods: Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> = [];
     for (const row of (rows ?? []) as Array<{
