@@ -1069,6 +1069,28 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     return ocupado;
   };
 
+  /** Reservas não canceladas por imóvel numa janela ampla — base da contra-proposta. */
+  const calendario = async (propertyIds: string[], de: string, ate: string) => {
+    const map = new Map<string, Busy[]>();
+    if (propertyIds.length === 0) return map;
+    const { data } = await ctx.supabase
+      .from("property_reservations")
+      .select("property_id, checkin_date, checkout_date, status")
+      .in("property_id", propertyIds)
+      .lt("checkin_date", ate)
+      .gt("checkout_date", de);
+    for (const r of (data ?? []) as Array<Busy & { property_id: string; status: string | null }>) {
+      if ((r.status ?? "confirmed") === "cancelled") continue;
+      const list = map.get(r.property_id) ?? [];
+      list.push({ checkin_date: r.checkin_date, checkout_date: r.checkout_date });
+      map.set(r.property_id, list);
+    }
+    return map;
+  };
+  const hojeSP = () =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const MIN_NOITES = 2;
+
   const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
   tools.push({
