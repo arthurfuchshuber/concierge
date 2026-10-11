@@ -153,7 +153,40 @@ async function resolveListing(admin: any, m: Inbound): Promise<ListingRow | null
       .limit(1)
       .maybeSingle();
     const rt = r?.channex_room_type_id as string | undefined;
-    if (rt) return listings.find((l) => l.channex_room_type_id === rt) ?? null;
+    if (rt) {
+      const direct = listings.find((l) => l.channex_room_type_id === rt);
+      if (direct) return direct;
+      // Reserva feita no anúncio gêmeo → resolve para o anúncio principal do par.
+      const { data: tw } = await admin
+        .from("channex_twin_links")
+        .select("property_id, primary_listing_id")
+        .eq("twin_room_type_id", rt)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+      if (tw) {
+        const hit =
+          listings.find((l) => l.airbnb_listing_id === tw.primary_listing_id) ??
+          listings.find((l) => l.property_id === tw.property_id);
+        if (hit) return hit;
+      }
+    }
+  }
+  // 1b) Propriedade Channex do gêmeo (evento traz property_id).
+  if (m.channexPropertyId) {
+    const { data: tw } = await admin
+      .from("channex_twin_links")
+      .select("property_id, primary_listing_id")
+      .eq("twin_channex_property_id", m.channexPropertyId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    if (tw) {
+      const hit =
+        listings.find((l) => l.airbnb_listing_id === tw.primary_listing_id) ??
+        listings.find((l) => l.property_id === tw.property_id);
+      if (hit) return hit;
+    }
   }
   // 2) Conversa na Channex expõe o listing id do Airbnb.
   if (m.threadId) {
