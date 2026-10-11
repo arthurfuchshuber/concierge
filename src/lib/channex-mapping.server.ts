@@ -156,7 +156,7 @@ async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promis
  * noite reservada = 0, noite livre dentro da janela do anfitrião = 1, além dela = 0.
  * Só o delta entra na outbox ARI (limitador 20/min). Preços não são tocados.
  */
-export async function syncRealAvailability(t: SafeMapTarget, userId: string | null, fallbackWindow = 270) {
+export async function syncRealAvailability(t: SafeMapTarget, userId: string | null, fallbackWindow = 270, flush = true) {
   const ch = await call("GET", `/channels/${t.channelId}`).catch(() => null);
   const rp = (ch?.data?.attributes?.rate_plans ?? []).find((r: any) => String(r.settings?.listing_id) === t.listingId);
   const notice = Number(rp?.settings?.availability_rule?.max_days_notice);
@@ -174,14 +174,17 @@ export async function syncRealAvailability(t: SafeMapTarget, userId: string | nu
     else merged.push({ propertyId: t.channexPropertyId, roomTypeId: t.roomTypeId, ratePlanId: t.ratePlanId, dateFrom: date, dateTo: date, fields: { availability } });
   }
   await applyCalendarChanges(merged, userId, "real_availability");
-  const flush = await flushAriOutbox();
-  const avail = flush.batches.find((b) => b.kind === "availability");
+  if (!flush) return { ok: true, bookedNights: nights.size, windowDays };
+  const flushed = await flushAriOutbox();
+  const avail = flushed.batches.find((b) => b.kind === "availability");
   return { ok: !avail || avail.ok, bookedNights: nights.size, windowDays };
 }
 
 /** Realinha a disponibilidade real de todos os anúncios do piloto (após reservas novas/canceladas). */
 export async function syncPilotAvailability(userId: string | null = null) {
   const out: unknown[] = [];
-  for (const t of PILOT_MAPPINGS) out.push(await syncRealAvailability(t, userId).catch((e) => ({ ok: false, error: String(e) })));
+  // Calcula todos os anúncios (incluindo gêmeos) e envia tudo num único lote ARI.
+  for (const t of PILOT_MAPPINGS) out.push(await syncRealAvailability(t, userId, 270, false).catch((e) => ({ ok: false, error: String(e) })));
+  await flushAriOutbox().catch((e) => console.error("[channex] flush disponibilidade", e));
   return out;
 }
