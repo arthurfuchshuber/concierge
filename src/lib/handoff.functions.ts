@@ -638,6 +638,9 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     // A identidade do hóspede ancora na RESERVA oficial (Airbnb/Channex), não no
     // nome: código, datas e status confirmado/ativo hoje.
     let reservationActive = false;
+    // Regra: só consolidamos conversas quando há reserva confirmada (código).
+    // Consultas pré-reserva usam o nome exato só para identificar, NUNCA agrupam.
+    let confirmedReservation = false;
     const reservationNames = new Set<string>();
     try {
       if (!isPreviewConv && conv.property_id) {
@@ -667,13 +670,17 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
           const gc = (r.guest_contacts ?? {}) as { name?: string; names?: string[] };
           return [gc.name, ...(gc.names ?? []), r.guest_hint].map(n).filter(Boolean);
         };
-        const rows = ((resv ?? []) as R[]).filter((r) => !/cancel/i.test(r.status));
+        // Somente reservas CONFIRMADAS: consultas/pedidos/canceladas nunca agrupam.
+        const rows = ((resv ?? []) as R[]).filter(
+          (r) => !/cancel|inquiry|request|pending|declin|expired/i.test(r.status),
+        );
         const wantCode = (guestDetails.reservationCode ?? "").trim().toUpperCase();
         const wantName = n(guestDetails.name ?? conv.guest_name);
         const hit =
           (wantCode && rows.find((r) => codeOf(r).toUpperCase() === wantCode)) ||
           (wantName && rows.find((r) => namesOf(r).some((x) => x === wantName))) ||
           null;
+        if (hit && codeOf(hit)) confirmedReservation = true;
         if (hit) {
           guestDetails = {
             ...guestDetails,
@@ -718,7 +725,7 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     try {
       const targetName = isPreviewConv ? "" : normName(guestDetails.name ?? conv.guest_name);
       const targetPhone = isPreviewConv ? "" : digitsOf(guestDetails.phone);
-      if (conv.property_id && (targetName || targetPhone || reservationNames.size > 0)) {
+      if (confirmedReservation && conv.property_id && (targetName || targetPhone || reservationNames.size > 0)) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: siblings } = await supabase
           .from("property_chat_conversations")
