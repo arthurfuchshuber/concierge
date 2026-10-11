@@ -47,10 +47,11 @@ export async function syncMessagesApp(channexPropertyIds: string[], enabled: boo
   const installed = await listInstalled();
   for (const pid of ids) {
     const inst = installed.find((i) => i.attributes.property_id === pid);
+    // A listagem da Channex não traz is_active: o PUT é idempotente, então sempre aplica.
     if (enabled) {
       if (!inst) await install(pid);
-      else if (!inst.attributes.is_active) await setActive(inst.id, true);
-    } else if (inst?.attributes.is_active) {
+      else await setActive(inst.id, true);
+    } else if (inst) {
       await setActive(inst.id, false);
     }
   }
