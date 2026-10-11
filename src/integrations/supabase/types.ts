@@ -2002,6 +2002,36 @@ export type Database = {
         }
         Relationships: []
       }
+      channex_account_settings: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          mode_changed_at: string
+          operation_mode: string
+          owner_id: string
+          pricing_validated_at: string | null
+          twin_prompt_answered_at: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          mode_changed_at?: string
+          operation_mode?: string
+          owner_id: string
+          pricing_validated_at?: string | null
+          twin_prompt_answered_at?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          mode_changed_at?: string
+          operation_mode?: string
+          owner_id?: string
+          pricing_validated_at?: string | null
+          twin_prompt_answered_at?: string | null
+        }
+        Relationships: []
+      }
       channex_api_logs: {
         Row: {
           attempt: number
