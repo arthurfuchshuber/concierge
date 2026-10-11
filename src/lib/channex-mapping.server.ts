@@ -180,9 +180,9 @@ async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promis
       const status = String(r.status ?? "").toLowerCase();
       if (status.includes("cancel")) continue;
       if (!r.checkin_date || !r.checkout_date) continue;
-      // Todo bloqueio (manual ou do Airbnb) dentro da janela de venda fecha a data.
-      // Só ignoramos o "Not available" sintético do iCal que encosta no fim da
-      // janela (max_days_notice): ele representa o horizonte, não um bloqueio.
+      // Anúncio conectado = 100% API: linhas do iCal (source 'airbnb') nunca
+      // contam — reservas vêm da Channex e bloqueios do ConciergeIA ('manual').
+      if (String(r.source) === "airbnb") continue;
       if (status === "blocked" && windowEnd && r.checkout_date > windowEnd) continue;
       for (let d = new Date(`${r.checkin_date}T00:00:00Z`); iso(d) < r.checkout_date; d = new Date(d.getTime() + 86_400_000)) nights.add(iso(d));
     }
