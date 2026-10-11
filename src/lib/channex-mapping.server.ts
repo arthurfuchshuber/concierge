@@ -94,18 +94,15 @@ export async function allSyncTargets(): Promise<SafeMapTarget[]> {
 }
 
 /** Sincroniza só os dois lados de um par (carga inicial ao unir anúncios). */
-export async function syncTwinPair(primaryListingId: string, userId: string | null = null) {
-  const targets = (await loadTwinMappings()).filter(
-    (t) => t.listingId === primaryListingId || (t.sibling && (t as any).channelId && false),
-  );
-  const pair = (await loadTwinMappings()).filter((t) => {
-    const prim = targets[0];
-    return prim && (t.listingId === prim.listingId || t.roomTypeId === prim.sibling?.roomTypeId);
-  });
-  const out: unknown[] = [];
-  for (const t of pair) out.push(await syncRealAvailability(t, userId, 270, false));
+export async function syncTwinPair(twinListingId: string, userId: string | null = null) {
+  const all = await loadTwinMappings();
+  const twin = all.find((t) => t.listingId === twinListingId);
+  if (!twin) throw new Error("Par de anúncios não encontrado.");
+  const pair = all.filter((t) => t === twin || t.roomTypeId === twin.sibling?.roomTypeId);
+  const results: unknown[] = [];
+  for (const t of pair) results.push(await syncRealAvailability(t, userId, 270, false));
   const flushed = await flushAriOutbox();
-  return { results: out, ok: flushed.batches.every((b) => b.ok) };
+  return { results, ok: flushed.batches.every((b) => b.ok) };
 }
 
 async function call(method: string, path: string, body?: unknown): Promise<any> {
