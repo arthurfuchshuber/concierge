@@ -316,15 +316,14 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       }
     }
 
-    // Unifica conversas do mesmo hóspede (Nome preenchido + Data de Check-in + Guia).
-    const bestByKey = new Map<string, HandoffConversationSummary>();
-    const ordered: HandoffConversationSummary[] = [];
+    // Unifica conversas SOMENTE pelo código da reserva confirmada (mesmo imóvel):
+    // aparelhos/hóspedes distintos com o mesmo código viram uma única linha.
+    // Sem código (consultas/pré-reserva) cada conversa fica isolada.
     const keyFor = (c: HandoffConversationSummary): string => {
       const d = mergeDetails[c.id as string];
-      const name = norm(d?.name ?? c.guest_name);
-      const checkin = d?.checkinDate ?? "";
+      const code = (d?.reservationCode ?? "").trim().toUpperCase();
       const propId = c.property_id ?? "";
-      return name && checkin && propId ? `${propId}|${name}|${checkin}` : `__solo__:${c.id}`;
+      return code && propId ? `${propId}|resv:${code}` : `__solo__:${c.id}`;
     };
     for (const conv of list) {
       const key = keyFor(conv);
