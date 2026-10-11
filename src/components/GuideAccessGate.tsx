@@ -398,9 +398,19 @@ export function GuideAccessGate({
   }, [reservationMap]);
 
   const isDateDisabled = (date: Date): boolean => {
-    if (selectableDateSet) return !selectableDateSet.has(format(date, "yyyy-MM-dd"));
+    const iso = format(date, "yyyy-MM-dd");
     // "Hoje" é o dia do imóvel (fuso da cidade), não o do aparelho do hóspede.
-    return format(date, "yyyy-MM-dd") < todayInTZ(timeZone);
+    const today = todayInTZ(timeZone);
+    if (iso < today) return true;
+    // O servidor só revela chegadas dos próximos 14 dias (privacidade). Dentro
+    // dessa janela, só chegadas reais; depois dela, seleção livre — o código
+    // de reserva valida o período em seguida.
+    if (selectableDateSet) {
+      const [y, m, d] = today.split("-").map(Number);
+      const limit = new Date(Date.UTC(y, m - 1, d + 14)).toISOString().slice(0, 10);
+      if (iso <= limit) return !selectableDateSet.has(iso);
+    }
+    return false;
   };
 
   // Auto-pair check-out when the user picks a known reservation check-in.

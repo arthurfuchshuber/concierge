@@ -16,6 +16,7 @@
  *   8. Confidence Threshold do próprio agente (auto | com ressalva | handoff)
  *   9. Gravação seletiva de memória + observabilidade (log completo)
  */
+import { ensureGreeting } from "@/lib/ai/greeting";
 import { SILENCE_TOKEN, finalizeAgentReply } from "@/lib/ai/reply-finalize";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { EMPTY_USAGE, mergeUsage, runAgent, type Usage } from "./gateway.server";
@@ -182,9 +183,17 @@ export async function runHospitalityAgent(params: {
    * internos) NUNCA são revelados — regra para todos os canais.
    */
   reservationVerified?: boolean;
+  /** Dossiê completo da reserva oficial (código, ocupação, valores, taxas, cancelamento). */
+  reservationDossier?: string | null;
 }): Promise<OrchestratorResult> {
   const started = Date.now();
   const { supabase, property } = params;
+  // Economia de contexto: pergunta objetiva (ex.: senha do Wi-Fi) dispensa o
+  // histórico; dúvida contínua sempre lê o histórico antes de responder.
+  {
+    const { needsHistory } = await import("@/lib/ai/history-need");
+    if (!needsHistory(params.message)) params = { ...params, history: [] };
+  }
   const tenant = tenantOf(property);
   const propertyId = String(property.id);
   const ownerId = tenant.ownerId;
@@ -580,6 +589,9 @@ export async function runHospitalityAgent(params: {
       : "") +
     `\n\nRANKING PERMANENTE DE FONTES (em conflito, o tier menor sempre vence)\n${renderSourceRanking()}` +
     `\n\nCONTEXTO ATUAL\n${context.text}` +
+    (params.reservationDossier
+      ? `\n\n## RESERVA OFICIAL DESTE HÓSPEDE (fonte autoritativa, prevalece sobre qualquer outra)\n${params.reservationDossier}\n- Use estes dados (código, datas, hóspedes, valores, taxas, pagamento, cancelamento) para responder com precisão, sem perguntar o que já está aqui.\n- Valores e política: informe quando o hóspede perguntar; cancelamento/reembolso/alteração continuam sendo feitos pela plataforma (ver AUTONOMIA DA RESERVA).`
+      : "") +
     `\n\nCONTEXTO DO HÓSPEDE E MEMÓRIA (uso interno — nunca revele ao hóspede que existe histórico registrado)\n${guestContext.text}` +
     reservationModeContext +
     renderHumanAnswers(humanAnswers) +
@@ -728,7 +740,18 @@ export async function runHospitalityAgent(params: {
         hedged: Math.max(baseThresholds.hedged, agent.thresholds.hedged),
       };
 
-  const evidenceText = evidence.slice(0, 24).join("\n\n") || "(nenhuma evidência recuperada)";
+  // Dados oficiais do hóspede desta conversa: sem eles o validador reprovava
+  // saudações com o nome do hóspede como "alucinação" (caso Fabiane, 11/10/2026).
+  const guestFacts = [
+    params.guestName ? `Nome do hóspede desta conversa (cadastro oficial do canal): ${params.guestName}` : "",
+    params.checkinDate ? `Check-in da reserva: ${params.checkinDate}` : "",
+    params.checkoutDate ? `Check-out da reserva: ${params.checkoutDate}` : "",
+    params.reservationDossier ? `RESERVA OFICIAL:\n${params.reservationDossier}` : "",
+  ].filter(Boolean).join("\n");
+  const evidenceText =
+    [guestFacts ? `DADOS DO HÓSPEDE (fato oficial):\n${guestFacts}` : "", ...evidence.slice(0, 24)]
+      .filter(Boolean)
+      .join("\n\n") || "(nenhuma evidência recuperada)";
   /** O bloco de confiança já validou e já montou o texto final deste turno. */
   let jaValidado = false;
   let validationResult: unknown = null;
@@ -957,6 +980,10 @@ export async function runHospitalityAgent(params: {
       question: handoffReason.replace(/^\[[^\]]+\]\s*/, ""),
     }).catch(() => null);
   }
+
+  // Saudação obrigatória: se a IA ainda não cumprimentou ninguém nesta
+  // conversa, a resposta abre com um cumprimento (inclusive frases fixas).
+  if (reply) reply = ensureGreeting(reply, params.history, params.guestName ?? null, intent.language);
 
   // Botões de resposta rápida — sempre que a IA termina fazendo uma pergunta
   // ao hóspede, ele deve poder responder num toque (e continuar livre para

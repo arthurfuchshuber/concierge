@@ -24,9 +24,27 @@ export const LISTING_ALIASES: Record<string, string> = {
   "1792880398875841438": "1668247859065922881", // Apartamento 101 → Studio 101
   "1792882876333057974": "1668250046816777608", // Apartamento 102 → Studio 102
   "1792868987771365608": "1668251215421954022", // Studio 103 Ponte da Amizade → Studio 103
+  "901415199481975174": "1081915824812637088", // Belíssima Casa → Casa Charmosa
 };
 
 export const primaryListingId = (id: string) => LISTING_ALIASES[id] ?? id;
+
+/** Inclui nos apelidos os pares gêmeos cadastrados pelo sistema (qualquer cliente). */
+export async function refreshListingAliases() {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await (supabaseAdmin as any).from("channex_twin_links").select("twin_listing_id, primary_listing_id").eq("status", "active");
+    for (const r of (data ?? []) as any[]) LISTING_ALIASES[String(r.twin_listing_id)] = String(r.primary_listing_id);
+  } catch (e) {
+    console.error("[channex] apelidos de gêmeos", e);
+  }
+}
+
+/** Versão assíncrona: sempre considera os pares mais recentes do banco. */
+export async function resolvePrimaryListingId(id: string) {
+  await refreshListingAliases();
+  return primaryListingId(id);
+}
 
 /** Compat: airbnb listing id → slug. */
 export const PILOT_LISTINGS: Record<string, string> = Object.fromEntries(

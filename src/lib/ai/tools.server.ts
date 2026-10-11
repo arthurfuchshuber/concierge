@@ -8,6 +8,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentTool } from "./gateway.server";
 import { hybridRetrieve } from "./rag.server";
 import { confidenceOf } from "./sources";
+import {
+  addDays,
+  nearestShiftedWindow,
+  partialWindows,
+  type Busy,
+} from "./availability-windows";
 
 type Admin = SupabaseClient;
 
@@ -1069,6 +1075,28 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     return ocupado;
   };
 
+  /** Reservas não canceladas por imóvel numa janela ampla — base da contra-proposta. */
+  const calendario = async (propertyIds: string[], de: string, ate: string) => {
+    const map = new Map<string, Busy[]>();
+    if (propertyIds.length === 0) return map;
+    const { data } = await ctx.supabase
+      .from("property_reservations")
+      .select("property_id, checkin_date, checkout_date, status")
+      .in("property_id", propertyIds)
+      .lt("checkin_date", ate)
+      .gt("checkout_date", de);
+    for (const r of (data ?? []) as Array<Busy & { property_id: string; status: string | null }>) {
+      if ((r.status ?? "confirmed") === "cancelled") continue;
+      const list = map.get(r.property_id) ?? [];
+      list.push({ checkin_date: r.checkin_date, checkout_date: r.checkout_date });
+      map.set(r.property_id, list);
+    }
+    return map;
+  };
+  const hojeSP = () =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const MIN_NOITES = 2;
+
   const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
   tools.push({
@@ -1112,17 +1140,35 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         content: `${entrada} → ${saida}: ${livre ? "livre" : "ocupado"}`,
       });
 
+      let contraproposta: {
+        trechos_livres_no_periodo: ReturnType<typeof partialWindows>;
+        periodo_mais_proximo_mesma_duracao: ReturnType<typeof nearestShiftedWindow>;
+      } | null = null;
+      if (!livre) {
+        const hoje = hojeSP();
+        const cal = await calendario([ctx.propertyId], addDays(entrada, -21), addDays(saida, 21));
+        const busy = cal.get(ctx.propertyId) ?? [];
+        contraproposta = {
+          trechos_livres_no_periodo: partialWindows(busy, entrada < hoje ? hoje : entrada, saida, MIN_NOITES),
+          periodo_mais_proximo_mesma_duracao: nearestShiftedWindow(busy, entrada, saida, hoje),
+        };
+      }
+
       return {
         imovel: p?.name ?? null,
         periodo: { entrada, saida },
         livre,
+        contraproposta,
         sincronizado_em: sync,
         aviso:
           horasDesdeSync != null && horasDesdeSync > 24
             ? "O calendário não sincroniza há mais de um dia — trate como indicação, não como garantia."
             : null,
-        observacao:
-          "Disponibilidade de calendário. Preço e confirmação da reserva são sempre na plataforma do anúncio.",
+        observacao: livre
+          ? "Disponibilidade de calendário. Preço e confirmação da reserva são sempre na plataforma do anúncio."
+          : "Ocupado no período pedido. NUNCA responda só 'não': ofereça o trecho livre dentro do período " +
+            "(ex.: 'temos de 12 a 14, podemos seguir?') e/ou o período mais próximo, e chame find_available_stays " +
+            "para outras unidades. Feche com uma pergunta de duas opções.",
       };
     },
   });
@@ -1189,37 +1235,104 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         saida,
       );
 
+      // Link oficial do anúncio vindo do canal quando o imóvel não tem URL salva.
+      const { data: rawRows } = await ctx.supabase
+        .from("property_listing_raw_data")
+        .select("property_id, airbnb_listing_id")
+        .eq("owner_id", ctx.ownerId)
+        .in("property_id", lista.map((x) => x.id));
+      const listingId = new Map<string, string>();
+      for (const r of (rawRows ?? []) as Array<{ property_id: string; airbnb_listing_id: string | null }>) {
+        if (r.airbnb_listing_id && !listingId.has(r.property_id)) listingId.set(r.property_id, r.airbnb_listing_id);
+      }
+      const norm = (s: string | null) => (s ?? "").trim().toLowerCase();
+
       const livres = lista
         .filter((x) => !ocupado.get(x.id))
         .filter((x) => (hospedes ? (x.airbnb_guest_count ?? 99) >= hospedes : true))
         .map((x) => ({
           imovel: x.name,
           cidade: x.city,
+          mesma_cidade: !!atual && norm(atual.city) === norm(x.city),
           distancia_km: atual ? distanciaKm(atual, x) : null,
           capacidade: x.airbnb_guest_count,
           quartos: x.airbnb_bedroom_count,
-          link_anuncio: x.airbnb_listing_url,
+          link_anuncio:
+            x.airbnb_listing_url ??
+            (listingId.get(x.id) ? `https://www.airbnb.com.br/rooms/${listingId.get(x.id)}` : null),
         }))
-        .sort((a, b) => (a.distancia_km ?? 999) - (b.distancia_km ?? 999))
+        .sort(
+          (a, b) =>
+            Number(b.mesma_cidade) - Number(a.mesma_cidade) ||
+            (a.distancia_km ?? 999) - (b.distancia_km ?? 999),
+        )
         .slice(0, 5);
+
+      // Contra-proposta: unidades com só parte do período livre, ou o período
+      // de mesma duração mais próximo — nunca um "não" seco.
+      type Parcial = (typeof livres)[number] & {
+        trechos_livres_no_periodo: ReturnType<typeof partialWindows>;
+        periodo_mais_proximo_mesma_duracao: ReturnType<typeof nearestShiftedWindow>;
+      };
+      let parciais: Parcial[] = [];
+      if (livres.length === 0) {
+        const hoje = hojeSP();
+        const candidatos = lista.filter(
+          (x) => !hospedes || (x.airbnb_guest_count ?? 99) >= hospedes,
+        );
+        const cal = await calendario(
+          candidatos.map((x) => x.id),
+          addDays(entrada, -21),
+          addDays(saida, 21),
+        );
+        parciais = candidatos
+          .map((x) => {
+            const busy = cal.get(x.id) ?? [];
+            return {
+              imovel: x.name,
+              cidade: x.city,
+              mesma_cidade: !!atual && norm(atual.city) === norm(x.city),
+              distancia_km: atual ? distanciaKm(atual, x) : null,
+              capacidade: x.airbnb_guest_count,
+              quartos: x.airbnb_bedroom_count,
+              link_anuncio:
+                x.airbnb_listing_url ??
+                (listingId.get(x.id) ? `https://www.airbnb.com.br/rooms/${listingId.get(x.id)}` : null),
+              trechos_livres_no_periodo: partialWindows(busy, entrada < hoje ? hoje : entrada, saida, MIN_NOITES),
+              periodo_mais_proximo_mesma_duracao: nearestShiftedWindow(busy, entrada, saida, hoje),
+            };
+          })
+          .filter((o) => o.trechos_livres_no_periodo.length > 0 || o.periodo_mais_proximo_mesma_duracao)
+          .sort(
+            (a, b) =>
+              (b.trechos_livres_no_periodo[0]?.noites ?? 0) - (a.trechos_livres_no_periodo[0]?.noites ?? 0) ||
+              Number(b.mesma_cidade) - Number(a.mesma_cidade) ||
+              (a.distancia_km ?? 999) - (b.distancia_km ?? 999),
+          )
+          .slice(0, 3);
+      }
 
       ctx.collectSource({
         source: "calendario",
         title: "Disponibilidade na carteira do anfitrião",
         confidence: 0.9,
-        content: `${entrada} → ${saida}: ${livres.length} imóvel(is) livre(s)`,
+        content: `${entrada} → ${saida}: ${livres.length} livre(s), ${parciais.length} com período parcial/próximo`,
       });
 
       return {
         periodo: { entrada, saida },
         encontrados: livres.length,
         opcoes: livres,
+        opcoes_periodo_parcial_ou_proximo: parciais,
         observacao:
           livres.length > 0
             ? "Ofereça as opções pelo nome e mande o link quando existir. Nunca cite preço — ele está no anúncio."
-            : "Nenhuma unidade livre no período. Aqui vale escalar para o anfitrião.",
-        sem_link: livres.some((o) => !o.link_anuncio)
-          ? "Alguma unidade livre está sem link de anúncio cadastrado — cite o nome e diga que o anfitrião envia o link."
+            : parciais.length > 0
+              ? "Nenhuma unidade livre no período inteiro. Ofereça o trecho livre ou o período mais próximo com o " +
+                "nome do imóvel (ex.: 'temos outra residência de 11 a 13, posso te enviar o link?'). Nunca cite preço."
+              : "Nenhuma unidade livre nem em datas próximas. Diga isso com gentileza e pergunte se há flexibilidade; escale se insistir.",
+        sem_link: [...livres, ...parciais].some((o) => !o.link_anuncio)
+          ? "Alguma unidade sugerida está sem link de anúncio cadastrado — cite o nome e diga que o anfitrião envia o link."
           : null,
       };
     },

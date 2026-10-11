@@ -2002,6 +2002,36 @@ export type Database = {
         }
         Relationships: []
       }
+      channex_account_settings: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          mode_changed_at: string
+          operation_mode: string
+          owner_id: string
+          pricing_validated_at: string | null
+          twin_prompt_answered_at: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          mode_changed_at?: string
+          operation_mode?: string
+          owner_id: string
+          pricing_validated_at?: string | null
+          twin_prompt_answered_at?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          mode_changed_at?: string
+          operation_mode?: string
+          owner_id?: string
+          pricing_validated_at?: string | null
+          twin_prompt_answered_at?: string | null
+        }
+        Relationships: []
+      }
       channex_api_logs: {
         Row: {
           attempt: number
@@ -2235,6 +2265,83 @@ export type Database = {
           source?: string
         }
         Relationships: []
+      }
+      channex_twin_links: {
+        Row: {
+          channel_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          last_error: string | null
+          last_sync_at: string | null
+          owner_id: string | null
+          primary_channex_property_id: string
+          primary_listing_id: string
+          primary_rate_plan_id: string
+          primary_room_type_id: string
+          primary_title: string | null
+          property_id: string | null
+          status: string
+          twin_channex_property_id: string
+          twin_listing_id: string
+          twin_rate_plan_id: string
+          twin_room_type_id: string
+          twin_title: string | null
+          updated_at: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          owner_id?: string | null
+          primary_channex_property_id: string
+          primary_listing_id: string
+          primary_rate_plan_id: string
+          primary_room_type_id: string
+          primary_title?: string | null
+          property_id?: string | null
+          status?: string
+          twin_channex_property_id: string
+          twin_listing_id: string
+          twin_rate_plan_id: string
+          twin_room_type_id: string
+          twin_title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          owner_id?: string | null
+          primary_channex_property_id?: string
+          primary_listing_id?: string
+          primary_rate_plan_id?: string
+          primary_room_type_id?: string
+          primary_title?: string | null
+          property_id?: string | null
+          status?: string
+          twin_channex_property_id?: string
+          twin_listing_id?: string
+          twin_rate_plan_id?: string
+          twin_room_type_id?: string
+          twin_title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channex_twin_links_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_message_feedback: {
         Row: {

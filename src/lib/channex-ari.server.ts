@@ -338,9 +338,18 @@ export async function flushAriOutbox(): Promise<FlushResult> {
     .limit(1000);
   const rows = (pending ?? []) as any[];
 
+  // A Channex recusa (422) lotes com mais de uma propriedade: 1 chamada por tipo E por propriedade.
+  const groups: Array<{ kind: "availability" | "restrictions"; items: any[] }> = [];
   for (const kind of ["availability", "restrictions"] as const) {
-    const items = rows.filter((r) => r.kind === kind);
-    if (!items.length) continue;
+    const byProp = new Map<string, any[]>();
+    for (const r of rows.filter((x) => x.kind === kind)) {
+      const k = String(r.channex_property_id);
+      byProp.set(k, [...(byProp.get(k) ?? []), r]);
+    }
+    for (const items of byProp.values()) groups.push({ kind, items });
+  }
+
+  for (const { kind, items } of groups) {
     const batchId = crypto.randomUUID();
     const ids = items.map((r) => r.id);
     await sb.from("channex_ari_outbox").update({ status: "sending", batch_id: batchId }).in("id", ids);
@@ -377,6 +386,13 @@ export async function flushAriOutbox(): Promise<FlushResult> {
             next_attempt_at: new Date(Date.now() + 30_000 * 2 ** attempts).toISOString(),
           })
           .eq("id", r.id);
+        // Desistência: esquece o valor no calendário interno para o próximo diff reenviar (nunca fica "aplicado" sem chegar à Channex).
+        if (giveUp) {
+          const field = kind === "availability" ? "room_type_id" : "rate_plan_id";
+          const target = kind === "availability" ? r.room_type_id : r.rate_plan_id;
+          const reset = kind === "availability" ? { availability: null } : Object.fromEntries(Object.keys(r.payload ?? {}).map((k) => [k === "min_stay_arrival" ? "min_stay" : k, null]));
+          await sb.from("channex_ari_calendar").update(reset).eq(field, target).gte("date", r.date_from).lte("date", r.date_to);
+        }
       }
     }
     result.batches.push({ kind, items: items.length, ok: res.ok, status: res.status, taskId: res.taskId, error: res.error, warnings: res.json?.meta?.warnings ? JSON.stringify(res.json.meta.warnings).slice(0, 1000) : null });

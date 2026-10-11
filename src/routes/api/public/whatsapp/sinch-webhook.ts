@@ -250,6 +250,11 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
           const prior = await loadAgentHistory(supabaseAdmin, convId, 20);
 
           const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
+          const { loadReservationDossier } = await import("@/lib/ai/reservation-dossier.server");
+          const dossier = await loadReservationDossier(supabaseAdmin, {
+            propertyId: String(log.property_id),
+            code: ((log as Record<string, unknown>).reservation_code as string | null) ?? null,
+          }).catch(() => null);
           const result = await runHospitalityAgent({
             supabase: supabaseAdmin,
             property: prop as unknown as Record<string, unknown>,
@@ -261,6 +266,9 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
             surface: "whatsapp",
             channel: "whatsapp",
             channelReference: phoneDigits,
+            checkinDate: dossier?.checkin ?? null,
+            checkoutDate: dossier?.checkout ?? null,
+            reservationDossier: dossier?.text ?? null,
           });
 
           const handoffTriggered = result.handoff;

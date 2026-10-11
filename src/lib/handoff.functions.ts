@@ -306,38 +306,26 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
               checkoutDate: null,
               reservationCode: null,
             };
-          } else {
-            // Fallback visual: usa o acesso mais próximo do início da conversa,
-            // não o hóspede mais recente do imóvel. Assim recupera nomes de
-            // conversas antigas sem grudar tudo no último hóspede que acessou.
-            const fallback = chooseNearestVisualLog(conv);
-            if (fallback) {
-              details[conv.id as string] = {
-                name: fallback.guest_name ?? identity.name,
-                phone: fallback.guest_phone,
-                phoneCountry: fallback.guest_phone_country,
-                checkinDate: fallback.checkin_date,
-                checkoutDate: fallback.checkout_date,
-                reservationCode: fallback.reservation_code,
-              };
-              mergeDetails[conv.id as string] = details[conv.id as string];
-            }
           }
+          // Sem identidade comprovada: nenhum fallback por proximidade de tempo
+          // (fazia um contato novo herdar nome/reserva de outro hóspede).
+          void chooseNearestVisualLog;
         }
       } catch {
         // silencioso — se falhar, seguimos apenas com o que temos na conversa
       }
     }
 
-    // Unifica conversas do mesmo hóspede (Nome preenchido + Data de Check-in + Guia).
+    // Unifica conversas SOMENTE pelo código da reserva confirmada (mesmo imóvel):
+    // aparelhos/hóspedes distintos com o mesmo código viram uma única linha.
+    // Sem código (consultas/pré-reserva) cada conversa fica isolada.
     const bestByKey = new Map<string, HandoffConversationSummary>();
     const ordered: HandoffConversationSummary[] = [];
     const keyFor = (c: HandoffConversationSummary): string => {
       const d = mergeDetails[c.id as string];
-      const name = norm(d?.name ?? c.guest_name);
-      const checkin = d?.checkinDate ?? "";
+      const code = (d?.reservationCode ?? "").trim().toUpperCase();
       const propId = c.property_id ?? "";
-      return name && checkin && propId ? `${propId}|${name}|${checkin}` : `__solo__:${c.id}`;
+      return code && propId ? `${propId}|resv:${code}` : `__solo__:${c.id}`;
     };
     for (const conv of list) {
       const key = keyFor(conv);
@@ -413,7 +401,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             .from("property_reservations")
             .select("property_id, checkin_date, checkout_date")
             .in("property_id", propIds)
-            .eq("source", "airbnb"),
+            .in("source", ["airbnb", "channex"]),
         ]);
         const hasIcal = new Set<string>();
         for (const p of (propsR.data ?? []) as Array<{
@@ -627,28 +615,9 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
                   (name && norm(l.guest_name) === name),
               ) ?? null;
         }
-        if (!log) {
-          const anchor = timeOf(conv.created_at) || timeOf(conv.last_message_at);
-          const { data: logs } = await supabaseAdmin
-            .from("guide_access_logs")
-            .select(
-              "guest_name, guest_phone, guest_phone_country, checkin_date, checkout_date, reservation_code, created_at",
-            )
-            .eq("property_id", conv.property_id)
-            .order("created_at", { ascending: false })
-            .limit(500);
-          log =
-            ((logs ?? []) as AccessLog[])
-              .filter((l) => {
-                if (isPreviewName(l.guest_name)) return false;
-                if (!anchor || (!l.guest_name && !l.guest_phone)) return false;
-                return Math.abs(timeOf(l.created_at) - anchor) <= 1000 * 60 * 60 * 96;
-              })
-              .sort(
-                (a, b) =>
-                  Math.abs(timeOf(a.created_at) - anchor) - Math.abs(timeOf(b.created_at) - anchor),
-              )[0] ?? null;
-        }
+        // Sem identidade comprovada não há fallback por proximidade de tempo:
+        // isso fazia um contato novo herdar nome/reserva de outro hóspede.
+        void timeOf;
         if (log) {
           guestDetails = {
             name: log.guest_name ?? identity.name,
@@ -666,6 +635,82 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       // silencioso — se não achar, seguimos com o que temos
     }
 
+    // -------- Reserva oficial (código + status ativo) --------
+    // A identidade do hóspede ancora na RESERVA oficial (Airbnb/Channex), não no
+    // nome: código, datas e status confirmado/ativo hoje.
+    let reservationActive = false;
+    // Regra: só consolidamos conversas quando há reserva confirmada (código).
+    // Consultas pré-reserva usam o nome exato só para identificar, NUNCA agrupam.
+    let confirmedReservation = false;
+    const reservationNames = new Set<string>();
+    try {
+      if (!isPreviewConv && conv.property_id) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const n = (s: unknown) =>
+          String(s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+        const { data: resv } = await supabaseAdmin
+          .from("property_reservations")
+          .select("external_uid, checkin_date, checkout_date, status, guest_hint, guest_contacts")
+          .eq("property_id", conv.property_id)
+          .in("source", ["airbnb", "channex"])
+          .order("checkin_date", { ascending: false })
+          .limit(300);
+        type R = {
+          external_uid: string;
+          checkin_date: string;
+          checkout_date: string;
+          status: string;
+          guest_hint: string | null;
+          guest_contacts: unknown;
+        };
+        const codeOf = (r: R) => {
+          const gc = (r.guest_contacts ?? {}) as { code?: string };
+          return (gc.code ?? r.external_uid ?? "").toString();
+        };
+        const namesOf = (r: R) => {
+          const gc = (r.guest_contacts ?? {}) as { name?: string; names?: string[] };
+          return [gc.name, ...(gc.names ?? []), r.guest_hint].map(n).filter(Boolean);
+        };
+        // Somente reservas CONFIRMADAS: consultas/pedidos/canceladas nunca agrupam.
+        const rows = ((resv ?? []) as R[]).filter(
+          (r) => !/cancel|inquiry|request|pending|declin|expired/i.test(r.status),
+        );
+        const wantCode = (guestDetails.reservationCode ?? "").trim().toUpperCase();
+        const wantName = n(guestDetails.name ?? conv.guest_name);
+        const hit =
+          (wantCode && rows.find((r) => codeOf(r).toUpperCase() === wantCode)) ||
+          (wantName && rows.find((r) => namesOf(r).some((x) => x === wantName))) ||
+          null;
+        if (hit && codeOf(hit)) confirmedReservation = true;
+        if (hit) {
+          guestDetails = {
+            ...guestDetails,
+            reservationCode: guestDetails.reservationCode ?? (codeOf(hit) || null),
+            checkinDate: guestDetails.checkinDate ?? hit.checkin_date,
+            checkoutDate: guestDetails.checkoutDate ?? hit.checkout_date,
+          };
+          const today = new Date().toISOString().slice(0, 10);
+          reservationActive = hit.checkout_date >= today;
+          for (const x of namesOf(hit)) reservationNames.add(x);
+        }
+        // Todos os nomes que acessaram o guia com o mesmo código entram no
+        // mesmo histórico (hóspede principal + acompanhantes).
+        if (guestDetails.reservationCode) {
+          const { data: logs } = await supabaseAdmin
+            .from("guide_access_logs")
+            .select("guest_name")
+            .eq("property_id", conv.property_id)
+            .eq("reservation_code", guestDetails.reservationCode)
+            .limit(50);
+          for (const l of (logs ?? []) as Array<{ guest_name: string | null }>) {
+            if (l.guest_name && !isPreviewName(l.guest_name)) reservationNames.add(n(l.guest_name));
+          }
+        }
+      }
+    } catch {
+      // silencioso
+    }
+
     // -------- Histórico unificado --------
     // O mesmo hóspede pode ter gerado conversas separadas (sessões diferentes do
     // guia, entradas pelo dock, etc.). Aqui juntamos todas as conversas do mesmo
@@ -676,16 +721,21 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     const digitsOf = (s: string | null | undefined) =>
       (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
     const conversationIds = new Set<string>([data.conversationId]);
+    const guestNameByConversation: Record<string, string> = {};
+    if (conv.guest_name && !isPreviewConv) guestNameByConversation[conv.id] = conv.guest_name;
     try {
       const targetName = isPreviewConv ? "" : normName(guestDetails.name ?? conv.guest_name);
       const targetPhone = isPreviewConv ? "" : digitsOf(guestDetails.phone);
-      if (conv.property_id && (targetName || targetPhone)) {
+      if (confirmedReservation && conv.property_id && (targetName || targetPhone || reservationNames.size > 0)) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: siblings } = await supabase
           .from("property_chat_conversations")
           .select("id, guest_name, guest_session_id")
           .eq("property_id", conv.property_id)
           .limit(500);
+        for (const r of (siblings ?? []) as Array<{ id: string; guest_name: string | null }>) {
+          if (r.guest_name) guestNameByConversation[r.id] = r.guest_name;
+        }
         const rows = (siblings ?? []) as Array<{
           id: string;
           guest_name: string | null;
@@ -727,7 +777,9 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
             ? { name: r.guest_name, phone: null as string | null }
             : ((r.guest_session_id ? identityBySession.get(r.guest_session_id) : null) ?? null);
           if (!ident) continue;
-          const nameHit = !!targetName && normName(ident.name) === targetName;
+          const nameHit =
+            (!!targetName && normName(ident.name) === targetName) ||
+            reservationNames.has(normName(ident.name));
           const phoneHit = !!targetPhone && digitsOf(ident.phone) === targetPhone;
           if (nameHit || phoneHit) conversationIds.add(r.id);
         }
@@ -757,11 +809,12 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
        * Vazio no chat do próprio guia, que não tem recibo nenhum. */
       delivery_status: string | null;
       channel: string | null;
+      conversation_id: string;
     };
     const { data: msgRows, error: mErr } = await supabase
       .from("property_chat_messages")
       .select(
-        "id, role, content, sender_type, sender_user_id, is_internal_note, created_at, edited_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name, attachment_transcript, delivery_status, channel",
+        "id, role, content, sender_type, sender_user_id, is_internal_note, created_at, edited_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name, attachment_transcript, delivery_status, channel, conversation_id",
       )
       .in("conversation_id", Array.from(conversationIds))
       .order("created_at", { ascending: true });
@@ -839,6 +892,8 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       claimRequester,
       assignedProfile,
       senderProfiles,
+      reservationActive,
+      guestNameByConversation,
     };
   });
 
@@ -1249,7 +1304,7 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
       await supabase
         .from("property_chat_conversations")
         .update({
-          // FALAR DIRETO é o que silencia a IA — e agora com prazo: 30 minutos,
+          // FALAR DIRETO é o que silencia a IA — e agora com prazo: 10 minutos,
           // renovados a cada nova mensagem do atendente. Ver `lib/ai/pause.ts`.
           ...pausePatch(),
           status: "assigned",

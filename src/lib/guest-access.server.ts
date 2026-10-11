@@ -98,6 +98,28 @@ export async function isStayMarkedNoShow(
   );
 }
 
+/** Origens de reserva oficiais aceitas pelo guia (iCal Airbnb + API Channex). */
+export const RESERVATION_SOURCES = ["airbnb", "channex"];
+
+/**
+ * O imóvel tem de onde conferir reservas? iCal configurado OU reservas
+ * oficiais recebidas pela API Channex (imóveis integrados não usam iCal).
+ */
+export async function propertyHasReservationFeed(
+  propertyId: string,
+  icalUrl: string | null | undefined,
+): Promise<boolean> {
+  if ((icalUrl ?? "").trim()) return true;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("property_reservations")
+    .select("id")
+    .eq("property_id", propertyId)
+    .eq("source", "channex")
+    .limit(1);
+  return ((data ?? []) as unknown[]).length > 0;
+}
+
 /**
  * Consulta a reserva pelo código (HM…) no espelho do iCal do imóvel. Movida de
  * `guide-access.functions.ts` sem mudança de regra, para ser usada também pelo
@@ -119,26 +141,32 @@ export async function lookupReservationByCode(
     : await propQuery.maybeSingle();
   if (!prop) return { ok: false, reason: "not_found" };
   const icalUrl = ((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
-  if (!icalUrl) return { ok: false, reason: "no_ical" };
+  if (!(await propertyHasReservationFeed(prop.id as string, icalUrl))) {
+    return { ok: false, reason: "no_ical" };
+  }
 
   const code = rawCode.trim().toUpperCase();
-  // Código vazio/curto nunca vai ao banco (e `ilike` com curinga seria um
-  // atalho para "qualquer reserva").
-  if (code.length < 4 || /[%_\\]/.test(code)) return { ok: false, reason: "inactive" };
+  // Só letras/números: nada de curingas ou sintaxe de filtro chegando ao banco.
+  if (code.length < 4 || !/^[A-Z0-9]+$/.test(code)) return { ok: false, reason: "inactive" };
 
-  const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
-  await ensurePropertyIcalFresh(
-    prop.id,
-    icalUrl,
-    (prop as { airbnb_ical_last_sync_at?: string | null }).airbnb_ical_last_sync_at,
-  );
+  if (icalUrl) {
+    const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
+    await ensurePropertyIcalFresh(
+      prop.id,
+      icalUrl,
+      (prop as { airbnb_ical_last_sync_at?: string | null }).airbnb_ical_last_sync_at,
+    );
+  }
 
+  // Reservas oficiais: espelho do iCal (`airbnb`, código em guest_hint) e API
+  // Channex (`channex`, código em guest_contacts.code). Reservas de anúncios
+  // gêmeos já são gravadas no imóvel principal, então caem no mesmo guia.
   const { data: rows } = await supabaseAdmin
     .from("property_reservations")
     .select("checkin_date, checkout_date, raw_summary, status, guest_hint")
     .eq("property_id", prop.id)
-    .eq("source", "airbnb")
-    .ilike("guest_hint", code)
+    .in("source", RESERVATION_SOURCES)
+    .or(`guest_hint.ilike.${code},guest_contacts->>code.eq.${code}`)
     .limit(20);
 
   const list = (rows ?? []) as Array<{

@@ -8,3 +8,5 @@
 - [x] Sistema: clique fora por camada e desfoque unificados nas janelas compartilhadas
 
 - [ ] WhatsApp pelo botão oficial da Meta (cadastro incorporado): aguardando o usuário criar o app na Meta, verificar a empresa e enviar META_APP_ID, META_APP_SECRET e META_WA_CONFIG_ID
+- [x] Modos Leve/Full da integração Airbnb (piloto só Anfitrião Sigma)
+- [ ] Modo Leve sem mapear ARI e leitura periódica de bloqueios: só quando abrir para outras contas

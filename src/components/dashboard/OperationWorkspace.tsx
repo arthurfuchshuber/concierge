@@ -48,6 +48,7 @@ import {
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
 import { ManualCleaningButton } from "@/components/dashboard/ManualCleaningButton";
+import { ManualBlockButton } from "@/components/dashboard/ManualBlockButton";
 import { ManualCleaningCard } from "@/components/dashboard/ManualCleaningCard";
 import {
   Search,
@@ -1119,6 +1120,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     () => filteredOccupancyProperties.filter(matchesProvider),
     [filteredOccupancyProperties, matchesProvider],
   );
+  // Linhas do calendário: cada anúncio gêmeo aparece separado, logo abaixo do
+  // anúncio principal (como no PriceLabs), espelhando as mesmas estadias.
+  const occupancyTwinRows = occupancyQ.data?.twinRows;
+  const calendarRows = useMemo(() => {
+    const twins = occupancyTwinRows ?? [];
+    if (!twins.length) return calendarProperties;
+    return calendarProperties.flatMap((p) => [p, ...twins.filter((t) => t.twinOf === p.id)]);
+  }, [calendarProperties, occupancyTwinRows]);
+  const calendarStays = useMemo(() => {
+    const base = occupancyQ.data?.stays ?? [];
+    const twins = occupancyTwinRows ?? [];
+    if (!twins.length) return base;
+    const extra = twins.flatMap((t) => base.filter((s) => s.propertyId === t.twinOf).map((s) => ({ ...s, propertyId: t.id })));
+    return [...base, ...extra];
+  }, [occupancyQ.data?.stays, occupancyTwinRows]);
   // Filtros movem a página inteira (cards, gráficos, aprovação, ranking),
   // inclusive prestador; lista vazia = nada encontrado (não "todos").
   const cleaningStatsPropertyIds = useMemo(
@@ -1787,6 +1803,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     for (const p of occupancyProperties) map.set(p.id, p.city ?? null);
     return map;
   }, [occupancyProperties]);
+  const calendarCheckedIn = useMemo(() => {
+    const twins = occupancyTwinRows ?? [];
+    if (!twins.length) return checkedInPropertyIds;
+    const next = new Set(checkedInPropertyIds);
+    for (const t of twins) if (checkedInPropertyIds.has(t.twinOf)) next.add(t.id);
+    return next;
+  }, [checkedInPropertyIds, occupancyTwinRows]);
 
   // Prestador VINCULADO ao imóvel (não quem concluiu) — regra das
   // "previstas" (pedido explícito, 23/09/2026): o Kanban ainda não tem uma
@@ -3085,6 +3108,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               {/* Só na aba LIMPEZA (pedido explícito, 09/10/2026): o Kanban não é
                   lugar de criar limpeza — o "+" saiu daqui. */}
               {view === "limpeza" && <ManualCleaningButton />}
+              {view !== "limpeza" && <ManualBlockButton />}
               {view === "limpeza" && cleaningPeriod && (
                 /* PERÍODO NO LUGAR DO INTERRUPTOR (pedido explícito,
                    23/09/2026). Com período personalizado o interruptor
@@ -3412,9 +3436,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={occupancyQ.isLoading}
                 start={occupancyQ.data?.start ?? occStart}
                 days={occupancyQ.data?.days ?? occDays}
-                properties={calendarProperties}
-                stays={occupancyQ.data?.stays ?? []}
-                checkedInPropertyIds={checkedInPropertyIds}
+                properties={calendarRows}
+                stays={calendarStays}
+                checkedInPropertyIds={calendarCheckedIn}
                 periodRange={periodRange}
                 onPeriodRangeChange={setPeriodRange}
                 cityFilters={cityFilters}
@@ -8167,6 +8191,7 @@ function OccupancyPanel({
       }>
     >();
     for (const s of stays) {
+      if ((s as { blocked?: boolean }).blocked) continue;
       const arr = map.get(s.propertyId) ?? [];
       arr.push({
         checkin: s.checkin,
@@ -8179,12 +8204,23 @@ function OccupancyPanel({
     }
     return map;
   }, [stays]);
+  // Bloqueios manuais do ConciergeIA: pintam só as metades livres do dia.
+  const blocksByProperty = useMemo(() => {
+    const map = new Map<string, Array<{ from: string; to: string }>>();
+    for (const s of stays) {
+      if (!(s as { blocked?: boolean }).blocked) continue;
+      const arr = map.get(s.propertyId) ?? [];
+      arr.push({ from: s.checkin, to: s.checkout ?? s.checkin });
+      map.set(s.propertyId, arr);
+    }
+    return map;
+  }, [stays]);
 
   // "in" = check-in confirmado (verde) · "in-pending" = check-in ainda não
   // confirmado (azul claro) · "in-late" = data de check-in já passou sem
   // confirmação (vermelho) — mesma regra do `isOverdue` dos cards do Kanban.
   // Idem para o checkout: "out-pending"/"out-done"/"out-late".
-  type CellPart = "in" | "in-pending" | "in-late" | "out-pending" | "out-done" | "out-late" | "busy" | "free";
+  type CellPart = "in" | "in-pending" | "in-late" | "out-pending" | "out-done" | "out-late" | "busy" | "blocked" | "free";
 
   /**
    * Cada dia é dividido em duas metades (manhã = saída, tarde = entrada),
@@ -8221,11 +8257,17 @@ function OccupancyPanel({
       : through
         ? "busy"
         : "free";
-    return [first, second];
+    const blocks = blocksByProperty.get(propertyId) ?? [];
+    // Manhã: noite anterior bloqueada · Tarde: noite deste dia bloqueada.
+    const amBlocked = blocks.some((b) => b.from < day && b.to >= day);
+    const pmBlocked = blocks.some((b) => b.from <= day && b.to > day);
+    return [first === "free" && amBlocked ? "blocked" : first, second === "free" && pmBlocked ? "blocked" : second];
   }
 
   const clsOf = (s: CellPart) =>
-    s === "in"
+    s === "blocked"
+      ? "bg-muted-foreground/50"
+      : s === "in"
       ? "bg-emerald-500"
       : s === "in-pending"
         ? "bg-sky-400"
