@@ -48,6 +48,7 @@ import {
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
 import { ManualCleaningButton } from "@/components/dashboard/ManualCleaningButton";
+import { ManualBlockButton } from "@/components/dashboard/ManualBlockButton";
 import { ManualCleaningCard } from "@/components/dashboard/ManualCleaningCard";
 import {
   Search,
@@ -3107,6 +3108,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               {/* Só na aba LIMPEZA (pedido explícito, 09/10/2026): o Kanban não é
                   lugar de criar limpeza — o "+" saiu daqui. */}
               {view === "limpeza" && <ManualCleaningButton />}
+              {view !== "limpeza" && <ManualBlockButton />}
               {view === "limpeza" && cleaningPeriod && (
                 /* PERÍODO NO LUGAR DO INTERRUPTOR (pedido explícito,
                    23/09/2026). Com período personalizado o interruptor
