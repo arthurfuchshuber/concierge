@@ -188,6 +188,12 @@ export async function runHospitalityAgent(params: {
 }): Promise<OrchestratorResult> {
   const started = Date.now();
   const { supabase, property } = params;
+  // Economia de contexto: pergunta objetiva (ex.: senha do Wi-Fi) dispensa o
+  // histórico; dúvida contínua sempre lê o histórico antes de responder.
+  {
+    const { needsHistory } = await import("@/lib/ai/history-need");
+    if (!needsHistory(params.message)) params = { ...params, history: [] };
+  }
   const tenant = tenantOf(property);
   const propertyId = String(property.id);
   const ownerId = tenant.ownerId;
