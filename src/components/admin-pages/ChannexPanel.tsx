@@ -28,7 +28,12 @@ export function ChannexPanel() {
     mutationFn: (v: { propertyId: string; enabled: boolean }) => setToggleFn({ data: v }),
     onSuccess: (_r, v) => {
       qc.invalidateQueries({ queryKey: ["airbnb-ai-toggles"] });
-      toast.success(v.enabled ? "IA ligada no chat do Airbnb." : "IA desligada no chat do Airbnb.");
+      qc.invalidateQueries({ queryKey: ["connected-listings-inventory"] });
+      toast.success(
+        v.enabled
+          ? "IA ligada no chat do Airbnb (incluindo anúncios gêmeos)."
+          : "IA desligada no chat do Airbnb (incluindo anúncios gêmeos).",
+      );
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível alterar."),
   });
@@ -45,6 +50,9 @@ export function ChannexPanel() {
     onSuccess: (res) => {
       setLast(res);
       qc.invalidateQueries({ queryKey: ["channex-status"] });
+      qc.invalidateQueries({ queryKey: ["connected-listings-inventory"] });
+      qc.invalidateQueries({ queryKey: ["airbnb-ai-toggles"] });
+      qc.invalidateQueries({ queryKey: ["channex-twins"] });
       toast.success(`${res.importados} imóvel(is) sincronizado(s) de ${res.total} anúncio(s).`);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível sincronizar."),
@@ -76,8 +84,16 @@ export function ChannexPanel() {
         <div className="space-y-2 rounded-lg border border-border p-3">
           <p className="text-xs font-medium text-foreground">IA respondendo no chat do Airbnb</p>
           {toggles.data!.map((t) => (
-            <label key={t.propertyId} className="flex min-w-0 items-center justify-between gap-3 text-xs">
-              <span className="min-w-0 break-words text-muted-foreground">{t.name}</span>
+            <label key={t.listingId} className="flex min-w-0 items-center justify-between gap-3 text-xs">
+              <span className="min-w-0 break-words text-muted-foreground">
+                {t.name}
+                {t.pairNames.length > 0 && (
+                  <span className="block text-[11px] text-muted-foreground/80">
+                    {t.kind === "twin" ? "Gêmeo de " : "Gêmeo: "}
+                    {t.pairNames.join(", ")} · mesma chave
+                  </span>
+                )}
+              </span>
               <Switch
                 checked={t.enabled}
                 disabled={toggle.isPending}

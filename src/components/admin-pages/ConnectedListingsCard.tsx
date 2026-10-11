@@ -9,19 +9,23 @@ export function ConnectedListingsCard() {
   if (!q.data) return null;
   const d = q.data;
   return (
-    <div className="space-y-2 rounded-lg border border-border p-3">
+    <div className="ds-surface space-y-2 bg-card p-5">
       <p className="text-xs font-medium text-foreground">
         {d.totalCount} anúncio(s) conectado(s) ativo(s)
       </p>
       <p className="text-[11px] text-muted-foreground">
         {d.primaryCount} principal(is) · {d.twinCount} gêmeo(s). Cada anúncio conta individualmente.
       </p>
+      <p className="text-[11px] text-muted-foreground">
+        Inventário ativo apurado para a futura cobrança por anúncio conectado. Não altera os valores nem as
+        condições do seu plano atual.
+      </p>
       {d.items.length > 0 && (
         <ul className="space-y-1">
           {d.items.map((i) => (
             <li key={i.listingId} className="flex min-w-0 items-start justify-between gap-3 text-xs">
               <span className="min-w-0 break-words text-muted-foreground">{i.name}</span>
-              <span className="shrink-0 text-[11px] text-muted-foreground">
+              <span className="shrink-0 whitespace-nowrap rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
                 {i.kind === "primary" ? "Principal" : "Gêmeo"}
               </span>
             </li>

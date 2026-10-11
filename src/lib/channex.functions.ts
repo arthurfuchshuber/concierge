@@ -124,26 +124,65 @@ export const getConnectedListingsInventory = createServerFn({ method: "GET" })
     return { totalCount: items.length, primaryCount: items.length - twinCount, twinCount, items };
   });
 
-export type AirbnbAiToggle = { propertyId: string; name: string; enabled: boolean };
+export type AirbnbAiToggle = {
+  propertyId: string;
+  listingId: string;
+  name: string;
+  kind: "primary" | "twin";
+  /** Nome do outro anúncio do mesmo imóvel físico (gêmeo), quando houver. */
+  pairNames: string[];
+  enabled: boolean;
+};
 
-/** Lista os imóveis conectados ao Airbnb e o estado da chave da IA. */
+/**
+ * Lista CADA anúncio conectado (principais e gêmeos, em linhas distintas) e o
+ * estado da IA. Gêmeos compartilham o imóvel, então a chave é sempre espelhada.
+ */
 export const getAirbnbAiToggles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<AirbnbAiToggle[]> => {
     await requireAdmin(context as never);
+    const userId = (context as { userId: string }).userId;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Isolamento: só os anúncios da conta do próprio usuário.
-    const { data } = await supabaseAdmin
-      .from("property_listing_raw_data" as never)
-      .select("property_id, airbnb_ai_enabled, properties!inner(name, owner_id)")
-      .eq("properties.owner_id", (context as { userId: string }).userId);
-    return ((data ?? []) as any[])
-      .map((r) => ({
+    const [{ data }, { data: twins }] = await Promise.all([
+      supabaseAdmin
+        .from("property_listing_raw_data" as never)
+        .select("property_id, airbnb_listing_id, airbnb_ai_enabled, properties!inner(name, owner_id)")
+        .eq("properties.owner_id", userId),
+      (supabaseAdmin as any)
+        .from("channex_twin_links")
+        .select("property_id, twin_listing_id, twin_title")
+        .eq("owner_id", userId)
+        .eq("status", "active"),
+    ]);
+    const out: AirbnbAiToggle[] = [];
+    const byProp = new Map<string, AirbnbAiToggle>();
+    for (const r of (data ?? []) as any[]) {
+      const row: AirbnbAiToggle = {
         propertyId: r.property_id,
+        listingId: String(r.airbnb_listing_id ?? r.property_id),
         name: r.properties?.name ?? "Imóvel",
+        kind: "primary",
+        pairNames: [],
         enabled: !!r.airbnb_ai_enabled,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+      };
+      byProp.set(r.property_id, row);
+      out.push(row);
+    }
+    const seen = new Set(out.map((o) => o.listingId));
+    for (const t of (twins ?? []) as any[]) {
+      const p = byProp.get(t.property_id);
+      const id = String(t.twin_listing_id);
+      if (!p || seen.has(id)) continue;
+      seen.add(id);
+      const name = t.twin_title ?? `Anúncio ${id}`;
+      p.pairNames.push(name);
+      out.push({ propertyId: p.propertyId, listingId: id, name, kind: "twin", pairNames: [p.name], enabled: p.enabled });
+    }
+    const primaryName = (o: AirbnbAiToggle) => (o.kind === "primary" ? o.name : o.pairNames[0] ?? o.name);
+    return out.sort(
+      (a, b) => primaryName(a).localeCompare(primaryName(b), "pt-BR") || (a.kind === "primary" ? -1 : 1),
+    );
   });
 
 /** Liga/desliga a IA no chat do Airbnb para um imóvel (e o app de mensagens na Channex). */
