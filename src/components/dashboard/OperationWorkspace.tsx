@@ -48,6 +48,7 @@ import {
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
 import { ManualCleaningButton } from "@/components/dashboard/ManualCleaningButton";
+import { ManualBlockButton } from "@/components/dashboard/ManualBlockButton";
 import { ManualCleaningCard } from "@/components/dashboard/ManualCleaningCard";
 import {
   Search,
