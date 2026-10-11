@@ -43,7 +43,7 @@ export function ChannelLogo({ channel, size = 14 }: { channel: ChatChannel; size
     <svg width={size} height={size} viewBox="0 0 24 24" role="img" aria-label={title}>
       <title>{title}</title>
       <rect x="3" y="2" width="18" height="20" rx="4" fill="currentColor" className="text-primary" />
-      <path d="M8 8h8M8 12h8M8 16h5" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" className="text-primary-foreground" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
