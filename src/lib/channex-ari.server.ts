@@ -338,9 +338,18 @@ export async function flushAriOutbox(): Promise<FlushResult> {
     .limit(1000);
   const rows = (pending ?? []) as any[];
 
+  // A Channex recusa (422) lotes com mais de uma propriedade: 1 chamada por tipo E por propriedade.
+  const groups: Array<{ kind: "availability" | "restrictions"; items: any[] }> = [];
   for (const kind of ["availability", "restrictions"] as const) {
-    const items = rows.filter((r) => r.kind === kind);
-    if (!items.length) continue;
+    const byProp = new Map<string, any[]>();
+    for (const r of rows.filter((x) => x.kind === kind)) {
+      const k = String(r.channex_property_id);
+      byProp.set(k, [...(byProp.get(k) ?? []), r]);
+    }
+    for (const items of byProp.values()) groups.push({ kind, items });
+  }
+
+  for (const { kind, items } of groups) {
     const batchId = crypto.randomUUID();
     const ids = items.map((r) => r.id);
     await sb.from("channex_ari_outbox").update({ status: "sending", batch_id: batchId }).in("id", ids);
