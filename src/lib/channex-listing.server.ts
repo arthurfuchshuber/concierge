@@ -29,6 +29,23 @@ export const LISTING_ALIASES: Record<string, string> = {
 
 export const primaryListingId = (id: string) => LISTING_ALIASES[id] ?? id;
 
+/** Inclui nos apelidos os pares gêmeos cadastrados pelo sistema (qualquer cliente). */
+export async function refreshListingAliases() {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await (supabaseAdmin as any).from("channex_twin_links").select("twin_listing_id, primary_listing_id").eq("status", "active");
+    for (const r of (data ?? []) as any[]) LISTING_ALIASES[String(r.twin_listing_id)] = String(r.primary_listing_id);
+  } catch (e) {
+    console.error("[channex] apelidos de gêmeos", e);
+  }
+}
+
+/** Versão assíncrona: sempre considera os pares mais recentes do banco. */
+export async function resolvePrimaryListingId(id: string) {
+  await refreshListingAliases();
+  return primaryListingId(id);
+}
+
 /** Compat: airbnb listing id → slug. */
 export const PILOT_LISTINGS: Record<string, string> = Object.fromEntries(
   Object.entries(PILOT_LISTING_CONFIG).map(([id, c]) => [id, c.slug]),
