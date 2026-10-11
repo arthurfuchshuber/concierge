@@ -1127,13 +1127,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     if (!twins.length) return calendarProperties;
     return calendarProperties.flatMap((p) => [p, ...twins.filter((t) => t.twinOf === p.id)]);
   }, [calendarProperties, occupancyTwinRows]);
-  const calendarCheckedIn = useMemo(() => {
-    const twins = occupancyTwinRows ?? [];
-    if (!twins.length) return checkedInPropertyIds;
-    const next = new Set(checkedInPropertyIds);
-    for (const t of twins) if (checkedInPropertyIds.has(t.twinOf)) next.add(t.id);
-    return next;
-  }, [checkedInPropertyIds, occupancyTwinRows]);
   const calendarStays = useMemo(() => {
     const base = occupancyQ.data?.stays ?? [];
     const twins = occupancyTwinRows ?? [];
@@ -1809,6 +1802,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     for (const p of occupancyProperties) map.set(p.id, p.city ?? null);
     return map;
   }, [occupancyProperties]);
+  const calendarCheckedIn = useMemo(() => {
+    const twins = occupancyTwinRows ?? [];
+    if (!twins.length) return checkedInPropertyIds;
+    const next = new Set(checkedInPropertyIds);
+    for (const t of twins) if (checkedInPropertyIds.has(t.twinOf)) next.add(t.id);
+    return next;
+  }, [checkedInPropertyIds, occupancyTwinRows]);
 
   // Prestador VINCULADO ao imóvel (não quem concluiu) — regra das
   // "previstas" (pedido explícito, 23/09/2026): o Kanban ainda não tem uma
