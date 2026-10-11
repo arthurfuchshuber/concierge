@@ -5,6 +5,7 @@ import { Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { ChannexTwinsPanel } from "./ChannexTwinsPanel";
 import {
   getAirbnbAiToggles,
   getChannexStatus,
@@ -88,6 +89,8 @@ export function ChannexPanel() {
           </p>
         </div>
       )}
+
+      {status.data?.configured !== false && <ChannexTwinsPanel />}
 
       {last && (
         <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
