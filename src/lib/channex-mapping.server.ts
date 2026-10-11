@@ -128,15 +128,6 @@ async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promis
   const nights = new Set<string>();
   const units = [{ channexPropertyId: t.channexPropertyId, roomTypeId: t.roomTypeId }, ...(t.sibling ? [t.sibling] : [])];
   for (const u of units) await channexBookingNights(u, nights);
-    const rows = (res?.data ?? []) as any[];
-    for (const b of rows) {
-      const a = b?.attributes ?? {};
-      if (String(a.status ?? "").toLowerCase() === "cancelled") continue;
-      const rooms = (a.rooms ?? []) as any[];
-      const own = rooms.length === 0 || rooms.some((r) => !r.room_type_id || r.room_type_id === t.roomTypeId);
-      if (!own || !a.arrival_date || !a.departure_date) continue;
-      for (let d = new Date(`${a.arrival_date}T00:00:00Z`); iso(d) < a.departure_date; d = new Date(d.getTime() + 86_400_000)) nights.add(iso(d));
-    }
   // Bloqueios do anfitrião / Airbnb (iCal) e reservas registradas no ConciergeIA também fecham a data.
   if (t.propertyId) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
