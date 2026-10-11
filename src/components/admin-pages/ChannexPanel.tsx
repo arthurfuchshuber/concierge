@@ -26,6 +26,19 @@ export function ChannexPanel() {
   const toggles = useQuery({ queryKey: ["airbnb-ai-toggles"], queryFn: () => togglesFn(), retry: false });
   const toggle = useMutation({
     mutationFn: (v: { propertyId: string; enabled: boolean }) => setToggleFn({ data: v }),
+    // Espelho imediato: o anúncio e todos os gêmeos (mesmo imóvel) mudam juntos na tela.
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: ["airbnb-ai-toggles"] });
+      const prev = qc.getQueryData(["airbnb-ai-toggles"]);
+      qc.setQueryData(["airbnb-ai-toggles"], (old: typeof toggles.data) =>
+        old?.map((t) => (t.propertyId === v.propertyId ? { ...t, enabled: v.enabled } : t)),
+      );
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["airbnb-ai-toggles"], ctx.prev);
+      toast.error(e instanceof Error ? e.message : "Não foi possível alterar.");
+    },
     onSuccess: (_r, v) => {
       qc.invalidateQueries({ queryKey: ["airbnb-ai-toggles"] });
       qc.invalidateQueries({ queryKey: ["connected-listings-inventory"] });
@@ -35,7 +48,6 @@ export function ChannexPanel() {
           : "IA desligada no chat do Airbnb (incluindo anúncios gêmeos).",
       );
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível alterar."),
   });
   const [last, setLast] = useState<ChannexSyncResult | null>(null);
 

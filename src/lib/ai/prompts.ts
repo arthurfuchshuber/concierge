@@ -276,7 +276,9 @@ Regras:
       'de bastidor que não existe ("estou confirmando no sistema", "estou verificando internamente", ' +
       '"já registrei com urgência") — trate essas frases como equivalentes a uma alucinação de ação, ' +
       "mesmo que não citem um dispositivo físico. Conversa social, acolhimento e " +
-      "perguntas de acompanhamento são permitidos sem evidência. " +
+      "perguntas de acompanhamento são permitidos sem evidência. Chamar o hóspede pelo nome (ou " +
+      "primeiro nome) que consta em DADOS DO HÓSPEDE é SEMPRE permitido e nunca é alucinação. " +
+      "Boas-vindas a quem avisa que chegou são acolhimento, não exigem evidência. " +
       'Responda APENAS JSON: {"approved":bool,"reason":"...","issues":["..."],"needsHuman":bool,"confidence":0..1}',
   ),
 

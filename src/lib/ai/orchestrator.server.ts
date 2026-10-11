@@ -729,7 +729,17 @@ export async function runHospitalityAgent(params: {
         hedged: Math.max(baseThresholds.hedged, agent.thresholds.hedged),
       };
 
-  const evidenceText = evidence.slice(0, 24).join("\n\n") || "(nenhuma evidência recuperada)";
+  // Dados oficiais do hóspede desta conversa: sem eles o validador reprovava
+  // saudações com o nome do hóspede como "alucinação" (caso Fabiane, 11/10/2026).
+  const guestFacts = [
+    params.guestName ? `Nome do hóspede desta conversa (cadastro oficial do canal): ${params.guestName}` : "",
+    params.checkinDate ? `Check-in da reserva: ${params.checkinDate}` : "",
+    params.checkoutDate ? `Check-out da reserva: ${params.checkoutDate}` : "",
+  ].filter(Boolean).join("\n");
+  const evidenceText =
+    [guestFacts ? `DADOS DO HÓSPEDE (fato oficial):\n${guestFacts}` : "", ...evidence.slice(0, 24)]
+      .filter(Boolean)
+      .join("\n\n") || "(nenhuma evidência recuperada)";
   /** O bloco de confiança já validou e já montou o texto final deste turno. */
   let jaValidado = false;
   let validationResult: unknown = null;
