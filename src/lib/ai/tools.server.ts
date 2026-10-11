@@ -1140,17 +1140,35 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         content: `${entrada} → ${saida}: ${livre ? "livre" : "ocupado"}`,
       });
 
+      let contraproposta: {
+        trechos_livres_no_periodo: ReturnType<typeof partialWindows>;
+        periodo_mais_proximo_mesma_duracao: ReturnType<typeof nearestShiftedWindow>;
+      } | null = null;
+      if (!livre) {
+        const hoje = hojeSP();
+        const cal = await calendario([ctx.propertyId], addDays(entrada, -21), addDays(saida, 21));
+        const busy = cal.get(ctx.propertyId) ?? [];
+        contraproposta = {
+          trechos_livres_no_periodo: partialWindows(busy, entrada < hoje ? hoje : entrada, saida, MIN_NOITES),
+          periodo_mais_proximo_mesma_duracao: nearestShiftedWindow(busy, entrada, saida, hoje),
+        };
+      }
+
       return {
         imovel: p?.name ?? null,
         periodo: { entrada, saida },
         livre,
+        contraproposta,
         sincronizado_em: sync,
         aviso:
           horasDesdeSync != null && horasDesdeSync > 24
             ? "O calendário não sincroniza há mais de um dia — trate como indicação, não como garantia."
             : null,
-        observacao:
-          "Disponibilidade de calendário. Preço e confirmação da reserva são sempre na plataforma do anúncio.",
+        observacao: livre
+          ? "Disponibilidade de calendário. Preço e confirmação da reserva são sempre na plataforma do anúncio."
+          : "Ocupado no período pedido. NUNCA responda só 'não': ofereça o trecho livre dentro do período " +
+            "(ex.: 'temos de 12 a 14, podemos seguir?') e/ou o período mais próximo, e chame find_available_stays " +
+            "para outras unidades. Feche com uma pergunta de duas opções.",
       };
     },
   });
