@@ -386,6 +386,13 @@ export async function flushAriOutbox(): Promise<FlushResult> {
             next_attempt_at: new Date(Date.now() + 30_000 * 2 ** attempts).toISOString(),
           })
           .eq("id", r.id);
+        // Desistência: esquece o valor no calendário interno para o próximo diff reenviar (nunca fica "aplicado" sem chegar à Channex).
+        if (giveUp) {
+          const field = kind === "availability" ? "room_type_id" : "rate_plan_id";
+          const target = kind === "availability" ? r.room_type_id : r.rate_plan_id;
+          const reset = kind === "availability" ? { availability: null } : Object.fromEntries(Object.keys(r.payload ?? {}).map((k) => [k === "min_stay_arrival" ? "min_stay" : k, null]));
+          await sb.from("channex_ari_calendar").update(reset).eq(field, target).gte("date", r.date_from).lte("date", r.date_to);
+        }
       }
     }
     result.batches.push({ kind, items: items.length, ok: res.ok, status: res.status, taskId: res.taskId, error: res.error, warnings: res.json?.meta?.warnings ? JSON.stringify(res.json.meta.warnings).slice(0, 1000) : null });
