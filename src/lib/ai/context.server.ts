@@ -170,7 +170,9 @@ export async function buildAgentContext(params: {
         }) ??
         null;
     }
-    if (!log) log = logs.find(covers) ?? logs[0] ?? null;
+    // Sem nome conhecido, NUNCA herdamos a reserva de quem está hospedado hoje
+    // ou do último acesso: isso fazia um contato novo virar outro hóspede.
+    void covers;
     if (log?.checkin_date) {
       keys.push("reservation");
       const today = todayIso;

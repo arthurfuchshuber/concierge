@@ -16,6 +16,7 @@
  *   8. Confidence Threshold do próprio agente (auto | com ressalva | handoff)
  *   9. Gravação seletiva de memória + observabilidade (log completo)
  */
+import { ensureGreeting } from "@/lib/ai/greeting";
 import { SILENCE_TOKEN, finalizeAgentReply } from "@/lib/ai/reply-finalize";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { EMPTY_USAGE, mergeUsage, runAgent, type Usage } from "./gateway.server";
@@ -957,6 +958,10 @@ export async function runHospitalityAgent(params: {
       question: handoffReason.replace(/^\[[^\]]+\]\s*/, ""),
     }).catch(() => null);
   }
+
+  // Saudação obrigatória: se a IA ainda não cumprimentou ninguém nesta
+  // conversa, a resposta abre com um cumprimento (inclusive frases fixas).
+  if (reply) reply = ensureGreeting(reply, params.history, params.guestName ?? null, intent.language);
 
   // Botões de resposta rápida — sempre que a IA termina fazendo uma pergunta
   // ao hóspede, ele deve poder responder num toque (e continuar livre para
