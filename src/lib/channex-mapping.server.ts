@@ -20,18 +20,50 @@ export type SafeMapTarget = {
   ratePlanId: string;
   /** Imóvel no ConciergeIA (bloqueios e reservas locais também fecham datas). */
   propertyId?: string;
+  /**
+   * Anúncio gêmeo (mesma casa física) com unidade própria na Channex. As
+   * reservas dele também fecham as datas deste anúncio, e vice-versa: cada
+   * anúncio aparece sozinho no PriceLabs e os calendários travam juntos.
+   */
+  sibling?: { channexPropertyId: string; roomTypeId: string };
 };
+
+const AIRBNB_SIGMA = "9f7f35ab-3b40-4b84-8483-693122d9604b";
+const AIRBNB_CLAYTON = "24c871d9-d6fd-46f5-944d-a38b8a4df189";
+
+/** Monta os dois lados de um par de anúncios gêmeos, cada um apontando para o outro. */
+function twinPair(
+  a: Omit<SafeMapTarget, "sibling">,
+  b: Omit<SafeMapTarget, "sibling" | "channelId" | "propertyId">,
+): SafeMapTarget[] {
+  return [
+    { ...a, sibling: { channexPropertyId: b.channexPropertyId, roomTypeId: b.roomTypeId } },
+    { ...b, channelId: a.channelId, propertyId: a.propertyId, sibling: { channexPropertyId: a.channexPropertyId, roomTypeId: a.roomTypeId } },
+  ];
+}
 
 /** Anúncios liberados no piloto com seus IDs na Channex. */
 export const PILOT_MAPPINGS: SafeMapTarget[] = [
-  {
-    channelId: "9f7f35ab-3b40-4b84-8483-693122d9604b",
-    listingId: "1081915824812637088",
-    channexPropertyId: "c1add170-eaed-42b8-bb12-dc2f3adcf9e3",
-    roomTypeId: "763011b4-1941-4fa3-978a-641c8d0df782",
-    ratePlanId: "164f4b12-c67c-4da9-aebc-ae093689b2e3",
-    propertyId: "9a94ad7f-c259-4a66-aedf-c4e87c449d5c",
-  },
+  // Casa Charmosa ↔ Belíssima Casa
+  ...twinPair(
+    { channelId: AIRBNB_SIGMA, listingId: "1081915824812637088", channexPropertyId: "c1add170-eaed-42b8-bb12-dc2f3adcf9e3", roomTypeId: "763011b4-1941-4fa3-978a-641c8d0df782", ratePlanId: "164f4b12-c67c-4da9-aebc-ae093689b2e3", propertyId: "9a94ad7f-c259-4a66-aedf-c4e87c449d5c" },
+    { listingId: "901415199481975174", channexPropertyId: "8509820d-fae1-4d88-a369-394a253abcb7", roomTypeId: "02c33006-7489-4987-a2f2-ff983295afc1", ratePlanId: "4d3bb035-f830-46b6-a087-52b2c228ae8e" },
+  ),
+  // Studio 101 ↔ Apartamento 101
+  ...twinPair(
+    { channelId: AIRBNB_CLAYTON, listingId: "1668247859065922881", channexPropertyId: "032fb0bc-9d2d-450f-9d9a-cf8da9b9ad60", roomTypeId: "f5911861-2f36-473a-943d-8c31598c22f6", ratePlanId: "d2275f4e-10fb-4b0a-9978-02fb2b6acf3a", propertyId: "3b1addff-85e6-488b-b019-bb0168df904c" },
+    { listingId: "1792880398875841438", channexPropertyId: "0f4b07b8-b971-41c5-95c9-ccd151681a7f", roomTypeId: "96c805a1-11d5-4fe3-8f6c-30d0a7f88993", ratePlanId: "2612faa9-fedc-43de-a1eb-196465530666" },
+  ),
+  // Studio 102 ↔ Apartamento 102
+  ...twinPair(
+    { channelId: AIRBNB_CLAYTON, listingId: "1668250046816777608", channexPropertyId: "a9110e74-d7b2-4d72-8b9a-a38f7014f2dc", roomTypeId: "4151bb96-1bbc-4f75-b54a-e745408a00e1", ratePlanId: "232fc17c-2c39-4f55-8bde-861a78ae503b", propertyId: "4fe68806-2384-4cb5-9565-e3315eb4c4da" },
+    { listingId: "1792882876333057974", channexPropertyId: "2016585c-1483-4015-9eca-bc1b9ae70499", roomTypeId: "643cd524-2b80-43cd-96ca-c1129ca64105", ratePlanId: "db8a76c4-40cf-4da9-8206-0eba3469d1db" },
+  ),
+  // Studio 103 ↔ Studio 103 Ponte da Amizade
+  ...twinPair(
+    { channelId: AIRBNB_CLAYTON, listingId: "1668251215421954022", channexPropertyId: "b94a9b9a-899f-438b-a0a2-3e2e84d31017", roomTypeId: "82acb151-c3b5-4b78-bcff-362ed42ac86b", ratePlanId: "75ba04db-e687-4fc8-9c5a-7dd43415b3ff", propertyId: "cc6fd3c8-dcb2-495c-83ff-936dd50f5f4f" },
+    { listingId: "1792868987771365608", channexPropertyId: "6818915e-bd4a-4690-98a7-b9cbb6ff60e2", roomTypeId: "66fff8fa-20c8-49fb-89ca-77d7937ef051", ratePlanId: "8cef06d7-999c-43c3-9498-8a6b054869a9" },
+  ),
 ];
 
 async function call(method: string, path: string, body?: unknown): Promise<any> {
@@ -74,9 +106,8 @@ export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | nu
   return { listingId: t.listingId, status: "mapped" as const, sync };
 }
 
-/** Noites ocupadas por reservas ativas do imóvel na Channex (paginado). */
-async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promise<Set<string>> {
-  const nights = new Set<string>();
+/** Noites ocupadas por reservas ativas de uma unidade na Channex (paginado). */
+async function channexBookingNights(t: { channexPropertyId: string; roomTypeId: string }, nights: Set<string>) {
   for (let page = 1; page <= 50; page++) {
     const res = await call("GET", `/bookings?filter[property_id]=${t.channexPropertyId}&pagination[page]=${page}&pagination[limit]=100`);
     const rows = (res?.data ?? []) as any[];
@@ -90,6 +121,13 @@ async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promis
     }
     if (rows.length < 100) break;
   }
+}
+
+/** Noites ocupadas: reservas deste anúncio, do gêmeo e do imóvel no ConciergeIA. */
+async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promise<Set<string>> {
+  const nights = new Set<string>();
+  const units = [{ channexPropertyId: t.channexPropertyId, roomTypeId: t.roomTypeId }, ...(t.sibling ? [t.sibling] : [])];
+  for (const u of units) await channexBookingNights(u, nights);
   // Bloqueios do anfitrião / Airbnb (iCal) e reservas registradas no ConciergeIA também fecham a data.
   if (t.propertyId) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -118,7 +156,7 @@ async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promis
  * noite reservada = 0, noite livre dentro da janela do anfitrião = 1, além dela = 0.
  * Só o delta entra na outbox ARI (limitador 20/min). Preços não são tocados.
  */
-export async function syncRealAvailability(t: SafeMapTarget, userId: string | null, fallbackWindow = 270) {
+export async function syncRealAvailability(t: SafeMapTarget, userId: string | null, fallbackWindow = 270, flush = true) {
   const ch = await call("GET", `/channels/${t.channelId}`).catch(() => null);
   const rp = (ch?.data?.attributes?.rate_plans ?? []).find((r: any) => String(r.settings?.listing_id) === t.listingId);
   const notice = Number(rp?.settings?.availability_rule?.max_days_notice);
@@ -136,14 +174,17 @@ export async function syncRealAvailability(t: SafeMapTarget, userId: string | nu
     else merged.push({ propertyId: t.channexPropertyId, roomTypeId: t.roomTypeId, ratePlanId: t.ratePlanId, dateFrom: date, dateTo: date, fields: { availability } });
   }
   await applyCalendarChanges(merged, userId, "real_availability");
-  const flush = await flushAriOutbox();
-  const avail = flush.batches.find((b) => b.kind === "availability");
+  if (!flush) return { ok: true, bookedNights: nights.size, windowDays };
+  const flushed = await flushAriOutbox();
+  const avail = flushed.batches.find((b) => b.kind === "availability");
   return { ok: !avail || avail.ok, bookedNights: nights.size, windowDays };
 }
 
 /** Realinha a disponibilidade real de todos os anúncios do piloto (após reservas novas/canceladas). */
 export async function syncPilotAvailability(userId: string | null = null) {
   const out: unknown[] = [];
-  for (const t of PILOT_MAPPINGS) out.push(await syncRealAvailability(t, userId).catch((e) => ({ ok: false, error: String(e) })));
+  // Calcula todos os anúncios (incluindo gêmeos) e envia tudo num único lote ARI.
+  for (const t of PILOT_MAPPINGS) out.push(await syncRealAvailability(t, userId, 270, false).catch((e) => ({ ok: false, error: String(e) })));
+  await flushAriOutbox().catch((e) => console.error("[channex] flush disponibilidade", e));
   return out;
 }
