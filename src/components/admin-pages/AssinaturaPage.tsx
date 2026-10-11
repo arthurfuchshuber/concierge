@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { metaPixelTrack, metaPixelTrackCustom, metaPixelTrackOnce } from "@/lib/meta-pixel";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { PageHeader } from "@/components/ds/PageHeader";
+import { ConnectedListingsCard } from "./ConnectedListingsCard";
 
 export { AssinaturaPage };
 
@@ -199,6 +200,11 @@ function AssinaturaPage() {
           ) : null
         }
       />
+
+      <div className="mt-4">
+        <ConnectedListingsCard />
+      </div>
+
 
       {isLoading ? (
         <div className="mt-8 ds-surface border border-border bg-card p-6 h-40 animate-pulse" />
