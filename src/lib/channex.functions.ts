@@ -77,17 +77,21 @@ export const getAirbnbAiToggles = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<AirbnbAiToggle[]> => {
     await requireAdmin(context as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Isolamento: só os anúncios da conta do próprio usuário.
     const { data } = await supabaseAdmin
       .from("property_listing_raw_data" as never)
-      .select("property_id, airbnb_ai_enabled, properties(name)");
-    return ((data ?? []) as any[]).map((r) => ({
-      propertyId: r.property_id,
-      name: r.properties?.name ?? "Imóvel",
-      enabled: !!r.airbnb_ai_enabled,
-    }));
+      .select("property_id, airbnb_ai_enabled, properties!inner(name, owner_id)")
+      .eq("properties.owner_id", (context as { userId: string }).userId);
+    return ((data ?? []) as any[])
+      .map((r) => ({
+        propertyId: r.property_id,
+        name: r.properties?.name ?? "Imóvel",
+        enabled: !!r.airbnb_ai_enabled,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   });
 
-/** Liga/desliga a IA no chat do Airbnb para um imóvel. */
+/** Liga/desliga a IA no chat do Airbnb para um imóvel (e o app de mensagens na Channex). */
 export const setAirbnbAiToggle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { propertyId: string; enabled: boolean }) => {
@@ -96,13 +100,23 @@ export const setAirbnbAiToggle = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     await requireAdmin(context as never);
+    const userId = (context as { userId: string }).userId;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prop } = await supabaseAdmin
+      .from("properties")
+      .select("owner_id")
+      .eq("id", data.propertyId)
+      .maybeSingle();
+    if (!prop || (prop as any).owner_id !== userId) throw new Error("Imóvel não pertence à sua conta.");
+    // Primeiro a Channex: se falhar, a chave não muda de estado.
+    const { syncMessagesApp, channexPropertiesFor } = await import("@/lib/channex-messages-app.server");
+    await syncMessagesApp(await channexPropertiesFor(supabaseAdmin, data.propertyId), data.enabled);
     const { error } = await supabaseAdmin
       .from("property_listing_raw_data" as never)
       .update({
         airbnb_ai_enabled: data.enabled,
         airbnb_ai_toggled_at: new Date().toISOString(),
-        airbnb_ai_toggled_by: (context as { userId: string }).userId,
+        airbnb_ai_toggled_by: userId,
       } as never)
       .eq("property_id", data.propertyId);
     if (error) throw new Error(error.message);
