@@ -725,7 +725,7 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     try {
       const targetName = isPreviewConv ? "" : normName(guestDetails.name ?? conv.guest_name);
       const targetPhone = isPreviewConv ? "" : digitsOf(guestDetails.phone);
-      if (conv.property_id && (targetName || targetPhone || reservationNames.size > 0)) {
+      if (confirmedReservation && conv.property_id && (targetName || targetPhone || reservationNames.size > 0)) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: siblings } = await supabase
           .from("property_chat_conversations")
