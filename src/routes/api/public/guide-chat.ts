@@ -354,6 +354,14 @@ async function runGuideChat(
 
     const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
     const { AiGatewayError } = await import("@/lib/ai/gateway.server");
+    const { loadReservationDossier } = await import("@/lib/ai/reservation-dossier.server");
+    const dossier =
+      body.reservationCode && !landing.isLandingCopy(body.slug)
+        ? await loadReservationDossier(supabaseAdmin as SupabaseClient, {
+            propertyId: String(agentProperty.id),
+            code: body.reservationCode,
+          }).catch(() => null)
+        : null;
 
     let result: Awaited<ReturnType<typeof runHospitalityAgent>>;
     try {
@@ -371,6 +379,9 @@ async function runGuideChat(
         surface: "guide_chat",
         credentialsLocked,
         reservationVerified,
+        checkinDate: dossier?.checkin ?? null,
+        checkoutDate: dossier?.checkout ?? null,
+        reservationDossier: dossier?.text ?? null,
       });
     } catch (err) {
       const status = err instanceof AiGatewayError ? err.status : 502;
