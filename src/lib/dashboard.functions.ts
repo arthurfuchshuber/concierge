@@ -163,7 +163,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint")
         .in("property_id", propIds)
-        .eq("source", "airbnb")
+        .in("source", ["airbnb", "channex"])
         .or(
           `and(checkin_date.gte.${overdueFrom},checkin_date.lte.${tomorrow}),and(checkout_date.gte.${overdueFrom},checkout_date.lte.${tomorrow})`,
         )
@@ -676,7 +676,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint")
         .in("property_id", propIds)
-        .eq("source", "airbnb")
+        .in("source", ["airbnb", "channex"])
         .gte("checkin_date", fetchFrom)
         .lte("checkin_date", fetchTo)
         .gte("checkout_date", today)
@@ -1296,12 +1296,12 @@ export const markPendingReservationStatus = createServerFn({ method: "POST" })
         .select("id")
         .eq("property_id", data.propertyId)
         .eq("checkin_date", data.checkinDate)
-        .eq("source", "airbnb")
+        .in("source", ["airbnb", "channex"])
         .limit(1);
       const { data: matches } = data.checkoutDate ? await query.eq("checkout_date", data.checkoutDate) : await query;
       reservationId = (matches?.[0] as { id: string } | undefined)?.id ?? null;
     }
-    if (!reservationId) throw new Error("Reserva iCal não encontrada.");
+    if (!reservationId) throw new Error("Reserva não encontrada.");
 
     const { data: existing } = await context.supabase
       .from("guest_arrival_status")
@@ -2118,6 +2118,8 @@ export type OccupancyStay = {
   checkinDone: boolean;
   // Mesma ideia para o checkout (guest_arrival_status kind="checkout" status="done").
   checkoutDone: boolean;
+  // Bloqueio manual do ConciergeIA (fecha o anúncio e os gêmeos via API).
+  blocked?: boolean;
 };
 
 export const getOccupancyBoard = createServerFn({ method: "GET" })
@@ -2158,9 +2160,9 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       context.supabase.from("properties").select("id, name, city, owner_contact_id, hero_image_url, address, maps_url, garage_maps_url").in("id", propIds).order("name"),
       context.supabase
         .from("property_reservations")
-        .select("id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
+        .select("id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary, source")
         .in("property_id", propIds)
-        .eq("source", "airbnb")
+        .in("source", ["airbnb", "channex", "manual"])
         .lte("checkin_date", end)
         .gte("checkout_date", start)
         .limit(5000),
@@ -2238,7 +2240,23 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       guest_hint: string | null;
       status: string | null;
       raw_summary: string | null;
-    }>).filter(isRealReservation);
+      source?: string | null;
+    }>);
+    for (const b of reservationRows) {
+      if (b.source !== "manual" || b.status !== "blocked") continue;
+      stays.push({
+        propertyId: b.property_id,
+        checkin: b.checkin_date,
+        checkout: b.checkout_date,
+        guest: b.raw_summary?.trim() ? `Bloqueado: ${b.raw_summary.trim()}` : "Bloqueado",
+        checkinDone: false,
+        checkoutDone: false,
+        blocked: true,
+      });
+    }
+    const realRows = reservationRows.filter((r) => r.source !== "manual" && isRealReservation(r));
+    reservationRows.length = 0;
+    reservationRows.push(...realRows);
 
     const consumedLogs = new Set<(typeof logRows)[number]>();
     for (const r of reservationRows) {

@@ -20,7 +20,7 @@ export async function reconcileSupersededStays(
     .from("property_reservations")
     .select("id, property_id, checkin_date, checkout_date, status")
     .in("property_id", propertyIds)
-    .eq("source", "airbnb")
+    .in("source", ["airbnb", "channex"])
     .lte("checkin_date", today)
     .order("checkin_date", { ascending: false });
   if (reservationsError) throw reservationsError;
@@ -98,7 +98,7 @@ export async function reconcilePostponedCheckouts(
     .from("property_reservations")
     .select("id, checkout_date, status")
     .in("property_id", propertyIds)
-    .eq("source", "airbnb")
+    .in("source", ["airbnb", "channex"])
     .gt("checkout_date", today);
   if (error) throw error;
   const live = new Map<string, string>();
