@@ -24,6 +24,7 @@ export const LISTING_ALIASES: Record<string, string> = {
   "1792880398875841438": "1668247859065922881", // Apartamento 101 → Studio 101
   "1792882876333057974": "1668250046816777608", // Apartamento 102 → Studio 102
   "1792868987771365608": "1668251215421954022", // Studio 103 Ponte da Amizade → Studio 103
+  "901415199481975174": "1081915824812637088", // Belíssima Casa → Casa Charmosa
 };
 
 export const primaryListingId = (id: string) => LISTING_ALIASES[id] ?? id;
