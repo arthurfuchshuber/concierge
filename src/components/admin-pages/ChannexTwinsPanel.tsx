@@ -30,6 +30,8 @@ export function ChannexTwinsPanel() {
       toast.success(r.alreadyLinked ? "Esses anúncios já estavam unidos." : "Anúncios unidos: reservar um fecha o outro.");
       setTwin("");
       qc.invalidateQueries({ queryKey: ["channex-twins"] });
+      qc.invalidateQueries({ queryKey: ["connected-listings-inventory"] });
+      qc.invalidateQueries({ queryKey: ["airbnb-ai-toggles"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível unir."),
   });

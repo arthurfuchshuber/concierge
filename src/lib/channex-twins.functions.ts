@@ -13,7 +13,7 @@ export const listTwinCandidates = createServerFn({ method: "GET" })
     await requireAdmin(context as never);
     const { listAirbnbListings } = await import("@/lib/channex-twins.server");
     const { listTwinLinks } = await import("@/lib/channex-twins.server");
-    const [listings, links] = await Promise.all([listAirbnbListings(), listTwinLinks()]);
+    const [listings, links] = await Promise.all([listAirbnbListings(), listTwinLinks((context as any).userId)]);
     return { listings, links };
   });
 

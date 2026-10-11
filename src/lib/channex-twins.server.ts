@@ -102,7 +102,7 @@ export async function linkTwinListing(input: { channelId: string; primaryListing
   const twinTitle = publicTitle(twin.title) || twin.listingId;
 
   // Imóvel do ConciergeIA (dono do par) pelo anúncio principal.
-  const { data: raw } = await db.from("property_listing_raw_data").select("property_id").eq("airbnb_listing_id", input.primaryListingId).maybeSingle();
+  const { data: raw } = await db.from("property_listing_raw_data").select("property_id, airbnb_ai_enabled").eq("airbnb_listing_id", input.primaryListingId).maybeSingle();
   const propertyId: string | null = raw?.property_id ?? null;
   let ownerId: string | null = null;
   if (propertyId) ownerId = (await db.from("properties").select("owner_id").eq("id", propertyId).maybeSingle()).data?.owner_id ?? null;
@@ -186,16 +186,22 @@ export async function linkTwinListing(input: { channelId: string; primaryListing
   // 5) Confirma o calendário unido com o anúncio já publicado.
   const post = await syncTwinPair(twin.listingId, input.userId ?? null).catch(() => ({ ok: false }));
   await db.from("channex_twin_links").update({ last_sync_at: new Date().toISOString(), last_error: post.ok ? null : "Reenvio do calendário pendente (nova tentativa automática)." }).eq("twin_listing_id", twin.listingId);
+  // 6) Espelha a IA do chat: se o imóvel já tem a IA ligada, o novo gêmeo nasce ligado também.
+  if (raw?.airbnb_ai_enabled) {
+    const { syncMessagesApp } = await import("@/lib/channex-messages-app.server");
+    await syncMessagesApp([unit.propertyId, primary.propertyId], true).catch((e) => console.error("[twins] messages app", e));
+  }
   return { alreadyLinked: false, twinPropertyId: unit.propertyId };
 }
 
 /** Pares unidos pelo sistema (para a tela de integrações). */
-export async function listTwinLinks() {
+export async function listTwinLinks(ownerId?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await (supabaseAdmin as any)
+  let q = (supabaseAdmin as any)
     .from("channex_twin_links")
     .select("twin_listing_id, primary_listing_id, primary_title, twin_title, status, last_sync_at, last_error")
-    .eq("status", "active")
-    .order("created_at");
+    .eq("status", "active");
+  if (ownerId) q = q.eq("owner_id", ownerId);
+  const { data } = await q.order("created_at");
   return (data ?? []) as Array<{ twin_listing_id: string; primary_listing_id: string; primary_title: string | null; twin_title: string | null; status: string; last_sync_at: string | null; last_error: string | null }>;
 }
