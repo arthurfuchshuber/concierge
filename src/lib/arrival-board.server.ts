@@ -762,7 +762,14 @@ export async function buildArrivalRows(
     // `allReservationsRaw` = reserva buscada pela data bruta + reservas que a
     // busca principal descartou mas cuja PREVISÃO cai dentro da janela
     // pedida (ver bloco "PREVISTO fora da janela" logo após o Promise.all).
-    const reservationRows = (allReservationsRaw as ReservationRow[]).filter(isRealReservation);
+    // Uma estadia = um card. Imóveis conectados podem ter a mesma estadia
+    // duas vezes (registro antigo do iCal + registro oficial da Channex):
+    // deduplica por imóvel + entrada + saída, mantendo o registro que já tem
+    // status gravado pela equipe; sem status, o mais recente (Channex).
+    const reservationRows = dedupeStays(
+      (allReservationsRaw as ReservationRow[]).filter(isRealReservation),
+      (id) => reservationStatusMap.has(id),
+    );
     for (const r of reservationRows) {
       const arr = resByProp.get(r.property_id) ?? [];
       arr.push({
