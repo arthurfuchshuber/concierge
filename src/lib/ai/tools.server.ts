@@ -1189,18 +1189,37 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         saida,
       );
 
+      // Link oficial do anúncio vindo do canal quando o imóvel não tem URL salva.
+      const { data: rawRows } = await ctx.supabase
+        .from("property_listing_raw_data")
+        .select("property_id, airbnb_listing_id")
+        .eq("owner_id", ctx.ownerId)
+        .in("property_id", lista.map((x) => x.id));
+      const listingId = new Map<string, string>();
+      for (const r of (rawRows ?? []) as Array<{ property_id: string; airbnb_listing_id: string | null }>) {
+        if (r.airbnb_listing_id && !listingId.has(r.property_id)) listingId.set(r.property_id, r.airbnb_listing_id);
+      }
+      const norm = (s: string | null) => (s ?? "").trim().toLowerCase();
+
       const livres = lista
         .filter((x) => !ocupado.get(x.id))
         .filter((x) => (hospedes ? (x.airbnb_guest_count ?? 99) >= hospedes : true))
         .map((x) => ({
           imovel: x.name,
           cidade: x.city,
+          mesma_cidade: !!atual && norm(atual.city) === norm(x.city),
           distancia_km: atual ? distanciaKm(atual, x) : null,
           capacidade: x.airbnb_guest_count,
           quartos: x.airbnb_bedroom_count,
-          link_anuncio: x.airbnb_listing_url,
+          link_anuncio:
+            x.airbnb_listing_url ??
+            (listingId.get(x.id) ? `https://www.airbnb.com.br/rooms/${listingId.get(x.id)}` : null),
         }))
-        .sort((a, b) => (a.distancia_km ?? 999) - (b.distancia_km ?? 999))
+        .sort(
+          (a, b) =>
+            Number(b.mesma_cidade) - Number(a.mesma_cidade) ||
+            (a.distancia_km ?? 999) - (b.distancia_km ?? 999),
+        )
         .slice(0, 5);
 
       ctx.collectSource({
