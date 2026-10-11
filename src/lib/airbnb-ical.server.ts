@@ -193,6 +193,14 @@ export async function syncPropertyIcal(
 ): Promise<SyncOutcome> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date().toISOString();
+  // Imóvel ligado à Channex recebe reservas pela API; o iCal nunca concorre com ela.
+  const { data: cx } = await supabaseAdmin
+    .from("property_listing_raw_data")
+    .select("property_id")
+    .eq("property_id", propertyId)
+    .not("channex_property_id", "is", null)
+    .limit(1);
+  if (cx && cx.length) return { ok: true, imported: 0, updated: 0, removed: 0 };
   try {
     const res = await fetchWithTimeout(icalUrl);
     if (!res.ok) {

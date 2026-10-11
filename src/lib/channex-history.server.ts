@@ -48,6 +48,11 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
   for (const r of typed) if (r.channex_property_id) cpCount.set(r.channex_property_id, (cpCount.get(r.channex_property_id) ?? 0) + 1);
   const byChannexProperty = new Map<string, string>(typed.filter((r) => r.channex_property_id && cpCount.get(r.channex_property_id) === 1).map((r) => [String(r.channex_property_id), r.property_id]));
   const byRoomType = new Map<string, string>(typed.filter((r) => r.channex_room_type_id).map((r) => [String(r.channex_room_type_id), r.property_id]));
+  const { data: twinRows } = await admin.from("channex_twin_links").select("property_id, twin_room_type_id, twin_channex_property_id").eq("status", "active");
+  for (const t of (twinRows ?? []) as Array<{ property_id: string; twin_room_type_id: string | null; twin_channex_property_id: string | null }>) {
+    if (t.twin_room_type_id) byRoomType.set(t.twin_room_type_id, t.property_id);
+    if (t.twin_channex_property_id && !cpCount.has(t.twin_channex_property_id)) cpCount.set(t.twin_channex_property_id, 1);
+  }
   const byListing = new Map<string, string>(typed.map((l) => [String(l.airbnb_listing_id), l.property_id]));
   const result: BackfillResult = { reservations: 0, conversations: 0, messages: 0, reviews: 0, raw: 0 };
 
