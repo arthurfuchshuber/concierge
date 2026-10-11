@@ -1268,23 +1268,71 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         )
         .slice(0, 5);
 
+      // Contra-proposta: unidades com só parte do período livre, ou o período
+      // de mesma duração mais próximo — nunca um "não" seco.
+      type Parcial = (typeof livres)[number] & {
+        trechos_livres_no_periodo: ReturnType<typeof partialWindows>;
+        periodo_mais_proximo_mesma_duracao: ReturnType<typeof nearestShiftedWindow>;
+      };
+      let parciais: Parcial[] = [];
+      if (livres.length === 0) {
+        const hoje = hojeSP();
+        const candidatos = lista.filter(
+          (x) => !hospedes || (x.airbnb_guest_count ?? 99) >= hospedes,
+        );
+        const cal = await calendario(
+          candidatos.map((x) => x.id),
+          addDays(entrada, -21),
+          addDays(saida, 21),
+        );
+        parciais = candidatos
+          .map((x) => {
+            const busy = cal.get(x.id) ?? [];
+            return {
+              imovel: x.name,
+              cidade: x.city,
+              mesma_cidade: !!atual && norm(atual.city) === norm(x.city),
+              distancia_km: atual ? distanciaKm(atual, x) : null,
+              capacidade: x.airbnb_guest_count,
+              quartos: x.airbnb_bedroom_count,
+              link_anuncio:
+                x.airbnb_listing_url ??
+                (listingId.get(x.id) ? `https://www.airbnb.com.br/rooms/${listingId.get(x.id)}` : null),
+              trechos_livres_no_periodo: partialWindows(busy, entrada < hoje ? hoje : entrada, saida, MIN_NOITES),
+              periodo_mais_proximo_mesma_duracao: nearestShiftedWindow(busy, entrada, saida, hoje),
+            };
+          })
+          .filter((o) => o.trechos_livres_no_periodo.length > 0 || o.periodo_mais_proximo_mesma_duracao)
+          .sort(
+            (a, b) =>
+              (b.trechos_livres_no_periodo[0]?.noites ?? 0) - (a.trechos_livres_no_periodo[0]?.noites ?? 0) ||
+              Number(b.mesma_cidade) - Number(a.mesma_cidade) ||
+              (a.distancia_km ?? 999) - (b.distancia_km ?? 999),
+          )
+          .slice(0, 3);
+      }
+
       ctx.collectSource({
         source: "calendario",
         title: "Disponibilidade na carteira do anfitrião",
         confidence: 0.9,
-        content: `${entrada} → ${saida}: ${livres.length} imóvel(is) livre(s)`,
+        content: `${entrada} → ${saida}: ${livres.length} livre(s), ${parciais.length} com período parcial/próximo`,
       });
 
       return {
         periodo: { entrada, saida },
         encontrados: livres.length,
         opcoes: livres,
+        opcoes_periodo_parcial_ou_proximo: parciais,
         observacao:
           livres.length > 0
             ? "Ofereça as opções pelo nome e mande o link quando existir. Nunca cite preço — ele está no anúncio."
-            : "Nenhuma unidade livre no período. Aqui vale escalar para o anfitrião.",
-        sem_link: livres.some((o) => !o.link_anuncio)
-          ? "Alguma unidade livre está sem link de anúncio cadastrado — cite o nome e diga que o anfitrião envia o link."
+            : parciais.length > 0
+              ? "Nenhuma unidade livre no período inteiro. Ofereça o trecho livre ou o período mais próximo com o " +
+                "nome do imóvel (ex.: 'temos outra residência de 11 a 13, posso te enviar o link?'). Nunca cite preço."
+              : "Nenhuma unidade livre nem em datas próximas. Diga isso com gentileza e pergunte se há flexibilidade; escale se insistir.",
+        sem_link: [...livres, ...parciais].some((o) => !o.link_anuncio)
+          ? "Alguma unidade sugerida está sem link de anúncio cadastrado — cite o nome e diga que o anfitrião envia o link."
           : null,
       };
     },
