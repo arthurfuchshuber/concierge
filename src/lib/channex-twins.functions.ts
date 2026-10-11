@@ -12,7 +12,9 @@ export const listTwinCandidates = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await requireAdmin(context as never);
     const { listAirbnbListings } = await import("@/lib/channex-twins.server");
-    return listAirbnbListings();
+    const { listTwinLinks } = await import("@/lib/channex-twins.server");
+    const [listings, links] = await Promise.all([listAirbnbListings(), listTwinLinks()]);
+    return { listings, links };
   });
 
 export const linkTwin = createServerFn({ method: "POST" })
@@ -23,5 +25,5 @@ export const linkTwin = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAdmin(context as never);
     const { linkTwinListing } = await import("@/lib/channex-twins.server");
-    return linkTwinListing(data);
+    return linkTwinListing({ ...data, userId: (context as any).userId });
   });
