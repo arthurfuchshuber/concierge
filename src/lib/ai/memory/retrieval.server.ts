@@ -70,7 +70,10 @@ const TIER_WEIGHT: Record<number, number> = { 1: 1, 2: 0.85, 3: 0.72, 4: 0.55, 5
  * Validação anti-memória-incorreta: origem conhecida, data plausível,
  * confiança mínima e relação com o contexto atual.
  */
-function isTrustworthy(memory: MemoryRecord, ctx: { propertyId: string | null }): boolean {
+function isTrustworthy(
+  memory: MemoryRecord,
+  ctx: { propertyId: string | null; subjectKey: string | null },
+): boolean {
   if (!memory.content?.trim()) return false;
   if (memory.confidence < MIN_CONFIDENCE) return false;
   if (!memory.source) return false;
@@ -78,6 +81,9 @@ function isTrustworthy(memory: MemoryRecord, ctx: { propertyId: string | null })
   if (!Number.isFinite(ts) || ts > Date.now() + 86400000) return false;
   // memória de outro imóvel só é aceita quando não é específica de imóvel
   if (memory.propertyId && ctx.propertyId && memory.propertyId !== ctx.propertyId) return false;
+  // memória presa a OUTRO hóspede (subject_key de pessoa) nunca entra na
+  // conversa de alguém diferente — evita misturar histórico entre hóspedes.
+  if (memory.subjectKey && memory.subjectKey !== (ctx.subjectKey ?? null)) return false;
   return true;
 }
 

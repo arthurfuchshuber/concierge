@@ -306,23 +306,10 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
               checkoutDate: null,
               reservationCode: null,
             };
-          } else {
-            // Fallback visual: usa o acesso mais próximo do início da conversa,
-            // não o hóspede mais recente do imóvel. Assim recupera nomes de
-            // conversas antigas sem grudar tudo no último hóspede que acessou.
-            const fallback = chooseNearestVisualLog(conv);
-            if (fallback) {
-              details[conv.id as string] = {
-                name: fallback.guest_name ?? identity.name,
-                phone: fallback.guest_phone,
-                phoneCountry: fallback.guest_phone_country,
-                checkinDate: fallback.checkin_date,
-                checkoutDate: fallback.checkout_date,
-                reservationCode: fallback.reservation_code,
-              };
-              mergeDetails[conv.id as string] = details[conv.id as string];
-            }
           }
+          // Sem identidade comprovada: nenhum fallback por proximidade de tempo
+          // (fazia um contato novo herdar nome/reserva de outro hóspede).
+          void chooseNearestVisualLog;
         }
       } catch {
         // silencioso — se falhar, seguimos apenas com o que temos na conversa
@@ -627,28 +614,9 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
                   (name && norm(l.guest_name) === name),
               ) ?? null;
         }
-        if (!log) {
-          const anchor = timeOf(conv.created_at) || timeOf(conv.last_message_at);
-          const { data: logs } = await supabaseAdmin
-            .from("guide_access_logs")
-            .select(
-              "guest_name, guest_phone, guest_phone_country, checkin_date, checkout_date, reservation_code, created_at",
-            )
-            .eq("property_id", conv.property_id)
-            .order("created_at", { ascending: false })
-            .limit(500);
-          log =
-            ((logs ?? []) as AccessLog[])
-              .filter((l) => {
-                if (isPreviewName(l.guest_name)) return false;
-                if (!anchor || (!l.guest_name && !l.guest_phone)) return false;
-                return Math.abs(timeOf(l.created_at) - anchor) <= 1000 * 60 * 60 * 96;
-              })
-              .sort(
-                (a, b) =>
-                  Math.abs(timeOf(a.created_at) - anchor) - Math.abs(timeOf(b.created_at) - anchor),
-              )[0] ?? null;
-        }
+        // Sem identidade comprovada não há fallback por proximidade de tempo:
+        // isso fazia um contato novo herdar nome/reserva de outro hóspede.
+        void timeOf;
         if (log) {
           guestDetails = {
             name: log.guest_name ?? identity.name,
