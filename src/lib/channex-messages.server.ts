@@ -373,16 +373,26 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     ok: false,
     checkin: null,
     checkout: null,
+    bookingId: null as string | null,
+    code: null as string | null,
   }));
   const inquiry = await loadInquiryDetails(admin, m.threadId).catch(() => null);
   const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
   const { loadReservationDossier } = await import("@/lib/ai/reservation-dossier.server");
-  const dossier =
-    reservation.ok && m.bookingId
-      ? await loadReservationDossier(admin, { propertyId: listing.property_id, bookingId: m.bookingId }).catch(
-          () => null,
-        )
-      : null;
+  // Usa o booking/código descoberto pela thread quando o evento chega sem bookingId.
+  let dossier: Awaited<ReturnType<typeof loadReservationDossier>> = null;
+  if (reservation.ok && reservation.bookingId) {
+    dossier = await loadReservationDossier(admin, {
+      propertyId: listing.property_id,
+      bookingId: reservation.bookingId,
+    }).catch(() => null);
+  }
+  if (!dossier && reservation.ok && reservation.code) {
+    dossier = await loadReservationDossier(admin, {
+      propertyId: listing.property_id,
+      code: reservation.code,
+    }).catch(() => null);
+  }
   const result = await runHospitalityAgent({
     supabase: admin,
     property: prop as unknown as Record<string, unknown>,
