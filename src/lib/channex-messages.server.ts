@@ -32,9 +32,13 @@ async function channex<T>(path: string, init?: RequestInit): Promise<T> {
  * Reserva confirmada e vigente (ou futura) vinculada a esta conversa do Airbnb.
  * Sem reserva confirmada (ex.: consulta pré-reserva), dados sensíveis ficam bloqueados.
  */
-async function hasConfirmedReservation(admin: any, propertyId: string, m: Inbound): Promise<{ ok: boolean; checkin: string | null; checkout: string | null }> {
+async function hasConfirmedReservation(
+  admin: any,
+  propertyId: string,
+  m: Inbound,
+): Promise<{ ok: boolean; checkin: string | null; checkout: string | null; bookingId: string | null; code: string | null }> {
   const today = new Date().toISOString().slice(0, 10);
-  const no = { ok: false, checkin: null, checkout: null };
+  const no = { ok: false, checkin: null, checkout: null, bookingId: null, code: null };
   let bookingId = m.bookingId;
   let otaThreadId: string | null = null;
   if (m.threadId) {
@@ -44,7 +48,7 @@ async function hasConfirmedReservation(admin: any, propertyId: string, m: Inboun
   }
   const { data: rows } = await admin
     .from("property_reservations")
-    .select("external_uid, checkin_date, checkout_date, status, guest_contacts")
+    .select("external_uid, checkin_date, checkout_date, status, guest_contacts, guest_hint")
     .eq("property_id", propertyId)
     .eq("status", "confirmed")
     .gte("checkout_date", today);
@@ -53,18 +57,32 @@ async function hasConfirmedReservation(admin: any, propertyId: string, m: Inboun
       (bookingId && r.external_uid === bookingId) ||
       (otaThreadId && r.guest_contacts?.ota_thread_id === otaThreadId),
   );
-  if (match) return { ok: true, checkin: match.checkin_date, checkout: match.checkout_date };
+  if (match) {
+    return {
+      ok: true,
+      checkin: match.checkin_date,
+      checkout: match.checkout_date,
+      bookingId: bookingId ?? null,
+      code: str(match.guest_contacts?.code) ?? str(match.guest_hint),
+    };
+  }
   // Reservas novas chegam por webhook na tabela `reservas` (antes de qualquer importação manual).
   if (bookingId) {
     const { data: r } = await admin
       .from("reservas")
-      .select("data_checkin, data_checkout, status")
+      .select("data_checkin, data_checkout, status, codigo_reserva_channex")
       .eq("channex_booking_id", bookingId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (r && r.status !== "cancelled" && (!r.data_checkout || r.data_checkout >= today)) {
-      return { ok: true, checkin: r.data_checkin ?? null, checkout: r.data_checkout ?? null };
+      return {
+        ok: true,
+        checkin: r.data_checkin ?? null,
+        checkout: r.data_checkout ?? null,
+        bookingId,
+        code: str(r.codigo_reserva_channex)?.replace(/^ABB-/i, "") ?? null,
+      };
     }
   }
   return no;
@@ -355,16 +373,26 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     ok: false,
     checkin: null,
     checkout: null,
+    bookingId: null as string | null,
+    code: null as string | null,
   }));
   const inquiry = await loadInquiryDetails(admin, m.threadId).catch(() => null);
   const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
   const { loadReservationDossier } = await import("@/lib/ai/reservation-dossier.server");
-  const dossier =
-    reservation.ok && m.bookingId
-      ? await loadReservationDossier(admin, { propertyId: listing.property_id, bookingId: m.bookingId }).catch(
-          () => null,
-        )
-      : null;
+  // Usa o booking/código descoberto pela thread quando o evento chega sem bookingId.
+  let dossier: Awaited<ReturnType<typeof loadReservationDossier>> = null;
+  if (reservation.ok && reservation.bookingId) {
+    dossier = await loadReservationDossier(admin, {
+      propertyId: listing.property_id,
+      bookingId: reservation.bookingId,
+    }).catch(() => null);
+  }
+  if (!dossier && reservation.ok && reservation.code) {
+    dossier = await loadReservationDossier(admin, {
+      propertyId: listing.property_id,
+      code: reservation.code,
+    }).catch(() => null);
+  }
   const result = await runHospitalityAgent({
     supabase: admin,
     property: prop as unknown as Record<string, unknown>,
