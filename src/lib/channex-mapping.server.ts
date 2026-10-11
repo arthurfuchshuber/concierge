@@ -66,6 +66,45 @@ export const PILOT_MAPPINGS: SafeMapTarget[] = [
   ),
 ];
 
+/** Pares gêmeos cadastrados pelo sistema (`channex_twin_links`), de qualquer cliente. */
+export async function loadTwinMappings(): Promise<SafeMapTarget[]> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await (supabaseAdmin as any).from("channex_twin_links").select("*").eq("status", "active");
+  if (error) throw new Error(error.message);
+  const out: SafeMapTarget[] = [];
+  for (const r of (data ?? []) as any[]) {
+    out.push(
+      ...twinPair(
+        { channelId: r.channel_id, listingId: r.primary_listing_id, channexPropertyId: r.primary_channex_property_id, roomTypeId: r.primary_room_type_id, ratePlanId: r.primary_rate_plan_id, propertyId: r.property_id ?? undefined },
+        { listingId: r.twin_listing_id, channexPropertyId: r.twin_channex_property_id, roomTypeId: r.twin_room_type_id, ratePlanId: r.twin_rate_plan_id },
+      ),
+    );
+  }
+  return out;
+}
+
+/** Todos os anúncios a sincronizar: pares do banco + mapeamentos fixos do piloto (sem duplicar). */
+export async function allSyncTargets(): Promise<SafeMapTarget[]> {
+  const db = await loadTwinMappings().catch((e) => {
+    console.error("[channex] gêmeos do banco", e);
+    return [] as SafeMapTarget[];
+  });
+  const seen = new Set(db.map((t) => t.listingId));
+  return [...db, ...PILOT_MAPPINGS.filter((t) => !seen.has(t.listingId))];
+}
+
+/** Sincroniza só os dois lados de um par (carga inicial ao unir anúncios). */
+export async function syncTwinPair(twinListingId: string, userId: string | null = null) {
+  const all = await loadTwinMappings();
+  const twin = all.find((t) => t.listingId === twinListingId);
+  if (!twin) throw new Error("Par de anúncios não encontrado.");
+  const pair = all.filter((t) => t === twin || t.roomTypeId === twin.sibling?.roomTypeId);
+  const results: unknown[] = [];
+  for (const t of pair) results.push(await syncRealAvailability(t, userId, 270, false));
+  const flushed = await flushAriOutbox();
+  return { results, ok: flushed.batches.every((b) => b.ok) };
+}
+
 async function call(method: string, path: string, body?: unknown): Promise<any> {
   const key = process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"];
   if (!key) throw new Error("Chave Channex ausente.");
@@ -184,7 +223,7 @@ export async function syncRealAvailability(t: SafeMapTarget, userId: string | nu
 export async function syncPilotAvailability(userId: string | null = null) {
   const out: unknown[] = [];
   // Calcula todos os anúncios (incluindo gêmeos) e envia tudo num único lote ARI.
-  for (const t of PILOT_MAPPINGS) out.push(await syncRealAvailability(t, userId, 270, false).catch((e) => ({ ok: false, error: String(e) })));
+  for (const t of await allSyncTargets()) out.push(await syncRealAvailability(t, userId, 270, false).catch((e) => ({ ok: false, error: String(e) })));
   await flushAriOutbox().catch((e) => console.error("[channex] flush disponibilidade", e));
   return out;
 }

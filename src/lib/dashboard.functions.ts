@@ -2138,7 +2138,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
     const end = addDaysISO(start, days - 1);
     const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
     if (propIds.length === 0) {
-      return { start, days, properties: [], stays: [] as OccupancyStay[], freeToday: [] as FreeProperty[] };
+      return { start, days, properties: [], stays: [] as OccupancyStay[], freeToday: [] as FreeProperty[], twinRows: [] as Array<{ id: string; name: string; city: string | null; ownerName: string | null; heroImageUrl: string | null; providerName: string | null; twinOf: string }> };
     }
 
     // Mesma fonte da verdade do Kanban: garante que alterações de reserva no
@@ -2412,7 +2412,23 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         };
       });
 
-    return { start, days, properties, stays, freeToday };
+    // ANÚNCIOS GÊMEOS (mesma casa, anúncios distintos — como o PriceLabs):
+    // cada anúncio gêmeo ganha a própria linha no calendário, logo abaixo do
+    // principal, com as mesmas estadias (os calendários são travados juntos).
+    const { data: twinLinks } = await (context.supabase as any)
+      .from("channex_twin_links")
+      .select("property_id, twin_listing_id, twin_title")
+      .eq("status", "active")
+      .in("property_id", propIds);
+    const twinRows = ((twinLinks ?? []) as Array<{ property_id: string; twin_listing_id: string; twin_title: string | null }>)
+      .map((l) => {
+        const base = properties.find((p) => p.id === l.property_id);
+        if (!base) return null;
+        return { ...base, id: `${l.property_id}__twin__${l.twin_listing_id}`, name: l.twin_title || `${base.name} (anúncio 2)`, twinOf: l.property_id };
+      })
+      .filter((r): r is NonNullable<typeof r> => !!r);
+
+    return { start, days, properties, stays, freeToday, twinRows };
   });
 
 // ----- Concluídos: cards que já percorreram toda a esteira -----

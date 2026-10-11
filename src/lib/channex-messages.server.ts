@@ -143,8 +143,8 @@ async function resolveListing(admin: any, m: Inbound): Promise<ListingRow | null
     const raw = findListingId(t?.data);
     if (raw) {
       // Anúncio gêmeo (mesma unidade física) resolve para o anúncio principal.
-      const { primaryListingId } = await import("@/lib/channex-listing.server");
-      const listingId = primaryListingId(raw);
+      const { resolvePrimaryListingId } = await import("@/lib/channex-listing.server");
+      const listingId = await resolvePrimaryListingId(raw);
       return listings.find((l) => l.airbnb_listing_id === listingId) ?? null;
     }
   }

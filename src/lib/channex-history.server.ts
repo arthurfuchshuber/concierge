@@ -39,7 +39,8 @@ const num = (v: unknown) => (v == null || v === "" || !Number.isFinite(Number(v)
 export async function backfillChannexHistory(): Promise<BackfillResult> {
   const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
   const { saveRawRecords, channexPropertyOf } = await import("@/lib/channex-raw.server");
-  const { primaryListingId } = await import("@/lib/channex-listing.server");
+  const { primaryListingId, refreshListingAliases } = await import("@/lib/channex-listing.server");
+  await refreshListingAliases();
   const { data: rows } = await admin.from("property_listing_raw_data").select("property_id, airbnb_listing_id, channex_property_id, channex_room_type_id");
   const typed = (rows ?? []) as Array<Listing & { channex_property_id: string | null; channex_room_type_id: string | null }>;
   // Propriedade Channex só identifica o imóvel quando há UM imóvel nela (ex.: Studios dividem a mesma).

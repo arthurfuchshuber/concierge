@@ -15,13 +15,9 @@ export function ChannexTwinsPanel() {
   const q = useQuery({ queryKey: ["channex-twins"], queryFn: () => listFn(), retry: false });
   const [primary, setPrimary] = useState("");
   const [twin, setTwin] = useState("");
-  const rows = q.data ?? [];
-
-  const groups = useMemo(() => {
-    const m = new Map<string, typeof rows>();
-    for (const r of rows) if (r.roomTypeId) m.set(r.roomTypeId, [...(m.get(r.roomTypeId) ?? []), r]);
-    return [...m.values()].filter((g) => g.length > 1);
-  }, [rows]);
+  const rows = useMemo(() => q.data?.listings ?? [], [q.data]);
+  const titleOf = useMemo(() => new Map(rows.map((r) => [r.listingId, r.title])), [rows]);
+  const groups = q.data?.links ?? [];
 
   const p = rows.find((r) => r.listingId === primary);
   const t = rows.find((r) => r.listingId === twin);
@@ -64,7 +60,7 @@ export function ChannexTwinsPanel() {
           </div>
           {p && t && (
             <p className="text-[11px] text-muted-foreground">
-              O anúncio gêmeo ficará cerca de 1 minuto desconectado e volta publicado. Depois, reconecte-o no PriceLabs à nova "Tarifa Anúncio Gêmeo".
+              Cada anúncio continua separado (aparece sozinho no PriceLabs), mas os calendários passam a fechar juntos na hora. O anúncio gêmeo fica cerca de 1 minuto desconectado e volta publicado; depois, rode a importação no PriceLabs.
             </p>
           )}
           <Button size="sm" className="h-8 rounded-full text-xs" disabled={!p || !t || link.isPending} onClick={() => link.mutate()}>
@@ -75,9 +71,12 @@ export function ChannexTwinsPanel() {
           {groups.length > 0 && (
             <ul className="space-y-2 border-t border-border pt-2">
               {groups.map((g) => (
-                <li key={g[0]!.roomTypeId} className="text-[11px] text-muted-foreground">
+                <li key={g.twin_listing_id} className="text-[11px] text-muted-foreground">
                   <span className="font-medium text-foreground">Unidos:</span>{" "}
-                  <span className="break-words">{g.map((x) => x.title).join(" + ")}</span>
+                  <span className="break-words">
+                    {(g.primary_title || titleOf.get(g.primary_listing_id) || g.primary_listing_id) + " + " + (g.twin_title || titleOf.get(g.twin_listing_id) || g.twin_listing_id)}
+                  </span>
+                  {g.last_error ? <span className="block text-destructive">{g.last_error}</span> : null}
                 </li>
               ))}
             </ul>

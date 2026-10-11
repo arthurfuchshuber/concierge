@@ -1119,6 +1119,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     () => filteredOccupancyProperties.filter(matchesProvider),
     [filteredOccupancyProperties, matchesProvider],
   );
+  // Linhas do calendário: cada anúncio gêmeo aparece separado, logo abaixo do
+  // anúncio principal (como no PriceLabs), espelhando as mesmas estadias.
+  const occupancyTwinRows = occupancyQ.data?.twinRows;
+  const calendarRows = useMemo(() => {
+    const twins = occupancyTwinRows ?? [];
+    if (!twins.length) return calendarProperties;
+    return calendarProperties.flatMap((p) => [p, ...twins.filter((t) => t.twinOf === p.id)]);
+  }, [calendarProperties, occupancyTwinRows]);
+  const calendarStays = useMemo(() => {
+    const base = occupancyQ.data?.stays ?? [];
+    const twins = occupancyTwinRows ?? [];
+    if (!twins.length) return base;
+    const extra = twins.flatMap((t) => base.filter((s) => s.propertyId === t.twinOf).map((s) => ({ ...s, propertyId: t.id })));
+    return [...base, ...extra];
+  }, [occupancyQ.data?.stays, occupancyTwinRows]);
   // Filtros movem a página inteira (cards, gráficos, aprovação, ranking),
   // inclusive prestador; lista vazia = nada encontrado (não "todos").
   const cleaningStatsPropertyIds = useMemo(
@@ -1787,6 +1802,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     for (const p of occupancyProperties) map.set(p.id, p.city ?? null);
     return map;
   }, [occupancyProperties]);
+  const calendarCheckedIn = useMemo(() => {
+    const twins = occupancyTwinRows ?? [];
+    if (!twins.length) return checkedInPropertyIds;
+    const next = new Set(checkedInPropertyIds);
+    for (const t of twins) if (checkedInPropertyIds.has(t.twinOf)) next.add(t.id);
+    return next;
+  }, [checkedInPropertyIds, occupancyTwinRows]);
 
   // Prestador VINCULADO ao imóvel (não quem concluiu) — regra das
   // "previstas" (pedido explícito, 23/09/2026): o Kanban ainda não tem uma
@@ -3412,9 +3434,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={occupancyQ.isLoading}
                 start={occupancyQ.data?.start ?? occStart}
                 days={occupancyQ.data?.days ?? occDays}
-                properties={calendarProperties}
-                stays={occupancyQ.data?.stays ?? []}
-                checkedInPropertyIds={checkedInPropertyIds}
+                properties={calendarRows}
+                stays={calendarStays}
+                checkedInPropertyIds={calendarCheckedIn}
                 periodRange={periodRange}
                 onPeriodRangeChange={setPeriodRange}
                 cityFilters={cityFilters}
