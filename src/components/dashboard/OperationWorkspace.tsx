@@ -1127,6 +1127,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     if (!twins.length) return calendarProperties;
     return calendarProperties.flatMap((p) => [p, ...twins.filter((t) => t.twinOf === p.id)]);
   }, [calendarProperties, occupancyTwinRows]);
+  const calendarCheckedIn = useMemo(() => {
+    const twins = occupancyTwinRows ?? [];
+    if (!twins.length) return checkedInPropertyIds;
+    const next = new Set(checkedInPropertyIds);
+    for (const t of twins) if (checkedInPropertyIds.has(t.twinOf)) next.add(t.id);
+    return next;
+  }, [checkedInPropertyIds, occupancyTwinRows]);
   const calendarStays = useMemo(() => {
     const base = occupancyQ.data?.stays ?? [];
     const twins = occupancyTwinRows ?? [];
@@ -3429,7 +3436,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 days={occupancyQ.data?.days ?? occDays}
                 properties={calendarRows}
                 stays={calendarStays}
-                checkedInPropertyIds={checkedInPropertyIds}
+                checkedInPropertyIds={calendarCheckedIn}
                 periodRange={periodRange}
                 onPeriodRangeChange={setPeriodRange}
                 cityFilters={cityFilters}
