@@ -55,6 +55,23 @@ function isRealReservation(row: { status?: string | null; raw_summary?: string |
   return true;
 }
 
+/** Uma estadia (imóvel + entrada + saída) gera um único card. */
+export function dedupeStays<
+  T extends { id: string; property_id: string; checkin_date: string; checkout_date: string | null; created_at?: string | null },
+>(rows: T[], hasStatus: (id: string) => boolean): T[] {
+  const best = new Map<string, T>();
+  for (const r of rows) {
+    const key = `${r.property_id}|${r.checkin_date}|${r.checkout_date ?? ""}`;
+    const cur = best.get(key);
+    if (!cur) { best.set(key, r); continue; }
+    const rs = hasStatus(r.id), cs = hasStatus(cur.id);
+    if (rs !== cs) { if (rs) best.set(key, r); continue; }
+    if ((r.created_at ?? "") > (cur.created_at ?? "")) best.set(key, r);
+  }
+  const keep = new Set(Array.from(best.values()).map((r) => r.id));
+  return rows.filter((r) => keep.has(r.id));
+}
+
 export type ArrivalLogRow = {
   id: string;
   property_id: string;
