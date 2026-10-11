@@ -88,7 +88,7 @@ export async function validatePricing() {
   for (const [pid, plans] of byProperty) {
     const r = await cx<{ data: Record<string, Record<string, { rate?: string | number }>> }>(
       `/restrictions?filter[property_id]=${pid}&filter[date][gte]=${start}&filter[date][lte]=${end}&filter[restrictions]=rate`,
-    ).catch(() => ({ data: {} }));
+    ).catch(() => ({ data: {} as Record<string, Record<string, { rate?: string | number }>> }));
     for (const rp of plans) {
       const days = r.data?.[rp] ?? {};
       const priced = Object.values(days).filter((d) => Number(d?.rate ?? 0) > 0).length;
