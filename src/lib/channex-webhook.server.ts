@@ -57,7 +57,7 @@ async function resolveBooking(payload: unknown): Promise<ResolvedBooking | null>
   }
 
   const inner = asRecord(root["payload"]) ?? root;
-  const revisionId = inner["revision_id"];
+  const revisionId = inner["revision_id"] ?? inner["booking_revision_id"];
   const bookingId = inner["booking_id"];
   if (typeof revisionId === "string") {
     const res = await channexGet<{ data?: { id?: string; attributes?: BookingAttributes & { booking_id?: string } } }>(
@@ -85,6 +85,74 @@ function statusOf(evento: string | null, booking: BookingAttributes): string {
 }
 
 type SupabaseAdmin = typeof import("@/integrations/supabase/client.server")["supabaseAdmin"];
+
+const txt = (s: unknown) => (typeof s === "string" && s.trim() ? s.trim() : null);
+const numero = (v: unknown) => (v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+
+/** Imóvel ConciergeIA dono do quarto Channex (principal ou anúncio gêmeo). */
+async function imovelDoQuarto(admin: SupabaseAdmin, roomTypeId: string | null, channexPropertyId: string | null): Promise<string | null> {
+  if (roomTypeId) {
+    const { data } = await admin.from("property_listing_raw_data").select("property_id").eq("channex_room_type_id", roomTypeId).limit(1);
+    if (data?.[0]) return data[0].property_id as string;
+    const { data: tw } = await admin.from("channex_twin_links").select("property_id").eq("twin_room_type_id", roomTypeId).eq("status", "active").limit(1);
+    if (tw?.[0]) return tw[0].property_id as string;
+  }
+  if (channexPropertyId) {
+    const { data } = await admin.from("property_listing_raw_data").select("property_id").eq("channex_property_id", channexPropertyId);
+    if (data && data.length === 1) return data[0].property_id as string;
+    const { data: tw } = await admin.from("channex_twin_links").select("property_id").eq("twin_channex_property_id", channexPropertyId).eq("status", "active").limit(1);
+    if (tw?.[0]) return tw[0].property_id as string;
+  }
+  return null;
+}
+
+async function gravarReservaOficial(admin: SupabaseAdmin, booking: ResolvedBooking, roomTypeId: string | null) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const a = booking as any;
+  const propertyId = await imovelDoQuarto(admin, roomTypeId, txt(a.property_id));
+  const bookingId = booking._bookingId ?? a.booking_id ?? null;
+  if (!propertyId || !bookingId || !a.arrival_date || !a.departure_date) return;
+  const c = a.customer ?? {};
+  const main = [c.name, c.surname].filter(Boolean).join(" ").trim();
+  const rooms = (a.rooms ?? []) as Array<Record<string, unknown>>;
+  const extra = ((a.guests ?? rooms[0]?.["guests"] ?? []) as Array<{ name?: string; surname?: string }>)
+    .map((g) => [g.name, g.surname].filter(Boolean).join(" ").trim()).filter(Boolean);
+  const phone = String(c.phone ?? "").replace(/\D/g, "");
+  const contacts = {
+    code: txt(a.ota_reservation_code),
+    unique_id: txt(a.unique_id),
+    names: Array.from(new Set([main, ...extra].filter(Boolean))),
+    phones: phone.length >= 8 ? [phone] : [],
+    emails: txt(c.mail) ? [txt(c.mail)] : [],
+    language: txt(c.language),
+    ota_thread_id: txt(a.meta?.thread_id),
+  };
+  const { error } = await admin.from("property_reservations").upsert(
+    {
+      property_id: propertyId,
+      source: "channex",
+      external_uid: String(bookingId),
+      checkin_date: a.arrival_date,
+      checkout_date: a.departure_date,
+      guest_hint: main || null,
+      raw_summary: contacts.code ? `Reserva ${contacts.code}` : null,
+      status: a.status === "cancelled" ? "cancelled" : "confirmed",
+      synced_at: new Date().toISOString(),
+      guest_contacts: contacts,
+      amount: numero(a.amount),
+      currency: txt(a.currency),
+      ota_commission: numero(a.ota_commission),
+      payment_collect: txt(a.payment_collect),
+      payment_type: txt(a.payment_type),
+      ota_name: txt(a.ota_name),
+      occupancy: a.occupancy ?? rooms[0]?.["occupancy"] ?? null,
+      daily_rates: rooms.map((r) => ({ room_type_id: r["room_type_id"], rate_plan_id: r["rate_plan_id"], amount: r["amount"], days: r["days"] })),
+      raw_payload: booking,
+    } as never,
+    { onConflict: "property_id,source,external_uid" },
+  );
+  if (error) throw new Error(error.message);
+}
 
 async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
   const booking = await resolveBooking(payload);
@@ -149,6 +217,9 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
     { onConflict: "codigo_reserva_channex" },
   );
   if (error) throw new Error(error.message);
+
+  // Reserva oficial do imóvel (API, nunca iCal): grava em property_reservations.
+  await gravarReservaOficial(supabaseAdmin, booking, roomTypeId);
 
   // Guarda a revisão completa, sem perder nenhum campo.
   const { saveRawRecords } = await import("@/lib/channex-raw.server");
