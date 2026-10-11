@@ -310,7 +310,7 @@ export async function buildArrivalRows(
         "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at",
       )
       .in("property_id", propIds)
-      .eq("source", "airbnb");
+      .in("source", ["airbnb", "channex"]);
     if (data.kind === "checkin") {
       if (data.range === "tomorrow") {
         reservationsQuery = reservationsQuery.gte("checkin_date", reservationWindowStart).lte("checkin_date", reservationWindowStart);

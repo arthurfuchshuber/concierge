@@ -163,7 +163,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint")
         .in("property_id", propIds)
-        .eq("source", "airbnb")
+        .in("source", ["airbnb", "channex"])
         .or(
           `and(checkin_date.gte.${overdueFrom},checkin_date.lte.${tomorrow}),and(checkout_date.gte.${overdueFrom},checkout_date.lte.${tomorrow})`,
         )
@@ -676,7 +676,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint")
         .in("property_id", propIds)
-        .eq("source", "airbnb")
+        .in("source", ["airbnb", "channex"])
         .gte("checkin_date", fetchFrom)
         .lte("checkin_date", fetchTo)
         .gte("checkout_date", today)
@@ -1296,12 +1296,12 @@ export const markPendingReservationStatus = createServerFn({ method: "POST" })
         .select("id")
         .eq("property_id", data.propertyId)
         .eq("checkin_date", data.checkinDate)
-        .eq("source", "airbnb")
+        .in("source", ["airbnb", "channex"])
         .limit(1);
       const { data: matches } = data.checkoutDate ? await query.eq("checkout_date", data.checkoutDate) : await query;
       reservationId = (matches?.[0] as { id: string } | undefined)?.id ?? null;
     }
-    if (!reservationId) throw new Error("Reserva iCal não encontrada.");
+    if (!reservationId) throw new Error("Reserva não encontrada.");
 
     const { data: existing } = await context.supabase
       .from("guest_arrival_status")
@@ -2160,7 +2160,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
         .in("property_id", propIds)
-        .eq("source", "airbnb")
+        .in("source", ["airbnb", "channex"])
         .lte("checkin_date", end)
         .gte("checkout_date", start)
         .limit(5000),

@@ -400,7 +400,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             .from("property_reservations")
             .select("property_id, checkin_date, checkout_date")
             .in("property_id", propIds)
-            .eq("source", "airbnb"),
+            .in("source", ["airbnb", "channex"]),
         ]);
         const hasIcal = new Set<string>();
         for (const p of (propsR.data ?? []) as Array<{

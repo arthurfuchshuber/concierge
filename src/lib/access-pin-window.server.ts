@@ -88,7 +88,7 @@ export async function resolveAccessPinWindow(
       .from("property_reservations")
       .select("checkin_date, checkout_date")
       .eq("property_id", propertyId)
-      .eq("source", "airbnb")
+      .in("source", ["airbnb", "channex"])
       .lte("checkin_date", toCheckin)
       .or(`checkout_date.gte.${fromCheckout},checkout_date.is.null`)
       .limit(200),
