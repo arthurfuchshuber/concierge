@@ -183,6 +183,8 @@ export async function runHospitalityAgent(params: {
    * internos) NUNCA são revelados — regra para todos os canais.
    */
   reservationVerified?: boolean;
+  /** Dossiê completo da reserva oficial (código, ocupação, valores, taxas, cancelamento). */
+  reservationDossier?: string | null;
 }): Promise<OrchestratorResult> {
   const started = Date.now();
   const { supabase, property } = params;
@@ -581,6 +583,9 @@ export async function runHospitalityAgent(params: {
       : "") +
     `\n\nRANKING PERMANENTE DE FONTES (em conflito, o tier menor sempre vence)\n${renderSourceRanking()}` +
     `\n\nCONTEXTO ATUAL\n${context.text}` +
+    (params.reservationDossier
+      ? `\n\n## RESERVA OFICIAL DESTE HÓSPEDE (fonte autoritativa, prevalece sobre qualquer outra)\n${params.reservationDossier}\n- Use estes dados (código, datas, hóspedes, valores, taxas, pagamento, cancelamento) para responder com precisão, sem perguntar o que já está aqui.\n- Valores e política: informe quando o hóspede perguntar; cancelamento/reembolso/alteração continuam sendo feitos pela plataforma (ver AUTONOMIA DA RESERVA).`
+      : "") +
     `\n\nCONTEXTO DO HÓSPEDE E MEMÓRIA (uso interno — nunca revele ao hóspede que existe histórico registrado)\n${guestContext.text}` +
     reservationModeContext +
     renderHumanAnswers(humanAnswers) +
@@ -735,6 +740,7 @@ export async function runHospitalityAgent(params: {
     params.guestName ? `Nome do hóspede desta conversa (cadastro oficial do canal): ${params.guestName}` : "",
     params.checkinDate ? `Check-in da reserva: ${params.checkinDate}` : "",
     params.checkoutDate ? `Check-out da reserva: ${params.checkoutDate}` : "",
+    params.reservationDossier ? `RESERVA OFICIAL:\n${params.reservationDossier}` : "",
   ].filter(Boolean).join("\n");
   const evidenceText =
     [guestFacts ? `DADOS DO HÓSPEDE (fato oficial):\n${guestFacts}` : "", ...evidence.slice(0, 24)]
