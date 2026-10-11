@@ -229,3 +229,31 @@ export const setAirbnbAiToggle = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+/** Conta remetente ("carimbo") da IA por anúncio — piloto. */
+export const getListingSenders = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context as never);
+    const userId = (context as { userId: string }).userId;
+    const { MODE_PILOT_OWNERS } = await import("@/lib/channex-mode.server");
+    if (!MODE_PILOT_OWNERS.has(userId)) return [];
+    const { listListingSenders } = await import("@/lib/channex-sender.server");
+    return listListingSenders(userId);
+  });
+
+/** Troca a conta remetente do anúncio e de todos os seus gêmeos na Channex. */
+export const setListingSender = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { listingId: string; channelId: string }) => {
+    if (typeof d?.listingId !== "string" || typeof d?.channelId !== "string") throw new Error("Dados inválidos.");
+    return d;
+  })
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context as never);
+    const userId = (context as { userId: string }).userId;
+    const { assertPilot } = await import("@/lib/channex-mode.server");
+    assertPilot(userId);
+    const { switchListingSender } = await import("@/lib/channex-sender.server");
+    return switchListingSender(userId, data.listingId, data.channelId);
+  });
