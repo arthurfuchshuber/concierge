@@ -8,6 +8,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentTool } from "./gateway.server";
 import { hybridRetrieve } from "./rag.server";
 import { confidenceOf } from "./sources";
+import {
+  addDays,
+  nearestShiftedWindow,
+  partialWindows,
+  type Busy,
+} from "./availability-windows";
 
 type Admin = SupabaseClient;
 
