@@ -55,6 +55,23 @@ function isRealReservation(row: { status?: string | null; raw_summary?: string |
   return true;
 }
 
+/** Uma estadia (imóvel + entrada + saída) gera um único card. */
+export function dedupeStays<
+  T extends { id: string; property_id: string; checkin_date: string; checkout_date: string | null; created_at?: string | null },
+>(rows: T[], hasStatus: (id: string) => boolean): T[] {
+  const best = new Map<string, T>();
+  for (const r of rows) {
+    const key = `${r.property_id}|${r.checkin_date}|${r.checkout_date ?? ""}`;
+    const cur = best.get(key);
+    if (!cur) { best.set(key, r); continue; }
+    const rs = hasStatus(r.id), cs = hasStatus(cur.id);
+    if (rs !== cs) { if (rs) best.set(key, r); continue; }
+    if ((r.created_at ?? "") > (cur.created_at ?? "")) best.set(key, r);
+  }
+  const keep = new Set(Array.from(best.values()).map((r) => r.id));
+  return rows.filter((r) => keep.has(r.id));
+}
+
 export type ArrivalLogRow = {
   id: string;
   property_id: string;
@@ -762,7 +779,14 @@ export async function buildArrivalRows(
     // `allReservationsRaw` = reserva buscada pela data bruta + reservas que a
     // busca principal descartou mas cuja PREVISÃO cai dentro da janela
     // pedida (ver bloco "PREVISTO fora da janela" logo após o Promise.all).
-    const reservationRows = (allReservationsRaw as ReservationRow[]).filter(isRealReservation);
+    // Uma estadia = um card. Imóveis conectados podem ter a mesma estadia
+    // duas vezes (registro antigo do iCal + registro oficial da Channex):
+    // deduplica por imóvel + entrada + saída, mantendo o registro que já tem
+    // status gravado pela equipe; sem status, o mais recente (Channex).
+    const reservationRows = dedupeStays(
+      (allReservationsRaw as ReservationRow[]).filter(isRealReservation),
+      (id) => reservationStatusMap.has(id),
+    );
     for (const r of reservationRows) {
       const arr = resByProp.get(r.property_id) ?? [];
       arr.push({
