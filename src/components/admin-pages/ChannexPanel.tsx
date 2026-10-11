@@ -48,7 +48,6 @@ export function ChannexPanel() {
           : "IA desligada no chat do Airbnb (incluindo anúncios gêmeos).",
       );
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível alterar."),
   });
   const [last, setLast] = useState<ChannexSyncResult | null>(null);
 
