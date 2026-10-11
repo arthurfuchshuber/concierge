@@ -586,6 +586,19 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
   const conv = q.data?.conversation;
   const msgs = q.data?.messages ?? [];
+  // POR ONDE o hóspede está falando agora: canal da última mensagem dele,
+  // senão o prefixo da sessão (airbnb:/whatsapp:), senão o guia digital.
+  const liveChannel = (() => {
+    const lastGuest = [...msgs].reverse().find((m) => (m as { role: string }).role === "user") as
+      | { channel?: string | null }
+      | undefined;
+    const ch = lastGuest?.channel ?? null;
+    const sess = String(conv?.guest_session_id ?? "");
+    const key = ch ?? (sess.startsWith("airbnb:") ? "airbnb" : sess.startsWith("whatsapp") ? "whatsapp" : "guide");
+    if (key === "airbnb") return { label: "Airbnb", cls: "bg-rose-50 text-rose-700 border-rose-200" };
+    if (key === "whatsapp") return { label: "WhatsApp", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+    return { label: "Guia digital", cls: "bg-violet-50 text-violet-700 border-violet-200" };
+  })();
   const guest = q.data?.guestDetails;
   const claimReq = q.data?.claimRequester;
   const assignedProfile = q.data?.assignedProfile;
@@ -751,6 +764,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           </div>
 
           <div className="shrink-0 flex items-center gap-1">
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap ${liveChannel.cls}`}
+              title={`Hóspede conversando via ${liveChannel.label}`}
+            >
+              <MessageCircle className="size-3" /> {liveChannel.label}
+            </span>
             {canChat && isMine && status !== "resolved" && (
               <button
                 type="button"
