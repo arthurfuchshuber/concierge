@@ -16,6 +16,7 @@
  *   8. Confidence Threshold do próprio agente (auto | com ressalva | handoff)
  *   9. Gravação seletiva de memória + observabilidade (log completo)
  */
+import { ensureGreeting } from "@/lib/ai/greeting";
 import { SILENCE_TOKEN, finalizeAgentReply } from "@/lib/ai/reply-finalize";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { EMPTY_USAGE, mergeUsage, runAgent, type Usage } from "./gateway.server";
