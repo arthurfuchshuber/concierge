@@ -8191,6 +8191,7 @@ function OccupancyPanel({
       }>
     >();
     for (const s of stays) {
+      if ((s as { blocked?: boolean }).blocked) continue;
       const arr = map.get(s.propertyId) ?? [];
       arr.push({
         checkin: s.checkin,
@@ -8203,12 +8204,23 @@ function OccupancyPanel({
     }
     return map;
   }, [stays]);
+  // Bloqueios manuais do ConciergeIA: pintam só as metades livres do dia.
+  const blocksByProperty = useMemo(() => {
+    const map = new Map<string, Array<{ from: string; to: string }>>();
+    for (const s of stays) {
+      if (!(s as { blocked?: boolean }).blocked) continue;
+      const arr = map.get(s.propertyId) ?? [];
+      arr.push({ from: s.checkin, to: s.checkout ?? s.checkin });
+      map.set(s.propertyId, arr);
+    }
+    return map;
+  }, [stays]);
 
   // "in" = check-in confirmado (verde) · "in-pending" = check-in ainda não
   // confirmado (azul claro) · "in-late" = data de check-in já passou sem
   // confirmação (vermelho) — mesma regra do `isOverdue` dos cards do Kanban.
   // Idem para o checkout: "out-pending"/"out-done"/"out-late".
-  type CellPart = "in" | "in-pending" | "in-late" | "out-pending" | "out-done" | "out-late" | "busy" | "free";
+  type CellPart = "in" | "in-pending" | "in-late" | "out-pending" | "out-done" | "out-late" | "busy" | "blocked" | "free";
 
   /**
    * Cada dia é dividido em duas metades (manhã = saída, tarde = entrada),
@@ -8245,11 +8257,17 @@ function OccupancyPanel({
       : through
         ? "busy"
         : "free";
-    return [first, second];
+    const blocks = blocksByProperty.get(propertyId) ?? [];
+    // Manhã: noite anterior bloqueada · Tarde: noite deste dia bloqueada.
+    const amBlocked = blocks.some((b) => b.from < day && b.to >= day);
+    const pmBlocked = blocks.some((b) => b.from <= day && b.to > day);
+    return [first === "free" && amBlocked ? "blocked" : first, second === "free" && pmBlocked ? "blocked" : second];
   }
 
   const clsOf = (s: CellPart) =>
-    s === "in"
+    s === "blocked"
+      ? "bg-muted-foreground/50"
+      : s === "in"
       ? "bg-emerald-500"
       : s === "in-pending"
         ? "bg-sky-400"
