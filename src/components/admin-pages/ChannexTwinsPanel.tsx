@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { linkTwin, listTwinCandidates } from "@/lib/channex-twins.functions";
+import { useOperationMode } from "./ChannexModeCard";
 
 /** Une dois anúncios do Airbnb da mesma unidade: reservar um fecha o outro. */
 export function ChannexTwinsPanel() {
@@ -18,6 +19,8 @@ export function ChannexTwinsPanel() {
   const rows = useMemo(() => q.data?.listings ?? [], [q.data]);
   const titleOf = useMemo(() => new Map(rows.map((r) => [r.listingId, r.title])), [rows]);
   const groups = q.data?.links ?? [];
+  const mode = useOperationMode().data;
+  const lightMode = mode?.mode === "light";
 
   const p = rows.find((r) => r.listingId === primary);
   const t = rows.find((r) => r.listingId === twin);
@@ -58,12 +61,15 @@ export function ChannexTwinsPanel() {
               </SelectContent>
             </Select>
           </div>
+          {lightMode && (
+            <p className="text-[11px] text-muted-foreground">Unir anúncios exige o Modo Full para a conta inteira. Ative-o no card "Modo de operação da conta" acima.</p>
+          )}
           {p && t && (
             <p className="text-[11px] text-muted-foreground">
               Cada anúncio continua separado (aparece sozinho no PriceLabs), mas os calendários passam a fechar juntos na hora. O anúncio gêmeo fica cerca de 1 minuto desconectado e volta publicado; depois, rode a importação no PriceLabs.
             </p>
           )}
-          <Button size="sm" className="h-8 rounded-full text-xs" disabled={!p || !t || link.isPending} onClick={() => link.mutate()}>
+          <Button size="sm" className="h-8 rounded-full text-xs" disabled={!p || !t || link.isPending || lightMode} onClick={() => link.mutate()}>
             {link.isPending ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : <Link2 className="mr-1 size-3.5" />}
             {link.isPending ? "Unindo (até 1 min)…" : "Unir anúncios"}
           </Button>

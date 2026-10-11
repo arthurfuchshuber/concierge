@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ChannexTwinsPanel } from "./ChannexTwinsPanel";
+import { ChannexModeCard } from "./ChannexModeCard";
 import {
   getAirbnbAiToggles,
   getChannexStatus,
@@ -90,6 +91,7 @@ export function ChannexPanel() {
         </div>
       )}
 
+      {status.data?.configured !== false && <ChannexModeCard />}
       {status.data?.configured !== false && <ChannexTwinsPanel />}
 
       {last && (
