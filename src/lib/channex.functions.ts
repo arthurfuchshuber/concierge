@@ -69,6 +69,61 @@ export const importarAnunciosAirbnb = createServerFn({ method: "POST" })
     }
   });
 
+export type ConnectedListing = {
+  listingId: string;
+  name: string;
+  kind: "primary" | "twin";
+  propertyName: string;
+};
+export type ConnectedListingsInventory = {
+  totalCount: number;
+  primaryCount: number;
+  twinCount: number;
+  items: ConnectedListing[];
+};
+
+/**
+ * Inventário de anúncios conectados ativos da conta (base da futura cobrança
+ * por anúncio). Gêmeos contam individualmente. Sempre derivado do banco, então
+ * anúncios entram/saem automaticamente. Não altera preços.
+ */
+export const getConnectedListingsInventory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<ConnectedListingsInventory> => {
+    await requireAdmin(context as never);
+    const userId = (context as { userId: string }).userId;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ data: prim }, { data: twins }] = await Promise.all([
+      supabaseAdmin
+        .from("property_listing_raw_data" as never)
+        .select("property_id, airbnb_listing_id, properties!inner(name, owner_id)")
+        .eq("properties.owner_id", userId),
+      (supabaseAdmin as any)
+        .from("channex_twin_links")
+        .select("property_id, twin_listing_id, twin_title")
+        .eq("owner_id", userId)
+        .eq("status", "active"),
+    ]);
+    const nameByProp = new Map<string, string>();
+    const items: ConnectedListing[] = [];
+    for (const r of (prim ?? []) as any[]) {
+      const n = r.properties?.name ?? "Imóvel";
+      nameByProp.set(r.property_id, n);
+      items.push({ listingId: String(r.airbnb_listing_id ?? r.property_id), name: n, kind: "primary", propertyName: n });
+    }
+    const seen = new Set(items.map((i) => i.listingId));
+    for (const t of (twins ?? []) as any[]) {
+      const id = String(t.twin_listing_id);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const pn = nameByProp.get(t.property_id) ?? "Imóvel";
+      items.push({ listingId: id, name: t.twin_title ?? `Anúncio ${id}`, kind: "twin", propertyName: pn });
+    }
+    items.sort((a, b) => a.propertyName.localeCompare(b.propertyName, "pt-BR") || (a.kind === "primary" ? -1 : 1));
+    const twinCount = items.filter((i) => i.kind === "twin").length;
+    return { totalCount: items.length, primaryCount: items.length - twinCount, twinCount, items };
+  });
+
 export type AirbnbAiToggle = { propertyId: string; name: string; enabled: boolean };
 
 /** Lista os imóveis conectados ao Airbnb e o estado da chave da IA. */
