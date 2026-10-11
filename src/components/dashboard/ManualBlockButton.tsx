@@ -10,6 +10,7 @@ import { FILTER_PANEL_CLASS, FILTER_PANEL_COLLISION, FILTER_PANEL_OFFSET } from 
 import { ACTION_ICON, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
 import { createManualBlockFn, listManualBlocks, removeManualBlockFn } from "@/lib/manual-blocks.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { useOperationMode } from "@/components/admin-pages/ChannexModeCard";
 
 const ddmm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
 
@@ -29,6 +30,7 @@ export function ManualBlockButton() {
   const [to, setTo] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const lightMode = useOperationMode().data?.mode === "light";
 
   if (!data?.canEdit) return null;
   const names = new Map(data.properties.map((p) => [p.id, p.name]));
@@ -67,6 +69,9 @@ export function ManualBlockButton() {
       <PopoverContent className={FILTER_PANEL_CLASS} collisionPadding={FILTER_PANEL_COLLISION} sideOffset={FILTER_PANEL_OFFSET}>
         <div className="space-y-3 p-3">
           <p className="text-sm font-semibold">Bloquear datas</p>
+          {lightMode && (
+            <p className="text-xs text-muted-foreground">Sua conta está no Modo Leve: bloqueie as datas direto na plataforma de hospedagem. Aqui o bloqueio fica só no ConciergeIA.</p>
+          )}
           <select className="h-9 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm" value={propertyId} onChange={(e) => setPropertyId(e.target.value)}>
             <option value="">Imóvel…</option>
             {data.properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
