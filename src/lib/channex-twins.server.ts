@@ -80,7 +80,8 @@ export async function linkTwinListing(input: { channelId: string; primaryListing
     method: "POST",
     body: JSON.stringify({
       rate_plan: {
-        title: "Tarifa Anúncio Gêmeo",
+        // Nome público do anúncio gêmeo, para o PriceLabs identificá-lo.
+        title: (twin.title.includes(" · ") ? twin.title.slice(twin.title.lastIndexOf(" · ") + 3) : twin.title).trim() || "Tarifa Anúncio Gêmeo",
         property_id: primary.propertyId,
         room_type_id: primary.roomTypeId,
         currency: old.data?.attributes?.currency ?? "BRL",
