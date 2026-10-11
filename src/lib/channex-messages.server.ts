@@ -358,6 +358,13 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   }));
   const inquiry = await loadInquiryDetails(admin, m.threadId).catch(() => null);
   const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
+  const { loadReservationDossier } = await import("@/lib/ai/reservation-dossier.server");
+  const dossier =
+    reservation.ok && m.bookingId
+      ? await loadReservationDossier(admin, { propertyId: listing.property_id, bookingId: m.bookingId }).catch(
+          () => null,
+        )
+      : null;
   const result = await runHospitalityAgent({
     supabase: admin,
     property: prop as unknown as Record<string, unknown>,
@@ -373,6 +380,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     checkinDate: reservation.checkin ?? inquiry?.checkin ?? null,
     checkoutDate: reservation.checkout ?? inquiry?.checkout ?? null,
     bookingRequest: inquiry,
+    reservationDossier: dossier?.text ?? null,
   });
 
   if (result.handoff) {
