@@ -319,6 +319,8 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     // Unifica conversas SOMENTE pelo código da reserva confirmada (mesmo imóvel):
     // aparelhos/hóspedes distintos com o mesmo código viram uma única linha.
     // Sem código (consultas/pré-reserva) cada conversa fica isolada.
+    const bestByKey = new Map<string, HandoffConversationSummary>();
+    const ordered: HandoffConversationSummary[] = [];
     const keyFor = (c: HandoffConversationSummary): string => {
       const d = mergeDetails[c.id as string];
       const code = (d?.reservationCode ?? "").trim().toUpperCase();
