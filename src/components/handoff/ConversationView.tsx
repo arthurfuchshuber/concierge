@@ -1437,7 +1437,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         ) : (
           <>
             {/* MODO DIRETO COM PRAZO (11/09/2026).
-                A pausa deixou de ser eterna: 30 minutos, renovados a cada
+                A pausa deixou de ser eterna: 10 minutos, renovados a cada
                 mensagem sua. Aqui ela fica VISÍVEL — antes, nada na tela dizia
                 que a IA estava calada, e havia conversa muda desde 10/09. */}
             {pausaMinutos !== null && (
