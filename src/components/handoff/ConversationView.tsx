@@ -1,3 +1,4 @@
+import { ChannelLogo, channelOf } from "./ChannelLogo";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
@@ -586,19 +587,18 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
   const conv = q.data?.conversation;
   const msgs = q.data?.messages ?? [];
-  // POR ONDE o hóspede está falando agora: canal da última mensagem dele,
-  // senão o prefixo da sessão (airbnb:/whatsapp:), senão o guia digital.
+  // POR ONDE o hóspede está falando agora: canal da última mensagem dele.
   const liveChannel = (() => {
     const lastGuest = [...msgs].reverse().find((m) => (m as { role: string }).role === "user") as
       | { channel?: string | null }
       | undefined;
-    const ch = lastGuest?.channel ?? null;
-    const sess = String(conv?.guest_session_id ?? "");
-    const key = ch ?? (sess.startsWith("airbnb:") ? "airbnb" : sess.startsWith("whatsapp") ? "whatsapp" : "guide");
-    if (key === "airbnb") return { label: "Airbnb", cls: "bg-rose-50 text-rose-700 border-rose-200" };
-    if (key === "whatsapp") return { label: "WhatsApp", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" };
-    return { label: "Guia digital", cls: "bg-violet-50 text-violet-700 border-violet-200" };
+    return channelOf(lastGuest?.channel ?? null, conv?.guest_session_id ?? null);
   })();
+  const guestNameByConversation =
+    (q.data as { guestNameByConversation?: Record<string, string> } | undefined)
+      ?.guestNameByConversation ?? {};
+  const reservationActive = !!(q.data as { reservationActive?: boolean } | undefined)
+    ?.reservationActive;
   const guest = q.data?.guestDetails;
   const claimReq = q.data?.claimRequester;
   const assignedProfile = q.data?.assignedProfile;
@@ -694,6 +694,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         <div className="flex gap-2 items-start justify-between">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
+              <span className="shrink-0 inline-flex" title={`Hóspede conversando via ${liveChannel}`}>
+                <ChannelLogo channel={liveChannel} size={16} />
+              </span>
               <span className="text-sm font-medium truncate">{guestName}</span>
               {guest?.phone && (
                 <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -735,6 +738,11 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   <span className="inline-flex items-center gap-1">
                     <Hash className="size-3" /> {guest.reservationCode}
                     <CopyButton value={guest.reservationCode} size={11} />
+                    <span
+                      className={`ml-1 rounded-full px-1.5 text-[10px] font-semibold ${reservationActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+                    >
+                      {reservationActive ? "Reserva ativa" : "Encerrada"}
+                    </span>
                   </span>
                 )}
               </div>
@@ -764,12 +772,6 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           </div>
 
           <div className="shrink-0 flex items-center gap-1">
-            <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap ${liveChannel.cls}`}
-              title={`Hóspede conversando via ${liveChannel.label}`}
-            >
-              <MessageCircle className="size-3" /> {liveChannel.label}
-            </span>
             {canChat && isMine && status !== "resolved" && (
               <button
                 type="button"
@@ -961,6 +963,18 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   {isNote && (
                     <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1 flex items-center gap-1">
                       <StickyNote className="size-3" /> Nota interna
+                    </div>
+                  )}
+                  {!isNote && isGuest && (
+                    <div className="text-[11px] mb-1 flex items-center gap-1">
+                      <ChannelLogo
+                        channel={channelOf((m as { channel?: string | null }).channel ?? null, conv?.guest_session_id ?? null)}
+                        size={12}
+                      />
+                      <span className="font-bold">
+                        {guestNameByConversation[(m as { conversation_id?: string }).conversation_id ?? ""] ||
+                          guestName}
+                      </span>
                     </div>
                   )}
                   {!isNote && !isGuest && (
