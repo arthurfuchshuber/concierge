@@ -21,13 +21,13 @@ const AGORA = Date.parse("2026-09-11T12:00:00Z");
 const emMinutos = (m: number) => new Date(AGORA + m * 60_000).toISOString();
 
 describe("estado da pausa", () => {
-  it("pausa por 30 minutos por padrão", () => {
-    expect(PAUSE_MINUTES).toBe(30);
+  it("pausa por 10 minutos por padrão", () => {
+    expect(PAUSE_MINUTES).toBe(10);
     const p = pausePatch();
     expect(p.ai_paused).toBe(true);
     const faltam = (new Date(p.paused_until).getTime() - Date.now()) / 60_000;
-    expect(faltam).toBeGreaterThan(29);
-    expect(faltam).toBeLessThanOrEqual(30);
+    expect(faltam).toBeGreaterThan(9);
+    expect(faltam).toBeLessThanOrEqual(10);
   });
 
   it("continua calada enquanto o prazo não venceu", () => {

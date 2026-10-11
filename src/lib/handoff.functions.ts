@@ -1304,7 +1304,7 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
       await supabase
         .from("property_chat_conversations")
         .update({
-          // FALAR DIRETO é o que silencia a IA — e agora com prazo: 30 minutos,
+          // FALAR DIRETO é o que silencia a IA — e agora com prazo: 10 minutos,
           // renovados a cada nova mensagem do atendente. Ver `lib/ai/pause.ts`.
           ...pausePatch(),
           status: "assigned",
