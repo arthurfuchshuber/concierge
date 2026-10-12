@@ -5,7 +5,7 @@ import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -223,7 +223,17 @@ function AdminLayout() {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
   }, []);
 
-  useEffect(() => { setOpen(false); }, [pathname]);
+  // A gaveta fecha ao trocar de página — EXCETO quando a troca veio de abrir uma
+  // categoria (seleção automática da 1ª subcategoria): ali o menu fica aberto e
+  // só o usuário o fecha (11/10/2026).
+  const keepMenuOpenRef = useRef(false);
+  useEffect(() => {
+    if (keepMenuOpenRef.current) {
+      keepMenuOpenRef.current = false;
+      return;
+    }
+    setOpen(false);
+  }, [pathname]);
   // Só UM grupo aberto por vez; ao mudar de página, abre o grupo dela.
   const groupOfPath = (p: string) =>
     SIDEBAR_GROUPS.find((g) => g.children.some((c) => isChildActive(c, p)))?.key ?? null;
@@ -371,7 +381,10 @@ function AdminLayout() {
                         setOpenGroup(group.key);
                         // Abrir a categoria seleciona a 1ª subcategoria (11/10/2026),
                         // a menos que a página atual já seja uma delas.
-                        if (!hasActive) navigate({ to: kids[0].to });
+                        if (!hasActive) {
+                          keepMenuOpenRef.current = true;
+                          navigate({ to: kids[0].to });
+                        }
                       }}
                       className={`flex h-11 w-full items-center gap-3 rounded-xl px-3.5 text-left text-sm transition-colors hover:bg-secondary/60 ${
                         hasActive || isOpen ? "font-bold text-foreground" : "font-semibold text-muted-foreground hover:text-foreground"
