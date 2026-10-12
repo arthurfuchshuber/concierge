@@ -190,6 +190,7 @@ export async function runHospitalityAgent(params: {
   const { supabase, property } = params;
   // Economia de contexto: pergunta objetiva (ex.: senha do Wi-Fi) dispensa o
   // histórico; dúvida contínua sempre lê o histórico antes de responder.
+  const fullHistory = params.history ?? [];
   {
     const { needsHistory } = await import("@/lib/ai/history-need");
     if (!needsHistory(params.message)) params = { ...params, history: [] };
@@ -983,7 +984,7 @@ export async function runHospitalityAgent(params: {
 
   // Saudação obrigatória: se a IA ainda não cumprimentou ninguém nesta
   // conversa, a resposta abre com um cumprimento (inclusive frases fixas).
-  if (reply) reply = ensureGreeting(reply, params.history, params.guestName ?? null, intent.language);
+  if (reply) reply = ensureGreeting(reply, fullHistory, params.guestName ?? null, intent.language);
 
   // Botões de resposta rápida — sempre que a IA termina fazendo uma pergunta
   // ao hóspede, ele deve poder responder num toque (e continuar livre para
