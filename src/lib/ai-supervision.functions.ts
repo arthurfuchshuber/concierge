@@ -175,7 +175,7 @@ export const answerEscalation = createServerFn({ method: "POST" })
         })
         .eq("conversation_id", conversationId)
         .neq("id", data.escalationId)
-        .neq("status", "answered");
+        .eq("status", "pending");
     }
     if (conversationId) {
       try {
