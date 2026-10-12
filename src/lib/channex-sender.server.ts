@@ -73,7 +73,7 @@ export async function listListingSenders(ownerId: string): Promise<ListingSender
     const group = [...ids];
     // Todas as contas Airbnb conectadas aparecem (principal + coanfitriões);
     // as que ainda não enxergam todo o grupo vêm marcadas sem acesso.
-    const options = chans.map((c) => ({ channelId: c.id, title: c.title, hasAccess: group.every((l) => c.catalog.has(l) || c.mappings.some((m) => m.listingId === l)) }));
+    const options = chans.map((c) => ({ channelId: c.id, title: c.title, hasAccess: true }));
     for (const l of group) {
       const cur = chans.find((c) => c.mappings.some((m) => m.listingId === l));
       out.push({ listingId: l, currentChannelId: cur?.id ?? null, options });
@@ -98,8 +98,8 @@ export async function switchListingSender(ownerId: string, listingId: string, ta
   const chans = await loadAirbnbChannels();
   const target = chans.find((c) => c.id === targetChannelId);
   if (!target) throw new Error("Conta Airbnb não encontrada.");
-  const missing = group.filter((l) => !target.catalog.has(l) && !target.mappings.some((m) => m.listingId === l));
-  if (missing.length) throw new Error(`A conta "${target.title}" não tem acesso a todos os anúncios deste imóvel (incluindo gêmeos). Adicione-a como anfitriã/coanfitriã no Airbnb primeiro.`);
+  // Sem trava pelo catálogo da Channex (pode estar desatualizado): o Airbnb
+  // decide no mapeamento e o rollback abaixo devolve o anúncio se recusar.
 
   const moves: Array<{ listingId: string; from: Chan; mappingId: string; ratePlanId: string; propertyId: string | null }> = [];
   for (const l of group) {
