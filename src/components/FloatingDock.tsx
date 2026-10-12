@@ -21,7 +21,7 @@ import { Sparkles, Headphones, X } from "lucide-react";
 import { HANDOFF_DOCK_OPEN_EVENT } from "@/lib/handoff-dock";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import { useLockBodyScroll, useVisualViewport, viewportOverlayStyle } from "@/hooks/useVisualViewport";
-import { useManualOverlayLayer } from "@/lib/global-overlay-store";
+import { useAnyWindowOpen, useManualOverlayLayer } from "@/lib/global-overlay-store";
 
 const POSITION_KEY = "handoff-dock-position-v1";
 
@@ -56,6 +56,9 @@ export function FloatingDock({
   pendingCount?: number;
 }) {
   const [mounted, setMounted] = useState(false);
+  // Uma janela aberta (ex.: "Nova situação") esconde o botão: ele cobria o
+  // botão de enviar no celular.
+  const windowOpen = useAnyWindowOpen();
   const [menuOpen, setMenuOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [dockBottom, setDockBottom] = useState(88);
@@ -139,7 +142,7 @@ export function FloatingDock({
 
   const node = (
     <>
-      {!assistantOpen && (
+      {!assistantOpen && !windowOpen && (
         <button
           onPointerDown={onPointerDown}
           onClick={() => {

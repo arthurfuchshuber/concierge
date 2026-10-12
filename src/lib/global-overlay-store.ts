@@ -165,6 +165,12 @@ export function useGlobalOverlayOpen(): boolean {
   return React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
+const getWindowSnapshot = () => stack.some((l) => l.kind === "window");
+/** true enquanto qualquer Dialog/Sheet/Drawer estiver aberto. */
+export function useAnyWindowOpen(): boolean {
+  return React.useSyncExternalStore(subscribe, getWindowSnapshot, getServerSnapshot);
+}
+
 /** Bloqueia o "clique fora" de uma camada que não é a do topo. */
 export function guardNestedOutside<E extends { preventDefault: () => void }>(
   idRef: React.MutableRefObject<number | null>,
