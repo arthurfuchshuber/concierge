@@ -245,9 +245,11 @@ export const getListingSenders = createServerFn({ method: "GET" })
 /** Troca a conta remetente do anúncio e de todos os seus gêmeos na Channex. */
 export const setListingSender = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { listingId: string; channelId: string }) => {
-    if (typeof d?.listingId !== "string" || typeof d?.channelId !== "string") throw new Error("Dados inválidos.");
-    return d;
+  .inputValidator((d: { listingId?: string; listingIds?: string[]; channelId: string }) => {
+    const ids = d?.listingIds ?? (d?.listingId ? [d.listingId] : []);
+    if (typeof d?.channelId !== "string" || !ids.length || ids.length > 200 || ids.some((x) => typeof x !== "string"))
+      throw new Error("Dados inválidos.");
+    return { listingIds: ids, channelId: d.channelId };
   })
   .handler(async ({ data, context }) => {
     await requireAdmin(context as never);
@@ -255,5 +257,5 @@ export const setListingSender = createServerFn({ method: "POST" })
     const { assertPilot } = await import("@/lib/channex-mode.server");
     assertPilot(userId);
     const { switchListingSender } = await import("@/lib/channex-sender.server");
-    return switchListingSender(userId, data.listingId, data.channelId);
+    return switchListingSender(userId, data.listingIds, data.channelId);
   });

@@ -56,14 +56,38 @@ export function ChannexPanel() {
   const senders = useQuery({ queryKey: ["listing-senders"], queryFn: () => sendersFn(), retry: false, staleTime: 60_000 });
   const senderBy = new Map((senders.data ?? []).map((s) => [s.listingId, s]));
   const changeSender = useMutation({
-    mutationFn: (v: { listingId: string; channelId: string }) => setSenderFn({ data: v }),
+    mutationFn: (v: { listingIds: string[]; channelId: string }) => setSenderFn({ data: v }),
     onMutate: () => toast.info("Trocando a conta que assina as respostas (leva cerca de 1 minuto)…"),
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["listing-senders"] });
+      setPicked(new Set());
       toast.success(`Respostas agora assinadas por "${r.title}" (incluindo anúncios gêmeos).`);
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível trocar a conta."),
+    onError: (e) => {
+      qc.invalidateQueries({ queryKey: ["listing-senders"] });
+      toast.error(e instanceof Error ? e.message : "Não foi possível trocar a conta.");
+    },
   });
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkTarget, setBulkTarget] = useState("");
+  const allOptions = senders.data?.[0]?.options ?? [];
+  const pickable = (toggles.data ?? []).filter((t) => senderBy.has(t.listingId));
+  const togglePick = (id: string, on: boolean) => {
+    const t = (toggles.data ?? []).find((x) => x.listingId === id);
+    // Gêmeos do mesmo imóvel entram juntos.
+    const same = (toggles.data ?? []).filter((x) => x.propertyId === t?.propertyId).map((x) => x.listingId);
+    setPicked((p) => {
+      const n = new Set(p);
+      for (const s of same) (on ? n.add(s) : n.delete(s));
+      return n;
+    });
+  };
+  const runBulk = () => {
+    if (!bulkTarget || !picked.size) return;
+    const title = allOptions.find((o) => o.channelId === bulkTarget)?.title ?? "conta escolhida";
+    if (!window.confirm(`Assinar as respostas de ${picked.size} anúncio(s) por "${title}"? Gêmeos mudam juntos. Preços não são alterados.`)) return;
+    changeSender.mutate({ listingIds: [...picked], channelId: bulkTarget });
+  };
   const [last, setLast] = useState<ChannexSyncResult | null>(null);
 
   const status = useQuery({
