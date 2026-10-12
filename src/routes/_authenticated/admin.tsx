@@ -52,15 +52,26 @@ const baseNav = [
  * abre sozinho. Itens soltos (Guias Digitais, Atendimento, Administrativo)
  * continuam links simples.
  */
+/** Filho do menu ativo? `except`: caminhos com item próprio que não contam. */
+const isChildActive = (
+  c: { to: string; exact: boolean; except?: readonly string[] },
+  p: string,
+) =>
+  (c.exact ? p === c.to : p.startsWith(c.to)) &&
+  !(c.except ?? []).some((e) => p.startsWith(e));
+
 const SIDEBAR_GROUPS = [
   {
     key: "dashboard",
     label: "Dashboard",
     icon: LayoutDashboard,
-    // Por ora (pedido explícito, 10/10/2026) TODAS as páginas do Dashboard —
-    // Operacional, Kanban, Limpeza, Registros — ficam dentro de "Operacional":
-    // continuam acessíveis pelas abas da própria página.
-    children: [{ to: "/admin/dashboard", label: "Operacional", exact: false }],
+    // Operacional (Operacional, Kanban, Registros — abas da própria página) e
+    // Financeiro (11/10/2026: a antiga aba "Limpeza" foi MOVIDA para cá).
+    // "Operacional" casa com /admin/dashboard/*, exceto o que tem página própria.
+    children: [
+      { to: "/admin/dashboard", label: "Operacional", exact: false, except: ["/admin/dashboard/financeiro"] },
+      { to: "/admin/dashboard/financeiro", label: "Financeiro", exact: false, except: [] },
+    ],
   },
   {
     key: "stakeholders",
@@ -215,7 +226,7 @@ function AdminLayout() {
   useEffect(() => { setOpen(false); }, [pathname]);
   // Só UM grupo aberto por vez; ao mudar de página, abre o grupo dela.
   const groupOfPath = (p: string) =>
-    SIDEBAR_GROUPS.find((g) => g.children.some((c) => (c.exact ? p === c.to : p.startsWith(c.to))))?.key ?? null;
+    SIDEBAR_GROUPS.find((g) => g.children.some((c) => isChildActive(c, p)))?.key ?? null;
   const [openGroup, setOpenGroup] = useState<string | null>(() => groupOfPath(pathname));
   useEffect(() => {
     const k = groupOfPath(pathname);
@@ -335,7 +346,7 @@ function AdminLayout() {
               if (kids.length === 0) return null;
               const Icon = group.icon;
               const isOpen = openGroup === group.key && !collapsed;
-              const hasActive = kids.some((c) => (c.exact ? pathname === c.to : pathname.startsWith(c.to)));
+              const hasActive = kids.some((c) => isChildActive(c, pathname));
               return (
                 <div key={group.key}>
                   {collapsed ? (
@@ -371,7 +382,7 @@ function AdminLayout() {
                   {isOpen && (
                     <div className="ml-[23px] mt-0.5 mb-1.5 flex flex-col gap-0.5 border-l border-border pl-3.5">
                       {kids.map((c) => {
-                        const active = c.exact ? pathname === c.to : pathname.startsWith(c.to);
+                        const active = isChildActive(c, pathname);
                         return (
                           <Link
                             key={c.to}

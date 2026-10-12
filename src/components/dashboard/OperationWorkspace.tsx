@@ -3971,7 +3971,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 const OPERATION_TABS = [
   { view: "resumo" as const, label: "Operacional", to: "/admin/dashboard" },
   { view: "kanban" as const, label: "Kanban", to: "/admin/dashboard/kanban" },
-  { view: "limpeza" as const, label: "Limpeza", to: "/admin/dashboard/limpeza" },
+  // "Limpeza" foi MOVIDA para a página "Financeiro" (menu lateral, dentro de
+  // Dashboard) — 11/10/2026. Não aparece mais nas abas do Operacional.
+  { view: "limpeza" as const, label: "Financeiro", to: "/admin/dashboard/financeiro" },
   // "Registros" (09/09/2026): as três primeiras respondem O QUE FAZER; esta
   // responde O QUE FOI FEITO — as fotos, vídeos, áudios e notas que hoje só
   // existem dentro do clipe de uma reserva específica.
@@ -3987,7 +3989,7 @@ const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }>
     title: "Kanban Operacional",
     subtitle: "Cada reserva na etapa em que ela realmente está.",
   },
-  limpeza: { title: "Limpeza", subtitle: "Histórico e custos das limpezas realizadas." },
+  limpeza: { title: "Financeiro", subtitle: "Histórico e custos das limpezas realizadas." },
   registros: {
     title: "Registros",
     subtitle: "Fotos, vídeos, áudios e notas de todos os imóveis.",
@@ -4104,7 +4106,9 @@ export function OperationShell({
             margem nenhuma. */}
         <div className="mt-5 flex flex-col gap-2 lg:mt-0 lg:flex-row lg:items-center lg:gap-2">
           <nav className="ds-tabs order-1 lg:order-2 lg:w-[520px] lg:shrink-0">
-            {OPERATION_TABS.map((t) => {
+            {/* Financeiro tem a SUA página (só a aba dele); as demais telas
+                mostram as abas do Operacional, sem a Limpeza/Financeiro. */}
+            {OPERATION_TABS.filter((t) => (view === "limpeza" ? t.view === "limpeza" : t.view !== "limpeza")).map((t) => {
               const active = t.view === view;
               return (
                 <Link
@@ -4395,9 +4399,14 @@ type CardPrediction = {
   secondary: PredictionSide | null;
 };
 
-/** Limita a altura de uma lista em N cards INTEIROS — nunca corta um card ao
- * meio. Mede os itens de verdade e escolhe o maior corte que caiba na tela. */
-function useWholeCardsMaxHeight(visible: number, key: unknown) {
+/** REGRA GLOBAL DE JANELAS (09/10/2026): a janela cresce/encolhe com o
+ * conteúdo e só para no teto de 75% da TELA (contando o cabeçalho da própria
+ * janela). Passou disso: a lista rola e termina num card INTEIRO (anticorte).
+ *
+ * NÃO existe mais limite de "N cards visíveis" — ele fez as janelas de
+ * Checkouts/Check-ins/Fila de Limpeza voltarem a abrir curtas (2 cards),
+ * ignorando os 75%. O teto é só a altura da tela. */
+function useWholeCardsMaxHeight(key: unknown) {
   // Callback ref em state: o conteúdo vive num portal (Dialog) e só monta
   // quando abre — assim o cálculo dispara exatamente quando o nó aparece.
   const [node, setNode] = useState<HTMLDivElement | null>(null);
@@ -4429,15 +4438,19 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
       // ~75% da altura da TELA do aparelho (pedido explícito, 24/09/2026:
       // "ajuste a altura de TODOS OS TOOLTIPS para que consuma em torno de
       // 75% da TELA DO DISPOSITIVO DO USUÁRIO"). Era 0.7 antes.
-      const cap = Math.round(window.innerHeight * 0.75);
+      // O teto de 75% vale para a JANELA INTEIRA: desconta o que não é lista
+      // (cabeçalho/abas) para a janela não passar de 75% da tela.
+      const win = node.closest<HTMLElement>('[role="dialog"]');
+      const chrome = win ? Math.max(0, win.offsetHeight - node.offsetHeight) : 0;
+      const cap = Math.max(120, Math.round(window.innerHeight * 0.75) - chrome);
       const tops = items.map((i) => absoluteTop(i) - base);
       const bottoms = items.map((i) => absoluteTop(i) + i.offsetHeight - base);
       const total = bottoms[bottoms.length - 1];
-      if (items.length <= visible && total <= cap) {
+      if (total <= cap) {
         setMaxHeight(undefined);
         return;
       }
-      let height = bottoms[Math.min(visible, bottoms.length) - 1];
+      let height = total;
       if (height > cap) {
         // Recua somente para um card COMPLETO. Mesmo se o primeiro for mais
         // alto que o limite visual, nunca o corta ao meio.
@@ -4473,7 +4486,7 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", recalc);
     };
-  }, [visible, key, node]);
+  }, [key, node]);
 
   return { ref: setNode, maxHeight };
 }
@@ -4570,7 +4583,7 @@ function KpiCard({
     return out;
   }, [frozenSnapshot, rows, pinnedIds]);
 
-  const list = useWholeCardsMaxHeight(2, `${open}:${displayRows.length}:${loading}`);
+  const list = useWholeCardsMaxHeight(`${open}:${displayRows.length}:${loading}`);
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   /* PADRÃO "PRESENÇA" (18/09/2026): o número NÃO tem mais cor própria. Cada
      card pintava o seu de azul, verde ou rosa e a tela virava um carnaval
@@ -6322,7 +6335,6 @@ export function TasksDialog({
      largura entre eles. */
   const bucketsBarRef = useAntiClipBar<HTMLDivElement>();
   const scroll = useWholeCardsMaxHeight(
-    99,
     `${open}:${loading}:${tasks.length}:${groupBy}:${sortBy}:${bucketFilter}:${showForm}`,
   );
   const todayISO = todayISOSaoPaulo();
@@ -8177,7 +8189,7 @@ function OccupancyPanel({
   // lógica de "N itens inteiros" já usada nas listas do Kanban
   // (useWholeCardsMaxHeight): mede a altura real de cada linha e trava o
   // quadro exatamente no fim da 5ª, sobrando scroll pro resto.
-  const list = useWholeCardsMaxHeight(5, `${visibleProperties.length}:${loading}:${dayW}`);
+  const list = useWholeCardsMaxHeight(`${visibleProperties.length}:${loading}:${dayW}`);
 
   const byProperty = useMemo(() => {
     const map = new Map<
@@ -8893,7 +8905,7 @@ function EngagementBreakdownDialog({
   // mostra sempre cards INTEIROS, nunca corta um no meio. Como agora só 1
   // lista ocupa o espaço por vez (abas), cabem mais itens inteiros do que
   // antes, quando as 2 listas dividiam a mesma altura.
-  const list = useWholeCardsMaxHeight(5, `${open}:${tab}:${activeItems.length}`);
+  const list = useWholeCardsMaxHeight(`${open}:${tab}:${activeItems.length}`);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>

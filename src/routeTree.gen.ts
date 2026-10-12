@@ -65,7 +65,7 @@ import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.go
 import { Route as AuthenticatedAdminDashboardIndexRouteImport } from './routes/_authenticated/admin.dashboard.index'
 import { Route as AuthenticatedAdminDashboardCalendarioRouteImport } from './routes/_authenticated/admin.dashboard.calendario'
 import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
-import { Route as AuthenticatedAdminDashboardLimpezaRouteImport } from './routes/_authenticated/admin.dashboard.limpeza'
+import { Route as AuthenticatedAdminDashboardFinanceiroRouteImport } from './routes/_authenticated/admin.dashboard.financeiro'
 import { Route as AuthenticatedAdminDashboardRegistrosRouteImport } from './routes/_authenticated/admin.dashboard.registros'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminRecomendacoesSigmaIndexRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.index'
@@ -400,10 +400,10 @@ const AuthenticatedAdminDashboardKanbanRoute =
     path: '/kanban',
     getParentRoute: () => AuthenticatedAdminDashboardRoute,
   } as any)
-const AuthenticatedAdminDashboardLimpezaRoute =
-  AuthenticatedAdminDashboardLimpezaRouteImport.update({
-    id: '/limpeza',
-    path: '/limpeza',
+const AuthenticatedAdminDashboardFinanceiroRoute =
+  AuthenticatedAdminDashboardFinanceiroRouteImport.update({
+    id: '/financeiro',
+    path: '/financeiro',
     getParentRoute: () => AuthenticatedAdminDashboardRoute,
   } as any)
 const AuthenticatedAdminDashboardRegistrosRoute =
@@ -614,7 +614,7 @@ export interface FileRoutesByFullPath {
   '/g/$slug/': typeof GSlugIndexRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
-  '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
+  '/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
   '/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
@@ -695,7 +695,7 @@ export interface FileRoutesByTo {
   '/g/$slug': typeof GSlugIndexRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
-  '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
+  '/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
   '/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
@@ -781,7 +781,7 @@ export interface FileRoutesById {
   '/g/$slug/': typeof GSlugIndexRoute
   '/_authenticated/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
-  '/_authenticated/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
+  '/_authenticated/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
   '/_authenticated/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
@@ -867,7 +867,7 @@ export interface FileRouteTypes {
     | '/g/$slug/'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/kanban'
-    | '/admin/dashboard/limpeza'
+    | '/admin/dashboard/financeiro'
     | '/admin/dashboard/registros'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
@@ -948,7 +948,7 @@ export interface FileRouteTypes {
     | '/g/$slug'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/kanban'
-    | '/admin/dashboard/limpeza'
+    | '/admin/dashboard/financeiro'
     | '/admin/dashboard/registros'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
@@ -1033,7 +1033,7 @@ export interface FileRouteTypes {
     | '/g/$slug/'
     | '/_authenticated/admin/dashboard/calendario'
     | '/_authenticated/admin/dashboard/kanban'
-    | '/_authenticated/admin/dashboard/limpeza'
+    | '/_authenticated/admin/dashboard/financeiro'
     | '/_authenticated/admin/dashboard/registros'
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
@@ -1513,11 +1513,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardKanbanRouteImport
       parentRoute: typeof AuthenticatedAdminDashboardRoute
     }
-    '/_authenticated/admin/dashboard/limpeza': {
-      id: '/_authenticated/admin/dashboard/limpeza'
-      path: '/limpeza'
-      fullPath: '/admin/dashboard/limpeza'
-      preLoaderRoute: typeof AuthenticatedAdminDashboardLimpezaRouteImport
+    '/_authenticated/admin/dashboard/financeiro': {
+      id: '/_authenticated/admin/dashboard/financeiro'
+      path: '/financeiro'
+      fullPath: '/admin/dashboard/financeiro'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardFinanceiroRouteImport
       parentRoute: typeof AuthenticatedAdminDashboardRoute
     }
     '/_authenticated/admin/dashboard/registros': {
@@ -1708,7 +1708,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminDashboardRouteChildren {
   AuthenticatedAdminDashboardCalendarioRoute: typeof AuthenticatedAdminDashboardCalendarioRoute
   AuthenticatedAdminDashboardKanbanRoute: typeof AuthenticatedAdminDashboardKanbanRoute
-  AuthenticatedAdminDashboardLimpezaRoute: typeof AuthenticatedAdminDashboardLimpezaRoute
+  AuthenticatedAdminDashboardFinanceiroRoute: typeof AuthenticatedAdminDashboardFinanceiroRoute
   AuthenticatedAdminDashboardRegistrosRoute: typeof AuthenticatedAdminDashboardRegistrosRoute
   AuthenticatedAdminDashboardIndexRoute: typeof AuthenticatedAdminDashboardIndexRoute
 }
@@ -1719,8 +1719,8 @@ const AuthenticatedAdminDashboardRouteChildren: AuthenticatedAdminDashboardRoute
       AuthenticatedAdminDashboardCalendarioRoute,
     AuthenticatedAdminDashboardKanbanRoute:
       AuthenticatedAdminDashboardKanbanRoute,
-    AuthenticatedAdminDashboardLimpezaRoute:
-      AuthenticatedAdminDashboardLimpezaRoute,
+    AuthenticatedAdminDashboardFinanceiroRoute:
+      AuthenticatedAdminDashboardFinanceiroRoute,
     AuthenticatedAdminDashboardRegistrosRoute:
       AuthenticatedAdminDashboardRegistrosRoute,
     AuthenticatedAdminDashboardIndexRoute:
