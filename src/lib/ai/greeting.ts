@@ -45,7 +45,7 @@ export function ensureGreeting(
   language: string | null | undefined,
   now = new Date(),
 ): string {
-  if (!reply.trim() || hasGreeting(reply)) return reply;
+  if (!reply.trim() || hasGreeting(reply) || /\[SILENCIO\]/i.test(reply)) return reply;
   const alreadyGreeted = history.some((m) => m.role === "assistant" && hasGreeting(m.content));
   if (alreadyGreeted) return reply;
   return `${greetingFor(language, guestName, now)} ${reply}`;
