@@ -88,12 +88,31 @@ export async function listListingSenders(ownerId: string): Promise<ListingSender
  * antigos → pausa exigida pela Channex → recria no novo canal → importa
  * reservas futuras → limpa propriedades órfãs do canal antigo.
  */
-export async function switchListingSender(ownerId: string, listingId: string, targetChannelId: string) {
+const inFlight = new Set<string>();
+
+export async function switchListingSender(ownerId: string, listingId: string | string[], targetChannelId: string) {
+  if (inFlight.has(ownerId)) throw new Error("Já existe uma troca de conta em andamento. Aguarde a conclusão.");
+  inFlight.add(ownerId);
+  try {
+    return await runSwitch(ownerId, Array.isArray(listingId) ? listingId : [listingId], targetChannelId);
+  } finally {
+    inFlight.delete(ownerId);
+  }
+}
+
+async function runSwitch(ownerId: string, listingIds: string[], targetChannelId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as any;
   const groups = await ownerGroups(db, ownerId);
-  const group = [...([...groups.values()].find((g) => g.has(listingId)) ?? [])];
-  if (!group.length) throw new Error("Anúncio não pertence à sua conta.");
+  // Lote: une os grupos (principal + gêmeos) de todos os anúncios pedidos.
+  const set = new Set<string>();
+  for (const id of listingIds) {
+    const g = [...groups.values()].find((x) => x.has(id));
+    if (!g) throw new Error("Anúncio não pertence à sua conta.");
+    g.forEach((l) => set.add(l));
+  }
+  const group = [...set];
+  if (!group.length) throw new Error("Nenhum anúncio selecionado.");
 
   const chans = await loadAirbnbChannels();
   const target = chans.find((c) => c.id === targetChannelId);
