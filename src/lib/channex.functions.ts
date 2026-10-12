@@ -242,7 +242,7 @@ export const getListingSenders = createServerFn({ method: "GET" })
     return listListingSenders(userId);
   });
 
-/** Troca a conta remetente do anúncio e de todos os seus gêmeos na Channex. */
+/** Define a conta que assina as respostas do anúncio e dos gêmeos (envio direto). */
 export const setListingSender = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { listingId?: string; listingIds?: string[]; channelId: string }) => {

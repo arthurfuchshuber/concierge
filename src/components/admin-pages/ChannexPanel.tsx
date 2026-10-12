@@ -57,8 +57,7 @@ export function ChannexPanel() {
   const senderBy = new Map((senders.data ?? []).map((s) => [s.listingId, s]));
   const changeSender = useMutation({
     mutationFn: (v: { listingIds: string[]; channelId: string }) => setSenderFn({ data: v }),
-    onMutate: () => toast.info("Trocando a conta que assina as respostas (leva cerca de 1 minuto)…"),
-    onSuccess: (r) => {
+        onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["listing-senders"] });
       setPicked(new Set());
       toast.success(`Respostas agora assinadas por "${r.title}" (incluindo anúncios gêmeos).`);
@@ -208,7 +207,7 @@ export function ChannexPanel() {
                   onChange={(e) => {
                     const channelId = e.target.value;
                     if (!channelId || channelId === snd.currentChannelId) return;
-                    if (!window.confirm("Trocar a conta que assina as respostas deste anúncio (e dos gêmeos)? Preços não são alterados.")) return;
+                    if (!window.confirm("Trocar a conta que assina as respostas deste anúncio (e dos gêmeos)? Vale na hora; preços e calendário não são alterados.")) return;
                     changeSender.mutate({ listingIds: [t.listingId], channelId });
                   }}
                   aria-label={`Conta remetente — ${t.name}`}

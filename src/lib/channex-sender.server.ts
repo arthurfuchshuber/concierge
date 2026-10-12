@@ -1,9 +1,9 @@
 /**
  * Conta remetente da IA no Airbnb ("carimbo"), escolhida por anúncio.
- * O Airbnb carimba cada mensagem com a conta cujo acesso OAuth a Channex usa
- * para aquele anúncio; por isso trocar o remetente = mover o vínculo do
- * anúncio (e de todos os seus gêmeos) para o canal Airbnb da conta escolhida.
- * Nada de preço é alterado: o mesmo plano de tarifa é religado ao novo canal.
+ * A escolha é só uma preferência gravada por anúncio (e gêmeos): o envio sai
+ * direto no Airbnb com o acesso da conta escolhida (`airbnb-direct-sender`).
+ * O anúncio continua mapeado na Channex como está — preços, calendário e
+ * PriceLabs nunca são tocados.
  */
 const B = "https://app.channex.io/api/v1";
 
@@ -68,6 +68,8 @@ export async function listListingSenders(ownerId: string): Promise<ListingSender
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const groups = await ownerGroups(supabaseAdmin, ownerId);
   const chans = await loadAirbnbChannels();
+  const { readSenderPrefs } = await import("@/lib/airbnb-direct-sender.server");
+  const prefs = await readSenderPrefs(supabaseAdmin, [...groups.values()].flatMap((g) => [...g]));
   const out: ListingSender[] = [];
   for (const ids of groups.values()) {
     const group = [...ids];
@@ -76,101 +78,30 @@ export async function listListingSenders(ownerId: string): Promise<ListingSender
     const options = chans.map((c) => ({ channelId: c.id, title: c.title, hasAccess: true }));
     for (const l of group) {
       const cur = chans.find((c) => c.mappings.some((m) => m.listingId === l));
-      out.push({ listingId: l, currentChannelId: cur?.id ?? null, options });
+      out.push({ listingId: l, currentChannelId: prefs.get(l) ?? cur?.id ?? null, options });
     }
   }
   return out;
 }
 
 /**
- * Move o anúncio e todos os seus gêmeos para o canal da conta escolhida.
- * Ordem: valida acesso → inclui propriedades no novo canal → remove vínculos
- * antigos → pausa exigida pela Channex → recria no novo canal → importa
- * reservas futuras → limpa propriedades órfãs do canal antigo.
+ * Define a conta que assina as respostas do anúncio e de todos os seus gêmeos.
+ * Instantâneo: só grava a preferência; nada é remapeado na Channex.
  */
-const inFlight = new Set<string>();
-
-export async function switchListingSender(ownerId: string, listingId: string | string[], targetChannelId: string) {
-  if (inFlight.has(ownerId)) throw new Error("Já existe uma troca de conta em andamento. Aguarde a conclusão.");
-  inFlight.add(ownerId);
-  try {
-    return await runSwitch(ownerId, Array.isArray(listingId) ? listingId : [listingId], targetChannelId);
-  } finally {
-    inFlight.delete(ownerId);
-  }
-}
-
-async function runSwitch(ownerId: string, listingIds: string[], targetChannelId: string) {
+export async function switchListingSender(ownerId: string, listingId: string | string[], targetChannelId: string, userId = ownerId) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as any;
   const groups = await ownerGroups(db, ownerId);
-  // Lote: une os grupos (principal + gêmeos) de todos os anúncios pedidos.
   const set = new Set<string>();
-  for (const id of listingIds) {
+  for (const id of Array.isArray(listingId) ? listingId : [listingId]) {
     const g = [...groups.values()].find((x) => x.has(id));
     if (!g) throw new Error("Anúncio não pertence à sua conta.");
     g.forEach((l) => set.add(l));
   }
-  const group = [...set];
-  if (!group.length) throw new Error("Nenhum anúncio selecionado.");
-
-  const chans = await loadAirbnbChannels();
-  const target = chans.find((c) => c.id === targetChannelId);
+  if (!set.size) throw new Error("Nenhum anúncio selecionado.");
+  const target = (await loadAirbnbChannels()).find((c) => c.id === targetChannelId);
   if (!target) throw new Error("Conta Airbnb não encontrada.");
-  // Sem trava pelo catálogo da Channex (pode estar desatualizado): o Airbnb
-  // decide no mapeamento e o rollback abaixo devolve o anúncio se recusar.
-
-  const moves: Array<{ listingId: string; from: Chan; mappingId: string; ratePlanId: string; propertyId: string | null }> = [];
-  for (const l of group) {
-    const from = chans.find((c) => c.mappings.some((m) => m.listingId === l));
-    if (!from) throw new Error(`O anúncio ${l} não está conectado a nenhuma conta na Channex.`);
-    if (from.id === target.id) continue;
-    const m = from.mappings.find((x) => x.listingId === l)!;
-    const rp = await cx<{ data: any }>(`/rate_plans/${m.ratePlanId}`).catch(() => null);
-    moves.push({ listingId: l, from, mappingId: m.id, ratePlanId: m.ratePlanId, propertyId: rp?.data?.relationships?.property?.data?.id ?? null });
-  }
-  if (!moves.length) return { changed: 0, title: target.title };
-
-  // 1) Propriedades passam a pertencer também ao novo canal.
-  const props = new Set(target.properties);
-  for (const mv of moves) if (mv.propertyId) props.add(mv.propertyId);
-  if (props.size !== target.properties.length) {
-    await cx(`/channels/${target.id}`, { method: "PUT", body: JSON.stringify({ channel: { properties: [...props] } }) });
-  }
-  // 2) Remove os vínculos antigos (todos de uma vez, para uma única pausa).
-  for (const mv of moves) await cx(`/channels/${mv.from.id}/mappings/${mv.mappingId}`, { method: "DELETE" });
-  await sleep(40_000);
-  // 3) Recria no novo canal com o MESMO plano de tarifa (preços intactos).
-  const failed: string[] = [];
-  for (const mv of moves) {
-    try {
-      await cx(`/channels/${target.id}/mappings`, { method: "POST", body: JSON.stringify({ mapping: { rate_plan_id: mv.ratePlanId, settings: { listing_id: mv.listingId } } }) });
-      await cx(`/channels/${target.id}/execute/load_future_reservations`, { method: "POST", body: JSON.stringify({ listing_id: mv.listingId }) }).catch(() => undefined);
-    } catch (e) {
-      console.error("[sender] remap", mv.listingId, e);
-      // Desfaz: devolve ao canal de origem para o anúncio nunca ficar solto.
-      await cx(`/channels/${mv.from.id}/mappings`, { method: "POST", body: JSON.stringify({ mapping: { rate_plan_id: mv.ratePlanId, settings: { listing_id: mv.listingId } } }) }).catch(() => undefined);
-      failed.push(mv.listingId);
-    }
-  }
-  // 4) Canal antigo deixa de carregar propriedades que não usa mais.
-  for (const from of new Set(moves.filter((m) => !failed.includes(m.listingId)).map((m) => m.from))) {
-    const fresh = (await cx<{ data: any }>(`/channels/${from.id}`).catch(() => null))?.data?.attributes;
-    if (!fresh) continue;
-    const used = new Set<string>();
-    for (const m of fresh.rate_plans ?? []) {
-      const rp = await cx<{ data: any }>(`/rate_plans/${m.rate_plan_id}`).catch(() => null);
-      const pid = rp?.data?.relationships?.property?.data?.id;
-      if (pid) used.add(pid);
-    }
-    const keep = (fresh.properties ?? []).filter((p: string) => used.has(p) || !moves.some((m) => m.propertyId === p));
-    if (keep.length !== (fresh.properties ?? []).length) {
-      await cx(`/channels/${from.id}`, { method: "PUT", body: JSON.stringify({ channel: { properties: keep } }) }).catch((e) => console.error("[sender] cleanup", e));
-    }
-  }
-  // 5) Pares gêmeos passam a apontar para o novo canal.
-  await db.from("channex_twin_links").update({ channel_id: target.id, updated_at: new Date().toISOString() })
-    .eq("owner_id", ownerId).eq("status", "active").in("twin_listing_id", group);
-  if (failed.length) throw new Error(`Não foi possível migrar ${failed.length} anúncio(s); eles continuam na conta anterior. Tente de novo em 1 minuto.`);
-  return { changed: moves.length, title: target.title };
+  const { writeSenderPrefs } = await import("@/lib/airbnb-direct-sender.server");
+  await writeSenderPrefs(db, ownerId, userId, [...set], target.id);
+  return { changed: set.size, title: target.title };
 }

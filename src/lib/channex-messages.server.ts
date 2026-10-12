@@ -225,6 +225,10 @@ export function toAirbnbPlainText(text: string): string {
 }
 
 export async function sendChannexThreadMessage(threadId: string, text: string): Promise<string | null> {
+  // Conta escolhida no seletor de assinatura: envio direto no Airbnb; qualquer falha cai na Channex.
+  const { trySendAsPreferredSender } = await import("@/lib/airbnb-direct-sender.server");
+  const direct = await trySendAsPreferredSender(threadId, text);
+  if (direct) return direct;
   const res = await channex<{ data?: { id?: string } }>(`/message_threads/${threadId}/messages`, {
     method: "POST",
     body: JSON.stringify({ message: { message: text } }),
@@ -558,7 +562,7 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
       .from("property_chat_messages")
       .select("external_id, content")
       .eq("conversation_id", c.id)
-      .eq("sender_type", "ai")
+      .in("sender_type", ["ai", "human"])
       .gte("created_at", since);
     const isEcho = ((aiRecent ?? []) as Array<{ external_id: string | null; content: string | null }>).some(
       (r) => (m.messageId && r.external_id === m.messageId) || norm(String(r.content ?? "")) === norm(m.text),
