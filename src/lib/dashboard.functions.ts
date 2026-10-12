@@ -1,4 +1,3 @@
-import { dedupeStays } from "@/lib/arrival-board.server";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -232,6 +231,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     }
 
     // Mesma estadia em duas fontes (iCal antigo + Channex) conta uma vez só.
+    const { dedupeStays } = await import("@/lib/arrival-board.server");
     const resRows = dedupeStays(
       (reservations ?? []) as ResRow[],
       (id) => touchedRes.has(`checkin|${id}`) || touchedRes.has(`checkout|${id}`),
@@ -2259,6 +2259,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         blocked: true,
       });
     }
+    const { dedupeStays } = await import("@/lib/arrival-board.server");
     const realRows = dedupeStays(
       reservationRows.filter((r) => r.source !== "manual" && isRealReservation(r)),
       (id) => doneCheckinRes.has(id) || doneCheckoutRes.has(id),
