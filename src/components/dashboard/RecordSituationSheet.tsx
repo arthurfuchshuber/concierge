@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { track } from "@/lib/trail";
+import { comprimirImagem } from "@/lib/image-compress";
 import { chamarServidor, ehFalhaDeRede, enviarMidia, garantirToken } from "@/lib/media-upload";
 import {
   apagarRascunho,
@@ -324,7 +325,9 @@ export function RecordSituationSheet({
   useEffect(() => {
     if (!open) return;
     setItems(initial ? [initial, ...(initialExtra ?? [])] : []);
-    setTitle(initialTitle ?? "");
+    // Rotina repetitiva (ex.: limpeza): o título já vem preenchido com a
+    // categoria; a pessoa pode trocar se quiser.
+    setTitle(initialTitle?.trim() ? initialTitle : (meta?.label ?? ""));
     setDescription("");
     setErro(null);
     setRascunho(null);
@@ -414,17 +417,17 @@ export function RecordSituationSheet({
   function iniciarEnvio(it: DraftItem): Envio {
     const ctrl = new AbortController();
     const path = `${propertyId}/${folderEnvio}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`;
-    const promise = enviarMidia({
+    const promise = (it.kind === "photo" ? comprimirImagem(it.blob, it.mime) : Promise.resolve(it.blob)).then((blob) => enviarMidia({
       bucket: "reservation-records",
       path,
-      blob: it.blob,
+      blob,
       contentType: it.mime || "application/octet-stream",
       signal: ctrl.signal,
       onProgress: (pct) => {
         progressoGlobal.set(path, pct);
         setPctPorItem((p) => ({ ...p, [it.key]: pct }));
       },
-    }).then((r) => {
+    })).then((r) => {
       if (!r.ok) enviosRef.current.delete(it.key);
       return r;
     });
@@ -473,7 +476,17 @@ export function RecordSituationSheet({
       if (files.length > livres) {
         toast.error(`Máximo de ${SITUATION_MEDIA_MAX} arquivos por situação.`);
       }
-      const novos = files
+      // O mesmo arquivo escolhido duas vezes não sobe em dobro.
+      const assinatura = (b: Blob, n: string | null) => `${n ?? ""}|${b.size}|${b.type}`;
+      const ja = new Set(prev.map((i) => assinatura(i.blob, i.name)));
+      const unicos = files.filter((f) => {
+        const k = assinatura(f, f.name);
+        if (ja.has(k)) return false;
+        ja.add(k);
+        return true;
+      });
+      if (unicos.length < files.length) toast.info("Esse arquivo já está nesta situação.");
+      const novos = unicos
         .slice(0, Math.max(0, livres))
         .map((f) => draftItemFrom(f, { name: f.name, mime: f.type }));
       return [...prev, ...novos];
@@ -946,7 +959,7 @@ export function RecordSituationSheet({
               />
             </div>
             <p className="mt-1.5 text-center text-[11px] leading-snug text-amber-600 dark:text-amber-400">
-              Registrando… os arquivos continuam subindo mesmo com a janela fechada.
+              Enviando… pode fechar esta janela, o envio continua. Mantenha o navegador aberto até terminar.
             </p>
           </div>
         )}
