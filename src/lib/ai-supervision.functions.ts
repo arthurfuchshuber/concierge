@@ -161,6 +161,22 @@ export const answerEscalation = createServerFn({ method: "POST" })
      */
     const conversationId = (esc as { conversation_id?: string | null } | null)?.conversation_id;
     let entregue = false;
+    // Outras pendências abertas da MESMA conversa são respondidas por esta:
+    // fecha todas para o hóspede nunca receber a mesma resposta duas vezes.
+    if (conversationId) {
+      await context.supabase
+        .from("ai_human_escalations")
+        .update({
+          human_response: data.answer,
+          human_user_id: context.userId,
+          status: "answered",
+          resolved_at: new Date().toISOString(),
+          applied_to_guest: true,
+        })
+        .eq("conversation_id", conversationId)
+        .neq("id", data.escalationId)
+        .neq("status", "answered");
+    }
     if (conversationId) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
