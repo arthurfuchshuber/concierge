@@ -3971,9 +3971,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 const OPERATION_TABS = [
   { view: "resumo" as const, label: "Operacional", to: "/admin/dashboard" },
   { view: "kanban" as const, label: "Kanban", to: "/admin/dashboard/kanban" },
-  // "Limpeza" foi MOVIDA para a página "Financeiro" (menu lateral, dentro de
-  // Dashboard) — 11/10/2026. Não aparece mais nas abas do Operacional.
-  { view: "limpeza" as const, label: "Financeiro", to: "/admin/dashboard/financeiro" },
+  // A aba "Limpeza" foi MOVIDA para a página "Financeiro" (menu lateral,
+  // dentro de Dashboard) — 11/10/2026. Só a CATEGORIA se chama Financeiro; a
+  // aba continua "Limpeza". Não aparece mais nas abas do Operacional.
+  { view: "limpeza" as const, label: "Limpeza", to: "/admin/dashboard/financeiro" },
   // "Registros" (09/09/2026): as três primeiras respondem O QUE FAZER; esta
   // responde O QUE FOI FEITO — as fotos, vídeos, áudios e notas que hoje só
   // existem dentro do clipe de uma reserva específica.
@@ -3989,7 +3990,7 @@ const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }>
     title: "Kanban Operacional",
     subtitle: "Cada reserva na etapa em que ela realmente está.",
   },
-  limpeza: { title: "Financeiro", subtitle: "Histórico e custos das limpezas realizadas." },
+  limpeza: { title: "Limpeza", subtitle: "Histórico e custos das limpezas realizadas." },
   registros: {
     title: "Registros",
     subtitle: "Fotos, vídeos, áudios e notas de todos os imóveis.",
