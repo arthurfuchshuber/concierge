@@ -78,27 +78,9 @@ export async function trySendAsPreferredSender(channexThreadId: string, text: st
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
 
-    // Anúncio da conversa: pela Channex ou, se ausente, pelo Airbnb com o token da preferência.
-    const candidates = listingId ? [listingId] : [];
-    let prefChannel: string | null = null;
-    if (candidates.length) prefChannel = (await readSenderPrefs(db, candidates)).get(candidates[0]) ?? null;
-    if (!prefChannel) {
-      // Sem listing explícito: procura preferências do dono da conversa via thread no Airbnb abaixo.
-      const { data: anyPref } = await db.from("channex_raw_records").select("channex_id, payload").eq("entity_type", PREF).limit(500);
-      const prefs = (anyPref ?? []) as Array<{ channex_id: string; payload: any }>;
-      if (!prefs.length) return null;
-      // Precisa descobrir o listing pela própria conversa no Airbnb (feito com cada canal preferido distinto).
-      for (const ch of new Set(prefs.map((p) => String(p.payload?.channel_id)))) {
-        if (ch === channelOfThread) continue;
-        const tok = await channelToken(ch).catch(() => null);
-        if (!tok) continue;
-        const lid = await threadListing(otaThreadId, tok);
-        if (lid && prefs.some((p) => p.channex_id === lid && String(p.payload?.channel_id) === ch)) {
-          return await postDirect(otaThreadId, text, tok);
-        }
-      }
-      return null;
-    }
+    if (!listingId) return null; // sem anúncio certo → Channex envia
+    const prefChannel = (await readSenderPrefs(db, [listingId])).get(listingId) ?? null;
+    if (!prefChannel) return null;
     if (prefChannel === channelOfThread) return null; // já é a conta mapeada: Channex envia
     const token = await channelToken(prefChannel);
     if (!token) return null;
