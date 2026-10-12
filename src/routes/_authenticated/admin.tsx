@@ -363,7 +363,16 @@ function AdminLayout() {
                     <button
                       type="button"
                       aria-expanded={isOpen}
-                      onClick={() => setOpenGroup(isOpen ? null : group.key)}
+                      onClick={() => {
+                        if (isOpen) {
+                          setOpenGroup(null);
+                          return;
+                        }
+                        setOpenGroup(group.key);
+                        // Abrir a categoria seleciona a 1ª subcategoria (11/10/2026),
+                        // a menos que a página atual já seja uma delas.
+                        if (!hasActive) navigate({ to: kids[0].to });
+                      }}
                       className={`flex h-11 w-full items-center gap-3 rounded-xl px-3.5 text-left text-sm transition-colors hover:bg-secondary/60 ${
                         hasActive || isOpen ? "font-bold text-foreground" : "font-semibold text-muted-foreground hover:text-foreground"
                       }`}
@@ -372,7 +381,7 @@ function AdminLayout() {
                       <span className="flex-1 truncate">{group.label}</span>
                       <span
                         className={`grid size-6 shrink-0 place-items-center rounded-lg ${
-                          isOpen ? "bg-accent/15 text-accent" : "bg-foreground/[0.06] text-foreground"
+                          "bg-foreground/[0.06] text-foreground"
                         }`}
                       >
                         {isOpen ? <Minus className="size-3.5" strokeWidth={2.4} /> : <Plus className="size-3.5" strokeWidth={2.4} />}
