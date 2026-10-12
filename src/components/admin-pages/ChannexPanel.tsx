@@ -56,14 +56,38 @@ export function ChannexPanel() {
   const senders = useQuery({ queryKey: ["listing-senders"], queryFn: () => sendersFn(), retry: false, staleTime: 60_000 });
   const senderBy = new Map((senders.data ?? []).map((s) => [s.listingId, s]));
   const changeSender = useMutation({
-    mutationFn: (v: { listingId: string; channelId: string }) => setSenderFn({ data: v }),
+    mutationFn: (v: { listingIds: string[]; channelId: string }) => setSenderFn({ data: v }),
     onMutate: () => toast.info("Trocando a conta que assina as respostas (leva cerca de 1 minuto)…"),
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["listing-senders"] });
+      setPicked(new Set());
       toast.success(`Respostas agora assinadas por "${r.title}" (incluindo anúncios gêmeos).`);
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível trocar a conta."),
+    onError: (e) => {
+      qc.invalidateQueries({ queryKey: ["listing-senders"] });
+      toast.error(e instanceof Error ? e.message : "Não foi possível trocar a conta.");
+    },
   });
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkTarget, setBulkTarget] = useState("");
+  const allOptions = senders.data?.[0]?.options ?? [];
+  const pickable = (toggles.data ?? []).filter((t) => senderBy.has(t.listingId));
+  const togglePick = (id: string, on: boolean) => {
+    const t = (toggles.data ?? []).find((x) => x.listingId === id);
+    // Gêmeos do mesmo imóvel entram juntos.
+    const same = (toggles.data ?? []).filter((x) => x.propertyId === t?.propertyId).map((x) => x.listingId);
+    setPicked((p) => {
+      const n = new Set(p);
+      for (const s of same) (on ? n.add(s) : n.delete(s));
+      return n;
+    });
+  };
+  const runBulk = () => {
+    if (!bulkTarget || !picked.size) return;
+    const title = allOptions.find((o) => o.channelId === bulkTarget)?.title ?? "conta escolhida";
+    if (!window.confirm(`Assinar as respostas de ${picked.size} anúncio(s) por "${title}"? Gêmeos mudam juntos. Preços não são alterados.`)) return;
+    changeSender.mutate({ listingIds: [...picked], channelId: bulkTarget });
+  };
   const [last, setLast] = useState<ChannexSyncResult | null>(null);
 
   const status = useQuery({
@@ -110,6 +134,41 @@ export function ChannexPanel() {
       {(toggles.data?.length ?? 0) > 0 && (
         <div className="space-y-2 rounded-lg border border-border p-3">
           <p className="text-xs font-medium text-foreground">IA respondendo no chat do Airbnb</p>
+          {pickable.length > 0 && allOptions.length > 0 && (
+            <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-md bg-muted/50 p-2 text-[11px] text-muted-foreground">
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  className="size-3.5 accent-primary"
+                  checked={picked.size > 0 && picked.size >= pickable.length}
+                  disabled={changeSender.isPending}
+                  onChange={(e) => setPicked(e.target.checked ? new Set(pickable.map((t) => t.listingId)) : new Set())}
+                />
+                Todos ({picked.size}/{pickable.length})
+              </label>
+              <select
+                className="min-w-0 max-w-full rounded-md border border-border bg-background px-2 py-1 text-[11px] text-foreground"
+                value={bulkTarget}
+                disabled={changeSender.isPending}
+                onChange={(e) => setBulkTarget(e.target.value)}
+                aria-label="Conta para os anúncios selecionados"
+              >
+                <option value="">Assinar selecionados por…</option>
+                {allOptions.map((o) => (
+                  <option key={o.channelId} value={o.channelId}>{o.title}</option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                className="h-7 rounded-full text-[11px]"
+                disabled={changeSender.isPending || !bulkTarget || !picked.size}
+                onClick={runBulk}
+              >
+                {changeSender.isPending && <Loader2 className="mr-1 size-3 animate-spin" />}
+                {changeSender.isPending ? "Trocando…" : "Aplicar"}
+              </Button>
+            </div>
+          )}
           {toggles.data!.map((t) => {
             const snd = senderBy.get(t.listingId);
             return (
@@ -133,6 +192,14 @@ export function ChannexPanel() {
             </label>
             {snd && snd.options.length > 0 && (
               <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  className="size-3.5 accent-primary"
+                  checked={picked.has(t.listingId)}
+                  disabled={changeSender.isPending}
+                  onChange={(e) => togglePick(t.listingId, e.target.checked)}
+                  aria-label={`Selecionar ${t.name} para troca em massa`}
+                />
                 <span>Respostas assinadas por</span>
                 <select
                   className="min-w-0 max-w-full rounded-md border border-border bg-background px-2 py-1 text-[11px] text-foreground"
@@ -142,7 +209,7 @@ export function ChannexPanel() {
                     const channelId = e.target.value;
                     if (!channelId || channelId === snd.currentChannelId) return;
                     if (!window.confirm("Trocar a conta que assina as respostas deste anúncio (e dos gêmeos)? Preços não são alterados.")) return;
-                    changeSender.mutate({ listingId: t.listingId, channelId });
+                    changeSender.mutate({ listingIds: [t.listingId], channelId });
                   }}
                   aria-label={`Conta remetente — ${t.name}`}
                 >
