@@ -60,7 +60,7 @@ async function ownerGroups(db: any, ownerId: string) {
   return groups;
 }
 
-export type SenderOption = { channelId: string; title: string };
+export type SenderOption = { channelId: string; title: string; hasAccess: boolean };
 export type ListingSender = { listingId: string; currentChannelId: string | null; options: SenderOption[] };
 
 /** Remetente atual e contas possíveis (com acesso a TODOS os anúncios do grupo) por anúncio. */
@@ -71,7 +71,9 @@ export async function listListingSenders(ownerId: string): Promise<ListingSender
   const out: ListingSender[] = [];
   for (const ids of groups.values()) {
     const group = [...ids];
-    const options = chans.filter((c) => group.every((l) => c.catalog.has(l))).map((c) => ({ channelId: c.id, title: c.title }));
+    // Todas as contas Airbnb conectadas aparecem (principal + coanfitriões);
+    // as que ainda não enxergam todo o grupo vêm marcadas sem acesso.
+    const options = chans.map((c) => ({ channelId: c.id, title: c.title, hasAccess: group.every((l) => c.catalog.has(l) || c.mappings.some((m) => m.listingId === l)) }));
     for (const l of group) {
       const cur = chans.find((c) => c.mappings.some((m) => m.listingId === l));
       out.push({ listingId: l, currentChannelId: cur?.id ?? null, options });
@@ -96,7 +98,7 @@ export async function switchListingSender(ownerId: string, listingId: string, ta
   const chans = await loadAirbnbChannels();
   const target = chans.find((c) => c.id === targetChannelId);
   if (!target) throw new Error("Conta Airbnb não encontrada.");
-  const missing = group.filter((l) => !target.catalog.has(l));
+  const missing = group.filter((l) => !target.catalog.has(l) && !target.mappings.some((m) => m.listingId === l));
   if (missing.length) throw new Error(`A conta "${target.title}" não tem acesso a todos os anúncios deste imóvel (incluindo gêmeos). Adicione-a como anfitriã/coanfitriã no Airbnb primeiro.`);
 
   const moves: Array<{ listingId: string; from: Chan; mappingId: string; ratePlanId: string; propertyId: string | null }> = [];

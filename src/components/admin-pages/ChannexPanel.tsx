@@ -148,7 +148,9 @@ export function ChannexPanel() {
                 >
                   {!snd.currentChannelId && <option value="">Não conectado</option>}
                   {snd.options.map((o) => (
-                    <option key={o.channelId} value={o.channelId}>{o.title}</option>
+                    <option key={o.channelId} value={o.channelId} disabled={!o.hasAccess && o.channelId !== snd.currentChannelId}>
+                      {o.hasAccess ? o.title : `${o.title} (sem acesso a este anúncio no Airbnb)`}
+                    </option>
                   ))}
                 </select>
               </div>
