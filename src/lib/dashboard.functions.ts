@@ -1372,6 +1372,8 @@ export async function runAdvanceArrival(
     byUserId?: string | null;
     /** Hóspede confirmou pelo guia: o guia manda o próprio aviso, então o painel NÃO manda o da equipe (08/10/2026: eram 2 pushes). */
     skipStaffPush?: boolean;
+    /** Quem fez o avanço: grava a origem em `note` do carimbo "feito" (histórico da reserva). */
+    origin?: "guest" | "staff" | "system";
   },
 ) {
     // Resolve property + stay dates from the source record.
@@ -1441,7 +1443,18 @@ export async function runAdvanceArrival(
         cleaning_approval_status?: "pending" | null;
         cleaning_done_by?: string | null;
         cleaning_price_original_cents?: number | null;
+        note?: string | null;
       } = { property_id: propertyId!, kind, ...patch };
+      // Origem do "feito": o histórico da reserva usa isto para mostrar o autor
+      // (Hóspede x Equipe) — não há mais tabela de eventos com o autor.
+      if (patch.status === "done" && patch.done_at && opts?.origin) {
+        body.note =
+          opts.origin === "guest"
+            ? "Confirmado pelo hóspede via Guia Digital"
+            : opts.origin === "system"
+              ? "Confirmado automaticamente"
+              : "Confirmado pela equipe";
+      }
       if (data.logId) body.log_id = data.logId;
       if (data.reservationId) body.reservation_id = data.reservationId;
 
@@ -1829,7 +1842,7 @@ export const advanceArrival = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => AdvanceInput.parse(i))
   .handler(async ({ data, context }) =>
-    runAdvanceArrival(context.supabase, data, { byUserId: context.userId }),
+    runAdvanceArrival(context.supabase, data, { byUserId: context.userId, origin: "staff" }),
   );
 
 

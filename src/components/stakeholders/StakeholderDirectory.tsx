@@ -63,6 +63,7 @@ import {
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { OwnerPropertyCounts } from "./OwnerPropertyCounts";
 import { Stepper } from "@/components/editor/Stepper";
+import { OwnerPropertiesList } from "./OwnerPropertiesList";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import {
@@ -98,6 +99,8 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
 
   const [view, setView] = useState<"list" | "kanban">("list");
   const [kanbanTab, setKanbanTab] = useState("pending");
+  // Barra de menus da página (novo layout): Proprietários | Imóveis.
+  const [pageTab, setPageTab] = useState<"owners" | "properties">("owners");
   const [q, setQ] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [cityFilters, setCityFilters] = useState<string[]>([]);
@@ -380,8 +383,36 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     </button>
   );
 
+  const pageTabs = newLayout ? (
+    <div className="mb-4">
+      <Stepper
+        withIcons
+        steps={[
+          { value: "owners", label: "Proprietários", icon: Building2, count: rows.length },
+          { value: "properties", label: "Imóveis", icon: Home, count: properties.length },
+        ]}
+        current={pageTab}
+        onChange={(v) => setPageTab(v as "owners" | "properties")}
+      />
+    </div>
+  ) : null;
+
+  if (newLayout && pageTab === "properties") {
+    return (
+      <div>
+        {pageTabs}
+        <OwnerPropertiesList
+          properties={properties as never}
+          owners={rows}
+          connections={connections}
+        />
+      </div>
+    );
+  }
+
   return (
     <div>
+      {pageTabs}
       {/* Barra de ações — mesmo padrão de Operação/Guias:
           altura 36px, cantos retos, fundo secondary/50, texto 12px. */}
       <div className="flex flex-col gap-2 mb-5">
@@ -667,6 +698,111 @@ function StakeholderCard({
   onDelete: () => void;
 }) {
   const cityUf = [row.city, row.state].filter(Boolean).join("/");
+  if (newLayout) {
+    // Mockup aprovado (13/10/2026, opção C): topo com nome + status à direita,
+    // "Reside em" e vigência na mesma linha, e uma faixa colada na base com
+    // ativos/inativos à esquerda e o menu ⋮ à direita.
+    const eff = effectiveStatus(row.status, row.status_changed_at);
+    const endsOnStatus = eff === "canceled" || eff === "canceling";
+    const end =
+      row.contract_end ??
+      (endsOnStatus && row.status_changed_at ? String(row.status_changed_at).slice(0, 10) : null);
+    return (
+      <div
+        onClick={onOpen}
+        className={`group cursor-pointer ${PANEL_SHELL} min-w-0 overflow-hidden transition-all`}
+      >
+        <div className="px-3.5 pb-3 pt-3.5">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span
+                className={`ds-card-title min-w-0 truncate leading-tight ${CARD_OWNER}`}
+                title={row.trade_name || row.name}
+              >
+                {row.trade_name || row.name}
+              </span>
+              <PhoneActionButton
+                phone={row.phone}
+                country={row.phone_country}
+                size={13}
+                alwaysShow
+              />
+            </div>
+            <StakeholderStatusControl
+              kind={kind}
+              id={row.id}
+              accountOwnerId={accountOwnerId}
+              status={row.status}
+              statusChangedAt={row.status_changed_at}
+              variant="compact"
+            />
+          </div>
+          <div className="mt-[7px] flex items-center justify-between gap-2">
+            {cityUf ? (
+              <p className="ds-meta min-w-0 truncate">
+                <span className="ds-faint">Reside em:</span> {cityUf}
+              </p>
+            ) : (
+              <span />
+            )}
+            {row.contract_start && (
+              <p
+                className={`shrink-0 whitespace-nowrap text-[12px] font-medium ${statusText(eff)}`}
+              >
+                {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "momento"}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex min-h-11 items-center justify-between gap-2 bg-foreground/[0.035] pl-3.5 pr-2.5 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_6%,transparent)]">
+          {integration ? <OwnerPropertyCounts summary={integration} /> : <span />}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Ações"
+                title="Ações"
+                className="inline-flex size-7 shrink-0 items-center justify-center rounded-[8px] border border-border/60 bg-secondary/50 text-foreground/80 transition-colors hover:bg-secondary"
+              >
+                <MoreVertical className="size-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 rounded-[8px]">
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpen();
+                }}
+              >
+                <Eye className="size-3.5" />
+                Ver detalhes
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
+              >
+                <Pencil className="size-3.5" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+                Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       onClick={onOpen}
@@ -815,8 +951,6 @@ function StakeholderCard({
           </DropdownMenu>
         </div>
       </div>
-
-      {newLayout && integration ? <OwnerPropertyCounts summary={integration} /> : null}
     </div>
   );
 }

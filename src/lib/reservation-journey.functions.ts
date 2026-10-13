@@ -335,9 +335,18 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       return rows.length ? rows[rows.length - 1]! : null;
     };
     const SYSTEM: JourneyActor = { name: "Sincronização", role: "Sistema" };
-    const GUEST: JourneyActor = { name: log?.guest_name ?? "Hóspede", role: "Hóspede" };
+    const GUEST: JourneyActor = { name: log?.guest_name ?? reservation?.guest_hint ?? "Hóspede", role: "Hóspede" };
     /** Passo feito: autor do evento, ou "não registrado" para dado antigo. */
     const authorFor = (ev: EventRow | null): JourneyActor => (ev ? actorOf(ev.actor_id) : { name: null, role: null });
+    /** Check-in/check-out concluído: autor da equipe quando registrado; sem ele, e
+     *  sem marca de "feito pela equipe", quem confirmou foi o hóspede pelo Guia Digital. */
+    const stepAuthor = (ev: EventRow | null, row: StatusRow | null): JourneyActor => {
+      const staff = authorFor(ev);
+      if (staff.name) return staff;
+      if (/pela equipe/i.test(row?.note ?? "")) return staff;
+      if (/automaticamente/i.test(row?.note ?? "")) return SYSTEM;
+      return GUEST;
+    };
 
     // ---- 5. A jornada ----
     const noShow = (ci?.status ?? "") === "no_show";
@@ -501,7 +510,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       state: checkinDone ? "done" : "pending",
       at: evCheckin?.created_at ?? ci?.done_at ?? null,
       detail: checkinDone ? "Presença confirmada na entrada" : "Aguardando confirmação",
-      actor: checkinDone ? authorFor(evCheckin) : null,
+      actor: checkinDone ? stepAuthor(evCheckin, ci) : null,
     });
     steps.push({
       key: "estadia",
@@ -521,7 +530,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       state: checkoutDone ? "done" : "pending",
       at: evCheckout?.created_at ?? co?.done_at ?? null,
       detail: checkoutDone ? "Saída confirmada" : "Aguardando confirmação",
-      actor: checkoutDone ? authorFor(evCheckout) : null,
+      actor: checkoutDone ? stepAuthor(evCheckout, co) : null,
     });
     steps.push({
       key: "limpeza",

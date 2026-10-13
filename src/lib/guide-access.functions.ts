@@ -846,7 +846,7 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
         logId,
         ...(reservationId ? { reservationId } : {}),
         from: data.kind === "checkin" ? "checkin" : "checkout",
-      }, { skipStaffPush: true });
+      }, { skipStaffPush: true, origin: "guest" });
     } catch (err) {
       // A trava operacional do painel continua valendo (ex.: estadia anterior
       // ainda aberta no imóvel). O hóspede vê um aviso e a equipe resolve.

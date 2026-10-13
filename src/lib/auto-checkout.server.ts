@@ -186,7 +186,7 @@ export async function runAutoCheckoutScan(admin: Admin, now: Date = new Date()) 
     if (!target.logId && !target.reservationId) continue;
 
     try {
-      await runAdvanceArrival(admin, { ...target, from: "checkout" });
+      await runAdvanceArrival(admin, { ...target, from: "checkout" }, { origin: "system" });
       confirmed++;
     } catch (err) {
       failed++;

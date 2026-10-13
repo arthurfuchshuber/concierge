@@ -1,9 +1,12 @@
 import type * as React from "react";
 import { Lock, Home, FileText, DoorOpen, LogOut, LifeBuoy, Compass } from "lucide-react";
+import { CountPill } from "@/components/dashboard/panel-chrome";
 import { useAntiClipBar } from "@/hooks/useAntiClipBar";
 export type StepDef = {
   value: string;
   label: string;
+  /** Contagem opcional ao lado do rótulo (ex.: "Imóveis 9"). */
+  count?: number;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
 };
 
@@ -86,6 +89,7 @@ export function Stepper({
             {locked ? <Lock className="size-3" /> : null}
             {withIcons && !locked ? <s.icon className="mr-1.5 size-3" /> : null}
             {s.label}
+            {s.count != null ? <CountPill>{s.count}</CountPill> : null}
           </button>
         );
       })}

@@ -48,7 +48,7 @@ export const listStakeholders = createServerFn({ method: "GET" })
 
     const { data: props } =
       data.kind === "owner"
-        ? await supabase.from("properties").select("id, name, city, state, owner_contact_id").eq("owner_id", accountId)
+        ? await supabase.from("properties").select("id, name, city, state, owner_contact_id, hero_image_url").eq("owner_id", accountId)
         : { data: [] as Array<{ id: string; name: string; city: string | null; state: string | null; owner_contact_id: string | null }> };
 
     // Situação da integração de cada imóvel (alimenta "X imóveis ativos /

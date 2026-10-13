@@ -4,8 +4,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { PropertyIntegrationSummary } from "@/lib/property-connection";
 
 /**
- * RODAPÉ DO CARD DO PROPRIETÁRIO — "X imóveis ativos" à esquerda e "Y imóveis
- * inativos" na outra ponta (mockup aprovado, 13/10/2026). A situação vem da
+ * FAIXA DO CARD DO PROPRIETÁRIO — "X ativos" e "Y inativos" lado a lado, só o
+ * número e a palavra (singular com 1, plural com 2 ou mais), sem seta e sem a
+ * palavra "imóveis" (mockup aprovado, 13/10/2026, opção C). A situação vem da
  * integração com o Airbnb (ver `property-connection.ts`).
  *
  * Cada lado SÓ aparece quando o número é maior que zero; sem nenhum dos dois,
@@ -49,7 +50,7 @@ function CountButton({
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
-          className="-mx-2 inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[11.5px] font-semibold text-muted-foreground transition-colors hover:bg-foreground/[0.05] data-[state=open]:bg-foreground/[0.06] data-[state=open]:shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent)]"
+          className="-mx-2 inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[12px] font-semibold text-muted-foreground transition-colors hover:bg-foreground/[0.05] data-[state=open]:bg-foreground/[0.06] data-[state=open]:shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent)]"
         >
           <span
             aria-hidden
@@ -59,7 +60,6 @@ function CountButton({
             <b className="font-extrabold text-foreground tabular-nums">{count}</b>{" "}
             {count === 1 ? singular : plural}
           </span>
-          <ChevronRight className="size-3 rotate-90 text-[color:var(--faint)]" />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -105,18 +105,18 @@ function CountButton({
 
 export function OwnerPropertyCounts({ summary }: { summary: PropertyIntegrationSummary }) {
   const { activeCount, inactiveCount, activeItems, inactiveItems } = summary;
-  if (activeCount === 0 && inactiveCount === 0) return null;
+  if (activeCount === 0 && inactiveCount === 0) return <span />;
   const place = (c?: string | null, s?: string | null) =>
     [c, s].filter(Boolean).join(" / ") || "Sem localização";
   return (
-    <div className="mt-3 flex items-center justify-between gap-2 border-t border-foreground/[0.06] pt-2">
+    <div className="flex min-w-0 items-center gap-3.5">
       {activeCount > 0 ? (
         <CountButton
           tone="ok"
           count={activeCount}
-          singular="imóvel ativo"
-          plural="imóveis ativos"
-          title={`${activeCount} ${activeCount === 1 ? "imóvel ativo" : "imóveis ativos"}`}
+          singular="ativo"
+          plural="ativos"
+          title={`${activeCount} ${activeCount === 1 ? "ativo" : "ativos"}`}
           items={activeItems.map((p) => ({
             id: p.id,
             name: p.name,
@@ -125,16 +125,14 @@ export function OwnerPropertyCounts({ summary }: { summary: PropertyIntegrationS
           footer="Dados vindos da conexão com o Airbnb"
           align="start"
         />
-      ) : (
-        <span />
-      )}
+      ) : null}
       {inactiveCount > 0 ? (
         <CountButton
           tone="falta"
           count={inactiveCount}
-          singular="imóvel inativo"
-          plural="imóveis inativos"
-          title={`${inactiveCount} ${inactiveCount === 1 ? "imóvel inativo" : "imóveis inativos"}`}
+          singular="inativo"
+          plural="inativos"
+          title={`${inactiveCount} ${inactiveCount === 1 ? "inativo" : "inativos"}`}
           items={inactiveItems.map((p) => ({
             id: p.id,
             name: p.name,
@@ -145,7 +143,7 @@ export function OwnerPropertyCounts({ summary }: { summary: PropertyIntegrationS
             }`,
           }))}
           footer="Reconecte o anúncio para voltar a ativo"
-          align="end"
+          align="start"
         />
       ) : null}
     </div>
