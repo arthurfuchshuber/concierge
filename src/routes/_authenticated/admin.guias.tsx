@@ -128,7 +128,13 @@ function coerceGuiaTab(v: unknown): "imoveis" | "destinos" {
 
 function guideSearchScore(q: string, p: any): number {
   return searchScore(q, [
-    [p.name, 3], [p.ownerName, 2.5], [p.city, 1.5], [p.address, 1], [p.tagline, 1], [p.country, 0.5], [p.slug, 0.5],
+    [p.name, 3],
+    [p.ownerName, 2.5],
+    [p.city, 1.5],
+    [p.address, 1],
+    [p.tagline, 1],
+    [p.country, 0.5],
+    [p.slug, 0.5],
   ]);
 }
 
@@ -177,7 +183,6 @@ function GuiasTabs() {
   return <Dashboard />;
 }
 
-
 function Dashboard() {
   const list = useServerFn(listMyProperties);
   const listAsUser = useServerFn(adminListUserPropertiesFull);
@@ -201,20 +206,26 @@ function Dashboard() {
   });
   const isMemberOfImpersonated = !!(
     impersonation &&
-    (myAccountsData?.accounts ?? []).some((a: { ownerId: string }) => a.ownerId === impersonation.userId)
+    (myAccountsData?.accounts ?? []).some(
+      (a: { ownerId: string }) => a.ownerId === impersonation.userId,
+    )
   );
   // Read-only apenas quando um admin SaaS acessa um cliente do qual NÃO é membro.
   // Enquanto o vínculo ainda está carregando não mostramos nada (evita o aviso
   // piscando por milissegundos em contas onde o usuário pode editar).
   const readOnly =
-    !myAccountsLoading && !!myAccountsData && !!impersonation && isSaasAdmin && !isMemberOfImpersonated;
-
+    !myAccountsLoading &&
+    !!myAccountsData &&
+    !!impersonation &&
+    isSaasAdmin &&
+    !isMemberOfImpersonated;
 
   // Permissão de criação de guias — vale para a conta inteira.
   const createAccess = useAccess("tenant.guias.imoveis.criar", "criar");
   // Enquanto carrega, tratamos como "sem permissão" para nunca exibir UI de criação indevidamente.
   const canCreate = createAccess.loading ? false : createAccess.allowed;
-  const NO_PERMISSION_MSG = "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
+  const NO_PERMISSION_MSG =
+    "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
 
   const [view, setView] = useState<"split" | "grid">("split");
   const [statCard, setStatCard] = useState<"published" | "draft" | "incomplete" | null>(null);
@@ -232,7 +243,9 @@ function Dashboard() {
   const [accessFilter, setAccessFilter] = useState<AccessFilter>("all");
   const [ownerFilters, setOwnerFilters] = useState<string[]>([]);
   const [cityFilters, setCityFilters] = useState<string[]>([]);
-  const [filterScreen, setFilterScreen] = useState<"root" | "status" | "access" | "owner" | "city">("root");
+  const [filterScreen, setFilterScreen] = useState<"root" | "status" | "access" | "owner" | "city">(
+    "root",
+  );
   useEffect(() => {
     const v = window.localStorage.getItem("guias-view");
     if (v === "split" || v === "grid") setView(v);
@@ -318,7 +331,9 @@ function Dashboard() {
     );
     try {
       await bulkUpdate({ data: { ids, patch: { published: next }, mode: "overwrite" } });
-      toast.success(next ? `${ids.length} guia(s) publicado(s)` : `${ids.length} guia(s) despublicado(s)`);
+      toast.success(
+        next ? `${ids.length} guia(s) publicado(s)` : `${ids.length} guia(s) despublicado(s)`,
+      );
       ids.forEach((id) => qc.invalidateQueries({ queryKey: ["property", id] }));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao atualizar em massa");
@@ -388,14 +403,23 @@ function Dashboard() {
   const hasCustomPrice = sub.customPriceCents != null;
   const customCurrency = sub.customCurrency || "BRL";
   const planPrice = hasCustomPrice
-    ? (sub.customPriceCents! / 100).toLocaleString("pt-BR", { style: "currency", currency: customCurrency })
+    ? (sub.customPriceCents! / 100).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: customCurrency,
+      })
     : (planConfig?.priceLabel ?? "—");
   const planLimit = sub.maxGuides;
   const remaining = Math.max(0, planLimit - count);
   const pct = planLimit > 0 ? Math.min(100, (count / planLimit) * 100) : 0;
   const reachedLimit = planLimit > 0 && count >= planLimit;
   const fmtDate = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : null;
+    iso
+      ? new Date(iso).toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : null;
   const renewalLabel = fmtDate(sub.currentPeriodEnd);
   const trialLabel = sub.isTrialing ? fmtDate(sub.trialEndsAt ?? sub.currentPeriodEnd) : null;
 
@@ -408,7 +432,10 @@ function Dashboard() {
   // Candidatos para o picker do "Novo guia": imóveis já cadastrados que ainda
   // não têm guia. "Novo guia" nunca cria um imóvel do zero — isso só acontece
   // em "Criar nova residência", dentro do proprietário em Proprietários.
-  const propertiesWithoutGuide = useMemo(() => (data ?? []).filter((p: any) => !p.guide_created), [data]);
+  const propertiesWithoutGuide = useMemo(
+    () => (data ?? []).filter((p: any) => !p.guide_created),
+    [data],
+  );
   const [guidePickerOpen, setGuidePickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
   const filteredPropertiesWithoutGuide = useMemo(() => {
@@ -445,10 +472,11 @@ function Dashboard() {
     });
     if (q) {
       const sc = new Map(rows.map((r) => [r.id, guideSearchScore(q, r)]));
-      return [...rows].sort((a, b) => (sc.get(b.id)! - sc.get(a.id)!) || 0);
+      return [...rows].sort((a, b) => sc.get(b.id)! - sc.get(a.id)! || 0);
     }
     // Ordem pedida: cidade → título do guia → proprietário (alfabética pt-BR).
-    const cmp = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
+    const cmp = (a: string, b: string) =>
+      a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
     const txt = (v: unknown) => String(v ?? "").trim();
     return [...rows].sort((a, b) => {
       const ac = txt(a.city),
@@ -458,7 +486,10 @@ function Dashboard() {
       return (
         cmp(ac, bc) ||
         cmp(txt(a.name), txt(b.name)) ||
-        cmp(txt((a as { ownerName?: string | null }).ownerName), txt((b as { ownerName?: string | null }).ownerName))
+        cmp(
+          txt((a as { ownerName?: string | null }).ownerName),
+          txt((b as { ownerName?: string | null }).ownerName),
+        )
       );
     });
   }, [guideRows, search, statusFilter, accessFilter, ownerFilters, cityFilters, statCard]);
@@ -473,7 +504,9 @@ function Dashboard() {
     incomplete: guideRows.filter((p) => guideCompleteness(p as any).score < 90).length,
   };
   const draftList = filtered.filter((p) => !p.published);
-  const attentionList = filtered.filter((p) => p.published && guideCompleteness(p as any).score < 100);
+  const attentionList = filtered.filter(
+    (p) => p.published && guideCompleteness(p as any).score < 100,
+  );
   const readyList = filtered.filter((p) => p.published && guideCompleteness(p as any).score >= 100);
   const groupCount = [draftList, attentionList, readyList].filter((l) => l.length > 0).length;
 
@@ -502,7 +535,10 @@ function Dashboard() {
   const noOwners = ownersCount.isSuccess && (ownersCount.data?.count ?? 0) === 0;
 
   const panelFiltersActive =
-    statusFilter !== "all" || accessFilter !== "all" || ownerFilters.length > 0 || cityFilters.length > 0;
+    statusFilter !== "all" ||
+    accessFilter !== "all" ||
+    ownerFilters.length > 0 ||
+    cityFilters.length > 0;
   const hasActiveFilters = search.trim() !== "" || panelFiltersActive;
   function clearFilters() {
     setSearch("");
@@ -529,19 +565,28 @@ function Dashboard() {
         : `${guideRows.length} guias de imóveis · ${statCounts.published} publicados.`;
   const ownerOptions = useMemo(
     () =>
-      Array.from(new Set(guideRows.map((p) => (p as { ownerName?: string | null }).ownerName ?? "").filter(Boolean))).sort(
-        (a, b) => a.localeCompare(b, "pt-BR"),
-      ),
+      Array.from(
+        new Set(
+          guideRows
+            .map((p) => (p as { ownerName?: string | null }).ownerName ?? "")
+            .filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "pt-BR")),
     [guideRows],
   );
   const cityOptions = useMemo(
-    () => Array.from(new Set(guideRows.map((p) => p.city ?? "").filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    () =>
+      Array.from(new Set(guideRows.map((p) => p.city ?? "").filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b, "pt-BR"),
+      ),
     [guideRows],
   );
   const multiLabel = (arr: string[], all: string, many: string) =>
     arr.length === 0 ? all : arr.length === 1 ? arr[0] : `${arr.length} ${many}`;
-  const statusLabel = statusFilter === "published" ? "Publicados" : statusFilter === "draft" ? "Rascunhos" : "Todos";
-  const accessLabel = accessFilter === "public" ? "Público" : accessFilter === "pin" ? "PIN" : "Todos";
+  const statusLabel =
+    statusFilter === "published" ? "Publicados" : statusFilter === "draft" ? "Rascunhos" : "Todos";
+  const accessLabel =
+    accessFilter === "public" ? "Público" : accessFilter === "pin" ? "PIN" : "Todos";
 
   return (
     <div className="ds-blocks w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
@@ -549,7 +594,8 @@ function Dashboard() {
         <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
           <Eye className="size-3.5 text-accent shrink-0" />
           <span className="flex-1 truncate">
-            Painel de <span className="font-medium text-foreground">{impersonation?.name ?? "—"}</span>
+            Painel de{" "}
+            <span className="font-medium text-foreground">{impersonation?.name ?? "—"}</span>
           </span>
           <button
             type="button"
@@ -569,9 +615,7 @@ function Dashboard() {
           <AlertTriangle className="size-4 text-amber-500 shrink-0" />
           <span className="flex-1">
             Cadastre ao menos um proprietário em{" "}
-            <Link to="/admin/proprietarios"
-              className="underline underline-offset-2 font-medium"
-            >
+            <Link to="/admin/proprietarios" className="underline underline-offset-2 font-medium">
               Proprietários
             </Link>{" "}
             para liberar a criação de novos guias.
@@ -579,11 +623,7 @@ function Dashboard() {
         </div>
       )}
 
-      <PageShell
-        title={pageTitle}
-        subtitle={pageSubtitle}
-      />
-
+      <PageShell title={pageTitle} subtitle={pageSubtitle} />
 
       <div className="ds-card-grid grid-cols-3">
         {STAT_CARDS.map((c) => (
@@ -605,146 +645,223 @@ function Dashboard() {
           não os 24px de bloco. -mt-3.5 = 24 − 10. Os blocos seguintes (listas
           de guias) continuam a 24px. */}
       <div className="-mt-3.5">
-      <SearchActionRow
-        value={search}
-        onChange={setSearch}
-        placeholder="Buscar por título, proprietário, cidade…"
-        actions={
-          <>
-          {selected.size > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
-                  aria-label="Ações da seleção"
-                  title="Ações da seleção"
-                >
-                  <PenSquare className={ACTION_ICON} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                  disabled={bulkPubBusy}
-                  onSelect={() => bulkTogglePublished(true)}
-                  className="text-xs font-normal"
-                >
-                  <Globe className={ACTION_ICON} /> Publicar
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={bulkPubBusy}
-                  onSelect={() => bulkTogglePublished(false)}
-                  className="text-xs font-normal"
-                >
-                  <Lock className={ACTION_ICON} /> Despublicar
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setBulkOpen(true)} className="text-xs font-normal">
-                  <PenSquare className={ACTION_ICON} /> Editar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          {/* Visualização — alterna lista / lado a lado */}
-          <button
-            type="button"
-            onClick={cycleView}
-            aria-label={view === "split" ? "Ver em grade" : "Ver lado a lado"}
-            title={view === "split" ? "Ver em grade" : "Ver lado a lado"}
-            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
-          >
-            {view === "split" ? <Columns2 className={ACTION_ICON} /> : <LayoutGrid className={ACTION_ICON} />}
-          </button>
-          {!readOnly && canCreate && (
-            <button
-              type="button"
-              onClick={openGuidePicker}
-              disabled={reachedLimit || !sub.plan || noOwners}
-              aria-label="Novo guia"
-              title={
-                !sub.plan
-                  ? "Assine um plano para criar guias"
-                  : noOwners
-                    ? "Cadastre um proprietário em Proprietários antes de criar guias"
-                    : reachedLimit
-                      ? "Limite do seu plano atingido. Faça upgrade."
-                      : "Novo guia"
-              }
-              className={`${ACTION_SEGMENT} text-accent disabled:opacity-40`}
-            >
-              <Plus className={ACTION_ICON} />
-            </button>
-          )}
-          <Popover onOpenChange={(o) => !o && setFilterScreen("root")}>
-            <PopoverTrigger asChild>
+        <SearchActionRow
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar por título, proprietário, cidade…"
+          actions={
+            <>
+              {selected.size > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+                      aria-label="Ações da seleção"
+                      title="Ações da seleção"
+                    >
+                      <PenSquare className={ACTION_ICON} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem
+                      disabled={bulkPubBusy}
+                      onSelect={() => bulkTogglePublished(true)}
+                      className="text-xs font-normal"
+                    >
+                      <Globe className={ACTION_ICON} /> Publicar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={bulkPubBusy}
+                      onSelect={() => bulkTogglePublished(false)}
+                      className="text-xs font-normal"
+                    >
+                      <Lock className={ACTION_ICON} /> Despublicar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => setBulkOpen(true)}
+                      className="text-xs font-normal"
+                    >
+                      <PenSquare className={ACTION_ICON} /> Editar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {/* Visualização — alterna lista / lado a lado */}
               <button
                 type="button"
+                onClick={cycleView}
+                aria-label={view === "split" ? "Ver em grade" : "Ver lado a lado"}
+                title={view === "split" ? "Ver em grade" : "Ver lado a lado"}
                 className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
-                aria-label="Filtros"
-                title="Filtros"
               >
-                <Filter className={ACTION_ICON} />
-                {panelFiltersActive && <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />}
+                {view === "split" ? (
+                  <Columns2 className={ACTION_ICON} />
+                ) : (
+                  <LayoutGrid className={ACTION_ICON} />
+                )}
               </button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              sideOffset={FILTER_PANEL_OFFSET}
-              collisionPadding={FILTER_PANEL_COLLISION}
-              className={FILTER_PANEL_CLASS}
-              onOpenAutoFocus={(e) => e.preventDefault()}
-            >
-              {filterScreen === "root" ? (
-                <>
-                  <FilterRootHeader canClear={panelFiltersActive} onClear={clearFilters} />
-                  <FilterMenuRow icon={Globe} label="Situação" value={statusLabel} active={statusFilter !== "all"} onClick={() => setFilterScreen("status")} />
-                  <FilterMenuRow icon={Lock} label="Acesso" value={accessLabel} active={accessFilter !== "all"} onClick={() => setFilterScreen("access")} />
-                  <FilterMenuRow icon={Users} label="Proprietário" value={multiLabel(ownerFilters, "Todos", "selecionados")} active={ownerFilters.length > 0} onClick={() => setFilterScreen("owner")} />
-                  <FilterMenuRow icon={MapPin} label="Cidade" value={multiLabel(cityFilters, "Todas", "selecionadas")} active={cityFilters.length > 0} onClick={() => setFilterScreen("city")} last />
-                </>
-              ) : null}
-              {filterScreen === "status" ? (
-                <>
-                  <FilterScreenHeader icon={Globe} title="Situação" onBack={() => setFilterScreen("root")} />
-                  {([
-                    { v: "all", label: "Todos" },
-                    { v: "published", label: "Publicados" },
-                    { v: "draft", label: "Rascunhos" },
-                  ] as { v: StatusFilter; label: string }[]).map((o, i, arr) => (
-                    <FilterOptionRow key={o.v} label={o.label} selected={statusFilter === o.v} onClick={() => setStatusFilter(o.v)} last={i === arr.length - 1} />
-                  ))}
-                </>
-              ) : null}
-              {filterScreen === "access" ? (
-                <>
-                  <FilterScreenHeader icon={Lock} title="Acesso" onBack={() => setFilterScreen("root")} />
-                  {([
-                    { v: "all", label: "Todos" },
-                    { v: "public", label: "Público" },
-                    { v: "pin", label: "PIN" },
-                  ] as { v: AccessFilter; label: string }[]).map((o, i, arr) => (
-                    <FilterOptionRow key={o.v} label={o.label} selected={accessFilter === o.v} onClick={() => setAccessFilter(o.v)} last={i === arr.length - 1} />
-                  ))}
-                </>
-              ) : null}
-              {filterScreen === "owner" ? (
-                <>
-                  <FilterScreenHeader icon={Users} title="Proprietário" onBack={() => setFilterScreen("root")} right={<FilterCountBadge count={ownerFilters.length} />} />
-                  <FilterMultiSelect options={ownerOptions.map((o) => ({ value: o, label: o }))} selected={ownerFilters} onChange={setOwnerFilters} searchPlaceholder="Buscar proprietário..." />
-                </>
-              ) : null}
-              {filterScreen === "city" ? (
-                <>
-                  <FilterScreenHeader icon={MapPin} title="Cidade" onBack={() => setFilterScreen("root")} right={<FilterCountBadge count={cityFilters.length} />} />
-                  <FilterMultiSelect options={cityOptions.map((o) => ({ value: o, label: o }))} selected={cityFilters} onChange={setCityFilters} searchPlaceholder="Buscar cidade..." />
-                </>
-              ) : null}
-            </PopoverContent>
-          </Popover>
-          </>
-        }
-      />
+              {!readOnly && canCreate && (
+                <button
+                  type="button"
+                  onClick={openGuidePicker}
+                  disabled={reachedLimit || !sub.plan || noOwners}
+                  aria-label="Novo guia"
+                  title={
+                    !sub.plan
+                      ? "Assine um plano para criar guias"
+                      : noOwners
+                        ? "Cadastre um proprietário em Proprietários antes de criar guias"
+                        : reachedLimit
+                          ? "Limite do seu plano atingido. Faça upgrade."
+                          : "Novo guia"
+                  }
+                  className={`${ACTION_SEGMENT} text-accent disabled:opacity-40`}
+                >
+                  <Plus className={ACTION_ICON} />
+                </button>
+              )}
+              <Popover onOpenChange={(o) => !o && setFilterScreen("root")}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+                    aria-label="Filtros"
+                    title="Filtros"
+                  >
+                    <Filter className={ACTION_ICON} />
+                    {panelFiltersActive && (
+                      <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  sideOffset={FILTER_PANEL_OFFSET}
+                  collisionPadding={FILTER_PANEL_COLLISION}
+                  className={FILTER_PANEL_CLASS}
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
+                  {filterScreen === "root" ? (
+                    <>
+                      <FilterRootHeader canClear={panelFiltersActive} onClear={clearFilters} />
+                      <FilterMenuRow
+                        icon={Globe}
+                        label="Situação"
+                        value={statusLabel}
+                        active={statusFilter !== "all"}
+                        onClick={() => setFilterScreen("status")}
+                      />
+                      <FilterMenuRow
+                        icon={Lock}
+                        label="Acesso"
+                        value={accessLabel}
+                        active={accessFilter !== "all"}
+                        onClick={() => setFilterScreen("access")}
+                      />
+                      <FilterMenuRow
+                        icon={Users}
+                        label="Proprietário"
+                        value={multiLabel(ownerFilters, "Todos", "selecionados")}
+                        active={ownerFilters.length > 0}
+                        onClick={() => setFilterScreen("owner")}
+                      />
+                      <FilterMenuRow
+                        icon={MapPin}
+                        label="Cidade"
+                        value={multiLabel(cityFilters, "Todas", "selecionadas")}
+                        active={cityFilters.length > 0}
+                        onClick={() => setFilterScreen("city")}
+                        last
+                      />
+                    </>
+                  ) : null}
+                  {filterScreen === "status" ? (
+                    <>
+                      <FilterScreenHeader
+                        icon={Globe}
+                        title="Situação"
+                        onBack={() => setFilterScreen("root")}
+                      />
+                      {(
+                        [
+                          { v: "all", label: "Todos" },
+                          { v: "published", label: "Publicados" },
+                          { v: "draft", label: "Rascunhos" },
+                        ] as { v: StatusFilter; label: string }[]
+                      ).map((o, i, arr) => (
+                        <FilterOptionRow
+                          key={o.v}
+                          label={o.label}
+                          selected={statusFilter === o.v}
+                          onClick={() => setStatusFilter(o.v)}
+                          last={i === arr.length - 1}
+                        />
+                      ))}
+                    </>
+                  ) : null}
+                  {filterScreen === "access" ? (
+                    <>
+                      <FilterScreenHeader
+                        icon={Lock}
+                        title="Acesso"
+                        onBack={() => setFilterScreen("root")}
+                      />
+                      {(
+                        [
+                          { v: "all", label: "Todos" },
+                          { v: "public", label: "Público" },
+                          { v: "pin", label: "PIN" },
+                        ] as { v: AccessFilter; label: string }[]
+                      ).map((o, i, arr) => (
+                        <FilterOptionRow
+                          key={o.v}
+                          label={o.label}
+                          selected={accessFilter === o.v}
+                          onClick={() => setAccessFilter(o.v)}
+                          last={i === arr.length - 1}
+                        />
+                      ))}
+                    </>
+                  ) : null}
+                  {filterScreen === "owner" ? (
+                    <>
+                      <FilterScreenHeader
+                        icon={Users}
+                        title="Proprietário"
+                        onBack={() => setFilterScreen("root")}
+                        right={<FilterCountBadge count={ownerFilters.length} />}
+                      />
+                      <FilterMultiSelect
+                        options={ownerOptions.map((o) => ({ value: o, label: o }))}
+                        selected={ownerFilters}
+                        onChange={setOwnerFilters}
+                        searchPlaceholder="Buscar proprietário..."
+                      />
+                    </>
+                  ) : null}
+                  {filterScreen === "city" ? (
+                    <>
+                      <FilterScreenHeader
+                        icon={MapPin}
+                        title="Cidade"
+                        onBack={() => setFilterScreen("root")}
+                        right={<FilterCountBadge count={cityFilters.length} />}
+                      />
+                      <FilterMultiSelect
+                        options={cityOptions.map((o) => ({ value: o, label: o }))}
+                        selected={cityFilters}
+                        onChange={setCityFilters}
+                        searchPlaceholder="Buscar cidade..."
+                      />
+                    </>
+                  ) : null}
+                </PopoverContent>
+              </Popover>
+            </>
+          }
+        />
       </div>
-
 
       {isLoading ? (
         <LoadingState count={3} />
@@ -766,7 +883,9 @@ function Dashboard() {
               </div>
               <div className="text-right">
                 <span className="text-2xl font-display text-accent">01</span>
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">/ 05</p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  / 05
+                </p>
               </div>
             </div>
             <div className="space-y-3">
@@ -775,7 +894,11 @@ function Dashboard() {
                   { n: "01", label: "Cole o link do Google Maps da sua propriedade", done: false },
                   { n: "02", label: "Confira o endereço e adicione Wi-Fi", done: false },
                   { n: "03", label: "Configure os horários de check-in e check-out", done: false },
-                  { n: "04", label: "Adicione recomendações de restaurantes e atrações", done: false },
+                  {
+                    n: "04",
+                    label: "Adicione recomendações de restaurantes e atrações",
+                    done: false,
+                  },
                   { n: "05", label: "Publique e compartilhe o link com o hóspede", done: false },
                 ] as { n: string; label: string; done: boolean }[]
               ).map((step) => (
@@ -818,7 +941,7 @@ function Dashboard() {
             </Button>
           }
         />
-            ) : (
+      ) : (
         /* GUIAS EM COLUNAS NO COMPUTADOR (mockup aprovado, 02/10/2026:
            "tornar o layout dos guias com a largura limitada à linha vermelha
            demarcada... se tiver mais de um status, a tela fique dividida em
@@ -840,42 +963,26 @@ function Dashboard() {
           }`}
         >
           {[
-            { key: "draft", title: "Não publicado", items: draftList, color: "#d8b96a", Icon: PenSquare },
-            { key: "att", title: "Precisam de atenção", items: attentionList, color: "#c98c8c", Icon: AlertTriangle },
+            {
+              key: "draft",
+              title: "Não publicado",
+              items: draftList,
+              color: "#d8b96a",
+              Icon: PenSquare,
+            },
+            {
+              key: "att",
+              title: "Precisam de atenção",
+              items: attentionList,
+              color: "#c98c8c",
+              Icon: AlertTriangle,
+            },
             { key: "ok", title: "Prontos", items: readyList, color: "#7fb79a", Icon: Check },
           ]
             .filter((g) => g.items.length > 0)
             .map((g) => (
               <section key={g.key} aria-label={g.title} className="relative min-w-0">
                 <div className="space-y-2.5">
-                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5" style={{ marginLeft: 2, marginRight: 9 }}>
-                    <span
-                      aria-hidden
-                      className="h-px min-w-3"
-                      style={{ background: `linear-gradient(to left, color-mix(in oklab, ${g.color} 70%, transparent), transparent)` }}
-                    />
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span
-                        className="grid size-[22px] shrink-0 place-items-center rounded-md"
-                        style={{ background: `color-mix(in oklab, ${g.color} 12%, transparent)`, color: g.color }}
-                      >
-                        <g.Icon className="size-[13px]" strokeWidth={2.2} />
-                      </span>
-                      <span className="ds-eyebrow min-w-0 truncate text-[10px] tracking-[0.2em] text-muted-foreground">
-                        {g.title}
-                      </span>
-                    </span>
-                    <span className="flex min-w-0 items-center gap-2.5">
-                      <span
-                        aria-hidden
-                        className="h-px min-w-3 flex-1"
-                        style={{ background: `linear-gradient(to right, color-mix(in oklab, ${g.color} 70%, transparent), transparent)` }}
-                      />
-                      <CountPill>
-                        {g.items.length} {g.items.length === 1 ? "Guia" : "Guias"}
-                      </CountPill>
-                    </span>
-                  </div>
                   {/* SEM QUADRANTE DE ROLAGEM (pedido explícito, 04/10/2026: "retirar
                       os quadrantes de rolagem... status + cards na página
                       oficial, sem barra de rolagem interna"). Os cartões rolam
@@ -889,7 +996,13 @@ function Dashboard() {
                           p={p as any}
                           variant={view}
                           score={c.score}
-                          barClass={c.score >= 90 ? "bg-[#7fb79a]" : c.score >= 60 ? "bg-[#d8b96a]" : "bg-[#c98c8c]"}
+                          barClass={
+                            c.score >= 90
+                              ? "bg-[#7fb79a]"
+                              : c.score >= 60
+                                ? "bg-[#d8b96a]"
+                                : "bg-[#c98c8c]"
+                          }
                           toggling={togglingId === p.id}
                           attention={g.key === "att"}
                           onOpenMenu={() => setMenuGuideId(p.id)}
@@ -908,75 +1021,79 @@ function Dashboard() {
                           }
                           actions={
                             <>
-                  <Popover open={menuGuideId === p.id} onOpenChange={(o) => setMenuGuideId(o ? p.id : null)}>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        title="Mais opções"
-                        aria-label="Mais opções"
-                        className="size-7 inline-flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-52 p-1.5">
-                      {!readOnly && view !== "grid" && (
-                        <button
-                          type="button"
-                          disabled={togglingId === p.id}
-                          onClick={() => togglePublished(p.id, !p.published)}
-                          className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left disabled:opacity-50"
-                        >
-                          <Globe className="size-3.5 text-muted-foreground" />
-                          {p.published ? "Despublicar" : "Publicar"}
-                        </button>
-                      )}
-                      <Link
-                        to="/admin/properties/$id"
-                        params={{ id: p.id }}
-                        className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors"
-                      >
-                        <Pencil className="size-3.5 text-muted-foreground" /> Editar guia
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => setViewSlug(p.slug)}
-                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                      >
-                        <ExternalLink className="size-3.5 text-muted-foreground" /> Pré-visualizar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyLink(p.slug, p.id)}
-                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                      >
-                        {copiedId === p.id ? (
-                          <Check className="size-3.5 text-accent" />
-                        ) : (
-                          <Link2 className="size-3.5 text-muted-foreground" />
-                        )}
-                        {copiedId === p.id ? "Link copiado" : "Copiar link público"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDupTarget({ id: p.id, name: p.name });
-                          setDupCopies(1);
-                        }}
-                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                      >
-                        <Copy className="size-3.5 text-muted-foreground" /> Duplicar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
-                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors text-left"
-                      >
-                        <Trash2 className="size-3.5" /> Excluir guia
-                      </button>
-                    </PopoverContent>
-                  </Popover>
-
+                              <Popover
+                                open={menuGuideId === p.id}
+                                onOpenChange={(o) => setMenuGuideId(o ? p.id : null)}
+                              >
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    title="Mais opções"
+                                    aria-label="Mais opções"
+                                    className="size-7 inline-flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                                  >
+                                    <MoreHorizontal className="size-4" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent align="end" className="w-52 p-1.5">
+                                  {!readOnly && view !== "grid" && (
+                                    <button
+                                      type="button"
+                                      disabled={togglingId === p.id}
+                                      onClick={() => togglePublished(p.id, !p.published)}
+                                      className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left disabled:opacity-50"
+                                    >
+                                      <Globe className="size-3.5 text-muted-foreground" />
+                                      {p.published ? "Despublicar" : "Publicar"}
+                                    </button>
+                                  )}
+                                  <Link
+                                    to="/admin/properties/$id"
+                                    params={{ id: p.id }}
+                                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors"
+                                  >
+                                    <Pencil className="size-3.5 text-muted-foreground" /> Editar
+                                    guia
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    onClick={() => setViewSlug(p.slug)}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                                  >
+                                    <ExternalLink className="size-3.5 text-muted-foreground" />{" "}
+                                    Pré-visualizar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyLink(p.slug, p.id)}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                                  >
+                                    {copiedId === p.id ? (
+                                      <Check className="size-3.5 text-accent" />
+                                    ) : (
+                                      <Link2 className="size-3.5 text-muted-foreground" />
+                                    )}
+                                    {copiedId === p.id ? "Link copiado" : "Copiar link público"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDupTarget({ id: p.id, name: p.name });
+                                      setDupCopies(1);
+                                    }}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                                  >
+                                    <Copy className="size-3.5 text-muted-foreground" /> Duplicar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors text-left"
+                                  >
+                                    <Trash2 className="size-3.5" /> Excluir guia
+                                  </button>
+                                </PopoverContent>
+                              </Popover>
                             </>
                           }
                         />
@@ -987,7 +1104,6 @@ function Dashboard() {
               </section>
             ))}
         </div>
-
       )}
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
@@ -1061,9 +1177,7 @@ function Dashboard() {
               }
               action={
                 <Button variant="outline" asChild onClick={() => setGuidePickerOpen(false)}>
-                  <Link to="/admin/proprietarios">
-                    Ir para Proprietários
-                  </Link>
+                  <Link to="/admin/proprietarios">Ir para Proprietários</Link>
                 </Button>
               }
             />
@@ -1125,7 +1239,8 @@ function Dashboard() {
           <DialogHeader>
             <DialogTitle>Duplicar guia</DialogTitle>
             <DialogDescription>
-              Vamos criar cópias de <span className="font-medium text-foreground">{dupTarget?.name}</span> com todas as
+              Vamos criar cópias de{" "}
+              <span className="font-medium text-foreground">{dupTarget?.name}</span> com todas as
               configurações, mídias, recomendações, FAQs e contatos. As cópias são criadas como{" "}
               <span className="font-medium">rascunhos</span> para você revisar antes de publicar.
             </DialogDescription>
@@ -1239,7 +1354,9 @@ function Dashboard() {
               <div className="flex items-center justify-between gap-3 px-4 h-9 bg-background/95 backdrop-blur border-b border-border/40 shrink-0">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="inline-flex size-1.5 rounded-full bg-emerald-500/80" />
-                  <p className="text-[11px] font-medium text-muted-foreground/80 truncate">/g/{viewSlug}</p>
+                  <p className="text-[11px] font-medium text-muted-foreground/80 truncate">
+                    /g/{viewSlug}
+                  </p>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
