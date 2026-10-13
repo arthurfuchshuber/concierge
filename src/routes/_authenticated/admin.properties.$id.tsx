@@ -167,6 +167,10 @@ import { normalizeParkingSpots } from "@/lib/property-location";
 import { AirbnbLockedValue, AirbnbLockReason, ADDRESS_LOCK_REASON } from "@/components/editor/AirbnbLockedField";
 import { SectionTopLineBar, type SectionTopLine } from "@/components/editor/Section";
 import { Smartphone, Monitor } from "lucide-react";
+import { isNewLayoutAccount } from "@/lib/new-layout-accounts";
+
+/** Contas com anúncio nativo do Airbnb (piloto): campos importados via API somem do editor. */
+const NATIVE_AIRBNB_OWNERS = new Set(["25239e5b-1a66-46f1-b9a2-829c499cc366"]);
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   // `houseOnly`: abre direto (e trava) na aba "A casa", sem a barra de abas —
@@ -174,7 +178,12 @@ export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   // Stakeholders, que precisa espelhar exatamente esta mesma aba, sem
   // duplicar seus campos em outra tela. `returnTo`: para onde volta o link
   // "Voltar"/"Fechar" — sem ele, cai no padrão (/admin/guias).
-  validateSearch: (s: Record<string, unknown>): { houseOnly?: boolean; returnTo?: string; ownerId?: string } => ({
+  validateSearch: (s: Record<string, unknown>): { houseOnly?: boolean; returnTo?: string; ownerId?: string; focus?: string } => ({
+    // `focus`: layout novo — abre SÓ a parte pedida (ex.: "checkin", "faq"),
+    // vinda das janelas Públicas/Confidenciais do imóvel dentro do proprietário.
+    ...(typeof s.focus === "string" && ["house", "airbnb", "guide", "checkin", "faq", "recs"].includes(s.focus)
+      ? { focus: s.focus }
+      : {}),
     ...(s.houseOnly === true ? { houseOnly: true as const } : {}),
     ...(typeof s.returnTo === "string" && s.returnTo ? { returnTo: s.returnTo } : {}),
     // Quando "Novo imóvel" é aberto de dentro de um proprietário específico
@@ -1786,7 +1795,26 @@ function PropertyEditor() {
   // (`guide_created`): antes disso, é a própria tela enxuta "Novo imóvel" que
   // já pede e valida esses mesmos campos.
   const missingOwner = !isNew && !form.property.owner_contact_id;
-  const missingHouseFields = form.property.guide_created ? missingRequiredHouseFields(form.property) : [];
+  // Anúncio nativo (piloto Sigma): endereço, fotos, descrição, regras, horários
+  // e instruções vêm do Airbnb via API — esses campos somem do editor.
+  const nativeAirbnb = NATIVE_AIRBNB_OWNERS.has(
+    String(((data?.property as Record<string, unknown> | null)?.owner_id as string | undefined) ?? ""),
+  );
+  // Layout novo do editor (mockups aprovados) — só contas habilitadas.
+  const newLayoutEditor = isNewLayoutAccount(
+    String(((data?.property as Record<string, unknown> | null)?.owner_id as string | undefined) ?? ""),
+  );
+  const focusStep = newLayoutEditor && !isNew && !houseOnly ? (search.focus ?? null) : null;
+  // Só "Curadoria & Dicas locais": as demais partes passam a ser editadas pelo
+  // proprietário (Públicas/Confidenciais) — abertas aqui via `focus`.
+  const singleStepMode = newLayoutEditor && !isNew && !houseOnly;
+  const NATIVE_SKIP = ["Link do Google Maps (entrada principal)", "Endereço", "URL do calendário Airbnb"];
+  const missingHouseFields = (form.property.guide_created ? missingRequiredHouseFields(form.property) : []).filter(
+    (m) => !(nativeAirbnb && NATIVE_SKIP.includes(m)),
+  );
+  useEffect(() => {
+    if (nativeAirbnb && step === "airbnb") setStep("guide");
+  }, [nativeAirbnb, step, setStep]);
   // "CONDOMÍNIO?" (pedido de 01/10/2026): obrigatório SÓ com a chave ligada, e
   // com ela ligada e algum campo vazio a pessoa não consegue sair da tela —
   // como o salvamento é automático, deixar pela metade gravaria um cadastro
@@ -1820,9 +1848,12 @@ function PropertyEditor() {
   useEffect(() => {
     if ((needsRequiredHouseInfo || houseOnly) && step !== "house") {
       setStep("house");
+    } else if (singleStepMode && !needsRequiredHouseInfo) {
+      const want = focusStep ?? "recs";
+      if (step !== want) setStep(want);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsRequiredHouseInfo, houseOnly, step]);
+  }, [needsRequiredHouseInfo, houseOnly, step, singleStepMode, focusStep]);
 
   if (!isNew && isLoading) {
     return <div className="max-w-4xl mx-auto px-6 py-10 text-sm text-muted-foreground">Carregando…</div>;
@@ -2113,6 +2144,7 @@ function PropertyEditor() {
         "Condomínio — Elevador",
       )}
     >
+      {!nativeAirbnb && (<>
       <Field label="Link do Google Maps — Entrada principal" required>
         <Input
           value={form.property.maps_url}
@@ -2168,6 +2200,7 @@ function PropertyEditor() {
           />
         </Field>
       </div>
+      </>)}
       {/* CONDOMÍNIO? (mockup "Local dentro do prédio", aprovado 01/10/2026):
           a chave liga os quatro campos; desligada eles somem daqui e de todo
           lugar onde o complemento do endereço aparece, mas o que já foi
@@ -2762,6 +2795,142 @@ function PropertyEditor() {
     );
   }
 
+  const marketplaceNode = (
+<Section
+                  id="marketplace"
+                  icon={Ticket}
+                  title={newLayoutEditor ? "Compre Online" : "Reservas & marketplace"}
+                  badge={newLayoutEditor && form.property.marketplace_links.length > 0 ? <CountPill>{form.property.marketplace_links.length}</CountPill> : undefined}
+                  topLine={newLayoutEditor ? "brand" : undefined}
+                  collapsible
+                  action={
+                    sigmaLocked ? null : (
+                      <AddBtn
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            property: {
+                              ...f.property,
+                              marketplace_links: [
+                                ...f.property.marketplace_links,
+                                { label: "", url: "", description: "" },
+                              ],
+                            },
+                          }))
+                        }
+                      />
+                    )
+                  }
+                >
+                  {sigmaLocked && (
+                    <div className="ds-well ds-atencao flex items-center gap-1.5 px-3 py-2 text-xs">
+                      <Lock className="size-3.5" /> Links gerenciados pelo ConciergeIA — edição bloqueada.
+                    </div>
+                  )}
+                  <fieldset
+                    disabled={sigmaLocked}
+                    className={
+                      sigmaLocked
+                        ? "min-w-0 m-0 p-0 border-0 opacity-60 pointer-events-none space-y-3"
+                        : "min-w-0 m-0 p-0 border-0 space-y-3"
+                    }
+                  >
+                    {form.property.marketplace_links.length === 0 ? (
+                      <EmptyHint text="Ex: tour de barco, transfer do aeroporto, kit de boas-vindas." />
+                    ) : (
+                      form.property.marketplace_links.map((m, i) => (
+                        <ItemCard
+                          key={i}
+                          onRemove={() =>
+                            setForm((f) => ({
+                              ...f,
+                              property: {
+                                ...f.property,
+                                marketplace_links: f.property.marketplace_links.filter((_, j) => j !== i),
+                              },
+                            }))
+                          }
+                        >
+                          <Input
+                            placeholder="Título (ex: Tour de barco)"
+                            value={m.label}
+                            maxLength={120}
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                property: {
+                                  ...f.property,
+                                  marketplace_links: f.property.marketplace_links.map((x, j) =>
+                                    j === i ? { ...x, label: e.target.value } : x,
+                                  ),
+                                },
+                              }))
+                            }
+                          />
+                          <Input
+                            placeholder="https://link-de-venda.com"
+                            value={m.url}
+                            maxLength={2048}
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                property: {
+                                  ...f.property,
+                                  marketplace_links: f.property.marketplace_links.map((x, j) =>
+                                    j === i ? { ...x, url: e.target.value } : x,
+                                  ),
+                                },
+                              }))
+                            }
+                          />
+                          <div className="space-y-1">
+                            <Textarea
+                              placeholder="Descrição curta (obrigatória — entre 100 e 200 caracteres)"
+                              value={m.description}
+                              minLength={100}
+                              maxLength={200}
+                              required
+                              aria-invalid={
+                                m.description.trim().length > 0 &&
+                                (m.description.trim().length < 100 || m.description.trim().length > 200)
+                              }
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  property: {
+                                    ...f.property,
+                                    marketplace_links: f.property.marketplace_links.map((x, j) =>
+                                      j === i ? { ...x, description: e.target.value.slice(0, 200) } : x,
+                                    ),
+                                  },
+                                }))
+                              }
+                            />
+                            <div
+                              className={`text-[11px] tabular-nums text-right ${m.description.trim().length < 100 || m.description.trim().length > 200 ? "text-rose-500" : "text-muted-foreground"}`}
+                            >
+                              {m.description.trim().length}/200{" "}
+                              {m.description.trim().length < 100
+                                ? `· faltam ${100 - m.description.trim().length} para o mínimo`
+                                : ""}
+                            </div>
+                          </div>
+                          {m.url ? (
+                            <div className="flex justify-end">
+                              <POIMetricsBadge
+                                counts={{ views: marketplaceClicks[m.url] ?? 0, likes: 0, dislikes: 0, shares: 0 }}
+                                viewsOnly
+                                position="inline"
+                              />
+                            </div>
+                          ) : null}
+                        </ItemCard>
+                      ))
+                    )}
+                  </fieldset>
+                </Section>
+  );
+
   // Data por extenso do topo — o MESMO molde do Dashboard e do `PageShell`.
   const hojeExtenso = new Date()
     .toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "numeric", month: "long" })
@@ -2805,10 +2974,15 @@ function PropertyEditor() {
                   phone={currentOwner.phone}
                   country={currentOwner.phoneCountry}
                   phonePosition="adjacent"
+                  variant={newLayoutEditor ? "neutral" : "brand"}
                 />
               ) : null}
               <p className="ds-page-subtitle">
-                {houseOnly ? "Edite as informações da casa deste imóvel." : "Edite as informações do guia deste imóvel."}
+                {houseOnly
+                  ? "Edite as informações da casa deste imóvel."
+                  : singleStepMode && !needsRequiredHouseInfo && !focusStep
+                    ? "Monte a curadoria de dicas locais deste imóvel."
+                    : "Edite as informações do guia deste imóvel."}
               </p>
               {!isNew && !houseOnly ? (
                 <div className="ds-scroll-x items-center gap-2">
@@ -2817,12 +2991,12 @@ function PropertyEditor() {
               ) : null}
             </div>
 
-            {(!houseOnly || showPreview || showMaps) && (
+            {((!houseOnly && !(singleStepMode && !needsRequiredHouseInfo)) || showPreview || showMaps) && (
               <div className="mt-5 flex flex-col gap-2 lg:mt-0 lg:flex-row lg:items-center lg:gap-2">
                 {/* Modo "só a casa" (link "Editar" dentro do Proprietário, em
                     Stakeholders): trava em "house" e nunca mostra esta barra —
                     só se fala de informações "da casa" ali. */}
-                {!houseOnly && (
+                {!houseOnly && !(singleStepMode && !needsRequiredHouseInfo) && (
                   <div className="order-1 min-w-0 lg:order-2 lg:w-[min(680px,52vw)] lg:shrink">
                     <Stepper
                       current={step}
@@ -2834,7 +3008,7 @@ function PropertyEditor() {
                         { value: "checkin", label: "Check-in & Checkout", icon: DoorOpen },
                         { value: "faq", label: "FAQ", icon: LifeBuoy },
                         { value: "recs", label: "Recomendações", icon: Compass },
-                      ]}
+                      ].filter((s) => !(nativeAirbnb && s.value === "airbnb"))}
                       lockedValues={needsRequiredHouseInfo ? ["airbnb", "guide", "checkin", "faq", "recs"] : undefined}
                     />
                   </div>
@@ -2907,13 +3081,13 @@ function PropertyEditor() {
 
                   {renderAddressSection()}
 
-                  {renderAirbnbCalendarSection()}
+                  {!nativeAirbnb && renderAirbnbCalendarSection()}
 
-                  {renderHouseRulesSection()}
+                  {!nativeAirbnb && renderHouseRulesSection()}
 
                   {renderManualSection()}
 
-                  {renderPropertyDetailsSection()}
+                  {!nativeAirbnb && renderPropertyDetailsSection()}
 
                   {renderHostContactSection()}
 
@@ -3355,6 +3529,7 @@ function PropertyEditor() {
               {checkinSubStep === "checkin" && (
               <div className={SECTION_LIST}>
               <SectionGroup>
+                <div hidden={nativeAirbnb} className="contents">
                 <Section id="checkin-times" icon={Clock} title="Horário de check-in" collapsible>
                   {/* Espelha (mesmo estado do form, não é uma cópia separada)
                       os campos que já existem na aba Airbnb — pedido do
@@ -3386,6 +3561,7 @@ function PropertyEditor() {
                     />
                   </Field>
                 </Section>
+                </div>
 
                 <Section
                   id="checkin-instr"
@@ -3393,6 +3569,7 @@ function PropertyEditor() {
                   title="Instruções de chegada"
                   collapsible
                 >
+                  {!nativeAirbnb && (
                   <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
                     <TagMentionTextarea
                       items={tagItems}
@@ -3405,6 +3582,7 @@ function PropertyEditor() {
                       }
                     />
                   </Field>
+                  )}
                   <Field
                     label="Fotos e vídeos do check-in"
                     hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB)."
@@ -3795,6 +3973,7 @@ function PropertyEditor() {
               {checkinSubStep === "checkout" && (
               <div className={SECTION_LIST}>
               <SectionGroup>
+                <div hidden={nativeAirbnb} className="contents">
                 <Section id="checkout-times" icon={Clock} title="Horário de check-out" collapsible>
                   {/* Mesmo espelhamento do "Horário de check-in" acima — ver
                       comentário lá. "Check-out a partir de" continua
@@ -3827,7 +4006,9 @@ function PropertyEditor() {
                     />
                   </Field>
                 </Section>
+                </div>
 
+                {!nativeAirbnb && (
                 <Section
                   id="checkout-instr"
                   icon={LogOut}
@@ -3847,6 +4028,7 @@ function PropertyEditor() {
                     />
                   </Field>
                 </Section>
+                )}
 
                 <Section
                   id="checkout-list"
@@ -4169,7 +4351,8 @@ function PropertyEditor() {
             <TabsContent value="recs" className={TAB_CONTENT}>
               {!isNew && <SigmaActiveBanner propertyId={id} />}
               <div className={SECTION_LIST}>
-              <SectionGroup>
+              <SectionGroup defaultOpenId={newLayoutEditor ? "marketplace" : null}>
+                {newLayoutEditor && marketplaceNode}
                 <div className={`${PANEL_SHELL} flex flex-col gap-3 p-3.5`}>
                   <PanelHeading
                     title="Adicionar ponto"
@@ -4268,137 +4451,7 @@ function PropertyEditor() {
                   />
                 )}
 
-                <Section
-                  id="marketplace"
-                  icon={Ticket}
-                  title="Reservas & marketplace"
-                  collapsible
-                  action={
-                    sigmaLocked ? null : (
-                      <AddBtn
-                        onClick={() =>
-                          setForm((f) => ({
-                            ...f,
-                            property: {
-                              ...f.property,
-                              marketplace_links: [
-                                ...f.property.marketplace_links,
-                                { label: "", url: "", description: "" },
-                              ],
-                            },
-                          }))
-                        }
-                      />
-                    )
-                  }
-                >
-                  {sigmaLocked && (
-                    <div className="ds-well ds-atencao flex items-center gap-1.5 px-3 py-2 text-xs">
-                      <Lock className="size-3.5" /> Links gerenciados pelo ConciergeIA — edição bloqueada.
-                    </div>
-                  )}
-                  <fieldset
-                    disabled={sigmaLocked}
-                    className={
-                      sigmaLocked
-                        ? "min-w-0 m-0 p-0 border-0 opacity-60 pointer-events-none space-y-3"
-                        : "min-w-0 m-0 p-0 border-0 space-y-3"
-                    }
-                  >
-                    {form.property.marketplace_links.length === 0 ? (
-                      <EmptyHint text="Ex: tour de barco, transfer do aeroporto, kit de boas-vindas." />
-                    ) : (
-                      form.property.marketplace_links.map((m, i) => (
-                        <ItemCard
-                          key={i}
-                          onRemove={() =>
-                            setForm((f) => ({
-                              ...f,
-                              property: {
-                                ...f.property,
-                                marketplace_links: f.property.marketplace_links.filter((_, j) => j !== i),
-                              },
-                            }))
-                          }
-                        >
-                          <Input
-                            placeholder="Título (ex: Tour de barco)"
-                            value={m.label}
-                            maxLength={120}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                property: {
-                                  ...f.property,
-                                  marketplace_links: f.property.marketplace_links.map((x, j) =>
-                                    j === i ? { ...x, label: e.target.value } : x,
-                                  ),
-                                },
-                              }))
-                            }
-                          />
-                          <Input
-                            placeholder="https://link-de-venda.com"
-                            value={m.url}
-                            maxLength={2048}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                property: {
-                                  ...f.property,
-                                  marketplace_links: f.property.marketplace_links.map((x, j) =>
-                                    j === i ? { ...x, url: e.target.value } : x,
-                                  ),
-                                },
-                              }))
-                            }
-                          />
-                          <div className="space-y-1">
-                            <Textarea
-                              placeholder="Descrição curta (obrigatória — entre 100 e 200 caracteres)"
-                              value={m.description}
-                              minLength={100}
-                              maxLength={200}
-                              required
-                              aria-invalid={
-                                m.description.trim().length > 0 &&
-                                (m.description.trim().length < 100 || m.description.trim().length > 200)
-                              }
-                              onChange={(e) =>
-                                setForm((f) => ({
-                                  ...f,
-                                  property: {
-                                    ...f.property,
-                                    marketplace_links: f.property.marketplace_links.map((x, j) =>
-                                      j === i ? { ...x, description: e.target.value.slice(0, 200) } : x,
-                                    ),
-                                  },
-                                }))
-                              }
-                            />
-                            <div
-                              className={`text-[11px] tabular-nums text-right ${m.description.trim().length < 100 || m.description.trim().length > 200 ? "text-rose-500" : "text-muted-foreground"}`}
-                            >
-                              {m.description.trim().length}/200{" "}
-                              {m.description.trim().length < 100
-                                ? `· faltam ${100 - m.description.trim().length} para o mínimo`
-                                : ""}
-                            </div>
-                          </div>
-                          {m.url ? (
-                            <div className="flex justify-end">
-                              <POIMetricsBadge
-                                counts={{ views: marketplaceClicks[m.url] ?? 0, likes: 0, dislikes: 0, shares: 0 }}
-                                viewsOnly
-                                position="inline"
-                              />
-                            </div>
-                          ) : null}
-                        </ItemCard>
-                      ))
-                    )}
-                  </fieldset>
-                </Section>
+                {!newLayoutEditor && marketplaceNode}
               </SectionGroup>
               </div>
             </TabsContent>
@@ -4556,7 +4609,7 @@ function PropertyEditor() {
           className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/85 px-4 pt-3 pb-3.5 backdrop-blur-[10px]"
         >
           <div className="mx-auto flex max-w-[420px] flex-col items-center gap-2">
-            <div className={`${ACTION_BAR} !h-11 !rounded-[13px] lg:!w-full`}>
+            <div className={`${ACTION_BAR} !h-11 !rounded-[13px] lg:!w-full ${singleStepMode && !needsRequiredHouseInfo ? "hidden" : ""}`}>
               {houseOnly ? (
                 <button
                   type="button"
@@ -4574,7 +4627,7 @@ function PropertyEditor() {
                       // Mesma ordem das abas do Stepper acima (house, airbnb, guide,
                       // checkin, faq, recs — checkin já inclui checkout, que foi
                       // mesclado na mesma aba "Check-in & Checkout").
-                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"];
+                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"].filter((s) => !(nativeAirbnb && s === "airbnb"));
                       const i = order.indexOf(step);
                       if (i > 0) setStep(order[i - 1]);
                     }}
@@ -4587,7 +4640,7 @@ function PropertyEditor() {
                     type="button"
                     className={`${ACTION_SEGMENT} !w-auto !flex-1 !gap-2 !px-3 text-[13px] text-foreground disabled:pointer-events-none disabled:text-muted-foreground/35`}
                     onClick={() => {
-                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"];
+                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"].filter((s) => !(nativeAirbnb && s === "airbnb"));
                       const i = order.indexOf(step);
                       if (i < order.length - 1) setStep(order[i + 1]);
                     }}

@@ -208,7 +208,6 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
         .map((p) => p.id),
     );
     const logRows = (logs ?? []) as LogRow[];
-    const resRows = (reservations ?? []) as ResRow[];
     const doneLog = new Set<string>();
     const doneRes = new Set<string>();
     const touchedLog = new Set<string>();
@@ -231,6 +230,12 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
       if (s.reservation_id) doneRes.add(`${s.kind}|${s.reservation_id}`);
     }
 
+    // Mesma estadia em duas fontes (iCal antigo + Channex) conta uma vez só.
+    const { dedupeStays } = await import("@/lib/arrival-board.server");
+    const resRows = dedupeStays(
+      (reservations ?? []) as ResRow[],
+      (id) => touchedRes.has(`checkin|${id}`) || touchedRes.has(`checkout|${id}`),
+    );
     // Casamento reserva→hóspede (mesma lógica do Kanban): quando o hóspede
     // preenche o formulário, a previsão é gravada no LOG (guest_arrival_status
     // com log_id), nunca na reserva. Sem consultar o log casado, o contador
@@ -2254,7 +2259,11 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         blocked: true,
       });
     }
-    const realRows = reservationRows.filter((r) => r.source !== "manual" && isRealReservation(r));
+    const { dedupeStays } = await import("@/lib/arrival-board.server");
+    const realRows = dedupeStays(
+      reservationRows.filter((r) => r.source !== "manual" && isRealReservation(r)),
+      (id) => doneCheckinRes.has(id) || doneCheckoutRes.has(id),
+    );
     reservationRows.length = 0;
     reservationRows.push(...realRows);
 

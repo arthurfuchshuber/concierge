@@ -1,4 +1,5 @@
-import { useMemo, useState, useEffect } from "react";
+import { Fragment, useMemo, useState, useEffect } from "react";
+import type React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
@@ -54,6 +55,18 @@ import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingListState } from "@/components/ds/LoadingState";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { isNewLayoutAccount } from "@/lib/new-layout-accounts";
+import { summarizePropertyIntegration, type PropertyConnectionRow } from "@/lib/property-connection";
+import { OwnerPropertyCounts } from "./OwnerPropertyCounts";
+import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { CARD_OWNER } from "@/components/dashboard/card-colors";
+import {
+  ACTION_BAR,
+  ACTION_SEGMENT,
+  ACTION_BUTTON_TONE,
+  ACTION_ICON,
+  PANEL_SHELL,
+} from "@/components/dashboard/panel-chrome";
 
 export { PROVIDER_CATEGORIES };
 export type { StakeholderKind };
@@ -121,6 +134,20 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const belongsToActiveAccount = !activeAccountId || data?.accountId === activeAccountId;
   const rows: Row[] = belongsToActiveAccount ? (data?.rows ?? []) : [];
   const activities = belongsToActiveAccount ? (data?.activities ?? []) : [];
+  // Novo layout (etapa 1): SÓ a conta do Anfitrião Sigma — ver `new-layout-accounts.ts`.
+  const newLayout = kind === "owner" && isNewLayoutAccount(data?.accountId);
+  const properties = belongsToActiveAccount ? (data?.properties ?? []) : [];
+  const connections = (belongsToActiveAccount ? (data?.connections ?? []) : []) as PropertyConnectionRow[];
+  const integrationByOwner = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof summarizePropertyIntegration>>();
+    if (!newLayout) return map;
+    for (const r of rows) {
+      const own = (properties as Array<Record<string, any>>).filter((p) => p.owner_contact_id === r.id);
+      map.set(r.id, summarizePropertyIntegration(own as never, connections));
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newLayout, rows, properties, connections]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -221,6 +248,17 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     { value: "inactive", label: "Inativos" },
   ];
 
+  // Barra de ações: no novo layout, uma peça só partida em segmentos (padrão
+  // Presença, `ACTION_BAR`); nas demais contas, os botões de sempre.
+  const barBtn = (extra = "") =>
+    newLayout
+      ? `${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !flex-none !px-3.5 lg:!px-0 ${extra}`
+      : `${extra} h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors`;
+  const barIcon = newLayout ? ACTION_ICON : "size-3.5 opacity-60";
+  const barLabel = newLayout ? "hidden" : "hidden sm:inline";
+  const BarEl: React.ElementType = newLayout ? "div" : Fragment;
+  const barProps = newLayout ? { className: `${ACTION_BAR} !w-auto shrink-0` } : {};
+
   return (
     <div>
       {/* Barra de ações — mesmo padrão de Operação/Guias:
@@ -233,7 +271,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={`Buscar ${labelSingular.toLowerCase()}, cidade, documento…`}
-              className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
+              className={newLayout ? "h-9 w-full box-border rounded-[8px] border-0 bg-foreground/[0.04] pl-9 pr-8 text-[13px] font-normal leading-none text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent)] placeholder:text-muted-foreground focus:outline-none focus:bg-foreground/[0.06] transition-colors" : "h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"}
             />
             {q && (
               <button
@@ -247,16 +285,17 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             )}
           </div>
 
+          <BarEl {...barProps}>
           <Popover>
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="relative h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+                className={barBtn("relative")}
                 aria-label="Filtros"
                 title="Filtros"
               >
-                <Filter className="size-3.5 opacity-60" />
-                <span className="hidden sm:inline">Filtros</span>
+                <Filter className={barIcon} />
+                <span className={barLabel}>Filtros</span>
                 {(statusFilters.length > 0 || cityFilters.length > 0) && (
                   <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
                 )}
@@ -313,10 +352,10 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             onClick={() => setView(view === "list" ? "kanban" : "list")}
             aria-label={view === "list" ? "Ver em kanban" : "Ver em lista"}
             title={view === "list" ? "Ver em kanban" : "Ver em lista"}
-            className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+            className={barBtn()}
           >
-            {view === "list" ? <Columns3 className="size-3.5 opacity-60" /> : <LayoutList className="size-3.5 opacity-60" />}
-            <span className="hidden sm:inline">{view === "list" ? "Kanban" : "Lista"}</span>
+            {view === "list" ? <Columns3 className={barIcon} /> : <LayoutList className={barIcon} />}
+            <span className={barLabel}>{view === "list" ? "Kanban" : "Lista"}</span>
           </button>
 
           <button
@@ -324,11 +363,12 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             onClick={openNew}
             aria-label={`Novo ${labelSingular.toLowerCase()}`}
             title={`Novo ${labelSingular.toLowerCase()}`}
-            className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+            className={barBtn()}
           >
-            <Plus className="size-3.5 opacity-60" />
-            <span className="hidden sm:inline">Novo</span>
+            <Plus className={barIcon} />
+            <span className={barLabel}>Novo</span>
           </button>
+          </BarEl>
         </div>
 
         {rows.length > 0 && (q.trim() || statusFilters.length > 0 || cityFilters.length > 0) && (
@@ -360,6 +400,8 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
               row={r}
               kind={kind}
               accountOwnerId={activeAccountId}
+              newLayout={newLayout}
+              integration={integrationByOwner.get(r.id)}
               onOpen={() => setDetailId(r.id)}
               onEdit={() => openEdit(r)}
               onDelete={() => remove(r.id)}
@@ -383,6 +425,8 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
                       row={r}
                       kind={kind}
                       accountOwnerId={activeAccountId}
+                      newLayout={newLayout}
+                      integration={integrationByOwner.get(r.id)}
                       onOpen={() => setDetailId(r.id)}
                       onEdit={() => openEdit(r)}
                       onDelete={() => remove(r.id)}
@@ -405,6 +449,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
         onOpenChange={setFormOpen}
         initial={form}
         accountOwnerId={activeAccountId}
+        newLayout={newLayout}
         onSaved={afterSaved}
       />
 
@@ -454,7 +499,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
               : "w-full sm:max-w-3xl overflow-y-auto p-0"
           }
         >
-          {detailId && <StakeholderDetailSheet kind={kind} id={detailId} accountOwnerId={activeAccountId} onEdit={() => {
+          {detailId && <StakeholderDetailSheet kind={kind} id={detailId} accountOwnerId={activeAccountId} newLayout={newLayout} onEdit={() => {
             const row = rows.find((r) => r.id === detailId);
             if (row) { setDetailId(null); openEdit(row); }
           }} />}
@@ -468,6 +513,8 @@ function StakeholderCard({
   row,
   kind,
   accountOwnerId,
+  newLayout = false,
+  integration,
   onOpen,
   onEdit,
   onDelete,
@@ -475,6 +522,9 @@ function StakeholderCard({
   row: Row;
   kind: StakeholderKind;
   accountOwnerId?: string | null;
+  /** Novo layout (etapa 1, só a conta do Anfitrião Sigma). */
+  newLayout?: boolean;
+  integration?: ReturnType<typeof summarizePropertyIntegration>;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -483,7 +533,11 @@ function StakeholderCard({
   return (
     <div
       onClick={onOpen}
-      className="group cursor-pointer ds-surface border border-border bg-card p-4 min-w-0 hover:border-foreground/30 hover:shadow-elevated transition-all"
+      className={
+        newLayout
+          ? `group cursor-pointer ${PANEL_SHELL} p-4 min-w-0 transition-all`
+          : "group cursor-pointer ds-surface border border-border bg-card p-4 min-w-0 hover:border-foreground/30 hover:shadow-elevated transition-all"
+      }
     >
       {/* Linha mais compacta possível: nome (+ ícone do WhatsApp colado a ele)
           no canto esquerdo, situação no canto direito — como sempre foi.
@@ -505,12 +559,14 @@ function StakeholderCard({
                card do Kanban (card-colors.ts). Prestador continua na cor de
                texto cheia: o rosa identifica PROPRIETÁRIO, e vale como pista
                justamente por não valer para todo mundo. */
-            className={`ds-card-title truncate leading-tight min-w-0 ${kind === "owner" ? "text-accent" : ""}`}
+            className={`ds-card-title truncate leading-tight min-w-0 ${newLayout ? CARD_OWNER : kind === "owner" ? "text-accent" : ""}`}
             title={row.trade_name || row.name}
           >
             {row.trade_name || row.name}
           </span>
-          {row.phone && (
+          {newLayout ? (
+            <PhoneActionButton phone={row.phone} country={row.phone_country} size={13} alwaysShow />
+          ) : row.phone && (
             <a
               href={`https://wa.me/55${String(row.phone).replace(/\D/g, "")}`}
               target="_blank"
@@ -540,7 +596,8 @@ function StakeholderCard({
       <div className="mt-1.5 ds-card-lines">
         {cityUf && (
           <p className="ds-meta flex items-center gap-1.5">
-            <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
+            <MapPin className="size-3 shrink-0 text-muted-foreground" />
+            {newLayout ? <span><span className="ds-faint">Reside em:</span> {cityUf}</span> : cityUf}
           </p>
         )}
         {/* Vigência à esquerda e ações compactas à direita, na mesma linha —
@@ -597,6 +654,7 @@ function StakeholderCard({
         </div>
       </div>
 
+      {newLayout && integration ? <OwnerPropertyCounts summary={integration} /> : null}
     </div>
   );
 }

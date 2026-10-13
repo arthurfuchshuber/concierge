@@ -48,14 +48,27 @@ export const listStakeholders = createServerFn({ method: "GET" })
 
     const { data: props } =
       data.kind === "owner"
-        ? await supabase.from("properties").select("id, name, owner_contact_id").eq("owner_id", accountId)
-        : { data: [] as Array<{ id: string; name: string; owner_contact_id: string | null }> };
+        ? await supabase.from("properties").select("id, name, city, state, owner_contact_id").eq("owner_id", accountId)
+        : { data: [] as Array<{ id: string; name: string; city: string | null; state: string | null; owner_contact_id: string | null }> };
+
+    // Situação da integração de cada imóvel (alimenta "X imóveis ativos /
+    // inativos" no card do proprietário). Só leitura; falha aqui nunca
+    // derruba a lista.
+    let connections: Array<{ property_id: string; airbnb_listing_id: string | null; synced_at: string | null }> = [];
+    if (data.kind === "owner" && (props ?? []).length > 0) {
+      const { data: conn } = await supabase
+        .from("property_listing_raw_data")
+        .select("property_id, airbnb_listing_id, synced_at")
+        .eq("owner_id", accountId);
+      connections = conn ?? [];
+    }
 
     return {
       accountId,
       rows: rows ?? [],
       activities: acts ?? [],
       properties: props ?? [],
+      connections,
     };
   });
 

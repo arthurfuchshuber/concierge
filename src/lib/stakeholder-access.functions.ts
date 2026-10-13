@@ -82,6 +82,9 @@ const ProvisionalInput = z.object({
   cpf: z.string().trim().regex(/^\d{11}$/).optional(),
   birth_date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   phone: z.string().trim().max(20).optional(),
+  /** "Enviar instruções por e-mail": a senha NÃO é exibida nem enviada — a
+   *  pessoa recebe um link para criar a própria senha no primeiro acesso. */
+  sendInstructions: z.boolean().optional(),
 });
 
 
@@ -251,16 +254,33 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
         .maybeSingle();
       const accountName = ((prof?.trade_name as string) || (prof?.full_name as string)) ?? null;
       const { sendAppEmail } = await import("@/lib/email/send-app-email.server");
+      const byInstructions = data.sendInstructions === true && mode !== "linked_existing";
+      let actionUrl = "https://conciergeia.app/auth";
+      if (byInstructions) {
+        // Link de criação de senha (não dispara e-mail nativo; enviamos pela fila do app).
+        try {
+          const { SITE_ORIGIN } = await import("@/lib/site-url");
+          const { data: link } = await supabaseAdmin.auth.admin.generateLink({
+            type: "recovery",
+            email: data.email,
+            options: { redirectTo: `${SITE_ORIGIN}/definir-senha` },
+          } as never);
+          const l = (link as { properties?: { action_link?: string } } | null)?.properties?.action_link;
+          if (l) actionUrl = l;
+        } catch {
+          // mantém o link de entrada: a pessoa ainda consegue usar "Esqueci a senha".
+        }
+      }
       const r = await sendAppEmail({
         templateName: "access-notice",
         recipientEmail: data.email,
         idempotencyKey: `access-${mode}-${memberUserId}-${ownerId}-${Date.now()}`,
         templateData: {
-          kind: mode,
+          kind: byInstructions ? "instructions" : mode,
           accountName,
           recipientEmail: data.email,
-          provisionalPassword: mode === "linked_existing" ? null : data.password,
-          actionUrl: "https://conciergeia.app/auth",
+          provisionalPassword: mode === "linked_existing" || byInstructions ? null : data.password,
+          actionUrl,
         },
       });
       emailSent = r.ok;

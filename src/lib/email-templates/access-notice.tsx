@@ -3,7 +3,7 @@ import { Body, Button, Container, Head, Heading, Html, Preview, Section, Text } 
 import type { TemplateEntry } from './registry'
 
 export interface AccessNoticeProps {
-  kind?: 'created' | 'password_changed' | 'linked_existing' | 'removed'
+  kind?: 'created' | 'instructions' | 'password_changed' | 'linked_existing' | 'removed'
   accountName?: string | null
   recipientEmail?: string | null
   provisionalPassword?: string | null
@@ -12,6 +12,7 @@ export interface AccessNoticeProps {
 
 const TITLES: Record<string, string> = {
   created: 'Seu acesso ao ConciergeIA foi criado',
+  instructions: 'Crie sua senha de acesso ao ConciergeIA',
   password_changed: 'Sua senha provisória foi alterada',
   linked_existing: 'Você foi adicionado a uma nova empresa',
   removed: 'Seu acesso a uma empresa foi removido',
@@ -37,6 +38,7 @@ const AccessNoticeEmail = ({
             <Heading style={h1}>{title}</Heading>
             <Text style={text}>
               {kind === 'created' && <>A empresa <strong>{account}</strong> liberou seu acesso ao painel.</>}
+              {kind === 'instructions' && <>A empresa <strong>{account}</strong> liberou seu acesso ao painel. Use o botão abaixo para criar a sua senha pessoal e entrar. Por segurança, no primeiro acesso o sistema sempre pede uma nova senha.</>}
               {kind === 'password_changed' && <>A empresa <strong>{account}</strong> definiu uma nova senha provisória para você.</>}
               {kind === 'linked_existing' && <>A empresa <strong>{account}</strong> adicionou você à equipe. Entre com seu e-mail e a senha que você já usa no ConciergeIA e escolha a empresa no topo do painel.</>}
               {kind === 'removed' && <>A empresa <strong>{account}</strong> removeu seu acesso ao painel dela. Seus outros acessos continuam iguais.</>}
@@ -54,7 +56,7 @@ const AccessNoticeEmail = ({
             ) : null}
             {kind !== 'removed' && (
               <Section style={{ margin: '22px 0 6px' }}>
-                <Button style={button} href={actionUrl}>Entrar no ConciergeIA</Button>
+                <Button style={button} href={actionUrl}>{kind === 'instructions' ? 'Criar minha senha' : 'Entrar no ConciergeIA'}</Button>
               </Section>
             )}
             <Text style={small}>Se você não reconhece esta ação, responda a este e-mail ou fale com a empresa.</Text>

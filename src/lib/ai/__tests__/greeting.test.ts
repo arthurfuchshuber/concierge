@@ -14,3 +14,9 @@ describe("saudação obrigatória", () => {
     expect(ensureGreeting("Vou confirmar isso.", h, "Yara", "pt-BR", tarde)).toBe("Vou confirmar isso.");
   });
 });
+
+describe("saudação e silêncio", () => {
+  it("não cumprimenta resposta de silêncio", () => {
+    expect(ensureGreeting("[SILENCIO]", [], "Fernanda", "en", tarde)).toBe("[SILENCIO]");
+  });
+});

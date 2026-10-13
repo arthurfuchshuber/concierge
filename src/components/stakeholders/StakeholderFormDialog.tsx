@@ -204,12 +204,27 @@ function SingleDateField({
 
 
 
+/** Senha forte aleatória (maiúscula, minúscula, número e símbolo). */
+function genStrongPassword() {
+  const sets = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnpqrstuvwxyz", "23456789", "!@#$%*?"];
+  const rnd = (n: number) => crypto.getRandomValues(new Uint32Array(1))[0]! % n;
+  const chars = sets.map((c) => c[rnd(c.length)]!);
+  const all = sets.join("");
+  while (chars.length < 12) chars.push(all[rnd(all.length)]!);
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = rnd(i + 1);
+    [chars[i], chars[j]] = [chars[j]!, chars[i]!];
+  }
+  return chars.join("");
+}
+
 export function StakeholderFormDialog({
   kind,
   open,
   onOpenChange,
   initial,
   accountOwnerId,
+  newLayout = false,
   onSaved,
 }: {
   kind: StakeholderKind;
@@ -217,6 +232,8 @@ export function StakeholderFormDialog({
   onOpenChange: (o: boolean) => void;
   initial?: StakeholderFormValues | null;
   accountOwnerId?: string | null;
+  /** Layout novo (mockups aprovados) — só para contas habilitadas. */
+  newLayout?: boolean;
   onSaved?: (id: string, isNew: boolean, form: StakeholderFormValues) => void;
 }) {
   const saveFn = useServerFn(saveStakeholder);
@@ -235,6 +252,8 @@ export function StakeholderFormDialog({
   const removeMemberFn = useServerFn(removeTeamMember);
   const [systemAccess, setSystemAccess] = useState(false);
   const [provisionalPwd, setProvisionalPwd] = useState("");
+  /** "Enviar instruções por e-mail": cria o acesso sem revelar senha alguma. */
+  const [sendInstructions, setSendInstructions] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   /** CPF/CNPJ trava depois de validado; o botão "Alterar" libera de novo. */
   const [docLocked, setDocLocked] = useState(false);
@@ -275,6 +294,7 @@ export function StakeholderFormDialog({
     setErrors({});
     setSystemAccess(false);
     setProvisionalPwd("");
+    setSendInstructions(false);
     setShowPwd(false);
     setDocLocked(Boolean(stripMask((initial ?? emptyStakeholderForm).doc)));
     setOpenSection(null);
@@ -451,33 +471,40 @@ export function StakeholderFormDialog({
       // Acesso ao sistema: mesmo fluxo de convite dos membros da equipe.
       try {
         const current = access?.status ?? "none";
-        if (systemAccess && current !== "none" && emailValid && provisionalPwd.trim().length >= 8) {
+        const byMail = newLayout && sendInstructions && !provisionalPwd.trim();
+        const pwdToSend = provisionalPwd.trim() || (byMail ? genStrongPassword() : "");
+        if (systemAccess && current !== "none" && emailValid && pwdToSend.length >= 8) {
           const res = await provisionalFn({
             data: {
               accountOwnerId,
               email: form.email.trim().toLowerCase(),
-              password: provisionalPwd.trim(),
+              password: pwdToSend,
               name: form.name.trim() || undefined,
+              sendInstructions: byMail || undefined,
             },
           });
-          const sent = provisionalPwd.trim();
+          const sent = pwdToSend;
           setProvisionalPwd("");
+          setSendInstructions(false);
           if (res.mode === "linked_existing") {
             toast.success(
               `Esta pessoa já tem conta no ConciergeIA: acesso à sua empresa liberado. Ela entra com a senha que já usa.${res.emailSent ? " Aviso enviado por e-mail." : " O aviso por e-mail não pôde ser enviado agora."}`,
               { duration: 10000 },
             );
+          } else if (byMail) {
+            toast.success(res.emailSent ? "Instruções enviadas por e-mail. A pessoa cria a própria senha no primeiro acesso." : "Acesso liberado, mas o e-mail não pôde ser enviado agora.", { duration: 10000 });
           } else {
             void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
             toast.success(`Nova senha provisória definida e copiada.${res.emailSent ? " Também enviada por e-mail." : ""}`, { duration: 10000 });
           }
         } else if (systemAccess && current === "none" && emailValid) {
-          if (provisionalPwd.trim().length >= 8) {
+          if (pwdToSend.length >= 8) {
             const res = await provisionalFn({
               data: {
                 accountOwnerId,
                 email: form.email.trim().toLowerCase(),
-                password: provisionalPwd.trim(),
+                password: pwdToSend,
+                sendInstructions: byMail || undefined,
                 name: form.name.trim() || undefined,
                 // Já temos CPF e nascimento no cadastro — o convidado não
                 // precisa preencher de novo no primeiro acesso.
@@ -487,11 +514,19 @@ export function StakeholderFormDialog({
               },
             });
 
-            const sent = provisionalPwd.trim();
+            const sent = pwdToSend;
             setProvisionalPwd("");
+            setSendInstructions(false);
             if (res.mode === "linked_existing") {
               toast.success(
                 `Esta pessoa já tem conta no ConciergeIA: acesso à sua empresa liberado. Ela entra com a senha que já usa.${res.emailSent ? " Aviso enviado por e-mail." : " O aviso por e-mail não pôde ser enviado agora."}`,
+                { duration: 10000 },
+              );
+            } else if (byMail) {
+              toast.success(
+                res.emailSent
+                  ? "Acesso liberado e instruções enviadas por e-mail. No primeiro acesso a pessoa cria a própria senha."
+                  : "Acesso liberado, mas o e-mail com as instruções não pôde ser enviado agora.",
                 { duration: 10000 },
               );
             } else {
@@ -594,7 +629,7 @@ export function StakeholderFormDialog({
               diálogo. */}
           <SectionGroup openId={openSection} onOpenIdChange={setOpenSection}>
           <DenseSections>
-          <Section id="dados" icon={UserRound} title="Dados cadastrais" collapsible action={checkingCnpj ? <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" /> : undefined}>
+          <Section id="dados" icon={UserRound} title={newLayout ? "Dados pessoais" : "Dados cadastrais"} collapsible action={checkingCnpj ? <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" /> : undefined}>
 
             <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
 
@@ -712,7 +747,7 @@ export function StakeholderFormDialog({
             </div>
           </Section>
 
-          <Section id="contrato" icon={Calendar} title="Situação contratual" collapsible>
+          <Section id="contrato" icon={Calendar} title={newLayout ? "Contrato" : "Situação contratual"} collapsible>
             <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
               <div className="space-y-1.5">
                 <Label className="ds-meta">Situação</Label>
@@ -861,19 +896,8 @@ export function StakeholderFormDialog({
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      // Senha forte garantida (maiúscula, minúscula, número e
-                      // símbolo) — senhas simples são recusadas pelo login.
-                      const sets = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnpqrstuvwxyz", "23456789", "!@#$%*?"];
-                      const rnd = (n: number) => crypto.getRandomValues(new Uint32Array(1))[0]! % n;
-                      const chars = sets.map((c) => c[rnd(c.length)]!);
-                      const all = sets.join("");
-                      while (chars.length < 12) chars.push(all[rnd(all.length)]!);
-                      for (let i = chars.length - 1; i > 0; i--) {
-                        const j = rnd(i + 1);
-                        [chars[i], chars[j]] = [chars[j]!, chars[i]!];
-                      }
-                      const gen = chars.join("");
-                      setProvisionalPwd(gen);
+                      setProvisionalPwd(genStrongPassword());
+                      setSendInstructions(false);
                       setShowPwd(true);
                     }}
                   >
@@ -882,6 +906,28 @@ export function StakeholderFormDialog({
                 </div>
                 {provisionalPwd && provisionalPwd.trim().length < 8 && (
                   <p className="ds-meta text-destructive">A senha precisa ter pelo menos 8 caracteres.</p>
+                )}
+                {newLayout && (
+                  <>
+                    <button
+                      type="button"
+                      aria-pressed={sendInstructions}
+                      onClick={() => {
+                        setSendInstructions((v) => !v);
+                        setProvisionalPwd("");
+                      }}
+                      className={`flex h-10 w-full items-center justify-center gap-2 rounded-[0.3rem] border px-3 text-[13px] font-medium transition-colors ${
+                        sendInstructions ? "border-foreground/40 bg-foreground/10" : "border-border bg-secondary/40 hover:bg-secondary"
+                      }`}
+                    >
+                      <Mail className="size-4" /> Enviar instruções por e-mail
+                    </button>
+                    <p className="ds-meta">
+                      {sendInstructions
+                        ? "Ao salvar, a pessoa recebe um e-mail com o link para criar a própria senha. Nenhuma senha é exibida."
+                        : "No primeiro acesso, o sistema sempre exige que a pessoa crie uma nova senha."}
+                    </p>
+                  </>
                 )}
                 <p className="ds-meta">
                   Use letras maiúsculas, minúsculas, números e símbolo (senhas simples são recusadas). Ao salvar, e-mail e senha são copiados para você colar no WhatsApp. Em branco, {access?.status && access.status !== "none" ? "nada muda no acesso atual" : "enviamos convite por e-mail"}.
@@ -1005,7 +1051,7 @@ export function StakeholderFormDialog({
             </div>
           </Section>
 
-          <Section id="extras" icon={NotebookPen} title="Extras" collapsible>
+          <Section id="extras" icon={NotebookPen} title={newLayout ? "Observações" : "Extras"} collapsible>
 
 
             <div className="space-y-1.5">

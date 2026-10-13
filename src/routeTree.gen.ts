@@ -64,8 +64,8 @@ import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/e
 import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.google-calendar.return'
 import { Route as AuthenticatedAdminDashboardIndexRouteImport } from './routes/_authenticated/admin.dashboard.index'
 import { Route as AuthenticatedAdminDashboardCalendarioRouteImport } from './routes/_authenticated/admin.dashboard.calendario'
-import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
 import { Route as AuthenticatedAdminDashboardFinanceiroRouteImport } from './routes/_authenticated/admin.dashboard.financeiro'
+import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
 import { Route as AuthenticatedAdminDashboardRegistrosRouteImport } from './routes/_authenticated/admin.dashboard.registros'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminRecomendacoesSigmaIndexRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.index'
@@ -394,16 +394,16 @@ const AuthenticatedAdminDashboardCalendarioRoute =
     path: '/calendario',
     getParentRoute: () => AuthenticatedAdminDashboardRoute,
   } as any)
-const AuthenticatedAdminDashboardKanbanRoute =
-  AuthenticatedAdminDashboardKanbanRouteImport.update({
-    id: '/kanban',
-    path: '/kanban',
-    getParentRoute: () => AuthenticatedAdminDashboardRoute,
-  } as any)
 const AuthenticatedAdminDashboardFinanceiroRoute =
   AuthenticatedAdminDashboardFinanceiroRouteImport.update({
     id: '/financeiro',
     path: '/financeiro',
+    getParentRoute: () => AuthenticatedAdminDashboardRoute,
+  } as any)
+const AuthenticatedAdminDashboardKanbanRoute =
+  AuthenticatedAdminDashboardKanbanRouteImport.update({
+    id: '/kanban',
+    path: '/kanban',
     getParentRoute: () => AuthenticatedAdminDashboardRoute,
   } as any)
 const AuthenticatedAdminDashboardRegistrosRoute =
@@ -613,8 +613,8 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
-  '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
+  '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
@@ -694,8 +694,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
-  '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
+  '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
@@ -780,8 +780,8 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/_authenticated/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
-  '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/_authenticated/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
+  '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/_authenticated/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
@@ -866,8 +866,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/g/$slug/'
     | '/admin/dashboard/calendario'
-    | '/admin/dashboard/kanban'
     | '/admin/dashboard/financeiro'
+    | '/admin/dashboard/kanban'
     | '/admin/dashboard/registros'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
@@ -947,8 +947,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/g/$slug'
     | '/admin/dashboard/calendario'
-    | '/admin/dashboard/kanban'
     | '/admin/dashboard/financeiro'
+    | '/admin/dashboard/kanban'
     | '/admin/dashboard/registros'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
@@ -1032,8 +1032,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/g/$slug/'
     | '/_authenticated/admin/dashboard/calendario'
-    | '/_authenticated/admin/dashboard/kanban'
     | '/_authenticated/admin/dashboard/financeiro'
+    | '/_authenticated/admin/dashboard/kanban'
     | '/_authenticated/admin/dashboard/registros'
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
@@ -1506,18 +1506,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardCalendarioRouteImport
       parentRoute: typeof AuthenticatedAdminDashboardRoute
     }
-    '/_authenticated/admin/dashboard/kanban': {
-      id: '/_authenticated/admin/dashboard/kanban'
-      path: '/kanban'
-      fullPath: '/admin/dashboard/kanban'
-      preLoaderRoute: typeof AuthenticatedAdminDashboardKanbanRouteImport
-      parentRoute: typeof AuthenticatedAdminDashboardRoute
-    }
     '/_authenticated/admin/dashboard/financeiro': {
       id: '/_authenticated/admin/dashboard/financeiro'
       path: '/financeiro'
       fullPath: '/admin/dashboard/financeiro'
       preLoaderRoute: typeof AuthenticatedAdminDashboardFinanceiroRouteImport
+      parentRoute: typeof AuthenticatedAdminDashboardRoute
+    }
+    '/_authenticated/admin/dashboard/kanban': {
+      id: '/_authenticated/admin/dashboard/kanban'
+      path: '/kanban'
+      fullPath: '/admin/dashboard/kanban'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardKanbanRouteImport
       parentRoute: typeof AuthenticatedAdminDashboardRoute
     }
     '/_authenticated/admin/dashboard/registros': {
@@ -1707,8 +1707,8 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminDashboardRouteChildren {
   AuthenticatedAdminDashboardCalendarioRoute: typeof AuthenticatedAdminDashboardCalendarioRoute
-  AuthenticatedAdminDashboardKanbanRoute: typeof AuthenticatedAdminDashboardKanbanRoute
   AuthenticatedAdminDashboardFinanceiroRoute: typeof AuthenticatedAdminDashboardFinanceiroRoute
+  AuthenticatedAdminDashboardKanbanRoute: typeof AuthenticatedAdminDashboardKanbanRoute
   AuthenticatedAdminDashboardRegistrosRoute: typeof AuthenticatedAdminDashboardRegistrosRoute
   AuthenticatedAdminDashboardIndexRoute: typeof AuthenticatedAdminDashboardIndexRoute
 }
@@ -1717,10 +1717,10 @@ const AuthenticatedAdminDashboardRouteChildren: AuthenticatedAdminDashboardRoute
   {
     AuthenticatedAdminDashboardCalendarioRoute:
       AuthenticatedAdminDashboardCalendarioRoute,
-    AuthenticatedAdminDashboardKanbanRoute:
-      AuthenticatedAdminDashboardKanbanRoute,
     AuthenticatedAdminDashboardFinanceiroRoute:
       AuthenticatedAdminDashboardFinanceiroRoute,
+    AuthenticatedAdminDashboardKanbanRoute:
+      AuthenticatedAdminDashboardKanbanRoute,
     AuthenticatedAdminDashboardRegistrosRoute:
       AuthenticatedAdminDashboardRegistrosRoute,
     AuthenticatedAdminDashboardIndexRoute:

@@ -64,6 +64,8 @@ import { StakeholderStatusControl } from "./StakeholderStatusControl";
 import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 import { humanizeEventMessage } from "@/lib/stakeholder-event-message";
 import { MultiLinkPicker } from "./MultiLinkPicker";
+import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
+import { OwnerPropertyWindow } from "./OwnerPropertyWindow";
 
 
 /** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.
@@ -73,6 +75,40 @@ import { MultiLinkPicker } from "./MultiLinkPicker";
  *  espremer/cortar "Acessos" tentando dividir a largura em partes iguais. */
 const SEG_TAB =
   "min-h-[46px] !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
+
+/** Abas do layout novo (mockup aprovado): sem rosa, aba ativa neutra com fio de marca. */
+const SEG_TAB_NEW =
+  "min-h-[46px] !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-foreground/10 data-[state=active]:text-foreground data-[state=active]:shadow-none";
+
+const MONTHS_PT = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+
+/** Agrupa itens (já ordenados do mais novo ao mais antigo) por mês ("outubro de 2026") ou dia. */
+function groupByPeriod<T extends { at: string }>(items: T[], by: "month" | "day") {
+  const groups: { label: string; items: T[] }[] = [];
+  for (const it of items) {
+    const d = it.at ? new Date(it.at) : null;
+    const ok = d && !Number.isNaN(d.getTime());
+    const label = !ok
+      ? "Sem data"
+      : by === "month"
+        ? `${MONTHS_PT[d!.getMonth()]} de ${d!.getFullYear()}`
+        : d!.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(it);
+    else groups.push({ label, items: [it] });
+  }
+  return groups;
+}
+
+function GroupLabel({ children, count }: { children: React.ReactNode; count: number }) {
+  return (
+    <div className="flex items-center gap-2 pt-1">
+      <span className="ds-eyebrow capitalize text-muted-foreground">{children}</span>
+      <span className="h-px flex-1 bg-border" aria-hidden />
+      <span className="ds-meta tabular-nums">{count}</span>
+    </div>
+  );
+}
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
@@ -102,11 +138,14 @@ export function StakeholderDetailSheet({
   kind,
   id,
   accountOwnerId,
+  newLayout = false,
   onEdit,
 }: {
   kind: StakeholderKind;
   id: string;
   accountOwnerId?: string | null;
+  /** Layout novo (aprovado nos mockups) — liberado só para contas habilitadas. */
+  newLayout?: boolean;
   onEdit: () => void;
 }) {
   const qc = useQueryClient();
@@ -130,6 +169,8 @@ export function StakeholderDetailSheet({
   const [transferTargetId, setTransferTargetId] = useState<string>("");
   // Dados pessoais sempre começam recolhidos ao abrir a ficha.
   const [dataOpen, setDataOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [windowPropertyId, setWindowPropertyId] = useState<string | null>(null);
 
   const clicksignFn = useServerFn(getMyClicksignConfig);
   const clicksign = useQuery({
@@ -603,7 +644,7 @@ export function StakeholderDetailSheet({
 
       {/* ---------- Dados pessoais (recolhível, fechado por padrão) ---------- */}
       {dataOpen && (
-        <section className="ds-surface bg-card p-4">
+        <section className={newLayout ? `${PANEL_SHELL} p-4` : "ds-surface bg-card p-4"}>
           <dl className="grid gap-4 sm:grid-cols-2">
             <Field label="Nome completo" value={row.name} copy={row.name} />
             {row.trade_name && (
@@ -684,16 +725,16 @@ export function StakeholderDetailSheet({
 
 
       <Tabs defaultValue="visao" className="min-w-0 max-w-full">
-        <TabsList className="ds-segmented h-auto w-full max-w-full !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
+        <TabsList className={`ds-segmented h-auto w-full max-w-full !rounded-[0.3rem] border-0 p-0 ${newLayout ? "bg-card shadow-[inset_0_0_0_1px_var(--border)]" : "bg-foreground/5"}`}>
 
-          <TabsTrigger className={SEG_TAB} value="visao">Timeline</TabsTrigger>
+          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="visao">Timeline</TabsTrigger>
           {(kind === "owner" || kind === "provider") && (
-            <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>
+            <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="imoveis">Imóveis</TabsTrigger>
           )}
-          <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
-          <TabsTrigger className={SEG_TAB} value="documentos">Documentos</TabsTrigger>
-          <TabsTrigger className={SEG_TAB} value="acessos">Acessos</TabsTrigger>
-          <TabsTrigger className={SEG_TAB} value="log">Log</TabsTrigger>
+          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
+          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="documentos">Documentos</TabsTrigger>
+          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="acessos">Acessos</TabsTrigger>
+          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="log">Log</TabsTrigger>
 
         </TabsList>
 
@@ -738,6 +779,35 @@ export function StakeholderDetailSheet({
               desc="Assim que a pessoa usar o sistema, cada passo aparece aqui."
             />
           ) : (
+            newLayout ? (
+              <div className="space-y-4">
+                {groupByPeriod(
+                  (trail.data?.items ?? []).map((ev) => ({ ...ev, at: ev.at ?? "" })),
+                  "day",
+                ).map((g) => (
+                  <div key={g.label} className="space-y-2">
+                    <GroupLabel count={g.items.length}>{g.label}</GroupLabel>
+                    <ul className={`${PANEL_SHELL} divide-y divide-border`}>
+                      {g.items.map((ev) => (
+                        <li key={ev.id} className="px-4 py-3">
+                          <p className="text-[13.5px] leading-[1.3] text-foreground">{ev.title}</p>
+                          <p className="ds-meta">
+                            {ev.badge} · {ev.at ? new Date(ev.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                          </p>
+                          {ev.details.length > 0 && (
+                            <ul className="mt-1 space-y-0.5">
+                              {ev.details.map((d, i) => (
+                                <li key={i} className="ds-meta break-words">{d}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            ) : (
             <ul className="space-y-2">
               {(trail.data?.items ?? []).map((ev) => (
                 <li key={ev.id} className="ds-surface bg-card px-4 py-3">
@@ -756,6 +826,7 @@ export function StakeholderDetailSheet({
                 </li>
               ))}
             </ul>
+            )
           )}
         </TabsContent>
 
@@ -783,6 +854,16 @@ export function StakeholderDetailSheet({
           <section className="space-y-4">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
               <h3 className="ds-section-title truncate">Linha do Tempo</h3>
+              {newLayout && !feed.isLoading && (
+                <button
+                  type="button"
+                  onClick={() => setNoteOpen((o) => !o)}
+                  aria-expanded={noteOpen}
+                  className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[0.3rem] border border-border bg-secondary/40 px-3 text-[13px] font-medium transition-colors hover:bg-secondary"
+                >
+                  <Plus className="size-4 text-primary" /> Nova nota
+                </button>
+              )}
               {feed.isLoading && (
                 <span className="flex items-center gap-1.5 ds-meta shrink-0">
                   <Loader2 className="size-3 animate-spin" /> Sincronizando…
@@ -793,6 +874,35 @@ export function StakeholderDetailSheet({
 
 
 
+
+            {newLayout && noteOpen && (
+              <div className={`${PANEL_SHELL} space-y-2 p-3`}>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  maxLength={1000}
+                  placeholder="Escreva uma nota sobre este proprietário…"
+                  className="w-full resize-none rounded-[0.3rem] border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setNote(""); setNoteOpen(false); }}
+                    className="h-9 rounded-[0.3rem] px-3 text-[13px] text-muted-foreground hover:text-foreground"
+                  >
+                    Cancelar
+                  </button>
+                  <Button
+                    size="sm"
+                    disabled={busy || !note.trim()}
+                    onClick={async () => { await submitNote(); setNoteOpen(false); }}
+                  >
+                    Salvar nota
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {feed.data?.calendarError && (
               <p className="text-[11px] text-destructive">Google Agenda: {feed.data.calendarError}</p>
@@ -811,6 +921,29 @@ export function StakeholderDetailSheet({
               // continuar centralizado em cima da linha. Cartões em
               // w-full (ocupam a largura toda do quadrante) e com mais
               // espaço entre um evento e outro (space-y-4, era space-y-3).
+              newLayout ? (
+                <div className="space-y-4">
+                  {groupByPeriod(timeline, "month").map((g) => (
+                    <div key={g.label} className="space-y-2">
+                      <GroupLabel count={g.items.length}>{g.label}</GroupLabel>
+                      <ul className="space-y-2">
+                        {g.items.map((item) => (
+                          <li key={item.key} className={`${PANEL_SHELL} flex gap-3 px-4 py-3`}>
+                            <item.icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <p className="text-[13.5px] leading-[1.4] text-foreground">{item.title}</p>
+                              {item.body}
+                              <p className="ds-meta">
+                                {item.badge} · {item.at ? fmt(item.at) : "Sem data"} · {item.author}
+                              </p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ) : (
               <ol className="relative ml-2 w-full space-y-4 border-l border-border pl-11">
                 {timeline.map((item) => (
                   <li key={item.key} className="relative w-full">
@@ -828,6 +961,7 @@ export function StakeholderDetailSheet({
                   </li>
                 ))}
               </ol>
+              )
             )}
           </section>
         </TabsContent>
@@ -897,7 +1031,17 @@ export function StakeholderDetailSheet({
                     >
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="ds-card-title min-w-0 break-words">{p.name}</p>
+                          {newLayout && kind === "owner" ? (
+                            <button
+                              type="button"
+                              onClick={() => setWindowPropertyId(p.id)}
+                              className="ds-card-title min-w-0 break-words text-left hover:underline"
+                            >
+                              {p.name}
+                            </button>
+                          ) : (
+                            <p className="ds-card-title min-w-0 break-words">{p.name}</p>
+                          )}
                           <span
                             className={`shrink-0 rounded-[0.2rem] border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.cls}`}
                           >
@@ -1012,6 +1156,26 @@ export function StakeholderDetailSheet({
 
         {/* -------------------- Financeiro -------------------- */}
         <TabsContent value="financeiro" className="mt-5 space-y-4">
+          {newLayout ? (
+            <>
+              <div className={`${PANEL_SHELL} grid grid-cols-3 divide-x divide-border`}>
+                {([["A receber", "ds-ok"], ["Recebido", "ds-data"], ["A pagar", "ds-atencao"]] as const).map(([l, c]) => (
+                  <div key={l} className="min-w-0 px-3 py-3 sm:px-4">
+                    <p className={`truncate text-[10px] font-semibold uppercase tracking-wide ${c}`}>{l}</p>
+                    <p className="mt-1 break-all font-display text-base tabular-nums tracking-tight sm:text-lg">
+                      {(0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <EmptyState
+                icon={FileText}
+                title="Nenhum lançamento ainda"
+                description="Repasses, taxas e cobranças deste proprietário aparecem aqui."
+              />
+            </>
+          ) : (
+            <>
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <MoneyCard label="A receber" value={0} tone="emerald" />
             <MoneyCard label="Recebido" value={0} tone="primary" />
@@ -1028,6 +1192,8 @@ export function StakeholderDetailSheet({
               Nenhum lançamento financeiro para este cadastro.
             </p>
           </div>
+            </>
+          )}
         </TabsContent>
 
         {/* -------------------- Documentos -------------------- */}
@@ -1089,6 +1255,13 @@ export function StakeholderDetailSheet({
       </Tabs>
 
       <DocPreviewDialog doc={preview} onClose={() => setPreview(null)} />
+      {newLayout && kind === "owner" && (
+        <OwnerPropertyWindow
+          propertyId={windowPropertyId}
+          onClose={() => setWindowPropertyId(null)}
+          returnTo={returnToHere}
+        />
+      )}
 
     </div>
   );

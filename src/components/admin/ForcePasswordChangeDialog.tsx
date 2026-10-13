@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { ArrowRight, Eye, EyeOff, KeyRound, Loader2, Lock, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check, Circle, Eye, EyeOff, KeyRound, Loader2, Lock, LogOut, ShieldCheck } from "lucide-react";
+
+const REQUIREMENTS = [
+  { key: "len", label: "Pelo menos 8 caracteres", test: (v: string) => v.length >= 8 },
+  { key: "case", label: "Letras maiúsculas e minúsculas", test: (v: string) => /[a-z]/.test(v) && /[A-Z]/.test(v) },
+  { key: "num", label: "Pelo menos um número", test: (v: string) => /\d/.test(v) },
+  { key: "sym", label: "Pelo menos um símbolo", test: (v: string) => /[^A-Za-z0-9]/.test(v) },
+] as const;
 
 /**
  * Primeiro acesso com senha provisória: obriga a criação de uma nova senha.
@@ -20,6 +27,15 @@ export function ForcePasswordChangeDialog() {
   const [show, setShow] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const met = REQUIREMENTS.filter((r) => r.test(pwd)).length;
+  const allOk = met === REQUIREMENTS.length;
+  const matches = confirm.length > 0 && pwd === confirm;
+  const strengthLabel = pwd ? (met <= 1 ? "Fraca" : met <= 3 ? "Média" : "Forte") : "";
+
+  async function leave() {
+    await supabase.auth.signOut();
+  }
 
   useEffect(() => {
     let active = true;
@@ -41,7 +57,7 @@ export function ForcePasswordChangeDialog() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (pwd.length < 8) return setError("A senha precisa ter pelo menos 8 caracteres.");
+    if (!allOk) return setError("A senha ainda não cumpre todos os requisitos.");
     if (pwd !== confirm) return setError("As senhas não são iguais.");
     setSaving(true);
     try {
@@ -104,7 +120,7 @@ export function ForcePasswordChangeDialog() {
                 id="new-pwd"
                 type={show ? "text" : "password"}
                 autoComplete="new-password"
-                placeholder="Nova senha (mín. 8 caracteres)"
+                placeholder="Nova senha"
                 value={pwd}
                 onChange={(e) => setPwd(e.target.value)}
                 className="h-[48px] rounded-[12px] pl-10 pr-10 text-[14.5px]"
@@ -133,6 +149,39 @@ export function ForcePasswordChangeDialog() {
               />
             </div>
 
+            {/* Força + requisitos (mockup "Primeiro acesso") */}
+            <div className="space-y-2.5" aria-live="polite">
+              <div className="flex items-center gap-3">
+                <div className="grid h-1.5 flex-1 grid-cols-4 gap-1" aria-hidden>
+                  {REQUIREMENTS.map((r, i) => (
+                    <span
+                      key={r.key}
+                      className={cn(
+                        "rounded-full transition-colors",
+                        i < met ? (met === 4 ? "bg-emerald-500" : "bg-primary/70") : "bg-foreground/10",
+                      )}
+                    />
+                  ))}
+                </div>
+                <span className="w-12 text-right text-[11px] font-semibold text-muted-foreground">{strengthLabel}</span>
+              </div>
+              <ul className="grid gap-1.5">
+                {REQUIREMENTS.map((r) => {
+                  const ok = r.test(pwd);
+                  return (
+                    <li key={r.key} className={cn("flex items-center gap-2 text-[12px]", ok ? "text-foreground" : "text-muted-foreground")}>
+                      {ok ? <Check className="size-3.5 shrink-0 text-emerald-500" /> : <Circle className="size-3.5 shrink-0 opacity-50" />}
+                      {r.label}
+                    </li>
+                  );
+                })}
+                <li className={cn("flex items-center gap-2 text-[12px]", matches ? "text-foreground" : "text-muted-foreground")}>
+                  {matches ? <Check className="size-3.5 shrink-0 text-emerald-500" /> : <Circle className="size-3.5 shrink-0 opacity-50" />}
+                  As duas senhas são iguais
+                </li>
+              </ul>
+            </div>
+
             {error && (
               <p className="text-[12px] text-destructive leading-relaxed">{error}</p>
             )}
@@ -142,10 +191,17 @@ export function ForcePasswordChangeDialog() {
               Sua senha é pessoal e não fica visível para o titular da conta.
             </div>
 
-            <Button type="submit" disabled={saving} className="group h-[48px] w-full rounded-[12px] text-[14.5px]">
-              {saving ? <Loader2 className="size-4 animate-spin" /> : "Salvar e continuar"}
+            <Button type="submit" disabled={saving || !allOk || !matches} className="group h-[48px] w-full rounded-[12px] text-[14.5px]">
+              {saving ? <Loader2 className="size-4 animate-spin" /> : "Definir senha e entrar"}
               {!saving && <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />}
             </Button>
+            <button
+              type="button"
+              onClick={leave}
+              className="mx-auto flex items-center gap-1.5 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <LogOut className="size-3.5" /> Sair
+            </button>
           </form>
         </DialogPrimitive.Content>
       </DialogPortal>
