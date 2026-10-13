@@ -1,6 +1,29 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Check, Filter, Home, MapPin, MoreHorizontal, Pencil } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  Copy,
+  ExternalLink,
+  Filter,
+  Home,
+  Info,
+  MapPin,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Link2,
+} from "lucide-react";
+import { PropertyInfoDialog } from "./PropertyInfoDialog";
+import {
+  airbnbUrlOf,
+  copyText,
+  fullAddressOf,
+  hasActiveGuide,
+  mapsLinkOf,
+  openPublicGuide,
+  type PropertyListItem,
+} from "./property-actions";
 import { CoverImage } from "@/components/ui/cover-image";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { ACTION_SEGMENT, PANEL_SHELL } from "@/components/dashboard/panel-chrome";
@@ -21,15 +44,7 @@ import type { PropertyConnectionRow } from "@/lib/property-connection";
  * A situação se filtra num botão de seleção múltipla ao lado da busca, que
  * mostra a palavra inteira da seleção atual (Todos / Ativos / Inativos).
  */
-type Prop = {
-  id: string;
-  name: string;
-  city?: string | null;
-  state?: string | null;
-  owner_contact_id?: string | null;
-  hero_image_url?: string | null;
-  gallery_images?: string[] | null;
-};
+type Prop = PropertyListItem;
 type Owner = Record<string, any>;
 type Sit = "active" | "inactive";
 
@@ -44,6 +59,7 @@ export function OwnerPropertiesList({
 }) {
   const [q, setQ] = useState("");
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [infoId, setInfoId] = useState<string | null>(null);
   // Vazio = Todos. As duas marcadas também equivalem a Todos.
   const [sel, setSel] = useState<Sit[]>([]);
 
@@ -52,15 +68,22 @@ export function OwnerPropertiesList({
       connections.filter((c) => c.airbnb_listing_id).map((c) => c.property_id),
     );
     const ownerById = new Map(owners.map((o) => [o.id as string, o]));
+    const listingById = new Map(
+      connections
+        .filter((c) => c.airbnb_listing_id)
+        .map((c) => [c.property_id, c.airbnb_listing_id]),
+    );
     return properties
       .map((p) => ({
         ...p,
+        airbnbListingId: listingById.get(p.id) ?? null,
         active: active.has(p.id),
         owner: p.owner_contact_id ? (ownerById.get(p.owner_contact_id) ?? null) : null,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   }, [properties, owners, connections]);
 
+  const infoItem = items.find((i) => i.id === infoId);
   const nActive = items.filter((i) => i.active).length;
   const nInactive = items.length - nActive;
   const all = sel.length === 0 || sel.length === 2;
@@ -269,21 +292,88 @@ export function OwnerPropertiesList({
                           <MoreHorizontal className="size-4" />
                         </button>
                       </PopoverTrigger>
-                      <PopoverContent align="end" className="w-52 p-1.5">
+                      <PopoverContent align="end" className="w-56 p-1.5">
                         <Link
                           to="/admin/properties/$id"
                           params={{ id: p.id }}
-                          className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors hover:bg-secondary"
+                          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
                         >
                           <Pencil className="size-3.5 text-muted-foreground" /> Editar imóvel
                         </Link>
-                        <Link
-                          to="/admin/guias"
-                          className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors hover:bg-secondary"
+                        {hasActiveGuide(p) ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMenuId(null);
+                              openPublicGuide(p.slug);
+                            }}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
+                          >
+                            <BookOpen className="size-3.5 text-muted-foreground" /> Ver o Guia
+                            Digital
+                          </button>
+                        ) : (
+                          <Link
+                            to="/admin/properties/$id"
+                            params={{ id: p.id }}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
+                          >
+                            <Plus className="size-3.5 text-muted-foreground" /> Criar Guia Digital
+                          </Link>
+                        )}
+                        <button
+                          type="button"
+                          disabled={!mapsLinkOf(p)}
+                          onClick={() => {
+                            setMenuId(null);
+                            copyText(mapsLinkOf(p) ?? "", "Link do Maps copiado");
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
                         >
-                          <BookOpen className="size-3.5 text-muted-foreground" /> Ver em Guias
-                          Digitais
-                        </Link>
+                          <Link2 className="size-3.5 text-muted-foreground" /> Copiar link do Maps
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!fullAddressOf(p)}
+                          onClick={() => {
+                            setMenuId(null);
+                            copyText(fullAddressOf(p), "Endereço copiado");
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
+                        >
+                          <Copy className="size-3.5 text-muted-foreground" /> Copiar endereço
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMenuId(null);
+                            setInfoId(p.id);
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
+                        >
+                          <Info className="size-3.5 text-muted-foreground" /> Ver informações
+                        </button>
+                        {airbnbUrlOf(p) ? (
+                          <a
+                            href={airbnbUrlOf(p) ?? undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setMenuId(null)}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
+                          >
+                            <ExternalLink className="size-3.5 text-muted-foreground" /> Abrir no
+                            Airbnb
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
+                          >
+                            <ExternalLink className="size-3.5 text-muted-foreground" /> Abrir no
+                            Airbnb
+                          </button>
+                        )}
                       </PopoverContent>
                     </Popover>
                   </span>
@@ -293,6 +383,16 @@ export function OwnerPropertiesList({
           })}
         </div>
       )}
+      <PropertyInfoDialog
+        property={infoItem ?? null}
+        active={!!infoItem?.active}
+        ownerName={
+          infoItem?.owner ? String(infoItem.owner.trade_name || infoItem.owner.name || "") : ""
+        }
+        ownerPhone={infoItem?.owner?.phone}
+        ownerPhoneCountry={infoItem?.owner?.phone_country}
+        onOpenChange={(o) => !o && setInfoId(null)}
+      />
     </div>
   );
 }

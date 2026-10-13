@@ -26,12 +26,7 @@ import {
 import type { StakeholderKind } from "./constants";
 
 export type StakeholderStatusValue =
-  | "active"
-  | "documentation"
-  | "contract"
-  | "signature"
-  | "paused"
-  | "canceled";
+  "active" | "documentation" | "contract" | "signature" | "paused" | "canceled";
 type StageValue = "documentation" | "contract" | "signature";
 
 /**
@@ -108,9 +103,17 @@ export function StakeholderStatusControl({
     setBusy(true);
     try {
       const finalStatus =
-        statusDraft.status === "active" && statusDraft.stage ? statusDraft.stage : statusDraft.status;
+        statusDraft.status === "active" && statusDraft.stage
+          ? statusDraft.stage
+          : statusDraft.status;
       await statusFn({
-        data: { kind, id, accountOwnerId: accountOwnerId ?? null, status: finalStatus, changed_at: statusDraft.date },
+        data: {
+          kind,
+          id,
+          accountOwnerId: accountOwnerId ?? null,
+          status: finalStatus,
+          changed_at: statusDraft.date,
+        },
       });
       setStatusDraft(null);
       qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
@@ -193,35 +196,41 @@ export function StakeholderStatusControl({
             </p>
           </div>
 
-          {statusDraft?.status === "active" && statusDraft.date && isFutureDate(statusDraft.date) && (
-            <div className="space-y-2 rounded-lg border border-border bg-secondary/30 p-3">
-              <p className="text-xs text-foreground">A data é futura. Qual a situação real do cliente até lá?</p>
-              <div className="space-y-1.5">
-                {STAGE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setStatusDraft((d) => (d ? { ...d, stage: opt.value } : d))}
-                    className={`w-full text-left rounded-md border px-3 py-2 transition ${
-                      statusDraft.stage === opt.value
-                        ? "border-amber-500/50 bg-amber-500/10"
-                        : "border-border hover:bg-secondary/60"
-                    }`}
-                  >
-                    <div className="text-xs font-medium">{opt.label}</div>
-                    <div className="ds-meta">{opt.hint}</div>
-                  </button>
-                ))}
+          {statusDraft?.status === "active" &&
+            statusDraft.date &&
+            isFutureDate(statusDraft.date) && (
+              <div className="space-y-2 rounded-lg border border-border bg-secondary/30 p-3">
+                <p className="text-xs text-foreground">
+                  A data é futura. Qual a situação real do cliente até lá?
+                </p>
+                <div className="space-y-1.5">
+                  {STAGE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setStatusDraft((d) => (d ? { ...d, stage: opt.value } : d))}
+                      className={`w-full text-left rounded-md border px-3 py-2 transition ${
+                        statusDraft.stage === opt.value
+                          ? "border-amber-500/50 bg-amber-500/10"
+                          : "border-border hover:bg-secondary/60"
+                      }`}
+                    >
+                      <div className="text-xs font-medium">{opt.label}</div>
+                      <div className="ds-meta">{opt.hint}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {statusDraft?.status === "canceled" && statusDraft.date && isFutureDate(statusDraft.date) && (
-            <p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-[11px] text-yellow-600 dark:text-yellow-400">
-              O cadastro ficará como <strong>Cancelando</strong> até a data informada. Nesse dia, a equipe
-              será consultada para confirmar o cancelamento ou reverter para Ativo.
-            </p>
-          )}
+          {statusDraft?.status === "canceled" &&
+            statusDraft.date &&
+            isFutureDate(statusDraft.date) && (
+              <p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-[11px] text-yellow-600 dark:text-yellow-400">
+                O cadastro ficará como <strong>Cancelando</strong> até a data informada. Nesse dia,
+                a equipe será consultada para confirmar o cancelamento ou reverter para Ativo.
+              </p>
+            )}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => setStatusDraft(null)}>

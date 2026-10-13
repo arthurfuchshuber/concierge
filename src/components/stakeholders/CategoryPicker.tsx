@@ -164,7 +164,11 @@ export function CategoryPicker({
                     >
                       <Check className="size-4" />
                     </button>
-                    <button type="button" onClick={() => setEditing(null)} className="text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(null)}
+                      className="text-muted-foreground"
+                    >
                       <X className="size-4" />
                     </button>
                   </>

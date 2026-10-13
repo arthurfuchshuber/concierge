@@ -954,11 +954,14 @@ function Dashboard() {
            Celular e tablet não mudam. A visão em grade (`grid`) fica como
            era: duas colunas só quando há mais de um status. */
         <div
-          className={`ds-blocks ${
+          /* Sem os títulos de grupo (13/10/2026) os grupos viram uma lista
+             contínua: o espaço entre o último card de um grupo e o primeiro do
+             outro é o MESMO `gap-3` que já existe entre cards. */
+          className={`grid gap-3 ${
             view === "split"
-              ? `lg:grid lg:items-start lg:gap-2.5 lg:space-y-0 ${groupCount >= 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`
+              ? `lg:items-start ${groupCount >= 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`
               : groupCount > 1
-                ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-2.5 lg:space-y-0"
+                ? "lg:grid-cols-2 lg:items-start"
                 : ""
           }`}
         >
@@ -982,7 +985,7 @@ function Dashboard() {
             .filter((g) => g.items.length > 0)
             .map((g) => (
               <section key={g.key} aria-label={g.title} className="relative min-w-0">
-                <div className="space-y-2.5">
+                <div>
                   {/* SEM QUADRANTE DE ROLAGEM (pedido explícito, 04/10/2026: "retirar
                       os quadrantes de rolagem... status + cards na página
                       oficial, sem barra de rolagem interna"). Os cartões rolam

@@ -42,9 +42,7 @@ export function CancellationReviewDialog() {
     enabled: canResolve,
   });
 
-  const item = canResolve
-    ? data?.pending?.find((p) => !dismissed.includes(p.id))
-    : undefined;
+  const item = canResolve ? data?.pending?.find((p) => !dismissed.includes(p.id)) : undefined;
 
   async function resolve(outcome: "canceled" | "active") {
     if (!item) return;

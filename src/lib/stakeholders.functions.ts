@@ -50,7 +50,9 @@ export const listStakeholders = createServerFn({ method: "GET" })
       data.kind === "owner"
         ? await supabase
             .from("properties")
-            .select("id, name, city, state, owner_contact_id, hero_image_url, gallery_images")
+            .select(
+              "id, name, slug, city, state, owner_contact_id, hero_image_url, gallery_images, address, lat, lng, maps_url, wifi_ssid, wifi_password, lock_code, checkin_time, checkout_time, airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_listing_url, published, guide_created",
+            )
             .eq("owner_id", accountId)
         : {
             data: [] as Array<{
