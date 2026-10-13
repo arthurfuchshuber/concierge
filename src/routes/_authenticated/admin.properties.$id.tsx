@@ -168,6 +168,9 @@ import { AirbnbLockedValue, AirbnbLockReason, ADDRESS_LOCK_REASON } from "@/comp
 import { SectionTopLineBar, type SectionTopLine } from "@/components/editor/Section";
 import { Smartphone, Monitor } from "lucide-react";
 
+/** Contas com anúncio nativo do Airbnb (piloto): campos importados via API somem do editor. */
+const NATIVE_AIRBNB_OWNERS = new Set(["25239e5b-1a66-46f1-b9a2-829c499cc366"]);
+
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   // `houseOnly`: abre direto (e trava) na aba "A casa", sem a barra de abas —
   // usado pelo botão "Editar" do imóvel dentro do proprietário em
@@ -3365,7 +3368,7 @@ function PropertyEditor() {
               {checkinSubStep === "checkin" && (
               <div className={SECTION_LIST}>
               <SectionGroup>
-                <Section id="checkin-times" icon={Clock} title="Horário de check-in" collapsible>
+                <Section id="checkin-times" icon={Clock} title="Horário de check-in" collapsible hidden={nativeAirbnb}>
                   {/* Espelha (mesmo estado do form, não é uma cópia separada)
                       os campos que já existem na aba Airbnb — pedido do
                       cliente em 03/09/2026: os horários "sumiram" desta aba
@@ -3403,6 +3406,7 @@ function PropertyEditor() {
                   title="Instruções de chegada"
                   collapsible
                 >
+                  {!nativeAirbnb && (
                   <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
                     <TagMentionTextarea
                       items={tagItems}
@@ -3415,6 +3419,7 @@ function PropertyEditor() {
                       }
                     />
                   </Field>
+                  )}
                   <Field
                     label="Fotos e vídeos do check-in"
                     hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB)."
@@ -3805,7 +3810,7 @@ function PropertyEditor() {
               {checkinSubStep === "checkout" && (
               <div className={SECTION_LIST}>
               <SectionGroup>
-                <Section id="checkout-times" icon={Clock} title="Horário de check-out" collapsible>
+                <Section id="checkout-times" icon={Clock} title="Horário de check-out" collapsible hidden={nativeAirbnb}>
                   {/* Mesmo espelhamento do "Horário de check-in" acima — ver
                       comentário lá. "Check-out a partir de" continua
                       editável aqui (é o único horário que não vem do
@@ -3838,6 +3843,7 @@ function PropertyEditor() {
                   </Field>
                 </Section>
 
+                {!nativeAirbnb && (
                 <Section
                   id="checkout-instr"
                   icon={LogOut}
@@ -3857,6 +3863,7 @@ function PropertyEditor() {
                     />
                   </Field>
                 </Section>
+                )}
 
                 <Section
                   id="checkout-list"
@@ -4584,7 +4591,7 @@ function PropertyEditor() {
                       // Mesma ordem das abas do Stepper acima (house, airbnb, guide,
                       // checkin, faq, recs — checkin já inclui checkout, que foi
                       // mesclado na mesma aba "Check-in & Checkout").
-                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"];
+                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"].filter((s) => !(nativeAirbnb && s === "airbnb"));
                       const i = order.indexOf(step);
                       if (i > 0) setStep(order[i - 1]);
                     }}
@@ -4597,7 +4604,7 @@ function PropertyEditor() {
                     type="button"
                     className={`${ACTION_SEGMENT} !w-auto !flex-1 !gap-2 !px-3 text-[13px] text-foreground disabled:pointer-events-none disabled:text-muted-foreground/35`}
                     onClick={() => {
-                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"];
+                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"].filter((s) => !(nativeAirbnb && s === "airbnb"));
                       const i = order.indexOf(step);
                       if (i < order.length - 1) setStep(order[i + 1]);
                     }}
