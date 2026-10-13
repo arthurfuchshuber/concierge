@@ -86,16 +86,16 @@ function CountButton({
                   <span className="block truncate text-[12.5px] font-semibold text-foreground">
                     {it.name}
                   </span>
-                  <span className="mt-0.5 block truncate text-[11px] text-[color:var(--faint)]">
+                  <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
                     {it.sub}
                   </span>
                 </span>
-                <ChevronRight className="size-3.5 shrink-0 text-[color:var(--faint)]" />
+                <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
               </Link>
             </li>
           ))}
         </ul>
-        <p className="mt-1 border-t border-foreground/[0.06] px-2.5 pb-1.5 pt-2 text-[11px] text-[color:var(--faint)]">
+        <p className="mt-1 border-t border-foreground/[0.06] px-2.5 pb-1.5 pt-2 text-[11px] text-muted-foreground">
           {footer}
         </p>
       </PopoverContent>

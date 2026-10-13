@@ -557,7 +557,8 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
                         </div>
                         {cityUf && (
                           <div className="mt-[3px] text-[11.5px] text-muted-foreground">
-                            <span className="ds-faint">Reside em:</span> {cityUf}
+                            <span className="text-muted-foreground">Reside em:</span>{" "}
+                            <span className="text-foreground">{cityUf}</span>
                           </div>
                         )}
                       </div>
@@ -740,7 +741,8 @@ function StakeholderCard({
           <div className="mt-[7px] flex items-center justify-between gap-2">
             {cityUf ? (
               <p className="ds-meta min-w-0 truncate">
-                <span className="ds-faint">Reside em:</span> {cityUf}
+                <span className="text-muted-foreground">Reside em:</span>{" "}
+                <span className="text-foreground">{cityUf}</span>
               </p>
             ) : (
               <span />
@@ -754,7 +756,7 @@ function StakeholderCard({
             )}
           </div>
         </div>
-        <div className="flex min-h-11 items-center justify-between gap-2 bg-foreground/[0.035] pl-3.5 pr-2.5 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_6%,transparent)]">
+        <div className="flex min-h-11 items-center justify-between gap-2 border-t border-foreground/[0.16] pl-3.5 pr-2.5">
           {integration ? <OwnerPropertyCounts summary={integration} /> : <span />}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -874,7 +876,8 @@ function StakeholderCard({
             <MapPin className="size-3 shrink-0 text-muted-foreground" />
             {newLayout ? (
               <span>
-                <span className="ds-faint">Reside em:</span> {cityUf}
+                <span className="text-muted-foreground">Reside em:</span>{" "}
+                <span className="text-foreground">{cityUf}</span>
               </span>
             ) : (
               cityUf

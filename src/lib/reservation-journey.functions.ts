@@ -49,7 +49,9 @@ const TargetInput = z
     logId: z.string().uuid().nullable().optional(),
     reservationId: z.string().uuid().nullable().optional(),
   })
-  .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
+  .refine((v) => !!v.logId || !!v.reservationId, {
+    message: "Informe a reserva ou o registro do hóspede.",
+  });
 
 /** Quem fez a ação. `name` nulo = dado anterior ao registro de autoria. */
 export type JourneyActor = {
@@ -59,7 +61,16 @@ export type JourneyActor = {
 
 /** Um passo da esteira. `state` é o que a interface pinta. */
 export type JourneyStep = {
-  key: "reserva" | "formulario" | "previsao" | "checkin" | "no_show" | "estadia" | "checkout" | "limpeza" | "concluido";
+  key:
+    | "reserva"
+    | "formulario"
+    | "previsao"
+    | "checkin"
+    | "no_show"
+    | "estadia"
+    | "checkout"
+    | "limpeza"
+    | "concluido";
   label: string;
   state: "done" | "pending" | "skipped";
   /** Quando aconteceu (ISO) — nulo quando ainda não aconteceu. */
@@ -82,7 +93,15 @@ export type JourneyTask = {
 export type JourneyActivity = {
   id: string;
   at: string;
-  tag: "Registro" | "Pendência" | "Check-in" | "Check-out" | "Limpeza" | "Previsão" | "Formulário" | "Reserva";
+  tag:
+    | "Registro"
+    | "Pendência"
+    | "Check-in"
+    | "Check-out"
+    | "Limpeza"
+    | "Previsão"
+    | "Formulário"
+    | "Reserva";
   title: string;
   sub: string | null;
   actor: JourneyActor;
@@ -154,7 +173,14 @@ function fmtShort(iso: string | null): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  const p = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
+  const p = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
   const g = (t: string) => p.find((x) => x.type === t)?.value ?? "";
   return `${g("day")}/${g("month")} · ${g("hour")}:${g("minute")}`;
 }
@@ -179,7 +205,9 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       logId
         ? db
             .from("guide_access_logs")
-            .select("id, property_id, guest_name, reservation_code, checkin_date, checkout_date, guest_arrival_time, created_at")
+            .select(
+              "id, property_id, guest_name, reservation_code, checkin_date, checkout_date, guest_arrival_time, created_at",
+            )
             .eq("id", logId)
             .maybeSingle()
         : Promise.resolve({ data: null }),
@@ -216,7 +244,9 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       if (!log) {
         const { data: l } = await db
           .from("guide_access_logs")
-          .select("id, property_id, guest_name, reservation_code, checkin_date, checkout_date, guest_arrival_time, created_at")
+          .select(
+            "id, property_id, guest_name, reservation_code, checkin_date, checkout_date, guest_arrival_time, created_at",
+          )
           .eq("property_id", propertyId)
           .eq("checkin_date", checkinDate)
           .order("created_at", { ascending: true })
@@ -301,43 +331,96 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       // Tabela de eventos não existe no banco: consulta removida (só gerava erro e atraso).
       Promise.resolve({ data: [] as unknown[] }),
     ]);
-    type EventRow = { id: string; kind: string; detail: Record<string, string | number | null> | null; actor_id: string | null; created_at: string };
-    type TaskRow = { id: string; title: string; status: string; category: string; due_date: string | null; created_by: string | null; created_at: string | null; priority: string | null };
-    type RecRow = { id: string; group_id: string | null; category: string | null; kind: string | null; created_by: string | null; created_by_name: string | null; created_at: string };
+    type EventRow = {
+      id: string;
+      kind: string;
+      detail: Record<string, string | number | null> | null;
+      actor_id: string | null;
+      created_at: string;
+    };
+    type TaskRow = {
+      id: string;
+      title: string;
+      status: string;
+      category: string;
+      due_date: string | null;
+      created_by: string | null;
+      created_at: string | null;
+      priority: string | null;
+    };
+    type RecRow = {
+      id: string;
+      group_id: string | null;
+      category: string | null;
+      kind: string | null;
+      created_by: string | null;
+      created_by_name: string | null;
+      created_at: string;
+    };
     // Falha de leitura (tabela ainda sem migração, p.ex.) não derruba o histórico.
     const events = ((eventsRes as { data?: EventRow[] | null }).data ?? []) as EventRow[];
-    const taskRows = ((tasksRes.data ?? []) as TaskRow[]);
-    const recRows = ((recordsRes.data ?? []) as RecRow[]);
+    const taskRows = (tasksRes.data ?? []) as TaskRow[];
+    const recRows = (recordsRes.data ?? []) as RecRow[];
 
     // ---- 4b. Nome e papel de cada autor ----
     const actorIds = Array.from(
-      new Set([...events.map((e) => e.actor_id), ...taskRows.map((t) => t.created_by), ...recRows.map((r) => r.created_by)].filter((x): x is string => !!x)),
+      new Set(
+        [
+          ...events.map((e) => e.actor_id),
+          ...taskRows.map((t) => t.created_by),
+          ...recRows.map((r) => r.created_by),
+        ].filter((x): x is string => !!x),
+      ),
     );
     const actorById = new Map<string, JourneyActor>();
     if (actorIds.length > 0) {
       const [profRes, provRes, memRes] = await Promise.all([
         db.from("profiles").select("id, full_name, trade_name").in("id", actorIds),
-        db.from("service_providers").select("member_user_id, name, trade_name").in("member_user_id", actorIds),
-        db.from("account_members").select("member_user_id").in("member_user_id", actorIds).eq("status", "active"),
+        db
+          .from("service_providers")
+          .select("member_user_id, name, trade_name")
+          .in("member_user_id", actorIds),
+        db
+          .from("account_members")
+          .select("member_user_id")
+          .in("member_user_id", actorIds)
+          .eq("status", "active"),
       ]);
-      const provIds = new Set(((provRes.data ?? []) as Array<{ member_user_id: string }>).map((p) => p.member_user_id));
-      const memberIds = new Set(((memRes.data ?? []) as Array<{ member_user_id: string }>).map((m) => m.member_user_id));
-      for (const pr of (profRes.data ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>) {
+      const provIds = new Set(
+        ((provRes.data ?? []) as Array<{ member_user_id: string }>).map((p) => p.member_user_id),
+      );
+      const memberIds = new Set(
+        ((memRes.data ?? []) as Array<{ member_user_id: string }>).map((m) => m.member_user_id),
+      );
+      for (const pr of (profRes.data ?? []) as Array<{
+        id: string;
+        full_name: string | null;
+        trade_name: string | null;
+      }>) {
         const name = ((pr.trade_name || pr.full_name) ?? "").trim() || null;
-        const role: JourneyActor["role"] = provIds.has(pr.id) && !memberIds.has(pr.id) && pr.id !== property?.owner_id ? "Prestador" : "Equipe";
+        const role: JourneyActor["role"] =
+          provIds.has(pr.id) && !memberIds.has(pr.id) && pr.id !== property?.owner_id
+            ? "Prestador"
+            : "Equipe";
         actorById.set(pr.id, { name, role });
       }
     }
     const actorOf = (id: string | null | undefined): JourneyActor =>
-      id ? (actorById.get(id) ?? { name: null, role: null }) : { name: "Sincronização", role: "Sistema" };
+      id
+        ? (actorById.get(id) ?? { name: null, role: null })
+        : { name: "Sincronização", role: "Sistema" };
     const lastEvent = (kind: string): EventRow | null => {
       const rows = events.filter((e) => e.kind === kind);
       return rows.length ? rows[rows.length - 1]! : null;
     };
     const SYSTEM: JourneyActor = { name: "Sincronização", role: "Sistema" };
-    const GUEST: JourneyActor = { name: log?.guest_name ?? reservation?.guest_hint ?? "Hóspede", role: "Hóspede" };
+    const GUEST: JourneyActor = {
+      name: log?.guest_name ?? reservation?.guest_hint ?? "Hóspede",
+      role: "Hóspede",
+    };
     /** Passo feito: autor do evento, ou "não registrado" para dado antigo. */
-    const authorFor = (ev: EventRow | null): JourneyActor => (ev ? actorOf(ev.actor_id) : { name: null, role: null });
+    const authorFor = (ev: EventRow | null): JourneyActor =>
+      ev ? actorOf(ev.actor_id) : { name: null, role: null };
     /** Check-in/check-out concluído: autor da equipe quando registrado; sem ele, e
      *  sem marca de "feito pela equipe", quem confirmou foi o hóspede pelo Guia Digital. */
     const stepAuthor = (ev: EventRow | null, row: StatusRow | null): JourneyActor => {
@@ -354,7 +437,8 @@ export const getReservationJourney = createServerFn({ method: "GET" })
     const checkoutDone = !!(co && (co.status === "done" || co.done_at));
     const concluded = !!co?.concluded_at;
     const previsaoData = ci?.arrival_date_override ?? co?.arrival_date_override ?? null;
-    const previsaoHora = ci?.arrival_time_override ?? co?.arrival_time_override ?? log?.guest_arrival_time ?? null;
+    const previsaoHora =
+      ci?.arrival_time_override ?? co?.arrival_time_override ?? log?.guest_arrival_time ?? null;
 
     const steps: JourneyStep[] = [];
     steps.push({
@@ -393,8 +477,15 @@ export const getReservationJourney = createServerFn({ method: "GET" })
         label: "Previsão informada",
         state: "done",
         at: evPrevisao?.created_at ?? null,
-        detail: [previsaoData ? fmtDateBR(previsaoData) : null, previsaoHora?.slice(0, 5)].filter(Boolean).join(" · ") || null,
-        actor: evPrevisao ? authorFor(evPrevisao) : log?.guest_arrival_time && !ci?.arrival_time_override ? GUEST : authorFor(null),
+        detail:
+          [previsaoData ? fmtDateBR(previsaoData) : null, previsaoHora?.slice(0, 5)]
+            .filter(Boolean)
+            .join(" · ") || null,
+        actor: evPrevisao
+          ? authorFor(evPrevisao)
+          : log?.guest_arrival_time && !ci?.arrival_time_override
+            ? GUEST
+            : authorFor(null),
       });
     }
 
@@ -414,13 +505,21 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       const a = authorFor(e);
       if (e.kind === "previsao_hora" || e.kind === "previsao_data") {
         const lado = d.side === "checkout" ? "Saída" : "Chegada";
-        const toV = e.kind === "previsao_hora" ? String(d.to ?? "").slice(0, 5) : fmtDateBR((d.to as string | null) ?? null);
-        const fromV = e.kind === "previsao_hora" ? String(d.from ?? "").slice(0, 5) : fmtDateBR((d.from as string | null) ?? null);
+        const toV =
+          e.kind === "previsao_hora"
+            ? String(d.to ?? "").slice(0, 5)
+            : fmtDateBR((d.to as string | null) ?? null);
+        const fromV =
+          e.kind === "previsao_hora"
+            ? String(d.from ?? "").slice(0, 5)
+            : fmtDateBR((d.from as string | null) ?? null);
         activity.push({
           id: e.id,
           at: e.created_at,
           tag: "Previsão",
-          title: toV ? `${lado} ${e.kind === "previsao_hora" ? "alterada para" : "remarcada para"} ${toV}` : `Previsão de ${lado.toLowerCase()} removida`,
+          title: toV
+            ? `${lado} ${e.kind === "previsao_hora" ? "alterada para" : "remarcada para"} ${toV}`
+            : `Previsão de ${lado.toLowerCase()} removida`,
           sub: fromV ? `Antes: ${fromV}` : null,
           actor: a,
           opens: null,
@@ -437,8 +536,13 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       const first = items.slice().sort((x, y) => x.created_at.localeCompare(y.created_at))[0]!;
       const media = items.filter((r) => r.kind && r.kind !== "note").length;
       const by = first.created_by_name?.trim()
-        ? { name: first.created_by_name.trim(), role: actorById.get(first.created_by ?? "")?.role ?? ("Equipe" as const) }
-        : first.created_by ? actorOf(first.created_by) : { name: null, role: null };
+        ? {
+            name: first.created_by_name.trim(),
+            role: actorById.get(first.created_by ?? "")?.role ?? ("Equipe" as const),
+          }
+        : first.created_by
+          ? actorOf(first.created_by)
+          : { name: null, role: null };
       activity.push({
         id: `rec-${k}`,
         at: first.created_at,
@@ -477,7 +581,9 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       ownerName,
       ownerPhone,
       ownerPhoneCountry,
-      propertyCoverUrls: [property?.hero_image_url, ...(property?.gallery_images ?? [])].filter((u): u is string => !!u),
+      propertyCoverUrls: [property?.hero_image_url, ...(property?.gallery_images ?? [])].filter(
+        (u): u is string => !!u,
+      ),
       reservationCode: log?.reservation_code ?? reservation?.guest_hint ?? null,
       ...pickResult(),
       tasks,
@@ -539,7 +645,11 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       at: concluded ? (evConcluded?.created_at ?? co?.concluded_at ?? null) : null,
       detail: concluded
         ? [
-            co?.cleaning_type === "completa" ? "Completa" : co?.cleaning_type === "normal" ? "Normal" : null,
+            co?.cleaning_type === "completa"
+              ? "Completa"
+              : co?.cleaning_type === "normal"
+                ? "Normal"
+                : null,
             brl(co?.cleaning_price_cents ?? null),
             // Completa só conta no custo depois de aprovada (17/09/2026).
             co?.cleaning_approval_status === "pending"

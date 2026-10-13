@@ -1,18 +1,24 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Home, MapPin } from "lucide-react";
+import { Check, Filter, Home, MapPin } from "lucide-react";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
-import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
+import { ACTION_SEGMENT, PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { EmptyState } from "@/components/ds/EmptyState";
-import { CARD_OWNER } from "@/components/dashboard/card-colors";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { PropertyConnectionRow } from "@/lib/property-connection";
 
 /**
- * ABA "IMÓVEIS" DA PÁGINA PROPRIETÁRIOS (mockup aprovado, 13/10/2026): lista
- * rápida de todos os imóveis da conta, cada um com miniatura, nome,
- * "Proprietário(a): nome" + ícone de mensagem padrão, cidade/UF e a situação
- * (Ativo/Inativo — mesma definição de `property-connection.ts`).
+ * ABA "IMÓVEIS" DA PÁGINA PROPRIETÁRIOS (mockups aprovados, 13/10/2026).
+ *
+ * Lista rápida de todos os imóveis da conta no modelo do card de Guias
+ * Digitais (foto colada à esquerda, altura cheia), mas com 104px de altura:
+ * título (1 linha, com reticências), cidade/UF e, por último,
+ * "Proprietário(a): nome" + ícone de mensagem padrão. A situação (Ativo /
+ * Inativo — definição de `property-connection.ts`) vai sobre a foto.
+ *
+ * A situação se filtra num botão de seleção múltipla ao lado da busca, que
+ * mostra a palavra inteira da seleção atual (Todos / Ativos / Inativos).
  */
 type Prop = {
   id: string;
@@ -23,8 +29,7 @@ type Prop = {
   hero_image_url?: string | null;
 };
 type Owner = Record<string, any>;
-
-type Situation = "all" | "active" | "inactive";
+type Sit = "active" | "inactive";
 
 export function OwnerPropertiesList({
   properties,
@@ -36,7 +41,8 @@ export function OwnerPropertiesList({
   connections: PropertyConnectionRow[];
 }) {
   const [q, setQ] = useState("");
-  const [sit, setSit] = useState<Situation>("all");
+  // Vazio = Todos. As duas marcadas também equivalem a Todos.
+  const [sel, setSel] = useState<Sit[]>([]);
 
   const items = useMemo(() => {
     const active = new Set(
@@ -54,43 +60,122 @@ export function OwnerPropertiesList({
 
   const nActive = items.filter((i) => i.active).length;
   const nInactive = items.length - nActive;
+  const all = sel.length === 0 || sel.length === 2;
+  const label = all ? "Todos" : sel[0] === "active" ? "Ativos" : "Inativos";
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return items.filter((i) => {
-      if (sit === "active" && !i.active) return false;
-      if (sit === "inactive" && i.active) return false;
+      if (!all && !sel.includes(i.active ? "active" : "inactive")) return false;
       if (!term) return true;
       const ownerName = i.owner ? String(i.owner.trade_name || i.owner.name || "") : "";
       return [i.name, ownerName, i.city, i.state]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(term));
     });
-  }, [items, q, sit]);
+  }, [items, q, sel, all]);
 
-  const chip = (value: Situation, label: string, n: number, dot?: "ok" | "falta") => {
-    const on = sit === value;
-    return (
-      <button
-        key={value}
-        type="button"
-        onClick={() => setSit(value)}
-        className={`inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11.5px] font-semibold transition-colors ${
-          on
-            ? "bg-foreground/[0.08] text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_20%,transparent)]"
-            : "text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent)] hover:text-foreground"
-        }`}
+  function toggle(v: Sit) {
+    setSel((cur) => {
+      const base = cur.length === 0 ? (["active", "inactive"] as Sit[]) : cur;
+      const next = base.includes(v) ? base.filter((x) => x !== v) : [...base, v];
+      // Nada marcado ou tudo marcado = Todos.
+      return next.length === 0 || next.length === 2 ? [] : next;
+    });
+  }
+
+  const checked = (v: Sit) => all || sel.includes(v);
+  const Box = ({ on }: { on: boolean }) => (
+    <span
+      aria-hidden
+      className={`grid size-4 shrink-0 place-items-center rounded-[5px] ${
+        on
+          ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-white"
+          : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)]"
+      }`}
+    >
+      {on ? <Check className="size-2.5" strokeWidth={3} /> : null}
+    </span>
+  );
+  const row = (
+    key: string,
+    text: string,
+    n: number,
+    on: boolean,
+    onClick: () => void,
+    dot?: "ok" | "atencao",
+  ) => (
+    <button
+      key={key}
+      type="button"
+      onClick={onClick}
+      className={`flex min-h-[38px] w-full items-center gap-2.5 rounded-lg px-2.5 text-[12.5px] font-semibold transition-colors ${
+        on ? "bg-foreground/[0.06]" : "hover:bg-foreground/[0.04]"
+      }`}
+    >
+      <Box on={on} />
+      {dot ? (
+        <span
+          aria-hidden
+          className={`size-1.5 rounded-full bg-current ${dot === "ok" ? "ds-ok" : "ds-atencao"}`}
+        />
+      ) : null}
+      {text}
+      <em className="ml-auto text-[11px] font-bold not-italic text-muted-foreground tabular-nums">
+        {n}
+      </em>
+    </button>
+  );
+
+  const statusButton = (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          data-action-wide
+          aria-label={`Situação: ${label}`}
+          className={`${ACTION_SEGMENT} !flex-none !w-auto justify-between gap-2.5 px-3 text-[12px] font-bold text-foreground data-[state=open]:bg-foreground/[0.06]`}
+        >
+          {!all ? (
+            <span
+              aria-hidden
+              className={`size-1.5 rounded-full bg-current ${sel[0] === "active" ? "ds-ok" : "ds-atencao"}`}
+            />
+          ) : null}
+          {label}
+          <Filter className="size-[15px] shrink-0 text-muted-foreground" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        {dot ? (
-          <span
-            aria-hidden
-            className={`size-1.5 rounded-full bg-current ${dot === "ok" ? "ds-ok" : "ds-falta"}`}
-          />
-        ) : null}
-        {label} <b className="font-extrabold tabular-nums">{n}</b>
-      </button>
-    );
-  };
+        <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
+          <span className="ds-eyebrow">Situação</span>
+          {!all || sel.length === 2 ? (
+            <button
+              type="button"
+              onClick={() => setSel([])}
+              className="text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              Limpar
+            </button>
+          ) : null}
+        </div>
+        {row("all", "Todos", items.length, all, () => setSel([]))}
+        {row("active", "Ativos", nActive, checked("active"), () => toggle("active"), "ok")}
+        {row(
+          "inactive",
+          "Inativos",
+          nInactive,
+          checked("inactive"),
+          () => toggle("inactive"),
+          "atencao",
+        )}
+      </PopoverContent>
+    </Popover>
+  );
 
   return (
     <div className="grid gap-4">
@@ -98,12 +183,8 @@ export function OwnerPropertiesList({
         value={q}
         onChange={setQ}
         placeholder="Buscar imóvel, proprietário, cidade…"
+        actions={statusButton}
       />
-      <div className="ds-segmented flex gap-1.5">
-        {chip("all", "Todos", items.length)}
-        {chip("active", "Ativos", nActive, "ok")}
-        {chip("inactive", "Inativos", nInactive, "falta")}
-      </div>
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -121,9 +202,9 @@ export function OwnerPropertiesList({
                 key={p.id}
                 to="/admin/properties/$id"
                 params={{ id: p.id }}
-                className={`${PANEL_SHELL} flex min-w-0 gap-3 p-2.5 transition-all ${p.active ? "" : "opacity-80"}`}
+                className={`${PANEL_SHELL} flex h-[104px] min-w-0 overflow-hidden transition-all`}
               >
-                <span className="relative grid size-[84px] shrink-0 place-items-center overflow-hidden rounded-[10px] bg-foreground/[0.05] text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+                <span className="relative grid w-24 shrink-0 place-items-center overflow-hidden bg-foreground/[0.05] text-muted-foreground">
                   {p.hero_image_url ? (
                     <img
                       src={p.hero_image_url}
@@ -134,43 +215,39 @@ export function OwnerPropertiesList({
                   ) : (
                     <Home className="size-[22px]" />
                   )}
+                  <span
+                    className={`absolute left-2 top-2 inline-flex h-[22px] items-center gap-1.5 rounded-full bg-background/70 px-2.5 text-[10.5px] font-extrabold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] backdrop-blur-sm ${p.active ? "ds-ok" : "ds-atencao"}`}
+                  >
+                    <span aria-hidden className="size-1.5 rounded-full bg-current" />
+                    {p.active ? "Ativo" : "Inativo"}
+                  </span>
                 </span>
-                <span className="flex min-w-0 flex-1 flex-col justify-between py-0.5 pr-0.5">
-                  <span className="min-w-0">
-                    <span className="block truncate text-[14px] font-bold leading-tight">
-                      {p.name}
-                    </span>
-                    {ownerName ? (
-                      <span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs">
-                        <span className="ds-faint shrink-0">Proprietário(a):</span>
-                        <span className={`min-w-0 truncate font-semibold ${CARD_OWNER}`}>
-                          {ownerName}
-                        </span>
-                        <PhoneActionButton
-                          phone={p.owner?.phone}
-                          country={p.owner?.phone_country}
-                          size={13}
-                          alwaysShow
-                        />
-                      </span>
-                    ) : null}
+                <span className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 px-3.5 py-2.5">
+                  <span className="block truncate text-[14.5px] font-extrabold leading-tight">
+                    {p.name}
                   </span>
-                  <span className="flex items-center justify-between gap-2">
-                    {place ? (
-                      <span className="ds-meta flex min-w-0 items-center gap-1.5">
-                        <MapPin className="size-3 shrink-0 text-muted-foreground" />
-                        <span className="truncate">{place}</span>
-                      </span>
-                    ) : (
-                      <span />
-                    )}
-                    <span
-                      className={`inline-flex shrink-0 items-center gap-1.5 text-[11px] font-bold ${p.active ? "ds-ok" : "ds-atencao"}`}
-                    >
-                      <span aria-hidden className="size-1.5 rounded-full bg-current" />
-                      {p.active ? "Ativo" : "Inativo"}
+                  {place ? (
+                    <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                      <MapPin className="size-3 shrink-0" />
+                      <span className="truncate">{place}</span>
                     </span>
-                  </span>
+                  ) : null}
+                  {ownerName ? (
+                    <span className="flex min-w-0 items-center gap-1.5 text-xs">
+                      <span className="shrink-0 text-[11.5px] text-muted-foreground">
+                        Proprietário(a):
+                      </span>
+                      <span className="min-w-0 truncate font-semibold text-foreground">
+                        {ownerName}
+                      </span>
+                      <PhoneActionButton
+                        phone={p.owner?.phone}
+                        country={p.owner?.phone_country}
+                        size={13}
+                        alwaysShow
+                      />
+                    </span>
+                  ) : null}
                 </span>
               </Link>
             );
