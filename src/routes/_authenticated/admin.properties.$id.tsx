@@ -3368,7 +3368,8 @@ function PropertyEditor() {
               {checkinSubStep === "checkin" && (
               <div className={SECTION_LIST}>
               <SectionGroup>
-                <Section id="checkin-times" icon={Clock} title="Horário de check-in" collapsible hidden={nativeAirbnb}>
+                <div hidden={nativeAirbnb} className="contents">
+                <Section id="checkin-times" icon={Clock} title="Horário de check-in" collapsible>
                   {/* Espelha (mesmo estado do form, não é uma cópia separada)
                       os campos que já existem na aba Airbnb — pedido do
                       cliente em 03/09/2026: os horários "sumiram" desta aba
@@ -3399,6 +3400,7 @@ function PropertyEditor() {
                     />
                   </Field>
                 </Section>
+                </div>
 
                 <Section
                   id="checkin-instr"
@@ -3810,7 +3812,8 @@ function PropertyEditor() {
               {checkinSubStep === "checkout" && (
               <div className={SECTION_LIST}>
               <SectionGroup>
-                <Section id="checkout-times" icon={Clock} title="Horário de check-out" collapsible hidden={nativeAirbnb}>
+                <div hidden={nativeAirbnb} className="contents">
+                <Section id="checkout-times" icon={Clock} title="Horário de check-out" collapsible>
                   {/* Mesmo espelhamento do "Horário de check-in" acima — ver
                       comentário lá. "Check-out a partir de" continua
                       editável aqui (é o único horário que não vem do
@@ -3842,6 +3845,7 @@ function PropertyEditor() {
                     />
                   </Field>
                 </Section>
+                </div>
 
                 {!nativeAirbnb && (
                 <Section
