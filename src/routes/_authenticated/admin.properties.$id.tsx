@@ -1801,8 +1801,6 @@ function PropertyEditor() {
   useEffect(() => {
     if (nativeAirbnb && step === "airbnb") setStep("guide");
   }, [nativeAirbnb, step, setStep]);
-  void (() => null
-  );
   // "CONDOMÍNIO?" (pedido de 01/10/2026): obrigatório SÓ com a chave ligada, e
   // com ela ligada e algum campo vazio a pessoa não consegue sair da tela —
   // como o salvamento é automático, deixar pela metade gravaria um cadastro
