@@ -84,7 +84,9 @@ export function GuideCard({
       onClick={(e) => e.stopPropagation()}
     >
       {withLabel && (
-        <span className={`text-[9.5px] font-bold uppercase tracking-[0.12em] ${p.published ? "text-[#7fb79a]" : "text-[#d8b96a]"}`}>
+        <span
+          className={`text-[9.5px] font-bold uppercase tracking-[0.12em] ${p.published ? "text-[#7fb79a]" : "text-[#d8b96a]"}`}
+        >
           {p.published ? "Publicado" : "Rascunho"}
         </span>
       )}
@@ -101,7 +103,13 @@ export function GuideCard({
     <div className={`relative shrink-0 overflow-hidden bg-secondary ${cls}`}>
       <CoverImage urls={[p.hero_image_url, ...(p.gallery_images ?? [])]} />
       {bare ? (
-        <div className="absolute right-1.5 top-1.5" onClick={(e) => e.stopPropagation()} title={p.published ? "Publicado — toque para despublicar" : "Rascunho — toque para publicar"}>
+        <div
+          className="absolute right-1.5 top-1.5"
+          onClick={(e) => e.stopPropagation()}
+          title={
+            p.published ? "Publicado — toque para despublicar" : "Rascunho — toque para publicar"
+          }
+        >
           <Switch
             checked={!!p.published}
             disabled={toggling}
@@ -127,32 +135,59 @@ export function GuideCard({
             <span className="min-w-0 truncate text-[10.5px] text-foreground" title={p.ownerName}>
               {ownerLabel(p.ownerName)}
             </span>
-            <PhoneActionButton phone={p.ownerPhone} country={p.ownerPhoneCountry} size={12} alwaysShow className="shrink-0" />
+            <PhoneActionButton
+              phone={p.ownerPhone}
+              country={p.ownerPhoneCountry}
+              size={12}
+              alwaysShow
+              className="shrink-0"
+            />
           </div>
         )}
         <span className="ds-card-title block truncate" title={p.name}>
           {p.name}
         </span>
-        {place && <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/80">{place}</span>}
+        {place && (
+          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/80">
+            {place}
+          </span>
+        )}
       </div>
-      <div className={`flex min-w-0 items-center gap-2 ${variant === "split" && onSelectChange ? "-mr-[18px]" : ""}`}>
+      <div
+        className={`flex min-w-0 items-center gap-2 ${variant === "split" && onSelectChange ? "-mr-[18px]" : ""}`}
+      >
         <div className="h-[3px] min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/10">
           <div className={`h-full rounded-full ${barClass}`} style={{ width: `${score}%` }} />
         </div>
         <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">{score}%</span>
-        <div className={`flex shrink-0 items-center ${variant === "split" && onSelectChange ? "w-3 justify-center overflow-visible" : ""}`}>{actions}</div>
+        <div
+          className={`flex shrink-0 items-center ${variant === "split" && onSelectChange ? "w-3 justify-center overflow-visible" : ""}`}
+        >
+          {actions}
+        </div>
       </div>
     </div>
   );
 
   const check = onSelectChange ? (
-    <span className="absolute left-2 top-2 z-10 grid place-items-center rounded-[4px] bg-background/75 p-[3px] backdrop-blur" onClick={(e) => e.stopPropagation()}>
-      <Checkbox className="!size-3 !rounded-[3px]" checked={!!selected} onCheckedChange={(v) => onSelectChange(!!v)} aria-label="Selecionar guia" />
+    <span
+      className="absolute left-2 top-2 z-10 grid place-items-center rounded-[4px] bg-background/75 p-[3px] backdrop-blur"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Checkbox
+        className="!size-3 !rounded-[3px]"
+        checked={!!selected}
+        onCheckedChange={(v) => onSelectChange(!!v)}
+        aria-label="Selecionar guia"
+      />
     </span>
   ) : null;
   if (variant === "grid") {
     return (
-      <div onClick={openMenuOnClick} className={`${PANEL_SHELL} relative flex min-w-0 flex-col ${onOpenMenu ? "cursor-pointer" : ""}`}>
+      <div
+        onClick={openMenuOnClick}
+        className={`${PANEL_SHELL} relative flex min-w-0 flex-col ${onOpenMenu ? "cursor-pointer" : ""}`}
+      >
         {check}
         {photo("aspect-[16/9] w-full", true)}
         <div className="flex min-w-0 p-3">{info}</div>
@@ -160,7 +195,10 @@ export function GuideCard({
     );
   }
   return (
-    <div onClick={openMenuOnClick} className={`${PANEL_SHELL} relative flex min-h-[132px] min-w-0 ${onOpenMenu ? "cursor-pointer" : ""}`}>
+    <div
+      onClick={openMenuOnClick}
+      className={`${PANEL_SHELL} relative flex min-h-[112px] min-w-0 ${onOpenMenu ? "cursor-pointer" : ""}`}
+    >
       {onSelectChange && (
         <Checkbox
           className="absolute right-2.5 top-2.5 z-10 !size-3 !rounded-[3px] opacity-50"
@@ -173,9 +211,9 @@ export function GuideCard({
           imagens dos imóveis fiquem no mesmo formato que o print 2, mais
           voltadas para quadrados"). No celular os 40% da largura já dão essa
           proporção; no desktop, com o cartão largo, 40% virava uma faixa
-          comprida. A partir de `lg` a foto tem 141px — com os 132px de altura
+          comprida. A partir de `lg` a foto tem 120px — com os 112px de altura
           do cartão, a mesma proporção do celular (1,07:1). */}
-      {photo("w-[40%] lg:w-[141px]", false, true)}
+      {photo("w-[40%] lg:w-[120px]", false, true)}
       <div className="flex min-w-0 flex-1 p-3 pr-7">{info}</div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Check, Filter, Home, MapPin } from "lucide-react";
+import { BookOpen, Check, Filter, Home, MapPin, MoreHorizontal, Pencil } from "lucide-react";
+import { CoverImage } from "@/components/ui/cover-image";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { ACTION_SEGMENT, PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
@@ -27,6 +28,7 @@ type Prop = {
   state?: string | null;
   owner_contact_id?: string | null;
   hero_image_url?: string | null;
+  gallery_images?: string[] | null;
 };
 type Owner = Record<string, any>;
 type Sit = "active" | "inactive";
@@ -41,6 +43,7 @@ export function OwnerPropertiesList({
   connections: PropertyConnectionRow[];
 }) {
   const [q, setQ] = useState("");
+  const [menuId, setMenuId] = useState<string | null>(null);
   // Vazio = Todos. As duas marcadas também equivalem a Todos.
   const [sel, setSel] = useState<Sit[]>([]);
 
@@ -198,23 +201,21 @@ export function OwnerPropertiesList({
             const place = [p.city, p.state].filter(Boolean).join("/");
             const ownerName = p.owner ? String(p.owner.trade_name || p.owner.name || "") : "";
             return (
-              <Link
+              <div
                 key={p.id}
-                to="/admin/properties/$id"
-                params={{ id: p.id }}
-                className={`${PANEL_SHELL} flex h-[104px] min-w-0 overflow-hidden transition-all`}
+                onClick={(e) => {
+                  // Igual aos Guias Digitais: toque em qualquer ponto abre o menu ⋯.
+                  const el = e.target as HTMLElement | null;
+                  const interactive = el?.closest(
+                    "button, a, input, select, textarea, label, [role='button'], [data-radix-popper-content-wrapper]",
+                  );
+                  if (interactive && interactive !== e.currentTarget) return;
+                  setMenuId(p.id);
+                }}
+                className={`${PANEL_SHELL} flex h-[112px] min-w-0 cursor-pointer overflow-hidden transition-all`}
               >
-                <span className="relative grid w-24 shrink-0 place-items-center overflow-hidden bg-foreground/[0.05] text-muted-foreground">
-                  {p.hero_image_url ? (
-                    <img
-                      src={p.hero_image_url}
-                      alt=""
-                      loading="lazy"
-                      className="size-full object-cover"
-                    />
-                  ) : (
-                    <Home className="size-[22px]" />
-                  )}
+                <span className="relative w-24 shrink-0 overflow-hidden bg-foreground/[0.05] text-muted-foreground">
+                  <CoverImage urls={[p.hero_image_url, ...(p.gallery_images ?? [])]} />
                   <span
                     className={`absolute left-2 top-2 inline-flex h-[22px] items-center gap-1.5 rounded-full bg-background/70 px-2.5 text-[10.5px] font-extrabold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] backdrop-blur-sm ${p.active ? "ds-ok" : "ds-atencao"}`}
                   >
@@ -222,34 +223,72 @@ export function OwnerPropertiesList({
                     {p.active ? "Ativo" : "Inativo"}
                   </span>
                 </span>
-                <span className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 px-3.5 py-2.5">
-                  <span className="block truncate text-[14.5px] font-extrabold leading-tight">
-                    {p.name}
+                <span className="flex min-w-0 flex-1 flex-col justify-between gap-2 py-3 pl-3.5 pr-2.5">
+                  <span className="grid min-w-0 gap-1.5">
+                    <span className="block truncate text-[14.5px] font-extrabold leading-tight">
+                      {p.name}
+                    </span>
+                    {place ? (
+                      <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                        <MapPin className="size-3 shrink-0" />
+                        <span className="truncate">{place}</span>
+                      </span>
+                    ) : null}
                   </span>
-                  {place ? (
-                    <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
-                      <MapPin className="size-3 shrink-0" />
-                      <span className="truncate">{place}</span>
-                    </span>
-                  ) : null}
-                  {ownerName ? (
-                    <span className="flex min-w-0 items-center gap-1.5 text-xs">
-                      <span className="shrink-0 text-[11.5px] text-muted-foreground">
-                        Proprietário(a):
+                  <span className="flex min-w-0 items-center justify-between gap-2">
+                    {ownerName ? (
+                      <span className="flex min-w-0 items-center gap-1.5 text-xs">
+                        <span className="shrink-0 text-[11.5px] text-muted-foreground">
+                          Proprietário(a):
+                        </span>
+                        <span className="min-w-0 truncate font-semibold text-foreground">
+                          {ownerName}
+                        </span>
+                        <PhoneActionButton
+                          phone={p.owner?.phone}
+                          country={p.owner?.phone_country}
+                          size={13}
+                          alwaysShow
+                          className="shrink-0"
+                        />
                       </span>
-                      <span className="min-w-0 truncate font-semibold text-foreground">
-                        {ownerName}
-                      </span>
-                      <PhoneActionButton
-                        phone={p.owner?.phone}
-                        country={p.owner?.phone_country}
-                        size={13}
-                        alwaysShow
-                      />
-                    </span>
-                  ) : null}
+                    ) : (
+                      <span />
+                    )}
+                    <Popover
+                      open={menuId === p.id}
+                      onOpenChange={(o) => setMenuId(o ? p.id : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          title="Mais opções"
+                          aria-label="Mais opções"
+                          className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-52 p-1.5">
+                        <Link
+                          to="/admin/properties/$id"
+                          params={{ id: p.id }}
+                          className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors hover:bg-secondary"
+                        >
+                          <Pencil className="size-3.5 text-muted-foreground" /> Editar imóvel
+                        </Link>
+                        <Link
+                          to="/admin/guias"
+                          className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors hover:bg-secondary"
+                        >
+                          <BookOpen className="size-3.5 text-muted-foreground" /> Ver em Guias
+                          Digitais
+                        </Link>
+                      </PopoverContent>
+                    </Popover>
+                  </span>
                 </span>
-              </Link>
+              </div>
             );
           })}
         </div>

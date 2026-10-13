@@ -50,7 +50,7 @@ export const listStakeholders = createServerFn({ method: "GET" })
       data.kind === "owner"
         ? await supabase
             .from("properties")
-            .select("id, name, city, state, owner_contact_id, hero_image_url")
+            .select("id, name, city, state, owner_contact_id, hero_image_url, gallery_images")
             .eq("owner_id", accountId)
         : {
             data: [] as Array<{
@@ -646,17 +646,15 @@ export const linkPropertyToProvider = createServerFn({ method: "POST" })
     const propertyLabel = property.name ? `Residência "${property.name}"` : "Residência";
 
     if (data.link) {
-      const { error } = await supabase
-        .from("property_providers")
-        .upsert(
-          {
-            account_owner_id: accountId,
-            property_id: data.propertyId,
-            provider_id: data.providerId,
-            created_by: userId,
-          },
-          { onConflict: "property_id,provider_id" },
-        );
+      const { error } = await supabase.from("property_providers").upsert(
+        {
+          account_owner_id: accountId,
+          property_id: data.propertyId,
+          provider_id: data.providerId,
+          created_by: userId,
+        },
+        { onConflict: "property_id,provider_id" },
+      );
       if (error) throw new Error(error.message);
     } else {
       const { error } = await supabase
