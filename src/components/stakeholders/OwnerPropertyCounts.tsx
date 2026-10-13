@@ -114,9 +114,9 @@ export function OwnerPropertyCounts({ summary }: { summary: PropertyIntegrationS
         <CountButton
           tone="ok"
           count={activeCount}
-          singular="ativo"
-          plural="ativos"
-          title={`${activeCount} ${activeCount === 1 ? "ativo" : "ativos"}`}
+          singular="Imóvel Ativo"
+          plural="Imóveis Ativos"
+          title={`${activeCount} ${activeCount === 1 ? "Imóvel Ativo" : "Imóveis Ativos"}`}
           items={activeItems.map((p) => ({
             id: p.id,
             name: p.name,
@@ -130,9 +130,9 @@ export function OwnerPropertyCounts({ summary }: { summary: PropertyIntegrationS
         <CountButton
           tone="falta"
           count={inactiveCount}
-          singular="inativo"
-          plural="inativos"
-          title={`${inactiveCount} ${inactiveCount === 1 ? "inativo" : "inativos"}`}
+          singular="Imóvel Inativo"
+          plural="Imóveis Inativos"
+          title={`${inactiveCount} ${inactiveCount === 1 ? "Imóvel Inativo" : "Imóveis Inativos"}`}
           items={inactiveItems.map((p) => ({
             id: p.id,
             name: p.name,
