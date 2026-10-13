@@ -1786,7 +1786,15 @@ function PropertyEditor() {
   // (`guide_created`): antes disso, é a própria tela enxuta "Novo imóvel" que
   // já pede e valida esses mesmos campos.
   const missingOwner = !isNew && !form.property.owner_contact_id;
-  const missingHouseFields = form.property.guide_created ? missingRequiredHouseFields(form.property) : [];
+  // Anúncio nativo (piloto Sigma): endereço, fotos, descrição, regras, horários
+  // e instruções vêm do Airbnb via API — esses campos somem do editor.
+  const nativeAirbnb = NATIVE_AIRBNB_OWNERS.has(
+    String(((data?.property as Record<string, unknown> | null)?.owner_id as string | undefined) ?? ""),
+  );
+  const NATIVE_SKIP = ["Link do Google Maps (entrada principal)", "Endereço", "URL do calendário Airbnb"];
+  const missingHouseFields = (form.property.guide_created ? missingRequiredHouseFields(form.property) : []).filter(
+    (m) => !(nativeAirbnb && NATIVE_SKIP.includes(m)),
+  );
   // "CONDOMÍNIO?" (pedido de 01/10/2026): obrigatório SÓ com a chave ligada, e
   // com ela ligada e algum campo vazio a pessoa não consegue sair da tela —
   // como o salvamento é automático, deixar pela metade gravaria um cadastro
@@ -2113,6 +2121,7 @@ function PropertyEditor() {
         "Condomínio — Elevador",
       )}
     >
+      {!nativeAirbnb && (<>
       <Field label="Link do Google Maps — Entrada principal" required>
         <Input
           value={form.property.maps_url}
@@ -2168,6 +2177,7 @@ function PropertyEditor() {
           />
         </Field>
       </div>
+      </>)}
       {/* CONDOMÍNIO? (mockup "Local dentro do prédio", aprovado 01/10/2026):
           a chave liga os quatro campos; desligada eles somem daqui e de todo
           lugar onde o complemento do endereço aparece, mas o que já foi
@@ -2834,7 +2844,7 @@ function PropertyEditor() {
                         { value: "checkin", label: "Check-in & Checkout", icon: DoorOpen },
                         { value: "faq", label: "FAQ", icon: LifeBuoy },
                         { value: "recs", label: "Recomendações", icon: Compass },
-                      ]}
+                      ].filter((s) => !(nativeAirbnb && s.value === "airbnb"))}
                       lockedValues={needsRequiredHouseInfo ? ["airbnb", "guide", "checkin", "faq", "recs"] : undefined}
                     />
                   </div>
@@ -2907,13 +2917,13 @@ function PropertyEditor() {
 
                   {renderAddressSection()}
 
-                  {renderAirbnbCalendarSection()}
+                  {!nativeAirbnb && renderAirbnbCalendarSection()}
 
-                  {renderHouseRulesSection()}
+                  {!nativeAirbnb && renderHouseRulesSection()}
 
                   {renderManualSection()}
 
-                  {renderPropertyDetailsSection()}
+                  {!nativeAirbnb && renderPropertyDetailsSection()}
 
                   {renderHostContactSection()}
 
