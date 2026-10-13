@@ -33,13 +33,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { formatTaxId, formatIntlPhone, toWhatsappNumber } from "@/lib/masks";
 import {
   getStakeholderDetail,
@@ -66,7 +67,29 @@ import { humanizeEventMessage } from "@/lib/stakeholder-event-message";
 import { MultiLinkPicker } from "./MultiLinkPicker";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { OwnerPropertyWindow } from "./OwnerPropertyWindow";
-
+import { OwnerAccessList } from "./OwnerAccessList";
+import { Stepper } from "@/components/editor/Stepper";
+import {
+  ACTION_BAR,
+  ACTION_SEGMENT,
+  ACTION_BUTTON_TONE,
+  ACTION_ICON,
+  PanelHeading,
+  CountPill,
+} from "@/components/dashboard/panel-chrome";
+import {
+  AddPill,
+  GroupTitle,
+  GroupList,
+  GroupRow,
+  StatusTrail,
+  StatsStrip,
+  OwnerEmpty,
+  CHIP_BTN,
+} from "./owner-ui";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
+import { Coins, StickyNote, Check, User, Activity } from "lucide-react";
 
 /** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.
  *  !flex-none sobrescreve o !flex-1 padrão de TabsTrigger (ui/tabs.tsx) — aqui
@@ -80,7 +103,20 @@ const SEG_TAB =
 const SEG_TAB_NEW =
   "min-h-[46px] !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-foreground/10 data-[state=active]:text-foreground data-[state=active]:shadow-none";
 
-const MONTHS_PT = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const MONTHS_PT = [
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
+];
 
 /** Agrupa itens (já ordenados do mais novo ao mais antigo) por mês ("outubro de 2026") ou dia. */
 function groupByPeriod<T extends { at: string }>(items: T[], by: "month" | "day") {
@@ -131,8 +167,55 @@ function fmtDateBR(d: string | null | undefined) {
   }
 }
 
-
-
+const MONTHS_SHORT = [
+  "jan",
+  "fev",
+  "mar",
+  "abr",
+  "mai",
+  "jun",
+  "jul",
+  "ago",
+  "set",
+  "out",
+  "nov",
+  "dez",
+];
+function shortDate(iso: string, withTime = false) {
+  const d = iso ? new Date(iso) : null;
+  if (!d || Number.isNaN(d.getTime())) return "Sem data";
+  const base = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+  return withTime
+    ? `${base}, ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+    : base;
+}
+function capitalize(t: string) {
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+/** Selo de situação do imóvel (mockup `.pl`). */
+function PropPill({ tone, children }: { tone: "ok" | "at" | "nu"; children: React.ReactNode }) {
+  const cls =
+    tone === "ok"
+      ? "ds-ok bg-[color-mix(in_oklab,currentColor_8%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,currentColor_25%,transparent)]"
+      : tone === "at"
+        ? "ds-atencao bg-[color-mix(in_oklab,currentColor_8%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,currentColor_28%,transparent)]"
+        : "text-muted-foreground bg-foreground/[0.05] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent)]";
+  return (
+    <span
+      className={`inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[10px] font-extrabold ${cls}`}
+    >
+      {children}
+    </span>
+  );
+}
+function logIcon(title: string) {
+  const t = title.toLowerCase();
+  if (/abriu|visualiz|ver /.test(t)) return Eye;
+  if (/renome|edit|alter|atualiz|salv|defin/.test(t)) return Pencil;
+  if (/entrou|login|acess/.test(t)) return User;
+  if (/aceit|conclu|cri(ou|ad)/.test(t)) return Check;
+  return Activity;
+}
 
 export function StakeholderDetailSheet({
   kind,
@@ -171,6 +254,7 @@ export function StakeholderDetailSheet({
   const [dataOpen, setDataOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [windowPropertyId, setWindowPropertyId] = useState<string | null>(null);
+  const [ownerTab, setOwnerTab] = useState("timeline");
 
   const clicksignFn = useServerFn(getMyClicksignConfig);
   const clicksign = useQuery({
@@ -179,8 +263,7 @@ export function StakeholderDetailSheet({
     staleTime: 5 * 60_000,
     retry: false,
   });
-  const clicksignActive =
-    clicksign.data?.status === "active" && Boolean(clicksign.data?.hasToken);
+  const clicksignActive = clicksign.data?.status === "active" && Boolean(clicksign.data?.hasToken);
 
   const catsFn = useServerFn(listProviderCategories);
   const cats = useQuery({
@@ -267,7 +350,6 @@ export function StakeholderDetailSheet({
     retry: false,
   });
 
-
   const row = data?.row as Record<string, any> | null | undefined;
 
   const accessFn = useServerFn(getStakeholderAccess);
@@ -292,9 +374,6 @@ export function StakeholderDetailSheet({
       setBusy(false);
     }
   }
-
-
-
 
   async function toggleLink(propertyId: string, link: boolean) {
     setBusy(true);
@@ -326,7 +405,9 @@ export function StakeholderDetailSheet({
     try {
       for (const propertyId of propertyIds) {
         if (kind === "provider") {
-          await linkProviderFn({ data: { providerId: id, propertyId, link: true, accountOwnerId } });
+          await linkProviderFn({
+            data: { providerId: id, propertyId, link: true, accountOwnerId },
+          });
         } else {
           await linkFn({ data: { ownerId: id, propertyId, link: true, accountOwnerId } });
         }
@@ -336,7 +417,9 @@ export function StakeholderDetailSheet({
       qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
       qc.invalidateQueries({ queryKey: ["my-properties"] });
       toast.success(
-        propertyIds.length === 1 ? "Residência vinculada." : `${propertyIds.length} residências vinculadas.`,
+        propertyIds.length === 1
+          ? "Residência vinculada."
+          : `${propertyIds.length} residências vinculadas.`,
       );
     } catch (e) {
       toast.error((e as Error).message);
@@ -344,7 +427,6 @@ export function StakeholderDetailSheet({
       setBusy(false);
     }
   }
-
 
   // Um imóvel sempre precisa ter um proprietário responsável — por isso não
   // existe mais "desvincular" puro. A única forma de tirar um imóvel deste
@@ -386,11 +468,11 @@ export function StakeholderDetailSheet({
 
   const categorySlugs: string[] =
     kind === "provider"
-      ? (Array.isArray(row.categories) && row.categories.length > 0
-          ? (row.categories as string[])
-          : row.category
-            ? [row.category as string]
-            : [])
+      ? Array.isArray(row.categories) && row.categories.length > 0
+        ? (row.categories as string[])
+        : row.category
+          ? [row.category as string]
+          : []
       : [];
   const categoryLabels = categorySlugs.map(
     (slug) => (cats.data ?? []).find((c) => c.slug === slug)?.label ?? slug,
@@ -402,7 +484,6 @@ export function StakeholderDetailSheet({
   const properties = data?.properties ?? [];
   const available = data?.availableProperties ?? [];
   const displayName = row.trade_name || row.name;
-  
 
   // Vigência do contrato exibida no cabeçalho, na cor do status (mesma regra
   // do card da listagem: cancelado/cancelando sem data final usa a data em
@@ -417,14 +498,15 @@ export function StakeholderDetailSheet({
     ? `${fmtDateBR(row.contract_start)} → ${contractEnd ? fmtDateBR(contractEnd) : "momento"}`
     : null;
 
-
   // Notas automáticas de bastidor (importação/sincronização/extração) não
   // entram na Linha do Tempo — elas continuam disponíveis no Log.
-  const NOISE = /(importa[çc][ãa]o do clicksign|dados extra[íi]dos|sincroniza|cadastro criado pela)/i;
+  const NOISE =
+    /(importa[çc][ãa]o do clicksign|dados extra[íi]dos|sincroniza|cadastro criado pela)/i;
 
   // Abre o link do Google já na conta conectada à integração (authuser),
   // evitando cair na conta pessoal logada no navegador.
-  const gAccount = (feed.data as { accountEmail?: string | null } | undefined)?.accountEmail ?? null;
+  const gAccount =
+    (feed.data as { accountEmail?: string | null } | undefined)?.accountEmail ?? null;
   function gLink(url: string) {
     if (!gAccount) return url;
     try {
@@ -441,14 +523,14 @@ export function StakeholderDetailSheet({
     ...events
       .filter((ev: any) => !NOISE.test(String(ev.message ?? "")))
       .map((ev: any) => ({
-      key: `n:${ev.id}`,
-      at: ev.created_at as string,
-      icon: Pin,
-      title: humanizeEventMessage(ev.message as string),
-      badge: "Registro",
-      author: (ev.author_name as string | null) ?? "Sistema",
-      body: null as React.ReactNode,
-    })),
+        key: `n:${ev.id}`,
+        at: ev.created_at as string,
+        icon: Pin,
+        title: humanizeEventMessage(ev.message as string),
+        badge: "Registro",
+        author: (ev.author_name as string | null) ?? "Sistema",
+        body: null as React.ReactNode,
+      })),
     ...feedEvents.map((ev) => ({
       key: `g:${ev.id}`,
       at: ev.at ?? "",
@@ -479,15 +561,22 @@ export function StakeholderDetailSheet({
                   onClick={() => window.open(gLink(a.url), "_blank", "noopener")}
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
                 >
-                  {a.kind === "transcript" ? <FileText className="size-2.5" /> : <Video className="size-2.5" />}
-                  {a.kind === "transcript" ? "Transcrição" : a.kind === "recording" ? "Gravação" : a.title}
+                  {a.kind === "transcript" ? (
+                    <FileText className="size-2.5" />
+                  ) : (
+                    <Video className="size-2.5" />
+                  )}
+                  {a.kind === "transcript"
+                    ? "Transcrição"
+                    : a.kind === "recording"
+                      ? "Gravação"
+                      : a.title}
                 </button>
               ))}
             </div>
           )}
         </>
       ),
-
     })),
     ...feedDocs.map((d) => ({
       key: `d:${d.id}`,
@@ -532,9 +621,643 @@ export function StakeholderDetailSheet({
             </ul>
           ) : null,
       })),
-
   ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
 
+  // ======================= LAYOUT NOVO DO PROPRIETÁRIO =======================
+  // Mockups Prop2 a Prop10 (13/10/2026). Só contas liberadas (`newLayout`).
+  if (newLayout && kind === "owner") {
+    const ownerPhone = row.phone as string | null;
+    const ownerCountry = row.phone_country as string | null;
+    const accessReady = accessQuery.data?.status === "active" && accessQuery.data.userId;
+    const timelineGroups = groupByPeriod(timeline, "month");
+    const todayKey = new Date().toDateString();
+    const logItems = (trail.data?.items ?? []).map((ev) => ({ ...ev, at: ev.at ?? "" }));
+    const logGroups = (() => {
+      const groups: { label: string; items: typeof logItems }[] = [];
+      for (const it of logItems) {
+        const d = it.at ? new Date(it.at) : null;
+        const ok = d && !Number.isNaN(d.getTime());
+        const label = !ok
+          ? "Sem data"
+          : d!.toDateString() === todayKey
+            ? "Hoje"
+            : d!.toLocaleDateString("pt-BR", { day: "numeric", month: "long" });
+        const last = groups[groups.length - 1];
+        if (last && last.label === label) last.items.push(it);
+        else groups.push({ label, items: [it] });
+      }
+      return groups;
+    })();
+
+    return (
+      <div className="flex w-full min-w-0 max-w-full flex-col overflow-x-hidden px-4 pb-7 pt-2.5">
+        <div
+          aria-hidden
+          className="mx-auto mb-[18px] h-1 w-9 rounded bg-foreground/[0.18] md:hidden"
+        />
+
+        {/* Cabeçalho (mockup `.top`): rótulo, nome, situação + vigência, e a peça partida ao meio. */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="ds-eyebrow text-[10.5px] tracking-[0.2em] text-muted-foreground">
+              Proprietário
+            </p>
+            <h2
+              className="mt-1.5 truncate font-display text-[20px] font-bold leading-[1.15] tracking-[-0.01em]"
+              title={displayName}
+            >
+              {displayName}
+            </h2>
+            <div className="mt-2 flex items-center gap-2 text-[11.5px] text-muted-foreground">
+              <StakeholderStatusControl
+                kind={kind}
+                id={id}
+                accountOwnerId={accountOwnerId}
+                status={row.status}
+                statusChangedAt={row.status_changed_at}
+                variant="compact"
+                invalidateQueryKeys={[queryKey]}
+              />
+              {contractRange && (
+                <>
+                  <span className="h-3 w-px bg-foreground/[0.14]" aria-hidden />
+                  <span className={`whitespace-nowrap tabular-nums ${statusText(effStatus)}`}>
+                    {contractRange}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+          <div className={`${ACTION_BAR} !h-9 !w-auto shrink-0 !rounded-[11px]`}>
+            {clicksignActive ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Editar"
+                    title="Editar"
+                    disabled={extracting}
+                    className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
+                  >
+                    {extracting ? (
+                      <Loader2 className={`${ACTION_ICON} animate-spin`} />
+                    ) : (
+                      <Pencil className={ACTION_ICON} />
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={onEdit}>
+                    <Pencil className="size-3.5" /> Editar cadastro
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={runExtract}>
+                    <FileText className="size-3.5" /> Importar dados do contrato
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <button
+                type="button"
+                onClick={onEdit}
+                aria-label="Editar cadastro"
+                title="Editar cadastro"
+                className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
+              >
+                <Pencil className={ACTION_ICON} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setDataOpen((o) => !o)}
+              aria-expanded={dataOpen}
+              aria-label="Dados pessoais"
+              title="Dados pessoais"
+              className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
+            >
+              <ChevronDown
+                className={`${ACTION_ICON} transition-transform ${dataOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* Dados pessoais (mockup `.kv`): recolhido ao abrir a ficha. */}
+        {dataOpen && (
+          <section
+            className={`${PANEL_SHELL} mt-[18px] grid grid-cols-2 gap-x-4 gap-y-5 px-4 py-[18px]`}
+          >
+            {(
+              [
+                { l: "Nome completo", v: row.name, wide: true },
+                row.trade_name ? { l: "Nome fantasia", v: row.trade_name, wide: true } : null,
+                row.doc
+                  ? { l: String(row.doc_type ?? "cpf").toUpperCase(), v: formatTaxId(row.doc) }
+                  : null,
+                row.birth_date
+                  ? {
+                      l: "Nascimento",
+                      v: new Date(
+                        `${String(row.birth_date).slice(0, 10)}T12:00:00`,
+                      ).toLocaleDateString("pt-BR"),
+                    }
+                  : null,
+                row.phone
+                  ? { l: "Telefone", v: formatIntlPhone(row.phone, row.phone_country) }
+                  : null,
+                row.email ? { l: "E-mail", v: row.email } : null,
+              ] as Array<{ l: string; v: string; wide?: boolean } | null>
+            )
+              .filter((x): x is { l: string; v: string; wide?: boolean } => !!x && !!x.v)
+              .map((f) => (
+                <div key={f.l} className={`min-w-0 ${f.wide ? "col-span-2" : ""}`}>
+                  <p className="mb-[5px] text-[11px] font-semibold text-[color:var(--faint)]">
+                    {f.l}
+                  </p>
+                  <p className="break-words text-[13.5px] leading-[1.4] text-foreground">{f.v}</p>
+                </div>
+              ))}
+            {(row.address || row.city || row.state || row.cep) && (
+              <div className="col-span-2 min-w-0">
+                <p className="mb-[5px] text-[11px] font-semibold text-[color:var(--faint)]">
+                  Endereço
+                </p>
+                <p className="break-words text-[13.5px] leading-[1.4] text-foreground">
+                  {[row.address, row.district].filter(Boolean).join(" · ")}
+                  <br />
+                  <span className="text-muted-foreground">
+                    {[[row.city, row.state].filter(Boolean).join(" / "), row.cep]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Abas (mockup `.tabs`): a mesma barra do Dashboard, só abas inteiras (anti-corte). */}
+        <div className="mt-5">
+          <Stepper
+            current={ownerTab}
+            onChange={setOwnerTab}
+            steps={[
+              { value: "timeline", label: "Timeline", icon: Pin },
+              { value: "imoveis", label: "Imóveis", icon: Home },
+              { value: "financeiro", label: "Financeiro", icon: Coins },
+              { value: "documentos", label: "Documentos", icon: FileText },
+              { value: "acessos", label: "Acessos", icon: User },
+              { value: "log", label: "Log", icon: Activity },
+            ]}
+          />
+        </div>
+
+        <div className="mt-6 grid gap-6">
+          {/* ---------------- Timeline (Prop6) ---------------- */}
+          {ownerTab === "timeline" && (
+            <div>
+              <PanelHeading
+                title="Linha do tempo"
+                className="mb-0"
+                right={
+                  <span className="flex items-center gap-2">
+                    {feed.isLoading && (
+                      <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                    )}
+                    <AddPill onClick={() => setNoteOpen((o) => !o)}>Nova nota</AddPill>
+                  </span>
+                }
+              />
+              {noteOpen && (
+                <div className={`${PANEL_SHELL} mt-3 space-y-2 p-3`}>
+                  <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    rows={3}
+                    maxLength={1000}
+                    placeholder="Escreva uma nota sobre este proprietário…"
+                    className="w-full resize-none rounded-[8px] bg-foreground/[0.04] px-3 py-2 text-[13px] text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent)] placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNote("");
+                        setNoteOpen(false);
+                      }}
+                      className="h-9 rounded-[8px] px-3 text-[12px] font-semibold text-muted-foreground hover:text-foreground"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || !note.trim()}
+                      onClick={async () => {
+                        await submitNote();
+                        setNoteOpen(false);
+                      }}
+                      className="h-9 rounded-[8px] px-3.5 text-[12px] font-semibold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] hover:bg-foreground/[0.05] disabled:opacity-40"
+                    >
+                      Salvar nota
+                    </button>
+                  </div>
+                </div>
+              )}
+              {feed.data?.calendarError && (
+                <p className="mt-2 text-[11px] text-destructive">
+                  Google Agenda: {feed.data.calendarError}
+                </p>
+              )}
+              {timeline.length === 0 ? (
+                <OwnerEmpty
+                  icon={StickyNote}
+                  title="Sem registros ainda"
+                  text="Notas, convites de agenda e documentos aparecem aqui automaticamente."
+                />
+              ) : (
+                <div className="mt-5 grid gap-[22px]">
+                  {timelineGroups.map((g) => (
+                    <div key={g.label} className="grid gap-3">
+                      <p className="ds-eyebrow text-[10px] tracking-[0.2em] text-[color:var(--faint)]">
+                        {capitalize(g.label).replace(" de ", " ")}
+                      </p>
+                      <div>
+                        {g.items.map((item, i) => {
+                          const last = i === g.items.length - 1;
+                          const isAgenda = item.key.startsWith("g:");
+                          const Ico = item.icon === Pin ? StickyNote : item.icon;
+                          return (
+                            <div
+                              key={item.key}
+                              className={`relative pl-10 ${last ? "" : "pb-[26px]"}`}
+                            >
+                              {!last && (
+                                <span
+                                  aria-hidden
+                                  className="absolute bottom-0 left-[11px] top-[26px] w-px bg-foreground/[0.09]"
+                                />
+                              )}
+                              <span className="absolute left-0 top-0 grid size-6 place-items-center rounded-full bg-card text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent)]">
+                                <Ico className="size-3" />
+                              </span>
+                              <p className="pt-0.5 text-[13.5px] leading-[1.4] text-foreground">
+                                {item.title}
+                              </p>
+                              {item.body && <div className="mt-1.5 space-y-1">{item.body}</div>}
+                              <p className="mt-1 text-[11.5px] text-[color:var(--faint)]">
+                                {shortDate(item.at, isAgenda)} ·{" "}
+                                {item.author !== "Sistema" ? item.author : item.badge}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ---------------- Imóveis (Prop2) ---------------- */}
+          {ownerTab === "imoveis" && (
+            <div>
+              <PanelHeading
+                title="Imóveis vinculados"
+                className="mb-0"
+                afterTitle={<CountPill>{properties.length}</CountPill>}
+                right={
+                  available.length > 0 ? (
+                    <AddPill onClick={() => setLinkPickerOpen(true)}>Vincular</AddPill>
+                  ) : undefined
+                }
+              />
+              <MultiLinkPicker
+                open={linkPickerOpen}
+                onOpenChange={setLinkPickerOpen}
+                title="Vincular residências"
+                description="Marque quantas residências quiser — todas são vinculadas de uma vez."
+                options={available.map((p: any) => ({
+                  id: p.id,
+                  label: p.name,
+                  hint: [p.city, p.state].filter(Boolean).join(" / ") || null,
+                }))}
+                initialSelected={[]}
+                confirmLabel="Vincular selecionados"
+                emptyText="Nenhuma residência disponível."
+                onConfirm={(ids) => linkMany(ids)}
+                variant="menu"
+              />
+              {properties.length === 0 ? (
+                <OwnerEmpty
+                  icon={Home}
+                  title="Nenhuma residência vinculada"
+                  text="Vincule uma residência existente ou crie uma nova para este proprietário."
+                />
+              ) : (
+                <div className="mt-3 grid gap-2.5">
+                  {properties.map((p: any) => {
+                    const pill = p.published
+                      ? { tone: "ok" as const, label: "Publicado" }
+                      : p.guide_created
+                        ? { tone: "at" as const, label: "Pendente" }
+                        : { tone: "nu" as const, label: "Sem guia" };
+                    const place = [p.city, p.state].filter(Boolean).join(" / ");
+                    return (
+                      <div key={p.id} className={`${PANEL_SHELL} p-3.5`}>
+                        <div className="flex items-start justify-between gap-2.5">
+                          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setWindowPropertyId(p.id)}
+                                className="min-w-0 truncate text-left text-[13.5px] font-semibold leading-[1.3] text-foreground hover:underline"
+                              >
+                                {p.name}
+                              </button>
+                              <PropPill tone={pill.tone}>{pill.label}</PropPill>
+                            </div>
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <span className={`truncate text-xs ${CARD_OWNER}`}>
+                                {ownerLabel(row.name)}
+                              </span>
+                              <PhoneActionButton
+                                phone={ownerPhone}
+                                country={ownerCountry}
+                                size={13}
+                                alwaysShow
+                              />
+                            </div>
+                            <p className="flex items-center gap-1.5 text-[11.5px] text-[color:var(--faint)]">
+                              <MapPin className="size-3 shrink-0" />
+                              <span className="truncate">{place || "Sem localização"}</span>
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 gap-1.5">
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([p.name, place].filter(Boolean).join(" "))}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={CHIP_BTN}
+                              title="Localização do imóvel"
+                              aria-label="Localização do imóvel"
+                            >
+                              <MapPin className="size-3.5" />
+                            </a>
+                            <Popover
+                              open={transferPropertyId === p.id}
+                              onOpenChange={(o) => {
+                                setTransferPropertyId(o ? p.id : null);
+                                setTransferTargetId("");
+                              }}
+                            >
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  className={CHIP_BTN}
+                                  title="Um imóvel sempre precisa de um proprietário — transfira para outro."
+                                  aria-label="Transferir imóvel"
+                                >
+                                  <Unlink className="size-3.5" />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                align="end"
+                                onOpenAutoFocus={(e) => e.preventDefault()}
+                                className="grid w-[260px] gap-3 rounded-[12px] border-0 bg-popover/95 p-4 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_18px_40px_-12px_rgba(0,0,0,0.8)]"
+                              >
+                                <b className="text-[13.5px] font-semibold">Transferir {p.name}</b>
+                                <Select
+                                  value={transferTargetId}
+                                  onValueChange={setTransferTargetId}
+                                >
+                                  <SelectTrigger className="h-9 rounded-[8px] text-[13px]">
+                                    <SelectValue placeholder="Escolher proprietário" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(otherOwnersQuery.data ?? []).map((o) => (
+                                      <SelectItem key={o.id} value={o.id}>
+                                        {o.label}
+                                      </SelectItem>
+                                    ))}
+                                    {otherOwnersQuery.data?.length === 0 && (
+                                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                                        Nenhum outro proprietário cadastrado.
+                                      </div>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-[11.5px] leading-[1.45] text-[color:var(--faint)]">
+                                  Todo imóvel precisa de um proprietário.
+                                </p>
+                                <div className={`${ACTION_BAR} !h-10 !w-full`}>
+                                  <button
+                                    type="button"
+                                    disabled={busy || !transferTargetId}
+                                    onClick={() => handleTransfer(p.id)}
+                                    className={`${ACTION_SEGMENT} !w-auto !flex-1 text-foreground disabled:opacity-40`}
+                                  >
+                                    Transferir
+                                  </button>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <Link
+                to="/admin/properties/$id"
+                params={{ id: "new" }}
+                search={{ returnTo: returnToHere, ownerId: row?.id }}
+                className="mt-3 flex h-9 items-center justify-center gap-[7px] rounded-[8px] px-3.5 text-[12px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] transition-colors hover:text-foreground"
+              >
+                <Plus className="size-3.5" /> Criar nova residência
+              </Link>
+            </div>
+          )}
+
+          {/* ---------------- Financeiro (Prop7) ---------------- */}
+          {ownerTab === "financeiro" && (
+            <>
+              <div className={PANEL_SHELL}>
+                <StatsStrip
+                  items={[
+                    {
+                      label: "A receber",
+                      value: (0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+                      tone: "ok",
+                    },
+                    {
+                      label: "Recebido",
+                      value: (0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+                      tone: "data",
+                    },
+                    {
+                      label: "A pagar",
+                      value: (0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+                      tone: "at",
+                    },
+                  ]}
+                />
+              </div>
+              <div>
+                <PanelHeading
+                  title="Lançamentos"
+                  className="mb-0"
+                  right={<AddPill disabled>Lançar</AddPill>}
+                />
+                <OwnerEmpty
+                  icon={Coins}
+                  title="Nenhum lançamento"
+                  text="Quando houver repasses ou cobranças deste proprietário, eles aparecem aqui."
+                />
+              </div>
+            </>
+          )}
+
+          {/* ---------------- Documentos (Prop8) ---------------- */}
+          {ownerTab === "documentos" && (
+            <div>
+              <GroupTitle title="Contratos e aditivos" count={feedDocs.length} />
+              {feed.isLoading ? (
+                <p className="flex items-center gap-1.5 ds-meta">
+                  <Loader2 className="size-3 animate-spin" /> Buscando documentos…
+                </p>
+              ) : feedDocs.length === 0 ? (
+                <OwnerEmpty
+                  icon={FileText}
+                  title="Nenhum contrato vinculado"
+                  text="Contratos importados do ClickSign com este CPF/CNPJ, e-mail ou nome aparecem aqui automaticamente."
+                />
+              ) : (
+                <GroupList>
+                  {feedDocs.map((d) => {
+                    const signed = !!d.finishedAt;
+                    return (
+                      <GroupRow
+                        key={d.id}
+                        icon={FileText}
+                        title={d.name}
+                        sub={
+                          signed
+                            ? `Assinado em ${shortDate(d.finishedAt as string)} ${new Date(d.finishedAt as string).getFullYear()}${d.signers.length ? ` · ${d.signers.length} signatários` : ""}`
+                            : `${d.syncedAt ? `Importado em ${shortDate(d.syncedAt)}` : (d.status ?? "—")}${d.signers.length ? ` · ${d.signers.length} signatários` : ""}`
+                        }
+                        trailing={
+                          <>
+                            {!signed && <StatusTrail tone="at">Aguardando</StatusTrail>}
+                            <Eye
+                              className="size-3.5 shrink-0 text-[color:var(--faint)]"
+                              aria-hidden
+                            />
+                          </>
+                        }
+                        chevron={false}
+                        onClick={() => setPreview({ name: d.name, docId: d.id })}
+                      />
+                    );
+                  })}
+                </GroupList>
+              )}
+            </div>
+          )}
+
+          {/* ---------------- Acessos (Prop9) ---------------- */}
+          {ownerTab === "acessos" &&
+            (!stakeholderEmail ? (
+              <OwnerEmpty
+                icon={User}
+                title="Sem e-mail cadastrado"
+                text="Cadastre um e-mail nesta ficha para poder liberar o acesso ao sistema."
+              />
+            ) : accessQuery.isLoading ? (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" /> Carregando acessos…
+              </p>
+            ) : accessReady ? (
+              <OwnerAccessList
+                userId={accessQuery.data!.userId as string}
+                email={stakeholderEmail}
+                status="active"
+              />
+            ) : (
+              <OwnerEmpty
+                icon={User}
+                title={
+                  accessQuery.data?.status === "pending"
+                    ? "Convite enviado"
+                    : "Sem acesso ao sistema"
+                }
+                text={
+                  accessQuery.data?.status === "pending"
+                    ? "As permissões ficam disponíveis assim que a pessoa aceitar o convite e entrar no sistema."
+                    : "Ative “Permitir acesso ao sistema” na edição do cadastro para liberar."
+                }
+              />
+            ))}
+
+          {/* ---------------- Log (Prop10) ---------------- */}
+          {ownerTab === "log" &&
+            (logItems.length === 0 ? (
+              trail.isLoading ? (
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" /> Carregando…
+                </p>
+              ) : (
+                <OwnerEmpty
+                  icon={Activity}
+                  title="Sem atividades registradas"
+                  text="Assim que a pessoa usar o sistema, cada passo aparece aqui."
+                />
+              )
+            ) : (
+              <div className="grid gap-6">
+                {logGroups.map((g) => (
+                  <div key={g.label}>
+                    <GroupTitle title={g.label} />
+                    <GroupList>
+                      {g.items.map((ev) => (
+                        <GroupRow
+                          key={ev.id}
+                          icon={logIcon(ev.title)}
+                          title={ev.title}
+                          titleWeight={500}
+                          sub={ev.details.length > 0 ? ev.details.join(" · ") : undefined}
+                          minH={56}
+                          chevron={false}
+                          trailing={
+                            <span className="shrink-0 text-[11.5px] text-[color:var(--faint)]">
+                              {ev.at
+                                ? new Date(ev.at).toLocaleTimeString("pt-BR", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                : "—"}
+                            </span>
+                          }
+                        />
+                      ))}
+                    </GroupList>
+                  </div>
+                ))}
+              </div>
+            ))}
+        </div>
+
+        <DocPreviewDialog doc={preview} onClose={() => setPreview(null)} />
+        <OwnerPropertyWindow
+          propertyId={windowPropertyId}
+          onClose={() => setWindowPropertyId(null)}
+          returnTo={returnToHere}
+          owner={{ name: row.name, phone: ownerPhone, country: ownerCountry }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden px-5 py-6 sm:px-6">
@@ -635,11 +1358,12 @@ export function StakeholderDetailSheet({
               title="Dados pessoais"
               className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
             >
-              <ChevronDown className={`size-4 transition-transform ${dataOpen ? "rotate-180" : ""}`} />
+              <ChevronDown
+                className={`size-4 transition-transform ${dataOpen ? "rotate-180" : ""}`}
+              />
             </button>
           </div>
         </div>
-
       </header>
 
       {/* ---------- Dados pessoais (recolhível, fechado por padrão) ---------- */}
@@ -652,13 +1376,21 @@ export function StakeholderDetailSheet({
             )}
             <Field
               label="Tipo de pessoa"
-              value={String(row.person_type ?? "pf").toUpperCase() === "PJ" ? "Pessoa jurídica" : "Pessoa física"}
+              value={
+                String(row.person_type ?? "pf").toUpperCase() === "PJ"
+                  ? "Pessoa jurídica"
+                  : "Pessoa física"
+              }
             />
             {row.birth_date && (
               <Field
                 label="Data de nascimento"
-                value={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
-                copy={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
+                value={new Date(
+                  `${String(row.birth_date).slice(0, 10)}T12:00:00`,
+                ).toLocaleDateString("pt-BR")}
+                copy={new Date(
+                  `${String(row.birth_date).slice(0, 10)}T12:00:00`,
+                ).toLocaleDateString("pt-BR")}
               />
             )}
             {categoryLabels.length > 0 && (
@@ -723,22 +1455,31 @@ export function StakeholderDetailSheet({
         </section>
       )}
 
-
       <Tabs defaultValue="visao" className="min-w-0 max-w-full">
-        <TabsList className={`ds-segmented h-auto w-full max-w-full !rounded-[0.3rem] border-0 p-0 ${newLayout ? "bg-card shadow-[inset_0_0_0_1px_var(--border)]" : "bg-foreground/5"}`}>
-
-          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="visao">Timeline</TabsTrigger>
+        <TabsList
+          className={`ds-segmented h-auto w-full max-w-full !rounded-[0.3rem] border-0 p-0 ${newLayout ? "bg-card shadow-[inset_0_0_0_1px_var(--border)]" : "bg-foreground/5"}`}
+        >
+          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="visao">
+            Timeline
+          </TabsTrigger>
           {(kind === "owner" || kind === "provider") && (
-            <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="imoveis">Imóveis</TabsTrigger>
+            <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="imoveis">
+              Imóveis
+            </TabsTrigger>
           )}
-          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
-          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="documentos">Documentos</TabsTrigger>
-          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="acessos">Acessos</TabsTrigger>
-          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="log">Log</TabsTrigger>
-
+          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="financeiro">
+            Financeiro
+          </TabsTrigger>
+          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="documentos">
+            Documentos
+          </TabsTrigger>
+          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="acessos">
+            Acessos
+          </TabsTrigger>
+          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="log">
+            Log
+          </TabsTrigger>
         </TabsList>
-
-
 
         {/* -------------------- Acessos -------------------- */}
         <TabsContent value="acessos" className="mt-5 space-y-4">
@@ -770,7 +1511,8 @@ export function StakeholderDetailSheet({
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Detalhes de tudo o que a pessoa fez no sistema: páginas abertas, botões clicados e informações preenchidas.
+            Detalhes de tudo o que a pessoa fez no sistema: páginas abertas, botões clicados e
+            informações preenchidas.
           </p>
           {(trail.data?.items ?? []).length === 0 ? (
             <Placeholder
@@ -778,40 +1520,49 @@ export function StakeholderDetailSheet({
               title="Sem atividades registradas"
               desc="Assim que a pessoa usar o sistema, cada passo aparece aqui."
             />
+          ) : newLayout ? (
+            <div className="space-y-4">
+              {groupByPeriod(
+                (trail.data?.items ?? []).map((ev) => ({ ...ev, at: ev.at ?? "" })),
+                "day",
+              ).map((g) => (
+                <div key={g.label} className="space-y-2">
+                  <GroupLabel count={g.items.length}>{g.label}</GroupLabel>
+                  <ul className={`${PANEL_SHELL} divide-y divide-border`}>
+                    {g.items.map((ev) => (
+                      <li key={ev.id} className="px-4 py-3">
+                        <p className="text-[13.5px] leading-[1.3] text-foreground">{ev.title}</p>
+                        <p className="ds-meta">
+                          {ev.badge} ·{" "}
+                          {ev.at
+                            ? new Date(ev.at).toLocaleTimeString("pt-BR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "—"}
+                        </p>
+                        {ev.details.length > 0 && (
+                          <ul className="mt-1 space-y-0.5">
+                            {ev.details.map((d, i) => (
+                              <li key={i} className="ds-meta break-words">
+                                {d}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           ) : (
-            newLayout ? (
-              <div className="space-y-4">
-                {groupByPeriod(
-                  (trail.data?.items ?? []).map((ev) => ({ ...ev, at: ev.at ?? "" })),
-                  "day",
-                ).map((g) => (
-                  <div key={g.label} className="space-y-2">
-                    <GroupLabel count={g.items.length}>{g.label}</GroupLabel>
-                    <ul className={`${PANEL_SHELL} divide-y divide-border`}>
-                      {g.items.map((ev) => (
-                        <li key={ev.id} className="px-4 py-3">
-                          <p className="text-[13.5px] leading-[1.3] text-foreground">{ev.title}</p>
-                          <p className="ds-meta">
-                            {ev.badge} · {ev.at ? new Date(ev.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}
-                          </p>
-                          {ev.details.length > 0 && (
-                            <ul className="mt-1 space-y-0.5">
-                              {ev.details.map((d, i) => (
-                                <li key={i} className="ds-meta break-words">{d}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            ) : (
             <ul className="space-y-2">
               {(trail.data?.items ?? []).map((ev) => (
                 <li key={ev.id} className="ds-surface bg-card px-4 py-3">
-                  <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">{ev.title}</p>
+                  <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">
+                    {ev.title}
+                  </p>
                   <p className="ds-meta">{ev.badge}</p>
                   {ev.details.length > 0 && (
                     <ul className="mt-1 space-y-0.5">
@@ -822,15 +1573,14 @@ export function StakeholderDetailSheet({
                       ))}
                     </ul>
                   )}
-                  <p className="mt-1 text-[11px] text-muted-foreground/80">{ev.at ? fmt(ev.at) : "Sem data"}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground/80">
+                    {ev.at ? fmt(ev.at) : "Sem data"}
+                  </p>
                 </li>
               ))}
             </ul>
-            )
           )}
         </TabsContent>
-
-
 
         {/* -------------------- Visão Geral -------------------- */}
         <TabsContent value="visao" className="mt-5 space-y-5">
@@ -845,10 +1595,6 @@ export function StakeholderDetailSheet({
               />
             </div>
           ) : null}
-
-
-
-
 
           {/* Linha do tempo */}
           <section className="space-y-4">
@@ -871,10 +1617,6 @@ export function StakeholderDetailSheet({
               )}
             </div>
 
-
-
-
-
             {newLayout && noteOpen && (
               <div className={`${PANEL_SHELL} space-y-2 p-3`}>
                 <textarea
@@ -888,7 +1630,10 @@ export function StakeholderDetailSheet({
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => { setNote(""); setNoteOpen(false); }}
+                    onClick={() => {
+                      setNote("");
+                      setNoteOpen(false);
+                    }}
                     className="h-9 rounded-[0.3rem] px-3 text-[13px] text-muted-foreground hover:text-foreground"
                   >
                     Cancelar
@@ -896,7 +1641,10 @@ export function StakeholderDetailSheet({
                   <Button
                     size="sm"
                     disabled={busy || !note.trim()}
-                    onClick={async () => { await submitNote(); setNoteOpen(false); }}
+                    onClick={async () => {
+                      await submitNote();
+                      setNoteOpen(false);
+                    }}
                   >
                     Salvar nota
                   </Button>
@@ -905,7 +1653,9 @@ export function StakeholderDetailSheet({
             )}
 
             {feed.data?.calendarError && (
-              <p className="text-[11px] text-destructive">Google Agenda: {feed.data.calendarError}</p>
+              <p className="text-[11px] text-destructive">
+                Google Agenda: {feed.data.calendarError}
+              </p>
             )}
 
             {timeline.length === 0 ? (
@@ -914,43 +1664,49 @@ export function StakeholderDetailSheet({
                 title="Sem registros ainda"
                 desc="Notas, convites de agenda e documentos aparecem aqui automaticamente."
               />
+            ) : // Recuo maior entre a linha e os cartões (pl-11, era pl-9) e
+            // mais respiro entre a própria linha e a borda esquerda da
+            // tela (ml-2) — o -left do ponto acompanha o pl, pra
+            // continuar centralizado em cima da linha. Cartões em
+            // w-full (ocupam a largura toda do quadrante) e com mais
+            // espaço entre um evento e outro (space-y-4, era space-y-3).
+            newLayout ? (
+              <div className="space-y-4">
+                {groupByPeriod(timeline, "month").map((g) => (
+                  <div key={g.label} className="space-y-2">
+                    <GroupLabel count={g.items.length}>{g.label}</GroupLabel>
+                    <ul className="space-y-2">
+                      {g.items.map((item) => (
+                        <li key={item.key} className={`${PANEL_SHELL} flex gap-3 px-4 py-3`}>
+                          <item.icon
+                            className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                            aria-hidden
+                          />
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <p className="text-[13.5px] leading-[1.4] text-foreground">
+                              {item.title}
+                            </p>
+                            {item.body}
+                            <p className="ds-meta">
+                              {item.badge} · {item.at ? fmt(item.at) : "Sem data"} · {item.author}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
             ) : (
-              // Recuo maior entre a linha e os cartões (pl-11, era pl-9) e
-              // mais respiro entre a própria linha e a borda esquerda da
-              // tela (ml-2) — o -left do ponto acompanha o pl, pra
-              // continuar centralizado em cima da linha. Cartões em
-              // w-full (ocupam a largura toda do quadrante) e com mais
-              // espaço entre um evento e outro (space-y-4, era space-y-3).
-              newLayout ? (
-                <div className="space-y-4">
-                  {groupByPeriod(timeline, "month").map((g) => (
-                    <div key={g.label} className="space-y-2">
-                      <GroupLabel count={g.items.length}>{g.label}</GroupLabel>
-                      <ul className="space-y-2">
-                        {g.items.map((item) => (
-                          <li key={item.key} className={`${PANEL_SHELL} flex gap-3 px-4 py-3`}>
-                            <item.icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-                            <div className="min-w-0 flex-1 space-y-1">
-                              <p className="text-[13.5px] leading-[1.4] text-foreground">{item.title}</p>
-                              {item.body}
-                              <p className="ds-meta">
-                                {item.badge} · {item.at ? fmt(item.at) : "Sem data"} · {item.author}
-                              </p>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              ) : (
               <ol className="relative ml-2 w-full space-y-4 border-l border-border pl-11">
                 {timeline.map((item) => (
                   <li key={item.key} className="relative w-full">
                     <span className="absolute -left-[49px] top-4 size-2.5 rounded-full bg-primary/70 ring-4 ring-background" />
                     <div className="ds-surface w-full bg-card px-4 py-3.5">
                       <div className="min-w-0 space-y-1.5">
-                        <p className="text-[13.5px] leading-[1.4] font-normal text-foreground">{item.title}</p>
+                        <p className="text-[13.5px] leading-[1.4] font-normal text-foreground">
+                          {item.title}
+                        </p>
                         <p className="ds-meta">{item.badge}</p>
                         {item.body}
                         <p className="ds-meta opacity-80">
@@ -961,7 +1717,6 @@ export function StakeholderDetailSheet({
                   </li>
                 ))}
               </ol>
-              )
             )}
           </section>
         </TabsContent>
@@ -1005,7 +1760,6 @@ export function StakeholderDetailSheet({
               onConfirm={(ids) => linkMany(ids)}
             />
 
-
             {properties.length === 0 ? (
               <Placeholder
                 icon={Home}
@@ -1020,9 +1774,15 @@ export function StakeholderDetailSheet({
               <div className="space-y-2">
                 {properties.map((p: any) => {
                   const status = p.published
-                    ? { label: "Publicado", cls: "border-emerald-500/25 bg-emerald-500/10 text-emerald-500" }
+                    ? {
+                        label: "Publicado",
+                        cls: "border-emerald-500/25 bg-emerald-500/10 text-emerald-500",
+                      }
                     : p.guide_created
-                      ? { label: "Pendente", cls: "border-amber-500/25 bg-amber-500/10 text-amber-500" }
+                      ? {
+                          label: "Pendente",
+                          cls: "border-amber-500/25 bg-amber-500/10 text-amber-500",
+                        }
                       : { label: "Sem guia", cls: "border-border text-muted-foreground" };
                   return (
                     <div
@@ -1061,10 +1821,14 @@ export function StakeholderDetailSheet({
                               </SelectTrigger>
                               <SelectContent>
                                 {(otherOwnersQuery.data ?? []).map((o) => (
-                                  <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+                                  <SelectItem key={o.id} value={o.id}>
+                                    {o.label}
+                                  </SelectItem>
                                 ))}
                                 {otherOwnersQuery.data?.length === 0 && (
-                                  <div className="px-3 py-2 text-xs text-muted-foreground">Nenhum outro proprietário cadastrado.</div>
+                                  <div className="px-3 py-2 text-xs text-muted-foreground">
+                                    Nenhum outro proprietário cadastrado.
+                                  </div>
                                 )}
                               </SelectContent>
                             </Select>
@@ -1078,7 +1842,10 @@ export function StakeholderDetailSheet({
                             </Button>
                             <button
                               type="button"
-                              onClick={() => { setTransferPropertyId(null); setTransferTargetId(""); }}
+                              onClick={() => {
+                                setTransferPropertyId(null);
+                                setTransferTargetId("");
+                              }}
                               className="shrink-0 text-muted-foreground hover:text-foreground"
                               aria-label="Cancelar transferência"
                             >
@@ -1152,16 +1919,24 @@ export function StakeholderDetailSheet({
           </TabsContent>
         )}
 
-
-
         {/* -------------------- Financeiro -------------------- */}
         <TabsContent value="financeiro" className="mt-5 space-y-4">
           {newLayout ? (
             <>
               <div className={`${PANEL_SHELL} grid grid-cols-3 divide-x divide-border`}>
-                {([["A receber", "ds-ok"], ["Recebido", "ds-data"], ["A pagar", "ds-atencao"]] as const).map(([l, c]) => (
+                {(
+                  [
+                    ["A receber", "ds-ok"],
+                    ["Recebido", "ds-data"],
+                    ["A pagar", "ds-atencao"],
+                  ] as const
+                ).map(([l, c]) => (
                   <div key={l} className="min-w-0 px-3 py-3 sm:px-4">
-                    <p className={`truncate text-[10px] font-semibold uppercase tracking-wide ${c}`}>{l}</p>
+                    <p
+                      className={`truncate text-[10px] font-semibold uppercase tracking-wide ${c}`}
+                    >
+                      {l}
+                    </p>
                     <p className="mt-1 break-all font-display text-base tabular-nums tracking-tight sm:text-lg">
                       {(0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                     </p>
@@ -1176,22 +1951,22 @@ export function StakeholderDetailSheet({
             </>
           ) : (
             <>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            <MoneyCard label="A receber" value={0} tone="emerald" />
-            <MoneyCard label="Recebido" value={0} tone="primary" />
-            <MoneyCard label="A pagar" value={0} tone="amber" />
-          </div>
-          <div className="ds-surface bg-card overflow-hidden">
-            <div className="grid grid-cols-4 gap-3 border-b border-border px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground">
-              <span>Tipo</span>
-              <span>Descrição</span>
-              <span>Vencimento</span>
-              <span className="text-right">Valor</span>
-            </div>
-            <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-              Nenhum lançamento financeiro para este cadastro.
-            </p>
-          </div>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <MoneyCard label="A receber" value={0} tone="emerald" />
+                <MoneyCard label="Recebido" value={0} tone="primary" />
+                <MoneyCard label="A pagar" value={0} tone="amber" />
+              </div>
+              <div className="ds-surface bg-card overflow-hidden">
+                <div className="grid grid-cols-4 gap-3 border-b border-border px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <span>Tipo</span>
+                  <span>Descrição</span>
+                  <span>Vencimento</span>
+                  <span className="text-right">Valor</span>
+                </div>
+                <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  Nenhum lançamento financeiro para este cadastro.
+                </p>
+              </div>
             </>
           )}
         </TabsContent>
@@ -1218,7 +1993,9 @@ export function StakeholderDetailSheet({
                 {feedDocs.map((d) => (
                   <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="text-[13.5px] leading-[1.3] font-normal text-foreground truncate">{d.name}</p>
+                      <p className="text-[13.5px] leading-[1.3] font-normal text-foreground truncate">
+                        {d.name}
+                      </p>
                       {/* Antes mostrava só uma data (finished_at OU synced_at,
                           sem rótulo) — parecia "assinado em tal data" mesmo
                           quando era só a data de IMPORTAÇÃO, com a assinatura
@@ -1248,32 +2025,17 @@ export function StakeholderDetailSheet({
                   </li>
                 ))}
               </ul>
-
             )}
           </section>
         </TabsContent>
       </Tabs>
 
       <DocPreviewDialog doc={preview} onClose={() => setPreview(null)} />
-      {newLayout && kind === "owner" && (
-        <OwnerPropertyWindow
-          propertyId={windowPropertyId}
-          onClose={() => setWindowPropertyId(null)}
-          returnTo={returnToHere}
-        />
-      )}
-
     </div>
   );
 }
 
-function DocPreviewDialog({
-  doc,
-  onClose,
-}: {
-  doc: PreviewTarget;
-  onClose: () => void;
-}) {
+function DocPreviewDialog({ doc, onClose }: { doc: PreviewTarget; onClose: () => void }) {
   const fileFn = useServerFn(getClicksignDocumentFile);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["clicksign-doc-file", doc?.docId],
@@ -1283,7 +2045,7 @@ function DocPreviewDialog({
     retry: false,
   });
 
-  const externalUrl = doc?.docId ? null : doc?.url ?? null;
+  const externalUrl = doc?.docId ? null : (doc?.url ?? null);
 
   return (
     <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
@@ -1363,7 +2125,9 @@ function PdfPages({ base64 }: { base64: string }) {
           const context = canvas.getContext("2d");
           if (!context) throw new Error("Canvas indisponível");
           await page.render({ canvas, canvasContext: context, viewport }).promise;
-          const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+          const blob = await new Promise<Blob | null>((resolve) =>
+            canvas.toBlob(resolve, "image/jpeg", 0.92),
+          );
           if (!blob) throw new Error("Falha ao renderizar página");
           const objectUrl = URL.createObjectURL(blob);
           objectUrls.push(objectUrl);
@@ -1411,7 +2175,6 @@ function PdfPages({ base64 }: { base64: string }) {
   );
 }
 
-
 function Field({
   label,
   value,
@@ -1439,12 +2202,9 @@ function Field({
   );
 }
 
-
 function WhatsAppLink({ phone, country }: { phone?: string | null; country?: string | null }) {
   return <PhoneActionButton phone={phone} country={country} size={14} showNumber />;
 }
-
-
 
 function MoneyCard({
   label,

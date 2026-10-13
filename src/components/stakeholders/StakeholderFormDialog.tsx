@@ -42,7 +42,14 @@ import { MaskedInput, stripMask } from "@/components/inputs/MaskedInput";
 import { usePresence, useLiveState } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
 import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
-import { getStakeholderAccess, createStakeholderProvisionalAccess } from "@/lib/stakeholder-access.functions";
+import { GroupList, GroupRow, StatusTrail } from "./owner-ui";
+import { ShieldCheck } from "lucide-react";
+import { Stepper } from "@/components/editor/Stepper";
+import { ACTION_BAR, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
+import {
+  getStakeholderAccess,
+  createStakeholderProvisionalAccess,
+} from "@/lib/stakeholder-access.functions";
 import { inviteTeamMember, revokeTeamInvite, removeTeamMember } from "@/lib/team.functions";
 import { saveStakeholder } from "@/lib/stakeholders.functions";
 import { lookupCnpj } from "@/lib/br-lookup.functions";
@@ -102,11 +109,12 @@ export function rowToStakeholderForm(row: Record<string, any>): StakeholderFormV
     name: row.name ?? "",
     trade_name: row.trade_name ?? "",
     category: row.category ?? "outros",
-    categories: Array.isArray(row.categories) && row.categories.length > 0
-      ? (row.categories as string[])
-      : row.category
-        ? [row.category as string]
-        : [],
+    categories:
+      Array.isArray(row.categories) && row.categories.length > 0
+        ? (row.categories as string[])
+        : row.category
+          ? [row.category as string]
+          : [],
     doc: row.doc ?? "",
     birth_date: row.birth_date ?? "",
     email: row.email ?? "",
@@ -202,7 +210,25 @@ function SingleDateField({
   );
 }
 
-
+/** Casca da lista de grupos: lista única com divisores (layout novo) ou os quadrantes de sempre. */
+function FormGroups({
+  newLayout,
+  openSection,
+  setOpenSection,
+  children,
+}: {
+  newLayout: boolean;
+  openSection: string | null;
+  setOpenSection: (id: string | null) => void;
+  children: React.ReactNode;
+}) {
+  if (newLayout) return <GroupList className="mt-5 flex flex-col">{children}</GroupList>;
+  return (
+    <SectionGroup openId={openSection} onOpenIdChange={setOpenSection}>
+      <DenseSections>{children}</DenseSections>
+    </SectionGroup>
+  );
+}
 
 /** Senha forte aleatória (maiúscula, minúscula, número e símbolo). */
 function genStrongPassword() {
@@ -270,7 +296,6 @@ export function StakeholderFormDialog({
   // Sincronização instantânea do cadastro inteiro com quem está na mesma ficha.
   useLiveState(presence, "form", form, (v) => setForm(v), { enabled: !!form.id });
 
-
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim());
   const accessQuery = useQuery({
     queryKey: ["stakeholder-access", accountOwnerId, form.email.trim().toLowerCase()],
@@ -286,7 +311,6 @@ export function StakeholderFormDialog({
     if (!open || !access) return;
     setSystemAccess(access.status !== "none");
   }, [access?.status, open]);
-
 
   useEffect(() => {
     if (!open) return;
@@ -307,7 +331,6 @@ export function StakeholderFormDialog({
   /** Prestadores: tudo obrigatório, exceto observações. */
   const allRequired = kind === "provider";
   const req = allRequired ? " *" : "";
-
 
   const set = (patch: Partial<StakeholderFormValues>) => setForm((p) => ({ ...p, ...patch }));
   const clearError = (k: string) =>
@@ -439,7 +462,6 @@ export function StakeholderFormDialog({
       return;
     }
 
-
     setSaving(true);
     try {
       const res = await saveFn({
@@ -451,7 +473,7 @@ export function StakeholderFormDialog({
           doc_type: isPJ ? "cnpj" : "cpf",
           name: form.name.trim(),
           trade_name: form.trade_name.trim() || null,
-          category: kind === "provider" ? form.categories[0] ?? "outros" : null,
+          category: kind === "provider" ? (form.categories[0] ?? "outros") : null,
           categories: kind === "provider" ? form.categories : undefined,
           doc: d || null,
           birth_date: !isPJ && form.birth_date ? form.birth_date : null,
@@ -492,10 +514,22 @@ export function StakeholderFormDialog({
               { duration: 10000 },
             );
           } else if (byMail) {
-            toast.success(res.emailSent ? "Instruções enviadas por e-mail. A pessoa cria a própria senha no primeiro acesso." : "Acesso liberado, mas o e-mail não pôde ser enviado agora.", { duration: 10000 });
+            toast.success(
+              res.emailSent
+                ? "Instruções enviadas por e-mail. A pessoa cria a própria senha no primeiro acesso."
+                : "Acesso liberado, mas o e-mail não pôde ser enviado agora.",
+              { duration: 10000 },
+            );
           } else {
-            void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
-            toast.success(`Nova senha provisória definida e copiada.${res.emailSent ? " Também enviada por e-mail." : ""}`, { duration: 10000 });
+            void navigator.clipboard
+              ?.writeText(
+                `Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`,
+              )
+              .catch(() => {});
+            toast.success(
+              `Nova senha provisória definida e copiada.${res.emailSent ? " Também enviada por e-mail." : ""}`,
+              { duration: 10000 },
+            );
           }
         } else if (systemAccess && current === "none" && emailValid) {
           if (pwdToSend.length >= 8) {
@@ -530,22 +564,39 @@ export function StakeholderFormDialog({
                 { duration: 10000 },
               );
             } else {
-              void navigator.clipboard?.writeText(`Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`).catch(() => {});
+              void navigator.clipboard
+                ?.writeText(
+                  `Acesso ao ConciergeIA\nE-mail: ${form.email.trim().toLowerCase()}\nSenha provisória: ${sent}\nhttps://conciergeia.app/auth`,
+                )
+                .catch(() => {});
               toast.success(
                 `Acesso liberado e dados copiados.${res.emailSent ? " Também enviados por e-mail." : ""} No primeiro login a pessoa cria a própria senha.`,
                 { duration: 10000 },
               );
             }
           } else {
-            const invited = await inviteFn({ data: { accountOwnerId: accountOwnerId ?? undefined, email: form.email.trim().toLowerCase(), role: "agent" as const } });
-            toast.success(invited.emailSent ? "Convite de acesso enviado por e-mail." : "Convite criado, mas o e-mail não pôde ser enviado agora.");
+            const invited = await inviteFn({
+              data: {
+                accountOwnerId: accountOwnerId ?? undefined,
+                email: form.email.trim().toLowerCase(),
+                role: "agent" as const,
+              },
+            });
+            toast.success(
+              invited.emailSent
+                ? "Convite de acesso enviado por e-mail."
+                : "Convite criado, mas o e-mail não pôde ser enviado agora.",
+            );
           }
         } else if (!systemAccess && current === "pending" && access?.inviteId) {
-
-          await revokeInviteFn({ data: { accountOwnerId: accountOwnerId ?? undefined, inviteId: access.inviteId } });
+          await revokeInviteFn({
+            data: { accountOwnerId: accountOwnerId ?? undefined, inviteId: access.inviteId },
+          });
           toast.success("Convite de acesso cancelado.");
         } else if (!systemAccess && current === "active" && access?.memberId) {
-          await removeMemberFn({ data: { accountOwnerId: accountOwnerId ?? undefined, memberId: access.memberId } });
+          await removeMemberFn({
+            data: { accountOwnerId: accountOwnerId ?? undefined, memberId: access.memberId },
+          });
           toast.success("Acesso ao sistema removido.");
         }
         await accessQuery.refetch();
@@ -571,20 +622,172 @@ export function StakeholderFormDialog({
     }
   }
 
+  const contatoFields = (
+    <>
+      <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+        <div className="min-w-0">
+          <MaskedInput
+            label={`Telefone / WhatsApp${req}`}
+            mask="(00) 00000-0000"
+            placeholder="(00) 00000-0000"
+            value={form.phone}
+            onValueChange={(raw) => {
+              set({ phone: raw });
+              clearError("phone");
+              presence.broadcastTyping("phone", raw);
+            }}
+            onBlur={() => presence.broadcastFieldBlur("phone")}
+            error={errors.phone}
+          />
+          <FieldTypingBadge typing={presence.typing["phone"]} />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="ds-meta flex items-center gap-1.5">
+            <Mail className="size-3.5" /> E-mail{req}
+          </Label>
+          <Input
+            type="email"
+            maxLength={200}
+            placeholder="email@exemplo.com"
+            value={form.email}
+            inputMode="email"
+            autoComplete="email"
+            onChange={(e) => {
+              const v = e.target.value.replace(/\s+/g, "").toLowerCase();
+              set({ email: v });
+              clearError("email");
+              presence.broadcastTyping("email", v);
+            }}
+            onBlur={() => presence.broadcastFieldBlur("email")}
+            className={errors.email ? "border-destructive" : ""}
+          />
+          {errors.email && <p className="ds-meta text-destructive">{errors.email}</p>}
+          <FieldTypingBadge typing={presence.typing["email"]} />
+        </div>
+      </div>
+    </>
+  );
+
+  // ----- Layout novo (mockups Prop11/Prop12): linhas de grupo com resumo + selo -----
+  const accStatus = access?.status ?? "none";
+  const fmtBR = (iso: string) => (iso ? iso.split("-").reverse().join("/") : "");
+  const secSummary: Record<string, { sub: string; trail?: React.ReactNode }> = {
+    dados: {
+      sub: `${form.name.trim() || "Sem nome"}${form.doc ? ` · ${isPJ ? "CNPJ" : "CPF"}` : ""}`,
+      trail:
+        form.name.trim() && form.doc ? (
+          <StatusTrail tone="ok">Completo</StatusTrail>
+        ) : (
+          <StatusTrail tone="at">Falta dados</StatusTrail>
+        ),
+    },
+    contrato: {
+      sub: `${form.status === "active" ? "Ativo" : "Inativo"}${form.contract_start ? ` · desde ${fmtBR(form.contract_start)}` : ""}`,
+      trail: <StatusTrail tone="ok">Completo</StatusTrail>,
+    },
+    endereco: {
+      sub:
+        [form.district.trim(), [form.city.trim(), form.state.trim()].filter(Boolean).join(" / ")]
+          .filter(Boolean)
+          .join(", ") || "Sem endereço",
+      trail: form.city.trim() ? (
+        <StatusTrail tone="ok">Completo</StatusTrail>
+      ) : (
+        <StatusTrail tone="at">Falta endereço</StatusTrail>
+      ),
+    },
+    acesso: {
+      sub:
+        accStatus === "active"
+          ? "Convite aceito"
+          : accStatus === "pending"
+            ? "Convite enviado"
+            : systemAccess
+              ? "Será liberado ao salvar"
+              : "Sem acesso",
+      trail:
+        accStatus === "active" ? (
+          <StatusTrail tone="ok">Ativo</StatusTrail>
+        ) : accStatus === "pending" ? (
+          <StatusTrail tone="at">Pendente</StatusTrail>
+        ) : undefined,
+    },
+    extras: { sub: form.notes.trim() ? form.notes.trim().slice(0, 40) : "Nenhuma" },
+  };
+  const secOrder: Record<string, number> = {
+    dados: 1,
+    contrato: 2,
+    endereco: 3,
+    acesso: 4,
+    extras: 5,
+  };
+  const sec = (
+    p: {
+      id: string;
+      icon: React.ComponentType<{ className?: string }>;
+      title: string;
+      action?: React.ReactNode;
+    },
+    children: React.ReactNode,
+  ) =>
+    newLayout ? (
+      <GroupRow
+        key={p.id}
+        icon={p.icon}
+        title={p.title}
+        sub={secSummary[p.id]?.sub}
+        trailing={
+          <>
+            {p.action}
+            {secSummary[p.id]?.trail}
+          </>
+        }
+        open={openSection === p.id}
+        onToggle={() => setOpenSection(openSection === p.id ? null : p.id)}
+        order={secOrder[p.id]}
+      >
+        {children}
+      </GroupRow>
+    ) : (
+      <Section id={p.id} icon={p.icon} title={p.title} collapsible action={p.action}>
+        {children}
+      </Section>
+    );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="ds-form-dialog w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden">
-        <DialogHeader className="pb-4 border-b border-border/40">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-            <DialogTitle className="ds-page-title capitalize">
-              {form.id ? `Editar ${singular}` : `Novo ${singular}`}
-            </DialogTitle>
-            <PresenceAvatars users={presence.users} />
-          </div>
-          <DialogDescription className="ds-page-subtitle">
-            CNPJ e CEP preenchem os dados automaticamente.
-          </DialogDescription>
-        </DialogHeader>
+        {newLayout ? (
+          <DialogHeader className="space-y-0 text-left">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+              <div className="min-w-0">
+                <p className="ds-eyebrow text-[10.5px] tracking-[0.2em] text-muted-foreground capitalize">
+                  {singular}
+                </p>
+                <DialogTitle className="mt-1.5 font-display text-[20px] font-bold leading-[1.15] tracking-[-0.01em] capitalize">
+                  {form.id ? `Editar ${singular}` : `Novo ${singular}`}
+                </DialogTitle>
+              </div>
+              <PresenceAvatars users={presence.users} />
+            </div>
+            <DialogDescription className="mt-2 text-xs leading-[1.45] text-muted-foreground">
+              CNPJ e CEP preenchem os dados automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+        ) : (
+          <DialogHeader className="pb-4 border-b border-border/40">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <DialogTitle className="ds-page-title capitalize">
+                {form.id ? `Editar ${singular}` : `Novo ${singular}`}
+              </DialogTitle>
+              <PresenceAvatars users={presence.users} />
+            </div>
+            <DialogDescription className="ds-page-subtitle">
+              CNPJ e CEP preenchem os dados automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+        )}
 
         <div className="space-y-3 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
           {/* Tipo — só na criação; ao editar, o tipo já está definido.
@@ -594,504 +797,639 @@ export function StakeholderFormDialog({
               flex:0 auto nos filhos (pensado para abas que rolam), o que
               deixava os 2 botões encolhidos ao conteúdo e o quadro sem
               borda, parecendo "desenquadrado". */}
-          {!form.id && (
-          <div className="flex gap-0.5 rounded-[0.3rem] border border-border bg-muted/40 p-0.5">
-            {([
-              { key: "pf" as const, label: "Pessoa Física", icon: UserRound },
-              { key: "pj" as const, label: "Pessoa Jurídica", icon: Building2 },
-            ]).map(({ key, label, icon: Icon }) => {
-              const on = form.person_type === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    set({ person_type: key, doc: "" });
-                    clearError("doc");
-                  }}
-                  className={`min-h-[46px] flex-1 flex items-center justify-center gap-2 rounded-[0.3rem] text-[13px] font-semibold transition-colors ${
-                    on
-                      ? "bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="size-4 shrink-0" />
-                  <span>{label}</span>
-                </button>
-              );
-            })}
-          </div>
+          {newLayout && (
+            <div className="mt-2">
+              <Stepper
+                current={form.person_type}
+                onChange={(v) => {
+                  if (form.id || v === form.person_type) return;
+                  set({ person_type: v as "pf" | "pj", doc: "" });
+                  clearError("doc");
+                }}
+                lockedValues={form.id ? [form.person_type === "pf" ? "pj" : "pf"] : undefined}
+                lockedTitle="O tipo não muda depois de criado"
+                steps={[
+                  { value: "pf", label: "Pessoa física", icon: UserRound },
+                  { value: "pj", label: "Pessoa jurídica", icon: Building2 },
+                ]}
+              />
+            </div>
+          )}
+          {!newLayout && !form.id && (
+            <div className="flex gap-0.5 rounded-[0.3rem] border border-border bg-muted/40 p-0.5">
+              {[
+                { key: "pf" as const, label: "Pessoa Física", icon: UserRound },
+                { key: "pj" as const, label: "Pessoa Jurídica", icon: Building2 },
+              ].map(({ key, label, icon: Icon }) => {
+                const on = form.person_type === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      set({ person_type: key, doc: "" });
+                      clearError("doc");
+                    }}
+                    className={`min-h-[46px] flex-1 flex items-center justify-center gap-2 rounded-[0.3rem] text-[13px] font-semibold transition-colors ${
+                      on
+                        ? "bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
           )}
 
           {/* Mesmo componente/padrão "quadrantes expansivos" usado no editor
               de imóvel (Section + SectionGroup, modo dense: cantos 0.3rem,
               ícone, título 13px) — nunca uma versão à parte só pra este
               diálogo. */}
-          <SectionGroup openId={openSection} onOpenIdChange={setOpenSection}>
-          <DenseSections>
-          <Section id="dados" icon={UserRound} title={newLayout ? "Dados pessoais" : "Dados cadastrais"} collapsible action={checkingCnpj ? <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" /> : undefined}>
-
-            <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
-
-            <div className="space-y-1.5">
-              <Label className="ds-meta">
-                {isPJ ? "Razão social *" : "Nome completo *"}
-              </Label>
-              <Input
-                value={form.name}
-                maxLength={160}
-                placeholder={isPJ ? `Razão social do ${singular}` : `Nome do ${singular}`}
-                onChange={(e) => {
-                  set({ name: e.target.value });
-                  clearError("name");
-                  presence.broadcastTyping("name", e.target.value);
-                }}
-                onBlur={() => presence.broadcastFieldBlur("name")}
-                className={errors.name ? "border-destructive" : ""}
-              />
-              {errors.name && <p className="ds-meta text-destructive">{errors.name}</p>}
-              <FieldTypingBadge typing={presence.typing["name"]} />
-            </div>
-
-            <div className="min-w-0">
-              <MaskedInput
-                label={`${isPJ ? "CNPJ" : "CPF"}${req}`}
-                mask={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
-                placeholder={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
-                value={form.doc}
-                onValueChange={(raw) => {
-                  set({ doc: raw });
-                  clearError("doc");
-                  presence.broadcastTyping("doc", raw);
-                }}
-                readOnly={docLocked}
-                onBlur={() => {
-                  presence.broadcastFieldBlur("doc");
-                  void handleDocBlur();
-                }}
-                error={errors.doc}
-                endAdornment={
-                  docLocked ? (
-                    <button
-                      type="button"
-                      onClick={() => setDocLocked(false)}
-                      aria-label={`Editar ${isPJ ? "CNPJ" : "CPF"}`}
-                      title={`Editar ${isPJ ? "CNPJ" : "CPF"}`}
-                      className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                    >
-                      <Pencil className="size-3.5" />
-                    </button>
-                  ) : undefined
-                }
-              />
-              <FieldTypingBadge typing={presence.typing["doc"]} />
-            </div>
-
-            {isPJ ? (
-              <div className="space-y-1.5">
-                <Label className="ds-meta">Nome fantasia{req}</Label>
-                <Input
-                  value={form.trade_name}
-                  maxLength={160}
-                  placeholder="Como o cliente é conhecido"
-                  onChange={(e) => {
-                    set({ trade_name: e.target.value });
-                    clearError("trade_name");
-                    presence.broadcastTyping("trade_name", e.target.value);
-                  }}
-                  onBlur={() => presence.broadcastFieldBlur("trade_name")}
-                  className={errors.trade_name ? "border-destructive" : ""}
-                />
-                {errors.trade_name && (
-                  <p className="ds-meta text-destructive">{errors.trade_name}</p>
-                )}
-                <FieldTypingBadge typing={presence.typing["trade_name"]} />
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <Label className="ds-meta flex items-center gap-1.5">
-                  <Calendar className="size-3.5" /> Data de nascimento{req}
-                </Label>
-                <Input
-                  type="date"
-                  value={form.birth_date}
-                  onChange={(e) => {
-                    set({ birth_date: e.target.value });
-                    clearError("birth_date");
-                    presence.broadcastTyping("birth_date", e.target.value);
-                  }}
-                  onBlur={() => presence.broadcastFieldBlur("birth_date")}
-                  className={errors.birth_date ? "border-destructive" : ""}
-                />
-                {errors.birth_date && (
-                  <p className="ds-meta text-destructive">{errors.birth_date}</p>
-                )}
-                <FieldTypingBadge typing={presence.typing["birth_date"]} />
-              </div>
-            )}
-
-
-            {kind === "provider" && (
-              <div className="sm:col-span-2">
-                <CategoryPicker
-                  value={form.categories}
-                  error={errors.category}
-                  onChange={(next) => {
-                    set({ categories: next });
-                    clearError("category");
-                  }}
-                />
-              </div>
-            )}
-
-            </div>
-          </Section>
-
-          <Section id="contrato" icon={Calendar} title={newLayout ? "Contrato" : "Situação contratual"} collapsible>
-            <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
-              <div className="space-y-1.5">
-                <Label className="ds-meta">Situação</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => {
-                    set({ status: v as "active" | "inactive" });
-                    presence.broadcastTyping("status", v === "active" ? "Ativo" : "Inativo");
-                  }}
-                  onOpenChange={(o) => !o && presence.broadcastFieldBlur("status")}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-[8px]">
-                    <SelectItem value="active">Ativo</SelectItem>
-                    <SelectItem value="inactive">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FieldTypingBadge typing={presence.typing["status"]} />
-              </div>
-
-              <div className="hidden sm:block" />
-
-              <SingleDateField
-                label="Início do contrato"
-                value={form.contract_start}
-                placeholder="Selecionar data"
-                onChange={(iso) => set({ contract_start: iso })}
-              />
-              <SingleDateField
-                label="Fim do contrato"
-                value={form.contract_end}
-                placeholder="Sem data final"
-                onChange={(iso) => set({ contract_end: iso })}
-              />
-              <p className="ds-meta sm:col-span-2">
-                Sem data final, o contrato vale por tempo indeterminado.
-              </p>
-            </div>
-          </Section>
-
-
-          <Section id="contato" icon={Mail} title="Contato" collapsible>
-
-            <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
-
-            <div className="min-w-0">
-              <MaskedInput
-                label={`Telefone / WhatsApp${req}`}
-                mask="(00) 00000-0000"
-                placeholder="(00) 00000-0000"
-                value={form.phone}
-                onValueChange={(raw) => {
-                  set({ phone: raw });
-                  clearError("phone");
-                  presence.broadcastTyping("phone", raw);
-                }}
-                onBlur={() => presence.broadcastFieldBlur("phone")}
-                error={errors.phone}
-              />
-              <FieldTypingBadge typing={presence.typing["phone"]} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="ds-meta flex items-center gap-1.5">
-                <Mail className="size-3.5" /> E-mail{req}
-              </Label>
-              <Input
-                type="email"
-                maxLength={200}
-                placeholder="email@exemplo.com"
-                value={form.email}
-                inputMode="email"
-                autoComplete="email"
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\s+/g, "").toLowerCase();
-                  set({ email: v });
-                  clearError("email");
-                  presence.broadcastTyping("email", v);
-                }}
-                onBlur={() => presence.broadcastFieldBlur("email")}
-                className={errors.email ? "border-destructive" : ""}
-              />
-              {errors.email && <p className="ds-meta text-destructive">{errors.email}</p>}
-              <FieldTypingBadge typing={presence.typing["email"]} />
-            </div>
-            </div>
-          </Section>
-
-
-          <Section id="acesso" icon={KeyRound} title="Acesso ao sistema" collapsible>
-            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-            <label className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-              <span className="ds-body min-w-0 font-semibold">Permitir acesso ao sistema</span>
-              <Switch
-                checked={systemAccess}
-                disabled={!emailValid || accessQuery.isLoading}
-                onCheckedChange={setSystemAccess}
-              />
-            </label>
-            {!emailValid && (
-              <p className="ds-meta mt-2 text-amber-500">
-                Informe um e-mail válido acima para liberar o acesso ao sistema.
-              </p>
-            )}
-            {emailValid && access && (
-              <p className="ds-meta mt-2">
-                Situação:{" "}
-                <span className="font-semibold text-foreground">
-                  {access.status === "active"
-                    ? "acesso ativo"
-                    : access.status === "pending"
-                      ? "convite enviado, aguardando o primeiro acesso"
-                      : "sem acesso"}
-                </span>
-              </p>
-            )}
-            {systemAccess && emailValid && (
-              <div className="mt-3 space-y-1.5">
-                <Label className="ds-meta flex items-center gap-1.5">
-                  <KeyRound className="size-3.5" />
-                  {access?.status && access.status !== "none" ? "Definir nova senha provisória (opcional)" : "Senha provisória"}
-                </Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
+          <FormGroups
+            newLayout={newLayout}
+            openSection={openSection}
+            setOpenSection={setOpenSection}
+          >
+            {sec(
+              {
+                id: "dados",
+                icon: UserRound,
+                title: newLayout ? "Dados pessoais" : "Dados cadastrais",
+                action: checkingCnpj ? (
+                  <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" />
+                ) : undefined,
+              },
+              <>
+                <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+                  <div className="space-y-1.5">
+                    <Label className="ds-meta">{isPJ ? "Razão social *" : "Nome completo *"}</Label>
                     <Input
-                      type={showPwd ? "text" : "password"}
-                      autoComplete="new-password"
-                      maxLength={72}
-                      placeholder="Mínimo 8 caracteres"
-                      value={provisionalPwd}
-                      onChange={(e) => setProvisionalPwd(e.target.value)}
-                      className="pr-9"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPwd((s) => !s)}
-                      aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showPwd ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                    </button>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setProvisionalPwd(genStrongPassword());
-                      setSendInstructions(false);
-                      setShowPwd(true);
-                    }}
-                  >
-                    Gerar
-                  </Button>
-                </div>
-                {provisionalPwd && provisionalPwd.trim().length < 8 && (
-                  <p className="ds-meta text-destructive">A senha precisa ter pelo menos 8 caracteres.</p>
-                )}
-                {newLayout && (
-                  <>
-                    <button
-                      type="button"
-                      aria-pressed={sendInstructions}
-                      onClick={() => {
-                        setSendInstructions((v) => !v);
-                        setProvisionalPwd("");
+                      value={form.name}
+                      maxLength={160}
+                      placeholder={isPJ ? `Razão social do ${singular}` : `Nome do ${singular}`}
+                      onChange={(e) => {
+                        set({ name: e.target.value });
+                        clearError("name");
+                        presence.broadcastTyping("name", e.target.value);
                       }}
-                      className={`flex h-10 w-full items-center justify-center gap-2 rounded-[0.3rem] border px-3 text-[13px] font-medium transition-colors ${
-                        sendInstructions ? "border-foreground/40 bg-foreground/10" : "border-border bg-secondary/40 hover:bg-secondary"
-                      }`}
+                      onBlur={() => presence.broadcastFieldBlur("name")}
+                      className={errors.name ? "border-destructive" : ""}
+                    />
+                    {errors.name && <p className="ds-meta text-destructive">{errors.name}</p>}
+                    <FieldTypingBadge typing={presence.typing["name"]} />
+                  </div>
+
+                  <div className="min-w-0">
+                    <MaskedInput
+                      label={`${isPJ ? "CNPJ" : "CPF"}${req}`}
+                      mask={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
+                      placeholder={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
+                      value={form.doc}
+                      onValueChange={(raw) => {
+                        set({ doc: raw });
+                        clearError("doc");
+                        presence.broadcastTyping("doc", raw);
+                      }}
+                      readOnly={docLocked}
+                      onBlur={() => {
+                        presence.broadcastFieldBlur("doc");
+                        void handleDocBlur();
+                      }}
+                      error={errors.doc}
+                      endAdornment={
+                        docLocked ? (
+                          <button
+                            type="button"
+                            onClick={() => setDocLocked(false)}
+                            aria-label={`Editar ${isPJ ? "CNPJ" : "CPF"}`}
+                            title={`Editar ${isPJ ? "CNPJ" : "CPF"}`}
+                            className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                        ) : undefined
+                      }
+                    />
+                    <FieldTypingBadge typing={presence.typing["doc"]} />
+                  </div>
+
+                  {isPJ ? (
+                    <div className="space-y-1.5">
+                      <Label className="ds-meta">Nome fantasia{req}</Label>
+                      <Input
+                        value={form.trade_name}
+                        maxLength={160}
+                        placeholder="Como o cliente é conhecido"
+                        onChange={(e) => {
+                          set({ trade_name: e.target.value });
+                          clearError("trade_name");
+                          presence.broadcastTyping("trade_name", e.target.value);
+                        }}
+                        onBlur={() => presence.broadcastFieldBlur("trade_name")}
+                        className={errors.trade_name ? "border-destructive" : ""}
+                      />
+                      {errors.trade_name && (
+                        <p className="ds-meta text-destructive">{errors.trade_name}</p>
+                      )}
+                      <FieldTypingBadge typing={presence.typing["trade_name"]} />
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <Label className="ds-meta flex items-center gap-1.5">
+                        <Calendar className="size-3.5" /> Data de nascimento{req}
+                      </Label>
+                      <Input
+                        type="date"
+                        value={form.birth_date}
+                        onChange={(e) => {
+                          set({ birth_date: e.target.value });
+                          clearError("birth_date");
+                          presence.broadcastTyping("birth_date", e.target.value);
+                        }}
+                        onBlur={() => presence.broadcastFieldBlur("birth_date")}
+                        className={errors.birth_date ? "border-destructive" : ""}
+                      />
+                      {errors.birth_date && (
+                        <p className="ds-meta text-destructive">{errors.birth_date}</p>
+                      )}
+                      <FieldTypingBadge typing={presence.typing["birth_date"]} />
+                    </div>
+                  )}
+
+                  {kind === "provider" && (
+                    <div className="sm:col-span-2">
+                      <CategoryPicker
+                        value={form.categories}
+                        error={errors.category}
+                        onChange={(next) => {
+                          set({ categories: next });
+                          clearError("category");
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+                {newLayout && <div className="mt-3">{contatoFields}</div>}
+              </>,
+            )}
+
+            {sec(
+              {
+                id: "contrato",
+                icon: Calendar,
+                title: newLayout ? "Contrato" : "Situação contratual",
+              },
+              <>
+                <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+                  <div className="space-y-1.5">
+                    <Label className="ds-meta">Situação</Label>
+                    <Select
+                      value={form.status}
+                      onValueChange={(v) => {
+                        set({ status: v as "active" | "inactive" });
+                        presence.broadcastTyping("status", v === "active" ? "Ativo" : "Inativo");
+                      }}
+                      onOpenChange={(o) => !o && presence.broadcastFieldBlur("status")}
                     >
-                      <Mail className="size-4" /> Enviar instruções por e-mail
-                    </button>
-                    <p className="ds-meta">
-                      {sendInstructions
-                        ? "Ao salvar, a pessoa recebe um e-mail com o link para criar a própria senha. Nenhuma senha é exibida."
-                        : "No primeiro acesso, o sistema sempre exige que a pessoa crie uma nova senha."}
-                    </p>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-[8px]">
+                        <SelectItem value="active">Ativo</SelectItem>
+                        <SelectItem value="inactive">Inativo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FieldTypingBadge typing={presence.typing["status"]} />
+                  </div>
+
+                  <div className="hidden sm:block" />
+
+                  <SingleDateField
+                    label="Início do contrato"
+                    value={form.contract_start}
+                    placeholder="Selecionar data"
+                    onChange={(iso) => set({ contract_start: iso })}
+                  />
+                  <SingleDateField
+                    label="Fim do contrato"
+                    value={form.contract_end}
+                    placeholder="Sem data final"
+                    onChange={(iso) => set({ contract_end: iso })}
+                  />
+                  <p className="ds-meta sm:col-span-2">
+                    Sem data final, o contrato vale por tempo indeterminado.
+                  </p>
+                </div>
+              </>,
+            )}
+
+            {!newLayout && sec({ id: "contato", icon: Mail, title: "Contato" }, contatoFields)}
+
+            {sec(
+              { id: "acesso", icon: KeyRound, title: "Acesso ao sistema" },
+              <>
+                {newLayout ? (
+                  <div className="grid gap-3.5">
+                    <label className="flex items-center gap-2.5">
+                      <span className="min-w-0 flex-1 text-[13.5px] font-semibold text-foreground">
+                        Permitir acesso ao sistema
+                      </span>
+                      <Switch
+                        checked={systemAccess}
+                        disabled={!emailValid || accessQuery.isLoading}
+                        onCheckedChange={setSystemAccess}
+                      />
+                    </label>
+                    {!emailValid && (
+                      <p className="text-[11.5px] leading-[1.45] ds-atencao">
+                        Informe um e-mail válido em Dados pessoais para liberar o acesso ao sistema.
+                      </p>
+                    )}
+                    {systemAccess && emailValid && (
+                      <>
+                        <div className="grid gap-1.5">
+                          <Label className="text-[11px] font-bold text-muted-foreground">
+                            Senha provisória
+                          </Label>
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <Input
+                                type={showPwd ? "text" : "password"}
+                                autoComplete="new-password"
+                                maxLength={72}
+                                placeholder="Mínimo 8 caracteres"
+                                value={provisionalPwd}
+                                onChange={(e) => {
+                                  setProvisionalPwd(e.target.value);
+                                  if (e.target.value) setSendInstructions(false);
+                                }}
+                                className="pr-9"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowPwd((v) => !v)}
+                                aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[color:var(--faint)] hover:text-foreground"
+                              >
+                                {showPwd ? (
+                                  <EyeOff className="size-[13px]" />
+                                ) : (
+                                  <Eye className="size-[13px]" />
+                                )}
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProvisionalPwd(genStrongPassword());
+                                setSendInstructions(false);
+                                setShowPwd(true);
+                              }}
+                              className="flex h-9 shrink-0 items-center justify-center rounded-[8px] px-3.5 text-[12px] font-semibold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] transition-colors hover:bg-foreground/[0.05]"
+                            >
+                              Gerar
+                            </button>
+                          </div>
+                          {provisionalPwd && provisionalPwd.trim().length < 8 && (
+                            <p className="text-[11.5px] text-destructive">
+                              A senha precisa ter pelo menos 8 caracteres.
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          aria-pressed={sendInstructions}
+                          onClick={() => {
+                            setSendInstructions((v) => !v);
+                            setProvisionalPwd("");
+                          }}
+                          className={`flex min-h-11 items-center gap-2.5 rounded-[10px] px-3.5 text-[12.5px] font-bold text-foreground transition-colors ${
+                            sendInstructions
+                              ? "bg-foreground/[0.07] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_30%,transparent)]"
+                              : "shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] hover:bg-foreground/[0.04]"
+                          }`}
+                        >
+                          <Mail className="size-[15px] text-muted-foreground" /> Enviar instruções
+                          por e-mail
+                        </button>
+                        <p className="flex gap-2 text-[11.5px] leading-[1.45] text-[color:var(--faint)]">
+                          <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />
+                          <span>
+                            {sendInstructions
+                              ? "Ao salvar, a pessoa recebe um e-mail com o link para criar a própria senha. Nenhuma senha é exibida."
+                              : "No primeiro acesso, a pessoa precisa criar uma nova senha antes de usar o sistema."}
+                          </span>
+                        </p>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                      <label className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                        <span className="ds-body min-w-0 font-semibold">
+                          Permitir acesso ao sistema
+                        </span>
+                        <Switch
+                          checked={systemAccess}
+                          disabled={!emailValid || accessQuery.isLoading}
+                          onCheckedChange={setSystemAccess}
+                        />
+                      </label>
+                      {!emailValid && (
+                        <p className="ds-meta mt-2 text-amber-500">
+                          Informe um e-mail válido acima para liberar o acesso ao sistema.
+                        </p>
+                      )}
+                      {emailValid && access && (
+                        <p className="ds-meta mt-2">
+                          Situação:{" "}
+                          <span className="font-semibold text-foreground">
+                            {access.status === "active"
+                              ? "acesso ativo"
+                              : access.status === "pending"
+                                ? "convite enviado, aguardando o primeiro acesso"
+                                : "sem acesso"}
+                          </span>
+                        </p>
+                      )}
+                      {systemAccess && emailValid && (
+                        <div className="mt-3 space-y-1.5">
+                          <Label className="ds-meta flex items-center gap-1.5">
+                            <KeyRound className="size-3.5" />
+                            {access?.status && access.status !== "none"
+                              ? "Definir nova senha provisória (opcional)"
+                              : "Senha provisória"}
+                          </Label>
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <Input
+                                type={showPwd ? "text" : "password"}
+                                autoComplete="new-password"
+                                maxLength={72}
+                                placeholder="Mínimo 8 caracteres"
+                                value={provisionalPwd}
+                                onChange={(e) => setProvisionalPwd(e.target.value)}
+                                className="pr-9"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowPwd((s) => !s)}
+                                aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                              >
+                                {showPwd ? (
+                                  <EyeOff className="size-4" />
+                                ) : (
+                                  <Eye className="size-4" />
+                                )}
+                              </button>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setProvisionalPwd(genStrongPassword());
+                                setSendInstructions(false);
+                                setShowPwd(true);
+                              }}
+                            >
+                              Gerar
+                            </Button>
+                          </div>
+                          {provisionalPwd && provisionalPwd.trim().length < 8 && (
+                            <p className="ds-meta text-destructive">
+                              A senha precisa ter pelo menos 8 caracteres.
+                            </p>
+                          )}
+                          {newLayout && (
+                            <>
+                              <button
+                                type="button"
+                                aria-pressed={sendInstructions}
+                                onClick={() => {
+                                  setSendInstructions((v) => !v);
+                                  setProvisionalPwd("");
+                                }}
+                                className={`flex h-10 w-full items-center justify-center gap-2 rounded-[0.3rem] border px-3 text-[13px] font-medium transition-colors ${
+                                  sendInstructions
+                                    ? "border-foreground/40 bg-foreground/10"
+                                    : "border-border bg-secondary/40 hover:bg-secondary"
+                                }`}
+                              >
+                                <Mail className="size-4" /> Enviar instruções por e-mail
+                              </button>
+                              <p className="ds-meta">
+                                {sendInstructions
+                                  ? "Ao salvar, a pessoa recebe um e-mail com o link para criar a própria senha. Nenhuma senha é exibida."
+                                  : "No primeiro acesso, o sistema sempre exige que a pessoa crie uma nova senha."}
+                              </p>
+                            </>
+                          )}
+                          <p className="ds-meta">
+                            Use letras maiúsculas, minúsculas, números e símbolo (senhas simples são
+                            recusadas). Ao salvar, e-mail e senha são copiados para você colar no
+                            WhatsApp. Em branco,{" "}
+                            {access?.status && access.status !== "none"
+                              ? "nada muda no acesso atual"
+                              : "enviamos convite por e-mail"}
+                            .
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
-                <p className="ds-meta">
-                  Use letras maiúsculas, minúsculas, números e símbolo (senhas simples são recusadas). Ao salvar, e-mail e senha são copiados para você colar no WhatsApp. Em branco, {access?.status && access.status !== "none" ? "nada muda no acesso atual" : "enviamos convite por e-mail"}.
-                </p>
-              </div>
+              </>,
             )}
 
-            </div>
-          </Section>
+            {sec(
+              {
+                id: "endereco",
+                icon: MapPin,
+                title: "Endereço",
+                action: loadingCep ? (
+                  <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" />
+                ) : undefined,
+              },
+              <>
+                <div className="grid grid-cols-2 gap-3 [&>*]:min-w-0">
+                  <div className="col-span-2">
+                    <AddressAutocomplete
+                      label={`Logradouro${req}`}
+                      value={form.address}
+                      error={errors.address}
+                      cityHint={[form.city, form.state].filter(Boolean).join(" ")}
+                      onChange={(v) => {
+                        set({ address: v });
+                        clearError("address");
+                      }}
+                      onPick={(sug) => {
+                        setForm((p) => ({
+                          ...p,
+                          address: sug.address || p.address,
+                          district: sug.district || p.district,
+                          city: sug.city || p.city,
+                          state: sug.state || p.state,
+                          cep: sug.cep || p.cep,
+                        }));
+                        setErrors((p) => {
+                          const n = { ...p };
+                          delete n.address;
+                          delete n.district;
+                          delete n.city;
+                          delete n.state;
+                          return n;
+                        });
+                      }}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <MaskedInput
+                      className="min-w-0"
+                      label={`CEP${req}`}
+                      mask="00000-000"
+                      placeholder="00000-000"
+                      value={form.cep}
+                      onValueChange={(raw) => {
+                        clearError("cep");
+                        presence.broadcastTyping("cep", raw);
+                        void handleCep(raw);
+                      }}
+                      onBlur={() => presence.broadcastFieldBlur("cep")}
+                      error={errors.cep}
+                    />
+                    <FieldTypingBadge typing={presence.typing["cep"]} />
+                  </div>
 
-          <Section id="endereco" icon={MapPin} title="Endereço" collapsible action={loadingCep ? <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" /> : undefined}>
-
-
-            <div className="grid grid-cols-2 gap-3 [&>*]:min-w-0">
-
-            <div className="col-span-2">
-              <AddressAutocomplete
-                label={`Logradouro${req}`}
-                value={form.address}
-                error={errors.address}
-                cityHint={[form.city, form.state].filter(Boolean).join(" ")}
-                onChange={(v) => {
-                  set({ address: v });
-                  clearError("address");
-                }}
-                onPick={(sug) => {
-                  setForm((p) => ({
-                    ...p,
-                    address: sug.address || p.address,
-                    district: sug.district || p.district,
-                    city: sug.city || p.city,
-                    state: sug.state || p.state,
-                    cep: sug.cep || p.cep,
-                  }));
-                  setErrors((p) => {
-                    const n = { ...p };
-                    delete n.address;
-                    delete n.district;
-                    delete n.city;
-                    delete n.state;
-                    return n;
-                  });
-                }}
-              />
-            </div>
-            <div className="min-w-0">
-              <MaskedInput
-                className="min-w-0"
-                label={`CEP${req}`}
-                mask="00000-000"
-                placeholder="00000-000"
-                value={form.cep}
-                onValueChange={(raw) => {
-                  clearError("cep");
-                  presence.broadcastTyping("cep", raw);
-                  void handleCep(raw);
-                }}
-                onBlur={() => presence.broadcastFieldBlur("cep")}
-                error={errors.cep}
-              />
-              <FieldTypingBadge typing={presence.typing["cep"]} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="ds-meta">Bairro{req}</Label>
-              <Input
-                maxLength={120}
-                placeholder="Bairro"
-                value={form.district}
-                onChange={(e) => {
-                  set({ district: e.target.value });
-                  clearError("district");
-                  presence.broadcastTyping("district", e.target.value);
-                }}
-                readOnly
-                onBlur={() => presence.broadcastFieldBlur("district")}
-                className={errors.district ? "border-destructive" : ""}
-              />
-              {errors.district && <p className="ds-meta text-destructive">{errors.district}</p>}
-              <FieldTypingBadge typing={presence.typing["district"]} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="ds-meta flex items-center gap-1.5">
-                <MapPin className="size-3.5" /> Cidade{req}
-              </Label>
-              <Input
-                maxLength={120}
-                placeholder="Cidade"
-                value={form.city}
-                onChange={(e) => {
-                  set({ city: e.target.value });
-                  clearError("city");
-                  presence.broadcastTyping("city", e.target.value);
-                }}
-                readOnly
-                onBlur={() => presence.broadcastFieldBlur("city")}
-                className={errors.city ? "border-destructive" : ""}
-              />
-              {errors.city && <p className="ds-meta text-destructive">{errors.city}</p>}
-              <FieldTypingBadge typing={presence.typing["city"]} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="ds-meta">Estado{req}</Label>
-              <Input
-                maxLength={2}
-                placeholder="UF"
-                value={form.state}
-                onChange={(e) => {
-                  const v = e.target.value.toUpperCase();
-                  set({ state: v });
-                  clearError("state");
-                  presence.broadcastTyping("state", v);
-                }}
-                readOnly
-                onBlur={() => presence.broadcastFieldBlur("state")}
-                className={errors.state ? "border-destructive" : ""}
-              />
-              {errors.state && <p className="ds-meta text-destructive">{errors.state}</p>}
-              <FieldTypingBadge typing={presence.typing["state"]} />
-            </div>
-            </div>
-          </Section>
-
-          <Section id="extras" icon={NotebookPen} title={newLayout ? "Observações" : "Extras"} collapsible>
-
-
-            <div className="space-y-1.5">
-              <Label className="ds-meta">Observações (opcional)</Label>
-              <Textarea
-                rows={3}
-                maxLength={4000}
-                placeholder={`Observações sobre o ${singular}...`}
-                value={form.notes}
-                onChange={(e) => {
-                  set({ notes: e.target.value });
-                  presence.broadcastTyping("notes", e.target.value);
-                }}
-                onBlur={() => presence.broadcastFieldBlur("notes")}
-              />
-              <FieldTypingBadge typing={presence.typing["notes"]} />
-            </div>
-          </Section>
-          </DenseSections>
-          </SectionGroup>
-        </div>
-
-        <div className="ds-scroll-x justify-end gap-3 pt-3 border-t border-border/30">
-          <Button variant="ghost" className="h-9 rounded-lg" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button
-            className="h-9 rounded-lg bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white hover:opacity-90"
-            onClick={submit}
-            disabled={saving || checkingCnpj}
-          >
-            {saving || checkingCnpj ? (
-              <Loader2 className="size-4 mr-1.5 animate-spin" />
-            ) : (
-              <Check className="size-4 mr-1.5" />
+                  <div className="space-y-1.5">
+                    <Label className="ds-meta">Bairro{req}</Label>
+                    <Input
+                      maxLength={120}
+                      placeholder="Bairro"
+                      value={form.district}
+                      onChange={(e) => {
+                        set({ district: e.target.value });
+                        clearError("district");
+                        presence.broadcastTyping("district", e.target.value);
+                      }}
+                      readOnly
+                      onBlur={() => presence.broadcastFieldBlur("district")}
+                      className={errors.district ? "border-destructive" : ""}
+                    />
+                    {errors.district && (
+                      <p className="ds-meta text-destructive">{errors.district}</p>
+                    )}
+                    <FieldTypingBadge typing={presence.typing["district"]} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="ds-meta flex items-center gap-1.5">
+                      <MapPin className="size-3.5" /> Cidade{req}
+                    </Label>
+                    <Input
+                      maxLength={120}
+                      placeholder="Cidade"
+                      value={form.city}
+                      onChange={(e) => {
+                        set({ city: e.target.value });
+                        clearError("city");
+                        presence.broadcastTyping("city", e.target.value);
+                      }}
+                      readOnly
+                      onBlur={() => presence.broadcastFieldBlur("city")}
+                      className={errors.city ? "border-destructive" : ""}
+                    />
+                    {errors.city && <p className="ds-meta text-destructive">{errors.city}</p>}
+                    <FieldTypingBadge typing={presence.typing["city"]} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="ds-meta">Estado{req}</Label>
+                    <Input
+                      maxLength={2}
+                      placeholder="UF"
+                      value={form.state}
+                      onChange={(e) => {
+                        const v = e.target.value.toUpperCase();
+                        set({ state: v });
+                        clearError("state");
+                        presence.broadcastTyping("state", v);
+                      }}
+                      readOnly
+                      onBlur={() => presence.broadcastFieldBlur("state")}
+                      className={errors.state ? "border-destructive" : ""}
+                    />
+                    {errors.state && <p className="ds-meta text-destructive">{errors.state}</p>}
+                    <FieldTypingBadge typing={presence.typing["state"]} />
+                  </div>
+                </div>
+              </>,
             )}
-            {form.id ? "Salvar alterações" : `Salvar ${singular}`}
-          </Button>
+
+            {sec(
+              { id: "extras", icon: NotebookPen, title: newLayout ? "Observações" : "Extras" },
+              <>
+                <div className="space-y-1.5">
+                  <Label className="ds-meta">Observações (opcional)</Label>
+                  <Textarea
+                    rows={3}
+                    maxLength={4000}
+                    placeholder={`Observações sobre o ${singular}...`}
+                    value={form.notes}
+                    onChange={(e) => {
+                      set({ notes: e.target.value });
+                      presence.broadcastTyping("notes", e.target.value);
+                    }}
+                    onBlur={() => presence.broadcastFieldBlur("notes")}
+                  />
+                  <FieldTypingBadge typing={presence.typing["notes"]} />
+                </div>
+              </>,
+            )}
+          </FormGroups>
         </div>
 
+        {newLayout ? (
+          <div className="grid justify-items-center border-t border-foreground/[0.07] pt-3">
+            <div className={`${ACTION_BAR} !h-11 !w-full max-w-[420px] !rounded-[13px]`}>
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className={`${ACTION_SEGMENT} !w-auto !flex-1 text-[13px] text-muted-foreground hover:text-foreground`}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={submit}
+                disabled={saving || checkingCnpj}
+                className={`${ACTION_SEGMENT} !w-auto !flex-1 text-[13px] text-foreground disabled:opacity-50`}
+              >
+                {saving || checkingCnpj ? <Loader2 className="size-4 animate-spin" /> : "Salvar"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="ds-scroll-x justify-end gap-3 pt-3 border-t border-border/30">
+            <Button variant="ghost" className="h-9 rounded-lg" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="h-9 rounded-lg bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white hover:opacity-90"
+              onClick={submit}
+              disabled={saving || checkingCnpj}
+            >
+              {saving || checkingCnpj ? (
+                <Loader2 className="size-4 mr-1.5 animate-spin" />
+              ) : (
+                <Check className="size-4 mr-1.5" />
+              )}
+              {form.id ? "Salvar alterações" : `Salvar ${singular}`}
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

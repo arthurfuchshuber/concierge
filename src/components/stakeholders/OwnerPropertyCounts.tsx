@@ -138,9 +138,13 @@ export function OwnerPropertyCounts({ summary }: { summary: PropertyIntegrationS
           items={inactiveItems.map((p) => ({
             id: p.id,
             name: p.name,
-            sub: `${place(p.city, p.state)} · sem conexão com o Airbnb`,
+            sub: `${place(p.city, p.state)} · ${
+              p.lastSyncedAt
+                ? `sem sincronizar desde ${new Date(p.lastSyncedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "")}`
+                : "sem conexão com o Airbnb"
+            }`,
           }))}
-          footer="Habilite o imóvel na conexão para voltar a ativo"
+          footer="Reconecte o anúncio para voltar a ativo"
           align="end"
         />
       ) : null}

@@ -1,24 +1,24 @@
 import { useEffect, useState } from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Dialog, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { ACTION_BAR, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { ArrowRight, Check, Circle, Eye, EyeOff, KeyRound, Loader2, Lock, LogOut, ShieldCheck } from "lucide-react";
+import { Check, Eye, EyeOff, Loader2, Lock } from "lucide-react";
 
 const REQUIREMENTS = [
-  { key: "len", label: "Pelo menos 8 caracteres", test: (v: string) => v.length >= 8 },
-  { key: "case", label: "Letras maiúsculas e minúsculas", test: (v: string) => /[a-z]/.test(v) && /[A-Z]/.test(v) },
-  { key: "num", label: "Pelo menos um número", test: (v: string) => /\d/.test(v) },
-  { key: "sym", label: "Pelo menos um símbolo", test: (v: string) => /[^A-Za-z0-9]/.test(v) },
+  { key: "len", label: "Mínimo de 8 caracteres", test: (v: string) => v.length >= 8 },
+  {
+    key: "case",
+    label: "Letra maiúscula e minúscula",
+    test: (v: string) => /[a-z]/.test(v) && /[A-Z]/.test(v),
+  },
+  { key: "num", label: "Um número", test: (v: string) => /\d/.test(v) },
+  { key: "sym", label: "Um símbolo (!@#$%*?)", test: (v: string) => /[^A-Za-z0-9]/.test(v) },
 ] as const;
 
 /**
  * Primeiro acesso com senha provisória: obriga a criação de uma nova senha.
- * Mesmo layout "Glass Editorial" dos popups do guia.
+ * Tela cheia (mockup "Primeiro acesso nova senha"): sem fechar, sem atalhos.
  */
 export function ForcePasswordChangeDialog() {
   const [required, setRequired] = useState(false);
@@ -31,7 +31,7 @@ export function ForcePasswordChangeDialog() {
   const met = REQUIREMENTS.filter((r) => r.test(pwd)).length;
   const allOk = met === REQUIREMENTS.length;
   const matches = confirm.length > 0 && pwd === confirm;
-  const strengthLabel = pwd ? (met <= 1 ? "Fraca" : met <= 3 ? "Média" : "Forte") : "";
+  const [showConfirm, setShowConfirm] = useState(false);
 
   async function leave() {
     await supabase.auth.signOut();
@@ -83,128 +83,144 @@ export function ForcePasswordChangeDialog() {
 
   if (!required) return null;
 
-  return (
-    <Dialog open modal>
-      <DialogPortal>
-        <DialogOverlay className="bg-black/75 backdrop-blur-md data-[state=open]:duration-300" />
-        <DialogPrimitive.Content
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-          className={cn(
-            "fixed left-1/2 top-1/2 z-50 w-[calc(100%-1.25rem)] max-w-[440px]",
-            "-translate-x-1/2 -translate-y-1/2 max-h-[92vh] overflow-y-auto",
-            "rounded-[26px] border border-border bg-card/95 text-card-foreground",
-            "backdrop-blur-2xl backdrop-saturate-150",
-            "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65)] p-6 sm:p-7",
-            "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.97] data-[state=open]:duration-300",
-            "focus:outline-none",
-          )}
-        >
-          <div className="mb-5 space-y-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-accent">
-              Primeiro acesso
-            </p>
-            <DialogPrimitive.Title className="font-serif text-[24px] leading-[1.1] tracking-tight text-foreground">
-              Crie a sua senha
-            </DialogPrimitive.Title>
-            <DialogPrimitive.Description className="text-[13px] leading-relaxed text-muted-foreground">
-              Você entrou com uma senha provisória. Defina agora uma senha pessoal para continuar.
-            </DialogPrimitive.Description>
-          </div>
+  const FIELD =
+    "flex h-9 items-center gap-2 rounded-lg bg-foreground/[0.04] px-[11px] text-[13px] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent)] focus-within:shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_22%,transparent)]";
 
-          <form onSubmit={submit} className="space-y-4">
-            <div className="relative">
-              <Label htmlFor="new-pwd" className="sr-only">Nova senha</Label>
-              <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-[17px] -translate-y-1/2 text-muted-foreground" />
-              <Input
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="first-access-title"
+      className="fixed inset-0 z-[100] overflow-y-auto bg-background text-foreground"
+    >
+      <form
+        onSubmit={submit}
+        className="mx-auto flex min-h-[100dvh] w-full max-w-[420px] flex-col justify-center px-6 py-8"
+      >
+        <span className="mb-5 grid size-12 place-items-center rounded-[14px] bg-foreground/[0.06] text-foreground shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_12%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+          <Lock className="size-5" />
+        </span>
+        <p className="ds-eyebrow">Primeiro acesso</p>
+        <h2
+          id="first-access-title"
+          className="mt-2 font-display text-[22px] font-bold leading-[1.15] tracking-[-0.01em]"
+        >
+          Crie sua nova senha
+        </h2>
+        <p className="mt-2.5 text-[13px] leading-[1.45] text-muted-foreground">
+          Por segurança, defina uma senha só sua para entrar no sistema. Sem isso não é possível
+          continuar.
+        </p>
+
+        <div className="mt-7 grid gap-3.5">
+          <div className="grid gap-1.5">
+            <label htmlFor="new-pwd" className="text-[11px] font-bold text-muted-foreground">
+              Nova senha
+            </label>
+            <div className={FIELD}>
+              <input
                 id="new-pwd"
                 type={show ? "text" : "password"}
                 autoComplete="new-password"
-                placeholder="Nova senha"
+                autoFocus
                 value={pwd}
                 onChange={(e) => setPwd(e.target.value)}
-                className="h-[48px] rounded-[12px] pl-10 pr-10 text-[14.5px]"
+                className="min-w-0 flex-1 bg-transparent outline-none"
               />
               <button
                 type="button"
-                onClick={() => setShow((s) => !s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShow((v) => !v)}
+                className="text-[color:var(--faint)] hover:text-foreground"
                 aria-label={show ? "Ocultar senha" : "Mostrar senha"}
               >
-                {show ? <EyeOff className="size-[17px]" /> : <Eye className="size-[17px]" />}
+                {show ? <EyeOff className="size-[13px]" /> : <Eye className="size-[13px]" />}
               </button>
             </div>
+          </div>
 
-            <div className="relative">
-              <Label htmlFor="confirm-pwd" className="sr-only">Confirmar senha</Label>
-              <ShieldCheck className="pointer-events-none absolute left-3 top-1/2 size-[17px] -translate-y-1/2 text-muted-foreground" />
-              <Input
+          <div className="h-[3px] overflow-hidden rounded-[3px] bg-foreground/[0.08]" aria-hidden>
+            <div
+              className="h-full bg-gradient-to-r from-[#c9a962] to-[#7fb79a] transition-[width] duration-300"
+              style={{ width: `${(met / REQUIREMENTS.length) * 100}%` }}
+            />
+          </div>
+
+          <div className="grid gap-1.5">
+            <label htmlFor="confirm-pwd" className="text-[11px] font-bold text-muted-foreground">
+              Confirmar nova senha
+            </label>
+            <div className={FIELD}>
+              <input
                 id="confirm-pwd"
-                type={show ? "text" : "password"}
+                type={showConfirm ? "text" : "password"}
                 autoComplete="new-password"
-                placeholder="Repita a nova senha"
+                placeholder="Repita a senha"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                className="h-[48px] rounded-[12px] pl-10 pr-3 text-[14.5px]"
+                className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[color:var(--faint)]"
               />
+              <button
+                type="button"
+                onClick={() => setShowConfirm((v) => !v)}
+                className="text-[color:var(--faint)] hover:text-foreground"
+                aria-label={showConfirm ? "Ocultar senha" : "Mostrar senha"}
+              >
+                {showConfirm ? <EyeOff className="size-[13px]" /> : <Eye className="size-[13px]" />}
+              </button>
             </div>
+          </div>
+        </div>
 
-            {/* Força + requisitos (mockup "Primeiro acesso") */}
-            <div className="space-y-2.5" aria-live="polite">
-              <div className="flex items-center gap-3">
-                <div className="grid h-1.5 flex-1 grid-cols-4 gap-1" aria-hidden>
-                  {REQUIREMENTS.map((r, i) => (
-                    <span
-                      key={r.key}
-                      className={cn(
-                        "rounded-full transition-colors",
-                        i < met ? (met === 4 ? "bg-emerald-500" : "bg-primary/70") : "bg-foreground/10",
-                      )}
-                    />
-                  ))}
-                </div>
-                <span className="w-12 text-right text-[11px] font-semibold text-muted-foreground">{strengthLabel}</span>
+        <div className="mt-[18px] grid gap-2" aria-live="polite">
+          {REQUIREMENTS.map((r) => {
+            const ok = r.test(pwd);
+            return (
+              <div
+                key={r.key}
+                className={cn(
+                  "flex items-center gap-[9px] text-[12px]",
+                  ok ? "text-muted-foreground" : "text-[color:var(--faint)]",
+                )}
+              >
+                <i
+                  className={cn(
+                    "grid size-3.5 shrink-0 place-items-center rounded-full",
+                    ok
+                      ? "bg-[#7fb79a] text-background"
+                      : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_20%,transparent)]",
+                  )}
+                >
+                  {ok && <Check className="size-[9px]" strokeWidth={3.4} />}
+                </i>
+                {r.label}
               </div>
-              <ul className="grid gap-1.5">
-                {REQUIREMENTS.map((r) => {
-                  const ok = r.test(pwd);
-                  return (
-                    <li key={r.key} className={cn("flex items-center gap-2 text-[12px]", ok ? "text-foreground" : "text-muted-foreground")}>
-                      {ok ? <Check className="size-3.5 shrink-0 text-emerald-500" /> : <Circle className="size-3.5 shrink-0 opacity-50" />}
-                      {r.label}
-                    </li>
-                  );
-                })}
-                <li className={cn("flex items-center gap-2 text-[12px]", matches ? "text-foreground" : "text-muted-foreground")}>
-                  {matches ? <Check className="size-3.5 shrink-0 text-emerald-500" /> : <Circle className="size-3.5 shrink-0 opacity-50" />}
-                  As duas senhas são iguais
-                </li>
-              </ul>
-            </div>
+            );
+          })}
+        </div>
 
-            {error && (
-              <p className="text-[12px] text-destructive leading-relaxed">{error}</p>
-            )}
+        {error && <p className="mt-3 text-[12px] leading-relaxed text-destructive">{error}</p>}
 
-            <div className="flex items-center gap-1.5 pt-0.5 text-[11.5px] text-muted-foreground/85">
-              <Lock className="size-3 text-primary/70" />
-              Sua senha é pessoal e não fica visível para o titular da conta.
-            </div>
+        <div className={`${ACTION_BAR} !mt-7 !h-11 !w-full !rounded-[13px]`}>
+          <button
+            type="submit"
+            disabled={saving || !allOk || !matches}
+            className={`${ACTION_SEGMENT} !w-auto !flex-1 text-[13px] text-foreground disabled:opacity-50`}
+          >
+            {saving ? <Loader2 className="size-4 animate-spin" /> : "Definir senha e entrar"}
+          </button>
+        </div>
 
-            <Button type="submit" disabled={saving || !allOk || !matches} className="group h-[48px] w-full rounded-[12px] text-[14.5px]">
-              {saving ? <Loader2 className="size-4 animate-spin" /> : "Definir senha e entrar"}
-              {!saving && <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />}
-            </Button>
-            <button
-              type="button"
-              onClick={leave}
-              className="mx-auto flex items-center gap-1.5 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <LogOut className="size-3.5" /> Sair
-            </button>
-          </form>
-        </DialogPrimitive.Content>
-      </DialogPortal>
-    </Dialog>
+        <p className="mt-4 text-center text-[11.5px] leading-[1.45] text-[color:var(--faint)]">
+          Entrou com outra conta?{" "}
+          <button
+            type="button"
+            onClick={leave}
+            className="font-bold text-muted-foreground hover:text-foreground"
+          >
+            Sair
+          </button>
+        </p>
+      </form>
+    </div>
   );
 }

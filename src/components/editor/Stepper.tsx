@@ -26,7 +26,10 @@ export function Stepper({
   onChange,
   lockedValues,
   lockedTitle,
+  withIcons = false,
 }: {
+  /** Mostra o ícone de cada aba (mockup "Públicas | Confidenciais"). */
+  withIcons?: boolean;
   steps?: StepDef[];
   current: string;
   onChange: (v: string) => void;
@@ -68,7 +71,8 @@ export function Stepper({
             onClick={() => !locked && onChange(s.value)}
             title={
               locked
-                ? (lockedTitle ?? 'Complete as informações obrigatórias em "A casa" para desbloquear')
+                ? (lockedTitle ??
+                  'Complete as informações obrigatórias em "A casa" para desbloquear')
                 : undefined
             }
             className={`relative flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap text-center text-[13px] leading-none transition-colors ${
@@ -80,6 +84,7 @@ export function Stepper({
             }`}
           >
             {locked ? <Lock className="size-3" /> : null}
+            {withIcons && !locked ? <s.icon className="mr-1.5 size-3" /> : null}
             {s.label}
           </button>
         );

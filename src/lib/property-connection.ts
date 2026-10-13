@@ -32,7 +32,7 @@ export type PropertyIntegrationSummary = {
   activeCount: number;
   inactiveCount: number;
   activeItems: Array<ConnectionProperty & { syncedAt: string | null }>;
-  inactiveItems: ConnectionProperty[];
+  inactiveItems: Array<ConnectionProperty & { lastSyncedAt: string | null }>;
 };
 
 export function summarizePropertyIntegration(
@@ -42,11 +42,14 @@ export function summarizePropertyIntegration(
   const byProp = new Map<string, PropertyConnectionRow>();
   for (const c of connections) if (c.airbnb_listing_id) byProp.set(c.property_id, c);
   const activeItems: PropertyIntegrationSummary["activeItems"] = [];
-  const inactiveItems: ConnectionProperty[] = [];
+  const inactiveItems: PropertyIntegrationSummary["inactiveItems"] = [];
+  const lastSeen = new Map<string, string | null>();
+  for (const c of connections)
+    if (!c.airbnb_listing_id) lastSeen.set(c.property_id, c.synced_at ?? null);
   for (const p of properties) {
     const c = byProp.get(p.id);
     if (c) activeItems.push({ ...p, syncedAt: c.synced_at ?? null });
-    else inactiveItems.push(p);
+    else inactiveItems.push({ ...p, lastSyncedAt: lastSeen.get(p.id) ?? null });
   }
   return {
     activeCount: activeItems.length,

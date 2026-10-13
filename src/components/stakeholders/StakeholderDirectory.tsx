@@ -56,8 +56,13 @@ import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingListState } from "@/components/ds/LoadingState";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { isNewLayoutAccount } from "@/lib/new-layout-accounts";
-import { summarizePropertyIntegration, type PropertyConnectionRow } from "@/lib/property-connection";
+import {
+  summarizePropertyIntegration,
+  type PropertyConnectionRow,
+} from "@/lib/property-connection";
+import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { OwnerPropertyCounts } from "./OwnerPropertyCounts";
+import { Stepper } from "@/components/editor/Stepper";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import {
@@ -83,7 +88,6 @@ function fmtDateBR(d: string) {
   }
 }
 
-
 export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const isMobile = useIsMobile();
   const qc = useQueryClient();
@@ -93,6 +97,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const activeAccountId = impersonation?.userId ?? null;
 
   const [view, setView] = useState<"list" | "kanban">("list");
+  const [kanbanTab, setKanbanTab] = useState("pending");
   const [q, setQ] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [cityFilters, setCityFilters] = useState<string[]>([]);
@@ -100,7 +105,6 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const [form, setForm] = useState<StakeholderFormValues>(emptyStakeholderForm);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [createdOwner, setCreatedOwner] = useState<{ id: string; name: string } | null>(null);
-
 
   const queryKey = ["stakeholders", activeAccountId ?? "self", kind];
   const { data, isLoading } = useQuery({
@@ -137,12 +141,16 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   // Novo layout (etapa 1): SÓ a conta do Anfitrião Sigma — ver `new-layout-accounts.ts`.
   const newLayout = kind === "owner" && isNewLayoutAccount(data?.accountId);
   const properties = belongsToActiveAccount ? (data?.properties ?? []) : [];
-  const connections = (belongsToActiveAccount ? (data?.connections ?? []) : []) as PropertyConnectionRow[];
+  const connections = (
+    belongsToActiveAccount ? (data?.connections ?? []) : []
+  ) as PropertyConnectionRow[];
   const integrationByOwner = useMemo(() => {
     const map = new Map<string, ReturnType<typeof summarizePropertyIntegration>>();
     if (!newLayout) return map;
     for (const r of rows) {
-      const own = (properties as Array<Record<string, any>>).filter((p) => p.owner_contact_id === r.id);
+      const own = (properties as Array<Record<string, any>>).filter(
+        (p) => p.owner_contact_id === r.id,
+      );
       map.set(r.id, summarizePropertyIntegration(own as never, connections));
     }
     return map;
@@ -152,7 +160,10 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return rows.filter((r) => {
-      if (statusFilters.length > 0 && !statusFilters.includes(effectiveStatus(r.status, r.status_changed_at))) {
+      if (
+        statusFilters.length > 0 &&
+        !statusFilters.includes(effectiveStatus(r.status, r.status_changed_at))
+      ) {
         return false;
       }
       if (cityFilters.length > 0 && !cityFilters.includes(String(r.city ?? ""))) return false;
@@ -198,7 +209,6 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     }
   }
 
-
   async function remove(id: string) {
     try {
       await delFn({ data: { kind, id, accountOwnerId: activeAccountId } });
@@ -224,17 +234,41 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       label: "Em dia",
       test: (r) => r.status === "active" && (pendingByStakeholder.get(r.id) ?? 0) === 0,
     },
-    { key: "signature", label: "Assinatura", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "signature" },
-    { key: "contract", label: "Contrato", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "contract" },
+    {
+      key: "signature",
+      label: "Assinatura",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "signature",
+    },
+    {
+      key: "contract",
+      label: "Contrato",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "contract",
+    },
     {
       key: "documentation",
       label: "Documentação",
       test: (r) => effectiveStatus(r.status, r.status_changed_at) === "documentation",
     },
-    { key: "paused", label: "Pausados", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "paused" },
-    { key: "canceling", label: "Cancelando", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "canceling" },
-    { key: "canceled", label: "Cancelados", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "canceled" },
-    { key: "inactive", label: "Inativos", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "inactive" },
+    {
+      key: "paused",
+      label: "Pausados",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "paused",
+    },
+    {
+      key: "canceling",
+      label: "Cancelando",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "canceling",
+    },
+    {
+      key: "canceled",
+      label: "Cancelados",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "canceled",
+    },
+    {
+      key: "inactive",
+      label: "Inativos",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "inactive",
+    },
   ];
 
   const STATUS_FILTER_OPTIONS: Array<{ value: string; label: string }> = [
@@ -259,117 +293,149 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const BarEl: React.ElementType = newLayout ? "div" : Fragment;
   const barProps = newLayout ? { className: `${ACTION_BAR} !w-auto shrink-0` } : {};
 
+  const filtersPopover = (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={newLayout ? `${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}` : barBtn("relative")}
+          aria-label="Filtros"
+          title="Filtros"
+        >
+          <Filter className={barIcon} />
+          <span className={barLabel}>Filtros</span>
+          {(statusFilters.length > 0 || cityFilters.length > 0) && (
+            <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-80 p-4 space-y-4"
+        // Sem isso, o Radix foca automaticamente o primeiro campo
+        // focável ao abrir (o campo de busca "Buscar situação…"),
+        // abrindo o teclado do celular sozinho assim que o usuário só
+        // queria ver os filtros. Só deve abrir quando o usuário tocar
+        // no campo de busca.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="flex items-center justify-between">
+          <span className="ds-eyebrow">Filtros</span>
+          {(statusFilters.length > 0 || cityFilters.length > 0) && (
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilters([]);
+                setCityFilters([]);
+              }}
+              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Limpar tudo
+            </button>
+          )}
+        </div>
+
+        <MultiSelectFilterField
+          label="Status contratual"
+          options={STATUS_FILTER_OPTIONS}
+          selected={statusFilters}
+          onChange={setStatusFilters}
+          searchPlaceholder="Buscar situação…"
+          emptyLabel="Nenhuma situação encontrada."
+        />
+
+        <MultiSelectFilterField
+          label="Cidade"
+          options={cityOptions}
+          selected={cityFilters}
+          onChange={setCityFilters}
+          searchPlaceholder="Buscar cidade…"
+          emptyLabel="Nenhuma cidade cadastrada."
+        />
+      </PopoverContent>
+    </Popover>
+  );
+  const viewButton = (
+    <button
+      type="button"
+      onClick={() => setView(view === "list" ? "kanban" : "list")}
+      aria-label={view === "list" ? "Ver em kanban" : "Ver em lista"}
+      title={view === "list" ? "Ver em kanban" : "Ver em lista"}
+      className={barBtn()}
+    >
+      {view === "list" ? <Columns3 className={barIcon} /> : <LayoutList className={barIcon} />}
+      <span className={barLabel}>{view === "list" ? "Kanban" : "Lista"}</span>
+    </button>
+  );
+  const newButton = (
+    <button
+      type="button"
+      onClick={openNew}
+      aria-label={`Novo ${labelSingular.toLowerCase()}`}
+      title={`Novo ${labelSingular.toLowerCase()}`}
+      className={newLayout ? `${ACTION_SEGMENT} text-accent` : barBtn()}
+    >
+      <Plus className={barIcon} />
+      <span className={barLabel}>Novo</span>
+    </button>
+  );
+
   return (
     <div>
       {/* Barra de ações — mesmo padrão de Operação/Guias:
           altura 36px, cantos retos, fundo secondary/50, texto 12px. */}
       <div className="flex flex-col gap-2 mb-5">
-        <div className="flex items-center gap-1.5">
-          <div className="relative flex-1 min-w-0">
-            <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={`Buscar ${labelSingular.toLowerCase()}, cidade, documento…`}
-              className={newLayout ? "h-9 w-full box-border rounded-[8px] border-0 bg-foreground/[0.04] pl-9 pr-8 text-[13px] font-normal leading-none text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent)] placeholder:text-muted-foreground focus:outline-none focus:bg-foreground/[0.06] transition-colors" : "h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"}
-            />
-            {q && (
-              <button
-                type="button"
-                onClick={() => setQ("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
-                aria-label="Limpar busca"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
+        {newLayout ? (
+          /* Mesma peça de Guias/Operação/Registros: busca + ações numa casca só
+             no celular, dois objetos na altura da barra de abas no computador.
+             Ordem como em Guias: visão, Novo (acento) e Filtros por último. */
+          <SearchActionRow
+            value={q}
+            onChange={setQ}
+            placeholder={`Buscar ${labelSingular.toLowerCase()}, cidade, documento…`}
+            actions={
+              <>
+                {viewButton}
+                {newButton}
+                {filtersPopover}
+              </>
+            }
+          />
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <div className="relative flex-1 min-w-0">
+              <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder={`Buscar ${labelSingular.toLowerCase()}, cidade, documento…`}
+                className={
+                  newLayout
+                    ? "h-9 w-full box-border rounded-[8px] border-0 bg-foreground/[0.04] pl-9 pr-8 text-[13px] font-normal leading-none text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent)] placeholder:text-muted-foreground focus:outline-none focus:bg-foreground/[0.06] transition-colors"
+                    : "h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
+                }
+              />
+              {q && (
+                <button
+                  type="button"
+                  onClick={() => setQ("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
+                  aria-label="Limpar busca"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+
+            <BarEl {...barProps}>
+              {!newLayout && filtersPopover}
+
+              {!newLayout && viewButton}
+
+              {!newLayout && newButton}
+            </BarEl>
           </div>
-
-          <BarEl {...barProps}>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={barBtn("relative")}
-                aria-label="Filtros"
-                title="Filtros"
-              >
-                <Filter className={barIcon} />
-                <span className={barLabel}>Filtros</span>
-                {(statusFilters.length > 0 || cityFilters.length > 0) && (
-                  <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
-                )}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              className="w-80 p-4 space-y-4"
-              // Sem isso, o Radix foca automaticamente o primeiro campo
-              // focável ao abrir (o campo de busca "Buscar situação…"),
-              // abrindo o teclado do celular sozinho assim que o usuário só
-              // queria ver os filtros. Só deve abrir quando o usuário tocar
-              // no campo de busca.
-              onOpenAutoFocus={(e) => e.preventDefault()}
-            >
-              <div className="flex items-center justify-between">
-                <span className="ds-eyebrow">Filtros</span>
-                {(statusFilters.length > 0 || cityFilters.length > 0) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStatusFilters([]);
-                      setCityFilters([]);
-                    }}
-                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Limpar tudo
-                  </button>
-                )}
-              </div>
-
-              <MultiSelectFilterField
-                label="Status contratual"
-                options={STATUS_FILTER_OPTIONS}
-                selected={statusFilters}
-                onChange={setStatusFilters}
-                searchPlaceholder="Buscar situação…"
-                emptyLabel="Nenhuma situação encontrada."
-              />
-
-              <MultiSelectFilterField
-                label="Cidade"
-                options={cityOptions}
-                selected={cityFilters}
-                onChange={setCityFilters}
-                searchPlaceholder="Buscar cidade…"
-                emptyLabel="Nenhuma cidade cadastrada."
-              />
-            </PopoverContent>
-          </Popover>
-
-          <button
-            type="button"
-            onClick={() => setView(view === "list" ? "kanban" : "list")}
-            aria-label={view === "list" ? "Ver em kanban" : "Ver em lista"}
-            title={view === "list" ? "Ver em kanban" : "Ver em lista"}
-            className={barBtn()}
-          >
-            {view === "list" ? <Columns3 className={barIcon} /> : <LayoutList className={barIcon} />}
-            <span className={barLabel}>{view === "list" ? "Kanban" : "Lista"}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={openNew}
-            aria-label={`Novo ${labelSingular.toLowerCase()}`}
-            title={`Novo ${labelSingular.toLowerCase()}`}
-            className={barBtn()}
-          >
-            <Plus className={barIcon} />
-            <span className={barLabel}>Novo</span>
-          </button>
-          </BarEl>
-        </div>
+        )}
 
         {rows.length > 0 && (q.trim() || statusFilters.length > 0 || cityFilters.length > 0) && (
           <p className="ds-meta">
@@ -378,14 +444,17 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
         )}
       </div>
 
-
       {isLoading ? (
         <LoadingListState count={4} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Icon}
           title={`Nenhum ${labelSingular.toLowerCase()} cadastrado`}
-          description={q ? `Nenhum resultado para "${q}". Tente outro termo ou limpe os filtros.` : `Cadastre seu primeiro ${labelSingular.toLowerCase()} para começar.`}
+          description={
+            q
+              ? `Nenhum resultado para "${q}". Tente outro termo ou limpe os filtros.`
+              : `Cadastre seu primeiro ${labelSingular.toLowerCase()} para começar.`
+          }
           action={
             <Button onClick={openNew} variant="outline" className="rounded-none">
               <Plus className="size-4 mr-1.5" /> Cadastrar {labelSingular.toLowerCase()}
@@ -408,6 +477,66 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             />
           ))}
         </div>
+      ) : newLayout && isMobile ? (
+        /* Prop14: no celular as colunas viram abas e a lista é UMA peça só. */
+        (() => {
+          const cols = kanbanColumns.filter((c) => filtered.some(c.test) || c.key === kanbanTab);
+          const active = kanbanColumns.find((c) => c.key === kanbanTab) ?? kanbanColumns[0];
+          const items = filtered.filter(active.test);
+          return (
+            <div className="grid gap-5">
+              <Stepper
+                steps={(cols.length ? cols : kanbanColumns).map((c) => ({
+                  value: c.key,
+                  label: c.label,
+                  icon: Icon,
+                }))}
+                current={active.key}
+                onChange={setKanbanTab}
+              />
+              <div className={PANEL_SHELL}>
+                {items.length === 0 ? (
+                  <p className="ds-meta px-4 py-6 text-center">Vazio</p>
+                ) : (
+                  items.map((r, i) => {
+                    const cityUf = [r.city, r.state].filter(Boolean).join(" / ");
+                    return (
+                      <div
+                        key={r.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setDetailId(r.id)}
+                        onKeyDown={(e) => e.key === "Enter" && setDetailId(r.id)}
+                        className={`cursor-pointer px-4 py-[13px] ${i > 0 ? "border-t border-foreground/[0.06]" : ""}`}
+                      >
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <span
+                            className={`truncate text-[13.5px] font-semibold leading-[1.3] ${CARD_OWNER}`}
+                          >
+                            {r.trade_name || r.name}
+                          </span>
+                          <span onClick={(e) => e.stopPropagation()}>
+                            <PhoneActionButton
+                              phone={r.phone}
+                              country={r.phone_country}
+                              size={13}
+                              alwaysShow
+                            />
+                          </span>
+                        </div>
+                        {cityUf && (
+                          <div className="mt-[3px] text-[11.5px] text-muted-foreground">
+                            <span className="ds-faint">Reside em:</span> {cityUf}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          );
+        })()
       ) : (
         <div className="grid gap-4 md:grid-cols-3">
           {kanbanColumns.map((col) => {
@@ -432,9 +561,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
                       onDelete={() => remove(r.id)}
                     />
                   ))}
-                  {items.length === 0 && (
-                    <p className="ds-meta px-1 py-6 text-center">Vazio</p>
-                  )}
+                  {items.length === 0 && <p className="ds-meta px-1 py-6 text-center">Vazio</p>}
                 </div>
               </div>
             );
@@ -488,7 +615,6 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
         </DialogContent>
       </Dialog>
 
-
       {/* Detail — bottom-sheet no mobile, painel lateral no desktop */}
       <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
         <SheetContent
@@ -499,10 +625,21 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
               : "w-full sm:max-w-3xl overflow-y-auto p-0"
           }
         >
-          {detailId && <StakeholderDetailSheet kind={kind} id={detailId} accountOwnerId={activeAccountId} newLayout={newLayout} onEdit={() => {
-            const row = rows.find((r) => r.id === detailId);
-            if (row) { setDetailId(null); openEdit(row); }
-          }} />}
+          {detailId && (
+            <StakeholderDetailSheet
+              kind={kind}
+              id={detailId}
+              accountOwnerId={activeAccountId}
+              newLayout={newLayout}
+              onEdit={() => {
+                const row = rows.find((r) => r.id === detailId);
+                if (row) {
+                  setDetailId(null);
+                  openEdit(row);
+                }
+              }}
+            />
+          )}
         </SheetContent>
       </Sheet>
     </div>
@@ -566,18 +703,20 @@ function StakeholderCard({
           </span>
           {newLayout ? (
             <PhoneActionButton phone={row.phone} country={row.phone_country} size={13} alwaysShow />
-          ) : row.phone && (
-            <a
-              href={`https://wa.me/55${String(row.phone).replace(/\D/g, "")}`}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              aria-label="Conversar no WhatsApp"
-              title="Conversar no WhatsApp"
-              className="inline-flex size-5 shrink-0 items-center justify-center text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors"
-            >
-              <MessageCircle className="size-3.5" />
-            </a>
+          ) : (
+            row.phone && (
+              <a
+                href={`https://wa.me/55${String(row.phone).replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Conversar no WhatsApp"
+                title="Conversar no WhatsApp"
+                className="inline-flex size-5 shrink-0 items-center justify-center text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors"
+              >
+                <MessageCircle className="size-3.5" />
+              </a>
+            )
           )}
         </div>
         <StakeholderStatusControl
@@ -597,27 +736,38 @@ function StakeholderCard({
         {cityUf && (
           <p className="ds-meta flex items-center gap-1.5">
             <MapPin className="size-3 shrink-0 text-muted-foreground" />
-            {newLayout ? <span><span className="ds-faint">Reside em:</span> {cityUf}</span> : cityUf}
+            {newLayout ? (
+              <span>
+                <span className="ds-faint">Reside em:</span> {cityUf}
+              </span>
+            ) : (
+              cityUf
+            )}
           </p>
         )}
         {/* Vigência à esquerda e ações compactas à direita, na mesma linha —
             encolhe a altura do card sem cortar nada na margem direita. */}
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <div className="min-w-0">
-            {row.contract_start && (() => {
-              const eff = effectiveStatus(row.status, row.status_changed_at);
-              // Cancelado/Cancelando sem data final preenchida à mão: a data em que
-              // o cancelamento foi (ou será) efetivado é o fim real da vigência.
-              const endsOnStatus = eff === "canceled" || eff === "canceling";
-              const end =
-                row.contract_end ??
-                (endsOnStatus && row.status_changed_at ? String(row.status_changed_at).slice(0, 10) : null);
-              return (
-                <p className={`truncate text-[12px] font-medium leading-[1.45] ${statusText(eff)}`}>
-                  {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "momento"}
-                </p>
-              );
-            })()}
+            {row.contract_start &&
+              (() => {
+                const eff = effectiveStatus(row.status, row.status_changed_at);
+                // Cancelado/Cancelando sem data final preenchida à mão: a data em que
+                // o cancelamento foi (ou será) efetivado é o fim real da vigência.
+                const endsOnStatus = eff === "canceled" || eff === "canceling";
+                const end =
+                  row.contract_end ??
+                  (endsOnStatus && row.status_changed_at
+                    ? String(row.status_changed_at).slice(0, 10)
+                    : null);
+                return (
+                  <p
+                    className={`truncate text-[12px] font-medium leading-[1.45] ${statusText(eff)}`}
+                  >
+                    {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "momento"}
+                  </p>
+                );
+              })()}
           </div>
 
           <DropdownMenu>
@@ -633,16 +783,29 @@ function StakeholderCard({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44 rounded-[8px]">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpen(); }}>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpen();
+                }}
+              >
                 <Eye className="size-3.5" />
                 Ver detalhes
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
+              >
                 <Pencil className="size-3.5" />
                 Editar
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
                 className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="size-3.5" />
@@ -650,7 +813,6 @@ function StakeholderCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
         </div>
       </div>
 
