@@ -8,6 +8,8 @@ import {
   Filter,
   Home,
   Info,
+  LogIn,
+  LogOut,
   MapPin,
   MoreHorizontal,
   Pencil,
@@ -15,6 +17,7 @@ import {
   Link2,
 } from "lucide-react";
 import { PropertyInfoDialog } from "./PropertyInfoDialog";
+import { PropertyInstructionsDialog, type InstructionsKind } from "./PropertyInstructionsDialog";
 import {
   airbnbUrlOf,
   copyText,
@@ -60,6 +63,7 @@ export function OwnerPropertiesList({
   const [q, setQ] = useState("");
   const [menuId, setMenuId] = useState<string | null>(null);
   const [infoId, setInfoId] = useState<string | null>(null);
+  const [instr, setInstr] = useState<{ id: string; kind: InstructionsKind } | null>(null);
   // Vazio = Todos. As duas marcadas também equivalem a Todos.
   const [sel, setSel] = useState<Sit[]>([]);
 
@@ -353,6 +357,28 @@ export function OwnerPropertiesList({
                         >
                           <Info className="size-3.5 text-muted-foreground" /> Ver informações
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMenuId(null);
+                            setInstr({ id: p.id, kind: "checkin" });
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
+                        >
+                          <LogIn className="size-3.5 text-muted-foreground" /> Instruções de
+                          Check-In
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMenuId(null);
+                            setInstr({ id: p.id, kind: "checkout" });
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
+                        >
+                          <LogOut className="size-3.5 text-muted-foreground" /> Instruções de
+                          Checkout
+                        </button>
                         {airbnbUrlOf(p) ? (
                           <a
                             href={airbnbUrlOf(p) ?? undefined}
@@ -383,6 +409,11 @@ export function OwnerPropertiesList({
           })}
         </div>
       )}
+      <PropertyInstructionsDialog
+        property={items.find((i) => i.id === instr?.id) ?? null}
+        kind={instr?.kind ?? "checkin"}
+        onOpenChange={(o) => !o && setInstr(null)}
+      />
       <PropertyInfoDialog
         property={infoItem ?? null}
         active={!!infoItem?.active}

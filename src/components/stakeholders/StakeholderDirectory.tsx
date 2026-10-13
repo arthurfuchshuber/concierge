@@ -80,6 +80,16 @@ export type { StakeholderKind };
 type Row = Record<string, any>;
 
 // Mesmo formato de data usado no card do hóspede ("Check-in dd/mm/aaaa").
+/** Meses completos entre o início e o fim da vigência (ou hoje, se ainda vigente): "5 meses", "1 mês", "menos de 1 mês". */
+function monthsLabel(startISO: string, endISO: string | null): string {
+  const s = new Date(`${String(startISO).slice(0, 10)}T00:00:00`);
+  const e = endISO ? new Date(`${String(endISO).slice(0, 10)}T00:00:00`) : new Date();
+  let m = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+  if (e.getDate() < s.getDate()) m -= 1;
+  if (!Number.isFinite(m) || m < 1) return "menos de 1 mês";
+  return m === 1 ? "1 mês" : `${m} meses`;
+}
+
 function fmtDateBR(d: string) {
   try {
     const [y, m, day] = d.split("-");
@@ -701,7 +711,7 @@ function StakeholderCard({
   const cityUf = [row.city, row.state].filter(Boolean).join("/");
   if (newLayout) {
     // Mockup aprovado (13/10/2026, opção C): topo com nome + status à direita,
-    // "Reside em" e vigência na mesma linha, e uma faixa colada na base com
+    // "Reside em" e, logo abaixo, "Vigência: início → fim (N meses)", e uma faixa colada na base com
     // ativos/inativos à esquerda e o menu ⋮ à direita.
     const eff = effectiveStatus(row.status, row.status_changed_at);
     const endsOnStatus = eff === "canceled" || eff === "canceling";
@@ -738,23 +748,21 @@ function StakeholderCard({
               variant="compact"
             />
           </div>
-          <div className="mt-[7px] flex items-center justify-between gap-2">
-            {cityUf ? (
-              <p className="ds-meta min-w-0 truncate">
-                <span className="text-muted-foreground">Reside em:</span>{" "}
-                <span className="text-foreground">{cityUf}</span>
-              </p>
-            ) : (
-              <span />
-            )}
-            {row.contract_start && (
-              <p
-                className={`shrink-0 whitespace-nowrap text-[12px] font-medium ${statusText(eff)}`}
-              >
-                {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "momento"}
-              </p>
-            )}
-          </div>
+          {cityUf && (
+            <p className="ds-meta mt-[7px] min-w-0 truncate">
+              <span className="text-muted-foreground">Reside em:</span>{" "}
+              <span className="text-foreground">{cityUf}</span>
+            </p>
+          )}
+          {row.contract_start && (
+            <p className="ds-meta mt-[5px] min-w-0 truncate">
+              <span className="text-muted-foreground">Vigência:</span>{" "}
+              <span className="text-foreground">
+                {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "Hoje"} (
+                {monthsLabel(row.contract_start, end)})
+              </span>
+            </p>
+          )}
         </div>
         <div className="flex min-h-11 items-center justify-between gap-2 border-t border-foreground/[0.16] pl-3.5 pr-2.5">
           {integration ? <OwnerPropertyCounts summary={integration} /> : <span />}

@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { CoverImage } from "@/components/ui/cover-image";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import type { PropertyListItem } from "./property-actions";
-import { airbnbUrlOf, fullAddressOf, hasActiveGuide, openPublicGuide } from "./property-actions";
+import {
+  accessItemsOf,
+  airbnbUrlOf,
+  fullAddressOf,
+  hasActiveGuide,
+  openPublicGuide,
+} from "./property-actions";
 
 /**
  * JANELA "VER INFORMAÇÕES" DO IMÓVEL (mockup G1, 13/10/2026). Só leitura:
@@ -40,6 +46,32 @@ function InfoRow({
         {label}
       </span>
       <span className="min-w-0 truncate text-[13px] font-bold">{children}</span>
+      {aside ?? <span />}
+    </div>
+  );
+}
+
+/** Linha de duas camadas: o NOME do item (pode ser longo, ex.: "Cadeado cofre no portão da garagem") em cima e o valor embaixo. */
+function StackRow({
+  label,
+  children,
+  aside,
+}: {
+  label: string;
+  children: ReactNode;
+  aside?: ReactNode;
+}) {
+  return (
+    <div className="grid min-h-[44px] grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5">
+      <span className="min-w-0">
+        <span
+          className="block truncate text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground"
+          title={label}
+        >
+          {label}
+        </span>
+        <span className="block truncate text-[13px] font-bold">{children}</span>
+      </span>
       {aside ?? <span />}
     </div>
   );
@@ -108,7 +140,10 @@ export function PropertyInfoDialog({
         .filter(Boolean)
         .join(" · ")
     : "";
-  const dash = "—";
+  const access = p ? accessItemsOf(p) : [];
+  const checkin = p?.checkin_time?.slice(0, 5) || "";
+  const checkout = p?.checkout_time?.slice(0, 5) || "";
+  const hasAirbnbData = !!(address || checkin || checkout || capacity);
   return (
     <Dialog open={!!p} onOpenChange={onOpenChange}>
       <DialogContent
@@ -155,56 +190,76 @@ export function PropertyInfoDialog({
               Informações do imóvel: acesso e dados sincronizados do Airbnb.
             </DialogDescription>
             <div className="sg-elegant-scroll grid min-h-0 flex-1 content-start gap-2.5 overflow-y-auto px-4 pb-3">
-              <SectionTitle>Acesso</SectionTitle>
-              <div className="divide-y divide-foreground/[0.08] overflow-hidden rounded-[var(--win-radius)] bg-foreground/[0.04]">
-                <InfoRow
-                  label="Porta"
-                  aside={
-                    p.lock_code ? <CopyBtn value={p.lock_code} label="Senha da porta" /> : undefined
-                  }
-                >
-                  <span className="tracking-[0.14em]">{p.lock_code || dash}</span>
-                </InfoRow>
-                <InfoRow
-                  label="Wi-Fi"
-                  aside={
-                    p.wifi_ssid ? <CopyBtn value={p.wifi_ssid} label="Nome do Wi-Fi" /> : undefined
-                  }
-                >
-                  {p.wifi_ssid || dash}
-                </InfoRow>
-                <InfoRow
-                  label="Senha"
-                  aside={
-                    p.wifi_password ? (
-                      <CopyBtn value={p.wifi_password} label="Senha do Wi-Fi" />
-                    ) : undefined
-                  }
-                >
-                  {p.wifi_password || dash}
-                </InfoRow>
-              </div>
-              <SectionTitle extra="bloqueado">
-                <Lock className="size-[11px]" />
-                Do Airbnb
-              </SectionTitle>
-              <div className="divide-y divide-foreground/[0.08] overflow-hidden rounded-[var(--win-radius)] bg-foreground/[0.04]">
-                <InfoRow
-                  label="Endereço"
-                  aside={address ? <CopyBtn value={address} label="Endereço" /> : <Locked />}
-                >
-                  {address || dash}
-                </InfoRow>
-                <InfoRow label="Entrada" aside={<Locked />}>
-                  {p.checkin_time?.slice(0, 5) || dash}
-                </InfoRow>
-                <InfoRow label="Saída" aside={<Locked />}>
-                  {p.checkout_time?.slice(0, 5) || dash}
-                </InfoRow>
-                <InfoRow label="Capacidade" aside={<Locked />}>
-                  {capacity || dash}
-                </InfoRow>
-              </div>
+              {access.length > 0 && (
+                <>
+                  <SectionTitle>Acesso</SectionTitle>
+                  <div className="divide-y divide-foreground/[0.08] overflow-hidden rounded-[var(--win-radius)] bg-foreground/[0.04]">
+                    {access.map((it) => (
+                      <StackRow
+                        key={it.key}
+                        label={it.label}
+                        aside={<CopyBtn value={it.value} label={it.label} />}
+                      >
+                        <span className="tracking-[0.14em]">{it.value}</span>
+                      </StackRow>
+                    ))}
+                    {p.wifi_ssid && (
+                      <StackRow
+                        label="Wi-Fi"
+                        aside={<CopyBtn value={p.wifi_ssid} label="Nome do Wi-Fi" />}
+                      >
+                        {p.wifi_ssid}
+                      </StackRow>
+                    )}
+                    {p.wifi_password && (
+                      <StackRow
+                        label="Senha do Wi-Fi"
+                        aside={<CopyBtn value={p.wifi_password} label="Senha do Wi-Fi" />}
+                      >
+                        {p.wifi_password}
+                      </StackRow>
+                    )}
+                  </div>
+                </>
+              )}
+              {hasAirbnbData && (
+                <>
+                  <SectionTitle extra="bloqueado">
+                    <Lock className="size-[11px]" />
+                    Do Airbnb
+                  </SectionTitle>
+                  <div className="divide-y divide-foreground/[0.08] overflow-hidden rounded-[var(--win-radius)] bg-foreground/[0.04]">
+                    {address && (
+                      <InfoRow
+                        label="Endereço"
+                        aside={<CopyBtn value={address} label="Endereço" />}
+                      >
+                        {address}
+                      </InfoRow>
+                    )}
+                    {checkin && (
+                      <InfoRow label="Entrada" aside={<Locked />}>
+                        {checkin}
+                      </InfoRow>
+                    )}
+                    {checkout && (
+                      <InfoRow label="Saída" aside={<Locked />}>
+                        {checkout}
+                      </InfoRow>
+                    )}
+                    {capacity && (
+                      <InfoRow label="Capacidade" aside={<Locked />}>
+                        {capacity}
+                      </InfoRow>
+                    )}
+                  </div>
+                </>
+              )}
+              {access.length === 0 && !p.wifi_ssid && !p.wifi_password && !hasAirbnbData && (
+                <p className="py-6 text-center text-[12.5px] text-muted-foreground">
+                  Nenhuma informação cadastrada para este imóvel.
+                </p>
+              )}
             </div>
             <div className="grid shrink-0 grid-cols-[1.4fr_1fr] gap-2 px-4 pb-4 pt-1">
               <Button asChild={!!airbnb} disabled={!airbnb} className="gap-2">

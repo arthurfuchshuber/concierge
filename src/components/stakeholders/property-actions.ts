@@ -16,6 +16,13 @@ export type PropertyListItem = {
   wifi_ssid?: string | null;
   wifi_password?: string | null;
   lock_code?: string | null;
+  lock_label?: string | null;
+  gate_code?: string | null;
+  gate_label?: string | null;
+  checkin_instructions?: string | null;
+  checkin_note?: string | null;
+  checkout_instructions?: string | null;
+  checkout_note?: string | null;
   checkin_time?: string | null;
   checkout_time?: string | null;
   airbnb_guest_count?: number | null;
@@ -68,4 +75,18 @@ export function copyText(value: string, okMessage: string) {
     .writeText(value)
     .then(() => toast.success(okMessage))
     .catch(() => toast.error("Não foi possível copiar"));
+}
+
+const clean = (v?: string | null) => (v && v.trim() ? v.trim() : null);
+
+/** Códigos de acesso que o imóvel realmente tem, com o NOME dado a cada um (ex.: "Cadeado cofre no portão da garagem"). */
+export function accessItemsOf(
+  p: PropertyListItem,
+): Array<{ key: string; label: string; value: string }> {
+  const items: Array<{ key: string; label: string; value: string }> = [];
+  const gate = clean(p.gate_code);
+  if (gate) items.push({ key: "gate", label: clean(p.gate_label) ?? "Portão", value: gate });
+  const lock = clean(p.lock_code);
+  if (lock) items.push({ key: "lock", label: clean(p.lock_label) ?? "Fechadura", value: lock });
+  return items;
 }

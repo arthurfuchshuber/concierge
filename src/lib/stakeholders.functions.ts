@@ -51,7 +51,7 @@ export const listStakeholders = createServerFn({ method: "GET" })
         ? await supabase
             .from("properties")
             .select(
-              "id, name, slug, city, state, owner_contact_id, hero_image_url, gallery_images, address, lat, lng, maps_url, wifi_ssid, wifi_password, lock_code, checkin_time, checkout_time, airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_listing_url, published, guide_created",
+              "id, name, slug, city, state, owner_contact_id, hero_image_url, gallery_images, address, lat, lng, maps_url, wifi_ssid, wifi_password, lock_code, lock_label, gate_code, gate_label, checkin_instructions, checkin_note, checkout_instructions, checkout_note, checkin_time, checkout_time, airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_listing_url, published, guide_created",
             )
             .eq("owner_id", accountId)
         : {
