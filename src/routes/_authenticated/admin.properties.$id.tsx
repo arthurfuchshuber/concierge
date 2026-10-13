@@ -168,6 +168,9 @@ import { AirbnbLockedValue, AirbnbLockReason, ADDRESS_LOCK_REASON } from "@/comp
 import { SectionTopLineBar, type SectionTopLine } from "@/components/editor/Section";
 import { Smartphone, Monitor } from "lucide-react";
 
+/** Contas com anúncio nativo do Airbnb (piloto): campos importados via API somem do editor. */
+const NATIVE_AIRBNB_OWNERS = new Set(["25239e5b-1a66-46f1-b9a2-829c499cc366"]);
+
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   // `houseOnly`: abre direto (e trava) na aba "A casa", sem a barra de abas —
   // usado pelo botão "Editar" do imóvel dentro do proprietário em
@@ -1786,7 +1789,18 @@ function PropertyEditor() {
   // (`guide_created`): antes disso, é a própria tela enxuta "Novo imóvel" que
   // já pede e valida esses mesmos campos.
   const missingOwner = !isNew && !form.property.owner_contact_id;
-  const missingHouseFields = form.property.guide_created ? missingRequiredHouseFields(form.property) : [];
+  // Anúncio nativo (piloto Sigma): endereço, fotos, descrição, regras, horários
+  // e instruções vêm do Airbnb via API — esses campos somem do editor.
+  const nativeAirbnb = NATIVE_AIRBNB_OWNERS.has(
+    String(((data?.property as Record<string, unknown> | null)?.owner_id as string | undefined) ?? ""),
+  );
+  const NATIVE_SKIP = ["Link do Google Maps (entrada principal)", "Endereço", "URL do calendário Airbnb"];
+  const missingHouseFields = (form.property.guide_created ? missingRequiredHouseFields(form.property) : []).filter(
+    (m) => !(nativeAirbnb && NATIVE_SKIP.includes(m)),
+  );
+  useEffect(() => {
+    if (nativeAirbnb && step === "airbnb") setStep("guide");
+  }, [nativeAirbnb, step, setStep]);
   // "CONDOMÍNIO?" (pedido de 01/10/2026): obrigatório SÓ com a chave ligada, e
   // com ela ligada e algum campo vazio a pessoa não consegue sair da tela —
   // como o salvamento é automático, deixar pela metade gravaria um cadastro
@@ -2113,6 +2127,7 @@ function PropertyEditor() {
         "Condomínio — Elevador",
       )}
     >
+      {!nativeAirbnb && (<>
       <Field label="Link do Google Maps — Entrada principal" required>
         <Input
           value={form.property.maps_url}
@@ -2168,6 +2183,7 @@ function PropertyEditor() {
           />
         </Field>
       </div>
+      </>)}
       {/* CONDOMÍNIO? (mockup "Local dentro do prédio", aprovado 01/10/2026):
           a chave liga os quatro campos; desligada eles somem daqui e de todo
           lugar onde o complemento do endereço aparece, mas o que já foi
@@ -2834,7 +2850,7 @@ function PropertyEditor() {
                         { value: "checkin", label: "Check-in & Checkout", icon: DoorOpen },
                         { value: "faq", label: "FAQ", icon: LifeBuoy },
                         { value: "recs", label: "Recomendações", icon: Compass },
-                      ]}
+                      ].filter((s) => !(nativeAirbnb && s.value === "airbnb"))}
                       lockedValues={needsRequiredHouseInfo ? ["airbnb", "guide", "checkin", "faq", "recs"] : undefined}
                     />
                   </div>
@@ -2907,13 +2923,13 @@ function PropertyEditor() {
 
                   {renderAddressSection()}
 
-                  {renderAirbnbCalendarSection()}
+                  {!nativeAirbnb && renderAirbnbCalendarSection()}
 
-                  {renderHouseRulesSection()}
+                  {!nativeAirbnb && renderHouseRulesSection()}
 
                   {renderManualSection()}
 
-                  {renderPropertyDetailsSection()}
+                  {!nativeAirbnb && renderPropertyDetailsSection()}
 
                   {renderHostContactSection()}
 
@@ -3355,6 +3371,7 @@ function PropertyEditor() {
               {checkinSubStep === "checkin" && (
               <div className={SECTION_LIST}>
               <SectionGroup>
+                <div hidden={nativeAirbnb} className="contents">
                 <Section id="checkin-times" icon={Clock} title="Horário de check-in" collapsible>
                   {/* Espelha (mesmo estado do form, não é uma cópia separada)
                       os campos que já existem na aba Airbnb — pedido do
@@ -3386,6 +3403,7 @@ function PropertyEditor() {
                     />
                   </Field>
                 </Section>
+                </div>
 
                 <Section
                   id="checkin-instr"
@@ -3393,6 +3411,7 @@ function PropertyEditor() {
                   title="Instruções de chegada"
                   collapsible
                 >
+                  {!nativeAirbnb && (
                   <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
                     <TagMentionTextarea
                       items={tagItems}
@@ -3405,6 +3424,7 @@ function PropertyEditor() {
                       }
                     />
                   </Field>
+                  )}
                   <Field
                     label="Fotos e vídeos do check-in"
                     hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB)."
@@ -3795,6 +3815,7 @@ function PropertyEditor() {
               {checkinSubStep === "checkout" && (
               <div className={SECTION_LIST}>
               <SectionGroup>
+                <div hidden={nativeAirbnb} className="contents">
                 <Section id="checkout-times" icon={Clock} title="Horário de check-out" collapsible>
                   {/* Mesmo espelhamento do "Horário de check-in" acima — ver
                       comentário lá. "Check-out a partir de" continua
@@ -3827,7 +3848,9 @@ function PropertyEditor() {
                     />
                   </Field>
                 </Section>
+                </div>
 
+                {!nativeAirbnb && (
                 <Section
                   id="checkout-instr"
                   icon={LogOut}
@@ -3847,6 +3870,7 @@ function PropertyEditor() {
                     />
                   </Field>
                 </Section>
+                )}
 
                 <Section
                   id="checkout-list"
@@ -4574,7 +4598,7 @@ function PropertyEditor() {
                       // Mesma ordem das abas do Stepper acima (house, airbnb, guide,
                       // checkin, faq, recs — checkin já inclui checkout, que foi
                       // mesclado na mesma aba "Check-in & Checkout").
-                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"];
+                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"].filter((s) => !(nativeAirbnb && s === "airbnb"));
                       const i = order.indexOf(step);
                       if (i > 0) setStep(order[i - 1]);
                     }}
@@ -4587,7 +4611,7 @@ function PropertyEditor() {
                     type="button"
                     className={`${ACTION_SEGMENT} !w-auto !flex-1 !gap-2 !px-3 text-[13px] text-foreground disabled:pointer-events-none disabled:text-muted-foreground/35`}
                     onClick={() => {
-                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"];
+                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"].filter((s) => !(nativeAirbnb && s === "airbnb"));
                       const i = order.indexOf(step);
                       if (i < order.length - 1) setStep(order[i + 1]);
                     }}
