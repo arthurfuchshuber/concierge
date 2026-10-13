@@ -486,12 +486,12 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   const [{ data: sw }, { data: conv }, { data: humanAfter }] = await Promise.all([
     admin.from("property_listing_raw_data").select("airbnb_ai_enabled").eq("property_id", listing.property_id).maybeSingle(),
     admin.from("property_chat_conversations").select("ai_paused, paused_until").eq("id", convId).maybeSingle(),
-    // Alguém da conta falou depois da mensagem do hóspede? Então a IA cala.
+    // A conta (humano OU mensagem programada/sistema) falou depois do hóspede? A IA cala.
     admin
       .from("property_chat_messages")
       .select("id")
       .eq("conversation_id", convId)
-      .eq("sender_type", "human")
+      .in("sender_type", ["human", "system"])
       .not("is_internal_note", "is", true)
       .gte("created_at", guestMsgAt)
       .limit(1),
@@ -499,6 +499,14 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   const { isPausedNow } = await import("@/lib/ai/pause");
   if (!(sw as any)?.airbnb_ai_enabled || isPausedNow(conv as never)) return;
   if ((humanAfter ?? []).length > 0) return;
+  // Resposta pensada como pré-reserva, mas a reserva confirmou enquanto a IA pensava: descarta.
+  if (!reservation.ok) {
+    const nowConfirmed = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => null);
+    if (nowConfirmed?.ok) {
+      console.info("[channex-messages] resposta pré-reserva descartada: reserva confirmada durante a geração", m.threadId);
+      return;
+    }
+  }
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
   try {
