@@ -1,6 +1,6 @@
 import { CoverImage } from "@/components/ui/cover-image";
 import type { ReactNode } from "react";
-import { Globe, Lock } from "lucide-react";
+import { Globe, Lock, MapPin } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
@@ -42,6 +42,7 @@ export function GuideCard({
   onSelectChange,
   actions,
   onOpenMenu,
+  attention,
 }: {
   p: GuideCardData;
   variant: GuideCardVariant;
@@ -60,6 +61,8 @@ export function GuideCard({
    * então todo controle novo já nasce protegido.
    */
   onOpenMenu?: () => void;
+  /** Guia publicado que precisa de atenção (selo rosado sobre a foto). */
+  attention?: boolean;
 }) {
   const openMenuOnClick = onOpenMenu
     ? (e: React.MouseEvent<HTMLElement>) => {
@@ -194,10 +197,16 @@ export function GuideCard({
       </div>
     );
   }
+  // LAYOUT DOS IMÓVEIS (mockup aprovado, 13/10/2026): foto colada à esquerda
+  // com o status sobre ela, título → cidade → proprietário + ⋯ e a completude
+  // como barra fina na base. PIN/Público vira selo no canto da foto; o
+  // interruptor de publicação mora no menu ⋯.
+  const tone = attention ? "text-[#c98c8c]" : p.published ? "text-[#7fb79a]" : "text-[#d8b96a]";
+  const statusLabel = attention ? "Atenção" : p.published ? "Publicado" : "Rascunho";
   return (
     <div
       onClick={openMenuOnClick}
-      className={`${PANEL_SHELL} relative flex min-h-[112px] min-w-0 ${onOpenMenu ? "cursor-pointer" : ""}`}
+      className={`${PANEL_SHELL} relative flex h-[112px] min-w-0 overflow-hidden ${onOpenMenu ? "cursor-pointer" : ""}`}
     >
       {onSelectChange && (
         <Checkbox
@@ -207,14 +216,62 @@ export function GuideCard({
           aria-label="Selecionar guia"
         />
       )}
-      {/* FOTO QUASE QUADRADA NO COMPUTADOR (mockup aprovado, 02/10/2026: "as
-          imagens dos imóveis fiquem no mesmo formato que o print 2, mais
-          voltadas para quadrados"). No celular os 40% da largura já dão essa
-          proporção; no desktop, com o cartão largo, 40% virava uma faixa
-          comprida. A partir de `lg` a foto tem 120px — com os 112px de altura
-          do cartão, a mesma proporção do celular (1,07:1). */}
-      {photo("w-[40%] lg:w-[120px]", false, true)}
-      <div className="flex min-w-0 flex-1 p-3 pr-7">{info}</div>
+      <div className="relative w-24 shrink-0 overflow-hidden bg-secondary">
+        <CoverImage urls={[p.hero_image_url, ...(p.gallery_images ?? [])]} />
+        <span
+          className={`absolute left-2 top-2 inline-flex h-[22px] items-center gap-1.5 rounded-full bg-background/70 px-2.5 text-[10.5px] font-extrabold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] backdrop-blur-sm ${tone}`}
+        >
+          <span aria-hidden className="size-1.5 rounded-full bg-current" />
+          {statusLabel}
+        </span>
+        <span className="absolute bottom-2 left-2 inline-flex h-5 items-center gap-1 rounded-full bg-background/70 px-1.5 text-[9px] font-extrabold uppercase tracking-[0.1em] text-foreground/80 backdrop-blur-sm">
+          {p.access_mode === "pin" ? <Lock className="size-2.5" /> : <Globe className="size-2.5" />}
+          {p.access_mode === "pin" ? "PIN" : "Público"}
+        </span>
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 py-3 pl-3.5 pr-2.5">
+        <div className={`grid min-w-0 gap-1.5 ${onSelectChange ? "pr-4" : ""}`}>
+          <span
+            className="block truncate text-[14.5px] font-extrabold leading-tight"
+            title={p.name}
+          >
+            {p.name}
+          </span>
+          {place && (
+            <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
+              <MapPin className="size-3 shrink-0" />
+              <span className="truncate">{place}</span>
+            </span>
+          )}
+        </div>
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          {p.ownerName ? (
+            <span className="flex min-w-0 items-center gap-1.5 text-xs">
+              <span className="shrink-0 text-[11.5px] text-muted-foreground">Proprietário(a):</span>
+              <span className="min-w-0 truncate font-semibold text-foreground" title={p.ownerName}>
+                {p.ownerName}
+              </span>
+              <PhoneActionButton
+                phone={p.ownerPhone}
+                country={p.ownerPhoneCountry}
+                size={13}
+                alwaysShow
+                className="shrink-0"
+              />
+            </span>
+          ) : (
+            <span />
+          )}
+          <div className="flex shrink-0 items-center">{actions}</div>
+        </div>
+      </div>
+      <div
+        className="absolute inset-x-0 bottom-0 h-[3px] bg-foreground/10"
+        title={`Guia ${score}% completo`}
+        aria-label={`Guia ${score}% completo`}
+      >
+        <div className={`h-full ${barClass}`} style={{ width: `${score}%` }} />
+      </div>
     </div>
   );
 }

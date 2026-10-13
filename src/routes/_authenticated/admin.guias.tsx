@@ -891,6 +891,7 @@ function Dashboard() {
                           score={c.score}
                           barClass={c.score >= 90 ? "bg-[#7fb79a]" : c.score >= 60 ? "bg-[#d8b96a]" : "bg-[#c98c8c]"}
                           toggling={togglingId === p.id}
+                          attention={g.key === "att"}
                           onOpenMenu={() => setMenuGuideId(p.id)}
                           onTogglePublished={(v) => togglePublished(p.id, v)}
                           selected={selected.has(p.id)}
@@ -919,6 +920,17 @@ function Dashboard() {
                       </button>
                     </PopoverTrigger>
                     <PopoverContent align="end" className="w-52 p-1.5">
+                      {!readOnly && view !== "grid" && (
+                        <button
+                          type="button"
+                          disabled={togglingId === p.id}
+                          onClick={() => togglePublished(p.id, !p.published)}
+                          className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left disabled:opacity-50"
+                        >
+                          <Globe className="size-3.5 text-muted-foreground" />
+                          {p.published ? "Despublicar" : "Publicar"}
+                        </button>
+                      )}
                       <Link
                         to="/admin/properties/$id"
                         params={{ id: p.id }}
