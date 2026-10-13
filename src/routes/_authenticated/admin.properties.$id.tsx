@@ -172,6 +172,9 @@ import { isNewLayoutAccount } from "@/lib/new-layout-accounts";
 /** Contas com anúncio nativo do Airbnb (piloto): campos importados via API somem do editor. */
 const NATIVE_AIRBNB_OWNERS = new Set(["25239e5b-1a66-46f1-b9a2-829c499cc366"]);
 
+/** Contas com anúncio nativo do Airbnb (piloto): campos importados via API somem do editor. */
+const NATIVE_AIRBNB_OWNERS = new Set(["25239e5b-1a66-46f1-b9a2-829c499cc366"]);
+
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   // `houseOnly`: abre direto (e trava) na aba "A casa", sem a barra de abas —
   // usado pelo botão "Editar" do imóvel dentro do proprietário em
@@ -1800,6 +1803,7 @@ function PropertyEditor() {
   const nativeAirbnb = NATIVE_AIRBNB_OWNERS.has(
     String(((data?.property as Record<string, unknown> | null)?.owner_id as string | undefined) ?? ""),
   );
+<<<<<<< HEAD
   // Layout novo do editor (mockups aprovados) — só contas habilitadas.
   const newLayoutEditor = isNewLayoutAccount(
     String(((data?.property as Record<string, unknown> | null)?.owner_id as string | undefined) ?? ""),
@@ -1808,6 +1812,8 @@ function PropertyEditor() {
   // Só "Curadoria & Dicas locais": as demais partes passam a ser editadas pelo
   // proprietário (Públicas/Confidenciais) — abertas aqui via `focus`.
   const singleStepMode = newLayoutEditor && !isNew && !houseOnly;
+=======
+>>>>>>> 47475763e867163211e8e5ba708e2a7c5295e811
   const NATIVE_SKIP = ["Link do Google Maps (entrada principal)", "Endereço", "URL do calendário Airbnb"];
   const missingHouseFields = (form.property.guide_created ? missingRequiredHouseFields(form.property) : []).filter(
     (m) => !(nativeAirbnb && NATIVE_SKIP.includes(m)),
