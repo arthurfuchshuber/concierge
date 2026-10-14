@@ -38,24 +38,22 @@ function Check2({ on }: { on: boolean }) {
 export function SyncRequiredGate() {
   const { perm, q } = useUnsyncedProperties();
   const [flow, setFlow] = useState<AirbnbFlowRequest>(null);
-  const [visible, setVisible] = useState(false);
   const [initial, setInitial] = useState<UnsyncedProperty[]>([]);
   const otherWindowOpen = useAnyWindowOpen();
   const prevFlow = useRef<AirbnbFlowRequest>(null);
 
-  // Segura uma tela neutra enquanto a primeira consulta responde, para o painel nunca "piscar"
-  // por trás do aviso ao recarregar a página. Libera sozinha se algo demorar demais ou falhar.
+  // Segura uma tela neutra enquanto a 1ª consulta responde E até a janela estar pintada, para o
+  // painel nunca "piscar" por trás do aviso ao recarregar (F5). Libera sozinha se algo demorar
+  // demais ou falhar. A cobertura só sai quando: (a) não há aviso a mostrar (libera na hora) ou
+  // (b) o aviso está aberto e o fundo desfocado dele já cobriu a tela (ver `onOpenAutoFocus`).
   const booting = perm.loading || (perm.allowed && q.isLoading);
   const [bootGiveUp, setBootGiveUp] = useState(false);
-  const [bootDone, setBootDone] = useState(false);
-  useEffect(() => {
-    if (!booting) setBootDone(true);
-  }, [booting]);
+  const [coverDone, setCoverDone] = useState(false);
+  const [dialogPainted, setDialogPainted] = useState(false);
   useEffect(() => {
     const t = window.setTimeout(() => setBootGiveUp(true), 2500);
     return () => window.clearTimeout(t);
   }, []);
-  const showBootCover = booting && !bootDone && !bootGiveUp;
 
   const pending = q.data?.properties ?? [];
   const blocking = perm.allowed && !!q.data?.blocking && pending.length > 0;
@@ -74,11 +72,19 @@ export function SyncRequiredGate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocking, q.data]);
 
-  // Só abre quando não há outra janela na frente (ex.: o fluxo de conectar conta); depois de aberto, fica.
+  // Abertura SÍNCRONA (sem estado nem efeito no meio): no mesmo quadro em que a consulta confirma
+  // o bloqueio, o <Dialog> já recebe open=true. Só abre quando não há outra janela na frente
+  // (ex.: o fluxo de conectar conta); depois de aberto, fica (a própria janela do aviso conta como
+  // "janela aberta", por isso `wasOpen`).
+  const [wasOpen, setWasOpen] = useState(false);
+  const shouldBeOpen = blocking && !flow && (wasOpen || !otherWindowOpen);
   useEffect(() => {
-    if (!blocking || flow) setVisible(false);
-    else if (!visible && !otherWindowOpen) setVisible(true);
-  }, [blocking, flow, otherWindowOpen, visible]);
+    setWasOpen(shouldBeOpen);
+  }, [shouldBeOpen]);
+  useEffect(() => {
+    if (!booting && (!shouldBeOpen || dialogPainted)) setCoverDone(true);
+  }, [booting, shouldBeOpen, dialogPainted]);
+  const showBootCover = !bootGiveUp && !coverDone;
 
   // Ao fechar o fluxo de sincronizar, confere de novo.
   useEffect(() => {
@@ -160,9 +166,13 @@ export function SyncRequiredGate() {
           <Loader2 className="size-6 animate-spin" />
         </div>
       ) : null}
-      <Dialog open={visible} onOpenChange={() => undefined}>
+      <Dialog open={shouldBeOpen} onOpenChange={() => undefined}>
         <DialogContent
           hideClose
+          onOpenAutoFocus={() => {
+            // Janela montada: espera 2 quadros para o fundo desfocado pintar e só então solta a cobertura.
+            requestAnimationFrame(() => requestAnimationFrame(() => setDialogPainted(true)));
+          }}
           onEscapeKeyDown={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => e.preventDefault()}
