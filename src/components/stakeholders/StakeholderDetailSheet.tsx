@@ -864,27 +864,41 @@ export function StakeholderDetailSheet({
               invalidateQueryKeys={[queryKey]}
             />
             {row.contract_start && (
-              <span>
-                · contrato há{" "}
-                <span className="font-semibold tabular-nums text-foreground">
-                  {periodShort(row.contract_start, contractEnd)}
+              <>
+                <span className="h-3.5 w-px shrink-0 bg-foreground/[0.2]" aria-hidden />
+                <span>
+                  Contrato{" "}
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {periodShort(row.contract_start, contractEnd)}
+                  </span>
                 </span>
-              </span>
+              </>
             )}
           </div>
           {row.contract_start && (
             <div className="mt-1 grid gap-[7px]">
               {/* Barra de vigência: do início até hoje (ou até o fim, se já definido). */}
               <div
-                className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]"
+                className="relative"
                 role="img"
                 aria-label={`Vigência de ${fmtDateBR(row.contract_start)} até ${
                   contractEnd ? fmtDateBR(contractEnd) : "hoje"
                 }`}
               >
-                <div
-                  className={`h-full rounded-full bg-current ${statusText(effStatus)}`}
-                  style={{ width: `${vigenciaPct}%` }}
+                <div className="h-[3px] rounded-full bg-foreground/[0.07]">
+                  <div
+                    className={`h-full rounded-full ${statusText(effStatus)}`}
+                    style={{
+                      width: `${vigenciaPct}%`,
+                      background:
+                        "linear-gradient(90deg, color-mix(in oklab, currentColor 18%, transparent), color-mix(in oklab, currentColor 85%, transparent))",
+                    }}
+                  />
+                </div>
+                <span
+                  className={`absolute top-1/2 size-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-current ring-[3px] ring-background ${statusText(effStatus)}`}
+                  style={{ left: `${vigenciaPct}%` }}
+                  aria-hidden
                 />
               </div>
               <div className="flex justify-between gap-2 text-[12px] leading-none tabular-nums text-muted-foreground">
