@@ -9,8 +9,8 @@ import {
   ACTION_BUTTON_TONE,
   ACTION_ICON,
   ACTION_SEGMENT,
+  PANEL_SHELL,
 } from "@/components/dashboard/panel-chrome";
-import { CARD_8 } from "./owner-ui";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
@@ -182,7 +182,7 @@ export function OwnerFinancePanel({
               </PopoverTrigger>
               <PopoverContent
                 align="end"
-                className="w-[240px] rounded-lg border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+                className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
                 onOpenAutoFocus={(e) => e.preventDefault()}
               >
                 <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
@@ -258,7 +258,7 @@ export function OwnerFinancePanel({
       />
 
       <div className="mt-[26px] grid gap-6">
-        <div className={CARD_8}>
+        <div className={PANEL_SHELL}>
           <StatsStrip
             items={[
               { label: "A receber", value: brlWhole(totals.rec), tone: "ok" },
@@ -297,9 +297,9 @@ export function OwnerFinancePanel({
               return (
                 <div
                   key={e.id}
-                  className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-lg bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                  className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-[12px] bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                 >
-                  <span className="grid size-8 place-items-center rounded-lg bg-foreground/[0.05] text-muted-foreground">
+                  <span className="grid size-8 place-items-center rounded-[10px] bg-foreground/[0.05] text-muted-foreground">
                     {isRec ? (
                       <ArrowDownLeft className="size-[15px]" />
                     ) : (
@@ -447,7 +447,7 @@ function EntryWindow({
           </DialogDescription>
         </div>
 
-        <div className="grid grid-cols-2 gap-1 rounded-lg bg-foreground/[0.05] p-1">
+        <div className="grid grid-cols-2 gap-1 rounded-[10px] bg-foreground/[0.05] p-1">
           {(
             [
               ["receivable", "A receber"],
@@ -522,7 +522,7 @@ function EntryWindow({
               type="button"
               disabled={busy}
               onClick={() => (confirmDel ? run(onDelete) : setConfirmDel(true))}
-              className="h-9 rounded-lg px-3 text-[12.5px] font-bold ds-falta hover:bg-foreground/[0.05] disabled:opacity-40"
+              className="h-10 rounded-[10px] px-3 text-[12.5px] font-bold ds-falta hover:bg-foreground/[0.05] disabled:opacity-40"
             >
               {confirmDel ? "Confirmar exclusão" : "Excluir"}
             </button>
@@ -542,7 +542,7 @@ function EntryWindow({
                 }),
               )
             }
-            className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] px-4 text-[12.5px] font-bold text-white disabled:opacity-40"
+            className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] px-4 text-[12.5px] font-bold text-white disabled:opacity-40"
           >
             {busy && <Loader2 className="size-3.5 animate-spin" />}
             Salvar

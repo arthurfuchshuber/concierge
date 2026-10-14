@@ -246,7 +246,3 @@ export function OwnerEmpty({ icon: I, title, text }: { icon: Icon; title: string
 /** Chip quadrado 28px de ação (mockup `.chip`). */
 export const CHIP_BTN =
   "grid size-7 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent)] transition-colors hover:text-foreground disabled:opacity-40";
-
-/** Card padrão das fichas (diretriz 5): raio 8px, borda do tema, sem sombra 3D. */
-export const CARD_8 =
-  "relative overflow-hidden rounded-lg bg-card shadow-[inset_0_0_0_1px_var(--border)]";

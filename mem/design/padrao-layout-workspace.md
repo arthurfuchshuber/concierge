@@ -13,6 +13,7 @@ Referência oficial: página "Operação" (`OperationWorkspace`). Componente reu
 - Sem eyebrow, sem botões soltos ao lado do título.
 
 ## Barra de menu (segmented control)
+- REGRA ATUAL (13/10/2026): o raio da barra de abas é o MESMO da barra de busca/filtros (`ACTION_BAR`: 9px no celular, 13px no desktop). Vale para `ds-tabs` e para o `Stepper`. Os 14px/0.3rem abaixo são históricos.
 - `flex w-full overflow-hidden rounded-[0.3rem] bg-foreground/5`, `mb-5`.
 - Cada aba: `flex-1`, `min-h-[46px]`, `text-sm font-semibold`, centralizada.
 - Aba ativa: `bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white`.

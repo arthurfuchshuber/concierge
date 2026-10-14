@@ -52,6 +52,16 @@ export function describeRecord(raw: string): RecordView {
     }
   }
 
+  // Registros antigos (ago/2026) foram gravados só com "Cadastro atualizado." — o
+  // banco não guardou o que mudou, então não há como reconstruir o detalhe.
+  if (/^Cadastro atualizado\.?$/i.test(msg) || /^Cadastro salvo sem altera/i.test(msg)) {
+    return {
+      kind: "update",
+      title: "Cadastro atualizado",
+      lines: [{ k: "Detalhe", v: "não foi guardado neste registro antigo" }],
+    };
+  }
+
   if (/^Cadastro criado/i.test(msg)) return { kind: "create", title: "Cadastro criado", lines: [] };
 
   const sit = /^Situa[çc][ãa]o alterada para (.+?)(?: em (\d{2}\/\d{2}\/\d{4}))?\.?$/i.exec(msg);

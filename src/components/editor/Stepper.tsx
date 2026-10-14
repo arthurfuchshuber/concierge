@@ -63,7 +63,7 @@ export function Stepper({
       // `ds-segmented` dá a rolagem sem barra; o resto é a casca do `ds-tabs`.
       // O `gap` volta a 0: as fatias se encostam, como no Dashboard.
       style={{ gap: 0 }}
-      className="ds-segmented rounded-[14px] bg-card p-0 shadow-[inset_0_0_0_1px_var(--border)]"
+      className="ds-segmented rounded-[9px] bg-card p-0 lg:rounded-[13px] shadow-[inset_0_0_0_1px_var(--border)]"
     >
       {steps.map((s) => {
         const active = s.value === current;

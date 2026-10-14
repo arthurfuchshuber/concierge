@@ -77,7 +77,7 @@ import { SortMenu } from "@/components/dashboard/SortMenu";
 import { humanizeEventMessage } from "@/lib/stakeholder-event-message";
 import { describeRecord } from "@/lib/owner-timeline-record";
 import { MultiLinkPicker } from "./MultiLinkPicker";
-import { CARD_8 } from "@/components/stakeholders/owner-ui";
+import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { OwnerPropertyWindow } from "./OwnerPropertyWindow";
 import { OwnerAccessList } from "./OwnerAccessList";
 import { Stepper } from "@/components/editor/Stepper";
@@ -109,11 +109,11 @@ import { Coins, StickyNote, Check, User, Activity, Filter, Trash2 } from "lucide
  *  ds-segmented rolar na horizontal quando não couberem todas, em vez de
  *  espremer/cortar "Acessos" tentando dividir a largura em partes iguais. */
 const SEG_TAB =
-  "min-h-9 !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
+  "min-h-[46px] !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
 
 /** Abas do layout novo (mockup aprovado): sem rosa, aba ativa neutra com fio de marca. */
 const SEG_TAB_NEW =
-  "min-h-9 !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-foreground/10 data-[state=active]:text-foreground data-[state=active]:shadow-none";
+  "min-h-[46px] !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-foreground/10 data-[state=active]:text-foreground data-[state=active]:shadow-none";
 
 const MONTHS_PT = [
   "janeiro",
@@ -677,13 +677,13 @@ export function StakeholderDetailSheet({
             </button>
           )}
           {ev.attachments.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-1.5">
+            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
               {ev.attachments.map((a) => (
                 <button
                   key={a.url}
                   type="button"
                   onClick={() => window.open(gLink(a.url), "_blank", "noopener")}
-                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   {a.kind === "transcript" ? (
                     <FileText className="size-2.5" />
@@ -771,13 +771,15 @@ export function StakeholderDetailSheet({
         {/* Cabeçalho (mockups P1–P8): rótulo, nome com o botão de contato colado, e UMA linha
             com situação + vigência. O X é o do próprio painel (canto superior direito). */}
         <div className="grid gap-2">
-          <p className="ds-eyebrow pr-10 text-[10.5px] font-bold leading-[22px] tracking-[0.14em] text-[color:var(--faint)]">
+          <p className="ds-eyebrow pr-9 text-[10.5px] leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
             Proprietário
           </p>
-          <div className="flex min-w-0 items-start justify-between gap-3">
-            {/* Título dinâmico: quebra linha naturalmente (diretriz 1.4), sem reticências. */}
-            <h2 className="min-w-0 font-display text-[22px] font-bold leading-[1.2] tracking-[-0.01em] [overflow-wrap:anywhere]">
-              {displayName}
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            {/* Título da janela: UMA linha com reticências (regra implementada nas janelas). */}
+            <div className="flex min-w-0 items-center gap-1">
+              <h2 className="ds-page-title min-w-0 truncate !text-lg" title={displayName}>
+                {displayName}
+              </h2>
               <PhoneActionButton
                 phone={ownerPhone}
                 country={ownerCountry}
@@ -785,10 +787,10 @@ export function StakeholderDetailSheet({
                 alwaysShow
                 rich
                 email={row.email as string | null}
-                className="ml-0.5 inline-flex align-middle"
+                className="shrink-0"
               />
-            </h2>
-            <div className={`${ACTION_BAR} !h-9 !w-auto shrink-0 !rounded-lg`}>
+            </div>
+            <div className={`${ACTION_BAR} !h-9 !w-auto shrink-0 !rounded-[11px]`}>
               {clicksignActive ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -797,7 +799,7 @@ export function StakeholderDetailSheet({
                       aria-label="Editar"
                       title="Editar"
                       disabled={extracting}
-                      className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-9 !flex-none !px-0`}
+                      className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
                     >
                       {extracting ? (
                         <Loader2 className={`${ACTION_ICON} animate-spin`} />
@@ -821,7 +823,7 @@ export function StakeholderDetailSheet({
                   onClick={onEdit}
                   aria-label="Editar cadastro"
                   title="Editar cadastro"
-                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-9 !flex-none !px-0`}
+                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
                 >
                   <Pencil className={ACTION_ICON} />
                 </button>
@@ -832,7 +834,7 @@ export function StakeholderDetailSheet({
                 aria-expanded={dataOpen}
                 aria-label="Dados pessoais"
                 title="Dados pessoais"
-                className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-9 !flex-none !px-0`}
+                className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
               >
                 <ChevronDown
                   className={`${ACTION_ICON} transition-transform ${dataOpen ? "rotate-180" : ""}`}
@@ -870,7 +872,7 @@ export function StakeholderDetailSheet({
 
         {/* Dados pessoais (mockup `.kv`): recolhido ao abrir a ficha. */}
         {dataOpen && (
-          <section className="mt-3 grid grid-cols-2 gap-x-4 gap-y-4 rounded-lg bg-card p-4 shadow-[inset_0_0_0_1px_var(--border)]">
+          <section className={`${PANEL_SHELL} mt-3 grid grid-cols-2 gap-x-4 gap-y-4 p-4`}>
             {(
               [
                 { l: "Nome completo", v: row.name, wide: true },
@@ -895,7 +897,7 @@ export function StakeholderDetailSheet({
               .filter((x): x is { l: string; v: string; wide?: boolean } => !!x && !!x.v)
               .map((f) => (
                 <div key={f.l} className={`min-w-0 ${f.wide ? "col-span-2" : ""}`}>
-                  <p className="ds-eyebrow mb-1.5 text-[10.5px] font-bold tracking-[0.14em] text-[color:var(--faint)]">
+                  <p className="ds-eyebrow mb-1.5 text-[10.5px] tracking-[0.2em] text-[color:var(--faint)]">
                     {f.l}
                   </p>
                   <p className="break-words text-[13px] font-medium leading-[1.4] text-foreground">
@@ -905,7 +907,7 @@ export function StakeholderDetailSheet({
               ))}
             {(row.address || row.city || row.state || row.cep) && (
               <div className="col-span-2 min-w-0">
-                <p className="ds-eyebrow mb-1.5 text-[10.5px] font-bold tracking-[0.14em] text-[color:var(--faint)]">
+                <p className="ds-eyebrow mb-1.5 text-[10.5px] tracking-[0.2em] text-[color:var(--faint)]">
                   Endereço
                 </p>
                 <p className="break-words text-[13px] font-medium leading-[1.4] text-foreground">
@@ -998,7 +1000,7 @@ export function StakeholderDetailSheet({
                           </PopoverTrigger>
                           <PopoverContent
                             align="end"
-                            className="w-[240px] rounded-lg border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+                            className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
                             onOpenAutoFocus={(e) => e.preventDefault()}
                           >
                             <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
@@ -1066,7 +1068,7 @@ export function StakeholderDetailSheet({
                       </p>
                     )}
                     {noteOpen && (
-                      <div className={`${CARD_8} mb-5 space-y-2 p-3`}>
+                      <div className={`${PANEL_SHELL} mb-5 space-y-2 p-3`}>
                         <textarea
                           value={note}
                           onChange={(e) => setNote(e.target.value)}
@@ -1119,15 +1121,10 @@ export function StakeholderDetailSheet({
                       <div className="grid gap-5">
                         {visibleGroups.map((g) => (
                           <div key={g.label} className="grid gap-2.5">
-                            <div className="flex items-center justify-between">
-                              <p className="ds-eyebrow text-[10.5px] font-bold tracking-[0.14em] text-[color:var(--faint)]">
-                                {capitalize(g.label).replace(" de ", " ")}
-                              </p>
-                              <span className="ds-eyebrow text-[10.5px] font-bold tracking-[0.04em] text-[color:var(--faint)]">
-                                {g.items.length} {g.items.length === 1 ? "evento" : "eventos"}
-                              </span>
-                            </div>
-                            <div className="divide-y divide-border overflow-hidden rounded-lg bg-card shadow-[inset_0_0_0_1px_var(--border)]">
+                            <p className="ds-eyebrow text-[10.5px] tracking-[0.2em] text-[color:var(--faint)]">
+                              {capitalize(g.label).replace(" de ", " ")}
+                            </p>
+                            <div className={`${PANEL_SHELL} divide-y divide-border`}>
                               {g.items.map((item) => {
                                 const Ico = item.icon === Pin ? StickyNote : item.icon;
                                 const when = new Date(item.at);
@@ -1170,14 +1167,15 @@ export function StakeholderDetailSheet({
                                           {item.body}
                                         </div>
                                       )}
-                                      <p className="mt-1.5 text-[12px] text-[color:var(--faint)]">
-                                        {item.author !== "Sistema" ? item.author : item.badge} ·{" "}
-                                        {shortDate(item.at)}
+                                      <p className="mt-1.5 text-[12px] text-muted-foreground">
+                                        Por {item.author !== "Sistema" ? item.author : item.badge}
                                       </p>
                                     </div>
-                                    <span className="pt-0.5 text-[12px] tabular-nums text-muted-foreground">
-                                      {hhmm}
-                                    </span>
+                                    {/* Data em cima, hora embaixo — alinhadas à primeira linha do título. */}
+                                    <div className="grid justify-items-end gap-0.5 text-[12px] leading-[1.3] tabular-nums text-muted-foreground">
+                                      <span className="pt-[1px]">{shortDate(item.at)}</span>
+                                      <span>{hhmm}</span>
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -1282,7 +1280,7 @@ export function StakeholderDetailSheet({
                           </PopoverTrigger>
                           <PopoverContent
                             align="end"
-                            className="w-[240px] rounded-lg border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+                            className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
                             onOpenAutoFocus={(e) => e.preventDefault()}
                           >
                             <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
@@ -1369,9 +1367,9 @@ export function StakeholderDetailSheet({
                         ...looseShown.map((d) => (
                           <div
                             key={`loose-${d.id}`}
-                            className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-lg bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                            className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-[12px] bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                           >
-                            <span className="row-span-2 grid size-8 self-start place-items-center rounded-lg bg-foreground/[0.05] text-muted-foreground">
+                            <span className="row-span-2 grid size-8 self-start place-items-center rounded-[10px] bg-foreground/[0.05] text-muted-foreground">
                               <FileText className="size-[15px]" />
                             </span>
                             <b className="truncate text-[13px] font-bold" title={d.name}>
@@ -1426,9 +1424,9 @@ export function StakeholderDetailSheet({
                           return (
                             <div
                               key={d.id}
-                              className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-lg bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                              className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-[12px] bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                             >
-                              <span className="row-span-2 grid size-8 self-start place-items-center rounded-lg bg-foreground/[0.05] text-muted-foreground">
+                              <span className="row-span-2 grid size-8 self-start place-items-center rounded-[10px] bg-foreground/[0.05] text-muted-foreground">
                                 <FileText className="size-[15px]" />
                               </span>
                               <b className="truncate text-[13px] font-bold" title={d.name}>
@@ -1694,7 +1692,7 @@ export function StakeholderDetailSheet({
 
       {/* ---------- Dados pessoais (recolhível, fechado por padrão) ---------- */}
       {dataOpen && (
-        <section className={newLayout ? `${CARD_8} p-4` : "ds-surface bg-card p-4"}>
+        <section className={newLayout ? `${PANEL_SHELL} p-4` : "ds-surface bg-card p-4"}>
           <dl className="grid gap-4 sm:grid-cols-2">
             <Field label="Nome completo" value={row.name} copy={row.name} />
             {row.trade_name && (
@@ -1854,7 +1852,7 @@ export function StakeholderDetailSheet({
               ).map((g) => (
                 <div key={g.label} className="space-y-2">
                   <GroupLabel count={g.items.length}>{g.label}</GroupLabel>
-                  <ul className={`${CARD_8} divide-y divide-border`}>
+                  <ul className={`${PANEL_SHELL} divide-y divide-border`}>
                     {g.items.map((ev) => (
                       <li key={ev.id} className="px-4 py-3">
                         <p className="text-[13.5px] leading-[1.3] text-foreground">{ev.title}</p>
@@ -1944,7 +1942,7 @@ export function StakeholderDetailSheet({
             </div>
 
             {newLayout && noteOpen && (
-              <div className={`${CARD_8} space-y-2 p-3`}>
+              <div className={`${PANEL_SHELL} space-y-2 p-3`}>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
@@ -2003,7 +2001,7 @@ export function StakeholderDetailSheet({
                     <GroupLabel count={g.items.length}>{g.label}</GroupLabel>
                     <ul className="space-y-2">
                       {g.items.map((item) => (
-                        <li key={item.key} className={`${CARD_8} flex gap-3 px-4 py-3`}>
+                        <li key={item.key} className={`${PANEL_SHELL} flex gap-3 px-4 py-3`}>
                           <item.icon
                             className="mt-0.5 size-4 shrink-0 text-muted-foreground"
                             aria-hidden
@@ -2249,7 +2247,7 @@ export function StakeholderDetailSheet({
         <TabsContent value="financeiro" className="mt-5 space-y-4">
           {newLayout ? (
             <>
-              <div className={`${CARD_8} grid grid-cols-3 divide-x divide-border`}>
+              <div className={`${PANEL_SHELL} grid grid-cols-3 divide-x divide-border`}>
                 {(
                   [
                     ["A receber", "ds-ok"],

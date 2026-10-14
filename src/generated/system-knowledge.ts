@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-10-14T04:05:39.193Z";
+export const GENERATED_AT = "2026-10-14T04:23:23.639Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -135,10 +135,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "route:/admin/proprietarios",
     "kind": "route",
     "title": "Proprietários — tela /admin/proprietarios",
-    "content": "Caminho no sistema: /admin/proprietarios\n\nNo menu do painel esta tela se chama \"Proprietários\".\n\nCadastro e acompanhamento dos proprietários dos imóveis.",
+    "content": "Caminho no sistema: /admin/proprietarios\n\nNo menu do painel esta tela se chama \"Proprietários\".\n\nCadastramento e histórico de proprietários.",
     "source_path": "src/routes/_authenticated/admin.proprietarios.tsx",
     "audience": [],
-    "content_hash": "bd3d4ada219afe89445efa100d17132f"
+    "content_hash": "05d38fe7b7254d8c98b1d46b69c6098e"
   },
   {
     "doc_key": "route:/admin/recomendacoes-sigma",
