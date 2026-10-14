@@ -15,6 +15,13 @@
       "when": 1791738388122,
       "tag": "0001_channex_twin_links",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791990276252,
+      "tag": "0002_invite_requires_verified_email",
+      "breakpoints": true
     }
   ]
 }
