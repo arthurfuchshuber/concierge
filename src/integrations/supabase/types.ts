@@ -3898,6 +3898,84 @@ export type Database = {
           },
         ]
       }
+      owner_ledger_entries: {
+        Row: {
+          account_owner_id: string
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string
+          direction: string
+          due_date: string
+          id: string
+          paid_at: string | null
+          property_id: string | null
+          stakeholder_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_owner_id: string
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description: string
+          direction: string
+          due_date: string
+          id?: string
+          paid_at?: string | null
+          property_id?: string | null
+          stakeholder_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_owner_id?: string
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          direction?: string
+          due_date?: string
+          id?: string
+          paid_at?: string | null
+          property_id?: string | null
+          stakeholder_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      owner_loose_documents: {
+        Row: {
+          account_owner_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          size_bytes: number | null
+          stakeholder_id: string
+          storage_path: string
+        }
+        Insert: {
+          account_owner_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          size_bytes?: number | null
+          stakeholder_id: string
+          storage_path: string
+        }
+        Update: {
+          account_owner_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          size_bytes?: number | null
+          stakeholder_id?: string
+          storage_path?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           assistant_auto_confirm: boolean
@@ -4630,6 +4708,7 @@ export type Database = {
       }
       property_listing_raw_data: {
         Row: {
+          sync_paused_at: string | null
           airbnb_ai_enabled: boolean
           airbnb_ai_toggled_at: string | null
           airbnb_ai_toggled_by: string | null
@@ -4650,6 +4729,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          sync_paused_at?: string | null
           airbnb_ai_enabled?: boolean
           airbnb_ai_toggled_at?: string | null
           airbnb_ai_toggled_by?: string | null
@@ -4670,6 +4750,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          sync_paused_at?: string | null
           airbnb_ai_enabled?: boolean
           airbnb_ai_toggled_at?: string | null
           airbnb_ai_toggled_by?: string | null

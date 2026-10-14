@@ -1,5 +1,5 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link, useRouterState } from "@tanstack/react-router";
@@ -64,6 +64,13 @@ import { EmptyState } from "@/components/ds/EmptyState";
 import { StakeholderStatusControl } from "./StakeholderStatusControl";
 import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 import { periodShort } from "@/lib/period-short";
+import { OwnerFinancePanel } from "./OwnerFinancePanel";
+import {
+  deleteOwnerLooseDoc,
+  getOwnerLooseDocFile,
+  listOwnerLooseDocs,
+  uploadOwnerLooseDoc,
+} from "@/lib/owner-finance.functions";
 import { OwnerPropertiesPanel } from "./OwnerPropertiesPanel";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { SortMenu } from "@/components/dashboard/SortMenu";
@@ -93,7 +100,7 @@ import {
 } from "./owner-ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
-import { Coins, StickyNote, Check, User, Activity, Filter } from "lucide-react";
+import { Coins, StickyNote, Check, User, Activity, Filter, Trash2 } from "lucide-react";
 
 /** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.
  *  !flex-none sobrescreve o !flex-1 padrão de TabsTrigger (ui/tabs.tsx) — aqui
@@ -150,7 +157,7 @@ function GroupLabel({ children, count }: { children: React.ReactNode; count: num
   );
 }
 
-type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
+type PreviewTarget = { name: string; url?: string | null; docId?: string; looseId?: string } | null;
 
 function fmt(iso: string) {
   try {
@@ -282,6 +289,19 @@ export function StakeholderDetailSheet({
   const [docSit, setDocSit] = useState<string[]>([]);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const docFileFn = useServerFn(getClicksignDocumentFile);
+  const looseListFn = useServerFn(listOwnerLooseDocs);
+  const looseUploadFn = useServerFn(uploadOwnerLooseDoc);
+  const looseFileFn = useServerFn(getOwnerLooseDocFile);
+  const looseDeleteFn = useServerFn(deleteOwnerLooseDoc);
+  const looseInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingLoose, setUploadingLoose] = useState(false);
+  const looseKey = ["owner-loose-docs", accountOwnerId ?? "self", id];
+  const looseQuery = useQuery({
+    queryKey: looseKey,
+    queryFn: () => looseListFn({ data: { ownerId: id, accountOwnerId } }),
+    enabled: newLayout && kind === "owner",
+  });
+  const looseDocs = looseQuery.data?.docs ?? [];
 
   const clicksignFn = useServerFn(getMyClicksignConfig);
   const clicksign = useQuery({
@@ -466,10 +486,12 @@ export function StakeholderDetailSheet({
   });
 
   // Baixa o PDF do contrato (mesma fonte da pré-visualização: arquivo seguro do ClickSign).
-  async function downloadDoc(docId: string, name: string) {
+  async function downloadDoc(docId: string, name: string, loose = false) {
     setDownloadingId(docId);
     try {
-      const res = await docFileFn({ data: { id: docId } });
+      const res = loose
+        ? await looseFileFn({ data: { id: docId } })
+        : await docFileFn({ data: { id: docId } });
       if (!res?.base64) throw new Error("Documento sem arquivo disponível.");
       const bin = atob(res.base64);
       const bytes = new Uint8Array(bin.length);
@@ -484,6 +506,45 @@ export function StakeholderDetailSheet({
       toast.error(e instanceof Error ? e.message : "Não foi possível baixar o documento.");
     } finally {
       setDownloadingId(null);
+    }
+  }
+
+  async function uploadLoose(file: File | undefined) {
+    if (!file) return;
+    if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
+      toast.error("Escolha um arquivo PDF.");
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("O PDF precisa ter até 15 MB.");
+      return;
+    }
+    setUploadingLoose(true);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let bin = "";
+      for (let i = 0; i < bytes.length; i += 0x8000) {
+        bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      }
+      await looseUploadFn({
+        data: { ownerId: id, accountOwnerId, name: file.name, base64: btoa(bin) },
+      });
+      await qc.invalidateQueries({ queryKey: looseKey });
+      toast.success("PDF anexado.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível anexar o PDF.");
+    } finally {
+      setUploadingLoose(false);
+      if (looseInputRef.current) looseInputRef.current.value = "";
+    }
+  }
+  async function removeLoose(docId: string) {
+    try {
+      await looseDeleteFn({ data: { id: docId } });
+      await qc.invalidateQueries({ queryKey: looseKey });
+      toast.success("Documento removido.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível remover.");
     }
   }
 
@@ -870,7 +931,12 @@ export function StakeholderDetailSheet({
               { value: "timeline", label: "Timeline", icon: Pin },
               { value: "imoveis", label: "Imóveis", icon: Home, count: properties.length },
               { value: "financeiro", label: "Financeiro", icon: Coins },
-              { value: "documentos", label: "Documentos", icon: FileText, count: feedDocs.length },
+              {
+                value: "documentos",
+                label: "Documentos",
+                icon: FileText,
+                count: feedDocs.length + looseDocs.length,
+              },
               { value: "acessos", label: "Acessos", icon: User },
               { value: "log", label: "Log", icon: Activity },
             ]}
@@ -1127,79 +1193,39 @@ export function StakeholderDetailSheet({
               otherOwners={otherOwnersQuery.data}
               onOpen={(pid) => setWindowPropertyId(pid)}
               onTransfer={(pid, target) => handleTransfer(pid, target)}
+              accountOwnerId={accountOwnerId}
+              onChanged={() => {
+                qc.invalidateQueries({ queryKey });
+                qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
+                qc.invalidateQueries({ queryKey: ["my-properties"] });
+              }}
             />
           )}
 
           {/* ---------------- Financeiro (mockup P3) ---------------- */}
           {ownerTab === "financeiro" && (
-            <>
-              <SearchActionRow
-                value={finQ}
-                onChange={setFinQ}
-                placeholder="Buscar lançamento…"
-                actions={
-                  <>
-                    <button
-                      type="button"
-                      disabled
-                      aria-label="Novo lançamento"
-                      title="Em breve"
-                      className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
-                    >
-                      <Plus className={`${ACTION_ICON} text-accent`} />
-                    </button>
-                    <SortMenu
-                      value="default"
-                      defaultValue="default"
-                      options={[{ value: "default", label: "Mais recentes" }]}
-                      onChange={() => {}}
-                      title="Ordenar lançamentos por"
-                      bare
-                    />
-                    <button
-                      type="button"
-                      disabled
-                      aria-label="Filtrar lançamentos"
-                      className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
-                    >
-                      <Filter className={ACTION_ICON} />
-                    </button>
-                  </>
-                }
-              />
-              <div className="mt-[26px] grid gap-6">
-                <div className={PANEL_SHELL}>
-                  {/* Sem casas decimais: valores sempre arredondados para cima (pedido 13/10/2026). */}
-                  <StatsStrip
-                    items={[
-                      { label: "A receber", value: brlCeil(0), tone: "ok" },
-                      { label: "Recebido", value: brlCeil(0), tone: "data" },
-                      { label: "A pagar", value: brlCeil(0), tone: "at" },
-                    ]}
-                  />
-                </div>
-                <OwnerEmpty
-                  icon={Coins}
-                  title="Nenhum lançamento"
-                  text="Quando houver repasses ou cobranças deste proprietário, eles aparecem aqui."
-                />
-              </div>
-            </>
+            <OwnerFinancePanel
+              ownerId={id}
+              accountOwnerId={accountOwnerId}
+              properties={properties.map((p) => ({ id: p.id, name: p.name }))}
+            />
           )}
 
           {/* ---------------- Documentos (mockup P4) ---------------- */}
           {ownerTab === "documentos" &&
             (() => {
               const term = docQ.trim().toLowerCase();
-              const DOC_SIT = [
-                { value: "signed", label: "Assinados" },
-                { value: "pending", label: "Pendentes" },
-              ];
               const docs = feedDocs.filter((d) => {
                 if (docSit.length > 0 && !docSit.includes(d.finishedAt ? "signed" : "pending"))
                   return false;
                 return !term || d.name.toLowerCase().includes(term);
               });
+              const looseShown = looseDocs.filter(
+                (d) =>
+                  (docSit.length === 0 || docSit.includes("loose")) &&
+                  (!term || d.name.toLowerCase().includes(term)),
+              );
+              const totalDocs = feedDocs.length + looseDocs.length;
               return (
                 <>
                   <SearchActionRow
@@ -1208,14 +1234,26 @@ export function StakeholderDetailSheet({
                     placeholder="Buscar contrato…"
                     actions={
                       <>
+                        <input
+                          ref={looseInputRef}
+                          type="file"
+                          accept="application/pdf,.pdf"
+                          className="hidden"
+                          onChange={(e) => uploadLoose(e.target.files?.[0])}
+                        />
                         <button
                           type="button"
-                          disabled
-                          aria-label="Novo contrato"
-                          title="Em breve"
+                          disabled={uploadingLoose}
+                          onClick={() => looseInputRef.current?.click()}
+                          aria-label="Anexar PDF"
+                          title="Anexar um PDF avulso"
                           className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
                         >
-                          <Plus className={`${ACTION_ICON} text-accent`} />
+                          {uploadingLoose ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Plus className={`${ACTION_ICON} text-accent`} />
+                          )}
                         </button>
                         <Popover>
                           <PopoverTrigger asChild>
@@ -1251,6 +1289,7 @@ export function StakeholderDetailSheet({
                             {[
                               { value: "signed", label: "Assinados" },
                               { value: "pending", label: "Pendentes" },
+                              { value: "loose", label: "Anexados" },
                             ].map((t) => {
                               const on = docSit.length === 0 || docSit.includes(t.value);
                               return (
@@ -1259,11 +1298,12 @@ export function StakeholderDetailSheet({
                                   type="button"
                                   onClick={() =>
                                     setDocSit((cur) => {
-                                      const base = cur.length === 0 ? ["signed", "pending"] : cur;
+                                      const base =
+                                        cur.length === 0 ? ["signed", "pending", "loose"] : cur;
                                       const next = base.includes(t.value)
                                         ? base.filter((x) => x !== t.value)
                                         : [...base, t.value];
-                                      return next.length === 0 || next.length === 2 ? [] : next;
+                                      return next.length === 0 || next.length === 3 ? [] : next;
                                     })
                                   }
                                   className={`flex min-h-[38px] w-full items-center gap-2.5 rounded-lg px-2.5 text-[12.5px] font-semibold transition-colors ${
@@ -1284,11 +1324,11 @@ export function StakeholderDetailSheet({
                                   </span>
                                   {t.label}
                                   <em className="ml-auto text-[11px] font-bold not-italic tabular-nums text-muted-foreground">
-                                    {
-                                      feedDocs.filter(
-                                        (d) => (d.finishedAt ? "signed" : "pending") === t.value,
-                                      ).length
-                                    }
+                                    {t.value === "loose"
+                                      ? looseDocs.length
+                                      : feedDocs.filter(
+                                          (d) => (d.finishedAt ? "signed" : "pending") === t.value,
+                                        ).length}
                                   </em>
                                 </button>
                               );
@@ -1303,28 +1343,21 @@ export function StakeholderDetailSheet({
                       <p className="flex items-center gap-1.5 ds-meta">
                         <Loader2 className="size-3 animate-spin" /> Buscando documentos…
                       </p>
-                    ) : docs.length === 0 ? (
+                    ) : docs.length === 0 && looseShown.length === 0 ? (
                       <OwnerEmpty
                         icon={FileText}
-                        title={
-                          feedDocs.length === 0 ? "Nenhum contrato vinculado" : "Nada encontrado"
-                        }
+                        title={totalDocs === 0 ? "Nenhum contrato vinculado" : "Nada encontrado"}
                         text={
-                          feedDocs.length === 0
-                            ? "Contratos importados do ClickSign com este CPF/CNPJ, e-mail ou nome aparecem aqui automaticamente."
+                          totalDocs === 0
+                            ? "Contratos do ClickSign com este CPF/CNPJ, e-mail ou nome aparecem aqui automaticamente. Para um PDF avulso, use o botão +."
                             : "Nenhum contrato bate com a busca."
                         }
                       />
                     ) : (
-                      docs.map((d) => {
-                        const signed = !!d.finishedAt;
-                        const n = d.signers.length;
-                        const done = d.signers.filter((x) =>
-                          /sign|assin|finish|conclu/i.test(String(x.status ?? "")),
-                        ).length;
-                        return (
+                      [
+                        ...looseShown.map((d) => (
                           <div
-                            key={d.id}
+                            key={`loose-${d.id}`}
                             className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-[12px] bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                           >
                             <span className="row-span-2 grid size-8 self-start place-items-center rounded-[10px] bg-foreground/[0.05] text-muted-foreground">
@@ -1336,7 +1369,7 @@ export function StakeholderDetailSheet({
                             <span className="flex items-center">
                               <button
                                 type="button"
-                                onClick={() => setPreview({ name: d.name, docId: d.id })}
+                                onClick={() => setPreview({ name: d.name, looseId: d.id })}
                                 aria-label="Visualizar documento"
                                 title="Visualizar documento"
                                 className="grid size-7 place-items-center text-muted-foreground transition-colors hover:text-foreground"
@@ -1346,7 +1379,7 @@ export function StakeholderDetailSheet({
                               <button
                                 type="button"
                                 disabled={downloadingId === d.id}
-                                onClick={() => downloadDoc(d.id, d.name)}
+                                onClick={() => downloadDoc(d.id, d.name, true)}
                                 aria-label="Baixar documento"
                                 title="Baixar documento"
                                 className="grid size-7 place-items-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
@@ -1357,30 +1390,89 @@ export function StakeholderDetailSheet({
                                   <Download className="size-3.5" />
                                 )}
                               </button>
+                              <button
+                                type="button"
+                                onClick={() => removeLoose(d.id)}
+                                aria-label="Remover documento"
+                                title="Remover documento"
+                                className="grid size-7 place-items-center text-muted-foreground transition-colors hover:text-foreground"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
                             </span>
                             <small className="col-span-2 text-[11px] leading-[1.35] text-muted-foreground">
-                              {signed ? (
-                                <>
-                                  Assinado
-                                  {n ? ` · ${n} de ${n}` : ""} · {shortDate(d.finishedAt as string)}{" "}
-                                  {new Date(d.finishedAt as string).getFullYear()}
-                                </>
-                              ) : (
-                                <>
-                                  <span className="ds-atencao">
-                                    Pendente{n ? ` · ${done} de ${n}` : ""}
-                                  </span>
-                                  {d.syncedAt
-                                    ? ` · importado ${shortDate(d.syncedAt)}`
-                                    : d.status
-                                      ? ` · ${d.status}`
-                                      : ""}
-                                </>
-                              )}
+                              Anexado · {shortDate(d.created_at)}{" "}
+                              {new Date(d.created_at).getFullYear()}
                             </small>
                           </div>
-                        );
-                      })
+                        )),
+                        ...docs.map((d) => {
+                          const signed = !!d.finishedAt;
+                          const n = d.signers.length;
+                          const done = d.signers.filter((x) =>
+                            /sign|assin|finish|conclu/i.test(String(x.status ?? "")),
+                          ).length;
+                          return (
+                            <div
+                              key={d.id}
+                              className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-[12px] bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                            >
+                              <span className="row-span-2 grid size-8 self-start place-items-center rounded-[10px] bg-foreground/[0.05] text-muted-foreground">
+                                <FileText className="size-[15px]" />
+                              </span>
+                              <b className="truncate text-[13px] font-bold" title={d.name}>
+                                {d.name}
+                              </b>
+                              <span className="flex items-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setPreview({ name: d.name, docId: d.id })}
+                                  aria-label="Visualizar documento"
+                                  title="Visualizar documento"
+                                  className="grid size-7 place-items-center text-muted-foreground transition-colors hover:text-foreground"
+                                >
+                                  <Eye className="size-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={downloadingId === d.id}
+                                  onClick={() => downloadDoc(d.id, d.name)}
+                                  aria-label="Baixar documento"
+                                  title="Baixar documento"
+                                  className="grid size-7 place-items-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+                                >
+                                  {downloadingId === d.id ? (
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                  ) : (
+                                    <Download className="size-3.5" />
+                                  )}
+                                </button>
+                              </span>
+                              <small className="col-span-2 text-[11px] leading-[1.35] text-muted-foreground">
+                                {signed ? (
+                                  <>
+                                    Assinado
+                                    {n ? ` · ${n} de ${n}` : ""} ·{" "}
+                                    {shortDate(d.finishedAt as string)}{" "}
+                                    {new Date(d.finishedAt as string).getFullYear()}
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="ds-atencao">
+                                      Pendente{n ? ` · ${done} de ${n}` : ""}
+                                    </span>
+                                    {d.syncedAt
+                                      ? ` · importado ${shortDate(d.syncedAt)}`
+                                      : d.status
+                                        ? ` · ${d.status}`
+                                        : ""}
+                                  </>
+                                )}
+                              </small>
+                            </div>
+                          );
+                        }),
+                      ]
                     )}
                   </div>
                 </>
@@ -2260,10 +2352,14 @@ export function StakeholderDetailSheet({
 
 function DocPreviewDialog({ doc, onClose }: { doc: PreviewTarget; onClose: () => void }) {
   const fileFn = useServerFn(getClicksignDocumentFile);
+  const looseFn = useServerFn(getOwnerLooseDocFile);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["clicksign-doc-file", doc?.docId],
-    queryFn: () => fileFn({ data: { id: doc!.docId! } }),
-    enabled: !!doc?.docId,
+    queryKey: ["clicksign-doc-file", doc?.docId ?? doc?.looseId],
+    queryFn: () =>
+      doc!.looseId
+        ? looseFn({ data: { id: doc!.looseId } })
+        : fileFn({ data: { id: doc!.docId! } }),
+    enabled: !!(doc?.docId || doc?.looseId),
     staleTime: 5 * 60_000,
     retry: false,
   });

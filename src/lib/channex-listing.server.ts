@@ -51,9 +51,9 @@ export const PILOT_LISTINGS: Record<string, string> = Object.fromEntries(
   Object.entries(PILOT_LISTING_CONFIG).map(([id, c]) => [id, c.slug]),
 );
 
-type Fact = { key: string; title: string; content: string };
+export type Fact = { key: string; title: string; content: string };
 
-async function channexGet<T>(path: string): Promise<T> {
+export async function channexGet<T>(path: string): Promise<T> {
   const key = process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"];
   if (!key) throw new Error("Chave Channex ausente.");
   const res = await fetch(`${CHANNEX_BASE}${path}`, { headers: { "user-api-key": key, Accept: "application/json" } });
@@ -153,7 +153,14 @@ export async function syncPilotListings(): Promise<Array<{ listingId: string; pr
   }
   const out: Array<{ listingId: string; propertyId: string; facts: number }> = [];
 
+  const { data: pausedRows } = await supabaseAdmin
+    .from("property_listing_raw_data" as never)
+    .select("airbnb_listing_id")
+    .not("sync_paused_at" as never, "is", null);
+  const paused = new Set(((pausedRows ?? []) as Array<{ airbnb_listing_id: string | null }>).map((r) => String(r.airbnb_listing_id)));
+
   for (const [listingId, cfg] of Object.entries(PILOT_LISTING_CONFIG)) {
+    if (paused.has(listingId)) continue; // anúncio desativado na ficha do proprietário: não sincroniza
     const slug = cfg.slug;
     const ctx = channels.get(cfg.channelId);
     if (!ctx) continue;
@@ -204,7 +211,7 @@ export async function syncPilotListings(): Promise<Array<{ listingId: string; pr
   return out;
 }
 
-type PublicListing = { descriptions: string[]; amenities: string[]; unavailable: string[] };
+export type PublicListing = { descriptions: string[]; amenities: string[]; unavailable: string[] };
 
 const stripHtml = (h: string) =>
   h.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
@@ -237,10 +244,101 @@ export async function fetchPublicListing(listingId: string): Promise<PublicListi
   return { descriptions: [...descriptions], amenities: [...amenities], unavailable: [...unavailable] };
 }
 
-function publicFacts(p: PublicListing): Fact[] {
+export function publicFacts(p: PublicListing): Fact[] {
   const out: Fact[] = [];
   p.descriptions.forEach((d, i) => out.push({ key: `descricao_${i}`, title: "Descrição do anúncio no Airbnb (inclui o que o hóspede recebe)", content: d }));
   if (p.amenities.length) out.push({ key: "comodidades", title: "Comodidades oferecidas (anúncio Airbnb)", content: p.amenities.join("\n") });
   if (p.unavailable.length) out.push({ key: "comodidades_ausentes", title: "Comodidades NÃO oferecidas (anúncio Airbnb)", content: p.unavailable.join("\n") });
   return out;
+}
+
+/**
+ * Sincroniza UM anúncio de qualquer canal da conta (somente leitura na Channex:
+ * nunca envia ARI/preço). Grava/atualiza `property_listing_raw_data` e reindexa o imóvel.
+ */
+export async function syncAccountListing(args: {
+  listingId: string;
+  channelId: string;
+  propertyId: string;
+  ownerId: string;
+}): Promise<{ facts: number }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  type Ch = {
+    data: {
+      attributes: {
+        properties: string[];
+        rate_plans: Array<{ rate_plan_id: string; settings: Record<string, any> }>;
+      };
+    };
+  };
+  const [channel, listings] = await Promise.all([
+    channexGet<Ch>(`/channels/${args.channelId}`),
+    channexGet<{ data: { listing_id_dictionary: { values: Array<Record<string, unknown>> } } }>(
+      `/channels/${args.channelId}/action/listings`,
+    ),
+  ]);
+  const meta =
+    (listings.data?.listing_id_dictionary?.values ?? []).find(
+      (m) => String(m.id) === args.listingId,
+    ) ?? {};
+  const { data: prev } = await supabaseAdmin
+    .from("property_listing_raw_data" as never)
+    .select(
+      "raw_settings, channex_rate_plan_id, channex_room_type_id, channex_property_id, normalized",
+    )
+    .eq("property_id", args.propertyId)
+    .maybeSingle();
+  const prevRow = prev as {
+    raw_settings?: Record<string, any>;
+    channex_rate_plan_id?: string;
+    channex_room_type_id?: string;
+    channex_property_id?: string;
+    normalized?: Record<string, unknown>;
+  } | null;
+  const live = channel.data.attributes.rate_plans.find(
+    (r) => String(r.settings?.listing_id) === args.listingId,
+  );
+  const rp = live ?? {
+    rate_plan_id: prevRow?.channex_rate_plan_id ?? "",
+    settings: prevRow?.raw_settings ?? {},
+  };
+  const ratePlan = live
+    ? await channexGet<{
+        data: {
+          relationships?: {
+            room_type?: { data?: { id: string } };
+            property?: { data?: { id: string } };
+          };
+        };
+      }>(`/rate_plans/${rp.rate_plan_id}`).catch(() => null)
+    : null;
+  const pub = await fetchPublicListing(args.listingId).catch(() => null);
+  const facts = [...normalizeListing(meta, rp.settings), ...(pub ? publicFacts(pub) : [])];
+  const { error } = await supabaseAdmin.from("property_listing_raw_data" as never).upsert(
+    {
+      property_id: args.propertyId,
+      owner_id: args.ownerId,
+      channex_channel_id: args.channelId,
+      channex_property_id:
+        ratePlan?.data?.relationships?.property?.data?.id ??
+        prevRow?.channex_property_id ??
+        channel.data.attributes.properties[0] ??
+        null,
+      channex_room_type_id:
+        ratePlan?.data?.relationships?.room_type?.data?.id ?? prevRow?.channex_room_type_id ?? null,
+      channex_rate_plan_id: rp.rate_plan_id || null,
+      airbnb_listing_id: args.listingId,
+      listing_meta: meta,
+      raw_settings: rp.settings,
+      normalized: { ...(prevRow?.normalized ?? {}), facts, public_listing: pub },
+      sync_paused_at: null,
+      synced_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } as never,
+    { onConflict: "property_id" },
+  );
+  if (error) throw new Error(error.message);
+  const { reindexProperty } = await import("@/lib/ai/indexing.server");
+  await reindexProperty(supabaseAdmin as never, args.propertyId).catch(() => undefined);
+  return { facts: facts.length };
 }

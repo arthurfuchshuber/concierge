@@ -75,9 +75,14 @@ export const listStakeholders = createServerFn({ method: "GET" })
     if (data.kind === "owner" && (props ?? []).length > 0) {
       const { data: conn } = await supabase
         .from("property_listing_raw_data")
-        .select("property_id, airbnb_listing_id, synced_at")
+        .select("property_id, airbnb_listing_id, synced_at, sync_paused_at")
         .eq("owner_id", accountId);
-      connections = conn ?? [];
+      // Anúncio desativado na ficha (sincronização pausada) conta como Inativo.
+      connections = (conn ?? []).map((c) => ({
+        property_id: c.property_id,
+        airbnb_listing_id: c.sync_paused_at ? null : c.airbnb_listing_id,
+        synced_at: c.synced_at,
+      }));
     }
 
     return {
@@ -512,9 +517,14 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       // lista de proprietários. Só leitura; falha aqui nunca derruba a ficha.
       const { data: conn } = await supabase
         .from("property_listing_raw_data")
-        .select("property_id, airbnb_listing_id, synced_at")
+        .select("property_id, airbnb_listing_id, synced_at, sync_paused_at")
         .eq("owner_id", accountId);
-      connections = conn ?? [];
+      // Anúncio desativado na ficha (sincronização pausada) conta como Inativo.
+      connections = (conn ?? []).map((c) => ({
+        property_id: c.property_id,
+        airbnb_listing_id: c.sync_paused_at ? null : c.airbnb_listing_id,
+        synced_at: c.synced_at,
+      }));
       const { data: owners } = await supabase
         .from("property_owners")
         .select("id, name, trade_name, phone, phone_country")

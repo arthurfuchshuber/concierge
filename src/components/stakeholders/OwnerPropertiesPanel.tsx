@@ -1,4 +1,11 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  importAirbnbListings,
+  listAirbnbAccountListings,
+  setAirbnbListingActive,
+} from "@/lib/airbnb-account.functions";
 import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
@@ -71,8 +78,6 @@ function sinceLabel(iso: string | null): string | null {
   return `há ${Math.round(h / 24)} d`;
 }
 
-const NOTICE_ACTION = "Disponível assim que a conta do Airbnb for conectada.";
-
 export function OwnerPropertiesPanel({
   properties,
   accountProperties,
@@ -84,7 +89,12 @@ export function OwnerPropertiesPanel({
   otherOwners,
   onOpen,
   onTransfer,
+  accountOwnerId,
+  onChanged,
 }: {
+  accountOwnerId?: string | null;
+  /** Recarrega a ficha depois de ativar/desativar/importar. */
+  onChanged: () => void;
   properties: Prop[];
   accountProperties: Prop[];
   connections: Conn[];
@@ -104,6 +114,25 @@ export function OwnerPropertiesPanel({
   const [transferTo, setTransferTo] = useState("");
   const [confirm, setConfirm] = useState<{ id: string; next: boolean } | null>(null);
   const [reimport, setReimport] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const setActiveFn = useServerFn(setAirbnbListingActive);
+
+  async function applyToggle() {
+    if (!confirm) return;
+    setToggling(true);
+    try {
+      await setActiveFn({
+        data: { accountOwnerId, propertyId: confirm.id, active: confirm.next },
+      });
+      toast.success(confirm.next ? "Anúncio ativado." : "Anúncio desativado.");
+      setConfirm(null);
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível concluir.");
+    } finally {
+      setToggling(false);
+    }
+  }
 
   const activeIds = useMemo(
     () => new Set(connections.filter((c) => c.airbnb_listing_id).map((c) => c.property_id)),
@@ -582,11 +611,9 @@ export function OwnerPropertiesPanel({
               <div className="grid gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    toast.info(NOTICE_ACTION);
-                    setConfirm(null);
-                  }}
-                  className={`flex h-[46px] items-center justify-center rounded-[13px] text-[13.5px] font-extrabold text-white ${
+                  disabled={toggling}
+                  onClick={applyToggle}
+                  className={`flex h-[46px] items-center justify-center rounded-[13px] text-[13.5px] font-extrabold text-white disabled:opacity-60 ${
                     confirm.next ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae]" : "bg-[#b24a4a]"
                   }`}
                 >
@@ -608,9 +635,12 @@ export function OwnerPropertiesPanel({
       <ReimportWindow
         open={reimport}
         onClose={() => setReimport(false)}
-        listings={accountProperties}
-        activeIds={activeIds}
+        accountProperties={accountProperties}
         ownersById={ownersById}
+        owner={owner}
+        ownerId={ownerId}
+        accountOwnerId={accountOwnerId}
+        onImported={onChanged}
       />
     </div>
   );
@@ -640,36 +670,88 @@ function MenuItem({
   );
 }
 
-/** R1 — todos os anúncios da conta: os já importados vêm marcados e bloqueados; só os novos se escolhem. */
+/** R1 — todos os anúncios da conta do Airbnb: os já importados vêm marcados e bloqueados; só os novos se escolhem. */
 function ReimportWindow({
   open,
   onClose,
-  listings,
-  activeIds,
+  accountProperties,
   ownersById,
+  owner,
+  ownerId,
+  accountOwnerId,
+  onImported,
 }: {
   open: boolean;
   onClose: () => void;
-  listings: Prop[];
-  activeIds: Set<string>;
+  accountProperties: Prop[];
   ownersById: Record<string, OwnerInfo>;
+  owner: OwnerInfo;
+  ownerId: string;
+  accountOwnerId?: string | null;
+  onImported: () => void;
 }) {
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const listFn = useServerFn(listAirbnbAccountListings);
+  const importFn = useServerFn(importAirbnbListings);
+  const inv = useQuery({
+    queryKey: ["airbnb-account-listings", accountOwnerId ?? "self"],
+    queryFn: () => listFn({ data: { accountOwnerId } }),
+    enabled: open,
+    staleTime: 0,
+    retry: false,
+  });
+  const propById = useMemo(
+    () => new Map(accountProperties.map((p) => [p.id, p])),
+    [accountProperties],
+  );
+  const all = inv.data?.listings ?? [];
   const term = q.trim().toLowerCase();
-  const rows = listings
+  const rows = all
+    .map((l) => {
+      const prop = l.propertyId ? propById.get(l.propertyId) : undefined;
+      const own = prop?.owner_contact_id
+        ? ownersById[prop.owner_contact_id]
+        : l.imported
+          ? null
+          : owner;
+      return { ...l, prop, own };
+    })
     .filter((l) => {
       if (!term) return true;
-      const o = l.owner_contact_id ? (ownersById[l.owner_contact_id]?.name ?? "") : "";
-      return [l.name, o, l.city].some((v) =>
+      return [l.title, l.own?.name, l.city].some((v) =>
         String(v ?? "")
           .toLowerCase()
           .includes(term),
       );
     })
-    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-  const imported = listings.filter((l) => activeIds.has(l.id)).length;
+    .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
+  const imported = all.filter((l) => l.imported).length;
   const n = picked.length;
+
+  async function doImport() {
+    setBusy(true);
+    try {
+      const res = await importFn({
+        data: { accountOwnerId, ownerId, listingIds: picked },
+      });
+      if (res.imported > 0)
+        toast.success(
+          `${res.imported} ${res.imported === 1 ? "anúncio importado" : "anúncios importados"}.`,
+        );
+      for (const f of res.failed) toast.error(`${f.title}: ${f.error}`);
+      setPicked([]);
+      onImported();
+      if (res.failed.length === 0) onClose();
+      else inv.refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível importar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Dialog
       open={open}
@@ -711,31 +793,45 @@ function ReimportWindow({
         </div>
         <div className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground">
           <span className="font-bold text-foreground/85">
-            {listings.length} {listings.length === 1 ? "anúncio" : "anúncios"} na conta
+            {all.length} {all.length === 1 ? "anúncio" : "anúncios"} na conta
           </span>
           <span>
             {imported} {imported === 1 ? "já importado" : "já importados"}
           </span>
         </div>
         <div className="grid gap-2">
-          {rows.length === 0 ? (
+          {inv.isLoading ? (
+            <p className="py-6 text-center text-[12.5px] text-muted-foreground">
+              Buscando anúncios no Airbnb…
+            </p>
+          ) : inv.isError ? (
+            <p className="py-6 text-center text-[12.5px] text-muted-foreground">
+              Não foi possível consultar o Airbnb agora. Tente de novo em instantes.
+            </p>
+          ) : inv.data && !inv.data.connected ? (
+            <p className="py-6 text-center text-[12.5px] text-muted-foreground">
+              Conta do Airbnb ainda não conectada.
+            </p>
+          ) : rows.length === 0 ? (
             <p className="py-6 text-center text-[12.5px] text-muted-foreground">
               Nenhum anúncio encontrado.
             </p>
           ) : null}
           {rows.map((l) => {
-            const locked = activeIds.has(l.id);
-            const on = locked || picked.includes(l.id);
-            const own = l.owner_contact_id ? ownersById[l.owner_contact_id] : null;
+            const locked = l.imported;
+            const on = locked || picked.includes(l.listingId);
+            const own = l.own;
             return (
               <button
-                key={l.id}
+                key={l.listingId}
                 type="button"
                 data-clip-row
                 disabled={locked}
                 onClick={() =>
                   setPicked((cur) =>
-                    cur.includes(l.id) ? cur.filter((x) => x !== l.id) : [...cur, l.id],
+                    cur.includes(l.listingId)
+                      ? cur.filter((x) => x !== l.listingId)
+                      : [...cur, l.listingId],
                   )
                 }
                 className={`flex items-center gap-[11px] rounded-[14px] px-3 py-2.5 text-left shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)] ${
@@ -761,10 +857,10 @@ function ReimportWindow({
                 <span
                   className={`relative size-[46px] shrink-0 overflow-hidden rounded-[11px] bg-foreground/[0.05] ${locked ? "opacity-60" : ""}`}
                 >
-                  <CoverImage urls={[l.hero_image_url, ...(l.gallery_images ?? [])]} />
+                  <CoverImage urls={[l.prop?.hero_image_url, ...(l.prop?.gallery_images ?? [])]} />
                 </span>
                 <span className={`grid min-w-0 flex-1 gap-[3px] ${locked ? "opacity-60" : ""}`}>
-                  <b className="truncate text-[13px] font-bold">{l.name}</b>
+                  <b className="truncate text-[13px] font-bold">{l.title}</b>
                   <small className="flex items-center gap-[5px] truncate text-[11px] text-muted-foreground">
                     Proprietário(a):{" "}
                     <b className="truncate text-[11px] font-semibold text-foreground">
@@ -792,11 +888,8 @@ function ReimportWindow({
         <div className="grid gap-2 pt-1">
           <button
             type="button"
-            disabled={n === 0}
-            onClick={() => {
-              toast.info(NOTICE_ACTION);
-              onClose();
-            }}
+            disabled={n === 0 || busy}
+            onClick={doImport}
             className="flex h-[46px] items-center justify-center gap-2 rounded-[13px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[13.5px] font-extrabold text-white disabled:opacity-40"
           >
             <RefreshCw className="size-4" />
