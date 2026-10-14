@@ -41,37 +41,11 @@ function InfoRow({
   aside?: ReactNode;
 }) {
   return (
-    <div className="grid h-[36px] grid-cols-[84px_minmax(0,1fr)_auto] items-center gap-2 px-3">
-      <span className="text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground">
+    <div className="grid min-h-[36px] grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-1">
+      <span className="text-[9.5px] font-extrabold uppercase leading-tight tracking-[0.12em] text-muted-foreground">
         {label}
       </span>
       <span className="min-w-0 truncate text-[13px] font-bold">{children}</span>
-      {aside ?? <span />}
-    </div>
-  );
-}
-
-/** Linha de duas camadas: o NOME do item (pode ser longo, ex.: "Cadeado cofre no portão da garagem") em cima e o valor embaixo. */
-function StackRow({
-  label,
-  children,
-  aside,
-}: {
-  label: string;
-  children: ReactNode;
-  aside?: ReactNode;
-}) {
-  return (
-    <div className="grid min-h-[44px] grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5">
-      <span className="min-w-0">
-        <span
-          className="block truncate text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground"
-          title={label}
-        >
-          {label}
-        </span>
-        <span className="block truncate text-[13px] font-bold">{children}</span>
-      </span>
       {aside ?? <span />}
     </div>
   );
@@ -195,29 +169,29 @@ export function PropertyInfoDialog({
                   <SectionTitle>Acesso</SectionTitle>
                   <div className="divide-y divide-foreground/[0.08] overflow-hidden rounded-[var(--win-radius)] bg-foreground/[0.04]">
                     {access.map((it) => (
-                      <StackRow
+                      <InfoRow
                         key={it.key}
                         label={it.label}
                         aside={<CopyBtn value={it.value} label={it.label} />}
                       >
                         <span className="tracking-[0.14em]">{it.value}</span>
-                      </StackRow>
+                      </InfoRow>
                     ))}
                     {p.wifi_ssid && (
-                      <StackRow
+                      <InfoRow
                         label="Wi-Fi"
                         aside={<CopyBtn value={p.wifi_ssid} label="Nome do Wi-Fi" />}
                       >
                         {p.wifi_ssid}
-                      </StackRow>
+                      </InfoRow>
                     )}
                     {p.wifi_password && (
-                      <StackRow
+                      <InfoRow
                         label="Senha do Wi-Fi"
                         aside={<CopyBtn value={p.wifi_password} label="Senha do Wi-Fi" />}
                       >
                         {p.wifi_password}
-                      </StackRow>
+                      </InfoRow>
                     )}
                   </div>
                 </>

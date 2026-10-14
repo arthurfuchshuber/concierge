@@ -28,6 +28,7 @@ import {
   type PropertyListItem,
 } from "./property-actions";
 import { CoverImage } from "@/components/ui/cover-image";
+import { SortMenu } from "@/components/dashboard/SortMenu";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { ACTION_SEGMENT, PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
@@ -51,6 +52,14 @@ type Prop = PropertyListItem;
 type Owner = Record<string, any>;
 type Sit = "active" | "inactive";
 
+type PropSort = "default" | "name" | "owner" | "city";
+const PROP_SORT_OPTIONS: { value: PropSort; label: string }[] = [
+  { value: "default", label: "Padrão (situação)" },
+  { value: "name", label: "Nome do imóvel (A–Z)" },
+  { value: "owner", label: "Proprietário (A–Z)" },
+  { value: "city", label: "Cidade (A–Z)" },
+];
+
 export function OwnerPropertiesList({
   properties,
   owners,
@@ -66,6 +75,7 @@ export function OwnerPropertiesList({
   const [instr, setInstr] = useState<{ id: string; kind: InstructionsKind } | null>(null);
   // Vazio = Todos. As duas marcadas também equivalem a Todos.
   const [sel, setSel] = useState<Sit[]>([]);
+  const [sort, setSort] = useState<PropSort>("default");
 
   const items = useMemo(() => {
     const active = new Set(
@@ -86,6 +96,8 @@ export function OwnerPropertiesList({
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   }, [properties, owners, connections]);
+  const ownerNameOf = (i: { owner: { trade_name?: unknown; name?: unknown } | null }) =>
+    i.owner ? String(i.owner.trade_name || i.owner.name || "") : "";
 
   const infoItem = items.find((i) => i.id === infoId);
   const nActive = items.filter((i) => i.active).length;
@@ -95,7 +107,7 @@ export function OwnerPropertiesList({
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return items.filter((i) => {
+    const list = items.filter((i) => {
       if (!all && !sel.includes(i.active ? "active" : "inactive")) return false;
       if (!term) return true;
       const ownerName = i.owner ? String(i.owner.trade_name || i.owner.name || "") : "";
@@ -103,7 +115,22 @@ export function OwnerPropertiesList({
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(term));
     });
-  }, [items, q, sel, all]);
+    const cmp = (x: string, y: string) => x.localeCompare(y, "pt-BR");
+    // Padrão: Inativo → Ativo sem Guia → Ativo com Guia; depois nome, cidade e proprietário.
+    const rank = (i: (typeof items)[number]) => (!i.active ? 0 : hasActiveGuide(i) ? 2 : 1);
+    return [...list].sort((a, b) => {
+      if (sort === "name") return cmp(a.name, b.name);
+      if (sort === "owner") return cmp(ownerNameOf(a), ownerNameOf(b)) || cmp(a.name, b.name);
+      if (sort === "city") return cmp(a.city ?? "", b.city ?? "") || cmp(a.name, b.name);
+      return (
+        rank(a) - rank(b) ||
+        cmp(a.name, b.name) ||
+        cmp(a.city ?? "", b.city ?? "") ||
+        cmp(ownerNameOf(a), ownerNameOf(b))
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, q, sel, all, sort]);
 
   function toggle(v: Sit) {
     setSel((cur) => {
@@ -213,7 +240,18 @@ export function OwnerPropertiesList({
         value={q}
         onChange={setQ}
         placeholder="Buscar imóvel, proprietário, cidade…"
-        actions={statusButton}
+        actions={
+          <>
+            <SortMenu
+              value={sort}
+              defaultValue="default"
+              options={PROP_SORT_OPTIONS}
+              onChange={setSort}
+              title="Ordenar imóveis por"
+            />
+            {statusButton}
+          </>
+        }
       />
 
       {filtered.length === 0 ? (

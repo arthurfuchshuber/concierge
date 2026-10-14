@@ -51,6 +51,7 @@ import {
   type StakeholderFormValues,
 } from "./StakeholderFormDialog";
 import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
+import { SortMenu } from "@/components/dashboard/SortMenu";
 import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingListState } from "@/components/ds/LoadingState";
@@ -81,6 +82,15 @@ type Row = Record<string, any>;
 
 // Mesmo formato de data usado no card do hóspede ("Check-in dd/mm/aaaa").
 /** Meses completos entre o início e o fim da vigência (ou hoje, se ainda vigente): "5 meses", "1 mês", "menos de 1 mês". */
+type OwnerSort = "default" | "name" | "most" | "oldest" | "newest";
+const OWNER_SORT_OPTIONS: { value: OwnerSort; label: string }[] = [
+  { value: "default", label: "Padrão (atenção primeiro)" },
+  { value: "name", label: "Nome (A–Z)" },
+  { value: "most", label: "Mais imóveis ativos" },
+  { value: "oldest", label: "Vigência mais antiga" },
+  { value: "newest", label: "Vigência mais recente" },
+];
+
 function monthsLabel(startISO: string, endISO: string | null): string {
   const s = new Date(`${String(startISO).slice(0, 10)}T00:00:00`);
   const e = endISO ? new Date(`${String(endISO).slice(0, 10)}T00:00:00`) : new Date();
@@ -113,6 +123,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const [pageTab, setPageTab] = useState<"owners" | "properties">("owners");
   const [q, setQ] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [sort, setSort] = useState<OwnerSort>("default");
   const [cityFilters, setCityFilters] = useState<string[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<StakeholderFormValues>(emptyStakeholderForm);
@@ -172,7 +183,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return rows.filter((r) => {
+    const list = rows.filter((r) => {
       if (
         statusFilters.length > 0 &&
         !statusFilters.includes(effectiveStatus(r.status, r.status_changed_at))
@@ -185,7 +196,28 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
         .filter(Boolean)
         .some((v: string) => String(v).toLowerCase().includes(term));
     });
-  }, [rows, q, statusFilters, cityFilters]);
+    if (!newLayout) return list;
+    const nm = (r: Row) => String(r.trade_name || r.name || "");
+    const byNome = (a: Row, b: Row) => nm(a).localeCompare(nm(b), "pt-BR");
+    const nAtivos = (r: Row) => integrationByOwner.get(r.id)?.activeCount ?? 0;
+    const precisaAtencao = (r: Row) =>
+      effectiveStatus(r.status, r.status_changed_at) !== "active" ||
+      (integrationByOwner.get(r.id)?.inactiveCount ?? 0) > 0;
+    const start = (r: Row) => String(r.contract_start ?? "");
+    return [...list].sort((a, b) => {
+      if (sort === "name") return byNome(a, b);
+      if (sort === "most") return nAtivos(b) - nAtivos(a) || byNome(a, b);
+      if (sort === "oldest")
+        return (start(a) || "9").localeCompare(start(b) || "9") || byNome(a, b);
+      if (sort === "newest") return start(b).localeCompare(start(a)) || byNome(a, b);
+      // Padrão: quem precisa de atenção primeiro, depois mais imóveis ativos, depois A–Z.
+      return (
+        Number(precisaAtencao(b)) - Number(precisaAtencao(a)) ||
+        nAtivos(b) - nAtivos(a) ||
+        byNome(a, b)
+      );
+    });
+  }, [rows, q, statusFilters, cityFilters, newLayout, sort, integrationByOwner]);
 
   const cityOptions = useMemo(() => {
     const set = new Set<string>();
@@ -438,6 +470,13 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
               <>
                 {viewButton}
                 {newButton}
+                <SortMenu
+                  value={sort}
+                  defaultValue="default"
+                  options={OWNER_SORT_OPTIONS}
+                  onChange={setSort}
+                  title="Ordenar proprietários por"
+                />
                 {filtersPopover}
               </>
             }
@@ -757,10 +796,10 @@ function StakeholderCard({
           {row.contract_start && (
             <p className="ds-meta mt-[5px] min-w-0 truncate">
               <span className="text-muted-foreground">Vigência:</span>{" "}
-              <span className="text-foreground">
-                {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "Hoje"} (
-                {monthsLabel(row.contract_start, end)})
-              </span>
+              <span className={statusText(eff)}>
+                {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "Hoje"}
+              </span>{" "}
+              <span className="text-foreground">({monthsLabel(row.contract_start, end)})</span>
             </p>
           )}
         </div>

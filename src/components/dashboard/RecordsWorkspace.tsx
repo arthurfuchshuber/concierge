@@ -1,4 +1,5 @@
 import { SearchActionRow } from "./SearchActionRow";
+import { SortMenu } from "./SortMenu";
 import { searchScore } from "@/lib/search-score";
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,10 +37,23 @@ import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import { notifyAction } from "@/components/UndoActionBar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   FILTER_PANEL_CLASS,
   FILTER_PANEL_COLLISION,
@@ -139,8 +153,6 @@ const GROUP_OPTIONS: ReadonlyArray<{ value: GroupBy; label: string }> = [
   { value: "day", label: "Por data" },
 ];
 
-
-
 /** Lado da miniatura. Fixo de propósito (ver comentário na tira). */
 const THUMB_SIZE = "size-[68px] sm:size-[76px]";
 /** Versão curta, quando o cartão já gastou altura com "a resolver". */
@@ -209,75 +221,16 @@ const CALM_SORT_OPTIONS: { value: CalmSort; label: string }[] = [
   { value: "owner", label: "Proprietário (A–Z)" },
 ];
 
-const byName = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label, "pt-BR");
-const byOwner = (a: { sublabel: string | null; label: string }, b: { sublabel: string | null; label: string }) =>
-  (a.sublabel ?? "").localeCompare(b.sublabel ?? "", "pt-BR") || byName(a, b);
-const latestIso = (rs: { createdAt: string }[]) => rs.reduce((m, r) => (r.createdAt > m ? r.createdAt : m), "");
-const oldestIso = (rs: { createdAt: string }[]) => rs.reduce((m, r) => (m === "" || r.createdAt < m ? r.createdAt : m), "");
-
-/**
- * O BOTÃO DE ORDENAR: só o ícone de seta para cima e para baixo, na mesma
- * peça (`ACTION_BAR`) dos botões de ação — mesma cor, altura e raio. Fora da
- * ordem padrão, um ponto de destaque no canto avisa que a lista está
- * reordenada (mesmo recurso do botão Filtros).
- */
-function SortMenu<T extends string>({
-  value,
-  defaultValue,
-  options,
-  onChange,
-}: {
-  value: T;
-  defaultValue: T;
-  options: { value: T; label: string }[];
-  onChange: (v: T) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <div className={`${ACTION_BAR} !w-auto shrink-0`}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
-            aria-label="Ordenar a lista"
-            title="Ordenar a lista"
-          >
-            <ArrowUpDown className={ACTION_ICON} />
-            {value !== defaultValue && (
-              <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-accent" />
-            )}
-          </button>
-        </PopoverTrigger>
-      </div>
-      <PopoverContent
-        align="end"
-        sideOffset={FILTER_PANEL_OFFSET}
-        collisionPadding={FILTER_PANEL_COLLISION}
-        className={FILTER_PANEL_CLASS}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <div role="radiogroup" aria-label="Ordenar imóveis por">
-          <p className="ds-eyebrow px-3.5 pb-1 pt-3 text-[12px] tracking-[0.09em] text-muted-foreground">
-            Ordenar imóveis por
-          </p>
-          {options.map((o, i) => (
-            <FilterOptionRow
-              key={o.value}
-              label={o.label}
-              selected={value === o.value}
-              last={i === options.length - 1}
-              onClick={() => {
-                onChange(o.value);
-                setOpen(false);
-              }}
-            />
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
+const byName = (a: { label: string }, b: { label: string }) =>
+  a.label.localeCompare(b.label, "pt-BR");
+const byOwner = (
+  a: { sublabel: string | null; label: string },
+  b: { sublabel: string | null; label: string },
+) => (a.sublabel ?? "").localeCompare(b.sublabel ?? "", "pt-BR") || byName(a, b);
+const latestIso = (rs: { createdAt: string }[]) =>
+  rs.reduce((m, r) => (r.createdAt > m ? r.createdAt : m), "");
+const oldestIso = (rs: { createdAt: string }[]) =>
+  rs.reduce((m, r) => (m === "" || r.createdAt < m ? r.createdAt : m), "");
 
 /** "há 5 dias" — a idade em palavras, para a linha de pendências. */
 function fmtAgo(iso: string): string {
@@ -391,7 +344,14 @@ function fmtStayRange(checkin: string | null, checkout: string | null): string |
  * Não mexe em `CATEGORIES`: aquela ordem é do SELETOR que abre antes da
  * câmera (definida pelo cliente em 07/09/2026) e continua valendo lá.
  */
-const CARD_ORDER: readonly RecordCategory[] = ["maintenance", "damage", "incident", "forgotten", "other", "cleaning_audit"];
+const CARD_ORDER: readonly RecordCategory[] = [
+  "maintenance",
+  "damage",
+  "incident",
+  "forgotten",
+  "other",
+  "cleaning_audit",
+];
 const CARDS = CARD_ORDER.map((k) => CATEGORY_BY_KEY.get(k)!).filter(Boolean);
 /** As quatro categorias que abrem pendência: as células da faixa de status. */
 const STATUS_CELLS = CARDS.filter((c) => (PENDING_CATEGORIES as readonly string[]).includes(c.key));
@@ -466,7 +426,6 @@ export function RecordsWorkspace() {
   const [opened, setOpened] = useState<AccountRecord | null>(null);
   const [resolving, setResolving] = useState<AccountRecord | null>(null);
 
-
   // Imóveis e proprietários da conta — a MESMA função que alimenta o
   // vínculo das Pendências, já recortada por perfil.
   const optionsQ = useQuery({
@@ -475,7 +434,10 @@ export function RecordsWorkspace() {
     staleTime: 5 * 60_000,
   });
   const linkProperties = useMemo(() => optionsQ.data?.properties ?? [], [optionsQ.data]);
-  const ownerOptions = useMemo(() => (optionsQ.data?.owners ?? []).map((o) => o.name), [optionsQ.data]);
+  const ownerOptions = useMemo(
+    () => (optionsQ.data?.owners ?? []).map((o) => o.name),
+    [optionsQ.data],
+  );
 
   /**
    * O filtro de PROPRIETÁRIO vira lista de imóveis antes de ir ao servidor —
@@ -484,7 +446,9 @@ export function RecordsWorkspace() {
    */
   const propertyIds = useMemo<string[] | null>(() => {
     const byOwner =
-      ownerFilters.length > 0 ? linkProperties.filter((p) => p.ownerName && ownerFilters.includes(p.ownerName)) : null;
+      ownerFilters.length > 0
+        ? linkProperties.filter((p) => p.ownerName && ownerFilters.includes(p.ownerName))
+        : null;
     const ids = new Set<string>();
     if (byOwner) for (const p of byOwner) ids.add(p.id);
     if (propertyFilters.length > 0) {
@@ -513,7 +477,14 @@ export function RecordsWorkspace() {
     ] as const,
     queryFn: () =>
       listFn({
-        data: { ownerId: activeOwnerId, category, onlyOpen, fromDate: period?.start ?? null, toDate: period?.end ?? null, propertyIds },
+        data: {
+          ownerId: activeOwnerId,
+          category,
+          onlyOpen,
+          fromDate: period?.start ?? null,
+          toDate: period?.end ?? null,
+          propertyIds,
+        },
       }),
     // Rede de segurança (01/10/2026): se o aviso ao vivo se perder (celular
     // em segundo plano, conexão caindo), a tela não fica mostrando pendência
@@ -583,7 +554,7 @@ export function RecordsWorkspace() {
   );
   const counts = q.data?.counts;
 
-    /** Imóvel escolhido no tooltip de pendências (desfeito junto com "Ver tudo"). */
+  /** Imóvel escolhido no tooltip de pendências (desfeito junto com "Ver tudo"). */
   const [pendingFocus, setPendingFocus] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const groups = useMemo<Group[]>(() => {
@@ -627,7 +598,12 @@ export function RecordsWorkspace() {
         searchScore(search, [
           [g.label, 3],
           [g.sublabel, 2.5],
-          [[...g.pending, ...g.rest].map((r) => (r as { note?: string | null }).note ?? "").join(" "), 1],
+          [
+            [...g.pending, ...g.rest]
+              .map((r) => (r as { note?: string | null }).note ?? "")
+              .join(" "),
+            1,
+          ],
         ]) > 0,
     );
   }, [records, groupBy, search]);
@@ -664,28 +640,33 @@ export function RecordsWorkspace() {
   const calmGroups = strictPending
     ? []
     : byProperty
-    ? calmSort === "recent"
-      ? groups.filter((g) => g.pending.length === 0)
-      : groups
-          .filter((g) => g.pending.length === 0)
-          .sort((a, b) => {
-            switch (calmSort) {
-              case "oldest":
-                return latestIso(a.rest).localeCompare(latestIso(b.rest));
-              case "count":
-                return b.rest.length - a.rest.length || latestIso(b.rest).localeCompare(latestIso(a.rest));
-              case "name":
-                return byName(a, b);
-              default:
-                return byOwner(a, b);
-            }
-          })
-    : groups;
+      ? calmSort === "recent"
+        ? groups.filter((g) => g.pending.length === 0)
+        : groups
+            .filter((g) => g.pending.length === 0)
+            .sort((a, b) => {
+              switch (calmSort) {
+                case "oldest":
+                  return latestIso(a.rest).localeCompare(latestIso(b.rest));
+                case "count":
+                  return (
+                    b.rest.length - a.rest.length ||
+                    latestIso(b.rest).localeCompare(latestIso(a.rest))
+                  );
+                case "name":
+                  return byName(a, b);
+                default:
+                  return byOwner(a, b);
+              }
+            })
+      : groups;
   // O NÚMERO DA FAIXA vem do servidor (mesma leitura dos cartões): não depende
   // do que coube na lista, da categoria escolhida nem da busca. Sem o campo
   // (servidor antigo), cai para o que a lista mostra.
   // Com uma categoria escolhida, a faixa e o resumo falam SÓ dela (filtro estrito).
-  const pendingItemsShown = (q.data?.pendingItems ?? []).filter((i) => (category ? i.category === category : true));
+  const pendingItemsShown = (q.data?.pendingItems ?? []).filter((i) =>
+    category ? i.category === category : true,
+  );
   const pendingOpen = category
     ? (q.data?.openCounts?.[category] ?? pendingItemsShown.length)
     : (q.data?.pendingOpen ?? attentionGroups.reduce((n, g) => n + g.pending.length, 0));
@@ -752,56 +733,58 @@ export function RecordsWorkspace() {
 
   const pageTitle = (() => {
     const base = category ? (CATEGORY_BY_KEY.get(category)?.short ?? "Registros") : "Registros";
-    return period ? `${base} Período ${fmtDDMM(period.start)} a ${fmtDDMM(period.end)}` : `${base} Todo o período`;
+    return period
+      ? `${base} Período ${fmtDDMM(period.start)} a ${fmtDDMM(period.end)}`
+      : `${base} Todo o período`;
   })();
   const pageSubtitle = period
     ? "Fotos, vídeos, áudios e notas registrados nos imóveis no período."
     : "Fotos, vídeos, áudios e notas registrados nos imóveis em todo o período.";
 
   const recordActions = (
-            <>
-              {/* PERÍODO À ESQUERDA, FILTROS À DIREITA — idêntico à Limpeza:
+    <>
+      {/* PERÍODO À ESQUERDA, FILTROS À DIREITA — idêntico à Limpeza:
                   com período escolhido, o botão mostra as datas e tocar limpa. */}
-              {period ? (
-                <button
-                  type="button"
-                  onClick={() => setPeriod(null)}
-                  title="Limpar período"
-                  aria-label={`Período ${fmtDDMM(period.start)} a ${fmtDDMM(period.end)} — limpar período`}
-                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
-                >
-                  <CalendarRange className={ACTION_ICON} />
-                  <span className="lg:hidden">{`${fmtDDMM(period.start)} a ${fmtDDMM(period.end)}`}</span>
-                </button>
-              ) : (
-                <span className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`} title="Todo o período">
-                  <Sparkles className={ACTION_ICON} />
-                  <span className="lg:hidden">Todo o período</span>
-                </span>
-              )}
-              {/* "+ REGISTRO" (04/10/2026): o mesmo "+" da Limpeza, para registrar
+      {period ? (
+        <button
+          type="button"
+          onClick={() => setPeriod(null)}
+          title="Limpar período"
+          aria-label={`Período ${fmtDDMM(period.start)} a ${fmtDDMM(period.end)} — limpar período`}
+          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+        >
+          <CalendarRange className={ACTION_ICON} />
+          <span className="lg:hidden">{`${fmtDDMM(period.start)} a ${fmtDDMM(period.end)}`}</span>
+        </button>
+      ) : (
+        <span className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`} title="Todo o período">
+          <Sparkles className={ACTION_ICON} />
+          <span className="lg:hidden">Todo o período</span>
+        </span>
+      )}
+      {/* "+ REGISTRO" (04/10/2026): o mesmo "+" da Limpeza, para registrar
                   sem depender de um checkout — ligado só ao imóvel ou a uma reserva. */}
-              <NewRecordButton />
-              <RecordsFiltersButton
-                category={category}
-                onCategoryChange={setCategory}
-                groupBy={groupBy}
-                onGroupByChange={setGroupBy}
-                period={period}
-                onPeriodChange={setPeriod}
-                periodBounds={q.data?.bounds ?? null}
-                onlyOpen={onlyOpen}
-                onOnlyOpenChange={setOnlyOpen}
-                ownerFilters={ownerFilters}
-                onOwnerFiltersChange={setOwnerFilters}
-                ownerOptions={ownerOptions}
-                propertyFilters={propertyFilters}
-                onPropertyFiltersChange={setPropertyFilters}
-                propertyOptions={linkProperties}
-                hasCustomFilters={hasCustomFilters}
-                onClearAll={clearAllFilters}
-              />
-            </>
+      <NewRecordButton />
+      <RecordsFiltersButton
+        category={category}
+        onCategoryChange={setCategory}
+        groupBy={groupBy}
+        onGroupByChange={setGroupBy}
+        period={period}
+        onPeriodChange={setPeriod}
+        periodBounds={q.data?.bounds ?? null}
+        onlyOpen={onlyOpen}
+        onOnlyOpenChange={setOnlyOpen}
+        ownerFilters={ownerFilters}
+        onOwnerFiltersChange={setOwnerFilters}
+        ownerOptions={ownerOptions}
+        propertyFilters={propertyFilters}
+        onPropertyFiltersChange={setPropertyFilters}
+        propertyOptions={linkProperties}
+        hasCustomFilters={hasCustomFilters}
+        onClearAll={clearAllFilters}
+      />
+    </>
   );
 
   return (
@@ -823,11 +806,7 @@ export function RecordsWorkspace() {
           desenham nada em linha, e como irmãos de um flex abririam um vão
           fantasma no fim da página. */}
       <div className="ds-blocks">
-        <OperationShell
-          view="registros"
-          title={pageTitle}
-          subtitle={pageSubtitle}
-        />
+        <OperationShell view="registros" title={pageTitle} subtitle={pageSubtitle} />
 
         <div className="ds-card-grid">
           {/* STATUS EM FAIXA ÚNICA (mockup C+D, aprovado 03/10/2026): acima da busca
@@ -844,7 +823,9 @@ export function RecordsWorkspace() {
                 icon={c.icon}
                 open={q.data?.openCounts?.[c.key] ?? 0}
                 note={(() => {
-                  const old = oldestIso((q.data?.pendingItems ?? []).filter((i) => i.category === c.key));
+                  const old = oldestIso(
+                    (q.data?.pendingItems ?? []).filter((i) => i.category === c.key),
+                  );
                   return old ? `Mais antiga ${fmtAgo(old)}` : null;
                 })()}
                 loading={q.isLoading}
@@ -932,85 +913,84 @@ export function RecordsWorkspace() {
             </div>
           )}
 
-
-        {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
-        {q.isLoading ? (
-          <div className="grid place-items-center py-16 text-muted-foreground">
-            <Loader2 className="size-5 animate-spin" />
-          </div>
-        ) : groups.length === 0 || (strictPending && attentionGroups.length === 0) ? (
-          <p className="py-14 text-center text-sm text-muted-foreground">
-            {onlyOpen || strictPending
-              ? strictPending
-                ? `Nenhuma pendência de ${CATEGORY_BY_KEY.get(category as RecordCategory)?.short ?? "esta categoria"}.`
-                : "Nada em aberto por aqui."
-              : category
-                ? "Nenhum registro nesta categoria."
-                : "Os registros feitos nos cards aparecem aqui."}
-          </p>
-        ) : (
-          <div
-            className={`ds-blocks ${
-              attentionGroups.length > 0 && calmGroups.length > 0
-                ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-2.5 lg:space-y-0"
-                : ""
-            }`}
-          >
-            {/* PENDÊNCIAS SEMPRE EM CIMA (mockup B aprovado, 17/09/2026): os
+          {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
+          {q.isLoading ? (
+            <div className="grid place-items-center py-16 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          ) : groups.length === 0 || (strictPending && attentionGroups.length === 0) ? (
+            <p className="py-14 text-center text-sm text-muted-foreground">
+              {onlyOpen || strictPending
+                ? strictPending
+                  ? `Nenhuma pendência de ${CATEGORY_BY_KEY.get(category as RecordCategory)?.short ?? "esta categoria"}.`
+                  : "Nada em aberto por aqui."
+                : category
+                  ? "Nenhum registro nesta categoria."
+                  : "Os registros feitos nos cards aparecem aqui."}
+            </p>
+          ) : (
+            <div
+              className={`ds-blocks ${
+                attentionGroups.length > 0 && calmGroups.length > 0
+                  ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-2.5 lg:space-y-0"
+                  : ""
+              }`}
+            >
+              {/* PENDÊNCIAS SEMPRE EM CIMA (mockup B aprovado, 17/09/2026): os
               imóveis com pendência aberta sobem para um bloco próprio, com
               borda de luz e o total de pendências; os que estão em dia vêm
               depois de um divisor discreto. Só vale para "Por imóvel" — em
               "Por data" a ordem do dia é a informação e não é quebrada. */}
-            {attentionGroups.length > 0 && (
-              <StatusSection
-                label="Imóveis que precisam de atenção"
-                title="Precisam de atenção"
-                color="#c98c8c"
-                Icon={CircleAlert}
-                count={attentionGroups.length}
-                sort={
-                  <SortMenu
-                    value={attentionSort}
-                    defaultValue="oldest"
-                    options={ATTENTION_SORT_OPTIONS}
-                    onChange={setAttentionSort}
-                  />
-                }
-              >
-                {attentionGroups.map(renderCard)}
-              </StatusSection>
-            )}
-
-            {calmGroups.length > 0 && (
-              <StatusSection
-                label="Imóveis em dia"
-                title="Em dia"
-                color="#7fb79a"
-                Icon={CircleCheck}
-                count={calmGroups.length}
-                sort={
-                  byProperty ? (
+              {attentionGroups.length > 0 && (
+                <StatusSection
+                  label="Imóveis que precisam de atenção"
+                  title="Precisam de atenção"
+                  color="#c98c8c"
+                  Icon={CircleAlert}
+                  count={attentionGroups.length}
+                  sort={
                     <SortMenu
-                      value={calmSort}
-                      defaultValue="recent"
-                      options={CALM_SORT_OPTIONS}
-                      onChange={setCalmSort}
+                      value={attentionSort}
+                      defaultValue="oldest"
+                      options={ATTENTION_SORT_OPTIONS}
+                      onChange={setAttentionSort}
                     />
-                  ) : undefined
-                }
-              >
-                {calmGroups.map(renderCard)}
-              </StatusSection>
-            )}
+                  }
+                >
+                  {attentionGroups.map(renderCard)}
+                </StatusSection>
+              )}
 
-            {q.data?.truncated && (
-              <p className="pt-1 text-center lg:col-span-2 text-[11px] text-muted-foreground">
-                Histórico longo — a lista mostra os mais recentes. Escolher uma categoria ou um período afina o que
-                aparece.
-              </p>
-            )}
-          </div>
-        )}
+              {calmGroups.length > 0 && (
+                <StatusSection
+                  label="Imóveis em dia"
+                  title="Em dia"
+                  color="#7fb79a"
+                  Icon={CircleCheck}
+                  count={calmGroups.length}
+                  sort={
+                    byProperty ? (
+                      <SortMenu
+                        value={calmSort}
+                        defaultValue="recent"
+                        options={CALM_SORT_OPTIONS}
+                        onChange={setCalmSort}
+                      />
+                    ) : undefined
+                  }
+                >
+                  {calmGroups.map(renderCard)}
+                </StatusSection>
+              )}
+
+              {q.data?.truncated && (
+                <p className="pt-1 text-center lg:col-span-2 text-[11px] text-muted-foreground">
+                  Histórico longo — a lista mostra os mais recentes. Escolher uma categoria ou um
+                  período afina o que aparece.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1122,7 +1102,9 @@ function StatusCell({
           <span
             aria-hidden
             className="pointer-events-none absolute inset-x-0 top-0 h-[2px]"
-            style={{ background: "linear-gradient(90deg, transparent, var(--foreground), transparent)" }}
+            style={{
+              background: "linear-gradient(90deg, transparent, var(--foreground), transparent)",
+            }}
           />
           <span
             aria-hidden
@@ -1142,12 +1124,18 @@ function StatusCell({
         className={`w-full pt-1.5 text-center font-display text-[26px] font-bold leading-none tracking-[-0.03em] tabular-nums ${
           open > 0 || loading ? "" : "text-muted-foreground"
         }`}
-        style={active ? { textShadow: "0 0 14px color-mix(in oklab, var(--foreground) 35%, transparent)" } : undefined}
+        style={
+          active
+            ? { textShadow: "0 0 14px color-mix(in oklab, var(--foreground) 35%, transparent)" }
+            : undefined
+        }
       >
         {loading ? "—" : open}
       </div>
       {note && !loading ? (
-        <p className="w-full truncate pt-1 text-center text-[10px] font-bold text-muted-foreground">{note}</p>
+        <p className="w-full truncate pt-1 text-center text-[10px] font-bold text-muted-foreground">
+          {note}
+        </p>
       ) : null}
     </button>
   );
@@ -1350,12 +1338,23 @@ function stripeCategory(records: ReadonlyArray<AccountRecord>): RecordCategory |
  * primeiro. Vídeo aparece pelo primeiro quadro, como na tira de anexos da
  * pendência. Só quando não há nenhuma imagem a linha volta ao ícone do tipo.
  */
-type RowSquare = { id: string; kind: AccountRecord["kind"]; url: string | null; record: AccountRecord };
+type RowSquare = {
+  id: string;
+  kind: AccountRecord["kind"];
+  url: string | null;
+  record: AccountRecord;
+};
 
 function rowSquares(records: AccountRecord[], max: number): RowSquare[] {
   const seen = new Set<string>();
   const visuals: (RowSquare & { at: string })[] = [];
-  const push = (id: string, kind: AccountRecord["kind"], url: string | null, at: string, record: AccountRecord) => {
+  const push = (
+    id: string,
+    kind: AccountRecord["kind"],
+    url: string | null,
+    at: string,
+    record: AccountRecord,
+  ) => {
     if (!url || (kind !== "photo" && kind !== "video") || seen.has(id)) return;
     seen.add(id);
     visuals.push({ id, kind, url, at, record });
@@ -1367,7 +1366,9 @@ function rowSquares(records: AccountRecord[], max: number): RowSquare[] {
   if (visuals.length > 0) {
     return visuals.sort((a, b) => a.at.localeCompare(b.at)).slice(0, max);
   }
-  return records.slice(0, max).map((r) => ({ id: r.id, kind: "note" as const, url: null, record: r }));
+  return records
+    .slice(0, max)
+    .map((r) => ({ id: r.id, kind: "note" as const, url: null, record: r }));
 }
 
 /**
@@ -1405,13 +1406,13 @@ function StatusSection({
   return (
     <section aria-label={label} className="relative min-w-0">
       <div className="space-y-2.5">
-        <div
-          className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5"
-        >
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5">
           <span
             aria-hidden
             className="h-px min-w-0"
-            style={{ background: `linear-gradient(to left, color-mix(in oklab, ${color} 70%, transparent), transparent)` }}
+            style={{
+              background: `linear-gradient(to left, color-mix(in oklab, ${color} 70%, transparent), transparent)`,
+            }}
           />
           <span className="flex min-w-0 items-center gap-2">
             <span
@@ -1431,7 +1432,9 @@ function StatusSection({
             <span
               aria-hidden
               className="h-px min-w-0 flex-1"
-              style={{ background: `linear-gradient(to right, color-mix(in oklab, ${color} 70%, transparent), transparent)` }}
+              style={{
+                background: `linear-gradient(to right, color-mix(in oklab, ${color} 70%, transparent), transparent)`,
+              }}
             />
             {sort}
           </span>
@@ -1481,7 +1484,11 @@ const StatChip = forwardRef<
           : "border-foreground/25 bg-foreground/[0.11] text-foreground hover:bg-foreground/[0.17]"
       } ${open ? "ring-1 ring-foreground/25" : ""}`}
     >
-      {pending ? <CircleAlert className="size-3.5" /> : <Camera className="size-3.5 text-foreground/70" />}
+      {pending ? (
+        <CircleAlert className="size-3.5" />
+      ) : (
+        <Camera className="size-3.5 text-foreground/70" />
+      )}
       {/* "Pendências" ESCRITO ao lado do ícone (pedido, 05/10/2026): só o
           número não dizia o que era. O chip de registros continua só com o
           número — a câmera já diz. */}
@@ -1524,7 +1531,9 @@ function PropertyCard({
   // A CÂMERA MOSTRA TODOS OS REGISTROS (pedido explícito, 05/10/2026): com ou
   // sem pendência, ela é o HISTÓRICO inteiro do imóvel — as pendências abertas
   // também entram, e não só os já resolvidos.
-  const allRecords = [...group.pending, ...group.rest].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const allRecords = [...group.pending, ...group.rest].sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt),
+  );
   const showRest = allRecords.length > 0 && !hideHistory;
   // As miniaturas da gaveta têm sempre o tamanho curto (44px): cabem seis na
   // largura do celular, e o sexto vira o "+N".
@@ -1598,7 +1607,10 @@ function PropertyCard({
                 proprietário). */}
             {group.sublabel && (
               <div className="flex min-w-0 items-center gap-0">
-                <span className="min-w-0 truncate text-[10.5px] text-foreground" title={group.sublabel}>
+                <span
+                  className="min-w-0 truncate text-[10.5px] text-foreground"
+                  title={group.sublabel}
+                >
                   {ownerLabel(group.sublabel)}
                 </span>
                 {/* Ícone maior (pedido, 05/10/2026: "minúsculo para o usuário
@@ -1641,7 +1653,10 @@ function PropertyCard({
                 {/* JANELA CENTRADA NA TELA (pedido explícito, 05/10/2026): o
                     popover nascia colado no chip e ficava torto/cortado.
                     Como Dialog ela centraliza sozinha e herda raio 16. */}
-                <Dialog open={pendingOpen} onOpenChange={(v) => v !== pendingOpen && onTogglePending()}>
+                <Dialog
+                  open={pendingOpen}
+                  onOpenChange={(v) => v !== pendingOpen && onTogglePending()}
+                >
                   <DialogContent
                     className="max-h-[75dvh] w-[min(372px,calc(100vw-2rem))] gap-0 overflow-x-hidden overflow-y-auto p-0"
                     aria-describedby={undefined}
@@ -1683,7 +1698,14 @@ function PropertyCard({
               const isLastSlot = i === thumbCap - 1;
               const hidden = allRecords.length - thumbCap;
               if (isLastSlot && hidden > 0) {
-                return <MoreThumb key="more" small count={hidden + 1} onClick={() => setMoreOpen(true)} />;
+                return (
+                  <MoreThumb
+                    key="more"
+                    small
+                    count={hidden + 1}
+                    onClick={() => setMoreOpen(true)}
+                  />
+                );
               }
               return <Thumb key={r.id} record={r} small onOpen={() => onOpen(r)} />;
             })}
@@ -1727,13 +1749,21 @@ function MoreRecordsBody({
   onOpen: (r: AccountRecord) => void;
 }) {
   const first = records[0];
-  const covers = [...(group.coverUrls ?? first?.propertyCoverUrls ?? []), group.coverUrl ?? first?.propertyCoverUrl];
+  const covers = [
+    ...(group.coverUrls ?? first?.propertyCoverUrls ?? []),
+    group.coverUrl ?? first?.propertyCoverUrl,
+  ];
   const sections: { key: string; label: string; dot: string; items: AccountRecord[] }[] = [];
   for (const r of records) {
     let sec = sections.find((x) => x.key === r.category);
     if (!sec) {
       const meta = CATEGORY_BY_KEY.get(r.category);
-      sec = { key: r.category, label: meta?.label ?? "Registro", dot: meta?.dot ?? "bg-muted-foreground/60", items: [] };
+      sec = {
+        key: r.category,
+        label: meta?.label ?? "Registro",
+        dot: meta?.dot ?? "bg-muted-foreground/60",
+        items: [],
+      };
       sections.push(sec);
     }
     sec.items.push(r);
@@ -1788,7 +1818,9 @@ function MoreRecordsBody({
             >
               <span className={`size-[7px] rounded-full ${sec.dot}`} />
               {sec.label}
-              <em className="not-italic tracking-[0.04em] text-muted-foreground/60">· {sec.items.length}</em>
+              <em className="not-italic tracking-[0.04em] text-muted-foreground/60">
+                · {sec.items.length}
+              </em>
               <i className="h-px flex-1 bg-foreground/[0.08]" />
             </div>
             {sec.items.map((r) => (
@@ -1802,7 +1834,15 @@ function MoreRecordsBody({
 }
 
 /** O "+N" da tira — mesma caixa do quadrante, sem faixa e sem data. */
-function MoreThumb({ small, count, onClick }: { small?: boolean; count: number; onClick: () => void }) {
+function MoreThumb({
+  small,
+  count,
+  onClick,
+}: {
+  small?: boolean;
+  count: number;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -1837,13 +1877,20 @@ function PendingPopoverBody({
 }) {
   const first = group.pending[0];
   const name = first?.propertyName ?? group.label;
-  const covers = [...(group.coverUrls ?? first?.propertyCoverUrls ?? []), group.coverUrl ?? first?.propertyCoverUrl];
+  const covers = [
+    ...(group.coverUrls ?? first?.propertyCoverUrls ?? []),
+    group.coverUrl ?? first?.propertyCoverUrl,
+  ];
   // Seções por categoria, na ordem em que aparecem.
   const sections: { key: string; label: string; items: AccountRecord[] }[] = [];
   for (const r of group.pending) {
     let sec = sections.find((x) => x.key === r.category);
     if (!sec) {
-      sec = { key: r.category, label: CATEGORY_BY_KEY.get(r.category)?.label ?? "Registro", items: [] };
+      sec = {
+        key: r.category,
+        label: CATEGORY_BY_KEY.get(r.category)?.label ?? "Registro",
+        items: [],
+      };
       sections.push(sec);
     }
     sec.items.push(r);
@@ -1857,7 +1904,10 @@ function PendingPopoverBody({
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
             Pendências do imóvel
           </div>
-          <DialogTitle className="mt-1 block truncate text-[17px] font-bold leading-tight tracking-tight text-white" title={name}>
+          <DialogTitle
+            className="mt-1 block truncate text-[17px] font-bold leading-tight tracking-tight text-white"
+            title={name}
+          >
             {name}
           </DialogTitle>
         </div>
@@ -1885,14 +1935,23 @@ function PendingPopoverBody({
       <div className="grid grid-cols-[minmax(0,1fr)] gap-2 px-3.5 pb-4">
         {sections.map((sec, i) => (
           <div key={sec.key} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
-            <div className={`flex items-center gap-2.5 px-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground ${i ? "pt-2" : ""}`}>
+            <div
+              className={`flex items-center gap-2.5 px-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground ${i ? "pt-2" : ""}`}
+            >
               <span className="size-[7px] rounded-full bg-[#d29a9a]" />
               {sec.label}
-              <em className="not-italic tracking-[0.04em] text-muted-foreground/60">· {sec.items.length}</em>
+              <em className="not-italic tracking-[0.04em] text-muted-foreground/60">
+                · {sec.items.length}
+              </em>
               <i className="h-px flex-1 bg-foreground/[0.08]" />
             </div>
             {sec.items.map((r) => (
-              <PendingCard key={r.id} record={r} onOpen={() => onOpen(r)} onResolve={() => onResolve(r)} />
+              <PendingCard
+                key={r.id}
+                record={r}
+                onOpen={() => onOpen(r)}
+                onResolve={() => onResolve(r)}
+              />
             ))}
           </div>
         ))}
@@ -1916,7 +1975,9 @@ function PendingCard({
   onOpen: () => void;
   onResolve?: () => void;
 }) {
-  const visual = (record.media ?? []).filter((m) => m.url && (m.kind === "photo" || m.kind === "video"));
+  const visual = (record.media ?? []).filter(
+    (m) => m.url && (m.kind === "photo" || m.kind === "video"),
+  );
   const m = visual[0];
   return (
     <div
@@ -1930,7 +1991,12 @@ function PendingCard({
       >
         <span className="relative grid size-[52px] shrink-0 place-items-center overflow-hidden rounded-[13px] bg-gradient-to-br from-secondary/80 to-secondary/40">
           {m?.kind === "photo" ? (
-            <img src={m.url!} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+            <img
+              src={m.url!}
+              alt=""
+              loading="lazy"
+              className="absolute inset-0 size-full object-cover"
+            />
           ) : m?.kind === "video" ? (
             <VideoFrame url={m.url!} />
           ) : (
@@ -1976,7 +2042,15 @@ function PendingCard({
   );
 }
 
-function Thumb({ record, small, onOpen }: { record: AccountRecord; small?: boolean; onOpen: () => void }) {
+function Thumb({
+  record,
+  small,
+  onOpen,
+}: {
+  record: AccountRecord;
+  small?: boolean;
+  onOpen: () => void;
+}) {
   const meta = CATEGORY_BY_KEY.get(record.category);
   const open = record.taskStatus === "pending";
   const bandH = small ? "h-3.5" : "h-4";
@@ -2002,7 +2076,12 @@ function Thumb({ record, small, onOpen }: { record: AccountRecord; small?: boole
               container não cortam nada — o texto vaza pelos dois lados. */}
           <span className="truncate">{meta?.short ?? "Registro"}</span>
         </span>
-        {open && <span className="absolute inset-x-0 bottom-0 h-[3px] bg-rose-500" aria-label="Em aberto" />}
+        {open && (
+          <span
+            className="absolute inset-x-0 bottom-0 h-[3px] bg-rose-500"
+            aria-label="Em aberto"
+          />
+        )}
         {/* UMA SITUAÇÃO COM VÁRIAS MÍDIAS: o número avisa que tem mais coisa
             ali dentro — sem ele, quatro fotos viram um quadrado só e ninguém
             desconfia. */}
@@ -2061,7 +2140,14 @@ function RecordViewerDialog({
         className="flex w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md"
         aria-describedby={undefined}
       >
-        {record && <RecordViewerBody record={record} onDelete={onDelete} onResolve={onResolve} onEdited={onEdited} />}
+        {record && (
+          <RecordViewerBody
+            record={record}
+            onDelete={onDelete}
+            onResolve={onResolve}
+            onEdited={onEdited}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -2458,7 +2544,10 @@ function RecordViewerBody({
         </div>
       )}
 
-      <div ref={bodyRef} className="sg-elegant-scroll min-h-0 min-w-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain px-6 pb-1 pt-4">
+      <div
+        ref={bodyRef}
+        className="sg-elegant-scroll min-h-0 min-w-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain px-6 pb-1 pt-4"
+      >
         {editing ? (
           /* EDITAR DEPOIS (decisão do cliente, 10/09/2026): o registro que
              nasceu sem título — ou com o título errado — se conserta aqui,
@@ -2512,7 +2601,10 @@ function RecordViewerBody({
               "Origem",
               [
                 record.cardMode ? MODE_LABEL[record.cardMode] : "Registros",
-                new Date(record.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+                new Date(record.createdAt).toLocaleTimeString("pt-BR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
               ]
                 .filter(Boolean)
                 .join(" · "),
@@ -2551,7 +2643,11 @@ function RecordViewerBody({
               title="Baixa todas as mídias deste registro"
               className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-foreground transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
             >
-              {baixando ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+              {baixando ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Download className="size-3.5" />
+              )}
             </button>
           )}
           <button
@@ -2733,7 +2829,9 @@ function ResolveDialog({
     mutationFn: async () => {
       if (!record?.taskId) throw new Error("Este registro não tem pendência.");
       // "1.234,56" e "1234.56" chegam iguais em centavos.
-      const cents = hasCost ? Math.round(Number(amount.replace(/\./g, "").replace(",", ".")) * 100) : null;
+      const cents = hasCost
+        ? Math.round(Number(amount.replace(/\./g, "").replace(",", ".")) * 100)
+        : null;
       if (hasCost && (!Number.isFinite(cents) || (cents ?? 0) < 0)) {
         throw new Error("Informe um valor válido.");
       }
@@ -2773,7 +2871,8 @@ function ResolveDialog({
           .catch((e) => toast.error(e instanceof Error ? e.message : "Não foi possível desfazer."));
       });
     },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Não foi possível resolver."),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Não foi possível resolver."),
   });
 
   const options = payer === "owner" ? owners : payer === "provider" ? providers : [];
@@ -2789,35 +2888,42 @@ function ResolveDialog({
       >
         <DialogHeader className="space-y-0 border-b border-[var(--panel-border)] px-4 pb-3 pr-12 pt-4 text-left">
           <DialogTitle className="sr-only">Resolver pendência</DialogTitle>
-          {record && (() => {
-            const meta = CATEGORY_BY_KEY.get(record.category);
-            return (
-              <OverlayHeader
-                icon={ListChecks}
-                eyebrow="Resolver pendência"
-                title={hasTitle(record) ? recordTitle(record) : (record.fileName ?? UNTITLED)}
-                subtitle={record.propertyName}
-                owner={
-                  record.ownerName
-                    ? { name: record.ownerName, phone: record.ownerPhone, country: record.ownerPhoneCountry }
-                    : null
-                }
-                chips={
-                  <>
-                    <OverlayChip dot={meta?.dot}>{meta?.short ?? "Registro"}</OverlayChip>
-                    <OverlayChip>{fmtShortDate(record.createdAt)}</OverlayChip>
-                    {record.createdByName && <OverlayChip>por {record.createdByName}</OverlayChip>}
-                  </>
-                }
-              />
-            );
-          })()}
+          {record &&
+            (() => {
+              const meta = CATEGORY_BY_KEY.get(record.category);
+              return (
+                <OverlayHeader
+                  icon={ListChecks}
+                  eyebrow="Resolver pendência"
+                  title={hasTitle(record) ? recordTitle(record) : (record.fileName ?? UNTITLED)}
+                  subtitle={record.propertyName}
+                  owner={
+                    record.ownerName
+                      ? {
+                          name: record.ownerName,
+                          phone: record.ownerPhone,
+                          country: record.ownerPhoneCountry,
+                        }
+                      : null
+                  }
+                  chips={
+                    <>
+                      <OverlayChip dot={meta?.dot}>{meta?.short ?? "Registro"}</OverlayChip>
+                      <OverlayChip>{fmtShortDate(record.createdAt)}</OverlayChip>
+                      {record.createdByName && (
+                        <OverlayChip>por {record.createdByName}</OverlayChip>
+                      )}
+                    </>
+                  }
+                />
+              );
+            })()}
         </DialogHeader>
 
         <div className="min-w-0 space-y-3 px-4 pb-4 pt-3">
           <p className="text-[11.5px] leading-snug text-muted-foreground">
-            Marque se houve gasto. Depois diga quem deve arcar com ele e quem já pagou — o sistema mostra se
-            alguém precisa reembolsar.
+            Marque se houve gasto. Depois diga quem deve arcar com ele e quem já pagou — o sistema
+            mostra se alguém precisa reembolsar.
           </p>
           <button
             type="button"
@@ -2832,7 +2938,9 @@ function ResolveDialog({
             <>
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
                 <div className="min-w-0">
-                  <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem deve arcar</span>
+                  <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
+                    Quem deve arcar
+                  </span>
                   <PayerButtonGroup
                     value={payer}
                     onSelect={(k) => {
@@ -2842,7 +2950,9 @@ function ResolveDialog({
                   />
                 </div>
                 <div className="min-w-0">
-                  <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem pagou</span>
+                  <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
+                    Quem pagou
+                  </span>
                   <PayerButtonGroup
                     value={paidBy}
                     onSelect={(k) => {
@@ -2854,10 +2964,20 @@ function ResolveDialog({
               </div>
 
               {needsWho && (
-                <PayerPicker kind={payer} options={options} selectedId={payerId} onSelect={setPayerId} />
+                <PayerPicker
+                  kind={payer}
+                  options={options}
+                  selectedId={payerId}
+                  onSelect={setPayerId}
+                />
               )}
               {needsWhoPaid && (
-                <PayerPicker kind={paidBy} options={paidByOptions} selectedId={paidById} onSelect={setPaidById} />
+                <PayerPicker
+                  kind={paidBy}
+                  options={paidByOptions}
+                  selectedId={paidById}
+                  onSelect={setPaidById}
+                />
               )}
 
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
@@ -2868,7 +2988,9 @@ function ResolveDialog({
                   ] as const
                 ).map(([label, val, set, ph]) => (
                   <label key={label} className="block min-w-0">
-                    <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">{label}</span>
+                    <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
+                      {label}
+                    </span>
                     <div className="mt-1 flex items-center gap-1.5 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
                       <span className="text-[11px] font-bold text-muted-foreground">R$</span>
                       <input
@@ -2901,7 +3023,9 @@ function ResolveDialog({
           )}
 
           <label className="block">
-            <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Observação (opcional)</span>
+            <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
+              Observação (opcional)
+            </span>
             <textarea
               rows={2}
               value={note}
@@ -2971,7 +3095,13 @@ function ViewerStage({
           playsInline
           className="pointer-events-none absolute -inset-5 size-[calc(100%+2.5rem)] scale-110 object-cover blur-2xl brightness-[.55] saturate-125"
         />
-        <video src={record.url} controls playsInline preload="metadata" className="relative size-full object-contain" />
+        <video
+          src={record.url}
+          controls
+          playsInline
+          preload="metadata"
+          className="relative size-full object-contain"
+        />
       </>
     );
   }
@@ -3112,7 +3242,9 @@ function RecordsFiltersButton({
         >
           <Filter className={ACTION_ICON} />
           <span className="lg:hidden">Filtros</span>
-          {hasCustomFilters && <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />}
+          {hasCustomFilters && (
+            <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />
+          )}
         </button>
       </PopoverTrigger>
 
@@ -3129,17 +3261,49 @@ function RecordsFiltersButton({
         {screen === "root" ? (
           <>
             <FilterRootHeader canClear={hasCustomFilters} onClear={onClearAll} />
-            <FilterMenuRow icon={Layers} label="Agrupar" value={groupLabel} active={groupBy !== GROUP_OPTIONS[0].value} onClick={() => setScreen("group")} />
-            <FilterMenuRow icon={CalendarRange} label="Período" value={periodLabel} active={period !== null} onClick={() => { setCalendarMonth(isoToDate(todayISOSaoPaulo())); setScreen("period"); }} />
-            <FilterMenuRow icon={Users} label="Proprietário" value={ownerLabel} active={ownerFilters.length > 0} onClick={() => setScreen("owner")} />
-            <FilterMenuRow icon={Building2} label="Imóvel" value={propertyLabel} active={propertyFilters.length > 0} onClick={() => setScreen("property")} last />
+            <FilterMenuRow
+              icon={Layers}
+              label="Agrupar"
+              value={groupLabel}
+              active={groupBy !== GROUP_OPTIONS[0].value}
+              onClick={() => setScreen("group")}
+            />
+            <FilterMenuRow
+              icon={CalendarRange}
+              label="Período"
+              value={periodLabel}
+              active={period !== null}
+              onClick={() => {
+                setCalendarMonth(isoToDate(todayISOSaoPaulo()));
+                setScreen("period");
+              }}
+            />
+            <FilterMenuRow
+              icon={Users}
+              label="Proprietário"
+              value={ownerLabel}
+              active={ownerFilters.length > 0}
+              onClick={() => setScreen("owner")}
+            />
+            <FilterMenuRow
+              icon={Building2}
+              label="Imóvel"
+              value={propertyLabel}
+              active={propertyFilters.length > 0}
+              onClick={() => setScreen("property")}
+              last
+            />
           </>
         ) : null}
 
         {screen === "category" ? (
           <>
             <FilterScreenHeader icon={Tag} title="Categoria" onBack={() => setScreen("root")} />
-            <FilterOptionRow label="Todas" selected={category === null} onClick={() => onCategoryChange(null)} />
+            <FilterOptionRow
+              label="Todas"
+              selected={category === null}
+              onClick={() => onCategoryChange(null)}
+            />
             {CARDS.map((c, i) => (
               <FilterOptionRow
                 key={c.key}
@@ -3193,7 +3357,8 @@ function RecordsFiltersButton({
               max={periodBounds?.max ? isoToDate(periodBounds.max) : undefined}
               onChange={(next) => {
                 setDraft(next);
-                if (next?.from && next?.to) onPeriodChange({ start: dateToISO(next.from), end: dateToISO(next.to) });
+                if (next?.from && next?.to)
+                  onPeriodChange({ start: dateToISO(next.from), end: dateToISO(next.to) });
               }}
             />
           </>
@@ -3210,7 +3375,11 @@ function RecordsFiltersButton({
             <FilterMultiSelect
               options={ownerOptions.map((o) => {
                 const n = propertyOptions.filter((p) => p.ownerName === o).length;
-                return { value: o, label: o, sublabel: n ? `${n} ${n === 1 ? "imóvel" : "imóveis"}` : null };
+                return {
+                  value: o,
+                  label: o,
+                  sublabel: n ? `${n} ${n === 1 ? "imóvel" : "imóveis"}` : null,
+                };
               })}
               selected={ownerFilters}
               onChange={onOwnerFiltersChange}
@@ -3228,7 +3397,11 @@ function RecordsFiltersButton({
               right={<FilterCountBadge count={propertyFilters.length} />}
             />
             <FilterMultiSelect
-              options={propertyOptions.map((p) => ({ value: p.id, label: p.name, sublabel: p.ownerName }))}
+              options={propertyOptions.map((p) => ({
+                value: p.id,
+                label: p.name,
+                sublabel: p.ownerName,
+              }))}
               selected={propertyFilters}
               onChange={onPropertyFiltersChange}
               searchPlaceholder="Buscar imóvel..."
