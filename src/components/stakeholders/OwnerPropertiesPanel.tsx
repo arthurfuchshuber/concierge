@@ -91,7 +91,10 @@ export function OwnerPropertiesPanel({
   onTransfer,
   accountOwnerId,
   onChanged,
+  menuAction,
 }: {
+  /** Botão único de ações da ficha, no início da barra de busca. */
+  menuAction?: React.ReactNode;
   accountOwnerId?: string | null;
   /** Recarrega a ficha depois de ativar/desativar/importar. */
   onChanged: () => void;
@@ -283,6 +286,7 @@ export function OwnerPropertiesPanel({
         placeholder="Buscar imóvel…"
         actions={
           <>
+            {menuAction}
             <SortMenu
               value={sort}
               defaultValue="default"

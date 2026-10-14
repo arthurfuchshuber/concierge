@@ -724,11 +724,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           side={isMobile ? "bottom" : "right"}
           // Ficha do proprietário (layout novo): tela cheia, como pedido em 13/10/2026.
           // O X vira o botão redondo de 32px das janelas do sistema.
-          closeClassName={
-            fullScreen
-              ? "absolute right-4 top-4 z-10 grid size-8 place-items-center rounded-full bg-secondary/60 text-muted-foreground opacity-80 cursor-pointer transition-all hover:opacity-100 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              : undefined
-          }
+          closeClassName={fullScreen ? "hidden" : undefined}
           className={
             fullScreen
               ? "h-dvh max-h-none w-full max-w-none overflow-y-auto rounded-none border-0 p-0 sm:max-w-none"
@@ -743,6 +739,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
               id={detailId}
               accountOwnerId={activeAccountId}
               newLayout={newLayout}
+              onClose={() => setDetailId(null)}
               onEdit={() => {
                 const row = rows.find((r) => r.id === detailId);
                 if (row) {

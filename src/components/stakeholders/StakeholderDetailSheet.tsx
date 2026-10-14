@@ -101,7 +101,17 @@ import {
 } from "./owner-ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
-import { Coins, StickyNote, Check, User, Activity, Filter, Trash2 } from "lucide-react";
+import {
+  Coins,
+  StickyNote,
+  Check,
+  User,
+  Activity,
+  Filter,
+  Trash2,
+  ArrowLeft,
+  MoreVertical,
+} from "lucide-react";
 
 /** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.
  *  !flex-none sobrescreve o !flex-1 padrão de TabsTrigger (ui/tabs.tsx) — aqui
@@ -250,6 +260,7 @@ export function StakeholderDetailSheet({
   accountOwnerId,
   newLayout = false,
   onEdit,
+  onClose,
 }: {
   kind: StakeholderKind;
   id: string;
@@ -257,6 +268,8 @@ export function StakeholderDetailSheet({
   /** Layout novo (aprovado nos mockups) — liberado só para contas habilitadas. */
   newLayout?: boolean;
   onEdit: () => void;
+  /** Fecha a ficha (botão "Voltar" da ficha em tela cheia do proprietário). */
+  onClose?: () => void;
 }) {
   const qc = useQueryClient();
   const detailFn = useServerFn(getStakeholderDetail);
@@ -766,81 +779,71 @@ export function StakeholderDetailSheet({
       return groups;
     })();
 
+    // Botão único (padrão dos botões de filtro) com as ações da ficha.
+    const ownerMenu = (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label="Ações do proprietário"
+            title="Ações do proprietário"
+            disabled={extracting}
+            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+          >
+            {extracting ? (
+              <Loader2 className={`${ACTION_ICON} animate-spin`} />
+            ) : (
+              <MoreVertical className={ACTION_ICON} />
+            )}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setDataOpen(true)}>
+            <User className="size-3.5" /> Ver Proprietário
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onEdit}>
+            <Pencil className="size-3.5" /> Editar cadastro
+          </DropdownMenuItem>
+          {clicksignActive && (
+            <DropdownMenuItem onSelect={runExtract}>
+              <FileText className="size-3.5" /> Importar dados do contrato
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+
     return (
       <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col overflow-x-hidden px-4 pb-7 pt-[21px]">
-        {/* Cabeçalho (mockups P1–P8): rótulo, nome com o botão de contato colado, e UMA linha
-            com situação + vigência. O X é o do próprio painel (canto superior direito). */}
+        {/* Voltar: o mesmo botão das janelas do Dashboard e das páginas de Guias Digitais.
+            A ficha ocupa a tela inteira, então o X do painel fica oculto. */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="mb-5 inline-flex w-fit items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" /> Voltar
+        </button>
+
+        {/* Cabeçalho: rótulo, nome (1 linha, reticências) com o botão de contato colado e UMA
+            linha com situação + vigência. Ações (Ver/Editar) ficam no botão da barra de busca. */}
         <div className="grid gap-2">
-          <p className="ds-eyebrow pr-9 text-[10.5px] leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
+          <p className="ds-eyebrow text-[10.5px] leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
             Proprietário
           </p>
-          <div className="flex min-w-0 items-center justify-between gap-3">
-            {/* Título da janela: UMA linha com reticências (regra implementada nas janelas). */}
-            <div className="flex min-w-0 items-center gap-1">
-              <h2 className="ds-page-title min-w-0 truncate !text-lg" title={displayName}>
-                {displayName}
-              </h2>
-              <PhoneActionButton
-                phone={ownerPhone}
-                country={ownerCountry}
-                size={18}
-                alwaysShow
-                rich
-                email={row.email as string | null}
-                className="shrink-0"
-              />
-            </div>
-            <div className={`${ACTION_BAR} !h-9 !w-auto shrink-0 !rounded-[11px]`}>
-              {clicksignActive ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="Editar"
-                      title="Editar"
-                      disabled={extracting}
-                      className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
-                    >
-                      {extracting ? (
-                        <Loader2 className={`${ACTION_ICON} animate-spin`} />
-                      ) : (
-                        <Pencil className={ACTION_ICON} />
-                      )}
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={onEdit}>
-                      <Pencil className="size-3.5" /> Editar cadastro
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={runExtract}>
-                      <FileText className="size-3.5" /> Importar dados do contrato
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <button
-                  type="button"
-                  onClick={onEdit}
-                  aria-label="Editar cadastro"
-                  title="Editar cadastro"
-                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
-                >
-                  <Pencil className={ACTION_ICON} />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setDataOpen((o) => !o)}
-                aria-expanded={dataOpen}
-                aria-label="Dados pessoais"
-                title="Dados pessoais"
-                className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
-              >
-                <ChevronDown
-                  className={`${ACTION_ICON} transition-transform ${dataOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-            </div>
+          <div className="flex min-w-0 items-center gap-1">
+            <h2 className="ds-page-title min-w-0 truncate !text-lg" title={displayName}>
+              {displayName}
+            </h2>
+            <PhoneActionButton
+              phone={ownerPhone}
+              country={ownerCountry}
+              size={18}
+              alwaysShow
+              rich
+              email={row.email as string | null}
+              className="shrink-0"
+            />
           </div>
           <div className="flex flex-wrap items-center gap-x-[10px] gap-y-1.5 text-[12px] leading-none text-muted-foreground">
             <StakeholderStatusControl
@@ -870,59 +873,66 @@ export function StakeholderDetailSheet({
           </div>
         </div>
 
-        {/* Dados pessoais (mockup `.kv`): recolhido ao abrir a ficha. */}
-        {dataOpen && (
-          <section className={`${PANEL_SHELL} mt-3 grid grid-cols-2 gap-x-4 gap-y-4 p-4`}>
-            {(
-              [
-                { l: "Nome completo", v: row.name, wide: true },
-                row.trade_name ? { l: "Nome fantasia", v: row.trade_name, wide: true } : null,
-                row.doc
-                  ? { l: String(row.doc_type ?? "cpf").toUpperCase(), v: formatTaxId(row.doc) }
-                  : null,
-                row.birth_date
-                  ? {
-                      l: "Nascimento",
-                      v: new Date(
-                        `${String(row.birth_date).slice(0, 10)}T12:00:00`,
-                      ).toLocaleDateString("pt-BR"),
-                    }
-                  : null,
-                row.phone
-                  ? { l: "Telefone", v: formatIntlPhone(row.phone, row.phone_country) }
-                  : null,
-                row.email ? { l: "E-mail", v: row.email } : null,
-              ] as Array<{ l: string; v: string; wide?: boolean } | null>
-            )
-              .filter((x): x is { l: string; v: string; wide?: boolean } => !!x && !!x.v)
-              .map((f) => (
-                <div key={f.l} className={`min-w-0 ${f.wide ? "col-span-2" : ""}`}>
+        {/* "Ver Proprietário": janela ao meio da tela com os dados detalhados. */}
+        <Dialog open={dataOpen} onOpenChange={setDataOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="ds-section-title truncate pr-8" title={displayName}>
+                {displayName}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+              {(
+                [
+                  { l: "Nome completo", v: row.name, wide: true },
+                  row.trade_name ? { l: "Nome fantasia", v: row.trade_name, wide: true } : null,
+                  row.doc
+                    ? { l: String(row.doc_type ?? "cpf").toUpperCase(), v: formatTaxId(row.doc) }
+                    : null,
+                  row.birth_date
+                    ? {
+                        l: "Nascimento",
+                        v: new Date(
+                          `${String(row.birth_date).slice(0, 10)}T12:00:00`,
+                        ).toLocaleDateString("pt-BR"),
+                      }
+                    : null,
+                  row.phone
+                    ? { l: "Telefone", v: formatIntlPhone(row.phone, row.phone_country) }
+                    : null,
+                  row.email ? { l: "E-mail", v: row.email } : null,
+                ] as Array<{ l: string; v: string; wide?: boolean } | null>
+              )
+                .filter((x): x is { l: string; v: string; wide?: boolean } => !!x && !!x.v)
+                .map((f) => (
+                  <div key={f.l} className={`min-w-0 ${f.wide ? "col-span-2" : ""}`}>
+                    <p className="ds-eyebrow mb-1.5 text-[10.5px] tracking-[0.2em] text-[color:var(--faint)]">
+                      {f.l}
+                    </p>
+                    <p className="break-words text-[13px] font-medium leading-[1.4] text-foreground">
+                      {f.v}
+                    </p>
+                  </div>
+                ))}
+              {(row.address || row.city || row.state || row.cep) && (
+                <div className="col-span-2 min-w-0">
                   <p className="ds-eyebrow mb-1.5 text-[10.5px] tracking-[0.2em] text-[color:var(--faint)]">
-                    {f.l}
+                    Endereço
                   </p>
                   <p className="break-words text-[13px] font-medium leading-[1.4] text-foreground">
-                    {f.v}
+                    {[row.address, row.district].filter(Boolean).join(" · ")}
+                    <br />
+                    <span className="text-muted-foreground">
+                      {[[row.city, row.state].filter(Boolean).join(" / "), row.cep]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
                   </p>
                 </div>
-              ))}
-            {(row.address || row.city || row.state || row.cep) && (
-              <div className="col-span-2 min-w-0">
-                <p className="ds-eyebrow mb-1.5 text-[10.5px] tracking-[0.2em] text-[color:var(--faint)]">
-                  Endereço
-                </p>
-                <p className="break-words text-[13px] font-medium leading-[1.4] text-foreground">
-                  {[row.address, row.district].filter(Boolean).join(" · ")}
-                  <br />
-                  <span className="text-muted-foreground">
-                    {[[row.city, row.state].filter(Boolean).join(" / "), row.cep]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </span>
-                </p>
-              </div>
-            )}
-          </section>
-        )}
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Abas (mockup `.tabs`): a mesma barra do Dashboard, só abas inteiras (anti-corte). */}
         <div className="mt-5">
@@ -975,6 +985,7 @@ export function StakeholderDetailSheet({
                     placeholder="Buscar na timeline…"
                     actions={
                       <>
+                        {ownerMenu}
                         <button
                           type="button"
                           onClick={() => setNoteOpen((o) => !o)}
@@ -1203,6 +1214,7 @@ export function StakeholderDetailSheet({
               onOpen={(pid) => setWindowPropertyId(pid)}
               onTransfer={(pid, target) => handleTransfer(pid, target)}
               accountOwnerId={accountOwnerId}
+              menuAction={ownerMenu}
               onChanged={() => {
                 qc.invalidateQueries({ queryKey });
                 qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
@@ -1214,6 +1226,7 @@ export function StakeholderDetailSheet({
           {/* ---------------- Financeiro (mockup P3) ---------------- */}
           {ownerTab === "financeiro" && (
             <OwnerFinancePanel
+              menuAction={ownerMenu}
               ownerId={id}
               accountOwnerId={accountOwnerId}
               properties={properties.map((p) => ({ id: p.id, name: p.name }))}
@@ -1243,6 +1256,7 @@ export function StakeholderDetailSheet({
                     placeholder="Buscar contrato…"
                     actions={
                       <>
+                        {ownerMenu}
                         <input
                           ref={looseInputRef}
                           type="file"
@@ -1488,7 +1502,11 @@ export function StakeholderDetailSheet({
               );
             })()}
 
-          {(ownerTab === "acessos" || ownerTab === "log") && <div className="mt-[10px]" />}
+          {(ownerTab === "acessos" || ownerTab === "log") && (
+            <div className="mb-[10px] flex justify-end">
+              <div className={`${ACTION_BAR} !h-9 !w-auto !rounded-[11px]`}>{ownerMenu}</div>
+            </div>
+          )}
 
           {/* ---------------- Acessos (Prop9) ---------------- */}
           {ownerTab === "acessos" &&
