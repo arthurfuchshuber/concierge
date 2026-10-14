@@ -12,9 +12,11 @@ import {
   Loader2,
   Lock,
   MessageCircle,
+  MoreHorizontal,
   Plus,
   RefreshCw,
   Search,
+  Sparkles,
   TriangleAlert,
   X,
 } from "lucide-react";
@@ -27,6 +29,7 @@ import {
   listAirbnbAccountListings,
   listAirbnbAccounts,
   retryAirbnbChat,
+  setPropertySyncDismissed,
   startAirbnbConnect,
   syncAirbnbPair,
   syncExistingProperty,
@@ -42,6 +45,12 @@ import { suggestPairs } from "@/lib/airbnb-pair-suggest";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ClampName } from "@/components/ui/clamp-name";
 import { PropertyThumb } from "@/components/ui/property-thumb";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
@@ -601,6 +610,7 @@ export function AirbnbAccountFlow({
   const reconnectFn = useServerFn(checkAirbnbReconnection);
   const syncFn = useServerFn(syncExistingProperty);
   const pairFn = useServerFn(syncAirbnbPair);
+  const dismissFn = useServerFn(setPropertySyncDismissed);
 
   const [step, setStep] = useState<Step>("start");
   const [channelId, setChannelId] = useState<string | null>(null);
@@ -639,6 +649,12 @@ export function AirbnbAccountFlow({
   const [propListing, setPropListing] = useState<Record<string, string>>({});
   /** Em massa: anúncio sem imóvel que vai virar imóvel novo → proprietário(a) ("" = ainda não escolhido). */
   const [looseNew, setLooseNew] = useState<Record<string, string>>({});
+  /** Em massa: imóveis marcados como "Não sincronizar" nesta janela (saem do aviso; dá para desfazer). */
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  /** Em massa: imóveis cujo anúncio veio do "Sugerir" (mostra a etiqueta até a pessoa trocar). */
+  const [sugIds, setSugIds] = useState<Set<string>>(new Set());
+  /** Em massa: lista de "anúncios sem imóvel" aberta. */
+  const [looseOpen, setLooseOpen] = useState(false);
   const [bulkJobs, setBulkJobs] = useState<BulkJob[]>([]);
   const startedAt = useRef(0);
 
@@ -693,6 +709,9 @@ export function AirbnbAccountFlow({
     setSyncRes(null);
     setPropListing({});
     setLooseNew({});
+    setDismissedIds(new Set());
+    setSugIds(new Set());
+    setLooseOpen(false);
     setBulkJobs([]);
     setLiveCatalog(request.type !== "connect");
     if (request.type === "syncProperties") {
@@ -976,6 +995,33 @@ export function AirbnbAccountFlow({
     qc.invalidateQueries({ queryKey: ["twin-suggestions"] });
     setStep("bulkDone");
   }
+  /** "Não sincronizar este imóvel" / "Desfazer": o servidor guarda; a lista local acompanha. */
+  async function dismissProp(id: string, dismissed: boolean) {
+    try {
+      await dismissFn({ data: { accountOwnerId, propertyId: id, dismissed } });
+      setDismissedIds((cur) => {
+        const next = new Set(cur);
+        if (dismissed) next.add(id);
+        else next.delete(id);
+        return next;
+      });
+      if (dismissed) {
+        setPropListing((c) => {
+          const { [id]: _drop, ...rest } = c;
+          void _drop;
+          return rest;
+        });
+        setSugIds((cur) => {
+          const next = new Set(cur);
+          next.delete(id);
+          return next;
+        });
+      }
+      void qc.invalidateQueries({ queryKey: ["unsynced-properties"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível salvar.");
+    }
+  }
   function startBulk() {
     const jobs: BulkJob[] = [
       ...Object.entries(propListing).map(([propertyId, listingId]) => ({
@@ -1045,7 +1091,9 @@ export function AirbnbAccountFlow({
   const pairsMissing = n - pairsFilled;
   const syncProp = request?.type === "syncProperty" ? request.property : null;
   const isSyncReq = request?.type === "syncProperty" || request?.type === "syncProperties";
-  const bulkProps = request?.type === "syncProperties" ? request.properties : [];
+  const bulkAll = request?.type === "syncProperties" ? request.properties : [];
+  const bulkProps = bulkAll.filter((p) => !dismissedIds.has(p.id));
+  const bulkDismissed = bulkAll.filter((p) => dismissedIds.has(p.id));
   // Com mais de uma conta ativa, cada anúncio mostra o nome da conta dele.
   const multiAcc = activeAccounts.length > 1;
   const accTag = (cid: string) => {
@@ -1114,11 +1162,14 @@ export function AirbnbAccountFlow({
       >
         <DialogContent
           className={
-            step === "pairs" || step === "bulkPairs"
-              ? `${CONTENT_A} sm:max-w-[560px]`
-              : isListStep
-                ? CONTENT_A
-                : CONTENT_B
+            step === "bulkPairs"
+              ? // Título e botões FIXOS; só a lista rola (o anticorte da base corta no último cartão inteiro).
+                "max-w-[380px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[560px] sm:p-0 flex"
+              : step === "pairs"
+                ? `${CONTENT_A} sm:max-w-[560px]`
+                : isListStep
+                  ? CONTENT_A
+                  : CONTENT_B
           }
         >
           {/* ---------- Conectar: início ---------- */}
@@ -2008,68 +2059,78 @@ export function AirbnbAccountFlow({
             </>
           ) : null}
 
-          {/* ---------- Em massa: cada imóvel ao lado do anúncio dele (de → para) ---------- */}
+          {/* ---------- Em massa: vincular anúncios (mockups J1–J4 aprovados, 14/10/2026) ----------
+              Título e botões fixos; só a lista rola. Textos mínimos. */}
           {step === "bulkPairs" ? (
             <>
-              <ListHeader
-                title="Qual anúncio é cada imóvel?"
-                description={`Todos os imóveis sem integração aparecem aqui. Escolha o anúncio de cada um; se sobrar anúncio, escolha o imóvel ou crie um novo.${multiAcc ? " Os anúncios de todas as contas do Airbnb aparecem juntos." : ""}`}
-              />
-              {multiAcc ? (
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <span className="font-bold text-foreground/85">Contas do Airbnb:</span>
-                  {activeAccounts.map((a, i) => (
-                    <AccountTag key={a.channelId} name={a.title} idx={i} />
-                  ))}
+              <div className="grid shrink-0 grid-cols-[minmax(0,1fr)] gap-2.5 px-4 pb-2.5 pt-4">
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-1 pr-9">
+                  <DialogTitle className="truncate font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
+                    Vincular anúncios
+                  </DialogTitle>
+                  <DialogDescription className="truncate text-[12.5px] leading-[1.5]">
+                    Escolha o anúncio de cada imóvel.
+                  </DialogDescription>
                 </div>
-              ) : null}
-              {expiredAccounts.length > 0 ? (
-                <p className="text-[11px] leading-snug ds-atencao">
-                  {expiredAccounts.length === 1
-                    ? `A conta ${expiredAccounts[0].title} precisa ser reconectada: os anúncios dela não aparecem aqui.`
-                    : "Há contas do Airbnb para reconectar: os anúncios delas não aparecem aqui."}
-                </p>
-              ) : null}
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[12px] bg-foreground/[0.04] px-3 py-2.5">
-                <span className="grid gap-0.5">
-                  <b className="text-[12.5px] font-bold">Sugerir pelo nome</b>
-                  <small className="text-[11px] leading-snug text-muted-foreground">
-                    Combina nomes parecidos; você confere.
-                  </small>
-                </span>
-                <button
-                  type="button"
-                  className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[11px] bg-foreground/[0.06] px-4 text-[12.5px] font-bold text-foreground/90 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
-                  onClick={() => {
-                    const free = bulkFree.filter(
-                      (l) => !Object.values(propListing).includes(l.listingId),
-                    );
-                    const sug = suggestPairs(
-                      bulkProps.filter((p) => !propListing[p.id]),
-                      free,
-                    );
-                    if (Object.keys(sug).length === 0)
-                      toast.info("Não achei nomes parecidos. Escolha os anúncios na mão.");
-                    else setPropListing((c) => ({ ...c, ...sug }));
-                  }}
-                >
-                  Sugerir
-                </button>
+                <div className="flex items-center justify-between gap-2">
+                  <b className="min-w-0 truncate text-[12.5px] font-extrabold">
+                    {bulkPairsN} de {bulkRowsN} vinculados
+                  </b>
+                  <button
+                    type="button"
+                    className="flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--win-radius)] bg-foreground/[0.05] px-3 text-[12px] font-bold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
+                    onClick={() => {
+                      const free = bulkFree.filter(
+                        (l) => !Object.values(propListing).includes(l.listingId),
+                      );
+                      const todo = bulkProps.filter((p) => !propListing[p.id]);
+                      const sug = suggestPairs(todo, free);
+                      if (Object.keys(sug).length === 0)
+                        toast.info("Não achei nomes parecidos. Escolha na mão.");
+                      else {
+                        setPropListing((c) => ({ ...c, ...sug }));
+                        setSugIds((c) => new Set([...c, ...Object.keys(sug)]));
+                      }
+                    }}
+                  >
+                    <Sparkles className="size-3.5" />
+                    Sugerir
+                  </button>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#7c1ad8] to-[#e82dae] transition-all"
+                    style={{
+                      width: `${bulkRowsN > 0 ? Math.round((100 * bulkPairsN) / bulkRowsN) : 0}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-[minmax(0,1fr)_14px_minmax(0,1fr)] gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                <span className="truncate">De · imóvel</span>
-                <span />
-                <span className="truncate">Para · anúncio</span>
-              </div>
-              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
+              <div className="sg-elegant-scroll grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,1fr)] content-start gap-2 overflow-y-auto overscroll-contain border-t border-border/50 px-4 pb-3 pt-2.5">
+                {expiredAccounts.length > 0 ? (
+                  <p className="text-[11.5px] leading-snug ds-atencao">
+                    {expiredAccounts.length === 1
+                      ? `Reconecte a conta ${expiredAccounts[0].title}.`
+                      : "Há contas para reconectar."}
+                  </p>
+                ) : null}
                 {inv.isLoading || owners.isLoading ? (
                   <p className="py-6 text-center text-[12.5px] text-muted-foreground">
-                    Buscando anúncios no Airbnb…
+                    Buscando anúncios…
                   </p>
                 ) : inv.isError ? (
-                  <p className="py-6 text-center text-[12.5px] text-muted-foreground">
-                    Não foi possível consultar o Airbnb agora. Tente de novo em instantes.
-                  </p>
+                  <div className="flex items-center gap-2 rounded-[10px] bg-foreground/[0.04] px-3 py-2 text-[12px]">
+                    <span className="min-w-0 flex-1 ds-atencao">
+                      Não consegui consultar o Airbnb.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void inv.refetch()}
+                      className="shrink-0 font-extrabold text-foreground"
+                    >
+                      Tentar de novo
+                    </button>
+                  </div>
                 ) : null}
                 {inv.data
                   ? bulkProps.map((p) => {
@@ -2079,32 +2140,62 @@ export function AirbnbAccountFlow({
                         <div
                           key={p.id}
                           data-clip-row
-                          className={`grid grid-cols-[minmax(0,1fr)_14px_minmax(0,1fr)] items-start gap-2 rounded-[14px] bg-foreground/[0.03] px-2.5 py-2.5 ${INSET}`}
+                          className={`grid min-w-0 gap-2 rounded-[14px] bg-foreground/[0.03] p-2.5 ${INSET}`}
                         >
-                          <span className="grid min-w-0 gap-[3px] self-center">
-                            <ClampName as="b" text={p.name} className="text-[12.5px] font-bold" />
-                            {p.ownerName ? (
-                              <small className="flex min-w-0 items-center gap-[5px] text-[10.5px] text-muted-foreground">
-                                <span className="shrink-0">Proprietário(a):</span>
-                                <b className="truncate font-semibold text-foreground">
-                                  {p.ownerName}
-                                </b>
-                                <PhoneActionButton
-                                  phone={p.ownerPhone}
-                                  country={p.ownerPhoneCountry}
-                                  size={11}
-                                  alwaysShow
-                                  className="shrink-0 !p-0"
-                                />
-                              </small>
-                            ) : null}
-                          </span>
-                          <ArrowRight className="mt-3 size-3.5 text-muted-foreground" />
+                          <div className="flex min-w-0 items-center gap-2">
+                            <ClampName
+                              as="b"
+                              text={p.name}
+                              className="min-w-0 flex-1 text-[13px] font-bold"
+                            />
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  aria-label="Mais ações"
+                                  className="-mr-1 grid size-7 shrink-0 place-items-center rounded-[8px] text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
+                                >
+                                  <MoreHorizontal className="size-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-[230px] p-1.5">
+                                <DropdownMenuItem
+                                  onSelect={() => void dismissProp(p.id, true)}
+                                  className="items-start gap-2.5 px-2.5 py-2"
+                                >
+                                  <X className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                                  <span className="grid gap-0.5">
+                                    <b className="text-[12.5px] font-bold">Não sincronizar</b>
+                                    <small className="text-[11px] leading-snug text-muted-foreground">
+                                      Sai do aviso. Dá para desfazer.
+                                    </small>
+                                  </span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          {p.ownerName ? (
+                            <small className="flex min-w-0 items-center gap-[5px] text-[11.5px] text-muted-foreground">
+                              <span className="shrink-0">Proprietário(a):</span>
+                              <b className="truncate font-semibold text-foreground">
+                                {p.ownerName}
+                              </b>
+                              <PhoneActionButton
+                                phone={p.ownerPhone}
+                                country={p.ownerPhoneCountry}
+                                size={11}
+                                alwaysShow
+                                className="shrink-0 !p-0"
+                              />
+                            </small>
+                          ) : null}
                           <PairPicker
                             value={chosen}
                             valueLabel={l?.title ?? null}
                             valueAccount={l ? accTag(l.channelId) : null}
-                            placeholder={bulkFree.length === 0 ? "Sem anúncio livre" : "Escolher…"}
+                            placeholder={
+                              bulkFree.length === 0 ? "Sem anúncio livre" : "Escolher anúncio…"
+                            }
                             searchPlaceholder="Buscar anúncio…"
                             options={bulkFree.map((x) => {
                               const by = Object.entries(propListing).find(
@@ -2120,6 +2211,11 @@ export function AirbnbAccountFlow({
                             })}
                             onChange={(lid) => {
                               setPropListing((c) => ({ ...c, [p.id]: lid }));
+                              setSugIds((c) => {
+                                const next = new Set(c);
+                                next.delete(p.id);
+                                return next;
+                              });
                               setLooseNew((c) => {
                                 const { [lid]: _drop, ...rest } = c;
                                 void _drop;
@@ -2127,122 +2223,181 @@ export function AirbnbAccountFlow({
                               });
                             }}
                           />
+                          {chosen && sugIds.has(p.id) ? (
+                            <span className="flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-[0.04em] text-accent">
+                              <Sparkles className="size-2.5" />
+                              Sugerido
+                            </span>
+                          ) : null}
                         </div>
                       );
                     })
                   : null}
-                {inv.data
+                {inv.data && bulkLoose.length > 0 ? (
+                  <button
+                    type="button"
+                    data-clip-row
+                    onClick={() => setLooseOpen((v) => !v)}
+                    className={`flex min-w-0 items-center gap-2.5 rounded-[14px] bg-foreground/[0.03] p-2.5 text-left ${INSET}`}
+                  >
+                    <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold">
+                      {plural(bulkLoose.length, "anúncio", "anúncios")} sem imóvel
+                    </span>
+                    {bulkMissingOwner > 0 ? (
+                      <span className="shrink-0 text-[11px] font-bold ds-falta">
+                        Falta proprietário(a)
+                      </span>
+                    ) : null}
+                    <ChevronDown
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform ${
+                        looseOpen || bulkProps.length === 0 ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                ) : null}
+                {inv.data && (looseOpen || bulkProps.length === 0)
                   ? bulkLoose.map((l) => {
                       const isNew = looseIsNew(l.listingId);
                       const free = bulkFreeProps;
                       const askProperty = free.length > 0;
+                      const tag = accTag(l.channelId);
                       return (
                         <div
                           key={l.listingId}
                           data-clip-row
-                          className={`grid grid-cols-[minmax(0,1fr)_14px_minmax(0,1fr)] items-start gap-2 rounded-[14px] px-2.5 py-2.5 ${INSET} ${
+                          className={`grid min-w-0 gap-2 rounded-[14px] p-2.5 ${INSET} ${
                             isNew && !looseOwner(l.listingId)
                               ? "bg-[color-mix(in_oklab,#c98c8c_7%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c98c8c_40%,transparent)]"
                               : "bg-foreground/[0.03]"
                           }`}
                         >
-                          <span className="grid min-w-0 gap-1.5">
-                            {askProperty ? (
-                              <>
-                                <small className="text-[10.5px] text-muted-foreground">
-                                  Qual imóvel é este anúncio?
-                                </small>
-                                <PairPicker
-                                  value={null}
-                                  valueLabel={isNew ? "Criar imóvel novo" : null}
-                                  placeholder="Escolher imóvel…"
-                                  searchPlaceholder="Buscar imóvel…"
-                                  options={free.map((p) => ({
-                                    id: p.id,
-                                    title: p.name,
-                                    sub: p.ownerName ? `Proprietário(a): ${p.ownerName}` : null,
-                                  }))}
-                                  onChange={(pid) => {
-                                    setPropListing((c) => ({ ...c, [pid]: l.listingId }));
+                          <div className="flex min-w-0 items-center gap-2">
+                            <ClampName
+                              as="b"
+                              text={l.title}
+                              className="min-w-0 flex-1 text-[13px] font-bold"
+                            />
+                            {tag ? <AccountTag name={tag.name} idx={tag.idx} /> : null}
+                          </div>
+                          {l.city ? (
+                            <small className="truncate text-[11.5px] text-muted-foreground">
+                              {l.city}
+                            </small>
+                          ) : null}
+                          {askProperty ? (
+                            <div className="grid grid-cols-2 gap-1 rounded-[10px] bg-foreground/[0.05] p-[3px]">
+                              {(
+                                [
+                                  ["Ligar a um imóvel", false],
+                                  ["Criar imóvel novo", true],
+                                ] as const
+                              ).map(([label, toNew]) => (
+                                <button
+                                  key={label}
+                                  type="button"
+                                  onClick={() =>
                                     setLooseNew((c) => {
                                       const { [l.listingId]: _drop, ...rest } = c;
                                       void _drop;
-                                      return rest;
-                                    });
-                                  }}
-                                  footer={{
-                                    label: "Criar imóvel novo a partir do anúncio",
-                                    onClick: () =>
-                                      setLooseNew((c) => ({ ...c, [l.listingId]: "" })),
-                                  }}
-                                />
-                              </>
-                            ) : null}
-                            {isNew ? (
-                              <>
-                                <small className="text-[10.5px] text-muted-foreground">
-                                  Quem é o proprietário(a)?
-                                </small>
-                                <OwnerPicker
-                                  value={looseOwner(l.listingId) || null}
-                                  owners={(owners.data?.rows ?? []) as OwnerRow[]}
-                                  missing={!looseOwner(l.listingId)}
-                                  onChange={(oid) =>
-                                    setLooseNew((c) => ({ ...c, [l.listingId]: oid }))
+                                      return toNew
+                                        ? { ...c, [l.listingId]: c[l.listingId] ?? "" }
+                                        : rest;
+                                    })
                                   }
-                                  onCreate={() => {
-                                    setCreateFor(`loose:${l.listingId}`);
-                                    setFormOpen(true);
-                                  }}
-                                />
-                              </>
-                            ) : null}
-                          </span>
-                          <ArrowRight className="mt-[26px] size-3.5 text-muted-foreground" />
-                          <span className="grid min-w-0 gap-[3px] pt-[18px]">
-                            <ClampName as="b" text={l.title} className="text-[12.5px] font-bold" />
-                            {l.city ? (
-                              <small className="truncate text-[10.5px] text-muted-foreground">
-                                {l.city}
-                              </small>
-                            ) : null}
-                            {accTag(l.channelId) ? (
-                              <span className="flex">
-                                <AccountTag
-                                  name={accTag(l.channelId)!.name}
-                                  idx={accTag(l.channelId)!.idx}
-                                />
-                              </span>
-                            ) : null}
-                            <span className="text-[10px] font-extrabold uppercase tracking-[0.04em] ds-atencao">
-                              Anúncio sem imóvel
-                            </span>
-                          </span>
+                                  className={`h-8 truncate rounded-[8px] px-1 text-[11.5px] font-bold ${
+                                    isNew === toNew
+                                      ? "bg-foreground/[0.10] text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
+                                      : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                          {isNew ? (
+                            <OwnerPicker
+                              value={looseOwner(l.listingId) || null}
+                              owners={(owners.data?.rows ?? []) as OwnerRow[]}
+                              missing={!looseOwner(l.listingId)}
+                              onChange={(oid) => setLooseNew((c) => ({ ...c, [l.listingId]: oid }))}
+                              onCreate={() => {
+                                setCreateFor(`loose:${l.listingId}`);
+                                setFormOpen(true);
+                              }}
+                            />
+                          ) : (
+                            <PairPicker
+                              value={null}
+                              valueLabel={null}
+                              placeholder="Escolher imóvel…"
+                              searchPlaceholder="Buscar imóvel…"
+                              options={free.map((p) => ({
+                                id: p.id,
+                                title: p.name,
+                                sub: p.ownerName ? `Proprietário(a): ${p.ownerName}` : null,
+                              }))}
+                              onChange={(pid) => {
+                                setPropListing((c) => ({ ...c, [pid]: l.listingId }));
+                                setLooseNew((c) => {
+                                  const { [l.listingId]: _drop, ...rest } = c;
+                                  void _drop;
+                                  return rest;
+                                });
+                              }}
+                            />
+                          )}
                         </div>
                       );
                     })
                   : null}
-              </div>
-              <div className="grid gap-2">
-                <div className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground">
-                  <span className="font-bold text-foreground/85">
-                    {bulkPairsN} de {bulkRowsN}{" "}
-                    {bulkRowsN === 1 ? "par completo" : "pares completos"}
-                  </span>
-                  <span>{bulkRowsN} no total</span>
-                </div>
-                <div className="grid grid-cols-[minmax(0,1fr)] gap-2 pt-1 sm:grid-cols-[minmax(0,1fr)_140px]">
-                  <PrimaryBtn
-                    disabled={bulkPairsN === 0 || bulkMissingOwner > 0}
-                    onClick={startBulk}
+                {bulkDismissed.length > 0 ? (
+                  <div className="pt-1 text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground/80">
+                    Não sincronizar
+                  </div>
+                ) : null}
+                {bulkDismissed.map((p) => (
+                  <div
+                    key={p.id}
+                    data-clip-row
+                    className={`flex min-w-0 items-center gap-2.5 rounded-[14px] bg-foreground/[0.02] p-2.5 opacity-85 ${INSET}`}
                   >
-                    <RefreshCw className="size-4" />
+                    <ClampName
+                      as="b"
+                      text={p.name}
+                      className="min-w-0 flex-1 text-[12.5px] font-bold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void dismissProp(p.id, false)}
+                      className="shrink-0 text-[12px] font-extrabold text-accent"
+                    >
+                      Desfazer
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="grid shrink-0 grid-cols-[minmax(0,5fr)_minmax(0,6fr)] gap-2 border-t border-border/50 px-4 pb-4 pt-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={close}
+                  className="flex h-10 min-w-0 items-center justify-center rounded-[var(--win-radius)] bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
+                >
+                  Voltar
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkPairsN === 0 || bulkMissingOwner > 0}
+                  onClick={startBulk}
+                  className="flex h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--win-radius)] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] px-1.5 text-[12.5px] font-extrabold text-white disabled:opacity-40 sm:text-[13.5px]"
+                >
+                  <RefreshCw className="size-3.5 shrink-0 sm:size-4" />
+                  <span className="min-w-0 truncate">
                     {bulkMissingOwner > 0
                       ? `Falta ${bulkMissingOwner} proprietário(a)`
                       : `Sincronizar ${plural(bulkPairsN, "par", "pares")}`}
-                  </PrimaryBtn>
-                  <SecondaryBtn onClick={close}>Voltar</SecondaryBtn>
-                </div>
+                  </span>
+                </button>
               </div>
             </>
           ) : null}

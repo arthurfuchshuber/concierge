@@ -157,12 +157,10 @@ export function SyncRequiredGate() {
                 </span>
               </DialogTitle>
               <DialogDescription className="text-[12.5px] leading-[1.55]">
-                Sua empresa tem{" "}
                 <b className="font-bold text-foreground">
                   {left} {left === 1 ? "imóvel" : "imóveis"}
                 </b>{" "}
-                sem integração com o Airbnb. Vincule anúncios das suas contas conectadas ou conecte
-                uma nova conta para liberar o painel.
+                sem integração com o Airbnb. Vincule para liberar o painel.
               </DialogDescription>
             </div>
           </div>
@@ -236,7 +234,7 @@ export function SyncRequiredGate() {
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
             <div className="flex items-center justify-between gap-2 text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground/80">
-              <span>Imóveis aguardando integração</span>
+              <span>Imóveis pendentes</span>
               <span className="font-semibold normal-case tracking-normal">
                 {left} de {total}
               </span>

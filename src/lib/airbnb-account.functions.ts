@@ -503,7 +503,9 @@ export const listUnsyncedProperties = createServerFn({ method: "GET" })
       .from("properties")
       .select("id, name, city, owner_contact_id, hero_image_url, gallery_images")
       .eq("owner_id", accountId)
-      .is("archived_at", null);
+      .is("archived_at", null)
+      // "Não sincronizar este imóvel": quem foi dispensado não trava o painel nem entra no alerta.
+      .is("sync_dismissed_at", null);
     const ids = (props ?? []).map((p) => p.id);
     // Alerta de "imóveis sem sincronização": só contas da lista (hoje, só a Sigma). Decidido AQUI no servidor.
     const alert = isSyncAlertAccount(accountId);
@@ -580,6 +582,28 @@ export const listUnsyncedProperties = createServerFn({ method: "GET" })
       availableListings = 0;
     }
     return { properties, availableListings, blocking: availableListings > 0, alert };
+  });
+
+/**
+ * "Não sincronizar este imóvel" (e Desfazer): dispensa o imóvel do aviso obrigatório e do alerta de
+ * imóveis sem sincronização. Não arquiva nem apaga nada; `dismissed: false` volta ao normal.
+ */
+export const setPropertySyncDismissed = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    Base.extend({ propertyId: z.string().uuid(), dismissed: z.boolean() }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "stakeholders.vinculo-imovel", { propertyId: data.propertyId });
+    const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
+    const { error } = await admin
+      .from("properties")
+      .update({ sync_dismissed_at: data.dismissed ? new Date().toISOString() : null })
+      .eq("id", data.propertyId)
+      .eq("owner_id", accountId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
   });
 
 /**

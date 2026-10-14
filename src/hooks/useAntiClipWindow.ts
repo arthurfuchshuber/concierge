@@ -38,7 +38,11 @@ function collectUnits(root: HTMLElement, avail: number): HTMLElement[] {
         out.push(child);
       } else if (child.querySelector("[data-clip-row]")) {
         walk(child, depth + 1);
-      } else if (depth < MAX_DEPTH && child.children.length > 0 && child.offsetHeight > avail * 0.6) {
+      } else if (
+        depth < MAX_DEPTH &&
+        child.children.length > 0 &&
+        child.offsetHeight > avail * 0.6
+      ) {
         walk(child, depth + 1);
       } else {
         out.push(child);
@@ -50,11 +54,18 @@ function collectUnits(root: HTMLElement, avail: number): HTMLElement[] {
 }
 
 function fitScroller(el: HTMLElement) {
+  // Posição de rolagem de quem está usando: medir exige voltar ao tamanho natural (mais alto), e isso
+  // faz o navegador "apertar" o scrollTop para o novo máximo. Sem restaurar, qualquer remedição
+  // (barra de endereço do celular encolhendo, teclado, redimensionar) jogava a janela de volta.
+  const keepTop = el.scrollTop;
   // Volta ao tamanho natural para medir o espaço realmente disponível.
   el.style.flex = "";
   el.style.height = "";
   const avail = el.clientHeight;
-  if (avail <= 0 || el.scrollHeight <= avail + 1) return; // cabe inteiro
+  if (avail <= 0 || el.scrollHeight <= avail + 1) {
+    if (el.scrollTop !== keepTop) el.scrollTop = keepTop;
+    return; // cabe inteiro
+  }
   const box = el.getBoundingClientRect();
   // `zoom-in-95` (transform: scale) encolhe getBoundingClientRect, não
   // clientHeight — desfaz a escala para medir na mesma régua.
@@ -67,11 +78,13 @@ function fitScroller(el: HTMLElement) {
     if (bottom <= avail + 0.5) fit = Math.max(fit, bottom);
     else nextTop = Math.min(nextTop, (r.top - box.top) / (scale || 1) + el.scrollTop);
   }
-    const own = getComputedStyle(el);
+  const own = getComputedStyle(el);
   // Quando a própria janela é a área que rola, o recorte no fim da última linha
   // deixava o cartão colado (e com o canto arredondado cortado) na borda de baixo.
   // Devolve o respiro do rodapé (padding), sem deixar a próxima linha espiar.
-  if (fit > 0 && el.scrollTop === 0) {
+  // (Vale em QUALQUER posição de rolagem: antes só valia com scrollTop = 0 e a altura mudava ~7 px
+  // conforme a pessoa rolava, o que fazia a janela "trepidar".)
+  if (fit > 0) {
     const pad = parseFloat(own.paddingBottom) || 0;
     const room = Number.isFinite(nextTop) ? Math.max(0, nextTop - fit - 1) : pad;
     fit += Math.min(pad, room);
@@ -82,6 +95,7 @@ function fitScroller(el: HTMLElement) {
     el.style.flex = own.display === "flex" || el.parentElement ? "none" : "";
     el.style.height = `${Math.ceil(fit)}px`;
   }
+  if (el.scrollTop !== keepTop) el.scrollTop = keepTop;
 }
 
 function scrollersIn(root: HTMLElement): HTMLElement[] {

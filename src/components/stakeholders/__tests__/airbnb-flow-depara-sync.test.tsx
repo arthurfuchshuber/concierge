@@ -27,6 +27,7 @@ vi.mock("@/lib/airbnb-account.functions", () => ({
   startAirbnbConnect: vi.fn(),
   syncExistingProperty: fns.syncExistingProperty,
   syncAirbnbPair: vi.fn(),
+  setPropertySyncDismissed: vi.fn(),
 }));
 vi.mock("@/lib/channex-mode.functions", () => ({
   activateFullMode: vi.fn(),

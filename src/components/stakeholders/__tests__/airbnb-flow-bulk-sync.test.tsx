@@ -9,6 +9,7 @@ const fns = vi.hoisted(() => ({
   listAirbnbAccountListings: vi.fn(),
   listAirbnbAccounts: vi.fn(),
   listStakeholders: vi.fn(),
+  setPropertySyncDismissed: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-start", () => ({
@@ -28,6 +29,7 @@ vi.mock("@/lib/airbnb-account.functions", () => ({
   startAirbnbConnect: vi.fn(),
   syncExistingProperty: fns.syncExistingProperty,
   syncAirbnbPair: fns.syncAirbnbPair,
+  setPropertySyncDismissed: fns.setPropertySyncDismissed,
 }));
 vi.mock("@/lib/channex-mode.functions", () => ({
   activateFullMode: vi.fn(),
@@ -105,9 +107,11 @@ const PROPS = [
 describe("sincronizar em massa (de → para)", () => {
   async function open() {
     mount({ type: "syncProperties", properties: PROPS });
-    await waitFor(() => expect(screen.getByText("Qual anúncio é cada imóvel?")).toBeTruthy());
-    await waitFor(() => expect(screen.getAllByText("Anúncio sem imóvel").length).toBe(2));
+    await waitFor(() => expect(screen.getByText("Vincular anúncios")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("2 anúncios sem imóvel")).toBeTruthy());
   }
+  /** Os anúncios sem imóvel ficam recolhidos; abre a lista (quando há imóveis, vem fechada). */
+  const openLoose = (label: RegExp) => fireEvent.click(screen.getByText(label));
   const btn = () =>
     screen.getByText(/Sincronizar \d+ par(es)?|Falta \d/).closest("button") as HTMLButtonElement;
 
@@ -125,6 +129,7 @@ describe("sincronizar em massa (de → para)", () => {
     fireEvent.click(screen.getByText("Sugerir"));
     await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 1 par/));
     // sobra o anúncio "Casa Dois": escolhe o imóvel "Meu Apê" para ele
+    openLoose(/1 anúncio sem imóvel/);
     fireEvent.click(screen.getByText("Escolher imóvel…"));
     await waitFor(() => expect(screen.getAllByText("Meu Apê").length).toBeGreaterThan(1));
     fireEvent.click(screen.getAllByText("Meu Apê")[1]);
@@ -148,11 +153,8 @@ describe("sincronizar em massa (de → para)", () => {
     await open();
     fireEvent.click(screen.getByText("Sugerir"));
     await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 1 par/));
-    fireEvent.click(screen.getByText("Escolher imóvel…"));
-    await waitFor(() =>
-      expect(screen.getByText("Criar imóvel novo a partir do anúncio")).toBeTruthy(),
-    );
-    fireEvent.click(screen.getByText("Criar imóvel novo a partir do anúncio"));
+    openLoose(/1 anúncio sem imóvel/);
+    fireEvent.click(screen.getByText("Criar imóvel novo"));
     await waitFor(() => expect(screen.getByText("Falta 1 proprietário(a)")).toBeTruthy());
     expect(btn().disabled).toBe(true);
     fireEvent.click(screen.getAllByText("Escolher…").at(-1) as HTMLElement);
@@ -176,13 +178,14 @@ describe("sincronizar em massa (de → para)", () => {
       pending: [],
     });
     mount({ type: "syncProperties", properties: [PROPS[0]] });
-    await waitFor(() => expect(screen.getByText("Qual anúncio é cada imóvel?")).toBeTruthy());
-    await waitFor(() => expect(screen.getAllByText("Anúncio sem imóvel").length).toBe(2));
+    await waitFor(() => expect(screen.getByText("Vincular anúncios")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("2 anúncios sem imóvel")).toBeTruthy());
     fireEvent.click(screen.getByText("Sugerir"));
-    // Casa Um ↔ L1: não sobra imóvel, então a pergunta do imóvel some e só falta o proprietário(a).
+    // Casa Um ↔ L1: não sobra imóvel, então não há "Ligar a um imóvel" e só falta o proprietário(a).
     await waitFor(() => expect(screen.getByText("Falta 1 proprietário(a)")).toBeTruthy());
-    expect(screen.queryByText("Qual imóvel é este anúncio?")).toBeNull();
-    expect(screen.getByText("Quem é o proprietário(a)?")).toBeTruthy();
+    openLoose(/1 anúncio sem imóvel/);
+    expect(screen.queryByText("Ligar a um imóvel")).toBeNull();
+    expect(screen.queryByText("Escolher imóvel…")).toBeNull();
     expect(btn().disabled).toBe(true);
     fireEvent.click(screen.getAllByText("Escolher…").at(-1) as HTMLElement);
     await waitFor(() => expect(screen.getAllByText("Livia").length).toBeGreaterThan(1));
@@ -231,10 +234,10 @@ describe("sincronizar em massa (de → para)", () => {
       ],
     });
     // Não pergunta "Qual conta?": já mostra o De → Para com os anúncios das duas contas.
-    await waitFor(() => expect(screen.getByText("Qual anúncio é cada imóvel?")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Vincular anúncios")).toBeTruthy());
     expect(screen.queryByText("Qual conta do Airbnb?")).toBeNull();
     expect(fns.listAirbnbAccountListings.mock.calls[0][0].data.channelId).toBeNull();
-    await waitFor(() => expect(screen.getAllByText("Escolher…").length).toBe(2));
+    await waitFor(() => expect(screen.getAllByText("Escolher anúncio…").length).toBe(2));
     fireEvent.click(screen.getByText("Sugerir"));
     await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 pares/));
     // Cada anúncio escolhido mostra a conta dele.
@@ -253,6 +256,7 @@ describe("sincronizar em massa (de → para)", () => {
     await open();
     fireEvent.click(screen.getByText("Sugerir"));
     await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 1 par/));
+    openLoose(/1 anúncio sem imóvel/);
     fireEvent.click(screen.getByText("Escolher imóvel…"));
     await waitFor(() => expect(screen.getAllByText("Meu Apê").length).toBeGreaterThan(1));
     fireEvent.click(screen.getAllByText("Meu Apê")[1]);
@@ -263,5 +267,32 @@ describe("sincronizar em massa (de → para)", () => {
     fireEvent.click(screen.getByText("Tentar o que faltou"));
     await waitFor(() => expect(screen.getByText("2 de 2 sincronizados")).toBeTruthy());
     expect(fns.syncAirbnbPair).toHaveBeenCalledTimes(3);
+  });
+
+  it("'Não sincronizar' tira o imóvel da lista (e do aviso) e 'Desfazer' devolve", async () => {
+    fns.setPropertySyncDismissed.mockResolvedValue({ ok: true });
+    await open();
+    fireEvent.keyDown(screen.getAllByLabelText("Mais ações")[1], { key: "Enter" });
+    fireEvent.click(await screen.findByText("Não sincronizar", { selector: "b" }));
+    await waitFor(() =>
+      expect(fns.setPropertySyncDismissed.mock.calls[0][0].data).toEqual({
+        accountOwnerId: null,
+        propertyId: "p2",
+        dismissed: true,
+      }),
+    );
+    // "Meu Apê" sai dos cartões e vai para a seção "Não sincronizar", com "Desfazer".
+    await waitFor(() => expect(screen.getByText("Desfazer")).toBeTruthy());
+    expect(screen.getAllByLabelText("Mais ações").length).toBe(1);
+    fireEvent.click(screen.getByText("Desfazer"));
+    await waitFor(() =>
+      expect(fns.setPropertySyncDismissed.mock.calls[1][0].data).toEqual({
+        accountOwnerId: null,
+        propertyId: "p2",
+        dismissed: false,
+      }),
+    );
+    await waitFor(() => expect(screen.getAllByLabelText("Mais ações").length).toBe(2));
+    expect(screen.queryByText("Desfazer")).toBeNull();
   });
 });
