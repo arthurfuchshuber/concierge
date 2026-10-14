@@ -1874,6 +1874,36 @@ export type Database = {
           },
         ]
       }
+      airbnb_accounts: {
+        Row: {
+          channex_channel_id: string
+          connected_at: string
+          disconnected_at: string | null
+          id: string
+          owner_id: string
+          status: string
+          title: string | null
+        }
+        Insert: {
+          channex_channel_id: string
+          connected_at?: string
+          disconnected_at?: string | null
+          id?: string
+          owner_id: string
+          status?: string
+          title?: string | null
+        }
+        Update: {
+          channex_channel_id?: string
+          connected_at?: string
+          disconnected_at?: string | null
+          id?: string
+          owner_id?: string
+          status?: string
+          title?: string | null
+        }
+        Relationships: []
+      }
       app_user_connections: {
         Row: {
           connection_key_ciphertext: string
@@ -4075,6 +4105,7 @@ export type Database = {
           airbnb_safety_info: string | null
           apartment_floor: string | null
           apartment_number: string | null
+          archived_at: string | null
           brand_logo_url: string | null
           brand_name: string | null
           checkin_instructions: string | null
@@ -4174,6 +4205,7 @@ export type Database = {
           airbnb_safety_info?: string | null
           apartment_floor?: string | null
           apartment_number?: string | null
+          archived_at?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
           checkin_instructions?: string | null
@@ -4273,6 +4305,7 @@ export type Database = {
           airbnb_safety_info?: string | null
           apartment_floor?: string | null
           apartment_number?: string | null
+          archived_at?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
           checkin_instructions?: string | null
@@ -4406,6 +4439,8 @@ export type Database = {
       property_chat_conversations: {
         Row: {
           ai_paused: boolean
+          ai_reply_ctx: Json | null
+          ai_reply_due_at: string | null
           assigned_to: string | null
           claim_requested_at: string | null
           claim_requested_by: string | null
@@ -4427,6 +4462,8 @@ export type Database = {
         }
         Insert: {
           ai_paused?: boolean
+          ai_reply_ctx?: Json | null
+          ai_reply_due_at?: string | null
           assigned_to?: string | null
           claim_requested_at?: string | null
           claim_requested_by?: string | null
@@ -4448,6 +4485,8 @@ export type Database = {
         }
         Update: {
           ai_paused?: boolean
+          ai_reply_ctx?: Json | null
+          ai_reply_due_at?: string | null
           assigned_to?: string | null
           claim_requested_at?: string | null
           claim_requested_by?: string | null
@@ -4739,11 +4778,15 @@ export type Database = {
           channex_property_id: string | null
           channex_rate_plan_id: string | null
           channex_room_type_id: string | null
+          chat_pending_at: string | null
+          chat_pending_error: string | null
           created_at: string
           id: string
           listing_meta: Json
           normalized: Json
+          not_found_at: string | null
           owner_id: string
+          paused_reason: string | null
           property_id: string
           raw_settings: Json
           source: string
@@ -4760,11 +4803,15 @@ export type Database = {
           channex_property_id?: string | null
           channex_rate_plan_id?: string | null
           channex_room_type_id?: string | null
+          chat_pending_at?: string | null
+          chat_pending_error?: string | null
           created_at?: string
           id?: string
           listing_meta?: Json
           normalized?: Json
+          not_found_at?: string | null
           owner_id: string
+          paused_reason?: string | null
           property_id: string
           raw_settings?: Json
           source?: string
@@ -4781,11 +4828,15 @@ export type Database = {
           channex_property_id?: string | null
           channex_rate_plan_id?: string | null
           channex_room_type_id?: string | null
+          chat_pending_at?: string | null
+          chat_pending_error?: string | null
           created_at?: string
           id?: string
           listing_meta?: Json
           normalized?: Json
+          not_found_at?: string | null
           owner_id?: string
+          paused_reason?: string | null
           property_id?: string
           raw_settings?: Json
           source?: string
