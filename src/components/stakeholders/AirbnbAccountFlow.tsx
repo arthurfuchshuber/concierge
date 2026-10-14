@@ -168,7 +168,7 @@ function IconBox({ kind, children }: { kind: "ok" | "falta" | "neutral"; childre
 }
 function Title({ children }: { children: ReactNode }) {
   return (
-    <DialogTitle className="font-display text-[19px] font-extrabold leading-[1.2] tracking-[-0.01em]">
+    <DialogTitle className="truncate font-display text-[19px] font-extrabold leading-[1.2] tracking-[-0.01em]">
       {children}
     </DialogTitle>
   );
@@ -197,7 +197,7 @@ function InfoBox({ kind, lines }: { kind: "ok" | "falta"; lines: Array<[typeof C
 function ListHeader({ title, description }: { title: string; description: string }) {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 pr-9">
-      <DialogTitle className="font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
+      <DialogTitle className="truncate font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
         {title}
       </DialogTitle>
       <DialogDescription className="text-[12.5px] leading-[1.5]">{description}</DialogDescription>

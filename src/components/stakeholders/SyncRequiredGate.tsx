@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { Check, Loader2, Lock, RefreshCw } from "lucide-react";
-import { listUnsyncedProperties, type UnsyncedProperty } from "@/lib/airbnb-account.functions";
-import { usePermission } from "@/lib/permissions/usePermission";
-import { useImpersonation } from "@/hooks/useImpersonation";
+import type { UnsyncedProperty } from "@/lib/airbnb-account.functions";
+import { useUnsyncedProperties } from "./useUnsyncedProperties";
 import { useAnyWindowOpen } from "@/lib/global-overlay-store";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ClampName } from "@/components/ui/clamp-name";
@@ -39,18 +36,7 @@ function Check2({ on }: { on: boolean }) {
 }
 
 export function SyncRequiredGate() {
-  const { impersonation } = useImpersonation();
-  const accountOwnerId = impersonation?.userId ?? null;
-  const perm = usePermission("tenant.stakeholders.proprietarios.imoveis", { required: "WRITE" });
-  const listFn = useServerFn(listUnsyncedProperties);
-  const q = useQuery({
-    queryKey: ["unsynced-properties", accountOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { accountOwnerId } }),
-    enabled: perm.allowed && !perm.loading,
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: true,
-  });
+  const { perm, q } = useUnsyncedProperties();
   const [flow, setFlow] = useState<AirbnbFlowRequest>(null);
   const [visible, setVisible] = useState(false);
   const [initial, setInitial] = useState<UnsyncedProperty[]>([]);
@@ -151,7 +137,7 @@ export function SyncRequiredGate() {
         : { type: "syncProperties", properties: chosen.map(info) },
     );
   }
-  const btnLabel = `Sincronizar ${chosen.length} ${chosen.length === 1 ? "selecionado" : "selecionados"}`;
+  const btnLabel = `Sincronizar ${chosen.length}`;
   const syncBtn = (cls: string) => (
     <button
       type="button"
@@ -188,9 +174,11 @@ export function SyncRequiredGate() {
                 <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-secondary text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
                   <Lock className="size-4" />
                 </span>
-                {done === 0
-                  ? "Sincronize seus imóveis"
-                  : `Faltam ${left} ${left === 1 ? "imóvel" : "imóveis"}`}
+                <span className="min-w-0 truncate">
+                  {done === 0
+                    ? "Sincronize seus imóveis"
+                    : `Faltam ${left} ${left === 1 ? "imóvel" : "imóveis"}`}
+                </span>
               </DialogTitle>
               <DialogDescription className="text-[12.5px] leading-[1.55]">
                 Sua empresa tem{" "}

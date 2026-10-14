@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { isSyncAlertAccount } from "@/lib/sync-alert-accounts";
 
 // ---------------------------------------------------------------------------
 // Anúncios do Airbnb da conta (ficha do proprietário → aba Imóveis).
@@ -504,7 +505,14 @@ export const listUnsyncedProperties = createServerFn({ method: "GET" })
       .eq("owner_id", accountId)
       .is("archived_at", null);
     const ids = (props ?? []).map((p) => p.id);
-    const empty = { properties: [] as UnsyncedProperty[], availableListings: 0, blocking: false };
+    // Alerta de "imóveis sem sincronização": só contas da lista (hoje, só a Sigma). Decidido AQUI no servidor.
+    const alert = isSyncAlertAccount(accountId);
+    const empty = {
+      properties: [] as UnsyncedProperty[],
+      availableListings: 0,
+      blocking: false,
+      alert,
+    };
     if (ids.length === 0) return empty;
     // channex_twin_links ainda não está nos tipos gerados.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -571,7 +579,7 @@ export const listUnsyncedProperties = createServerFn({ method: "GET" })
     } catch {
       availableListings = 0;
     }
-    return { properties, availableListings, blocking: availableListings > 0 };
+    return { properties, availableListings, blocking: availableListings > 0, alert };
   });
 
 /**
