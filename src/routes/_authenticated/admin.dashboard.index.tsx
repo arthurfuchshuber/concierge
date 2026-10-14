@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { OperationWorkspace } from "@/components/dashboard/OperationWorkspace";
-import { SyncAlertBanner } from "@/components/stakeholders/SyncAlertBanner";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard/")({
   head: () => ({
@@ -22,10 +21,5 @@ export const Route = createFileRoute("/_authenticated/admin/dashboard/")({
 });
 
 function DashboardResumo() {
-  return (
-    <>
-      <SyncAlertBanner />
-      <OperationWorkspace view="resumo" />
-    </>
-  );
+  return <OperationWorkspace view="resumo" />;
 }

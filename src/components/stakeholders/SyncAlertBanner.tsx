@@ -2,16 +2,21 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CircleAlert, RefreshCw } from "lucide-react";
 import type { UnsyncedProperty } from "@/lib/airbnb-account.functions";
+import { useAnyWindowOpen } from "@/lib/global-overlay-store";
 import { useUnsyncedProperties } from "./useUnsyncedProperties";
 import { AirbnbAccountFlow, type AirbnbFlowRequest } from "./AirbnbAccountFlow";
 
 /**
  * FAIXA "IMÓVEIS SEM SINCRONIZAÇÃO COM O AIRBNB" (mockup aprovado, 14/10/2026).
  *
- * Fica no topo do Dashboard e só aparece quando o SERVIDOR marcou a conta para receber o
+ * Fica no topo de TODAS as abas do Dashboard (layout `admin.dashboard.tsx`) e só aparece quando o SERVIDOR marcou a conta para receber o
  * alerta (`alert`, hoje só a Anfitrião Sigma, lista em `sync-alert-accounts.ts`) e a pessoa
  * tem a permissão de vincular imóveis. Usa a mesma consulta do aviso obrigatório
  * (`useUnsyncedProperties`). Não tem botão de dispensar: some sozinha quando não há pendências.
+ *
+ * Harmonia com o aviso obrigatório (SyncRequiredGate): enquanto o aviso estiver valendo
+ * (`blocking`: conta ativa + anúncio livre) ou houver qualquer janela aberta, a faixa fica
+ * escondida, para não haver dois botões de sincronizar disputando a tela.
  *
  * Sem piscada ao recarregar: não desenha nada até a consulta responder; falha de consulta
  * ou de permissão = não desenha (nunca "sem acesso" na tela).
@@ -33,7 +38,14 @@ export function SyncAlertBanner() {
   const [flow, setFlow] = useState<AirbnbFlowRequest>(null);
   const prevFlow = useRef<AirbnbFlowRequest>(null);
   const pending = q.data?.properties ?? [];
-  const show = perm.allowed && !perm.loading && !!q.data?.alert && pending.length > 0;
+  const windowOpen = useAnyWindowOpen();
+  const show =
+    perm.allowed &&
+    !perm.loading &&
+    !!q.data?.alert &&
+    pending.length > 0 &&
+    !q.data?.blocking &&
+    !windowOpen;
 
   // Total que a faixa viu (para "2 de 3 sincronizados" enquanto o usuário vai concluindo).
   const [total, setTotal] = useState(0);

@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+const win = vi.hoisted(() => ({ open: false }));
+vi.mock("@/lib/global-overlay-store", () => ({ useAnyWindowOpen: () => win.open }));
+
 const state = vi.hoisted(() => ({
   hook: {
     perm: { allowed: true, loading: false },
@@ -38,7 +41,13 @@ const THREE = [
   P("c", "Casa Completa Próx. a Avenida Turística"),
 ];
 
-function set(opts: { allowed?: boolean; loading?: boolean; alert?: boolean; props?: unknown[] }) {
+function set(opts: {
+  allowed?: boolean;
+  loading?: boolean;
+  alert?: boolean;
+  blocking?: boolean;
+  props?: unknown[];
+}) {
   state.hook = {
     perm: { allowed: opts.allowed ?? true, loading: opts.loading ?? false },
     q: {
@@ -48,7 +57,7 @@ function set(opts: { allowed?: boolean; loading?: boolean; alert?: boolean; prop
           : {
               properties: opts.props ?? [],
               availableListings: 4,
-              blocking: true,
+              blocking: opts.blocking ?? false,
               alert: opts.alert,
             },
     },
@@ -63,7 +72,10 @@ function mount() {
   );
 }
 
-beforeEach(() => cleanup());
+beforeEach(() => {
+  cleanup();
+  win.open = false;
+});
 afterEach(cleanup);
 
 describe("faixa de imóveis sem sincronização", () => {
@@ -97,6 +109,24 @@ describe("faixa de imóveis sem sincronização", () => {
     state.hook = { perm: { allowed: true, loading: false }, q: { data: undefined } };
     mount();
     expect(screen.queryByText("Imóveis sem sincronização com o Airbnb")).toBeNull();
+  });
+  it("aviso obrigatório valendo (blocking): a faixa fica escondida", () => {
+    set({ alert: true, blocking: true, props: THREE });
+    mount();
+    expect(screen.queryByText("Imóveis sem sincronização com o Airbnb")).toBeNull();
+  });
+  it("com qualquer janela aberta a faixa fica escondida e volta ao fechar", () => {
+    set({ alert: true, props: THREE });
+    win.open = true;
+    const r = mount();
+    expect(screen.queryByText("Imóveis sem sincronização com o Airbnb")).toBeNull();
+    win.open = false;
+    r.rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <SyncAlertBanner />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText("Imóveis sem sincronização com o Airbnb")).toBeTruthy();
   });
   it("o botão abre o fluxo em massa com os pendentes (1 pendente abre o fluxo individual)", () => {
     set({ alert: true, props: THREE });

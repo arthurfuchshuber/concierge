@@ -431,7 +431,151 @@ type ReplyCtx = {
   channexPropertyId: string | null;
   guestName: string | null;
   propertyId: string;
+  /** Retentativas já feitas após erro transitório da IA (0/ausente = 1ª execução). */
+  attempts?: number;
+  lastError?: string;
 };
+
+/** Espera (segundos) antes de cada retentativa da IA: 1ª = 20 s, 2ª = 35 s. */
+export const AI_REPLY_RETRY_DELAYS_S = [20, 35] as const;
+
+function aiErrorText(error: unknown): string {
+  if (error instanceof Error) return `${error.name}: ${error.message}`;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error) ?? String(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function aiErrorStatus(error: unknown): number | null {
+  const e = error as { status?: unknown; statusCode?: unknown; response?: { status?: unknown } } | null;
+  for (const v of [e?.status, e?.statusCode, e?.response?.status]) {
+    if (typeof v === "number") return v;
+  }
+  const m = aiErrorText(error).match(/\b(400|401|402|403|429|502|503|504)\b/);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Erro passageiro do provedor de IA (vale tentar de novo): 429, 502, 503, 504, queda de rede e
+ * timeout. Erros definitivos (400, 401, 402 sem créditos, 403 e validações internas) não repetem.
+ */
+export function isTransientAiError(error: unknown): boolean {
+  const status = aiErrorStatus(error);
+  if (status !== null) return [429, 502, 503, 504].includes(status);
+  return /ECONNRESET|ETIMEDOUT|fetch failed|AbortError|timeout|timed out|upstream|overloaded|temporarily unavailable/i.test(
+    aiErrorText(error),
+  );
+}
+
+/** Motivo em português claro para o alerta/handoff (nunca o erro cru do provedor). */
+export function describeAiError(error: unknown): string {
+  const status = aiErrorStatus(error);
+  const text = aiErrorText(error);
+  if (status === 429) return "Limite de requisições momentâneo no provedor de IA.";
+  if (/ETIMEDOUT|AbortError|timeout|timed out/i.test(text) && status === null)
+    return "Tempo limite excedido na comunicação com o serviço de IA.";
+  if (status === 402) return "Créditos de IA insuficientes (erro 402).";
+  if (status !== null && [502, 503, 504].includes(status))
+    return `Instabilidade temporária no provedor de inteligência artificial (erro ${status} upstream).`;
+  if (/upstream|overloaded|temporarily unavailable|ECONNRESET|fetch failed/i.test(text))
+    return "Instabilidade temporária no provedor de inteligência artificial (erro de upstream).";
+  const msg = (error instanceof Error ? error.message : text).replace(/\s+/g, " ").trim();
+  return (msg || "erro desconhecido").slice(0, 120);
+}
+
+/**
+ * Falha ao gerar a resposta da IA. Erro passageiro: reagenda (20 s, depois 35 s). Sem tentativas
+ * ou erro definitivo: a conversa vai para atendimento humano (urgência alta) com o motivo, vira
+ * alerta crítico e a equipe recebe push. Se uma pessoa já assumiu (IA pausada), não faz nada.
+ */
+export async function handleAiReplyFailure(
+  admin: any,
+  convId: string,
+  ctx: ReplyCtx | null,
+  error: unknown,
+): Promise<"retry" | "handoff" | "skipped"> {
+  if (!ctx?.propertyId) return "skipped";
+  const { isPausedNow } = await import("@/lib/ai/pause");
+  const { data: conv } = await admin
+    .from("property_chat_conversations")
+    .select("ai_paused, paused_until")
+    .eq("id", convId)
+    .maybeSingle();
+  if (conv && isPausedNow(conv as never)) return "skipped";
+
+  const attempts = ctx.attempts ?? 0;
+  const raw = aiErrorText(error).slice(0, 300);
+  if (isTransientAiError(error) && attempts < AI_REPLY_RETRY_DELAYS_S.length) {
+    const delay = AI_REPLY_RETRY_DELAYS_S[attempts]!;
+    console.warn(
+      `[channex-messages] Erro transitório de IA na conversa ${convId}. Reagendando tentativa ${attempts + 1}/${AI_REPLY_RETRY_DELAYS_S.length} em ${delay}s...`,
+    );
+    // Só reagenda se nenhuma mensagem nova do hóspede reiniciou a janela (ela venceria, com contexto novo).
+    await admin
+      .from("property_chat_conversations")
+      .update({
+        ai_reply_due_at: new Date(Date.now() + delay * 1000).toISOString(),
+        ai_reply_ctx: { ...ctx, attempts: attempts + 1, lastError: raw },
+      } as never)
+      .eq("id", convId)
+      .is("ai_reply_due_at", null);
+    return "retry";
+  }
+
+  const motivo = describeAiError(error).replace(/[.\s]+$/, "");
+  const reason = `A IA não conseguiu responder devido a: ${motivo}. Por favor, assuma a conversa.`;
+  await admin
+    .from("property_chat_conversations")
+    .update({
+      status: "needs_human",
+      handoff_reason: reason,
+      handoff_urgency: "high",
+      handoff_at: new Date().toISOString(),
+      ai_reply_due_at: null,
+    } as never)
+    .eq("id", convId);
+
+  let propertyName: string | null = null;
+  try {
+    const { data: prop } = await admin.from("properties").select("owner_id, name").eq("id", ctx.propertyId).maybeSingle();
+    propertyName = (prop as { name?: string | null } | null)?.name ?? null;
+    if ((prop as { owner_id?: string } | null)?.owner_id) {
+      await admin.from("ai_alerts").insert({
+        tenant_id: (prop as { owner_id: string }).owner_id,
+        property_id: ctx.propertyId,
+        kind: "ai_provider_error",
+        severity: "critical",
+        title: "Falha na resposta da IA ao hóspede",
+        detail: `A IA tentou responder ${ctx.guestName ?? "o hóspede"} no imóvel ${propertyName ?? ""}, mas falhou após retentativas. Motivo: ${motivo}. A conversa foi movida para atendimento humano.`,
+        metadata: { threadId: ctx.threadId, attempts, lastError: raw },
+      });
+    }
+  } catch (e) {
+    console.error("[channex-messages] alerta de falha da IA não gravado", e);
+  }
+  try {
+    const { getPropertyNotifiableUsers, sendHandoffPush } = await import("@/lib/handoff.server");
+    const ids = new Set(await getPropertyNotifiableUsers(admin, ctx.propertyId));
+    const { data: admins } = await admin.from("user_roles").select("user_id").eq("role", "admin");
+    for (const a of (admins ?? []) as Array<{ user_id: string }>) ids.add(a.user_id);
+    await sendHandoffPush(admin, {
+      userIds: Array.from(ids),
+      conversationId: convId,
+      propertyName,
+      guestName: ctx.guestName,
+      guestMessage: null,
+      checkinDate: null,
+      reason,
+      urgency: "high",
+    });
+  } catch (e) {
+    console.error("[channex-messages] push da falha da IA não enviado", e);
+  }
+  return "handoff";
+}
 
 /**
  * Junta o bloco de mensagens do hóspede ainda sem resposta (tudo que veio depois da última
@@ -493,11 +637,17 @@ export async function processDueAiReplies(limit = 25): Promise<number> {
       .select("id, ai_reply_ctx")
       .maybeSingle();
     if (!claimed) continue; // mensagem nova reiniciou a espera, ou outra execução já pegou
+    const ctx = (claimed as { ai_reply_ctx?: ReplyCtx | null }).ai_reply_ctx ?? null;
     try {
-      await runConsolidatedAiReply(admin, row.id, (claimed as { ai_reply_ctx?: ReplyCtx | null }).ai_reply_ctx ?? null);
+      await runConsolidatedAiReply(admin, row.id, ctx);
       done += 1;
     } catch (e) {
       console.error("[channex-messages] resposta consolidada falhou", row.id, e);
+      try {
+        await handleAiReplyFailure(admin, row.id, ctx, e);
+      } catch (e2) {
+        console.error("[channex-messages] tratamento da falha da IA falhou", row.id, e2);
+      }
     }
   }
   return done;
