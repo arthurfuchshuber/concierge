@@ -104,6 +104,8 @@ describe("aviso obrigatório: sem piscada ao recarregar", () => {
     load({ blocking: true, props: [P("a", "Apê A"), P("b", "Casa B")] });
     render(wrap(<SyncRequiredGate />));
     await screen.findByText("Conta Maria Souza");
+    // lado a lado: texto curto no celular, completo a partir de sm (os dois no DOM, CSS escolhe)
+    expect(screen.getByText("Conectar conta")).toBeTruthy();
     fireEvent.click(screen.getByText("Conectar outra conta do Airbnb"));
     expect(screen.getByTestId("flow").textContent).toBe("connect:1");
   });

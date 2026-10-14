@@ -210,23 +210,30 @@ export function SyncRequiredGate() {
                 </div>
               );
             })}
+          </div>
+          {/* Lado a lado (mockup H4/H5 aprovado, 14/10/2026): secundário à esquerda, principal à direita.
+              No celular o texto do secundário é curto para caber em UMA linha. */}
+          <div className="grid shrink-0 grid-cols-[minmax(0,5fr)_minmax(0,6fr)] gap-2 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => setFlow({ type: "connect" })}
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-[var(--win-radius)] bg-foreground/[0.04] text-[12.5px] font-extrabold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_18%,transparent)]"
+              className="flex h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--win-radius)] bg-foreground/[0.04] px-1.5 text-[12px] font-extrabold sm:px-2 sm:text-[12.5px] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_18%,transparent)]"
             >
-              <Plus className="size-4" />
-              Conectar outra conta do Airbnb
+              <Plus className="size-3.5 shrink-0 sm:size-4" />
+              <span className="min-w-0 truncate sm:hidden">Conectar conta</span>
+              <span className="hidden min-w-0 truncate sm:inline">
+                Conectar outra conta do Airbnb
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={link}
+              className="flex h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--win-radius)] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] px-1.5 text-[12.5px] font-extrabold text-white sm:px-2 sm:text-[13.5px]"
+            >
+              <RefreshCw className="size-3.5 shrink-0 sm:size-4" />
+              <span className="min-w-0 truncate">Vincular anúncios</span>
             </button>
           </div>
-          <button
-            type="button"
-            onClick={link}
-            className="flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-[var(--win-radius)] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] px-[18px] text-[13.5px] font-extrabold text-white"
-          >
-            <RefreshCw className="size-4" />
-            Vincular anúncios
-          </button>
           <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
             <div className="flex items-center justify-between gap-2 text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground/80">
               <span>Imóveis aguardando integração</span>
