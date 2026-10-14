@@ -74,6 +74,7 @@ import {
   ACTION_ICON,
   PANEL_SHELL,
 } from "@/components/dashboard/panel-chrome";
+import { periodShort } from "@/lib/period-short";
 
 export { PROVIDER_CATEGORIES };
 export type { StakeholderKind };
@@ -81,7 +82,6 @@ export type { StakeholderKind };
 type Row = Record<string, any>;
 
 // Mesmo formato de data usado no card do hóspede ("Check-in dd/mm/aaaa").
-/** Meses completos entre o início e o fim da vigência (ou hoje, se ainda vigente): "5 meses", "1 mês", "menos de 1 mês". */
 type OwnerSort = "default" | "name" | "most" | "oldest" | "newest";
 const OWNER_SORT_OPTIONS: { value: OwnerSort; label: string }[] = [
   { value: "default", label: "Padrão (status › tempo › imóveis)" },
@@ -90,15 +90,6 @@ const OWNER_SORT_OPTIONS: { value: OwnerSort; label: string }[] = [
   { value: "oldest", label: "Vigência mais antiga" },
   { value: "newest", label: "Vigência mais recente" },
 ];
-
-function monthsLabel(startISO: string, endISO: string | null): string {
-  const s = new Date(`${String(startISO).slice(0, 10)}T00:00:00`);
-  const e = endISO ? new Date(`${String(endISO).slice(0, 10)}T00:00:00`) : new Date();
-  let m = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
-  if (e.getDate() < s.getDate()) m -= 1;
-  if (!Number.isFinite(m) || m < 1) return "menos de 1 mês";
-  return m === 1 ? "1 mês" : `${m} meses`;
-}
 
 function fmtDateBR(d: string) {
   try {
@@ -827,7 +818,7 @@ function StakeholderCard({
               <span className={statusText(eff)}>
                 {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "Hoje"}
               </span>{" "}
-              <span className="text-foreground">({monthsLabel(row.contract_start, end)})</span>
+              <span className="text-foreground">({periodShort(row.contract_start, end)})</span>
             </p>
           )}
         </div>
