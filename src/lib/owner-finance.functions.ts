@@ -252,13 +252,18 @@ export const deleteOwnerLooseDoc = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: doc } = await supabase
       .from("owner_loose_documents")
-      .select("storage_path")
+      .select("storage_path, account_owner_id, stakeholder_id")
       .eq("id", data.id)
       .maybeSingle();
     if (!doc) throw new Error("Documento não encontrado.");
+    const expectedPrefix = `${doc.account_owner_id}/${doc.stakeholder_id}/`;
+    const path = String(doc.storage_path ?? "");
+    const pathOk =
+      path.startsWith(expectedPrefix) &&
+      /^[0-9a-f-]{36}\.pdf$/i.test(path.slice(expectedPrefix.length));
     const { error } = await supabase.from("owner_loose_documents").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.storage.from(BUCKET).remove([doc.storage_path as string]);
+    if (pathOk) await supabaseAdmin.storage.from(BUCKET).remove([path]);
     return { ok: true };
   });

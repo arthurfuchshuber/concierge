@@ -262,6 +262,11 @@ export const changePlan = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
+    // Mudar o plano pago é ação do TITULAR da conta (ou admin SaaS), nunca de membro.
+    if (ownerId !== context.userId) {
+      const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+      if (!isAdmin) throw new Error("Apenas o titular da conta pode mudar o plano.");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: sub, error } = await supabaseAdmin
       .from("subscriptions")

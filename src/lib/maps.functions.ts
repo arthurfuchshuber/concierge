@@ -937,7 +937,11 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // existe em "Pela cidade" (property_recommendations scope=city) e em
     // city_references do escopo do imóvel — inclusive itens do Sigma.
     let filtered = recommendations;
-    if (data.propertyId) {
+    // Só filtra por imóveis que o usuário realmente acessa (RLS como o próprio usuário).
+    const { data: ownedProp } = data.propertyId
+      ? await context.supabase.from("properties").select("id").eq("id", data.propertyId).maybeSingle()
+      : { data: null };
+    if (data.propertyId && ownedProp) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       // "Pela cidade" deste guia pode morar no GRUPO de guias vinculados
       // (group_id, property_id nulo) — filtrar só por property_id deixava

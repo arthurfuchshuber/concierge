@@ -554,7 +554,7 @@ export const addSigmaRec = createServerFn({ method: "POST" })
 export const updateSigmaRec = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
-    z.object({ id: z.string().uuid(), patch: z.record(z.string(), z.unknown()) }).parse(i),
+    z.object({ id: z.string().uuid(), patch: RecPayload.omit({ city_key: true }).partial().strip() }).parse(i),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
@@ -606,7 +606,7 @@ export const addSigmaMarketplace = createServerFn({ method: "POST" })
   });
 export const updateSigmaMarketplace = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ id: z.string().uuid(), patch: z.record(z.string(), z.unknown()) }).parse(i))
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid(), patch: MktPayload.omit({ city_key: true }).partial().strip() }).parse(i))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -648,7 +648,7 @@ export const addSigmaFaq = createServerFn({ method: "POST" })
   });
 export const updateSigmaFaq = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ id: z.string().uuid(), patch: z.record(z.string(), z.unknown()) }).parse(i))
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid(), patch: FaqPayload.omit({ city_key: true }).partial().strip() }).parse(i))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
