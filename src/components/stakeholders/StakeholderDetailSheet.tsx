@@ -1159,7 +1159,7 @@ export function StakeholderDetailSheet({
                                       </p>
                                       {/* UMA informação completa por linha (pedido 13/10/2026). */}
                                       {item.lines.length > 0 && (
-                                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                                        <div className="mt-1 grid gap-y-0.5">
                                           {item.lines.map((l, li) => (
                                             <p
                                               key={li}
