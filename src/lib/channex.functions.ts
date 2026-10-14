@@ -89,15 +89,25 @@ export type ConnectedListingsInventory = {
  */
 export const getConnectedListingsInventory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<ConnectedListingsInventory> => {
+  .inputValidator((d: { accountOwnerId?: string | null } | undefined) => ({
+    accountOwnerId: typeof d?.accountOwnerId === "string" ? d.accountOwnerId : null,
+  }))
+  .handler(async ({ data, context }): Promise<ConnectedListingsInventory> => {
     await requireAdmin(context as never);
-    const userId = (context as { userId: string }).userId;
+    const ctx = context as { userId: string; supabase: any };
+    // Quem impersona vê o inventário do titular, não o da sessão.
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const userId = await resolveAuthorizedAccountOwnerId(ctx.supabase, ctx.userId, data.accountOwnerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Só conta anúncio ATIVO: sem pausa de sincronização e imóvel não arquivado.
     const [{ data: prim }, { data: twins }] = await Promise.all([
-      supabaseAdmin
-        .from("property_listing_raw_data" as never)
-        .select("property_id, airbnb_listing_id, properties!inner(name, owner_id)")
-        .eq("properties.owner_id", userId),
+      (supabaseAdmin as any)
+        .from("property_listing_raw_data")
+        .select("property_id, airbnb_listing_id, properties!inner(name, owner_id, archived_at)")
+        .eq("properties.owner_id", userId)
+        .is("properties.archived_at", null)
+        .is("sync_paused_at", null)
+        .not("airbnb_listing_id", "is", null),
       (supabaseAdmin as any)
         .from("channex_twin_links")
         .select("property_id, twin_listing_id, twin_title")
@@ -114,7 +124,8 @@ export const getConnectedListingsInventory = createServerFn({ method: "GET" })
     const seen = new Set(items.map((i) => i.listingId));
     for (const t of (twins ?? []) as any[]) {
       const id = String(t.twin_listing_id);
-      if (seen.has(id)) continue;
+      // Gêmeo de imóvel pausado/arquivado não está ativo.
+      if (seen.has(id) || !nameByProp.has(t.property_id)) continue;
       seen.add(id);
       const pn = nameByProp.get(t.property_id) ?? "Imóvel";
       items.push({ listingId: id, name: t.twin_title ?? `Anúncio ${id}`, kind: "twin", propertyName: pn });
@@ -185,7 +196,10 @@ export const getAirbnbAiToggles = createServerFn({ method: "GET" })
     );
   });
 
-/** Liga/desliga a IA no chat do Airbnb para um imóvel (e o app de mensagens na Channex). */
+/**
+ * Liga/desliga a IA no chat do Airbnb para um imóvel. A chave controla SÓ se a IA responde
+ * sozinha (padrão: desligada). O app Messages da Channex segue o anúncio ativo, não esta chave.
+ */
 export const setAirbnbAiToggle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { propertyId: string; enabled: boolean }) => {
@@ -202,9 +216,6 @@ export const setAirbnbAiToggle = createServerFn({ method: "POST" })
       .eq("id", data.propertyId)
       .maybeSingle();
     if (!prop || (prop as any).owner_id !== userId) throw new Error("Imóvel não pertence à sua conta.");
-    // Primeiro a Channex: se falhar, a chave não muda de estado.
-    const { syncMessagesApp, channexPropertiesFor } = await import("@/lib/channex-messages-app.server");
-    await syncMessagesApp(await channexPropertiesFor(supabaseAdmin, data.propertyId), data.enabled);
     const { error } = await supabaseAdmin
       .from("property_listing_raw_data" as never)
       .update({

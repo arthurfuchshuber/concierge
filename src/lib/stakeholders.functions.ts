@@ -54,6 +54,7 @@ export const listStakeholders = createServerFn({ method: "GET" })
               "id, name, slug, city, state, owner_contact_id, hero_image_url, gallery_images, address, lat, lng, maps_url, wifi_ssid, wifi_password, lock_code, lock_label, gate_code, gate_label, checkin_instructions, checkin_note, checkout_instructions, checkout_note, checkin_time, checkout_time, airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_listing_url, published, guide_created",
             )
             .eq("owner_id", accountId)
+            .is("archived_at", null)
         : {
             data: [] as Array<{
               id: string;
@@ -71,17 +72,22 @@ export const listStakeholders = createServerFn({ method: "GET" })
       property_id: string;
       airbnb_listing_id: string | null;
       synced_at: string | null;
+      channex_channel_id: string | null;
+      pending?: "chat" | "config" | null;
     }> = [];
     if (data.kind === "owner" && (props ?? []).length > 0) {
       const { data: conn } = await supabase
         .from("property_listing_raw_data")
-        .select("property_id, airbnb_listing_id, synced_at, sync_paused_at")
+        .select("property_id, airbnb_listing_id, synced_at, sync_paused_at, channex_channel_id, chat_pending_at, channex_rate_plan_id")
         .eq("owner_id", accountId);
       // Anúncio desativado na ficha (sincronização pausada) conta como Inativo.
       connections = (conn ?? []).map((c) => ({
         property_id: c.property_id,
         airbnb_listing_id: c.sync_paused_at ? null : c.airbnb_listing_id,
         synced_at: c.synced_at,
+        channex_channel_id: c.channex_channel_id ?? null,
+        // Ativo, mas ainda incompleto: chat não ativou ou anúncio sem tarifa (rate plan) na Channex.
+        pending: c.sync_paused_at ? null : c.chat_pending_at ? "chat" : !c.channex_rate_plan_id ? "config" : null,
       }));
     }
 
@@ -465,6 +471,8 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       property_id: string;
       airbnb_listing_id: string | null;
       synced_at: string | null;
+      channex_channel_id: string | null;
+      pending?: "chat" | "config" | null;
     }> = [];
     let ownersById: Record<
       string,
@@ -517,13 +525,16 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       // lista de proprietários. Só leitura; falha aqui nunca derruba a ficha.
       const { data: conn } = await supabase
         .from("property_listing_raw_data")
-        .select("property_id, airbnb_listing_id, synced_at, sync_paused_at")
+        .select("property_id, airbnb_listing_id, synced_at, sync_paused_at, channex_channel_id, chat_pending_at, channex_rate_plan_id")
         .eq("owner_id", accountId);
       // Anúncio desativado na ficha (sincronização pausada) conta como Inativo.
       connections = (conn ?? []).map((c) => ({
         property_id: c.property_id,
         airbnb_listing_id: c.sync_paused_at ? null : c.airbnb_listing_id,
         synced_at: c.synced_at,
+        channex_channel_id: c.channex_channel_id ?? null,
+        // Ativo, mas ainda incompleto: chat não ativou ou anúncio sem tarifa (rate plan) na Channex.
+        pending: c.sync_paused_at ? null : c.chat_pending_at ? "chat" : !c.channex_rate_plan_id ? "config" : null,
       }));
       const { data: owners } = await supabase
         .from("property_owners")

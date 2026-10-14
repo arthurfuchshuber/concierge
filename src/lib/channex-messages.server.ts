@@ -404,8 +404,146 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
 
   if (!prop || !process.env["LOVABLE_API_KEY"]) return;
 
+  // JANELA DE CONSOLIDAÇÃO: a mensagem já está gravada (nada se perde); a IA não roda agora.
+  // Cada nova mensagem do mesmo hóspede REINICIA a espera; quando a janela fecha, uma única
+  // execução responde a todas as frases picadas de uma vez (ver `processDueAiReplies`).
+  await admin
+    .from("property_chat_conversations")
+    .update({
+      ai_reply_due_at: new Date(Date.now() + AI_REPLY_DEBOUNCE_MS).toISOString(),
+      ai_reply_ctx: {
+        threadId: m.threadId,
+        bookingId: m.bookingId,
+        channexPropertyId: m.channexPropertyId,
+        guestName: m.guestName,
+        propertyId: listing.property_id,
+      },
+    } as never)
+    .eq("id", convId);
+}
+
+/** Espera sem novas mensagens antes de a IA responder (15–20 s: o hóspede costuma mandar frases em sequência). */
+export const AI_REPLY_DEBOUNCE_MS = 15_000;
+
+type ReplyCtx = {
+  threadId: string;
+  bookingId: string | null;
+  channexPropertyId: string | null;
+  guestName: string | null;
+  propertyId: string;
+};
+
+/**
+ * Junta o bloco de mensagens do hóspede ainda sem resposta (tudo que veio depois da última
+ * resposta do anfitrião/IA) em um único texto, uma frase por linha.
+ */
+export async function consolidatedGuestBlock(
+  admin: any,
+  conversationId: string,
+): Promise<{ text: string; count: number; lastAt: string | null }> {
+  const { data: lastReply } = await admin
+    .from("property_chat_messages")
+    .select("created_at")
+    .eq("conversation_id", conversationId)
+    .eq("role", "assistant")
+    .not("is_internal_note", "is", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let q = admin
+    .from("property_chat_messages")
+    .select("content, created_at")
+    .eq("conversation_id", conversationId)
+    .eq("role", "user")
+    .order("created_at", { ascending: true })
+    .limit(20);
+  if (lastReply?.created_at) q = q.gt("created_at", lastReply.created_at);
+  const { data: rows } = await q;
+  const msgs = ((rows ?? []) as Array<{ content: string | null; created_at: string }>).filter(
+    (r) => (r.content ?? "").trim().length > 0,
+  );
+  return {
+    text: msgs.map((r) => String(r.content).trim()).join("\n"),
+    count: msgs.length,
+    lastAt: msgs.length ? msgs[msgs.length - 1]!.created_at : null,
+  };
+}
+
+/**
+ * Responde as conversas cuja janela de consolidação fechou. Seguro para rodar em paralelo:
+ * cada conversa é "reivindicada" por comparação do horário agendado — se chegou mensagem nova
+ * (horário mudou) ou outra execução já pegou, esta desiste sem responder.
+ */
+export async function processDueAiReplies(limit = 10): Promise<number> {
+  const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
+  const { data: due } = await admin
+    .from("property_chat_conversations")
+    .select("id, ai_reply_due_at")
+    .not("ai_reply_due_at", "is", null)
+    .lte("ai_reply_due_at", new Date().toISOString())
+    .order("ai_reply_due_at", { ascending: true })
+    .limit(limit);
+  let done = 0;
+  for (const row of (due ?? []) as Array<{ id: string; ai_reply_due_at: string }>) {
+    const { data: claimed } = await admin
+      .from("property_chat_conversations")
+      .update({ ai_reply_due_at: null } as never)
+      .eq("id", row.id)
+      .eq("ai_reply_due_at", row.ai_reply_due_at)
+      .select("id, ai_reply_ctx")
+      .maybeSingle();
+    if (!claimed) continue; // mensagem nova reiniciou a espera, ou outra execução já pegou
+    try {
+      await runConsolidatedAiReply(admin, row.id, (claimed as { ai_reply_ctx?: ReplyCtx | null }).ai_reply_ctx ?? null);
+      done += 1;
+    } catch (e) {
+      console.error("[channex-messages] resposta consolidada falhou", row.id, e);
+    }
+  }
+  return done;
+}
+
+async function runConsolidatedAiReply(admin: any, convId: string, ctx: ReplyCtx | null): Promise<void> {
+  if (!ctx?.threadId || !ctx.propertyId) return;
+  const { data: conv0 } = await admin
+    .from("property_chat_conversations")
+    .select("id, ai_paused, paused_until, guest_session_id")
+    .eq("id", convId)
+    .maybeSingle();
+  if (!conv0) return;
+  const { data: sw0 } = await admin
+    .from("property_listing_raw_data")
+    .select("airbnb_ai_enabled")
+    .eq("property_id", ctx.propertyId)
+    .maybeSingle();
+  const { isPausedNow } = await import("@/lib/ai/pause");
+  if (!(sw0 as any)?.airbnb_ai_enabled || isPausedNow(conv0 as never)) return;
+
+  // Bloco do hóspede ainda sem resposta → UMA mensagem para o agente.
+  const block = await consolidatedGuestBlock(admin, convId);
+  if (block.count === 0 || !block.lastAt) return; // já respondido
+  const guestMsgAt = block.lastAt;
+  const sessionId = (conv0 as { guest_session_id: string }).guest_session_id;
+  const m: Inbound = {
+    messageId: null,
+    text: block.text,
+    sender: "guest",
+    threadId: ctx.threadId,
+    bookingId: ctx.bookingId,
+    channexPropertyId: ctx.channexPropertyId,
+    guestName: ctx.guestName,
+  };
+
+  const { data: prop } = await admin.from("properties").select("*").eq("id", ctx.propertyId).maybeSingle();
+  if (!prop || !process.env["LOVABLE_API_KEY"]) return;
+  const propertyName = (prop as { name?: string } | null)?.name ?? "";
+  const listing = { property_id: ctx.propertyId };
+
   const { loadAgentHistory } = await import("@/lib/chat-audio.server");
-  const history = await loadAgentHistory(admin, convId, 20);
+  const fullHistory = await loadAgentHistory(admin, convId, 20 + block.count);
+  // As frases do bloco entram só uma vez (como mensagem atual), não também no histórico.
+  const history = [...fullHistory];
+  for (let i = 0; i < block.count && history.length && history[history.length - 1]!.role === "user"; i += 1) history.pop();
   const reservation = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => ({
     ok: false,
     checkin: null,
@@ -413,7 +551,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     bookingId: null as string | null,
     code: null as string | null,
   }));
-  const inquiry = await loadInquiryDetails(admin, m.threadId).catch(() => null);
+  const inquiry = await loadInquiryDetails(admin, m.threadId!).catch(() => null);
   const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
   const { loadReservationDossier } = await import("@/lib/ai/reservation-dossier.server");
   // Usa o booking/código descoberto pela thread quando o evento chega sem bookingId.
@@ -440,7 +578,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     history,
     surface: "airbnb",
     channel: "airbnb",
-    channelReference: m.threadId,
+    channelReference: m.threadId!,
     reservationVerified: reservation.ok,
     checkinDate: reservation.checkin ?? inquiry?.checkin ?? null,
     checkoutDate: reservation.checkout ?? inquiry?.checkout ?? null,
@@ -481,9 +619,10 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   const reply = toAirbnbPlainText(result.reply);
   if (!reply) return;
 
-  // Rechecagem na hora do envio: a chave pode ter sido desligada ou o anfitrião
-  // pode ter falado enquanto a IA pensava. Nesse caso, a resposta é descartada.
-  const [{ data: sw }, { data: conv }, { data: humanAfter }] = await Promise.all([
+  // Rechecagem na hora do envio: a chave pode ter sido desligada, o anfitrião pode ter falado
+  // ou o hóspede pode ter mandado outra mensagem enquanto a IA pensava. Nesses casos a resposta
+  // é descartada (se chegou mensagem nova, a próxima janela responde o bloco inteiro).
+  const [{ data: sw }, { data: conv }, { data: humanAfter }, { data: guestAfter }] = await Promise.all([
     admin.from("property_listing_raw_data").select("airbnb_ai_enabled").eq("property_id", listing.property_id).maybeSingle(),
     admin.from("property_chat_conversations").select("ai_paused, paused_until").eq("id", convId).maybeSingle(),
     // A conta (humano OU mensagem programada/sistema) falou depois do hóspede? A IA cala.
@@ -495,10 +634,17 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
       .not("is_internal_note", "is", true)
       .gte("created_at", guestMsgAt)
       .limit(1),
+    admin
+      .from("property_chat_messages")
+      .select("id")
+      .eq("conversation_id", convId)
+      .eq("role", "user")
+      .gt("created_at", guestMsgAt)
+      .limit(1),
   ]);
-  const { isPausedNow } = await import("@/lib/ai/pause");
   if (!(sw as any)?.airbnb_ai_enabled || isPausedNow(conv as never)) return;
   if ((humanAfter ?? []).length > 0) return;
+  if ((guestAfter ?? []).length > 0) return;
   // Resposta pensada como pré-reserva, mas a reserva confirmou enquanto a IA pensava: descarta.
   if (!reservation.ok) {
     const nowConfirmed = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => null);
@@ -510,7 +656,8 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
   try {
-    externalId = await sendChannexThreadMessage(m.threadId, reply);
+    // UMA resposta para o bloco inteiro.
+    externalId = await sendChannexThreadMessage(m.threadId!, reply);
   } catch (e) {
     status = "failed";
     console.error("[channex-messages] envio ao Airbnb falhou", e);

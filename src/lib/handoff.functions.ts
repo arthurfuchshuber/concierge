@@ -1486,20 +1486,23 @@ export const countPendingHandoffs = createServerFn({ method: "GET" })
         .select("id")
         .eq("owner_id", accountId);
       const scopedPropIds = (scopedProps ?? []).map((p) => String(p.id));
-      if (scopedPropIds.length === 0) return { count: 0 };
-      const { count, error } = await supabase
+      if (scopedPropIds.length === 0) return { count: 0, ids: [] as string[] };
+      // Devolve também os IDs: o dock só alerta quando surge uma conversa ainda não vista,
+      // nunca por simples oscilação do contador (rajada de webhooks).
+      const { data: rows, count, error } = await supabase
         .from("property_chat_conversations")
-        .select("id", { count: "exact", head: true })
+        .select("id", { count: "exact" })
         .in("property_id", scopedPropIds)
-        .eq("status", "needs_human");
+        .eq("status", "needs_human")
+        .limit(200);
       if (error) {
         console.error("countPendingHandoffs failed", error);
-        return { count: 0, error: error.message };
+        return { count: 0, ids: [] as string[], error: error.message };
       }
-      return { count: count ?? 0 };
+      return { count: count ?? 0, ids: (rows ?? []).map((r) => String(r.id)) };
     } catch (error) {
       console.error("countPendingHandoffs crashed", error);
-      return { count: 0, error: "Não foi possível carregar o contador agora." };
+      return { count: 0, ids: [] as string[], error: "Não foi possível carregar o contador agora." };
     }
   });
 

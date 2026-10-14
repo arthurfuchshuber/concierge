@@ -11,12 +11,27 @@ export const Route = createFileRoute("/api/public/cron/channex-ari-retry")({
       POST: async ({ request }) => {
         const { isValidCronSecret } = await import("@/lib/cron-auth.server");
         if (!isValidCronSecret(request)) return new Response("Unauthorized", { status: 401 });
+        // `?only=ai`: batida curta (a cada 15 s) só para as respostas da IA cuja janela fechou.
+        if (new URL(request.url).searchParams.get("only") === "ai") {
+          try {
+            const { processDueAiReplies } = await import("@/lib/channex-messages.server");
+            return Response.json({ ok: true, replies: await processDueAiReplies() });
+          } catch (err) {
+            console.error("[cron:ai-reply-due]", err);
+            return Response.json({ ok: false }, { status: 500 });
+          }
+        }
         const { flushAriOutbox } = await import("@/lib/channex-ari.server");
         try {
           const ari = await flushAriOutbox();
           // Mesma batida de 1 min: sincroniza entidades/anúncios Channex (throttle de 5 min no banco).
           const { syncChannexEntities } = await import("@/lib/channex-entity-sync.server");
-          await syncChannexEntities({ source: "cron" }).catch((e) => console.error("[cron:channex-entity-sync]", e));
+          await syncChannexEntities({ source: "cron" }).catch((e) =>
+            console.error("[cron:channex-entity-sync]", e),
+          );
+          // Respostas da IA cuja janela de consolidação já fechou (rede de segurança do webhook).
+          const { processDueAiReplies } = await import("@/lib/channex-messages.server");
+          await processDueAiReplies().catch((e) => console.error("[cron:ai-reply-due]", e));
           return Response.json({ ok: true, batches: ari.batches.length });
         } catch (err) {
           console.error("[cron:channex-ari-retry]", err);

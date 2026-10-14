@@ -67,6 +67,7 @@ export const getLiveWeather = createServerFn({ method: "POST" })
       .from("properties")
       .select("lat, lng, city, country")
       .eq("id", data.propertyId)
+      .eq("published", true)
       .maybeSingle();
     if (!prop) return null;
 

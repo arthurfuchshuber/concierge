@@ -270,6 +270,7 @@ export const listMyProperties = createServerFn({ method: "GET" })
       .from("properties")
       .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id, guide_created")
       .eq("owner_id", userId)
+      .is("archived_at", null)
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     const { signPropertyImages } = await import("@/lib/storage.server");
@@ -298,6 +299,7 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
       .from("properties")
       .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id, guide_created")
       .eq("owner_id", accountId)
+      .is("archived_at", null)
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     // Recorte por residências atendidas: sem vínculo, a lista fica vazia.

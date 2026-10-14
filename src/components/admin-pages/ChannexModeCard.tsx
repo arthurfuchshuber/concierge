@@ -37,7 +37,9 @@ export function ChannexModeCard() {
     mutationFn: () => validateFn({ data: { ownerId } }),
     onSuccess: (r) => {
       refresh();
-      r.ok ? toast.success("Preços recebidos para todos os anúncios.") : toast.error(`Ainda faltam preços em ${r.missing} anúncio(s). Faça o "Sync Now" na ferramenta de pricing e valide de novo.`);
+      if (r.ok) toast.success("Tarifas recebidas para todos os anúncios.");
+      else if (r.checked === 0) toast.error("Ainda não há anúncios ativos com tarifa para conferir. Importe anúncios e valide de novo.");
+      else toast.error(`Ainda faltam tarifas em ${r.missing} anúncio(s). Envie as diárias na sua ferramenta de precificação e valide de novo.`);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível validar."),
   });
@@ -94,17 +96,17 @@ export function ChannexModeCard() {
           <DialogHeader>
             <DialogTitle>Ativar o Modo Full para toda a conta</DialogTitle>
             <DialogDescription>
-              O ConciergeIA passa a controlar a disponibilidade de todos os imóveis conectados. Ele não define preços: por isso é obrigatório ter uma ferramenta de pricing (ex.: PriceLabs) enviando as diárias antes de ativar.
+              ConciergeIA assume o controle de disponibilidade na Channex (com validação prévia de tarifas da sua ferramenta de precificação).
             </DialogDescription>
           </DialogHeader>
           <ol className="list-decimal space-y-2 pl-4 text-sm text-muted-foreground">
-            <li>Na ferramenta de pricing, adicione a integração e importe seus anúncios.</li>
-            <li>Clique em "Sync Now" para enviar as diárias.</li>
-            <li>Volte aqui e valide. Só depois disso a ativação é liberada, para nenhum dia ficar com preço errado.</li>
+            <li>Importe os anúncios na sua ferramenta de precificação.</li>
+            <li>Envie as diárias por lá.</li>
+            <li>Volte aqui e valide. Só depois disso a ativação é liberada; até lá, a conta fica em Leve.</li>
           </ol>
           <Button variant="outline" disabled={validate.isPending} onClick={() => validate.mutate()}>
             {validate.isPending ? <Loader2 className="mr-1 size-4 animate-spin" /> : data.pricingValidatedAt ? <CheckCircle2 className="mr-1 size-4" /> : null}
-            {data.pricingValidatedAt ? "Preços validados — validar de novo" : "Validar envio de preços"}
+            {data.pricingValidatedAt ? "Tarifas validadas — validar de novo" : "Validar envio de tarifas"}
           </Button>
           <Button disabled={!data.pricingValidatedAt || activate.isPending} onClick={() => activate.mutate()}>
             {activate.isPending && <Loader2 className="mr-1 size-4 animate-spin" />}Confirmar e ativar Modo Full

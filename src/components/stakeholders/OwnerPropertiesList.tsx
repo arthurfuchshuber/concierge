@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   BookOpen,
-  Check,
   Copy,
   ExternalLink,
   Filter,
@@ -15,6 +16,8 @@ import {
   Pencil,
   Plus,
   Link2,
+  RefreshCw,
+  Users,
 } from "lucide-react";
 import { PropertyInfoDialog } from "./PropertyInfoDialog";
 import { PropertyInstructionsDialog, type InstructionsKind } from "./PropertyInstructionsDialog";
@@ -28,9 +31,28 @@ import {
   type PropertyListItem,
 } from "./property-actions";
 import { CoverImage } from "@/components/ui/cover-image";
-import { SortMenu } from "@/components/dashboard/SortMenu";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
-import { ACTION_SEGMENT, PANEL_SHELL } from "@/components/dashboard/panel-chrome";
+import {
+  ACTION_BUTTON_TONE,
+  ACTION_ICON,
+  ACTION_SEGMENT,
+  PANEL_SHELL,
+} from "@/components/dashboard/panel-chrome";
+import {
+  FILTER_PANEL_CLASS,
+  FILTER_PANEL_COLLISION,
+  FILTER_PANEL_OFFSET,
+  FilterCountBadge,
+  FilterMenuRow,
+  FilterMultiSelect,
+  FilterRootHeader,
+  FilterScreenHeader,
+} from "@/components/dashboard/filter-panel";
+import { AirbnbAccountFlow, type AirbnbFlowRequest } from "./AirbnbAccountFlow";
+import { toast } from "sonner";
+import { listAirbnbAccounts, retryAirbnbChat } from "@/lib/airbnb-account.functions";
+import { useImpersonation } from "@/hooks/useImpersonation";
+import { Button } from "@/components/ui/button";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -50,15 +72,7 @@ import type { PropertyConnectionRow } from "@/lib/property-connection";
  */
 type Prop = PropertyListItem;
 type Owner = Record<string, any>;
-type Sit = "active" | "inactive";
-
-type PropSort = "default" | "name" | "owner" | "city";
-const PROP_SORT_OPTIONS: { value: PropSort; label: string }[] = [
-  { value: "default", label: "Padrão (situação)" },
-  { value: "name", label: "Nome do imóvel (A–Z)" },
-  { value: "owner", label: "Proprietário (A–Z)" },
-  { value: "city", label: "Cidade (A–Z)" },
-];
+type FilterScreen = "root" | "account" | "listing" | "city" | "state";
 
 export function OwnerPropertiesList({
   properties,
@@ -73,9 +87,37 @@ export function OwnerPropertiesList({
   const [menuId, setMenuId] = useState<string | null>(null);
   const [infoId, setInfoId] = useState<string | null>(null);
   const [instr, setInstr] = useState<{ id: string; kind: InstructionsKind } | null>(null);
-  // Vazio = Todos. As duas marcadas também equivalem a Todos.
-  const [sel, setSel] = useState<Sit[]>([]);
-  const [sort, setSort] = useState<PropSort>("default");
+  // Filtro (mesmo modelo de Guias): só o ícone; Conta, Anúncio, Cidade e Estado, cada um com seleção múltipla.
+  const [accountFilters, setAccountFilters] = useState<string[]>([]);
+  const [listingFilters, setListingFilters] = useState<string[]>([]);
+  const [cityFilters, setCityFilters] = useState<string[]>([]);
+  const [stateFilters, setStateFilters] = useState<string[]>([]);
+  const [filterScreen, setFilterScreen] = useState<FilterScreen>("root");
+  const [flow, setFlow] = useState<AirbnbFlowRequest>(null);
+  const [connectMenu, setConnectMenu] = useState(false);
+  const { impersonation } = useImpersonation();
+  const accountOwnerId = impersonation?.userId ?? null;
+  const qc = useQueryClient();
+  const retryChatFn = useServerFn(retryAirbnbChat);
+  async function retryChat(propertyId: string) {
+    setMenuId(null);
+    try {
+      const r = await retryChatFn({ data: { accountOwnerId, propertyId } });
+      if (r.ok) toast.success("Chat ativado.");
+      else toast.error("A Channex ainda não ativou o chat. Tente de novo em instantes.");
+      qc.invalidateQueries({ queryKey: ["stakeholders"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível ativar o chat.");
+    }
+  }
+  const accountsFn = useServerFn(listAirbnbAccounts);
+  const accountsQ = useQuery({
+    queryKey: ["airbnb-accounts", accountOwnerId ?? "self"],
+    queryFn: () => accountsFn({ data: { accountOwnerId } }),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const airbnbAccounts = useMemo(() => accountsQ.data ?? [], [accountsQ.data]);
 
   const items = useMemo(() => {
     const active = new Set(
@@ -87,10 +129,22 @@ export function OwnerPropertiesList({
         .filter((c) => c.airbnb_listing_id)
         .map((c) => [c.property_id, c.airbnb_listing_id]),
     );
+    const channelById = new Map(
+      connections
+        .filter((c) => c.channex_channel_id)
+        .map((c) => [c.property_id, c.channex_channel_id as string]),
+    );
+    const pendingById = new Map(
+      connections
+        .filter((c) => c.airbnb_listing_id && c.pending)
+        .map((c) => [c.property_id, c.pending]),
+    );
     return properties
       .map((p) => ({
         ...p,
+        pending: pendingById.get(p.id) ?? null,
         airbnbListingId: listingById.get(p.id) ?? null,
+        channelId: channelById.get(p.id) ?? null,
         active: active.has(p.id),
         owner: p.owner_contact_id ? (ownerById.get(p.owner_contact_id) ?? null) : null,
       }))
@@ -100,15 +154,14 @@ export function OwnerPropertiesList({
     i.owner ? String(i.owner.trade_name || i.owner.name || "") : "";
 
   const infoItem = items.find((i) => i.id === infoId);
-  const nActive = items.filter((i) => i.active).length;
-  const nInactive = items.length - nActive;
-  const all = sel.length === 0 || sel.length === 2;
-  const label = all ? "Todos" : sel[0] === "active" ? "Ativos" : "Inativos";
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     const list = items.filter((i) => {
-      if (!all && !sel.includes(i.active ? "active" : "inactive")) return false;
+      if (accountFilters.length > 0 && !accountFilters.includes(i.channelId ?? "")) return false;
+      if (listingFilters.length > 0 && !listingFilters.includes(i.id)) return false;
+      if (cityFilters.length > 0 && !cityFilters.includes(i.city ?? "")) return false;
+      if (stateFilters.length > 0 && !stateFilters.includes(i.state ?? "")) return false;
       if (!term) return true;
       const ownerName = i.owner ? String(i.owner.trade_name || i.owner.name || "") : "";
       return [i.name, ownerName, i.city, i.state]
@@ -118,118 +171,234 @@ export function OwnerPropertiesList({
     const cmp = (x: string, y: string) => x.localeCompare(y, "pt-BR");
     // Padrão: Inativo → Ativo sem Guia → Ativo com Guia; depois nome, cidade e proprietário.
     const rank = (i: (typeof items)[number]) => (!i.active ? 0 : hasActiveGuide(i) ? 2 : 1);
-    return [...list].sort((a, b) => {
-      if (sort === "name") return cmp(a.name, b.name);
-      if (sort === "owner") return cmp(ownerNameOf(a), ownerNameOf(b)) || cmp(a.name, b.name);
-      if (sort === "city") return cmp(a.city ?? "", b.city ?? "") || cmp(a.name, b.name);
-      return (
+    return [...list].sort(
+      (a, b) =>
         rank(a) - rank(b) ||
         cmp(a.name, b.name) ||
         cmp(a.city ?? "", b.city ?? "") ||
-        cmp(ownerNameOf(a), ownerNameOf(b))
-      );
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, q, sel, all, sort]);
+        cmp(ownerNameOf(a), ownerNameOf(b)),
+    );
+  }, [items, q, accountFilters, listingFilters, cityFilters, stateFilters]);
 
-  function toggle(v: Sit) {
-    setSel((cur) => {
-      const base = cur.length === 0 ? (["active", "inactive"] as Sit[]) : cur;
-      const next = base.includes(v) ? base.filter((x) => x !== v) : [...base, v];
-      // Nada marcado ou tudo marcado = Todos.
-      return next.length === 0 || next.length === 2 ? [] : next;
-    });
+  const panelFiltersActive =
+    accountFilters.length + listingFilters.length + cityFilters.length + stateFilters.length > 0;
+  function clearFilters() {
+    setAccountFilters([]);
+    setListingFilters([]);
+    setCityFilters([]);
+    setStateFilters([]);
   }
-
-  const checked = (v: Sit) => all || sel.includes(v);
-  const Box = ({ on }: { on: boolean }) => (
-    <span
-      aria-hidden
-      className={`grid size-4 shrink-0 place-items-center rounded-[5px] ${
-        on
-          ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-white"
-          : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)]"
-      }`}
-    >
-      {on ? <Check className="size-2.5" strokeWidth={3} /> : null}
-    </span>
+  const multiLabel = (arr: string[], all: string, many: string) =>
+    arr.length === 0 ? all : arr.length === 1 ? arr[0] : `${arr.length} ${many}`;
+  const accountTitle = (id: string) =>
+    airbnbAccounts.find((a) => a.channelId === id)?.title ?? "Conta do Airbnb";
+  const accountOptions = useMemo(
+    () =>
+      airbnbAccounts.map((a) => ({
+        value: a.channelId,
+        label: a.title,
+        sublabel: `${items.filter((i) => i.channelId === a.channelId).length} imóveis`,
+      })),
+    [airbnbAccounts, items],
   );
-  const row = (
-    key: string,
-    text: string,
-    n: number,
-    on: boolean,
-    onClick: () => void,
-    dot?: "ok" | "atencao",
-  ) => (
-    <button
-      key={key}
-      type="button"
-      onClick={onClick}
-      className={`flex min-h-[38px] w-full items-center gap-2.5 rounded-lg px-2.5 text-[12.5px] font-semibold transition-colors ${
-        on ? "bg-foreground/[0.06]" : "hover:bg-foreground/[0.04]"
-      }`}
-    >
-      <Box on={on} />
-      {dot ? (
-        <span
-          aria-hidden
-          className={`size-1.5 rounded-full bg-current ${dot === "ok" ? "ds-ok" : "ds-atencao"}`}
-        />
-      ) : null}
-      {text}
-      <em className="ml-auto text-[11px] font-bold not-italic text-muted-foreground tabular-nums">
-        {n}
-      </em>
-    </button>
+  const listingOptions = useMemo(
+    () =>
+      items.map((i) => ({
+        value: i.id,
+        label: i.name,
+        sublabel: [i.city, i.state].filter(Boolean).join("/") || null,
+      })),
+    [items],
   );
+  const uniq = (vals: Array<string | null | undefined>) =>
+    Array.from(new Set(vals.filter(Boolean) as string[]))
+      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+      .map((v) => ({ value: v, label: v }));
+  const cityOptions = useMemo(() => uniq(items.map((i) => i.city)), [items]);
+  const stateOptions = useMemo(() => uniq(items.map((i) => i.state)), [items]);
 
-  const statusButton = (
-    <Popover>
+  const menuItem =
+    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary";
+
+  // Botão ÚNICO "Conectar conta" + "ReSincronizar", à esquerda do filtro.
+  const connectButton = (
+    <Popover open={connectMenu} onOpenChange={setConnectMenu}>
       <PopoverTrigger asChild>
         <button
           type="button"
-          data-action-wide
-          aria-label={`Situação: ${label}`}
-          className={`${ACTION_SEGMENT} !flex-none !w-auto justify-between gap-2.5 px-3 text-[12px] font-bold text-foreground data-[state=open]:bg-foreground/[0.06]`}
+          className={`${ACTION_SEGMENT} text-accent`}
+          aria-label="Conectar conta do Airbnb"
+          title="Conectar conta do Airbnb"
         >
-          {!all ? (
-            <span
-              aria-hidden
-              className={`size-1.5 rounded-full bg-current ${sel[0] === "active" ? "ds-ok" : "ds-atencao"}`}
-            />
-          ) : null}
-          {label}
-          <Filter className="size-[15px] shrink-0 text-muted-foreground" />
+          <Link2 className={ACTION_ICON} />
         </button>
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+        className="w-[240px] p-1.5"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
-          <span className="ds-eyebrow">Situação</span>
-          {!all || sel.length === 2 ? (
-            <button
-              type="button"
-              onClick={() => setSel([])}
-              className="text-[11px] text-muted-foreground hover:text-foreground"
-            >
-              Limpar
-            </button>
-          ) : null}
+        <div className="px-2.5 pb-1.5 pt-1.5">
+          <span className="ds-eyebrow">Airbnb</span>
         </div>
-        {row("all", "Todos", items.length, all, () => setSel([]))}
-        {row("active", "Ativos", nActive, checked("active"), () => toggle("active"), "ok")}
-        {row(
-          "inactive",
-          "Inativos",
-          nInactive,
-          checked("inactive"),
-          () => toggle("inactive"),
-          "atencao",
-        )}
+        <button
+          type="button"
+          className={menuItem}
+          onClick={() => {
+            setConnectMenu(false);
+            setFlow({ type: "connect" });
+          }}
+        >
+          <Plus className="size-3.5 text-muted-foreground" /> Conectar nova conta
+        </button>
+        <button
+          type="button"
+          disabled={airbnbAccounts.length === 0}
+          className={`${menuItem} disabled:pointer-events-none disabled:opacity-40`}
+          onClick={() => {
+            setConnectMenu(false);
+            setFlow({ type: "resync" });
+          }}
+        >
+          <RefreshCw className="size-3.5 text-muted-foreground" /> ReSincronizar conta
+          {airbnbAccounts.length > 0 ? (
+            <em className="ml-auto text-[11px] font-bold not-italic text-muted-foreground tabular-nums">
+              {airbnbAccounts.length} {airbnbAccounts.length === 1 ? "conta" : "contas"}
+            </em>
+          ) : null}
+        </button>
+      </PopoverContent>
+    </Popover>
+  );
+
+  const filterButton = (
+    <Popover onOpenChange={(o) => !o && setFilterScreen("root")}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+          aria-label="Filtros"
+          title="Filtros"
+        >
+          <Filter className={ACTION_ICON} />
+          {panelFiltersActive && (
+            <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        sideOffset={FILTER_PANEL_OFFSET}
+        collisionPadding={FILTER_PANEL_COLLISION}
+        className={FILTER_PANEL_CLASS}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        {filterScreen === "root" ? (
+          <>
+            <FilterRootHeader canClear={panelFiltersActive} onClear={clearFilters} />
+            <FilterMenuRow
+              icon={Users}
+              label="Conta"
+              value={
+                accountFilters.length === 1
+                  ? accountTitle(accountFilters[0])
+                  : multiLabel(accountFilters, "Todas", "selecionadas")
+              }
+              active={accountFilters.length > 0}
+              onClick={() => setFilterScreen("account")}
+            />
+            <FilterMenuRow
+              icon={Home}
+              label="Anúncio"
+              value={
+                listingFilters.length === 1
+                  ? (items.find((i) => i.id === listingFilters[0])?.name ?? "1 selecionado")
+                  : multiLabel(listingFilters, "Todos", "selecionados")
+              }
+              active={listingFilters.length > 0}
+              onClick={() => setFilterScreen("listing")}
+            />
+            <FilterMenuRow
+              icon={MapPin}
+              label="Cidade"
+              value={multiLabel(cityFilters, "Todas", "selecionadas")}
+              active={cityFilters.length > 0}
+              onClick={() => setFilterScreen("city")}
+            />
+            <FilterMenuRow
+              icon={MapPin}
+              label="Estado"
+              value={multiLabel(stateFilters, "Todos", "selecionados")}
+              active={stateFilters.length > 0}
+              onClick={() => setFilterScreen("state")}
+              last
+            />
+          </>
+        ) : null}
+        {filterScreen === "account" ? (
+          <>
+            <FilterScreenHeader
+              icon={Users}
+              title="Conta"
+              onBack={() => setFilterScreen("root")}
+              right={<FilterCountBadge count={accountFilters.length} />}
+            />
+            <FilterMultiSelect
+              options={accountOptions}
+              selected={accountFilters}
+              onChange={setAccountFilters}
+              searchPlaceholder="Buscar conta..."
+            />
+          </>
+        ) : null}
+        {filterScreen === "listing" ? (
+          <>
+            <FilterScreenHeader
+              icon={Home}
+              title="Anúncio"
+              onBack={() => setFilterScreen("root")}
+              right={<FilterCountBadge count={listingFilters.length} />}
+            />
+            <FilterMultiSelect
+              options={listingOptions}
+              selected={listingFilters}
+              onChange={setListingFilters}
+              searchPlaceholder="Buscar anúncio..."
+            />
+          </>
+        ) : null}
+        {filterScreen === "city" ? (
+          <>
+            <FilterScreenHeader
+              icon={MapPin}
+              title="Cidade"
+              onBack={() => setFilterScreen("root")}
+              right={<FilterCountBadge count={cityFilters.length} />}
+            />
+            <FilterMultiSelect
+              options={cityOptions}
+              selected={cityFilters}
+              onChange={setCityFilters}
+              searchPlaceholder="Buscar cidade..."
+            />
+          </>
+        ) : null}
+        {filterScreen === "state" ? (
+          <>
+            <FilterScreenHeader
+              icon={MapPin}
+              title="Estado"
+              onBack={() => setFilterScreen("root")}
+              right={<FilterCountBadge count={stateFilters.length} />}
+            />
+            <FilterMultiSelect
+              options={stateOptions}
+              selected={stateFilters}
+              onChange={setStateFilters}
+              searchPlaceholder="Buscar estado..."
+            />
+          </>
+        ) : null}
       </PopoverContent>
     </Popover>
   );
@@ -242,24 +411,28 @@ export function OwnerPropertiesList({
         placeholder="Buscar imóvel, proprietário, cidade…"
         actions={
           <>
-            <SortMenu
-              value={sort}
-              defaultValue="default"
-              options={PROP_SORT_OPTIONS}
-              onChange={setSort}
-              title="Ordenar imóveis por"
-              bare
-            />
-            {statusButton}
+            {connectButton}
+            {filterButton}
           </>
         }
       />
 
-      {filtered.length === 0 ? (
+      {items.length === 0 ? (
+        <EmptyState
+          icon={Home}
+          title="Nenhum imóvel ainda"
+          description="Conecte uma conta do Airbnb para importar seus anúncios."
+          action={
+            <Button onClick={() => setFlow({ type: "connect" })}>
+              <Link2 /> Conectar conta
+            </Button>
+          }
+        />
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={Home}
           title="Nenhum imóvel encontrado"
-          description={q ? `Nenhum resultado para "${q}".` : "Não há imóveis nesta situação."}
+          description={q ? `Nenhum resultado para "${q}".` : "Nenhum imóvel com esses filtros."}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -283,10 +456,10 @@ export function OwnerPropertiesList({
                 <span className="relative w-24 shrink-0 overflow-hidden bg-foreground/[0.05] text-muted-foreground">
                   <CoverImage urls={[p.hero_image_url, ...(p.gallery_images ?? [])]} />
                   <span
-                    className={`absolute left-2 top-2 inline-flex h-[22px] items-center gap-1.5 rounded-full bg-background/70 px-2.5 text-[10.5px] font-extrabold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] backdrop-blur-sm ${p.active ? "ds-ok" : "ds-atencao"}`}
+                    className={`absolute left-2 top-2 inline-flex h-[22px] items-center gap-1.5 rounded-full bg-background/70 px-2.5 text-[10.5px] font-extrabold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] backdrop-blur-sm ${p.pending ? "ds-falta" : p.active ? "ds-ok" : "ds-atencao"}`}
                   >
                     <span aria-hidden className="size-1.5 rounded-full bg-current" />
-                    {p.active ? "Ativo" : "Inativo"}
+                    {p.pending ? "Pendente" : p.active ? "Ativo" : "Inativo"}
                   </span>
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col justify-between gap-2 py-3 pl-3.5 pr-2.5">
@@ -336,6 +509,16 @@ export function OwnerPropertiesList({
                         </button>
                       </PopoverTrigger>
                       <PopoverContent align="end" className="w-56 p-1.5">
+                        {p.pending === "chat" ? (
+                          <button
+                            type="button"
+                            onClick={() => void retryChat(p.id)}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary"
+                          >
+                            <RefreshCw className="size-3.5 text-muted-foreground" /> Tentar ativar o
+                            chat de novo
+                          </button>
+                        ) : null}
                         <Link
                           to="/admin/properties/$id"
                           params={{ id: p.id }}
@@ -448,6 +631,7 @@ export function OwnerPropertiesList({
           })}
         </div>
       )}
+      <AirbnbAccountFlow request={flow} onClose={() => setFlow(null)} />
       <PropertyInstructionsDialog
         property={items.find((i) => i.id === instr?.id) ?? null}
         kind={instr?.kind ?? "checkin"}

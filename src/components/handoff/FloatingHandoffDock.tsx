@@ -42,8 +42,15 @@ function saveDockBottom(bottom: number) {
   try { localStorage.setItem(DOCK_POSITION_KEY, JSON.stringify({ bottom })); } catch {}
 }
 
-let notifSound: HTMLAudioElement | null = null;
+/** Intervalo mínimo entre bipes: rajadas de eventos nunca ficam apitando. */
+const BEEP_THROTTLE_MS = 30_000;
+/** Depois desse tempo sem aparecer na fila, uma conversa volta a poder alertar. */
+const NOTIFIED_TTL_MS = 10 * 60_000;
+let lastBeepAt = 0;
 function playBeep() {
+  const now = Date.now();
+  if (now - lastBeepAt < BEEP_THROTTLE_MS) return;
+  lastBeepAt = now;
   try {
     // Web Audio beep — não depende de asset
     const AudioCtx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext | undefined;
@@ -184,21 +191,40 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
   });
 
 
-  const lastCountRef = useRef<number>(-1);
+  // Conversas que já acionaram alerta nesta sessão (id → última vez vista na fila).
+  // A janela só abre/apita para uma conversa NOVA; atualizações da mesma conversa
+  // (rajada de webhooks, refetch de 15 s) e o fechamento manual pelo "X" são respeitados.
+  const notifiedRef = useRef<Map<string, number>>(new Map());
+  const firstPendingRef = useRef(true);
+  // Trocou a conta (impersonação): recomeça o registro, sem alertar pelo que já estava na fila.
   useEffect(() => {
-    const n = pendingQ.data?.count ?? 0;
-    if (lastCountRef.current === -1) { lastCountRef.current = n; return; }
-    if (n > lastCountRef.current) {
-      // Novo handoff!
-      playBeep();
-      setState((s) => ({ open: true, minimized: false }));
-      try { if ("setAppBadge" in navigator) (navigator as any).setAppBadge(n); } catch {}
+    notifiedRef.current = new Map();
+    firstPendingRef.current = true;
+  }, [activeAccountId]);
+  useEffect(() => {
+    const data = pendingQ.data;
+    if (!data) return;
+    const n = data.count ?? 0;
+    const ids = (data as { ids?: string[] }).ids;
+    const now = Date.now();
+    const known = notifiedRef.current;
+    if (Array.isArray(ids)) {
+      const fresh = ids.filter((id) => !known.has(id));
+      for (const id of ids) known.set(id, now);
+      for (const [id, seen] of known) if (now - seen > NOTIFIED_TTL_MS) known.delete(id);
+      // Primeira leitura da sessão só registra o que já estava na fila.
+      if (firstPendingRef.current) firstPendingRef.current = false;
+      else if (fresh.length > 0) {
+        playBeep();
+        setState({ open: true, minimized: false });
+      }
     }
-    if (n === 0) {
+    if (n > 0) {
+      try { if ("setAppBadge" in navigator) (navigator as any).setAppBadge(n); } catch {}
+    } else {
       try { if ("clearAppBadge" in navigator) (navigator as any).clearAppBadge(); } catch {}
     }
-    lastCountRef.current = n;
-  }, [pendingQ.data?.count]);
+  }, [pendingQ.data]);
 
   // Realtime: novo status = needs_human → refresh
   useEffect(() => {
@@ -224,7 +250,14 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
       qc.invalidateQueries({ queryKey: ["handoff-list"] });
       const isConversation = !!msg.conversationId;
       if (!isConversation && msg.type !== "handoff-focus") return;
-      playBeep();
+      // Clique na notificação = pedido explícito: sempre abre. Push de conversa já
+      // avisada (nova mensagem do mesmo hóspede) só atualiza os dados em segundo plano.
+      const explicit = msg.type === "handoff-focus";
+      const known = notifiedRef.current;
+      const already = !!msg.conversationId && known.has(msg.conversationId);
+      if (msg.conversationId) known.set(msg.conversationId, Date.now());
+      if (!explicit && already) return;
+      if (!explicit) playBeep();
       setState({ open: true, minimized: false });
       if (msg.conversationId) setActiveId(msg.conversationId);
     });

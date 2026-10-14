@@ -34,6 +34,7 @@ export async function getAccountMode(ownerId: string) {
     mode: (data?.operation_mode ?? "light") as OperationMode,
     pricingValidatedAt: (data?.pricing_validated_at ?? null) as string | null,
     twinPromptAnsweredAt: (data?.twin_prompt_answered_at ?? null) as string | null,
+    modeChangedAt: (data?.mode_changed_at ?? null) as string | null,
   };
 }
 
@@ -76,26 +77,52 @@ export async function detectTwinCandidates(): Promise<TwinSuggestion[]> {
   return out;
 }
 
-/** Confere se a ferramenta de pricing já enviou diárias para todos os anúncios mapeados (próximos 30 dias). */
-export async function validatePricing() {
-  const { allSyncTargets } = await import("@/lib/channex-mapping.server");
-  const targets = await allSyncTargets();
+/**
+ * Confere se a ferramenta de pricing já enviou diárias para os anúncios ATIVOS da conta
+ * (próximos 30 dias). Só leitura. O Full só pode ser liberado com `checked > 0` e `missing === 0`:
+ * conta sem nenhum anúncio para conferir NÃO libera o Full. Anúncio sem tarifa na Channex
+ * (sem rate plan) conta como faltando.
+ */
+export async function validatePricing(ownerId: string) {
+  const d = await db();
+  const [{ data: rows }, { data: twins }] = await Promise.all([
+    d
+      .from("property_listing_raw_data")
+      .select("channex_property_id, channex_rate_plan_id")
+      .eq("owner_id", ownerId)
+      .is("sync_paused_at", null)
+      .not("airbnb_listing_id", "is", null),
+    d
+      .from("channex_twin_links")
+      .select("twin_channex_property_id, twin_rate_plan_id")
+      .eq("owner_id", ownerId)
+      .eq("status", "active"),
+  ]);
+  const targets: Array<{ propertyId: string | null; ratePlanId: string | null }> = [
+    ...((rows ?? []) as any[]).map((r) => ({ propertyId: r.channex_property_id, ratePlanId: r.channex_rate_plan_id })),
+    ...((twins ?? []) as any[]).map((t) => ({ propertyId: t.twin_channex_property_id, ratePlanId: t.twin_rate_plan_id })),
+  ];
   const start = new Date().toISOString().slice(0, 10);
   const end = new Date(Date.now() + 29 * 86_400_000).toISOString().slice(0, 10);
-  const missing: string[] = [];
-  const byProperty = new Map<string, string[]>();
-  for (const t of targets) byProperty.set(t.channexPropertyId, [...(byProperty.get(t.channexPropertyId) ?? []), t.ratePlanId]);
-  for (const [pid, plans] of byProperty) {
-    const r = await cx<{ data: Record<string, Record<string, { rate?: string | number }>> }>(
-      `/restrictions?filter[property_id]=${pid}&filter[date][gte]=${start}&filter[date][lte]=${end}&filter[restrictions]=rate`,
-    ).catch(() => ({ data: {} as Record<string, Record<string, { rate?: string | number }>> }));
-    for (const rp of plans) {
-      const days = r.data?.[rp] ?? {};
-      const priced = Object.values(days).filter((d) => Number(d?.rate ?? 0) > 0).length;
-      if (priced < 30) missing.push(rp);
+  let missing = 0;
+  const cache = new Map<string, Record<string, Record<string, { rate?: string | number }>>>();
+  for (const t of targets) {
+    if (!t.propertyId || !t.ratePlanId) {
+      missing += 1;
+      continue;
     }
+    if (!cache.has(t.propertyId)) {
+      const r = await cx<{ data: Record<string, Record<string, { rate?: string | number }>> }>(
+        `/restrictions?filter[property_id]=${t.propertyId}&filter[date][gte]=${start}&filter[date][lte]=${end}&filter[restrictions]=rate`,
+      ).catch(() => ({ data: {} as Record<string, Record<string, { rate?: string | number }>> }));
+      cache.set(t.propertyId, r.data ?? {});
+    }
+    const days = cache.get(t.propertyId)?.[t.ratePlanId] ?? {};
+    const priced = Object.values(days).filter((x) => Number(x?.rate ?? 0) > 0).length;
+    if (priced < 30) missing += 1;
   }
-  return { ok: missing.length === 0, checked: targets.length, missing: missing.length };
+  const checked = targets.length;
+  return { ok: checked > 0 && missing === 0, checked, missing };
 }
 
 export async function saveAccountMode(ownerId: string, patch: Record<string, unknown>, userId: string) {

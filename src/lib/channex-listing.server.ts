@@ -332,6 +332,8 @@ export async function syncAccountListing(args: {
       raw_settings: rp.settings,
       normalized: { ...(prevRow?.normalized ?? {}), facts, public_listing: pub },
       sync_paused_at: null,
+      paused_reason: null,
+      not_found_at: null,
       synced_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     } as never,

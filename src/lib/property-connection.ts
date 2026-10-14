@@ -19,6 +19,10 @@ export type PropertyConnectionRow = {
   property_id: string;
   airbnb_listing_id: string | null;
   synced_at: string | null;
+  /** Conta do Airbnb (canal da Channex) de onde o anúncio veio. */
+  channex_channel_id?: string | null;
+  /** Ativo, mas incompleto: chat da Channex não ativou ("chat") ou sem tarifa na Channex ("config"). */
+  pending?: "chat" | "config" | null;
 };
 
 export type ConnectionProperty = {

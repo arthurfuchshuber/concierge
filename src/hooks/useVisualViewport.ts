@@ -96,6 +96,38 @@ export function viewportOverlayStyle(box: ViewportBox): {
   return { position: "fixed", left: 0, right: 0, top: box.top, height: box.height };
 }
 
+// Travas ativas (o chat e o assistente podem pedir ao mesmo tempo). Só a primeira trava
+// guarda o estado original e só a última destrava — assim uma troca rápida de uma janela
+// para a outra não faz o `overflow` do body piscar.
+let lockCount = 0;
+let savedOverflow = "";
+let savedPaddingRight = "";
+let releaseTimer: number | null = null;
+const RELEASE_DELAY_MS = 120;
+
+function applyLock() {
+  if (releaseTimer !== null) {
+    window.clearTimeout(releaseTimer);
+    releaseTimer = null;
+    return; // ainda travado: religou antes de soltar, nada muda na tela
+  }
+  const body = document.body;
+  savedOverflow = body.style.overflow;
+  savedPaddingRight = body.style.paddingRight;
+  // Compensa a barra de rolagem que some, para o layout não "pular" de lado.
+  const scrollbar = window.innerWidth - document.documentElement.clientWidth;
+  if (scrollbar > 0) body.style.paddingRight = `${scrollbar}px`;
+  body.style.overflow = "hidden";
+}
+function releaseLock() {
+  if (releaseTimer !== null) window.clearTimeout(releaseTimer);
+  releaseTimer = window.setTimeout(() => {
+    releaseTimer = null;
+    document.body.style.overflow = savedOverflow;
+    document.body.style.paddingRight = savedPaddingRight;
+  }, RELEASE_DELAY_MS);
+}
+
 /**
  * Trava a rolagem da PÁGINA enquanto um overlay de chat está aberto.
  *
@@ -114,23 +146,26 @@ export function useLockBodyScroll(active: boolean): void {
     // painéis são janelas flutuantes: a página atrás continua sendo usada e
     // travar a rolagem dela deixaria o painel/lista congelados.
     const mq = window.matchMedia("(max-width: 1023px)");
-    const body = document.body;
-    const prev = body.style.overflow;
-    let locked = false;
+    let mine = false;
     const apply = () => {
-      if (mq.matches && !locked) {
-        body.style.overflow = "hidden";
-        locked = true;
-      } else if (!mq.matches && locked) {
-        body.style.overflow = prev;
-        locked = false;
+      if (mq.matches && !mine) {
+        mine = true;
+        lockCount += 1;
+        if (lockCount === 1) applyLock();
+      } else if (!mq.matches && mine) {
+        mine = false;
+        lockCount -= 1;
+        if (lockCount === 0) releaseLock();
       }
     };
     apply();
     mq.addEventListener("change", apply);
     return () => {
       mq.removeEventListener("change", apply);
-      if (locked) body.style.overflow = prev;
+      if (mine) {
+        lockCount -= 1;
+        if (lockCount === 0) releaseLock();
+      }
     };
   }, [active]);
 }

@@ -1,11 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getConnectedListingsInventory } from "@/lib/channex.functions";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 /** Inventário de anúncios conectados ativos (gêmeos contam individualmente). */
 export function ConnectedListingsCard() {
   const fn = useServerFn(getConnectedListingsInventory);
-  const q = useQuery({ queryKey: ["connected-listings-inventory"], queryFn: () => fn(), retry: false });
+  const { impersonation } = useImpersonation();
+  const accountOwnerId = impersonation?.userId ?? null;
+  const q = useQuery({
+    queryKey: ["connected-listings-inventory", accountOwnerId ?? "self"],
+    queryFn: () => fn({ data: { accountOwnerId } }),
+    retry: false,
+  });
   if (!q.data) return null;
   const d = q.data;
   return (

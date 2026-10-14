@@ -189,7 +189,21 @@ function AdminLayout() {
     "/admin/prestadores",
     "/admin/atendimento",
   ];
-  const bottomNav = nav.filter((item) => BOTTOM_NAV_PATHS.includes(item.to));
+  const liveBottomNav = nav
+    .filter((item) => BOTTOM_NAV_PATHS.includes(item.to))
+    // Ordem prioritária fixa, independente da ordem em que `nav` é montado.
+    .sort((x, y) => BOTTOM_NAV_PATHS.indexOf(x.to) - BOTTOM_NAV_PATHS.indexOf(y.to));
+  /**
+   * ESTABILIDADE DA BARRA INFERIOR. Durante revalidações em segundo plano (acesso à
+   * área, conta ativa, rajadas de `invalidateQueries`) `nav` oscila por instantes e
+   * o botão "Prestadores" sumia e voltava. Só atualizamos a lista quando TODAS as
+   * decisões de acesso estão assentadas; enquanto algo revalida, mantém-se a última
+   * lista conhecida (nenhum botão aparece/desaparece de repente).
+   */
+  const navSettled = !resolvingAccount && !awaitingAccountChoice && areaAccess.ready && !access.isPending;
+  const stableBottomNavRef = useRef<typeof liveBottomNav>([]);
+  if (navSettled || stableBottomNavRef.current.length === 0) stableBottomNavRef.current = liveBottomNav;
+  const bottomNav = navSettled ? liveBottomNav : stableBottomNavRef.current;
 
 
 
@@ -609,7 +623,8 @@ function AdminLayout() {
             {bottomNav.map((item) => {
               const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
               const Icon = item.icon;
-              const badge = ("badge" in item ? item.badge : 0) ?? 0;
+              // O número do Atendimento é sempre o atual, mesmo quando a lista é a última conhecida.
+              const badge = item.to === "/admin/atendimento" ? (pending.data?.count ?? 0) : 0;
               const shortLabel = BOTTOM_NAV_SHORT_LABEL[item.label] ?? item.label;
               return (
                 /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): o item

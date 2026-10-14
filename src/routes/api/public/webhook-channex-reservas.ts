@@ -52,6 +52,8 @@ export const Route = createFileRoute("/api/public/webhook-channex-reservas")({
         } catch (err) {
           console.error("[channex-webhook] processamento falhou; item segue na fila", err);
         }
+        // Mensagens do hóspede ficam gravadas e a IA só responde quando a janela de consolidação
+        // fecha (cron a cada 15 s → `processDueAiReplies`); o webhook responde sem demora.
 
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,

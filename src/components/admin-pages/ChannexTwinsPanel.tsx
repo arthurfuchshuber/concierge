@@ -68,7 +68,7 @@ export function ChannexTwinsPanel() {
           )}
           {p && t && (
             <p className="text-[11px] text-muted-foreground">
-              Cada anúncio continua separado (aparece sozinho no PriceLabs), mas os calendários passam a fechar juntos na hora. O anúncio gêmeo fica cerca de 1 minuto desconectado e volta publicado; depois, rode a importação no PriceLabs.
+              Cada anúncio continua separado (aparece sozinho na ferramenta de precificação), mas os calendários passam a fechar juntos na hora. O anúncio gêmeo fica cerca de 1 minuto desconectado e volta publicado; depois, rode a importação na sua ferramenta de precificação.
             </p>
           )}
           <Button size="sm" className="h-8 rounded-full text-xs" disabled={!p || !t || link.isPending || lightMode} onClick={() => link.mutate()}>
