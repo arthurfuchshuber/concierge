@@ -30,9 +30,12 @@ export function Stepper({
   lockedValues,
   lockedTitle,
   withIcons = false,
+  compact = false,
 }: {
   /** Mostra o ícone de cada aba (mockup "Públicas | Confidenciais"). */
   withIcons?: boolean;
+  /** Rótulo 12px e vão de 5px (mockups da ficha do proprietário, 13/10/2026): quatro abas cabem no celular. */
+  compact?: boolean;
   steps?: StepDef[];
   current: string;
   onChange: (v: string) => void;
@@ -78,7 +81,9 @@ export function Stepper({
                   'Complete as informações obrigatórias em "A casa" para desbloquear')
                 : undefined
             }
-            className={`relative flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap text-center text-[13px] leading-none transition-colors ${
+            className={`relative flex min-h-[44px] items-center justify-center whitespace-nowrap text-center leading-none transition-colors ${
+              compact ? "gap-[5px] text-[12px]" : "gap-1.5 text-[13px]"
+            } ${
               active
                 ? "ds-tab-active font-bold"
                 : locked

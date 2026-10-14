@@ -63,6 +63,10 @@ import type { StakeholderKind } from "./StakeholderDirectory";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { StakeholderStatusControl } from "./StakeholderStatusControl";
 import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
+import { periodShort } from "@/lib/period-short";
+import { OwnerPropertiesPanel } from "./OwnerPropertiesPanel";
+import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
+import { SortMenu } from "@/components/dashboard/SortMenu";
 import { humanizeEventMessage } from "@/lib/stakeholder-event-message";
 import { MultiLinkPicker } from "./MultiLinkPicker";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
@@ -89,7 +93,7 @@ import {
 } from "./owner-ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
-import { Coins, StickyNote, Check, User, Activity } from "lucide-react";
+import { Coins, StickyNote, Check, User, Activity, Filter } from "lucide-react";
 
 /** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.
  *  !flex-none sobrescreve o !flex-1 padrão de TabsTrigger (ui/tabs.tsx) — aqui
@@ -189,6 +193,21 @@ function shortDate(iso: string, withTime = false) {
     ? `${base}, ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
     : base;
 }
+/** "2 set · 14:32" (mockup da timeline). */
+function shortDateTime(iso: string) {
+  const d = iso ? new Date(iso) : null;
+  if (!d || Number.isNaN(d.getTime())) return "Sem data";
+  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} · ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+}
+/** Reais sem centavos, sempre arredondados para cima (pedido 13/10/2026). */
+function brlCeil(v: number) {
+  return Math.ceil(v).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+  });
+}
 function capitalize(t: string) {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
@@ -255,6 +274,14 @@ export function StakeholderDetailSheet({
   const [noteOpen, setNoteOpen] = useState(false);
   const [windowPropertyId, setWindowPropertyId] = useState<string | null>(null);
   const [ownerTab, setOwnerTab] = useState("timeline");
+  // Busca/filtros de cada aba do layout novo (mockups P1–P4): ficam por aba.
+  const [tlQ, setTlQ] = useState("");
+  const [tlTypes, setTlTypes] = useState<string[]>([]);
+  const [finQ, setFinQ] = useState("");
+  const [docQ, setDocQ] = useState("");
+  const [docSit, setDocSit] = useState<string[]>([]);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const docFileFn = useServerFn(getClicksignDocumentFile);
 
   const clicksignFn = useServerFn(getMyClicksignConfig);
   const clicksign = useQuery({
@@ -434,15 +461,37 @@ export function StakeholderDetailSheet({
   const otherOwnersQuery = useQuery({
     queryKey: ["stakeholder-options", "owner", id],
     queryFn: () => stakeholderOptionsFn(),
-    enabled: !!transferPropertyId,
+    enabled: !!transferPropertyId || (newLayout && ownerTab === "imoveis"),
     select: (all) => all.filter((o) => o.type === "owner" && o.id !== id),
   });
 
-  async function handleTransfer(propertyId: string) {
-    if (!transferTargetId) return;
+  // Baixa o PDF do contrato (mesma fonte da pré-visualização: arquivo seguro do ClickSign).
+  async function downloadDoc(docId: string, name: string) {
+    setDownloadingId(docId);
+    try {
+      const res = await docFileFn({ data: { id: docId } });
+      if (!res?.base64) throw new Error("Documento sem arquivo disponível.");
+      const bin = atob(res.base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = /\.pdf$/i.test(name) ? name : `${name}.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível baixar o documento.");
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
+  async function handleTransfer(propertyId: string, target: string = transferTargetId) {
+    if (!target) return;
     setBusy(true);
     try {
-      await linkFn({ data: { ownerId: transferTargetId, propertyId, link: true, accountOwnerId } });
+      await linkFn({ data: { ownerId: target, propertyId, link: true, accountOwnerId } });
       qc.invalidateQueries({ queryKey });
       qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
       qc.invalidateQueries({ queryKey: ["property", propertyId] });
@@ -529,6 +578,7 @@ export function StakeholderDetailSheet({
         title: humanizeEventMessage(ev.message as string),
         badge: "Registro",
         author: (ev.author_name as string | null) ?? "Sistema",
+        lines: [] as Array<{ k: string; v: string }>,
         body: null as React.ReactNode,
       })),
     ...feedEvents.map((ev) => ({
@@ -538,6 +588,12 @@ export function StakeholderDetailSheet({
       title: ev.title,
       badge: ev.calendarName || "Agenda",
       author: "Sistema",
+      lines: [
+        { k: "Agenda", v: ev.calendarName || "Agenda" },
+        ...(ev.attendees.length > 0
+          ? [{ k: "Participantes", v: String(ev.attendees.length) }]
+          : []),
+      ],
       body: (
         <>
           {ev.htmlLink && (
@@ -548,9 +604,6 @@ export function StakeholderDetailSheet({
             >
               <Eye className="size-3" /> Abrir convite
             </button>
-          )}
-          {ev.attendees.length > 0 && (
-            <p className="text-xs text-muted-foreground">{ev.attendees.length} participante(s)</p>
           )}
           {ev.attachments.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1.5">
@@ -585,12 +638,12 @@ export function StakeholderDetailSheet({
       title: d.name,
       badge: "ClickSign",
       author: "Sistema",
+      lines: [
+        { k: "Status", v: d.status ?? "—" },
+        ...(d.signers.length > 0 ? [{ k: "Signatários", v: String(d.signers.length) }] : []),
+      ],
       body: (
         <>
-          <p className="text-xs text-muted-foreground">
-            {d.status ?? "—"}
-            {d.signers.length > 0 ? ` · ${d.signers.length} signatário(s)` : ""}
-          </p>
           <button
             type="button"
             onClick={() => setPreview({ name: d.name, docId: d.id })}
@@ -610,16 +663,9 @@ export function StakeholderDetailSheet({
         title: ev.title,
         badge: ev.badge,
         author: "Sistema",
-        body:
-          ev.details.length > 0 ? (
-            <ul className="space-y-0.5">
-              {ev.details.map((d, i) => (
-                <li key={i} className="ds-meta break-words">
-                  {d}
-                </li>
-              ))}
-            </ul>
-          ) : null,
+        // Cada detalhe é UMA informação completa numa linha própria (pedido 13/10/2026).
+        lines: ev.details.map((d) => ({ k: "", v: d })),
+        body: null as React.ReactNode,
       })),
   ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
 
@@ -656,88 +702,107 @@ export function StakeholderDetailSheet({
           className="mx-auto mb-[18px] h-1 w-9 rounded bg-foreground/[0.18] md:hidden"
         />
 
-        {/* Cabeçalho (mockup `.top`): rótulo, nome, situação + vigência, e a peça partida ao meio. */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="ds-eyebrow text-[10.5px] tracking-[0.2em] text-muted-foreground">
-              Proprietário
-            </p>
-            <h2
-              className="mt-1.5 truncate font-display text-[20px] font-bold leading-[1.15] tracking-[-0.01em]"
-              title={displayName}
-            >
-              {displayName}
-            </h2>
-            <div className="mt-2 flex items-center gap-2 text-[11.5px] text-muted-foreground">
-              <StakeholderStatusControl
-                kind={kind}
-                id={id}
-                accountOwnerId={accountOwnerId}
-                status={row.status}
-                statusChangedAt={row.status_changed_at}
-                variant="compact"
-                invalidateQueryKeys={[queryKey]}
+        {/* Cabeçalho (mockups P1–P8): rótulo, nome com o botão de contato colado, e UMA linha
+            com situação + vigência. O X é o do próprio painel (canto superior direito). */}
+        <div className="grid gap-2">
+          <p className="ds-eyebrow pr-9 text-[10px] leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
+            Proprietário
+          </p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-1">
+              <h2
+                className="min-w-0 truncate font-display text-[20px] font-bold leading-[1.15] tracking-[-0.01em]"
+                title={displayName}
+              >
+                {displayName}
+              </h2>
+              <PhoneActionButton
+                phone={ownerPhone}
+                country={ownerCountry}
+                size={18}
+                alwaysShow
+                rich
+                email={row.email as string | null}
+                className="shrink-0"
               />
-              {contractRange && (
-                <>
-                  <span className="h-3 w-px bg-foreground/[0.14]" aria-hidden />
-                  <span className={`whitespace-nowrap tabular-nums ${statusText(effStatus)}`}>
-                    {contractRange}
-                  </span>
-                </>
-              )}
             </div>
-          </div>
-          <div className={`${ACTION_BAR} !h-9 !w-auto shrink-0 !rounded-[11px]`}>
-            {clicksignActive ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Editar"
-                    title="Editar"
-                    disabled={extracting}
-                    className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
-                  >
-                    {extracting ? (
-                      <Loader2 className={`${ACTION_ICON} animate-spin`} />
-                    ) : (
-                      <Pencil className={ACTION_ICON} />
-                    )}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={onEdit}>
-                    <Pencil className="size-3.5" /> Editar cadastro
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={runExtract}>
-                    <FileText className="size-3.5" /> Importar dados do contrato
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
+            <div className={`${ACTION_BAR} !h-9 !w-auto shrink-0 !rounded-[11px]`}>
+              {clicksignActive ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Editar"
+                      title="Editar"
+                      disabled={extracting}
+                      className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
+                    >
+                      {extracting ? (
+                        <Loader2 className={`${ACTION_ICON} animate-spin`} />
+                      ) : (
+                        <Pencil className={ACTION_ICON} />
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={onEdit}>
+                      <Pencil className="size-3.5" /> Editar cadastro
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={runExtract}>
+                      <FileText className="size-3.5" /> Importar dados do contrato
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  aria-label="Editar cadastro"
+                  title="Editar cadastro"
+                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
+                >
+                  <Pencil className={ACTION_ICON} />
+                </button>
+              )}
               <button
                 type="button"
-                onClick={onEdit}
-                aria-label="Editar cadastro"
-                title="Editar cadastro"
+                onClick={() => setDataOpen((o) => !o)}
+                aria-expanded={dataOpen}
+                aria-label="Dados pessoais"
+                title="Dados pessoais"
                 className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
               >
-                <Pencil className={ACTION_ICON} />
+                <ChevronDown
+                  className={`${ACTION_ICON} transition-transform ${dataOpen ? "rotate-180" : ""}`}
+                />
               </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-[10px] whitespace-nowrap text-[12.5px] leading-none text-muted-foreground">
+            <StakeholderStatusControl
+              kind={kind}
+              id={id}
+              accountOwnerId={accountOwnerId}
+              status={row.status}
+              statusChangedAt={row.status_changed_at}
+              variant="plain"
+              invalidateQueryKeys={[queryKey]}
+            />
+            {row.contract_start && (
+              <>
+                <span className="h-3.5 w-px shrink-0 bg-foreground/[0.2]" aria-hidden />
+                <span className="flex min-w-0 items-center gap-[7px]">
+                  <span>Vigência</span>
+                  <span className={`font-semibold tabular-nums ${statusText(effStatus)}`}>
+                    {fmtDateBR(row.contract_start)} →{" "}
+                    {contractEnd ? fmtDateBR(contractEnd) : "Hoje"}
+                  </span>
+                  <span className="text-foreground">
+                    ({periodShort(row.contract_start, contractEnd)})
+                  </span>
+                </span>
+              </>
             )}
-            <button
-              type="button"
-              onClick={() => setDataOpen((o) => !o)}
-              aria-expanded={dataOpen}
-              aria-label="Dados pessoais"
-              title="Dados pessoais"
-              className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
-            >
-              <ChevronDown
-                className={`${ACTION_ICON} transition-transform ${dataOpen ? "rotate-180" : ""}`}
-              />
-            </button>
           </div>
         </div>
 
@@ -798,318 +863,321 @@ export function StakeholderDetailSheet({
         {/* Abas (mockup `.tabs`): a mesma barra do Dashboard, só abas inteiras (anti-corte). */}
         <div className="mt-5">
           <Stepper
+            compact
             current={ownerTab}
             onChange={setOwnerTab}
             steps={[
               { value: "timeline", label: "Timeline", icon: Pin },
-              { value: "imoveis", label: "Imóveis", icon: Home },
+              { value: "imoveis", label: "Imóveis", icon: Home, count: properties.length },
               { value: "financeiro", label: "Financeiro", icon: Coins },
-              { value: "documentos", label: "Documentos", icon: FileText },
+              { value: "documentos", label: "Documentos", icon: FileText, count: feedDocs.length },
               { value: "acessos", label: "Acessos", icon: User },
               { value: "log", label: "Log", icon: Activity },
             ]}
           />
         </div>
 
-        <div className="mt-6 grid gap-6">
-          {/* ---------------- Timeline (Prop6) ---------------- */}
-          {ownerTab === "timeline" && (
-            <div>
-              <PanelHeading
-                title="Linha do tempo"
-                className="mb-0"
-                right={
-                  <span className="flex items-center gap-2">
-                    {feed.isLoading && (
-                      <Loader2 className="size-3 animate-spin text-muted-foreground" />
-                    )}
-                    <AddPill onClick={() => setNoteOpen((o) => !o)}>Nova nota</AddPill>
-                  </span>
-                }
-              />
-              {noteOpen && (
-                <div className={`${PANEL_SHELL} mt-3 space-y-2 p-3`}>
-                  <textarea
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    rows={3}
-                    maxLength={1000}
-                    placeholder="Escreva uma nota sobre este proprietário…"
-                    className="w-full resize-none rounded-[8px] bg-foreground/[0.04] px-3 py-2 text-[13px] text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent)] placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNote("");
-                        setNoteOpen(false);
-                      }}
-                      className="h-9 rounded-[8px] px-3 text-[12px] font-semibold text-muted-foreground hover:text-foreground"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy || !note.trim()}
-                      onClick={async () => {
-                        await submitNote();
-                        setNoteOpen(false);
-                      }}
-                      className="h-9 rounded-[8px] px-3.5 text-[12px] font-semibold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] hover:bg-foreground/[0.05] disabled:opacity-40"
-                    >
-                      Salvar nota
-                    </button>
-                  </div>
-                </div>
-              )}
-              {feed.data?.calendarError && (
-                <p className="mt-2 text-[11px] text-destructive">
-                  Google Agenda: {feed.data.calendarError}
-                </p>
-              )}
-              {timeline.length === 0 ? (
-                <OwnerEmpty
-                  icon={StickyNote}
-                  title="Sem registros ainda"
-                  text="Notas, convites de agenda e documentos aparecem aqui automaticamente."
-                />
-              ) : (
-                <div className="mt-5 grid gap-[22px]">
-                  {timelineGroups.map((g) => (
-                    <div key={g.label} className="grid gap-3">
-                      <p className="ds-eyebrow text-[10px] tracking-[0.2em] text-[color:var(--faint)]">
-                        {capitalize(g.label).replace(" de ", " ")}
-                      </p>
-                      <div>
-                        {g.items.map((item, i) => {
-                          const last = i === g.items.length - 1;
-                          const isAgenda = item.key.startsWith("g:");
-                          const Ico = item.icon === Pin ? StickyNote : item.icon;
-                          return (
-                            <div
-                              key={item.key}
-                              className={`relative pl-10 ${last ? "" : "pb-[26px]"}`}
+        <div className="mt-3.5 grid">
+          {/* ---------------- Timeline (mockup P1) ---------------- */}
+          {ownerTab === "timeline" &&
+            (() => {
+              const TL_TYPES = [
+                { value: "n", label: "Registros" },
+                { value: "g", label: "Agenda" },
+                { value: "d", label: "Documentos" },
+                { value: "t", label: "Atividade do sistema" },
+              ];
+              const term = tlQ.trim().toLowerCase();
+              const visible = timeline.filter((it) => {
+                if (tlTypes.length > 0 && !tlTypes.includes(it.key.charAt(0))) return false;
+                if (!term) return true;
+                return [it.title, it.author, ...it.lines.map((l) => `${l.k} ${l.v}`)]
+                  .join(" ")
+                  .toLowerCase()
+                  .includes(term);
+              });
+              const visibleGroups = groupByPeriod(visible, "month");
+              const countOf = (v: string) => timeline.filter((it) => it.key.charAt(0) === v).length;
+              return (
+                <>
+                  <SearchActionRow
+                    value={tlQ}
+                    onChange={setTlQ}
+                    placeholder="Buscar na timeline…"
+                    actions={
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setNoteOpen((o) => !o)}
+                          aria-label="Nova nota"
+                          title="Nova nota"
+                          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+                        >
+                          <Plus className={`${ACTION_ICON} text-accent`} />
+                        </button>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              aria-label="Filtrar a timeline"
+                              title="Filtrar a timeline"
+                              className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} relative data-[state=open]:bg-foreground/[0.06]`}
                             >
-                              {!last && (
-                                <span
-                                  aria-hidden
-                                  className="absolute bottom-0 left-[11px] top-[26px] w-px bg-foreground/[0.09]"
-                                />
+                              <Filter className={ACTION_ICON} />
+                              {tlTypes.length > 0 && (
+                                <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-accent" />
                               )}
-                              <span className="absolute left-0 top-0 grid size-6 place-items-center rounded-full bg-card text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent)]">
-                                <Ico className="size-3" />
-                              </span>
-                              <p className="pt-0.5 text-[13.5px] leading-[1.4] text-foreground">
-                                {item.title}
-                              </p>
-                              {item.body && <div className="mt-1.5 space-y-1">{item.body}</div>}
-                              <p className="mt-1 text-[11.5px] text-[color:var(--faint)]">
-                                {shortDate(item.at, isAgenda)} ·{" "}
-                                {item.author !== "Sistema" ? item.author : item.badge}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ---------------- Imóveis (Prop2) ---------------- */}
-          {ownerTab === "imoveis" && (
-            <div>
-              <PanelHeading
-                title="Imóveis vinculados"
-                className="mb-0"
-                afterTitle={<CountPill>{properties.length}</CountPill>}
-                right={
-                  available.length > 0 ? (
-                    <AddPill onClick={() => setLinkPickerOpen(true)}>Vincular</AddPill>
-                  ) : undefined
-                }
-              />
-              <MultiLinkPicker
-                open={linkPickerOpen}
-                onOpenChange={setLinkPickerOpen}
-                title="Vincular residências"
-                description="Marque quantas residências quiser — todas são vinculadas de uma vez."
-                options={available.map((p: any) => ({
-                  id: p.id,
-                  label: p.name,
-                  hint: [p.city, p.state].filter(Boolean).join(" / ") || null,
-                }))}
-                initialSelected={[]}
-                confirmLabel="Vincular selecionados"
-                emptyText="Nenhuma residência disponível."
-                onConfirm={(ids) => linkMany(ids)}
-                variant="menu"
-              />
-              {properties.length === 0 ? (
-                <OwnerEmpty
-                  icon={Home}
-                  title="Nenhuma residência vinculada"
-                  text="Vincule uma residência existente ou crie uma nova para este proprietário."
-                />
-              ) : (
-                <div className="mt-3 grid gap-2.5">
-                  {properties.map((p: any) => {
-                    const pill = p.published
-                      ? { tone: "ok" as const, label: "Publicado" }
-                      : p.guide_created
-                        ? { tone: "at" as const, label: "Pendente" }
-                        : { tone: "nu" as const, label: "Sem guia" };
-                    const place = [p.city, p.state].filter(Boolean).join(" / ");
-                    return (
-                      <div key={p.id} className={`${PANEL_SHELL} p-3.5`}>
-                        <div className="flex items-start justify-between gap-2.5">
-                          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                            <div className="flex min-w-0 items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => setWindowPropertyId(p.id)}
-                                className="min-w-0 truncate text-left text-[13.5px] font-semibold leading-[1.3] text-foreground hover:underline"
-                              >
-                                {p.name}
-                              </button>
-                              <PropPill tone={pill.tone}>{pill.label}</PropPill>
-                            </div>
-                            <div className="flex min-w-0 items-center gap-1.5">
-                              <span className={`truncate text-xs ${CARD_OWNER}`}>
-                                {ownerLabel(row.name)}
-                              </span>
-                              <PhoneActionButton
-                                phone={ownerPhone}
-                                country={ownerCountry}
-                                size={13}
-                                alwaysShow
-                              />
-                            </div>
-                            <p className="flex items-center gap-1.5 text-[11.5px] text-[color:var(--faint)]">
-                              <MapPin className="size-3 shrink-0" />
-                              <span className="truncate">{place || "Sem localização"}</span>
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 gap-1.5">
-                            <a
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([p.name, place].filter(Boolean).join(" "))}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={CHIP_BTN}
-                              title="Localização do imóvel"
-                              aria-label="Localização do imóvel"
-                            >
-                              <MapPin className="size-3.5" />
-                            </a>
-                            <Popover
-                              open={transferPropertyId === p.id}
-                              onOpenChange={(o) => {
-                                setTransferPropertyId(o ? p.id : null);
-                                setTransferTargetId("");
-                              }}
-                            >
-                              <PopoverTrigger asChild>
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="end"
+                            className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+                            onOpenAutoFocus={(e) => e.preventDefault()}
+                          >
+                            <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
+                              <span className="ds-eyebrow">Tipo</span>
+                              {tlTypes.length > 0 && (
                                 <button
                                   type="button"
-                                  disabled={busy}
-                                  className={CHIP_BTN}
-                                  title="Um imóvel sempre precisa de um proprietário — transfira para outro."
-                                  aria-label="Transferir imóvel"
+                                  onClick={() => setTlTypes([])}
+                                  className="text-[11px] text-muted-foreground hover:text-foreground"
                                 >
-                                  <Unlink className="size-3.5" />
+                                  Limpar
                                 </button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                align="end"
-                                onOpenAutoFocus={(e) => e.preventDefault()}
-                                className="grid w-[260px] gap-3 rounded-[12px] border-0 bg-popover/95 p-4 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_18px_40px_-12px_rgba(0,0,0,0.8)]"
-                              >
-                                <b className="text-[13.5px] font-semibold">Transferir {p.name}</b>
-                                <Select
-                                  value={transferTargetId}
-                                  onValueChange={setTransferTargetId}
+                              )}
+                            </div>
+                            {TL_TYPES.map((t) => {
+                              const on = tlTypes.length === 0 || tlTypes.includes(t.value);
+                              return (
+                                <button
+                                  key={t.value}
+                                  type="button"
+                                  onClick={() =>
+                                    setTlTypes((cur) => {
+                                      const base =
+                                        cur.length === 0 ? TL_TYPES.map((x) => x.value) : cur;
+                                      const next = base.includes(t.value)
+                                        ? base.filter((x) => x !== t.value)
+                                        : [...base, t.value];
+                                      return next.length === 0 || next.length === TL_TYPES.length
+                                        ? []
+                                        : next;
+                                    })
+                                  }
+                                  className={`flex min-h-[38px] w-full items-center gap-2.5 rounded-lg px-2.5 text-[12.5px] font-semibold transition-colors ${
+                                    on && tlTypes.length > 0
+                                      ? "bg-foreground/[0.06]"
+                                      : "hover:bg-foreground/[0.04]"
+                                  }`}
                                 >
-                                  <SelectTrigger className="h-9 rounded-[8px] text-[13px]">
-                                    <SelectValue placeholder="Escolher proprietário" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {(otherOwnersQuery.data ?? []).map((o) => (
-                                      <SelectItem key={o.id} value={o.id}>
-                                        {o.label}
-                                      </SelectItem>
-                                    ))}
-                                    {otherOwnersQuery.data?.length === 0 && (
-                                      <div className="px-3 py-2 text-xs text-muted-foreground">
-                                        Nenhum outro proprietário cadastrado.
-                                      </div>
-                                    )}
-                                  </SelectContent>
-                                </Select>
-                                <p className="text-[11.5px] leading-[1.45] text-[color:var(--faint)]">
-                                  Todo imóvel precisa de um proprietário.
-                                </p>
-                                <div className={`${ACTION_BAR} !h-10 !w-full`}>
-                                  <button
-                                    type="button"
-                                    disabled={busy || !transferTargetId}
-                                    onClick={() => handleTransfer(p.id)}
-                                    className={`${ACTION_SEGMENT} !w-auto !flex-1 text-foreground disabled:opacity-40`}
+                                  <span
+                                    aria-hidden
+                                    className={`grid size-4 shrink-0 place-items-center rounded-[5px] ${
+                                      on
+                                        ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-white"
+                                        : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)]"
+                                    }`}
                                   >
-                                    Transferir
-                                  </button>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          </div>
+                                    {on ? <Check className="size-2.5" strokeWidth={3} /> : null}
+                                  </span>
+                                  {t.label}
+                                  <em className="ml-auto text-[11px] font-bold not-italic tabular-nums text-muted-foreground">
+                                    {countOf(t.value)}
+                                  </em>
+                                </button>
+                              );
+                            })}
+                          </PopoverContent>
+                        </Popover>
+                      </>
+                    }
+                  />
+                  <div className="mt-[26px]">
+                    {feed.isLoading && (
+                      <p className="mb-3 flex items-center gap-1.5 ds-meta">
+                        <Loader2 className="size-3 animate-spin" /> Buscando agenda e documentos…
+                      </p>
+                    )}
+                    {noteOpen && (
+                      <div className={`${PANEL_SHELL} mb-5 space-y-2 p-3`}>
+                        <textarea
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                          rows={3}
+                          maxLength={1000}
+                          placeholder="Escreva uma nota sobre este proprietário…"
+                          className="w-full resize-none rounded-[8px] bg-foreground/[0.04] px-3 py-2 text-[13px] text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent)] placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        />
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNote("");
+                              setNoteOpen(false);
+                            }}
+                            className="h-9 rounded-[8px] px-3 text-[12px] font-semibold text-muted-foreground hover:text-foreground"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy || !note.trim()}
+                            onClick={async () => {
+                              await submitNote();
+                              setNoteOpen(false);
+                            }}
+                            className="h-9 rounded-[8px] px-3.5 text-[12px] font-semibold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] hover:bg-foreground/[0.05] disabled:opacity-40"
+                          >
+                            Salvar nota
+                          </button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-              <Link
-                to="/admin/properties/$id"
-                params={{ id: "new" }}
-                search={{ returnTo: returnToHere, ownerId: row?.id }}
-                className="mt-3 flex h-9 items-center justify-center gap-[7px] rounded-[8px] px-3.5 text-[12px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] transition-colors hover:text-foreground"
-              >
-                <Plus className="size-3.5" /> Criar nova residência
-              </Link>
-            </div>
+                    )}
+                    {feed.data?.calendarError && (
+                      <p className="mb-3 text-[11px] text-destructive">
+                        Google Agenda: {feed.data.calendarError}
+                      </p>
+                    )}
+                    {visible.length === 0 ? (
+                      <OwnerEmpty
+                        icon={StickyNote}
+                        title={timeline.length === 0 ? "Sem registros ainda" : "Nada encontrado"}
+                        text={
+                          timeline.length === 0
+                            ? "Notas, convites de agenda e documentos aparecem aqui automaticamente."
+                            : "Nenhum registro bate com a busca ou o filtro."
+                        }
+                      />
+                    ) : (
+                      <div className="grid gap-[22px]">
+                        {visibleGroups.map((g) => (
+                          <div key={g.label} className="grid gap-3">
+                            <p className="ds-eyebrow text-[10px] tracking-[0.2em] text-[color:var(--faint)]">
+                              {capitalize(g.label).replace(" de ", " ")}
+                            </p>
+                            <div>
+                              {g.items.map((item, i) => {
+                                const last = i === g.items.length - 1;
+                                const Ico = item.icon === Pin ? StickyNote : item.icon;
+                                return (
+                                  <div
+                                    key={item.key}
+                                    className={`relative pl-10 ${last ? "" : "pb-[22px]"}`}
+                                  >
+                                    {!last && (
+                                      <span
+                                        aria-hidden
+                                        className="absolute bottom-0 left-[11.5px] top-[26px] w-px bg-foreground/[0.1]"
+                                      />
+                                    )}
+                                    <span className="absolute left-0 top-0 grid size-6 place-items-center rounded-full bg-card text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent)]">
+                                      <Ico className="size-3" />
+                                    </span>
+                                    <p className="pt-0.5 text-[13.5px] font-semibold leading-[1.4] text-foreground">
+                                      {item.title}
+                                    </p>
+                                    {/* UMA informação completa por linha (pedido 13/10/2026). */}
+                                    {item.lines.length > 0 && (
+                                      <div className="mt-1.5 grid gap-1">
+                                        {item.lines.map((l, li) => (
+                                          <p
+                                            key={li}
+                                            className="break-words text-[12.5px] leading-[1.4] text-foreground/90"
+                                          >
+                                            {l.k ? (
+                                              <span className="mr-1 text-muted-foreground">
+                                                {l.k}:
+                                              </span>
+                                            ) : null}
+                                            {l.v}
+                                          </p>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {item.body && (
+                                      <div className="mt-1.5 space-y-1">{item.body}</div>
+                                    )}
+                                    <p className="mt-1.5 text-[11.5px] text-[color:var(--faint)]">
+                                      {shortDateTime(item.at)} ·{" "}
+                                      {item.author !== "Sistema" ? item.author : item.badge}
+                                    </p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+
+          {/* ---------------- Imóveis (mockups P2, P5, P6, R1) ---------------- */}
+          {ownerTab === "imoveis" && (
+            <OwnerPropertiesPanel
+              properties={properties as any}
+              accountProperties={(data?.accountProperties ?? []) as any}
+              connections={data?.connections ?? []}
+              ownersById={data?.ownersById ?? {}}
+              ownerId={id}
+              owner={{ name: row.name, phone: ownerPhone, phone_country: ownerCountry }}
+              busy={busy}
+              otherOwners={otherOwnersQuery.data}
+              onOpen={(pid) => setWindowPropertyId(pid)}
+              onTransfer={(pid, target) => handleTransfer(pid, target)}
+            />
           )}
 
-          {/* ---------------- Financeiro (Prop7) ---------------- */}
+          {/* ---------------- Financeiro (mockup P3) ---------------- */}
           {ownerTab === "financeiro" && (
             <>
-              <div className={PANEL_SHELL}>
-                <StatsStrip
-                  items={[
-                    {
-                      label: "A receber",
-                      value: (0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
-                      tone: "ok",
-                    },
-                    {
-                      label: "Recebido",
-                      value: (0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
-                      tone: "data",
-                    },
-                    {
-                      label: "A pagar",
-                      value: (0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
-                      tone: "at",
-                    },
-                  ]}
-                />
-              </div>
-              <div>
-                <PanelHeading
-                  title="Lançamentos"
-                  className="mb-0"
-                  right={<AddPill disabled>Lançar</AddPill>}
-                />
+              <SearchActionRow
+                value={finQ}
+                onChange={setFinQ}
+                placeholder="Buscar lançamento…"
+                actions={
+                  <>
+                    <button
+                      type="button"
+                      disabled
+                      aria-label="Novo lançamento"
+                      title="Em breve"
+                      className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
+                    >
+                      <Plus className={`${ACTION_ICON} text-accent`} />
+                    </button>
+                    <SortMenu
+                      value="default"
+                      defaultValue="default"
+                      options={[{ value: "default", label: "Mais recentes" }]}
+                      onChange={() => {}}
+                      title="Ordenar lançamentos por"
+                      bare
+                    />
+                    <button
+                      type="button"
+                      disabled
+                      aria-label="Filtrar lançamentos"
+                      className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
+                    >
+                      <Filter className={ACTION_ICON} />
+                    </button>
+                  </>
+                }
+              />
+              <div className="mt-[26px] grid gap-6">
+                <div className={PANEL_SHELL}>
+                  {/* Sem casas decimais: valores sempre arredondados para cima (pedido 13/10/2026). */}
+                  <StatsStrip
+                    items={[
+                      { label: "A receber", value: brlCeil(0), tone: "ok" },
+                      { label: "Recebido", value: brlCeil(0), tone: "data" },
+                      { label: "A pagar", value: brlCeil(0), tone: "at" },
+                    ]}
+                  />
+                </div>
                 <OwnerEmpty
                   icon={Coins}
                   title="Nenhum lançamento"
@@ -1119,52 +1187,207 @@ export function StakeholderDetailSheet({
             </>
           )}
 
-          {/* ---------------- Documentos (Prop8) ---------------- */}
-          {ownerTab === "documentos" && (
-            <div>
-              <GroupTitle title="Contratos e aditivos" count={feedDocs.length} />
-              {feed.isLoading ? (
-                <p className="flex items-center gap-1.5 ds-meta">
-                  <Loader2 className="size-3 animate-spin" /> Buscando documentos…
-                </p>
-              ) : feedDocs.length === 0 ? (
-                <OwnerEmpty
-                  icon={FileText}
-                  title="Nenhum contrato vinculado"
-                  text="Contratos importados do ClickSign com este CPF/CNPJ, e-mail ou nome aparecem aqui automaticamente."
-                />
-              ) : (
-                <GroupList>
-                  {feedDocs.map((d) => {
-                    const signed = !!d.finishedAt;
-                    return (
-                      <GroupRow
-                        key={d.id}
+          {/* ---------------- Documentos (mockup P4) ---------------- */}
+          {ownerTab === "documentos" &&
+            (() => {
+              const term = docQ.trim().toLowerCase();
+              const DOC_SIT = [
+                { value: "signed", label: "Assinados" },
+                { value: "pending", label: "Pendentes" },
+              ];
+              const docs = feedDocs.filter((d) => {
+                if (docSit.length > 0 && !docSit.includes(d.finishedAt ? "signed" : "pending"))
+                  return false;
+                return !term || d.name.toLowerCase().includes(term);
+              });
+              return (
+                <>
+                  <SearchActionRow
+                    value={docQ}
+                    onChange={setDocQ}
+                    placeholder="Buscar contrato…"
+                    actions={
+                      <>
+                        <button
+                          type="button"
+                          disabled
+                          aria-label="Novo contrato"
+                          title="Em breve"
+                          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} disabled:opacity-40`}
+                        >
+                          <Plus className={`${ACTION_ICON} text-accent`} />
+                        </button>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              aria-label="Filtrar contratos"
+                              title="Filtrar contratos"
+                              className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} relative data-[state=open]:bg-foreground/[0.06]`}
+                            >
+                              <Filter className={ACTION_ICON} />
+                              {docSit.length > 0 && (
+                                <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-accent" />
+                              )}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="end"
+                            className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+                            onOpenAutoFocus={(e) => e.preventDefault()}
+                          >
+                            <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
+                              <span className="ds-eyebrow">Situação</span>
+                              {docSit.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDocSit([])}
+                                  className="text-[11px] text-muted-foreground hover:text-foreground"
+                                >
+                                  Limpar
+                                </button>
+                              )}
+                            </div>
+                            {[
+                              { value: "signed", label: "Assinados" },
+                              { value: "pending", label: "Pendentes" },
+                            ].map((t) => {
+                              const on = docSit.length === 0 || docSit.includes(t.value);
+                              return (
+                                <button
+                                  key={t.value}
+                                  type="button"
+                                  onClick={() =>
+                                    setDocSit((cur) => {
+                                      const base = cur.length === 0 ? ["signed", "pending"] : cur;
+                                      const next = base.includes(t.value)
+                                        ? base.filter((x) => x !== t.value)
+                                        : [...base, t.value];
+                                      return next.length === 0 || next.length === 2 ? [] : next;
+                                    })
+                                  }
+                                  className={`flex min-h-[38px] w-full items-center gap-2.5 rounded-lg px-2.5 text-[12.5px] font-semibold transition-colors ${
+                                    on && docSit.length > 0
+                                      ? "bg-foreground/[0.06]"
+                                      : "hover:bg-foreground/[0.04]"
+                                  }`}
+                                >
+                                  <span
+                                    aria-hidden
+                                    className={`grid size-4 shrink-0 place-items-center rounded-[5px] ${
+                                      on
+                                        ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-white"
+                                        : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)]"
+                                    }`}
+                                  >
+                                    {on ? <Check className="size-2.5" strokeWidth={3} /> : null}
+                                  </span>
+                                  {t.label}
+                                  <em className="ml-auto text-[11px] font-bold not-italic tabular-nums text-muted-foreground">
+                                    {
+                                      feedDocs.filter(
+                                        (d) => (d.finishedAt ? "signed" : "pending") === t.value,
+                                      ).length
+                                    }
+                                  </em>
+                                </button>
+                              );
+                            })}
+                          </PopoverContent>
+                        </Popover>
+                      </>
+                    }
+                  />
+                  <div className="mt-[26px] grid gap-2">
+                    {feed.isLoading ? (
+                      <p className="flex items-center gap-1.5 ds-meta">
+                        <Loader2 className="size-3 animate-spin" /> Buscando documentos…
+                      </p>
+                    ) : docs.length === 0 ? (
+                      <OwnerEmpty
                         icon={FileText}
-                        title={d.name}
-                        sub={
-                          signed
-                            ? `Assinado em ${shortDate(d.finishedAt as string)} ${new Date(d.finishedAt as string).getFullYear()}${d.signers.length ? ` · ${d.signers.length} signatários` : ""}`
-                            : `${d.syncedAt ? `Importado em ${shortDate(d.syncedAt)}` : (d.status ?? "—")}${d.signers.length ? ` · ${d.signers.length} signatários` : ""}`
+                        title={
+                          feedDocs.length === 0 ? "Nenhum contrato vinculado" : "Nada encontrado"
                         }
-                        trailing={
-                          <>
-                            {!signed && <StatusTrail tone="at">Aguardando</StatusTrail>}
-                            <Eye
-                              className="size-3.5 shrink-0 text-[color:var(--faint)]"
-                              aria-hidden
-                            />
-                          </>
+                        text={
+                          feedDocs.length === 0
+                            ? "Contratos importados do ClickSign com este CPF/CNPJ, e-mail ou nome aparecem aqui automaticamente."
+                            : "Nenhum contrato bate com a busca."
                         }
-                        chevron={false}
-                        onClick={() => setPreview({ name: d.name, docId: d.id })}
                       />
-                    );
-                  })}
-                </GroupList>
-              )}
-            </div>
-          )}
+                    ) : (
+                      docs.map((d) => {
+                        const signed = !!d.finishedAt;
+                        const n = d.signers.length;
+                        const done = d.signers.filter((x) =>
+                          /sign|assin|finish|conclu/i.test(String(x.status ?? "")),
+                        ).length;
+                        return (
+                          <div
+                            key={d.id}
+                            className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-[12px] bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                          >
+                            <span className="row-span-2 grid size-8 self-start place-items-center rounded-[10px] bg-foreground/[0.05] text-muted-foreground">
+                              <FileText className="size-[15px]" />
+                            </span>
+                            <b className="truncate text-[13px] font-bold" title={d.name}>
+                              {d.name}
+                            </b>
+                            <span className="flex items-center">
+                              <button
+                                type="button"
+                                onClick={() => setPreview({ name: d.name, docId: d.id })}
+                                aria-label="Visualizar documento"
+                                title="Visualizar documento"
+                                className="grid size-7 place-items-center text-muted-foreground transition-colors hover:text-foreground"
+                              >
+                                <Eye className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={downloadingId === d.id}
+                                onClick={() => downloadDoc(d.id, d.name)}
+                                aria-label="Baixar documento"
+                                title="Baixar documento"
+                                className="grid size-7 place-items-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+                              >
+                                {downloadingId === d.id ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="size-3.5" />
+                                )}
+                              </button>
+                            </span>
+                            <small className="col-span-2 text-[11px] leading-[1.35] text-muted-foreground">
+                              {signed ? (
+                                <>
+                                  Assinado
+                                  {n ? ` · ${n} de ${n}` : ""} · {shortDate(d.finishedAt as string)}{" "}
+                                  {new Date(d.finishedAt as string).getFullYear()}
+                                </>
+                              ) : (
+                                <>
+                                  <span className="ds-atencao">
+                                    Pendente{n ? ` · ${done} de ${n}` : ""}
+                                  </span>
+                                  {d.syncedAt
+                                    ? ` · importado ${shortDate(d.syncedAt)}`
+                                    : d.status
+                                      ? ` · ${d.status}`
+                                      : ""}
+                                </>
+                              )}
+                            </small>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+
+          {(ownerTab === "acessos" || ownerTab === "log") && <div className="mt-[10px]" />}
 
           {/* ---------------- Acessos (Prop9) ---------------- */}
           {ownerTab === "acessos" &&

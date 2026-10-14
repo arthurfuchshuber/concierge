@@ -1,4 +1,4 @@
-import { MessageCircle, Copy, MessageSquare } from "lucide-react";
+import { MessageCircle, Copy, MessageSquare, Phone, Mail } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -19,27 +19,42 @@ type Props = {
   showNumber?: boolean;
   /** sem telefone: mostra o ícone apagado em vez de sumir */
   alwaysShow?: boolean;
+  /** Menu "rico" da ficha do proprietário (mockup C1): WhatsApp, Ligar e E-mail, cada um com o contato embaixo. */
+  rich?: boolean;
+  email?: string | null;
 };
 
 /**
  * Botão único e padronizado para telefones em todo o app: ícone verde de
  * mensagem que abre as opções "WhatsApp" e "Copiar". Nunca exibe o número.
  */
-export function PhoneActionButton({ phone, country, className, size = 14, showNumber = false, alwaysShow = false }: Props) {
-  if (!phone) {
+export function PhoneActionButton({
+  phone,
+  country,
+  className,
+  size = 14,
+  showNumber = false,
+  alwaysShow = false,
+  rich = false,
+  email = null,
+}: Props) {
+  if (!phone && !(rich && email)) {
     if (!alwaysShow) return null;
     return (
       <span
         title="Sem telefone cadastrado"
         aria-label="Sem telefone cadastrado"
-        className={cn("inline-flex shrink-0 items-center justify-center p-1.5 text-muted-foreground/40", className)}
+        className={cn(
+          "inline-flex shrink-0 items-center justify-center p-1.5 text-muted-foreground/40",
+          className,
+        )}
       >
         <MessageCircle style={{ width: size, height: size }} />
       </span>
     );
   }
-  const waNumber = toWhatsappNumber(phone, country);
-  const label = formatIntlPhone(phone, country) || phone;
+  const waNumber = phone ? toWhatsappNumber(phone, country) : "";
+  const label = (phone ? formatIntlPhone(phone, country) || phone : email) ?? "";
 
   async function copy(e: Event | React.MouseEvent) {
     (e as any).stopPropagation?.();
@@ -71,8 +86,47 @@ export function PhoneActionButton({ phone, country, className, size = 14, showNu
           <MessageCircle style={{ width: size, height: size }} />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-40" onClick={(e) => e.stopPropagation()}>
-        {waNumber && (
+      <DropdownMenuContent
+        align="end"
+        className={rich ? "w-[236px] p-1.5" : "min-w-40"}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {rich ? (
+          <>
+            {waNumber && (
+              <RichItem
+                icon={<MessageSquare className="size-[15px]" />}
+                tone="wa"
+                title="WhatsApp"
+                sub={label}
+                onSelect={() =>
+                  window.open(`https://wa.me/${waNumber}`, "_blank", "noopener,noreferrer")
+                }
+              />
+            )}
+            {phone && (
+              <RichItem
+                icon={<Phone className="size-[15px]" />}
+                title="Ligar"
+                sub={label}
+                onSelect={() => {
+                  window.location.href = `tel:+${waNumber || String(phone).replace(/\D/g, "")}`;
+                }}
+              />
+            )}
+            {email && (
+              <RichItem
+                icon={<Mail className="size-[15px]" />}
+                title="E-mail"
+                sub={email}
+                onSelect={() => {
+                  window.location.href = `mailto:${email}`;
+                }}
+              />
+            )}
+          </>
+        ) : null}
+        {!rich && waNumber && (
           <DropdownMenuItem
             onClick={(e) => {
               e.stopPropagation();
@@ -82,10 +136,45 @@ export function PhoneActionButton({ phone, country, className, size = 14, showNu
             <MessageSquare className="size-3.5 text-emerald-500" /> WhatsApp
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={copy}>
-          <Copy className="size-3.5" /> Copiar
-        </DropdownMenuItem>
+        {!rich && (
+          <DropdownMenuItem onClick={copy}>
+            <Copy className="size-3.5" /> Copiar
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function RichItem({
+  icon,
+  tone,
+  title,
+  sub,
+  onSelect,
+}: {
+  icon: React.ReactNode;
+  tone?: "wa";
+  title: string;
+  sub: string;
+  onSelect: () => void;
+}) {
+  return (
+    <DropdownMenuItem onSelect={onSelect} className="min-h-[50px] gap-[11px] rounded-[10px] px-2.5">
+      <span
+        className={cn(
+          "grid size-8 shrink-0 place-items-center rounded-[10px]",
+          tone === "wa"
+            ? "bg-emerald-400/[0.12] text-emerald-500 dark:text-emerald-400"
+            : "bg-foreground/[0.05] text-muted-foreground",
+        )}
+      >
+        {icon}
+      </span>
+      <span className="grid min-w-0 gap-px">
+        <b className="text-[13px] font-semibold">{title}</b>
+        <small className="truncate text-[11px] font-normal text-[color:var(--faint)]">{sub}</small>
+      </span>
+    </DropdownMenuItem>
   );
 }

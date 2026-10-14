@@ -132,9 +132,10 @@ export function SectionLabel({
  * Mesmo desenho da contagem da faixa de limpeza e do bloco "Precisam de
  * atenção", que antes eram dois códigos diferentes com o mesmo resultado.
  */
+/** Contagem neutra e centralizada (pedido 13/10/2026: igual à das abas da ficha do proprietário, em TODAS as páginas). */
 export function CountPill({ children }: { children: ReactNode }) {
   return (
-    <span className="flex h-5 shrink-0 items-center rounded-full bg-foreground/[0.06] px-2 text-[10px] font-extrabold tabular-nums text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+    <span className="inline-grid h-4 min-w-4 shrink-0 place-items-center rounded-full bg-foreground/[0.07] px-[5px] text-[9.5px] font-extrabold leading-none tabular-nums text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
       {children}
     </span>
   );

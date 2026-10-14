@@ -21,6 +21,7 @@ import {
   statusDateLabel,
   statusDot,
   statusLabel,
+  statusText,
   statusStyle,
 } from "@/lib/stakeholder-status";
 import type { StakeholderKind } from "./constants";
@@ -71,8 +72,8 @@ export function StakeholderStatusControl({
   accountOwnerId?: string | null;
   status: string | null | undefined;
   statusChangedAt?: string | null;
-  /** "pill" = selo arredondado (ficha de detalhes); "compact" = texto + ponto (card da lista). */
-  variant?: "pill" | "compact";
+  /** "pill" = selo arredondado (ficha de detalhes); "compact" = texto + ponto (card da lista); "plain" = só ponto + texto na cor da situação (cabeçalho novo do proprietário). */
+  variant?: "pill" | "compact" | "plain";
   /** Query keys extras a invalidar além de ["stakeholders", kind] e ["pending-cancellations"]. */
   invalidateQueryKeys?: unknown[][];
   onChanged?: () => void;
@@ -134,7 +135,16 @@ export function StakeholderStatusControl({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          {variant === "pill" ? (
+          {variant === "plain" ? (
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              className={`inline-flex items-center gap-1.5 text-[12.5px] font-semibold leading-none transition-opacity hover:opacity-80 ${statusText(eff)}`}
+            >
+              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current" />
+              {statusLabel(eff)}
+            </button>
+          ) : variant === "pill" ? (
             <button
               type="button"
               onClick={(e) => e.stopPropagation()}

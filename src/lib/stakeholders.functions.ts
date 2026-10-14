@@ -450,9 +450,21 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       city: string | null;
       state: string | null;
       owner_contact_id: string | null;
+      hero_image_url?: string | null;
+      gallery_images?: string[] | null;
     };
     let properties: PropRow[] = [];
     let availableProperties: PropRow[] = [];
+    let accountProperties: PropRow[] = [];
+    let connections: Array<{
+      property_id: string;
+      airbnb_listing_id: string | null;
+      synced_at: string | null;
+    }> = [];
+    let ownersById: Record<
+      string,
+      { name: string; phone: string | null; phone_country: string | null }
+    > = {};
 
     if (data.kind === "owner") {
       // `guide_created` só existe depois da migration 20260814180000. Se ela
@@ -465,7 +477,9 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       let all: Array<Record<string, unknown>> | null = null;
       const first = await supabase
         .from("properties")
-        .select("id, name, slug, published, guide_created, city, state, owner_contact_id")
+        .select(
+          "id, name, slug, published, guide_created, city, state, owner_contact_id, hero_image_url, gallery_images",
+        )
         .eq("owner_id", accountId)
         .order("name");
       if (first.error) {
@@ -475,7 +489,9 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
         );
         const fallback = await supabase
           .from("properties")
-          .select("id, name, slug, published, city, state, owner_contact_id")
+          .select(
+            "id, name, slug, published, city, state, owner_contact_id, hero_image_url, gallery_images",
+          )
           .eq("owner_id", accountId)
           .order("name");
         if (fallback.error) {
@@ -491,6 +507,28 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       const rows = (all ?? []) as unknown as PropRow[];
       properties = rows.filter((p) => p.owner_contact_id === data.id);
       availableProperties = rows.filter((p) => !p.owner_contact_id);
+      accountProperties = rows;
+      // Situação da integração (Ativo = anúncio conectado) — mesma fonte da
+      // lista de proprietários. Só leitura; falha aqui nunca derruba a ficha.
+      const { data: conn } = await supabase
+        .from("property_listing_raw_data")
+        .select("property_id, airbnb_listing_id, synced_at")
+        .eq("owner_id", accountId);
+      connections = conn ?? [];
+      const { data: owners } = await supabase
+        .from("property_owners")
+        .select("id, name, trade_name, phone, phone_country")
+        .eq("account_owner_id", accountId);
+      ownersById = Object.fromEntries(
+        (owners ?? []).map((o) => [
+          o.id as string,
+          {
+            name: String((o as { trade_name?: string | null }).trade_name || o.name || ""),
+            phone: (o as { phone?: string | null }).phone ?? null,
+            phone_country: (o as { phone_country?: string | null }).phone_country ?? null,
+          },
+        ]),
+      );
     }
 
     if (data.kind === "provider") {
@@ -549,6 +587,9 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       activities: activities ?? [],
       properties,
       availableProperties,
+      accountProperties,
+      connections,
+      ownersById,
     };
   });
 
