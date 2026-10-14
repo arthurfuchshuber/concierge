@@ -84,7 +84,7 @@ type Row = Record<string, any>;
 /** Meses completos entre o início e o fim da vigência (ou hoje, se ainda vigente): "5 meses", "1 mês", "menos de 1 mês". */
 type OwnerSort = "default" | "name" | "most" | "oldest" | "newest";
 const OWNER_SORT_OPTIONS: { value: OwnerSort; label: string }[] = [
-  { value: "default", label: "Padrão (atenção primeiro)" },
+  { value: "default", label: "Padrão (status › tempo › imóveis)" },
   { value: "name", label: "Nome (A–Z)" },
   { value: "most", label: "Mais imóveis ativos" },
   { value: "oldest", label: "Vigência mais antiga" },
@@ -200,21 +200,42 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     const nm = (r: Row) => String(r.trade_name || r.name || "");
     const byNome = (a: Row, b: Row) => nm(a).localeCompare(nm(b), "pt-BR");
     const nAtivos = (r: Row) => integrationByOwner.get(r.id)?.activeCount ?? 0;
-    const precisaAtencao = (r: Row) =>
-      effectiveStatus(r.status, r.status_changed_at) !== "active" ||
-      (integrationByOwner.get(r.id)?.inactiveCount ?? 0) > 0;
     const start = (r: Row) => String(r.contract_start ?? "");
+    // Tempo de vigência (LTV) em dias: do início até o fim, ou até hoje se segue vigente.
+    const ltv = (r: Row) => {
+      if (!r.contract_start) return -1;
+      const eff = effectiveStatus(r.status, r.status_changed_at);
+      const endsOnStatus = eff === "canceled" || eff === "canceling";
+      const endIso =
+        r.contract_end ??
+        (endsOnStatus && r.status_changed_at ? String(r.status_changed_at).slice(0, 10) : null);
+      const s0 = new Date(`${String(r.contract_start).slice(0, 10)}T00:00:00`).getTime();
+      const e0 = endIso
+        ? new Date(`${String(endIso).slice(0, 10)}T00:00:00`).getTime()
+        : Date.now();
+      return Number.isFinite(s0) && Number.isFinite(e0) ? e0 - s0 : -1;
+    };
+    // Ordem de status do padrão: Ativo → (cadastro em andamento) → Cancelando → Pausado → Cancelado.
+    const STATUS_RANK: Record<string, number> = {
+      active: 0,
+      documentation: 1,
+      contract: 1,
+      signature: 1,
+      canceling: 2,
+      paused: 3,
+      canceled: 4,
+      inactive: 5,
+    };
+    const statusRank = (r: Row) => STATUS_RANK[effectiveStatus(r.status, r.status_changed_at)] ?? 5;
     return [...list].sort((a, b) => {
       if (sort === "name") return byNome(a, b);
       if (sort === "most") return nAtivos(b) - nAtivos(a) || byNome(a, b);
       if (sort === "oldest")
         return (start(a) || "9").localeCompare(start(b) || "9") || byNome(a, b);
       if (sort === "newest") return start(b).localeCompare(start(a)) || byNome(a, b);
-      // Padrão: quem precisa de atenção primeiro, depois mais imóveis ativos, depois A–Z.
+      // Padrão: status → tempo de vigência (maior primeiro) → quantidade de imóveis → nome.
       return (
-        Number(precisaAtencao(b)) - Number(precisaAtencao(a)) ||
-        nAtivos(b) - nAtivos(a) ||
-        byNome(a, b)
+        statusRank(a) - statusRank(b) || ltv(b) - ltv(a) || nAtivos(b) - nAtivos(a) || byNome(a, b)
       );
     });
   }, [rows, q, statusFilters, cityFilters, newLayout, sort, integrationByOwner]);
@@ -468,7 +489,6 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             placeholder={`Buscar ${labelSingular.toLowerCase()}, cidade, documento…`}
             actions={
               <>
-                {viewButton}
                 {newButton}
                 <SortMenu
                   value={sort}
@@ -476,6 +496,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
                   options={OWNER_SORT_OPTIONS}
                   onChange={setSort}
                   title="Ordenar proprietários por"
+                  bare
                 />
                 {filtersPopover}
               </>
@@ -541,7 +562,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             </Button>
           }
         />
-      ) : view === "list" ? (
+      ) : newLayout || view === "list" ? (
         <div className="ds-list sm:grid sm:gap-1.5 sm:grid-cols-2 xl:grid-cols-3 sm:space-y-0">
           {filtered.map((r) => (
             <StakeholderCard

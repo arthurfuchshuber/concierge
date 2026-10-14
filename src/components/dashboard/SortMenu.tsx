@@ -26,21 +26,24 @@ export function SortMenu<T extends string>({
   options,
   onChange,
   title = "Ordenar imóveis por",
+  bare = false,
 }: {
   value: T;
   defaultValue: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
   title?: string;
+  /** Dentro de uma barra que já tem casca (ex.: busca + ações): só o botão, sem a peça própria. */
+  bare?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <div className={`${ACTION_BAR} !w-auto shrink-0`}>
+      {bare ? (
         <PopoverTrigger asChild>
           <button
             type="button"
-            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !flex-none !px-3.5 lg:!px-0`}
             aria-label="Ordenar a lista"
             title="Ordenar a lista"
           >
@@ -50,7 +53,23 @@ export function SortMenu<T extends string>({
             )}
           </button>
         </PopoverTrigger>
-      </div>
+      ) : (
+        <div className={`${ACTION_BAR} !w-auto shrink-0`}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+              aria-label="Ordenar a lista"
+              title="Ordenar a lista"
+            >
+              <ArrowUpDown className={ACTION_ICON} />
+              {value !== defaultValue && (
+                <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-accent" />
+              )}
+            </button>
+          </PopoverTrigger>
+        </div>
+      )}
       <PopoverContent
         align="end"
         sideOffset={FILTER_PANEL_OFFSET}

@@ -248,6 +248,7 @@ export function OwnerPropertiesList({
               options={PROP_SORT_OPTIONS}
               onChange={setSort}
               title="Ordenar imóveis por"
+              bare
             />
             {statusButton}
           </>

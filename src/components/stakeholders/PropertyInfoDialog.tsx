@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { BookOpen, Copy, ExternalLink, Lock, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -40,12 +40,31 @@ function InfoRow({
   children: ReactNode;
   aside?: ReactNode;
 }) {
+  // Valor longo cortado por falta de espaço: um toque abre por completo.
+  const [open, setOpen] = useState(false);
   return (
     <div className="grid min-h-[36px] grid-cols-[112px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-1">
       <span className="text-[9.5px] font-extrabold uppercase leading-tight tracking-[0.12em] text-muted-foreground">
         {label}
       </span>
-      <span className="min-w-0 truncate text-[13px] font-bold">{children}</span>
+      <span
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        title={open ? "Toque para recolher" : "Toque para ver completo"}
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((v) => !v);
+          }
+        }}
+        className={`min-w-0 cursor-pointer text-[13px] font-bold ${
+          open ? "whitespace-normal break-words" : "truncate"
+        }`}
+      >
+        {children}
+      </span>
       {aside ?? <span />}
     </div>
   );
