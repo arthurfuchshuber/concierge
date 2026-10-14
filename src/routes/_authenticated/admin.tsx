@@ -22,6 +22,7 @@ import { PendingInviteDialog } from "@/components/admin/PendingInviteDialog";
 import { CompleteProfileDialog } from "@/components/admin/CompleteProfileDialog";
 import { ForcePasswordChangeDialog } from "@/components/admin/ForcePasswordChangeDialog";
 import { CancellationReviewDialog } from "@/components/stakeholders/CancellationReviewDialog";
+import { SyncRequiredGate } from "@/components/stakeholders/SyncRequiredGate";
 
 import { listMyPendingInvites } from "@/lib/pending-invites.functions";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
@@ -607,6 +608,7 @@ function AdminLayout() {
           ) : (
             <>
               <LiveSync />
+              <SyncRequiredGate />
               <Outlet />
             </>
           )}

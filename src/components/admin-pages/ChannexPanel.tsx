@@ -78,7 +78,7 @@ export function ChannexPanel() {
   const senderBy = new Map((senders.data ?? []).map((s) => [s.listingId, s]));
   const changeSender = useMutation({
     mutationFn: (v: { listingIds: string[]; channelId: string }) => setSenderFn({ data: v }),
-    onSuccess: (r) => {
+        onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["listing-senders"] });
       setPicked(new Set());
       toast.success(`Respostas agora assinadas por "${r.title}" (incluindo anúncios gêmeos).`);
@@ -293,64 +293,64 @@ export function ChannexPanel() {
           {toggles.data!.map((t) => {
             const snd = senderBy.get(t.listingId);
             return (
-              <div key={t.listingId} className="space-y-1">
-                <label className="flex min-w-0 items-center justify-between gap-3 text-xs">
-                  <span className="min-w-0 break-words text-muted-foreground">
-                    {t.name}
-                    {t.pairNames.length > 0 && (
-                      <span className="block text-[11px] text-muted-foreground/80">
-                        {t.kind === "twin" ? "Gêmeo de " : "Gêmeo: "}
-                        {t.pairNames.join(", ")} · mesma chave
-                      </span>
-                    )}
+            <div key={t.listingId} className="space-y-1">
+            <label className="flex min-w-0 items-center justify-between gap-3 text-xs">
+              <span className="min-w-0 break-words text-muted-foreground">
+                {t.name}
+                {t.pairNames.length > 0 && (
+                  <span className="block text-[11px] text-muted-foreground/80">
+                    {t.kind === "twin" ? "Gêmeo de " : "Gêmeo: "}
+                    {t.pairNames.join(", ")} · mesma chave
                   </span>
-                  <Switch
-                    checked={t.enabled}
-                    disabled={toggle.isPending}
+                )}
+              </span>
+              <Switch
+                checked={t.enabled}
+                disabled={toggle.isPending}
                     onCheckedChange={(enabled) =>
                       toggle.mutate({ propertyId: t.propertyId, enabled })
                     }
-                    aria-label={`IA no Airbnb — ${t.name}`}
-                  />
-                </label>
-                {snd && snd.options.length > 0 && (
-                  <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      className="size-3.5 accent-primary"
-                      checked={picked.has(t.listingId)}
-                      disabled={changeSender.isPending}
-                      onChange={(e) => togglePick(t.listingId, e.target.checked)}
-                      aria-label={`Selecionar ${t.name} para troca em massa`}
-                    />
-                    <span>Respostas assinadas por</span>
-                    <select
-                      className="min-w-0 max-w-full rounded-md border border-border bg-background px-2 py-1 text-[11px] text-foreground"
-                      value={snd.currentChannelId ?? ""}
-                      disabled={changeSender.isPending}
-                      onChange={(e) => {
-                        const channelId = e.target.value;
-                        if (!channelId || channelId === snd.currentChannelId) return;
+                aria-label={`IA no Airbnb — ${t.name}`}
+              />
+            </label>
+            {snd && snd.options.length > 0 && (
+              <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  className="size-3.5 accent-primary"
+                  checked={picked.has(t.listingId)}
+                  disabled={changeSender.isPending}
+                  onChange={(e) => togglePick(t.listingId, e.target.checked)}
+                  aria-label={`Selecionar ${t.name} para troca em massa`}
+                />
+                <span>Respostas assinadas por</span>
+                <select
+                  className="min-w-0 max-w-full rounded-md border border-border bg-background px-2 py-1 text-[11px] text-foreground"
+                  value={snd.currentChannelId ?? ""}
+                  disabled={changeSender.isPending}
+                  onChange={(e) => {
+                    const channelId = e.target.value;
+                    if (!channelId || channelId === snd.currentChannelId) return;
                         if (
                           !window.confirm(
                             "Trocar a conta que assina as respostas deste anúncio (e dos gêmeos)? Vale na hora; preços e calendário não são alterados.",
                           )
                         )
                           return;
-                        changeSender.mutate({ listingIds: [t.listingId], channelId });
-                      }}
-                      aria-label={`Conta remetente — ${t.name}`}
-                    >
-                      {!snd.currentChannelId && <option value="">Não conectado</option>}
-                      {snd.options.map((o) => (
-                        <option key={o.channelId} value={o.channelId}>
-                          {o.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                    changeSender.mutate({ listingIds: [t.listingId], channelId });
+                  }}
+                  aria-label={`Conta remetente — ${t.name}`}
+                >
+                  {!snd.currentChannelId && <option value="">Não conectado</option>}
+                  {snd.options.map((o) => (
+                    <option key={o.channelId} value={o.channelId}>
+                      {o.title}
+                    </option>
+                  ))}
+                </select>
               </div>
+            )}
+            </div>
             );
           })}
           <p className="text-[11px] text-muted-foreground">

@@ -304,78 +304,320 @@ const slugify = (t: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 40) || "imovel";
 
-/** Cria o imóvel de cada anúncio novo (vinculado ao proprietário da ficha) e importa os dados. */
+/**
+ * Depois de ler o anúncio: liga o chat (app Messages) e confere se há rate plan na Channex.
+ * Chat falhou → "pendente de chat" (há retentativa); sem rate plan → "pendente de configuração".
+ */
+async function finishLinked(
+  admin: Admin,
+  propertyId: string,
+  title: string,
+): Promise<Array<{ propertyId: string; title: string; kind: "chat" | "config" }>> {
+  const { enableChat } = await import("@/lib/airbnb-accounts.server");
+  const pending: Array<{ propertyId: string; title: string; kind: "chat" | "config" }> = [];
+  if (!(await enableChat(admin, propertyId)).ok) pending.push({ propertyId, title, kind: "chat" });
+  // Sem rate plan na Channex: "pendente de configuração" — nenhum ARI é enviado, nada é mapeado.
+  const { data: rp } = await admin
+    .from("property_listing_raw_data")
+    .select("channex_rate_plan_id")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  if (!rp?.channex_rate_plan_id) pending.push({ propertyId, title, kind: "config" });
+  return pending;
+}
+
+type InvListing = Awaited<ReturnType<typeof loadInventory>>["listings"][number];
+type PendingKind = Array<{ propertyId: string; title: string; kind: "chat" | "config" }>;
+
+/** Cria o imóvel de UM anúncio novo e importa os dados; não deixa imóvel "vazio" se a leitura falhar. */
+async function createFromListing(
+  admin: Admin,
+  accountId: string,
+  l: InvListing,
+  ownerId: string,
+): Promise<{ propertyId: string; title: string; pending: PendingKind }> {
+  let propertyId: string | null = null;
+  try {
+    const slug = `${slugify(l.title)}-${crypto.randomUUID().slice(0, 6)}`;
+    const { data: ins, error } = await admin
+      .from("properties")
+      .insert({
+        owner_id: accountId,
+        owner_contact_id: ownerId,
+        name: l.title,
+        slug,
+        city: l.city,
+        published: false,
+        airbnb_listing_url: `https://www.airbnb.com.br/rooms/${l.listingId}`,
+      } as never)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    propertyId = ins.id as string;
+    const { syncAccountListing } = await import("@/lib/channex-listing.server");
+    await syncAccountListing({
+      listingId: l.listingId,
+      channelId: l.channelId,
+      propertyId,
+      ownerId: accountId,
+    });
+    return { propertyId, title: l.title, pending: await finishLinked(admin, propertyId, l.title) };
+  } catch (e) {
+    if (propertyId) await admin.from("properties").delete().eq("id", propertyId);
+    throw e;
+  }
+}
+
+/**
+ * Liga um imóvel JÁ EXISTENTE (sem integração) a um anúncio livre. O imóvel, o proprietário, o guia e o
+ * histórico continuam como estão; só passa a receber os dados e o chat do anúncio.
+ */
+async function linkExisting(
+  admin: Admin,
+  accountId: string,
+  propertyId: string,
+  listingId: string,
+): Promise<{ title: string; propertyName: string; pending: PendingKind }> {
+  const { data: prop } = await admin
+    .from("properties")
+    .select("id, name, archived_at")
+    .eq("id", propertyId)
+    .eq("owner_id", accountId)
+    .maybeSingle();
+  if (!prop || prop.archived_at) throw new Error("Imóvel não encontrado.");
+  const { data: existing } = await admin
+    .from("property_listing_raw_data")
+    .select("airbnb_listing_id")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  if (existing?.airbnb_listing_id)
+    throw new Error("Este imóvel já está sincronizado com o Airbnb.");
+
+  const inv = await loadInventory(admin, accountId);
+  const listing = inv.listings.find((l) => l.listingId === listingId);
+  if (!listing || listing.notFound) throw new Error("Anúncio não encontrado no Airbnb.");
+  if (listing.imported) throw new Error("Este anúncio já está ligado a outro imóvel.");
+
+  const { syncAccountListing } = await import("@/lib/channex-listing.server");
+  await syncAccountListing({
+    listingId: listing.listingId,
+    channelId: listing.channelId,
+    propertyId,
+    ownerId: accountId,
+  });
+  // Mantém o link do anúncio no imóvel só se ele ainda não tiver um (nunca troca o que já existe).
+  await admin
+    .from("properties")
+    .update({ airbnb_listing_url: `https://www.airbnb.com.br/rooms/${listing.listingId}` } as never)
+    .eq("id", propertyId)
+    .is("airbnb_listing_url", null);
+  const pending = await finishLinked(admin, propertyId, prop.name as string);
+  return { title: listing.title, propertyName: prop.name as string, pending };
+}
+
+/**
+ * Cria o imóvel de cada anúncio novo e importa os dados. Cada anúncio traz o SEU proprietário
+ * (lista "de → para"); com um só proprietário para todos, basta repetir o `ownerId` em cada item.
+ */
 export const importAirbnbListings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
     Base.extend({
-      ownerId: z.string().uuid(),
-      listingIds: z.array(z.string().min(3).max(40)).min(1).max(100),
+      items: z
+        .array(z.object({ listingId: z.string().min(3).max(40), ownerId: z.string().uuid() }))
+        .min(1)
+        .max(100),
     }).parse(i),
   )
   .handler(async ({ data, context }) => {
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
-    const { data: ow } = await admin
+    // Todo proprietário citado precisa ser da conta; anúncio repetido vale uma vez só.
+    const ownerIds = [...new Set(data.items.map((i) => i.ownerId))];
+    const { data: ows } = await admin
       .from("property_owners")
       .select("id")
-      .eq("id", data.ownerId)
-      .eq("account_owner_id", accountId)
-      .maybeSingle();
-    if (!ow) throw new Error("Proprietário não encontrado.");
+      .in("id", ownerIds)
+      .eq("account_owner_id", accountId);
+    if ((ows ?? []).length !== ownerIds.length) throw new Error("Proprietário não encontrado.");
+    const ownerOf = new Map<string, string>();
+    for (const i of data.items) if (!ownerOf.has(i.listingId)) ownerOf.set(i.listingId, i.ownerId);
 
     // Só importa o que realmente existe nos canais da conta e ainda não foi importado.
     const inv = await loadInventory(admin, accountId);
-    const wanted = new Set(data.listingIds);
-    const todo = inv.listings.filter((l) => wanted.has(l.listingId) && !l.imported);
-    const { syncAccountListing } = await import("@/lib/channex-listing.server");
-    const { enableChat } = await import("@/lib/airbnb-accounts.server");
+    const todo = inv.listings.filter((l) => ownerOf.has(l.listingId) && !l.imported);
     let imported = 0;
     const failed: Array<{ title: string; error: string }> = [];
     // Importado, mas ainda não 100% ativo: chat (Messages) ou tarifa/rate plan na Channex.
     const pending: Array<{ propertyId: string; title: string; kind: "chat" | "config" }> = [];
     for (const l of todo) {
-      let propertyId: string | null = null;
       try {
-        const slug = `${slugify(l.title)}-${crypto.randomUUID().slice(0, 6)}`;
-        const { data: ins, error } = await admin
-          .from("properties")
-          .insert({
-            owner_id: accountId,
-            owner_contact_id: data.ownerId,
-            name: l.title,
-            slug,
-            city: l.city,
-            published: false,
-            airbnb_listing_url: `https://www.airbnb.com.br/rooms/${l.listingId}`,
-          } as never)
-          .select("id")
-          .single();
-        if (error) throw new Error(error.message);
-        propertyId = ins.id as string;
-        await syncAccountListing({
-          listingId: l.listingId,
-          channelId: l.channelId,
-          propertyId,
-          ownerId: accountId,
-        });
+        const r = await createFromListing(admin, accountId, l, ownerOf.get(l.listingId) as string);
         imported += 1;
-        // Anúncio habilitado = app Messages ligado (independe da chave da IA). Falhou → pendente + retentativa.
-        if (!(await enableChat(admin, propertyId)).ok)
-          pending.push({ propertyId, title: l.title, kind: "chat" });
-        // Sem rate plan na Channex: "pendente de configuração" — nenhum ARI é enviado, nada é mapeado.
-        const { data: rp } = await admin
-          .from("property_listing_raw_data")
-          .select("channex_rate_plan_id")
-          .eq("property_id", propertyId)
-          .maybeSingle();
-        if (!rp?.channex_rate_plan_id) pending.push({ propertyId, title: l.title, kind: "config" });
+        pending.push(...r.pending);
       } catch (e) {
-        // Não deixa imóvel "vazio" para trás se a leitura do anúncio falhou.
-        if (propertyId) await admin.from("properties").delete().eq("id", propertyId);
         failed.push({ title: l.title, error: e instanceof Error ? e.message : String(e) });
       }
     }
     return { imported, failed, pending };
+  });
+
+/** Imóveis da conta que ainda não estão ligados a nenhum anúncio do Airbnb. */
+export type UnsyncedProperty = {
+  id: string;
+  name: string;
+  city: string | null;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
+};
+
+/**
+ * "Sincronizar imóvel existente": quais imóveis estão sem integração e se existe anúncio
+ * disponível para ligar. `blocking` só é true quando dá para sincronizar de verdade (há conta
+ * do Airbnb conectada E anúncio livre) — assim o aviso obrigatório nunca prende quem não tem o que fazer.
+ */
+export const listUnsyncedProperties = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Base.parse(i))
+  .handler(async ({ data, context }) => {
+    const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
+    const { data: props } = await admin
+      .from("properties")
+      .select("id, name, city, owner_contact_id")
+      .eq("owner_id", accountId)
+      .is("archived_at", null);
+    const ids = (props ?? []).map((p) => p.id);
+    const empty = { properties: [] as UnsyncedProperty[], availableListings: 0, blocking: false };
+    if (ids.length === 0) return empty;
+    // channex_twin_links ainda não está nos tipos gerados.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = admin as unknown as { from: (t: string) => any };
+    const [{ data: linked }, { data: twins }] = await Promise.all([
+      admin
+        .from("property_listing_raw_data")
+        .select("property_id")
+        .in("property_id", ids)
+        .not("airbnb_listing_id", "is", null),
+      raw
+        .from("channex_twin_links")
+        .select("property_id")
+        .eq("owner_id", accountId)
+        .eq("status", "active"),
+    ]);
+    const done = new Set<string>([
+      ...(linked ?? []).map((r) => r.property_id as string),
+      ...((twins ?? []) as Array<{ property_id: string }>).map((t) => t.property_id),
+    ]);
+    const todo = (props ?? []).filter((p) => !done.has(p.id));
+    if (todo.length === 0) return empty;
+    const ownerIds = [...new Set(todo.map((p) => p.owner_contact_id).filter(Boolean) as string[])];
+    const { data: owners } = ownerIds.length
+      ? await admin
+          .from("property_owners")
+          .select("id, name, trade_name, phone, phone_country")
+          .in("id", ownerIds)
+      : {
+          data: [] as Array<{
+            id: string;
+            name: string | null;
+            trade_name: string | null;
+            phone: string | null;
+            phone_country: string | null;
+          }>,
+        };
+    const ownerById = new Map((owners ?? []).map((o) => [o.id, o]));
+    const properties: UnsyncedProperty[] = todo
+      .map((p) => {
+        const o = p.owner_contact_id ? ownerById.get(p.owner_contact_id) : undefined;
+        return {
+          id: p.id,
+          name: p.name as string,
+          city: (p.city as string | null) ?? null,
+          ownerName: o ? String(o.trade_name || o.name || "") || null : null,
+          ownerPhone: o?.phone ?? null,
+          ownerPhoneCountry: o?.phone_country ?? null,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    // Anúncio livre no catálogo (cache local). Falha na consulta nunca bloqueia ninguém.
+    let availableListings = 0;
+    try {
+      const inv = await loadInventory(admin, accountId);
+      availableListings = inv.listings.filter((l) => !l.imported && !l.notFound).length;
+    } catch {
+      availableListings = 0;
+    }
+    return { properties, availableListings, blocking: availableListings > 0 };
+  });
+
+/**
+ * Sincroniza um imóvel JÁ EXISTENTE (sem integração) com um anúncio do Airbnb.
+ * Mesmo caminho da importação, mas sem criar imóvel: o imóvel, o proprietário, o guia e o
+ * histórico continuam como estão; só passa a receber os dados e o chat do anúncio.
+ */
+export const syncExistingProperty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    Base.extend({ propertyId: z.string().uuid(), listingId: z.string().min(3).max(40) }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "stakeholders.vinculo-imovel", { propertyId: data.propertyId });
+    const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
+    const r = await linkExisting(admin, accountId, data.propertyId, data.listingId);
+    return { ok: true as const, title: r.title, pending: r.pending };
+  });
+
+/**
+ * Sincronização em massa ("de → para"): o cliente chama uma vez por PAR, assim a janela mostra o progresso
+ * real e uma falha não derruba os demais. Cada par é OU um imóvel existente (`propertyId`) OU um anúncio
+ * sem imóvel que vira imóvel novo (`ownerId`). Escolher imóvel existente só vale para imóvel ainda sem
+ * integração (clientes anteriores à obrigatoriedade); imóvel novo segue a importação de sempre.
+ */
+export const syncAirbnbPair = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    Base.extend({
+      listingId: z.string().min(3).max(40),
+      propertyId: z.string().uuid().optional(),
+      ownerId: z.string().uuid().optional(),
+    })
+      .refine((v) => Boolean(v.propertyId) !== Boolean(v.ownerId), {
+        message: "Informe o imóvel OU o proprietário(a) do imóvel novo.",
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
+    if (data.propertyId) {
+      const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+      await enforce(context.userId, "stakeholders.vinculo-imovel", { propertyId: data.propertyId });
+      const r = await linkExisting(admin, accountId, data.propertyId, data.listingId);
+      return {
+        kind: "linked" as const,
+        propertyId: data.propertyId,
+        title: r.propertyName,
+        pending: r.pending,
+      };
+    }
+    const { data: ow } = await admin
+      .from("property_owners")
+      .select("id")
+      .eq("id", data.ownerId as string)
+      .eq("account_owner_id", accountId)
+      .maybeSingle();
+    if (!ow) throw new Error("Proprietário não encontrado.");
+    const inv = await loadInventory(admin, accountId);
+    const listing = inv.listings.find((l) => l.listingId === data.listingId);
+    if (!listing || listing.notFound) throw new Error("Anúncio não encontrado no Airbnb.");
+    if (listing.imported) throw new Error("Este anúncio já está ligado a outro imóvel.");
+    const r = await createFromListing(admin, accountId, listing, data.ownerId as string);
+    return {
+      kind: "created" as const,
+      propertyId: r.propertyId,
+      title: r.title,
+      pending: r.pending,
+    };
   });
 
 /** Chavinha: ativar (volta a sincronizar e liga o chat) ou desativar (para de sincronizar, desliga o chat, mantém os dados). */

@@ -215,9 +215,9 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
       // Primeira leitura da sessão só registra o que já estava na fila.
       if (firstPendingRef.current) firstPendingRef.current = false;
       else if (fresh.length > 0) {
-        playBeep();
+      playBeep();
         setState({ open: true, minimized: false });
-      }
+    }
     }
     if (n > 0) {
       try { if ("setAppBadge" in navigator) (navigator as any).setAppBadge(n); } catch {}

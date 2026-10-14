@@ -112,9 +112,9 @@ export async function validatePricing(ownerId: string) {
       continue;
     }
     if (!cache.has(t.propertyId)) {
-      const r = await cx<{ data: Record<string, Record<string, { rate?: string | number }>> }>(
+    const r = await cx<{ data: Record<string, Record<string, { rate?: string | number }>> }>(
         `/restrictions?filter[property_id]=${t.propertyId}&filter[date][gte]=${start}&filter[date][lte]=${end}&filter[restrictions]=rate`,
-      ).catch(() => ({ data: {} as Record<string, Record<string, { rate?: string | number }>> }));
+    ).catch(() => ({ data: {} as Record<string, Record<string, { rate?: string | number }>> }));
       cache.set(t.propertyId, r.data ?? {});
     }
     const days = cache.get(t.propertyId)?.[t.ratePlanId] ?? {};

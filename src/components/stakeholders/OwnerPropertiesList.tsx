@@ -56,6 +56,7 @@ import { Button } from "@/components/ui/button";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ClampName } from "@/components/ui/clamp-name";
 import type { PropertyConnectionRow } from "@/lib/property-connection";
 
 /**
@@ -72,7 +73,7 @@ import type { PropertyConnectionRow } from "@/lib/property-connection";
  */
 type Prop = PropertyListItem;
 type Owner = Record<string, any>;
-type FilterScreen = "root" | "account" | "listing" | "city" | "state";
+type FilterScreen = "root" | "account" | "listing" | "city" | "state" | "integration";
 
 export function OwnerPropertiesList({
   properties,
@@ -92,6 +93,8 @@ export function OwnerPropertiesList({
   const [listingFilters, setListingFilters] = useState<string[]>([]);
   const [cityFilters, setCityFilters] = useState<string[]>([]);
   const [stateFilters, setStateFilters] = useState<string[]>([]);
+  // Integração: "none" = só imóveis sem integração com o Airbnb (os que precisam ser sincronizados).
+  const [integrationFilters, setIntegrationFilters] = useState<string[]>([]);
   const [filterScreen, setFilterScreen] = useState<FilterScreen>("root");
   const [flow, setFlow] = useState<AirbnbFlowRequest>(null);
   const [connectMenu, setConnectMenu] = useState(false);
@@ -162,6 +165,7 @@ export function OwnerPropertiesList({
       if (listingFilters.length > 0 && !listingFilters.includes(i.id)) return false;
       if (cityFilters.length > 0 && !cityFilters.includes(i.city ?? "")) return false;
       if (stateFilters.length > 0 && !stateFilters.includes(i.state ?? "")) return false;
+      if (integrationFilters.includes("none") && i.active) return false;
       if (!term) return true;
       const ownerName = i.owner ? String(i.owner.trade_name || i.owner.name || "") : "";
       return [i.name, ownerName, i.city, i.state]
@@ -178,15 +182,21 @@ export function OwnerPropertiesList({
         cmp(a.city ?? "", b.city ?? "") ||
         cmp(ownerNameOf(a), ownerNameOf(b)),
     );
-  }, [items, q, accountFilters, listingFilters, cityFilters, stateFilters]);
+  }, [items, q, accountFilters, listingFilters, cityFilters, stateFilters, integrationFilters]);
 
   const panelFiltersActive =
-    accountFilters.length + listingFilters.length + cityFilters.length + stateFilters.length > 0;
+    accountFilters.length +
+      listingFilters.length +
+      cityFilters.length +
+      stateFilters.length +
+      integrationFilters.length >
+    0;
   function clearFilters() {
     setAccountFilters([]);
     setListingFilters([]);
     setCityFilters([]);
     setStateFilters([]);
+    setIntegrationFilters([]);
   }
   const multiLabel = (arr: string[], all: string, many: string) =>
     arr.length === 0 ? all : arr.length === 1 ? arr[0] : `${arr.length} ${many}`;
@@ -216,6 +226,16 @@ export function OwnerPropertiesList({
       .map((v) => ({ value: v, label: v }));
   const cityOptions = useMemo(() => uniq(items.map((i) => i.city)), [items]);
   const stateOptions = useMemo(() => uniq(items.map((i) => i.state)), [items]);
+  const integrationOptions = useMemo(
+    () => [
+      {
+        value: "none",
+        label: "Sem integração",
+        sublabel: `${items.filter((i) => !i.active).length} imóveis`,
+      },
+    ],
+    [items],
+  );
 
   const menuItem =
     "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary";
@@ -331,6 +351,13 @@ export function OwnerPropertiesList({
               value={multiLabel(stateFilters, "Todos", "selecionados")}
               active={stateFilters.length > 0}
               onClick={() => setFilterScreen("state")}
+            />
+            <FilterMenuRow
+              icon={Link2}
+              label="Integração"
+              value={integrationFilters.length > 0 ? "Sem integração" : "Todos"}
+              active={integrationFilters.length > 0}
+              onClick={() => setFilterScreen("integration")}
               last
             />
           </>
@@ -399,6 +426,22 @@ export function OwnerPropertiesList({
             />
           </>
         ) : null}
+        {filterScreen === "integration" ? (
+          <>
+            <FilterScreenHeader
+              icon={Link2}
+              title="Integração"
+              onBack={() => setFilterScreen("root")}
+              right={<FilterCountBadge count={integrationFilters.length} />}
+            />
+            <FilterMultiSelect
+              options={integrationOptions}
+              selected={integrationFilters}
+              onChange={setIntegrationFilters}
+              searchPlaceholder="Buscar..."
+            />
+          </>
+        ) : null}
       </PopoverContent>
     </Popover>
   );
@@ -464,9 +507,10 @@ export function OwnerPropertiesList({
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col justify-between gap-2 py-3 pl-3.5 pr-2.5">
                   <span className="grid min-w-0 gap-1.5">
-                    <span className="block truncate text-[14.5px] font-extrabold leading-tight">
-                      {p.name}
-                    </span>
+                    <ClampName
+                      text={p.name}
+                      className="text-[14.5px] font-extrabold leading-tight"
+                    />
                     {place ? (
                       <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
                         <MapPin className="size-3 shrink-0" />
@@ -517,6 +561,29 @@ export function OwnerPropertiesList({
                           >
                             <RefreshCw className="size-3.5 text-muted-foreground" /> Tentar ativar o
                             chat de novo
+                          </button>
+                        ) : null}
+                        {!p.active ? (
+                          <button
+                            type="button"
+                            disabled={airbnbAccounts.length === 0}
+                            onClick={() => {
+                              setMenuId(null);
+                              setFlow({
+                                type: "syncProperty",
+                                property: {
+                                  id: p.id,
+                                  name: p.name,
+                                  ownerName: ownerName || null,
+                                  ownerPhone: p.owner?.phone,
+                                  ownerPhoneCountry: p.owner?.phone_country,
+                                },
+                              });
+                            }}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-bold transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
+                          >
+                            <RefreshCw className="size-3.5 text-muted-foreground" /> Sincronizar com
+                            o Airbnb
                           </button>
                         ) : null}
                         <Link

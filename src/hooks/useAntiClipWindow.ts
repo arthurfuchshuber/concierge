@@ -67,7 +67,7 @@ function fitScroller(el: HTMLElement) {
     if (bottom <= avail + 0.5) fit = Math.max(fit, bottom);
     else nextTop = Math.min(nextTop, (r.top - box.top) / (scale || 1) + el.scrollTop);
   }
-  const own = getComputedStyle(el);
+    const own = getComputedStyle(el);
   // Quando a própria janela é a área que rola, o recorte no fim da última linha
   // deixava o cartão colado (e com o canto arredondado cortado) na borda de baixo.
   // Devolve o respiro do rodapé (padding), sem deixar a próxima linha espiar.
