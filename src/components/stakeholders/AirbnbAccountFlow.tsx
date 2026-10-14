@@ -86,6 +86,7 @@ export type SyncPropertyInfo = {
   ownerPhone?: string | null;
   ownerPhoneCountry?: string | null;
   imageUrl?: string | null;
+  imageUrls?: string[];
 };
 
 type Step =
@@ -1018,6 +1019,7 @@ export function AirbnbAccountFlow({
     <div className="flex min-w-0 items-center gap-2.5 rounded-[12px] bg-foreground/[0.04] px-[11px] py-[9px] text-[12.5px] font-bold">
       <PropertyThumb
         src={syncProp.imageUrl}
+        fallbacks={syncProp.imageUrls}
         className="size-[34px] rounded-[9px]"
         iconClassName="size-4"
       />

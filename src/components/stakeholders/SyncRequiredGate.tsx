@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Lock, RefreshCw } from "lucide-react";
+import { Check, Loader2, Lock, RefreshCw } from "lucide-react";
 import { listUnsyncedProperties, type UnsyncedProperty } from "@/lib/airbnb-account.functions";
 import { usePermission } from "@/lib/permissions/usePermission";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -57,6 +57,20 @@ export function SyncRequiredGate() {
   const otherWindowOpen = useAnyWindowOpen();
   const prevFlow = useRef<AirbnbFlowRequest>(null);
 
+  // Segura uma tela neutra enquanto a primeira consulta responde, para o painel nunca "piscar"
+  // por trás do aviso ao recarregar a página. Libera sozinha se algo demorar demais ou falhar.
+  const booting = perm.loading || (perm.allowed && q.isLoading);
+  const [bootGiveUp, setBootGiveUp] = useState(false);
+  const [bootDone, setBootDone] = useState(false);
+  useEffect(() => {
+    if (!booting) setBootDone(true);
+  }, [booting]);
+  useEffect(() => {
+    const t = window.setTimeout(() => setBootGiveUp(true), 2500);
+    return () => window.clearTimeout(t);
+  }, []);
+  const showBootCover = booting && !bootDone && !bootGiveUp;
+
   const pending = q.data?.properties ?? [];
   const blocking = perm.allowed && !!q.data?.blocking && pending.length > 0;
 
@@ -102,6 +116,7 @@ export function SyncRequiredGate() {
     ownerPhone: p.ownerPhone,
     ownerPhoneCountry: p.ownerPhoneCountry,
     imageUrl: p.imageUrl,
+    imageUrls: p.imageUrls,
   });
   // Seleção: começa com todos os pendentes marcados; quem já foi sincronizado sai da seleção.
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -151,6 +166,14 @@ export function SyncRequiredGate() {
 
   return (
     <>
+      {showBootCover ? (
+        <div
+          aria-hidden
+          className="fixed inset-0 z-[60] grid place-items-center bg-background text-muted-foreground"
+        >
+          <Loader2 className="size-6 animate-spin" />
+        </div>
+      ) : null}
       <Dialog open={visible} onOpenChange={() => undefined}>
         <DialogContent
           hideClose
@@ -220,32 +243,35 @@ export function SyncRequiredGate() {
                 <div
                   key={p.id}
                   data-clip-row
-                  role={isDone ? undefined : "checkbox"}
-                  aria-checked={isDone ? undefined : on}
-                  tabIndex={isDone ? undefined : 0}
-                  onClick={() => !isDone && toggle(p.id)}
-                  onKeyDown={(e) => {
-                    if (!isDone && (e.key === " " || e.key === "Enter")) {
-                      e.preventDefault();
-                      toggle(p.id);
-                    }
-                  }}
                   className={`flex items-center gap-3 rounded-[14px] p-3 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)] ${
                     isDone
                       ? "bg-foreground/[0.025]"
                       : on
-                        ? "cursor-pointer bg-foreground/[0.06] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_20%,transparent)]"
-                        : "cursor-pointer bg-foreground/[0.03]"
+                        ? "bg-foreground/[0.06] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_20%,transparent)]"
+                        : "bg-foreground/[0.03]"
                   }`}
                 >
                   {isDone ? (
                     <Check className="size-4 shrink-0 ds-ok" strokeWidth={2.6} />
                   ) : (
-                    <span>
+                    // Só o quadradinho marca/desmarca (área de toque de 36px); o nome e os
+                    // demais textos da linha nunca alteram a seleção.
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={on}
+                      aria-label={`Selecionar ${cur.name}`}
+                      onClick={() => toggle(p.id)}
+                      className="-mx-1.5 grid size-9 shrink-0 place-items-center rounded-[10px]"
+                    >
                       <Check2 on={on} />
-                    </span>
+                    </button>
                   )}
-                  <PropertyThumb src={cur.imageUrl} className="size-[34px] rounded-[9px]" />
+                  <PropertyThumb
+                    src={cur.imageUrl}
+                    fallbacks={cur.imageUrls}
+                    className="size-[34px] rounded-[9px]"
+                  />
                   <div className="grid min-w-0 flex-1 gap-1">
                     <ClampName text={cur.name} passThrough className="text-[13px] font-bold" />
                     <div className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">

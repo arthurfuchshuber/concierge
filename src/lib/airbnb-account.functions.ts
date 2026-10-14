@@ -484,6 +484,8 @@ export type UnsyncedProperty = {
   ownerPhoneCountry: string | null;
   /** Foto principal do imóvel (capa ou a primeira da galeria), quando existir. */
   imageUrl: string | null;
+  /** Todas as fotos conhecidas (capa primeiro), para o app tentar a próxima se uma falhar. */
+  imageUrls: string[];
 };
 
 /**
@@ -554,6 +556,10 @@ export const listUnsyncedProperties = createServerFn({ method: "GET" })
           imageUrl:
             (p.hero_image_url as string | null) ||
             ((p.gallery_images as string[] | null)?.[0] ?? null),
+          imageUrls: [
+            p.hero_image_url as string | null,
+            ...((p.gallery_images as string[] | null) ?? []),
+          ].filter((u): u is string => !!u),
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
