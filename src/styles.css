@@ -1567,3 +1567,13 @@ dd {
     display: none !important;
   }
 }
+
+/* REGRA GLOBAL DE JANELAS — nada estoura a largura (360–390px).
+   Um `grid` sem colunas definidas cria uma coluna `auto`, que cresce até a
+   largura do texto mais longo (nomes de anúncio, descrições) e empurra a
+   janela para fora da tela. Dentro de qualquer janela, toda grade simples passa
+   a ter UMA coluna `minmax(0,1fr)`: o texto longo trunca/quebra em vez de
+   alargar. Grades que definem colunas/linhas/fluxo próprios não são afetadas. */
+:is([role="dialog"], [role="alertdialog"]) .grid:not([class*="grid-cols"]):not([class*="grid-flow"]):not([class*="grid-rows"]):not([class*="subgrid"]) {
+  grid-template-columns: minmax(0, 1fr);
+}
