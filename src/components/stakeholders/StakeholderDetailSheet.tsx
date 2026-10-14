@@ -618,6 +618,14 @@ export function StakeholderDetailSheet({
     ((effStatus === "canceled" || effStatus === "canceling") && row.status_changed_at
       ? String(row.status_changed_at).slice(0, 10)
       : null);
+  // % do contrato já decorrido (sem data final, ou já encerrado = 100%).
+  const vigenciaPct = (() => {
+    if (!row.contract_start || !contractEnd) return 100;
+    const t0 = new Date(`${row.contract_start}T00:00:00`).getTime();
+    const t1 = new Date(`${contractEnd}T00:00:00`).getTime();
+    if (!(t1 > t0)) return 100;
+    return Math.max(2, Math.min(100, Math.round(((Date.now() - t0) / (t1 - t0)) * 100)));
+  })();
   const contractRange = row.contract_start
     ? `${fmtDateBR(row.contract_start)} → ${contractEnd ? fmtDateBR(contractEnd) : "momento"}`
     : null;
@@ -845,7 +853,7 @@ export function StakeholderDetailSheet({
               className="shrink-0"
             />
           </div>
-          <div className="flex flex-wrap items-center gap-x-[10px] gap-y-1.5 text-[12px] leading-none text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-[7px] gap-y-1.5 text-[12px] leading-none text-muted-foreground">
             <StakeholderStatusControl
               kind={kind}
               id={id}
@@ -856,21 +864,47 @@ export function StakeholderDetailSheet({
               invalidateQueryKeys={[queryKey]}
             />
             {row.contract_start && (
-              <>
-                <span className="h-3.5 w-px shrink-0 bg-foreground/[0.2]" aria-hidden />
-                <span className="flex min-w-0 items-center gap-[7px]">
-                  <span>Vigência</span>
-                  <span className={`font-semibold tabular-nums ${statusText(effStatus)}`}>
-                    {fmtDateBR(row.contract_start)} →{" "}
-                    {contractEnd ? fmtDateBR(contractEnd) : "Hoje"}
-                  </span>
-                  <span className="text-foreground">
-                    ({periodShort(row.contract_start, contractEnd)})
-                  </span>
+              <span>
+                · contrato há{" "}
+                <span className="font-semibold tabular-nums text-foreground">
+                  {periodShort(row.contract_start, contractEnd)}
                 </span>
-              </>
+              </span>
             )}
           </div>
+          {row.contract_start && (
+            <div className="mt-1 grid gap-[7px]">
+              {/* Barra de vigência: do início até hoje (ou até o fim, se já definido). */}
+              <div
+                className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]"
+                role="img"
+                aria-label={`Vigência de ${fmtDateBR(row.contract_start)} até ${
+                  contractEnd ? fmtDateBR(contractEnd) : "hoje"
+                }`}
+              >
+                <div
+                  className={`h-full rounded-full bg-current ${statusText(effStatus)}`}
+                  style={{ width: `${vigenciaPct}%` }}
+                />
+              </div>
+              <div className="flex justify-between gap-2 text-[12px] leading-none tabular-nums text-muted-foreground">
+                <span>
+                  Início{" "}
+                  <span className="font-semibold text-foreground">
+                    {fmtDateBR(row.contract_start)}
+                  </span>
+                </span>
+                <span>
+                  {contractEnd ? "Fim" : "Hoje"}{" "}
+                  <span className="font-semibold text-foreground">
+                    {contractEnd
+                      ? fmtDateBR(contractEnd)
+                      : fmtDateBR(new Date().toISOString().slice(0, 10))}
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* "Ver Proprietário": janela ao meio da tela com os dados detalhados. */}
