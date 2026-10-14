@@ -410,11 +410,34 @@ type PickOpt = {
   /** Opção bloqueada (ex.: já escolhida em outra linha) + motivo curto. */
   note?: string;
   suggested?: boolean;
+  /** Conta do Airbnb do anúncio (só aparece quando há mais de uma conta ativa). */
+  account?: { name: string; idx: number } | null;
 };
+
+/** Cores discretas só para diferenciar as contas entre si (a etiqueta em si é neutra). */
+const ACCOUNT_DOTS = ["#9b6fd6", "#d9849f", "#5fa8a0", "#c9a45e"];
+
+/** Etiqueta com o nome da conta do Airbnb. */
+function AccountTag({ name, idx }: { name: string; idx: number }) {
+  return (
+    <span
+      title={name}
+      className="inline-flex max-w-full shrink-0 items-center gap-1 rounded-full bg-foreground/[0.07] px-1.5 py-[1px] text-[9.5px] font-bold text-foreground/80"
+    >
+      <i
+        aria-hidden
+        className="size-1.5 shrink-0 rounded-full"
+        style={{ background: ACCOUNT_DOTS[idx % ACCOUNT_DOTS.length] }}
+      />
+      <span className="truncate">{name}</span>
+    </span>
+  );
+}
 
 /** Seletor genérico (busca + lista) das linhas do em massa: anúncio do Airbnb ou imóvel. */
 function PairPicker({
   valueLabel,
+  valueAccount,
   options,
   value,
   placeholder,
@@ -424,6 +447,7 @@ function PairPicker({
   footer,
 }: {
   valueLabel: string | null;
+  valueAccount?: { name: string; idx: number } | null;
   options: PickOpt[];
   value: string | null;
   placeholder: string;
@@ -448,16 +472,21 @@ function PairPicker({
         <button
           type="button"
           title={valueLabel ?? undefined}
-          className={`flex h-10 w-full min-w-0 items-center gap-1.5 rounded-[9px] bg-card px-2.5 text-left text-[12.5px] ${
+          className={`flex min-h-10 w-full min-w-0 items-center gap-1.5 rounded-[9px] bg-card px-2.5 py-1 text-left text-[12.5px] ${
             missing
               ? "shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c98c8c_55%,transparent)]"
               : "shadow-[inset_0_0_0_1px_var(--border)]"
           }`}
         >
-          <span
-            className={`min-w-0 flex-1 truncate ${valueLabel ? "font-semibold text-foreground" : "text-muted-foreground"}`}
-          >
-            {valueLabel ?? placeholder}
+          <span className="grid min-w-0 flex-1 justify-items-start gap-0.5">
+            <span
+              className={`w-full truncate ${valueLabel ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+            >
+              {valueLabel ?? placeholder}
+            </span>
+            {valueLabel && valueAccount ? (
+              <AccountTag name={valueAccount.name} idx={valueAccount.idx} />
+            ) : null}
           </span>
           <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
         </button>
@@ -502,6 +531,11 @@ function PairPicker({
                   </small>
                 ) : null}
               </span>
+              {o.account ? (
+                <span className="flex max-w-[34%] shrink-0">
+                  <AccountTag name={o.account.name} idx={o.account.idx} />
+                </span>
+              ) : null}
               {o.suggested ? (
                 <span className="shrink-0 text-[10px] font-extrabold text-accent">Sugerido</span>
               ) : null}
@@ -533,6 +567,8 @@ type BulkJob = {
   propertyId?: string;
   ownerId?: string;
   label: string;
+  /** Nome da conta do Airbnb do anúncio (só quando há mais de uma conta ativa). */
+  account?: string | null;
   status: "wait" | "run" | "ok" | "err";
   error?: string;
   pending: Array<{ propertyId: string; title: string; kind: "chat" | "config" }>;
@@ -624,7 +660,8 @@ export function AirbnbAccountFlow({
     queryFn: () => listingsFn({ data: { accountOwnerId, channelId, live: liveCatalog } }),
     enabled:
       open &&
-      !!channelId &&
+      // Em massa (lista única) busca os anúncios de TODAS as contas ativas, sem escolher conta.
+      (!!channelId || step === "bulkPairs" || step === "bulkRunning") &&
       (step === "listings" ||
         step === "owner" ||
         step === "pairs" ||
@@ -751,6 +788,13 @@ export function AirbnbAccountFlow({
       !(bulkReq && step === "bulkPairs")
     )
       return;
+    if (bulkReq) {
+      // Lista única: não escolhe conta; os anúncios de todas as contas ativas entram juntos.
+      if (accounts.data && activeAccounts.length === 0) setStep("syncEmpty");
+      else if (inv.data && !inv.data.listings.some((l) => !l.imported && !l.notFound))
+        setStep("syncEmpty");
+      return;
+    }
     if (!channelId) {
       if (activeAccounts[0]) setChannelId(activeAccounts[0].channelId);
       else if (accounts.data) setStep("syncEmpty");
@@ -940,6 +984,7 @@ export function AirbnbAccountFlow({
         listingId,
         propertyId,
         label: bulkProps.find((p) => p.id === propertyId)?.name ?? "Imóvel",
+        account: accTag(bulkFree.find((x) => x.listingId === listingId)?.channelId ?? "")?.name,
         status: "wait" as const,
         pending: [],
       })),
@@ -951,6 +996,7 @@ export function AirbnbAccountFlow({
           listingId: l.listingId,
           ownerId: looseOwner(l.listingId),
           label: l.title,
+          account: accTag(l.channelId)?.name,
           status: "wait" as const,
           pending: [],
         })),
@@ -1000,6 +1046,14 @@ export function AirbnbAccountFlow({
   const syncProp = request?.type === "syncProperty" ? request.property : null;
   const isSyncReq = request?.type === "syncProperty" || request?.type === "syncProperties";
   const bulkProps = request?.type === "syncProperties" ? request.properties : [];
+  // Com mais de uma conta ativa, cada anúncio mostra o nome da conta dele.
+  const multiAcc = activeAccounts.length > 1;
+  const accTag = (cid: string) => {
+    if (!multiAcc) return null;
+    const i = activeAccounts.findIndex((a) => a.channelId === cid);
+    return i < 0 ? null : { name: activeAccounts[i].title, idx: i };
+  };
+  const expiredAccounts = accList.filter((a) => a.status !== "active");
   const bulkFree = (inv.data?.listings ?? [])
     .filter((l) => !l.imported && !l.notFound)
     .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
@@ -1959,22 +2013,23 @@ export function AirbnbAccountFlow({
             <>
               <ListHeader
                 title="Qual anúncio é cada imóvel?"
-                description="Todos os imóveis sem integração aparecem aqui. Escolha o anúncio de cada um; se sobrar anúncio, escolha o imóvel ou crie um novo."
+                description={`Todos os imóveis sem integração aparecem aqui. Escolha o anúncio de cada um; se sobrar anúncio, escolha o imóvel ou crie um novo.${multiAcc ? " Os anúncios de todas as contas do Airbnb aparecem juntos." : ""}`}
               />
-              <div className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground">
-                <span className="min-w-0 truncate font-bold text-foreground/85">
-                  {account?.title ?? "Conta do Airbnb"}
-                </span>
-                {activeAccounts.length > 1 ? (
-                  <button
-                    type="button"
-                    onClick={() => setStep("pickAccount")}
-                    className="shrink-0 font-bold text-accent"
-                  >
-                    Trocar
-                  </button>
-                ) : null}
-              </div>
+              {multiAcc ? (
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span className="font-bold text-foreground/85">Contas do Airbnb:</span>
+                  {activeAccounts.map((a, i) => (
+                    <AccountTag key={a.channelId} name={a.title} idx={i} />
+                  ))}
+                </div>
+              ) : null}
+              {expiredAccounts.length > 0 ? (
+                <p className="text-[11px] leading-snug ds-atencao">
+                  {expiredAccounts.length === 1
+                    ? `A conta ${expiredAccounts[0].title} precisa ser reconectada: os anúncios dela não aparecem aqui.`
+                    : "Há contas do Airbnb para reconectar: os anúncios delas não aparecem aqui."}
+                </p>
+              ) : null}
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[12px] bg-foreground/[0.04] px-3 py-2.5">
                 <span className="grid gap-0.5">
                   <b className="text-[12.5px] font-bold">Sugerir pelo nome</b>
@@ -2048,6 +2103,7 @@ export function AirbnbAccountFlow({
                           <PairPicker
                             value={chosen}
                             valueLabel={l?.title ?? null}
+                            valueAccount={l ? accTag(l.channelId) : null}
                             placeholder={bulkFree.length === 0 ? "Sem anúncio livre" : "Escolher…"}
                             searchPlaceholder="Buscar anúncio…"
                             options={bulkFree.map((x) => {
@@ -2058,6 +2114,7 @@ export function AirbnbAccountFlow({
                                 id: x.listingId,
                                 title: x.title,
                                 sub: x.city,
+                                account: accTag(x.channelId),
                                 note: by ? "Já escolhido em outra linha" : undefined,
                               };
                             })}
@@ -2148,6 +2205,14 @@ export function AirbnbAccountFlow({
                               <small className="truncate text-[10.5px] text-muted-foreground">
                                 {l.city}
                               </small>
+                            ) : null}
+                            {accTag(l.channelId) ? (
+                              <span className="flex">
+                                <AccountTag
+                                  name={accTag(l.channelId)!.name}
+                                  idx={accTag(l.channelId)!.idx}
+                                />
+                              </span>
                             ) : null}
                             <span className="text-[10px] font-extrabold uppercase tracking-[0.04em] ds-atencao">
                               Anúncio sem imóvel
@@ -2258,6 +2323,11 @@ export function AirbnbAccountFlow({
                           </span>
                           <span className="grid min-w-0 flex-1 gap-0.5">
                             <ClampName as="b" text={j.label} className="text-[12.5px] font-bold" />
+                            {j.account ? (
+                              <small className="truncate text-[10.5px] text-muted-foreground">
+                                {j.account}
+                              </small>
+                            ) : null}
                             {j.status === "err" ? (
                               <small className="text-[11px] text-muted-foreground">{j.error}</small>
                             ) : null}

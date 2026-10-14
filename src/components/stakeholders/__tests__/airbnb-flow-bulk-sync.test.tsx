@@ -202,6 +202,49 @@ describe("sincronizar em massa (de → para)", () => {
     });
   });
 
+  it("com duas contas do Airbnb: lista única, nome da conta em cada anúncio e um clique só", async () => {
+    fns.listAirbnbAccounts.mockResolvedValue([
+      { channelId: "ch-1-aaaa", title: "Conta Sigma", status: "active", listings: 2, imported: 0 },
+      {
+        channelId: "ch-2-bbbb",
+        title: "Conta Patricia",
+        status: "active",
+        listings: 1,
+        imported: 0,
+      },
+    ]);
+    fns.listAirbnbAccountListings.mockResolvedValue({
+      connected: true,
+      listings: [{ ...LISTINGS[0] }, { ...LISTINGS[1], channelId: "ch-2-bbbb" }],
+    });
+    fns.syncAirbnbPair.mockResolvedValue({
+      kind: "linked",
+      propertyId: "x",
+      title: "x",
+      pending: [],
+    });
+    mount({
+      type: "syncProperties",
+      properties: [
+        { id: "p1", name: "Casa Um", ownerName: "Livia" },
+        { id: "p2", name: "Casa Dois", ownerName: "Arthur" },
+      ],
+    });
+    // Não pergunta "Qual conta?": já mostra o De → Para com os anúncios das duas contas.
+    await waitFor(() => expect(screen.getByText("Qual anúncio é cada imóvel?")).toBeTruthy());
+    expect(screen.queryByText("Qual conta do Airbnb?")).toBeNull();
+    expect(fns.listAirbnbAccountListings.mock.calls[0][0].data.channelId).toBeNull();
+    await waitFor(() => expect(screen.getAllByText("Escolher…").length).toBe(2));
+    fireEvent.click(screen.getByText("Sugerir"));
+    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 pares/));
+    // Cada anúncio escolhido mostra a conta dele.
+    expect(screen.getAllByText("Conta Sigma").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Conta Patricia").length).toBeGreaterThan(0);
+    fireEvent.click(btn());
+    await waitFor(() => expect(fns.syncAirbnbPair).toHaveBeenCalledTimes(2));
+    expect(fns.syncAirbnbPair.mock.calls.map((c) => c[0].data.listingId)).toEqual(["L1", "L2"]);
+  });
+
   it("uma falha não derruba as demais e dá para tentar de novo só o que faltou", async () => {
     fns.syncAirbnbPair
       .mockResolvedValueOnce({ kind: "linked", propertyId: "p1", title: "Casa Um", pending: [] })
