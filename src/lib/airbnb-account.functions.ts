@@ -398,6 +398,17 @@ async function linkExisting(
   if (!listing || listing.notFound) throw new Error("Anúncio não encontrado no Airbnb.");
   if (listing.imported) throw new Error("Este anúncio já está ligado a outro imóvel.");
 
+  // Rechecagem direta no banco: o `imported` acima vem de leitura anterior e pode estar velho
+  // se outro operador vinculou este anúncio agora há pouco.
+  const { data: dup } = await admin
+    .from("property_listing_raw_data")
+    .select("property_id")
+    .eq("airbnb_listing_id", listing.listingId)
+    .maybeSingle();
+  if (dup && dup.property_id !== propertyId) {
+    throw new Error("Este anúncio já foi vinculado a outro imóvel.");
+  }
+
   const { syncAccountListing } = await import("@/lib/channex-listing.server");
   await syncAccountListing({
     listingId: listing.listingId,
@@ -410,7 +421,7 @@ async function linkExisting(
     .from("properties")
     .update({ airbnb_listing_url: `https://www.airbnb.com.br/rooms/${listing.listingId}` } as never)
     .eq("id", propertyId)
-    .is("airbnb_listing_url", null);
+    .or("airbnb_listing_url.is.null,airbnb_listing_url.eq.");
   const pending = await finishLinked(admin, propertyId, prop.name as string);
   return { title: listing.title, propertyName: prop.name as string, pending };
 }
@@ -431,6 +442,8 @@ export const importAirbnbListings = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "stakeholders.vinculo-imovel");
     // Todo proprietário citado precisa ser da conta; anúncio repetido vale uma vez só.
     const ownerIds = [...new Set(data.items.map((i) => i.ownerId))];
     const { data: ows } = await admin
@@ -469,6 +482,8 @@ export type UnsyncedProperty = {
   ownerName: string | null;
   ownerPhone: string | null;
   ownerPhoneCountry: string | null;
+  /** Foto principal do imóvel (capa ou a primeira da galeria), quando existir. */
+  imageUrl: string | null;
 };
 
 /**
@@ -483,7 +498,7 @@ export const listUnsyncedProperties = createServerFn({ method: "GET" })
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
     const { data: props } = await admin
       .from("properties")
-      .select("id, name, city, owner_contact_id")
+      .select("id, name, city, owner_contact_id, hero_image_url, gallery_images")
       .eq("owner_id", accountId)
       .is("archived_at", null);
     const ids = (props ?? []).map((p) => p.id);
@@ -536,6 +551,9 @@ export const listUnsyncedProperties = createServerFn({ method: "GET" })
           ownerName: o ? String(o.trade_name || o.name || "") || null : null,
           ownerPhone: o?.phone ?? null,
           ownerPhoneCountry: o?.phone_country ?? null,
+          imageUrl:
+            (p.hero_image_url as string | null) ||
+            ((p.gallery_images as string[] | null)?.[0] ?? null),
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
@@ -600,6 +618,8 @@ export const syncAirbnbPair = createServerFn({ method: "POST" })
         pending: r.pending,
       };
     }
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "stakeholders.vinculo-imovel");
     const { data: ow } = await admin
       .from("property_owners")
       .select("id")

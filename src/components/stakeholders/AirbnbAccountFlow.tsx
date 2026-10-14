@@ -43,6 +43,7 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ClampName } from "@/components/ui/clamp-name";
+import { PropertyThumb } from "@/components/ui/property-thumb";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { StakeholderFormDialog, emptyStakeholderForm } from "./StakeholderFormDialog";
 
@@ -84,6 +85,7 @@ export type SyncPropertyInfo = {
   ownerName: string | null;
   ownerPhone?: string | null;
   ownerPhoneCountry?: string | null;
+  imageUrl?: string | null;
 };
 
 type Step =
@@ -941,12 +943,12 @@ export function AirbnbAccountFlow({
         pending: [],
       })),
       ...bulkLoose
-        .filter((l) => looseNew[l.listingId])
+        .filter((l) => looseIsNew(l.listingId) && looseOwner(l.listingId))
         .map((l) => ({
           key: `l:${l.listingId}`,
           kind: "new" as const,
           listingId: l.listingId,
-          ownerId: looseNew[l.listingId],
+          ownerId: looseOwner(l.listingId),
           label: l.title,
           status: "wait" as const,
           pending: [],
@@ -1002,15 +1004,23 @@ export function AirbnbAccountFlow({
     .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
   const usedListings = new Set(Object.values(propListing));
   const bulkLoose = bulkFree.filter((l) => !usedListings.has(l.listingId));
+  // Sem imóvel livre para escolher, o anúncio que sobrou só pode virar imóvel novo.
+  const bulkFreeProps = bulkProps.filter((p) => !propListing[p.id]);
+  const looseIsNew = (lid: string) => looseNew[lid] !== undefined || bulkFreeProps.length === 0;
+  const looseOwner = (lid: string) => looseNew[lid] ?? "";
   const bulkPairsN =
-    Object.keys(propListing).length + Object.values(looseNew).filter((o) => o).length;
-  const bulkMissingOwner = bulkLoose.filter((l) => looseNew[l.listingId] === "").length;
+    Object.keys(propListing).length + bulkLoose.filter((l) => looseOwner(l.listingId)).length;
+  const bulkMissingOwner = bulkLoose.filter(
+    (l) => looseIsNew(l.listingId) && !looseOwner(l.listingId),
+  ).length;
   const bulkRowsN = bulkProps.length + bulkLoose.length;
   const syncChip = syncProp ? (
     <div className="flex min-w-0 items-center gap-2.5 rounded-[12px] bg-foreground/[0.04] px-[11px] py-[9px] text-[12.5px] font-bold">
-      <span className="grid size-[34px] shrink-0 place-items-center rounded-[9px] bg-foreground/[0.05] text-muted-foreground">
-        <Home className="size-4" />
-      </span>
+      <PropertyThumb
+        src={syncProp.imageUrl}
+        className="size-[34px] rounded-[9px]"
+        iconClassName="size-4"
+      />
       <span className="grid min-w-0 flex-1 gap-[3px]">
         <ClampName text={syncProp.name} />
         {syncProp.ownerName ? (
@@ -2064,54 +2074,60 @@ export function AirbnbAccountFlow({
                   : null}
                 {inv.data
                   ? bulkLoose.map((l) => {
-                      const isNew = looseNew[l.listingId] !== undefined;
-                      const free = bulkProps.filter((p) => !propListing[p.id]);
+                      const isNew = looseIsNew(l.listingId);
+                      const free = bulkFreeProps;
+                      const askProperty = free.length > 0;
                       return (
                         <div
                           key={l.listingId}
                           data-clip-row
                           className={`grid grid-cols-[minmax(0,1fr)_14px_minmax(0,1fr)] items-start gap-2 rounded-[14px] px-2.5 py-2.5 ${INSET} ${
-                            isNew && !looseNew[l.listingId]
+                            isNew && !looseOwner(l.listingId)
                               ? "bg-[color-mix(in_oklab,#c98c8c_7%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c98c8c_40%,transparent)]"
                               : "bg-foreground/[0.03]"
                           }`}
                         >
                           <span className="grid min-w-0 gap-1.5">
-                            <small className="text-[10.5px] text-muted-foreground">
-                              Qual imóvel é este anúncio?
-                            </small>
-                            <PairPicker
-                              value={null}
-                              valueLabel={isNew ? "Criar imóvel novo" : null}
-                              placeholder="Escolher imóvel…"
-                              searchPlaceholder="Buscar imóvel…"
-                              options={free.map((p) => ({
-                                id: p.id,
-                                title: p.name,
-                                sub: p.ownerName ? `Proprietário(a): ${p.ownerName}` : null,
-                              }))}
-                              onChange={(pid) => {
-                                setPropListing((c) => ({ ...c, [pid]: l.listingId }));
-                                setLooseNew((c) => {
-                                  const { [l.listingId]: _drop, ...rest } = c;
-                                  void _drop;
-                                  return rest;
-                                });
-                              }}
-                              footer={{
-                                label: "Criar imóvel novo a partir do anúncio",
-                                onClick: () => setLooseNew((c) => ({ ...c, [l.listingId]: "" })),
-                              }}
-                            />
+                            {askProperty ? (
+                              <>
+                                <small className="text-[10.5px] text-muted-foreground">
+                                  Qual imóvel é este anúncio?
+                                </small>
+                                <PairPicker
+                                  value={null}
+                                  valueLabel={isNew ? "Criar imóvel novo" : null}
+                                  placeholder="Escolher imóvel…"
+                                  searchPlaceholder="Buscar imóvel…"
+                                  options={free.map((p) => ({
+                                    id: p.id,
+                                    title: p.name,
+                                    sub: p.ownerName ? `Proprietário(a): ${p.ownerName}` : null,
+                                  }))}
+                                  onChange={(pid) => {
+                                    setPropListing((c) => ({ ...c, [pid]: l.listingId }));
+                                    setLooseNew((c) => {
+                                      const { [l.listingId]: _drop, ...rest } = c;
+                                      void _drop;
+                                      return rest;
+                                    });
+                                  }}
+                                  footer={{
+                                    label: "Criar imóvel novo a partir do anúncio",
+                                    onClick: () =>
+                                      setLooseNew((c) => ({ ...c, [l.listingId]: "" })),
+                                  }}
+                                />
+                              </>
+                            ) : null}
                             {isNew ? (
                               <>
                                 <small className="text-[10.5px] text-muted-foreground">
                                   Quem é o proprietário(a)?
                                 </small>
                                 <OwnerPicker
-                                  value={looseNew[l.listingId] || null}
+                                  value={looseOwner(l.listingId) || null}
                                   owners={(owners.data?.rows ?? []) as OwnerRow[]}
-                                  missing={!looseNew[l.listingId]}
+                                  missing={!looseOwner(l.listingId)}
                                   onChange={(oid) =>
                                     setLooseNew((c) => ({ ...c, [l.listingId]: oid }))
                                   }

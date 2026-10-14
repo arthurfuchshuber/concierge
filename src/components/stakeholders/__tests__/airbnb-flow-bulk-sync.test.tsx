@@ -168,6 +168,40 @@ describe("sincronizar em massa (de → para)", () => {
     });
   });
 
+  it("sem imóvel livre, o anúncio que sobrou vai direto para imóvel novo (só pergunta o proprietário)", async () => {
+    fns.syncAirbnbPair.mockResolvedValue({
+      kind: "created",
+      propertyId: "n",
+      title: "n",
+      pending: [],
+    });
+    mount({ type: "syncProperties", properties: [PROPS[0]] });
+    await waitFor(() => expect(screen.getByText("Qual anúncio é cada imóvel?")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText("Anúncio sem imóvel").length).toBe(2));
+    fireEvent.click(screen.getByText("Sugerir"));
+    // Casa Um ↔ L1: não sobra imóvel, então a pergunta do imóvel some e só falta o proprietário(a).
+    await waitFor(() => expect(screen.getByText("Falta 1 proprietário(a)")).toBeTruthy());
+    expect(screen.queryByText("Qual imóvel é este anúncio?")).toBeNull();
+    expect(screen.getByText("Quem é o proprietário(a)?")).toBeTruthy();
+    expect(btn().disabled).toBe(true);
+    fireEvent.click(screen.getAllByText("Escolher…").at(-1) as HTMLElement);
+    await waitFor(() => expect(screen.getAllByText("Livia").length).toBeGreaterThan(1));
+    fireEvent.click(screen.getAllByText("Livia").at(-1) as HTMLElement);
+    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 pares/));
+    fireEvent.click(btn());
+    await waitFor(() => expect(fns.syncAirbnbPair).toHaveBeenCalledTimes(2));
+    expect(fns.syncAirbnbPair.mock.calls[0][0].data).toEqual({
+      accountOwnerId: null,
+      listingId: "L1",
+      propertyId: "p1",
+    });
+    expect(fns.syncAirbnbPair.mock.calls[1][0].data).toEqual({
+      accountOwnerId: null,
+      listingId: "L2",
+      ownerId: "o1",
+    });
+  });
+
   it("uma falha não derruba as demais e dá para tentar de novo só o que faltou", async () => {
     fns.syncAirbnbPair
       .mockResolvedValueOnce({ kind: "linked", propertyId: "p1", title: "Casa Um", pending: [] })

@@ -29,4 +29,27 @@ describe("suggestPairs", () => {
       {},
     );
   });
+  it("mantém números curtos: Studio 2 e Studio 3 não se misturam", () => {
+    const r = suggestPairs(
+      [
+        { id: "a", name: "Studio 2" },
+        { id: "b", name: "Studio 3" },
+      ],
+      [
+        { listingId: "L3", title: "Studio 3" },
+        { listingId: "L2", title: "Studio 2" },
+      ],
+    );
+    expect(r).toEqual({ a: "L2", b: "L3" });
+  });
+  it("Ap 10 não casa com Ap 12", () => {
+    expect(
+      suggestPairs([{ id: "a", name: "Ap 10" }], [{ listingId: "L", title: "Ap 12" }]),
+    ).toEqual({});
+  });
+  it("nome só com palavras curtas e número ainda sugere quando é igual", () => {
+    expect(
+      suggestPairs([{ id: "a", name: "Ap 01" }], [{ listingId: "L", title: "ap 01" }]),
+    ).toEqual({ a: "L" });
+  });
 });

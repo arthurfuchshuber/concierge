@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Home, Lock, RefreshCw } from "lucide-react";
+import { Check, Lock, RefreshCw } from "lucide-react";
 import { listUnsyncedProperties, type UnsyncedProperty } from "@/lib/airbnb-account.functions";
 import { usePermission } from "@/lib/permissions/usePermission";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { useAnyWindowOpen } from "@/lib/global-overlay-store";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ClampName } from "@/components/ui/clamp-name";
+import { PropertyThumb } from "@/components/ui/property-thumb";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { AirbnbAccountFlow, type AirbnbFlowRequest } from "./AirbnbAccountFlow";
 
@@ -100,6 +101,7 @@ export function SyncRequiredGate() {
     ownerName: p.ownerName,
     ownerPhone: p.ownerPhone,
     ownerPhoneCountry: p.ownerPhoneCountry,
+    imageUrl: p.imageUrl,
   });
   // Seleção: começa com todos os pendentes marcados; quem já foi sincronizado sai da seleção.
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -228,7 +230,7 @@ export function SyncRequiredGate() {
                       toggle(p.id);
                     }
                   }}
-                  className={`flex items-start gap-3 rounded-[14px] p-3 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)] ${
+                  className={`flex items-center gap-3 rounded-[14px] p-3 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)] ${
                     isDone
                       ? "bg-foreground/[0.025]"
                       : on
@@ -237,15 +239,13 @@ export function SyncRequiredGate() {
                   }`}
                 >
                   {isDone ? (
-                    <Check className="mt-2.5 size-4 shrink-0 ds-ok" strokeWidth={2.6} />
+                    <Check className="size-4 shrink-0 ds-ok" strokeWidth={2.6} />
                   ) : (
-                    <span className="mt-2.5">
+                    <span>
                       <Check2 on={on} />
                     </span>
                   )}
-                  <span className="grid size-[34px] shrink-0 place-items-center rounded-[9px] bg-foreground/[0.05] text-muted-foreground">
-                    <Home className="size-[18px]" />
-                  </span>
+                  <PropertyThumb src={cur.imageUrl} className="size-[34px] rounded-[9px]" />
                   <div className="grid min-w-0 flex-1 gap-1">
                     <ClampName text={cur.name} passThrough className="text-[13px] font-bold" />
                     <div className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">

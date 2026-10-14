@@ -11,7 +11,7 @@ const tokens = (v: string) =>
   new Set(
     normName(v)
       .split(" ")
-      .filter((w) => w.length > 2),
+      .filter((w) => w.length > 2 || /\d/.test(w)),
   );
 function similarity(a: string, b: string): number {
   const x = tokens(a);
