@@ -1804,7 +1804,9 @@ function PropertyEditor() {
   const newLayoutEditor = isNewLayoutAccount(
     String(((data?.property as Record<string, unknown> | null)?.owner_id as string | undefined) ?? ""),
   );
-  const focusStep = newLayoutEditor && !isNew && !houseOnly ? (search.focus ?? null) : null;
+  const rawFocus = newLayoutEditor && !isNew && !houseOnly ? (search.focus ?? null) : null;
+  // Anúncio nativo não tem aba Airbnb: evita disputa de abas (loop infinito).
+  const focusStep = nativeAirbnb && rawFocus === "airbnb" ? "guide" : rawFocus;
   // Só "Curadoria & Dicas locais": as demais partes passam a ser editadas pelo
   // proprietário (Públicas/Confidenciais) — abertas aqui via `focus`.
   const singleStepMode = newLayoutEditor && !isNew && !houseOnly;
