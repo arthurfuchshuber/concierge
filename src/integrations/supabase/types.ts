@@ -4049,7 +4049,6 @@ export type Database = {
       }
       properties: {
         Row: {
-          archived_at: string | null
           access_codes_pin: string | null
           access_mode: Database["public"]["Enums"]["access_mode"]
           address: string | null
@@ -4149,7 +4148,6 @@ export type Database = {
           wifi_ssid: string | null
         }
         Insert: {
-          archived_at?: string | null
           access_codes_pin?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
@@ -4249,7 +4247,6 @@ export type Database = {
           wifi_ssid?: string | null
         }
         Update: {
-          archived_at?: string | null
           access_codes_pin?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
@@ -4409,8 +4406,6 @@ export type Database = {
       property_chat_conversations: {
         Row: {
           ai_paused: boolean
-          ai_reply_ctx: Json | null
-          ai_reply_due_at: string | null
           assigned_to: string | null
           claim_requested_at: string | null
           claim_requested_by: string | null
@@ -4432,8 +4427,6 @@ export type Database = {
         }
         Insert: {
           ai_paused?: boolean
-          ai_reply_ctx?: Json | null
-          ai_reply_due_at?: string | null
           assigned_to?: string | null
           claim_requested_at?: string | null
           claim_requested_by?: string | null
@@ -4455,8 +4448,6 @@ export type Database = {
         }
         Update: {
           ai_paused?: boolean
-          ai_reply_ctx?: Json | null
-          ai_reply_due_at?: string | null
           assigned_to?: string | null
           claim_requested_at?: string | null
           claim_requested_by?: string | null
@@ -4757,10 +4748,6 @@ export type Database = {
           raw_settings: Json
           source: string
           sync_paused_at: string | null
-          paused_reason: string | null
-          chat_pending_at: string | null
-          chat_pending_error: string | null
-          not_found_at: string | null
           synced_at: string
           updated_at: string
         }
@@ -4782,10 +4769,6 @@ export type Database = {
           raw_settings?: Json
           source?: string
           sync_paused_at?: string | null
-          paused_reason?: string | null
-          chat_pending_at?: string | null
-          chat_pending_error?: string | null
-          not_found_at?: string | null
           synced_at?: string
           updated_at?: string
         }
@@ -4807,10 +4790,6 @@ export type Database = {
           raw_settings?: Json
           source?: string
           sync_paused_at?: string | null
-          paused_reason?: string | null
-          chat_pending_at?: string | null
-          chat_pending_error?: string | null
-          not_found_at?: string | null
           synced_at?: string
           updated_at?: string
         }
