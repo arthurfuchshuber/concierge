@@ -164,6 +164,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const activities = belongsToActiveAccount ? (data?.activities ?? []) : [];
   // Novo layout (etapa 1): SÓ a conta do Anfitrião Sigma — ver `new-layout-accounts.ts`.
   const newLayout = kind === "owner" && isNewLayoutAccount(data?.accountId);
+  const fullScreen = newLayout && kind === "owner";
   const properties = belongsToActiveAccount ? (data?.properties ?? []) : [];
   const connections = (
     belongsToActiveAccount ? (data?.connections ?? []) : []
@@ -721,10 +722,19 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
         <SheetContent
           side={isMobile ? "bottom" : "right"}
+          // Ficha do proprietário (layout novo): tela cheia, como pedido em 13/10/2026.
+          // O X vira o botão redondo de 32px das janelas do sistema.
+          closeClassName={
+            fullScreen
+              ? "absolute right-4 top-4 z-10 grid size-8 place-items-center rounded-full bg-secondary/60 text-muted-foreground opacity-80 cursor-pointer transition-all hover:opacity-100 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              : undefined
+          }
           className={
-            isMobile
-              ? "w-full max-h-[75dvh] rounded-t-[var(--win-radius)] overflow-y-auto p-0"
-              : "w-full sm:max-w-3xl overflow-y-auto p-0"
+            fullScreen
+              ? "h-dvh max-h-none w-full max-w-none overflow-y-auto rounded-none border-0 p-0 sm:max-w-none"
+              : isMobile
+                ? "w-full max-h-[75dvh] rounded-t-[var(--win-radius)] overflow-y-auto p-0"
+                : "w-full sm:max-w-3xl overflow-y-auto p-0"
           }
         >
           {detailId && (

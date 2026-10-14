@@ -75,8 +75,9 @@ import { OwnerPropertiesPanel } from "./OwnerPropertiesPanel";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { SortMenu } from "@/components/dashboard/SortMenu";
 import { humanizeEventMessage } from "@/lib/stakeholder-event-message";
+import { describeRecord } from "@/lib/owner-timeline-record";
 import { MultiLinkPicker } from "./MultiLinkPicker";
-import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
+import { CARD_8 } from "@/components/stakeholders/owner-ui";
 import { OwnerPropertyWindow } from "./OwnerPropertyWindow";
 import { OwnerAccessList } from "./OwnerAccessList";
 import { Stepper } from "@/components/editor/Stepper";
@@ -108,11 +109,11 @@ import { Coins, StickyNote, Check, User, Activity, Filter, Trash2 } from "lucide
  *  ds-segmented rolar na horizontal quando não couberem todas, em vez de
  *  espremer/cortar "Acessos" tentando dividir a largura em partes iguais. */
 const SEG_TAB =
-  "min-h-[46px] !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
+  "min-h-9 !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
 
 /** Abas do layout novo (mockup aprovado): sem rosa, aba ativa neutra com fio de marca. */
 const SEG_TAB_NEW =
-  "min-h-[46px] !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-foreground/10 data-[state=active]:text-foreground data-[state=active]:shadow-none";
+  "min-h-9 !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-foreground/10 data-[state=active]:text-foreground data-[state=active]:shadow-none";
 
 const MONTHS_PT = [
   "janeiro",
@@ -632,16 +633,25 @@ export function StakeholderDetailSheet({
   const timeline = [
     ...events
       .filter((ev: any) => !NOISE.test(String(ev.message ?? "")))
-      .map((ev: any) => ({
-        key: `n:${ev.id}`,
-        at: ev.created_at as string,
-        icon: Pin,
-        title: humanizeEventMessage(ev.message as string),
-        badge: "Registro",
-        author: (ev.author_name as string | null) ?? "Sistema",
-        lines: [] as Array<{ k: string; v: string }>,
-        body: null as React.ReactNode,
-      })),
+      .map((ev: any) => {
+        const rec = describeRecord(humanizeEventMessage(ev.message as string));
+        return {
+          key: `n:${ev.id}`,
+          at: ev.created_at as string,
+          icon: /resid[êe]ncia|im[óo]vel/i.test(rec.title)
+            ? Home
+            : rec.kind === "create"
+              ? User
+              : /contrato/i.test(rec.title)
+                ? FileText
+                : Pin,
+          title: rec.title,
+          badge: "Registro",
+          author: (ev.author_name as string | null) ?? "Sistema",
+          lines: rec.lines,
+          body: null as React.ReactNode,
+        };
+      }),
     ...feedEvents.map((ev) => ({
       key: `g:${ev.id}`,
       at: ev.at ?? "",
@@ -757,26 +767,17 @@ export function StakeholderDetailSheet({
     })();
 
     return (
-      <div className="flex w-full min-w-0 max-w-full flex-col overflow-x-hidden px-4 pb-7 pt-2.5">
-        <div
-          aria-hidden
-          className="mx-auto mb-[18px] h-1 w-9 rounded bg-foreground/[0.18] md:hidden"
-        />
-
+      <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col overflow-x-hidden px-4 pb-7 pt-[21px]">
         {/* Cabeçalho (mockups P1–P8): rótulo, nome com o botão de contato colado, e UMA linha
             com situação + vigência. O X é o do próprio painel (canto superior direito). */}
         <div className="grid gap-2">
-          <p className="ds-eyebrow pr-9 text-[10px] leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
+          <p className="ds-eyebrow pr-10 text-[10.5px] font-bold leading-[22px] tracking-[0.14em] text-[color:var(--faint)]">
             Proprietário
           </p>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-1">
-              <h2
-                className="min-w-0 truncate font-display text-[20px] font-bold leading-[1.15] tracking-[-0.01em]"
-                title={displayName}
-              >
-                {displayName}
-              </h2>
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            {/* Título dinâmico: quebra linha naturalmente (diretriz 1.4), sem reticências. */}
+            <h2 className="min-w-0 font-display text-[22px] font-bold leading-[1.2] tracking-[-0.01em] [overflow-wrap:anywhere]">
+              {displayName}
               <PhoneActionButton
                 phone={ownerPhone}
                 country={ownerCountry}
@@ -784,10 +785,10 @@ export function StakeholderDetailSheet({
                 alwaysShow
                 rich
                 email={row.email as string | null}
-                className="shrink-0"
+                className="ml-0.5 inline-flex align-middle"
               />
-            </div>
-            <div className={`${ACTION_BAR} !h-9 !w-auto shrink-0 !rounded-[11px]`}>
+            </h2>
+            <div className={`${ACTION_BAR} !h-9 !w-auto shrink-0 !rounded-lg`}>
               {clicksignActive ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -796,7 +797,7 @@ export function StakeholderDetailSheet({
                       aria-label="Editar"
                       title="Editar"
                       disabled={extracting}
-                      className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
+                      className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-9 !flex-none !px-0`}
                     >
                       {extracting ? (
                         <Loader2 className={`${ACTION_ICON} animate-spin`} />
@@ -820,7 +821,7 @@ export function StakeholderDetailSheet({
                   onClick={onEdit}
                   aria-label="Editar cadastro"
                   title="Editar cadastro"
-                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
+                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-9 !flex-none !px-0`}
                 >
                   <Pencil className={ACTION_ICON} />
                 </button>
@@ -831,7 +832,7 @@ export function StakeholderDetailSheet({
                 aria-expanded={dataOpen}
                 aria-label="Dados pessoais"
                 title="Dados pessoais"
-                className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
+                className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-9 !flex-none !px-0`}
               >
                 <ChevronDown
                   className={`${ACTION_ICON} transition-transform ${dataOpen ? "rotate-180" : ""}`}
@@ -839,7 +840,7 @@ export function StakeholderDetailSheet({
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-[10px] whitespace-nowrap text-[12.5px] leading-none text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-[10px] gap-y-1.5 text-[12px] leading-none text-muted-foreground">
             <StakeholderStatusControl
               kind={kind}
               id={id}
@@ -869,9 +870,7 @@ export function StakeholderDetailSheet({
 
         {/* Dados pessoais (mockup `.kv`): recolhido ao abrir a ficha. */}
         {dataOpen && (
-          <section
-            className={`${PANEL_SHELL} mt-[18px] grid grid-cols-2 gap-x-4 gap-y-5 px-4 py-[18px]`}
-          >
+          <section className="mt-3 grid grid-cols-2 gap-x-4 gap-y-4 rounded-lg bg-card p-4 shadow-[inset_0_0_0_1px_var(--border)]">
             {(
               [
                 { l: "Nome completo", v: row.name, wide: true },
@@ -896,18 +895,20 @@ export function StakeholderDetailSheet({
               .filter((x): x is { l: string; v: string; wide?: boolean } => !!x && !!x.v)
               .map((f) => (
                 <div key={f.l} className={`min-w-0 ${f.wide ? "col-span-2" : ""}`}>
-                  <p className="mb-[5px] text-[11px] font-semibold text-[color:var(--faint)]">
+                  <p className="ds-eyebrow mb-1.5 text-[10.5px] font-bold tracking-[0.14em] text-[color:var(--faint)]">
                     {f.l}
                   </p>
-                  <p className="break-words text-[13.5px] leading-[1.4] text-foreground">{f.v}</p>
+                  <p className="break-words text-[13px] font-medium leading-[1.4] text-foreground">
+                    {f.v}
+                  </p>
                 </div>
               ))}
             {(row.address || row.city || row.state || row.cep) && (
               <div className="col-span-2 min-w-0">
-                <p className="mb-[5px] text-[11px] font-semibold text-[color:var(--faint)]">
+                <p className="ds-eyebrow mb-1.5 text-[10.5px] font-bold tracking-[0.14em] text-[color:var(--faint)]">
                   Endereço
                 </p>
-                <p className="break-words text-[13.5px] leading-[1.4] text-foreground">
+                <p className="break-words text-[13px] font-medium leading-[1.4] text-foreground">
                   {[row.address, row.district].filter(Boolean).join(" · ")}
                   <br />
                   <span className="text-muted-foreground">
@@ -997,7 +998,7 @@ export function StakeholderDetailSheet({
                           </PopoverTrigger>
                           <PopoverContent
                             align="end"
-                            className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+                            className="w-[240px] rounded-lg border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
                             onOpenAutoFocus={(e) => e.preventDefault()}
                           >
                             <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
@@ -1065,7 +1066,7 @@ export function StakeholderDetailSheet({
                       </p>
                     )}
                     {noteOpen && (
-                      <div className={`${PANEL_SHELL} mb-5 space-y-2 p-3`}>
+                      <div className={`${CARD_8} mb-5 space-y-2 p-3`}>
                         <textarea
                           value={note}
                           onChange={(e) => setNote(e.target.value)}
@@ -1115,58 +1116,68 @@ export function StakeholderDetailSheet({
                         }
                       />
                     ) : (
-                      <div className="grid gap-[22px]">
+                      <div className="grid gap-5">
                         {visibleGroups.map((g) => (
-                          <div key={g.label} className="grid gap-3">
-                            <p className="ds-eyebrow text-[10px] tracking-[0.2em] text-[color:var(--faint)]">
-                              {capitalize(g.label).replace(" de ", " ")}
-                            </p>
-                            <div>
-                              {g.items.map((item, i) => {
-                                const last = i === g.items.length - 1;
+                          <div key={g.label} className="grid gap-2.5">
+                            <div className="flex items-center justify-between">
+                              <p className="ds-eyebrow text-[10.5px] font-bold tracking-[0.14em] text-[color:var(--faint)]">
+                                {capitalize(g.label).replace(" de ", " ")}
+                              </p>
+                              <span className="ds-eyebrow text-[10.5px] font-bold tracking-[0.04em] text-[color:var(--faint)]">
+                                {g.items.length} {g.items.length === 1 ? "evento" : "eventos"}
+                              </span>
+                            </div>
+                            <div className="divide-y divide-border overflow-hidden rounded-lg bg-card shadow-[inset_0_0_0_1px_var(--border)]">
+                              {g.items.map((item) => {
                                 const Ico = item.icon === Pin ? StickyNote : item.icon;
+                                const when = new Date(item.at);
+                                const hhmm = Number.isNaN(when.getTime())
+                                  ? ""
+                                  : when.toLocaleTimeString("pt-BR", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    });
                                 return (
                                   <div
                                     key={item.key}
-                                    className={`relative pl-10 ${last ? "" : "pb-[22px]"}`}
+                                    className="grid grid-cols-[36px_minmax(0,1fr)_auto] items-start gap-3 px-4 py-3.5"
                                   >
-                                    {!last && (
-                                      <span
-                                        aria-hidden
-                                        className="absolute bottom-0 left-[11.5px] top-[26px] w-px bg-foreground/[0.1]"
-                                      />
-                                    )}
-                                    <span className="absolute left-0 top-0 grid size-6 place-items-center rounded-full bg-card text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent)]">
-                                      <Ico className="size-3" />
+                                    <span className="grid size-9 place-items-center rounded-lg bg-foreground/[0.06] text-muted-foreground">
+                                      <Ico className="size-4" />
                                     </span>
-                                    <p className="pt-0.5 text-[13.5px] font-semibold leading-[1.4] text-foreground">
-                                      {item.title}
-                                    </p>
-                                    {/* UMA informação completa por linha (pedido 13/10/2026). */}
-                                    {item.lines.length > 0 && (
-                                      <div className="mt-1.5 grid gap-1">
-                                        {item.lines.map((l, li) => (
-                                          <p
-                                            key={li}
-                                            className="break-words text-[12.5px] leading-[1.4] text-foreground/90"
-                                          >
-                                            {l.k ? (
-                                              <span className="mr-1 text-muted-foreground">
-                                                {l.k}:
+                                    <div className="min-w-0">
+                                      <p className="font-display text-[13.5px] font-bold leading-[1.3] text-foreground [overflow-wrap:anywhere]">
+                                        {item.title}
+                                      </p>
+                                      {/* UMA informação completa por linha (pedido 13/10/2026). */}
+                                      {item.lines.length > 0 && (
+                                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                                          {item.lines.map((l, li) => (
+                                            <p
+                                              key={li}
+                                              className="break-words text-[12px] leading-[1.4] text-muted-foreground"
+                                            >
+                                              {l.k ? <>{l.k}: </> : null}
+                                              <span className="font-semibold text-foreground">
+                                                {l.v}
                                               </span>
-                                            ) : null}
-                                            {l.v}
-                                          </p>
-                                        ))}
-                                      </div>
-                                    )}
-                                    {item.body && (
-                                      <div className="mt-1.5 space-y-1">{item.body}</div>
-                                    )}
-                                    <p className="mt-1.5 text-[11.5px] text-[color:var(--faint)]">
-                                      {shortDateTime(item.at)} ·{" "}
-                                      {item.author !== "Sistema" ? item.author : item.badge}
-                                    </p>
+                                            </p>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {item.body && (
+                                        <div className="mt-2 space-y-1 text-[12px]">
+                                          {item.body}
+                                        </div>
+                                      )}
+                                      <p className="mt-1.5 text-[12px] text-[color:var(--faint)]">
+                                        {item.author !== "Sistema" ? item.author : item.badge} ·{" "}
+                                        {shortDate(item.at)}
+                                      </p>
+                                    </div>
+                                    <span className="pt-0.5 text-[12px] tabular-nums text-muted-foreground">
+                                      {hhmm}
+                                    </span>
                                   </div>
                                 );
                               })}
@@ -1271,7 +1282,7 @@ export function StakeholderDetailSheet({
                           </PopoverTrigger>
                           <PopoverContent
                             align="end"
-                            className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+                            className="w-[240px] rounded-lg border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
                             onOpenAutoFocus={(e) => e.preventDefault()}
                           >
                             <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
@@ -1358,9 +1369,9 @@ export function StakeholderDetailSheet({
                         ...looseShown.map((d) => (
                           <div
                             key={`loose-${d.id}`}
-                            className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-[12px] bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                            className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-lg bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                           >
-                            <span className="row-span-2 grid size-8 self-start place-items-center rounded-[10px] bg-foreground/[0.05] text-muted-foreground">
+                            <span className="row-span-2 grid size-8 self-start place-items-center rounded-lg bg-foreground/[0.05] text-muted-foreground">
                               <FileText className="size-[15px]" />
                             </span>
                             <b className="truncate text-[13px] font-bold" title={d.name}>
@@ -1415,9 +1426,9 @@ export function StakeholderDetailSheet({
                           return (
                             <div
                               key={d.id}
-                              className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-[12px] bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                              className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-lg bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                             >
-                              <span className="row-span-2 grid size-8 self-start place-items-center rounded-[10px] bg-foreground/[0.05] text-muted-foreground">
+                              <span className="row-span-2 grid size-8 self-start place-items-center rounded-lg bg-foreground/[0.05] text-muted-foreground">
                                 <FileText className="size-[15px]" />
                               </span>
                               <b className="truncate text-[13px] font-bold" title={d.name}>
@@ -1683,7 +1694,7 @@ export function StakeholderDetailSheet({
 
       {/* ---------- Dados pessoais (recolhível, fechado por padrão) ---------- */}
       {dataOpen && (
-        <section className={newLayout ? `${PANEL_SHELL} p-4` : "ds-surface bg-card p-4"}>
+        <section className={newLayout ? `${CARD_8} p-4` : "ds-surface bg-card p-4"}>
           <dl className="grid gap-4 sm:grid-cols-2">
             <Field label="Nome completo" value={row.name} copy={row.name} />
             {row.trade_name && (
@@ -1843,7 +1854,7 @@ export function StakeholderDetailSheet({
               ).map((g) => (
                 <div key={g.label} className="space-y-2">
                   <GroupLabel count={g.items.length}>{g.label}</GroupLabel>
-                  <ul className={`${PANEL_SHELL} divide-y divide-border`}>
+                  <ul className={`${CARD_8} divide-y divide-border`}>
                     {g.items.map((ev) => (
                       <li key={ev.id} className="px-4 py-3">
                         <p className="text-[13.5px] leading-[1.3] text-foreground">{ev.title}</p>
@@ -1933,7 +1944,7 @@ export function StakeholderDetailSheet({
             </div>
 
             {newLayout && noteOpen && (
-              <div className={`${PANEL_SHELL} space-y-2 p-3`}>
+              <div className={`${CARD_8} space-y-2 p-3`}>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
@@ -1992,7 +2003,7 @@ export function StakeholderDetailSheet({
                     <GroupLabel count={g.items.length}>{g.label}</GroupLabel>
                     <ul className="space-y-2">
                       {g.items.map((item) => (
-                        <li key={item.key} className={`${PANEL_SHELL} flex gap-3 px-4 py-3`}>
+                        <li key={item.key} className={`${CARD_8} flex gap-3 px-4 py-3`}>
                           <item.icon
                             className="mt-0.5 size-4 shrink-0 text-muted-foreground"
                             aria-hidden
@@ -2238,7 +2249,7 @@ export function StakeholderDetailSheet({
         <TabsContent value="financeiro" className="mt-5 space-y-4">
           {newLayout ? (
             <>
-              <div className={`${PANEL_SHELL} grid grid-cols-3 divide-x divide-border`}>
+              <div className={`${CARD_8} grid grid-cols-3 divide-x divide-border`}>
                 {(
                   [
                     ["A receber", "ds-ok"],
