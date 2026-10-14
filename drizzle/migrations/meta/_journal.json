@@ -22,6 +22,13 @@
       "when": 1791990276252,
       "tag": "0002_invite_requires_verified_email",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792012632854,
+      "tag": "0003_listing_raw_data_unique_airbnb_listing",
+      "breakpoints": true
     }
   ]
 }
