@@ -83,14 +83,61 @@ export async function loadTwinMappings(): Promise<SafeMapTarget[]> {
   return out;
 }
 
-/** Todos os anúncios a sincronizar: pares do banco + mapeamentos fixos do piloto (sem duplicar). */
+/**
+ * Anúncios individuais (não gêmeos) importados por qualquer cliente, vindos de `property_listing_raw_data`.
+ * Só entram os ATIVOS (não pausados, imóvel não arquivado, com sala/tarifa na Channex) de contas em
+ * Modo Full: no Leve a ConciergeIA só lê — enviar disponibilidade ali apagaria bloqueios feitos no Airbnb.
+ */
+export async function loadActiveListingsTargets(): Promise<SafeMapTarget[]> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const admin = supabaseAdmin as any;
+  const { data: full, error: e1 } = await admin.from("channex_account_settings").select("owner_id").eq("operation_mode", "full");
+  if (e1) throw new Error(e1.message);
+  const owners = ((full ?? []) as Array<{ owner_id: string }>).map((r) => r.owner_id);
+  if (!owners.length) return [];
+  const { data, error } = await admin
+    .from("property_listing_raw_data")
+    .select("property_id, airbnb_listing_id, channex_channel_id, channex_property_id, channex_room_type_id, channex_rate_plan_id, properties!inner(archived_at)")
+    .in("owner_id", owners)
+    .is("sync_paused_at", null)
+    .is("properties.archived_at", null)
+    .not("airbnb_listing_id", "is", null)
+    .not("channex_channel_id", "is", null)
+    .not("channex_property_id", "is", null)
+    .not("channex_room_type_id", "is", null)
+    .not("channex_rate_plan_id", "is", null);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as any[]).map((r) => ({
+    channelId: String(r.channex_channel_id),
+    listingId: String(r.airbnb_listing_id),
+    channexPropertyId: String(r.channex_property_id),
+    roomTypeId: String(r.channex_room_type_id),
+    ratePlanId: String(r.channex_rate_plan_id),
+    propertyId: String(r.property_id),
+  }));
+}
+
+/**
+ * Todos os anúncios a sincronizar: gêmeos ativos + anúncios individuais ativos do banco +
+ * mapeamentos fixos do piloto (só como reserva, para o banco vazio). Sem duplicar por `listingId`.
+ */
 export async function allSyncTargets(): Promise<SafeMapTarget[]> {
-  const db = await loadTwinMappings().catch((e) => {
+  const twins = await loadTwinMappings().catch((e) => {
     console.error("[channex] gêmeos do banco", e);
     return [] as SafeMapTarget[];
   });
-  const seen = new Set(db.map((t) => t.listingId));
-  return [...db, ...PILOT_MAPPINGS.filter((t) => !seen.has(t.listingId))];
+  const listings = await loadActiveListingsTargets().catch((e) => {
+    console.error("[channex] anúncios ativos do banco", e);
+    return [] as SafeMapTarget[];
+  });
+  const out: SafeMapTarget[] = [];
+  const seen = new Set<string>();
+  for (const t of [...twins, ...listings, ...PILOT_MAPPINGS]) {
+    if (seen.has(t.listingId)) continue;
+    seen.add(t.listingId);
+    out.push(t);
+  }
+  return out;
 }
 
 /** Sincroniza só os dois lados de um par (carga inicial ao unir anúncios). */

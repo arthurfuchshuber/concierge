@@ -2,11 +2,11 @@
  * Modo de operação da integração Airbnb (por conta inteira, nunca por imóvel).
  * - light: ConciergeIA só lê (reservas, financeiro, mensagens); calendário e preços na plataforma.
  * - full: ConciergeIA controla SOMENTE a disponibilidade; preços vêm da ferramenta de pricing.
- * Fase piloto: disponível apenas para as contas em MODE_PILOT_OWNERS.
+ * Liberado para toda conta conectada (acesso já exigido por requireAdmin + conta autorizada).
+ * O Full continua só com preços validados (`validatePricing`: checked > 0 e missing === 0).
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export const MODE_PILOT_OWNERS = new Set<string>(["25239e5b-1a66-46f1-b9a2-829c499cc366"]);
 export type OperationMode = "light" | "full";
 
 const CHANNEX_BASE = "https://app.channex.io/api/v1";
@@ -22,10 +22,6 @@ async function cx<T>(path: string): Promise<T> {
   const res = await fetch(`${CHANNEX_BASE}${path}`, { headers: { "user-api-key": key, Accept: "application/json" } });
   if (!res.ok) throw new Error(`Falha na integração (${res.status}).`);
   return (await res.json()) as T;
-}
-
-export function assertPilot(ownerId: string) {
-  if (!MODE_PILOT_OWNERS.has(ownerId)) throw new Error("Recurso ainda não liberado para esta conta.");
 }
 
 export async function getAccountMode(ownerId: string) {
@@ -50,16 +46,20 @@ function signature(title: string) {
 export type TwinSuggestion = { channelId: string; a: { listingId: string; title: string }; b: { listingId: string; title: string }; reason: string };
 
 /** Sugere pares prováveis de anúncios gêmeos (mesmo canal) ainda não unidos. Apenas leitura. */
-export async function detectTwinCandidates(): Promise<TwinSuggestion[]> {
+export async function detectTwinCandidates(ownerId: string): Promise<TwinSuggestion[]> {
   const { listTwinLinks } = await import("@/lib/channex-twins.server");
   const links = await listTwinLinks().catch(() => [] as any[]);
   const { LISTING_ALIASES } = await import("@/lib/channex-listing.server");
   const linked = new Set<string>([...links.flatMap((l: any) => [String(l.primary_listing_id), String(l.twin_listing_id)]), ...Object.keys(LISTING_ALIASES), ...Object.values(LISTING_ALIASES)]);
 
   const chans = await cx<{ data: any[] }>("/channels?pagination[limit]=100");
+  // Só os canais desta conta: a chave da Channex enxerga os de todos os clientes.
+  const { accountChannelScope } = await import("@/lib/airbnb-accounts.server");
+  const scope = await accountChannelScope(ownerId);
   const out: TwinSuggestion[] = [];
   for (const c of chans.data ?? []) {
     if (c.attributes?.channel !== "AirBNB") continue;
+    if (scope && !scope.has(String(c.id))) continue;
     const res = await cx<{ data: any }>(`/channels/${c.id}/action/listings`).catch(() => null);
     const items = ((res?.data?.listing_id_dictionary?.values ?? []) as any[])
       .map((l) => ({ listingId: String(l.id), title: String(l.title ?? l.id) }))

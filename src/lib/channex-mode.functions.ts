@@ -15,15 +15,14 @@ async function targetOwner(ctx: { supabase: any; userId: string }, ownerId: stri
   return resolveAuthorizedAccountOwnerId(ctx.supabase, ctx.userId, ownerId);
 }
 
-/** Modo atual da conta (null quando o recurso ainda não está liberado para ela). */
+/** Modo atual da conta. */
 export const getOperationMode = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => Owner.parse(d))
   .handler(async ({ data, context }) => {
     const ctx = context as any;
     const ownerId = await targetOwner(ctx, data.ownerId);
-    const { MODE_PILOT_OWNERS, getAccountMode } = await import("@/lib/channex-mode.server");
-    if (!MODE_PILOT_OWNERS.has(ownerId)) return null;
+    const { getAccountMode } = await import("@/lib/channex-mode.server");
     return getAccountMode(ownerId);
   });
 
@@ -33,9 +32,9 @@ export const getTwinSuggestions = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const ctx = context as any;
     await requireAdmin(ctx);
-    const { assertPilot, detectTwinCandidates } = await import("@/lib/channex-mode.server");
-    assertPilot(data.ownerId ?? ctx.userId);
-    return detectTwinCandidates();
+    const ownerId = await targetOwner(ctx, data.ownerId);
+    const { detectTwinCandidates } = await import("@/lib/channex-mode.server");
+    return detectTwinCandidates(ownerId);
   });
 
 export const validatePricingFn = createServerFn({ method: "POST" })
@@ -45,8 +44,7 @@ export const validatePricingFn = createServerFn({ method: "POST" })
     const ctx = context as any;
     await requireAdmin(ctx);
     const ownerId = await targetOwner(ctx, data.ownerId);
-    const { assertPilot, validatePricing, saveAccountMode } = await import("@/lib/channex-mode.server");
-    assertPilot(ownerId);
+    const { validatePricing, saveAccountMode } = await import("@/lib/channex-mode.server");
     const r = await validatePricing(ownerId);
     // Validação velha não vale: se falhou agora, apaga o carimbo anterior.
     await saveAccountMode(ownerId, { pricing_validated_at: r.ok ? new Date().toISOString() : null }, ctx.userId);
@@ -61,8 +59,7 @@ export const activateFullMode = createServerFn({ method: "POST" })
     const ctx = context as any;
     await requireAdmin(ctx);
     const ownerId = await targetOwner(ctx, data.ownerId);
-    const { assertPilot, getAccountMode, saveAccountMode } = await import("@/lib/channex-mode.server");
-    assertPilot(ownerId);
+    const { getAccountMode, saveAccountMode } = await import("@/lib/channex-mode.server");
     const cur = await getAccountMode(ownerId);
     if (!cur.pricingValidatedAt) throw new Error("Valide primeiro o envio de preços da ferramenta de pricing.");
     await saveAccountMode(ownerId, { operation_mode: "full", mode_changed_at: new Date().toISOString() }, ctx.userId);
@@ -77,8 +74,7 @@ export const chooseLightMode = createServerFn({ method: "POST" })
     const ctx = context as any;
     await requireAdmin(ctx);
     const ownerId = await targetOwner(ctx, data.ownerId);
-    const { assertPilot, saveAccountMode } = await import("@/lib/channex-mode.server");
-    assertPilot(ownerId);
+    const { saveAccountMode } = await import("@/lib/channex-mode.server");
     await saveAccountMode(ownerId, { operation_mode: "light", mode_changed_at: new Date().toISOString() }, ctx.userId);
     return { ok: true };
   });
@@ -90,8 +86,7 @@ export const answerTwinPrompt = createServerFn({ method: "POST" })
     const ctx = context as any;
     await requireAdmin(ctx);
     const ownerId = await targetOwner(ctx, data.ownerId);
-    const { assertPilot, saveAccountMode } = await import("@/lib/channex-mode.server");
-    assertPilot(ownerId);
+    const { saveAccountMode } = await import("@/lib/channex-mode.server");
     await saveAccountMode(ownerId, { twin_prompt_answered_at: new Date().toISOString() }, ctx.userId);
     return { ok: true };
   });

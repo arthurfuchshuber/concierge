@@ -241,14 +241,12 @@ export const setAirbnbAiToggle = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Conta remetente ("carimbo") da IA por anúncio — piloto. */
+/** Conta remetente ("carimbo") da IA por anúncio. */
 export const getListingSenders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requireAdmin(context as never);
     const userId = (context as { userId: string }).userId;
-    const { MODE_PILOT_OWNERS } = await import("@/lib/channex-mode.server");
-    if (!MODE_PILOT_OWNERS.has(userId)) return [];
     const { listListingSenders } = await import("@/lib/channex-sender.server");
     return listListingSenders(userId);
   });
@@ -265,8 +263,6 @@ export const setListingSender = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAdmin(context as never);
     const userId = (context as { userId: string }).userId;
-    const { assertPilot } = await import("@/lib/channex-mode.server");
-    assertPilot(userId);
     const { switchListingSender } = await import("@/lib/channex-sender.server");
     return switchListingSender(userId, data.listingIds, data.channelId);
   });

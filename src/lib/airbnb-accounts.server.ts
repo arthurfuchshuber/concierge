@@ -356,3 +356,18 @@ export async function reactivate(admin: Admin, accountId: string, channelId: str
     .eq("channex_channel_id", channelId);
   return { resumed: resume.length, chatPending };
 }
+
+/**
+ * Canais Airbnb (Channex) que pertencem a esta conta do sistema. A chave da Channex enxerga os
+ * canais de TODOS os clientes: qualquer leitura/ação que lista canais precisa passar por aqui
+ * para um cliente nunca ver nem usar a conta Airbnb de outro.
+ * `null` = sem restrição (só a conta fundadora, que já operava com todos os canais antes do
+ * cadastro por conta existir).
+ */
+export const UNSCOPED_CHANNEL_OWNERS = new Set<string>(["25239e5b-1a66-46f1-b9a2-829c499cc366"]);
+export async function accountChannelScope(accountId: string): Promise<Set<string> | null> {
+  if (UNSCOPED_CHANNEL_OWNERS.has(accountId)) return null;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const rows = await registry(supabaseAdmin as never, accountId, false);
+  return new Set(rows.map((r) => r.channex_channel_id));
+}

@@ -474,7 +474,7 @@ export async function consolidatedGuestBlock(
  * cada conversa é "reivindicada" por comparação do horário agendado — se chegou mensagem nova
  * (horário mudou) ou outra execução já pegou, esta desiste sem responder.
  */
-export async function processDueAiReplies(limit = 10): Promise<number> {
+export async function processDueAiReplies(limit = 25): Promise<number> {
   const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
   const { data: due } = await admin
     .from("property_chat_conversations")

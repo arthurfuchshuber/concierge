@@ -22,11 +22,15 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type Chan = { id: string; title: string; properties: string[]; mappings: Array<{ id: string; ratePlanId: string; listingId: string }>; catalog: Set<string> };
 
-async function loadAirbnbChannels(): Promise<Chan[]> {
+async function loadAirbnbChannels(ownerId: string): Promise<Chan[]> {
   const list = await cx<{ data: any[] }>("/channels?pagination[limit]=100");
+  // Só os canais da conta: a chave da Channex enxerga os de todos os clientes.
+  const { accountChannelScope } = await import("@/lib/airbnb-accounts.server");
+  const scope = await accountChannelScope(ownerId);
   const out: Chan[] = [];
   for (const c of list.data ?? []) {
     if (c.attributes?.channel !== "AirBNB") continue;
+    if (scope && !scope.has(String(c.id))) continue;
     const [full, listings] = await Promise.all([
       cx<{ data: any }>(`/channels/${c.id}`),
       cx<{ data: any }>(`/channels/${c.id}/action/listings`).catch(() => null),
@@ -67,7 +71,7 @@ export type ListingSender = { listingId: string; currentChannelId: string | null
 export async function listListingSenders(ownerId: string): Promise<ListingSender[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const groups = await ownerGroups(supabaseAdmin, ownerId);
-  const chans = await loadAirbnbChannels();
+  const chans = await loadAirbnbChannels(ownerId);
   const { readSenderPrefs } = await import("@/lib/airbnb-direct-sender.server");
   const prefs = await readSenderPrefs(supabaseAdmin, [...groups.values()].flatMap((g) => [...g]));
   const out: ListingSender[] = [];
@@ -99,7 +103,7 @@ export async function switchListingSender(ownerId: string, listingId: string | s
     g.forEach((l) => set.add(l));
   }
   if (!set.size) throw new Error("Nenhum anúncio selecionado.");
-  const target = (await loadAirbnbChannels()).find((c) => c.id === targetChannelId);
+  const target = (await loadAirbnbChannels(ownerId)).find((c) => c.id === targetChannelId);
   if (!target) throw new Error("Conta Airbnb não encontrada.");
   const { writeSenderPrefs } = await import("@/lib/airbnb-direct-sender.server");
   await writeSenderPrefs(db, ownerId, userId, [...set], target.id);

@@ -197,22 +197,49 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
     }
   }
 
-  // Anúncios piloto alterados → atualiza dados do imóvel e reindexa a IA (sem raspar página pública).
+  // Anúncios alterados → atualiza dados do imóvel e reindexa a IA (sem raspar página pública).
+  // Vale para qualquer cliente: o imóvel vem de `property_listing_raw_data` (anúncio → imóvel).
+  // O piloto fixo (por slug) fica só como reserva para o que ainda não está nessa tabela.
   let listingsUpdated = 0;
   const changedListingIds = new Set(changedRecs.filter((r) => r.entity_type === "channel_listing").map((r) => r.channex_id));
+  const metaOf = (lid: string, channelId?: string) => {
+    if (channelId) return listingsByChannel.get(channelId)?.find((l) => String(l.id) === lid);
+    for (const values of listingsByChannel.values()) {
+      const m = values.find((l) => String(l.id) === lid);
+      if (m) return m;
+    }
+    return undefined;
+  };
+  const targets = new Map<string, { propertyId: string; meta: any }>(); // listingId → imóvel
+  if (changedListingIds.size) {
+    const ids = [...changedListingIds];
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data: rows } = await admin
+        .from("property_listing_raw_data")
+        .select("property_id, airbnb_listing_id")
+        .in("airbnb_listing_id", ids.slice(i, i + 200))
+        .is("sync_paused_at", null);
+      for (const r of (rows ?? []) as Array<{ property_id: string; airbnb_listing_id: string }>) {
+        const meta = metaOf(String(r.airbnb_listing_id));
+        if (meta) targets.set(String(r.airbnb_listing_id), { propertyId: r.property_id, meta });
+      }
+    }
+  }
   for (const [lid, cfg] of Object.entries(PILOT_LISTING_CONFIG)) {
-    if (!changedListingIds.has(lid)) continue;
-    const meta = listingsByChannel.get(cfg.channelId)?.find((l) => String(l.id) === lid);
+    if (!changedListingIds.has(lid) || targets.has(lid)) continue;
+    const meta = metaOf(lid, cfg.channelId);
     if (!meta) continue;
     const { data: prop } = await admin.from("properties").select("id").eq("slug", cfg.slug).maybeSingle();
-    if (!prop) continue;
+    if (prop) targets.set(lid, { propertyId: prop.id as string, meta });
+  }
+  for (const { propertyId, meta } of targets.values()) {
     const { error } = await admin
       .from("property_listing_raw_data")
       .update({ listing_meta: meta, synced_at: new Date().toISOString(), updated_at: new Date().toISOString() } as never)
-      .eq("property_id", prop.id);
+      .eq("property_id", propertyId);
     if (error) continue;
     const { reindexProperty } = await import("@/lib/ai/indexing.server");
-    await reindexProperty(admin as never, prop.id as string).catch(() => undefined);
+    await reindexProperty(admin as never, propertyId).catch(() => undefined);
     listingsUpdated += 1;
   }
 

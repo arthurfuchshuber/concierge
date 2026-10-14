@@ -158,7 +158,8 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     expect(t).toContain("Proprietário do Imóvel: Clayton");
     expect(t).toContain("17/09/2026 · 14:20 · Maria");
     expect(t).toContain("Tipo da Limpeza: Normal");
-    expect(html).not.toContain("<button");
+    // O único botão é o "Fechar detalhe"; sem permissão não há nenhum botão de edição.
+    expect(html.replace(/<button[^>]*aria-label="Fechar detalhe"[\s\S]*?<\/button>/, "")).not.toContain("<button");
   });
 
   it("limpezas: com permissão, tipo e valor viram botão (só o dado)", () => {
