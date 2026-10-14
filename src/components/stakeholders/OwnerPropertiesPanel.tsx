@@ -279,7 +279,7 @@ export function OwnerPropertiesPanel({
   const hasConnection = activeIds.size > 0 || connections.length > 0;
 
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       <SearchActionRow
         value={q}
         onChange={setQ}
@@ -338,7 +338,7 @@ export function OwnerPropertiesPanel({
           }
         />
       ) : (
-        <div className="grid gap-3">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
           {filtered.map((p) => {
             const place = [p.city, p.state].filter(Boolean).join(" / ");
             const maps = mapsLinkOf(p);
@@ -401,7 +401,7 @@ export function OwnerPropertiesPanel({
                         </PopoverTrigger>
                         <PopoverContent align="end" className="w-60 p-1.5">
                           {transferId === p.id ? (
-                            <div className="grid gap-3 p-2.5">
+                            <div className="grid grid-cols-[minmax(0,1fr)] gap-3 p-2.5">
                               <b className="text-[13.5px] font-semibold">Transferir {p.name}</b>
                               <Select value={transferTo} onValueChange={setTransferTo}>
                                 <SelectTrigger className="h-9 rounded-[8px] text-[13px]">
@@ -612,7 +612,7 @@ export function OwnerPropertiesPanel({
                   );
                 })}
               </div>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <button
                   type="button"
                   disabled={toggling}
@@ -768,7 +768,7 @@ function ReimportWindow({
       }}
     >
       <DialogContent className="max-w-[380px] gap-3 p-4 sm:p-4">
-        <div className="grid gap-1.5 pr-9">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 pr-9">
           <DialogTitle className="font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
             ReImportar anúncios
           </DialogTitle>
@@ -803,7 +803,7 @@ function ReimportWindow({
             {imported} {imported === 1 ? "já importado" : "já importados"}
           </span>
         </div>
-        <div className="grid gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
           {inv.isLoading ? (
             <p className="py-6 text-center text-[12.5px] text-muted-foreground">
               Buscando anúncios no Airbnb…
@@ -889,7 +889,7 @@ function ReimportWindow({
             );
           })}
         </div>
-        <div className="grid gap-2 pt-1">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-2 pt-1">
           <button
             type="button"
             disabled={n === 0 || busy}

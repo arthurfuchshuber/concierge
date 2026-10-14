@@ -577,7 +577,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           const active = kanbanColumns.find((c) => c.key === kanbanTab) ?? kanbanColumns[0];
           const items = filtered.filter(active.test);
           return (
-            <div className="grid gap-5">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
               <Stepper
                 steps={(cols.length ? cols : kanbanColumns).map((c) => ({
                   value: c.key,

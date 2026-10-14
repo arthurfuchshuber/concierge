@@ -1445,7 +1445,7 @@ function StatusSection({
             da página e rolam com ela; antes um teto de 5 cartões abria uma
             barra própria dentro de cada status. Saíram junto os recuos
             negativos que compensavam o respiro dessa barra. */}
-        <div className="grid gap-3">{children}</div>
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-3">{children}</div>
       </div>
     </section>
   );

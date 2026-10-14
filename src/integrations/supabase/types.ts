@@ -1874,6 +1874,36 @@ export type Database = {
           },
         ]
       }
+      airbnb_accounts: {
+        Row: {
+          channex_channel_id: string
+          connected_at: string
+          disconnected_at: string | null
+          id: string
+          owner_id: string
+          status: string
+          title: string | null
+        }
+        Insert: {
+          channex_channel_id: string
+          connected_at?: string
+          disconnected_at?: string | null
+          id?: string
+          owner_id: string
+          status?: string
+          title?: string | null
+        }
+        Update: {
+          channex_channel_id?: string
+          connected_at?: string
+          disconnected_at?: string | null
+          id?: string
+          owner_id?: string
+          status?: string
+          title?: string | null
+        }
+        Relationships: []
+      }
       app_user_connections: {
         Row: {
           connection_key_ciphertext: string
@@ -4049,7 +4079,6 @@ export type Database = {
       }
       properties: {
         Row: {
-          archived_at: string | null
           access_codes_pin: string | null
           access_mode: Database["public"]["Enums"]["access_mode"]
           address: string | null
@@ -4076,6 +4105,7 @@ export type Database = {
           airbnb_safety_info: string | null
           apartment_floor: string | null
           apartment_number: string | null
+          archived_at: string | null
           brand_logo_url: string | null
           brand_name: string | null
           checkin_instructions: string | null
@@ -4149,7 +4179,6 @@ export type Database = {
           wifi_ssid: string | null
         }
         Insert: {
-          archived_at?: string | null
           access_codes_pin?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
@@ -4176,6 +4205,7 @@ export type Database = {
           airbnb_safety_info?: string | null
           apartment_floor?: string | null
           apartment_number?: string | null
+          archived_at?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
           checkin_instructions?: string | null
@@ -4249,7 +4279,6 @@ export type Database = {
           wifi_ssid?: string | null
         }
         Update: {
-          archived_at?: string | null
           access_codes_pin?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
@@ -4276,6 +4305,7 @@ export type Database = {
           airbnb_safety_info?: string | null
           apartment_floor?: string | null
           apartment_number?: string | null
+          archived_at?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
           checkin_instructions?: string | null
@@ -4748,19 +4778,19 @@ export type Database = {
           channex_property_id: string | null
           channex_rate_plan_id: string | null
           channex_room_type_id: string | null
+          chat_pending_at: string | null
+          chat_pending_error: string | null
           created_at: string
           id: string
           listing_meta: Json
           normalized: Json
+          not_found_at: string | null
           owner_id: string
+          paused_reason: string | null
           property_id: string
           raw_settings: Json
           source: string
           sync_paused_at: string | null
-          paused_reason: string | null
-          chat_pending_at: string | null
-          chat_pending_error: string | null
-          not_found_at: string | null
           synced_at: string
           updated_at: string
         }
@@ -4773,19 +4803,19 @@ export type Database = {
           channex_property_id?: string | null
           channex_rate_plan_id?: string | null
           channex_room_type_id?: string | null
+          chat_pending_at?: string | null
+          chat_pending_error?: string | null
           created_at?: string
           id?: string
           listing_meta?: Json
           normalized?: Json
+          not_found_at?: string | null
           owner_id: string
+          paused_reason?: string | null
           property_id: string
           raw_settings?: Json
           source?: string
           sync_paused_at?: string | null
-          paused_reason?: string | null
-          chat_pending_at?: string | null
-          chat_pending_error?: string | null
-          not_found_at?: string | null
           synced_at?: string
           updated_at?: string
         }
@@ -4798,19 +4828,19 @@ export type Database = {
           channex_property_id?: string | null
           channex_rate_plan_id?: string | null
           channex_room_type_id?: string | null
+          chat_pending_at?: string | null
+          chat_pending_error?: string | null
           created_at?: string
           id?: string
           listing_meta?: Json
           normalized?: Json
+          not_found_at?: string | null
           owner_id?: string
+          paused_reason?: string | null
           property_id?: string
           raw_settings?: Json
           source?: string
           sync_paused_at?: string | null
-          paused_reason?: string | null
-          chat_pending_at?: string | null
-          chat_pending_error?: string | null
-          not_found_at?: string | null
           synced_at?: string
           updated_at?: string
         }

@@ -67,7 +67,7 @@ export function PropertyInstructionsDialog({
                   Nenhuma instrução cadastrada para este imóvel.
                 </p>
               ) : (
-                <div className="grid gap-2 rounded-[var(--win-radius)] bg-foreground/[0.04] px-3 py-3 text-[13px] leading-relaxed">
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-2 rounded-[var(--win-radius)] bg-foreground/[0.04] px-3 py-3 text-[13px] leading-relaxed">
                   {note && <p className="whitespace-pre-wrap font-semibold">{note}</p>}
                   {text && <p className="whitespace-pre-wrap">{text}</p>}
                 </div>

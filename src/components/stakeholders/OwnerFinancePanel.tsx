@@ -287,7 +287,7 @@ export function OwnerFinancePanel({
             }
           />
         ) : (
-          <div className="grid gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
             {shown.map((e) => {
               const isRec = e.direction === "receivable";
               const overdue = !e.paid_at && e.due_date < todayISO();
@@ -442,7 +442,7 @@ function EntryWindow({
   return (
     <Dialog open={!!entry} onOpenChange={(o) => !o && !busy && onClose()}>
       <DialogContent className="max-w-[380px] gap-3 p-4 sm:p-4">
-        <div className="grid gap-1.5 pr-9">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 pr-9">
           <DialogTitle className="font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
             {cur ? "Editar lançamento" : "Novo lançamento"}
           </DialogTitle>
@@ -471,7 +471,7 @@ function EntryWindow({
           ))}
         </div>
 
-        <label className="grid gap-1.5">
+        <label className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
           <span className="ds-eyebrow">Descrição</span>
           <Input
             value={desc}
@@ -482,17 +482,17 @@ function EntryWindow({
         </label>
 
         <div className="grid grid-cols-2 gap-3">
-          <label className="grid gap-1.5">
+          <label className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
             <span className="ds-eyebrow">Valor</span>
             <MoneyInput cents={cents} onChange={setCents} placeholder="0,00" />
           </label>
-          <label className="grid gap-1.5">
+          <label className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
             <span className="ds-eyebrow">Vencimento</span>
             <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
           </label>
         </div>
 
-        <div className="grid gap-1.5">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
           <span className="ds-eyebrow">Imóvel (opcional)</span>
           <Select value={prop} onValueChange={setProp}>
             <SelectTrigger>

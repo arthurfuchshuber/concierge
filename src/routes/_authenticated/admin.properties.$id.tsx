@@ -3859,7 +3859,7 @@ function PropertyEditor() {
                     <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
                       Obrigatoriamente coletados
                     </p>
-                    <div className="grid gap-1.5">
+                    <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
                       {[
                         { label: "Nome cadastrado na plataforma", icon: UserRound },
                         { label: "Período da viagem (chegada e saída)", icon: Clock },
@@ -6320,7 +6320,7 @@ function GenerateModeDialog({
           </p>
         </div>
         <div className="px-6 pb-6 pt-4">
-          <div className="grid gap-2.5">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2.5">
             <button
               type="button"
               onClick={() => onPick("fill")}

@@ -60,12 +60,23 @@ function fitScroller(el: HTMLElement) {
   // clientHeight — desfaz a escala para medir na mesma régua.
   const scale = el.offsetHeight > 0 ? box.height / el.offsetHeight : 1;
   let fit = 0;
+  let nextTop = Infinity;
   for (const u of collectUnits(el, avail)) {
-    const bottom = (u.getBoundingClientRect().bottom - box.top) / (scale || 1) + el.scrollTop;
+    const r = u.getBoundingClientRect();
+    const bottom = (r.bottom - box.top) / (scale || 1) + el.scrollTop;
     if (bottom <= avail + 0.5) fit = Math.max(fit, bottom);
+    else nextTop = Math.min(nextTop, (r.top - box.top) / (scale || 1) + el.scrollTop);
+  }
+  const own = getComputedStyle(el);
+  // Quando a própria janela é a área que rola, o recorte no fim da última linha
+  // deixava o cartão colado (e com o canto arredondado cortado) na borda de baixo.
+  // Devolve o respiro do rodapé (padding), sem deixar a próxima linha espiar.
+  if (fit > 0 && el.scrollTop === 0) {
+    const pad = parseFloat(own.paddingBottom) || 0;
+    const room = Number.isFinite(nextTop) ? Math.max(0, nextTop - fit - 1) : pad;
+    fit += Math.min(pad, room);
   }
   if (fit > 0 && fit < avail) {
-    const own = getComputedStyle(el);
     // A janela inteira rola (ela mesma é a área): `height` com `max-height`
     // continua respeitando o teto de 75%.
     el.style.flex = own.display === "flex" || el.parentElement ? "none" : "";

@@ -835,7 +835,7 @@ export function StakeholderDetailSheet({
 
         {/* Cabeçalho: rótulo, nome (1 linha, reticências) com o botão de contato colado e UMA
             linha com situação + vigência. Ações (Ver/Editar) ficam no botão da barra de busca. */}
-        <div className="grid gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
           <p className="ds-eyebrow text-[10.5px] leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
             Proprietário
           </p>
@@ -1177,9 +1177,9 @@ export function StakeholderDetailSheet({
                         }
                       />
                     ) : (
-                      <div className="grid gap-5">
+                      <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
                         {visibleGroups.map((g) => (
-                          <div key={g.label} className="grid gap-2.5">
+                          <div key={g.label} className="grid grid-cols-[minmax(0,1fr)] gap-2.5">
                             <p className="ds-eyebrow text-[10.5px] tracking-[0.2em] text-[color:var(--faint)]">
                               {capitalize(g.label).replace(" de ", " ")}
                             </p>
@@ -1605,7 +1605,7 @@ export function StakeholderDetailSheet({
                 />
               )
             ) : (
-              <div className="grid gap-6">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
                 {logGroups.map((g) => (
                   <div key={g.label}>
                     <GroupTitle title={g.label} />

@@ -159,7 +159,7 @@ function InfoBox({ kind, lines }: { kind: "ok" | "falta"; lines: Array<[typeof C
 }
 function ListHeader({ title, description }: { title: string; description: string }) {
   return (
-    <div className="grid gap-1.5 pr-9">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 pr-9">
       <DialogTitle className="font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
         {title}
       </DialogTitle>
@@ -565,7 +565,7 @@ export function AirbnbAccountFlow({
                   [Check, "Antes de importar, informa de qual proprietário são"],
                 ]}
               />
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn onClick={begin} disabled={busy}>
                   {busy ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -590,7 +590,7 @@ export function AirbnbAccountFlow({
                 Conclua a autorização na janela do Airbnb. Esta janela continua sozinha quando você
                 terminar.
               </Desc>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <SecondaryBtn
                   onClick={() =>
                     connectUrl && window.open(connectUrl, "_blank", "noopener,noreferrer")
@@ -615,7 +615,7 @@ export function AirbnbAccountFlow({
                 Não recebemos a autorização do Airbnb.{" "}
                 <b className="font-bold text-foreground">Nenhum anúncio foi importado.</b>
               </Desc>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn onClick={() => (reauthId ? void begin(reauthId) : setStep("start"))}>
                   <Link2 className="size-4" />
                   Tentar de novo
@@ -636,7 +636,7 @@ export function AirbnbAccountFlow({
                 A conta <b className="font-bold text-foreground">{alreadyTitle}</b> já está
                 conectada. Para trazer anúncios novos dela, use ReSincronizar.
               </Desc>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn onClick={() => setStep("listings")}>
                   <RefreshCw className="size-4" />
                   ReSincronizar esta conta
@@ -658,7 +658,7 @@ export function AirbnbAccountFlow({
                 precisa ser autorizada de novo para sincronizar. Os imóveis dela continuam no
                 sistema.
               </Desc>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn disabled={busy || !channelId} onClick={() => void begin(channelId)}>
                   {busy ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -679,7 +679,7 @@ export function AirbnbAccountFlow({
                 title="ReSincronizar conta"
                 description="Escolha a conta que você quer atualizar. Uma de cada vez."
               />
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 {accounts.isLoading ? (
                   <p className="py-6 text-center text-[12.5px] text-muted-foreground">
                     Buscando contas do Airbnb…
@@ -734,7 +734,7 @@ export function AirbnbAccountFlow({
                   );
                 })}
               </div>
-              <div className="grid gap-2 pt-1">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2 pt-1">
                 <PrimaryBtn
                   disabled={!channelId || account?.status !== "active"}
                   onClick={() => setStep("listings")}
@@ -753,7 +753,7 @@ export function AirbnbAccountFlow({
                 title="Como o ConciergeIA vai trabalhar?"
                 description="O modo vale para a conta inteira, nunca para só alguns imóveis. Você pode mudar depois em Integrações."
               />
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 {(
                   [
                     [
@@ -784,7 +784,7 @@ export function AirbnbAccountFlow({
                   </button>
                 ))}
               </div>
-              <div className="grid gap-2 pt-1">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2 pt-1">
                 <PrimaryBtn
                   disabled={busy}
                   onClick={() =>
@@ -819,7 +819,7 @@ export function AirbnbAccountFlow({
                   [Check, "Volte aqui e valide. Até lá, a conta fica em Leve"],
                 ]}
               />
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn disabled={busy} onClick={() => void validateAndActivate()}>
                   {busy ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -866,7 +866,7 @@ export function AirbnbAccountFlow({
                   ]}
                 />
               ) : null}
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn disabled={busy} onClick={() => void validateAndActivate()}>
                   {busy ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -898,7 +898,7 @@ export function AirbnbAccountFlow({
                 </span>
                 <span>{plural(importedN, "já importado", "já importados")}</span>
               </div>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 {inv.isLoading ? (
                   <p className="py-6 text-center text-[12.5px] text-muted-foreground">
                     Buscando anúncios no Airbnb…
@@ -984,7 +984,7 @@ export function AirbnbAccountFlow({
                   );
                 })}
               </div>
-              <div className="grid gap-2 pt-1">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2 pt-1">
                 <PrimaryBtn
                   disabled={n === 0}
                   onClick={() => {
@@ -1011,7 +1011,7 @@ export function AirbnbAccountFlow({
                 A conta <b className="font-bold text-foreground">{account?.title ?? "do Airbnb"}</b>{" "}
                 foi conectada, mas não tem anúncios para importar agora.
               </Desc>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <SecondaryBtn onClick={close}>Fechar</SecondaryBtn>
               </div>
             </>
@@ -1031,7 +1031,7 @@ export function AirbnbAccountFlow({
                 <b className="text-[13px] font-bold">Cadastrar novo proprietário</b>
               </button>
               <SearchBox value={q} onChange={setQ} placeholder="Buscar proprietário…" />
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 {owners.isLoading ? (
                   <p className="py-6 text-center text-[12.5px] text-muted-foreground">
                     Buscando proprietários…
@@ -1069,7 +1069,7 @@ export function AirbnbAccountFlow({
                   );
                 })}
               </div>
-              <div className="grid gap-2 pt-1">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2 pt-1">
                 <PrimaryBtn disabled={!ownerId} onClick={doImport}>
                   <RefreshCw className="size-4" />
                   Importar {plural(n, "anúncio", "anúncios")}
@@ -1163,7 +1163,7 @@ export function AirbnbAccountFlow({
                         ]}
                       />
                     ) : null}
-                    <div className="grid gap-2">
+                    <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                       {chatPending.length > 0 ? (
                         <>
                           <PrimaryBtn disabled={busy} onClick={() => void retryChats()}>
@@ -1227,7 +1227,7 @@ export function AirbnbAccountFlow({
                   [RefreshCw, "Chat desligado e sincronização pausada"],
                 ]}
               />
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn danger disabled={busy} onClick={doDisconnect}>
                   {busy ? <Loader2 className="size-4 animate-spin" /> : null}
                   Desconectar conta
@@ -1261,7 +1261,7 @@ export function AirbnbAccountFlow({
                   </>
                 )}
               </Desc>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn onClick={close}>Concluir</PrimaryBtn>
               </div>
             </>

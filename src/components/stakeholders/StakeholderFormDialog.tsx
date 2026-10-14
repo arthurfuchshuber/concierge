@@ -1032,7 +1032,7 @@ export function StakeholderFormDialog({
               { id: "acesso", icon: KeyRound, title: "Acesso ao sistema" },
               <>
                 {newLayout ? (
-                  <div className="grid gap-3.5">
+                  <div className="grid grid-cols-[minmax(0,1fr)] gap-3.5">
                     <label className="flex items-center gap-2.5">
                       <span className="min-w-0 flex-1 text-[13.5px] font-semibold text-foreground">
                         Permitir acesso ao sistema
@@ -1050,7 +1050,7 @@ export function StakeholderFormDialog({
                     )}
                     {systemAccess && emailValid && (
                       <>
-                        <div className="grid gap-1.5">
+                        <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
                           <Label className="text-[11px] font-bold text-muted-foreground">
                             Senha provisória
                           </Label>
