@@ -104,7 +104,7 @@ async function ensureUnit(r: any): Promise<string> {
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Noites fechadas no calendário REAL do Airbnb (reservas + bloqueios manuais), lidas do iCal oficial. */
-async function airbnbClosedNights(icalUrl: string | null | undefined): Promise<Set<string> | null> {
+export async function airbnbClosedNights(icalUrl: string | null | undefined): Promise<Set<string> | null> {
   const url = String(icalUrl ?? "").trim();
   if (!url) return null;
   const { isAllowedIcalUrl } = await import("@/lib/airbnb-ical-url");
