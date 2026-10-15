@@ -23,9 +23,10 @@ export function FullConnectGate() {
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Record<string, string>>({});
 
-  // Pré-visualização: ?verConexao=1 mostra o aviso mesmo com imóveis ainda sem sincronização.
-  const force = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("verConexao");
-  const syncBlocking = !force && !!unsynced.data?.blocking && (unsynced.data?.properties?.length ?? 0) > 0;
+  // Prioridade: o aviso de conexão aparece por cima da janela de sincronização (montado depois dela).
+  void unsynced;
+  const force = true;
+  const syncBlocking = false;
   const q = useQuery({
     queryKey: ["full-connect-pending"],
     queryFn: () => listFn(),
