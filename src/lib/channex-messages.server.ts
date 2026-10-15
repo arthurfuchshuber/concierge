@@ -399,6 +399,26 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     } catch (e) {
       console.error("[channex-messages] push falhou", e);
     }
+    // Pausa com prazo + IA ligada: agenda a retomada para logo após o fim da pausa.
+    // Se ninguém da equipe responder até lá, a IA responde o bloco pendente do hóspede
+    // com o histórico completo (resposta humana nesse meio tempo esvazia o bloco → nada sai).
+    const until = (existing as { paused_until?: string | null } | null)?.paused_until ?? null;
+    const untilMs = until ? new Date(until).getTime() : NaN;
+    if (listing.airbnb_ai_enabled && aiPaused && Number.isFinite(untilMs)) {
+      await admin
+        .from("property_chat_conversations")
+        .update({
+          ai_reply_due_at: new Date(untilMs + 5_000).toISOString(),
+          ai_reply_ctx: {
+            threadId: m.threadId,
+            bookingId: m.bookingId,
+            channexPropertyId: m.channexPropertyId,
+            guestName: m.guestName,
+            propertyId: listing.property_id,
+          },
+        } as never)
+        .eq("id", convId);
+    }
     return;
   }
 
