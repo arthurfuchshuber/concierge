@@ -312,6 +312,9 @@ export function StakeholderFormDialog({
     setSystemAccess(access.status !== "none");
   }, [access?.status, open]);
 
+  // Reinicia só ao abrir ou ao trocar de registro — um `initial` recriado a cada
+  // render do pai fechava as seções sem parar ("pisca e não abre").
+  const initialKey = initial?.id ?? (initial ? "new" : "none");
   useEffect(() => {
     if (!open) return;
     setForm(initial ?? emptyStakeholderForm);
@@ -324,7 +327,8 @@ export function StakeholderFormDialog({
     setOpenSection(null);
 
     lastCep.current = "";
-  }, [open, initial]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialKey]);
 
   const isPJ = form.person_type === "pj";
   const singular = kind === "owner" ? "proprietário" : "prestador";
