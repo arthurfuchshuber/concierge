@@ -170,7 +170,7 @@ export function SyncRequiredGate() {
                     <div className="flex min-w-0 items-center gap-2">
                       <ClampName text={a.title} passThrough className="min-w-0 flex-1 text-[13px] font-bold" />
                       {a.status === "active" && free === 0 && (a.listings ?? 0) > 0 && (
-                        <span className="ds-sucesso shrink-0 whitespace-nowrap rounded-full bg-[color-mix(in_oklab,currentColor_14%,transparent)] px-2 py-0.5 text-[10.5px] font-bold">
+                        <span className="ds-ok shrink-0 whitespace-nowrap rounded-full bg-[color-mix(in_oklab,currentColor_14%,transparent)] px-2 py-0.5 text-[10.5px] font-bold">
                           Todos vinculados
                         </span>
                       )}
