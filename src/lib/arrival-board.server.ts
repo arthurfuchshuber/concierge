@@ -2,6 +2,7 @@
 // Fonte única de verdade compartilhada entre o dashboard e as notificações push.
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 import { liveDateOverride } from "@/lib/arrival-date-base";
+import { resolveReservationIdentity, RESERVATION_IDENTITY_COLUMNS } from "@/lib/reservation-identity";
 
 export type { ArrivalRow };
 
@@ -119,10 +120,10 @@ export function normalizeReservationCode(s: string | null | undefined): string |
  */
 export function findLogsForReservation<T extends ArrivalLogRow>(
   uniqueLogs: T[],
-  r: { property_id: string; checkin_date: string; checkout_date: string | null; guest_hint?: string | null },
+  r: { property_id: string; checkin_date: string; checkout_date: string | null; guest_hint?: string | null; source?: string | null; guest_contacts?: unknown },
   kind: "checkin" | "checkout",
 ): { primary: T | null; extras: T[] } {
-  const resCode = normalizeReservationCode(r.guest_hint);
+  const resCode = normalizeReservationCode(resolveReservationIdentity(r).reservationCode ?? r.guest_hint);
   const matched: T[] = [];
   const seen = new Set<string>();
   const push = (l: T) => {
@@ -324,7 +325,7 @@ export async function buildArrivalRows(
     let reservationsQuery = context.supabase
       .from("property_reservations")
       .select(
-        "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at",
+        `id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at, ${RESERVATION_IDENTITY_COLUMNS}`,
       )
       .in("property_id", propIds)
       .in("source", ["airbnb", "channex"]);
@@ -437,7 +438,7 @@ export async function buildArrivalRows(
         ? context.supabase
             .from("property_reservations")
             .select(
-              "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at",
+              `id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at, ${RESERVATION_IDENTITY_COLUMNS}`,
             )
             .in("id", Array.from(missingReservationIds))
         : Promise.resolve({ data: [] as unknown[] }),
@@ -767,6 +768,10 @@ export async function buildArrivalRows(
       checkout_date: string;
       raw_summary: string | null;
       guest_hint: string | null;
+      source?: string | null;
+      guest_contacts?: unknown;
+      occupancy?: unknown;
+      ota_name?: string | null;
       reservation_url: string | null;
       status: string | null;
       synced_at: string | null;
@@ -1126,6 +1131,7 @@ export async function buildArrivalRows(
 
 
 
+      const ident = resolveReservationIdentity(r);
       return {
         logId: matchedLog?.id ?? `ical:${r.id}`,
         reservationId: r.id,
@@ -1145,9 +1151,13 @@ export async function buildArrivalRows(
         openedGuide: matchedLog ? hasSeen(openedGuide, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
         readInstructions: matchedLog ? hasSeen(readInstructions, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
         viewedPasswords: matchedLog ? sawAllPasswords(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        guestName: matchedLog?.guest_name ?? r.guest_hint ?? "Reserva Airbnb",
-        guestPhone: matchedLog?.guest_phone ?? null,
-        guestPhoneCountry: matchedLog?.guest_phone_country ?? null,
+        guestName: matchedLog?.guest_name ?? ident.guestName ?? "Reserva Airbnb",
+        guestPhone: matchedLog?.guest_phone ?? ident.guestPhone,
+        guestPhoneCountry: matchedLog?.guest_phone ? (matchedLog?.guest_phone_country ?? null) : null,
+        bookingChannel: ident.channel,
+        guestAdults: ident.adults,
+        guestChildren: ident.children,
+        guestInfants: ident.infants,
         guestArrivalTime: matchedLog?.guest_arrival_time ?? null,
         standardTime: data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
         standardTimeMax: data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
@@ -1158,7 +1168,7 @@ export async function buildArrivalRows(
         date,
         guestCheckin: r.checkin_date,
         guestCheckout: r.checkout_date,
-        reservationCode: r.guest_hint ?? matchedLog?.reservation_code ?? null,
+        reservationCode: ident.reservationCode ?? matchedLog?.reservation_code ?? null,
         createdAt: matchedLog?.created_at ?? r.created_at ?? r.synced_at ?? new Date().toISOString(),
         status:
           data.kind === "checkin" && r.checkin_date > today && s?.status === "done"

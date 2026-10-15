@@ -1,3 +1,4 @@
+import { resolveReservationIdentity, RESERVATION_IDENTITY_COLUMNS } from "@/lib/reservation-identity";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -2360,7 +2361,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       context.supabase
         .from("property_reservations")
         .select(
-          "id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary, source",
+          `id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary, source, guest_contacts`,
         )
         .in("property_id", propIds)
         .in("source", ["airbnb", "channex", "manual"])
@@ -2444,6 +2445,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       status: string | null;
       raw_summary: string | null;
       source?: string | null;
+      guest_contacts?: unknown;
     }>;
     for (const b of reservationRows) {
       if (b.source !== "manual" || b.status !== "blocked") continue;
@@ -2467,7 +2469,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
 
     const consumedLogs = new Set<(typeof logRows)[number]>();
     for (const r of reservationRows) {
-      const resCode = normalizeCode(r.guest_hint);
+      const resCode = normalizeCode(resolveReservationIdentity(r).reservationCode ?? r.guest_hint);
       // A reserva manda nas DATAS; o log só contribui com o nome do hóspede.
       const match =
         logRows.find(
@@ -2488,7 +2490,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         propertyId: r.property_id,
         checkin: r.checkin_date,
         checkout: r.checkout_date,
-        guest: match?.guest_name ?? r.guest_hint,
+        guest: match?.guest_name ?? resolveReservationIdentity(r).guestName ?? r.guest_hint,
         checkinDone: doneCheckinRes.has(r.id) || (!!match && doneCheckinLog.has(match.id)),
         checkoutDone: doneCheckoutRes.has(r.id) || (!!match && doneCheckoutLog.has(match.id)),
       });
@@ -2744,7 +2746,7 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
       resIds.length
         ? context.supabase
             .from("property_reservations")
-            .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at")
+            .select(`id, property_id, checkin_date, checkout_date, guest_hint, created_at, ${RESERVATION_IDENTITY_COLUMNS}`)
             .in("id", resIds)
         : Promise.resolve({ data: [] as never[] }),
     ]);
@@ -2826,8 +2828,8 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
         readInstructions: true,
         viewedPasswords: true,
         guestName:
-          (log?.["guest_name"] as string) ?? (res?.["guest_hint"] as string) ?? "Reserva Airbnb",
-        guestPhone: (log?.["guest_phone"] as string) ?? null,
+          (log?.["guest_name"] as string) ?? resolveReservationIdentity((res ?? {}) as never).guestName ?? "Reserva Airbnb",
+        guestPhone: (log?.["guest_phone"] as string) ?? resolveReservationIdentity((res ?? {}) as never).guestPhone,
         guestPhoneCountry: (log?.["guest_phone_country"] as string) ?? null,
         guestArrivalTime: (log?.["guest_arrival_time"] as string) ?? null,
         standardTime: null,
@@ -2842,7 +2844,7 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
         guestCheckin: checkin,
         guestCheckout: checkout,
         reservationCode:
-          (log?.["reservation_code"] as string) ?? (res?.["guest_hint"] as string) ?? null,
+          resolveReservationIdentity((res ?? {}) as never).reservationCode ?? (log?.["reservation_code"] as string) ?? null,
         createdAt:
           (log?.["created_at"] as string) ??
           (res?.["created_at"] as string) ??
@@ -2932,7 +2934,7 @@ export const listNoShowArrivals = createServerFn({ method: "GET" })
       resIds.length
         ? context.supabase
             .from("property_reservations")
-            .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at")
+            .select(`id, property_id, checkin_date, checkout_date, guest_hint, created_at, ${RESERVATION_IDENTITY_COLUMNS}`)
             .in("id", resIds)
         : Promise.resolve({ data: [] as never[] }),
     ]);
@@ -3014,8 +3016,8 @@ export const listNoShowArrivals = createServerFn({ method: "GET" })
         readInstructions: true,
         viewedPasswords: true,
         guestName:
-          (log?.["guest_name"] as string) ?? (res?.["guest_hint"] as string) ?? "Reserva Airbnb",
-        guestPhone: (log?.["guest_phone"] as string) ?? null,
+          (log?.["guest_name"] as string) ?? resolveReservationIdentity((res ?? {}) as never).guestName ?? "Reserva Airbnb",
+        guestPhone: (log?.["guest_phone"] as string) ?? resolveReservationIdentity((res ?? {}) as never).guestPhone,
         guestPhoneCountry: (log?.["guest_phone_country"] as string) ?? null,
         guestArrivalTime: (log?.["guest_arrival_time"] as string) ?? null,
         standardTime: null,
@@ -3030,7 +3032,7 @@ export const listNoShowArrivals = createServerFn({ method: "GET" })
         guestCheckin: checkin,
         guestCheckout: checkout,
         reservationCode:
-          (log?.["reservation_code"] as string) ?? (res?.["guest_hint"] as string) ?? null,
+          resolveReservationIdentity((res ?? {}) as never).reservationCode ?? (log?.["reservation_code"] as string) ?? null,
         createdAt:
           (log?.["created_at"] as string) ??
           (res?.["created_at"] as string) ??

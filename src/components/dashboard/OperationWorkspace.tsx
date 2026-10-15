@@ -10182,6 +10182,26 @@ function ArrivalCard({
               </span>
             </div>
           )}
+          {(row.bookingChannel || row.guestAdults != null) && (
+            <div className="-mt-0.5 flex items-center gap-1.5 text-[11.5px]">
+              <span className={`min-w-0 truncate pl-[18px] ${CARD_MUTED}`}>
+                {[
+                  row.bookingChannel ? `Canal: ${row.bookingChannel}` : null,
+                  row.guestAdults != null
+                    ? [
+                        `${row.guestAdults} ${row.guestAdults === 1 ? "adulto" : "adultos"}`,
+                        row.guestChildren ? `${row.guestChildren} ${row.guestChildren === 1 ? "criança" : "crianças"}` : null,
+                        row.guestInfants ? `${row.guestInfants} ${row.guestInfants === 1 ? "bebê" : "bebês"}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </div>
+          )}
         </>
       )}
 
