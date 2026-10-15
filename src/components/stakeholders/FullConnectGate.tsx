@@ -61,7 +61,6 @@ export function FullConnectGate() {
 
   const [bulkError, setBulkError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
-  const scrollTopRef = { current: null as HTMLDivElement | null };
 
   /** "Já conectei" global: confere cada anúncio; liga os que têm diárias e explica os que faltam. */
   async function confirmAll() {
@@ -103,7 +102,7 @@ export function FullConnectGate() {
         if (failed.length) parts.push(`Não foi possível conferir agora: ${failed.join(", ")}. Tente de novo em 1 minuto.`);
         if (done) parts.unshift(`${done} ${done === 1 ? "anúncio conectado" : "anúncios conectados"}.`);
         setBulkError(parts.join(" "));
-        scrollTopRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+        requestAnimationFrame(() => document.getElementById("full-connect-steps")?.scrollIntoView({ behavior: "smooth", block: "start" }));
       }
     } finally {
       setBusy(null);
@@ -146,7 +145,13 @@ export function FullConnectGate() {
           </DialogDescription>
         </div>
 
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
+        {bulkError ? (
+          <div role="alert" className="rounded-[14px] bg-destructive/10 p-2.5 text-[12.5px] leading-[1.5] text-destructive shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--destructive)_25%,transparent)]">
+            {bulkError}
+          </div>
+        ) : null}
+
+        <div id="full-connect-steps" className="grid scroll-mt-4 grid-cols-[minmax(0,1fr)] gap-2">
           <div className={label}>Como finalizar</div>
           <ol className={`${box} grid gap-2`}>
             {steps.map((s, i) => (
@@ -188,7 +193,7 @@ export function FullConnectGate() {
               <p className="min-w-0 text-[13px] font-bold text-foreground">{it.propertyName}</p>
               {it.error ? <p className="text-xs text-destructive">{it.error}</p> : null}
               {notice[it.propertyId] ? (
-                <p className="text-xs text-muted-foreground">{notice[it.propertyId]}</p>
+                <p className="text-xs text-destructive">{notice[it.propertyId]}</p>
               ) : null}
               <Button
                 className="w-full"
@@ -201,6 +206,19 @@ export function FullConnectGate() {
             </div>
           ))}
         </div>
+
+        {items.length > 1 ? (
+          <div className="sticky -bottom-[18px] -mx-[18px] -mb-[18px] border-t border-border bg-background/95 px-[18px] py-3 backdrop-blur">
+            <Button
+              className="w-full"
+              disabled={busy !== null || !items.some((i) => i.unitCode)}
+              onClick={confirmAll}
+            >
+              {busy === "__all__" ? <Loader2 className="size-4 animate-spin" /> : null}
+              {busy === "__all__" ? progress ?? "Conferindo diárias…" : `Já conectei todos (${items.length})`}
+            </Button>
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
