@@ -169,8 +169,16 @@ export function SyncRequiredGate() {
                   <div className="grid min-w-0 flex-1 gap-0.5">
                     <ClampName text={a.title} passThrough className="text-[13px] font-bold" />
                     {a.status === "active" ? (
-                      <span className="truncate text-[11.5px] text-muted-foreground">
-                        {free} {free === 1 ? "anúncio disponível" : "anúncios disponíveis"}
+                      <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11.5px] text-muted-foreground">
+                        <span className="whitespace-nowrap"><b className="font-bold text-foreground">{a.listings ?? 0}</b> no Airbnb</span>
+                        <span aria-hidden>·</span>
+                        <span className="whitespace-nowrap"><b className="font-bold text-foreground">{a.imported}</b> {a.imported === 1 ? "sincronizado" : "sincronizados"}</span>
+                        <span aria-hidden>·</span>
+                        {free === 0 && (a.listings ?? 0) > 0 ? (
+                          <span className="whitespace-nowrap ds-sucesso">todos vinculados</span>
+                        ) : (
+                          <span className="whitespace-nowrap"><b className="font-bold text-foreground">{free}</b> {free === 1 ? "disponível" : "disponíveis"}</span>
+                        )}
                       </span>
                     ) : (
                       <span className="truncate text-[11.5px] ds-atencao">Precisa reconectar</span>
