@@ -249,6 +249,16 @@ export async function syncRealAvailability(t: SafeMapTarget, userId: string | nu
   const windowDays = Number.isFinite(notice) && notice > 0 ? notice : fallbackWindow;
   const windowEnd = iso(new Date(Date.now() + windowDays * 86_400_000));
   const nights = await activeBookingNights(t, windowEnd);
+  // Anúncio ainda NÃO mapeado (aguardando "Já conectei"): a Channex não tem as reservas pela API,
+  // então o iCal real do Airbnb continua valendo para nunca reabrir noites reservadas/bloqueadas.
+  if (!rp && t.propertyId) {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prop } = await supabaseAdmin.from("properties").select("airbnb_ical_url").eq("id", t.propertyId).maybeSingle();
+    const { airbnbClosedNights } = await import("@/lib/channex-full-connect.server");
+    const closed = await airbnbClosedNights((prop as any)?.airbnb_ical_url);
+    if (!closed) throw new Error("iCal indisponível para anúncio não mapeado; sincronização cancelada para não reabrir datas.");
+    for (const n of closed) nights.add(n);
+  }
 
   const from = new Date();
   const merged: Parameters<typeof applyCalendarChanges>[0] = [];
