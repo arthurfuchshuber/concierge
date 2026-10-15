@@ -29,6 +29,13 @@
       "when": 1792012632854,
       "tag": "0003_listing_raw_data_unique_airbnb_listing",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792031191654,
+      "tag": "0004_channex_pricing_keys",
+      "breakpoints": true
     }
   ]
 }
