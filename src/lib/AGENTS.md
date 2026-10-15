@@ -18,3 +18,4 @@
 - Anúncio sem rate plan na Channex = "pendente de configuração"; o onboarding nunca mapeia rate plans nem envia ARI. Disponibilidade do modo Full só via `channex_ari_outbox`.
 - Modo Leve/Full é da conta inteira, liberado para toda conta conectada; Full só é salvo após `validatePricing` com `checked > 0` e `missing === 0`.
 - Sincronização de disponibilidade (`allSyncTargets`): gêmeos ativos + anúncios ativos de contas em Modo Full (nunca Leve) + `PILOT_MAPPINGS` só como reserva. Listas de canais da Channex sempre filtradas pelos canais da conta (`accountChannelScope`).
+- Modo Full: anúncio vinculado só é mapeado no Airbnb via `confirmFullConnection` (`channex-full-connect.server.ts`) depois de 30 dias de diárias na unidade própria criada por `ensureUnit`; "mapeado" é lido ao vivo do canal, e o aviso fixo `FullConnectGate` ("Já conectei") só sai após o mapeamento seguro.

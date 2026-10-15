@@ -65,7 +65,7 @@ export async function listAirbnbListings(): Promise<ListingRow[]> {
 const publicTitle = (raw: string) => (raw.includes(" · ") ? raw.slice(raw.lastIndexOf(" · ") + 3) : raw).trim();
 
 /** Inclui a propriedade em todas as chaves ativas do PriceLabs restritas por propriedade. */
-async function grantPriceLabsAccess(channexPropertyId: string) {
+export async function grantPriceLabsAccess(channexPropertyId: string) {
   const keys = await cx<{ data: any[] }>("/api_keys?pagination[limit]=100").catch(() => ({ data: [] as any[] }));
   for (const k of keys.data ?? []) {
     const a = k.attributes ?? {};
