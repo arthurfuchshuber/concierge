@@ -135,11 +135,11 @@ export async function seedUnitCalendar(propertyId: string, userId: string | null
   const d = await db();
   const { data: r } = await d
     .from("property_listing_raw_data")
-    .select("channex_property_id, channex_room_type_id, channex_rate_plan_id, airbnb_ical_url, owner_id")
+    .select("channex_property_id, channex_room_type_id, channex_rate_plan_id, owner_id, properties(airbnb_ical_url)")
     .eq("property_id", propertyId)
     .maybeSingle();
   if (!r?.channex_property_id || !r.channex_room_type_id || !r.channex_rate_plan_id) return { ok: false, reason: "no_unit" };
-  const closed = await airbnbClosedNights(r.airbnb_ical_url);
+  const closed = await airbnbClosedNights(r.properties?.airbnb_ical_url);
   if (!closed) return { ok: false, reason: "no_ical" };
   const { applyCalendarChanges, flushAriOutbox } = await import("@/lib/channex-ari.server");
   const base = { propertyId: r.channex_property_id, roomTypeId: r.channex_room_type_id, ratePlanId: r.channex_rate_plan_id };
