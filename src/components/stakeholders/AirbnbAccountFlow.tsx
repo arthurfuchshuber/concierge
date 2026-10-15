@@ -890,6 +890,19 @@ function AirbnbAccountFlowInner({
   function close() {
     onClose();
   }
+  // "Já conectei" aprovado: fecha a conclusão empilhada e volta direto à lista de contas.
+  useEffect(() => {
+    const done = new Set<Step>(["bulkDone", "syncDone", "result"]);
+    const onDone = () => {
+      if (done.has(step)) {
+        refreshAll();
+        onClose();
+      }
+    };
+    window.addEventListener("full-connect-done", onDone);
+    return () => window.removeEventListener("full-connect-done", onDone);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
   function refreshAll() {
     qc.invalidateQueries({ queryKey: ["stakeholders"] });
     qc.invalidateQueries({ queryKey: ["airbnb-accounts"] });
