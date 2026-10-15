@@ -378,7 +378,7 @@ async function linkExisting(
   accountId: string,
   propertyId: string,
   listingId: string,
-): Promise<{ title: string; propertyName: string; pending: PendingKind }> {
+): Promise<{ title: string; propertyName: string; pending: PendingKind; channexPropertyId: string | null }> {
   const { data: prop } = await admin
     .from("properties")
     .select("id, name, archived_at")
@@ -424,7 +424,18 @@ async function linkExisting(
     .eq("id", propertyId)
     .or("airbnb_listing_url.is.null,airbnb_listing_url.eq.");
   const pending = await finishLinked(admin, propertyId, prop.name as string);
-  return { title: listing.title, propertyName: prop.name as string, pending };
+  // Código da unidade na Channex: é o que a ferramenta de precificação usa para importar o anúncio.
+  const { data: cxRow } = await admin
+    .from("property_listing_raw_data")
+    .select("channex_property_id")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  return {
+    title: listing.title,
+    propertyName: prop.name as string,
+    pending,
+    channexPropertyId: ((cxRow as { channex_property_id?: string } | null)?.channex_property_id ?? null) as string | null,
+  };
 }
 
 /**
@@ -650,7 +661,7 @@ export const syncExistingProperty = createServerFn({ method: "POST" })
     await enforce(context.userId, "stakeholders.vinculo-imovel", { propertyId: data.propertyId });
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
     const r = await linkExisting(admin, accountId, data.propertyId, data.listingId);
-    return { ok: true as const, title: r.title, pending: r.pending };
+    return { ok: true as const, title: r.title, pending: r.pending, channexPropertyId: r.channexPropertyId };
   });
 
 /**
