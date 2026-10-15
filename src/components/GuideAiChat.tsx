@@ -25,6 +25,11 @@ type Msg = {
   quickReplies?: string[];
 };
 
+/** Chave estável da tradução (mensagens recém-geradas ainda não têm id). */
+function trKey(m: Msg): string {
+  return m.id ?? `c:${m.content}`;
+}
+
 /** Código/senha em linha com botão de copiar ao lado. */
 function CopyableCode({ children, ...props }: React.ComponentProps<"code">) {
   const [copied, setCopied] = useState(false);
@@ -196,16 +201,16 @@ export function GuideAiChat({
   const [itineraryLoading, setItineraryLoading] = useState(false);
   // Mensagens do atendente sempre no idioma do hóspede.
   const [autoTranslated, setAutoTranslated] = useState<Record<string, string>>({});
+  const [showOriginal, setShowOriginal] = useState<Record<string, boolean>>({});
   const translatingRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const myLang = userLanguage();
     const pending = messages.filter(
       (m) =>
-        m.id &&
-        m.senderType === "human" &&
+        m.role === "assistant" &&
         (m.content ?? "").trim().length > 2 &&
-        !autoTranslated[m.id] &&
-        !translatingRef.current.has(m.id) &&
+        !autoTranslated[trKey(m)] &&
+        !translatingRef.current.has(trKey(m)) &&
         (() => {
           const d = detectLanguage(m.content);
           return Boolean(d && d !== myLang);
@@ -213,7 +218,7 @@ export function GuideAiChat({
     );
     if (!pending.length) return;
     pending.forEach(async (m) => {
-      const id = m.id as string;
+      const id = trKey(m);
       translatingRef.current.add(id);
       try {
         const { ensureGuidePass } = await import("@/lib/guest-pass-client");
@@ -1133,8 +1138,17 @@ export function GuideAiChat({
                         ),
                       }}
                     >
-                      {(m.id && autoTranslated[m.id]) || m.content}
+                      {(!showOriginal[trKey(m)] && autoTranslated[trKey(m)]) || m.content}
                     </AiMarkdown>
+                  )}
+                  {autoTranslated[trKey(m)] && (
+                    <button
+                      type="button"
+                      onClick={() => setShowOriginal((p) => ({ ...p, [trKey(m)]: !p[trKey(m)] }))}
+                      className="mt-1 block text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+                    >
+                      {showOriginal[trKey(m)] ? "🌐 Ver tradução" : "🌐 Traduzido automaticamente · Ver original"}
+                    </button>
                   )}
 
                 </div>
