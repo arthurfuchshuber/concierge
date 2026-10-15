@@ -2526,14 +2526,14 @@ function AirbnbAccountFlowInner({
                 </button>
                 <button
                   type="button"
-                  disabled={bulkPairsN === 0 || bulkMissingOwner > 0}
+                  disabled={bulkPairsN === 0}
                   onClick={startBulk}
                   className="flex h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--win-radius)] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] px-1.5 text-[12.5px] font-extrabold text-white disabled:opacity-40 sm:text-[13.5px]"
                 >
                   <RefreshCw className="size-3.5 shrink-0 sm:size-4" />
                   <span className="min-w-0 truncate">
-                    {bulkMissingOwner > 0
-                      ? `Falta ${bulkMissingOwner} proprietário(a)`
+                    {bulkPairsN === 0
+                      ? "Escolha ao menos 1"
                       : `Sincronizar ${plural(bulkPairsN, "par", "pares")}`}
                   </span>
                 </button>
@@ -2857,7 +2857,7 @@ function AirbnbAccountFlowInner({
           setFormOpen(o);
           if (!o) setCreateFor(null);
         }}
-        initial={{ ...emptyStakeholderForm }}
+        initial={emptyStakeholderForm}
         accountOwnerId={accountOwnerId}
         newLayout
         onSaved={(id) => {
