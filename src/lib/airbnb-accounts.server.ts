@@ -177,10 +177,15 @@ export async function startConnect(username: string, reauthChannelId?: string) {
     // Conexão nova: link oficial e direto do Airbnb (a Channex fica invisível ao cliente).
     if (!groupId) {
       const p = await cx<{
-        data: { relationships?: { group?: { data?: { id?: string } } } };
+        data: { relationships?: { groups?: { data?: Array<{ id?: string }> } } };
       }>("GET", `/properties/${propertyId}`).catch(() => null);
-      groupId = p?.data?.relationships?.group?.data?.id ?? undefined;
+      groupId = p?.data?.relationships?.groups?.data?.[0]?.id ?? undefined;
     }
+    if (!groupId) {
+      const g = await cx<{ data: Array<{ id: string }> }>("GET", "/groups").catch(() => null);
+      groupId = g?.data?.[0]?.id ?? undefined;
+    }
+    if (!groupId) throw new Error("Grupo da Channex não encontrado para conectar a conta.");
     const back = "https://conciergeia.app/admin/dashboard";
     const link = await cx<{ data: { attributes: { url: string } } }>(
       "POST",
