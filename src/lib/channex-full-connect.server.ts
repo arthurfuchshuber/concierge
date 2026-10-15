@@ -245,6 +245,14 @@ export function pricedDays(days: Record<string, { rate?: string | number }> | un
   return Object.values(days ?? {}).filter((x) => Number(x?.rate ?? 0) > 0).length;
 }
 
+/** Dias com diária vinda da ferramenta de preços (ignora a tarifa base interna de carga inicial). */
+export function toolPricedDays(days: Record<string, { rate?: string | number }> | undefined) {
+  return Object.values(days ?? {}).filter((x) => {
+    const r = Number(x?.rate ?? 0);
+    return r > 0 && r !== SEED_BASE_RATE;
+  }).length;
+}
+
 export async function confirmFullConnection(ownerId: string, propertyId: string, userId: string) {
   if (!FULL_CONNECT_ACCOUNTS.has(ownerId)) throw new Error("Recurso indisponível para esta conta.");
   const r = (await unmappedRows(ownerId)).find((x) => x.property_id === propertyId);
@@ -261,7 +269,7 @@ export async function confirmFullConnection(ownerId: string, propertyId: string,
   const res = await cx<{ data: Record<string, Record<string, { rate?: string | number }>> }>(
     `/restrictions?filter[property_id]=${fresh.channex_property_id}&filter[date][gte]=${start}&filter[date][lte]=${end}&filter[restrictions]=rate`,
   ).catch(() => ({ data: {} as Record<string, Record<string, { rate?: string | number }>> }));
-  if (pricedDays(res.data?.[fresh.channex_rate_plan_id]) < 30) return { ok: false as const, reason: "no_rates" as const };
+  if (toolPricedDays(res.data?.[fresh.channex_rate_plan_id]) < 30) return { ok: false as const, reason: "no_rates" as const };
   const { safeMapAirbnbListing } = await import("@/lib/channex-mapping.server");
   await safeMapAirbnbListing(
     {
