@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { track } from "@/lib/trail";
 import { comprimirImagem } from "@/lib/image-compress";
+import { comprimirVideo } from "@/lib/video-compress";
 import { chamarServidor, ehFalhaDeRede, enviarMidia, garantirToken } from "@/lib/media-upload";
 import {
   apagarRascunho,
@@ -414,33 +415,39 @@ export function RecordSituationSheet({
   const [pctPorItem, setPctPorItem] = useState<Record<string, number>>({});
   const folderEnvio = target.logId ?? target.reservationId ?? propertyId;
 
-  function iniciarEnvio(it: DraftItem): Envio {
+  /* 15/10/2026: NADA sobe enquanto a folha está aberta — o envio antecipado
+     disputava o 4G com o registro (1 KB) e travava "Registrar". Agora o
+     registro nasce primeiro; depois cada arquivo é otimizado (foto e VÍDEO,
+     ver video-compress.ts) e sobe UM POR VEZ em segundo plano. */
+  function iniciarEnvio(it: DraftItem): Envio & { final: Promise<{ blob: Blob; mime: string }> } {
     const ctrl = new AbortController();
-    const path = `${propertyId}/${folderEnvio}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`;
-    const promise = (it.kind === "photo" ? comprimirImagem(it.blob, it.mime) : Promise.resolve(it.blob)).then((blob) => enviarMidia({
-      bucket: "reservation-records",
-      path,
-      blob,
-      contentType: it.mime || "application/octet-stream",
-      signal: ctrl.signal,
-      onProgress: (pct) => {
-        progressoGlobal.set(path, pct);
-        setPctPorItem((p) => ({ ...p, [it.key]: pct }));
-      },
-    })).then((r) => {
-      if (!r.ok) enviosRef.current.delete(it.key);
-      return r;
+    const box: Envio & { final: Promise<{ blob: Blob; mime: string }> } = {
+      path: `${propertyId}/${folderEnvio}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`,
+      ctrl,
+      promise: null as unknown as Envio["promise"],
+      final: null as unknown as Promise<{ blob: Blob; mime: string }>,
+    };
+    box.final =
+      it.kind === "photo"
+        ? comprimirImagem(it.blob, it.mime).then((blob) => ({ blob, mime: it.mime }))
+        : it.kind === "video"
+          ? comprimirVideo(it.blob, { signal: ctrl.signal })
+          : Promise.resolve({ blob: it.blob, mime: it.mime });
+    box.promise = box.final.then(({ blob, mime }) => {
+      if (it.kind === "video" && mime === "video/mp4" && !box.path.endsWith(".mp4")) {
+        box.path = box.path.replace(/\.[^./]+$/, ".mp4");
+      }
+      return enviarMidia({
+        bucket: "reservation-records",
+        path: box.path,
+        blob,
+        contentType: mime || "application/octet-stream",
+        signal: ctrl.signal,
+        onProgress: (pct) => progressoGlobal.set(box.path, pct),
+      });
     });
-    const e = { path, ctrl, promise };
-    enviosRef.current.set(it.key, e);
-    return e;
+    return box;
   }
-
-  useEffect(() => {
-    if (!open) return;
-    for (const it of items) if (!enviosRef.current.has(it.key)) iniciarEnvio(it);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, open]);
 
   useEffect(() => {
     const envios = enviosRef.current;
@@ -514,67 +521,67 @@ export function RecordSituationSheet({
     cancelarRef.current?.abort();
   }
 
-  async function enviarEmSegundoPlano(
-    lote: { it: DraftItem; envio: Envio }[],
-    groupId: string,
-    rotulo: string,
-  ) {
+  async function enviarEmSegundoPlano(lote: DraftItem[], groupId: string, rotulo: string) {
     const id = `bg-${groupId}`;
     const total = lote.length;
     const pos = { position: "bottom-right" as const };
-    let ultimo = -1;
+    let feitos = 0;
+    let atual: string | null = null;
+    let ultimo = "";
     const atualizar = () => {
-      const media = Math.round(
-        lote.reduce((s, { envio }) => s + (progressoGlobal.get(envio.path) ?? 0), 0) / total,
-      );
-      if (media === ultimo) return;
-      ultimo = media;
-      toast.loading(`Enviando ${total} arquivo(s) · ${media}%`, { id, description: rotulo, ...pos });
+      const pctAtual = atual ? (progressoGlobal.get(atual) ?? 0) : 0;
+      const media = Math.round(((feitos + pctAtual / 100) / total) * 100);
+      const txt = `Enviando ${Math.min(feitos + 1, total)} de ${total} · ${media}%`;
+      if (txt === ultimo) return;
+      ultimo = txt;
+      toast.loading(txt, { id, description: rotulo, ...pos });
     };
     envios2oPlano += 1;
     atualizar();
     const tick = setInterval(atualizar, 700);
     let ok = 0;
     const falhas: string[] = [];
-    await Promise.all(
-      lote.map(async ({ it, envio }) => {
+    for (const it of lote) {
+      const envio = iniciarEnvio(it);
+      try {
         const r = await envio.promise;
-        progressoGlobal.set(envio.path, 100);
-        try {
-          if (!r.ok) {
-            falhas.push(it.name || it.kind);
-            track({
-              type: "record_media_failed",
-              label: "Falha ao enviar mídia de situação",
-              category: "ERROR",
-              severity: "error",
-              metadata: { kind: it.kind, mime: it.mime || null, sizeBytes: it.blob.size, motivo: r.motivo, propertyId, groupId },
-            });
-            return;
-          }
-          await chamarServidor(() =>
-            appendFn({
-              data: {
-                groupId,
-                propertyId,
-                path: envio.path,
-                kind: it.kind,
-                mime: it.mime || "application/octet-stream",
-                sizeBytes: it.blob.size,
-                durationMs: it.durationMs,
-              },
-            }),
-          );
-          ok += 1;
-        } catch {
+        atual = envio.path;
+        if (!r.ok) {
           falhas.push(it.name || it.kind);
-        } finally {
-          if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
+          track({
+            type: "record_media_failed",
+            label: "Falha ao enviar mídia de situação",
+            category: "ERROR",
+            severity: "error",
+            metadata: { kind: it.kind, mime: it.mime || null, sizeBytes: it.blob.size, motivo: r.motivo, propertyId, groupId },
+          });
+          continue;
         }
-      }),
-    );
+        const fin = await envio.final;
+        await chamarServidor(() =>
+          appendFn({
+            data: {
+              groupId,
+              propertyId,
+              path: envio.path,
+              kind: it.kind,
+              mime: fin.mime || "application/octet-stream",
+              sizeBytes: fin.blob.size,
+              durationMs: it.durationMs,
+            },
+          }),
+        );
+        ok += 1;
+      } catch {
+        falhas.push(it.name || it.kind);
+      } finally {
+        progressoGlobal.delete(envio.path);
+        atual = null;
+        feitos += 1;
+        if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
+      }
+    }
     clearInterval(tick);
-    for (const { envio } of lote) progressoGlobal.delete(envio.path);
     envios2oPlano -= 1;
     if (falhas.length) {
       toast.error(`${ok} de ${total} arquivo(s) enviados`, {
@@ -654,7 +661,7 @@ export function RecordSituationSheet({
              conexão; a resposta desta chamada chegou a levar >60s com tudo
              gravado no servidor. Prazo maior + o servidor reencontra o mesmo
              registro (15 min) se a pessoa tocar "Tentar de novo". */
-          { signal: ctrl.signal, prazoMs: 180_000 },
+          { signal: ctrl.signal, prazoMs: 60_000 },
         );
         groupId = (criada as { groupId?: string })?.groupId ?? null;
         if (!groupId) throw new Error("Não consegui abrir o registro.");
@@ -677,12 +684,9 @@ export function RecordSituationSheet({
          reservas ao mesmo tempo. Cada término avisa no canto inferior direito.
          Os envios saem do controle da folha (senão fechar cancelaria). */
       if (items.length > 0) {
-        const lote = items.map((it) => ({
-          it,
-          envio: enviosRef.current.get(it.key) ?? iniciarEnvio(it),
-        }));
+        for (const e of enviosRef.current.values()) e.ctrl.abort();
         enviosRef.current.clear();
-        void enviarEmSegundoPlano(lote, groupId, title.trim() || "Situação");
+        void enviarEmSegundoPlano([...items], groupId, title.trim() || "Situação");
         setItems([]);
       }
       void apagarRascunho(chave);
