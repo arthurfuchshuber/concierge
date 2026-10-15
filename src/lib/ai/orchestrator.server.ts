@@ -81,6 +81,7 @@ import type { ChannelType } from "./channels/types";
 import { buildRootCause } from "./observability/root-cause.server";
 import { guestSafetyDecision } from "./guest-safety.server";
 import { maskDigitSequences } from "@/lib/guest-access.server";
+import { resolveStayAccess, stayFactsText } from "./stay-access.server";
 
 type Admin = SupabaseClient;
 
@@ -248,10 +249,27 @@ export async function runHospitalityAgent(params: {
   rememberMessage(params.conversationId, "user", params.message);
   rememberIntent(params.conversationId, intent);
 
+  // Mente única de acesso: estadia em andamento (e não "Não Compareceu")
+  // libera todos os dados do anúncio em qualquer canal.
+  const stayAccess = await resolveStayAccess({
+    supabase,
+    property,
+    channel,
+    guestName: params.guestName,
+    checkinDate: params.checkinDate,
+    checkoutDate: params.checkoutDate,
+    reservationVerified: params.reservationVerified,
+    credentialsLocked: params.credentialsLocked,
+  }).catch((e) => {
+    console.error("[agent] resolveStayAccess falhou", e);
+    return { open: false } as { open: boolean };
+  });
+
   // Guardrail determinístico: acesso físico e credenciais não dependem de decisão do modelo.
   const safety = await guestSafetyDecision(params.message, String(property.slug ?? ""), {
     supabase,
     propertyId,
+    stayOpen: stayAccess.open,
   });
   if (safety.kind !== "none") {
     const handoff = safety.kind === "access_incident";
