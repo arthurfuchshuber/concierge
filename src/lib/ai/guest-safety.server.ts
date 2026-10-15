@@ -9,6 +9,14 @@ export type GuestSafetyDecision =
 const ACCESS_INCIDENT =
   /\b(estou (?:no|na|em frente (?:a|à)|diante (?:d[eo])?) (?:port[aã]o|porta|casa|imóvel|endere[cç]o)|cheguei(?: e)?\s*(?:mas\s*)?n[aã]o consigo|entrei(?: e)?\s*(?:mas\s*)?n[aã]o consigo|sem acesso|n[aã]o consigo (?:entrar|acessar|abrir)|(?:porta|port[aã]o|fechadura|cadeado(?:-?cofre)?|cofre|senha|c[oó]digo|pin|chave|tag)\s*(?:n[aã]o|nao)\s*(?:abre|abriu|funciona|aceita|encontr\w*)|n[aã]o (?:encontro|acho) (?:o |a )?(?:cadeado|cofre|chave|controle|tag)|trancad[oa]|ningu[eé]m (?:me )?(?:atendeu|recebeu|est[aá] aqui|apareceu)|n[aã]o (?:tem|h[aá]) ningu[eé]m)\b/i;
 
+const DEPARTURE =
+  /\b(j[aá] (?:sa[ií]|sa[ií]mos|fui embora|fomos embora|fiz (?:o )?check-?out|deixei|deixamos|entreguei|tranquei|trancamos)|fiz (?:o )?check-?out|estou indo embora|deixei a chave|chave (?:est[aá] )?(?:no|na) (?:local|lugar|cofre|caixa)|tranquei (?:a|o|tudo)|trancamos)\b/i;
+
+/** Hóspede relatando que JÁ SAIU (checkout), não que está sem acesso. */
+export function isDepartureReport(message: string): boolean {
+  return DEPARTURE.test(message);
+}
+
 const CREDENTIAL_REQUEST =
   /\b(senha(?: do)? (?:wi-?fi|port[aã]o|port[aã]ozinho|cadeado|cofre)|c[oó]digo(?: de)? (?:acesso|port[aã]o|fechadura|cofre)|pin|ver senha|qual (?:a )?senha)\b/i;
 
@@ -57,7 +65,9 @@ export async function guestSafetyDecision(
   ctx?: { supabase: SupabaseClient; propertyId: string },
 ): Promise<GuestSafetyDecision> {
   const link = guideLink(propertySlug);
-  if (ACCESS_INCIDENT.test(message)) {
+  // Saída concluída ("já saí e a casa está trancada", "deixei a chave") não é
+  // incidente de acesso: deixa o modelo agradecer/confirmar (ou perguntar se ambíguo).
+  if (ACCESS_INCIDENT.test(message) && !isDepartureReport(message)) {
     let pointers = "";
     if (ctx) {
       const found = await findArrivalPointers(ctx.supabase, ctx.propertyId);
