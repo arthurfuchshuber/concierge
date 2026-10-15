@@ -851,7 +851,9 @@ export function AirbnbAccountFlow({
       return false;
     }
   }
-  async function begin(reauth: string | null = null) {
+  async function begin(reauthArg: unknown = null) {
+    // Nunca repassa o evento do clique como ID de conta.
+    const reauth = typeof reauthArg === "string" && reauthArg.length >= 8 ? reauthArg : null;
     setReauthId(reauth);
     setBusy(true);
     try {
@@ -1209,7 +1211,7 @@ export function AirbnbAccountFlow({
                 ]}
               />
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-                <PrimaryBtn onClick={begin} disabled={busy}>
+                <PrimaryBtn onClick={() => void begin()} disabled={busy}>
                   {busy ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
