@@ -195,14 +195,6 @@ export function FullConnectGate() {
               {notice[it.propertyId] ? (
                 <p className="text-xs text-destructive">{notice[it.propertyId]}</p>
               ) : null}
-              <Button
-                className="w-full"
-                disabled={!it.unitCode || busy !== null}
-                onClick={() => confirm(it.propertyId)}
-              >
-                {busy === it.propertyId ? <Loader2 className="size-4 animate-spin" /> : null}
-                {busy === it.propertyId ? "Conferindo diárias…" : "Já conectei"}
-              </Button>
             </div>
           ))}
         </div>
