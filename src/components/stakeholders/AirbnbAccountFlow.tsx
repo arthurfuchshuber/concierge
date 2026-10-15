@@ -102,6 +102,7 @@ type Step =
   | "start"
   | "authorizing"
   | "timeout"
+  | "noNew"
   | "already"
   | "pickAccount"
   | "expired"
@@ -748,6 +749,12 @@ export function AirbnbAccountFlow({
   useEffect(() => {
     if (step !== "authorizing") return;
     startedAt.current = Date.now();
+    // O Airbnb devolve o cliente ao painel (outra aba) e avisa por aqui.
+    let returnedAt = 0;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "airbnb-oauth-return" && e.newValue) returnedAt = Date.now();
+    };
+    window.addEventListener("storage", onStorage);
     const id = window.setInterval(async () => {
       if (Date.now() - startedAt.current > 10 * 60_000) {
         window.clearInterval(id);
@@ -766,7 +773,14 @@ export function AirbnbAccountFlow({
           return;
         }
         const r = await detectFn({ data: { accountOwnerId, baseline } });
-        if (!r.found) return;
+        if (!r.found) {
+          // Airbnb já voltou e, após ~10 s, nenhuma conta nova apareceu: para de esperar.
+          if (returnedAt && Date.now() - returnedAt > 10_000) {
+            window.clearInterval(id);
+            setStep("noNew");
+          }
+          return;
+        }
         window.clearInterval(id);
         qc.invalidateQueries({ queryKey: ["airbnb-accounts"] });
         if (r.found.duplicate) {
