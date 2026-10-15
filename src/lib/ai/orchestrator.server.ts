@@ -328,7 +328,7 @@ export async function runHospitalityAgent(params: {
     message: params.message,
     history: params.history,
     category: intent.category,
-    language: intent.language,
+    language: guestLanguage,
     memory,
     searchQuery: intent.searchQuery,
   });
