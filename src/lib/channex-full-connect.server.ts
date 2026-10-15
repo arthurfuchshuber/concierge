@@ -164,6 +164,29 @@ export async function seedUnitCalendar(propertyId: string, userId: string | null
   return { ok: flushed.batches.every((b: any) => b.ok), closedNights: closed.size, seedRate };
 }
 
+/**
+ * Blindagem para qualquer vínculo (De → Para, importação, troca de imóvel): se a unidade própria
+ * ainda NÃO está mapeada no Airbnb, garante a carga inicial (calendário real + tarifa base se não
+ * houver diárias), para a ferramenta de preços nunca encontrar a unidade zerada. Mapeada → nada.
+ */
+export async function seedIfUnmapped(propertyId: string) {
+  const d = await db();
+  const { data: r } = await d
+    .from("property_listing_raw_data")
+    .select("airbnb_listing_id, channex_channel_id, channex_rate_plan_id")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  if (!r?.channex_rate_plan_id || !r.airbnb_listing_id) return { ok: false, reason: "no_unit" };
+  if (r.channex_channel_id) {
+    const c = await cx<{ data: any }>(`/channels/${r.channex_channel_id}`);
+    const mapped = (c.data?.attributes?.rate_plans ?? []).some(
+      (rp: any) => String(rp.settings?.listing_id) === String(r.airbnb_listing_id),
+    );
+    if (mapped) return { ok: true, reason: "mapped" };
+  }
+  return seedUnitCalendar(propertyId);
+}
+
 
 export async function listPendingFullConnections(ownerId: string): Promise<PendingFullConnection[]> {
   if (!FULL_CONNECT_ACCOUNTS.has(ownerId)) return [];
