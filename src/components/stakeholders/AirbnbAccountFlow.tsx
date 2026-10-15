@@ -646,6 +646,7 @@ export function AirbnbAccountFlow({
   const [syncRes, setSyncRes] = useState<{
     title: string;
     pending: Array<{ propertyId: string; title: string; kind: "chat" | "config" }>;
+    channexPropertyId?: string | null;
   } | null>(null);
   /** Em massa: anúncio escolhido para cada imóvel (imóvel → anúncio). */
   const [propListing, setPropListing] = useState<Record<string, string>>({});
@@ -946,6 +947,17 @@ export function AirbnbAccountFlow({
       setStep(picked.length > 1 ? "pairs" : "owner");
     }
   }
+  /** Tira o imóvel já vinculado da lista em memória na hora (a 1ª tela não mostra o velho). */
+  function dropFromUnsynced(propertyId: string) {
+    qc.setQueriesData<{ properties?: Array<{ id: string }>; blocking?: boolean } | undefined>(
+      { queryKey: ["unsynced-properties"] },
+      (old) => {
+        if (!old?.properties) return old;
+        const properties = old.properties.filter((p) => p.id !== propertyId);
+        return { ...old, properties, blocking: old.blocking && properties.length > 0 };
+      },
+    );
+  }
   async function doSyncProperty() {
     if (request?.type !== "syncProperty" || !syncListing) return;
     setStep("syncing");
@@ -953,7 +965,8 @@ export function AirbnbAccountFlow({
       const r = await syncFn({
         data: { accountOwnerId, propertyId: request.property.id, listingId: syncListing },
       });
-      setSyncRes({ title: r.title, pending: r.pending });
+      setSyncRes({ title: r.title, pending: r.pending, channexPropertyId: r.channexPropertyId });
+      dropFromUnsynced(request.property.id);
       refreshAll();
       qc.invalidateQueries({ queryKey: ["unsynced-properties"] });
       setStep("syncDone");
@@ -981,6 +994,7 @@ export function AirbnbAccountFlow({
           },
         });
         next[i] = { ...next[i], status: "ok", pending: r.pending };
+        if (r.kind === "linked") dropFromUnsynced(r.propertyId);
       } catch (e) {
         next[i] = {
           ...next[i],
@@ -2031,6 +2045,30 @@ export function AirbnbAccountFlow({
                   )}
                 />
               )}
+              {syncRes.channexPropertyId ? (
+                <div className="grid gap-1.5 rounded-[12px] bg-foreground/[0.03] p-2.5 text-[12px] leading-[1.5] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+                  <b className="font-bold text-foreground">Ferramenta de preços (opcional)</b>
+                  <span className="text-muted-foreground">
+                    Para importar este anúncio na sua ferramenta de precificação, conecte-a à
+                    Channex e use o código do imóvel abaixo. O calendário do Airbnb continua livre.
+                  </span>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <code className="min-w-0 flex-1 truncate rounded-[8px] bg-background px-2 py-1.5 text-[11.5px]">
+                      {syncRes.channexPropertyId}
+                    </code>
+                    <button
+                      type="button"
+                      className="h-8 shrink-0 rounded-[8px] px-2.5 text-[12px] font-bold shadow-[inset_0_0_0_1px_var(--border)]"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(syncRes.channexPropertyId ?? "");
+                        toast.success("Código copiado");
+                      }}
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn onClick={close}>Concluir</PrimaryBtn>
               </div>
