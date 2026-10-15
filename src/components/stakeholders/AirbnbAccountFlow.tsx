@@ -1355,7 +1355,7 @@ function AirbnbAccountFlowInner({
                   <Link2 className="size-[15px]" />
                   Copiar link de conexão
                 </SecondaryBtn>
-                <SecondaryBtn onClick={close}>Cancelar</SecondaryBtn>
+                <SecondaryBtn onClick={close}>Fechar (o link continua válido)</SecondaryBtn>
               </div>
             </>
           ) : null}
