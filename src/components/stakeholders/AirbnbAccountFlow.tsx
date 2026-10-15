@@ -880,11 +880,6 @@ export function AirbnbAccountFlow({
       return false;
     }
   }
-  /** Abre o encerramento de sessão do próprio Airbnb (o ConciergeIA não pode apagar cookies de outro site). */
-  function logoutAirbnb() {
-    window.open("https://www.airbnb.com.br/logout", "_blank", "noopener,noreferrer");
-    toast.message("Saia da conta no Airbnb e volte aqui para continuar.");
-  }
   /** Descarta tudo da tentativa anterior antes de tentar de novo. */
   function resetConnect() {
     setBaseline([]);
@@ -1272,9 +1267,10 @@ export function AirbnbAccountFlow({
                 ]}
               />
               <AttentionBox>
-                Vai conectar outra conta? Primeiro toque em{" "}
-                <b className="font-bold text-foreground">Sair da conta atual do Airbnb</b>, ou copie
-                o link e abra numa janela anônima (ou envie ao proprietário).
+                Vai conectar outra conta? Toque em{" "}
+                <b className="font-bold text-foreground">Copiar link de conexão</b> e abra numa
+                janela anônima (ou envie ao proprietário). Assim o Airbnb pede o login da conta
+                certa.
               </AttentionBox>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn onClick={() => void begin()} disabled={busy}>
@@ -1288,10 +1284,6 @@ export function AirbnbAccountFlow({
                 <SecondaryBtn onClick={() => void (busy ? null : begin(null, true))}>
                   <Link2 className="size-[15px]" />
                   Copiar link de conexão
-                </SecondaryBtn>
-                <SecondaryBtn onClick={logoutAirbnb}>
-                  <ExternalLink className="size-[15px]" />
-                  Sair da conta atual do Airbnb
                 </SecondaryBtn>
                 <SecondaryBtn onClick={close}>Cancelar</SecondaryBtn>
               </div>
@@ -1343,19 +1335,24 @@ export function AirbnbAccountFlow({
               </IconBox>
               <Title>Nenhuma conta nova encontrada</Title>
               <Desc>
-                O Airbnb voltou para o ConciergeIA, mas usou uma conta que já está conectada.
-                Para conectar outra conta, saia do Airbnb neste navegador (ou use uma janela
-                anônima), entre com a conta nova e tente de novo.
+                O Airbnb reconheceu uma conta que já está conectada (ela continua salva neste
+                navegador) e voltou sozinho, sem pedir login. Copie o link, abra numa janela
+                anônima e entre com a conta nova.
               </Desc>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-                <SecondaryBtn onClick={logoutAirbnb}>
-                  <ExternalLink className="size-[15px]" />
-                  Sair da conta atual do Airbnb
-                </SecondaryBtn>
-                <PrimaryBtn onClick={resetConnect}>
+                <PrimaryBtn
+                  onClick={() => {
+                    resetConnect();
+                    void begin(null, true);
+                  }}
+                >
+                  <Link2 className="size-4" />
+                  Copiar link para janela anônima
+                </PrimaryBtn>
+                <SecondaryBtn onClick={resetConnect}>
                   <Link2 className="size-4" />
                   Tentar de novo
-                </PrimaryBtn>
+                </SecondaryBtn>
                 <SecondaryBtn onClick={close}>Fechar</SecondaryBtn>
               </div>
             </>
