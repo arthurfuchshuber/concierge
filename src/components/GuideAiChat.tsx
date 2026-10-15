@@ -1141,6 +1141,15 @@ export function GuideAiChat({
                       {(!showOriginal[trKey(m)] && autoTranslated[trKey(m)]) || m.content}
                     </AiMarkdown>
                   )}
+                  {autoTranslated[trKey(m)] && (
+                    <button
+                      type="button"
+                      onClick={() => setShowOriginal((p) => ({ ...p, [trKey(m)]: !p[trKey(m)] }))}
+                      className="mt-1 block text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+                    >
+                      {showOriginal[trKey(m)] ? "🌐 Ver tradução" : "🌐 Traduzido automaticamente · Ver original"}
+                    </button>
+                  )}
 
                 </div>
                 {/* Botões de resposta rápida — só na última mensagem do
