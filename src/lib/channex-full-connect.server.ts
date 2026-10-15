@@ -99,6 +99,70 @@ async function ensureUnit(r: any): Promise<string> {
   return prop.data.id;
 }
 
+const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+
+/** Noites fechadas no calendário REAL do Airbnb (reservas + bloqueios manuais), lidas do iCal oficial. */
+async function airbnbClosedNights(icalUrl: string | null | undefined): Promise<Set<string> | null> {
+  const url = String(icalUrl ?? "").trim();
+  if (!url) return null;
+  const { isAllowedIcalUrl } = await import("@/lib/airbnb-ical-url");
+  if (!isAllowedIcalUrl(url)) return null;
+  const res = await fetch(url, { headers: { Accept: "text/calendar" } });
+  if (!res.ok) throw new Error(`iCal ${res.status}`);
+  const text = (await res.text()).replace(/\r?\n[ \t]/g, "");
+  const nights = new Set<string>();
+  for (const ev of text.split("BEGIN:VEVENT").slice(1)) {
+    const s = /DTSTART[^:]*:(\d{8})/.exec(ev)?.[1];
+    const e = /DTEND[^:]*:(\d{8})/.exec(ev)?.[1];
+    if (!s || !e) continue;
+    const f = (x: string) => `${x.slice(0, 4)}-${x.slice(4, 6)}-${x.slice(6, 8)}`;
+    const end = f(e);
+    for (let d = new Date(`${f(s)}T00:00:00Z`); isoDay(d) < end; d = new Date(d.getTime() + 86_400_000)) nights.add(isoDay(d));
+  }
+  return nights;
+}
+
+export const SEED_BASE_RATE = 100;
+
+/**
+ * Carga inicial da unidade ainda NÃO mapeada: espelha o calendário real do Airbnb (fechado = 0,
+ * livre = 1 até 270 dias) e, se a unidade ainda não tem nenhuma diária, uma tarifa base para a
+ * ferramenta de preços ter ponto de partida. Seguro: sem mapeamento, nada chega ao Airbnb.
+ */
+export async function seedUnitCalendar(propertyId: string, userId: string | null = null) {
+  const d = await db();
+  const { data: r } = await d
+    .from("property_listing_raw_data")
+    .select("channex_property_id, channex_room_type_id, channex_rate_plan_id, airbnb_ical_url, owner_id")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  if (!r?.channex_property_id || !r.channex_room_type_id || !r.channex_rate_plan_id) return { ok: false, reason: "no_unit" };
+  const closed = await airbnbClosedNights(r.airbnb_ical_url);
+  if (!closed) return { ok: false, reason: "no_ical" };
+  const { applyCalendarChanges, flushAriOutbox } = await import("@/lib/channex-ari.server");
+  const base = { propertyId: r.channex_property_id, roomTypeId: r.channex_room_type_id, ratePlanId: r.channex_rate_plan_id };
+  const changes: any[] = [];
+  const now = Date.now();
+  for (let i = 0; i <= 365; i++) {
+    const date = isoDay(new Date(now + i * 86_400_000));
+    const availability = i > 270 || closed.has(date) ? 0 : 1;
+    const prev = changes[changes.length - 1];
+    if (prev && prev.fields.availability === availability) prev.dateTo = date;
+    else changes.push({ ...base, dateFrom: date, dateTo: date, fields: { availability } });
+  }
+  const start = isoDay(new Date(now));
+  const end = isoDay(new Date(now + 29 * 86_400_000));
+  const cur = await cx<{ data: Record<string, Record<string, { rate?: string | number }>> }>(
+    `/restrictions?filter[property_id]=${r.channex_property_id}&filter[date][gte]=${start}&filter[date][lte]=${end}&filter[restrictions]=rate`,
+  ).catch(() => null);
+  const seedRate = !!cur && pricedDays(cur.data?.[r.channex_rate_plan_id]) === 0;
+  if (seedRate) changes.push({ ...base, dateFrom: start, dateTo: isoDay(new Date(now + 365 * 86_400_000)), fields: { rate: SEED_BASE_RATE } });
+  await applyCalendarChanges(changes, userId, "full_connect_seed");
+  const flushed = await flushAriOutbox();
+  return { ok: flushed.batches.every((b: any) => b.ok), closedNights: closed.size, seedRate };
+}
+
+
 export async function listPendingFullConnections(ownerId: string): Promise<PendingFullConnection[]> {
   if (!FULL_CONNECT_ACCOUNTS.has(ownerId)) return [];
   const out: PendingFullConnection[] = [];
