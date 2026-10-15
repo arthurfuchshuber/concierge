@@ -121,6 +121,7 @@ export function OwnerPropertiesList({
   const accountsFn = useServerFn(listAirbnbAccounts);
   const accountsQ = useQuery({
     queryKey: ["airbnb-accounts", accountOwnerId ?? "self"],
+    refetchOnWindowFocus: true,
     queryFn: () => accountsFn({ data: { accountOwnerId } }),
     staleTime: 60_000,
     retry: false,
