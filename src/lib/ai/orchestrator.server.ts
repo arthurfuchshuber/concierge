@@ -223,6 +223,12 @@ export async function runHospitalityAgent(params: {
   } = await classifyIntent(params.message, params.history);
   usage = mergeUsage(usage, intentUsage);
   models.intent = intentModel;
+  // Idioma por canal: Airbnb/OTAs e Guia Digital já traduzem para o hóspede,
+  // então a IA responde sempre em português; só o WhatsApp (sem tradução
+  // nativa) segue o idioma em que o hóspede escreveu.
+  const guestLanguage = intent.language;
+  const replyInGuestLanguage = channel === "whatsapp";
+  if (!replyInGuestLanguage) (intent as { language: string }).language = "pt";
 
   // O "modo exploração" (mandato forte de só citar lugares vindos de
   // list_recommendations/search_places) até aqui só ligava por um sinal
@@ -596,7 +602,9 @@ export async function runHospitalityAgent(params: {
     `\n\nCONTEXTO DO HÓSPEDE E MEMÓRIA (uso interno — nunca revele ao hóspede que existe histórico registrado)\n${guestContext.text}` +
     reservationModeContext +
     renderHumanAnswers(humanAnswers) +
-    `\n\nIDIOMA PROVÁVEL DA MENSAGEM: ${intent.language} (responda no idioma em que o hóspede escreveu)` +
+    (replyInGuestLanguage
+      ? `\n\nIDIOMA PROVÁVEL DA MENSAGEM: ${guestLanguage} (responda no idioma em que o hóspede escreveu)`
+      : `\n\nIDIOMA DE RESPOSTA (obrigatório): responda SEMPRE em português do Brasil, mesmo que o hóspede escreva em outro idioma (${guestLanguage}). Este canal traduz automaticamente para o hóspede.`) +
     (reservationVerified
       ? ""
       : `\n\nRESERVA NÃO CONFIRMADA — DADOS SENSÍVEIS BLOQUEADOS (prioridade máxima, vale para qualquer canal)\n- Não há reserva confirmada e ativa validada para esta pessoa.\n- NUNCA informe endereço exato (rua com número, complemento, CEP), link/pin de localização do imóvel, senhas, códigos de portão/fechadura, Wi-Fi, instruções de acesso ou contatos internos.\n- Pode citar apenas bairro, região e distâncias/referências próximas.\n- Se pedirem esses dados, explique com gentileza que o endereço completo e as informações de acesso são enviados assim que a reserva estiver confirmada.`) +
