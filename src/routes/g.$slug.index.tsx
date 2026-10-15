@@ -412,7 +412,7 @@ function Guide({ data }: { data: GuideOk }) {
   }, []);
   const trackEventRaw = useServerFn(trackGuideEvent);
   const trackEvent = useMemo(
-    () => (a: Parameters<typeof trackEventRaw>[0]) =>
+    () => (a: { data: { slug: string; section: string; sessionId: string; guestName?: string | null; guestPhone?: string | null; pagePath?: string | null } }) =>
       trackEventRaw({ data: { ...a.data, guestPass: readPass(`guide:${a.data.slug}`) } }),
     [trackEventRaw],
   );
