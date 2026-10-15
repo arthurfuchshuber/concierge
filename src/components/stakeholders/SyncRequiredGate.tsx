@@ -41,9 +41,27 @@ export function SyncRequiredGate() {
     return () => window.clearTimeout(t);
   }, []);
 
+  // Fechar no "X" adia o aviso por 1 hora (por conta, neste navegador); depois reabre sozinho.
+  const snoozeKey = `sync-gate-snooze:${accountOwnerId ?? "self"}`;
+  const [snoozedUntil, setSnoozedUntil] = useState(0);
+  useEffect(() => {
+    const v = Number(window.localStorage.getItem(snoozeKey) || 0);
+    setSnoozedUntil(v > Date.now() ? v : 0);
+  }, [snoozeKey]);
+  useEffect(() => {
+    if (!snoozedUntil) return;
+    const t = window.setTimeout(() => setSnoozedUntil(0), Math.max(0, snoozedUntil - Date.now()));
+    return () => window.clearTimeout(t);
+  }, [snoozedUntil]);
+  function snooze() {
+    const until = Date.now() + 60 * 60 * 1000;
+    window.localStorage.setItem(snoozeKey, String(until));
+    setSnoozedUntil(until);
+  }
+
   const pending = q.data?.properties ?? [];
   const previewFull = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("verConexao");
-  const blocking = !previewFull && perm.allowed && !!q.data?.blocking && pending.length > 0;
+  const blocking = !previewFull && !snoozedUntil && perm.allowed && !!q.data?.blocking && pending.length > 0;
 
   // Abertura SÍNCRONA (sem estado nem efeito no meio): no mesmo quadro em que a consulta confirma
   // o bloqueio, o <Dialog> já recebe open=true. Só abre quando não há outra janela na frente
@@ -121,20 +139,18 @@ export function SyncRequiredGate() {
       {blocking || flow ? (
         <div aria-hidden className="fixed inset-0 z-[49] bg-background/85 backdrop-blur-md" />
       ) : null}
-      <Dialog open={shouldBeOpen} onOpenChange={() => undefined}>
+      <Dialog open={shouldBeOpen} onOpenChange={(o) => { if (!o) snooze(); }}>
         <DialogContent
-          hideClose
           onOpenAutoFocus={() => {
             // Janela montada: espera 2 quadros para o fundo desfocado pintar e só então solta a cobertura.
             requestAnimationFrame(() => requestAnimationFrame(() => setDialogPainted(true)));
           }}
-          onEscapeKeyDown={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => e.preventDefault()}
-          className="max-w-[380px] gap-2.5 p-[18px] sm:gap-3.5 sm:max-w-[560px] sm:p-[18px]"
+          className="max-w-[380px] gap-2.5 p-[18px] pt-[22px] sm:gap-3.5 sm:max-w-[560px] sm:p-[18px]"
         >
           <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-            <div className="grid min-w-0 gap-2.5">
+            <div className="grid min-w-0 gap-2.5 pr-9">
               <DialogTitle className="flex items-center gap-2.5 font-display text-[19px] font-extrabold leading-[1.2] tracking-[-0.01em]">
                 <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-secondary text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
                   <Lock className="size-4" />
