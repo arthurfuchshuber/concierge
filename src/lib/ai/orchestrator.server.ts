@@ -446,13 +446,20 @@ export async function runHospitalityAgent(params: {
   // Reserva confirmada e ativa: o canal informa; sem informação, só vale a
   // reserva vinculada fora do Airbnb e com estadia ainda não encerrada.
   const reservationVerified =
-    params.reservationVerified ??
-    (channel !== "airbnb" &&
-      context.keys.includes("reservation") &&
-      context.stayPhase !== "post_checkout" &&
-      context.stayPhase !== "unknown");
-  const credentialsLocked =
-    context.sensitiveLocked || params.credentialsLocked === true || !reservationVerified;
+    stayAccess.open ||
+    (params.reservationVerified ??
+      (channel !== "airbnb" &&
+        context.keys.includes("reservation") &&
+        context.stayPhase !== "post_checkout" &&
+        context.stayPhase !== "unknown"));
+  const credentialsLocked = stayAccess.open
+    ? false
+    : context.sensitiveLocked || params.credentialsLocked === true || !reservationVerified;
+  const stayFacts = stayAccess.open ? stayFactsText(property as Record<string, unknown>) : "";
+  if (stayFacts) {
+    sources.push({ source: "property", title: "Dados da residência (estadia em andamento)", confidence: confidenceOf("property") });
+    evidence.push(`[property] Dados oficiais do anúncio liberados durante a estadia:\n${stayFacts}`);
+  }
   const retrieved = await hybridRetrieve({
     supabase,
     ownerId,
