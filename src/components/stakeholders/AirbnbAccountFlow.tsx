@@ -804,10 +804,21 @@ export function AirbnbAccountFlow({
       } catch {
         /* tenta de novo no próximo ciclo */
       }
-    }, 4000);
+    };
+    id = window.setInterval(tick, 4000);
+    // Voltou para esta aba (ex.: autorizou numa janela anônima): confere na hora, sem F5.
+    const onFocus = () => {
+      if (document.visibilityState === "hidden") return;
+      qc.invalidateQueries({ queryKey: ["airbnb-accounts"] });
+      void tick();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
     return () => {
       window.clearInterval(id);
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, baseline, reauthId]);
