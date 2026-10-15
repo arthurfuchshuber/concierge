@@ -65,8 +65,13 @@ async function unmappedRows(ownerId: string) {
 async function ensureUnit(r: any): Promise<string> {
   if (r.channex_room_type_id && r.channex_rate_plan_id && r.channex_property_id) return r.channex_property_id;
   const d = await db();
-  const name = String(r.properties?.name ?? "Imóvel").slice(0, 200);
-  const title = String(r.listing_meta?.title ?? r.listing_meta?.name ?? name).slice(0, 200);
+  const fallback = String(r.properties?.name ?? "Imóvel");
+  const raw = String(r.listing_meta?.title ?? r.listing_meta?.name ?? fallback);
+  // Mesma regra de nomes da sincronização: unidade exclusiva → propriedade = nome interno, quarto = título público.
+  const { namingFor, listingTitle } = await import("@/lib/channex-entity-sync.server");
+  const naming = namingFor(raw, true);
+  const name = String(naming.property ?? fallback).slice(0, 200);
+  const title = String(naming.property ? naming.room : listingTitle(raw) || fallback).slice(0, 200);
   const prop = await cx<{ data: { id: string } }>("/properties", {
     method: "POST",
     body: JSON.stringify({ property: { title: name, currency: "BRL", country: "BR", timezone: "America/Sao_Paulo", property_type: "guest_house" } }),
