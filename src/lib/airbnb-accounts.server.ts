@@ -234,10 +234,18 @@ export async function startConnect(username: string, reauthChannelId?: string) {
 }
 
 /** Passo 2: procura a conta que acabou de ser autorizada e a registra nesta conta do sistema. */
-export async function detectNew(admin: Admin, accountId: string, baseline: string[]) {
+export async function detectNew(
+  admin: Admin,
+  accountId: string,
+  baseline: string[],
+  initiatorUserId: string,
+) {
   const now = await airbnbChannels();
   const seen = new Set(baseline);
-  const fresh = now.filter((c) => !seen.has(c.id));
+  // Só aceita canais criados pelo link desta pessoa: startConnect grava "Airbnb <userId>" no título.
+  // A lista `baseline` vem do navegador e nunca basta para reivindicar um canal.
+  const tags = new Set([initiatorUserId, accountId].map((id) => `Airbnb ${id}`.slice(0, 60)));
+  const fresh = now.filter((c) => !seen.has(c.id) && tags.has(c.title.trim()));
   if (fresh.length === 0)
     return { found: null as null | { channelId: string; title: string; duplicate: boolean } };
   const { data: taken } = await db(admin)

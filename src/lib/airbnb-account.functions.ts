@@ -283,7 +283,7 @@ export const detectAirbnbConnection = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
     const { detectNew } = await import("@/lib/airbnb-accounts.server");
-    return detectNew(admin, accountId, data.baseline);
+    return detectNew(admin, accountId, data.baseline, context.userId);
   });
 
 /** Desconectar: desliga o chat, pausa a sincronização e arquiva os imóveis. Não toca no canal da Channex. */
