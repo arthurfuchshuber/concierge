@@ -175,7 +175,7 @@ export function SyncRequiredGate() {
                         <span className="whitespace-nowrap"><b className="font-bold text-foreground">{a.imported}</b> {a.imported === 1 ? "sincronizado" : "sincronizados"}</span>
                         <span aria-hidden>·</span>
                         {free === 0 && (a.listings ?? 0) > 0 ? (
-                          <span className="whitespace-nowrap ds-sucesso">todos vinculados</span>
+                          <span className="whitespace-nowrap font-semibold text-primary">✓ todos vinculados</span>
                         ) : (
                           <span className="whitespace-nowrap"><b className="font-bold text-foreground">{free}</b> {free === 1 ? "disponível" : "disponíveis"}</span>
                         )}
