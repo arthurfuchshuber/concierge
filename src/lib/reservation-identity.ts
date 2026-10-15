@@ -53,7 +53,21 @@ export function resolveReservationIdentity(r: ReservationIdentitySource): Reserv
   const names = Array.isArray(c["names"]) ? (c["names"] as unknown[]).map(str).filter(Boolean) : [];
   const phones = Array.isArray(c["phones"]) ? (c["phones"] as unknown[]).map(str).filter(Boolean) : [];
   const hint = str(r.guest_hint);
-  const fromApi = r.source === "channex" || !!str(c["code"]) || names.length > 0;
+  // Remapeamento SÓ para reservas de anúncios sincronizados (vindas da API).
+  // iCal/manual seguem exatamente o comportamento antigo.
+  const fromApi = r.source === "channex";
+  if (!fromApi) {
+    const legacyCode = hint && looksLikeReservationCode(hint) ? hint.toUpperCase() : null;
+    return {
+      guestName: legacyCode ? null : hint,
+      reservationCode: legacyCode,
+      guestPhone: null,
+      channel: r.source === "airbnb" ? "Airbnb" : null,
+      adults: null,
+      children: null,
+      infants: null,
+    };
+  }
 
   let guestName: string | null = (names[0] as string | undefined) ?? null;
   let reservationCode: string | null = str(c["code"]);

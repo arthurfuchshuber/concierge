@@ -1272,9 +1272,10 @@ export function AirbnbAccountFlow({
                 ]}
               />
               <AttentionBox>
-                Vai conectar outra conta? Primeiro toque em{" "}
-                <b className="font-bold text-foreground">Sair da conta atual do Airbnb</b>, ou copie
-                o link e abra numa janela anônima (ou envie ao proprietário).
+                Vai conectar outra conta? Toque em{" "}
+                <b className="font-bold text-foreground">Copiar link de conexão</b> e abra numa
+                janela anônima (ou envie ao proprietário). Assim o Airbnb pede o login da conta
+                certa.
               </AttentionBox>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn onClick={() => void begin()} disabled={busy}>
@@ -1288,10 +1289,6 @@ export function AirbnbAccountFlow({
                 <SecondaryBtn onClick={() => void (busy ? null : begin(null, true))}>
                   <Link2 className="size-[15px]" />
                   Copiar link de conexão
-                </SecondaryBtn>
-                <SecondaryBtn onClick={logoutAirbnb}>
-                  <ExternalLink className="size-[15px]" />
-                  Sair da conta atual do Airbnb
                 </SecondaryBtn>
                 <SecondaryBtn onClick={close}>Cancelar</SecondaryBtn>
               </div>
