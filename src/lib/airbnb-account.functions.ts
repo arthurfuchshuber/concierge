@@ -499,13 +499,23 @@ export const listUnsyncedProperties = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => Base.parse(i))
   .handler(async ({ data, context }) => {
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
-    const { data: props } = await admin
-      .from("properties")
-      .select("id, name, city, owner_contact_id, hero_image_url, gallery_images")
-      .eq("owner_id", accountId)
-      .is("archived_at", null)
-      // "Não sincronizar este imóvel": quem foi dispensado não trava o painel nem entra no alerta.
-      .is("sync_dismissed_at", null);
+    const baseQ = () =>
+      admin
+        .from("properties")
+        .select("id, name, city, owner_contact_id, hero_image_url, gallery_images")
+        .eq("owner_id", accountId)
+        .is("archived_at", null);
+    // "Não sincronizar este imóvel": quem foi dispensado não trava o painel nem entra no alerta.
+    const first = await baseQ().is("sync_dismissed_at", null);
+    const propsErr = first.error;
+    let props = first.data;
+    // Banco ainda sem a coluna (migração pendente): não esconde o aviso — lista sem o filtro de dispensados.
+    if (
+      propsErr &&
+      /sync_dismissed_at|42703/.test(`${propsErr.code ?? ""} ${propsErr.message ?? ""}`)
+    ) {
+      props = (await baseQ()).data;
+    }
     const ids = (props ?? []).map((p) => p.id);
     // Alerta de "imóveis sem sincronização": só contas da lista (hoje, só a Sigma). Decidido AQUI no servidor.
     const alert = isSyncAlertAccount(accountId);
