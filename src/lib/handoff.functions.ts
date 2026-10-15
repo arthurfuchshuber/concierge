@@ -479,6 +479,15 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         }
         for (const conv of deduped) {
           const pid = conv.property_id ?? "";
+          const official = pid ? findChannex(conv) : null;
+          if (official) {
+            reservations[conv.id] = {
+              status: "confirmed",
+              checkin: official.checkin_date,
+              checkout: official.checkout_date,
+            };
+            continue;
+          }
           if (!pid || !hasIcal.has(pid)) {
             reservations[conv.id] = { status: "no_ical", checkin: null, checkout: null };
             continue;
