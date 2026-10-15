@@ -172,7 +172,30 @@ export async function startConnect(username: string, reauthChannelId?: string) {
   }
   if (!propertyId)
     throw new Error("Nenhuma propriedade da Channex disponível para receber a conta.");
-  const groupId = process.env["CHANNEX_CONNECT_GROUP_ID"];
+  let groupId = process.env["CHANNEX_CONNECT_GROUP_ID"];
+  if (!reauthChannelId) {
+    // Conexão nova: link oficial e direto do Airbnb (a Channex fica invisível ao cliente).
+    if (!groupId) {
+      const p = await cx<{
+        data: { relationships?: { group?: { data?: { id?: string } } } };
+      }>("GET", `/properties/${propertyId}`).catch(() => null);
+      groupId = p?.data?.relationships?.group?.data?.id ?? undefined;
+    }
+    const back = "https://conciergeia.app/admin/dashboard";
+    const link = await cx<{ data: { attributes: { url: string } } }>(
+      "POST",
+      "/meta/airbnb/connection_link",
+      {
+        ...(groupId ? { group_id: groupId } : {}),
+        properties: [propertyId],
+        redirect_uri: `${back}?airbnb=conectado`,
+        failure_redirect_uri: `${back}?airbnb=falhou`,
+        title: `Airbnb ${username}`.slice(0, 60),
+      },
+    );
+    const directUrl = link?.data?.attributes?.url;
+    if (directUrl) return { url: directUrl, baseline };
+  }
   const tok = await cx<{ data: { token: string } }>("POST", "/auth/one_time_token", {
     one_time_token: {
       property_id: propertyId,
