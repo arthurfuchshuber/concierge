@@ -9,7 +9,8 @@
  *
  * Roda no cron de 1 min. Cada pausa vencida é "reivindicada" uma vez só
  * (update condicionado ao mesmo `paused_until`), então execuções paralelas
- * nunca respondem em dobro. Pausas sem prazo (assumidas à mão) não entram.
+ * nunca respondem em dobro. O silêncio estratégico ([SILENCIO] para
+ * confirmação mecânica isolada) continua valendo: resposta vazia não é enviada.
  */
 type Admin = any;
 

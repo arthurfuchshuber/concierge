@@ -162,7 +162,7 @@ describe("handleAiReplyFailure", () => {
   });
 
   it("anfitrião assumiu (IA pausada): não reagenda nem faz handoff", async () => {
-    const a = fakeAdmin({ ai_paused: true, paused_until: null });
+    const a = fakeAdmin({ ai_paused: true, paused_until: new Date(Date.now() + 5 * 60_000).toISOString() });
     const r = await handleAiReplyFailure(a, "c1", ctx(), new Error("503"));
     expect(r).toBe("skipped");
     expect(a.updates.length).toBe(0);
