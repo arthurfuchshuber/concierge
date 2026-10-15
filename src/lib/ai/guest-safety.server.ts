@@ -62,8 +62,13 @@ async function findArrivalPointers(supabase: SupabaseClient, propertyId: string)
 export async function guestSafetyDecision(
   message: string,
   propertySlug: string,
-  ctx?: { supabase: SupabaseClient; propertyId: string },
+  ctx?: { supabase: SupabaseClient; propertyId: string; stayOpen?: boolean },
 ): Promise<GuestSafetyDecision> {
+  // Estadia em andamento (não "Não Compareceu"): pedido de senha/código é
+  // respondido diretamente pela IA com os dados oficiais — nunca desviado.
+  if (ctx?.stayOpen && CREDENTIAL_REQUEST.test(message) && !ACCESS_INCIDENT.test(message)) {
+    return { kind: "none", reply: "" };
+  }
   const link = guideLink(propertySlug);
   // Saída concluída ("já saí e a casa está trancada", "deixei a chave") não é
   // incidente de acesso: deixa o modelo agradecer/confirmar (ou perguntar se ambíguo).
