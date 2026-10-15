@@ -45,20 +45,6 @@ export function SyncRequiredGate() {
   const pending = q.data?.properties ?? [];
   const blocking = perm.allowed && !!q.data?.blocking && pending.length > 0;
 
-  // Guarda a lista inicial para mostrar "Sincronizado ✓" nas que já foram (e a barra de progresso).
-  useEffect(() => {
-    if (!blocking) {
-      if (initial.length > 0 && !q.isFetching) setInitial([]);
-      return;
-    }
-    setInitial((cur) => {
-      const ids = new Set(cur.map((p) => p.id));
-      const added = pending.filter((p) => !ids.has(p.id));
-      return added.length > 0 ? [...cur, ...added] : cur;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocking, q.data]);
-
   // Abertura SÍNCRONA (sem estado nem efeito no meio): no mesmo quadro em que a consulta confirma
   // o bloqueio, o <Dialog> já recebe open=true. Só abre quando não há outra janela na frente
   // (ex.: o fluxo de conectar conta); depois de aberto, fica (a própria janela do aviso conta como
@@ -80,12 +66,9 @@ export function SyncRequiredGate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flow]);
 
-  const pendingIds = new Set(pending.map((p) => p.id));
-  const rows = initial.length > 0 ? initial : pending;
-  const total = rows.length;
-  const done = rows.filter((p) => !pendingIds.has(p.id)).length;
-  const left = total - done;
-  const pct = total > 0 ? Math.round((100 * done) / total) : 0;
+  // Só os imóveis que ainda faltam: o que já foi vinculado sai da tela na hora.
+  const rows = pending;
+  const left = rows.length;
 
   const info = (p: UnsyncedProperty) => ({
     id: p.id,
@@ -151,9 +134,7 @@ export function SyncRequiredGate() {
                   <Lock className="size-4" />
                 </span>
                 <span className="min-w-0 truncate">
-                  {done === 0
-                    ? "Sincronize seus imóveis"
-                    : `Faltam ${left} ${left === 1 ? "imóvel" : "imóveis"}`}
+                  Sincronize seus imóveis
                 </span>
               </DialogTitle>
               <DialogDescription className="text-[12.5px] leading-[1.55]">
@@ -162,22 +143,6 @@ export function SyncRequiredGate() {
                 </b>{" "}
                 sem integração com o Airbnb. Vincule para liberar o painel.
               </DialogDescription>
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground">
-              <span className="font-bold text-foreground/85">
-                {done} de {total} sincronizados
-              </span>
-              <span>
-                {left} {left === 1 ? "pendente" : "pendentes"}
-              </span>
-            </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-[#7c1ad8] to-[#e82dae] transition-all"
-                style={{ width: `${pct}%` }}
-              />
             </div>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
@@ -236,19 +201,16 @@ export function SyncRequiredGate() {
             <div className="flex items-center justify-between gap-2 text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground/80">
               <span>Imóveis pendentes</span>
               <span className="font-semibold normal-case tracking-normal">
-                {left} de {total}
+                {left}
               </span>
             </div>
             {rows.map((p) => {
-              const isDone = !pendingIds.has(p.id);
-              const cur = pending.find((x) => x.id === p.id) ?? p;
+              const cur = p;
               return (
                 <div
                   key={p.id}
                   data-clip-row
-                  className={`flex items-center gap-3 rounded-[14px] p-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)] ${
-                    isDone ? "bg-foreground/[0.025]" : "bg-foreground/[0.03]"
-                  }`}
+                  className="flex items-center gap-3 rounded-[14px] bg-foreground/[0.03] p-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                 >
                   <PropertyThumb
                     src={cur.imageUrl}
@@ -274,12 +236,6 @@ export function SyncRequiredGate() {
                         </>
                       ) : null}
                     </div>
-                    {isDone ? (
-                      <span className="flex items-center gap-1.5 text-[12px] font-bold ds-ok">
-                        <Check className="size-3.5" strokeWidth={2.6} />
-                        Sincronizado
-                      </span>
-                    ) : null}
                   </div>
                 </div>
               );
