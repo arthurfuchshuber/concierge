@@ -650,7 +650,11 @@ export function RecordSituationSheet({
                 pendingMedia: items.length,
               },
             }),
-          { signal: ctrl.signal },
+          /* 15/10/2026: em 4G o vídeo que já está subindo disputa a mesma
+             conexão; a resposta desta chamada chegou a levar >60s com tudo
+             gravado no servidor. Prazo maior + o servidor reencontra o mesmo
+             registro (15 min) se a pessoa tocar "Tentar de novo". */
+          { signal: ctrl.signal, prazoMs: 180_000 },
         );
         groupId = (criada as { groupId?: string })?.groupId ?? null;
         if (!groupId) throw new Error("Não consegui abrir o registro.");
