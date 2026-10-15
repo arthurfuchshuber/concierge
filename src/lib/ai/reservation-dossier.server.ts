@@ -34,7 +34,9 @@ export async function loadReservationDossier(
   admin: Admin,
   params: { propertyId: string; code?: string | null; bookingId?: string | null },
 ): Promise<ReservationDossier | null> {
-  const code = (params.code ?? "").trim().toUpperCase() || null;
+  const rawCode = (params.code ?? "").trim().toUpperCase();
+  // Código de reserva só aceita letras, números e hífen — nada que vire filtro/curinga.
+  const code = /^[A-Z0-9-]{3,40}$/.test(rawCode) ? rawCode : null;
   if (!code && !params.bookingId) return null;
   const okStatus = (s: unknown) => !/cancel|inquiry|request|pending|declin|expired/i.test(String(s ?? ""));
 
