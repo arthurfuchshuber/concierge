@@ -54,6 +54,7 @@ import {
 import { ClampName } from "@/components/ui/clamp-name";
 import { PropertyThumb } from "@/components/ui/property-thumb";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { useUnsyncedProperties } from "./useUnsyncedProperties";
 import { StakeholderFormDialog, emptyStakeholderForm } from "./StakeholderFormDialog";
 
 /**
@@ -586,6 +587,11 @@ type BulkJob = {
   pending: Array<{ propertyId: string; title: string; kind: "chat" | "config" }>;
 };
 
+/**
+ * Migração guiada (transitória, sai quando 100% dos imóveis estiverem sincronizados): se ainda
+ * houver imóveis do sistema sem anúncio, importar anúncios abre SEMPRE o "De → Para" com esses
+ * imóveis primeiro; só anúncio que sobrar vira imóvel novo (com proprietário). Evita duplicatas.
+ */
 export function AirbnbAccountFlow({
   request,
   onClose,
@@ -593,6 +599,33 @@ export function AirbnbAccountFlow({
   request: AirbnbFlowRequest;
   onClose: () => void;
 }) {
+  const [override, setOverride] = useState<AirbnbFlowRequest>(null);
+  useEffect(() => {
+    if (request === null) setOverride(null);
+  }, [request]);
+  return (
+    <AirbnbAccountFlowInner
+      request={request === null ? null : (override ?? request)}
+      onSwitch={setOverride}
+      onClose={() => {
+        setOverride(null);
+        onClose();
+      }}
+    />
+  );
+}
+
+function AirbnbAccountFlowInner({
+  request,
+  onClose,
+  onSwitch,
+}: {
+  request: AirbnbFlowRequest;
+  onClose: () => void;
+  onSwitch: (r: AirbnbFlowRequest) => void;
+}) {
+  const unsynced = useUnsyncedProperties();
+  const unsyncedProps = unsynced.q.data?.properties ?? [];
   const qc = useQueryClient();
   const { impersonation } = useImpersonation();
   const accountOwnerId = impersonation?.userId ?? null;
@@ -1759,6 +1792,25 @@ export function AirbnbAccountFlow({
                   disabled={n === 0}
                   onClick={() => {
                     setQ("");
+                    if (unsyncedProps.length > 0) {
+                      toast.message("Primeiro, ligue os anúncios aos imóveis que você já tem", {
+                        description: "Só os anúncios que sobrarem viram imóveis novos.",
+                      });
+                      onSwitch({
+                        type: "syncProperties",
+                        properties: unsyncedProps.map((p) => ({
+                          id: p.id,
+                          name: p.name,
+                          city: p.city,
+                          ownerName: p.ownerName,
+                          ownerPhone: p.ownerPhone,
+                          ownerPhoneCountry: p.ownerPhoneCountry,
+                          imageUrl: p.imageUrl,
+                          imageUrls: p.imageUrls,
+                        })),
+                      });
+                      return;
+                    }
                     setStep(n > 1 ? "pairs" : "owner");
                   }}
                 >
