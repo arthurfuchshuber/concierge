@@ -44,7 +44,8 @@ export function FullConnectGate() {
       const r = await confirmFn({ data: { propertyId } });
       if (r.ok) {
         toast.success("Anúncio conectado ao Airbnb com o calendário aberto.");
-        await qc.invalidateQueries({ queryKey: ["full-connect-pending"] });
+        await qc.refetchQueries({ queryKey: ["full-connect-pending"] });
+        window.dispatchEvent(new Event("full-connect-done"));
       } else {
         setNotice((n) => ({
           ...n,
