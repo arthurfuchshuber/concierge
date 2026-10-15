@@ -38,10 +38,8 @@ describe("estado da pausa", () => {
     expect(isPausedNow({ ai_paused: true, paused_until: emMinutos(-1) }, AGORA)).toBe(false);
   });
 
-  it("pausa antiga, sem prazo, continua valendo", () => {
-    // As conversas anteriores à mudança têm `paused_until` nulo. Devolvê-las
-    // todas de uma vez podia atropelar alguém conduzindo um caso agora.
-    expect(isPausedNow({ ai_paused: true, paused_until: null }, AGORA)).toBe(true);
+  it("não existe pausa sem prazo: sem prazo conta como vencida", () => {
+    expect(isPausedNow({ ai_paused: true, paused_until: null }, AGORA)).toBe(false);
   });
 
   it("conversa não pausada nunca é considerada calada", () => {
@@ -49,8 +47,8 @@ describe("estado da pausa", () => {
     expect(isPausedNow(null, AGORA)).toBe(false);
   });
 
-  it("data corrompida não solta a IA por engano", () => {
-    expect(isPausedNow({ ai_paused: true, paused_until: "não é data" }, AGORA)).toBe(true);
+  it("data corrompida não prende a IA para sempre", () => {
+    expect(isPausedNow({ ai_paused: true, paused_until: "não é data" }, AGORA)).toBe(false);
   });
 
   it("conta os minutos que faltam, arredondando para cima", () => {
