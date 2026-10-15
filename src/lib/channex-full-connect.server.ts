@@ -111,6 +111,22 @@ export async function listPendingFullConnections(ownerId: string): Promise<Pendi
   return out;
 }
 
+/**
+ * Chave de API da ferramenta de preços que já enxerga as unidades pendentes (uma chave serve
+ * vários anúncios). A Channex só devolve o início da chave, nunca a chave inteira.
+ */
+export async function pricingKeyFor(unitCodes: string[]): Promise<{ title: string; prefix: string } | null> {
+  if (!unitCodes.length) return null;
+  const keys = await cx<{ data: any[] }>("/api_keys?pagination[limit]=100").catch(() => ({ data: [] as any[] }));
+  const active = (keys.data ?? []).filter((k) => {
+    const a = k.attributes ?? {};
+    return !a.is_withdrawn && /pricelabs/i.test(String(a.title ?? "")) && a.property_policy?.mode === "selected";
+  });
+  const covers = (k: any) => unitCodes.every((u) => (k.attributes.property_policy.properties ?? []).includes(u));
+  const k = active.filter(covers).sort((a, b) => String(b.attributes.inserted_at).localeCompare(String(a.attributes.inserted_at)))[0];
+  return k ? { title: String(k.attributes.title), prefix: String(k.attributes.key ?? "") } : null;
+}
+
 /** Dias com diária > 0 nos próximos 30 dias da unidade. */
 export function pricedDays(days: Record<string, { rate?: string | number }> | undefined) {
   return Object.values(days ?? {}).filter((x) => Number(x?.rate ?? 0) > 0).length;
