@@ -25,7 +25,6 @@ import { AirbnbAccountFlow, type AirbnbFlowRequest } from "./AirbnbAccountFlow";
 export function SyncRequiredGate() {
   const { perm, q, accountOwnerId } = useUnsyncedProperties();
   const [flow, setFlow] = useState<AirbnbFlowRequest>(null);
-  const [initial, setInitial] = useState<UnsyncedProperty[]>([]);
   const otherWindowOpen = useAnyWindowOpen();
   const prevFlow = useRef<AirbnbFlowRequest>(null);
 
@@ -114,6 +113,11 @@ export function SyncRequiredGate() {
         >
           <Loader2 className="size-6 animate-spin" />
         </div>
+      ) : null}
+      {/* Fundo fixo enquanto houver bloqueio: na troca entre esta janela e a de vincular (ou no
+          "Voltar") as janelas fecham/abrem e somem por alguns quadros; este fundo nunca sai. */}
+      {blocking || flow ? (
+        <div aria-hidden className="fixed inset-0 z-[49] bg-background/85 backdrop-blur-md" />
       ) : null}
       <Dialog open={shouldBeOpen} onOpenChange={() => undefined}>
         <DialogContent
