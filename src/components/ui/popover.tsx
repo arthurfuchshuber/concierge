@@ -62,6 +62,16 @@ const PopoverContent = React.forwardRef<
         className,
       )}
       {...props}
+      // Roda do mouse/toque dentro de um popover aberto sobre um Dialog: o bloqueio de rolagem do
+      // Dialog (fora da árvore, pois o popover está em portal) cancelava o evento e a lista não rolava.
+      onWheel={(e) => {
+        e.stopPropagation();
+        props.onWheel?.(e);
+      }}
+      onTouchMove={(e) => {
+        e.stopPropagation();
+        props.onTouchMove?.(e);
+      }}
       onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
       onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
     />

@@ -522,8 +522,9 @@
   }
 }
 ::-webkit-scrollbar {
-  width: 3px;
-  height: 3px;
+  /* 6px: com 3px era impossível arrastar com o mouse. */
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
