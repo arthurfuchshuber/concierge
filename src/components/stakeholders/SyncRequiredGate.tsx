@@ -42,7 +42,8 @@ export function SyncRequiredGate() {
   }, []);
 
   const pending = q.data?.properties ?? [];
-  const blocking = perm.allowed && !!q.data?.blocking && pending.length > 0;
+  const previewFull = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("verConexao");
+  const blocking = !previewFull && perm.allowed && !!q.data?.blocking && pending.length > 0;
 
   // Abertura SÍNCRONA (sem estado nem efeito no meio): no mesmo quadro em que a consulta confirma
   // o bloqueio, o <Dialog> já recebe open=true. Só abre quando não há outra janela na frente
