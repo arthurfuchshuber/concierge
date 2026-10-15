@@ -59,6 +59,57 @@ export function FullConnectGate() {
     }
   }
 
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
+
+  /** "Já conectei" global: confere cada anúncio; liga os que têm diárias e explica os que faltam. */
+  async function confirmAll() {
+    const list = (q.data?.items ?? []).filter((i) => i.unitCode);
+    setBusy("__all__");
+    setBulkError(null);
+    const missing: string[] = [];
+    const failed: string[] = [];
+    let done = 0;
+    try {
+      for (let i = 0; i < list.length; i++) {
+        const it = list[i];
+        setProgress(`Conferindo diárias (${i + 1} de ${list.length})…`);
+        try {
+          const r = await confirmFn({ data: { propertyId: it.propertyId } });
+          if (r.ok) {
+            done++;
+            setNotice((n) => ({ ...n, [it.propertyId]: "" }));
+          } else {
+            missing.push(it.propertyName);
+            setNotice((n) => ({
+              ...n,
+              [it.propertyId]: "Faltam as diárias deste anúncio na sua ferramenta de precificação.",
+            }));
+          }
+        } catch {
+          failed.push(it.propertyName);
+        }
+      }
+      await qc.invalidateQueries({ queryKey: ["full-connect-pending"] });
+      if (!missing.length && !failed.length) {
+        toast.success("Todos os anúncios foram conectados ao Airbnb com o calendário aberto.");
+      } else {
+        const parts: string[] = [];
+        if (missing.length)
+          parts.push(
+            `Ainda não recebemos as diárias de: ${missing.join(", ")}. Confira na sua ferramenta de precificação se esses anúncios foram ativados e se a sincronização das diárias está ligada, seguindo os passos acima.`,
+          );
+        if (failed.length) parts.push(`Não foi possível conferir agora: ${failed.join(", ")}. Tente de novo em 1 minuto.`);
+        if (done) parts.unshift(`${done} ${done === 1 ? "anúncio conectado" : "anúncios conectados"}.`);
+        setBulkError(parts.join(" "));
+        requestAnimationFrame(() => document.getElementById("full-connect-steps")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+      }
+    } finally {
+      setBusy(null);
+      setProgress(null);
+    }
+  }
+
   const apiKey = q.data?.apiKey ?? null;
   const left = items.length;
   const label = "text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground/80";
@@ -94,7 +145,13 @@ export function FullConnectGate() {
           </DialogDescription>
         </div>
 
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
+        {bulkError ? (
+          <div role="alert" className="rounded-[14px] bg-destructive/10 p-2.5 text-[12.5px] leading-[1.5] text-destructive shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--destructive)_25%,transparent)]">
+            {bulkError}
+          </div>
+        ) : null}
+
+        <div id="full-connect-steps" className="grid scroll-mt-4 grid-cols-[minmax(0,1fr)] gap-2">
           <div className={label}>Como finalizar</div>
           <ol className={`${box} grid gap-2`}>
             {steps.map((s, i) => (
@@ -136,7 +193,7 @@ export function FullConnectGate() {
               <p className="min-w-0 text-[13px] font-bold text-foreground">{it.propertyName}</p>
               {it.error ? <p className="text-xs text-destructive">{it.error}</p> : null}
               {notice[it.propertyId] ? (
-                <p className="text-xs text-muted-foreground">{notice[it.propertyId]}</p>
+                <p className="text-xs text-destructive">{notice[it.propertyId]}</p>
               ) : null}
               <Button
                 className="w-full"
@@ -149,6 +206,19 @@ export function FullConnectGate() {
             </div>
           ))}
         </div>
+
+        {items.length > 1 ? (
+          <div className="sticky -bottom-[18px] -mx-[18px] -mb-[18px] border-t border-border bg-background/95 px-[18px] py-3 backdrop-blur">
+            <Button
+              className="w-full"
+              disabled={busy !== null || !items.some((i) => i.unitCode)}
+              onClick={confirmAll}
+            >
+              {busy === "__all__" ? <Loader2 className="size-4 animate-spin" /> : null}
+              {busy === "__all__" ? progress ?? "Conferindo diárias…" : `Já conectei todos (${items.length})`}
+            </Button>
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
