@@ -23,11 +23,13 @@ export function FullConnectGate() {
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Record<string, string>>({});
 
-  const syncBlocking = !!unsynced.data?.blocking && (unsynced.data?.properties?.length ?? 0) > 0;
+  // Pré-visualização: ?verConexao=1 mostra o aviso mesmo com imóveis ainda sem sincronização.
+  const force = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("verConexao");
+  const syncBlocking = !force && !!unsynced.data?.blocking && (unsynced.data?.properties?.length ?? 0) > 0;
   const q = useQuery({
     queryKey: ["full-connect-pending"],
     queryFn: () => listFn(),
-    enabled: perm.allowed && !unsynced.isLoading && !syncBlocking,
+    enabled: perm.allowed && (force || !unsynced.isLoading) && !syncBlocking,
     staleTime: 30_000,
     retry: 1,
   });
