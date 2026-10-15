@@ -30,6 +30,17 @@ export const submitLandingLead = createServerFn({ method: "POST" })
     if (!allowPublicRate(`landing-lead:${clientIpFrom(getRequest())}`, 5, 10 * 60_000)) {
       throw new Error("Muitos envios em pouco tempo. Tente novamente em alguns minutos.");
     }
+    // Um mesmo destinatário não recebe rajadas de códigos, e o total diário de
+    // e-mails disparados pelo formulário público tem teto (anti-spam/proxy).
+    const { allowDailyBudget } = await import("@/lib/public-rate-limit.server");
+    const emailKey = data.email.toLowerCase();
+    if (
+      !allowPublicRate(`landing-lead:email:${emailKey}`, 3, 60 * 60_000) ||
+      !allowDailyBudget(`landing-lead:email-day:${emailKey}`, 5) ||
+      !allowDailyBudget("landing-lead:global", 300)
+    ) {
+      throw new Error("Muitos envios em pouco tempo. Tente novamente mais tarde.");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: inserted, error } = await supabaseAdmin
