@@ -96,6 +96,16 @@ export async function listAccounts(admin: Admin, accountId: string): Promise<Air
     if (!r.channex_channel_id || !r.airbnb_listing_id) continue;
     importedBy.set(r.channex_channel_id, (importedBy.get(r.channex_channel_id) ?? 0) + 1);
   }
+  // Gêmeos ativos também são anúncios sincronizados; contam no canal do anúncio principal.
+  const { data: twins } = await admin
+    .from("channex_twin_links")
+    .select("channel_id, twin_listing_id")
+    .eq("owner_id", accountId)
+    .eq("status", "active");
+  for (const t of twins ?? []) {
+    if (!t.channel_id || !t.twin_listing_id) continue;
+    importedBy.set(t.channel_id, (importedBy.get(t.channel_id) ?? 0) + 1);
+  }
   const out: AirbnbAccount[] = [];
   for (const r of regs) {
     const id = r.channex_channel_id;
