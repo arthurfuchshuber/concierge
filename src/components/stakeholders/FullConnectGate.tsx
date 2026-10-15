@@ -44,7 +44,8 @@ export function FullConnectGate() {
       const r = await confirmFn({ data: { propertyId } });
       if (r.ok) {
         toast.success("Anúncio conectado ao Airbnb com o calendário aberto.");
-        await qc.invalidateQueries({ queryKey: ["full-connect-pending"] });
+        await qc.refetchQueries({ queryKey: ["full-connect-pending"] });
+        window.dispatchEvent(new Event("full-connect-done"));
       } else {
         setNotice((n) => ({
           ...n,
@@ -71,9 +72,22 @@ export function FullConnectGate() {
     const failed: string[] = [];
     let done = 0;
     try {
+      const stages = [
+        "Conferindo diárias",
+        "Lendo reservas do Airbnb",
+        "Protegendo o calendário",
+        "Ligando o anúncio ao Airbnb",
+        "Importando reservas futuras",
+      ];
       for (let i = 0; i < list.length; i++) {
         const it = list[i];
-        setProgress(`Conferindo diárias (${i + 1} de ${list.length})…`);
+        const suffix = list.length > 1 ? ` (${i + 1} de ${list.length})` : "";
+        let s = 0;
+        setProgress(`${stages[0]}${suffix}…`);
+        const timer = window.setInterval(() => {
+          s = Math.min(s + 1, stages.length - 1);
+          setProgress(`${stages[s]}${suffix}…`);
+        }, 2500);
         try {
           const r = await confirmFn({ data: { propertyId: it.propertyId } });
           if (r.ok) {
@@ -88,10 +102,14 @@ export function FullConnectGate() {
           }
         } catch {
           failed.push(it.propertyName);
+        } finally {
+          window.clearInterval(timer);
         }
       }
-      await qc.invalidateQueries({ queryKey: ["full-connect-pending"] });
+      if (!missing.length && !failed.length) setProgress("Concluído!");
+      await qc.refetchQueries({ queryKey: ["full-connect-pending"] });
       if (!missing.length && !failed.length) {
+        window.dispatchEvent(new Event("full-connect-done"));
         toast.success("Todos os anúncios foram conectados ao Airbnb com o calendário aberto.");
       } else {
         const parts: string[] = [];
