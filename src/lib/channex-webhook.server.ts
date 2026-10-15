@@ -236,7 +236,8 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
 
   // Reserva nova/alterada/cancelada: reexporta a disponibilidade real (Channex → PriceLabs).
   const { syncPilotAvailability } = await import("@/lib/channex-mapping.server");
-  await syncPilotAvailability().catch((e) => console.error("[channex] sync disponibilidade", e));
+  const chProp = typeof (booking as Record<string, unknown>).property_id === "string" ? String((booking as Record<string, unknown>).property_id) : null;
+  await syncPilotAvailability(null, chProp).catch((e) => console.error("[channex] sync disponibilidade", e));
 }
 
 /** Puxa revisões ainda não confirmadas (feed) e processa + confirma cada uma. */
