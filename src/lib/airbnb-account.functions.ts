@@ -324,6 +324,11 @@ async function finishLinked(
     .eq("property_id", propertyId)
     .maybeSingle();
   if (!rp?.channex_rate_plan_id) pending.push({ propertyId, title, kind: "config" });
+  else {
+    // Unidade ainda não mapeada nunca fica zerada (a ferramenta de preços recusaria a unidade).
+    const { seedIfUnmapped } = await import("@/lib/channex-full-connect.server");
+    await seedIfUnmapped(propertyId).catch((e) => console.error("[link] seed", e));
+  }
   return pending;
 }
 
