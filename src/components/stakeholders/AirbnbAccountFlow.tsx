@@ -1318,6 +1318,18 @@ export function AirbnbAccountFlow({
                   <ExternalLink className="size-[15px]" />
                   Abrir o Airbnb de novo
                 </SecondaryBtn>
+                <SecondaryBtn
+                  onClick={() =>
+                    connectUrl &&
+                    navigator.clipboard
+                      .writeText(connectUrl)
+                      .then(() => toast.success("Link copiado."))
+                      .catch(() => toast.error("Não foi possível copiar o link."))
+                  }
+                >
+                  <Link2 className="size-[15px]" />
+                  Copiar link de conexão
+                </SecondaryBtn>
                 <SecondaryBtn onClick={close}>Cancelar</SecondaryBtn>
               </div>
             </>

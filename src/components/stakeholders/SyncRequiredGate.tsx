@@ -85,6 +85,7 @@ export function SyncRequiredGate() {
   const accountsFn = useServerFn(listAirbnbAccounts);
   const accounts = useQuery({
     queryKey: ["airbnb-accounts", accountOwnerId ?? "self"],
+    refetchOnWindowFocus: true,
     queryFn: () => accountsFn({ data: { accountOwnerId } }),
     enabled: shouldBeOpen,
     staleTime: 0,

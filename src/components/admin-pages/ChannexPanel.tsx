@@ -123,6 +123,7 @@ export function ChannexPanel() {
   const accountsFn = useServerFn(listAirbnbAccounts);
   const accounts = useQuery({
     queryKey: ["airbnb-accounts", accountOwnerId ?? "self"],
+    refetchOnWindowFocus: true,
     queryFn: () => accountsFn({ data: { accountOwnerId } }),
     retry: false,
     staleTime: 30_000,
