@@ -1285,7 +1285,7 @@ export function AirbnbAccountFlow({
                   )}
                   Continuar no Airbnb
                 </PrimaryBtn>
-                <SecondaryBtn onClick={() => void begin(null, true)} disabled={busy}>
+                <SecondaryBtn onClick={() => void (busy ? null : begin(null, true))}>
                   <Link2 className="size-[15px]" />
                   Copiar link de conexão
                 </SecondaryBtn>
