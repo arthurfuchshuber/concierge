@@ -128,13 +128,13 @@ describe("aviso obrigatório: sem piscada ao recarregar", () => {
     expect(screen.queryByText("Sincronize seus imóveis")).toBeNull();
   });
 
-  it("segurança: se a consulta nunca responder, a cobertura se solta em 2,5 s", async () => {
+  it("segurança: se a consulta nunca responder, a cobertura se solta em 5 s", async () => {
     vi.useFakeTimers();
     load({ blocking: false, loading: true });
     render(wrap(<SyncRequiredGate />));
     expect(cover()).toBeTruthy();
     await act(async () => {
-      vi.advanceTimersByTime(2600);
+      vi.advanceTimersByTime(5100);
     });
     expect(cover()).toBeNull();
     vi.useRealTimers();

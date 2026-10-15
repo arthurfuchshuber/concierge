@@ -30,7 +30,7 @@ export function SyncRequiredGate() {
   const prevFlow = useRef<AirbnbFlowRequest>(null);
 
   // Segura uma tela neutra enquanto a 1ª consulta responde E até a janela estar pintada, para o
-  // painel nunca "piscar" por trás do aviso ao recarregar (F5). Libera sozinha se algo demorar
+  // painel nunca "piscar" por trás do aviso ao recarregar (F5). Libera sozinha (5 s) se algo demorar
   // demais ou falhar. A cobertura só sai quando: (a) não há aviso a mostrar (libera na hora) ou
   // (b) o aviso está aberto e o fundo desfocado dele já cobriu a tela (ver `onOpenAutoFocus`).
   const booting = perm.loading || (perm.allowed && q.isLoading);
@@ -38,7 +38,7 @@ export function SyncRequiredGate() {
   const [coverDone, setCoverDone] = useState(false);
   const [dialogPainted, setDialogPainted] = useState(false);
   useEffect(() => {
-    const t = window.setTimeout(() => setBootGiveUp(true), 2500);
+    const t = window.setTimeout(() => setBootGiveUp(true), 5000);
     return () => window.clearTimeout(t);
   }, []);
 

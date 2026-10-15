@@ -592,6 +592,9 @@ function AdminLayout() {
         </header>
 
         <main className="flex-1 pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-0">
+          {/* Montado desde o 1º quadro (fora das telas de carregamento/acesso): a cobertura do aviso
+              obrigatório já cobre o painel enquanto a conta e a consulta resolvem — sem piscada no F5. */}
+          <SyncRequiredGate />
           <PushNotificationBanner />
           {resolvingAccount || (routePermission && areaAccess.loading) ? (
             <div className="mx-auto w-full max-w-7xl space-y-3 px-4 py-10">
@@ -608,7 +611,6 @@ function AdminLayout() {
           ) : (
             <>
               <LiveSync />
-              <SyncRequiredGate />
               <Outlet />
             </>
           )}

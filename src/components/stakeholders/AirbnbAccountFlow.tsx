@@ -502,7 +502,7 @@ function PairPicker({
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-[280px] max-w-[calc(100vw-2rem)] p-1.5"
+        className="w-[min(380px,calc(100vw-2rem))] p-1.5"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="relative mb-1.5 h-9 overflow-hidden rounded-[8px] bg-card shadow-[inset_0_0_0_1px_var(--border)]">
@@ -530,25 +530,29 @@ function PairPicker({
                 onChange(o.id);
                 setOpen(false);
               }}
-              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] transition-colors enabled:hover:bg-secondary disabled:opacity-45 ${o.id === value ? "bg-secondary" : ""}`}
+              className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] transition-colors disabled:opacity-45 ${
+                o.id === value
+                  ? "bg-accent/15 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--accent)_35%,transparent)]"
+                  : "enabled:hover:bg-secondary"
+              }`}
             >
-              <span className="grid min-w-0 flex-1 gap-0.5">
-                <b className="truncate font-semibold">{o.title}</b>
+              <span className="grid min-w-0 gap-0.5">
+                <b className="break-words font-semibold leading-[1.3] [overflow-wrap:anywhere]">
+                  {o.title}
+                </b>
                 {o.note || o.sub ? (
-                  <small className="truncate text-[10.5px] text-muted-foreground">
+                  <small className="text-[10.5px] leading-[1.3] text-muted-foreground">
                     {o.note ?? o.sub}
                   </small>
                 ) : null}
               </span>
               {o.account ? (
-                <span className="flex max-w-[34%] shrink-0">
+                <span className="flex max-w-[112px] shrink-0 self-start">
                   <AccountTag name={o.account.name} idx={o.account.idx} />
                 </span>
+              ) : o.suggested ? (
+                <span className="text-[10px] font-extrabold text-accent">Sugerido</span>
               ) : null}
-              {o.suggested ? (
-                <span className="shrink-0 text-[10px] font-extrabold text-accent">Sugerido</span>
-              ) : null}
-              {o.id === value ? <Check className="size-3.5 shrink-0 text-accent" /> : null}
             </button>
           ))}
         </div>
