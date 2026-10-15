@@ -94,7 +94,23 @@ function purgePersistedCache() {
   void idbLimparTudo();
 }
 
+const PANEL_PATH_RE = /^\/(dashboard|app|painel|admin)(\/|$)/i;
+
 function NotFoundComponent() {
+  const [redirecting, setRedirecting] = useState(false);
+  useEffect(() => {
+    if (PANEL_PATH_RE.test(window.location.pathname)) {
+      setRedirecting(true);
+      window.location.replace("/admin");
+    }
+  }, []);
+  if (redirecting) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-6 text-sm text-muted-foreground">
+        Redirecionando você para o painel...
+      </div>
+    );
+  }
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
       <div className="max-w-md text-center">
