@@ -147,10 +147,10 @@ export function SyncRequiredGate() {
           }}
           onInteractOutside={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => e.preventDefault()}
-          className="max-w-[380px] gap-2.5 p-[18px] pt-[22px] sm:gap-3.5 sm:max-w-[560px] sm:p-[18px] [&>h2]:pr-10"
+          className="max-w-[380px] gap-2.5 p-[18px] pt-[22px] sm:gap-3.5 sm:max-w-[560px] sm:p-[18px]"
         >
           <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-            <div className="grid min-w-0 gap-2.5">
+            <div className="grid min-w-0 gap-2.5 pr-9">
               <DialogTitle className="flex items-center gap-2.5 font-display text-[19px] font-extrabold leading-[1.2] tracking-[-0.01em]">
                 <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-secondary text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
                   <Lock className="size-4" />
