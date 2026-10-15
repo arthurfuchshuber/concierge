@@ -32,6 +32,9 @@ export const Route = createFileRoute("/api/public/cron/channex-ari-retry")({
           // Respostas da IA cuja janela de consolidação já fechou (rede de segurança do webhook).
           const { processDueAiReplies } = await import("@/lib/channex-messages.server");
           await processDueAiReplies().catch((e) => console.error("[cron:ai-reply-due]", e));
+          // Pausa humana venceu e o hóspede ficou por último sem resposta: a IA retoma (todos os canais).
+          const { sweepStalledGuestReplies } = await import("@/lib/ai/stalled-replies.server");
+          await sweepStalledGuestReplies().catch((e) => console.error("[cron:stalled-replies]", e));
           return Response.json({ ok: true, batches: ari.batches.length });
         } catch (err) {
           console.error("[cron:channex-ari-retry]", err);
