@@ -868,16 +868,48 @@ export function AirbnbAccountFlow({
       return false;
     }
   }
-  async function begin(reauthArg: unknown = null) {
+  /** Abre o encerramento de sessão do próprio Airbnb (o ConciergeIA não pode apagar cookies de outro site). */
+  function logoutAirbnb() {
+    window.open("https://www.airbnb.com.br/logout", "_blank", "noopener,noreferrer");
+    toast.message("Saia da conta no Airbnb e volte aqui para continuar.");
+  }
+  /** Descarta tudo da tentativa anterior antes de tentar de novo. */
+  function resetConnect() {
+    setBaseline([]);
+    setConnectUrl(null);
+    setReauthId(null);
+    try {
+      localStorage.removeItem("airbnb-oauth-return");
+    } catch {
+      /* sem armazenamento */
+    }
+    qc.invalidateQueries({ queryKey: ["airbnb-accounts"] });
+    setStep("start");
+  }
+  async function begin(reauthArg: unknown = null, copyOnly = false) {
     // Nunca repassa o evento do clique como ID de conta.
     const reauth = typeof reauthArg === "string" && reauthArg.length >= 8 ? reauthArg : null;
     setReauthId(reauth);
     setBusy(true);
     try {
+      localStorage.removeItem("airbnb-oauth-return");
+    } catch {
+      /* sem armazenamento */
+    }
+    try {
       const r = await startFn({ data: { accountOwnerId, reauthChannelId: reauth } });
       setBaseline(r.baseline);
       setConnectUrl(r.url);
-      window.open(r.url, "_blank", "noopener,noreferrer");
+      if (copyOnly) {
+        try {
+          await navigator.clipboard.writeText(r.url);
+          toast.success("Link copiado. Abra numa janela anônima ou envie ao proprietário.");
+        } catch {
+          toast.error("Não foi possível copiar. Use “Abrir o Airbnb de novo”.");
+        }
+      } else {
+        window.open(r.url, "_blank", "noopener,noreferrer");
+      }
       setStep("authorizing");
     } catch (e) {
       toast.error(
@@ -1227,6 +1259,11 @@ export function AirbnbAccountFlow({
                   [Check, "Antes de importar, informa de qual proprietário são"],
                 ]}
               />
+              <AttentionBox>
+                Vai conectar outra conta? Primeiro toque em{" "}
+                <b className="font-bold text-foreground">Sair da conta atual do Airbnb</b>, ou copie
+                o link e abra numa janela anônima (ou envie ao proprietário).
+              </AttentionBox>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn onClick={() => void begin()} disabled={busy}>
                   {busy ? (
@@ -1236,6 +1273,14 @@ export function AirbnbAccountFlow({
                   )}
                   Continuar no Airbnb
                 </PrimaryBtn>
+                <SecondaryBtn onClick={() => void begin(null, true)} disabled={busy}>
+                  <Link2 className="size-[15px]" />
+                  Copiar link de conexão
+                </SecondaryBtn>
+                <SecondaryBtn onClick={logoutAirbnb}>
+                  <ExternalLink className="size-[15px]" />
+                  Sair da conta atual do Airbnb
+                </SecondaryBtn>
                 <SecondaryBtn onClick={close}>Cancelar</SecondaryBtn>
               </div>
             </>
@@ -1279,7 +1324,11 @@ export function AirbnbAccountFlow({
                 anônima), entre com a conta nova e tente de novo.
               </Desc>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-                <PrimaryBtn onClick={() => setStep("start")}>
+                <SecondaryBtn onClick={logoutAirbnb}>
+                  <ExternalLink className="size-[15px]" />
+                  Sair da conta atual do Airbnb
+                </SecondaryBtn>
+                <PrimaryBtn onClick={resetConnect}>
                   <Link2 className="size-4" />
                   Tentar de novo
                 </PrimaryBtn>
