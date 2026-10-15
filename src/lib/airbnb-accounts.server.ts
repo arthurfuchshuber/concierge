@@ -21,7 +21,7 @@ type Admin = Awaited<typeof import("@/integrations/supabase/client.server")>["su
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = (admin: Admin) => admin as unknown as { from: (t: string) => any };
 
-async function cx<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+async function cx<T>(method: "GET" | "POST" | "PUT", path: string, body?: unknown): Promise<T> {
   const key = process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"];
   if (!key) throw new Error("Chave Channex ausente.");
   const res = await fetch(`${BASE}${path}`, {
@@ -239,22 +239,78 @@ export async function detectNew(admin: Admin, accountId: string, baseline: strin
   const pick = fresh.find((c) => !takenIds.has(c.id));
   if (!pick) return { found: null };
   const existing = await registry(admin, accountId);
-  const dup = existing.find(
-    (r) => (r.title ?? "").trim().toLowerCase() === pick.title.trim().toLowerCase(),
-  );
-  if (dup)
-    return { found: { channelId: dup.channex_channel_id, title: pick.title, duplicate: true } };
+  // Mesma pessoa no Airbnb (mesmo user_id) já registrada = duplicada. Nunca compara por nome:
+  // várias contas da empresa podem ter o mesmo nome de exibição.
+  const profile = await airbnbProfile(pick.id);
+  if (profile?.userId) {
+    for (const r of existing) {
+      const other = await airbnbUserId(r.channex_channel_id);
+      if (other && other === profile.userId)
+        return {
+          found: { channelId: r.channex_channel_id, title: r.title ?? pick.title, duplicate: true },
+        };
+    }
+  }
+  const title = profile?.name || pick.title;
+  if (profile?.name && profile.name !== pick.title) {
+    await cx("PUT", `/channels/${pick.id}`, { channel: { title: profile.name } }).catch(() => null);
+  }
   await db(admin).from("airbnb_accounts").upsert(
     {
       owner_id: accountId,
       channex_channel_id: pick.id,
-      title: pick.title,
+      title,
       status: "active",
       disconnected_at: null,
     },
     { onConflict: "owner_id,channex_channel_id" },
   );
-  return { found: { channelId: pick.id, title: pick.title, duplicate: false } };
+  return { found: { channelId: pick.id, title, duplicate: false } };
+}
+
+/** user_id do Airbnb gravado no canal da Channex. */
+async function airbnbUserId(channelId: string): Promise<string | null> {
+  const ch = await cx<{ data?: { attributes?: { settings?: { tokens?: { user_id?: string } } } } }>(
+    "GET",
+    `/channels/${channelId}`,
+  ).catch(() => null);
+  const id = ch?.data?.attributes?.settings?.tokens?.user_id;
+  return id ? String(id) : null;
+}
+
+/**
+ * Nome da CONTA do Airbnb (perfil do usuário autorizado, "Nome de preferência"),
+ * lido ao vivo com o token do canal — nunca dos títulos dos anúncios. Token não é gravado.
+ */
+export async function airbnbProfile(
+  channelId: string,
+): Promise<{ userId: string | null; name: string | null } | null> {
+  const ch = await cx<{
+    data?: {
+      attributes?: {
+        settings?: { token_invalid?: boolean; tokens?: { access_token?: string; user_id?: string } };
+      };
+    };
+  }>("GET", `/channels/${channelId}`).catch(() => null);
+  const s = ch?.data?.attributes?.settings;
+  const userId = s?.tokens?.user_id ? String(s.tokens.user_id) : null;
+  const token = s?.tokens?.access_token;
+  if (!token || s?.token_invalid) return { userId, name: null };
+  try {
+    const res = await fetch("https://api.airbnb.com/v2/users/me", {
+      headers: { "X-Airbnb-OAuth-Token": token, Accept: "application/json" },
+    });
+    if (!res.ok) return { userId, name: null };
+    const u = ((await res.json()) as { user?: Record<string, string | undefined> }).user ?? {};
+    const name =
+      u["display_first_name"] ||
+      u["first_name_preferred"] ||
+      [u["first_name"], u["last_name"]].filter(Boolean).join(" ") ||
+      null;
+    return { userId: userId ?? (u["id"] ? String(u["id"]) : null), name: name?.trim() || null };
+  } catch {
+    return { userId, name: null };
+  }
 }
 
 /** Liga o app Messages do anúncio (e dos gêmeos). Falhou → "pendente de ativação do chat", sem esconder o erro. */
