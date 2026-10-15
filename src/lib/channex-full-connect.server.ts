@@ -96,6 +96,8 @@ async function ensureUnit(r: any): Promise<string> {
     .update({ channex_property_id: prop.data.id, channex_room_type_id: rt.data.id, channex_rate_plan_id: rp.data.id })
     .eq("property_id", r.property_id);
   if (error) throw new Error(error.message);
+  // Calendário real + tarifa base já na criação, para a ferramenta de preços sincronizar de primeira.
+  await seedUnitCalendar(r.property_id).catch((e) => console.error("[full-connect] seed", e));
   return prop.data.id;
 }
 
