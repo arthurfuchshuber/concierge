@@ -273,8 +273,8 @@ export const listMyProperties = createServerFn({ method: "GET" })
       .is("archived_at", null)
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-    const { signPropertyImages } = await import("@/lib/storage.server");
-    const signed = await signPropertyImages(context.supabase, data ?? []);
+    const { signPropertyImages, TEAM_TTL_SECONDS } = await import("@/lib/storage.server");
+    const signed = await signPropertyImages(context.supabase, data ?? [], { ttlSeconds: TEAM_TTL_SECONDS });
     const { attachOwnerNames } = await import("@/lib/property-owner-names.server");
     return await attachOwnerNames(context.supabase as never, signed);
   });
@@ -307,8 +307,8 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
     const allowed = await visiblePropertyIds(context.userId);
     const visible =
       allowed === null ? (rows ?? []) : (rows ?? []).filter((r) => allowed.includes(r.id));
-    const { signPropertyImages } = await import("@/lib/storage.server");
-    const signed = await signPropertyImages(context.supabase, visible);
+    const { signPropertyImages, TEAM_TTL_SECONDS } = await import("@/lib/storage.server");
+    const signed = await signPropertyImages(context.supabase, visible, { ttlSeconds: TEAM_TTL_SECONDS });
     const { attachOwnerNames } = await import("@/lib/property-owner-names.server");
     return await attachOwnerNames(context.supabase as never, signed);
   });
@@ -763,8 +763,8 @@ export const getMyProperty = createServerFn({ method: "POST" })
     if (faqs.error) throw safeDbError("property_faqs", faqs.error);
     const checkout = await retryDbResult(() => context.supabase.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"));
     if (checkout.error) throw safeDbError("property_checkout_items", checkout.error);
-    const { signPropertyImages } = await import("@/lib/storage.server");
-    const property = await signPropertyImages(context.supabase, p.data);
+    const { signPropertyImages, TEAM_TTL_SECONDS } = await import("@/lib/storage.server");
+    const property = await signPropertyImages(context.supabase, p.data, { ttlSeconds: TEAM_TTL_SECONDS });
     return {
       property,
       manual: manual.data ?? [],

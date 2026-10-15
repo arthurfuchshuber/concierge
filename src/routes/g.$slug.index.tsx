@@ -25,6 +25,7 @@ import {
 } from "@/lib/guide-access.functions";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 import { trackGuideEvent } from "@/lib/guide-analytics.functions";
+import { readPass } from "@/lib/guest-pass-client";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -409,7 +410,12 @@ function Guide({ data }: { data: GuideOk }) {
       } catch {}
     }
   }, []);
-  const trackEvent = useServerFn(trackGuideEvent);
+  const trackEventRaw = useServerFn(trackGuideEvent);
+  const trackEvent = useMemo(
+    () => (a: { data: { slug: string; section: string; sessionId: string; guestName?: string | null; guestPhone?: string | null; pagePath?: string | null } }) =>
+      trackEventRaw({ data: { ...a.data, guestPass: readPass(`guide:${a.data.slug}`) } }),
+    [trackEventRaw],
+  );
 
   // Suporta navegação por hash. Sintaxe:
   //   #home | #checkin | #saida | #residencia | #faq  → apenas troca de seção

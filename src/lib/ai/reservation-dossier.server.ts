@@ -34,7 +34,9 @@ export async function loadReservationDossier(
   admin: Admin,
   params: { propertyId: string; code?: string | null; bookingId?: string | null },
 ): Promise<ReservationDossier | null> {
-  const code = (params.code ?? "").trim().toUpperCase() || null;
+  const rawCode = (params.code ?? "").trim().toUpperCase();
+  // Código de reserva só aceita letras, números e hífen — nada que vire filtro/curinga.
+  const code = /^[A-Z0-9-]{3,40}$/.test(rawCode) ? rawCode : null;
   if (!code && !params.bookingId) return null;
   const okStatus = (s: unknown) => !/cancel|inquiry|request|pending|declin|expired/i.test(String(s ?? ""));
 
@@ -56,13 +58,14 @@ export async function loadReservationDossier(
   // 2) Reserva oficial do imóvel (pode ter só datas).
   let pr: Record<string, any> | null = null;
   if (code) {
-    const { data } = await admin
-      .from("property_reservations")
-      .select("checkin_date, checkout_date, status, guest_hint, guest_contacts, amount, currency, occupancy, ota_name, payment_collect")
-      .eq("property_id", params.propertyId)
-      .or(`guest_hint.eq.${code},guest_contacts->>code.eq.${code}`)
-      .limit(5);
-    pr = ((data ?? []) as Record<string, any>[]).find((r) => okStatus(r.status)) ?? null;
+    // Busca parametrizada (sem montar filtro em texto): o código nunca vira sintaxe de consulta.
+    const cols = "checkin_date, checkout_date, status, guest_hint, guest_contacts, amount, currency, occupancy, ota_name, payment_collect";
+    const [byHint, byCode] = await Promise.all([
+      admin.from("property_reservations").select(cols).eq("property_id", params.propertyId).eq("guest_hint", code).limit(5),
+      admin.from("property_reservations").select(cols).eq("property_id", params.propertyId).eq("guest_contacts->>code", code).limit(5),
+    ]);
+    const all = [...((byHint.data ?? []) as Record<string, any>[]), ...((byCode.data ?? []) as Record<string, any>[])];
+    pr = all.find((r) => okStatus(r.status)) ?? null;
   }
   if (!row && !pr) return null;
 

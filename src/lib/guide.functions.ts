@@ -221,7 +221,28 @@ export const getPublicGuide = createServerFn({ method: "POST" })
       }
     }
     const { signPropertyImages } = await import("@/lib/storage.server");
-    const signedProp = await signPropertyImages(supabaseAdmin, safeProp);
+    // Só assina fotos guardadas na pasta do dono do imóvel (ou da equipe ativa
+    // dele); links para arquivos de outras contas nunca viram link público.
+    const imgOwnerIds = new Set<string>();
+    {
+      const ownerIds = [(prop as any).owner_id as string];
+      if (isLandingCopy) {
+        const src = await landing.landingSourceOwnerId(supabaseAdmin as never);
+        if (src) ownerIds.push(src);
+      }
+      for (const id of ownerIds) if (id) imgOwnerIds.add(id);
+      const { data: members } = await supabaseAdmin
+        .from("account_members")
+        .select("member_user_id")
+        .in("owner_id", ownerIds)
+        .eq("status", "active");
+      for (const m of (members ?? []) as Array<{ member_user_id: string | null }>) {
+        if (m.member_user_id) imgOwnerIds.add(m.member_user_id);
+      }
+    }
+    const signedProp = await signPropertyImages(supabaseAdmin, safeProp, {
+      allowedOwnerPrefixes: [...imgOwnerIds],
+    });
     // Resolve owner plan to gate AI chat in the public guide UI.
     const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
     const planOwnerId = isLandingCopy

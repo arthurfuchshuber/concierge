@@ -15,7 +15,7 @@ import { isPendingCategory } from "@/lib/record-pending";
 type AnyClient = { from: (table: string) => any; storage: any; rpc: any };
 
 const BUCKET = "reservation-records";
-const SIGN_TTL_SECONDS = 60 * 60; // 1h — mesmo prazo de signChatAttachmentUrl/signPropertyImages.
+const SIGN_TTL_SECONDS = 5 * 60; // 5 min — equipe removida perde acesso aos registros em minutos.
 
 /**
  * URLS ASSINADAS ESTÁVEIS (03/10/2026: "as imagens demoram, deveria ser
