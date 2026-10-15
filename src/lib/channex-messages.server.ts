@@ -661,7 +661,9 @@ export async function processDueAiReplies(limit = 25): Promise<number> {
       | (ReplyCtx & { leases?: number })
       | null;
     const leases = (prevCtx?.leases ?? 0) + 1;
-    const leaseUntil = new Date(Date.now() + 120_000).toISOString();
+    // Aluguel maior que o tempo máximo de uma resposta (cron com timeout de 150 s),
+    // para que uma resposta lenta não seja reivindicada de novo e contada como falha.
+    const leaseUntil = new Date(Date.now() + 180_000).toISOString();
     const { data: claimed } = await admin
       .from("property_chat_conversations")
       .update({ ai_reply_due_at: leaseUntil, ai_reply_ctx: { ...(prevCtx ?? {}), leases } } as never)
