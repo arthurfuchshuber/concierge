@@ -118,5 +118,17 @@ export const listOwnerPropertiesForTeaching = createServerFn({ method: "POST" })
       .eq("owner_id", prop.owner_id as string)
       .order("name", { ascending: true });
     if (error) throw new Error(error.message);
-    return { properties: (list ?? []) as Array<{ id: string; name: string; city: string | null }> };
+    const all = (list ?? []) as Array<{ id: string; name: string; city: string | null }>;
+    if (prop.owner_id === userId) return { properties: all };
+    // Membro da equipe: só os imóveis que o escopo dele permite ver.
+    const allowed: typeof all = [];
+    for (const p of all) {
+      const { data: ok } = await supabase.rpc("member_can_see_property", {
+        _user_id: userId,
+        _owner_id: prop.owner_id as string,
+        _property_id: p.id,
+      });
+      if (ok === true) allowed.push(p);
+    }
+    return { properties: allowed };
   });

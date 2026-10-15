@@ -127,6 +127,15 @@ export const updateMyProfile = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Apaga as fotos de perfil guardadas (exceto `keep`), invalidando links antigos na hora. */
+async function purgeAvatars(admin: any, ownerId: string, keep?: string) {
+  const { data: files } = await admin.storage.from("avatars").list(ownerId, { limit: 100 });
+  const paths = ((files ?? []) as Array<{ name: string }>)
+    .map((f) => `${ownerId}/${f.name}`)
+    .filter((p) => p !== keep);
+  if (paths.length) await admin.storage.from("avatars").remove(paths);
+}
+
 export const uploadMyAvatar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -168,6 +177,7 @@ export const uploadMyAvatar = createServerFn({ method: "POST" })
       .update({ avatar_url: url })
       .eq("id", ownerId);
     if (profErr) throw new Error(profErr.message);
+    await purgeAvatars(supabaseAdmin, ownerId, path).catch(() => null);
     return { url };
   });
 
@@ -190,6 +200,7 @@ export const removeMyAvatar = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("profiles").update({ avatar_url: null }).eq("id", ownerId);
     if (error) throw new Error(error.message);
+    await purgeAvatars(supabaseAdmin, ownerId);
     return { ok: true };
   });
 
