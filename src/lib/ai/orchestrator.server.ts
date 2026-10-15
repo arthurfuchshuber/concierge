@@ -81,6 +81,7 @@ import type { ChannelType } from "./channels/types";
 import { buildRootCause } from "./observability/root-cause.server";
 import { guestSafetyDecision } from "./guest-safety.server";
 import { maskDigitSequences } from "@/lib/guest-access.server";
+import { resolveStayAccess, stayFactsText } from "./stay-access.server";
 
 type Admin = SupabaseClient;
 
@@ -248,10 +249,27 @@ export async function runHospitalityAgent(params: {
   rememberMessage(params.conversationId, "user", params.message);
   rememberIntent(params.conversationId, intent);
 
+  // Mente única de acesso: estadia em andamento (e não "Não Compareceu")
+  // libera todos os dados do anúncio em qualquer canal.
+  const stayAccess = await resolveStayAccess({
+    supabase,
+    property,
+    channel,
+    guestName: params.guestName,
+    checkinDate: params.checkinDate,
+    checkoutDate: params.checkoutDate,
+    reservationVerified: params.reservationVerified,
+    credentialsLocked: params.credentialsLocked,
+  }).catch((e) => {
+    console.error("[agent] resolveStayAccess falhou", e);
+    return { open: false } as { open: boolean };
+  });
+
   // Guardrail determinístico: acesso físico e credenciais não dependem de decisão do modelo.
   const safety = await guestSafetyDecision(params.message, String(property.slug ?? ""), {
     supabase,
     propertyId,
+    stayOpen: stayAccess.open,
   });
   if (safety.kind !== "none") {
     const handoff = safety.kind === "access_incident";
@@ -428,13 +446,20 @@ export async function runHospitalityAgent(params: {
   // Reserva confirmada e ativa: o canal informa; sem informação, só vale a
   // reserva vinculada fora do Airbnb e com estadia ainda não encerrada.
   const reservationVerified =
-    params.reservationVerified ??
-    (channel !== "airbnb" &&
-      context.keys.includes("reservation") &&
-      context.stayPhase !== "post_checkout" &&
-      context.stayPhase !== "unknown");
-  const credentialsLocked =
-    context.sensitiveLocked || params.credentialsLocked === true || !reservationVerified;
+    stayAccess.open ||
+    (params.reservationVerified ??
+      (channel !== "airbnb" &&
+        context.keys.includes("reservation") &&
+        context.stayPhase !== "post_checkout" &&
+        context.stayPhase !== "unknown"));
+  const credentialsLocked = stayAccess.open
+    ? false
+    : context.sensitiveLocked || params.credentialsLocked === true || !reservationVerified;
+  const stayFacts = stayAccess.open ? stayFactsText(property as Record<string, unknown>) : "";
+  if (stayFacts) {
+    sources.push({ source: "property", title: "Dados da residência (estadia em andamento)", confidence: confidenceOf("property") });
+    evidence.push(`[property] Dados oficiais do anúncio liberados durante a estadia:\n${stayFacts}`);
+  }
   const retrieved = await hybridRetrieve({
     supabase,
     ownerId,
@@ -605,6 +630,9 @@ export async function runHospitalityAgent(params: {
     (replyInGuestLanguage
       ? `\n\nIDIOMA PROVÁVEL DA MENSAGEM: ${guestLanguage} (responda no idioma em que o hóspede escreveu)`
       : `\n\nIDIOMA DE RESPOSTA (obrigatório): responda SEMPRE em português do Brasil, mesmo que o hóspede escreva em outro idioma (${guestLanguage}). Este canal traduz automaticamente para o hóspede.`) +
+    (stayAccess.open
+      ? `\n\nESTADIA EM ANDAMENTO — TODOS OS DADOS DO ANÚNCIO LIBERADOS (prioridade máxima; anula qualquer regra acima que mande bloquear senhas/códigos ou enviar o hóspede ao guia)\n- O hóspede tem reserva confirmada e está dentro do período da estadia.\n- Quando ele pedir, informe DIRETAMENTE e por completo: rede e senha do Wi-Fi, códigos de portão/fechadura/cofre, endereço e instruções de acesso, exatamente como estão abaixo. Nunca diga para abrir o guia ou "Ver senhas e códigos" para obter esses dados.\n- Não invente nada que não esteja aqui.\n${stayFacts}`
+      : "") +
     (reservationVerified
       ? ""
       : `\n\nRESERVA NÃO CONFIRMADA — DADOS SENSÍVEIS BLOQUEADOS (prioridade máxima, vale para qualquer canal)\n- Não há reserva confirmada e ativa validada para esta pessoa.\n- NUNCA informe endereço exato (rua com número, complemento, CEP), link/pin de localização do imóvel, senhas, códigos de portão/fechadura, Wi-Fi, instruções de acesso ou contatos internos.\n- Pode citar apenas bairro, região e distâncias/referências próximas.\n- Se pedirem esses dados, explique com gentileza que o endereço completo e as informações de acesso são enviados assim que a reserva estiver confirmada.`) +
