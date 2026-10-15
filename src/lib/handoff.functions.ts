@@ -395,14 +395,75 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       );
       if (propIds.length > 0) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const [propsR, resR] = await Promise.all([
+        const sessionIds = Array.from(
+          new Set(
+            deduped
+              .map((c) => String(c.guest_session_id ?? "").replace(/^airbnb:/, ""))
+              .filter((s) => s.length > 0),
+          ),
+        );
+        const [propsR, resR, threadR] = await Promise.all([
           supabaseAdmin.from("properties").select("id, airbnb_ical_url").in("id", propIds),
           supabaseAdmin
             .from("property_reservations")
-            .select("property_id, checkin_date, checkout_date")
+            .select("property_id, checkin_date, checkout_date, source, status, external_uid, guest_hint, guest_contacts")
             .in("property_id", propIds)
             .in("source", ["airbnb", "channex"]),
+          sessionIds.length
+            ? supabaseAdmin
+                .from("channex_raw_records")
+                .select("payload")
+                .in("entity_type", ["webhook:message_thread_booking_assigned", "webhook:message"])
+                .in("payload->payload->>message_thread_id", sessionIds.slice(0, 300))
+                .limit(2000)
+            : Promise.resolve({ data: [] as Array<{ payload: unknown }> }),
         ]);
+        // Thread Channex → booking (consulta que virou reserva).
+        const bookingByThread = new Map<string, string>();
+        for (const row of (threadR.data ?? []) as Array<{ payload: unknown }>) {
+          const p = (row.payload as { payload?: { message_thread_id?: string; booking_id?: string } })
+            ?.payload;
+          if (p?.message_thread_id && p.booking_id) bookingByThread.set(p.message_thread_id, p.booking_id);
+        }
+        type ResRow = {
+          property_id: string;
+          checkin_date: string;
+          checkout_date: string;
+          source: string;
+          status: string;
+          external_uid: string;
+          guest_hint: string | null;
+          guest_contacts: { names?: string[]; ota_thread_id?: string } | null;
+        };
+        const channexConfirmed = ((resR.data ?? []) as ResRow[]).filter(
+          (r) => r.source === "channex" && r.status === "confirmed",
+        );
+        const norm = (s: string | null | undefined) =>
+          String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const today = new Date().toISOString().slice(0, 10);
+        const findChannex = (conv: (typeof deduped)[number]): ResRow | null => {
+          const pid = conv.property_id;
+          const sess = String(conv.guest_session_id ?? "").replace(/^airbnb:/, "");
+          const bookingId = bookingByThread.get(sess);
+          const own = channexConfirmed.filter((r) => r.property_id === pid);
+          if (bookingId) {
+            const hit = own.find((r) => r.external_uid === bookingId);
+            if (hit) return hit;
+          }
+          const hitThread = own.find((r) => r.guest_contacts?.ota_thread_id === sess);
+          if (hitThread) return hitThread;
+          const gn = norm(conv.guest_name);
+          if (gn.length < 3) return null;
+          const byName = own.filter(
+            (r) =>
+              r.checkout_date >= today &&
+              [r.guest_hint, ...(r.guest_contacts?.names ?? [])].some((n) => {
+                const nn = norm(n);
+                return nn === gn || nn.startsWith(`${gn} `);
+              }),
+          );
+          return byName.length === 1 ? byName[0] : null;
+        };
         const hasIcal = new Set<string>();
         for (const p of (propsR.data ?? []) as Array<{
           id: string;
@@ -411,11 +472,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           if (p.airbnb_ical_url && p.airbnb_ical_url.trim()) hasIcal.add(p.id);
         }
         const byProp = new Map<string, Array<{ checkin: string; checkout: string }>>();
-        for (const r of (resR.data ?? []) as Array<{
-          property_id: string;
-          checkin_date: string;
-          checkout_date: string;
-        }>) {
+        for (const r of (resR.data ?? []) as ResRow[]) {
           const list = byProp.get(r.property_id) ?? [];
           list.push({ checkin: r.checkin_date, checkout: r.checkout_date });
           byProp.set(r.property_id, list);
