@@ -12,8 +12,11 @@ export const getPendingFullConnections = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const accountId = await accountOf(context.supabase, context.userId);
-    const { listPendingFullConnections } = await import("@/lib/channex-full-connect.server");
-    return { items: await listPendingFullConnections(accountId) };
+    const { listPendingFullConnections, pricingKeyFor } = await import("@/lib/channex-full-connect.server");
+    const items = await listPendingFullConnections(accountId);
+    const codes = items.map((i) => i.unitCode).filter((c): c is string => !!c);
+    const apiKey = await pricingKeyFor(codes).catch(() => null);
+    return { items, apiKey };
   });
 
 /** "Já conectei": confere as diárias e só então liga o anúncio ao Airbnb. */
