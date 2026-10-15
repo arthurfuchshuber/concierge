@@ -804,7 +804,10 @@ export function AirbnbAccountFlow({
         /* tenta de novo no próximo ciclo */
       }
     }, 4000);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("storage", onStorage);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, baseline, reauthId]);
 
@@ -1259,6 +1262,28 @@ export function AirbnbAccountFlow({
                   Abrir o Airbnb de novo
                 </SecondaryBtn>
                 <SecondaryBtn onClick={close}>Cancelar</SecondaryBtn>
+              </div>
+            </>
+          ) : null}
+
+          {/* ---------- Conectar: Airbnb voltou sem conta nova ---------- */}
+          {step === "noNew" ? (
+            <>
+              <IconBox kind="falta">
+                <TriangleAlert className="size-[22px]" />
+              </IconBox>
+              <Title>Nenhuma conta nova encontrada</Title>
+              <Desc>
+                O Airbnb voltou para o ConciergeIA, mas usou uma conta que já está conectada.
+                Para conectar outra conta, saia do Airbnb neste navegador (ou use uma janela
+                anônima), entre com a conta nova e tente de novo.
+              </Desc>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
+                <PrimaryBtn onClick={() => setStep("start")}>
+                  <Link2 className="size-4" />
+                  Tentar de novo
+                </PrimaryBtn>
+                <SecondaryBtn onClick={close}>Fechar</SecondaryBtn>
               </div>
             </>
           ) : null}
