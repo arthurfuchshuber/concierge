@@ -621,7 +621,9 @@ export const createRecordSituation = createServerFn({ method: "POST" })
     const body = composeBody(data.title, data.description);
 
     // Anti-duplicata: mesmo autor, mesmo card, mesma categoria e mesmo texto
-    // nos últimos 60s → reaproveita o registro existente em vez de duplicar.
+    // nos últimos 15 min → reaproveita o registro existente em vez de duplicar.
+    // (15/10/2026) Em 4G a resposta pode demorar minutos para voltar enquanto o
+    // vídeo sobe; o "Tentar de novo" precisa reencontrar o registro já gravado.
     {
       let q = supabase
         .from("reservation_records")
@@ -631,7 +633,8 @@ export const createRecordSituation = createServerFn({ method: "POST" })
         .eq("category", data.category)
         .eq("kind", "note")
         .eq("body", body ?? "")
-        .gte("created_at", new Date(Date.now() - 60_000).toISOString())
+        .gte("created_at", new Date(Date.now() - 15 * 60_000).toISOString())
+        .order("created_at", { ascending: false })
         .limit(1);
       q = data.logId ? q.eq("log_id", data.logId) : q.is("log_id", null);
       q = data.reservationId ? q.eq("reservation_id", data.reservationId) : q.is("reservation_id", null);
