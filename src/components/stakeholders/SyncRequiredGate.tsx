@@ -167,17 +167,24 @@ export function SyncRequiredGate() {
                     <UserRound className="size-4" />
                   </span>
                   <div className="grid min-w-0 flex-1 gap-0.5">
-                    <ClampName text={a.title} passThrough className="text-[13px] font-bold" />
+                    <div className="flex min-w-0 items-center gap-2">
+                      <ClampName text={a.title} passThrough className="min-w-0 flex-1 text-[13px] font-bold" />
+                      {a.status === "active" && free === 0 && (a.listings ?? 0) > 0 && (
+                        <span className="ds-ok shrink-0 whitespace-nowrap rounded-full bg-[color-mix(in_oklab,currentColor_14%,transparent)] px-2 py-0.5 text-[10.5px] font-bold">
+                          Todos vinculados
+                        </span>
+                      )}
+                    </div>
                     {a.status === "active" ? (
                       <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11.5px] text-muted-foreground">
                         <span className="whitespace-nowrap"><b className="font-bold text-foreground">{a.listings ?? 0}</b> no Airbnb</span>
                         <span aria-hidden>·</span>
                         <span className="whitespace-nowrap"><b className="font-bold text-foreground">{a.imported}</b> {a.imported === 1 ? "sincronizado" : "sincronizados"}</span>
-                        <span aria-hidden>·</span>
-                        {free === 0 && (a.listings ?? 0) > 0 ? (
-                          <span className="whitespace-nowrap font-semibold text-primary">✓ todos vinculados</span>
-                        ) : (
-                          <span className="whitespace-nowrap"><b className="font-bold text-foreground">{free}</b> {free === 1 ? "disponível" : "disponíveis"}</span>
+                        {free > 0 && (
+                          <>
+                            <span aria-hidden>·</span>
+                            <span className="whitespace-nowrap"><b className="font-bold text-foreground">{free}</b> {free === 1 ? "disponível" : "disponíveis"}</span>
+                          </>
                         )}
                       </span>
                     ) : (

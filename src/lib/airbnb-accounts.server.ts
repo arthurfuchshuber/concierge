@@ -96,6 +96,17 @@ export async function listAccounts(admin: Admin, accountId: string): Promise<Air
     if (!r.channex_channel_id || !r.airbnb_listing_id) continue;
     importedBy.set(r.channex_channel_id, (importedBy.get(r.channex_channel_id) ?? 0) + 1);
   }
+  // Gêmeos ativos também são anúncios sincronizados.
+  const { data: twins } = await admin
+    .from("channex_twin_links")
+    .select("twin_listing_id")
+    .eq("owner_id", accountId)
+    .eq("status", "active");
+  const syncedIds = new Set<string>([
+    ...(raw ?? []).map((r) => String(r.airbnb_listing_id ?? "")),
+    ...(twins ?? []).map((t) => String(t.twin_listing_id ?? "")),
+  ]);
+  syncedIds.delete("");
   const out: AirbnbAccount[] = [];
   for (const r of regs) {
     const id = r.channex_channel_id;
@@ -114,19 +125,23 @@ export async function listAccounts(admin: Admin, accountId: string): Promise<Air
       "GET",
       `/channels/${id}`,
     ).catch(() => null);
-    const listings = await cx<{ data: { listing_id_dictionary: { values: unknown[] } } }>(
+    const values = await cx<{ data: { listing_id_dictionary: { values: Array<{ id?: unknown }> } } }>(
       "GET",
       `/channels/${id}/action/listings`,
     )
-      .then((x) => x.data?.listing_id_dictionary?.values?.length ?? 0)
+      .then((x) => x.data?.listing_id_dictionary?.values ?? [])
       .catch(() => null);
+    const listings = values === null ? null : values.length;
+    // Sincronizados = anúncios do catálogo real da conta que estão vinculados (principal ou gêmeo).
+    const syncedHere =
+      values === null ? imported : values.filter((v) => syncedIds.has(String(v.id))).length;
     const title = ch?.data?.attributes?.title ?? r.title ?? "Conta do Airbnb";
     out.push({
       channelId: id,
       title,
       status: listings === null ? "expired" : "active",
       listings,
-      imported,
+      imported: syncedHere,
     });
   }
   return out.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
