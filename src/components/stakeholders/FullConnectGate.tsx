@@ -207,7 +207,7 @@ export function FullConnectGate() {
           ))}
         </div>
 
-        {items.length > 1 ? (
+        {items.length > 0 ? (
           <div className="sticky -bottom-[18px] -mx-[18px] -mb-[18px] border-t border-border bg-background/95 px-[18px] py-3 backdrop-blur">
             <Button
               className="w-full"
@@ -215,7 +215,11 @@ export function FullConnectGate() {
               onClick={confirmAll}
             >
               {busy === "__all__" ? <Loader2 className="size-4 animate-spin" /> : null}
-              {busy === "__all__" ? progress ?? "Conferindo diárias…" : `Já conectei todos (${items.length})`}
+              {busy === "__all__"
+                ? progress ?? "Conferindo diárias…"
+                : items.length > 1
+                  ? `Já conectei todos (${items.length})`
+                  : "Já conectei"}
             </Button>
           </div>
         ) : null}
