@@ -2257,6 +2257,30 @@ export type Database = {
         }
         Relationships: []
       }
+      channex_pricing_keys: {
+        Row: {
+          api_key: string
+          channex_key_id: string
+          created_at: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          api_key: string
+          channex_key_id: string
+          created_at?: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string
+          channex_key_id?: string
+          created_at?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       channex_raw_records: {
         Row: {
           channex_id: string

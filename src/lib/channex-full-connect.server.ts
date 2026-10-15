@@ -111,20 +111,62 @@ export async function listPendingFullConnections(ownerId: string): Promise<Pendi
   return out;
 }
 
+/** Unidades Channex da conta (anúncios + gêmeos ativos). */
+async function accountUnits(ownerId: string): Promise<string[]> {
+  const d = await db();
+  const { data: rows } = await d.from("property_listing_raw_data").select("property_id, channex_property_id").eq("owner_id", ownerId);
+  const ids = new Set<string>();
+  const propIds: string[] = [];
+  for (const r of (rows ?? []) as any[]) {
+    if (r.channex_property_id) ids.add(String(r.channex_property_id));
+    if (r.property_id) propIds.push(r.property_id);
+  }
+  if (propIds.length) {
+    const { data: twins } = await d.from("channex_twin_links").select("*").in("property_id", propIds).eq("status", "active");
+    for (const t of (twins ?? []) as any[]) {
+      for (const k of ["twin_channex_property_id", "channex_property_id", "primary_channex_property_id"]) if (t[k]) ids.add(String(t[k]));
+    }
+  }
+  return [...ids];
+}
+
 /**
- * Chave de API da ferramenta de preços que já enxerga as unidades pendentes (uma chave serve
- * vários anúncios). A Channex só devolve o início da chave, nunca a chave inteira.
+ * Chave de API COMPLETA da Channex, exclusiva da conta e restrita às unidades dela, aceita por
+ * qualquer ferramenta de precificação integrada à Channex. Só a chave inteira é guardada
+ * (tabela sem acesso pelo app) e é devolvida apenas ao usuário autorizado da conta.
  */
-export async function pricingKeyFor(unitCodes: string[]): Promise<{ title: string; prefix: string } | null> {
-  if (!unitCodes.length) return null;
-  const keys = await cx<{ data: any[] }>("/api_keys?pagination[limit]=100").catch(() => ({ data: [] as any[] }));
-  const active = (keys.data ?? []).filter((k) => {
-    const a = k.attributes ?? {};
-    return !a.is_withdrawn && /pricelabs/i.test(String(a.title ?? "")) && a.property_policy?.mode === "selected";
+export async function ensureAccountPricingKey(ownerId: string): Promise<string | null> {
+  if (!FULL_CONNECT_ACCOUNTS.has(ownerId)) return null;
+  const d = await db();
+  const units = await accountUnits(ownerId);
+  if (!units.length) return null;
+  const { data: row } = await d.from("channex_pricing_keys").select("channex_key_id, api_key").eq("owner_id", ownerId).maybeSingle();
+  if (row) {
+    const cur = await cx<{ data: any }>(`/api_keys/${row.channex_key_id}`).catch(() => null);
+    const a = cur?.data?.attributes;
+    if (a && !a.is_withdrawn) {
+      const have: string[] = a.property_policy?.properties ?? [];
+      if (units.some((u) => !have.includes(u))) {
+        await cx(`/api_keys/${row.channex_key_id}`, {
+          method: "PUT",
+          body: JSON.stringify({ api_key: { property_policy: { mode: "selected", properties: [...new Set([...have, ...units])] } } }),
+        });
+      }
+      return row.api_key;
+    }
+  }
+  const created = await cx<{ data: { id: string; attributes: { key: string } } }>("/api_keys", {
+    method: "POST",
+    body: JSON.stringify({
+      api_key: { title: `Precificação ConciergeIA ${ownerId.slice(0, 8)}`, property_policy: { mode: "selected", properties: units }, network_policy: { mode: "allow_all" } },
+    }),
   });
-  const covers = (k: any) => unitCodes.every((u) => (k.attributes.property_policy.properties ?? []).includes(u));
-  const k = active.filter(covers).sort((a, b) => String(b.attributes.inserted_at).localeCompare(String(a.attributes.inserted_at)))[0];
-  return k ? { title: String(k.attributes.title), prefix: String(k.attributes.key ?? "") } : null;
+  const key = created.data.attributes.key;
+  const { error } = await d
+    .from("channex_pricing_keys")
+    .upsert({ owner_id: ownerId, channex_key_id: created.data.id, api_key: key, updated_at: new Date().toISOString() });
+  if (error) throw new Error(error.message);
+  return key;
 }
 
 /** Dias com diária > 0 nos próximos 30 dias da unidade. */

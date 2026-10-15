@@ -12,10 +12,14 @@ export const getPendingFullConnections = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const accountId = await accountOf(context.supabase, context.userId);
-    const { listPendingFullConnections, pricingKeyFor } = await import("@/lib/channex-full-connect.server");
+    const { listPendingFullConnections, ensureAccountPricingKey } = await import("@/lib/channex-full-connect.server");
     const items = await listPendingFullConnections(accountId);
-    const codes = items.map((i) => i.unitCode).filter((c): c is string => !!c);
-    const apiKey = await pricingKeyFor(codes).catch(() => null);
+    const apiKey = items.length
+      ? await ensureAccountPricingKey(accountId).catch((e) => {
+          console.error("[full-connect] pricing key", e);
+          return null;
+        })
+      : null;
     return { items, apiKey };
   });
 

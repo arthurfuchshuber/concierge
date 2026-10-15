@@ -65,8 +65,8 @@ export function FullConnectGate() {
   const box =
     "rounded-[14px] bg-foreground/[0.03] p-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]";
   const steps = [
-    "Na sua ferramenta de precificação, conecte a Channex usando a chave de API abaixo (se já estiver conectada, só atualize a lista de anúncios).",
-    "Ative o anúncio listado abaixo na ferramenta, pelo código da unidade, e ligue a sincronização das diárias.",
+    "Copie a chave de API abaixo.",
+    "Na sua ferramenta de precificação, escolha conectar a Channex e cole a chave. Os anúncios aparecem sozinhos, pelo nome; ative-os e ligue a sincronização das diárias.",
     "Aguarde as diárias chegarem (geralmente poucos minutos) e toque em \"Já conectei\". Conferimos 30 dias de diárias e só então ligamos o anúncio ao Airbnb, com o calendário aberto.",
   ];
 
@@ -113,17 +113,14 @@ export function FullConnectGate() {
           <div className={`${box} grid gap-1.5`}>
             {apiKey ? (
               <>
-                <div className="flex min-w-0 items-center gap-2">
-                  <KeyRound className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 truncate text-[13px] font-bold text-foreground">{apiKey.title}</span>
-                </div>
                 <div className="flex min-w-0 items-center gap-2 rounded-md bg-muted px-2 py-1.5">
-                  <code className="min-w-0 flex-1 break-all text-xs text-foreground">{apiKey.prefix}…</code>
-                  <CopyButton value={apiKey.prefix} size={14} />
+                  <KeyRound className="size-4 shrink-0 text-muted-foreground" />
+                  <code className="min-w-0 flex-1 truncate text-xs text-foreground">{apiKey}</code>
+                  <CopyButton value={apiKey} size={14} />
                 </div>
                 <p className="text-[11.5px] leading-[1.5] text-muted-foreground">
-                  Uma única chave serve para todos os anúncios abaixo. Ela começa com estes caracteres; use a
-                  chave completa que você já cadastrou na ferramenta.
+                  Uma única chave para todos os anúncios abaixo. Funciona em qualquer ferramenta de precificação
+                  integrada à Channex. Não compartilhe com terceiros.
                 </p>
               </>
             ) : (
@@ -137,17 +134,7 @@ export function FullConnectGate() {
           {items.map((it) => (
             <div key={it.propertyId} className={`${box} grid gap-2`}>
               <p className="min-w-0 text-[13px] font-bold text-foreground">{it.propertyName}</p>
-              {it.unitCode ? (
-                <div className="grid gap-1">
-                  <span className="text-[11px] text-muted-foreground">Código da unidade</span>
-                  <div className="flex min-w-0 items-center gap-2 rounded-md bg-muted px-2 py-1.5">
-                    <code className="min-w-0 flex-1 break-all text-xs text-foreground">{it.unitCode}</code>
-                    <CopyButton value={it.unitCode} size={14} />
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-destructive">{it.error}</p>
-              )}
+              {it.error ? <p className="text-xs text-destructive">{it.error}</p> : null}
               {notice[it.propertyId] ? (
                 <p className="text-xs text-muted-foreground">{notice[it.propertyId]}</p>
               ) : null}
