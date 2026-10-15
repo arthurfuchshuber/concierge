@@ -4080,6 +4080,7 @@ export type Database = {
       properties: {
         Row: {
           access_codes_pin: string | null
+          sync_dismissed_at: string | null
           access_mode: Database["public"]["Enums"]["access_mode"]
           address: string | null
           address_note: string | null
@@ -4180,6 +4181,7 @@ export type Database = {
         }
         Insert: {
           access_codes_pin?: string | null
+          sync_dismissed_at?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
@@ -4280,6 +4282,7 @@ export type Database = {
         }
         Update: {
           access_codes_pin?: string | null
+          sync_dismissed_at?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
