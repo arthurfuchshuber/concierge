@@ -894,6 +894,35 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
   });
 
   tools.push({
+    name: "register_stay_time_forecast",
+    description:
+      "Registra no painel a PREVISÃO de horário que o hóspede informou: a que horas vai CHEGAR (checkin) ou " +
+      "SAIR (checkout). Use quando ele disser um horário concreto (\"chegamos às 15h\", \"saímos umas 10h30\"). " +
+      "Isto NÃO é confirmação de entrada/saída (para isso use register_guest_stay_event). Se o horário for vago " +
+      "(\"à tarde\", \"depois do almoço\", \"às 3\" sem dizer manhã/tarde), NÃO chame: pergunte o horário exato. " +
+      "Horário definido pela equipe prevalece e não é sobrescrito.",
+    parameters: schema(
+      {
+        evento: { type: "string", enum: ["checkin", "checkout"] },
+        horario: { type: "string", description: "Horário dito pelo hóspede (ex.: 15:30, 15h, 3 da tarde)." },
+      },
+      ["evento", "horario"],
+    ),
+    execute: async (args) => {
+      const { registerStayTimeForecast } = await import("./stay-intent-resolver.server");
+      const r = await registerStayTimeForecast(
+        ctx.supabase,
+        { propertyId: ctx.propertyId, checkinDate: ctx.checkinDate, checkoutDate: ctx.checkoutDate, guestName: ctx.guestName },
+        { kind: args.evento === "checkout" ? "checkout" : "checkin", time: args.horario },
+      );
+      if (r.ok) ctx.collectSource({ source: "operation", title: `previsão ${args.evento}: ${r.horario ?? ""}`, confidence: 1 });
+      return r.motivo === "horario_ambiguo"
+        ? { ...r, instrucao: "Horário vago: pergunte com gentileza o horário exato (e se é manhã ou tarde)." }
+        : r;
+    },
+  });
+
+  tools.push({
     name: "search_stay_time_authorization",
     description:
       "Busca CONTEXTO para decidir sobre horário de check-in antecipado ou check-out acima do horário. Devolve o " +

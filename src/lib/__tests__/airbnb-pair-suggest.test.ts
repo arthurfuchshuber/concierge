@@ -52,4 +52,25 @@ describe("suggestPairs", () => {
       suggestPairs([{ id: "a", name: "Ap 01" }], [{ listingId: "L", title: "ap 01" }]),
     ).toEqual({ a: "L" });
   });
+  it("anúncio com telefone e nome do dono na frente ainda casa com o imóvel", () => {
+    const r = suggestPairs(
+      [{ id: "p2", name: "Casa Completa em Bairro Residencial" }],
+      [
+        { listingId: "L1", title: "45999119269 Lívia Pães · Casa Completa em Bairro Residencial" },
+        {
+          listingId: "L2",
+          title: "45999200738 Camila Menezes · Casa Aconchego a 5 min do Shopping",
+        },
+      ],
+    );
+    expect(r).toEqual({ p2: "L1" });
+  });
+  it("contido mas com número diferente não casa (Apê 2 quartos x Apê 3 quartos Centro)", () => {
+    expect(
+      suggestPairs(
+        [{ id: "a", name: "Apê 2 quartos Centro" }],
+        [{ listingId: "L", title: "Apê 3 quartos Centro Foz" }],
+      ),
+    ).toEqual({});
+  });
 });

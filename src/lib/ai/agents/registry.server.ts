@@ -52,6 +52,8 @@ export const ALL_TOOLS = [
   // da equipe quando o check-in é antes do horário permitido.
   "register_guest_stay_event",
   "search_stay_time_authorization",
+  // Previsão de horário informada pelo hóspede (14/10/2026), nos 3 canais.
+  "register_stay_time_forecast",
 ];
 
 /** O concierge — agente único do atendimento ao hóspede. */

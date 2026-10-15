@@ -108,10 +108,15 @@ describe("sincronizar em massa (de → para)", () => {
   async function open() {
     mount({ type: "syncProperties", properties: PROPS });
     await waitFor(() => expect(screen.getByText("Vincular anúncios")).toBeTruthy());
-    await waitFor(() => expect(screen.getByText("2 anúncios sem imóvel")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText("Escolher anúncio…").length).toBe(2));
   }
-  /** Os anúncios sem imóvel ficam recolhidos; abre a lista (quando há imóveis, vem fechada). */
-  const openLoose = (label: RegExp) => fireEvent.click(screen.getByText(label));
+  /** Escolhe, no seletor da linha `i`, o anúncio de título `title`. */
+  async function pickListing(i: number, title: string) {
+    fireEvent.click(screen.getAllByText("Escolher anúncio…")[i]);
+    await waitFor(() => expect(screen.getAllByText(title).length).toBeGreaterThan(0));
+    const opts = screen.getAllByText(title);
+    fireEvent.click(opts[opts.length - 1]);
+  }
   const btn = () =>
     screen.getByText(/Sincronizar \d+ par(es)?|Falta \d/).closest("button") as HTMLButtonElement;
 
@@ -128,11 +133,9 @@ describe("sincronizar em massa (de → para)", () => {
     expect(btn().disabled).toBe(true);
     fireEvent.click(screen.getByText("Sugerir"));
     await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 1 par/));
-    // sobra o anúncio "Casa Dois": escolhe o imóvel "Meu Apê" para ele
-    openLoose(/1 anúncio sem imóvel/);
-    fireEvent.click(screen.getByText("Escolher imóvel…"));
-    await waitFor(() => expect(screen.getAllByText("Meu Apê").length).toBeGreaterThan(1));
-    fireEvent.click(screen.getAllByText("Meu Apê")[1]);
+    // "Anúncios sem imóvel" não repete os anúncios livres enquanto falta imóvel sem par.
+    expect(screen.queryByText(/anúncios? sem imóvel/i)).toBeNull();
+    await pickListing(0, "Casa Dois");
     await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 pares/));
     fireEvent.click(btn());
     await waitFor(() => expect(fns.syncAirbnbPair).toHaveBeenCalledTimes(2));
@@ -141,33 +144,6 @@ describe("sincronizar em massa (de → para)", () => {
       { accountOwnerId: null, listingId: "L2", propertyId: "p2" },
     ]);
     await waitFor(() => expect(screen.getByText("2 de 2 sincronizados")).toBeTruthy());
-  });
-
-  it("anúncio sem imóvel pode virar imóvel novo, mas exige o proprietário(a)", async () => {
-    fns.syncAirbnbPair.mockResolvedValue({
-      kind: "created",
-      propertyId: "n",
-      title: "n",
-      pending: [],
-    });
-    await open();
-    fireEvent.click(screen.getByText("Sugerir"));
-    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 1 par/));
-    openLoose(/1 anúncio sem imóvel/);
-    fireEvent.click(screen.getByText("Criar imóvel novo"));
-    await waitFor(() => expect(screen.getByText("Falta 1 proprietário(a)")).toBeTruthy());
-    expect(btn().disabled).toBe(true);
-    fireEvent.click(screen.getAllByText("Escolher…").at(-1) as HTMLElement);
-    await waitFor(() => expect(screen.getAllByText("Livia").length).toBeGreaterThan(1));
-    fireEvent.click(screen.getAllByText("Livia").at(-1) as HTMLElement);
-    await waitFor(() => expect(btn().disabled).toBe(false));
-    fireEvent.click(btn());
-    await waitFor(() => expect(fns.syncAirbnbPair).toHaveBeenCalledTimes(2));
-    expect(fns.syncAirbnbPair.mock.calls[1][0].data).toEqual({
-      accountOwnerId: null,
-      listingId: "L2",
-      ownerId: "o1",
-    });
   });
 
   it("sem imóvel livre, o anúncio que sobrou vai direto para imóvel novo (só pergunta o proprietário)", async () => {
@@ -179,11 +155,12 @@ describe("sincronizar em massa (de → para)", () => {
     });
     mount({ type: "syncProperties", properties: [PROPS[0]] });
     await waitFor(() => expect(screen.getByText("Vincular anúncios")).toBeTruthy());
-    await waitFor(() => expect(screen.getByText("2 anúncios sem imóvel")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText("Escolher anúncio…").length).toBe(1));
+    expect(screen.queryByText(/anúncios? sem imóvel/i)).toBeNull();
     fireEvent.click(screen.getByText("Sugerir"));
-    // Casa Um ↔ L1: não sobra imóvel, então não há "Ligar a um imóvel" e só falta o proprietário(a).
+    // Casa Um ↔ L1: todos os imóveis têm par, então o anúncio que sobrou aparece e só falta o proprietário(a).
+    await waitFor(() => expect(screen.getByText("Anúncio sem imóvel")).toBeTruthy());
     await waitFor(() => expect(screen.getByText("Falta 1 proprietário(a)")).toBeTruthy());
-    openLoose(/1 anúncio sem imóvel/);
     expect(screen.queryByText("Ligar a um imóvel")).toBeNull();
     expect(screen.queryByText("Escolher imóvel…")).toBeNull();
     expect(btn().disabled).toBe(true);
@@ -256,10 +233,7 @@ describe("sincronizar em massa (de → para)", () => {
     await open();
     fireEvent.click(screen.getByText("Sugerir"));
     await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 1 par/));
-    openLoose(/1 anúncio sem imóvel/);
-    fireEvent.click(screen.getByText("Escolher imóvel…"));
-    await waitFor(() => expect(screen.getAllByText("Meu Apê").length).toBeGreaterThan(1));
-    fireEvent.click(screen.getAllByText("Meu Apê")[1]);
+    await pickListing(0, "Casa Dois");
     await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 pares/));
     fireEvent.click(btn());
     await waitFor(() => expect(screen.getByText("1 de 2 sincronizados")).toBeTruthy());

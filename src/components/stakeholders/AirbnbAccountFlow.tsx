@@ -530,28 +530,26 @@ function PairPicker({
                 onChange(o.id);
                 setOpen(false);
               }}
-              className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] transition-colors disabled:opacity-45 ${
+              className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-end gap-x-2 gap-y-[3px] rounded-lg px-2.5 py-2 text-left text-[12.5px] transition-colors disabled:opacity-45 ${
                 o.id === value
                   ? "bg-accent/15 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--accent)_35%,transparent)]"
                   : "enabled:hover:bg-secondary"
               }`}
             >
-              <span className="grid min-w-0 gap-0.5">
-                <b className="break-words font-semibold leading-[1.3] [overflow-wrap:anywhere]">
-                  {o.title}
-                </b>
-                {o.note || o.sub ? (
-                  <small className="text-[10.5px] leading-[1.3] text-muted-foreground">
-                    {o.note ?? o.sub}
-                  </small>
-                ) : null}
-              </span>
+              <b className="col-span-2 break-words font-semibold leading-[1.3] [overflow-wrap:anywhere]">
+                {o.title}
+              </b>
+              <small className="min-w-0 text-[10.5px] leading-[1.3] text-muted-foreground">
+                {o.note ?? o.sub}
+              </small>
               {o.account ? (
-                <span className="flex max-w-[112px] shrink-0 self-start">
+                <span className="col-start-2 row-start-2 flex max-w-[140px] shrink-0">
                   <AccountTag name={o.account.name} idx={o.account.idx} />
                 </span>
               ) : o.suggested ? (
-                <span className="text-[10px] font-extrabold text-accent">Sugerido</span>
+                <span className="col-start-2 row-start-2 text-[10px] font-extrabold text-accent">
+                  Sugerido
+                </span>
               ) : null}
             </button>
           ))}
@@ -658,7 +656,6 @@ export function AirbnbAccountFlow({
   /** Em massa: imóveis cujo anúncio veio do "Sugerir" (mostra a etiqueta até a pessoa trocar). */
   const [sugIds, setSugIds] = useState<Set<string>>(new Set());
   /** Em massa: lista de "anúncios sem imóvel" aberta. */
-  const [looseOpen, setLooseOpen] = useState(false);
   const [bulkJobs, setBulkJobs] = useState<BulkJob[]>([]);
   const startedAt = useRef(0);
 
@@ -715,7 +712,6 @@ export function AirbnbAccountFlow({
     setLooseNew({});
     setDismissedIds(new Set());
     setSugIds(new Set());
-    setLooseOpen(false);
     setBulkJobs([]);
     setLiveCatalog(request.type !== "connect");
     if (request.type === "syncProperties") {
@@ -1110,9 +1106,12 @@ export function AirbnbAccountFlow({
     .filter((l) => !l.imported && !l.notFound)
     .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
   const usedListings = new Set(Object.values(propListing));
-  const bulkLoose = bulkFree.filter((l) => !usedListings.has(l.listingId));
+  const bulkUnchosen = bulkFree.filter((l) => !usedListings.has(l.listingId));
   // Sem imóvel livre para escolher, o anúncio que sobrou só pode virar imóvel novo.
   const bulkFreeProps = bulkProps.filter((p) => !propListing[p.id]);
+  // "Anúncio sem imóvel": só aparece quando TODOS os imóveis já têm anúncio (ou foram dispensados).
+  // Antes disso os anúncios livres já estão nas opções de cada imóvel — repetir era duplicação.
+  const bulkLoose = bulkFreeProps.length === 0 ? bulkUnchosen : [];
   const looseIsNew = (lid: string) => looseNew[lid] !== undefined || bulkFreeProps.length === 0;
   const looseOwner = (lid: string) => looseNew[lid] ?? "";
   const bulkPairsN =
@@ -2238,32 +2237,18 @@ export function AirbnbAccountFlow({
                     })
                   : null}
                 {inv.data && bulkLoose.length > 0 ? (
-                  <button
-                    type="button"
-                    data-clip-row
-                    onClick={() => setLooseOpen((v) => !v)}
-                    className={`flex min-w-0 items-center gap-2.5 rounded-[14px] bg-foreground/[0.03] p-2.5 text-left ${INSET}`}
-                  >
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold">
-                      {plural(bulkLoose.length, "anúncio", "anúncios")} sem imóvel
+                  <div className="flex items-center justify-between pt-1 text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground/80">
+                    <span>
+                      {bulkLoose.length === 1 ? "Anúncio sem imóvel" : "Anúncios sem imóvel"}
                     </span>
-                    {bulkMissingOwner > 0 ? (
-                      <span className="shrink-0 text-[11px] font-bold ds-falta">
-                        Falta proprietário(a)
-                      </span>
-                    ) : null}
-                    <ChevronDown
-                      className={`size-4 shrink-0 text-muted-foreground transition-transform ${
-                        looseOpen || bulkProps.length === 0 ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
+                    <span className="font-semibold normal-case tracking-normal">
+                      {bulkLoose.length}
+                    </span>
+                  </div>
                 ) : null}
-                {inv.data && (looseOpen || bulkProps.length === 0)
+                {inv.data
                   ? bulkLoose.map((l) => {
                       const isNew = looseIsNew(l.listingId);
-                      const free = bulkFreeProps;
-                      const askProperty = free.length > 0;
                       const tag = accTag(l.channelId);
                       return (
                         <div
@@ -2275,82 +2260,31 @@ export function AirbnbAccountFlow({
                               : "bg-foreground/[0.03]"
                           }`}
                         >
-                          <div className="flex min-w-0 items-center gap-2">
-                            <ClampName
-                              as="b"
-                              text={l.title}
-                              className="min-w-0 flex-1 text-[13px] font-bold"
-                            />
-                            {tag ? <AccountTag name={tag.name} idx={tag.idx} /> : null}
-                          </div>
-                          {l.city ? (
-                            <small className="truncate text-[11.5px] text-muted-foreground">
-                              {l.city}
-                            </small>
-                          ) : null}
-                          {askProperty ? (
-                            <div className="grid grid-cols-2 gap-1 rounded-[10px] bg-foreground/[0.05] p-[3px]">
-                              {(
-                                [
-                                  ["Ligar a um imóvel", false],
-                                  ["Criar imóvel novo", true],
-                                ] as const
-                              ).map(([label, toNew]) => (
-                                <button
-                                  key={label}
-                                  type="button"
-                                  onClick={() =>
-                                    setLooseNew((c) => {
-                                      const { [l.listingId]: _drop, ...rest } = c;
-                                      void _drop;
-                                      return toNew
-                                        ? { ...c, [l.listingId]: c[l.listingId] ?? "" }
-                                        : rest;
-                                    })
-                                  }
-                                  className={`h-8 truncate rounded-[8px] px-1 text-[11.5px] font-bold ${
-                                    isNew === toNew
-                                      ? "bg-foreground/[0.10] text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
-                                      : "text-muted-foreground"
-                                  }`}
-                                >
-                                  {label}
-                                </button>
-                              ))}
+                          <b className="min-w-0 break-words text-[13px] font-bold leading-[1.3] [overflow-wrap:anywhere]">
+                            {l.title}
+                          </b>
+                          {l.city || tag ? (
+                            <div className="flex min-w-0 items-end justify-between gap-2">
+                              <small className="min-w-0 text-[11.5px] text-muted-foreground">
+                                {l.city}
+                              </small>
+                              {tag ? (
+                                <span className="flex max-w-[140px] shrink-0">
+                                  <AccountTag name={tag.name} idx={tag.idx} />
+                                </span>
+                              ) : null}
                             </div>
                           ) : null}
-                          {isNew ? (
-                            <OwnerPicker
-                              value={looseOwner(l.listingId) || null}
-                              owners={(owners.data?.rows ?? []) as OwnerRow[]}
-                              missing={!looseOwner(l.listingId)}
-                              onChange={(oid) => setLooseNew((c) => ({ ...c, [l.listingId]: oid }))}
-                              onCreate={() => {
-                                setCreateFor(`loose:${l.listingId}`);
-                                setFormOpen(true);
-                              }}
-                            />
-                          ) : (
-                            <PairPicker
-                              value={null}
-                              valueLabel={null}
-                              placeholder="Escolher imóvel…"
-                              searchPlaceholder="Buscar imóvel…"
-                              options={free.map((p) => ({
-                                id: p.id,
-                                title: p.name,
-                                sub: p.ownerName ? `Proprietário(a): ${p.ownerName}` : null,
-                              }))}
-                              onChange={(pid) => {
-                                setPropListing((c) => ({ ...c, [pid]: l.listingId }));
-                                setLooseNew((c) => {
-                                  const { [l.listingId]: _drop, ...rest } = c;
-                                  void _drop;
-                                  return rest;
-                                });
-                              }}
-                            />
-                          )}
+                          <OwnerPicker
+                            value={looseOwner(l.listingId) || null}
+                            owners={(owners.data?.rows ?? []) as OwnerRow[]}
+                            missing={!looseOwner(l.listingId)}
+                            onChange={(oid) => setLooseNew((c) => ({ ...c, [l.listingId]: oid }))}
+                            onCreate={() => {
+                              setCreateFor(`loose:${l.listingId}`);
+                              setFormOpen(true);
+                            }}
+                          />
                         </div>
                       );
                     })

@@ -595,6 +595,25 @@ export const listUnsyncedProperties = createServerFn({ method: "GET" })
   });
 
 /**
+ * Imóveis da conta que foram dispensados do aviso ("Não sincronizar"). A lista de Imóveis usa isto
+ * para mostrar a marca e o item "Voltar a sincronizar". Qualquer falha (ex.: coluna ainda não
+ * criada) vira lista vazia — nunca derruba a tela.
+ */
+export const listSyncDismissedProperties = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Base.parse(i))
+  .handler(async ({ data, context }) => {
+    const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
+    const { data: rows, error } = await admin
+      .from("properties")
+      .select("id")
+      .eq("owner_id", accountId)
+      .not("sync_dismissed_at", "is", null);
+    if (error) return { ids: [] as string[] };
+    return { ids: (rows ?? []).map((r) => r.id as string) };
+  });
+
+/**
  * "Não sincronizar este imóvel" (e Desfazer): dispensa o imóvel do aviso obrigatório e do alerta de
  * imóveis sem sincronização. Não arquiva nem apaga nada; `dismissed: false` volta ao normal.
  */

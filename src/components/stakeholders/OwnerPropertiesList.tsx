@@ -50,7 +50,12 @@ import {
 } from "@/components/dashboard/filter-panel";
 import { AirbnbAccountFlow, type AirbnbFlowRequest } from "./AirbnbAccountFlow";
 import { toast } from "sonner";
-import { listAirbnbAccounts, retryAirbnbChat } from "@/lib/airbnb-account.functions";
+import {
+  listAirbnbAccounts,
+  listSyncDismissedProperties,
+  retryAirbnbChat,
+  setPropertySyncDismissed,
+} from "@/lib/airbnb-account.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { Button } from "@/components/ui/button";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
@@ -121,6 +126,27 @@ export function OwnerPropertiesList({
     retry: false,
   });
   const airbnbAccounts = useMemo(() => accountsQ.data ?? [], [accountsQ.data]);
+  // Imóveis dispensados do aviso ("Não sincronizar"): marca no card + "Voltar a sincronizar".
+  const dismissedFn = useServerFn(listSyncDismissedProperties);
+  const dismissedQ = useQuery({
+    queryKey: ["sync-dismissed", accountOwnerId ?? "self"],
+    queryFn: () => dismissedFn({ data: { accountOwnerId } }),
+    staleTime: 30_000,
+    retry: false,
+  });
+  const dismissedIds = useMemo(() => new Set(dismissedQ.data?.ids ?? []), [dismissedQ.data]);
+  const undismissFn = useServerFn(setPropertySyncDismissed);
+  async function backToSync(propertyId: string) {
+    setMenuId(null);
+    try {
+      await undismissFn({ data: { accountOwnerId, propertyId, dismissed: false } });
+      toast.success("O imóvel voltou para a sincronização.");
+      qc.invalidateQueries({ queryKey: ["sync-dismissed"] });
+      qc.invalidateQueries({ queryKey: ["unsynced-properties"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível voltar a sincronizar.");
+    }
+  }
 
   const items = useMemo(() => {
     const active = new Set(
@@ -504,6 +530,11 @@ export function OwnerPropertiesList({
                     <span aria-hidden className="size-1.5 rounded-full bg-current" />
                     {p.pending ? "Pendente" : p.active ? "Ativo" : "Inativo"}
                   </span>
+                  {!p.active && dismissedIds.has(p.id) ? (
+                    <span className="absolute inset-x-2 bottom-2 inline-flex h-5 items-center justify-center whitespace-nowrap rounded-full bg-background/80 px-1 text-[10px] font-bold text-muted-foreground backdrop-blur-sm">
+                      Não sincronizar
+                    </span>
+                  ) : null}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col justify-between gap-2 py-3 pl-3.5 pr-2.5">
                   <span className="grid min-w-0 gap-1.5">
@@ -561,6 +592,21 @@ export function OwnerPropertiesList({
                           >
                             <RefreshCw className="size-3.5 text-muted-foreground" /> Tentar ativar o
                             chat de novo
+                          </button>
+                        ) : null}
+                        {!p.active && dismissedIds.has(p.id) ? (
+                          <button
+                            type="button"
+                            onClick={() => void backToSync(p.id)}
+                            className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-bold transition-colors hover:bg-secondary"
+                          >
+                            <RefreshCw className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                            <span className="grid min-w-0 gap-0.5">
+                              Voltar a sincronizar
+                              <small className="text-[11px] font-medium leading-snug text-muted-foreground">
+                                Volta a aparecer no aviso até ser vinculado ao Airbnb.
+                              </small>
+                            </span>
                           </button>
                         ) : null}
                         {!p.active ? (
