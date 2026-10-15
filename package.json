@@ -72,6 +72,7 @@
     "input-otp": "^1.4.2",
     "libphonenumber-js": "^1.13.7",
     "lucide-react": "^0.575.0",
+    "mediabunny": "^1.61.4",
     "pdfjs-dist": "^6.3.289",
     "qrcode": "^1.5.4",
     "react": "^19.2.0",
