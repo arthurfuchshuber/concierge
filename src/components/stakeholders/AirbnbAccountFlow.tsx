@@ -755,7 +755,8 @@ export function AirbnbAccountFlow({
       if (e.key === "airbnb-oauth-return" && e.newValue) returnedAt = Date.now();
     };
     window.addEventListener("storage", onStorage);
-    const id = window.setInterval(async () => {
+    let id = 0;
+    const tick = async () => {
       if (Date.now() - startedAt.current > 10 * 60_000) {
         window.clearInterval(id);
         setStep("timeout");
