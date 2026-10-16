@@ -737,6 +737,27 @@ export async function runHospitalityAgent(params: {
     throw err;
   }
 
+  // BAIXA AUTOMÁTICA DE CHECK-IN/CHECK-OUT: o hóspede confirmou a conclusão
+  // e o modelo não registrou → o servidor registra pela própria ferramenta
+  // (mantém as travas de horário/autorização e idempotência).
+  if (reservationVerified && !toolsUsed.some((t) => t.name === "register_guest_stay_event")) {
+    try {
+      const { detectStayCompletion } = await import("./stay-completion-detect");
+      const kind = detectStayCompletion(params.message, reply);
+      const tool = kind ? buildGuestTools(toolCtx).find((t) => t.name === "register_guest_stay_event") : null;
+      if (kind && tool) {
+        const result = await tool.execute({
+          evento: kind === "checkout" ? "checkout_completed" : "checkin_completed",
+          evidencia: params.message.slice(0, 200),
+          autorizacao_trecho: null,
+        });
+        toolsUsed.push({ name: "register_guest_stay_event", args: { kind, auto: true, result } });
+      }
+    } catch (e) {
+      console.error("[agent] baixa automática de estadia falhou", e);
+    }
+  }
+
   rememberTools(
     params.conversationId,
     toolsUsed.map((t) => ({ name: t.name, args: t.args, ok: true, at: Date.now() })),
