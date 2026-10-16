@@ -100,7 +100,7 @@ export async function loadReservationDossier(
     finalCode ? `Código da reserva: ${finalCode}` : "",
     `Status: confirmada${active ? " (ativa)" : " (encerrada)"}`,
     row?.ota_name || payload.ota_name || pr?.ota_name ? `Plataforma: ${row?.ota_name ?? payload.ota_name ?? pr?.ota_name}` : "",
-    guestFull ? `Hóspede titular: ${guestFull}` : "",
+    guestFull ? `Hóspede titular (apenas referência de cadastro; NÃO é necessariamente quem está escrevendo — chame pelo nome do remetente da mensagem atual): ${guestFull}` : "",
     checkin ? `Check-in: ${fmt(checkin)}${p.checkin_time ? ` a partir das ${String(p.checkin_time).slice(0, 5)}` : ""}` : "",
     checkout ? `Check-out: ${fmt(checkout)}${p.checkout_time ? ` até as ${String(p.checkout_time).slice(0, 5)}` : ""}` : "",
     nights ? `Noites: ${nights}` : "",
