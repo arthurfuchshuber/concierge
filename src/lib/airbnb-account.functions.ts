@@ -283,7 +283,7 @@ export const detectAirbnbConnection = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
     const { detectNew } = await import("@/lib/airbnb-accounts.server");
-    return detectNew(admin, accountId, data.baseline);
+    return detectNew(admin, accountId, data.baseline, context.userId);
   });
 
 /** Desconectar: desliga o chat, pausa a sincronização e arquiva os imóveis. Não toca no canal da Channex. */
@@ -324,6 +324,11 @@ async function finishLinked(
     .eq("property_id", propertyId)
     .maybeSingle();
   if (!rp?.channex_rate_plan_id) pending.push({ propertyId, title, kind: "config" });
+  else {
+    // Unidade ainda não mapeada nunca fica zerada (a ferramenta de preços recusaria a unidade).
+    const { seedIfUnmapped } = await import("@/lib/channex-full-connect.server");
+    await seedIfUnmapped(propertyId).catch((e) => console.error("[link] seed", e));
+  }
   return pending;
 }
 
@@ -378,7 +383,7 @@ async function linkExisting(
   accountId: string,
   propertyId: string,
   listingId: string,
-): Promise<{ title: string; propertyName: string; pending: PendingKind }> {
+): Promise<{ title: string; propertyName: string; pending: PendingKind; channexPropertyId: string | null }> {
   const { data: prop } = await admin
     .from("properties")
     .select("id, name, archived_at")
@@ -424,7 +429,18 @@ async function linkExisting(
     .eq("id", propertyId)
     .or("airbnb_listing_url.is.null,airbnb_listing_url.eq.");
   const pending = await finishLinked(admin, propertyId, prop.name as string);
-  return { title: listing.title, propertyName: prop.name as string, pending };
+  // Código da unidade na Channex: é o que a ferramenta de precificação usa para importar o anúncio.
+  const { data: cxRow } = await admin
+    .from("property_listing_raw_data")
+    .select("channex_property_id")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  return {
+    title: listing.title,
+    propertyName: prop.name as string,
+    pending,
+    channexPropertyId: ((cxRow as { channex_property_id?: string } | null)?.channex_property_id ?? null) as string | null,
+  };
 }
 
 /**
@@ -650,7 +666,7 @@ export const syncExistingProperty = createServerFn({ method: "POST" })
     await enforce(context.userId, "stakeholders.vinculo-imovel", { propertyId: data.propertyId });
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
     const r = await linkExisting(admin, accountId, data.propertyId, data.listingId);
-    return { ok: true as const, title: r.title, pending: r.pending };
+    return { ok: true as const, title: r.title, pending: r.pending, channexPropertyId: r.channexPropertyId };
   });
 
 /**

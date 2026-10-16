@@ -25,7 +25,6 @@ import { AirbnbAccountFlow, type AirbnbFlowRequest } from "./AirbnbAccountFlow";
 export function SyncRequiredGate() {
   const { perm, q, accountOwnerId } = useUnsyncedProperties();
   const [flow, setFlow] = useState<AirbnbFlowRequest>(null);
-  const [initial, setInitial] = useState<UnsyncedProperty[]>([]);
   const otherWindowOpen = useAnyWindowOpen();
   const prevFlow = useRef<AirbnbFlowRequest>(null);
 
@@ -42,22 +41,27 @@ export function SyncRequiredGate() {
     return () => window.clearTimeout(t);
   }, []);
 
-  const pending = q.data?.properties ?? [];
-  const blocking = perm.allowed && !!q.data?.blocking && pending.length > 0;
-
-  // Guarda a lista inicial para mostrar "Sincronizado ✓" nas que já foram (e a barra de progresso).
+  // Fechar no "X" adia o aviso por 1 hora (por conta, neste navegador); depois reabre sozinho.
+  const snoozeKey = `sync-gate-snooze:${accountOwnerId ?? "self"}`;
+  const [snoozedUntil, setSnoozedUntil] = useState(0);
   useEffect(() => {
-    if (!blocking) {
-      if (initial.length > 0 && !q.isFetching) setInitial([]);
-      return;
-    }
-    setInitial((cur) => {
-      const ids = new Set(cur.map((p) => p.id));
-      const added = pending.filter((p) => !ids.has(p.id));
-      return added.length > 0 ? [...cur, ...added] : cur;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocking, q.data]);
+    const v = Number(window.localStorage.getItem(snoozeKey) || 0);
+    setSnoozedUntil(v > Date.now() ? v : 0);
+  }, [snoozeKey]);
+  useEffect(() => {
+    if (!snoozedUntil) return;
+    const t = window.setTimeout(() => setSnoozedUntil(0), Math.max(0, snoozedUntil - Date.now()));
+    return () => window.clearTimeout(t);
+  }, [snoozedUntil]);
+  function snooze() {
+    const until = Date.now() + 60 * 60 * 1000;
+    window.localStorage.setItem(snoozeKey, String(until));
+    setSnoozedUntil(until);
+  }
+
+  const pending = q.data?.properties ?? [];
+  const previewFull = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("verConexao");
+  const blocking = !previewFull && !snoozedUntil && perm.allowed && !!q.data?.blocking && pending.length > 0;
 
   // Abertura SÍNCRONA (sem estado nem efeito no meio): no mesmo quadro em que a consulta confirma
   // o bloqueio, o <Dialog> já recebe open=true. Só abre quando não há outra janela na frente
@@ -80,12 +84,9 @@ export function SyncRequiredGate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flow]);
 
-  const pendingIds = new Set(pending.map((p) => p.id));
-  const rows = initial.length > 0 ? initial : pending;
-  const total = rows.length;
-  const done = rows.filter((p) => !pendingIds.has(p.id)).length;
-  const left = total - done;
-  const pct = total > 0 ? Math.round((100 * done) / total) : 0;
+  // Só os imóveis que ainda faltam: o que já foi vinculado sai da tela na hora.
+  const rows = pending;
+  const left = rows.length;
 
   const info = (p: UnsyncedProperty) => ({
     id: p.id,
@@ -102,6 +103,7 @@ export function SyncRequiredGate() {
   const accountsFn = useServerFn(listAirbnbAccounts);
   const accounts = useQuery({
     queryKey: ["airbnb-accounts", accountOwnerId ?? "self"],
+    refetchOnWindowFocus: true,
     queryFn: () => accountsFn({ data: { accountOwnerId } }),
     enabled: shouldBeOpen,
     staleTime: 0,
@@ -132,28 +134,29 @@ export function SyncRequiredGate() {
           <Loader2 className="size-6 animate-spin" />
         </div>
       ) : null}
-      <Dialog open={shouldBeOpen} onOpenChange={() => undefined}>
+      {/* Fundo fixo enquanto houver bloqueio: na troca entre esta janela e a de vincular (ou no
+          "Voltar") as janelas fecham/abrem e somem por alguns quadros; este fundo nunca sai. */}
+      {blocking || flow ? (
+        <div aria-hidden className="fixed inset-0 z-[49] bg-background/85 backdrop-blur-md" />
+      ) : null}
+      <Dialog open={shouldBeOpen} onOpenChange={(o) => { if (!o) snooze(); }}>
         <DialogContent
-          hideClose
           onOpenAutoFocus={() => {
             // Janela montada: espera 2 quadros para o fundo desfocado pintar e só então solta a cobertura.
             requestAnimationFrame(() => requestAnimationFrame(() => setDialogPainted(true)));
           }}
-          onEscapeKeyDown={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => e.preventDefault()}
-          className="max-w-[380px] gap-2.5 p-[18px] sm:gap-3.5 sm:max-w-[560px] sm:p-[18px]"
+          className="max-w-[380px] gap-2.5 p-[18px] pt-[22px] sm:gap-3.5 sm:max-w-[560px] sm:p-[18px]"
         >
           <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-            <div className="grid min-w-0 gap-2.5">
+            <div className="grid min-w-0 gap-2.5 pr-9">
               <DialogTitle className="flex items-center gap-2.5 font-display text-[19px] font-extrabold leading-[1.2] tracking-[-0.01em]">
                 <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-secondary text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
                   <Lock className="size-4" />
                 </span>
                 <span className="min-w-0 truncate">
-                  {done === 0
-                    ? "Sincronize seus imóveis"
-                    : `Faltam ${left} ${left === 1 ? "imóvel" : "imóveis"}`}
+                  Sincronize seus imóveis
                 </span>
               </DialogTitle>
               <DialogDescription className="text-[12.5px] leading-[1.55]">
@@ -162,22 +165,6 @@ export function SyncRequiredGate() {
                 </b>{" "}
                 sem integração com o Airbnb. Vincule para liberar o painel.
               </DialogDescription>
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground">
-              <span className="font-bold text-foreground/85">
-                {done} de {total} sincronizados
-              </span>
-              <span>
-                {left} {left === 1 ? "pendente" : "pendentes"}
-              </span>
-            </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-[#7c1ad8] to-[#e82dae] transition-all"
-                style={{ width: `${pct}%` }}
-              />
             </div>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
@@ -196,10 +183,19 @@ export function SyncRequiredGate() {
                     <UserRound className="size-4" />
                   </span>
                   <div className="grid min-w-0 flex-1 gap-0.5">
-                    <ClampName text={a.title} passThrough className="text-[13px] font-bold" />
+                    <div className="flex min-w-0 items-center gap-2">
+                      <ClampName text={a.title} passThrough className="min-w-0 flex-1 text-[13px] font-bold" />
+                      {a.status === "active" && free === 0 && (a.listings ?? 0) > 0 && (
+                        <span className="ds-ok shrink-0 whitespace-nowrap rounded-full bg-[color-mix(in_oklab,currentColor_14%,transparent)] px-2 py-0.5 text-[10.5px] font-bold">
+                          Todos vinculados
+                        </span>
+                      )}
+                    </div>
                     {a.status === "active" ? (
-                      <span className="truncate text-[11.5px] text-muted-foreground">
-                        {free} {free === 1 ? "anúncio disponível" : "anúncios disponíveis"}
+                      <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11.5px] text-muted-foreground">
+                        <span className="whitespace-nowrap"><b className="font-bold text-foreground">{a.listings ?? 0}</b> no Airbnb</span>
+                        <span aria-hidden>·</span>
+                        <span className="whitespace-nowrap"><b className="font-bold text-foreground">{a.imported}</b> {a.imported === 1 ? "sincronizado" : "sincronizados"}</span>
                       </span>
                     ) : (
                       <span className="truncate text-[11.5px] ds-atencao">Precisa reconectar</span>
@@ -236,19 +232,16 @@ export function SyncRequiredGate() {
             <div className="flex items-center justify-between gap-2 text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground/80">
               <span>Imóveis pendentes</span>
               <span className="font-semibold normal-case tracking-normal">
-                {left} de {total}
+                {left}
               </span>
             </div>
             {rows.map((p) => {
-              const isDone = !pendingIds.has(p.id);
-              const cur = pending.find((x) => x.id === p.id) ?? p;
+              const cur = p;
               return (
                 <div
                   key={p.id}
                   data-clip-row
-                  className={`flex items-center gap-3 rounded-[14px] p-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)] ${
-                    isDone ? "bg-foreground/[0.025]" : "bg-foreground/[0.03]"
-                  }`}
+                  className="flex items-center gap-3 rounded-[14px] bg-foreground/[0.03] p-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                 >
                   <PropertyThumb
                     src={cur.imageUrl}
@@ -274,12 +267,6 @@ export function SyncRequiredGate() {
                         </>
                       ) : null}
                     </div>
-                    {isDone ? (
-                      <span className="flex items-center gap-1.5 text-[12px] font-bold ds-ok">
-                        <Check className="size-3.5" strokeWidth={2.6} />
-                        Sincronizado
-                      </span>
-                    ) : null}
                   </div>
                 </div>
               );

@@ -1,7 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const BUCKET = "property-images";
-const TTL_SECONDS = 60 * 60; // 1h
+const TTL_SECONDS = 60 * 60; // 1h — guia público (hóspedes)
+/** Prazo curto para a equipe: acesso removido deixa de abrir fotos em minutos. */
+export const TEAM_TTL_SECONDS = 5 * 60;
 
 function extractPath(url: string | null | undefined): string | null {
   if (!url || typeof url !== "string") return null;
@@ -18,12 +20,16 @@ function extractPath(url: string | null | undefined): string | null {
 export async function signPropertyImages<T>(
   supabase: SupabaseClient,
   value: T,
+  opts: { ttlSeconds?: number; allowedOwnerPrefixes?: string[] } = {},
 ): Promise<T> {
+  const allowed = opts.allowedOwnerPrefixes;
   const paths: string[] = [];
   const collect = (v: unknown): void => {
     if (!v) return;
     if (typeof v === "string") {
       const p = extractPath(v);
+      // Com allowedOwnerPrefixes, só assina arquivos da pasta do dono do imóvel.
+      if (p && allowed && !allowed.includes(p.split("/")[0])) return;
       if (p && !paths.includes(p)) paths.push(p);
     } else if (Array.isArray(v)) v.forEach(collect);
     else if (typeof v === "object") Object.values(v as Record<string, unknown>).forEach(collect);
@@ -31,7 +37,7 @@ export async function signPropertyImages<T>(
   collect(value);
   if (paths.length === 0) return value;
 
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(paths, TTL_SECONDS);
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(paths, opts.ttlSeconds ?? TTL_SECONDS);
   if (error || !data) return value;
   const map = new Map<string, string>();
   data.forEach((d) => {
@@ -42,7 +48,9 @@ export async function signPropertyImages<T>(
     if (!v) return v;
     if (typeof v === "string") {
       const p = extractPath(v);
-      return p && map.has(p) ? map.get(p)! : v;
+      if (p && map.has(p)) return map.get(p)!;
+      // Referência não autorizada nunca sai como link assinado.
+      return p && allowed ? null : v;
     }
     if (Array.isArray(v)) return v.map(replace);
     if (typeof v === "object") {

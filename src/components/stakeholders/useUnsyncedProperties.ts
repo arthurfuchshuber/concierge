@@ -17,7 +17,8 @@ export function useUnsyncedProperties() {
   const q = useQuery({
     queryKey: ["unsynced-properties", accountOwnerId ?? "self"],
     queryFn: () => listFn({ data: { accountOwnerId } }),
-    enabled: perm.allowed && !perm.loading,
+    // Em paralelo com a permissão (não em cascata): a decisão de bloquear continua exigindo permissão.
+    enabled: perm.loading || perm.allowed,
     staleTime: 30_000,
     retry: 1,
     refetchOnWindowFocus: true,

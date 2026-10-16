@@ -5,6 +5,18 @@ import { sendPushToSubscriptions, type PushPayload } from "@/lib/push.server";
 
 type Admin = SupabaseClient<Database>;
 
+const MONTHS = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."];
+/** "2026-10-05","2026-10-14" → "5–14 de out." (meses diferentes: "28 de set. – 3 de out."). */
+export function formatStayRange(checkin: string, checkout: string | null): string {
+  const p = (s: string) => s.split("-").map(Number) as [number, number, number];
+  const [, m1, d1] = p(checkin);
+  if (!m1 || !d1) return "";
+  if (!checkout) return `${d1} de ${MONTHS[m1 - 1]}`;
+  const [, m2, d2] = p(checkout);
+  if (m1 === m2) return `${d1}–${d2} de ${MONTHS[m1 - 1]}`;
+  return `${d1} de ${MONTHS[m1 - 1]} – ${d2} de ${MONTHS[m2 - 1]}`;
+}
+
 /**
  * Retorna user_ids que devem ser notificados quando um handoff acontece
  * em uma dada propriedade: o owner + os account_members ativos com
@@ -107,9 +119,40 @@ export async function sendGuestReplyPush(
   if (!subs || subs.length === 0) return { sent: 0, failed: 0 };
 
   const guest = opts.guestName?.trim() || "Hóspede";
+  // Padrão Airbnb: título = nome; 1ª linha = "5–14 de out. • Anúncio"; depois a mensagem.
+  let contextLine = "";
+  try {
+    const { data: conv } = await admin
+      .from("property_chat_conversations")
+      .select("property_id")
+      .eq("id", opts.conversationId)
+      .maybeSingle();
+    const propertyId = (conv as { property_id?: string } | null)?.property_id;
+    if (propertyId) {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: rows } = await admin
+        .from("property_reservations")
+        .select("checkin_date, checkout_date, guest_hint")
+        .eq("property_id", propertyId)
+        .eq("status", "confirmed")
+        .gte("checkout_date", today)
+        .order("checkin_date", { ascending: true })
+        .limit(10);
+      const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      const first = norm(guest).split(/\s+/)[0] ?? "";
+      const list = (rows ?? []) as Array<{ checkin_date: string; checkout_date: string; guest_hint: string | null }>;
+      const res = list.find((r) => first && r.guest_hint && norm(r.guest_hint).startsWith(first)) ?? list[0];
+      if (res) contextLine = formatStayRange(res.checkin_date, res.checkout_date);
+    }
+  } catch {
+    // contexto é opcional
+  }
+  const listing = opts.propertyName?.trim();
+  const header = [contextLine, listing].filter(Boolean).join(" • ");
+  const msg = opts.guestMessage.trim() || "Nova mensagem na conversa.";
   const payload: PushPayload = {
-    title: `${guest} respondeu`,
-    body: opts.guestMessage.trim().slice(0, 220) || "Nova mensagem na conversa.",
+    title: guest,
+    body: (header ? `${header}\n${msg}` : msg).slice(0, 300),
     data: {
       url: `/admin/atendimento?conv=${opts.conversationId}`,
       conversationId: opts.conversationId,

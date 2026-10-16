@@ -17,8 +17,11 @@ import { Search, X } from "lucide-react";
  * com 40px de altura o recuo de -16px a come por inteiro e a barra parecia
  * afundada. No celular a sombra é proporcional à altura da barra
  * (`0 8px 14px -8px`); as camadas de luz e contorno são as mesmas de `ds-3d`.
- * No computador o
- * desenho continua o de antes — dois objetos, na altura da barra de abas. */
+ *
+ * DESKTOP IGUAL AO CELULAR (pedido explícito, 15/10/2026, mockup "Main"
+ * aprovado): no computador também é UMA casca só — 44px de altura (a da barra
+ * de abas), raio 13px (o do ACTION_BAR), busca + botões separados por fios,
+ * botões de 52px (o "wide" continua automático). Antes eram dois objetos. */
 export function SearchActionRow({
   value,
   onChange,
@@ -34,7 +37,7 @@ export function SearchActionRow({
 }) {
   return (
     <div
-      className={`flex min-w-0 items-stretch max-lg:ds-3d max-lg:ds-3d-hover max-lg:h-10 max-lg:overflow-hidden max-lg:rounded-[9px] max-lg:bg-card max-lg:!shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border),0_8px_14px_-8px_rgb(0_0_0/0.55)] lg:items-center lg:gap-2 ${className}`}
+      className={`flex min-w-0 items-stretch ds-3d ds-3d-hover h-10 overflow-hidden rounded-[9px] bg-card !shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border),0_8px_14px_-8px_rgb(0_0_0/0.55)] lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px] ${className}`}
     >
       <div className="relative min-w-0 flex-1">
         <Search className="pointer-events-none absolute left-3 top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60" />
@@ -42,7 +45,7 @@ export function SearchActionRow({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="h-10 w-full bg-transparent pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none lg:ds-3d lg:relative lg:h-[var(--ds-action-h-lg)] lg:overflow-hidden lg:rounded-[13px] lg:border-0 lg:bg-card"
+          className="h-full w-full bg-transparent pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none"
         />
         {value && (
           <button
@@ -56,7 +59,7 @@ export function SearchActionRow({
         )}
       </div>
       {actions && (
-        <div className="ds-icon-actions flex shrink-0 divide-x divide-[color-mix(in_oklab,var(--foreground)_11%,transparent)] max-lg:border-l max-lg:border-[color-mix(in_oklab,var(--foreground)_11%,transparent)] max-lg:[&>*:not([data-action-wide])]:!w-12 max-lg:[&>*]:!flex-none max-lg:[&>*:not([data-action-wide])]:!px-0 max-lg:[&>[data-action-wide]]:!w-auto max-lg:[&>[data-action-wide]]:!px-2.5 lg:ds-3d lg:ds-3d-hover lg:relative lg:h-[var(--ds-action-h-lg)] lg:overflow-hidden lg:rounded-[13px] lg:bg-card">
+        <div className="ds-icon-actions flex shrink-0 divide-x divide-[color-mix(in_oklab,var(--foreground)_11%,transparent)] border-l border-[color-mix(in_oklab,var(--foreground)_11%,transparent)] [&>*:not([data-action-wide])]:!w-12 lg:[&>*:not([data-action-wide])]:!w-[52px] [&>*]:!flex-none [&>*:not([data-action-wide])]:!px-0 [&>[data-action-wide]]:!w-auto [&>[data-action-wide]]:!px-2.5 lg:[&>[data-action-wide]]:!px-3.5">
           {actions}
         </div>
       )}

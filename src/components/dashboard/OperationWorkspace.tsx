@@ -10,7 +10,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { titleCaseName } from "@/lib/masks";
+import { formatIntlPhone, titleCaseName } from "@/lib/masks";
 import { useAntiClipColumns } from "@/hooks/useAntiClipColumns";
 import { useAntiClipBar } from "@/hooks/useAntiClipBar";
 import {
@@ -84,6 +84,7 @@ import {
   MoreVertical,
   Banknote,
   CalendarRange,
+  CalendarClock,
   User,
   Users,
   Eraser,
@@ -772,7 +773,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // Qual coluna do Kanban está ativa no mobile (lá o quadro vira abas — não
   // cabem as 5 colunas lado a lado). No desktop não é usado; as 5 colunas
   // aparecem todas ao mesmo tempo.
-  const [mobileTab, setMobileTab] = useState<BoardMode>("checkin");
+  const [mobileTab, setMobileTab] = useState<KanbanTab>("checkin");
   // Largura das colunas do Kanban (desktop) — calculada de verdade a partir
   // do espaço disponível, não um número fixo. Cabe quantas colunas couberem
   // numa largura mínima confortável, e essas colunas esticam pra preencher o
@@ -792,7 +793,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     if (!el) return;
     const GAP = 12; // gap-3
     const MIN_COL = 320;
-    const TOTAL_COLS = 6;
+    const TOTAL_COLS = 7;
     function recalc() {
       const containerWidth = el!.clientWidth;
       if (containerWidth <= 0) return;
@@ -812,8 +813,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // totalmente diferentes (ex.: mesmo imóvel com um hóspede saindo — em
   // limpeza — e outro chegando — em check-in — ao mesmo tempo). Cada coluna
   // só fecha o que está aberto NELA MESMA ao rolar.
-  const [expandedByColumn, setExpandedByColumn] = useState<Record<BoardMode, string | null>>({
+  const [expandedByColumn, setExpandedByColumn] = useState<Record<KanbanTab, string | null>>({
     checkin: null,
+    future: null,
     checkout: null,
     stay: null,
     cleaning: null,
@@ -993,27 +995,31 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const occStart = periodRange?.start ?? todayISOSaoPaulo();
   /**
    * QUANTOS DIAS BUSCAR (pedido explícito, 18/09/2026: "se couberem mais dias
-   * dentro da visão respeitando a regra anti corte, é para colocar").
+   * dentro da visão respeitando a regra anti corte, é para colocar") — depois
+   * substituído pelo calendário COMPLETO (15–16/10/2026): sem período o
+   * servidor devolve da primeira à última reserva e o quadro rola na
+   * horizontal; as colunas ficam sempre no tamanho certo (anti-corte).
    *
-   * Com filtro de período, quem manda é o período escolhido — não mexemos.
-   * Sem filtro, o próprio calendário avisa quantos dias INTEIROS cabem no
-   * quadro com as colunas no tamanho máximo, e buscamos exatamente isso. O
-   * número fixo de antes (21) ora sobrava, ora faltava: quando faltava, as
-   * colunas esticavam para ocupar o espaço.
+   * Com filtro de período, quem manda é o período escolhido.
    */
-  const [fitDays, setFitDays] = useState<number | null>(null);
   const occDays = periodRange
     ? Math.min(
-        90,
+        366,
         Math.max(
           3,
           differenceInCalendarDays(parseISODateLocal(periodRange.end), parseISODateLocal(periodRange.start)) + 1,
         ),
       )
-    : Math.min(90, Math.max(7, fitDays ?? 21));
+    : 21;
   const occupancyQ = useQuery({
-    queryKey: ["dash-occupancy", activeOwnerId ?? "self", occStart, occDays],
-    queryFn: () => occupancyFn({ data: { ownerId: activeOwnerId, days: occDays, start: occStart } }),
+    // CALENDÁRIO COMPLETO (pedido explícito, 15–16/10/2026): sem período
+    // escolhido o servidor devolve da PRIMEIRA reserva (passado) à ÚLTIMA
+    // (futuro); com período, só o período.
+    queryKey: ["dash-occupancy", activeOwnerId ?? "self", occStart, periodRange ? occDays : "full"],
+    queryFn: () =>
+      occupancyFn({
+        data: { ownerId: activeOwnerId, days: occDays, start: occStart, fullRange: !periodRange },
+      }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
     ...liveSync,
@@ -2545,7 +2551,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     () => noShowRows.filter(matchesKanbanOwnerCity),
     [noShowRows, matchesKanbanOwnerCity],
   );
+  /* "FUTURAS" (pedido explícito, 16/10/2026): TODAS as reservas previstas
+     para o futuro — chegadas ainda pendentes com data depois de hoje, da mais
+     próxima para a mais distante. Não obedece ao filtro de período (é o "tudo
+     que vem aí"); só Cidade/Proprietário/Prestador, como as demais colunas.
+     Quem já aparece em "Check-ins" (período escolhido que alcança o futuro)
+     não se repete aqui. */
+  const kanbanFutureRows = useMemo(() => {
+    const inCheckin = new Set(kanbanCheckinPendingRows.map((r) => r.logId));
+    return kanbanCiRowsAll
+      .filter((r) => r.status === "pending" && r.date > todayISO && matchesKanbanOwnerCity(r) && !inCheckin.has(r.logId))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [kanbanCiRowsAll, kanbanCheckinPendingRows, matchesKanbanOwnerCity, todayISO]);
   const kanbanCounts = {
+    future: kanbanFutureRows.length,
     checkin: kanbanCheckinPendingRows.length,
     checkout: kanbanCheckoutPendingRows.length,
     stay: kanbanStayRows.length,
@@ -2567,6 +2586,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     { key: "stay" as const, label: "Estadia", icon: BedDouble, count: kanbanCounts.stay },
     { key: "done" as const, label: "Concluídos", icon: CheckCircle2, count: kanbanCounts.done },
     { key: "no_show" as const, label: "Não Compareceu", icon: UserX, count: kanbanCounts.no_show },
+    { key: "future" as const, label: "Futuras", icon: CalendarClock, count: kanbanCounts.future },
   ];
 
   // A cor do ícone/rótulo do dropdown "Trocar status" por status (mockup de
@@ -2828,7 +2848,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     [rowByStay, commitPrediction],
   );
 
-  function arrivalGroupPropsFor(colMode: BoardMode, rows: ArrivalRow[]) {
+  function arrivalGroupPropsFor(colKey: KanbanTab, rows: ArrivalRow[]) {
+    /* "Futuras" usa as MESMAS regras e o MESMO card de "Check-ins" (pedido
+       explícito, 16/10/2026: "seguir o mesmo layout e regras do próprio
+       kanban"): é uma chegada ainda pendente, só que de data futura. Só o
+       estado de "card aberto" é próprio da coluna (`colKey`). */
+    const colMode: BoardMode = colKey === "future" ? "checkin" : colKey;
     const colKind: "checkin" | "checkout" =
       colMode === "checkout" || colMode === "cleaning" || colMode === "done" ? "checkout" : "checkin";
     /**
@@ -3018,8 +3043,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       // sem o mesmo peso visual dos outros. Agora todos têm o mesmo layout.
       muted: false,
       cleaningPendingPropIds,
-      expandedId: expandedByColumn[colMode],
-      onExpandedChange: (id: string | null) => setExpandedByColumn((prev) => ({ ...prev, [colMode]: id })),
+      expandedId: expandedByColumn[colKey],
+      onExpandedChange: (id: string | null) => setExpandedByColumn((prev) => ({ ...prev, [colKey]: id })),
       // Checklist de pendências — só a coluna de Limpeza usa isso de fato
       // (ArrivalCard ignora fora do modo "cleaning").
       cleaningTasks: colMode === "cleaning" ? cleaningTasksData : undefined,
@@ -3064,7 +3089,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       }
       right={
         <InfoHint title="Guia do hóspede">
-          Conta os hóspedes com check-in no período. “Viram instruções Check-In” são os que já abriram as Instruções da
+          Conta as reservas com check-in no período (o mesmo hóspede conta uma vez só). “Viram instruções Check-In” são os que já abriram as Instruções da
           sessão “Chegada” pelo menos uma vez; “Viram senha de acesso” são os que já visualizaram as senhas no guia pelo
           menos uma vez.
         </InfoHint>
@@ -3454,7 +3479,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 providerSubtitles={providerSubtitles}
                 hasCustomFilters={hasCustomFilters}
                 onClearAllFilters={clearAllFilters}
-                onFitDaysChange={setFitDays}
               />
             </div>
 
@@ -3721,6 +3745,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : (
                     <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} compact />
                   ))}
+                {mobileTab === "future" &&
+                  (kanbanCheckinListQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : kanbanFutureRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("future", kanbanFutureRows)} compact />
+                  ))}
               </div>
             </div>
 
@@ -3738,7 +3770,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   title="Check-ins"
                   icon={CalendarCheck}
                   count={kanbanCounts.checkin}
-                  tone="emerald"
+                  tone="sky"
                 >
                   {kanbanCheckinListQ.isLoading ? (
                     <ColumnLoading />
@@ -3756,7 +3788,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   title="Checkouts"
                   icon={CalendarX}
                   count={kanbanCounts.checkout}
-                  tone="amber"
+                  tone="orange"
                 >
                   {kanbanCheckoutListQ.isLoading ? (
                     <ColumnLoading />
@@ -3774,7 +3806,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   title="Fila de Limpeza"
                   icon={Sparkles}
                   count={kanbanCounts.cleaning}
-                  tone="violet"
+                  tone="amber"
                 >
                   {kanbanCheckoutListQ.isLoading ? (
                     <ColumnLoading />
@@ -3792,7 +3824,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   title="Em Estadia"
                   icon={BedDouble}
                   count={kanbanCounts.stay}
-                  tone="sky"
+                  tone="emerald"
                 >
                   {kanbanCheckinListQ.isLoading ? (
                     <ColumnLoading />
@@ -3860,7 +3892,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   title="Não Compareceu"
                   icon={UserX}
                   count={kanbanCounts.no_show}
-                  tone="rose"
+                  tone="zinc"
                 >
                   <div className="relative sticky top-0 z-10 -mt-0.5 mb-1">
                     <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -3891,6 +3923,24 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     )
                   ) : (
                     <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} compact />
+                  )}
+                </KanbanColumn>
+              </div>
+
+              <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
+                <KanbanColumn
+                  onScroll={() => setExpandedByColumn((prev) => ({ ...prev, future: null }))}
+                  title="Futuras"
+                  icon={CalendarClock}
+                  count={kanbanCounts.future}
+                  tone="zinc"
+                >
+                  {kanbanCheckinListQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : kanbanFutureRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("future", kanbanFutureRows)} compact />
                   )}
                 </KanbanColumn>
               </div>
@@ -4189,23 +4239,27 @@ function CleaningChecklist({
     <div onClick={(e) => e.stopPropagation()}>
     <Popover>
       <PopoverTrigger asChild>
+        {/* BLOCO "PENDÊNCIAS" COM PROGRESSO (pedido explícito, 15/10/2026,
+            mockup "Bloco A" aprovado): título em eyebrow, contagem na pílula à
+            direita e uma barra fina embaixo com o quanto já foi feito. */}
         <button
           type="button"
-          className="relative flex w-full items-center overflow-hidden rounded-[5px] border border-border/60 bg-card/40 px-3 py-1.5 text-left"
+          className="relative flex w-full flex-col gap-2 overflow-hidden rounded-[10px] border border-border bg-card/40 px-3 py-2.5 text-left"
         >
-          <span
-            aria-hidden
-            className="absolute left-4 right-4 top-0 h-px bg-gradient-to-r from-[#c9a962]/80 via-[#c9a962]/40 to-transparent"
-          />
-          <PanelHeading
-            title="Pendências do Imóvel"
-            className="mb-0 w-full"
-            right={
-              <CountPill>
-                {feitas}/{items.length}
-              </CountPill>
-            }
-          />
+          <span className="flex w-full items-center gap-2.5">
+            <span className="min-w-0 flex-1 truncate text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted-foreground">
+              Pendências do Imóvel
+            </span>
+            <CountPill>
+              {feitas}/{items.length}
+            </CountPill>
+          </span>
+          <span aria-hidden className="block h-1 w-full overflow-hidden rounded-full bg-foreground/10">
+            <span
+              className="block h-full rounded-full bg-gradient-to-r from-[#7c1ad8] to-[#e82dae]"
+              style={{ width: `${items.length > 0 ? Math.round((feitas / items.length) * 100) : 0}%` }}
+            />
+          </span>
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -4280,6 +4334,7 @@ const KANBAN_TONE: Record<string, string> = {
   amber: "text-amber-600 dark:text-amber-400 bg-amber-500/10 ring-amber-500/20",
   sky: "text-sky-600 dark:text-sky-400 bg-sky-500/10 ring-sky-500/20",
   violet: "text-violet-600 dark:text-violet-400 bg-violet-500/10 ring-violet-500/20",
+  orange: "text-orange-600 dark:text-orange-400 bg-orange-500/10 ring-orange-500/20",
   zinc: "text-muted-foreground bg-muted ring-border",
   rose: "text-rose-600 dark:text-rose-400 bg-rose-500/10 ring-rose-500/20",
 };
@@ -4292,8 +4347,24 @@ const KANBAN_TONE_ACTIVE: Record<string, string> = {
   amber: "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400",
   sky: "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400",
   violet: "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400",
+  orange: "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400",
   zinc: "border-primary bg-primary/10 text-primary",
   rose: "border-rose-500 bg-rose-500/10 text-rose-600 dark:text-rose-400",
+};
+
+/** LINHA DE ACENTO DO TOPO DA COLUNA (pedido explícito, 15/10/2026, mockup
+ * "Kanban B" aprovado). A cor é a MESMA da barra lateral do card daquela etapa
+ * (`STAGE_BAR` em `card-colors.ts`): check-in azul, em estadia verde, checkout
+ * laranja, limpeza âmbar; Concluídos/Não compareceu ficam neutros como os
+ * cards. */
+const KANBAN_COLUMN_LINE: Record<string, string> = {
+  sky: "border-sky-400",
+  emerald: "border-emerald-400",
+  orange: "border-orange-400",
+  amber: "border-amber-400",
+  violet: "border-violet-400",
+  rose: "border-rose-400",
+  zinc: "border-muted-foreground/40",
 };
 
 /** Uma coluna do quadro Kanban — cabeçalho fixo (título + contagem) e corpo
@@ -4309,7 +4380,7 @@ function KanbanColumn({
   title: string;
   icon: React.ElementType;
   count: number;
-  tone: "emerald" | "amber" | "sky" | "violet" | "zinc" | "rose";
+  tone: "emerald" | "amber" | "sky" | "violet" | "zinc" | "rose" | "orange";
   children: React.ReactNode;
   /** Dispara ao rolar o corpo da coluna — usado pra recolher "Detalhes da
    * operação" sozinho, de forma sutil, acompanhando a rolagem do usuário. */
@@ -4345,13 +4416,15 @@ function KanbanColumn({
   }, [count, children]);
 
   return (
-    <div className="flex flex-col min-w-0 rounded-[0.3rem]">
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 shrink-0 bg-background/40 rounded-t-[0.3rem]">
-        <div className={`size-7 rounded-lg grid place-items-center ring-1 shrink-0 ${KANBAN_TONE[tone]}`}>
+    <div className="flex flex-col min-w-0 rounded-b-[14px] bg-[linear-gradient(180deg,color-mix(in_oklab,var(--foreground)_3%,transparent),transparent_220px)]">
+      <div className={`flex items-center gap-2.5 px-3 pb-3 pt-2.5 border-b-2 shrink-0 ${KANBAN_COLUMN_LINE[tone]}`}>
+        <div className={`size-[30px] rounded-[9px] grid place-items-center ring-1 shrink-0 ${KANBAN_TONE[tone]}`}>
           <Icon className="size-3.5" />
         </div>
         <span className="ds-card-title truncate">{title}</span>
-        <span className="ml-auto text-xs font-medium text-muted-foreground tabular-nums shrink-0">{count}</span>
+        <span className="ml-auto shrink-0 rounded-full border border-input bg-secondary px-2 py-0.5 text-xs font-bold tabular-nums text-foreground">
+          {count}
+        </span>
       </div>
       <div
         ref={bodyRef}
@@ -4463,7 +4536,14 @@ function useWholeCardsMaxHeight(key: unknown) {
       // último card foi cortado rente à borda do popup), mas sempre encerra
       // antes do primeiro pixel do próximo card — nunca revela uma tira dele.
       const visualClearance = nextTop === undefined ? 0 : Math.max(0, Math.min(14, nextTop - height - 0.5));
-      setMaxHeight(Math.ceil(height + visualClearance));
+      // BARRA DE ROLAGEM HORIZONTAL (correção 15/10/2026, com print do
+      // calendário de ocupação com filtro aplicado: a última linha ficava
+      // cortada POR CIMA pela barra de rolagem de baixo). A barra ocupa
+      // altura DENTRO da caixa que rola; sem somá-la, ela comia o fim do
+      // último card inteiro. `offsetHeight - clientHeight` é exatamente a
+      // altura dela (0 quando não há rolagem horizontal).
+      const hbar = Math.max(0, node.offsetHeight - node.clientHeight);
+      setMaxHeight(Math.ceil(height + visualClearance + hbar));
     };
 
     raf = requestAnimationFrame(recalc);
@@ -7937,7 +8017,6 @@ function OccupancyPanel({
   providerSubtitles,
   hasCustomFilters,
   onClearAllFilters,
-  onFitDaysChange,
 }: {
   loading: boolean;
   start: string;
@@ -7951,6 +8030,9 @@ function OccupancyPanel({
     heroImageUrl?: string | null;
   }>;
   stays: Array<{
+    reservationId?: string | null;
+    amount?: number | null;
+    currency?: string | null;
     propertyId: string;
     checkin: string;
     checkout: string | null;
@@ -7982,11 +8064,6 @@ function OccupancyPanel({
   providerSubtitles?: Record<string, string>;
   hasCustomFilters: boolean;
   onClearAllFilters: () => void;
-  /** Quantos dias INTEIROS cabem no quadro com as colunas no tamanho máximo.
-   * O pai usa isto para buscar exatamente essa quantidade de dias, em vez de
-   * um número fixo — é o que faz o calendário mostrar mais dias quando há
-   * espaço, sem esticar coluna nenhuma. */
-  onFitDaysChange?: (days: number) => void;
 }) {
   /**
    * Mobile: exatamente 5 dias inteiros no visor.
@@ -8011,24 +8088,14 @@ function OccupancyPanel({
   /** Teto por coluna: a bolinha (28px) mais o respiro dos dois lados. */
   const MAX_DAY_W = 40;
   /**
-   * ABERTO NO COMPUTADOR, recolhido no celular (pedido explícito, 18/09/2026:
-   * "mantenha o calendário sempre expandido na visão DESKTOP, mas com
-   * possibilidade de recolher clicando em cima da barra"). No celular
-   * continua recolhido por padrão — lá ele come a tela inteira.
-   *
-   * A decisão é tomada depois de montar, não no estado inicial: ler a largura
-   * da janela ali quebraria a hidratação, porque no servidor não existe
-   * janela. Roda uma vez só — quem recolher continua recolhido, e
-   * redimensionar a janela depois não reabre o quadro sozinho.
+   * FIXO (pedido explícito, 16/10/2026: "FIXO é para que não seja mais
+   * possível RECOLHER ou EXPANDIR"): o calendário está sempre aberto, no
+   * computador e no celular — sem estado, sem setinha.
    */
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth >= 1024) setOpen(true);
-  }, []);
   /* MEDIÇÃO (correção 23/09/2026, com print: no computador o quadro nascia
      com 5 dias e um vão vazio à direita).
      O nó medido só existe DEPOIS que os dados chegam (antes disso o quadro é
-     só um spinner). Com `useRef` + efeito em `[days, open]`, o efeito rodava
+     só um spinner). Com `useRef` + efeito em `[days]`, o efeito rodava
      enquanto o nó ainda era null, saía cedo e nunca mais voltava — o quadro
      ficava congelado nos valores iniciais (5 dias × 40px). Guardar o nó em
      ESTADO, por ref de callback, faz a medição rodar no exato momento em que
@@ -8036,13 +8103,6 @@ function OccupancyPanel({
   const [outerEl, setOuterEl] = useState<HTMLDivElement | null>(null);
   const outerRef = useCallback((node: HTMLDivElement | null) => setOuterEl(node), []);
   const scrollbarWRef = useRef<number | null>(null);
-  /** Última capacidade avisada ao pai — evita repetir o mesmo número. */
-  const fitRef = useRef<number | null>(null);
-  /* O aviso ao pai vai por uma referência, não direto: o efeito que mede a
-     largura roda com `[days, open]` e não deve reiniciar toda vez que o pai
-     recria a função. */
-  const onFitRef = useRef(onFitDaysChange);
-  onFitRef.current = onFitDaysChange;
   const [dayW, setDayW] = useState(40);
   const [visibleDays, setVisibleDays] = useState(MOBILE_DAYS);
   // Largura da coluna do nome — normalmente NAME_COL_BASE, mas cresce pra
@@ -8112,10 +8172,6 @@ function OccupancyPanel({
          nunca passar do que o mínimo permite — é ele que garante a regra
          anti-corte. */
       const cabem = Math.max(1, Math.min(Math.ceil(usable / MAX_DAY_W), Math.floor(usable / MIN_DAY_W)));
-      if (isDesktop && fitRef.current !== cabem) {
-        fitRef.current = cabem;
-        onFitRef.current?.(cabem);
-      }
       const count = isDesktop ? Math.max(1, Math.min(days, cabem)) : MOBILE_DAYS;
 
       if (!isDesktop) {
@@ -8196,6 +8252,9 @@ function OccupancyPanel({
     const map = new Map<
       string,
       Array<{
+        reservationId: string | null;
+        amount: number | null;
+        currency: string | null;
         checkin: string;
         checkout: string | null;
         guest: string | null;
@@ -8207,6 +8266,9 @@ function OccupancyPanel({
       if ((s as { blocked?: boolean }).blocked) continue;
       const arr = map.get(s.propertyId) ?? [];
       arr.push({
+        reservationId: s.reservationId ?? null,
+        amount: s.amount ?? null,
+        currency: s.currency ?? null,
         checkin: s.checkin,
         checkout: s.checkout,
         guest: s.guest,
@@ -8228,6 +8290,52 @@ function OccupancyPanel({
     }
     return map;
   }, [stays]);
+
+  /* CLIQUE NA RESERVA + NOME E VALOR NA BARRA (pedido explícito, 15–16/10/2026,
+     mockups "Cal-Desktop"/"Cal-Mobile" aprovados): a barra mostra o nome do
+     hóspede e o VALOR BRUTO pago pela reserva — como o calendário do Airbnb —
+     e tocar nela abre o histórico da reserva numa janela central. */
+  const [journeyReservationId, setJourneyReservationId] = useState<string | null>(null);
+  /* COMEÇA EM HOJE: o quadro agora tem o período todo (passado e futuro), mas
+     abre com o dia de hoje logo depois da coluna do nome; o usuário rola para
+     os lados para ver o resto. Roda uma vez por intervalo/largura de coluna. */
+  const scrolledKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const scroller = outerEl?.firstElementChild as HTMLElement | null | undefined;
+    if (!scroller) return;
+    const key = `${start}:${days}:${dayW}`;
+    if (scrolledKeyRef.current === key) return;
+    scrolledKeyRef.current = key;
+    const idx = dayList.indexOf(todayISO);
+    scroller.scrollLeft = idx > 0 ? idx * dayW : 0;
+  }, [outerEl, start, days, dayW, dayList, todayISO]);
+  const dayIndex = useMemo(() => new Map(dayList.map((d, i) => [d, i])), [dayList]);
+  const brl = (amount: number | null, currency: string | null) =>
+    amount == null || !(amount > 0)
+      ? null
+      : new Intl.NumberFormat("pt-BR", { style: "currency", currency: currency || "BRL" }).format(amount);
+  /** A reserva que "mora" na metade do dia: manhã = quem sai, tarde = quem entra (ou quem atravessa o dia). */
+  function stayAt(propertyId: string, day: string, half: 0 | 1) {
+    const list = byProperty.get(propertyId) ?? [];
+    const through = list.find((s) => s.checkin < day && (s.checkout ?? s.checkin) > day);
+    return (half === 0 ? list.find((s) => s.checkout === day) : list.find((s) => s.checkin === day)) ?? through;
+  }
+  /** O texto da barra: um por reserva, na 1ª coluna visível dela (o dia seguinte ao check-in), com a largura da barra. */
+  function barLabels(propertyId: string) {
+    const out = new Map<number, { width: number; name: string; value: string | null }>();
+    for (const st of byProperty.get(propertyId) ?? []) {
+      const end = st.checkout ?? st.checkin;
+      const from = st.checkin < dayList[0]! ? 0 : (dayIndex.get(st.checkin) ?? -1) + 1;
+      const to = end > dayList[dayList.length - 1]! ? dayList.length : (dayIndex.get(end) ?? 0);
+      if (from < 0 || to - from < 1) continue;
+      out.set(from, {
+        width: (to - from) * dayW,
+        name: st.guest?.trim() || "Reserva",
+        value: brl(st.amount, st.currency),
+      });
+    }
+    return out;
+  }
 
   // "in" = check-in confirmado (verde) · "in-pending" = check-in ainda não
   // confirmado (azul claro) · "in-late" = data de check-in já passou sem
@@ -8333,13 +8441,11 @@ function OccupancyPanel({
             mais a setinha por último. Clicar no título OU na setinha
             expande/recolhe; clicar no botão de filtros não. */}
       <div className="flex w-full items-center gap-2 py-3.5 pl-2.5 pr-4 text-left">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
+        <div
           /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): ícone em
              caixinha e título em Sora, como nos demais cards. O título fica
-             numa linha só, com reticências. */
+             numa linha só, com reticências. Não é mais botão: o calendário é
+             FIXO (16/10/2026). */
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
           <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
@@ -8348,7 +8454,7 @@ function OccupancyPanel({
           <span className="ds-card-title min-w-0 flex-1 text-[14px] !font-medium" title="Calendário de ocupação">
             Calendário de ocupação
           </span>
-        </button>
+        </div>
         <CalendarFiltersButton
           periodRange={periodRange}
           onPeriodRangeChange={onPeriodRangeChange}
@@ -8366,20 +8472,8 @@ function OccupancyPanel({
           hasCustomFilters={hasCustomFilters}
           onClearAll={onClearAllFilters}
         />
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-label={open ? "Recolher calendário de ocupação" : "Expandir calendário de ocupação"}
-          className="shrink-0 p-0.5"
-        >
-          <ChevronDown
-            className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
-          />
-        </button>
       </div>
-      {open && (
-        <div className="border-t border-border/50 px-4 sm:px-5 pt-4 pb-5">
+      <div className="border-t border-border/50 px-4 sm:px-5 pt-4 pb-5">
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
@@ -8397,7 +8491,7 @@ function OccupancyPanel({
                     maxWidth: "100%",
                     ...(list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : {}),
                   }}
-                  className="sg-elegant-scroll max-h-[22rem] overflow-auto snap-x snap-proximity"
+                  className="sg-elegant-scroll overflow-auto snap-x snap-proximity"
                 >
                   <table
                     className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
@@ -8531,6 +8625,7 @@ function OccupancyPanel({
                       {visibleProperties.map((p, pIdx) => {
                         const halves = dayList.flatMap((d) => cellHalves(p.id, d));
                         const occ = halves.map((h) => h !== "free");
+                        const labels = barLabels(p.id);
                         // Linha horizontal do grid (ver comentário no cabeçalho) —
                         // um fio ainda mais discreto que o vertical, separando
                         // cada imóvel. Sem linha depois do último, mesma lógica
@@ -8655,8 +8750,45 @@ function OccupancyPanel({
                                     {!occ[idxB] && (
                                       <span className="absolute right-0 top-1/2 h-px w-1/2 -translate-y-1/2 bg-border/50" />
                                     )}
-                                    <div className={`relative h-full w-1/2 ${clsOf(a)} ${round(idxA)}`} />
-                                    <div className={`relative h-full w-1/2 ${clsOf(b)} ${round(idxB)}`} />
+                                    {([0, 1] as const).map((half) => {
+                                      const st = stayAt(p.id, d, half);
+                                      const id = st?.reservationId ?? null;
+                                      return (
+                                        <div
+                                          key={half}
+                                          {...(id
+                                            ? {
+                                                role: "button" as const,
+                                                tabIndex: 0,
+                                                "aria-label": `Abrir a reserva de ${st?.guest ?? "hóspede"}`,
+                                                onClick: () => setJourneyReservationId(id),
+                                                onKeyDown: (e: React.KeyboardEvent) => {
+                                                  if (e.key === "Enter" || e.key === " ") {
+                                                    e.preventDefault();
+                                                    setJourneyReservationId(id);
+                                                  }
+                                                },
+                                              }
+                                            : {})}
+                                          className={`relative h-full w-1/2 ${half === 0 ? clsOf(a) : clsOf(b)} ${round(half === 0 ? idxA : idxB)} ${
+                                            id ? "cursor-pointer" : ""
+                                          }`}
+                                        />
+                                      );
+                                    })}
+                                    {labels.get(i) && (
+                                      <span
+                                        className="pointer-events-none absolute left-0 top-0 z-[5] flex h-full items-center overflow-hidden whitespace-nowrap pl-2 pr-1.5 text-[11px] leading-none text-white"
+                                        style={{ width: labels.get(i)!.width }}
+                                      >
+                                        <span className="truncate">
+                                          <span className="font-bold">{labels.get(i)!.name}</span>
+                                          {labels.get(i)!.value && (
+                                            <span className="ml-0.5 font-medium"> {labels.get(i)!.value}</span>
+                                          )}
+                                        </span>
+                                      </span>
+                                    )}
                                   </div>
                                 </td>
                               );
@@ -8685,7 +8817,16 @@ function OccupancyPanel({
               </div>
             </>
           )}
-        </div>
+      </div>
+      {journeyReservationId && (
+        <ReservationJourneyDialog
+          open
+          onOpenChange={(v) => {
+            if (!v) setJourneyReservationId(null);
+          }}
+          logId={null}
+          reservationId={journeyReservationId}
+        />
       )}
     </section>
   );
@@ -8790,7 +8931,8 @@ function EngagementBars({
 }
 
 /**
- * Mesma lógica dos cards: hóspede principal (1º a acessar) + "+N" expansível.
+ * Uma linha por RESERVA: hóspede principal (1º a acessar) e o anúncio. Não há
+ * mais "+N" de hóspedes — a reserva é a unidade da contagem.
  * Layout em "linha-cartão" com avatar de iniciais (redesign aprovado do
  * tooltip de engajamento — Opção C: abas "Viram"/"Não viram" + linhas mais
  * espaçadas).
@@ -8851,7 +8993,7 @@ function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off"
   const groups: GuestMark[][] = [];
   const index = new Map<string, number>();
   for (const it of items) {
-    const key = it.property || it.name;
+    const key = `${it.property}|${it.name}`;
     const at = index.get(key);
     if (at === undefined) {
       index.set(key, groups.length);
@@ -9303,6 +9445,8 @@ function ArrivalGroup({
 }
 
 type BoardMode = "checkin" | "checkout" | "stay" | "cleaning" | "done" | "no_show";
+/** Colunas do Kanban: as de sempre + "Futuras" (reservas previstas, 16/10/2026). */
+type KanbanTab = BoardMode | "future";
 
 function ArrivalCard({
   row,
@@ -10107,81 +10251,78 @@ function ArrivalCard({
           mesmo respiro de 4px das outras linhas (o card usa gap-2). */}
       {!compact && (
         <>
-          {/* Nome e código na MESMA linha, código sempre no canto
-              direito (pedido explícito, 24/09/2026 — de volta à versão de
-              23/09/2026, depois de ver a empilhada ao vivo: "coloque
-              novamente o codigo de reserva ao canto direito do nome do
-              hospede"). */}
-          <div className="-mt-1 flex items-center gap-2 text-[11.5px]">
-            {isPendingFill ? (
-              /* Ícone removido (pedido explícito, 25/09/2026: "exclua os
-                 ícones ao lado esquerdo de código da reserva e nome do
-                 hospede, a fim de manter o mesmo espaçamento entre as
-                 linhas comparado às infos padrao do card recolhido") — o
-                 recuo que o ícone criava vira `pl-[18px]` direto no texto,
-                 já que as infos padrão do card recolhido não têm ícone à
-                 esquerda. */
-              <span className={`inline-flex min-w-0 flex-1 items-center pl-[18px] font-medium ${CARD_MUTED}`}>
-                {/* SEM quebra em 2 linhas — regra do card é a linha
-                    inteira com reticências quando falta espaço (mesma
-                    regra do nome do hóspede logo abaixo), corrigido
-                    24/09/2026: "Hóspede pendente" quebrava em duas linhas
-                    e empurrava o código pra fora do canto direito.
-                    Cor do TEXTO igualada à do código da reserva — mesmo
-                    `CARD_MUTED` do botão abaixo (pedido explícito,
-                    24/09/2026: "coloque a cor das letras de 'hospede
-                    pendente' com a mesma cor de letra do codigo da
-                    reserva"). */}
-                <span className="min-w-0 truncate">Hóspede pendente</span>
-              </span>
-            ) : row.guestName && row.guestName !== row.reservationCode ? (
-              <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 pl-[18px] ${CARD_MUTED}`}>
-                {/* Nome do hóspede em Title Case — primeira letra de cada
-                    palavra maiúscula, EXCETO conectivos ("de", "da", "do",
-                    "dos", "das"...), que ficam minúsculos quando não são a
-                    primeira palavra (pedido explícito, 24/09/2026: "Fraia
-                    Moema da Silva", "Fernando de Noronha"). Antes era tudo
-                    maiúsculo; `titleCaseName` (já usado no formulário do
-                    hóspede) faz essa formatação.
-                    Rótulo "Hóspede: " (pedido explícito, 25/09/2026: "coloque
-                    a palavra 'Hóspede: ' ao lado esquerdo do nome do hospede
-                    EM TODOS os cards") — mesmo padrão de "Cód. Reserva: " e
-                    "Proprietário: " já usados no resto do card. */}
-                <span className="min-w-0 truncate">Hóspede: {titleCaseName(row.guestName)}</span>
-                <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
-                <ExtraGuests guests={row.additionalGuests ?? []} />
-              </span>
-            ) : (
-              <span className="flex-1" />
-            )}
-          </div>
-          {/* Código da reserva em linha PRÓPRIA, abaixo do nome — pedido
-              explícito (25/09/2026): "coloque o código da reserva abaixo do
-              nome do hospede... coloque a palavra 'Cód. Reserva: ' ao lado
-              esquerdo do código" + "remova o fundo do código da reserva".
-              Antes o código vivia dentro de um botão com borda e fundo,
-              colado no canto direito da linha do nome; agora é rótulo +
-              código, sem casca nenhuma.
-              Ícone removido de novo (pedido explícito, mesmo dia): "exclua
-              os ícones ao lado esquerdo de código da reserva e nome do
-              hospede... apenas dando um espaçamento no recuo lateral" —
-              mesmo `pl-[18px]` da linha do hóspede acima, no lugar do ícone
-              de chave. */}
-          {row.reservationCode && (
-            <div className="-mt-0.5 flex items-center gap-1.5 text-[11.5px]">
-              <span className={`inline-flex min-w-0 items-center gap-1.5 pl-[18px] ${CARD_MUTED}`}>
-                <span className="shrink-0">Cód. Reserva:</span>
-                <button
-                  type="button"
-                  onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
-                  title="Copiar código da reserva"
-                  className="min-w-0 truncate font-mono text-[10px] font-semibold tracking-wide transition-colors hover:text-foreground"
-                >
-                  {row.reservationCode}
-                </button>
-              </span>
-            </div>
-          )}
+          {/* DADOS DO HÓSPEDE — UMA INFORMAÇÃO POR LINHA, COM PONTILHADO
+              (pedido explícito, 15/10/2026, mockup "Card — Opção D"
+              aprovado). Antes: nome+telefone na mesma linha, código e
+              canal/ocupantes em frases soltas, e "Hóspede pendente" quando o
+              hóspede ainda não tinha entrado no guia. Agora o quadrante mostra
+              TODOS os dados que a conexão com o Airbnb traz — nome, telefone
+              (com o ícone de conversa ao lado do nome), código, canal e
+              ocupantes — mesmo antes de o hóspede preencher o guia
+              (`ident` em `arrival-board.server.ts`). Cada linha: rótulo à
+              esquerda, pontilhado, valor em negrito à direita; o bloco avança
+              30px para dentro (pedido: "um pouco mais"). Nada de regra de
+              negócio mudou: só a apresentação. */}
+          {(() => {
+            const hasName = !!row.guestName && row.guestName !== row.reservationCode;
+            const phoneLabel = row.guestPhone ? formatIntlPhone(row.guestPhone, row.guestPhoneCountry) || row.guestPhone : null;
+            const occupants =
+              row.guestAdults != null
+                ? [
+                    `${row.guestAdults} ${row.guestAdults === 1 ? "adulto" : "adultos"}`,
+                    row.guestChildren ? `${row.guestChildren} ${row.guestChildren === 1 ? "criança" : "crianças"}` : null,
+                    row.guestInfants ? `${row.guestInfants} ${row.guestInfants === 1 ? "bebê" : "bebês"}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")
+                : null;
+            const lines: Array<{ key: string; label: string; value: React.ReactNode }> = [];
+            if (hasName)
+              lines.push({
+                key: "guest",
+                label: "Hóspede",
+                value: (
+                  <>
+                    <span className="min-w-0 truncate">{titleCaseName(row.guestName)}</span>
+                    <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+                    <ExtraGuests guests={row.additionalGuests ?? []} />
+                  </>
+                ),
+              });
+            if (phoneLabel) lines.push({ key: "phone", label: "Telefone", value: <span className="truncate">{phoneLabel}</span> });
+            if (row.reservationCode)
+              lines.push({
+                key: "code",
+                label: "Cód. Reserva",
+                value: (
+                  <button
+                    type="button"
+                    onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
+                    title="Copiar código da reserva"
+                    className="min-w-0 truncate font-mono text-[10px] font-semibold tracking-wide transition-colors hover:text-muted-foreground"
+                  >
+                    {row.reservationCode}
+                  </button>
+                ),
+              });
+            if (row.bookingChannel) lines.push({ key: "channel", label: "Canal", value: <span className="truncate">{row.bookingChannel}</span> });
+            if (occupants) lines.push({ key: "occupants", label: "Ocupantes", value: <span className="truncate">{occupants}</span> });
+            if (lines.length === 0) return null;
+            return (
+              <div className="-mt-0.5 flex flex-col gap-[11px] pb-1.5 pl-[30px] pr-0.5 pt-1">
+                {lines.map((l) => (
+                  <div key={l.key} className="flex min-w-0 items-baseline gap-[7px] text-[11.5px]">
+                    <span className={`shrink-0 ${CARD_MUTED}`}>{l.label}</span>
+                    <span
+                      aria-hidden
+                      className="min-w-3 flex-1 -translate-y-[3px] border-b-[1.5px] border-dotted border-foreground/20"
+                    />
+                    <span className="flex min-w-0 max-w-[68%] items-center gap-[7px] font-bold text-foreground">{l.value}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </>
       )}
 
@@ -10282,7 +10423,26 @@ function ArrivalCard({
           );
         })()}
 
-      {row.note && !noteOpen && (
+      {row.note && !noteOpen && /^Confirmad[oa] /.test(row.note.trim()) && (
+        /* "CONFIRMADO PELA EQUIPE" EM CHIP (pedido explícito, 15/10/2026,
+           mockup "Bloco A" aprovado): a nota automática de confirmação
+           ("Confirmado pela equipe", "…pelo hóspede via Guia Digital",
+           "…automaticamente") deixa de ser uma caixa de texto e vira um chip
+           verde com o check. Continua abrindo a nota para editar. */
+        <button
+          type="button"
+          onClick={() => {
+            setNoteText(row.note ?? "");
+            setNoteOpen(true);
+          }}
+          className="inline-flex max-w-full items-center gap-[7px] self-start rounded-full border border-emerald-500/30 bg-emerald-500/10 px-[11px] py-[5px] text-left text-[11.5px] font-bold text-emerald-700 dark:text-emerald-300"
+          title="Clique para editar a nota"
+        >
+          <Check className="size-3.5 shrink-0" />
+          <span className="truncate">{row.note.trim()}</span>
+        </button>
+      )}
+      {row.note && !noteOpen && !/^Confirmad[oa] /.test(row.note.trim()) && (
         <button
           type="button"
           onClick={() => {

@@ -7,12 +7,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHasSession } from "@/hooks/useHasSession";
 import { listHandoffConversations, countPendingHandoffs, getAtendimentoAccess, resolveConversationForGuest } from "@/lib/handoff.functions";
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
+import { ChannelLogo, channelOf } from "@/components/handoff/ChannelLogo";
+import { formatIntlPhone } from "@/lib/masks";
 import { listenToPushMessages } from "@/lib/push-client";
 import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/handoff-dock";
-import { Headphones, X, Minimize2, Maximize2, Expand, Shrink, ArrowLeft } from "lucide-react";
+import { Headphones, X, Expand, Shrink, ArrowLeft } from "lucide-react";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { useLockBodyScroll, useVisualViewport, viewportOverlayStyle } from "@/hooks/useVisualViewport";
+
+/** "2026-10-15" → "15/10/2026" (data pura, sem fuso). */
+function fmtDockDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split("-");
+  return d ? `${d}/${m}/${y}` : iso;
+}
 
 const DOCK_STATE_KEY = "handoff-dock-state-v1";
 const DOCK_POSITION_KEY = "handoff-dock-position-v1";
@@ -296,6 +304,11 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
   const assignedNames = list.data?.assignedNames ?? {};
   const reservations = list.data?.reservations ?? {};
   const owners = list.data?.owners ?? {};
+  const activeConv = activeId ? (convs as Array<{ id: string; guest_name: string | null; guest_session_id: string | null; properties: { name: string | null } | null }>).find((c) => c.id === activeId) ?? null : null;
+  const activeDetail = activeId ? details[activeId] : undefined;
+  const activeChannelLabel = activeConv
+    ? { airbnb: "Airbnb", whatsapp: "WhatsApp", guide: "Guia digital" }[channelOf(null, activeConv.guest_session_id)]
+    : "";
 
 
   const dock = (
@@ -332,115 +345,159 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
         </button>
       )}
 
-      {/* Widget desktop */}
+      {/* Widget desktop — OPÇÃO E (mockup aprovado, 15/10/2026): central em
+          TRÊS painéis, CENTRALIZADA na tela, com os dados da reserva ao lado.
+          Mesmas regras de janela do sistema: fundo `bg-background/70` com
+          desfoque (Dialog), casca em `--win-radius` com borda/fundo `--panel`
+          e o fio de luz de 28px, cabeçalho de 60px com botões de 36px, X
+          redondo igual ao do Dialog, abas `ds-tabs` e teto de 75% da altura.
+          A lógica (filas, conversa, alertas, push) NÃO mudou — só a moldura. */}
       {state.open && (
         <div
-          className={`hidden lg:flex fixed right-6 flex-col bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden ${
-            state.minimized ? "w-80 h-14" : enlarged ? "w-[820px] h-[76vh]" : "w-[520px] h-[560px]"
-          }`}
-          style={{
-            zIndex: 2147483000,
-            pointerEvents: "auto",
-            // Tablet em paisagem também abre teclado virtual.
-            bottom: viewport.covered ? `calc(1.5rem + ${viewport.covered}px)` : "1.5rem",
-          }}
-          // Impede que cliques no atendimento sejam lidos como "clique fora"
-          // por popups abertos atrás — antes, fechar o dock fechava tudo.
+          className="hidden lg:block fixed inset-0"
+          style={{ zIndex: 2147483000, pointerEvents: "auto" }}
           onPointerDown={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           onFocusCapture={(e) => e.stopPropagation()}
         >
-          <div className="shrink-0 flex items-center justify-between gap-2 px-3 h-12 border-b border-border bg-secondary/40">
-            <div className="flex items-center gap-2 min-w-0">
-              <Headphones className="size-4 text-primary shrink-0" />
-              <span className="text-sm font-medium truncate">
+          <button
+            type="button"
+            className="absolute inset-0 bg-background/70 backdrop-blur-md"
+            onClick={() => setState({ open: false, minimized: false })}
+            aria-label="Fechar central de atendimento"
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Central de atendimento"
+            className={`absolute left-1/2 top-1/2 flex h-[75dvh] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] text-foreground shadow-[0_30px_80px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:bg-[image:var(--panel-hair)] before:content-[''] ${
+              enlarged ? "w-[min(1240px,calc(100vw-2rem))]" : "w-[min(940px,calc(100vw-2rem))]"
+            }`}
+            style={viewport.covered ? { maxHeight: `calc(100dvh - ${viewport.covered}px - 2rem)` } : undefined}
+          >
+            <div className="flex h-[60px] shrink-0 items-center gap-2.5 border-b border-foreground/[0.065] px-4">
+              <Headphones className="size-[18px] shrink-0 text-muted-foreground" />
+              <span className="min-w-0 truncate text-[15px] font-bold">
                 Atendimento {count > 0 && <span className="ml-1 text-red-500">({count})</span>}
               </span>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <Link
-                to="/admin/atendimento"
-                className="text-[11px] px-2 py-1 rounded-md hover:bg-secondary"
-                onClick={() => setState((s) => ({ ...s, open: false }))}
-              >
-                Central completa
-              </Link>
-              {!state.minimized && (
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <Link
+                  to="/admin/atendimento"
+                  className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition-colors hover:bg-accent/10"
+                  onClick={() => setState((st) => ({ ...st, open: false }))}
+                >
+                  Central completa
+                </Link>
                 <button
+                  type="button"
                   onClick={() => setEnlarged((v) => !v)}
-                  className="size-7 grid place-items-center rounded-md hover:bg-secondary"
+                  className="inline-grid size-9 place-items-center rounded-md border border-input bg-background shadow-sm transition-colors hover:bg-accent/10"
                   aria-label={enlarged ? "Reduzir janela" : "Aumentar janela"}
                   title={enlarged ? "Reduzir janela" : "Aumentar janela"}
                 >
-                  {enlarged ? <Shrink className="size-3.5" /> : <Expand className="size-3.5" />}
+                  {enlarged ? <Shrink className="size-4" /> : <Expand className="size-4" />}
                 </button>
-              )}
-              <button
-                onClick={() => setState((s) => ({ ...s, minimized: !s.minimized }))}
-                className="size-7 grid place-items-center rounded-md hover:bg-secondary"
-                aria-label={state.minimized ? "Expandir" : "Minimizar"}
-              >
-                {state.minimized ? <Maximize2 className="size-3.5" /> : <Minimize2 className="size-3.5" />}
-              </button>
-              <button
-                onClick={() => setState({ open: false, minimized: false })}
-                className="size-7 grid place-items-center rounded-md hover:bg-secondary"
-                aria-label="Fechar"
-              >
-                <X className="size-4" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setState({ open: false, minimized: false })}
+                  className="grid size-8 place-items-center rounded-full bg-secondary/60 text-muted-foreground opacity-80 transition-opacity hover:opacity-100"
+                  aria-label="Fechar"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
             </div>
-          </div>
 
-          {!state.minimized && (
-            <>
-              {/* Abas ocupam toda a largura da janela — sem rolagem lateral */}
-              <div className="shrink-0 px-2 py-1.5 border-b border-border">
-                <div className="flex w-full items-center gap-1 rounded-xl border border-border bg-muted/40 p-1">
-                  {QUEUES.map((q) => {
-                    const Icon = q.icon;
-                    const active = queue === q.key;
-                    return (
-                      <button
-                        key={q.key}
-                        onClick={() => setQueue(q.key)}
-                        title={q.label}
-                        className={`inline-flex flex-1 min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-medium transition-all ${
-                          active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        <Icon className="size-3 shrink-0" /> <span className="truncate">{q.short}</span>
-                      </button>
-                    );
-                  })}
+            {/* Abas no padrão `ds-tabs`, na largura inteira da janela. */}
+            <div className="shrink-0 border-b border-foreground/[0.065] px-4 py-2.5">
+              <div className="ds-tabs flex w-full overflow-hidden">
+                {QUEUES.map((q) => {
+                  const active = queue === q.key;
+                  return (
+                    <button
+                      key={q.key}
+                      type="button"
+                      onClick={() => setQueue(q.key)}
+                      title={q.label}
+                      className={`relative inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1.5 text-xs font-semibold transition-colors ${
+                        active ? "ds-tab-active text-foreground" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <span className="truncate">{q.short}</span>
+                      {q.key === "all_active" && count > 0 && (
+                        <span className="grid min-w-[18px] place-items-center rounded-full bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] px-1 text-[10px] font-bold leading-[18px] text-white">
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex min-h-0 flex-1">
+              <div className="flex min-h-0 w-[240px] shrink-0 flex-col border-r border-foreground/[0.065]">
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <ConversationList
+                    conversations={convs as any}
+                    details={details} assignedNames={assignedNames} reservations={reservations} owners={owners}
+                    activeId={activeId}
+                    onSelect={setActiveId}
+                  />
                 </div>
               </div>
 
-              <div className="flex-1 min-h-0 flex">
-                <div className="w-[200px] border-r border-border shrink-0 flex flex-col min-h-0">
-                  <div className="flex-1 min-h-0 overflow-y-auto">
-                    <ConversationList
-                      conversations={convs as any}
-                      details={details} assignedNames={assignedNames} reservations={reservations} owners={owners}
-                      activeId={activeId}
-                      onSelect={setActiveId}
-                    />
-                  </div>
-                </div>
-
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1 bg-surface">
                 {activeId ? (
                   <ConversationView conversationId={activeId} compact myUserId={myUserId} />
                 ) : (
-                  <div className="h-full grid place-items-center text-xs text-muted-foreground p-4 text-center">
+                  <div className="grid h-full place-items-center p-4 text-center text-xs text-muted-foreground">
                     Selecione uma conversa que precisa de atendimento humano.
                   </div>
                 )}
               </div>
-              </div>
-            </>
-          )}
 
+              {/* Dados da reserva da conversa aberta (só leitura; vêm da própria
+                  lista — nenhuma consulta nova). */}
+              {activeConv && (
+                <aside className="hidden w-[230px] shrink-0 flex-col gap-3 overflow-y-auto border-l border-foreground/[0.065] bg-[var(--panel)] p-4 xl:flex">
+                  <div className="text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground/70">
+                    Reserva
+                  </div>
+                  {[
+                    ["Hóspede", activeDetail?.name || activeConv.guest_name || null],
+                    ["Telefone", activeDetail?.phone ? formatIntlPhone(activeDetail.phone, activeDetail.phoneCountry) : null],
+                    ["Imóvel", activeConv.properties?.name ?? null],
+                    [
+                      "Período",
+                      activeDetail?.checkinDate && activeDetail?.checkoutDate
+                        ? `${fmtDockDate(activeDetail.checkinDate)} → ${fmtDockDate(activeDetail.checkoutDate)}`
+                        : null,
+                    ],
+                    ["Código", activeDetail?.reservationCode ?? null],
+                  ].map(([label, value]) =>
+                    value ? (
+                      <div key={label as string} className="flex min-w-0 flex-col gap-0.5">
+                        <small className="text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground/70">
+                          {label}
+                        </small>
+                        <span className="break-words text-[13px] font-bold">{value}</span>
+                      </div>
+                    ) : null,
+                  )}
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <small className="text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground/70">
+                      Canal
+                    </small>
+                    <span className="inline-flex items-center gap-1.5 text-[13px] font-bold">
+                      <ChannelLogo channel={channelOf(null, activeConv.guest_session_id)} size={14} />
+                      {activeChannelLabel}
+                    </span>
+                  </div>
+                </aside>
+              )}
+            </div>
+          </section>
         </div>
       )}
 

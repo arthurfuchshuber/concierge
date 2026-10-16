@@ -56,6 +56,12 @@ export type ArrivalRow = {
   guestCheckin: string;
   guestCheckout: string | null;
   reservationCode: string | null;
+  /** Canal da reserva (Airbnb, Booking.com…) lido da API. */
+  bookingChannel?: string | null;
+  /** Ocupação oficial da reserva (API). */
+  guestAdults?: number | null;
+  guestChildren?: number | null;
+  guestInfants?: number | null;
   createdAt: string;
   status: "pending" | "done";
   note: string | null;

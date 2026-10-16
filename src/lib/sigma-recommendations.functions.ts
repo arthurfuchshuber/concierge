@@ -718,13 +718,20 @@ export const activateSigmaPackOnProperty = createServerFn({ method: "POST" })
     z.object({ property_id: z.string().uuid(), city_key: z.string() }).parse(i),
   )
   .handler(async ({ data, context }) => {
-    // Verify ownership via RLS
+    // Verifica permissão de EDIÇÃO via RLS (update sem efeito como usuário),
+    // não só leitura, antes da escrita privilegiada.
     const { data: prop, error: propErr } = await context.supabase
       .from("properties")
-      .select("id")
+      .select("id, sigma_pack_city_key")
       .eq("id", data.property_id)
       .maybeSingle();
     if (propErr || !prop) throw new Error("Imóvel não encontrado.");
+    const { data: editable, error: editErr } = await context.supabase
+      .from("properties")
+      .update({ sigma_pack_city_key: (prop as { sigma_pack_city_key: string | null }).sigma_pack_city_key } as never)
+      .eq("id", data.property_id)
+      .select("id");
+    if (editErr || !editable || editable.length === 0) throw new Error("Sem permissão para editar este imóvel.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     return applySigmaPackToPropertyInternal(supabaseAdmin, data.property_id, data.city_key);
   });
@@ -735,9 +742,10 @@ export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: prop } = await context.supabase
       .from("properties")
-      .select("sigma_pack_snapshot")
+      .select("id, sigma_pack_snapshot")
       .eq("id", data.property_id)
       .maybeSingle();
+    if (!prop) throw new Error("Imóvel não encontrado.");
     const snap = (prop as { sigma_pack_snapshot: { marketplace_links?: unknown[]; property_faqs?: Record<string, unknown>[]; city_references?: Record<string, unknown>[] } | null } | null)?.sigma_pack_snapshot;
     const patch: Record<string, unknown> = {
       sigma_pack_city_key: null,
@@ -747,11 +755,14 @@ export const deactivateSigmaPackOnProperty = createServerFn({ method: "POST" })
     if (snap && Array.isArray(snap.marketplace_links)) {
       patch.marketplace_links = snap.marketplace_links;
     }
-    const { error } = await context.supabase
+    const { data: updated, error } = await context.supabase
       .from("properties")
       .update(patch as never)
-      .eq("id", data.property_id);
+      .eq("id", data.property_id)
+      .select("id");
     if (error) throw new Error(error.message);
+    // Só segue para a limpeza privilegiada se o usuário pôde de fato editar o imóvel.
+    if (!updated || updated.length === 0) throw new Error("Sem permissão para editar este imóvel.");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (snap && Array.isArray(snap.city_references)) {

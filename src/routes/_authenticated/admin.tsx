@@ -23,6 +23,7 @@ import { CompleteProfileDialog } from "@/components/admin/CompleteProfileDialog"
 import { ForcePasswordChangeDialog } from "@/components/admin/ForcePasswordChangeDialog";
 import { CancellationReviewDialog } from "@/components/stakeholders/CancellationReviewDialog";
 import { SyncRequiredGate } from "@/components/stakeholders/SyncRequiredGate";
+import { FullConnectGate } from "@/components/stakeholders/FullConnectGate";
 
 import { listMyPendingInvites } from "@/lib/pending-invites.functions";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
@@ -253,9 +254,15 @@ function AdminLayout() {
   const groupOfPath = (p: string) =>
     SIDEBAR_GROUPS.find((g) => g.children.some((c) => isChildActive(c, p)))?.key ?? null;
   const [openGroup, setOpenGroup] = useState<string | null>(() => groupOfPath(pathname));
+  /* ACORDEÃO DE VERDADE (pedido explícito, 16/10/2026: "se o usuário clicar
+     numa subcategoria e depois em outra categoria, a que havia sido expandida
+     ao clicar na subcategoria deve ser recolhida"). Ao mudar de página o menu
+     passa a mostrar SÓ o grupo da página nova — e, se a página nova não é de
+     nenhum grupo (item solto: Guias Digitais, Atendimento, Administrativo),
+     nenhum fica aberto. Antes só abria o grupo novo e deixava o antigo
+     expandido quando o destino era um item solto. */
   useEffect(() => {
-    const k = groupOfPath(pathname);
-    if (k) setOpenGroup(k);
+    setOpenGroup(groupOfPath(pathname));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -595,6 +602,7 @@ function AdminLayout() {
           {/* Montado desde o 1º quadro (fora das telas de carregamento/acesso): a cobertura do aviso
               obrigatório já cobre o painel enquanto a conta e a consulta resolvem — sem piscada no F5. */}
           <SyncRequiredGate />
+          <FullConnectGate />
           <PushNotificationBanner />
           {resolvingAccount || (routePermission && areaAccess.loading) ? (
             <div className="mx-auto w-full max-w-7xl space-y-3 px-4 py-10">

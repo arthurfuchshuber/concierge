@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, CheckCircle2, Ban, Pencil } from "lucide-react";
+import { Ban, Check, Pencil } from "lucide-react";
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -182,55 +182,67 @@ export function CleaningInlineEditor({
   const type = info?.cleaningType as "normal" | "completa" | null | undefined;
   const standard = type === "completa" ? row.cleaningPriceFullCents : row.cleaningPriceNormalCents;
   const value = info?.currentCents ?? standard;
+  /* NO PADRÃO DA JANELA DO HISTÓRICO (mockup "Limpeza" aprovado, 16/10/2026:
+     "o layout não puxava as regras que implementamos"): o mesmo quadro de
+     linhas do Hóspede/Código/Período — rótulo de 9,5px em caixa alta à
+     esquerda (coluna de 78px), valor em 13px negrito, 34px de altura e fios
+     de 8% entre as linhas — e os botões de ação NO TAMANHO DO CARD
+     ("Finalizar Limpeza": 28px de altura, raio 0,3rem, 11px semibold).
+     Prestador e Valor são só texto + lápis, clicáveis para editar. */
+  const labelCls = "text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground";
+  const actionCls =
+    "box-border inline-flex h-7 max-h-7 min-h-7 min-w-0 items-center justify-center gap-2 self-center rounded-[0.3rem] px-2.5 text-[11px] font-semibold leading-none tracking-tight transition-all active:scale-[0.99] disabled:opacity-60";
   return (
-    <div className="ds-surface divide-y divide-border/60 border border-border/60">
-      <div className="flex min-w-0 items-center justify-between gap-3 px-3 py-2">
-        <span className="text-[12px] text-muted-foreground">Tipo</span>
-        <span className="text-[12.5px] font-semibold">
-          {type === "completa" ? "Completa" : type === "normal" ? "Normal" : "A definir na conclusão"}
-        </span>
+    <div className="grid gap-1.5">
+      <div className="divide-y divide-foreground/[0.08] overflow-hidden rounded-[var(--win-radius)] bg-foreground/[0.04]">
+        <div className="grid h-[34px] grid-cols-[78px_minmax(0,1fr)] items-center gap-2 px-3">
+          <span className={labelCls}>Tipo</span>
+          <span className="min-w-0 truncate text-[13px] font-bold">
+            {type === "completa" ? "Completa" : type === "normal" ? "Normal" : "A definir na conclusão"}
+          </span>
+        </div>
+        <div className="grid h-[34px] grid-cols-[78px_minmax(0,1fr)] items-center gap-2 px-3">
+          <span className={labelCls}>Prestador</span>
+          <CleaningProviderAvatar propertyId={row.propertyId} logId={row.logId} reservationId={row.reservationId} nameOnly />
+        </div>
+        <button
+          type="button"
+          onClick={onAdjust}
+          className="grid h-[34px] w-full grid-cols-[78px_minmax(0,1fr)] items-center gap-2 px-3 text-left transition-colors hover:bg-foreground/[0.04]"
+        >
+          <span className={labelCls}>Valor</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="min-w-0 truncate text-[13px] font-bold tabular-nums">{brl(value)}</span>
+            {info?.adjusted && (
+              <span className="shrink-0 rounded-full border border-border/60 px-1.5 text-[9.5px] font-bold uppercase text-muted-foreground">
+                ajustado
+              </span>
+            )}
+            <Pencil className="size-[13px] shrink-0 text-foreground" />
+          </span>
+        </button>
+        {info?.adjusted && info.reason && (
+          <p className="px-3 py-2 text-[11.5px] text-muted-foreground break-words">Motivo: {info.reason}</p>
+        )}
       </div>
-      <div className="flex min-w-0 items-center justify-between gap-3 px-3 py-2">
-        <span className="text-[12px] text-muted-foreground">Responsável</span>
-        <CleaningProviderAvatar propertyId={row.propertyId} logId={row.logId} reservationId={row.reservationId} showName />
-      </div>
-      <button
-        type="button"
-        onClick={onAdjust}
-        className="flex w-full min-w-0 items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-secondary/40"
-      >
-        <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
-          <Banknote className="size-3.5 shrink-0" /> Valor desta limpeza
-        </span>
-        <span className="inline-flex shrink-0 items-center gap-1.5 text-[12.5px] font-semibold tabular-nums">
-          {info?.adjusted && (
-            <span className="rounded-full border border-border/60 px-1.5 text-[9.5px] font-bold uppercase text-muted-foreground">
-              ajustado
-            </span>
-          )}
-          {brl(value)}
-          <Pencil className="size-3 text-muted-foreground" />
-        </span>
-      </button>
-      {info?.adjusted && info.reason && (
-        <p className="px-3 py-2 text-[11.5px] text-muted-foreground break-words">Motivo: {info.reason}</p>
-      )}
-      {/* "Nota interna" SAIU desta janela (pedido explícito, 09/10/2026: "remover
-          a linha da nota interna"). A nota continua no menu "⋮" do card. Sem
-          Concluir/Não será realizada, a linha de ações some inteira. */}
+      {/* "Nota interna" SAIU desta janela (pedido explícito, 09/10/2026). A
+          nota continua no menu "⋮" do card. Sem Concluir/Não será realizada,
+          a linha de ações some inteira. */}
       {(onConclude || onSkip) && (
-      <div className="flex flex-wrap gap-2 px-3 py-2.5">
-        {onConclude && (
-          <Button type="button" size="sm" onClick={onConclude}>
-            <CheckCircle2 className="size-3.5" /> Concluir limpeza
-          </Button>
-        )}
-        {onSkip && (
-          <Button type="button" size="sm" variant="outline" onClick={onSkip}>
-            <Ban className="size-3.5" /> Não será realizada
-          </Button>
-        )}
-      </div>
+        <div className={`grid gap-1.5 ${onConclude && onSkip ? "grid-cols-2" : "grid-cols-1"}`}>
+          {onConclude && (
+            <button type="button" onClick={onConclude} className={`${actionCls} bg-emerald-600 text-white hover:bg-emerald-700`}>
+              <Check className="size-3 shrink-0" />
+              <span className="truncate">Finalizar Limpeza</span>
+            </button>
+          )}
+          {onSkip && (
+            <button type="button" onClick={onSkip} className={`${actionCls} bg-secondary text-foreground/80 hover:bg-secondary/80`}>
+              <Ban className="size-3 shrink-0" />
+              <span className="truncate">Não será realizada</span>
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

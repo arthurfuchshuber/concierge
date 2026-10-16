@@ -508,8 +508,8 @@ export function GuideAccessGate({
   }, [docCount]);
 
   function validateStep1(): boolean {
-    if (!name.trim() || name.trim().length < 2) {
-      toast.error("Informe seu nome completo.");
+    if (name.trim().split(/\s+/).filter(Boolean).length < 2) {
+      toast.error("Informe nome e sobrenome para continuar.");
       return false;
     }
     if (codeGateActive) {
@@ -801,10 +801,9 @@ export function GuideAccessGate({
                     id="guest-name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    maxLength={200}
                     required
                     className="h-[46px] rounded-[12px] pl-10 pr-3 text-[14px] font-medium bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
-                    placeholder="Nome como aparece na reserva"
+                    placeholder="Nome e sobrenome"
                   />
                 </FieldShell>
 

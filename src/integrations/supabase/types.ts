@@ -2257,6 +2257,30 @@ export type Database = {
         }
         Relationships: []
       }
+      channex_pricing_keys: {
+        Row: {
+          api_key: string
+          channex_key_id: string
+          created_at: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          api_key: string
+          channex_key_id: string
+          created_at?: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string
+          channex_key_id?: string
+          created_at?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       channex_raw_records: {
         Row: {
           channex_id: string
@@ -4080,7 +4104,6 @@ export type Database = {
       properties: {
         Row: {
           access_codes_pin: string | null
-          sync_dismissed_at: string | null
           access_mode: Database["public"]["Enums"]["access_mode"]
           address: string | null
           address_note: string | null
@@ -4172,6 +4195,7 @@ export type Database = {
           sigma_pack_snapshot: Json | null
           slug: string
           state: string | null
+          sync_dismissed_at: string | null
           tagline: string | null
           theme_images: Json
           updated_at: string
@@ -4181,7 +4205,6 @@ export type Database = {
         }
         Insert: {
           access_codes_pin?: string | null
-          sync_dismissed_at?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
@@ -4273,6 +4296,7 @@ export type Database = {
           sigma_pack_snapshot?: Json | null
           slug: string
           state?: string | null
+          sync_dismissed_at?: string | null
           tagline?: string | null
           theme_images?: Json
           updated_at?: string
@@ -4282,7 +4306,6 @@ export type Database = {
         }
         Update: {
           access_codes_pin?: string | null
-          sync_dismissed_at?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
@@ -4374,6 +4397,7 @@ export type Database = {
           sigma_pack_snapshot?: Json | null
           slug?: string
           state?: string | null
+          sync_dismissed_at?: string | null
           tagline?: string | null
           theme_images?: Json
           updated_at?: string

@@ -21,7 +21,7 @@ type Admin = Awaited<typeof import("@/integrations/supabase/client.server")>["su
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = (admin: Admin) => admin as unknown as { from: (t: string) => any };
 
-async function cx<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+async function cx<T>(method: "GET" | "POST" | "PUT", path: string, body?: unknown): Promise<T> {
   const key = process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"];
   if (!key) throw new Error("Chave Channex ausente.");
   const res = await fetch(`${BASE}${path}`, {
@@ -96,6 +96,17 @@ export async function listAccounts(admin: Admin, accountId: string): Promise<Air
     if (!r.channex_channel_id || !r.airbnb_listing_id) continue;
     importedBy.set(r.channex_channel_id, (importedBy.get(r.channex_channel_id) ?? 0) + 1);
   }
+  // Gêmeos ativos também são anúncios sincronizados.
+  const { data: twins } = await admin
+    .from("channex_twin_links")
+    .select("twin_listing_id")
+    .eq("owner_id", accountId)
+    .eq("status", "active");
+  const syncedIds = new Set<string>([
+    ...(raw ?? []).map((r) => String(r.airbnb_listing_id ?? "")),
+    ...(twins ?? []).map((t) => String(t.twin_listing_id ?? "")),
+  ]);
+  syncedIds.delete("");
   const out: AirbnbAccount[] = [];
   for (const r of regs) {
     const id = r.channex_channel_id;
@@ -114,19 +125,23 @@ export async function listAccounts(admin: Admin, accountId: string): Promise<Air
       "GET",
       `/channels/${id}`,
     ).catch(() => null);
-    const listings = await cx<{ data: { listing_id_dictionary: { values: unknown[] } } }>(
+    const values = await cx<{ data: { listing_id_dictionary: { values: Array<{ id?: unknown }> } } }>(
       "GET",
       `/channels/${id}/action/listings`,
     )
-      .then((x) => x.data?.listing_id_dictionary?.values?.length ?? 0)
+      .then((x) => x.data?.listing_id_dictionary?.values ?? [])
       .catch(() => null);
+    const listings = values === null ? null : values.length;
+    // Sincronizados = anúncios do catálogo real da conta que estão vinculados (principal ou gêmeo).
+    const syncedHere =
+      values === null ? imported : values.filter((v) => syncedIds.has(String(v.id))).length;
     const title = ch?.data?.attributes?.title ?? r.title ?? "Conta do Airbnb";
     out.push({
       channelId: id,
       title,
       status: listings === null ? "expired" : "active",
       listings,
-      imported,
+      imported: syncedHere,
     });
   }
   return out.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
@@ -172,7 +187,35 @@ export async function startConnect(username: string, reauthChannelId?: string) {
   }
   if (!propertyId)
     throw new Error("Nenhuma propriedade da Channex disponível para receber a conta.");
-  const groupId = process.env["CHANNEX_CONNECT_GROUP_ID"];
+  let groupId = process.env["CHANNEX_CONNECT_GROUP_ID"];
+  if (!reauthChannelId) {
+    // Conexão nova: link oficial e direto do Airbnb (a Channex fica invisível ao cliente).
+    if (!groupId) {
+      const p = await cx<{
+        data: { relationships?: { groups?: { data?: Array<{ id?: string }> } } };
+      }>("GET", `/properties/${propertyId}`).catch(() => null);
+      groupId = p?.data?.relationships?.groups?.data?.[0]?.id ?? undefined;
+    }
+    if (!groupId) {
+      const g = await cx<{ data: Array<{ id: string }> }>("GET", "/groups").catch(() => null);
+      groupId = g?.data?.[0]?.id ?? undefined;
+    }
+    if (!groupId) throw new Error("Grupo da Channex não encontrado para conectar a conta.");
+    const back = "https://conciergeia.app/admin/dashboard";
+    const link = await cx<{ data: { attributes: { url: string } } }>(
+      "POST",
+      "/meta/airbnb/connection_link",
+      {
+        ...(groupId ? { group_id: groupId } : {}),
+        properties: [propertyId],
+        redirect_uri: `${back}?airbnb=conectado`,
+        failure_redirect_uri: `${back}?airbnb=falhou`,
+        title: `Airbnb ${username}`.slice(0, 60),
+      },
+    );
+    const directUrl = link?.data?.attributes?.url;
+    if (directUrl) return { url: directUrl, baseline };
+  }
   const tok = await cx<{ data: { token: string } }>("POST", "/auth/one_time_token", {
     one_time_token: {
       property_id: propertyId,
@@ -191,10 +234,18 @@ export async function startConnect(username: string, reauthChannelId?: string) {
 }
 
 /** Passo 2: procura a conta que acabou de ser autorizada e a registra nesta conta do sistema. */
-export async function detectNew(admin: Admin, accountId: string, baseline: string[]) {
+export async function detectNew(
+  admin: Admin,
+  accountId: string,
+  baseline: string[],
+  initiatorUserId: string,
+) {
   const now = await airbnbChannels();
   const seen = new Set(baseline);
-  const fresh = now.filter((c) => !seen.has(c.id));
+  // Só aceita canais criados pelo link desta pessoa: startConnect grava "Airbnb <userId>" no título.
+  // A lista `baseline` vem do navegador e nunca basta para reivindicar um canal.
+  const tags = new Set([initiatorUserId, accountId].map((id) => `Airbnb ${id}`.slice(0, 60)));
+  const fresh = now.filter((c) => !seen.has(c.id) && tags.has(c.title.trim()));
   if (fresh.length === 0)
     return { found: null as null | { channelId: string; title: string; duplicate: boolean } };
   const { data: taken } = await db(admin)
@@ -211,22 +262,78 @@ export async function detectNew(admin: Admin, accountId: string, baseline: strin
   const pick = fresh.find((c) => !takenIds.has(c.id));
   if (!pick) return { found: null };
   const existing = await registry(admin, accountId);
-  const dup = existing.find(
-    (r) => (r.title ?? "").trim().toLowerCase() === pick.title.trim().toLowerCase(),
-  );
-  if (dup)
-    return { found: { channelId: dup.channex_channel_id, title: pick.title, duplicate: true } };
+  // Mesma pessoa no Airbnb (mesmo user_id) já registrada = duplicada. Nunca compara por nome:
+  // várias contas da empresa podem ter o mesmo nome de exibição.
+  const profile = await airbnbProfile(pick.id);
+  if (profile?.userId) {
+    for (const r of existing) {
+      const other = await airbnbUserId(r.channex_channel_id);
+      if (other && other === profile.userId)
+        return {
+          found: { channelId: r.channex_channel_id, title: r.title ?? pick.title, duplicate: true },
+        };
+    }
+  }
+  const title = profile?.name || pick.title;
+  if (profile?.name && profile.name !== pick.title) {
+    await cx("PUT", `/channels/${pick.id}`, { channel: { title: profile.name } }).catch(() => null);
+  }
   await db(admin).from("airbnb_accounts").upsert(
     {
       owner_id: accountId,
       channex_channel_id: pick.id,
-      title: pick.title,
+      title,
       status: "active",
       disconnected_at: null,
     },
     { onConflict: "owner_id,channex_channel_id" },
   );
-  return { found: { channelId: pick.id, title: pick.title, duplicate: false } };
+  return { found: { channelId: pick.id, title, duplicate: false } };
+}
+
+/** user_id do Airbnb gravado no canal da Channex. */
+async function airbnbUserId(channelId: string): Promise<string | null> {
+  const ch = await cx<{ data?: { attributes?: { settings?: { tokens?: { user_id?: string } } } } }>(
+    "GET",
+    `/channels/${channelId}`,
+  ).catch(() => null);
+  const id = ch?.data?.attributes?.settings?.tokens?.user_id;
+  return id ? String(id) : null;
+}
+
+/**
+ * Nome da CONTA do Airbnb (perfil do usuário autorizado, "Nome de preferência"),
+ * lido ao vivo com o token do canal — nunca dos títulos dos anúncios. Token não é gravado.
+ */
+export async function airbnbProfile(
+  channelId: string,
+): Promise<{ userId: string | null; name: string | null } | null> {
+  const ch = await cx<{
+    data?: {
+      attributes?: {
+        settings?: { token_invalid?: boolean; tokens?: { access_token?: string; user_id?: string } };
+      };
+    };
+  }>("GET", `/channels/${channelId}`).catch(() => null);
+  const s = ch?.data?.attributes?.settings;
+  const userId = s?.tokens?.user_id ? String(s.tokens.user_id) : null;
+  const token = s?.tokens?.access_token;
+  if (!token || s?.token_invalid) return { userId, name: null };
+  try {
+    const res = await fetch("https://api.airbnb.com/v2/users/me", {
+      headers: { "X-Airbnb-OAuth-Token": token, Accept: "application/json" },
+    });
+    if (!res.ok) return { userId, name: null };
+    const u = ((await res.json()) as { user?: Record<string, string | undefined> }).user ?? {};
+    const name =
+      u["display_first_name"] ||
+      u["first_name_preferred"] ||
+      [u["first_name"], u["last_name"]].filter(Boolean).join(" ") ||
+      null;
+    return { userId: userId ?? (u["id"] ? String(u["id"]) : null), name: name?.trim() || null };
+  } catch {
+    return { userId, name: null };
+  }
 }
 
 /** Liga o app Messages do anúncio (e dos gêmeos). Falhou → "pendente de ativação do chat", sem esconder o erro. */

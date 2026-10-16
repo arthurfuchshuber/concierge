@@ -113,17 +113,20 @@ export const translateMessage = createServerFn({ method: "POST" })
       // Teto do dia também por origem da chamada: sem isto, alguém que copie
       // uma sessão válida do guia usaria a tradução paga o dia inteiro.
       const { allowDailyBudget } = await import("@/lib/public-rate-limit.server");
-      if (!allowDailyBudget(`translate:day:${ip}`, 400)) {
+      if (!allowDailyBudget(`translate:day:${ip}`, 150)) {
         throw new Error("Limite de traduções do dia atingido.");
+      }
+      if (!allowPublicRate(`translate:session:${guest.sessionId}`, 15, 60_000)) {
+        throw new Error("Muitas traduções em pouco tempo. Tente novamente em instantes.");
       }
       if (
         !allowPaidGuestUse({
           scope: "translate",
           propertyId: guest.slug,
           sessionId: guest.sessionId,
-          perSession: 120,
-          perProperty: 1500,
-          global: 8000,
+          perSession: 60,
+          perProperty: 600,
+          global: 4000,
         })
       ) {
         throw new Error("Limite de traduções do dia atingido.");

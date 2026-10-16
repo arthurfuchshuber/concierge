@@ -16,8 +16,9 @@
  *   · "Atividade" fica abaixo da "Jornada", na mesma janela; registros e
  *     pendências abrem o item ao tocar;
  *   · a janela é SEMPRE centralizada na tela (DialogContent) e limitada a 75%
- *     da altura: cabeçalho fixo, só o corpo rola, e a rolagem não deixa um
- *     cartão cortado (anticorte global das janelas, `useAntiClipWindow`).
+ *     da altura: só a CAPA é fixa; todo o resto (infos, previsão, limpeza e
+ *     jornada) rola junto numa área única (16/10/2026), e a rolagem não deixa
+ *     um cartão cortado (anticorte global das janelas, `useAntiClipWindow`).
  */
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -395,8 +396,19 @@ export function ReservationJourneyDialog({
             Não consegui carregar o histórico desta reserva.
           </div>
         ) : (
-          <>
-            <div className="flex shrink-0 flex-col gap-1.5 px-4 pb-1 pt-3">
+          /* UMA ÚNICA ÁREA QUE ROLA (pedido explícito, 16/10/2026: "toda a tela
+             precisa rolar, e não somente uma parte dela... exceto o cabeçalho
+             com o nome do imóvel, foto etc., esse sim fixo"). Antes só a
+             Jornada/Limpeza rolava e o quadro de infos + Saída/Chegada ficavam
+             parados no topo, comendo a altura de janelas com muita coisa. Agora
+             as infos, a previsão, a limpeza e a jornada moram na MESMA rolagem;
+             só a capa fica fixa. O anticorte global continua valendo (cada
+             bloco/linha é uma unidade que a rolagem não deixa cortada). */
+          <div className="sg-elegant-scroll grid min-h-0 min-w-0 flex-1 snap-y snap-proximity grid-cols-[minmax(0,1fr)] content-start gap-2 overflow-y-auto overscroll-contain px-3 pb-4">
+            {/* `px-1` + `px-3` da rolagem = os mesmos 16px de antes. Sem a seção
+                Limpeza, o `-mb-2` desfaz o vão extra da grade e mantém o
+                espaço de sempre até a Jornada. */}
+            <div className={`flex snap-start flex-col gap-1.5 px-1 pb-1 pt-3 ${cleaningEditor ? "" : "-mb-2"}`}>
               {/* Uma info por linha, rótulo à esquerda (opção B, 09/10/2026). */}
               <div className="divide-y divide-foreground/[0.08] overflow-hidden rounded-[var(--win-radius)] bg-foreground/[0.04]">
                 {data.guestName && <InfoRow label="Hóspede" aside={guestAside}>{data.guestName}</InfoRow>}
@@ -414,36 +426,36 @@ export function ReservationJourneyDialog({
               {predictionEditor}
             </div>
 
-            <div
-              className="sg-elegant-scroll grid min-h-0 min-w-0 flex-1 snap-y snap-proximity grid-cols-[minmax(0,1fr)] content-start gap-2 overflow-y-auto overscroll-contain px-3 pb-4"
-            >
-              {cleaningEditor && (
-                <>
+            {cleaningEditor && (
+              <>
+                {/* O `pt-1` completa o vão: Saída/Chegada → "Limpeza" fica igual
+                    ao vão botões "Finalizar Limpeza" → "Jornada" (16px). */}
+                <div className="pt-1">
                   <SectionTitle>Limpeza</SectionTitle>
-                  <div>{cleaningEditor}</div>
-                </>
-              )}
+                </div>
+                <div>{cleaningEditor}</div>
+              </>
+            )}
 
-              <div className={cleaningEditor ? "pt-2" : ""}>
-                <SectionTitle>Jornada</SectionTitle>
-              </div>
-              <ol className="flex flex-col">
-                {timeline.map((e, i) =>
-                  e.kind === "step" ? (
-                    <StepRow key={e.step.key} step={e.step} first={i === 0} last={i === timeline.length - 1} />
-                  ) : (
-                    <ActivityRow
-                      key={e.item.id}
-                      item={e.item}
-                      first={i === 0}
-                      last={i === timeline.length - 1}
-                      onOpen={onOpenRecords}
-                    />
-                  ),
-                )}
-              </ol>
+            <div className={cleaningEditor ? "pt-2" : ""}>
+              <SectionTitle>Jornada</SectionTitle>
             </div>
-          </>
+            <ol className="flex flex-col">
+              {timeline.map((e, i) =>
+                e.kind === "step" ? (
+                  <StepRow key={e.step.key} step={e.step} first={i === 0} last={i === timeline.length - 1} />
+                ) : (
+                  <ActivityRow
+                    key={e.item.id}
+                    item={e.item}
+                    first={i === 0}
+                    last={i === timeline.length - 1}
+                    onOpen={onOpenRecords}
+                  />
+                ),
+              )}
+            </ol>
+          </div>
         )}
       </DialogContent>
     </Dialog>

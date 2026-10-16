@@ -51,14 +51,14 @@ type ConvPause = { ai_paused?: boolean | null; paused_until?: string | null };
 /**
  * A IA está calada AGORA?
  *
- * `paused_until` nulo com `ai_paused` verdadeiro é pausa sem prazo — o estado
- * das conversas anteriores a esta mudança, preservado de propósito para não
- * devolver de uma vez só conversas que alguém possa estar conduzindo.
+ * Não existe pausa sem prazo (regra do produto, 15/10/2026): toda pausa dura o
+ * prazo de `PAUSE_MINUTES`. `paused_until` nulo ou inválido conta como pausa
+ * já vencida — a IA volta a atender.
  */
 export function isPausedNow(conv: ConvPause | null | undefined, now = Date.now()): boolean {
   if (!conv?.ai_paused) return false;
-  const ate = conv.paused_until ? new Date(conv.paused_until).getTime() : null;
-  if (ate === null || Number.isNaN(ate)) return true;
+  const ate = conv.paused_until ? new Date(conv.paused_until).getTime() : NaN;
+  if (Number.isNaN(ate)) return false;
   return ate > now;
 }
 

@@ -178,6 +178,9 @@ export const resendTeamInvite = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
+    // Reenviar e-mail em nome da conta: só titular/co-titular ou admin.
+    const { requireOutboundEmailAuthority } = await import("@/lib/outbound-email-guard.server");
+    await requireOutboundEmailAuthority(supabase, userId, ownerId);
     const { data: inv, error } = await supabase
       .from("account_member_invites")
       .select("id, email, status, expires_at")
@@ -230,6 +233,8 @@ export const getTeamInviteLink = createServerFn({ method: "POST" })
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "equipe.write", {});
+    const { requireOutboundEmailAuthority } = await import("@/lib/outbound-email-guard.server");
+    await requireOutboundEmailAuthority(supabase, userId, ownerId);
     const { data: inv, error } = await supabase
       .from("account_member_invites")
       .select("id, email, status")

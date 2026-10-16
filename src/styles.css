@@ -56,8 +56,9 @@
   --radius: 1rem;
   /* RAIO ÚNICO DE JANELAS (09/10/2026): toda janela, tooltip, menu e folha
      usa esta variável — a curvatura de referência é a do Histórico da
-     reserva. Mudou aqui, mudou em todas. */
-  --win-radius: 8px;
+     reserva. Mudou aqui, mudou em todas. 16px por pedido explícito
+     (16/10/2026, "sim, é o certo"; antes 8px). */
+  --win-radius: 16px;
 
   /* Warm boutique daylight palette */
   --background: oklch(0.985 0.005 80);
@@ -522,8 +523,9 @@
   }
 }
 ::-webkit-scrollbar {
-  width: 3px;
-  height: 3px;
+  /* 6px: com 3px era impossível arrastar com o mouse. */
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;

@@ -143,6 +143,21 @@ async function runGuideChat(
         conversationId = undefined;
       }
     }
+    // Reaproveita a conversa recente da mesma sessão (evita conversas duplicadas,
+    // que perdiam o histórico e faziam a IA cumprimentar de novo).
+    if (!conversationId) {
+      const since = new Date(Date.now() - 12 * 3600_000).toISOString();
+      const { data: recent } = await supabaseAdmin
+        .from("property_chat_conversations")
+        .select("id")
+        .eq("property_id", prop.id)
+        .eq("guest_session_id", body.sessionId)
+        .gte("updated_at", since)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (recent?.id) conversationId = recent.id;
+    }
     if (!conversationId) {
       const { data: created, error: cErr } = await supabaseAdmin
         .from("property_chat_conversations")

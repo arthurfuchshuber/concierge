@@ -4,7 +4,7 @@
  * também não abre com saudação, prefixa uma saudação no idioma do hóspede.
  */
 const GREETING_RE =
-  /^\s*(ol[aá]|oi|bom dia|boa tarde|boa noite|seja bem|hello|hi\b|hey\b|good (morning|afternoon|evening)|welcome|hola|buen[oa]s)/i;
+  /^\s*[¡!]?\s*(ol[aá]|oi\b|bom dia|boa tarde|boa noite|seja bem|sejam bem|bem[- ]vind[oa]s?|hello|hi\b|hey\b|good (morning|afternoon|evening)|welcome|hola|buen[oa]s|bienvenid[oa]s?)/i;
 
 export function hasGreeting(text: string): boolean {
   return GREETING_RE.test(text);
@@ -46,7 +46,8 @@ export function ensureGreeting(
   now = new Date(),
 ): string {
   if (!reply.trim() || hasGreeting(reply) || /\[SILENCIO\]/i.test(reply)) return reply;
-  const alreadyGreeted = history.some((m) => m.role === "assistant" && hasGreeting(m.content));
-  if (alreadyGreeted) return reply;
+  // Qualquer resposta anterior do assistente já abriu a conversa: não cumprimenta de novo.
+  const alreadyAnswered = history.some((m) => m.role === "assistant" && m.content.trim());
+  if (alreadyAnswered) return reply;
   return `${greetingFor(language, guestName, now)} ${reply}`;
 }

@@ -407,7 +407,12 @@ function ExplorePage() {
   }, [slug, fetchCounts, fetchReactions]);
 
   // Track "explorar" section + subsections for engagement analytics.
-  const trackEvent = useServerFn(trackGuideEvent);
+  const trackEventRaw = useServerFn(trackGuideEvent);
+  const trackEvent = useMemo(
+    () => (a: { data: { slug: string; section: string; sessionId: string; guestName?: string | null; guestPhone?: string | null; pagePath?: string | null } }) =>
+      trackEventRaw({ data: { ...a.data, guestPass: readPass(`guide:${a.data.slug}`) } }),
+    [trackEventRaw],
+  );
   useEffect(() => {
     if (typeof window === "undefined") return;
     const rec = readAccessRecord(slug);

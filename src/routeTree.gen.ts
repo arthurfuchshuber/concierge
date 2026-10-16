@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AppRouteImport } from './routes/app'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ConfiancaRouteImport } from './routes/confianca'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DefinirSenhaRouteImport } from './routes/definir-senha'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as PainelRouteImport } from './routes/painel'
@@ -102,6 +104,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -110,6 +117,11 @@ const AuthRoute = AuthRouteImport.update({
 const ConfiancaRoute = ConfiancaRouteImport.update({
   id: '/confianca',
   path: '/confianca',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DefinirSenhaRoute = DefinirSenhaRouteImport.update({
@@ -561,8 +573,10 @@ const LovableEmailTransactionalPreviewRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/app': typeof AppRoute
   '/auth': typeof AuthRoute
   '/confianca': typeof ConfiancaRoute
+  '/dashboard': typeof DashboardRoute
   '/definir-senha': typeof DefinirSenhaRoute
   '/mcp': typeof McpRoute
   '/painel': typeof PainelRoute
@@ -645,8 +659,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/app': typeof AppRoute
   '/auth': typeof AuthRoute
   '/confianca': typeof ConfiancaRoute
+  '/dashboard': typeof DashboardRoute
   '/definir-senha': typeof DefinirSenhaRoute
   '/mcp': typeof McpRoute
   '/painel': typeof PainelRoute
@@ -728,8 +744,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/app': typeof AppRoute
   '/auth': typeof AuthRoute
   '/confianca': typeof ConfiancaRoute
+  '/dashboard': typeof DashboardRoute
   '/definir-senha': typeof DefinirSenhaRoute
   '/mcp': typeof McpRoute
   '/painel': typeof PainelRoute
@@ -814,8 +832,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/app'
     | '/auth'
     | '/confianca'
+    | '/dashboard'
     | '/definir-senha'
     | '/mcp'
     | '/painel'
@@ -898,8 +918,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/app'
     | '/auth'
     | '/confianca'
+    | '/dashboard'
     | '/definir-senha'
     | '/mcp'
     | '/painel'
@@ -980,8 +1002,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/app'
     | '/auth'
     | '/confianca'
+    | '/dashboard'
     | '/definir-senha'
     | '/mcp'
     | '/painel'
@@ -1066,8 +1090,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AppRoute: typeof AppRoute
   AuthRoute: typeof AuthRoute
   ConfiancaRoute: typeof ConfiancaRoute
+  DashboardRoute: typeof DashboardRoute
   DefinirSenhaRoute: typeof DefinirSenhaRoute
   McpRoute: typeof McpRoute
   PainelRoute: typeof PainelRoute
@@ -1135,6 +1161,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -1147,6 +1180,13 @@ declare module '@tanstack/react-router' {
       path: '/confianca'
       fullPath: '/confianca'
       preLoaderRoute: typeof ConfiancaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/definir-senha': {
@@ -1815,8 +1855,10 @@ const GSlugRouteWithChildren = GSlugRoute._addFileChildren(GSlugRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AppRoute: AppRoute,
   AuthRoute: AuthRoute,
   ConfiancaRoute: ConfiancaRoute,
+  DashboardRoute: DashboardRoute,
   DefinirSenhaRoute: DefinirSenhaRoute,
   McpRoute: McpRoute,
   PainelRoute: PainelRoute,

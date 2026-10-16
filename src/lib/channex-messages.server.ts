@@ -399,6 +399,26 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     } catch (e) {
       console.error("[channex-messages] push falhou", e);
     }
+    // Pausa com prazo + IA ligada: agenda a retomada para logo após o fim da pausa.
+    // Se ninguém da equipe responder até lá, a IA responde o bloco pendente do hóspede
+    // com o histórico completo (resposta humana nesse meio tempo esvazia o bloco → nada sai).
+    const until = (existing as { paused_until?: string | null } | null)?.paused_until ?? null;
+    const untilMs = until ? new Date(until).getTime() : NaN;
+    if (listing.airbnb_ai_enabled && aiPaused && Number.isFinite(untilMs)) {
+      await admin
+        .from("property_chat_conversations")
+        .update({
+          ai_reply_due_at: new Date(untilMs + 5_000).toISOString(),
+          ai_reply_ctx: {
+            threadId: m.threadId,
+            bookingId: m.bookingId,
+            channexPropertyId: m.channexPropertyId,
+            guestName: m.guestName,
+            propertyId: listing.property_id,
+          },
+        } as never)
+        .eq("id", convId);
+    }
     return;
   }
 
@@ -629,20 +649,46 @@ export async function processDueAiReplies(limit = 25): Promise<number> {
     .limit(limit);
   let done = 0;
   for (const row of (due ?? []) as Array<{ id: string; ai_reply_due_at: string }>) {
+    // Reivindica com um "aluguel" de 2 min em vez de apagar o agendamento: se a execução
+    // morrer no meio (limite de tempo do servidor), a conversa volta à fila sozinha e o
+    // hóspede nunca fica sem resposta. As travas de envio impedem resposta duplicada.
+    const { data: cur } = await admin
+      .from("property_chat_conversations")
+      .select("ai_reply_ctx")
+      .eq("id", row.id)
+      .maybeSingle();
+    const prevCtx = ((cur as { ai_reply_ctx?: ReplyCtx | null } | null)?.ai_reply_ctx ?? null) as
+      | (ReplyCtx & { leases?: number })
+      | null;
+    const leases = (prevCtx?.leases ?? 0) + 1;
+    // Aluguel maior que o tempo máximo de uma resposta (cron com timeout de 150 s),
+    // para que uma resposta lenta não seja reivindicada de novo e contada como falha.
+    const leaseUntil = new Date(Date.now() + 180_000).toISOString();
     const { data: claimed } = await admin
       .from("property_chat_conversations")
-      .update({ ai_reply_due_at: null } as never)
+      .update({ ai_reply_due_at: leaseUntil, ai_reply_ctx: { ...(prevCtx ?? {}), leases } } as never)
       .eq("id", row.id)
       .eq("ai_reply_due_at", row.ai_reply_due_at)
       .select("id, ai_reply_ctx")
       .maybeSingle();
     if (!claimed) continue; // mensagem nova reiniciou a espera, ou outra execução já pegou
     const ctx = (claimed as { ai_reply_ctx?: ReplyCtx | null }).ai_reply_ctx ?? null;
+    const release = async () => {
+      const { leases: _l, ...rest } = (ctx ?? {}) as ReplyCtx & { leases?: number };
+      await admin
+        .from("property_chat_conversations")
+        .update({ ai_reply_due_at: null, ai_reply_ctx: rest } as never)
+        .eq("id", row.id)
+        .eq("ai_reply_due_at", leaseUntil);
+    };
     try {
+      if (leases > 3) throw new Error("A IA não concluiu a resposta após várias tentativas (tempo esgotado).");
       await runConsolidatedAiReply(admin, row.id, ctx);
+      await release();
       done += 1;
     } catch (e) {
       console.error("[channex-messages] resposta consolidada falhou", row.id, e);
+      await release().catch(() => null);
       try {
         await handleAiReplyFailure(admin, row.id, ctx, e);
       } catch (e2) {

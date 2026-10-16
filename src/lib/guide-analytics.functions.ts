@@ -9,6 +9,7 @@ const EventInput = z.object({
   guestName: z.string().max(120).optional().nullable(),
   guestPhone: z.string().max(40).optional().nullable(),
   pagePath: z.string().max(200).optional().nullable(),
+  guestPass: z.string().max(1000).optional().nullable(),
 });
 
 export const trackGuideEvent = createServerFn({ method: "POST" })
@@ -23,13 +24,17 @@ export const trackGuideEvent = createServerFn({ method: "POST" })
         .eq("published", true)
         .maybeSingle();
       if (!prop) return { ok: false };
+      // Identidade só vem do passe assinado pelo servidor; sem passe válido o
+      // evento entra anônimo (ninguém consegue forjar nome/telefone de hóspede).
+      const { verifyGuestPass } = await import("@/lib/guest-pass.server");
+      const passName = verifyGuestPass(data.guestPass ?? null, `guide:${prop.id}`);
       await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
         .insert({
           property_id: prop.id,
           section: data.section,
           guest_session_id: data.sessionId,
-          guest_name: data.guestName ?? null,
-          guest_phone: data.guestPhone ?? null,
+          guest_name: passName,
+          guest_phone: passName ? (data.guestPhone ?? null) : null,
           page_path: data.pagePath ?? null,
         })
         .throwOnError();

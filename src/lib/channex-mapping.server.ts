@@ -227,9 +227,10 @@ async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promis
       const status = String(r.status ?? "").toLowerCase();
       if (status.includes("cancel")) continue;
       if (!r.checkin_date || !r.checkout_date) continue;
-      // Anúncio conectado = 100% API: linhas do iCal (source 'airbnb') nunca
-      // contam — reservas vêm da Channex e bloqueios do ConciergeIA ('manual').
-      if (String(r.source) === "airbnb") continue;
+      // iCal (source 'airbnb'): "Not available" (blocked) nunca conta — espelha o calendário
+      // controlado pela Channex e travaria em loop. Mas RESERVAS confirmadas de hóspede continuam
+      // fechando a data: protegem a janela entre o mapeamento e a chegada das reservas pela API.
+      if (String(r.source) === "airbnb" && status !== "confirmed") continue;
       if (status === "blocked" && windowEnd && r.checkout_date > windowEnd) continue;
       for (let d = new Date(`${r.checkin_date}T00:00:00Z`); iso(d) < r.checkout_date; d = new Date(d.getTime() + 86_400_000)) nights.add(iso(d));
     }
@@ -249,6 +250,16 @@ export async function syncRealAvailability(t: SafeMapTarget, userId: string | nu
   const windowDays = Number.isFinite(notice) && notice > 0 ? notice : fallbackWindow;
   const windowEnd = iso(new Date(Date.now() + windowDays * 86_400_000));
   const nights = await activeBookingNights(t, windowEnd);
+  // Anúncio ainda NÃO mapeado (aguardando "Já conectei"): a Channex não tem as reservas pela API,
+  // então o iCal real do Airbnb continua valendo para nunca reabrir noites reservadas/bloqueadas.
+  if (!rp && t.propertyId) {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prop } = await supabaseAdmin.from("properties").select("airbnb_ical_url").eq("id", t.propertyId).maybeSingle();
+    const { airbnbClosedNights } = await import("@/lib/channex-full-connect.server");
+    const closed = await airbnbClosedNights((prop as any)?.airbnb_ical_url);
+    if (!closed) throw new Error("iCal indisponível para anúncio não mapeado; sincronização cancelada para não reabrir datas.");
+    for (const n of closed) nights.add(n);
+  }
 
   const from = new Date();
   const merged: Parameters<typeof applyCalendarChanges>[0] = [];
@@ -266,11 +277,19 @@ export async function syncRealAvailability(t: SafeMapTarget, userId: string | nu
   return { ok: !avail || avail.ok, bookedNights: nights.size, windowDays };
 }
 
-/** Realinha a disponibilidade real de todos os anúncios do piloto (após reservas novas/canceladas). */
-export async function syncPilotAvailability(userId: string | null = null) {
+/**
+ * Realinha a disponibilidade real (após reservas novas/canceladas). Com `channexPropertyId`,
+ * recalcula só o anúncio afetado e seus gêmeos (rápido, não estoura o limitador); sem, todos.
+ */
+export async function syncPilotAvailability(userId: string | null = null, channexPropertyId?: string | null) {
   const out: unknown[] = [];
-  // Calcula todos os anúncios (incluindo gêmeos) e envia tudo num único lote ARI.
-  for (const t of await allSyncTargets()) out.push(await syncRealAvailability(t, userId, 270, false).catch((e) => ({ ok: false, error: String(e) })));
+  let targets = await allSyncTargets();
+  if (channexPropertyId) {
+    const hit = targets.filter((t) => t.channexPropertyId === channexPropertyId || t.sibling?.channexPropertyId === channexPropertyId);
+    const props = new Set(hit.map((t) => t.propertyId).filter(Boolean));
+    targets = targets.filter((t) => hit.includes(t) || (t.propertyId && props.has(t.propertyId)));
+  }
+  for (const t of targets) out.push(await syncRealAvailability(t, userId, 270, false).catch((e) => ({ ok: false, error: String(e) })));
   await flushAriOutbox().catch((e) => console.error("[channex] flush disponibilidade", e));
   return out;
 }

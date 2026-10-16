@@ -54,6 +54,7 @@ import {
 import { ClampName } from "@/components/ui/clamp-name";
 import { PropertyThumb } from "@/components/ui/property-thumb";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { useUnsyncedProperties } from "./useUnsyncedProperties";
 import { StakeholderFormDialog, emptyStakeholderForm } from "./StakeholderFormDialog";
 
 /**
@@ -102,6 +103,7 @@ type Step =
   | "start"
   | "authorizing"
   | "timeout"
+  | "noNew"
   | "already"
   | "pickAccount"
   | "expired"
@@ -585,6 +587,11 @@ type BulkJob = {
   pending: Array<{ propertyId: string; title: string; kind: "chat" | "config" }>;
 };
 
+/**
+ * Migração guiada (transitória, sai quando 100% dos imóveis estiverem sincronizados): se ainda
+ * houver imóveis do sistema sem anúncio, importar anúncios abre SEMPRE o "De → Para" com esses
+ * imóveis primeiro; só anúncio que sobrar vira imóvel novo (com proprietário). Evita duplicatas.
+ */
 export function AirbnbAccountFlow({
   request,
   onClose,
@@ -592,6 +599,33 @@ export function AirbnbAccountFlow({
   request: AirbnbFlowRequest;
   onClose: () => void;
 }) {
+  const [override, setOverride] = useState<AirbnbFlowRequest>(null);
+  useEffect(() => {
+    if (request === null) setOverride(null);
+  }, [request]);
+  return (
+    <AirbnbAccountFlowInner
+      request={request === null ? null : (override ?? request)}
+      onSwitch={setOverride}
+      onClose={() => {
+        setOverride(null);
+        onClose();
+      }}
+    />
+  );
+}
+
+function AirbnbAccountFlowInner({
+  request,
+  onClose,
+  onSwitch,
+}: {
+  request: AirbnbFlowRequest;
+  onClose: () => void;
+  onSwitch: (r: AirbnbFlowRequest) => void;
+}) {
+  const unsynced = useUnsyncedProperties();
+  const unsyncedProps = unsynced.q.data?.properties ?? [];
   const qc = useQueryClient();
   const { impersonation } = useImpersonation();
   const accountOwnerId = impersonation?.userId ?? null;
@@ -646,6 +680,7 @@ export function AirbnbAccountFlow({
   const [syncRes, setSyncRes] = useState<{
     title: string;
     pending: Array<{ propertyId: string; title: string; kind: "chat" | "config" }>;
+    channexPropertyId?: string | null;
   } | null>(null);
   /** Em massa: anúncio escolhido para cada imóvel (imóvel → anúncio). */
   const [propListing, setPropListing] = useState<Record<string, string>>({});
@@ -747,7 +782,14 @@ export function AirbnbAccountFlow({
   useEffect(() => {
     if (step !== "authorizing") return;
     startedAt.current = Date.now();
-    const id = window.setInterval(async () => {
+    // O Airbnb devolve o cliente ao painel (outra aba) e avisa por aqui.
+    let returnedAt = 0;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "airbnb-oauth-return" && e.newValue) returnedAt = Date.now();
+    };
+    window.addEventListener("storage", onStorage);
+    let id = 0;
+    const tick = async () => {
       if (Date.now() - startedAt.current > 10 * 60_000) {
         window.clearInterval(id);
         setStep("timeout");
@@ -765,7 +807,14 @@ export function AirbnbAccountFlow({
           return;
         }
         const r = await detectFn({ data: { accountOwnerId, baseline } });
-        if (!r.found) return;
+        if (!r.found) {
+          // Airbnb já voltou e, após ~10 s, nenhuma conta nova apareceu: para de esperar.
+          if (returnedAt && Date.now() - returnedAt > 10_000) {
+            window.clearInterval(id);
+            setStep("noNew");
+          }
+          return;
+        }
         window.clearInterval(id);
         qc.invalidateQueries({ queryKey: ["airbnb-accounts"] });
         if (r.found.duplicate) {
@@ -788,8 +837,22 @@ export function AirbnbAccountFlow({
       } catch {
         /* tenta de novo no próximo ciclo */
       }
-    }, 4000);
-    return () => window.clearInterval(id);
+    };
+    id = window.setInterval(tick, 4000);
+    // Voltou para esta aba (ex.: autorizou numa janela anônima): confere na hora, sem F5.
+    const onFocus = () => {
+      if (document.visibilityState === "hidden") return;
+      qc.invalidateQueries({ queryKey: ["airbnb-accounts"] });
+      void tick();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, baseline, reauthId]);
 
@@ -827,6 +890,19 @@ export function AirbnbAccountFlow({
   function close() {
     onClose();
   }
+  // "Já conectei" aprovado: fecha a conclusão empilhada e volta direto à lista de contas.
+  useEffect(() => {
+    const done = new Set<Step>(["bulkDone", "syncDone", "result"]);
+    const onDone = () => {
+      if (done.has(step)) {
+        refreshAll();
+        onClose();
+      }
+    };
+    window.addEventListener("full-connect-done", onDone);
+    return () => window.removeEventListener("full-connect-done", onDone);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
   function refreshAll() {
     qc.invalidateQueries({ queryKey: ["stakeholders"] });
     qc.invalidateQueries({ queryKey: ["airbnb-accounts"] });
@@ -850,14 +926,43 @@ export function AirbnbAccountFlow({
       return false;
     }
   }
-  async function begin(reauth: string | null = null) {
+  /** Descarta tudo da tentativa anterior antes de tentar de novo. */
+  function resetConnect() {
+    setBaseline([]);
+    setConnectUrl(null);
+    setReauthId(null);
+    try {
+      localStorage.removeItem("airbnb-oauth-return");
+    } catch {
+      /* sem armazenamento */
+    }
+    qc.invalidateQueries({ queryKey: ["airbnb-accounts"] });
+    setStep("start");
+  }
+  async function begin(reauthArg: unknown = null, copyOnly = false) {
+    // Nunca repassa o evento do clique como ID de conta.
+    const reauth = typeof reauthArg === "string" && reauthArg.length >= 8 ? reauthArg : null;
     setReauthId(reauth);
     setBusy(true);
+    try {
+      localStorage.removeItem("airbnb-oauth-return");
+    } catch {
+      /* sem armazenamento */
+    }
     try {
       const r = await startFn({ data: { accountOwnerId, reauthChannelId: reauth } });
       setBaseline(r.baseline);
       setConnectUrl(r.url);
-      window.open(r.url, "_blank", "noopener,noreferrer");
+      if (copyOnly) {
+        try {
+          await navigator.clipboard.writeText(r.url);
+          toast.success("Link copiado. Abra numa janela anônima ou envie ao proprietário.");
+        } catch {
+          toast.error("Não foi possível copiar. Use “Abrir o Airbnb de novo”.");
+        }
+      } else {
+        window.open(r.url, "_blank", "noopener,noreferrer");
+      }
       setStep("authorizing");
     } catch (e) {
       toast.error(
@@ -946,6 +1051,17 @@ export function AirbnbAccountFlow({
       setStep(picked.length > 1 ? "pairs" : "owner");
     }
   }
+  /** Tira o imóvel já vinculado da lista em memória na hora (a 1ª tela não mostra o velho). */
+  function dropFromUnsynced(propertyId: string) {
+    qc.setQueriesData<{ properties?: Array<{ id: string }>; blocking?: boolean } | undefined>(
+      { queryKey: ["unsynced-properties"] },
+      (old) => {
+        if (!old?.properties) return old;
+        const properties = old.properties.filter((p) => p.id !== propertyId);
+        return { ...old, properties, blocking: old.blocking && properties.length > 0 };
+      },
+    );
+  }
   async function doSyncProperty() {
     if (request?.type !== "syncProperty" || !syncListing) return;
     setStep("syncing");
@@ -953,7 +1069,8 @@ export function AirbnbAccountFlow({
       const r = await syncFn({
         data: { accountOwnerId, propertyId: request.property.id, listingId: syncListing },
       });
-      setSyncRes({ title: r.title, pending: r.pending });
+      setSyncRes({ title: r.title, pending: r.pending, channexPropertyId: r.channexPropertyId });
+      dropFromUnsynced(request.property.id);
       refreshAll();
       qc.invalidateQueries({ queryKey: ["unsynced-properties"] });
       setStep("syncDone");
@@ -981,6 +1098,7 @@ export function AirbnbAccountFlow({
           },
         });
         next[i] = { ...next[i], status: "ok", pending: r.pending };
+        if (r.kind === "linked") dropFromUnsynced(r.propertyId);
       } catch (e) {
         next[i] = {
           ...next[i],
@@ -1194,8 +1312,14 @@ export function AirbnbAccountFlow({
                   [Check, "Antes de importar, informa de qual proprietário são"],
                 ]}
               />
+              <AttentionBox>
+                Vai conectar outra conta? Toque em{" "}
+                <b className="font-bold text-foreground">Copiar link de conexão</b> e abra numa
+                janela anônima (ou envie ao proprietário). Assim o Airbnb pede o login da conta
+                certa.
+              </AttentionBox>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-                <PrimaryBtn onClick={begin} disabled={busy}>
+                <PrimaryBtn onClick={() => void begin()} disabled={busy}>
                   {busy ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
@@ -1203,6 +1327,10 @@ export function AirbnbAccountFlow({
                   )}
                   Continuar no Airbnb
                 </PrimaryBtn>
+                <SecondaryBtn onClick={() => void (busy ? null : begin(null, true))}>
+                  <Link2 className="size-[15px]" />
+                  Copiar link de conexão
+                </SecondaryBtn>
                 <SecondaryBtn onClick={close}>Cancelar</SecondaryBtn>
               </div>
             </>
@@ -1228,7 +1356,50 @@ export function AirbnbAccountFlow({
                   <ExternalLink className="size-[15px]" />
                   Abrir o Airbnb de novo
                 </SecondaryBtn>
-                <SecondaryBtn onClick={close}>Cancelar</SecondaryBtn>
+                <SecondaryBtn
+                  onClick={() =>
+                    connectUrl &&
+                    navigator.clipboard
+                      .writeText(connectUrl)
+                      .then(() => toast.success("Link copiado."))
+                      .catch(() => toast.error("Não foi possível copiar o link."))
+                  }
+                >
+                  <Link2 className="size-[15px]" />
+                  Copiar link de conexão
+                </SecondaryBtn>
+                <SecondaryBtn onClick={close}>Fechar (o link continua válido)</SecondaryBtn>
+              </div>
+            </>
+          ) : null}
+
+          {/* ---------- Conectar: Airbnb voltou sem conta nova ---------- */}
+          {step === "noNew" ? (
+            <>
+              <IconBox kind="falta">
+                <TriangleAlert className="size-[22px]" />
+              </IconBox>
+              <Title>Nenhuma conta nova encontrada</Title>
+              <Desc>
+                O Airbnb reconheceu uma conta que já está conectada (ela continua salva neste
+                navegador) e voltou sozinho, sem pedir login. Copie o link, abra numa janela
+                anônima e entre com a conta nova.
+              </Desc>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
+                <PrimaryBtn
+                  onClick={() => {
+                    resetConnect();
+                    void begin(null, true);
+                  }}
+                >
+                  <Link2 className="size-4" />
+                  Copiar link para janela anônima
+                </PrimaryBtn>
+                <SecondaryBtn onClick={resetConnect}>
+                  <Link2 className="size-4" />
+                  Tentar de novo
+                </SecondaryBtn>
+                <SecondaryBtn onClick={close}>Fechar</SecondaryBtn>
               </div>
             </>
           ) : null}
@@ -1634,6 +1805,25 @@ export function AirbnbAccountFlow({
                   disabled={n === 0}
                   onClick={() => {
                     setQ("");
+                    if (unsyncedProps.length > 0) {
+                      toast.message("Primeiro, ligue os anúncios aos imóveis que você já tem", {
+                        description: "Só os anúncios que sobrarem viram imóveis novos.",
+                      });
+                      onSwitch({
+                        type: "syncProperties",
+                        properties: unsyncedProps.map((p) => ({
+                          id: p.id,
+                          name: p.name,
+                          city: p.city,
+                          ownerName: p.ownerName,
+                          ownerPhone: p.ownerPhone,
+                          ownerPhoneCountry: p.ownerPhoneCountry,
+                          imageUrl: p.imageUrl,
+                          imageUrls: p.imageUrls,
+                        })),
+                      });
+                      return;
+                    }
                     setStep(n > 1 ? "pairs" : "owner");
                   }}
                 >
@@ -2031,6 +2221,30 @@ export function AirbnbAccountFlow({
                   )}
                 />
               )}
+              {syncRes.channexPropertyId ? (
+                <div className="grid gap-1.5 rounded-[12px] bg-foreground/[0.03] p-2.5 text-[12px] leading-[1.5] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+                  <b className="font-bold text-foreground">Ferramenta de preços (opcional)</b>
+                  <span className="text-muted-foreground">
+                    Para importar este anúncio na sua ferramenta de precificação, conecte-a à
+                    Channex e use o código do imóvel abaixo. O calendário do Airbnb continua livre.
+                  </span>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <code className="min-w-0 flex-1 truncate rounded-[8px] bg-background px-2 py-1.5 text-[11.5px]">
+                      {syncRes.channexPropertyId}
+                    </code>
+                    <button
+                      type="button"
+                      className="h-8 shrink-0 rounded-[8px] px-2.5 text-[12px] font-bold shadow-[inset_0_0_0_1px_var(--border)]"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(syncRes.channexPropertyId ?? "");
+                        toast.success("Código copiado");
+                      }}
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn onClick={close}>Concluir</PrimaryBtn>
               </div>
@@ -2325,14 +2539,14 @@ export function AirbnbAccountFlow({
                 </button>
                 <button
                   type="button"
-                  disabled={bulkPairsN === 0 || bulkMissingOwner > 0}
+                  disabled={bulkPairsN === 0}
                   onClick={startBulk}
                   className="flex h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--win-radius)] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] px-1.5 text-[12.5px] font-extrabold text-white disabled:opacity-40 sm:text-[13.5px]"
                 >
                   <RefreshCw className="size-3.5 shrink-0 sm:size-4" />
                   <span className="min-w-0 truncate">
-                    {bulkMissingOwner > 0
-                      ? `Falta ${bulkMissingOwner} proprietário(a)`
+                    {bulkPairsN === 0
+                      ? "Escolha ao menos 1"
                       : `Sincronizar ${plural(bulkPairsN, "par", "pares")}`}
                   </span>
                 </button>
@@ -2656,7 +2870,7 @@ export function AirbnbAccountFlow({
           setFormOpen(o);
           if (!o) setCreateFor(null);
         }}
-        initial={{ ...emptyStakeholderForm }}
+        initial={emptyStakeholderForm}
         accountOwnerId={accountOwnerId}
         newLayout
         onSaved={(id) => {
