@@ -82,6 +82,8 @@ export async function speakToGuest(params: {
   urgent?: boolean;
   /** Título do push; o corpo é o começo da mensagem. */
   pushTitle?: string;
+  /** Encerramento por silêncio (10 min após a última fala da IA): pula a trava de "duas falas seguidas". */
+  allowAfterAi?: boolean;
 }): Promise<SpeakResult> {
   const text = (params.text ?? "").trim();
   if (!text) return { sent: false, skipped: "empty" };
@@ -119,7 +121,7 @@ export async function speakToGuest(params: {
    * exatamente o comportamento que se quer. Então o bloqueio vale só enquanto
    * a última fala não-hóspede for recente. */
   const JANELA_SILENCIO_MS = 4 * 60 * 60 * 1000;
-  if (params.reason !== "human_answer") {
+  if (params.reason !== "human_answer" && !params.allowAfterAi) {
     const { data: last } = await params.supabase
       .from("property_chat_messages")
       .select("sender_type, created_at")
