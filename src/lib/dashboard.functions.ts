@@ -2445,7 +2445,11 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       context.supabase
         .from("property_reservations")
         .select(
+<<<<<<< HEAD
           `id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary, source, guest_contacts, amount, currency`,
+=======
+          `id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary, source, guest_contacts`,
+>>>>>>> 96ee03eefca0033c3b08cfe26896d4b42875c508
         )
         .in("property_id", propIds)
         .in("source", ["airbnb", "channex", "manual"])
@@ -2530,8 +2534,11 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       raw_summary: string | null;
       source?: string | null;
       guest_contacts?: unknown;
+<<<<<<< HEAD
       amount?: number | null;
       currency?: string | null;
+=======
+>>>>>>> 96ee03eefca0033c3b08cfe26896d4b42875c508
     }>;
     for (const b of reservationRows) {
       if (b.source !== "manual" || b.status !== "blocked") continue;
