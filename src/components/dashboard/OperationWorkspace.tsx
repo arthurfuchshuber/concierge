@@ -3430,7 +3430,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ficam livres para nada, já que não há mais nenhum outro item
                 com esse mesmo order). No mobile não muda (col-span-2 =
                 largura cheia da grade de 2 colunas). */}
-            {/* NO COMPUTADOR o calendário ocupa 3 das 4 colunas e OCUPA DUAS
+            {/* LAYOUT ATUAL (pedido explícito, 16/10/2026, mockup "Dashboard-Layout"
+                aprovado): no computador o calendário ocupa a LARGURA TOTAL (4
+                colunas) e "Em Estadia"/"Imóveis livres" descem para a linha de
+                baixo, lado a lado (meia largura cada). No celular nada muda.
+                O texto abaixo descreve o layout ANTERIOR (3 colunas + cards à
+                direita), mantido só como histórico. */}
+            {/* (ANTERIOR) NO COMPUTADOR o calendário ocupava 3 das 4 colunas e OCUPAVA DUAS
                 LINHAS (`lg:row-span-2`): com isso "Em Estadia" e "Imóveis
                 livres" caem sozinhos na 4ª coluna, um embaixo do outro, à
                 direita dele — exatamente o mockup aprovado (pedido explícito,
@@ -3439,7 +3445,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ResizeObserver, então em 3 colunas simplesmente cabem menos
                 dias inteiros, nunca um dia cortado na margem. */}
             <SectionLabel className="col-span-2 order-8 lg:hidden">Ocupação</SectionLabel>
-            <div className="order-9 col-span-2 lg:order-6 lg:col-span-3 lg:col-start-1 lg:row-span-2">
+            <div className="order-9 col-span-2 lg:order-6 lg:col-span-4 lg:col-start-1">
               <OccupancyPanel
                 loading={occupancyQ.isLoading}
                 start={occupancyQ.data?.start ?? occStart}
@@ -3479,7 +3485,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 logo na sequência"). No celular `contents` some com o invólucro
                 e os dois voltam a ser dois itens da grade, meia largura cada,
                 exatamente como eram. */}
-            <div className="contents lg:order-7 lg:col-start-4 lg:row-span-2 lg:flex lg:flex-col lg:gap-2.5 lg:self-start">
+            <div className="contents lg:order-7 lg:col-span-4 lg:col-start-1 lg:grid lg:grid-cols-2 lg:gap-2.5">
               <div className="order-10 col-span-1">
                 <KpiCard
                   label="Em Estadia"
