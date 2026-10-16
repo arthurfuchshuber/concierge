@@ -17,10 +17,20 @@ export const signChatAttachmentUrl = createServerFn({ method: "POST" })
     z.object({ path: z.string().min(3).max(500) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    // RLS on storage.objects enforces property access.
+    // Confere o acesso ao imóvel na hora (RLS do usuário) antes de assinar.
+    const propertyId = data.path.split("/")[0] ?? "";
+    if (!/^[0-9a-f-]{36}$/i.test(propertyId)) throw new Error("Caminho de anexo inválido.");
+    const { data: prop } = await context.supabase
+      .from("properties")
+      .select("id")
+      .eq("id", propertyId)
+      .maybeSingle();
+    if (!prop) throw new Error("Sem acesso a este anexo.");
+    // RLS on storage.objects also enforces property access. TTL mínimo: o link
+    // só serve para carregar a mídia agora; acesso removido expira em segundos.
     const { data: signed, error } = await context.supabase.storage
       .from("chat-attachments")
-      .createSignedUrl(data.path, 5 * 60); // curto: acesso revogado expira logo
+      .createSignedUrl(data.path, 60);
     if (error || !signed) throw new Error("Não consegui gerar o link do anexo.");
     return { url: signed.signedUrl };
   });
