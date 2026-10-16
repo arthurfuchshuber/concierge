@@ -170,6 +170,7 @@ import {
   FilterCountBadge,
   FilterDateCalendar,
   FilterHeaderClear,
+  FilterIconBadge,
   FilterMenuRow,
   FilterMultiSelect,
   FilterPeriodCalendar,
@@ -7313,6 +7314,87 @@ const FILTER_DOT = (
   <span className="ml-0.5 size-1.5 shrink-0 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE]" />
 );
 
+/**
+ * ÍCONE DE PERÍODO DO CALENDÁRIO (pedido explícito, 16/10/2026, mockup
+ * "Cal-Periodo" aprovado): o Período saiu de dentro do menu FILTROS e virou um
+ * ícone de calendário ao lado da busca, que abre direto o calendário completo
+ * (atalhos, mês com setas, chips Início → Fim e Limpar). Mesmo quadrante de
+ * fundo da busca e do botão FILTROS; o pontinho rosa indica período ativo.
+ */
+function CalendarPeriodButton({
+  periodRange,
+  onPeriodRangeChange,
+}: {
+  periodRange: { start: string; end: string } | null;
+  onPeriodRangeChange: (next: { start: string; end: string } | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const toRange = (r: { start: string; end: string } | null): DateRange | undefined =>
+    r ? { from: parseISODateLocal(r.start), to: parseISODateLocal(r.end) } : undefined;
+  const [draft, setDraft] = useState<DateRange | undefined>(toRange(periodRange));
+  useEffect(() => {
+    setDraft(toRange(periodRange));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodRange]);
+  // O mês abre SEMPRE no de hoje (regra de 23/09/2026).
+  const [month, setMonth] = useState<Date>(() => parseISODateLocal(todayISOSaoPaulo()));
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) setMonth(parseISODateLocal(todayISOSaoPaulo()));
+        setOpen(next);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title={periodRange ? "Período · há período ativo" : "Período"}
+          aria-label="Período"
+          className="relative grid size-9 shrink-0 place-items-center rounded-[0.3rem] border-0 bg-foreground/[0.07] text-foreground/70 transition-colors hover:text-foreground data-[state=open]:bg-foreground/[0.13] data-[state=open]:text-foreground sm:size-8"
+        >
+          <CalendarRange className="size-[15px] opacity-80" strokeWidth={2} />
+          {periodRange && <span className="absolute -right-0.5 -top-0.5 size-[6px] rounded-full bg-accent" />}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        sideOffset={FILTER_PANEL_OFFSET}
+        collisionPadding={FILTER_PANEL_COLLISION}
+        className={FILTER_PANEL_CLASS}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="flex items-center gap-[9px] px-3.5 py-[11px]">
+          <FilterIconBadge icon={CalendarRange} size="sm" />
+          <span className="ds-card-title min-w-0 flex-1">Período</span>
+          <span className="flex shrink-0 items-center self-center leading-none">
+            <FilterHeaderClear
+              disabled={!draft && !periodRange}
+              onClick={() => {
+                setDraft(undefined);
+                onPeriodRangeChange(null);
+              }}
+            />
+          </span>
+        </div>
+        <FilterPeriodCalendar
+          value={draft}
+          month={month}
+          onMonthChange={setMonth}
+          today={parseISODateLocal(todayISOSaoPaulo())}
+          onChange={(nextRange) => {
+            setDraft(nextRange);
+            // Só propaga com início E fim (o 1º clique sozinho não é período).
+            if (nextRange?.from && nextRange?.to) {
+              onPeriodRangeChange({ start: dateToISOLocal(nextRange.from), end: dateToISOLocal(nextRange.to) });
+            }
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /** Filtro de período — calendário de início E fim (substitui o antigo campo de uma data só). */
 function PeriodRangeFilterButton({
   value,
@@ -7491,6 +7573,8 @@ function CalendarFiltersButton({
   propertyFilters,
   onPropertyFiltersChange,
   propertyOptions,
+  hidePeriod,
+  quadrantTrigger,
 }: {
   periodRange: { start: string; end: string } | null;
   onPeriodRangeChange: (next: { start: string; end: string } | null) => void;
@@ -7525,6 +7609,12 @@ function CalendarFiltersButton({
   propertyFilters?: string[];
   onPropertyFiltersChange?: (next: string[]) => void;
   propertyOptions?: FilterMultiOption[];
+  /** Calendário de ocupação (16/10/2026): o Período saiu do menu e virou o
+   * ícone `CalendarPeriodButton` ao lado da busca. */
+  hidePeriod?: boolean;
+  /** Gatilho com quadrante de fundo (mesmo tom da busca e do ícone de período);
+   * no celular vira só o ícone. */
+  quadrantTrigger?: boolean;
 }) {
   type Screen = "root" | "period" | "city" | "owner" | "provider" | "property";
   const [screen, setScreen] = useState<Screen>("root");
@@ -7626,7 +7716,18 @@ function CalendarFiltersButton({
         {/* Pedido explícito: sem "quadrante" (fundo/borda) — igual ao
             tratamento da borracha de limpar filtros, só ícone + texto
             soltos, sem caixinha ao redor, e SEM fundo nem no hover. */}
-        {compactTrigger ? (
+        {quadrantTrigger ? (
+          <button
+            type="button"
+            title={hasCustomFilters ? "Filtros · há filtro ativo" : "Filtros"}
+            aria-label="Filtros"
+            className="relative inline-flex size-9 shrink-0 items-center justify-center gap-1.5 rounded-[0.3rem] border-0 bg-foreground/[0.07] text-xs font-medium leading-none text-foreground/70 transition-colors hover:text-foreground data-[state=open]:bg-foreground/[0.13] data-[state=open]:text-foreground sm:h-8 sm:w-auto sm:px-2.5"
+          >
+            <Filter className="size-3.5 opacity-60" />
+            <span className="hidden sm:inline">FILTROS</span>
+            {hasCustomFilters && <span className="absolute -right-0.5 top-0 size-[6px] rounded-full bg-accent" />}
+          </button>
+        ) : compactTrigger ? (
           /* AÇÕES AO LADO DAS ABAS (18/09/2026). No computador é um quadrado
              de 44px, só ícone, com a mesma altura e o mesmo raio da barra de
              abas. No celular o botão ocupa metade da largura, e aí cabe o
@@ -7667,18 +7768,20 @@ function CalendarFiltersButton({
         {screen === "root" ? (
           <>
             <FilterRootHeader canClear={hasCustomFilters} onClear={onClearAll} />
-            <FilterMenuRow
-              icon={CalendarRange}
-              label="Período"
-              value={periodLabel}
-              active={!!periodRange}
-              onClick={() => {
-                setScreen("period");
-                // Volta pro mês de hoje toda vez que esta tela é aberta —
-                // ver o comentário de `calendarMonth` acima.
-                setCalendarMonth(parseISODateLocal(todayISOSaoPaulo()));
-              }}
-            />
+            {!hidePeriod && (
+              <FilterMenuRow
+                icon={CalendarRange}
+                label="Período"
+                value={periodLabel}
+                active={!!periodRange}
+                onClick={() => {
+                  setScreen("period");
+                  // Volta pro mês de hoje toda vez que esta tela é aberta —
+                  // ver o comentário de `calendarMonth` acima.
+                  setCalendarMonth(parseISODateLocal(todayISOSaoPaulo()));
+                }}
+              />
+            )}
             <FilterMenuRow
               icon={MapPin}
               label="Cidade"
@@ -8522,7 +8625,7 @@ function OccupancyPanel({
         autoFocus={autoFocus}
         placeholder="Buscar hóspede, imóvel, mês, valor…"
         aria-label="Buscar no calendário"
-        className={`h-8 w-full rounded-[0.3rem] border-0 bg-secondary/60 pl-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:bg-secondary focus:outline-none ${
+        className={`h-8 w-full rounded-[0.3rem] border-0 bg-foreground/[0.07] pl-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:bg-foreground/[0.1] focus:outline-none ${
           searching ? "pr-7 sm:pr-[9.5rem]" : query ? "pr-7" : "pr-2"
         }`}
       />
@@ -8564,7 +8667,7 @@ function OccupancyPanel({
                 setMobileSearch(false);
                 setQuery("");
               }}
-              className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] bg-secondary/60 text-muted-foreground hover:text-foreground"
+              className="grid size-9 shrink-0 place-items-center rounded-[0.3rem] bg-foreground/[0.07] text-muted-foreground hover:text-foreground"
             >
               <X className="size-3.5" />
             </button>
@@ -8590,13 +8693,17 @@ function OccupancyPanel({
               type="button"
               aria-label="Buscar"
               onClick={() => setMobileSearch(true)}
-              className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] bg-secondary/60 text-muted-foreground hover:text-foreground sm:hidden"
+              className="grid size-9 shrink-0 place-items-center rounded-[0.3rem] bg-foreground/[0.07] text-foreground/80 hover:text-foreground sm:hidden"
             >
               <Search className="size-3.5" />
             </button>
             {/* Computador: campo à esquerda de FILTROS. */}
             {searchField("hidden w-[320px] shrink-0 sm:block", false)}
+            {/* Período: ícone próprio entre a busca e FILTROS (16/10/2026). */}
+            <CalendarPeriodButton periodRange={periodRange} onPeriodRangeChange={onPeriodRangeChange} />
             <CalendarFiltersButton
+              hidePeriod
+              quadrantTrigger
               periodRange={periodRange}
               onPeriodRangeChange={onPeriodRangeChange}
               cityFilters={cityFilters}
@@ -8610,7 +8717,8 @@ function OccupancyPanel({
               onProviderFiltersChange={onProviderFiltersChange}
               providerOptions={providerOptions}
               providerSubtitles={providerSubtitles}
-              hasCustomFilters={hasCustomFilters}
+              // O pontinho do FILTROS não conta mais o período (ele tem o próprio ícone).
+              hasCustomFilters={cityFilters.length > 0 || ownerFilters.length > 0 || providerFilters.length > 0}
               onClearAll={onClearAllFilters}
             />
           </>
