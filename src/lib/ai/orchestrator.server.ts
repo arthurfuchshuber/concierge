@@ -781,7 +781,7 @@ export async function runHospitalityAgent(params: {
   // Dados oficiais do hóspede desta conversa: sem eles o validador reprovava
   // saudações com o nome do hóspede como "alucinação" (caso Fabiane, 11/10/2026).
   const guestFacts = [
-    params.guestName ? `Nome do hóspede desta conversa (cadastro oficial do canal): ${params.guestName}` : "",
+    params.guestName ? `Quem enviou a mensagem atual (chame por este primeiro nome): ${params.guestName}` : "",
     params.checkinDate ? `Check-in da reserva: ${params.checkinDate}` : "",
     params.checkoutDate ? `Check-out da reserva: ${params.checkoutDate}` : "",
     params.reservationDossier ? `RESERVA OFICIAL:\n${params.reservationDossier}` : "",
