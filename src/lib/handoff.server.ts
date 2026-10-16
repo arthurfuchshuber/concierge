@@ -5,6 +5,18 @@ import { sendPushToSubscriptions, type PushPayload } from "@/lib/push.server";
 
 type Admin = SupabaseClient<Database>;
 
+const MONTHS = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."];
+/** "2026-10-05","2026-10-14" → "5–14 de out." (meses diferentes: "28 de set. – 3 de out."). */
+export function formatStayRange(checkin: string, checkout: string | null): string {
+  const p = (s: string) => s.split("-").map(Number) as [number, number, number];
+  const [, m1, d1] = p(checkin);
+  if (!m1 || !d1) return "";
+  if (!checkout) return `${d1} de ${MONTHS[m1 - 1]}`;
+  const [, m2, d2] = p(checkout);
+  if (m1 === m2) return `${d1}–${d2} de ${MONTHS[m1 - 1]}`;
+  return `${d1} de ${MONTHS[m1 - 1]} – ${d2} de ${MONTHS[m2 - 1]}`;
+}
+
 /**
  * Retorna user_ids que devem ser notificados quando um handoff acontece
  * em uma dada propriedade: o owner + os account_members ativos com
