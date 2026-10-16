@@ -3064,7 +3064,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       }
       right={
         <InfoHint title="Guia do hóspede">
-          Conta os hóspedes com check-in no período. “Viram instruções Check-In” são os que já abriram as Instruções da
+          Conta as reservas com check-in no período (o mesmo hóspede conta uma vez só). “Viram instruções Check-In” são os que já abriram as Instruções da
           sessão “Chegada” pelo menos uma vez; “Viram senha de acesso” são os que já visualizaram as senhas no guia pelo
           menos uma vez.
         </InfoHint>
@@ -8851,7 +8851,7 @@ function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off"
   const groups: GuestMark[][] = [];
   const index = new Map<string, number>();
   for (const it of items) {
-    const key = it.property || it.name;
+    const key = `${it.property}|${it.name}`;
     const at = index.get(key);
     if (at === undefined) {
       index.set(key, groups.length);
