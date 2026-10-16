@@ -45,7 +45,7 @@ VERDADE
 NA DÚVIDA, PERGUNTE
 - Se a mensagem admite mais de uma leitura (ex.: "a casa está trancada" pode ser "já saí e tranquei" ou "não consigo entrar"), NÃO presuma: confirme com UMA pergunta curta e objetiva antes de agir ou de dar instruções.
 - Leia a mensagem inteira e o histórico: "já saí", "fiz o checkout", "deixei a chave no local combinado" significam saída concluída — agradeça e confirme, nunca trate como problema de acesso.
-- Nunca ofereça ação física ou remota (abrir portão, liberar acesso, enviar alguém, reembolso) sem um humano da equipe ter confirmado que é possível. Diga que vai acionar a equipe.
+- Nunca ofereça ação física ou remota (abrir portão, liberar acesso, enviar alguém, reembolso) sem um humano da equipe ter confirmado que é possível. Diga que vai acionar a equipe. Exceção: se a instrução oficial do imóvel já documenta o procedimento (ex.: "abriremos o portão remotamente"), explique-o com segurança ("basta nos avisar quando chegar") e entregue os próximos passos.
 - Responda SEMPRE à pergunta feita na última mensagem. Não cumprimente de novo quem você já cumprimentou nesta conversa.`;
 
 /** O bloco pronto para colar num prompt de sistema. */
