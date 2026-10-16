@@ -8058,6 +8058,8 @@ function OccupancyPanel({
      (a lupa troca o título pelo campo, com um X para fechar). */
   const [query, setQuery] = useState("");
   const [mobileSearch, setMobileSearch] = useState(false);
+  /** Primeiro dia que aparece no visor (muda ao rolar): a legenda só mostra o que existe nos dias VISÍVEIS. */
+  const [firstVisIdx, setFirstVisIdx] = useState(0);
   // largura exata do "visor": nome + N colunas inteiras (sem sobra de coluna cortada)
   const viewportW = nameColW + visibleDays * dayW;
 
@@ -8477,8 +8479,13 @@ function OccupancyPanel({
 
   const presentStates = useMemo(() => {
     const set = new Set<CellPart>();
-    for (const p of visibleProperties) {
-      for (const d of dayList) {
+    /* LEGENDA SÓ DO QUE EXISTE (pedido explícito, 16/10/2026): olha apenas as
+       linhas mostradas (a busca pode ocultar imóveis) e os dias que estão no
+       visor agora — "Checkout Atrasado" só aparece se houver um checkout
+       atrasado nesses dias. Muda conforme o calendário rola. */
+    const windowDays = dayList.slice(firstVisIdx, firstVisIdx + visibleDays + 1);
+    for (const p of shownProperties) {
+      for (const d of windowDays) {
         const [a, b] = cellHalves(p.id, d);
         set.add(a);
         set.add(b);
@@ -8486,7 +8493,7 @@ function OccupancyPanel({
     }
     return set;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleProperties, dayList, byProperty, checkedInPropertyIds, todayISO]);
+  }, [shownProperties, dayList, firstVisIdx, visibleDays, byProperty, checkedInPropertyIds, todayISO]);
 
   const searchField = (cls: string, autoFocus: boolean) => (
     <label className={`relative ${cls}`}>
@@ -8609,6 +8616,7 @@ function OccupancyPanel({
                     maxWidth: "100%",
                     ...(list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : {}),
                   }}
+                  onScroll={(e) => setFirstVisIdx(Math.max(0, Math.floor(e.currentTarget.scrollLeft / dayW)))}
                   className="sg-elegant-scroll overflow-auto snap-x snap-proximity"
                 >
                   <table
