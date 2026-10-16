@@ -51,8 +51,8 @@ import { ManualCleaningButton } from "@/components/dashboard/ManualCleaningButto
 import { ManualBlockButton } from "@/components/dashboard/ManualBlockButton";
 import { ManualCleaningCard } from "@/components/dashboard/ManualCleaningCard";
 import {
-  Search,
   X,
+  Search,
   Calendar,
   CalendarCheck,
   CalendarX,
@@ -916,38 +916,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     ...liveSync,
     enabled: authed && view === "kanban",
   });
-  // Busca de "Concluídos": por padrão o servidor só devolve os 200 cards
-  // concluídos mais recentes (evita varrer a conta inteira sempre que a tela
-  // abre). Isso faz um card concluído há mais tempo (ex.: um check dado por
-  // engano, há dias) sumir da coluna sem aviso nenhum, mesmo continuando no
-  // banco — daí essa busca: com um termo digitado, o servidor solta o limite
-  // e procura por hóspede/imóvel/proprietário/código em tudo.
-  const [concludedSearch, setConcludedSearch] = useState("");
-  const [concludedSearchDebounced, setConcludedSearchDebounced] = useState("");
-  useEffect(() => {
-    const t = setTimeout(() => setConcludedSearchDebounced(concludedSearch.trim()), 300);
-    return () => clearTimeout(t);
-  }, [concludedSearch]);
+  // Concluídos / Não Compareceu: o servidor devolve os cards mais recentes
+  // (limite padrão). Os campos de busca que ficavam no topo de cada coluna
+  // saíram (pedido explícito, 16/10/2026) — a busca passa a ser única, no
+  // calendário; as colunas listam direto.
   const concludedQ = useQuery({
-    queryKey: ["dash-list", "concluded", activeOwnerId ?? "self", concludedSearchDebounced],
-    queryFn: () => concludedFn({ data: { ownerId: activeOwnerId, q: concludedSearchDebounced || undefined } }),
+    queryKey: ["dash-list", "concluded", activeOwnerId ?? "self"],
+    queryFn: () => concludedFn({ data: { ownerId: activeOwnerId } }),
     staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
     enabled: authed && view === "kanban",
   });
-  // Busca de "Não Compareceu": mesmo racional de "Concluídos" acima (limite
-  // padrão de 200, solto quando `q` vem preenchido) — coluna própria, depois
-  // de "Concluídos" (pedido explícito, 05/09/2026).
-  const [noShowSearch, setNoShowSearch] = useState("");
-  const [noShowSearchDebounced, setNoShowSearchDebounced] = useState("");
-  useEffect(() => {
-    const t = setTimeout(() => setNoShowSearchDebounced(noShowSearch.trim()), 300);
-    return () => clearTimeout(t);
-  }, [noShowSearch]);
   const noShowQ = useQuery({
-    queryKey: ["dash-list", "no_show", activeOwnerId ?? "self", noShowSearchDebounced],
-    queryFn: () => noShowFn({ data: { ownerId: activeOwnerId, q: noShowSearchDebounced || undefined } }),
+    queryKey: ["dash-list", "no_show", activeOwnerId ?? "self"],
+    queryFn: () => noShowFn({ data: { ownerId: activeOwnerId } }),
     staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "kanban",
@@ -3844,37 +3827,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   count={kanbanCounts.done}
                   tone="zinc"
                 >
-                  {/* Fora do limite padrão de 200 mais recentes: um card
-                      concluído há mais tempo (ex.: um check dado por engano)
-                      pode não estar nos 200 últimos e simplesmente não
-                      aparecer — a busca soltra esse limite no servidor. */}
-                  <div className="relative sticky top-0 z-10 -mt-0.5 mb-1">
-                    <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      value={concludedSearch}
-                      onChange={(e) => setConcludedSearch(e.target.value)}
-                      placeholder="Buscar em concluídos…"
-                      className="h-8 w-full box-border rounded-none border-0 bg-secondary/60 pl-8 pr-7 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
-                    />
-                    {concludedSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setConcludedSearch("")}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
-                        aria-label="Limpar busca"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    )}
-                  </div>
                   {concludedQ.isLoading ? (
                     <ColumnLoading />
                   ) : kanbanConcludedRows.length === 0 ? (
-                    concludedSearch ? (
-                      <p className="ds-meta px-1 py-6 text-center">Nenhum resultado para "{concludedSearch}".</p>
-                    ) : (
-                      <ColumnEmpty />
-                    )
+                    <ColumnEmpty />
                   ) : (
                     <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} compact />
                   )}
@@ -3894,33 +3850,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   count={kanbanCounts.no_show}
                   tone="zinc"
                 >
-                  <div className="relative sticky top-0 z-10 -mt-0.5 mb-1">
-                    <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      value={noShowSearch}
-                      onChange={(e) => setNoShowSearch(e.target.value)}
-                      placeholder="Buscar em não compareceu…"
-                      className="h-8 w-full box-border rounded-none border-0 bg-secondary/60 pl-8 pr-7 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
-                    />
-                    {noShowSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setNoShowSearch("")}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
-                        aria-label="Limpar busca"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    )}
-                  </div>
                   {noShowQ.isLoading ? (
                     <ColumnLoading />
                   ) : kanbanNoShowRows.length === 0 ? (
-                    noShowSearch ? (
-                      <p className="ds-meta px-1 py-6 text-center">Nenhum resultado para "{noShowSearch}".</p>
-                    ) : (
-                      <ColumnEmpty />
-                    )
+                    <ColumnEmpty />
                   ) : (
                     <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} compact />
                   )}
@@ -8120,6 +8053,11 @@ function OccupancyPanel({
      estado (só pode haver um `activePhotoPeekId` por vez). */
   const [activePhotoPeekId, setActivePhotoPeekId] = useState<string | null>(null);
   const dotSize = Math.max(18, Math.min(28, dayW - 6));
+  /* BUSCA DO CALENDÁRIO (pedido explícito, 16/10/2026, mockup aprovado).
+     `query` filtra ao digitar; `mobileSearch` só controla o campo no celular
+     (a lupa troca o título pelo campo, com um X para fechar). */
+  const [query, setQuery] = useState("");
+  const [mobileSearch, setMobileSearch] = useState(false);
   // largura exata do "visor": nome + N colunas inteiras (sem sobra de coluna cortada)
   const viewportW = nameColW + visibleDays * dayW;
 
@@ -8246,7 +8184,6 @@ function OccupancyPanel({
   // lógica de "N itens inteiros" já usada nas listas do Kanban
   // (useWholeCardsMaxHeight): mede a altura real de cada linha e trava o
   // quadro exatamente no fim da 5ª, sobrando scroll pro resto.
-  const list = useWholeCardsMaxHeight(`${visibleProperties.length}:${loading}:${dayW}`);
 
   const byProperty = useMemo(() => {
     const map = new Map<
@@ -8293,7 +8230,8 @@ function OccupancyPanel({
 
   /* CLIQUE NA RESERVA + NOME E VALOR NA BARRA (pedido explícito, 15–16/10/2026,
      mockups "Cal-Desktop"/"Cal-Mobile" aprovados): a barra mostra o nome do
-     hóspede e o VALOR BRUTO pago pela reserva — como o calendário do Airbnb —
+     hóspede e o VALOR FINAL DE PAGAMENTO da reserva (o repasse ao anfitrião,
+     `amount` = "Payout Amount" da Channex; bruto = amount + comissão) —
      e tocar nela abre o histórico da reserva numa janela central. */
   const [journeyReservationId, setJourneyReservationId] = useState<string | null>(null);
   /* COMEÇA EM HOJE: o quadro agora tem o período todo (passado e futuro), mas
@@ -8322,7 +8260,7 @@ function OccupancyPanel({
   }
   /** O texto da barra: um por reserva, na 1ª coluna visível dela (o dia seguinte ao check-in), com a largura da barra. */
   function barLabels(propertyId: string) {
-    const out = new Map<number, { width: number; name: string; value: string | null }>();
+    const out = new Map<number, { width: number; name: string; value: string | null; stay: (typeof stays)[number] }>();
     for (const st of byProperty.get(propertyId) ?? []) {
       const end = st.checkout ?? st.checkin;
       const from = st.checkin < dayList[0]! ? 0 : (dayIndex.get(st.checkin) ?? -1) + 1;
@@ -8332,10 +8270,129 @@ function OccupancyPanel({
         width: (to - from) * dayW,
         name: st.guest?.trim() || "Reserva",
         value: brl(st.amount, st.currency),
+        stay: st as unknown as (typeof stays)[number],
       });
     }
     return out;
   }
+  /** Reserva de 1 noite: o nome (1º nome, com reticências) mora DENTRO da barra de 1 dia — nome inteiro e valor aparecem no clique. */
+  function singleLabels(propertyId: string) {
+    const out = new Map<number, { name: string; stay: (typeof stays)[number] }>();
+    for (const st of byProperty.get(propertyId) ?? []) {
+      if (!st.checkout || st.checkout === st.checkin) continue;
+      const i = dayIndex.get(st.checkin);
+      if (i === undefined || dayIndex.get(st.checkout) !== i + 1) continue;
+      out.set(i, { name: (st.guest?.trim() || "Reserva").split(/\s+/)[0] ?? "Reserva", stay: st as unknown as (typeof stays)[number] });
+    }
+    return out;
+  }
+
+  /* ── BUSCA (16/10/2026) ──────────────────────────────────────────────────
+     · Mês digitado ("novembro", "nov 2026"): SÓ rola o calendário até ele —
+       nada é escondido.
+     · Texto (hóspede, imóvel, proprietário, cidade, valor, data): some a
+       linha de quem não tem nenhuma reserva que bata; nas linhas que ficam,
+       as outras reservas esmaecem e a encontrada ganha fundo/brilho. Rola
+       até o primeiro resultado.
+     · Campo vazio: tudo de volta, com hoje na primeira coluna. */
+  const norm = (t: string | null | undefined) =>
+    (t ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\u00a0/g, " ")
+      .toLowerCase()
+      .trim();
+  const MONTHS_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  const q = norm(query);
+  const monthQuery = useMemo(() => {
+    const m = q.match(/^([a-z]{3,})(?:\s+(\d{4}))?$/);
+    if (!m) return null;
+    const mi = MONTHS_PT.findIndex((n) => norm(n).startsWith(m[1]!));
+    return mi < 0 ? null : { month: mi + 1, year: m[2] ?? null };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
+  const textTokens = useMemo(() => (q && !monthQuery ? q.split(/\s+/).filter(Boolean) : []), [q, monthQuery]);
+  const searching = textTokens.length > 0;
+  const propHay = (p: { name: string; city: string | null; ownerName?: string | null }) =>
+    norm(`${p.name} ${p.ownerName ?? ""} ${p.city ?? ""}`);
+  const stayHay = (st: { guest: string | null; amount?: number | null; currency?: string | null; checkin: string; checkout: string | null }) =>
+    norm(
+      `${st.guest ?? ""} ${brl(st.amount ?? null, st.currency ?? null) ?? ""} ${st.amount ?? ""} ${fmtDateBR(st.checkin)} ${st.checkout ? fmtDateBR(st.checkout) : ""}`,
+    );
+  /** "none" sem busca · "prop" o imóvel bate (tudo normal) · "hit" reserva encontrada · "dim" esmaece. */
+  const matchState = (
+    p: { name: string; city: string | null; ownerName?: string | null },
+    st: { guest: string | null; amount?: number | null; currency?: string | null; checkin: string; checkout: string | null },
+  ): "none" | "prop" | "hit" | "dim" => {
+    if (!searching) return "none";
+    const ph = propHay(p);
+    if (textTokens.every((t) => ph.includes(t))) return "prop";
+    const hay = `${ph} ${stayHay(st)}`;
+    return textTokens.every((t) => hay.includes(t)) ? "hit" : "dim";
+  };
+  const shownProperties = useMemo(() => {
+    if (!searching) return visibleProperties;
+    return visibleProperties.filter((p) => (byProperty.get(p.id) ?? []).some((st) => matchState(p, st) !== "dim"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleProperties, byProperty, textTokens]);
+  const searchStats = useMemo(() => {
+    let res = 0;
+    for (const p of shownProperties)
+      for (const st of byProperty.get(p.id) ?? []) if (matchState(p, st) === "hit") res++;
+    return { res, rows: shownProperties.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownProperties, byProperty, textTokens]);
+  const list = useWholeCardsMaxHeight(`${shownProperties.length}:${loading}:${dayW}`);
+
+  // Para onde rolar (índice do dia): mês digitado → 1º dia do mês; texto → 1º
+  // resultado (o próximo a partir de hoje; senão o mais antigo).
+  const searchTargetRef = useRef<number | null>(null);
+  {
+    let idx: number | null = null;
+    if (monthQuery) {
+      const i = dayList.findIndex(
+        (d) => Number(d.slice(5, 7)) === monthQuery.month && (!monthQuery.year || d.slice(0, 4) === monthQuery.year),
+      );
+      idx = i >= 0 ? i : null;
+    } else if (searching) {
+      const hits: Array<{ checkin: string; checkout: string | null }> = [];
+      for (const p of shownProperties)
+        for (const st of byProperty.get(p.id) ?? []) if (matchState(p, st) === "hit") hits.push(st);
+      hits.sort((x, y) => x.checkin.localeCompare(y.checkin));
+      const first = hits.find((h) => (h.checkout ?? h.checkin) >= todayISO) ?? hits[0];
+      if (first) {
+        const i = dayList.findIndex((d) => d >= first.checkin);
+        idx = i >= 0 ? Math.max(0, i - 3) : null;
+      }
+    }
+    searchTargetRef.current = idx;
+  }
+  const prevQRef = useRef("");
+  useEffect(() => {
+    const scroller = outerEl?.firstElementChild as HTMLElement | null | undefined;
+    if (!scroller) return;
+    if (!q && !prevQRef.current) return;
+    prevQRef.current = q;
+    const t = setTimeout(() => {
+      const idx = q ? searchTargetRef.current : Math.max(0, dayList.indexOf(todayISO));
+      if (idx === null || idx === undefined) return;
+      scroller.scrollTo({ left: idx * dayW, behavior: "smooth" });
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, outerEl, dayW]);
+
+  /** Meses do cabeçalho: um rótulo por mês, centrado na parte VISÍVEL dele. */
+  const monthGroups = useMemo(() => {
+    const g: Array<{ key: string; month: number; year: string; n: number }> = [];
+    for (const d of dayList) {
+      const key = d.slice(0, 7);
+      const last = g[g.length - 1];
+      if (last && last.key === key) last.n++;
+      else g.push({ key, month: Number(d.slice(5, 7)), year: d.slice(0, 4), n: 1 });
+    }
+    return g;
+  }, [dayList]);
 
   // "in" = check-in confirmado (verde) · "in-pending" = check-in ainda não
   // confirmado (azul claro) · "in-late" = data de check-in já passou sem
@@ -8431,6 +8488,37 @@ function OccupancyPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleProperties, dayList, byProperty, checkedInPropertyIds, todayISO]);
 
+  const searchField = (cls: string, autoFocus: boolean) => (
+    <label className={`relative ${cls}`}>
+      <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60" />
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        autoFocus={autoFocus}
+        placeholder="Buscar hóspede, imóvel, mês, valor…"
+        aria-label="Buscar no calendário"
+        className={`h-8 w-full rounded-[0.3rem] border-0 bg-secondary/60 pl-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:bg-secondary focus:outline-none ${
+          searching ? "pr-7 sm:pr-[9.5rem]" : query ? "pr-7" : "pr-2"
+        }`}
+      />
+      {searching && (
+        <span className="pointer-events-none absolute right-7 top-1/2 hidden -translate-y-1/2 text-[10.5px] font-semibold text-muted-foreground sm:inline">
+          {searchStats.res} {searchStats.res === 1 ? "reserva" : "reservas"} · {searchStats.rows} {searchStats.rows === 1 ? "imóvel" : "imóveis"}
+        </span>
+      )}
+      {query && (
+        <button
+          type="button"
+          onClick={() => setQuery("")}
+          aria-label="Limpar busca"
+          className="absolute right-1.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center text-muted-foreground hover:text-foreground"
+        >
+          <X className="size-3.5" />
+        </button>
+      )}
+    </label>
+  );
+
   return (
     <section className="ds-3d relative rounded-[14px] border-0 bg-card">
       {/* Pedido explícito: o botão único de filtros (Período/Cidade/
@@ -8441,37 +8529,67 @@ function OccupancyPanel({
             mais a setinha por último. Clicar no título OU na setinha
             expande/recolhe; clicar no botão de filtros não. */}
       <div className="flex w-full items-center gap-2 py-3.5 pl-2.5 pr-4 text-left">
-        <div
-          /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): ícone em
-             caixinha e título em Sora, como nos demais cards. O título fica
-             numa linha só, com reticências. Não é mais botão: o calendário é
-             FIXO (16/10/2026). */
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
-        >
-          <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
-            <CalendarRange className="size-3.5" strokeWidth={2} />
-          </span>
-          <span className="ds-card-title min-w-0 flex-1 text-[14px] !font-medium" title="Calendário de ocupação">
-            Calendário de ocupação
-          </span>
-        </div>
-        <CalendarFiltersButton
-          periodRange={periodRange}
-          onPeriodRangeChange={onPeriodRangeChange}
-          cityFilters={cityFilters}
-          onCityFiltersChange={onCityFiltersChange}
-          cityOptions={cityOptions}
-          ownerFilters={ownerFilters}
-          onOwnerFiltersChange={onOwnerFiltersChange}
-          ownerOptions={ownerOptions}
-          ownerSubtitles={ownerSubtitles}
-          providerFilters={providerFilters}
-          onProviderFiltersChange={onProviderFiltersChange}
-          providerOptions={providerOptions}
-          providerSubtitles={providerSubtitles}
-          hasCustomFilters={hasCustomFilters}
-          onClearAll={onClearAllFilters}
-        />
+        {mobileSearch ? (
+          <>
+            {searchField("min-w-0 flex-1", true)}
+            <button
+              type="button"
+              aria-label="Fechar busca"
+              onClick={() => {
+                setMobileSearch(false);
+                setQuery("");
+              }}
+              className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] bg-secondary/60 text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
+          </>
+        ) : (
+          <>
+            <div
+              /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): ícone em
+                 caixinha e título em Sora, como nos demais cards. O título fica
+                 numa linha só, com reticências. Não é mais botão: o calendário é
+                 FIXO (16/10/2026). */
+              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            >
+              <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
+                <CalendarRange className="size-3.5" strokeWidth={2} />
+              </span>
+              <span className="ds-card-title min-w-0 flex-1 text-[14px] !font-medium" title="Calendário de ocupação">
+                Calendário de ocupação
+              </span>
+            </div>
+            {/* Celular: a lupa troca o título pelo campo (mockup B). */}
+            <button
+              type="button"
+              aria-label="Buscar"
+              onClick={() => setMobileSearch(true)}
+              className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] bg-secondary/60 text-muted-foreground hover:text-foreground sm:hidden"
+            >
+              <Search className="size-3.5" />
+            </button>
+            {/* Computador: campo à esquerda de FILTROS. */}
+            {searchField("hidden w-[320px] shrink-0 sm:block", false)}
+            <CalendarFiltersButton
+              periodRange={periodRange}
+              onPeriodRangeChange={onPeriodRangeChange}
+              cityFilters={cityFilters}
+              onCityFiltersChange={onCityFiltersChange}
+              cityOptions={cityOptions}
+              ownerFilters={ownerFilters}
+              onOwnerFiltersChange={onOwnerFiltersChange}
+              ownerOptions={ownerOptions}
+              ownerSubtitles={ownerSubtitles}
+              providerFilters={providerFilters}
+              onProviderFiltersChange={onProviderFiltersChange}
+              providerOptions={providerOptions}
+              providerSubtitles={providerSubtitles}
+              hasCustomFilters={hasCustomFilters}
+              onClearAll={onClearAllFilters}
+            />
+          </>
+        )}
       </div>
       <div className="border-t border-border/50 px-4 sm:px-5 pt-4 pb-5">
           {loading ? (
@@ -8503,7 +8621,8 @@ function OccupancyPanel({
                     <thead>
                       <tr>
                         <th
-                          className="sticky left-0 top-0 z-20 relative bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] pb-2 pr-3 text-left"
+                          rowSpan={2}
+                          className="sticky left-0 top-0 z-30 relative bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] pb-2 pr-3 text-left align-bottom"
                           style={{ width: nameColW, minWidth: nameColW }}
                         >
                           <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
@@ -8520,6 +8639,34 @@ function OccupancyPanel({
                             className="pointer-events-none absolute -bottom-1 right-0 top-0 w-px bg-[var(--grid-line-v)]"
                           />
                         </th>
+                        {/* LINHA DO MÊS (16/10/2026, mockup aprovado): "OUTUBRO 2026"
+                            em caixa alta, centrado na parte VISÍVEL do mês (a
+                            caixa interna é `sticky` com a largura do que cabe no
+                            visor), fio de cada lado e uma linha vertical na
+                            virada de mês. */}
+                        {monthGroups.map((g, k) => {
+                          const visW = Math.max(0, Math.min(g.n * dayW, visibleDays * dayW));
+                          return (
+                            <th
+                              key={g.key}
+                              colSpan={g.n}
+                              className="sticky top-0 z-20 relative h-[22px] bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-1.5 pt-1 text-center"
+                            >
+                              {k > 0 && (
+                                <span aria-hidden className="pointer-events-none absolute bottom-0 left-0 top-0 w-px bg-foreground/20" />
+                              )}
+                              <div className="sticky flex items-center gap-3 px-3" style={{ left: nameColW, width: visW }}>
+                                <i className="h-px flex-1 bg-gradient-to-r from-transparent to-foreground/15" />
+                                <span className="whitespace-nowrap text-[10.5px] font-semibold uppercase tracking-[0.18em] text-foreground/75">
+                                  {MONTHS_PT[g.month - 1]} <span className="text-muted-foreground">{g.year}</span>
+                                </span>
+                                <i className="h-px flex-1 bg-gradient-to-l from-transparent to-foreground/15" />
+                              </div>
+                            </th>
+                          );
+                        })}
+                      </tr>
+                      <tr>
                         {dayList.map((d, i) => {
                           const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
                             weekday: "short",
@@ -8567,7 +8714,7 @@ function OccupancyPanel({
                             <th
                               key={d}
                               style={{ width: dayW, minWidth: dayW }}
-                              className="sticky top-0 z-20 relative snap-start bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-2 font-medium tabular-nums"
+                              className="sticky top-[26px] z-20 relative snap-start bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-2 font-medium tabular-nums"
                             >
                               {i < dayList.length - 1 && (
                                 <span
@@ -8622,15 +8769,16 @@ function OccupancyPanel({
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleProperties.map((p, pIdx) => {
+                      {shownProperties.map((p, pIdx) => {
                         const halves = dayList.flatMap((d) => cellHalves(p.id, d));
                         const occ = halves.map((h) => h !== "free");
                         const labels = barLabels(p.id);
+                        const singles = singleLabels(p.id);
                         // Linha horizontal do grid (ver comentário no cabeçalho) —
                         // um fio ainda mais discreto que o vertical, separando
                         // cada imóvel. Sem linha depois do último, mesma lógica
                         // das colunas.
-                        const isLastRow = pIdx === visibleProperties.length - 1;
+                        const isLastRow = pIdx === shownProperties.length - 1;
                         const rowDivider = isLastRow ? "" : "border-b border-[var(--grid-line-h)]";
                         // Ver comentário completo no <th> de cada dia: o fio
                         // vertical agora é um <span> absoluto (não `border-r`)
@@ -8697,11 +8845,16 @@ function OccupancyPanel({
                                   : `${labelOf(a)} → ${labelOf(b)} · ${fmtDateBR(d)}`;
                               const idxA = i * 2;
                               const idxB = i * 2 + 1;
-                              const round = (idx: number) =>
-                                [
-                                  occ[idx] && !occ[idx - 1] ? "rounded-l-full" : "",
-                                  occ[idx] && !occ[idx + 1] ? "rounded-r-full" : "",
-                                ].join(" ");
+                              /* CORTE ENTRE RESERVAS NO MESMO DIA (16/10/2026, mockup
+                                 aprovado): quando o dia tem um checkout E um
+                                 check-in, cada metade encolhe 2px e a da tarde
+                                 ganha 4px de margem — um corte limpo mostra que
+                                 são reservas diferentes. Só as pontas externas
+                                 de cada reserva levam a curvatura leve (4px). */
+                              const dayStays = byProperty.get(p.id) ?? [];
+                              const outS = dayStays.find((x) => x.checkout === d);
+                              const inS = dayStays.find((x) => x.checkin === d);
+                              const junction = !!outS && !!inS;
                               // Pedido explícito (25/09/2026, revisão do que tinha
                               // sido pedido antes): a linha vertical do dia agora é
                               // SEMPRE desenhada ("de fora a fora"), inclusive por
@@ -8751,8 +8904,18 @@ function OccupancyPanel({
                                       <span className="absolute right-0 top-1/2 h-px w-1/2 -translate-y-1/2 bg-border/50" />
                                     )}
                                     {([0, 1] as const).map((half) => {
+                                      const part = half === 0 ? a : b;
+                                      if (part === "free") return <div key={half} className="h-full w-1/2" />;
+                                      const idx = half === 0 ? idxA : idxB;
                                       const st = stayAt(p.id, d, half);
                                       const id = st?.reservationId ?? null;
+                                      const occL = junction && half === 1 ? false : !!occ[idx - 1];
+                                      const occR = junction && half === 0 ? false : !!occ[idx + 1];
+                                      const ms = st ? matchState(p, st) : "none";
+                                      const isHit = ms === "hit";
+                                      const base =
+                                        part === "blocked" ? "bg-muted-foreground/50" : isHit ? "bg-primary/55" : "bg-primary/35";
+                                      const isEdge = part !== "busy" && part !== "blocked";
                                       return (
                                         <div
                                           key={half}
@@ -8770,23 +8933,54 @@ function OccupancyPanel({
                                                 },
                                               }
                                             : {})}
-                                          className={`relative h-full w-1/2 ${half === 0 ? clsOf(a) : clsOf(b)} ${round(half === 0 ? idxA : idxB)} ${
-                                            id ? "cursor-pointer" : ""
-                                          }`}
-                                        />
+                                          style={{
+                                            ...(junction ? { width: "calc(50% - 2px)", ...(half === 1 ? { marginLeft: 4 } : {}) } : {}),
+                                            ...(isHit
+                                              ? {
+                                                  filter: "drop-shadow(0 0 6px color-mix(in oklab, var(--primary) 40%, transparent))",
+                                                  zIndex: 1,
+                                                }
+                                              : {}),
+                                          }}
+                                          className={`relative h-full w-1/2 overflow-hidden ${base} ${!occL ? "rounded-l-[4px]" : ""} ${
+                                            !occR ? "rounded-r-[4px]" : ""
+                                          } ${ms === "dim" ? "opacity-[0.18]" : ""} ${id ? "cursor-pointer" : ""}`}
+                                        >
+                                          {/* STATUS = fio de 3px × 12px rente à ponta da barra,
+                                              seguindo a curva: check-in na esquerda, checkout
+                                              na direita (cores em `clsOf`). */}
+                                          {isEdge && (
+                                            <span
+                                              aria-hidden
+                                              className={`absolute bottom-0 h-[3px] w-3 ${clsOf(part)} ${half === 0 ? "right-0" : "left-0"}`}
+                                            />
+                                          )}
+                                        </div>
                                       );
                                     })}
                                     {labels.get(i) && (
                                       <span
-                                        className="pointer-events-none absolute left-0 top-0 z-[5] flex h-full items-center overflow-hidden whitespace-nowrap pl-2 pr-1.5 text-[11px] leading-none text-white"
+                                        className={`pointer-events-none absolute left-0 top-0 z-[5] flex h-full items-center justify-center overflow-hidden whitespace-nowrap px-2 text-center text-[11px] leading-none text-white ${
+                                          searching ? (matchState(p, labels.get(i)!.stay) === "dim" ? "opacity-25" : matchState(p, labels.get(i)!.stay) === "hit" ? "[&_.nm]:font-extrabold" : "") : ""
+                                        }`}
                                         style={{ width: labels.get(i)!.width }}
                                       >
+                                        {/* Nome + valor CENTRALIZADOS na barra. Sem valor no dado
+                                            (reserva só do iCal, que não traz pagamento): "—". */}
                                         <span className="truncate">
-                                          <span className="font-bold">{labels.get(i)!.name}</span>
-                                          {labels.get(i)!.value && (
-                                            <span className="ml-0.5 font-medium"> {labels.get(i)!.value}</span>
-                                          )}
+                                          <span className="nm font-bold">{labels.get(i)!.name}</span>
+                                          <span className="ml-0.5 font-medium"> {labels.get(i)!.value ?? "—"}</span>
                                         </span>
+                                      </span>
+                                    )}
+                                    {singles.get(i) && (
+                                      <span
+                                        className={`pointer-events-none absolute top-0 z-[5] flex h-full items-center justify-center overflow-hidden whitespace-nowrap px-1 text-center text-[10.5px] font-bold leading-none text-white ${
+                                          searching ? (matchState(p, singles.get(i)!.stay) === "dim" ? "opacity-25" : matchState(p, singles.get(i)!.stay) === "hit" ? "font-extrabold" : "") : ""
+                                        }`}
+                                        style={{ left: dayW / 2, width: dayW }}
+                                      >
+                                        <span className="truncate">{singles.get(i)!.name}</span>
                                       </span>
                                     )}
                                   </div>
@@ -8801,6 +8995,12 @@ function OccupancyPanel({
                 </div>
               </div>
 
+              {searching && shownProperties.length === 0 && (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  Nenhum resultado para “{query.trim()}”.
+                </div>
+              )}
+
               {/* Legenda do padrão "A · Noite": fio de 1px separando, e os
                   mesmos estados de sempre. */}
               <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-border pt-3.5 text-[11px] font-medium text-muted-foreground">
@@ -8808,8 +9008,10 @@ function OccupancyPanel({
                   <span key={item.state} className="inline-flex items-center gap-1.5">
                     {item.state === "free" ? (
                       <span className="h-px w-4 bg-border" />
-                    ) : (
+                    ) : item.state === "busy" ? (
                       <span className={`h-2 w-4 rounded-full ${clsOf(item.state)}`} />
+                    ) : (
+                      <span className={`h-[3px] w-4 rounded-full ${clsOf(item.state)}`} />
                     )}
                     {item.label}
                   </span>
@@ -9804,7 +10006,9 @@ function ArrivalCard({
    * Concluído e Não Compareceu não têm previsão a exibir: não há próxima ação
    * para prever.
    */
-  const showPrediction = mode !== "done" && mode !== "no_show";
+  // Concluídos e Não Compareceu passam a ter o MESMO card de Em Estadia, com o
+  // ícone de previsão e a linha "Permitido…" (pedido explícito, 16/10/2026).
+  const showPrediction = true;
   // CHECK-IN CONFIRMADO (pedido explícito, 26/09/2026): a previsão de
   // CHEGADA some — no card e nos campos — e só a de SAÍDA continua.
   const checkinConfirmed = done || mode === "stay" || mode === "checkout" || mode === "cleaning";
@@ -10423,25 +10627,10 @@ function ArrivalCard({
           );
         })()}
 
-      {row.note && !noteOpen && /^Confirmad[oa] /.test(row.note.trim()) && (
-        /* "CONFIRMADO PELA EQUIPE" EM CHIP (pedido explícito, 15/10/2026,
-           mockup "Bloco A" aprovado): a nota automática de confirmação
-           ("Confirmado pela equipe", "…pelo hóspede via Guia Digital",
-           "…automaticamente") deixa de ser uma caixa de texto e vira um chip
-           verde com o check. Continua abrindo a nota para editar. */
-        <button
-          type="button"
-          onClick={() => {
-            setNoteText(row.note ?? "");
-            setNoteOpen(true);
-          }}
-          className="inline-flex max-w-full items-center gap-[7px] self-start rounded-full border border-emerald-500/30 bg-emerald-500/10 px-[11px] py-[5px] text-left text-[11.5px] font-bold text-emerald-700 dark:text-emerald-300"
-          title="Clique para editar a nota"
-        >
-          <Check className="size-3.5 shrink-0" />
-          <span className="truncate">{row.note.trim()}</span>
-        </button>
-      )}
+      {/* ETIQUETA "CONFIRMADO PELA EQUIPE / PELO HÓSPEDE" REMOVIDA (pedido
+          explícito, 16/10/2026): a nota automática de confirmação não aparece
+          mais no card (continua no histórico da reserva). Só notas escritas
+          pela equipe são exibidas abaixo. */}
       {row.note && !noteOpen && !/^Confirmad[oa] /.test(row.note.trim()) && (
         <button
           type="button"

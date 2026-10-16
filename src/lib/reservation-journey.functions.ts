@@ -126,6 +126,11 @@ export type ReservationJourney = {
   ownerPhoneCountry: string | null;
   /** Quantos registros (fotos, áudios, notas) a reserva acumulou. */
   recordsCount: number;
+  /** Valor final de pagamento (repasse ao anfitrião) — nulo quando a reserva só existe no iCal. */
+  payoutAmount: number | null;
+  payoutCurrency: string | null;
+  /** Comissão da plataforma (bruto = repasse + comissão). */
+  payoutCommission: number | null;
 };
 
 type LogRow = {
@@ -146,6 +151,10 @@ type ReservationRow = {
   checkout_date: string | null;
   guest_hint: string | null;
   created_at: string | null;
+  source?: string | null;
+  amount?: number | null;
+  currency?: string | null;
+  ota_commission?: number | null;
 };
 
 type StatusRow = {
@@ -214,7 +223,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       reservationId
         ? db
             .from("property_reservations")
-            .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at")
+            .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at, source, amount, currency, ota_commission")
             .eq("id", reservationId)
             .maybeSingle()
         : Promise.resolve({ data: null }),
@@ -234,11 +243,13 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       if (!reservation) {
         const { data: r } = await db
           .from("property_reservations")
-          .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at")
+          .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at, source, amount, currency, ota_commission")
           .eq("property_id", propertyId)
           .eq("checkin_date", checkinDate)
-          .limit(1);
-        reservation = (r?.[0] as ReservationRow | undefined) ?? null;
+          .limit(10);
+        // A Channex manda: entre as linhas da mesma estadia, a dela vem primeiro.
+        const cands = (r ?? []) as ReservationRow[];
+        reservation = cands.find((x) => x.source === "channex") ?? cands[0] ?? null;
         reservationId = reservation?.id ?? reservationId;
       }
       if (!log) {
@@ -255,6 +266,25 @@ export const getReservationJourney = createServerFn({ method: "GET" })
         logId = log?.id ?? logId;
       }
     }
+
+    // VALOR FINAL DE PAGAMENTO (repasse ao anfitrião = `amount` da Channex).
+    // Se a linha aberta é a do iCal (que não traz valor), busca a gêmea da
+    // Channex da mesma estadia — o status pode estar preso ao id do iCal.
+    let payout = reservation;
+    if (reservation && !(Number(reservation.amount) > 0) && reservation.checkin_date) {
+      const { data: twins } = await db
+        .from("property_reservations")
+        .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at, source, amount, currency, ota_commission")
+        .eq("property_id", reservation.property_id)
+        .eq("checkin_date", reservation.checkin_date)
+        .eq("source", "channex")
+        .limit(5);
+      const tw = ((twins ?? []) as ReservationRow[]).find(
+        (x) => (x.checkout_date ?? null) === (reservation!.checkout_date ?? null) && Number(x.amount) > 0,
+      );
+      if (tw) payout = tw;
+    }
+    const payoutAmount = payout && Number(payout.amount) > 0 ? Number(payout.amount) : null;
 
     // ---- 2. Imóvel e proprietário ----
     const { data: prop } = await db
@@ -589,6 +619,9 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       tasks,
       activity,
       recordsCount,
+      payoutAmount,
+      payoutCurrency: payoutAmount != null ? (payout?.currency ?? "BRL") : null,
+      payoutCommission: payoutAmount != null && Number(payout?.ota_commission) > 0 ? Number(payout?.ota_commission) : null,
     };
 
     if (noShow) {

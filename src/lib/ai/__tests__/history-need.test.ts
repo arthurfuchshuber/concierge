@@ -36,4 +36,26 @@ describe("dedupeStays", () => {
     );
     expect(out.map((r) => r.id)).toEqual(["ical"]);
   });
+
+  it("Channex sempre manda no conteúdo; status do iCal só empresta o id", () => {
+    const out = dedupeStays(
+      [
+        { ...base, id: "ical", source: "airbnb", amount: null, created_at: "2026-09-28" },
+        { ...base, id: "channex", source: "channex", amount: 580.69, created_at: "2026-10-11" },
+      ],
+      (id) => id === "ical",
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ id: "ical", source: "channex", amount: 580.69 });
+  });
+  it("sem status, a linha da Channex vence mesmo sendo a mais antiga", () => {
+    const out = dedupeStays(
+      [
+        { ...base, id: "channex", source: "channex", created_at: "2026-09-01" },
+        { ...base, id: "ical", source: "airbnb", created_at: "2026-10-11" },
+      ],
+      () => false,
+    );
+    expect(out.map((r) => r.id)).toEqual(["channex"]);
+  });
 });

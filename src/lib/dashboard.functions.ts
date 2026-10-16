@@ -182,7 +182,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
           .limit(2000),
         context.supabase
           .from("property_reservations")
-          .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint")
+          .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint, source")
           .in("property_id", propIds)
           .in("source", ["airbnb", "channex"])
           .or(
@@ -754,7 +754,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
           .in("id", propIds),
         context.supabase
           .from("property_reservations")
-          .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint")
+          .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint, source")
           .in("property_id", propIds)
           .in("source", ["airbnb", "channex"])
           .gte("checkin_date", fetchFrom)
@@ -2329,7 +2329,7 @@ export const OCCUPANCY_MAX_DAYS = 1095;
 export type OccupancyStay = {
   /** Id da reserva (iCal/Channex): abre o histórico ao clicar na barra. Logs sem reserva não têm. */
   reservationId?: string | null;
-  /** Valor bruto pago pela reserva (`property_reservations.amount`) e a moeda dele. */
+  /** Valor final de pagamento (repasse ao anfitrião, "Payout Amount" da Channex — `property_reservations.amount`) e a moeda dele. */
   amount?: number | null;
   currency?: string | null;
   propertyId: string;

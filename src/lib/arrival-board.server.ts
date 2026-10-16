@@ -56,21 +56,60 @@ function isRealReservation(row: { status?: string | null; raw_summary?: string |
   return true;
 }
 
-/** Uma estadia (imóvel + entrada + saída) gera um único card. */
+/**
+ * Uma estadia (imóvel + entrada + saída) gera um único card.
+ *
+ * A CHANNEX MANDA (pedido explícito, 16/10/2026): quando a mesma estadia
+ * existe no iCal (`source = "airbnb"`) e na Channex (`source = "channex"`),
+ * TODOS os dados vêm da linha da Channex — valor, comissão, hóspede, canal,
+ * status da reserva. O iCal só continua valendo para imóveis sem Channex.
+ *
+ * Uma única exceção, só de IDENTIDADE: o status gravado pela equipe
+ * (`guest_arrival_status.reservation_id`) está preso ao id da linha em que foi
+ * gravado. Se foi na do iCal, a linha resultante leva o id dela (senão o card
+ * voltaria a "pendente"), mas com o conteúdo da Channex.
+ *
+ * Sem `source` nas linhas (chamadores antigos) vale a regra anterior: fica a
+ * linha que já tem status e, entre iguais, a mais recente.
+ */
 export function dedupeStays<
   T extends { id: string; property_id: string; checkin_date: string; checkout_date: string | null; created_at?: string | null },
 >(rows: T[], hasStatus: (id: string) => boolean): T[] {
-  const best = new Map<string, T>();
+  const isChannex = (r: T) => (r as { source?: string | null }).source === "channex";
+  const groups = new Map<string, T[]>();
   for (const r of rows) {
     const key = `${r.property_id}|${r.checkin_date}|${r.checkout_date ?? ""}`;
-    const cur = best.get(key);
-    if (!cur) { best.set(key, r); continue; }
-    const rs = hasStatus(r.id), cs = hasStatus(cur.id);
-    if (rs !== cs) { if (rs) best.set(key, r); continue; }
-    if ((r.created_at ?? "") > (cur.created_at ?? "")) best.set(key, r);
+    const g = groups.get(key);
+    if (g) g.push(r);
+    else groups.set(key, [r]);
   }
-  const keep = new Set(Array.from(best.values()).map((r) => r.id));
-  return rows.filter((r) => keep.has(r.id));
+  const pickBest = (list: T[]): T => {
+    let best = list[0];
+    for (const r of list.slice(1)) {
+      const rs = hasStatus(r.id), cs = hasStatus(best.id);
+      if (rs !== cs) { if (rs) best = r; continue; }
+      if ((r.created_at ?? "") > (best.created_at ?? "")) best = r;
+    }
+    return best;
+  };
+  const resolved = new Map<string, T>();
+  for (const [key, g] of groups) {
+    if (g.length === 1) { resolved.set(key, g[0]); continue; }
+    const cx = g.filter(isChannex);
+    if (cx.length === 0) { resolved.set(key, pickBest(g)); continue; }
+    const data = pickBest(cx);
+    const statusRow = hasStatus(data.id) ? data : g.find((r) => hasStatus(r.id));
+    resolved.set(key, statusRow && statusRow.id !== data.id ? { ...data, id: statusRow.id } : data);
+  }
+  const emitted = new Set<string>();
+  const out: T[] = [];
+  for (const r of rows) {
+    const key = `${r.property_id}|${r.checkin_date}|${r.checkout_date ?? ""}`;
+    if (emitted.has(key)) continue;
+    emitted.add(key);
+    out.push(resolved.get(key) as T);
+  }
+  return out;
 }
 
 export type ArrivalLogRow = {

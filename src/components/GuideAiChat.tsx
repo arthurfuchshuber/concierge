@@ -26,8 +26,37 @@ type Msg = {
 };
 
 /** Chave estável da tradução (mensagens recém-geradas ainda não têm id). */
+// Chave pelo conteúdo: a mesma resposta não é traduzida de novo quando ganha
+// id no merge do polling.
 function trKey(m: Msg): string {
-  return m.id ?? `c:${m.content}`;
+  return `c:${m.content}`;
+}
+
+// Cache persistente das traduções (por idioma + texto), para que reabrir o
+// chat não gaste a cota de tradução traduzindo tudo outra vez.
+const TR_CACHE_KEY = "guide-ai-tr-cache-v1";
+function trCacheId(lang: string, text: string): string {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (Math.imul(31, h) + text.charCodeAt(i)) | 0;
+  return `${lang}:${text.length}:${h}`;
+}
+function readTrCache(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(TR_CACHE_KEY) || "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+function writeTrCache(id: string, value: string) {
+  try {
+    const c = readTrCache();
+    c[id] = value;
+    const keys = Object.keys(c);
+    if (keys.length > 300) for (const k of keys.slice(0, keys.length - 300)) delete c[k];
+    localStorage.setItem(TR_CACHE_KEY, JSON.stringify(c));
+  } catch {
+    /* sem armazenamento: segue sem cache */
+  }
 }
 
 /** Código/senha em linha com botão de copiar ao lado. */
@@ -203,23 +232,42 @@ export function GuideAiChat({
   const [autoTranslated, setAutoTranslated] = useState<Record<string, string>>({});
   const [showOriginal, setShowOriginal] = useState<Record<string, boolean>>({});
   const translatingRef = useRef<Set<string>>(new Set());
+  const trFailRef = useRef<Map<string, { n: number; at: number }>>(new Map());
+  const trBusyRef = useRef(false);
+  const [trTick, setTrTick] = useState(0);
   useEffect(() => {
     const myLang = userLanguage();
-    const pending = messages.filter(
-      (m) =>
-        m.role === "assistant" &&
-        (m.content ?? "").trim().length > 2 &&
-        !autoTranslated[trKey(m)] &&
-        !translatingRef.current.has(trKey(m)) &&
-        (() => {
-          const d = detectLanguage(m.content);
-          return Boolean(d && d !== myLang);
-        })(),
-    );
+    // Primeiro, aplica o que já está no cache local (sem chamar o servidor).
+    const cache = readTrCache();
+    const fromCache: Record<string, string> = {};
+    for (const m of messages) {
+      if (m.role !== "assistant") continue;
+      const k = trKey(m);
+      if (autoTranslated[k]) continue;
+      const hit = cache[trCacheId(myLang, m.content)];
+      if (hit) fromCache[k] = hit;
+    }
+    if (Object.keys(fromCache).length) {
+      setAutoTranslated((p) => ({ ...p, ...fromCache }));
+      return;
+    }
+    if (trBusyRef.current) return;
+    const now = Date.now();
+    const pending = messages.filter((m) => {
+      if (m.role !== "assistant" || (m.content ?? "").trim().length <= 2) return false;
+      const k = trKey(m);
+      if (autoTranslated[k] || translatingRef.current.has(k)) return false;
+      const f = trFailRef.current.get(k);
+      if (f && (f.n >= 4 || now - f.at < 4000 * 2 ** f.n)) return false;
+      const d = detectLanguage(m.content);
+      return Boolean(d && d !== myLang);
+    });
     if (!pending.length) return;
-    pending.forEach(async (m) => {
-      const id = trKey(m);
-      translatingRef.current.add(id);
+    // Uma por vez, das mais recentes para as antigas, para não estourar o
+    // limite por minuto ao abrir um chat longo.
+    const ordered = [...pending].reverse();
+    trBusyRef.current = true;
+    void (async () => {
       try {
         const { ensureGuidePass } = await import("@/lib/guest-pass-client");
         const pass = await ensureGuidePass(slug, {
@@ -227,19 +275,40 @@ export function GuideAiChat({
           code: readAccessRecord(slug)?.code ?? null,
         });
         if (!pass) return;
-        const r = await translateMessage({
-          data: {
-            text: m.content.slice(0, 2000),
-            targetLang: myLang,
-            guest: sessionId ? { slug, sessionId, pass } : null,
-          },
-        });
-        setAutoTranslated((p) => ({ ...p, [id]: r.translated }));
-      } catch {
-        /* mantém o original */
+        for (const m of ordered) {
+          const id = trKey(m);
+          translatingRef.current.add(id);
+          try {
+            const r = await translateMessage({
+              data: {
+                text: m.content.slice(0, 2000),
+                targetLang: myLang,
+                guest: sessionId ? { slug, sessionId, pass } : null,
+              },
+            });
+            writeTrCache(trCacheId(myLang, m.content), r.translated);
+            trFailRef.current.delete(id);
+            setAutoTranslated((p) => ({ ...p, [id]: r.translated }));
+          } catch {
+            const f = trFailRef.current.get(id);
+            trFailRef.current.set(id, { n: (f?.n ?? 0) + 1, at: Date.now() });
+            break; // provável limite: tenta de novo mais tarde
+          } finally {
+            translatingRef.current.delete(id);
+          }
+        }
+      } finally {
+        trBusyRef.current = false;
       }
-    });
-  }, [messages, autoTranslated, slug, sessionId]);
+    })();
+  }, [messages, autoTranslated, slug, sessionId, trTick]);
+  // Re-tentativa periódica das traduções que falharam.
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (trFailRef.current.size) setTrTick((n) => n + 1);
+    }, 8000);
+    return () => clearInterval(t);
+  }, []);
 
 
   const [input, setInput] = useState("");

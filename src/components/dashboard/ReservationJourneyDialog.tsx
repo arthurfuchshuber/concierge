@@ -416,6 +416,28 @@ export function ReservationJourneyDialog({
                   <InfoRow label="Código">{data.reservationCode}</InfoRow>
                 )}
                 {periodo && <InfoRow label="Período">{periodo}</InfoRow>}
+                {/* VALOR FINAL DE PAGAMENTO (16/10/2026): o repasse ao anfitrião;
+                    a comissão vai como detalhe. Sem valor (reserva só do iCal)
+                    mostra "—". */}
+                <InfoRow label="Recebido">
+                  {data.payoutAmount != null ? (
+                    <>
+                      {new Intl.NumberFormat("pt-BR", { style: "currency", currency: data.payoutCurrency || "BRL" }).format(
+                        data.payoutAmount,
+                      )}
+                      {data.payoutCommission != null && (
+                        <span className="ml-1.5 text-[10.5px] font-medium text-muted-foreground">
+                          comissão{" "}
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: data.payoutCurrency || "BRL" }).format(
+                            data.payoutCommission,
+                          )}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </InfoRow>
                 <InfoRow label="Status">
                   <span className="inline-flex items-center gap-[7px]">
                     <span className="size-[7px] shrink-0 rounded-full bg-emerald-500/80" />
