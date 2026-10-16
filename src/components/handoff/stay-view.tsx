@@ -103,7 +103,7 @@ export function stayBarClass(s: StayView): string {
     case "orange":
       return "bg-orange-400";
     case "cream":
-      return "bg-[oklch(0.86_0.09_100/0.45)]";
+      return "bg-muted-foreground/40";
     case "red":
       return "bg-red-500";
     default:
@@ -165,12 +165,28 @@ export function GuideViewers({ count }: { count: number }) {
   );
 }
 
-function Line({ icon: Icon, label, labelW, children }: { icon: typeof Hash; label: string; labelW: string; children: React.ReactNode }) {
+function Line({
+  icon: Icon,
+  label,
+  labelW,
+  iconCls,
+  value,
+  extra,
+}: {
+  icon: typeof Hash;
+  label: string;
+  labelW: string;
+  iconCls: string;
+  value: React.ReactNode;
+  extra?: React.ReactNode;
+}) {
+  // Idêntico ao mockup: ícone · rótulo (largura fixa) · valor em negrito · complemento (mesmo gap de 8px).
   return (
-    <div className="flex min-w-0 items-center gap-2 tabular-nums">
-      <Icon className="size-3 shrink-0 text-muted-foreground" />
+    <div className="flex min-w-0 items-center gap-2 whitespace-nowrap tabular-nums">
+      <Icon className={`${iconCls} shrink-0 text-muted-foreground`} />
       <span className={`${labelW} shrink-0 text-muted-foreground`}>{label}</span>
-      <span className="flex min-w-0 items-center gap-1 font-semibold text-foreground">{children}</span>
+      <span className="font-semibold text-foreground">{value}</span>
+      {extra}
     </div>
   );
 }
@@ -182,34 +198,61 @@ function Line({ icon: Icon, label, labelW, children }: { icon: typeof Hash; labe
 export function StayLines({ stay, size = "sm" }: { stay: StayView; size?: "sm" | "md" }) {
   const text = size === "md" ? "text-[12.5px]" : "text-[11.5px]";
   const labelW = size === "md" ? "w-[68px]" : "w-[52px]";
+  const iconCls = size === "md" ? "size-3.5" : "size-3";
   const ci = fmtDM(stay.checkin);
   const co = fmtDM(stay.checkout);
+  const guests = stay.guests ? (
+    <span className="font-semibold text-foreground">
+      · {stay.guests} {stay.guests === 1 ? "hóspede" : "hóspedes"}
+    </span>
+  ) : null;
   return (
     <div className={`flex flex-col gap-0.5 ${text}`}>
-      {ci && (
-        <Line icon={CalendarDays} label="Período" labelW={labelW}>
-          {co ? `${ci} a ${co}` : ci}
-        </Line>
+      {ci && <Line icon={CalendarDays} label="Período" labelW={labelW} iconCls={iconCls} value={co ? `${ci} a ${co}` : ci} />}
+      {stay.nights != null && (
+        <Line
+          icon={Moon}
+          label="Estadia"
+          labelW={labelW}
+          iconCls={iconCls}
+          value={`${stay.nights} ${stay.nights === 1 ? "noite" : "noites"}`}
+          extra={guests}
+        />
       )}
       {stay.nights == null && stay.guests ? (
-        <Line icon={Moon} label="Estadia" labelW={labelW}>
-          {stay.guests} {stay.guests === 1 ? "hóspede" : "hóspedes"}
-        </Line>
+        <Line
+          icon={Moon}
+          label="Estadia"
+          labelW={labelW}
+          iconCls={iconCls}
+          value={`${stay.guests} ${stay.guests === 1 ? "hóspede" : "hóspedes"}`}
+        />
       ) : null}
-      {stay.nights != null && (
-        <Line icon={Moon} label="Estadia" labelW={labelW}>
-          {stay.nights} {stay.nights === 1 ? "noite" : "noites"}
-          {stay.guests ? <span>· {stay.guests} {stay.guests === 1 ? "hóspede" : "hóspedes"}</span> : null}
-        </Line>
-      )}
       {stay.code && (
-        <Line icon={Hash} label="Reserva" labelW={labelW}>
-          {stay.code}
-          <span onClick={(e) => e.stopPropagation()}>
-            <CopyButton value={stay.code} size={11} />
-          </span>
-        </Line>
+        <Line
+          icon={Hash}
+          label="Reserva"
+          labelW={labelW}
+          iconCls={iconCls}
+          value={stay.code}
+          extra={
+            <span onClick={(e) => e.stopPropagation()}>
+              <CopyButton value={stay.code} size={11} />
+            </span>
+          }
+        />
       )}
     </div>
   );
+}
+
+/** "9 h", "2 dias", "35 min" — formato curto do mockup (sem "cerca de"). */
+export function shortAgo(iso: string): string {
+  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
+  const min = Math.floor(diff / 60_000);
+  if (min < 60) return `${Math.max(1, min)} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} h`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "1 dia" : `${d} dias`;
 }

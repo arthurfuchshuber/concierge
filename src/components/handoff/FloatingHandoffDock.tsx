@@ -449,7 +449,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
             </div>
 
             <div className="flex min-h-0 flex-1">
-              <div className="flex min-h-0 w-[240px] shrink-0 flex-col border-r border-foreground/[0.065]">
+              <div className="flex min-h-0 w-[clamp(320px,38%,400px)] shrink-0 flex-col border-r border-foreground/[0.065]">
                 <div ref={listRefA} className="min-h-0 flex-1 snap-y snap-proximity overflow-y-auto scroll-pt-2">
                   <ConversationList
                     conversations={convs as any}

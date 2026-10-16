@@ -1,6 +1,6 @@
 import { ChannelLogo, channelOf } from "./ChannelLogo";
-import { GuideViewers, StayLines, StayTag, buildStayView, stayBarClass, type StayView } from "./stay-view";
-import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
+import { GuideViewers, StayLines, StayTag, buildStayView, shortAgo, stayBarClass, type StayView } from "./stay-view";
+import { ownerLabel } from "@/components/dashboard/card-colors";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
@@ -696,9 +696,9 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
           necessários. O cabeçalho agora é sempre o mesmo, com ou sem teclado
           aberto: um só bloco fixo no topo, e quem rola é só a lista de
           mensagens. */}
-      <div className="sticky top-0 z-20 border-b border-zinc-200 shrink-0 bg-zinc-50 p-3 space-y-2">
+      <div className="sticky top-0 z-20 border-b border-zinc-200 shrink-0 bg-zinc-50 px-4 py-3 space-y-2">
         <div className="flex gap-2 items-start justify-between">
-          <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
             <div className="flex min-w-0 items-center gap-2">
               <span className="shrink-0 inline-flex" title={`Hóspede conversando via ${liveChannel}`}>
                 <ChannelLogo channel={liveChannel} size={18} />
@@ -714,9 +714,9 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
             </div>
 
             {(owner?.name ?? propertyOwnerName) && (
-              <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[12px]">
-                <span className="truncate font-semibold text-foreground" title={owner?.name ?? propertyOwnerName ?? ""}>
-                  {ownerLabel(owner?.name ?? propertyOwnerName)}
+              <div className="flex min-w-0 items-center gap-1.5 text-[12px]">
+                <span className="truncate text-zinc-600" title={owner?.name ?? propertyOwnerName ?? ""}>
+                  Proprietário: <b className="font-semibold text-zinc-900">{ownerLabel(owner?.name ?? propertyOwnerName)?.replace(/^Proprietário:\s*/, "")}</b>
                 </span>
                 {owner?.phone && (
                   <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -730,7 +730,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
 
             {stay && (
               <>
-                <div className="my-1.5 h-px bg-border" />
+                <div className="my-0.5 h-px bg-zinc-200" />
                 <StayLines stay={stay} size="md" />
               </>
             )}
@@ -1602,7 +1602,7 @@ export function ConversationList({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="ds-list p-2">
+    <div className="flex flex-col gap-2 p-2">
       {conversations.length === 0 && (
         <div className="p-4 text-xs text-muted-foreground text-center">Nenhuma conversa.</div>
       )}
@@ -1623,8 +1623,8 @@ export function ConversationList({
           <div
             key={c.id}
             data-clip-row
-            className={`ds-surface relative flex snap-start flex-col gap-1 overflow-hidden border py-2.5 pl-4 pr-3 hover:bg-secondary transition-colors cursor-pointer ${
-              isActive ? "bg-secondary border-border" : "bg-card border-border"
+            className={`relative flex shrink-0 snap-start flex-col gap-1 overflow-hidden rounded-[10px] border border-border py-2.5 pl-4 pr-3 transition-colors cursor-pointer ${
+              isActive ? "bg-foreground/[0.07]" : "bg-foreground/[0.035] hover:bg-foreground/[0.06]"
             }`}
             onClick={() => onSelect(c.id)}
           >
@@ -1634,20 +1634,14 @@ export function ConversationList({
             <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${stayBarClass(stay)}`} />
             {owner?.name && (
               <div className="flex items-center gap-1.5 min-w-0">
-                <span
-                  className={`shrink truncate min-w-0 text-[11px] ${CARD_OWNER}`}
-                  title={owner.name}
-                >
-                  {ownerLabel(owner.name)}
+                <span className="shrink truncate min-w-0 text-[11px] text-muted-foreground" title={owner.name}>
+                  Proprietário: <b className="font-semibold text-foreground/85">{ownerLabel(owner.name)?.replace(/^Proprietário:\s*/, "")}</b>
                 </span>
                 <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
                   <PhoneActionButton phone={owner.phone} country={owner.phoneCountry} size={11} />
                 </span>
                 <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-                  {formatDistanceToNow(new Date(c.handoff_at ?? c.last_message_at), {
-                    locale: ptBR,
-                    addSuffix: false,
-                  })}
+                  {shortAgo(c.handoff_at ?? c.last_message_at)}
                 </span>
               </div>
             )}
