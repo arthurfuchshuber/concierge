@@ -863,15 +863,22 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     type Entry = { property_id: string; name: string; phone: string | null; time: string | null };
     const entries: Entry[] = [];
 
-    for (const r of (reservations ?? []) as Array<{
+    // Mesma estadia em duas fontes (iCal + Channex) = UMA reserva, igual ao KPI.
+    const { dedupeStays: dedupeEngStays } = await import("@/lib/arrival-board.server");
+    type EngRes = {
       id: string;
       property_id: string;
-      checkin_date: string | null;
+      checkin_date: string;
       checkout_date: string | null;
       status: string | null;
       raw_summary: string | null;
       guest_hint: string | null;
-    }>) {
+    };
+    const engReservations = dedupeEngStays(
+      ((reservations ?? []) as EngRes[]).filter((r) => !!r.checkin_date),
+      (id) => touchedReservations.has(id),
+    );
+    for (const r of engReservations) {
       if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
       const matched: LogRow | null =
         r.checkin_date && r.checkout_date
