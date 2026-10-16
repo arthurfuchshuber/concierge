@@ -728,9 +728,32 @@ export const restoreTask = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ before: TaskSnapshotSchema }).parse(i))
   .handler(async ({ data, context }) => {
     const db = context.supabase as unknown as AnyClient;
-    const { id, ...cols } = data.before;
-    const { error } = await db.from("tasks").update(cols).eq("id", id);
-    if (error) throw new Error(error.message);
+    const b = data.before;
+    // Confere acesso à pendência e valida referências antes de restaurar.
+    await readTaskSnapshot(db, b.id);
+    for (const pid of [b.resolved_by_provider_id]) {
+      if (!pid) continue;
+      const { data: prov } = await db.from("service_providers").select("id").eq("id", pid).maybeSingle();
+      if (!prov) throw new Error("Prestador inválido.");
+    }
+    if (b.completed_at && Number.isNaN(new Date(b.completed_at).getTime())) throw new Error("Data inválida.");
+    // Apenas os campos permitidos (allowlist explícita), nunca o objeto do cliente.
+    const cols = {
+      status: b.status,
+      completed_at: b.completed_at ? new Date(b.completed_at).toISOString() : null,
+      due_date: b.due_date,
+      amount_spent_cents: b.amount_spent_cents,
+      resolved_by_provider_id: b.resolved_by_provider_id,
+      resolution_note: b.resolution_note,
+      cost_payer: b.cost_payer,
+      cost_payer_id: b.cost_payer_id,
+      paid_by: b.paid_by,
+      paid_by_id: b.paid_by_id,
+      amount_paid_cents: b.amount_paid_cents,
+    };
+    const { data: updated, error } = await db.from("tasks").update(cols).eq("id", b.id).select("id");
+    if (error) throw new Error("Não foi possível desfazer.");
+    if (!updated || (updated as unknown[]).length === 0) throw new Error("Sem permissão para editar esta pendência.");
     return { ok: true };
   });
 
@@ -770,7 +793,42 @@ export const restoreTaskCompletion = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const db = context.supabase as unknown as AnyClient;
-    const { error } = await db.from("task_completions").upsert(data.removed, { onConflict: "id" });
-    if (error) throw new Error(error.message);
+    const r = data.removed;
+    // A pendência precisa ser visível ao usuário (RLS) e a baixa não pode já existir:
+    // desfazer só recria uma baixa apagada, nunca sobrescreve outra.
+    const { data: task } = await db.from("tasks").select("id, property_id").eq("id", r.task_id).maybeSingle();
+    if (!task) throw new Error("Pendência não encontrada ou sem acesso.");
+    const { data: existing } = await db.from("task_completions").select("id").eq("id", r.id).maybeSingle();
+    if (existing) throw new Error("Esta baixa já existe.");
+    if (r.resolved_by_provider_id) {
+      const { data: prov } = await db.from("service_providers").select("id").eq("id", r.resolved_by_provider_id).maybeSingle();
+      if (!prov) throw new Error("Prestador inválido.");
+    }
+    if (r.reservation_id) {
+      const { data: res } = await db
+        .from("property_reservations").select("id").eq("id", r.reservation_id)
+        .eq("property_id", (task as { property_id: string }).property_id).maybeSingle();
+      if (!res) throw new Error("Reserva inválida.");
+    }
+    if (r.log_id) {
+      const { data: log } = await db
+        .from("guide_access_logs").select("id").eq("id", r.log_id)
+        .eq("property_id", (task as { property_id: string }).property_id).maybeSingle();
+      if (!log) throw new Error("Acesso inválido.");
+    }
+    const completedAt = new Date(r.completed_at);
+    if (Number.isNaN(completedAt.getTime())) throw new Error("Data inválida.");
+    const { error } = await db.from("task_completions").insert({
+      id: r.id,
+      task_id: r.task_id,
+      log_id: r.log_id,
+      reservation_id: r.reservation_id,
+      amount_spent_cents: r.amount_spent_cents,
+      completed_by: r.completed_by ?? context.userId,
+      completed_at: completedAt.toISOString(),
+      resolved_by_provider_id: r.resolved_by_provider_id,
+      resolution_note: r.resolution_note,
+    });
+    if (error) throw new Error("Não foi possível desfazer.");
     return { ok: true };
   });
