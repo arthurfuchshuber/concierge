@@ -8295,6 +8295,18 @@ function OccupancyPanel({
     return out;
   }
 
+  /** Bloqueio manual: a palavra "Manualmente" na barra cinza (16/10/2026), mesma regra de posição do nome da reserva. */
+  function blockLabels(propertyId: string) {
+    const out = new Map<number, { width: number }>();
+    for (const b of blocksByProperty.get(propertyId) ?? []) {
+      const from = b.from < dayList[0]! ? 0 : (dayIndex.get(b.from) ?? -1) + 1;
+      const to = b.to > dayList[dayList.length - 1]! ? dayList.length : (dayIndex.get(b.to) ?? 0);
+      if (from < 0 || to - from < 1) continue;
+      out.set(from, { width: (to - from) * dayW });
+    }
+    return out;
+  }
+
   /* ── BUSCA (16/10/2026) ──────────────────────────────────────────────────
      · Mês digitado ("novembro", "nov 2026"): SÓ rola o calendário até ele —
        nada é escondido.
@@ -8788,6 +8800,7 @@ function OccupancyPanel({
                         const occ = halves.map((h) => h !== "free");
                         const labels = barLabels(p.id);
                         const singles = singleLabels(p.id);
+                        const blockLbls = blockLabels(p.id);
                         // Linha horizontal do grid (ver comentário no cabeçalho) —
                         // um fio ainda mais discreto que o vertical, separando
                         // cada imóvel. Sem linha depois do último, mesma lógica
@@ -8988,6 +9001,16 @@ function OccupancyPanel({
                                           <span className="nm font-bold">{labels.get(i)!.name}</span>
                                           <span className="ml-0.5 font-medium"> {labels.get(i)!.value ?? "—"}</span>
                                         </span>
+                                      </span>
+                                    )}
+                                    {blockLbls.get(i) && (
+                                      <span
+                                        className={`pointer-events-none absolute left-0 top-0 z-[5] flex h-full items-center justify-center overflow-hidden whitespace-nowrap px-2 text-center text-[11px] font-medium leading-none text-white/90 ${
+                                          searching ? "opacity-25" : ""
+                                        }`}
+                                        style={{ width: blockLbls.get(i)!.width }}
+                                      >
+                                        <span className="truncate">Manualmente</span>
                                       </span>
                                     )}
                                     {singles.get(i) && (
