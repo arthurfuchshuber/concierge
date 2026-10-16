@@ -775,7 +775,6 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
           .from("guest_arrival_status")
           .select("reservation_id, log_id, kind, status, arrival_date_override, concluded_at")
           .in("property_id", propIds)
-          .eq("kind", "checkin")
           .limit(5000),
       ]);
 
@@ -790,13 +789,24 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const touchedLogs = new Set<string>();
     const overrideReservation = new Map<string, string>();
     const overrideLog = new Map<string, string>();
+    // Saída já resolvida = a estadia não é mais check-in pendente (regra da esteira).
+    const checkoutDoneReservations = new Set<string>();
+    const checkoutDoneLogs = new Set<string>();
     for (const s of (allStatuses ?? []) as Array<{
       reservation_id: string | null;
       log_id: string | null;
+      kind: string;
       status: string;
       arrival_date_override: string | null;
       concluded_at: string | null;
     }>) {
+      if (s.kind === "checkout") {
+        if (s.status === "done" || s.status === "no_show" || s.concluded_at) {
+          if (s.reservation_id) checkoutDoneReservations.add(s.reservation_id);
+          if (s.log_id) checkoutDoneLogs.add(s.log_id);
+        }
+        continue;
+      }
       if (s.reservation_id) touchedReservations.add(s.reservation_id);
       if (s.log_id) touchedLogs.add(s.log_id);
       if (s.arrival_date_override) {
@@ -894,6 +904,9 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
             ).primary
           : null;
       if (doneReservations.has(r.id) || (matched && doneLogs.has(matched.id))) continue;
+      // Chegou o dia da saída ou a saída já foi feita: não é mais check-in pendente.
+      if (r.checkout_date && r.checkout_date <= today) continue;
+      if (checkoutDoneReservations.has(r.id) || (matched && checkoutDoneLogs.has(matched.id))) continue;
       const resTouched =
         touchedReservations.has(r.id) || (matched ? touchedLogs.has(matched.id) : false);
       const resDate =
@@ -913,7 +926,8 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const seenFallback = new Set<string>();
     for (const l of allLogs) {
       if (icalProps.has(l.property_id)) continue;
-      if (doneLogs.has(l.id)) continue;
+      if (doneLogs.has(l.id) || checkoutDoneLogs.has(l.id)) continue;
+      if (l.checkout_date && l.checkout_date <= today) continue;
       const logDate = overrideLog.get(l.id) ?? l.checkin_date;
       if (!inWindow(logDate, touchedLogs.has(l.id))) continue;
       const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${logDate ?? ""}`;
