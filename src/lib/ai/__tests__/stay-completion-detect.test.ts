@@ -1,0 +1,23 @@
+import { describe, it, expect } from "vitest";
+import { detectStayCompletion } from "../stay-completion-detect";
+
+describe("detectStayCompletion", () => {
+  it("check-in quando o hóspede diz que entrou", () => {
+    expect(detectStayCompletion("Entramos! Tudo certo", "")).toBe("checkin");
+  });
+  it("check-in quando a IA deu o encerramento de entrada", () => {
+    expect(detectStayCompletion("Deu certo", "Maravilha, Rafael! ... Excelente estadia! 💜")).toBe("checkin");
+  });
+  it("chegar não é entrar", () => {
+    expect(detectStayCompletion("Já chegamos no prédio", "Vocês já conseguiram entrar?")).toBeNull();
+  });
+  it("etapa intermediária não dá check-in", () => {
+    expect(detectStayCompletion("Deu certo", "Perfeito! Agora suba até o Studio 105.")).toBeNull();
+  });
+  it("check-out quando saiu", () => {
+    expect(detectStayCompletion("Já saímos e deixei a chave no cofre", "")).toBe("checkout");
+  });
+  it("plano de saída não é check-out", () => {
+    expect(detectStayCompletion("Vamos sair amanhã cedo", "")).toBeNull();
+  });
+});
