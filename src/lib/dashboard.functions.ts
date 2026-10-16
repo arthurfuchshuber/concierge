@@ -904,6 +904,9 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
             ).primary
           : null;
       if (doneReservations.has(r.id) || (matched && doneLogs.has(matched.id))) continue;
+      // Chegou o dia da saída ou a saída já foi feita: não é mais check-in pendente.
+      if (r.checkout_date && r.checkout_date <= today) continue;
+      if (checkoutDoneReservations.has(r.id) || (matched && checkoutDoneLogs.has(matched.id))) continue;
       const resTouched =
         touchedReservations.has(r.id) || (matched ? touchedLogs.has(matched.id) : false);
       const resDate =
@@ -923,7 +926,8 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const seenFallback = new Set<string>();
     for (const l of allLogs) {
       if (icalProps.has(l.property_id)) continue;
-      if (doneLogs.has(l.id)) continue;
+      if (doneLogs.has(l.id) || checkoutDoneLogs.has(l.id)) continue;
+      if (l.checkout_date && l.checkout_date <= today) continue;
       const logDate = overrideLog.get(l.id) ?? l.checkin_date;
       if (!inWindow(logDate, touchedLogs.has(l.id))) continue;
       const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${logDate ?? ""}`;
