@@ -171,6 +171,7 @@ import {
   FilterDateCalendar,
   FilterHeaderClear,
   FilterIconBadge,
+  FitPopoverContent,
   FilterMenuRow,
   FilterMultiSelect,
   FilterPeriodCalendar,
@@ -976,7 +977,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     setPropertyFilters([]);
   }
 
-  const occStart = periodRange?.start ?? todayISOSaoPaulo();
+  // O calendário de ocupação é SEMPRE o completo (16/10/2026): o período de
+  // outras abas não encolhe mais o quadro — o ícone "Ir para" só rola.
+  const occStart = todayISOSaoPaulo();
   /**
    * QUANTOS DIAS BUSCAR (pedido explícito, 18/09/2026: "se couberem mais dias
    * dentro da visão respeitando a regra anti corte, é para colocar") — depois
@@ -986,23 +989,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    *
    * Com filtro de período, quem manda é o período escolhido.
    */
-  const occDays = periodRange
-    ? Math.min(
-        366,
-        Math.max(
-          3,
-          differenceInCalendarDays(parseISODateLocal(periodRange.end), parseISODateLocal(periodRange.start)) + 1,
-        ),
-      )
-    : 21;
+  const occDays = 21;
   const occupancyQ = useQuery({
     // CALENDÁRIO COMPLETO (pedido explícito, 15–16/10/2026): sem período
     // escolhido o servidor devolve da PRIMEIRA reserva (passado) à ÚLTIMA
     // (futuro); com período, só o período.
-    queryKey: ["dash-occupancy", activeOwnerId ?? "self", occStart, periodRange ? occDays : "full"],
+    queryKey: ["dash-occupancy", activeOwnerId ?? "self", occStart, "full"],
     queryFn: () =>
       occupancyFn({
-        data: { ownerId: activeOwnerId, days: occDays, start: occStart, fullRange: !periodRange },
+        data: { ownerId: activeOwnerId, days: occDays, start: occStart, fullRange: true },
       }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
@@ -7316,66 +7311,51 @@ const FILTER_DOT = (
 
 /**
  * ÍCONE DE PERÍODO DO CALENDÁRIO (pedido explícito, 16/10/2026, mockup
- * "Cal-Periodo" aprovado): o Período saiu de dentro do menu FILTROS e virou um
- * ícone de calendário ao lado da busca, que abre direto o calendário completo
- * (atalhos, mês com setas, chips Início → Fim e Limpar). Mesmo quadrante de
- * fundo da busca e do botão FILTROS; o pontinho rosa indica período ativo.
+ * "Cal-Periodo" aprovado; revisto no mesmo dia: "quando o usuário selecionar
+ * HOJE, ele precisa apenas MOVER o calendário para a data e não manter
+ * selecionado eternamente — o mesmo vale para qualquer período").
+ *
+ * Por isso aqui NÃO existe filtro: escolher Hoje / 7 dias / Este mês ou um
+ * intervalo só ROLA o calendário até o primeiro dia escolhido (`onJump`) e
+ * fecha a janela. Nada fica marcado, nada encolhe o quadro — a estrutura
+ * (todas as colunas, anti-corte) continua intacta. Mesmo quadrante de fundo
+ * da busca e do botão FILTROS.
  */
-function CalendarPeriodButton({
-  periodRange,
-  onPeriodRangeChange,
-}: {
-  periodRange: { start: string; end: string } | null;
-  onPeriodRangeChange: (next: { start: string; end: string } | null) => void;
-}) {
+function CalendarPeriodButton({ onJump }: { onJump: (startISO: string) => void }) {
   const [open, setOpen] = useState(false);
-  const toRange = (r: { start: string; end: string } | null): DateRange | undefined =>
-    r ? { from: parseISODateLocal(r.start), to: parseISODateLocal(r.end) } : undefined;
-  const [draft, setDraft] = useState<DateRange | undefined>(toRange(periodRange));
-  useEffect(() => {
-    setDraft(toRange(periodRange));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [periodRange]);
+  const [draft, setDraft] = useState<DateRange | undefined>(undefined);
   // O mês abre SEMPRE no de hoje (regra de 23/09/2026).
   const [month, setMonth] = useState<Date>(() => parseISODateLocal(todayISOSaoPaulo()));
   return (
     <Popover
       open={open}
       onOpenChange={(next) => {
-        if (next) setMonth(parseISODateLocal(todayISOSaoPaulo()));
+        if (next) {
+          setMonth(parseISODateLocal(todayISOSaoPaulo()));
+          setDraft(undefined);
+        }
         setOpen(next);
       }}
     >
       <PopoverTrigger asChild>
         <button
           type="button"
-          title={periodRange ? "Período · há período ativo" : "Período"}
-          aria-label="Período"
+          title="Ir para uma data"
+          aria-label="Ir para uma data ou período"
           className="relative grid size-9 shrink-0 place-items-center rounded-[0.3rem] border-0 bg-foreground/[0.07] text-foreground/70 transition-colors hover:text-foreground data-[state=open]:bg-foreground/[0.13] data-[state=open]:text-foreground sm:size-8"
         >
           <CalendarRange className="size-[15px] opacity-80" strokeWidth={2} />
-          {periodRange && <span className="absolute -right-0.5 -top-0.5 size-[6px] rounded-full bg-accent" />}
         </button>
       </PopoverTrigger>
-      <PopoverContent
+      <FitPopoverContent
         align="end"
         sideOffset={FILTER_PANEL_OFFSET}
-        collisionPadding={FILTER_PANEL_COLLISION}
         className={FILTER_PANEL_CLASS}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="flex items-center gap-[9px] px-3.5 py-[11px]">
           <FilterIconBadge icon={CalendarRange} size="sm" />
-          <span className="ds-card-title min-w-0 flex-1">Período</span>
-          <span className="flex shrink-0 items-center self-center leading-none">
-            <FilterHeaderClear
-              disabled={!draft && !periodRange}
-              onClick={() => {
-                setDraft(undefined);
-                onPeriodRangeChange(null);
-              }}
-            />
-          </span>
+          <span className="ds-card-title min-w-0 flex-1">Ir para</span>
         </div>
         <FilterPeriodCalendar
           value={draft}
@@ -7384,13 +7364,16 @@ function CalendarPeriodButton({
           today={parseISODateLocal(todayISOSaoPaulo())}
           onChange={(nextRange) => {
             setDraft(nextRange);
-            // Só propaga com início E fim (o 1º clique sozinho não é período).
+            // Só age com início E fim (o 1º clique sozinho ainda não é período):
+            // rola o calendário até o início e fecha — nada fica selecionado.
             if (nextRange?.from && nextRange?.to) {
-              onPeriodRangeChange({ start: dateToISOLocal(nextRange.from), end: dateToISOLocal(nextRange.to) });
+              onJump(dateToISOLocal(nextRange.from));
+              setOpen(false);
+              setDraft(undefined);
             }
           }}
         />
-      </PopoverContent>
+      </FitPopoverContent>
     </Popover>
   );
 }
@@ -7755,10 +7738,9 @@ function CalendarFiltersButton({
           </button>
         )}
       </PopoverTrigger>
-      <PopoverContent
+      <FitPopoverContent
         align="end"
         sideOffset={FILTER_PANEL_OFFSET}
-        collisionPadding={FILTER_PANEL_COLLISION}
         className={FILTER_PANEL_CLASS}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
@@ -7947,7 +7929,7 @@ function CalendarFiltersButton({
             />
           </>
         ) : null}
-      </PopoverContent>
+      </FitPopoverContent>
     </Popover>
   );
 }
@@ -8505,6 +8487,18 @@ function OccupancyPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, outerEl, dayW]);
 
+  // "Ir para" (ícone de Período): só ROLA até o dia escolhido — sem filtro.
+  const [jump, setJump] = useState<{ date: string; n: number } | null>(null);
+  useEffect(() => {
+    if (!jump) return;
+    const scroller = outerEl?.firstElementChild as HTMLElement | null | undefined;
+    if (!scroller || dayList.length === 0) return;
+    let idx = dayList.indexOf(jump.date);
+    if (idx < 0) idx = jump.date < dayList[0]! ? 0 : dayList.length - 1;
+    scroller.scrollTo({ left: idx * dayW, behavior: "smooth" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jump]);
+
   /** Meses do cabeçalho: um rótulo por mês, centrado na parte VISÍVEL dele. */
   const monthGroups = useMemo(() => {
     const g: Array<{ key: string; month: number; year: string; n: number }> = [];
@@ -8700,7 +8694,7 @@ function OccupancyPanel({
             {/* Computador: campo à esquerda de FILTROS. */}
             {searchField("hidden w-[320px] shrink-0 sm:block", false)}
             {/* Período: ícone próprio entre a busca e FILTROS (16/10/2026). */}
-            <CalendarPeriodButton periodRange={periodRange} onPeriodRangeChange={onPeriodRangeChange} />
+            <CalendarPeriodButton onJump={(d) => setJump({ date: d, n: Date.now() })} />
             <CalendarFiltersButton
               hidePeriod
               quadrantTrigger
@@ -11808,11 +11802,10 @@ function PredictedEditor({
           </div>
         </PopoverContent>
       ) : view === "date" ? (
-        <PopoverContent
+        <FitPopoverContent
           align="center"
           sideOffset={FILTER_PANEL_OFFSET}
-          collisionPadding={FILTER_PANEL_COLLISION}
-          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px] !max-h-[calc(100dvh-180px)]`}
+          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px]`}
           onClick={(e) => e.stopPropagation()}
         >
           <FilterScreenHeader
@@ -11869,7 +11862,7 @@ function PredictedEditor({
               </span>
             </div>
           </div>
-        </PopoverContent>
+        </FitPopoverContent>
       ) : (
         <PopoverContent
           align="center"

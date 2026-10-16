@@ -252,6 +252,60 @@ export function publicFacts(p: PublicListing): Fact[] {
   return out;
 }
 
+
+const hhmm = (v: unknown) => {
+  const t = String(v ?? "").trim();
+  if (!t) return null;
+  return /^\d{1,2}$/.test(t) ? `${t.padStart(2, "0")}:00` : /^\d{1,2}:\d{2}$/.test(t) ? `${t.padStart(5, "0")}` : null;
+};
+
+/**
+ * Airbnb é a fonte soberana: SUBSTITUI integralmente os campos visíveis do imóvel
+ * (`properties`) e os títulos dos anúncios gêmeos (`channex_twin_links`).
+ * Só grava o que o anúncio informou (campo ausente não zera o existente).
+ * Somente leitura na Channex: nunca envia ARI/preço.
+ */
+export async function applyListingToProperty(args: {
+  propertyId: string;
+  listingId: string;
+  meta: Record<string, unknown>;
+  settings?: Record<string, any> | null;
+  pub?: PublicListing | null;
+}): Promise<{ title: string }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { listingTitle } = await import("@/lib/channex-entity-sync.server");
+  const cleanTitle = listingTitle(args.meta.title);
+  const b = (args.settings?.booking_setting ?? {}) as Record<string, any>;
+  const patch: Record<string, unknown> = {};
+  if (cleanTitle) patch["name"] = cleanTitle;
+  const cin = hhmm(b.check_in_time_start);
+  if (cin) patch["checkin_time"] = cin;
+  const cout = hhmm(b.check_out_time);
+  if (cout) patch["checkout_time"] = cout;
+  const occ = Array.isArray(args.meta.occupancies) ? (args.meta.occupancies as unknown[]).map(Number).filter((n) => Number.isFinite(n) && n > 0) : [];
+  const guests = occ.length ? Math.max(...occ) : Number(args.settings?.pricing_setting?.guests_included) || null;
+  if (guests) patch["airbnb_guest_count"] = Math.min(200, guests);
+  if (args.pub) {
+    patch["airbnb_description_full"] = args.pub.descriptions.join("\n\n").slice(0, 20_000);
+    // Mesmo formato do editor do imóvel: { name, category, available }.
+    patch["airbnb_amenities"] = [
+      ...args.pub.amenities.map((name) => ({ name: name.slice(0, 120), category: null, available: true })),
+      ...args.pub.unavailable.map((name) => ({ name: name.slice(0, 120), category: null, available: false })),
+    ].slice(0, 300);
+    patch["airbnb_listing_last_synced_at"] = new Date().toISOString();
+  }
+  if (Object.keys(patch).length) {
+    const { error } = await supabaseAdmin.from("properties").update(patch as never).eq("id", args.propertyId);
+    if (error) throw new Error(error.message);
+  }
+  if (cleanTitle) {
+    const tw = supabaseAdmin.from("channex_twin_links" as never) as any;
+    await tw.update({ primary_title: cleanTitle }).eq("primary_listing_id", args.listingId);
+    await (supabaseAdmin.from("channex_twin_links" as never) as any).update({ twin_title: cleanTitle }).eq("twin_listing_id", args.listingId);
+  }
+  return { title: cleanTitle };
+}
+
 /**
  * Sincroniza UM anúncio de qualquer canal da conta (somente leitura na Channex:
  * nunca envia ARI/preço). Grava/atualiza `property_listing_raw_data` e reindexa o imóvel.
@@ -261,7 +315,7 @@ export async function syncAccountListing(args: {
   channelId: string;
   propertyId: string;
   ownerId: string;
-}): Promise<{ facts: number }> {
+}): Promise<{ facts: number; title: string }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   type Ch = {
     data: {
@@ -340,7 +394,14 @@ export async function syncAccountListing(args: {
     { onConflict: "property_id" },
   );
   if (error) throw new Error(error.message);
+  const { title } = await applyListingToProperty({
+    propertyId: args.propertyId,
+    listingId: args.listingId,
+    meta,
+    settings: rp.settings,
+    pub,
+  });
   const { reindexProperty } = await import("@/lib/ai/indexing.server");
   await reindexProperty(supabaseAdmin as never, args.propertyId).catch(() => undefined);
-  return { facts: facts.length };
+  return { facts: facts.length, title };
 }

@@ -53,6 +53,7 @@ import { toast } from "sonner";
 import {
   listAirbnbAccounts,
   listSyncDismissedProperties,
+  refreshListingFromAirbnb,
   retryAirbnbChat,
   setPropertySyncDismissed,
 } from "@/lib/airbnb-account.functions";
@@ -116,6 +117,24 @@ export function OwnerPropertiesList({
       qc.invalidateQueries({ queryKey: ["stakeholders"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível ativar o chat.");
+    }
+  }
+  const refreshListingFn = useServerFn(refreshListingFromAirbnb);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  async function refreshListing(propertyId: string) {
+    if (refreshingId) return;
+    setRefreshingId(propertyId);
+    try {
+      await refreshListingFn({ data: { accountOwnerId, propertyId } });
+      toast.success("Anúncio sincronizado com sucesso!");
+      for (const key of ["stakeholders", "properties", "property", "airbnb-accounts", "dash-occupancy", "dashboard"]) {
+        void qc.invalidateQueries({ queryKey: [key] });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível atualizar o anúncio.");
+    } finally {
+      setRefreshingId(null);
+      setMenuId(null);
     }
   }
   const accountsFn = useServerFn(listAirbnbAccounts);
@@ -593,6 +612,19 @@ export function OwnerPropertiesList({
                           >
                             <RefreshCw className="size-3.5 text-muted-foreground" /> Tentar ativar o
                             chat de novo
+                          </button>
+                        ) : null}
+                        {p.active ? (
+                          <button
+                            type="button"
+                            disabled={refreshingId !== null}
+                            onClick={() => void refreshListing(p.id)}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-60"
+                          >
+                            <RefreshCw
+                              className={`size-3.5 text-muted-foreground ${refreshingId === p.id ? "animate-spin" : ""}`}
+                            />{" "}
+                            {refreshingId === p.id ? "Atualizando…" : "Atualizar anúncio"}
                           </button>
                         ) : null}
                         {!p.active && dismissedIds.has(p.id) ? (

@@ -31,7 +31,16 @@
  * os tokens globais, porque a ideia é exatamente destacar o quadrante do
  * fundo, não mudar o app inteiro.
  */
-import { useMemo, useState, type ReactNode } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type ComponentPropsWithoutRef,
+  type ElementRef,
+  type ReactNode,
+} from "react";
 import type { LucideIcon } from "lucide-react";
 import { Check, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { DayPicker, type DateRange, type DayButtonProps, type Matcher } from "react-day-picker";
@@ -39,6 +48,7 @@ import { addDays, addMonths, endOfMonth, format, isAfter, isBefore, isSameDay, s
 import { ptBR } from "date-fns/locale";
 
 import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
+import { PopoverContent } from "@/components/ui/popover";
 
 /* ------------------------------------------------------------------------ */
 /* Casca do painel                                                           */
@@ -67,6 +77,95 @@ export const FILTER_PANEL_CLASS =
  * outro em vez de se fundirem numa mancha só.
  */
 export const FILTER_PANEL_CLASS_ELEVATED = FILTER_PANEL_CLASS.replace("bg-[var(--panel)]", "bg-[var(--panel-2)]");
+
+/**
+ * JANELA QUE APARECE POR COMPLETO (pedido explícito, 16/10/2026, com print: o
+ * calendário de Período abria cortado, com barra de rolagem interna e sem os
+ * chips Início → Fim). Vale para TODA janela de filtro que tem calendário.
+ *
+ * Como funciona: ao abrir (e a cada mudança de altura do conteúdo), mede a
+ * altura REAL do painel e o espaço ao redor do botão. Escolhe, nesta ordem:
+ * embaixo → em cima → ao lado esquerdo → ao lado direito. Nas laterais o painel
+ * desliza na vertical para ficar inteiro na tela. Sem o teto de 75% da altura
+ * (só o espaço realmente disponível limita) e, no computador (≥1024px, sem
+ * barra inferior fixa), com 16px de folga em cima e embaixo em vez das faixas
+ * do celular.
+ */
+function fitPadding() {
+  if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+    return { top: 16, right: 16, bottom: 16, left: 16 } as const;
+  }
+  return FILTER_PANEL_COLLISION;
+}
+
+export const FitPopoverContent = forwardRef<
+  ElementRef<typeof PopoverContent>,
+  ComponentPropsWithoutRef<typeof PopoverContent>
+>(function FitPopoverContent(
+  { className, align = "end", sideOffset = FILTER_PANEL_OFFSET, side: _side, collisionPadding: _cp, ...props },
+  ref,
+) {
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
+  const [placed, setPlaced] = useState<"bottom" | "top" | "left" | "right">("bottom");
+  const setRefs = useCallback(
+    (el: HTMLDivElement | null) => {
+      setNode(el);
+      if (typeof ref === "function") ref(el);
+      else if (ref) (ref as { current: HTMLDivElement | null }).current = el;
+    },
+    [ref],
+  );
+  const measure = useCallback(() => {
+    if (!node) return;
+    const trigger = node.id ? document.querySelector<HTMLElement>(`[aria-controls="${node.id}"]`) : null;
+    if (!trigger) return;
+    const r = trigger.getBoundingClientRect();
+    const pad = fitPadding();
+    const need = node.scrollHeight + 2;
+    const width = node.offsetWidth;
+    const offset = typeof sideOffset === "number" ? sideOffset : FILTER_PANEL_OFFSET;
+    const below = window.innerHeight - r.bottom - offset - pad.bottom;
+    const above = r.top - offset - pad.top;
+    const roomLeft = r.left - offset - pad.left;
+    const roomRight = window.innerWidth - r.right - offset - pad.right;
+    const next: "bottom" | "top" | "left" | "right" =
+      below >= need
+        ? "bottom"
+        : above >= need
+          ? "top"
+          : roomLeft >= width
+            ? "left"
+            : roomRight >= width
+              ? "right"
+              : below >= above
+                ? "bottom"
+                : "top";
+    setPlaced((prev) => (prev === next ? prev : next));
+  }, [node, sideOffset]);
+  useLayoutEffect(() => {
+    if (!node) return;
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(node);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [node, measure]);
+  const lateral = placed === "left" || placed === "right";
+  return (
+    <PopoverContent
+      {...props}
+      ref={setRefs}
+      side={placed}
+      align={lateral ? "start" : align}
+      sideOffset={sideOffset}
+      collisionPadding={fitPadding()}
+      className={`${className ?? ""} !max-h-[var(--radix-popover-content-available-height)]`}
+    />
+  );
+});
 
 /**
  * Nunca colado na lateral: 16px de folga dos dois lados, mantendo as faixas

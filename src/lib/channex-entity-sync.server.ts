@@ -238,6 +238,29 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
       .update({ listing_meta: meta, synced_at: new Date().toISOString(), updated_at: new Date().toISOString() } as never)
       .eq("property_id", propertyId);
     if (error) continue;
+    // Substituição integral: nome do imóvel + títulos dos gêmeos + fatos da IA (Airbnb é a fonte soberana).
+    try {
+      const { applyListingToProperty, normalizeListing } = await import("@/lib/channex-listing.server");
+      const { data: row } = await admin
+        .from("property_listing_raw_data")
+        .select("airbnb_listing_id, raw_settings, normalized")
+        .eq("property_id", propertyId)
+        .maybeSingle();
+      const rr = row as { airbnb_listing_id?: string; raw_settings?: Record<string, any>; normalized?: Record<string, any> } | null;
+      const lid = String(rr?.airbnb_listing_id ?? "");
+      if (lid) {
+        const pub = (rr?.normalized?.public_listing ?? null) as import("@/lib/channex-listing.server").PublicListing | null;
+        await applyListingToProperty({ propertyId, listingId: lid, meta, settings: rr?.raw_settings ?? {}, pub: null });
+        const { publicFacts } = await import("@/lib/channex-listing.server");
+        const facts = [...normalizeListing(meta, rr?.raw_settings ?? {}), ...(pub ? publicFacts(pub) : [])];
+        await admin
+          .from("property_listing_raw_data")
+          .update({ normalized: { ...(rr?.normalized ?? {}), facts }, updated_at: new Date().toISOString() } as never)
+          .eq("property_id", propertyId);
+      }
+    } catch (e) {
+      console.error("[channex-entity-sync] substituição integral", propertyId, e);
+    }
     const { reindexProperty } = await import("@/lib/ai/indexing.server");
     await reindexProperty(admin as never, propertyId).catch(() => undefined);
     listingsUpdated += 1;

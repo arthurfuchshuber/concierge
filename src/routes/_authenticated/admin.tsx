@@ -15,7 +15,7 @@ import { AccountSwitcher } from "@/components/admin/AccountSwitcher";
 import { FloatingHandoffDock } from "@/components/handoff/FloatingHandoffDock";
 import { FloatingDock } from "@/components/FloatingDock";
 import { PushNotificationBanner } from "@/components/PushNotificationBanner";
-import { getAtendimentoAccess, countPendingHandoffs } from "@/lib/handoff.functions";
+import { countPendingHandoffs } from "@/lib/handoff.functions";
 import { useHasSession } from "@/hooks/useHasSession";
 import { listMyAccounts } from "@/lib/active-account.functions";
 import { PendingInviteDialog } from "@/components/admin/PendingInviteDialog";
@@ -132,44 +132,30 @@ function AdminLayout() {
     }
   }, [collapsed]);
   const hasSession = useHasSession();
-  const accessFn = useServerFn(getAtendimentoAccess);
   const pendingFn = useServerFn(countPendingHandoffs);
-  const access = useQuery({
-    queryKey: ["handoff-access"],
-    queryFn: async () => {
-      try { return await accessFn(); } catch { return { allowed: false as const, as: null, plan: null }; }
-    },
-    staleTime: 5 * 60_000,
-    retry: false,
-    enabled: hasSession === true,
-  });
   const { impersonation } = useImpersonation();
   const activeAccountId = impersonation?.userId;
+  const areaAccess = useAreaAccess(ROUTE_PERMISSION_LIST);
+  // Visibilidade do Atendimento: somente pelo sistema unificado de permissões (estável, sem piscar).
+  const atendimentoOn = areaAccess.ready && areaAccess.can("tenant.atendimento");
   const pendingInterval = useFallbackInterval(15_000);
   const pending = useQuery({
     queryKey: ["handoff-pending-count", activeAccountId ?? "self"],
     queryFn: async () => {
       try { return await pendingFn({ data: { accountOwnerId: activeAccountId } }); } catch { return { count: 0 }; }
     },
-    enabled: hasSession === true && access.data?.allowed === true,
+    enabled: hasSession === true && atendimentoOn,
     refetchInterval: pendingInterval,
     retry: false,
   });
 
-  const handoffEnabled = access.data?.allowed === true;
-  const areaAccess = useAreaAccess(ROUTE_PERMISSION_LIST);
   // Empresa ativa (auto-seleção para membros) + recarga dos dados ao trocar.
   const { resolving: resolvingAccount, awaitingAccountChoice } = useActiveAccount();
-  const navAll = handoffEnabled
-    ? ([
-        ...baseNav,
-        { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 },
-        { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
-      ] as const)
-    : ([
-        ...baseNav,
-        { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
-      ] as const);
+  const navAll = [
+    ...baseNav,
+    { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 },
+    { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
+  ] as const;
   // Admin do SaaS sem conta selecionada: o menu da conta do cliente fica
   // oculto até que ele escolha um cliente no seletor acima.
   const nav = (awaitingAccountChoice ? [] : navAll)
@@ -202,7 +188,7 @@ function AdminLayout() {
    * decisões de acesso estão assentadas; enquanto algo revalida, mantém-se a última
    * lista conhecida (nenhum botão aparece/desaparece de repente).
    */
-  const navSettled = !resolvingAccount && !awaitingAccountChoice && areaAccess.ready && !access.isPending;
+  const navSettled = !resolvingAccount && !awaitingAccountChoice && areaAccess.ready;
   const stableBottomNavRef = useRef<typeof liveBottomNav>([]);
   if (navSettled || stableBottomNavRef.current.length === 0) stableBottomNavRef.current = liveBottomNav;
   const bottomNav = navSettled ? liveBottomNav : stableBottomNavRef.current;
@@ -690,17 +676,13 @@ function AdminLayout() {
       {!awaitingAccountChoice && (
         <FloatingDock
           handoffAvailable={
-            handoffEnabled &&
-            areaAccess.ready &&
-            areaAccess.can("tenant.atendimento") &&
+            atendimentoOn &&
             !pathname.startsWith("/admin/atendimento")
           }
           pendingCount={pending.data?.count ?? 0}
         />
       )}
-      {handoffEnabled &&
-        areaAccess.ready &&
-        areaAccess.can("tenant.atendimento") &&
+      {atendimentoOn &&
         !awaitingAccountChoice &&
         !pathname.startsWith("/admin/atendimento") && <FloatingHandoffDock launcher={false} />}
       <PendingInviteDialog />

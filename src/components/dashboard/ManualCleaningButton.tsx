@@ -13,13 +13,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { MoneyInput } from "@/components/ui/money-input";
 import {
   FILTER_PANEL_CLASS,
-  FILTER_PANEL_COLLISION,
   FILTER_PANEL_OFFSET,
   FilterDateCalendar,
+  FitPopoverContent,
   FilterOptionRow,
   FilterScreenHeader,
 } from "@/components/dashboard/filter-panel";
@@ -334,10 +334,9 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
           <span className="lg:hidden">Limpeza</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent
+      <FitPopoverContent
         align="end"
         sideOffset={FILTER_PANEL_OFFSET}
-        collisionPadding={FILTER_PANEL_COLLISION}
         className={`${FILTER_PANEL_CLASS} w-[300px]`}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
@@ -613,7 +612,7 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
             </div>
           </>
         )}
-      </PopoverContent>
+      </FitPopoverContent>
     </Popover>
   );
 }

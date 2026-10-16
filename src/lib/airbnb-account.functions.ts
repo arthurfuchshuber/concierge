@@ -780,3 +780,34 @@ export const retryAirbnbChat = createServerFn({ method: "POST" })
     const r = await enableChat(admin, data.propertyId);
     return r.ok ? { ok: true as const } : { ok: false as const, error: r.error };
   });
+
+/**
+ * "Atualizar anúncio": lê o anúncio no Airbnb (via Channex, somente leitura) e SUBSTITUI
+ * integralmente nome, horários, capacidade, descrição, comodidades e fatos da IA do imóvel.
+ * Nunca envia ARI/preço.
+ */
+export const refreshListingFromAirbnb = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Base.extend({ propertyId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.editor.write", { propertyId: data.propertyId });
+    const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
+    const { data: row } = await admin
+      .from("property_listing_raw_data")
+      .select("property_id, airbnb_listing_id, channex_channel_id")
+      .eq("property_id", data.propertyId)
+      .eq("owner_id", accountId)
+      .maybeSingle();
+    if (!row || !row.airbnb_listing_id || !row.channex_channel_id) {
+      throw new Error("Este imóvel não está vinculado a um anúncio do Airbnb.");
+    }
+    const { syncAccountListing } = await import("@/lib/channex-listing.server");
+    const r = await syncAccountListing({
+      listingId: String(row.airbnb_listing_id),
+      channelId: String(row.channex_channel_id),
+      propertyId: data.propertyId,
+      ownerId: accountId,
+    });
+    return { ok: true as const, title: r.title, facts: r.facts };
+  });

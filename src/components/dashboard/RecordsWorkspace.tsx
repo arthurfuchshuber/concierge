@@ -46,7 +46,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -56,12 +56,12 @@ import {
 } from "@/components/ui/select";
 import {
   FILTER_PANEL_CLASS,
-  FILTER_PANEL_COLLISION,
   FILTER_PANEL_OFFSET,
   FilterCountBadge,
   FilterHeaderClear,
   FilterMenuRow,
   FilterPeriodCalendar,
+  FitPopoverContent,
   FilterMultiSelect,
   FilterOptionRow,
   FilterRootHeader,
@@ -3248,10 +3248,9 @@ function RecordsFiltersButton({
         </button>
       </PopoverTrigger>
 
-      <PopoverContent
+      <FitPopoverContent
         align="end"
         sideOffset={FILTER_PANEL_OFFSET}
-        collisionPadding={FILTER_PANEL_COLLISION}
         className={FILTER_PANEL_CLASS}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
@@ -3408,7 +3407,7 @@ function RecordsFiltersButton({
             />
           </>
         ) : null}
-      </PopoverContent>
+      </FitPopoverContent>
     </Popover>
   );
 }

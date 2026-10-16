@@ -1577,13 +1577,34 @@ export const countPendingHandoffs = createServerFn({ method: "GET" })
 
 export const getAtendimentoAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((i: unknown) => ({
+    accountOwnerId:
+      typeof (i as { accountOwnerId?: unknown } | undefined)?.accountOwnerId === "string"
+        ? (i as { accountOwnerId: string }).accountOwnerId
+        : undefined,
+  }))
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // Admin do SaaS: acesso total (inclusive ao impersonar uma conta de cliente).
+    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (isAdmin === true) {
+      return { allowed: true as const, as: "admin" as const, plan: "enterprise" as const };
+    }
     const { resolveUserPlan } = await import("@/lib/plan-guard.server");
-    const ownPlan = await resolveUserPlan(supabase, userId);
+    // Conta ativa (impersonação): o plano consultado é o dela, desde que autorizada.
+    let planOwnerId = userId;
+    if (data.accountOwnerId && data.accountOwnerId !== userId) {
+      const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+      planOwnerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+    }
+    const ownPlan = await resolveUserPlan(supabase, planOwnerId);
     const isOwnerEligible = ownPlan.plan === "business" || ownPlan.plan === "enterprise";
     if (isOwnerEligible) {
-      return { allowed: true, as: "owner" as const, plan: ownPlan.plan };
+      return {
+        allowed: true as const,
+        as: (planOwnerId === userId ? "owner" : "member") as "owner" | "member",
+        plan: ownPlan.plan,
+      };
     }
     // Membro? Verifica se algum owner ativo tem plano elegível.
     const { data: memberships } = await supabase
