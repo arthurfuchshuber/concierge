@@ -1975,7 +1975,7 @@ export async function runAdvanceArrival(
     const stayStepKind =
       data.from === "checkin"
         ? ("checkin" as const)
-        : data.from === "stay"
+        : data.from === "stay" || data.from === "checkout"
           ? ("checkout" as const)
           : null;
     if (stayStepKind && !opts?.skipStaffPush) {
