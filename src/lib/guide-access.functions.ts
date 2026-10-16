@@ -23,7 +23,11 @@ const DocumentSchema = z.object({
 const AccessInput = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
   property_id: z.string().uuid().optional(),
-  guest_name: z.string().trim().min(2).max(200),
+  guest_name: z
+    .string()
+    .trim()
+    .max(1000)
+    .refine((v) => v.split(/\s+/).filter(Boolean).length >= 2, "Informe nome e sobrenome."),
   reservation_code: z.string().trim().max(100).optional().nullable(),
   checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   checkout_date: z
