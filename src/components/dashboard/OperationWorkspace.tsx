@@ -8019,6 +8019,18 @@ function PropertyPhotoPeek({
   );
 }
 
+const MESES_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+/** "16 e 18 de outubro" · "30 de outubro e 2 de novembro" · com ano quando muda (tooltip do calendário). */
+function periodoExtenso(from: string, to: string): string {
+  const p = (iso: string) => ({ y: Number(iso.slice(0, 4)), m: Number(iso.slice(5, 7)) - 1, d: Number(iso.slice(8, 10)) });
+  const a = p(from);
+  const b = p(to);
+  if (from === to) return `${a.d} de ${MESES_PT[a.m]}`;
+  if (a.y !== b.y) return `${a.d} de ${MESES_PT[a.m]} de ${a.y} e ${b.d} de ${MESES_PT[b.m]} de ${b.y}`;
+  if (a.m !== b.m) return `${a.d} de ${MESES_PT[a.m]} e ${b.d} de ${MESES_PT[b.m]}`;
+  return `${a.d} e ${b.d} de ${MESES_PT[a.m]}`;
+}
+
 function OccupancyPanel({
   loading,
   start,
@@ -8968,10 +8980,28 @@ function OccupancyPanel({
                                             : s === "busy"
                                               ? "Ocupado"
                                               : "Livre";
+                              // Etiqueta com o PERÍODO (16/10/2026): "Bloqueado manualmente entre
+                              // 16 e 18 de outubro." · "Reservado entre 15 e 17 de outubro."
+                              const stayList = byProperty.get(p.id) ?? [];
+                              const blockList = blocksByProperty.get(p.id) ?? [];
+                              const textOf = (s: CellPart, half: 0 | 1) => {
+                                if (s === "free") return "Livre";
+                                if (s === "blocked") {
+                                  const bl = blockList.find((x) => (half === 0 ? x.from < d && x.to >= d : x.from <= d && x.to > d));
+                                  return bl ? `Bloqueado manualmente entre ${periodoExtenso(bl.from, bl.to)}.` : "Bloqueado manualmente.";
+                                }
+                                const st = stayList.find((x) =>
+                                  half === 0
+                                    ? x.checkin < d && (x.checkout ?? x.checkin) >= d
+                                    : x.checkin <= d && (x.checkout ?? x.checkin) > d,
+                                );
+                                const per = st ? `Reservado entre ${periodoExtenso(st.checkin, st.checkout ?? st.checkin)}.` : "Reservado.";
+                                return s === "busy" ? per : `${labelOf(s)} · ${per}`;
+                              };
                               const title =
                                 a === b
-                                  ? `${labelOf(a)} · ${fmtDateBR(d)}`
-                                  : `${labelOf(a)} → ${labelOf(b)} · ${fmtDateBR(d)}`;
+                                  ? `${textOf(a, 0)} · ${fmtDateBR(d)}`
+                                  : `${textOf(a, 0)} → ${textOf(b, 1)} · ${fmtDateBR(d)}`;
                               const idxA = i * 2;
                               const idxB = i * 2 + 1;
                               /* CORTE ENTRE RESERVAS NO MESMO DIA (16/10/2026, mockup
