@@ -10251,7 +10251,6 @@ function ArrivalCard({
           mesmo respiro de 4px das outras linhas (o card usa gap-2). */}
       {!compact && (
         <>
-<<<<<<< HEAD
           {/* DADOS DO HÓSPEDE — UMA INFORMAÇÃO POR LINHA, COM PONTILHADO
               (pedido explícito, 15/10/2026, mockup "Card — Opção D"
               aprovado). Antes: nome+telefone na mesma linha, código e
@@ -10324,103 +10323,6 @@ function ArrivalCard({
               </div>
             );
           })()}
-=======
-          {/* Nome e código na MESMA linha, código sempre no canto
-              direito (pedido explícito, 24/09/2026 — de volta à versão de
-              23/09/2026, depois de ver a empilhada ao vivo: "coloque
-              novamente o codigo de reserva ao canto direito do nome do
-              hospede"). */}
-          <div className="-mt-1 flex items-center gap-2 text-[11.5px]">
-            {isPendingFill ? (
-              /* Ícone removido (pedido explícito, 25/09/2026: "exclua os
-                 ícones ao lado esquerdo de código da reserva e nome do
-                 hospede, a fim de manter o mesmo espaçamento entre as
-                 linhas comparado às infos padrao do card recolhido") — o
-                 recuo que o ícone criava vira `pl-[18px]` direto no texto,
-                 já que as infos padrão do card recolhido não têm ícone à
-                 esquerda. */
-              <span className={`inline-flex min-w-0 flex-1 items-center pl-[18px] font-medium ${CARD_MUTED}`}>
-                {/* SEM quebra em 2 linhas — regra do card é a linha
-                    inteira com reticências quando falta espaço (mesma
-                    regra do nome do hóspede logo abaixo), corrigido
-                    24/09/2026: "Hóspede pendente" quebrava em duas linhas
-                    e empurrava o código pra fora do canto direito.
-                    Cor do TEXTO igualada à do código da reserva — mesmo
-                    `CARD_MUTED` do botão abaixo (pedido explícito,
-                    24/09/2026: "coloque a cor das letras de 'hospede
-                    pendente' com a mesma cor de letra do codigo da
-                    reserva"). */}
-                <span className="min-w-0 truncate">Hóspede pendente</span>
-              </span>
-            ) : row.guestName && row.guestName !== row.reservationCode ? (
-              <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 pl-[18px] ${CARD_MUTED}`}>
-                {/* Nome do hóspede em Title Case — primeira letra de cada
-                    palavra maiúscula, EXCETO conectivos ("de", "da", "do",
-                    "dos", "das"...), que ficam minúsculos quando não são a
-                    primeira palavra (pedido explícito, 24/09/2026: "Fraia
-                    Moema da Silva", "Fernando de Noronha"). Antes era tudo
-                    maiúsculo; `titleCaseName` (já usado no formulário do
-                    hóspede) faz essa formatação.
-                    Rótulo "Hóspede: " (pedido explícito, 25/09/2026: "coloque
-                    a palavra 'Hóspede: ' ao lado esquerdo do nome do hospede
-                    EM TODOS os cards") — mesmo padrão de "Cód. Reserva: " e
-                    "Proprietário: " já usados no resto do card. */}
-                <span className="min-w-0 truncate">Hóspede: {titleCaseName(row.guestName)}</span>
-                <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
-                <ExtraGuests guests={row.additionalGuests ?? []} />
-              </span>
-            ) : (
-              <span className="flex-1" />
-            )}
-          </div>
-          {/* Código da reserva em linha PRÓPRIA, abaixo do nome — pedido
-              explícito (25/09/2026): "coloque o código da reserva abaixo do
-              nome do hospede... coloque a palavra 'Cód. Reserva: ' ao lado
-              esquerdo do código" + "remova o fundo do código da reserva".
-              Antes o código vivia dentro de um botão com borda e fundo,
-              colado no canto direito da linha do nome; agora é rótulo +
-              código, sem casca nenhuma.
-              Ícone removido de novo (pedido explícito, mesmo dia): "exclua
-              os ícones ao lado esquerdo de código da reserva e nome do
-              hospede... apenas dando um espaçamento no recuo lateral" —
-              mesmo `pl-[18px]` da linha do hóspede acima, no lugar do ícone
-              de chave. */}
-          {row.reservationCode && (
-            <div className="-mt-0.5 flex items-center gap-1.5 text-[11.5px]">
-              <span className={`inline-flex min-w-0 items-center gap-1.5 pl-[18px] ${CARD_MUTED}`}>
-                <span className="shrink-0">Cód. Reserva:</span>
-                <button
-                  type="button"
-                  onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
-                  title="Copiar código da reserva"
-                  className="min-w-0 truncate font-mono text-[10px] font-semibold tracking-wide transition-colors hover:text-foreground"
-                >
-                  {row.reservationCode}
-                </button>
-              </span>
-            </div>
-          )}
-          {(row.bookingChannel || row.guestAdults != null) && (
-            <div className="-mt-0.5 flex items-center gap-1.5 text-[11.5px]">
-              <span className={`min-w-0 truncate pl-[18px] ${CARD_MUTED}`}>
-                {[
-                  row.bookingChannel ? `Canal: ${row.bookingChannel}` : null,
-                  row.guestAdults != null
-                    ? [
-                        `${row.guestAdults} ${row.guestAdults === 1 ? "adulto" : "adultos"}`,
-                        row.guestChildren ? `${row.guestChildren} ${row.guestChildren === 1 ? "criança" : "crianças"}` : null,
-                        row.guestInfants ? `${row.guestInfants} ${row.guestInfants === 1 ? "bebê" : "bebês"}` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-            </div>
-          )}
->>>>>>> 96ee03eefca0033c3b08cfe26896d4b42875c508
         </>
       )}
 
