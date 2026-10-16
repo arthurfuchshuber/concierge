@@ -930,6 +930,29 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
 
     // "Viram instruções de check-in": só entram check-ins de imóveis com guia
     // criado E com as instruções de check-in de fato preenchidas.
+    // Mesmo hóspede nunca é "desmembrado": dentro do imóvel, entradas com o
+    // mesmo telefone (8 últimos dígitos) OU mesmo nome normalizado viram uma só.
+    {
+      const normName = (s: string) =>
+        s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
+      const seenKeys = new Set<string>();
+      const merged: Entry[] = [];
+      for (const e of entries) {
+        const pending = e.name === "Hóspede pendente";
+        const digits = (e.phone || "").replace(/\D/g, "");
+        const keys: string[] = [];
+        if (digits.length >= 8) keys.push(`${e.property_id}|p|${digits.slice(-8)}`);
+        if (!pending) keys.push(`${e.property_id}|n|${normName(e.name)}`);
+        if (keys.length > 0 && keys.some((k) => seenKeys.has(k))) {
+          keys.forEach((k) => seenKeys.add(k));
+          continue;
+        }
+        keys.forEach((k) => seenKeys.add(k));
+        merged.push(e);
+      }
+      entries.length = 0;
+      entries.push(...merged);
+    }
     const checkinEntries = entries.filter((e) => checkinInstructionsProps.has(e.property_id));
     const checkinsInPeriod = checkinEntries.length;
     const guideOpens = allLogs.filter((l) => {
