@@ -96,17 +96,29 @@ type Inbound = {
   bookingId: string | null;
   channexPropertyId: string | null;
   guestName: string | null;
+  attachments?: string[];
 };
 
 function str(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v : typeof v === "number" ? String(v) : null;
 }
 
+function parseAttachments(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  const out: string[] = [];
+  for (const a of v) {
+    const url = typeof a === "string" ? a : (str((a as any)?.url) ?? str((a as any)?.link));
+    if (url && /^https?:\/\//.test(url)) out.push(url);
+  }
+  return out.slice(0, 6);
+}
+
 export function parseChannexMessage(payload: unknown): Inbound | null {
   const root = (payload ?? {}) as Record<string, any>;
   const p = (root.payload ?? root.data?.attributes ?? root) as Record<string, any>;
-  const text = str(p.message) ?? str(p.text);
-  if (!text) return null;
+  const attachments = parseAttachments(p.attachments);
+  const text = str(p.message) ?? str(p.text) ?? "";
+  if (!text && attachments.length === 0) return null;
   return {
     messageId: str(p.id) ?? str(p.ota_message_id),
     text,
@@ -115,7 +127,64 @@ export function parseChannexMessage(payload: unknown): Inbound | null {
     bookingId: str(p.booking_id),
     channexPropertyId: str(p.property_id) ?? str(root.property_id),
     guestName: str(p.guest_name) ?? str(p.meta?.name) ?? str(p.sender_name),
+    attachments,
   };
+}
+
+/** Descreve fotos do hóspede com modelo de visão para a IA "ver" a imagem. Nunca lança. */
+async function describeGuestPhotos(urls: string[], guestText: string): Promise<string | null> {
+  const key = process.env["LOVABLE_API_KEY"];
+  if (!key || urls.length === 0) return null;
+  const chKey = process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"];
+  const images: string[] = [];
+  for (const url of urls) {
+    try {
+      let res = await fetch(url);
+      if (!res.ok && chKey) res = await fetch(url, { headers: { "user-api-key": chKey } });
+      if (!res.ok) continue;
+      const mime = (res.headers.get("content-type") ?? "image/jpeg").split(";")[0]!;
+      if (!mime.startsWith("image/")) continue;
+      const buf = new Uint8Array(await res.arrayBuffer());
+      if (buf.byteLength > 8_000_000) continue;
+      let bin = "";
+      for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+      images.push(`data:${mime};base64,${btoa(bin)}`);
+    } catch (e) {
+      console.warn("[channex-messages] falha ao baixar foto", e);
+    }
+  }
+  if (images.length === 0) return null;
+  try {
+    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text:
+                  "Um hóspede de hospedagem enviou esta(s) foto(s)" +
+                  (guestText ? ` junto com: "${guestText.slice(0, 300)}"` : "") +
+                  ". Descreva objetivamente em português, em até 3 frases, o que aparece, transcrevendo literalmente qualquer texto ou mensagem de erro visível e marca/modelo de aparelhos.",
+              },
+              ...images.map((u) => ({ type: "image_url", image_url: { url: u } })),
+            ],
+          },
+        ],
+      }),
+    });
+    if (!r.ok) return null;
+    const j = (await r.json()) as any;
+    const d = String(j?.choices?.[0]?.message?.content ?? "").trim();
+    return d || null;
+  } catch (e) {
+    console.warn("[channex-messages] visão falhou", e);
+    return null;
+  }
 }
 
 type ListingRow = {
@@ -366,15 +435,30 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   }
 
   const guestMsgAt = new Date().toISOString();
+  let content = m.text;
+  let photoDesc: string | null = null;
+  if (m.attachments?.length) {
+    photoDesc = await describeGuestPhotos(m.attachments, m.text);
+    const n = m.attachments.length;
+    const label = n > 1 ? `${n} fotos enviadas` : "Foto enviada";
+    const tag = photoDesc
+      ? `[${label} pelo hóspede — conteúdo: ${photoDesc}]`
+      : `[${label} pelo hóspede — não foi possível visualizar; peça gentilmente para descrever o que aparece]`;
+    content = content ? `${content}\n${tag}` : tag;
+  }
   await admin.from("property_chat_messages").insert({
     conversation_id: convId,
     role: "user",
-    content: m.text,
+    content,
     sender_type: "guest",
     channel: "airbnb" as never,
     external_id: m.messageId,
     delivery_status: "delivered",
+    ...(m.attachments?.length
+      ? { attachment_type: "image", attachment_name: m.attachments[0]!.slice(0, 500), attachment_transcript: photoDesc }
+      : {}),
   });
+
   await admin
     .from("property_chat_conversations")
     .update({ last_message_at: new Date().toISOString() })
