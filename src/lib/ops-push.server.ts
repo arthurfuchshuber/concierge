@@ -714,6 +714,7 @@ export async function notifyCleaningDone(
     ownerId: prop.owner_id,
     kind: "cleaning-done",
     dedupeKey: `cleaning-done:${opts.propertyId}:${opts.refKey}`,
+    userIds: await getPropertyLinkedUsers(admin, prop.owner_id, opts.propertyId),
     payload: {
       title: `✨ Limpeza finalizada`,
       body: line,
@@ -824,7 +825,7 @@ export async function notifyGuestSelfStep(
 ) {
   const prop = await getPropertyBasics(admin, opts.propertyId);
   if (!prop) return { sent: 0, skipped: true };
-  const userIds = await getAccountNotifiableUsers(admin, prop.owner_id);
+  const userIds = await getPropertyLinkedUsers(admin, prop.owner_id, opts.propertyId);
   const name = (prop.name || "Residência").trim();
   const label = opts.kind === "checkin" ? "Check-in" : "Check-out";
   return sendOpsPush(admin, {
@@ -908,7 +909,7 @@ export async function notifyStaffArrivalStep(
 ) {
   const prop = await getPropertyBasics(admin, opts.propertyId);
   if (!prop) return { sent: 0, skipped: true };
-  const all = await getAccountNotifiableUsers(admin, prop.owner_id);
+  const all = await getPropertyLinkedUsers(admin, prop.owner_id, opts.propertyId);
   const userIds = all.filter((u) => u !== (opts.byUserId ?? null));
   if (userIds.length === 0) return { sent: 0, skipped: true };
 
