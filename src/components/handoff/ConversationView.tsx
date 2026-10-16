@@ -1,9 +1,10 @@
 import { ChannelLogo, channelOf } from "./ChannelLogo";
+import { GuideViewers, StayLines, StayTag, buildStayView, stayBarClass, type StayView } from "./stay-view";
+import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { CopyButton } from "@/components/CopyButton";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,14 +29,11 @@ import { minutesLeft } from "@/lib/ai/pause";
 import {
   Send,
   UserCheck,
-  User,
   RotateCcw,
   CheckCircle2,
   Loader2,
   StickyNote,
   Phone,
-  Calendar,
-  Hash,
   Lock,
   UserPlus2,
   ArrowRightLeft,
@@ -83,7 +81,15 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 
-type Props = { conversationId: string; compact?: boolean; myUserId: string | null };
+type Props = {
+  conversationId: string;
+  compact?: boolean;
+  myUserId: string | null;
+  /** Dados da reserva da conversa (vêm da lista): período, estadia, código, fase. */
+  stay?: StayView | null;
+  /** Proprietário do imóvel (mesma fonte da lista) — para o ícone de mensagem. */
+  owner?: { name: string | null; phone: string | null; phoneCountry: string | null } | null;
+};
 
 import { toWhatsappNumber, formatIntlPhone } from "@/lib/masks";
 
@@ -148,7 +154,7 @@ function DeliveryTicks({ status }: { status: string | null | undefined }) {
   return null;
 }
 
-export function ConversationView({ conversationId, compact, myUserId }: Props) {
+export function ConversationView({ conversationId, compact, myUserId, stay, owner }: Props) {
   const { can, isOwner } = useMyPermissions();
   const canChat = isOwner || can("chat_respond");
   const getFn = useServerFn(getHandoffConversation);
@@ -693,61 +699,41 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
       <div className="sticky top-0 z-20 border-b border-zinc-200 shrink-0 bg-zinc-50 p-3 space-y-2">
         <div className="flex gap-2 items-start justify-between">
           <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-1.5">
+            <div className="flex min-w-0 items-center gap-2">
               <span className="shrink-0 inline-flex" title={`Hóspede conversando via ${liveChannel}`}>
-                <ChannelLogo channel={liveChannel} size={16} />
+                <ChannelLogo channel={liveChannel} size={18} />
               </span>
-              <span className="text-sm font-medium truncate">{guestName}</span>
+              <span className="text-base font-semibold truncate">{guestName}</span>
               {guest?.phone && (
                 <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <PhoneActionButton phone={guest.phone} country={guest.phoneCountry} size={12} />
+                  <PhoneActionButton phone={guest.phone} country={guest.phoneCountry} size={13} />
                 </span>
               )}
+              {stay && <GuideViewers count={stay.viewers} />}
+              {stay && <StayTag stay={stay} light />}
             </div>
 
-            {propertyOwnerName && (
-              <div
-                className="text-[11px] font-bold text-foreground truncate"
-                title={propertyOwnerName}
-              >
-                {propertyOwnerName}
-              </div>
-            )}
-
-            <div className="text-[11px] text-muted-foreground truncate">
-              {propertyName}
-              {conv?.handoff_at
-                ? ` · ${formatDistanceToNow(new Date(conv.handoff_at), { locale: ptBR, addSuffix: true })}`
-                : ""}
-            </div>
-
-            {(checkinFmt || checkoutFmt || guest?.reservationCode) && (
-              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                {checkinFmt && (
-                  <span className="inline-flex items-center gap-1">
-                    <Calendar className="size-3" /> Check-in {checkinFmt}
-                  </span>
-                )}
-                {checkoutFmt && (
-                  <span className="inline-flex items-center gap-1">
-                    <Calendar className="size-3" /> Check-out {checkoutFmt}
-                  </span>
-                )}
-
-                {guest?.reservationCode && (
-                  <span className="inline-flex items-center gap-1">
-                    <Hash className="size-3" /> {guest.reservationCode}
-                    <CopyButton value={guest.reservationCode} size={11} />
-                    <span
-                      className={`ml-1 rounded-full px-1.5 text-[10px] font-semibold ${reservationActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
-                    >
-                      {reservationActive ? "Reserva ativa" : "Encerrada"}
-                    </span>
+            {(owner?.name ?? propertyOwnerName) && (
+              <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[12px]">
+                <span className="truncate font-semibold text-foreground" title={owner?.name ?? propertyOwnerName ?? ""}>
+                  {ownerLabel(owner?.name ?? propertyOwnerName)}
+                </span>
+                {owner?.phone && (
+                  <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <PhoneActionButton phone={owner.phone} country={owner.phoneCountry} size={12} />
                   </span>
                 )}
               </div>
             )}
 
+            <div className="text-[12px] text-muted-foreground truncate">{propertyName}</div>
+
+            {stay && (
+              <>
+                <div className="my-1.5 h-px bg-border" />
+                <StayLines stay={stay} size="md" />
+              </>
+            )}
 
             {isLockedByOther && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-secondary text-foreground/80 border border-border inline-flex items-center gap-1">
@@ -1577,8 +1563,8 @@ type GuestDetail = {
 export function ConversationList({
   conversations,
   details,
-  assignedNames,
   reservations,
+  guideViewers,
   owners,
   activeId,
   onSelect,
@@ -1599,11 +1585,14 @@ export function ConversationList({
   reservations?: Record<
     string,
     {
-      status: "confirmed" | "loose" | "missing" | "no_ical";
+      status: "confirmed" | "loose" | "missing" | "no_ical" | "cancelled";
       checkin: string | null;
       checkout: string | null;
+      guests?: number | null;
     }
   >;
+  /** Pessoas distintas que abriram o guia com o código da reserva (por conversa). */
+  guideViewers?: Record<string, number>;
   /** Proprietário do imóvel de cada conversa — mesma fonte usada no Kanban. */
   owners?: Record<
     string,
@@ -1624,110 +1613,64 @@ export function ConversationList({
         const d = details?.[c.id];
         const owner = owners?.[c.id];
         const displayName = d?.name || c.guest_name || "Hóspede anônimo";
-        const checkin = fmtCheckin(d?.checkinDate ?? null);
-        const checkout = fmtCheckin(d?.checkoutDate ?? null);
-        const withWhom =
-          c.assigned_to && (c as any).status !== "resolved"
-            ? (assignedNames?.[c.id] ?? "outro membro")
-            : null;
-
-        const res = reservations?.[c.id];
+        const stay = buildStayView({
+          detail: d ?? null,
+          res: reservations?.[c.id] ?? null,
+          viewers: guideViewers?.[c.id] ?? 0,
+        });
 
         return (
           <div
             key={c.id}
-            className={`ds-surface border px-3 py-2.5 hover:bg-secondary transition-colors cursor-pointer ${
+            data-clip-row
+            className={`ds-surface relative flex snap-start flex-col gap-1 overflow-hidden border py-2.5 pl-4 pr-3 hover:bg-secondary transition-colors cursor-pointer ${
               isActive ? "bg-secondary border-border" : "bg-card border-border"
-            } ${urgent ? "border-l-2 border-l-destructive" : ""}`}
+            }`}
             onClick={() => onSelect(c.id)}
           >
-            {/* Mesma ordem do card do Kanban: proprietário → imóvel → hóspede → datas → reserva. */}
+            {/* Atendimento (mockup aprovado 16/10/2026): uma informação por linha, mesma ordem do
+                card do Kanban — proprietário → imóvel → hóspede (+ pessoas do guia + etiqueta) →
+                Período · Estadia · Reserva. A barra lateral e a etiqueta mostram a fase. */}
+            <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${stayBarClass(stay)}`} />
             {owner?.name && (
               <div className="flex items-center gap-1.5 min-w-0">
                 <span
-                  className="shrink text-[11px] font-bold text-primary truncate min-w-0"
+                  className={`shrink truncate min-w-0 text-[11px] ${CARD_OWNER}`}
                   title={owner.name}
                 >
-                  {owner.name}
+                  {ownerLabel(owner.name)}
                 </span>
                 <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
                   <PhoneActionButton phone={owner.phone} country={owner.phoneCountry} size={11} />
                 </span>
+                <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+                  {formatDistanceToNow(new Date(c.handoff_at ?? c.last_message_at), {
+                    locale: ptBR,
+                    addSuffix: false,
+                  })}
+                </span>
               </div>
             )}
 
-            <div className="text-[11px] text-muted-foreground truncate">{prop?.name ?? "—"}</div>
+            <div className="text-[11.5px] text-muted-foreground truncate">{prop?.name ?? "—"}</div>
 
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-1.5 min-w-0">
               {urgent && <span className="size-2 rounded-full bg-red-500 shrink-0" />}
-              <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                <span className="shrink text-sm font-medium truncate min-w-0" title={displayName}>
-                  {displayName}
-                </span>
-                {d?.phone && (
-                  <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <PhoneActionButton phone={d.phone} country={d.phoneCountry} size={12} />
-                  </span>
-                )}
-              </div>
-              <span className="text-[10px] text-muted-foreground shrink-0">
-                {formatDistanceToNow(new Date(c.handoff_at ?? c.last_message_at), {
-                  locale: ptBR,
-                  addSuffix: false,
-                })}
+              <ChannelLogo channel={channelOf(null, c.guest_session_id)} size={15} />
+              <span className="shrink text-sm font-semibold truncate min-w-0" title={displayName}>
+                {displayName}
               </span>
+              {d?.phone && (
+                <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <PhoneActionButton phone={d.phone} country={d.phoneCountry} size={12} />
+                </span>
+              )}
+              <GuideViewers count={stay.viewers} />
+              <StayTag stay={stay} />
             </div>
 
-            {(checkin || checkout || d?.reservationCode) && (
-              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-                {checkin && (
-                  <span className="inline-flex items-center gap-1">
-                    <Calendar className="size-3" /> In {checkin}
-                  </span>
-                )}
-                {checkout && (
-                  <span className="inline-flex items-center gap-1">
-                    <Calendar className="size-3" /> Out {checkout}
-                  </span>
-                )}
-
-                {d?.reservationCode && (
-                  <span className="inline-flex items-center gap-1">
-                    <Hash className="size-3" /> {d.reservationCode}
-                    <CopyButton value={d.reservationCode} size={11} />
-                  </span>
-                )}
-              </div>
-            )}
-            {withWhom && (
-              <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                <User className="size-3" /> Com {withWhom}
-              </div>
-            )}
-            {res && res.status !== "no_ical" && (
-              <div className="mt-0.5">
-                {res.status === "confirmed" && (
-                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    ✓ Reserva confirmada
-                  </span>
-                )}
-                {res.status === "loose" && (
-                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                    ⚠ Datas divergem do Airbnb
-                  </span>
-                )}
-                {res.status === "missing" && (
-                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                    ⚠ Sem reserva Airbnb
-                  </span>
-                )}
-              </div>
-            )}
-            {c.handoff_reason && (
-              <div className="text-[11px] text-foreground/70 truncate mt-0.5">
-                {c.handoff_reason}
-              </div>
-            )}
+            <div className="my-0.5 h-px bg-border" />
+            <StayLines stay={stay} size="sm" />
           </div>
         );
       })}

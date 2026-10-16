@@ -40,9 +40,11 @@ export type HandoffConversationSummary = {
 };
 
 export type HandoffReservationMatch = {
-  status: "confirmed" | "loose" | "missing" | "no_ical";
+  status: "confirmed" | "loose" | "missing" | "no_ical" | "cancelled";
   checkin: string | null;
   checkout: string | null;
+  /** Hóspedes da reserva (adultos + crianças), quando a Channex informa. */
+  guests?: number | null;
 };
 
 export type HandoffListResult = {
@@ -50,6 +52,8 @@ export type HandoffListResult = {
   details: Record<string, HandoffGuestDetail>;
   assignedNames?: Record<string, string>;
   reservations?: Record<string, HandoffReservationMatch>;
+  /** Pessoas distintas que abriram o guia com o código da reserva da conversa. */
+  guideViewers?: Record<string, number>;
   /** Proprietário do imóvel de cada conversa (chave = id da conversa). */
   owners?: Record<string, HandoffOwnerInfo>;
   error?: string;

@@ -127,6 +127,8 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       isPreviewName(c.guest_name) || String(c.guest_session_id ?? "").startsWith("preview-");
     const details: Record<string, HandoffGuestDetail> = {};
     const mergeDetails: Record<string, HandoffGuestDetail> = {};
+    // Quantas PESSOAS distintas abriram o guia com o código desta reserva (ícone com número no Atendimento).
+    const guideViewers: Record<string, number> = {};
     if (list.length > 0) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -297,6 +299,14 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             };
             details[conv.id as string] = d;
             mergeDetails[conv.id as string] = d;
+            if (d.reservationCode) {
+              const people = new Set<string>();
+              for (const l of logRows) {
+                if (l.property_id !== conv.property_id || l.reservation_code !== d.reservationCode) continue;
+                people.add(onlyDigits(l.guest_phone) || norm(l.guest_name) || "?");
+              }
+              if (people.size > 0) guideViewers[conv.id as string] = people.size;
+            }
           } else if (eventMatch?.guest_name || eventMatch?.guest_phone) {
             details[conv.id as string] = {
               name: eventMatch.guest_name ?? identity.name,
@@ -406,7 +416,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           supabaseAdmin.from("properties").select("id, airbnb_ical_url").in("id", propIds),
           supabaseAdmin
             .from("property_reservations")
-            .select("property_id, checkin_date, checkout_date, source, status, external_uid, guest_hint, guest_contacts")
+            .select("property_id, checkin_date, checkout_date, source, status, external_uid, guest_hint, guest_contacts, occupancy")
             .in("property_id", propIds)
             .in("source", ["airbnb", "channex"]),
           sessionIds.length
@@ -434,18 +444,23 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           external_uid: string;
           guest_hint: string | null;
           guest_contacts: { names?: string[]; ota_thread_id?: string } | null;
+          occupancy: { adults?: number | null; children?: number | null } | null;
         };
-        const channexConfirmed = ((resR.data ?? []) as ResRow[]).filter(
-          (r) => r.source === "channex" && r.status === "confirmed",
-        );
+        const channexAll = ((resR.data ?? []) as ResRow[]).filter((r) => r.source === "channex");
+        const channexConfirmed = channexAll.filter((r) => r.status === "confirmed");
+        const channexCancelled = channexAll.filter((r) => r.status === "cancelled");
+        const guestsOf = (r: ResRow): number | null => {
+          const n = (Number(r.occupancy?.adults) || 0) + (Number(r.occupancy?.children) || 0);
+          return n > 0 ? n : null;
+        };
         const norm = (s: string | null | undefined) =>
           String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         const today = new Date().toISOString().slice(0, 10);
-        const findChannex = (conv: (typeof deduped)[number]): ResRow | null => {
+        const findIn = (pool: ResRow[], conv: (typeof deduped)[number], futureOnly: boolean): ResRow | null => {
           const pid = conv.property_id;
           const sess = String(conv.guest_session_id ?? "").replace(/^airbnb:/, "");
           const bookingId = bookingByThread.get(sess);
-          const own = channexConfirmed.filter((r) => r.property_id === pid);
+          const own = pool.filter((r) => r.property_id === pid);
           if (bookingId) {
             const hit = own.find((r) => r.external_uid === bookingId);
             if (hit) return hit;
@@ -456,7 +471,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           if (gn.length < 3) return null;
           const byName = own.filter(
             (r) =>
-              r.checkout_date >= today &&
+              (!futureOnly || r.checkout_date >= today) &&
               [r.guest_hint, ...(r.guest_contacts?.names ?? [])].some((n) => {
                 const nn = norm(n);
                 return nn === gn || nn.startsWith(`${gn} `);
@@ -464,6 +479,8 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           );
           return byName.length === 1 ? byName[0] : null;
         };
+        const findChannex = (conv: (typeof deduped)[number]): ResRow | null => findIn(channexConfirmed, conv, true);
+        const findCancelled = (conv: (typeof deduped)[number]): ResRow | null => findIn(channexCancelled, conv, false);
         const hasIcal = new Set<string>();
         for (const p of (propsR.data ?? []) as Array<{
           id: string;
@@ -485,6 +502,17 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
               status: "confirmed",
               checkin: official.checkin_date,
               checkout: official.checkout_date,
+              guests: guestsOf(official),
+            };
+            continue;
+          }
+          const cancelled = pid ? findCancelled(conv) : null;
+          if (cancelled) {
+            reservations[conv.id] = {
+              status: "cancelled",
+              checkin: cancelled.checkin_date,
+              checkout: cancelled.checkout_date,
+              guests: guestsOf(cancelled),
             };
             continue;
           }
@@ -564,6 +592,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       assignedNames,
       reservations,
       owners,
+      guideViewers,
     };
   });
 

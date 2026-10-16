@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useHasSession } from "@/hooks/useHasSession";
 import { listHandoffConversations, countPendingHandoffs, getAtendimentoAccess, resolveConversationForGuest } from "@/lib/handoff.functions";
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
+import { buildStayView } from "@/components/handoff/stay-view";
 import { ChannelLogo, channelOf } from "@/components/handoff/ChannelLogo";
 import { formatIntlPhone } from "@/lib/masks";
 import { listenToPushMessages } from "@/lib/push-client";
@@ -14,6 +15,7 @@ import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/hando
 import { Headphones, X, Expand, Shrink, ArrowLeft } from "lucide-react";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { useAntiClipRows } from "@/hooks/useAntiClipRows";
 import { useLockBodyScroll, useVisualViewport, viewportOverlayStyle } from "@/hooks/useVisualViewport";
 
 /** "2026-10-15" → "15/10/2026" (data pura, sem fuso). */
@@ -296,6 +298,12 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
     return () => window.removeEventListener(HANDOFF_DOCK_OPEN_EVENT, handler as EventListener);
   }, [allowed, resolveFn]);
 
+  // Anticorte da lista lateral (sem mexer na altura da janela): a área da lista termina no fim do
+  // último card INTEIRO; o restante da coluna fica livre, e a rolagem sempre para com card inteiro no topo.
+  const clipSig = `${(list.data?.conversations ?? []).map((c: any) => c.id).join(",")}|${Object.keys(list.data?.reservations ?? {}).length}|${activeId ?? ""}|${enlarged}|${state.open}|${state.minimized}`;
+  const listRefA = useAntiClipRows<HTMLDivElement>([clipSig]);
+  const listRefB = useAntiClipRows<HTMLDivElement>([clipSig]);
+
   if (!allowed || !mounted || typeof document === "undefined") return null;
 
   const count = pendingQ.data?.count ?? 0;
@@ -303,9 +311,14 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
   const details = list.data?.details ?? {};
   const assignedNames = list.data?.assignedNames ?? {};
   const reservations = list.data?.reservations ?? {};
+  const guideViewers = list.data?.guideViewers ?? {};
   const owners = list.data?.owners ?? {};
   const activeConv = activeId ? (convs as Array<{ id: string; guest_name: string | null; guest_session_id: string | null; properties: { name: string | null } | null }>).find((c) => c.id === activeId) ?? null : null;
   const activeDetail = activeId ? details[activeId] : undefined;
+  const activeStay = activeId
+    ? buildStayView({ detail: activeDetail ?? null, res: reservations[activeId] ?? null, viewers: guideViewers[activeId] ?? 0 })
+    : null;
+  const activeOwner = activeId ? (owners[activeId] ?? null) : null;
   const activeChannelLabel = activeConv
     ? { airbnb: "Airbnb", whatsapp: "WhatsApp", guide: "Guia digital" }[channelOf(null, activeConv.guest_session_id)]
     : "";
@@ -437,10 +450,10 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
 
             <div className="flex min-h-0 flex-1">
               <div className="flex min-h-0 w-[240px] shrink-0 flex-col border-r border-foreground/[0.065]">
-                <div className="min-h-0 flex-1 overflow-y-auto">
+                <div ref={listRefA} className="min-h-0 flex-1 snap-y snap-proximity overflow-y-auto scroll-pt-2">
                   <ConversationList
                     conversations={convs as any}
-                    details={details} assignedNames={assignedNames} reservations={reservations} owners={owners}
+                    details={details} assignedNames={assignedNames} reservations={reservations} guideViewers={guideViewers} owners={owners}
                     activeId={activeId}
                     onSelect={setActiveId}
                   />
@@ -449,7 +462,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
 
               <div className="min-w-0 flex-1 bg-surface">
                 {activeId ? (
-                  <ConversationView conversationId={activeId} compact myUserId={myUserId} />
+                  <ConversationView conversationId={activeId} compact myUserId={myUserId} stay={activeStay} owner={activeOwner} />
                 ) : (
                   <div className="grid h-full place-items-center p-4 text-center text-xs text-muted-foreground">
                     Selecione uma conversa que precisa de atendimento humano.
@@ -571,7 +584,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
 
             <div className="flex-1 min-h-0 flex flex-col">
               {activeId ? (
-                <ConversationView conversationId={activeId} compact myUserId={myUserId} />
+                <ConversationView conversationId={activeId} compact myUserId={myUserId} stay={activeStay} owner={activeOwner} />
               ) : (
                 <>
                   <div className="px-2 py-2 border-b border-border">
@@ -593,10 +606,10 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
                       })}
                     </div>
                   </div>
-                  <div className="flex-1 min-h-0 overflow-y-auto">
+                  <div ref={listRefB} className="flex-1 min-h-0 snap-y snap-proximity overflow-y-auto scroll-pt-2">
                     <ConversationList
                       conversations={convs as any}
-                      details={details} assignedNames={assignedNames} reservations={reservations} owners={owners}
+                      details={details} assignedNames={assignedNames} reservations={reservations} guideViewers={guideViewers} owners={owners}
                       activeId={activeId}
                       onSelect={setActiveId}
                     />

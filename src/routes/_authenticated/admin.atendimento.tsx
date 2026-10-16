@@ -8,10 +8,12 @@ import {
   getAtendimentoAccess,
 } from "@/lib/handoff.functions";
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
+import { buildStayView } from "@/components/handoff/stay-view";
 import { Headphones, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { useAntiClipRows } from "@/hooks/useAntiClipRows";
 import { PageHeader } from "@/components/ds/PageHeader";
 
 
@@ -63,6 +65,10 @@ function AtendimentoPage() {
   });
 
 
+  // Anticorte da lista (sem mexer na altura da tela): a área termina no fim do último card inteiro.
+  const clipSig = `${(list.data?.conversations ?? []).map((c: any) => c.id).join(",")}|${queue}|${search}|${activeId ?? ""}`;
+  const listRef = useAntiClipRows<HTMLDivElement>([clipSig]);
+
   if (access.isLoading) {
     return <div className="p-8 text-sm text-muted-foreground">Carregando…</div>;
   }
@@ -88,6 +94,14 @@ function AtendimentoPage() {
 
   const conversations = list.data?.conversations ?? [];
   const details = list.data?.details ?? {};
+  const activeStay = activeId
+    ? buildStayView({
+        detail: details[activeId] ?? null,
+        res: list.data?.reservations?.[activeId] ?? null,
+        viewers: list.data?.guideViewers?.[activeId] ?? 0,
+      })
+    : null;
+  const activeOwner = activeId ? (list.data?.owners?.[activeId] ?? null) : null;
 
   const filteredConversations = (() => {
     const term = search.trim().toLowerCase();
@@ -147,7 +161,7 @@ function AtendimentoPage() {
       </header>
       <div className="flex-1 min-h-0 flex px-6 lg:px-10">
         {/* Lista */}
-        <div className="w-full md:w-80 border-r border-border overflow-y-auto shrink-0">
+        <div ref={listRef} className="w-full md:w-80 border-r border-border overflow-y-auto snap-y snap-proximity shrink-0">
           <div className="p-2 border-b border-border">
             <div className="relative">
               <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -164,6 +178,7 @@ function AtendimentoPage() {
             details={details}
             assignedNames={list.data?.assignedNames ?? {}}
             reservations={list.data?.reservations ?? {}}
+            guideViewers={list.data?.guideViewers ?? {}}
             owners={list.data?.owners ?? {}}
 
             activeId={activeId}
@@ -176,7 +191,7 @@ function AtendimentoPage() {
         {/* Chat */}
         <div className="flex-1 min-w-0 hidden md:block">
           {activeId ? (
-            <ConversationView conversationId={activeId} myUserId={myUserId} />
+            <ConversationView conversationId={activeId} myUserId={myUserId} stay={activeStay} owner={activeOwner} />
           ) : (
             <div className="h-full grid place-items-center text-sm text-muted-foreground p-8 text-center">
               Selecione uma conversa à esquerda.
@@ -191,7 +206,7 @@ function AtendimentoPage() {
               <button onClick={() => setActiveId(null)} className="text-sm px-3 py-1.5 rounded-md border border-border">← Voltar</button>
             </div>
             <div className="flex-1 min-h-0">
-              <ConversationView conversationId={activeId} myUserId={myUserId} />
+              <ConversationView conversationId={activeId} myUserId={myUserId} stay={activeStay} owner={activeOwner} />
             </div>
           </div>
         )}
