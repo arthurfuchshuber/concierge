@@ -10544,8 +10544,20 @@ function ArrivalCard({
           explícito, mesma data: "remova o icone ao lado esquerdo... e
           alinhe a frase à esquerda do nome do hospede"). `-mt-1` mantém o
           mesmo respiro de 4px das outras linhas (o card usa gap-2). */}
-      {showPrediction && allowedPhrase && (
-        <div className="-mt-1 flex items-baseline gap-1 text-[9.5px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+      {/* Só o passo ATUAL mostra o horário permitido: ao avançar, a linha do passo
+          anterior some (check-in feito → só o checkout; checkout feito /
+          concluído / não compareceu → nenhuma). Pedido de 16/10/2026. */}
+      {showPrediction && allowedPhrase && mode !== "done" && mode !== "no_show" && (
+        <div className={`-mt-1 flex items-baseline gap-1 text-[9.5px] font-bold uppercase tracking-wide ${periodoColorClass}`}>
+          {/* "CHECK-IN PERMITIDO ENTRE…" / "CHECKOUT PERMITIDO ATÉ…" (pedido
+              explícito, 16/10/2026): a frase diz de qual horário se trata, em
+              texto corrido, sem separador. Na Fila de Limpeza (janela livre
+              para limpar) continua só "Permitido…". A COR é a do status atual
+              (a mesma do período logo acima: azul chegada, verde estadia,
+              laranja saída, vermelho atrasado — pedido de 16/10/2026). */}
+          {!cleaningWindowPhrase && predictionPrimary && (
+            <span>{predictionPrimary.kind === "checkout" ? "Checkout" : "Check-in"}</span>
+          )}
           <span>Permitido</span>
           <span className="font-semibold">{allowedPhrase}</span>
         </div>
