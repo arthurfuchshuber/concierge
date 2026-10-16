@@ -58,6 +58,54 @@ export async function sweepStalledGuestReplies(limit = 20): Promise<number> {
       console.error("[stalled-replies] falhou", c.id, e);
     }
   }
+  done += await sweepUnansweredGuestMessages(admin, limit);
+  return done;
+}
+
+/**
+ * Rede de segurança contra vácuo (conversas SEM pausa): a última fala é do
+ * hóspede há mais de 2 min e ninguém respondeu (ex.: processamento caiu antes
+ * da IA). Reivindica uma vez via `last_message_at` para não responder em dobro.
+ */
+export const UNANSWERED_AFTER_MS = 2 * 60 * 1000;
+async function sweepUnansweredGuestMessages(admin: Admin, limit: number): Promise<number> {
+  const now = Date.now();
+  const { data: rows } = await admin
+    .from("property_chat_conversations")
+    .select("id, property_id, guest_session_id, guest_name, last_message_at, status")
+    .eq("ai_paused", false)
+    .lte("last_message_at", new Date(now - UNANSWERED_AFTER_MS).toISOString())
+    .gte("last_message_at", new Date(now - STALLED_LOOKBACK_MS).toISOString())
+    .order("last_message_at", { ascending: false })
+    .limit(limit * 5);
+  let done = 0;
+  for (const c of (rows ?? []) as Array<any>) {
+    if (done >= limit) break;
+    if (c.status === "assigned") continue;
+    try {
+      const { data: last } = await admin
+        .from("property_chat_messages")
+        .select("role, created_at")
+        .eq("conversation_id", c.id)
+        .not("is_internal_note", "is", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!last || last.role !== "user") continue;
+      if (now - new Date(last.created_at).getTime() < UNANSWERED_AFTER_MS) continue;
+      const { data: claimed } = await admin
+        .from("property_chat_conversations")
+        .update({ last_message_at: new Date().toISOString() })
+        .eq("id", c.id)
+        .eq("last_message_at", c.last_message_at)
+        .select("id")
+        .maybeSingle();
+      if (!claimed) continue;
+      if (await answerIfGuestWaiting(admin, c)) done += 1;
+    } catch (e) {
+      console.error("[stalled-replies] vácuo falhou", c.id, e);
+    }
+  }
   return done;
 }
 
