@@ -718,13 +718,20 @@ export const activateSigmaPackOnProperty = createServerFn({ method: "POST" })
     z.object({ property_id: z.string().uuid(), city_key: z.string() }).parse(i),
   )
   .handler(async ({ data, context }) => {
-    // Verify ownership via RLS
+    // Verifica permissão de EDIÇÃO via RLS (update sem efeito como usuário),
+    // não só leitura, antes da escrita privilegiada.
     const { data: prop, error: propErr } = await context.supabase
       .from("properties")
-      .select("id")
+      .select("id, sigma_pack_city_key")
       .eq("id", data.property_id)
       .maybeSingle();
     if (propErr || !prop) throw new Error("Imóvel não encontrado.");
+    const { data: editable, error: editErr } = await context.supabase
+      .from("properties")
+      .update({ sigma_pack_city_key: (prop as { sigma_pack_city_key: string | null }).sigma_pack_city_key } as never)
+      .eq("id", data.property_id)
+      .select("id");
+    if (editErr || !editable || editable.length === 0) throw new Error("Sem permissão para editar este imóvel.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     return applySigmaPackToPropertyInternal(supabaseAdmin, data.property_id, data.city_key);
   });
