@@ -59,6 +59,113 @@ export async function sweepStalledGuestReplies(limit = 20): Promise<number> {
     }
   }
   done += await sweepUnansweredGuestMessages(admin, limit);
+  done += await sweepSilentCloses(admin, limit).catch((e) => {
+    console.error("[silent-close] falhou", e);
+    return 0;
+  });
+  return done;
+}
+
+/**
+ * ENCERRAMENTO POR SILÊNCIO: hóspede disse que um passo da entrada/saída deu
+ * certo, a IA respondeu e ele sumiu por 10 min → mensagem calorosa de
+ * encerramento + baixa de check-in/check-out no painel (com push à equipe
+ * vinculada, via `runAdvanceArrival`). Uma vez por conversa e etapa.
+ */
+async function sweepSilentCloses(admin: Admin, limit: number): Promise<number> {
+  const { SILENT_CLOSE_AFTER_MS, isEntryProgress, isCheckoutProgress, silentCloseText } = await import("./silent-close");
+  const now = Date.now();
+  const { data: rows } = await admin
+    .from("property_chat_conversations")
+    .select("id, property_id, guest_session_id, guest_name, last_message_at, status")
+    .eq("ai_paused", false)
+    .lte("last_message_at", new Date(now - SILENT_CLOSE_AFTER_MS).toISOString())
+    .gte("last_message_at", new Date(now - STALLED_LOOKBACK_MS).toISOString())
+    .limit(limit * 5);
+  let done = 0;
+  for (const c of (rows ?? []) as Array<any>) {
+    if (done >= limit) break;
+    if (c.status === "assigned") continue;
+    try {
+      const { data: msgs } = await admin
+        .from("property_chat_messages")
+        .select("role, content, created_at")
+        .eq("conversation_id", c.id)
+        .not("is_internal_note", "is", true)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      const list = (msgs ?? []) as Array<{ role: string; content: string | null; created_at: string }>;
+      const last = list[0];
+      if (!last || last.role !== "assistant") continue;
+      if (now - new Date(last.created_at).getTime() < SILENT_CLOSE_AFTER_MS) continue;
+      const guest = list.find((m) => m.role === "user");
+      if (!guest) continue;
+      const text = guest.content ?? "";
+      const kind: "checkin" | "checkout" | null = isCheckoutProgress(text)
+        ? "checkout"
+        : isEntryProgress(text)
+          ? "checkin"
+          : null;
+      if (!kind) continue;
+      // Já encerrado pela própria IA? Não repete.
+      if (/excelente estadia|boa viagem/i.test(last.content ?? "")) continue;
+
+      const { findStayForEvent, applyStayEvent, assessStayTimes } = await import("./stay-events.server");
+      const stay = await findStayForEvent(admin, { propertyId: c.property_id, checkinDate: null, checkoutDate: null });
+      if (!stay) continue;
+      const { data: st } = await admin
+        .from("guest_arrival_status")
+        .select("kind, status, done_at")
+        .eq("reservation_id", stay.reservationId);
+      const sts = (st ?? []) as Array<{ kind: string; status: string; done_at: string | null }>;
+      const isDone = (k: string) => sts.some((r) => r.kind === k && (r.status === "done" || !!r.done_at));
+      if (sts.some((r) => r.kind === "checkin" && r.status === "no_show")) continue;
+      if (isDone(kind)) continue;
+      if (kind === "checkin") {
+        const tw = await assessStayTimes(admin, { propertyId: c.property_id, stay });
+        if (tw.early) continue; // antecipado sem autorização da equipe: nunca presume
+      }
+
+      const { data: prop } = await admin.from("properties").select("owner_id").eq("id", c.property_id).maybeSingle();
+      if (!prop?.owner_id) continue;
+      const { error: dup } = await admin.from("ops_push_log").insert({
+        owner_id: prop.owner_id,
+        kind: "silent-close",
+        dedupe_key: `silent-close:${c.id}:${kind}`,
+        payload: { conversationId: c.id, reservationId: stay.reservationId },
+      });
+      if (dup) continue;
+
+      const reply = silentCloseText(kind, c.guest_name);
+      const channel = stalledChannel(c.guest_session_id);
+      if (channel === "whatsapp") {
+        const phone = String(c.guest_session_id).slice("wa:".length);
+        let externalId: string | null = null;
+        try {
+          const { sendWhatsappText } = await import("@/lib/ai/channels/whatsapp/provider.server");
+          externalId = (await sendWhatsappText({ supabase: admin, tenantId: prop.owner_id, toPhone: phone, text: reply })).messageId ?? null;
+        } catch (e) {
+          console.error("[silent-close] whatsapp falhou", c.id, e);
+        }
+        await admin.from("property_chat_messages").insert({
+          conversation_id: c.id,
+          role: "assistant",
+          content: reply,
+          sender_type: "ai",
+          channel: "whatsapp",
+          external_id: externalId,
+          delivery_status: externalId ? "sent" : null,
+        });
+      } else {
+        const { speakToGuest } = await import("./outbound/speak.server");
+        await speakToGuest({ supabase: admin, conversationId: c.id, text: reply, reason: "follow_up", urgent: true, allowAfterAi: true });
+      }
+      await applyStayEvent(admin, stay, kind);
+      done += 1;
+    } catch (e) {
+      console.error("[silent-close] conversa falhou", c.id, e);
+    }
+  }
   return done;
 }
 
