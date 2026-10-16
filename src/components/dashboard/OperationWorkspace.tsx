@@ -8868,7 +8868,10 @@ function OccupancyPanel({
                               const dayStays = byProperty.get(p.id) ?? [];
                               const outS = dayStays.find((x) => x.checkout === d);
                               const inS = dayStays.find((x) => x.checkin === d);
-                              const junction = !!outS && !!inS;
+                              // Bloqueio manual também ganha o corte (16/10/2026): a divisória
+                              // vale entre reserva↔reserva, reserva↔bloqueio e bloqueio↔reserva.
+                              const junction =
+                                (!!outS && !!inS) || (!!outS && b === "blocked") || (a === "blocked" && !!inS);
                               // Pedido explícito (25/09/2026, revisão do que tinha
                               // sido pedido antes): a linha vertical do dia agora é
                               // SEMPRE desenhada ("de fora a fora"), inclusive por

@@ -2579,7 +2579,11 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         propertyId: r.property_id,
         checkin: r.checkin_date,
         checkout: r.checkout_date,
-        guest: match?.guest_name ?? resolveReservationIdentity(r).guestName ?? r.guest_hint,
+        // Channex manda no nome (16/10/2026): o registro do guia só preenche quando a reserva não traz hóspede.
+        guest:
+          r.source === "channex"
+            ? (resolveReservationIdentity(r).guestName ?? r.guest_hint ?? match?.guest_name ?? null)
+            : (match?.guest_name ?? resolveReservationIdentity(r).guestName ?? r.guest_hint),
         checkinDone: doneCheckinRes.has(r.id) || (!!match && doneCheckinLog.has(match.id)),
         checkoutDone: doneCheckoutRes.has(r.id) || (!!match && doneCheckoutLog.has(match.id)),
       });
