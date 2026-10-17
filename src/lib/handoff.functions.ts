@@ -1394,6 +1394,10 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
       });
       if (error) throw new Error(error.message);
     }
+    if (!data.internalNote) {
+      const { completeStayFromHumanMessage } = await import("@/lib/ai/human-closing.server");
+      await completeStayFromHumanMessage(data.conversationId, content);
+    }
     // Ensure conversation status stays assigned + ai paused when agent replies
     if (!data.internalNote) {
       await supabase
