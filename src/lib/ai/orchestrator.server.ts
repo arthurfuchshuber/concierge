@@ -777,7 +777,8 @@ export async function runHospitalityAgent(params: {
   // O texto fixo de antes ("...a equipe responsável seguirá com o atendimento
   // por aqui") anunciava transferência, contra a regra do produto e contra o
   // próprio prompt. Agora vem de continuity.ts, em primeira pessoa.
-  if (handoffReason && !reply) reply = continuityLine("no_answer", intent.language, sementeFrase);
+  // Sem texto: o bloco "depende de humano" mais abaixo decide saudação ou silêncio.
+  void sementeFrase;
 
   // Decisões humanas já entregues ao hóspede não voltam ao contexto.
   if (humanAnswers.length && reply) {
@@ -968,12 +969,10 @@ export async function runHospitalityAgent(params: {
        * diz que a confirmação está em andamento. Se não passou (ou não havia
        * texto), sai só a frase, em primeira pessoa e variando a cada
        * ocorrência. Em nenhum caso o hóspede fica sem resposta. */
-      const semente = params.history.length;
+      // Sem promessa de retorno: texto aprovado vai sozinho; senão o bloco
+      // "depende de humano" decide saudação (1ª fala) ou silêncio.
       const aprovado = finalValidation.approved && reply.trim().length > 0;
-      const aviso = continuityLine("pending", intent.language, semente);
-      reply = aprovado
-        ? `${reply.trim()}\n\n${aviso}`
-        : continuityLine("no_answer", intent.language, semente);
+      reply = aprovado ? reply.trim() : "";
       tier = "handoff";
       jaValidado = true;
     } else if (tier !== "auto" && !explorationMode) {

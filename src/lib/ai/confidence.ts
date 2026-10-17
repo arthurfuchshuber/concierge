@@ -114,15 +114,10 @@ export function handoffFallback(language: string, seed = 0): string {
   return continuityLine("confirming", language, seed);
 }
 
-/** Ressalva adicionada quando a confiança fica na faixa intermediária. */
-export function hedgeNotice(language: string): string {
-  const pt =
-    "\n\n_Confirme comigo ou com o anfitrião antes de contar com essa informação — quero ter certeza de que está tudo certo para você._";
-  const en =
-    "\n\n_Please double-check this with me or your host — I want to make sure everything is right for you._";
-  const es =
-    "\n\n_Confírmalo conmigo o con el anfitrión — quiero asegurarme de que todo esté correcto._";
-  if (language?.startsWith("en")) return en;
-  if (language?.startsWith("es")) return es;
-  return pt;
+/**
+ * Ressalva da faixa intermediária. Desligada (17/10/2026): o rodapé em itálico
+ * fixo denunciava o robô. O validador já barra o que não tem evidência.
+ */
+export function hedgeNotice(_language: string): string {
+  return "";
 }
