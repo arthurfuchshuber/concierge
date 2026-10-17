@@ -8461,6 +8461,51 @@ function OccupancyPanel({
   }, [shownProperties, byProperty, textTokens]);
   const list = useWholeCardsMaxHeight(`${shownProperties.length}:${loading}:${dayW}`);
 
+  // ROLAGEM EM UM EIXO SÓ (pedido explícito, 17/10/2026: "o calendário não
+  // pode ficar deslizando na diagonal — ou desce/sobe, ou vai para os lados").
+  // O trackpad/mouse manda deltaX e deltaY juntos; aqui decidimos o eixo
+  // dominante do gesto e aplicamos SÓ ele. O eixo fica travado enquanto o
+  // gesto durar (reinicia após 160ms sem rodar), pra não "trocar de eixo" no
+  // meio da inércia. Só no computador (wheel); sem Ctrl (zoom) e sem mexer
+  // em nada além do scrollLeft/scrollTop deste quadro. Se o quadro já está
+  // no fim (vertical), o resto da rolagem segue para a página.
+  useEffect(() => {
+    const scroller = outerEl?.firstElementChild as HTMLElement | null | undefined;
+    if (!scroller) return;
+    let axis: "x" | "y" | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.defaultPrevented) return;
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? scroller.clientHeight : 1;
+      const dx = e.deltaX * unit;
+      const dy = e.deltaY * unit;
+      if (!dx && !dy) return;
+      if (!axis) axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        axis = null;
+      }, 160);
+      if (axis === "x") {
+        if (scroller.scrollWidth <= scroller.clientWidth) return;
+        e.preventDefault();
+        scroller.scrollLeft += dx;
+      } else {
+        e.preventDefault();
+        const max = scroller.scrollHeight - scroller.clientHeight;
+        const before = scroller.scrollTop;
+        const next = Math.max(0, Math.min(max, before + dy));
+        scroller.scrollTop = next;
+        const rest = dy - (next - before);
+        if (rest) window.scrollBy(0, rest);
+      }
+    };
+    scroller.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      clearTimeout(timer);
+      scroller.removeEventListener("wheel", onWheel);
+    };
+  }, [outerEl]);
+
   // Para onde rolar (índice do dia): mês digitado → 1º dia do mês; texto → 1º
   // resultado (o próximo a partir de hoje; senão o mais antigo).
   const searchTargetRef = useRef<number | null>(null);
@@ -8790,7 +8835,7 @@ function OccupancyPanel({
                             <th
                               key={g.key}
                               colSpan={g.n}
-                              className="sticky top-0 z-20 relative h-[22px] bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-1.5 pt-1 text-center"
+                              className="sticky top-0 z-20 relative h-[22px] bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-1.5 pt-1 text-center shadow-[0_4px_0_0_color-mix(in_oklab,var(--foreground)_1.5%,var(--card))]"
                             >
                               {k > 0 && (
                                 <span aria-hidden className="pointer-events-none absolute bottom-0 left-0 top-0 w-px bg-foreground/20" />

@@ -23,19 +23,34 @@ function periodOfDay(now: Date): "m" | "t" | "n" {
   return h < 12 && h >= 5 ? "m" : h < 18 && h >= 12 ? "t" : "n";
 }
 
-export function greetingFor(language: string | null | undefined, name: string | null, now = new Date()): string {
+/** `seed` varia a forma (determinístico); 0 = forma clássica "Olá, Nome! Boa tarde!". */
+export function greetingFor(
+  language: string | null | undefined,
+  name: string | null,
+  now = new Date(),
+  seed = 0,
+): string {
   const fn = firstName(name);
   const p = periodOfDay(now);
+  const pick = <T,>(arr: T[]) => arr[Math.abs(Math.trunc(seed)) % arr.length];
   if (language?.startsWith("en")) {
     const g = p === "m" ? "Good morning" : p === "t" ? "Good afternoon" : "Good evening";
-    return fn ? `Hi, ${fn}! ${g}!` : `Hi! ${g}!`;
+    return fn
+      ? pick([`Hi, ${fn}! ${g}!`, `${g}, ${fn}!`, `Hey ${fn}!`, `Hello, ${fn}!`])
+      : pick([`Hi! ${g}!`, `${g}!`, `Hello!`]);
   }
   if (language?.startsWith("es")) {
     const g = p === "m" ? "¡Buenos días!" : p === "t" ? "¡Buenas tardes!" : "¡Buenas noches!";
-    return fn ? `¡Hola, ${fn}! ${g}` : `¡Hola! ${g}`;
+    const g2 = g.replace(/[¡!]/g, "");
+    return fn
+      ? pick([`¡Hola, ${fn}! ${g}`, `¡${g2}, ${fn}!`, `¡Hola, ${fn}!`])
+      : pick([`¡Hola! ${g}`, g, `¡Hola!`]);
   }
   const g = p === "m" ? "Bom dia!" : p === "t" ? "Boa tarde!" : "Boa noite!";
-  return fn ? `Olá, ${fn}! ${g}` : `Olá! ${g}`;
+  const g2 = g.replace("!", "");
+  return fn
+    ? pick([`Olá, ${fn}! ${g}`, `${g2}, ${fn}!`, `Oi, ${fn}! ${g}`, `Oi, ${fn}, tudo bem?`, `Olá, ${fn}!`])
+    : pick([`Olá! ${g}`, g, `Oi! ${g}`, `Olá!`]);
 }
 
 export function ensureGreeting(
@@ -49,5 +64,6 @@ export function ensureGreeting(
   // Qualquer resposta anterior do assistente já abriu a conversa: não cumprimenta de novo.
   const alreadyAnswered = history.some((m) => m.role === "assistant" && m.content.trim());
   if (alreadyAnswered) return reply;
-  return `${greetingFor(language, guestName, now)} ${reply}`;
+  const seed = history.length + (guestName?.length ?? 0);
+  return `${greetingFor(language, guestName, now, seed)} ${reply}`;
 }

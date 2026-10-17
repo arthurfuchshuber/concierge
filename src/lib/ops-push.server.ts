@@ -82,6 +82,39 @@ export async function getAccountNotifiableUsers(admin: Admin, ownerId: string): 
 }
 
 /**
+ * Todos os VINCULADOS a um imóvel (pedido explícito, 16/10/2026): titular +
+ * membros ativos que enxergam o imóvel (qualquer papel) + quem tem vínculo
+ * direto ao imóvel (`property_assignments` ativos: co-anfitrião, prestador…).
+ * Usado em check-in, check-out e limpeza concluídos.
+ */
+export async function getPropertyLinkedUsers(admin: Admin, ownerId: string, propertyId: string): Promise<string[]> {
+  const ids = new Set<string>([ownerId]);
+  const { data: members } = await admin
+    .from("account_members")
+    .select("member_user_id")
+    .eq("owner_id", ownerId)
+    .eq("status", "active");
+  for (const m of members ?? []) {
+    const uid = m.member_user_id as string | null;
+    if (!uid) continue;
+    const { data: ok } = await admin.rpc("member_can_see_property", {
+      _user_id: uid,
+      _owner_id: ownerId,
+      _property_id: propertyId,
+    });
+    if (ok) ids.add(uid);
+  }
+  const { data: asg } = await admin
+    .from("property_assignments")
+    .select("user_id, status")
+    .eq("property_id", propertyId);
+  for (const a of asg ?? []) {
+    if ((a.status ?? "active") !== "inactive" && a.user_id) ids.add(a.user_id as string);
+  }
+  return Array.from(ids);
+}
+
+/**
  * Envia um push operacional a uma conta, garantindo unicidade via `dedupe_key`.
  * Se a chave já existir no log, nada é enviado.
  */
@@ -681,6 +714,7 @@ export async function notifyCleaningDone(
     ownerId: prop.owner_id,
     kind: "cleaning-done",
     dedupeKey: `cleaning-done:${opts.propertyId}:${opts.refKey}`,
+    userIds: await getPropertyLinkedUsers(admin, prop.owner_id, opts.propertyId),
     payload: {
       title: `✨ Limpeza finalizada`,
       body: line,
@@ -791,7 +825,7 @@ export async function notifyGuestSelfStep(
 ) {
   const prop = await getPropertyBasics(admin, opts.propertyId);
   if (!prop) return { sent: 0, skipped: true };
-  const userIds = await getAccountNotifiableUsers(admin, prop.owner_id);
+  const userIds = await getPropertyLinkedUsers(admin, prop.owner_id, opts.propertyId);
   const name = (prop.name || "Residência").trim();
   const label = opts.kind === "checkin" ? "Check-in" : "Check-out";
   return sendOpsPush(admin, {
@@ -875,7 +909,7 @@ export async function notifyStaffArrivalStep(
 ) {
   const prop = await getPropertyBasics(admin, opts.propertyId);
   if (!prop) return { sent: 0, skipped: true };
-  const all = await getAccountNotifiableUsers(admin, prop.owner_id);
+  const all = await getPropertyLinkedUsers(admin, prop.owner_id, opts.propertyId);
   const userIds = all.filter((u) => u !== (opts.byUserId ?? null));
   if (userIds.length === 0) return { sent: 0, skipped: true };
 

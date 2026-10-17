@@ -1650,7 +1650,7 @@ export function ConversationList({
 
             <div className="flex items-center gap-1.5 min-w-0">
               {urgent && <span className="size-2 rounded-full bg-red-500 shrink-0" />}
-              <ChannelLogo channel={channelOf(null, c.guest_session_id)} size={15} />
+              <ChannelLogo channel={channelOf(null, (c as { guest_session_id?: string | null }).guest_session_id ?? null)} size={15} />
               <span className="shrink text-sm font-semibold truncate min-w-0" title={displayName}>
                 {displayName}
               </span>
