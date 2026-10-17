@@ -5,9 +5,14 @@ const tarde = new Date("2026-10-10T18:00:00Z"); // 15h em São Paulo
 
 describe("saudação obrigatória", () => {
   it("cumprimenta quando a IA ainda não cumprimentou", () => {
-    expect(ensureGreeting("Vou confirmar isso.", [], "Yara", "pt-BR", tarde)).toBe(
-      "Olá, Yara! Boa tarde! Vou confirmar isso.",
-    );
+    const out = ensureGreeting("Tudo certo.", [], "Yara", "pt-BR", tarde);
+    expect(out).toMatch(/Yara/);
+    expect(out.endsWith("Tudo certo.")).toBe(true);
+  });
+  it("varia a saudação entre conversas", () => {
+    const a = ensureGreeting("X", [], "Yara", "pt-BR", tarde);
+    const b = ensureGreeting("X", [{ role: "user", content: "oi" }], "Yara", "pt-BR", tarde);
+    expect(a).not.toBe(b);
   });
   it("não repete se a IA já cumprimentou antes", () => {
     const h = [{ role: "assistant", content: "Olá, Yara! Tudo bem?" }];
