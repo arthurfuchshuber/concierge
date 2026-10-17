@@ -223,12 +223,12 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         })
         .filter((s) => s.hits > 0)
         .sort((a, b) => b.hits - a.hits);
-      if (!scored.length) return { status: "nao_encontrada", orientacao: "Peça com gentileza outro dado: código da reserva, nome completo da reserva ou datas." };
+      if (!scored.length) return { status: "nao_encontrada", orientacao: "Peça com gentileza o código da reserva (nunca nome completo nem datas)." };
       const top = scored[0];
-      const strong = top.byCode || top.byPhone || (top.byName && scored.filter((s) => s.byName).length === 1);
+      const strong = top.byCode || top.byPhone;
       const tied = scored.filter((s) => s.hits === top.hits).length > 1;
       if (!strong || tied) {
-        return { status: "ambigua", orientacao: "Há mais de uma possibilidade. Faça UMA pergunta de validação com contexto (ex.: datas da estadia ou código da reserva) antes de liberar dados." };
+        return { status: "ambigua", orientacao: "Há mais de uma possibilidade. Peça com gentileza o código da reserva antes de liberar dados." };
       }
       return {
         status: "confirmada",
@@ -864,6 +864,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         propertyId: ctx.propertyId,
         checkinDate: ctx.checkinDate,
         checkoutDate: ctx.checkoutDate,
+        conversationId: ctx.conversationId,
       });
       if (!stay) return { ok: false, motivo: "reserva_nao_encontrada" };
 
@@ -946,6 +947,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         propertyId: ctx.propertyId,
         checkinDate: ctx.checkinDate,
         checkoutDate: ctx.checkoutDate,
+        conversationId: ctx.conversationId,
       });
       if (!stay) return { ok: false, motivo: "reserva_nao_encontrada" };
       const t = await assessStayTimes(ctx.supabase, { propertyId: ctx.propertyId, stay });

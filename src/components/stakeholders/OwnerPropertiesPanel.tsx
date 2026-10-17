@@ -21,7 +21,6 @@ import {
   RefreshCw,
   Search,
   Unlink,
-  TriangleAlert,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -538,20 +537,7 @@ export function OwnerPropertiesPanel({
         <DialogContent className="max-w-[380px] gap-3.5 p-[18px] sm:p-[18px]">
           {confirm && confirmProp ? (
             <>
-              <span
-                className={`grid size-12 place-items-center rounded-[15px] ${
-                  confirm.next
-                    ? "ds-ok bg-[color-mix(in_oklab,#7fb79a_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#7fb79a_35%,transparent)]"
-                    : "ds-falta bg-[color-mix(in_oklab,#c98c8c_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c98c8c_35%,transparent)]"
-                }`}
-              >
-                {confirm.next ? (
-                  <Link2 className="size-[22px]" />
-                ) : (
-                  <TriangleAlert className="size-[22px]" />
-                )}
-              </span>
-              <DialogTitle className="font-display text-[19px] font-extrabold leading-[1.2] tracking-[-0.01em]">
+              <DialogTitle className="pr-11 font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
                 {confirm.next ? "Ativar este anúncio?" : "Desativar este anúncio?"}
               </DialogTitle>
               <div className="flex items-center gap-2.5 rounded-[12px] bg-foreground/[0.04] px-[11px] py-[9px] text-[12.5px] font-bold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_9%,transparent)]">
@@ -573,9 +559,11 @@ export function OwnerPropertiesPanel({
                   </>
                 ) : (
                   <>
-                    Se você desativar,{" "}
-                    <b className="font-bold text-foreground">perderá toda a sincronização</b> com
-                    este anúncio - incluindo os dados existentes.
+                    Os dados já importados continuam guardados, mas{" "}
+                    <b className="font-bold text-foreground">
+                      a sincronização com este anúncio vai parar
+                    </b>
+                    .
                   </>
                 )}
               </DialogDescription>
@@ -768,7 +756,7 @@ function ReimportWindow({
       }}
     >
       <DialogContent className="max-w-[380px] gap-3 p-4 sm:p-4">
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 pr-9">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 pr-11">
           <DialogTitle className="font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
             ReImportar anúncios
           </DialogTitle>

@@ -879,6 +879,54 @@ export type Database = {
           },
         ]
       }
+      ai_host_corrections: {
+        Row: {
+          ai_content: string
+          conversation_id: string
+          created_at: string
+          escalation_id: string | null
+          guest_context: string | null
+          id: string
+          kind: string
+          lesson: string | null
+          owner_id: string
+          processed_at: string | null
+          property_id: string
+          replacement_content: string | null
+          status: string
+        }
+        Insert: {
+          ai_content: string
+          conversation_id: string
+          created_at?: string
+          escalation_id?: string | null
+          guest_context?: string | null
+          id?: string
+          kind: string
+          lesson?: string | null
+          owner_id: string
+          processed_at?: string | null
+          property_id: string
+          replacement_content?: string | null
+          status?: string
+        }
+        Update: {
+          ai_content?: string
+          conversation_id?: string
+          created_at?: string
+          escalation_id?: string | null
+          guest_context?: string | null
+          id?: string
+          kind?: string
+          lesson?: string | null
+          owner_id?: string
+          processed_at?: string | null
+          property_id?: string
+          replacement_content?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       ai_human_escalations: {
         Row: {
           agent_type: string
@@ -1671,6 +1719,66 @@ export type Database = {
           suggestion?: string
           tenant_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_property_playbooks: {
+        Row: {
+          avoid: string[]
+          confidence: number
+          corrections: number
+          created_at: string
+          id: string
+          owner_id: string
+          property_id: string
+          situation: string | null
+          sources: Json
+          status: string
+          steps: string[]
+          title: string
+          topic: string
+          triggers: string[]
+          updated_at: string
+          uses: number
+          version: number
+        }
+        Insert: {
+          avoid?: string[]
+          confidence?: number
+          corrections?: number
+          created_at?: string
+          id?: string
+          owner_id: string
+          property_id: string
+          situation?: string | null
+          sources?: Json
+          status?: string
+          steps?: string[]
+          title: string
+          topic: string
+          triggers?: string[]
+          updated_at?: string
+          uses?: number
+          version?: number
+        }
+        Update: {
+          avoid?: string[]
+          confidence?: number
+          corrections?: number
+          created_at?: string
+          id?: string
+          owner_id?: string
+          property_id?: string
+          situation?: string | null
+          sources?: Json
+          status?: string
+          steps?: string[]
+          title?: string
+          topic?: string
+          triggers?: string[]
+          updated_at?: string
+          uses?: number
+          version?: number
         }
         Relationships: []
       }
@@ -4610,6 +4718,7 @@ export type Database = {
           last_reminder_at: string | null
           paused_until: string | null
           property_id: string
+          reservation_id: string | null
           resolved_at: string | null
           status: Database["public"]["Enums"]["chat_conversation_status"]
           updated_at: string
@@ -4633,6 +4742,7 @@ export type Database = {
           last_reminder_at?: string | null
           paused_until?: string | null
           property_id: string
+          reservation_id?: string | null
           resolved_at?: string | null
           status?: Database["public"]["Enums"]["chat_conversation_status"]
           updated_at?: string
@@ -4656,6 +4766,7 @@ export type Database = {
           last_reminder_at?: string | null
           paused_until?: string | null
           property_id?: string
+          reservation_id?: string | null
           resolved_at?: string | null
           status?: Database["public"]["Enums"]["chat_conversation_status"]
           updated_at?: string

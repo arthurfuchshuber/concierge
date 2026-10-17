@@ -248,6 +248,10 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
       external_id: sinchMsgId || null,
       sent_via_number: cfg.sender_number as string,
     });
+    {
+      const { completeStayFromHumanMessage } = await import("@/lib/ai/human-closing.server");
+      await completeStayFromHumanMessage(data.conversationId, finalText);
+    }
     if (error) throw new Error(error.message);
 
     await supabase

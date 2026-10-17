@@ -92,9 +92,10 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
         if (!inbound || !fromIdentity) return new Response("ok"); // ignore other events
 
         const phoneDigits = String(fromIdentity).replace(/[^\d]/g, "");
-        const last8 = phoneDigits.slice(-8);
+        const guestSessionId = `wa:${phoneDigits}`;
 
-        // Find the latest guide_access_log matching this phone across owner's properties
+        // Identificação SOMENTE pelos dados da API Channex (telefone cadastrado
+        // ou código da reserva) — nunca pelo acesso ao guia, nunca por nome.
         const { data: props } = await supabaseAdmin
           .from("properties")
           .select("id")
@@ -102,31 +103,73 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
         const propertyIds = (props ?? []).map((p) => p.id as string);
         if (propertyIds.length === 0) return new Response("no properties", { status: 200 });
 
-        const { data: log } = await supabaseAdmin
-          .from("guide_access_logs")
-          .select("property_id, guest_name, guest_phone, checkin_date, checkout_date")
+        const { pickReservation, askCodeText } = await import("@/lib/whatsapp-guest-match");
+        const today = new Date().toISOString().slice(0, 10);
+        const from = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+        const { data: resRows } = await supabaseAdmin
+          .from("property_reservations")
+          .select("id, property_id, checkin_date, checkout_date, status, guest_contacts")
           .in("property_id", propertyIds)
-          .like("guest_phone", `%${last8}`)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .eq("source", "channex")
+          .gte("checkout_date", from)
+          .order("checkin_date", { ascending: true })
+          .limit(1000);
+        const rows = (resRows ?? []) as any[];
+        let picked = pickReservation(rows, { phone: phoneDigits, text: inbound, today });
 
-        if (!log) return new Response("no guest match", { status: 200 });
+        // Conversa já vinculada antes (ex.: o hóspede mandou o código numa mensagem anterior).
+        if (!picked) {
+          const { data: linked } = await supabaseAdmin
+            .from("property_chat_conversations")
+            .select("reservation_id")
+            .in("property_id", propertyIds)
+            .eq("guest_session_id", guestSessionId)
+            .not("reservation_id", "is", null)
+            .order("last_message_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const r = linked?.reservation_id ? rows.find((x) => x.id === linked.reservation_id) : null;
+          if (r) picked = { row: r, by: "telefone" };
+        }
 
-        // Find (or create) an active conversation for this guest.
-        const guestSessionId = `wa:${phoneDigits}`;
+        if (!picked) {
+          // Não descarta: pede o código da reserva (sem pedir nome).
+          try {
+            const { sendWhatsappText } = await import("@/lib/ai/channels/whatsapp/provider.server");
+            await sendWhatsappText({ supabase: supabaseAdmin, tenantId: ownerId, toPhone: phoneDigits, text: askCodeText() });
+          } catch (e) {
+            console.error("[sinch-webhook] pedido de código falhou", e);
+          }
+          return new Response("ask code", { status: 200 });
+        }
+
+        const contacts = (picked.row.guest_contacts ?? {}) as { code?: string | null; names?: string[] };
+        const log = {
+          property_id: picked.row.property_id as string,
+          guest_name: (contacts.names?.[0] as string | undefined) ?? null,
+          checkin_date: picked.row.checkin_date as string,
+          checkout_date: picked.row.checkout_date as string,
+          reservation_code: contacts.code ?? null,
+          reservation_id: picked.row.id as string,
+        };
+
         let convId: string | null = null;
         let aiPaused = false;
         const { data: existingConv } = await supabaseAdmin
           .from("property_chat_conversations")
-          .select("id, ai_paused, paused_until, assigned_to")
+          .select("id, ai_paused, paused_until, assigned_to, reservation_id")
           .eq("property_id", log.property_id)
           .eq("guest_session_id", guestSessionId)
           .maybeSingle();
 
         if (existingConv?.id) {
           convId = existingConv.id as string;
-          // Expiração preguiçosa da pausa — mesma regra do guia.
+          if (existingConv.reservation_id !== log.reservation_id) {
+            await supabaseAdmin
+              .from("property_chat_conversations")
+              .update({ reservation_id: log.reservation_id })
+              .eq("id", convId);
+          }
           const { resolvePause } = await import("@/lib/ai/pause");
           aiPaused = await resolvePause(supabaseAdmin, String(existingConv.id), existingConv);
         } else {
@@ -138,6 +181,7 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
               guest_name: log.guest_name,
               status: "ai",
               ai_paused: false,
+              reservation_id: log.reservation_id,
             })
             .select("id")
             .single();
@@ -253,7 +297,7 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
           const { loadReservationDossier } = await import("@/lib/ai/reservation-dossier.server");
           const dossier = await loadReservationDossier(supabaseAdmin, {
             propertyId: String(log.property_id),
-            code: ((log as Record<string, unknown>).reservation_code as string | null) ?? null,
+            code: log.reservation_code,
           }).catch(() => null);
           const result = await runHospitalityAgent({
             supabase: supabaseAdmin,

@@ -14,6 +14,7 @@ const fns = vi.hoisted(() => ({
 
 vi.mock("@tanstack/react-start", () => ({
   useServerFn: (f: unknown) => f,
+  createMiddleware: () => ({ server: () => ({}), client: () => ({}) }),
   createServerFn: () => ({
     middleware: () => ({ inputValidator: () => ({ handler: () => null }) }),
   }),
@@ -38,6 +39,13 @@ vi.mock("@/lib/channex-mode.functions", () => ({
   validatePricingFn: vi.fn(),
 }));
 vi.mock("@/lib/stakeholders.functions", () => ({ listStakeholders: fns.listStakeholders }));
+vi.mock("../useUnsyncedProperties", () => ({
+  useUnsyncedProperties: () => ({
+    perm: { allowed: true, loading: false },
+    q: { data: { properties: [], blocking: false }, isLoading: false },
+    accountOwnerId: null,
+  }),
+}));
 vi.mock("@/components/PhoneActionButton", () => ({ PhoneActionButton: () => null }));
 vi.mock("../StakeholderFormDialog", () => ({
   StakeholderFormDialog: () => null,
@@ -118,7 +126,9 @@ describe("sincronizar em massa (de → para)", () => {
     fireEvent.click(opts[opts.length - 1]);
   }
   const btn = () =>
-    screen.getByText(/Sincronizar \d+ par(es)?|Falta \d/).closest("button") as HTMLButtonElement;
+    screen
+      .getByText(/Sincronizar \d+ imóve(l|is)|Escolha ao menos 1/)
+      .closest("button") as HTMLButtonElement;
 
   it("mostra todos os imóveis, sugere por nome e deixa o anúncio solto escolher um imóvel", async () => {
     fns.syncAirbnbPair.mockResolvedValue({
@@ -132,11 +142,11 @@ describe("sincronizar em massa (de → para)", () => {
     expect(screen.getByText("Meu Apê")).toBeTruthy();
     expect(btn().disabled).toBe(true);
     fireEvent.click(screen.getByText("Sugerir"));
-    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 1 par/));
+    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 1 imóvel/));
     // "Anúncios sem imóvel" não repete os anúncios livres enquanto falta imóvel sem par.
     expect(screen.queryByText(/anúncios? sem imóvel/i)).toBeNull();
     await pickListing(0, "Casa Dois");
-    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 pares/));
+    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 imóveis/));
     fireEvent.click(btn());
     await waitFor(() => expect(fns.syncAirbnbPair).toHaveBeenCalledTimes(2));
     expect(fns.syncAirbnbPair.mock.calls.map((c) => c[0].data)).toEqual([
@@ -160,14 +170,13 @@ describe("sincronizar em massa (de → para)", () => {
     fireEvent.click(screen.getByText("Sugerir"));
     // Casa Um ↔ L1: todos os imóveis têm par, então o anúncio que sobrou aparece e só falta o proprietário(a).
     await waitFor(() => expect(screen.getByText("Anúncio sem imóvel")).toBeTruthy());
-    await waitFor(() => expect(screen.getByText("Falta 1 proprietário(a)")).toBeTruthy());
+    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 1 imóvel/));
     expect(screen.queryByText("Ligar a um imóvel")).toBeNull();
     expect(screen.queryByText("Escolher imóvel…")).toBeNull();
-    expect(btn().disabled).toBe(true);
     fireEvent.click(screen.getAllByText("Escolher…").at(-1) as HTMLElement);
     await waitFor(() => expect(screen.getAllByText("Livia").length).toBeGreaterThan(1));
     fireEvent.click(screen.getAllByText("Livia").at(-1) as HTMLElement);
-    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 pares/));
+    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 imóveis/));
     fireEvent.click(btn());
     await waitFor(() => expect(fns.syncAirbnbPair).toHaveBeenCalledTimes(2));
     expect(fns.syncAirbnbPair.mock.calls[0][0].data).toEqual({
@@ -216,7 +225,7 @@ describe("sincronizar em massa (de → para)", () => {
     expect(fns.listAirbnbAccountListings.mock.calls[0][0].data.channelId).toBeNull();
     await waitFor(() => expect(screen.getAllByText("Escolher anúncio…").length).toBe(2));
     fireEvent.click(screen.getByText("Sugerir"));
-    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 pares/));
+    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 imóveis/));
     // Cada anúncio escolhido mostra a conta dele.
     expect(screen.getAllByText("Conta Sigma").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Conta Patricia").length).toBeGreaterThan(0);
@@ -232,9 +241,9 @@ describe("sincronizar em massa (de → para)", () => {
       .mockResolvedValueOnce({ kind: "linked", propertyId: "p2", title: "Meu Apê", pending: [] });
     await open();
     fireEvent.click(screen.getByText("Sugerir"));
-    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 1 par/));
+    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 1 imóvel/));
     await pickListing(0, "Casa Dois");
-    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 pares/));
+    await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 imóveis/));
     fireEvent.click(btn());
     await waitFor(() => expect(screen.getByText("1 de 2 sincronizados")).toBeTruthy());
     expect(screen.getByText("Anúncio já ligado.")).toBeTruthy();

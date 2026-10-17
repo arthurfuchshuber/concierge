@@ -1,6 +1,6 @@
 import { guardNestedOutside, useOverlayLayer } from "@/lib/global-overlay-store";
 import { useAntiClipWindow } from "@/hooks/useAntiClipWindow";
-"use client";
+("use client");
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -58,7 +58,10 @@ const DialogContent = React.forwardRef<
       >
         {children}
         {hideClose ? null : (
-          <DialogPrimitive.Close className="absolute right-4 top-4 grid size-8 place-items-center rounded-full bg-secondary/60 text-muted-foreground opacity-80 cursor-pointer transition-all hover:opacity-100 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:pointer-events-none">
+          <DialogPrimitive.Close
+            data-window-close
+            className="absolute right-0 top-0 z-[5] grid size-11 cursor-pointer place-items-center rounded-bl-[16px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--foreground)_7%,transparent)] text-muted-foreground shadow-[inset_1px_-1px_0_color-mix(in_oklab,var(--foreground)_13%,transparent)] transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_12%,transparent)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+          >
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
@@ -70,7 +73,7 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-1.5 text-left pr-10", className)} {...props} />
+  <div className={cn("flex flex-col space-y-1.5 text-left pr-12", className)} {...props} />
 );
 
 DialogHeader.displayName = "DialogHeader";

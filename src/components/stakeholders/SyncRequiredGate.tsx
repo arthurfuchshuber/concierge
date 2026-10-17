@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Loader2, Lock, Plus, RefreshCw, UserRound } from "lucide-react";
+import { Loader2, Lock, UserRound } from "lucide-react";
 import { listAirbnbAccounts, type UnsyncedProperty } from "@/lib/airbnb-account.functions";
 import { useUnsyncedProperties } from "./useUnsyncedProperties";
 import { useAnyWindowOpen } from "@/lib/global-overlay-store";
@@ -25,6 +25,7 @@ import { AirbnbAccountFlow, type AirbnbFlowRequest } from "./AirbnbAccountFlow";
 export function SyncRequiredGate() {
   const { perm, q, accountOwnerId } = useUnsyncedProperties();
   const [flow, setFlow] = useState<AirbnbFlowRequest>(null);
+  const [showPending, setShowPending] = useState(false);
   const otherWindowOpen = useAnyWindowOpen();
   const prevFlow = useRef<AirbnbFlowRequest>(null);
 
@@ -147,10 +148,10 @@ export function SyncRequiredGate() {
           }}
           onInteractOutside={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => e.preventDefault()}
-          className="max-w-[380px] gap-2.5 p-[18px] pt-[22px] sm:gap-3.5 sm:max-w-[560px] sm:p-[18px]"
+          className="max-w-[380px] gap-2.5 p-[18px] pt-[22px] sm:gap-3.5 sm:p-[18px]"
         >
           <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-            <div className="grid min-w-0 gap-2.5 pr-9">
+            <div className="grid min-w-0 gap-2.5 pr-11">
               <DialogTitle className="flex items-center gap-2.5 font-display text-[19px] font-extrabold leading-[1.2] tracking-[-0.01em]">
                 <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-secondary text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
                   <Lock className="size-4" />
@@ -205,36 +206,34 @@ export function SyncRequiredGate() {
               );
             })}
           </div>
-          {/* Lado a lado (mockup H4/H5 aprovado, 14/10/2026): secundário à esquerda, principal à direita.
-              No celular o texto do secundário é curto para caber em UMA linha. */}
-          <div className="grid shrink-0 grid-cols-[minmax(0,5fr)_minmax(0,6fr)] gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setFlow({ type: "connect" })}
-              className="flex h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--win-radius)] bg-foreground/[0.04] px-1.5 text-[12px] font-extrabold sm:px-2 sm:text-[12.5px] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_18%,transparent)]"
-            >
-              <Plus className="size-3.5 shrink-0 sm:size-4" />
-              <span className="min-w-0 truncate sm:hidden">Conectar conta</span>
-              <span className="hidden min-w-0 truncate sm:inline">
-                Conectar outra conta do Airbnb
-              </span>
-            </button>
+          {/* Botões empilhados (mockup G1 aprovado): principal em cima; "Imóveis pendentes" abre a lista. */}
+          <div className="grid shrink-0 grid-cols-[minmax(0,1fr)] gap-2 pt-1">
             <button
               type="button"
               onClick={link}
-              className="flex h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--win-radius)] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] px-1.5 text-[12.5px] font-extrabold text-white sm:px-2 sm:text-[13.5px]"
+              className="flex h-[46px] items-center justify-center gap-2 rounded-[13px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[13.5px] font-extrabold text-white"
             >
-              <RefreshCw className="size-3.5 shrink-0 sm:size-4" />
-              <span className="min-w-0 truncate">Vincular anúncios</span>
+              Vincular anúncios
+            </button>
+            <button
+              type="button"
+              onClick={() => setFlow({ type: "connect" })}
+              className="flex h-11 items-center justify-center gap-2 rounded-[13px] bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
+            >
+              Conectar conta
+            </button>
+            <button
+              type="button"
+              aria-expanded={showPending}
+              onClick={() => setShowPending((v) => !v)}
+              className="flex h-11 items-center justify-center gap-2 rounded-[13px] bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
+            >
+              Imóveis pendentes
+              <span className="font-semibold text-muted-foreground">{left}</span>
             </button>
           </div>
+          {showPending ? (
           <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-            <div className="flex items-center justify-between gap-2 text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground/80">
-              <span>Imóveis pendentes</span>
-              <span className="font-semibold normal-case tracking-normal">
-                {left}
-              </span>
-            </div>
             {rows.map((p) => {
               const cur = p;
               return (
@@ -272,6 +271,7 @@ export function SyncRequiredGate() {
               );
             })}
           </div>
+          ) : null}
         </DialogContent>
       </Dialog>
       <AirbnbAccountFlow request={flow} onClose={() => setFlow(null)} />

@@ -1,0 +1,2 @@
+ALTER TABLE public.property_chat_conversations ADD COLUMN IF NOT EXISTS reservation_id uuid NULL;
+CREATE INDEX IF NOT EXISTS property_chat_conversations_reservation_idx ON public.property_chat_conversations (reservation_id);

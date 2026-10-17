@@ -85,10 +85,11 @@ describe("aviso obrigatório: sem piscada ao recarregar", () => {
     });
     render(wrap(<SyncRequiredGate />));
     await screen.findByText("Conta Anfitrião Sigma");
-    expect(screen.getByText("4 anúncios disponíveis")).toBeTruthy();
-    expect(screen.getByText("2 anúncios disponíveis")).toBeTruthy();
+    expect(screen.getAllByText(/no Airbnb/).length).toBe(2);
     expect(screen.getByText("Precisa reconectar")).toBeTruthy();
-    // lista informativa dos pendentes, sem seleção e sem "Sincronizar 0"
+    // "Imóveis pendentes" é um botão que abre a lista informativa (sem seleção e sem "Sincronizar 0")
+    expect(screen.queryByText("Apê A")).toBeNull();
+    fireEvent.click(screen.getByText("Imóveis pendentes"));
     expect(screen.getByText("Apê A")).toBeTruthy();
     expect(screen.getByText("Casa C")).toBeTruthy();
     expect(screen.queryAllByRole("checkbox").length).toBe(0);
@@ -100,13 +101,11 @@ describe("aviso obrigatório: sem piscada ao recarregar", () => {
     expect(screen.getByTestId("flow").textContent).toBe("syncProperties:3");
   });
 
-  it("'Conectar outra conta do Airbnb' abre o fluxo de conectar", async () => {
+  it("'Conectar conta' abre o fluxo de conectar", async () => {
     load({ blocking: true, props: [P("a", "Apê A"), P("b", "Casa B")] });
     render(wrap(<SyncRequiredGate />));
     await screen.findByText("Conta Maria Souza");
-    // lado a lado: texto curto no celular, completo a partir de sm (os dois no DOM, CSS escolhe)
-    expect(screen.getByText("Conectar conta")).toBeTruthy();
-    fireEvent.click(screen.getByText("Conectar outra conta do Airbnb"));
+    fireEvent.click(screen.getByText("Conectar conta"));
     expect(screen.getByTestId("flow").textContent).toBe("connect:1");
   });
 

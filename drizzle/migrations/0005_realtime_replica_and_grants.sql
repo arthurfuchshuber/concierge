@@ -1,0 +1,10 @@
+ALTER TABLE public.property_reservations REPLICA IDENTITY FULL;
+ALTER TABLE public.guide_access_logs REPLICA IDENTITY FULL;
+ALTER TABLE public.account_members REPLICA IDENTITY FULL;
+ALTER TABLE public.property_assignments REPLICA IDENTITY FULL;
+ALTER TABLE public.tasks REPLICA IDENTITY FULL;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.channex_writeback_log TO authenticated;
+GRANT ALL ON public.channex_writeback_log TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.channex_calendar_import TO authenticated;
+GRANT ALL ON public.channex_calendar_import TO service_role;
+CREATE INDEX IF NOT EXISTS property_reservations_guest_contacts_gin ON public.property_reservations USING gin (guest_contacts);

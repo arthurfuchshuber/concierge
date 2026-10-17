@@ -12,6 +12,7 @@ const fns = vi.hoisted(() => ({
 
 vi.mock("@tanstack/react-start", () => ({
   useServerFn: (f: unknown) => f,
+  createMiddleware: () => ({ server: () => ({}), client: () => ({}) }),
   createServerFn: () => ({
     middleware: () => ({ inputValidator: () => ({ handler: () => null }) }),
   }),
@@ -36,6 +37,13 @@ vi.mock("@/lib/channex-mode.functions", () => ({
   validatePricingFn: vi.fn(),
 }));
 vi.mock("@/lib/stakeholders.functions", () => ({ listStakeholders: fns.listStakeholders }));
+vi.mock("../useUnsyncedProperties", () => ({
+  useUnsyncedProperties: () => ({
+    perm: { allowed: true, loading: false },
+    q: { data: { properties: [], blocking: false }, isLoading: false },
+    accountOwnerId: null,
+  }),
+}));
 vi.mock("@/components/PhoneActionButton", () => ({ PhoneActionButton: () => null }));
 vi.mock("../StakeholderFormDialog", () => ({
   StakeholderFormDialog: () => null,
@@ -126,7 +134,7 @@ describe("sincronizar imóvel existente", () => {
   });
 });
 
-describe("de → para (2+ anúncios)", () => {
+describe("vincular proprietários (passo 3 de 3)", () => {
   async function toPairs() {
     mount({ type: "resync" });
     await waitFor(() => expect(screen.getByText("Conta Maria")).toBeTruthy());
@@ -135,11 +143,13 @@ describe("de → para (2+ anúncios)", () => {
     await waitFor(() => expect(screen.getByText("Casa Um")).toBeTruthy());
     fireEvent.click(screen.getByText("Casa Um"));
     fireEvent.click(screen.getByText("Casa Dois"));
-    fireEvent.click(screen.getByText(/Importar 2 anúncios/));
-    await waitFor(() => expect(screen.getByText("De quem são os anúncios?")).toBeTruthy());
+    fireEvent.click(screen.getByText(/Continuar com 2 anúncios/));
+    await waitFor(() =>
+      expect(screen.getByText("Quem é o proprietário de cada imóvel?")).toBeTruthy(),
+    );
   }
   async function pick(index: number, name: string) {
-    fireEvent.click(screen.getAllByText("Escolher…")[index]);
+    fireEvent.click(screen.getAllByText("Escolher proprietário")[index]);
     await waitFor(() => expect(screen.getByText(name)).toBeTruthy());
     fireEvent.click(screen.getByText(name));
   }
@@ -148,14 +158,17 @@ describe("de → para (2+ anúncios)", () => {
     fns.importAirbnbListings.mockResolvedValue({ imported: 2, failed: [], pending: [] });
     await toPairs();
     const btn = () =>
-      screen.getByText(/Importar 2 anúncios|Falta/).closest("button") as HTMLButtonElement;
+      screen.getByText(/Importar 2 anúncios/).closest("button") as HTMLButtonElement;
     expect(btn().disabled).toBe(true);
-    // linha 1 (índice 0 é "Mesmo para todos"): escolhe Livia no 1º anúncio
-    await pick(1, "Livia");
-    await waitFor(() => expect(screen.getByText("Falta 1 proprietário(a)")).toBeTruthy());
+    expect(screen.getByText("0 de 2 vinculados")).toBeTruthy();
+    expect(screen.getByText("Falta vincular")).toBeTruthy();
+    await pick(0, "Livia");
+    await waitFor(() => expect(screen.getByText("1 de 2 vinculados")).toBeTruthy());
     expect(btn().disabled).toBe(true);
-    await pick(1, "Arthur");
+    await pick(0, "Arthur");
     await waitFor(() => expect(btn().disabled).toBe(false));
+    expect(screen.getByText("2 de 2 vinculados")).toBeTruthy();
+    expect(screen.getByText("Tudo certo")).toBeTruthy();
     fireEvent.click(btn());
     await waitFor(() => expect(fns.importAirbnbListings).toHaveBeenCalled());
     expect(fns.importAirbnbListings.mock.calls[0][0]).toEqual({
@@ -167,17 +180,5 @@ describe("de → para (2+ anúncios)", () => {
         ],
       },
     });
-  });
-
-  it("'Mesmo para todos' preenche todas as linhas", async () => {
-    fns.importAirbnbListings.mockResolvedValue({ imported: 2, failed: [], pending: [] });
-    await toPairs();
-    await pick(0, "Livia");
-    await waitFor(() => expect(screen.getByText(/Importar 2 anúncios/)).toBeTruthy());
-    fireEvent.click(screen.getByText(/Importar 2 anúncios/));
-    await waitFor(() => expect(fns.importAirbnbListings).toHaveBeenCalled());
-    const items = fns.importAirbnbListings.mock.calls[0][0].data.items;
-    expect(items).toHaveLength(2);
-    expect(items.every((i: { ownerId: string }) => i.ownerId === "o1")).toBe(true);
   });
 });

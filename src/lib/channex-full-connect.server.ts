@@ -32,6 +32,11 @@ export type PendingFullConnection = {
   listingId: string;
   unitCode: string | null;
   error: string | null;
+  /** Proprietário(a) vinculado e foto do imóvel (só exibição na janela "Finalize a ativação"). */
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
+  imageUrl: string | null;
 };
 
 async function db() {
@@ -224,7 +229,32 @@ export async function seedIfUnmapped(propertyId: string) {
 export async function listPendingFullConnections(ownerId: string): Promise<PendingFullConnection[]> {
   if (!FULL_CONNECT_ACCOUNTS.has(ownerId)) return [];
   const out: PendingFullConnection[] = [];
-  for (const r of await unmappedRows(ownerId)) {
+  const rows = await unmappedRows(ownerId);
+  const extra = new Map<string, Pick<PendingFullConnection, "ownerName" | "ownerPhone" | "ownerPhoneCountry" | "imageUrl">>();
+  try {
+    const d = await db();
+    const ids = rows.map((r: any) => r.property_id).filter(Boolean);
+    if (ids.length) {
+      const { data: props } = await d.from("properties").select("id, owner_contact_id, hero_image_url, gallery_images").in("id", ids);
+      const oids = [...new Set(((props ?? []) as any[]).map((p) => p.owner_contact_id).filter(Boolean))];
+      const { data: owners } = oids.length
+        ? await d.from("property_owners").select("id, name, trade_name, phone, phone_country").in("id", oids)
+        : { data: [] };
+      const byId = new Map(((owners ?? []) as any[]).map((o) => [o.id, o]));
+      for (const p of (props ?? []) as any[]) {
+        const o = p.owner_contact_id ? byId.get(p.owner_contact_id) : undefined;
+        extra.set(p.id, {
+          ownerName: o ? String(o.trade_name || o.name || "") || null : null,
+          ownerPhone: o?.phone ?? null,
+          ownerPhoneCountry: o?.phone_country ?? null,
+          imageUrl: p.hero_image_url || (p.gallery_images ?? [])[0] || null,
+        });
+      }
+    }
+  } catch (e) {
+    console.error("[full-connect] extras", e);
+  }
+  for (const r of rows) {
     let unitCode: string | null = null;
     let error: string | null = null;
     try {
@@ -233,7 +263,7 @@ export async function listPendingFullConnections(ownerId: string): Promise<Pendi
       console.error("[full-connect] unit", e);
       error = "Não foi possível preparar a unidade agora. Tente novamente em instantes.";
     }
-    out.push({ propertyId: r.property_id, propertyName: r.properties?.name ?? "Imóvel", listingId: String(r.airbnb_listing_id), unitCode, error });
+    out.push({ propertyId: r.property_id, propertyName: r.properties?.name ?? "Imóvel", listingId: String(r.airbnb_listing_id), unitCode, error, ...(extra.get(r.property_id) ?? { ownerName: null, ownerPhone: null, ownerPhoneCountry: null, imageUrl: null }) });
   }
   return out;
 }

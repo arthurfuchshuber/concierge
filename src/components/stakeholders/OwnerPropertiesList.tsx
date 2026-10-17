@@ -127,7 +127,14 @@ export function OwnerPropertiesList({
     try {
       await refreshListingFn({ data: { accountOwnerId, propertyId } });
       toast.success("Anúncio sincronizado com sucesso!");
-      for (const key of ["stakeholders", "properties", "property", "airbnb-accounts", "dash-occupancy", "dashboard"]) {
+      for (const key of [
+        "stakeholders",
+        "properties",
+        "property",
+        "airbnb-accounts",
+        "dash-occupancy",
+        "dashboard",
+      ]) {
         void qc.invalidateQueries({ queryKey: [key] });
       }
     } catch (e) {
@@ -286,17 +293,17 @@ export function OwnerPropertiesList({
   const menuItem =
     "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary";
 
-  // Botão ÚNICO "Conectar conta" + "ReSincronizar", à esquerda do filtro.
+  // Faixa "Contas do Airbnb" (mockup Main aprovado): resumo + "Gerenciar" (conectar / ReSincronizar).
+  const pendingN = items.filter((i) => i.pending).length;
   const connectButton = (
     <Popover open={connectMenu} onOpenChange={setConnectMenu}>
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`${ACTION_SEGMENT} text-accent`}
-          aria-label="Conectar conta do Airbnb"
-          title="Conectar conta do Airbnb"
+          className="h-9 shrink-0 rounded-[10px] bg-foreground/[0.05] px-3.5 text-[12px] font-bold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
+          aria-label="Gerenciar contas do Airbnb"
         >
-          <Link2 className={ACTION_ICON} />
+          Gerenciar
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -498,13 +505,24 @@ export function OwnerPropertiesList({
         value={q}
         onChange={setQ}
         placeholder="Buscar imóvel, proprietário, cidade…"
-        actions={
-          <>
-            {connectButton}
-            {filterButton}
-          </>
-        }
+        actions={<>{filterButton}</>}
       />
+
+      {items.length > 0 ? (
+        <div
+          className={`${PANEL_SHELL} flex min-w-0 items-center justify-between gap-3 px-3.5 py-2.5`}
+        >
+          <span className="grid min-w-0 gap-0.5">
+            <span className="ds-eyebrow text-[10px] tracking-[0.2em]">Contas do Airbnb</span>
+            <span className="truncate text-[12px] text-muted-foreground">
+              {airbnbAccounts.length} {airbnbAccounts.length === 1 ? "conta" : "contas"} ·{" "}
+              {items.length} {items.length === 1 ? "imóvel" : "imóveis"} · {pendingN}{" "}
+              {pendingN === 1 ? "pendente" : "pendentes"}
+            </span>
+          </span>
+          {connectButton}
+        </div>
+      ) : null}
 
       {items.length === 0 ? (
         <EmptyState
@@ -548,7 +566,7 @@ export function OwnerPropertiesList({
                     className={`absolute left-2 top-2 inline-flex h-[22px] items-center gap-1.5 rounded-full bg-background/70 px-2.5 text-[10.5px] font-extrabold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] backdrop-blur-sm ${p.pending ? "ds-falta" : p.active ? "ds-ok" : "ds-atencao"}`}
                   >
                     <span aria-hidden className="size-1.5 rounded-full bg-current" />
-                    {p.pending ? "Pendente" : p.active ? "Ativo" : "Inativo"}
+                    {p.pending ? "Sem conexão" : p.active ? "Ativo" : "Inativo"}
                   </span>
                   {!p.active && dismissedIds.has(p.id) ? (
                     <span className="absolute inset-x-2 bottom-2 inline-flex h-5 items-center justify-center whitespace-nowrap rounded-full bg-background/80 px-1 text-[10px] font-bold text-muted-foreground backdrop-blur-sm">
@@ -587,7 +605,14 @@ export function OwnerPropertiesList({
                         />
                       </span>
                     ) : (
-                      <span />
+                      <span className="flex min-w-0 items-center gap-1.5 text-xs">
+                        <span className="shrink-0 text-[11.5px] text-muted-foreground">
+                          Proprietário(a):
+                        </span>
+                        <span className="min-w-0 truncate font-semibold ds-atencao">
+                          sem proprietário
+                        </span>
+                      </span>
                     )}
                     <Popover
                       open={menuId === p.id}
