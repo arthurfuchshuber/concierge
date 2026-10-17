@@ -2806,7 +2806,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
        * sido copiada para a outra — e bastaria confirmar para que virasse
        * verdade no banco.
        */
-      const own = rowByStay[side].get(key) ?? null;
+      const own = rowIsSide ? fallbackRow : (rowByStay[side].get(key) ?? null);
       const src = own ?? fallbackRow;
       // O horário que o HÓSPEDE informou é de CHEGADA — não diz nada sobre a
       // saída. Foi essa confusão que fez o checkout automático confirmar na
