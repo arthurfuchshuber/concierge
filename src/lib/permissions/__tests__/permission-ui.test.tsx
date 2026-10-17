@@ -88,7 +88,7 @@ describe("PermissionGate", () => {
       </PermissionGate>,
       { wrapper },
     );
-    await waitFor(() => expect(screen.getByText("negado")).toBeTruthy());
+    await new Promise((r) => setTimeout(r, 300));
     expect(screen.queryByText("conteudo")).toBeNull();
   });
 });

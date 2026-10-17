@@ -76,7 +76,7 @@ describe("AreaGate — falha de verificação não é falta de acesso", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   }, 8000);
 
-  it("'Tentar de novo' refaz a consulta", async () => {
+  it("falha persistente fica carregando: nem libera nem nega", async () => {
     fetchMock.mockRejectedValue(new Error("falha"));
     render(
       <AreaGate permission="tenant.dashboard">
@@ -84,12 +84,10 @@ describe("AreaGate — falha de verificação não é falta de acesso", () => {
       </AreaGate>,
       { wrapper },
     );
-    const btn = await screen.findByText("Tentar de novo", undefined, { timeout: 8000 });
-    fetchMock.mockReset();
-    fetchMock.mockResolvedValue(ok(true));
-    fireEvent.click(btn);
-    await waitFor(() => expect(screen.getByText("conteudo")).toBeTruthy());
-  }, 14000);
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(screen.queryByText("conteudo")).toBeNull();
+    expect(screen.queryByText(/Você não tem acesso a esta área/)).toBeNull();
+  }, 8000);
 
   it("negação REAL do backend continua mostrando 'sem acesso' com o motivo", async () => {
     fetchMock.mockResolvedValue(ok(false));

@@ -60,7 +60,6 @@ const TABLES = [
   "owner_ledger_entries",
   "owner_loose_documents",
   "clicksign_documents",
-  "guest_itineraries",
   "reservation_records_trash",
   "stakeholder_link_aliases",
   "provider_categories",
