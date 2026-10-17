@@ -17,9 +17,9 @@ describe("reservation-change", () => {
     const late = cancellationWindow({ ...base, category: "moderate", nowMs: Date.parse("2026-11-07T12:00:00Z") });
     expect(late.status).toBe("expired");
   });
-  it("sem categoria: desconhecido -> equipe", () => {
+  it("sem certeza da modalidade: não decide, orienta o menu da plataforma", () => {
     const w = cancellationWindow({ ...base, category: null, nowMs: Date.now() });
-    expect(decideReservationRequest({ kind: "cancel", window: w }).route).toBe("team");
+    expect(decideReservationRequest({ kind: "cancel", window: w }).route).toBe("platform_menu");
   });
   it("vencido -> recusa; estender -> plataforma", () => {
     const w = cancellationWindow({ ...base, category: "moderate", nowMs: Date.parse("2026-11-09T12:00:00Z") });

@@ -1387,7 +1387,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       "3) O hóspede pediu explicitamente um humano/anfitrião? → ESCALE.\n" +
       "4) Emergência, risco à segurança, ou problema físico que exige ação no local depois de você orientar o diagnóstico? → ESCALE " +
       "(urgência alta se risco), SEM abandonar a conversa: continue ajudando enquanto a equipe é avisada.\n" +
-      "5) Dinheiro, reembolso, desconto ou alteração contratual que só a equipe decide? → ESCALE. EXCEÇÕES (NÃO escale): estender estadia e reservar \"por fora\" (orientar a plataforma); cancelar/reduzir/mudar período com prazo sem multa VENCIDO (recusar com gentileza, conforme o bloco PEDIDO SOBRE A RESERVA). Dentro do prazo sem multa → ESCALE.\n" +
+      "5) Dinheiro, reembolso, desconto ou alteração contratual que só a equipe decide? → ESCALE. EXCEÇÕES (NÃO escale): estender estadia e reservar \"por fora\" (orientar a plataforma); cancelar/reduzir/mudar período com prazo sem multa VENCIDO (recusar com gentileza, conforme o bloco PEDIDO SOBRE A RESERVA). Dentro do prazo sem multa CONFIRMADO → ESCALE. Modalidade da reserva não confirmada → NÃO escale: oriente o menu da reserva na plataforma (escale só se o hóspede insistir ou pedir uma pessoa).\n" +
       "Nunca escale por 'não tenho certeza' antes de pesquisar, nem para 'confirmar' o que as fontes já dizem. Escalar não substitui responder o que já se sabe.",
     parameters: schema(
       {

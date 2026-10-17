@@ -34,6 +34,7 @@ export async function loadCancellationWindow(
     let checkin = p.checkin ?? null;
     let checkout = p.checkout ?? null;
     let bookedAt: string | null = null;
+    let explicit = false;
     if (p.code && /^[A-Z0-9-]{3,40}$/i.test(p.code)) {
       const { data } = await admin
         .from("reservas")
@@ -42,16 +43,21 @@ export async function loadCancellationWindow(
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      const r = data as { data_checkin?: string; data_checkout?: string; created_at?: string; payload?: { inserted_at?: string } } | null;
+      const r = data as { data_checkin?: string; data_checkout?: string; created_at?: string; payload?: { inserted_at?: string; modalidade_confirmada?: string } } | null;
       if (r) {
         checkin = checkin ?? (r.data_checkin ? String(r.data_checkin).slice(0, 10) : null);
         checkout = checkout ?? (r.data_checkout ? String(r.data_checkout).slice(0, 10) : null);
         bookedAt = r.payload?.inserted_at ?? r.created_at ?? null;
+        explicit = r.payload?.modalidade_confirmada === "listing_policy";
       }
     }
     const nights = checkin && checkout ? Math.round((Date.parse(checkout) - Date.parse(checkin)) / 86_400_000) : null;
+    // A modalidade do ANÚNCIO não vale como a da RESERVA (tarifa não reembolsável,
+    // estadia longa etc.). Só se calcula prazo com marca explícita na reserva;
+    // sem ela o resultado é "unknown" e a IA orienta o menu da plataforma.
+    const confirmed = explicit;
     return cancellationWindow({
-      category: findCategory((raw as { raw_settings?: unknown } | null)?.raw_settings),
+      category: confirmed ? findCategory((raw as { raw_settings?: unknown } | null)?.raw_settings) : null,
       checkin,
       checkinTime: pr.checkin_time,
       nights,

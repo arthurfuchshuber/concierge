@@ -141,7 +141,7 @@ export function cancellationWindow(p: {
 export type ReservationDecision = {
   kind: ReservationRequestKind;
   /** A IA resolve sozinha ("platform") ou a equipe decide ("team") ou recusa com gentileza ("decline"). */
-  route: "platform" | "decline" | "team";
+  route: "platform" | "decline" | "team" | "platform_menu";
   window: CancellationWindow | null;
 };
 
@@ -151,6 +151,10 @@ export function decideReservationRequest(p: {
 }): ReservationDecision {
   if (p.kind === "extend" || p.kind === "outside_booking") return { kind: p.kind, route: "platform", window: null };
   const w = p.window ?? { status: "unknown" as const, policy: null, deadline: null };
+  // Sem certeza da modalidade DA RESERVA (decisão do anfitrião, 17/10/2026): a IA
+  // não calcula prazo, não recusa e não presume "dentro do prazo". Orienta o menu
+  // da reserva na plataforma, onde o hóspede vê a modalidade e os prazos reais.
+  if (w.status === "unknown") return { kind: p.kind, route: "platform_menu", window: w };
   return { kind: p.kind, route: w.status === "expired" ? "decline" : "team", window: w };
 }
 
@@ -178,8 +182,13 @@ export function reservationRequestGuidance(d: ReservationDecision, hasConfirmedR
       d.kind === "cancel" ? "cancelar a reserva" : d.kind === "shorten" ? "reduzir o período" : "mudar o período";
     const w = d.window;
     const pol = w?.policy ? `modalidade ${w.policy}` : "modalidade da reserva";
-    L.push(`- O hóspede quer ${what}. ${w?.policy ? `Modalidade da reserva: ${w.policy}.` : "Modalidade não identificada."}${w?.deadline ? ` Limite do cancelamento sem multa: ${w.deadline}.` : ""}`);
-    if (d.route === "decline") {
+    L.push(`- O hóspede quer ${what}. ${w?.policy && w.status !== "unknown" ? `Modalidade da reserva: ${w.policy}.` : "Modalidade da reserva não confirmada."}${w?.deadline ? ` Limite do cancelamento sem multa: ${w.deadline}.` : ""}`);
+    if (d.route === "platform_menu") {
+      L.push(
+        "- A modalidade desta reserva NÃO está confirmada. É PROIBIDO presumir a política, citar prazo, dizer que dá ou não para cancelar/alterar, ou prometer qualquer resultado.",
+        "- Acolha em uma frase e oriente o hóspede a abrir os detalhes da reserva na plataforma: lá aparecem a modalidade e as opções de cancelamento ou alteração com os prazos reais. Se ele insistir ou pedir uma pessoa, aí sim acione a equipe (request_human_handoff) com o pedido e o sentimento dele.",
+      );
+    } else if (d.route === "decline") {
       L.push(
         `- O prazo sem multa JÁ PASSOU. Informe com gentileza e clareza que, por causa da ${pol}, não temos autorização para seguir com essa solicitação. Se ele insistir, diga que pode tentar o apoio do suporte da plataforma.`,
         "- Não acione a equipe, não ofereça exceção, não discuta valores nem prometa nada.",
