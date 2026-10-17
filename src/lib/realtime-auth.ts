@@ -12,13 +12,13 @@ let bound = false;
 export async function ensureRealtimeAuth(): Promise<void> {
   try {
     const { data } = await supabase.auth.getSession();
-    if (data.session?.access_token) supabase.realtime.setAuth(data.session.access_token);
+    if (data.session?.access_token) await supabase.realtime.setAuth(data.session.access_token);
   } catch {
     /* sem sessão: nada a fazer */
   }
   if (bound) return;
   bound = true;
   supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.access_token) supabase.realtime.setAuth(session.access_token);
+    if (session?.access_token) void supabase.realtime.setAuth(session.access_token);
   });
 }

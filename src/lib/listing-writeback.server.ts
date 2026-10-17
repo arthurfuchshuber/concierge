@@ -6,7 +6,7 @@
 import { buildWriteback, mergeIntoSettings, type ListingPatch } from "@/lib/listing-writeback";
 import { structuredListing } from "@/lib/listing-structured";
 
-type Result = { ok: boolean; sent: string[]; errors: string[]; dryRun?: boolean; preview?: unknown };
+type Result = { ok: boolean; sent: string[]; errors: string[]; dryRun?: boolean; preview?: Record<string, any> };
 
 async function admin(): Promise<any> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -58,7 +58,7 @@ export async function pushListingSettings(args: {
   if (!mappingId) return { ok: false, sent: [], errors: ["Não encontrei o mapeamento deste anúncio no canal."] };
 
   const built = buildWriteback({ channelId: t.channex_channel_id, mappingId, current: t.raw_settings ?? {}, patch: args.patch });
-  if (args.dryRun) return { ok: built.errors.length === 0, sent: [], errors: built.errors, dryRun: true, preview: built.requests };
+  if (args.dryRun) return { ok: built.errors.length === 0, sent: [], errors: built.errors, dryRun: true, preview: built.requests as unknown as Record<string, any> };
   const { channexRequest } = await import("@/lib/channex-ari.server");
   const errors = [...built.errors];
   const sent: string[] = [];
