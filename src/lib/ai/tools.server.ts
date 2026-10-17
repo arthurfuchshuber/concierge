@@ -864,6 +864,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         propertyId: ctx.propertyId,
         checkinDate: ctx.checkinDate,
         checkoutDate: ctx.checkoutDate,
+        conversationId: ctx.conversationId,
       });
       if (!stay) return { ok: false, motivo: "reserva_nao_encontrada" };
 
@@ -946,6 +947,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         propertyId: ctx.propertyId,
         checkinDate: ctx.checkinDate,
         checkoutDate: ctx.checkoutDate,
+        conversationId: ctx.conversationId,
       });
       if (!stay) return { ok: false, motivo: "reserva_nao_encontrada" };
       const t = await assessStayTimes(ctx.supabase, { propertyId: ctx.propertyId, stay });
