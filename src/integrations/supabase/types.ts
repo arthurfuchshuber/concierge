@@ -4718,6 +4718,7 @@ export type Database = {
           last_reminder_at: string | null
           paused_until: string | null
           property_id: string
+          reservation_id: string | null
           resolved_at: string | null
           status: Database["public"]["Enums"]["chat_conversation_status"]
           updated_at: string
@@ -4741,6 +4742,7 @@ export type Database = {
           last_reminder_at?: string | null
           paused_until?: string | null
           property_id: string
+          reservation_id?: string | null
           resolved_at?: string | null
           status?: Database["public"]["Enums"]["chat_conversation_status"]
           updated_at?: string
@@ -4764,6 +4766,7 @@ export type Database = {
           last_reminder_at?: string | null
           paused_until?: string | null
           property_id?: string
+          reservation_id?: string | null
           resolved_at?: string | null
           status?: Database["public"]["Enums"]["chat_conversation_status"]
           updated_at?: string
