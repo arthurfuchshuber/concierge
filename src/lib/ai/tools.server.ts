@@ -901,11 +901,13 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       "SAIR (checkout). Use quando ele disser um horário concreto (\"chegamos às 15h\", \"saímos umas 10h30\"). " +
       "Isto NÃO é confirmação de entrada/saída (para isso use register_guest_stay_event). Aceita ESTIMATIVA (\"por volta das 15h\", \"umas 10h30\"). Se estiver vago demais " +
       "(\"à tarde\", \"depois do almoço\", \"às 3\" sem dizer manhã/tarde), NÃO chame: peça uma ESTIMATIVA dentro das regras do anúncio (nunca exija horário exato). " +
-      "Horário definido pela equipe prevalece e não é sobrescrito.",
+      "Horário definido pela equipe prevalece e não é sobrescrito. " +
+      "CHECKOUT NO LIMITE: se o hóspede disser que sai 'no limite', 'nos últimos minutos', 'no horário máximo', CHAME com horario='limite' (o sistema grava o horário limite do anúncio). " +
+      "Madrugada: envie no formato 24h com zero à esquerda (ex.: '02:30'). Chame NO MESMO turno em que o hóspede informar.",
     parameters: schema(
       {
         evento: { type: "string", enum: ["checkin", "checkout"] },
-        horario: { type: "string", description: "Horário dito pelo hóspede (ex.: 15:30, 15h, 3 da tarde)." },
+        horario: { type: "string", description: "Horário dito pelo hóspede (ex.: 15:30, 02:30, 3 da tarde) ou 'limite' para saída no horário máximo." },
       },
       ["evento", "horario"],
     ),

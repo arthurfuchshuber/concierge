@@ -123,3 +123,14 @@ describe("os 3 canais usam o mesmo núcleo", () => {
     expect(read("src/lib/ai/tools.server.ts")).toContain('name: "register_stay_time_forecast"');
   });
 });
+
+import { isLimitExpression } from "@/lib/ai/stay-intent-resolver.server";
+describe("previsão de saída — madrugada e limite", () => {
+  it("02:30 em 24h é explícito", () => { expect(normalizeStayTime("02:30")).toBe("02:30"); });
+  it("'às 3h' sem período continua ambíguo", () => { expect(normalizeStayTime("às 3h")).toBeNull(); });
+  it("saída nos últimos minutos = limite", () => {
+    expect(isLimitExpression("Eu vou sair nos últimos min que tenho para sair")).toBe(true);
+    expect(isLimitExpression("limite")).toBe(true);
+    expect(isLimitExpression("à tarde")).toBe(false);
+  });
+});
