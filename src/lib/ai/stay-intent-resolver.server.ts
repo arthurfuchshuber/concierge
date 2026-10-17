@@ -52,7 +52,9 @@ export function normalizeStayTime(input: unknown): string | null {
   if (pm && h < 12) h += 12;
   if (am && h === 12) h = 0;
   // Sem período e hora de 1 a 6 ("chego às 3h"): pode ser madrugada ou tarde → pergunta.
-  if (!pm && !am && h >= 1 && h <= 6) return null;
+  // Exceção: formato 24h com zero à esquerda ("02:30", "03h") é explícito (madrugada).
+  const zeroPadded = /^0\d/.test(m[1] ?? "");
+  if (!pm && !am && !zeroPadded && h >= 1 && h <= 6) return null;
   return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
 
@@ -111,12 +113,23 @@ export function forecastAllowed(p: {
   return v >= std || (ag != null && v >= ag) ? { ok: true } : { ok: false, permitido };
 }
 
+/** "Saio no limite", "nos últimos minutos permitidos", "no horário máximo" → horário limite. Pura. */
+export function isLimitExpression(input: unknown): boolean {
+  const s = String(input ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return /\b(limite|ultim[oa]s?\s+min|ultimo\s+minuto|ultima\s+hora|horario\s+maximo|maximo\s+permitido|horario\s+(do\s+)?checkout|no\s+horario\s+certo|ate\s+o\s+fim\s+do\s+horario)/.test(s);
+}
+
 export async function registerStayTimeForecast(
   supabase: SupabaseClient,
   ref: Ref,
   input: { kind: StayKind; time: unknown },
 ): Promise<ForecastResult> {
-  const time = normalizeStayTime(input.time);
+  let time = normalizeStayTime(input.time);
+  if (!time && input.kind === "checkout" && isLimitExpression(input.time)) {
+    const { data: p } = await supabase.from("properties").select("checkout_time").eq("id", ref.propertyId).maybeSingle();
+    const r = String((p as { checkout_time?: string } | null)?.checkout_time ?? "").match(/^(\d{1,2}):(\d{2})/);
+    if (r) time = `${r[1]!.padStart(2, "0")}:${r[2]}`;
+  }
   if (!time) return { ok: false, motivo: "horario_ambiguo" };
 
   const stay = await findStayForEvent(supabase, ref);
