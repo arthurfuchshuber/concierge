@@ -2860,10 +2860,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       kind: colKind,
       mode: colMode,
       getPrediction: (r: ArrivalRow): CardPrediction => ({
-        primary: buildPredictionSide(predKind, r),
+        primary: buildPredictionSide(predKind, r, predKind === colKind),
         // O outro lado vai junto, recolhido: quem já sabe a chegada E a saída
         // registra as duas sem sair do card (pedido explícito, 08/09/2026).
-        secondary: buildPredictionSide(otherKind, r),
+        secondary: buildPredictionSide(otherKind, r, otherKind === colKind),
       }),
       onMark: (row: ArrivalRow) => {
         if (colMode === "done" || colMode === "no_show") return;
