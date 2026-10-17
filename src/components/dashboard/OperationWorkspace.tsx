@@ -2789,8 +2789,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   /** Monta um lado da previsão a partir da linha daquele lado. */
   const buildPredictionSide = useCallback(
-    (side: "checkin" | "checkout", fallbackRow: ArrivalRow): PredictionSide => {
+    (side: "checkin" | "checkout", fallbackRow: ArrivalRow, rowIsSide = false): PredictionSide => {
       const key = fallbackRow.reservationId ?? fallbackRow.logId;
+      // Ao vivo: quando o próprio card JÁ É a linha deste lado, ele é a fonte
+      // (chega pelo refetch em tempo real), sem depender do índice cruzado.
       /**
        * A linha DAQUELE lado, quando ela existe. Quando NÃO existe (a coluna
        * de Checkouts pode estar vazia, por exemplo), caímos na linha do card
