@@ -8932,7 +8932,18 @@ function OccupancyPanel({
                                    dessa altura fixa, e o raio reduzido pra
                                    `rounded-[6px]` (curvatura leve, não mais
                                    "quase círculo"). */
-                                className={`relative mx-auto flex h-7 w-7 flex-col items-center justify-center overflow-hidden rounded-[6px] ${
+                                role="button"
+                                tabIndex={0}
+                                title="Ir para este dia"
+                                aria-label={`Ir para o dia ${d.slice(8, 10)}/${d.slice(5, 7)}`}
+                                onClick={() => setJump({ date: d, n: Date.now() })}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    setJump({ date: d, n: Date.now() });
+                                  }
+                                }}
+                                className={`relative mx-auto flex h-7 w-7 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[6px] transition-colors hover:bg-foreground/[0.07] hover:text-foreground ${
                                   isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"
                                 }`}
                               >
