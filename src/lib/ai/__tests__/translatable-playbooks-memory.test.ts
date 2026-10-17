@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { makeTranslatable, translatableGuidance } from "@/lib/ai/translatable";
 import { matchPlaybook, playbookText, PLAYBOOKS } from "@/lib/ai/playbooks";
 import { guestKeyOf, normalizeReservationCode, reservationCodeFromDossier } from "@/lib/ai/memory.server";
-import { humanityMetrics, summarizeHumanity, readGuestVoice } from "@/lib/ai/voice";
+import { humanityMetrics, summarizeHumanity, readGuestVoice, type Turn } from "@/lib/ai/voice";
 
 describe("português traduzível", () => {
   it("troca abreviações e gírias sem mexer em números, horários e links", () => {
@@ -59,7 +59,7 @@ describe("memória por reserva", () => {
 
 describe("métricas de humanidade", () => {
   const voice = readGuestVoice([], "Chegamos");
-  const base = { history: [], voice, negative: false, rewritten: false, acknowledged: false } as const;
+  const base = { history: [] as Turn[], voice, negative: false, rewritten: false, acknowledged: false };
   it("conta emoji fora da regra e repetições", () => {
     const h = humanityMetrics({ ...base, reply: "Perfeito! Boa estadia 😊", guestMessage: "Chegamos" });
     expect(h.emojis).toBe(1);

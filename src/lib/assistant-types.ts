@@ -190,7 +190,8 @@ export type AssistantAction =
       payload: {
         propertyId: string;
         propertyName: string;
-        patch: Record<string, unknown>;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        patch: Record<string, any>;
         /** A pessoa confirmou o cartão que diz que o preço será alterado. */
         allowPricing: boolean;
       };

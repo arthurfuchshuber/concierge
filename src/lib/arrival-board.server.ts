@@ -815,6 +815,15 @@ export async function buildArrivalRows(
       status: string | null;
       synced_at: string | null;
       created_at: string | null;
+      amount?: number | null;
+      booking_modality?: "instant_book" | "request_to_book" | string | null;
+      cancellation_policy_category?: string | null;
+      cancellation_policy_id?: string | null;
+      is_non_refundable?: boolean | null;
+      cleaning_fee?: number | null;
+      net_total?: number | null;
+      host_net_payout?: number | null;
+      cohost_payout?: number | null;
     };
     const resByProp = new Map<
       string,
