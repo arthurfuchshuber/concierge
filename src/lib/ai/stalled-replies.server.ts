@@ -303,7 +303,12 @@ async function sweepResolutionChecks(admin: Admin, limit: number): Promise<numbe
       });
       if (dup) continue;
 
-      const reply = resolutionCheckText(c.guest_name, list.length);
+      // Só pergunta com contexto real (passo prático dado para um problema) e
+      // citando o problema concreto; sem contexto, não manda nada.
+      const { contextualResolutionQuestion } = await import("./sweep-gates.server");
+      const { firstName } = await import("./silent-close");
+      const reply = await contextualResolutionQuestion(list, firstName(c.guest_name));
+      if (!reply) continue;
       const channel = stalledChannel(c.guest_session_id);
       if (channel === "whatsapp") {
         const phone = String(c.guest_session_id).slice("wa:".length);
@@ -377,7 +382,7 @@ async function sweepSilentCloses(admin: Admin, limit: number): Promise<number> {
           : null;
       if (!kind) continue;
       // Já encerrado pela própria IA? Não repete.
-      if (/excelente estadia|boa viagem/i.test(last.content ?? "")) continue;
+      if (/excelente estadia|boa estadia|otima estadia|ótima estadia|aproveite a estadia|boa viagem|até a próxima/i.test(last.content ?? "")) continue;
 
       const { findStayForEvent, applyStayEvent, assessStayTimes } = await import("./stay-events.server");
       const stay = await findStayForEvent(admin, { propertyId: c.property_id, checkinDate: null, checkoutDate: null, conversationId: c.id });
@@ -405,7 +410,15 @@ async function sweepSilentCloses(admin: Admin, limit: number): Promise<number> {
       });
       if (dup) continue;
 
-      const reply = silentCloseText(kind, c.guest_name);
+      const { data: aiHist } = await admin
+        .from("property_chat_messages")
+        .select("content")
+        .eq("conversation_id", c.id)
+        .eq("role", "assistant")
+        .order("created_at", { ascending: false })
+        .limit(40);
+      const prevAi = ((aiHist ?? []) as Array<{ content: string | null }>).map((m) => m.content ?? "");
+      const reply = silentCloseText(kind, c.guest_name, prevAi, prevAi.length);
       const channel = stalledChannel(c.guest_session_id);
       if (channel === "whatsapp") {
         const phone = String(c.guest_session_id).slice("wa:".length);
