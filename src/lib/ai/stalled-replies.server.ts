@@ -63,6 +63,252 @@ export async function sweepStalledGuestReplies(limit = 20): Promise<number> {
     console.error("[silent-close] falhou", e);
     return 0;
   });
+  done += await sweepNeedsHumanFollowUps(admin, limit).catch((e) => {
+    console.error("[needs-human-followup] falhou", e);
+    return 0;
+  });
+  done += await sweepResolutionChecks(admin, limit).catch((e) => {
+    console.error("[resolution-check] falhou", e);
+    return 0;
+  });
+  // Cérebro contínuo: aprende com mensagens da IA que o anfitrião apagou/editou.
+  done += await import("./learning/property-playbooks.server")
+    .then((m) => m.sweepHostCorrections(admin, limit))
+    .catch((e) => {
+      console.error("[host-corrections] falhou", e);
+      return 0;
+    });
+  return done;
+}
+
+/**
+ * ACOMPANHAMENTO ÚNICO ENQUANTO A EQUIPE NÃO RESPONDE (17/10/2026, decisão do
+ * anfitrião). Conversa em `needs_human` sem NENHUMA fala humana depois do
+ * acionamento: passados 10 min (acesso/problema no imóvel/urgência alta) ou
+ * 30 min (demais), UMA mensagem curta e honesta — sem prazo, sem promessa de
+ * ação da IA. Só se o hóspede não escreveu de novo desde a última fala da IA;
+ * nunca entre 22h e 8h (horário do imóvel), salvo urgência alta. Uma vez por
+ * acionamento (dedupe por `handoff_at`).
+ */
+export const FOLLOWUP_URGENT_MS = 10 * 60 * 1000;
+export const FOLLOWUP_NORMAL_MS = 30 * 60 * 1000;
+const URGENT_REASON = /\b(acesso|portao|porta|fechadura|chave|senha|codigo|vazamento|sem (?:agua|luz|energia)|quebrad|nao funciona|urgente|emergencia)\b/;
+
+export function followUpDelayMs(reason: string | null, urgency: string | null): number {
+  const r = (reason ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return urgency === "high" || URGENT_REASON.test(r) ? FOLLOWUP_URGENT_MS : FOLLOWUP_NORMAL_MS;
+}
+
+export function followUpText(guestName: string | null, language: string, seed: number): string {
+  const fn = (guestName ?? "").trim().split(/\s+/)[0] ?? "";
+  const nm = fn && !/^h[oó]spede$/i.test(fn) && !/teste/i.test(fn) ? `${fn.charAt(0).toUpperCase()}${fn.slice(1).toLowerCase()}` : "";
+  if (language.startsWith("en"))
+    return `${nm ? `${nm}, ` : ""}our team already has your case and will get back to you here. If anything gets worse, just let me know.`;
+  if (language.startsWith("es"))
+    return `${nm ? `${nm}, ` : ""}el equipo ya tiene tu caso y te responderá por aquí. Si algo empeora, avísame.`;
+  const v = [
+    `${nm ? `${nm}, a` : "A"} equipe já está com o seu caso e retorna por aqui. Se piorar, me avise.`,
+    `${nm ? `${nm}, o` : "O"} seu caso segue com a equipe, que retorna por aqui. Se algo mudar ou piorar, é só me avisar.`,
+  ];
+  return v[seed % v.length]!;
+}
+
+async function sweepNeedsHumanFollowUps(admin: Admin, limit: number): Promise<number> {
+  const now = Date.now();
+  const { data: rows } = await admin
+    .from("property_chat_conversations")
+    .select("id, property_id, guest_session_id, guest_name, handoff_at, handoff_reason, handoff_urgency, status")
+    .eq("status", "needs_human")
+    .not("handoff_at", "is", null)
+    .lte("handoff_at", new Date(now - FOLLOWUP_URGENT_MS).toISOString())
+    .gte("handoff_at", new Date(now - STALLED_LOOKBACK_MS).toISOString())
+    .limit(limit * 5);
+  let done = 0;
+  for (const c of (rows ?? []) as Array<any>) {
+    if (done >= limit) break;
+    try {
+      const wait = followUpDelayMs(c.handoff_reason, c.handoff_urgency);
+      if (now - new Date(c.handoff_at).getTime() < wait) continue;
+      const { data: msgs } = await admin
+        .from("property_chat_messages")
+        .select("role, sender_type, content, created_at")
+        .eq("conversation_id", c.id)
+        .not("is_internal_note", "is", true)
+        .gte("created_at", c.handoff_at)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      const list = (msgs ?? []) as Array<{ role: string; sender_type: string | null; content: string | null; created_at: string }>;
+      // Equipe já falou depois do acionamento: nada a acompanhar.
+      if (list.some((m) => m.sender_type === "human")) continue;
+      // Hóspede escreveu por último: a vez é de quem responde (outro mecanismo cuida).
+      if (list[0]?.role === "user") continue;
+      const guestMsg = list.find((m) => m.role === "user")?.content ?? "";
+
+      const { data: prop } = await admin
+        .from("properties")
+        .select("owner_id, city, country")
+        .eq("id", c.property_id)
+        .maybeSingle();
+      if (!prop?.owner_id) continue;
+      const high = c.handoff_urgency === "high";
+      if (!high) {
+        const { propertyTimeZone } = await import("@/lib/property-timezone");
+        const h = localHour(propertyTimeZone(prop.city ?? null, prop.country ?? null));
+        if (h >= 22 || h < 8) continue;
+      }
+      const { error: dup } = await admin.from("ops_push_log").insert({
+        owner_id: prop.owner_id,
+        kind: "needs-human-followup",
+        dedupe_key: `needs-human-followup:${c.id}:${c.handoff_at}`,
+        payload: { conversationId: c.id },
+      });
+      if (dup) continue;
+
+      const channel = stalledChannel(c.guest_session_id);
+      const { detectLanguage } = await import("./intent.server");
+      const lang = channel === "whatsapp" && guestMsg ? detectLanguage(guestMsg) : "pt";
+      const reply = followUpText(c.guest_name, lang, list.length);
+      if (channel === "whatsapp") {
+        const phone = String(c.guest_session_id).slice("wa:".length);
+        let externalId: string | null = null;
+        try {
+          const { sendWhatsappText } = await import("@/lib/ai/channels/whatsapp/provider.server");
+          externalId = (await sendWhatsappText({ supabase: admin, tenantId: prop.owner_id, toPhone: phone, text: reply })).messageId ?? null;
+        } catch (e) {
+          console.error("[needs-human-followup] whatsapp falhou", c.id, e);
+        }
+        await admin.from("property_chat_messages").insert({
+          conversation_id: c.id,
+          role: "assistant",
+          content: reply,
+          sender_type: "ai",
+          channel: "whatsapp",
+          external_id: externalId,
+          delivery_status: externalId ? "sent" : null,
+        });
+      } else {
+        const { speakToGuest } = await import("./outbound/speak.server");
+        await speakToGuest({ supabase: admin, conversationId: c.id, text: reply, reason: "follow_up", urgent: high, allowAfterAi: true });
+      }
+      done += 1;
+    } catch (e) {
+      console.error("[needs-human-followup] conversa falhou", c.id, e);
+    }
+  }
+  return done;
+}
+
+/**
+ * CONFIRMAR SE RESOLVEU (ponto 2, 17/10/2026). Depois que a IA ajudou num
+ * problema prático (categoria "operacional") e o hóspede ficou em silêncio por
+ * 20 min, UMA pergunta curta ("deu certo?") gera um desfecho real para o
+ * aprendizado — em vez de adivinhar pelo silêncio. A resposta é lida em
+ * `readResolutionCheck` (analisador). Uma vez por problema; nunca entre 22h e
+ * 8h (horário do imóvel); nunca se a conversa está com a equipe (needs_human /
+ * assigned) ou se a última fala da IA já era uma pergunta.
+ */
+export const RESOLUTION_CHECK_AFTER_MS = 20 * 60 * 1000;
+
+function localHour(tz: string, now = new Date()): number {
+  return Number(new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hour12: false }).format(now)) % 24;
+}
+
+export function resolutionCheckText(guestName: string | null, seed: number): string {
+  const fn = (guestName ?? "").trim().split(/\s+/)[0] ?? "";
+  const n = fn && !/^h[oó]spede$/i.test(fn) && !/teste/i.test(fn) ? `, ${fn.charAt(0).toUpperCase()}${fn.slice(1).toLowerCase()}` : "";
+  const variants = [
+    `Deu certo por aí${n}? Se ainda não resolveu, me conta o que está acontecendo que sigo te ajudando.`,
+    `Conseguiu resolver por aí${n}? Se continuar com o problema, é só me dizer como está agora.`,
+    `Só passando para saber se resolveu por aí${n}. Se algo ainda não estiver certo, me avisa.`,
+  ];
+  return variants[seed % variants.length]!;
+}
+
+async function sweepResolutionChecks(admin: Admin, limit: number): Promise<number> {
+  const now = Date.now();
+  const { data: rows } = await admin
+    .from("property_chat_conversations")
+    .select("id, property_id, guest_session_id, guest_name, last_message_at, status")
+    .eq("ai_paused", false)
+    .lte("last_message_at", new Date(now - RESOLUTION_CHECK_AFTER_MS).toISOString())
+    .gte("last_message_at", new Date(now - STALLED_LOOKBACK_MS).toISOString())
+    .limit(limit * 5);
+  let done = 0;
+  for (const c of (rows ?? []) as Array<any>) {
+    if (done >= limit) break;
+    if (c.status === "assigned" || c.status === "needs_human") continue;
+    try {
+      const { data: msgs } = await admin
+        .from("property_chat_messages")
+        .select("role, content, created_at")
+        .eq("conversation_id", c.id)
+        .not("is_internal_note", "is", true)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      const list = (msgs ?? []) as Array<{ role: string; content: string | null; created_at: string }>;
+      const lastMsg = list[0];
+      if (!lastMsg || lastMsg.role !== "assistant") continue;
+      if (now - new Date(lastMsg.created_at).getTime() < RESOLUTION_CHECK_AFTER_MS) continue;
+      if (/\?\s*$/.test((lastMsg.content ?? "").trim())) continue; // a bola está com o hóspede
+      if (list.some((m) => /deu certo por a[ií]|conseguiu resolver|resolveu por a[ií]/i.test(m.content ?? ""))) continue;
+
+      const { data: log } = await admin
+        .from("ai_agent_logs")
+        .select("id, intent, needs_human, escalation_triggered")
+        .eq("conversation_id", c.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const category = (log?.intent as { category?: string } | null)?.category;
+      if (!log || category !== "operacional" || log.needs_human === true || log.escalation_triggered === true) continue;
+
+      const { data: prop } = await admin
+        .from("properties")
+        .select("owner_id, city, country")
+        .eq("id", c.property_id)
+        .maybeSingle();
+      if (!prop?.owner_id) continue;
+      const { propertyTimeZone } = await import("@/lib/property-timezone");
+      const h = localHour(propertyTimeZone(prop.city ?? null, prop.country ?? null));
+      if (h >= 22 || h < 8) continue;
+
+      const { error: dup } = await admin.from("ops_push_log").insert({
+        owner_id: prop.owner_id,
+        kind: "resolution-check",
+        dedupe_key: `resolution-check:${c.id}:${log.id}`,
+        payload: { conversationId: c.id, logId: log.id },
+      });
+      if (dup) continue;
+
+      const reply = resolutionCheckText(c.guest_name, list.length);
+      const channel = stalledChannel(c.guest_session_id);
+      if (channel === "whatsapp") {
+        const phone = String(c.guest_session_id).slice("wa:".length);
+        let externalId: string | null = null;
+        try {
+          const { sendWhatsappText } = await import("@/lib/ai/channels/whatsapp/provider.server");
+          externalId = (await sendWhatsappText({ supabase: admin, tenantId: prop.owner_id, toPhone: phone, text: reply })).messageId ?? null;
+        } catch (e) {
+          console.error("[resolution-check] whatsapp falhou", c.id, e);
+        }
+        await admin.from("property_chat_messages").insert({
+          conversation_id: c.id,
+          role: "assistant",
+          content: reply,
+          sender_type: "ai",
+          channel: "whatsapp",
+          external_id: externalId,
+          delivery_status: externalId ? "sent" : null,
+        });
+      } else {
+        const { speakToGuest } = await import("./outbound/speak.server");
+        await speakToGuest({ supabase: admin, conversationId: c.id, text: reply, reason: "follow_up", urgent: false, allowAfterAi: true });
+      }
+      done += 1;
+    } catch (e) {
+      console.error("[resolution-check] conversa falhou", c.id, e);
+    }
+  }
   return done;
 }
 
@@ -192,7 +438,7 @@ async function sweepUnansweredGuestMessages(admin: Admin, limit: number): Promis
     try {
       const { data: last } = await admin
         .from("property_chat_messages")
-        .select("role, created_at")
+        .select("id, role, created_at")
         .eq("conversation_id", c.id)
         .not("is_internal_note", "is", true)
         .order("created_at", { ascending: false })
@@ -200,6 +446,19 @@ async function sweepUnansweredGuestMessages(admin: Admin, limit: number): Promis
         .maybeSingle();
       if (!last || last.role !== "user") continue;
       if (now - new Date(last.created_at).getTime() < UNANSWERED_AFTER_MS) continue;
+      // UMA tentativa por mensagem do hóspede. Sem isso, quando a IA escolhe o
+      // silêncio ([SILENCIO] para "ok/obrigado"), a última fala continua sendo
+      // do hóspede e esta varredura reprocessava a mesma mensagem a cada
+      // 2 min durante 3 h (custo de modelo + risco de resposta tardia).
+      const { data: owner } = await admin.from("properties").select("owner_id").eq("id", c.property_id).maybeSingle();
+      if (!owner?.owner_id) continue;
+      const { error: already } = await admin.from("ops_push_log").insert({
+        owner_id: owner.owner_id,
+        kind: "unanswered-sweep",
+        dedupe_key: `unanswered:${c.id}:${last.id}`,
+        payload: { conversationId: c.id, messageId: last.id },
+      });
+      if (already) continue;
       const { data: claimed } = await admin
         .from("property_chat_conversations")
         .update({ last_message_at: new Date().toISOString() })

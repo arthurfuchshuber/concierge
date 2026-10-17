@@ -40,34 +40,44 @@ function norm(s: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-const EN = /\b(the|what|where|when|how|please|thanks|hello|hi|check.?in|check.?out|wifi password)\b/;
-const ES = /\b(hola|gracias|donde|dónde|cuando|cuándo|qué|habitacion|habitación|llave|por favor)\b/;
-const FR = /\b(bonjour|merci|où|quand|comment|s'il vous plaît|chambre)\b/;
+const EN = /\b(the|what|where|when|how|please|thanks|thank you|hello|hi|hey|is|are|can|could|we|you|my|our|check.?in|check.?out|wifi|password|door|key|there|with|not|working)\b/;
+const ES = /\b(hola|gracias|donde|cuando|habitacion|llave|por favor|buenos dias|buenas tardes|buenas noches|puerta|estamos|esta|esta funcionando|tenemos|quiero|necesito|nuestro|nosotros|usted|el|los|las|una|un|con)\b/;
+const FR = /\b(bonjour|bonsoir|merci|ou|quand|comment|s'il vous plait|chambre|clef|nous|vous|est|les|des|une|avec|pour)\b/;
 const PT = /\b(ola|olá|obrigado|obrigada|onde|quando|como|por favor|quarto|chave|bom dia|boa tarde|boa noite|consigo|posso|voce|você|nao|não|sim|tem|mesmo|nossa|nosso|antes|depois|horario|horário|dia|verdade|queria|queriamos|gostaria|perto|proximo|próximo|casa|entrar|chegada|saida|saída|almoçar|almocar|aliás|alias|tudo|bem|até|ate|para|pra|uma|um|de|do|da|que|e|é)\b/;
 
-/** Idioma provável da mensagem. Português é o padrão do produto. */
+/**
+ * Idioma provável da mensagem, por PONTUAÇÃO (17/10/2026). Antes, bastava uma
+ * palavra comum ("como", "sim", "dia", "tem") para travar em português, mesmo
+ * numa frase inteira em espanhol/inglês. Agora cada idioma soma as palavras
+ * que reconhece e vence o maior placar; empate ou nenhum sinal = português.
+ */
 export function detectLanguage(message: string): string {
   const raw = (message ?? "").toLowerCase();
-  if (PT.test(raw) || PT.test(norm(raw))) return "pt";
-  if (ES.test(raw)) return "es";
-  if (FR.test(raw)) return "fr";
-  if (EN.test(raw)) return "en";
-  return "pt";
+  const n = norm(raw);
+  const count = (re: RegExp) => (n.match(new RegExp(re.source, "g")) ?? []).length;
+  const score = { pt: count(PT) + (/[ãõç]/.test(raw) ? 1 : 0), es: count(ES) + (/[ñ¿¡]/.test(raw) ? 2 : 0), fr: count(FR), en: count(EN) };
+  let best: "pt" | "es" | "fr" | "en" = "pt";
+  for (const k of ["es", "fr", "en"] as const) if (score[k] > score[best]) best = k;
+  return best;
 }
 
 const ACESSO = /(senha|codigo|chave|fechadura|portao|entrar|acesso|wi.?fi|endereco|como chego)/;
 const RESERVA = /(reserva|check.?in|check.?out|entrada|saida|prorrog|estender|antecipar|cancel|quantas noites|horario de)/;
-const OPERACIONAL = /(quebr|nao funciona|vazamento|entupi|sem agua|sem luz|sem energia|ar.?condicionado|chuveiro|geladeira|internet caiu|barulho|sujo|limpeza|faltando|problema)/;
-const FINANCEIRO = /(pagar|pagamento|valor|preco|quanto custa|cobran|reembols|desconto|taxa|nota fiscal)/;
-const RECOMENDACAO = /(recomend|sugest|indica|dica|o que fazer|passeio|restaurante|bar |praia|trilha|roteiro|onde comer|onde ir)/;
-const CIDADE = /(cidade|clima|tempo|previsao|evento|feira|show|transporte|uber|taxi|aeroporto|mercado|farmacia|hospital)/;
-const RESIDENCIA = /(casa|apartamento|imovel|piscina|churrasqueira|cozinha|maquina|tv|controle|toalha|roupa de cama)/;
+const OPERACIONAL = /(\bquebr\w*|nao funciona|nao esta funcionando|vazamento|entupi\w*|sem agua|sem luz|sem energia|ar.?condicionado|chuveiro|geladeira|internet caiu|barulho|\bsujo|\bsuja|limpeza|faltando|\bproblema\b)/;
+const FINANCEIRO = /(\bpagar\b|pagamento|\bvalor\b|\bpreco|quanto custa|cobran\w*|reembols\w*|desconto|\btaxa\b|nota fiscal)/;
+const RECOMENDACAO = /(recomend\w*|sugest\w*|\bindica\w*|\bdicas?\b|o que fazer|passeio|restaurante|\bbar\b|praia|trilha|roteiro|onde comer|onde ir)/;
+const CIDADE = /\b(cidade|clima|previsao do tempo|evento|feira|show|transporte|uber|taxi|aeroporto|mercado|farmacia|hospital)\b/;
+const RESIDENCIA = /\b(casa|apartamento|imovel|piscina|churrasqueira|cozinha|maquina|tv|controle|toalha|roupa de cama)\b/;
 const SOCIAL = /^(oi|ola|bom dia|boa tarde|boa noite|tudo bem|obrigad[oa]|valeu|ok|certo|beleza|tchau|ate mais)\b/;
-const URGENTE = /(urgente|emergencia|socorro|agora|imediat|vazando|incendio|fogo|assalt|invas|nao consigo entrar|trancad|passando mal|ambulancia|policia)/;
-const NEGATIVO = /(reclama|insatisf|absurd|pessim|horrivel|inaceit|decep|revolt|procon|pior|nojent|ruim)/;
+const URGENTE = /\b(urgente|emergencia|socorro|imediat\w*|vazando|incendio|fogo|assalt\w*|invas\w*|nao consigo entrar|trancad[oa]|passando mal|ambulancia|policia)\b/;
+const NEGATIVO = /(reclama\w*|insatisf\w*|absurd\w*|pessim\w*|horrivel|inaceit\w*|decep\w*|revolt\w*|procon|\bpior\b|nojent\w*|\bruim\b)/;
 const POSITIVO = /(otim|excelent|maravilh|adorei|amei|perfeito|incrivel|obrigad)/;
 
-function categoryOf(text: string): Intent["category"] {
+/** "sem problema(s)", "nenhum problema" não são relato de problema. */
+const NO_PROBLEM = /\b(?:sem|nenhum|nao (?:tem|ha|teve|houve)(?: nenhum)?) problemas?\b/g;
+
+function categoryOf(rawText: string): Intent["category"] {
+  const text = rawText.replace(NO_PROBLEM, " ");
   if (SOCIAL.test(text.trim()) && text.trim().split(/\s+/).length <= 4) return "social";
   if (OPERACIONAL.test(text)) return "operacional";
   if (ACESSO.test(text)) return "acesso";

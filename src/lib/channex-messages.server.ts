@@ -864,6 +864,7 @@ async function runConsolidatedAiReply(admin: any, convId: string, ctx: ReplyCtx 
     checkoutDate: reservation.checkout ?? inquiry?.checkout ?? null,
     bookingRequest: inquiry,
     reservationDossier: dossier?.text ?? null,
+    reservationCode: reservation.ok ? (reservation.code ?? null) : null,
   });
 
   if (result.handoff) {

@@ -1521,6 +1521,21 @@ export const editHandoffMessage = createServerFn({ method: "POST" })
       // mantém o texto original
     }
 
+    if (msg.sender_type === "ai") {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { recordHostCorrection } = await import("@/lib/ai/learning/property-playbooks.server");
+        await recordHostCorrection({
+          supabase: supabaseAdmin,
+          conversationId: data.conversationId,
+          messageId: data.messageId,
+          kind: "edited",
+          replacement: content,
+        });
+      } catch (e) {
+        console.error("[playbooks] registro de edição falhou", e);
+      }
+    }
     const { error } = await supabase
       .from("property_chat_messages")
       .update({ content, edited_at: new Date().toISOString() })
@@ -1548,6 +1563,22 @@ export const deleteHandoffMessage = createServerFn({ method: "POST" })
     if (!msg || msg.conversation_id !== data.conversationId)
       return { ok: true, alreadyDeleted: true };
     if (msg.sender_type === "guest") throw new Error("Não é possível apagar mensagens do hóspede.");
+    // Cérebro contínuo: apagar uma resposta da IA é um sinal de aprendizado.
+    // Registra ANTES de apagar (depois o texto some). Nunca bloqueia a ação.
+    if (msg.sender_type === "ai") {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { recordHostCorrection } = await import("@/lib/ai/learning/property-playbooks.server");
+        await recordHostCorrection({
+          supabase: supabaseAdmin,
+          conversationId: data.conversationId,
+          messageId: data.messageId,
+          kind: "deleted",
+        });
+      } catch (e) {
+        console.error("[playbooks] registro de exclusão falhou", e);
+      }
+    }
     const { error } = await supabase
       .from("property_chat_messages")
       .delete()

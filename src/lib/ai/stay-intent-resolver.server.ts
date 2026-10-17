@@ -77,7 +77,39 @@ async function findLogId(supabase: SupabaseClient, p: { propertyId: string; chec
   return ((data ?? [])[0] as { id: string } | undefined)?.id ?? null;
 }
 
-export type ForecastResult = { ok: boolean; motivo?: string; horario?: string; ja_registrado?: boolean };
+export type ForecastResult = {
+  ok: boolean;
+  motivo?: string;
+  horario?: string;
+  ja_registrado?: boolean;
+  /** Horário permitido do imóvel (HH:MM) quando a previsão foi recusada por estar fora dele. */
+  permitido?: string;
+};
+
+/**
+ * A previsão só entra no painel DENTRO do que o sistema permite (check-in a
+ * partir do horário configurado; check-out até o horário limite) ou alinhada
+ * com a equipe (`agreed`: horário autorizado em mensagem humana). Sem horário
+ * configurado, não há regra a violar. Pura.
+ */
+export function forecastAllowed(p: {
+  kind: StayKind;
+  time: string;
+  standard: unknown;
+  agreed?: string | null;
+}): { ok: boolean; permitido?: string } {
+  const mm = (v: unknown) => {
+    const r = String(v ?? "").match(/^(\d{1,2}):(\d{2})/);
+    return r ? Number(r[1]) * 60 + Number(r[2]) : null;
+  };
+  const std = mm(p.standard);
+  const v = mm(p.time);
+  if (std == null || v == null) return { ok: true };
+  const permitido = `${String(Math.floor(std / 60)).padStart(2, "0")}:${String(std % 60).padStart(2, "0")}`;
+  const ag = mm(p.agreed);
+  if (p.kind === "checkout") return v <= std || (ag != null && v <= ag) ? { ok: true } : { ok: false, permitido };
+  return v >= std || (ag != null && v >= ag) ? { ok: true } : { ok: false, permitido };
+}
 
 export async function registerStayTimeForecast(
   supabase: SupabaseClient,
@@ -90,6 +122,23 @@ export async function registerStayTimeForecast(
   const stay = await findStayForEvent(supabase, ref);
   if (!stay) return { ok: false, motivo: "reserva_nao_encontrada" };
   const logId = await findLogId(supabase, { propertyId: ref.propertyId, checkinDate: stay.checkinDate, guestName: ref.guestName });
+
+  // Dentro do permitido em sistema ou alinhado com a equipe; senão não grava.
+  try {
+    const { data: prop } = await supabase.from("properties").select("checkin_time, checkout_time").eq("id", ref.propertyId).maybeSingle();
+    const pr = (prop ?? {}) as Record<string, unknown>;
+    const standard = input.kind === "checkout" ? pr.checkout_time : pr.checkin_time;
+    let verdict = forecastAllowed({ kind: input.kind, time, standard });
+    if (!verdict.ok && ref.guestName) {
+      const { loadStaffMessages } = await import("./stay-events.server");
+      const { parseAgreedTime } = await import("./stay-access.server");
+      const agreed = parseAgreedTime(input.kind, await loadStaffMessages(supabase, { propertyId: ref.propertyId, guestName: ref.guestName }), standard);
+      verdict = forecastAllowed({ kind: input.kind, time, standard, agreed });
+    }
+    if (!verdict.ok) return { ok: false, motivo: "fora_do_permitido", permitido: verdict.permitido };
+  } catch (e) {
+    console.error("[stay-intent] não foi possível validar a previsão", e);
+  }
 
   const sel = "id, status, done_at, arrival_time_override, arrival_time_source";
   const byRes = await supabase

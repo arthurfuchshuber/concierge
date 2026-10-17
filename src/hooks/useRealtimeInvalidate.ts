@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureRealtimeAuth } from "@/lib/realtime-auth";
 
 type TableWatch = {
   table: string;
@@ -59,7 +60,10 @@ export function useRealtimeInvalidate(
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let cancelado = false;
 
-    const conectar = () => {
+    const conectar = async () => {
+      if (cancelado) return;
+      // Token no socket ANTES de assinar (sem ele a RLS descarta os eventos).
+      await ensureRealtimeAuth();
       if (cancelado) return;
       if (current) supabase.removeChannel(current);
       let channel = supabase.channel(`${channelName}-${Date.now()}-${tentativa}`);
@@ -88,12 +92,12 @@ export function useRealtimeInvalidate(
           const espera = Math.min(30_000, 1_000 * 2 ** tentativa);
           tentativa += 1;
           if (retryTimer) clearTimeout(retryTimer);
-          retryTimer = setTimeout(conectar, espera);
+          retryTimer = setTimeout(() => void conectar(), espera);
         }
       });
     };
 
-    conectar();
+    void conectar();
 
     return () => {
       cancelado = true;

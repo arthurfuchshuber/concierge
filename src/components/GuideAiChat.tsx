@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { GUIDE_LIVE_EVENT } from "@/lib/guide-live";
 import { createPortal } from "react-dom";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
 import { MessageCircleMore, Send, X, Loader2, Paperclip, Copy, Check, CalendarDays, ArrowLeft } from "lucide-react";
@@ -901,12 +902,22 @@ export function GuideAiChat({
     // First poll: initialize the cursor to "now" so we don't re-append stale AI
     // messages already cached in localStorage, but still catch anything newer.
     if (!lastFetchedAtRef.current) lastFetchedAtRef.current = new Date().toISOString();
-    const interval = open || humanMode ? 4000 : 15000;
+    const interval = open || humanMode ? 3000 : 8000;
     poll();
     const t = window.setInterval(poll, interval);
+    // Ao voltar à aba ou à rede, busca na hora (sem esperar o próximo ciclo).
+    const onBack = () => {
+      if (document.visibilityState === "visible") void poll();
+    };
+    document.addEventListener("visibilitychange", onBack);
+    window.addEventListener("online", onBack);
+    window.addEventListener(GUIDE_LIVE_EVENT, onBack);
     return () => {
+      window.removeEventListener(GUIDE_LIVE_EVENT, onBack);
       cancelled = true;
       window.clearInterval(t);
+      document.removeEventListener("visibilitychange", onBack);
+      window.removeEventListener("online", onBack);
     };
   }, [conversationId, sessionId, open, humanMode, slug]);
 

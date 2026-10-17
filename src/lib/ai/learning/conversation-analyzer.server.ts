@@ -16,7 +16,7 @@ type Admin = SupabaseClient;
 
 export const ANALYZER_PROMPT = definePrompt(
   "learning.analyzer",
-  "v1.0.0",
+  "v1.1.0",
   `Você audita conversas de um concierge de hospedagem já encerradas.
 Analise o rastro fornecido (intenção, agente, ferramentas, fontes, confiança, escalonamentos, feedback)
 e devolva APENAS JSON:
@@ -27,6 +27,9 @@ e devolva APENAS JSON:
   "unansweredTopics": ["tema em 2-6 palavras"],
   "reasoning": "1-3 frases objetivas"
 }
+O rastro inclui "conversaMascarada" (texto real, com dados pessoais já mascarados) e
+"confirmacaoDoHospede" (resposta real do hóspede ao "deu certo?": confirmed, denied ou unanswered).
+Confirmação do hóspede pesa mais que a confiança do modelo.
 Critérios:
 - SUCCESS: a IA resolveu sozinha, com confiança alta e sem intervenção humana.
 - PARTIAL: resolveu em parte, exigiu reforço humano ou deixou dúvida.
@@ -81,7 +84,9 @@ export async function analyzeConversation(input: AnalyzeInput): Promise<Conversa
     const agent =
       ([...rows].reverse().find((r) => !!r.selected_agent)?.selected_agent as string | null) ?? null;
 
-    const feedback = await negativeFeedbackCount(supabase, conversationId);
+    const fb = await negativeFeedback(supabase, conversationId);
+    const feedback = fb.count;
+    const transcript = await loadMaskedTranscript(supabase, conversationId);
 
     const trace = {
       mensagens: rows.length,
@@ -94,6 +99,9 @@ export async function analyzeConversation(input: AnalyzeInput): Promise<Conversa
       intervencaoHumana: humanIntervened,
       respostasSemConfianca: needsHumanCount,
       feedbackNegativo: feedback,
+      motivosDoFeedback: fb.reasons.map(maskPii),
+      confirmacaoDoHospede: transcript.check,
+      conversaMascarada: transcript.text,
       perguntas: rows
         .map((r) => (r.intent as Record<string, unknown> | null)?.["question"] ?? null)
         .filter(Boolean)
@@ -101,6 +109,7 @@ export async function analyzeConversation(input: AnalyzeInput): Promise<Conversa
     };
 
     const heuristic = heuristicOutcome({
+      confirmation: transcript.check,
       avgConfidence,
       escalations,
       needsHumanCount,
@@ -167,7 +176,11 @@ function heuristicOutcome(p: {
   needsHumanCount: number;
   humanIntervened: boolean;
   negativeFeedback: number;
+  /** resposta real do hóspede ao "deu certo?" (quando a IA perguntou). */
+  confirmation?: "confirmed" | "denied" | "unanswered" | null;
 }): { outcome: ConversationOutcome; quality: number } {
+  if (p.confirmation === "denied") return { outcome: "FAILURE", quality: 0.15 };
+  if (p.confirmation === "confirmed" && p.negativeFeedback === 0) return { outcome: "SUCCESS", quality: 0.95 };
   if (p.negativeFeedback > 0 || (p.escalations > 0 && (p.avgConfidence ?? 1) < 0.5)) {
     return { outcome: "FAILURE", quality: 0.2 };
   }
@@ -176,16 +189,81 @@ function heuristicOutcome(p: {
   return { outcome: "LEARNING_OPPORTUNITY", quality: 0.65 };
 }
 
-async function negativeFeedbackCount(supabase: Admin, conversationId: string): Promise<number> {
+/**
+ * Cada linha de `chat_message_feedback` é um marcador de "resposta não útil"
+ * (colunas reais: reason, resolved, marked_by…; NÃO existe `helpful`). A versão
+ * anterior filtrava por `helpful = false` — coluna inexistente —, a consulta
+ * falhava e o `catch` devolvia 0: o aprendizado nunca via reclamação alguma.
+ */
+async function negativeFeedback(
+  supabase: Admin,
+  conversationId: string,
+): Promise<{ count: number; reasons: string[] }> {
   try {
-    const { count } = await supabase
+    const { data, error } = await supabase
       .from("chat_message_feedback")
-      .select("id", { count: "exact", head: true })
+      .select("reason, resolved")
       .eq("conversation_id", conversationId)
-      .eq("helpful", false);
-    return count ?? 0;
+      .limit(20);
+    if (error) throw error;
+    const rows = (data ?? []) as Array<{ reason: string | null; resolved: boolean | null }>;
+    return {
+      count: rows.length,
+      reasons: rows.map((r) => (r.reason ?? "").trim()).filter(Boolean).slice(0, 5),
+    };
+  } catch (e) {
+    console.error("[learning:analyzer] feedback indisponível", e);
+    return { count: 0, reasons: [] };
+  }
+}
+
+/** Mascara dados pessoais/sensíveis antes de enviar texto ao modelo analisador. */
+export function maskPii(text: string): string {
+  return text
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, "[email]")
+    .replace(/\b(?:\+?\d[\s().-]?){9,}\d\b/g, "[número]")
+    .replace(/\b(?=\w*[a-zA-Z])(?=\w*\d)\w{4,}\b/g, "[código]")
+    .replace(/\b\d{4,}\b/g, "[número]");
+}
+
+const CONFIRM_POS = /\b(deu certo|funcionou|resolveu|resolvido|consegui|conseguimos|tudo certo|tudo ok|ja esta|ja ta|normalizou|voltou|obrigad[oa]|perfeito|show)\b/;
+const CONFIRM_NEG = /\b(nao (?:deu|resolveu|funcionou|consegui|conseguimos)|continua|ainda (?:nao|esta|ta)|persiste|sem sucesso|piorou|nada)\b/;
+const CHECK_MARK = /deu certo por a[ií]|conseguiu resolver|resolveu por a[ií]/i;
+
+/** Lê o desfecho real: a resposta do hóspede ao "deu certo?" enviado pela IA. */
+export function readResolutionCheck(
+  msgs: Array<{ role: string; content: string | null }>,
+): "confirmed" | "denied" | "unanswered" | null {
+  const i = msgs.findIndex((m) => m.role === "assistant" && CHECK_MARK.test(m.content ?? ""));
+  if (i < 0) return null;
+  const reply = msgs.slice(i + 1).find((m) => m.role === "user");
+  if (!reply) return "unanswered";
+  const t = (reply.content ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (CONFIRM_NEG.test(t)) return "denied";
+  if (CONFIRM_POS.test(t)) return "confirmed";
+  return "unanswered";
+}
+
+async function loadMaskedTranscript(
+  supabase: Admin,
+  conversationId: string,
+): Promise<{ text: string; check: ReturnType<typeof readResolutionCheck> }> {
+  try {
+    const { data } = await supabase
+      .from("property_chat_messages")
+      .select("role, content, created_at")
+      .eq("conversation_id", conversationId)
+      .not("is_internal_note", "is", true)
+      .order("created_at", { ascending: true })
+      .limit(40);
+    const msgs = (data ?? []) as Array<{ role: string; content: string | null }>;
+    const text = msgs
+      .map((m) => `${m.role === "user" ? "Hóspede" : "IA"}: ${maskPii((m.content ?? "").slice(0, 400))}`)
+      .join("\n")
+      .slice(0, 6000);
+    return { text, check: readResolutionCheck(msgs) };
   } catch {
-    return 0;
+    return { text: "", check: null };
   }
 }
 

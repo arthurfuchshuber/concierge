@@ -32,6 +32,7 @@ export const ALL_TOOLS = [
   "search_knowledge_base",
   "get_property_facts",
   "get_reservation",
+  "identify_guest",
   "list_recommendations",
   "search_places",
   "search_web",
@@ -82,8 +83,9 @@ export const conciergeAgent: AgentDefinition = {
   escalationRules: [
     "pedido explícito de falar com um humano",
     "emergência, risco à segurança ou incidente de acesso",
-    "decisão que envolve dinheiro, reembolso, desconto ou alteração contratual da reserva",
-    "informação que não existe em nenhuma fonte oficial consultada",
+    "decisão que envolve dinheiro, reembolso, desconto ou alteração contratual da reserva (exceto estender/reservar por fora e pedidos com prazo sem multa vencido, que a IA conduz)",
+    "informação que não existe em nenhuma fonte oficial, playbook aprendido ou caso anterior do imóvel (registre a lacuna e seja honesta; não invente)",
+    "AUTONOMIA: exceções de regra e pedidos de cortesia NÃO são motivo de acionamento; explique a regra, ofereça o que está dentro dela e deixe a equipe assumir se quiser",
   ],
   prompt: definePrompt(
     "agent.concierge",

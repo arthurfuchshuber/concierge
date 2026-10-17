@@ -97,6 +97,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { GuideAiChat } from "@/components/GuideAiChat";
+import { GUIDE_LIVE_EVENT } from "@/lib/guide-live";
 import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
 import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
 import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
@@ -652,13 +653,22 @@ function Guide({ data }: { data: GuideOk }) {
       }
     };
     void check();
-    const id = setInterval(check, 5 * 60 * 1000);
+    const id = setInterval(check, 60 * 1000);
     const onFocus = () => void check();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void check();
+    };
     window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onFocus);
+    window.addEventListener(GUIDE_LIVE_EVENT, onFocus);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
       clearInterval(id);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onFocus);
+      window.removeEventListener(GUIDE_LIVE_EVENT, onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [isPreview, reservationCodeGate, accessRec?.code, slug, p.id, revalidateCode]);
 
@@ -825,13 +835,26 @@ function Guide({ data }: { data: GuideOk }) {
       }
     };
     void load();
-    const id = window.setInterval(load, 60_000);
+    // Tempo real para quem NÃO tem login (hóspede): a cada 10 s e ao voltar à
+    // aba/rede, para o guia refletir na hora o que a equipe ou a IA mudar.
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 10_000);
     const onFocus = () => void load();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
     window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onFocus);
+    window.addEventListener(GUIDE_LIVE_EVENT, onFocus);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
       window.clearInterval(id);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onFocus);
+      window.removeEventListener(GUIDE_LIVE_EVENT, onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [
     slug,

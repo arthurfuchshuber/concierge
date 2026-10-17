@@ -397,6 +397,7 @@ async function runGuideChat(
         checkinDate: dossier?.checkin ?? null,
         checkoutDate: dossier?.checkout ?? null,
         reservationDossier: dossier?.text ?? null,
+        reservationCode: reservationVerified ? (body.reservationCode ?? null) : null,
       });
     } catch (err) {
       const status = err instanceof AiGatewayError ? err.status : 502;

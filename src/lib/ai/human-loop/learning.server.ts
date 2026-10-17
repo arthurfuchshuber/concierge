@@ -174,6 +174,25 @@ export async function learnFromHumanAnswer(params: {
   question: string;
   humanAnswer: string;
 }): Promise<{ candidateId: string | null; distilled: Distilled | null }> {
+  // Cérebro contínuo: a mesma resposta humana também refina o PLAYBOOK deste imóvel
+  // (sem esperar aprovação quando é de baixo risco). Falha aqui nunca afeta o resto.
+  if (params.propertyId) {
+    try {
+      const { learnPlaybookFromExchange } = await import("../learning/property-playbooks.server");
+      await learnPlaybookFromExchange({
+        supabase: params.supabase,
+        ownerId: params.ownerId,
+        propertyId: params.propertyId,
+        propertyName: params.propertyName,
+        conversationId: params.conversationId,
+        guestContext: params.question,
+        humanText: params.humanAnswer,
+        kind: /^Correção da equipe:/.test(params.question) ? "correction" : params.escalationId ? "escalation_answer" : "human_reply",
+      });
+    } catch (e) {
+      console.error("[learning] playbook falhou", e);
+    }
+  }
   const distilled = await distillHumanDecision({
     question: params.question,
     humanAnswer: params.humanAnswer,

@@ -19,6 +19,21 @@ function fallbackOptions(language: string | undefined, category?: string): strin
   return isRec ? ["Quero", "Atualizar sugestões", "Agora não"] : ["Quero", "Agora não"];
 }
 
+/**
+ * Botões só para PERGUNTA FECHADA (sim/não, aceitar/recusar) — 17/10/2026.
+ * Pergunta aberta ("qual horário?", "o que aconteceu?") com botão "Quero" ou
+ * "Agora não" não faz sentido e atrapalha o hóspede, que precisa escrever.
+ * Considera a ÚLTIMA frase interrogativa da resposta.
+ */
+const OPEN_Q = /^(?:e )?(?:qual|quais|quando|onde|como|quanto|quantos|quantas|quem|o que|que (?:horas?|dia|tipo)|por que|porque|what|when|where|which|how|who|why|cu[aá]l|cu[aá]ndo|d[oó]nde|c[oó]mo|qu[eé])\b/i;
+export function isClosedQuestion(answer: string): boolean {
+  const qs = (answer.match(/[^.!?\n]*\?/g) ?? []).map((x) => x.trim().replace(/^[¿¡\s]+/, ""));
+  const q = qs[qs.length - 1];
+  if (!q) return false;
+  if (OPEN_Q.test(q)) return false;
+  return true;
+}
+
 export async function suggestQuickReplies(params: {
   answer: string;
   language?: string;
@@ -27,6 +42,7 @@ export async function suggestQuickReplies(params: {
   const answer = (params.answer || "").trim();
   if (!answer) return { options: [], usage: EMPTY_USAGE, model: "" };
   const hasQuestion = /\?/.test(answer);
+  if (hasQuestion && !isClosedQuestion(answer)) return { options: [], usage: EMPTY_USAGE, model: "" };
 
   try {
     const { data, usage, model } = await chatJson<{ options?: unknown }>("intent", [

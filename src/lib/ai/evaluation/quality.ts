@@ -47,11 +47,16 @@ export function accuracyScore(params: {
   expectHandoff: boolean;
   actualHandoff: boolean;
 }): { score: number; breakdown: Record<string, number> } {
+  // Desde a unificação num único concierge (agente "generalist" sempre), o
+  // critério "agente certo" não mede mais nada: valia 40% da nota e punha todo
+  // cenário que esperava outro especialista em 0.6 por uma decisão que não
+  // existe mais. Permanece no breakdown (informativo, não pontua) e o peso foi
+  // redistribuído para o que a IA realmente decide: escalar, ferramentas, fontes.
   const agent = params.expectedAgent === params.actualAgent ? 1 : 0;
   const handoff = params.expectHandoff === params.actualHandoff ? 1 : 0;
   const tools = coverage(params.expectedTools, params.actualTools);
   const sources = coverage(params.expectedSources, params.actualSources);
-  const score = Number((agent * 0.4 + handoff * 0.25 + tools * 0.2 + sources * 0.15).toFixed(4));
+  const score = Number((handoff * 0.4 + tools * 0.35 + sources * 0.25).toFixed(4));
   return { score, breakdown: { agent, handoff, tools, sources } };
 }
 

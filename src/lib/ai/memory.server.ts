@@ -15,9 +15,43 @@ export type GuestMemory = {
   preferences: Record<string, unknown>;
 };
 
-export function guestKeyOf(sessionId: string, guestName?: string | null): string {
+/** Código de reserva normalizado (maiúsculo, só letras/números). */
+export function normalizeReservationCode(code?: string | null): string | null {
+  const c = String(code ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return c.length >= 5 ? c : null;
+}
+
+/** Extrai o código de um dossiê de reserva ("Código da reserva: HMXXXX"). */
+export function reservationCodeFromDossier(dossier?: string | null): string | null {
+  const m = String(dossier ?? "").match(/c[oó]digo(?: da reserva| de confirma[cç][aã]o)?\s*[:=-]\s*([A-Za-z0-9-]{5,})/i);
+  return normalizeReservationCode(m?.[1] ?? null);
+}
+
+/**
+ * MEMÓRIA POR RESERVA (17/10/2026, decisão do anfitrião): toda conversa agora
+ * tem código de reserva, então a memória pertence à RESERVA — não ao nome nem
+ * ao telefone. Dois hóspedes com o mesmo nome em estadias diferentes deixam de
+ * se misturar; quem escreve por outro número ou canal na mesma reserva
+ * encontra a mesma memória. Sem código (ex.: visitante da vitrine), mantém a
+ * chave antiga por nome/sessão.
+ */
+export function guestKeyOf(sessionId: string, guestName?: string | null, reservationCode?: string | null): string {
+  const code = normalizeReservationCode(reservationCode);
+  if (code) return `res:${code}`;
   const name = (guestName ?? "").trim().toLowerCase();
   return name ? `name:${name}` : `session:${sessionId}`;
+}
+
+/** Lê a memória da reserva; se ainda não existir, aproveita a antiga por nome/sessão. */
+export async function loadGuestMemoryWithFallback(
+  supabase: Admin,
+  propertyId: string,
+  guestKey: string,
+  legacyKey: string,
+): Promise<GuestMemory | null> {
+  const mem = await loadGuestMemory(supabase, propertyId, guestKey);
+  if (mem || guestKey === legacyKey) return mem;
+  return loadGuestMemory(supabase, propertyId, legacyKey);
 }
 
 export async function loadGuestMemory(

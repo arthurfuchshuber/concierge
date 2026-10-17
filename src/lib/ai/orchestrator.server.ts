@@ -19,14 +19,14 @@
 import { ensureGreeting } from "@/lib/ai/greeting";
 import { SILENCE_TOKEN, finalizeAgentReply } from "@/lib/ai/reply-finalize";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { EMPTY_USAGE, mergeUsage, runAgent, type Usage } from "./gateway.server";
+import { EMPTY_USAGE, chatText, mergeUsage, runAgent, type Usage } from "./gateway.server";
 import { classifyIntent, type Intent } from "./intent.server";
 import { buildAgentContext } from "./context.server";
 import { hybridRetrieve, renderPassages } from "./rag.server";
 import { buildGuestTools, type ToolContext } from "./tools.server";
 import { validateAnswer } from "./validate.server";
 import { suggestQuickReplies } from "./quick-replies.server";
-import { guestKeyOf, loadGuestMemory, updateGuestMemory } from "./memory.server";
+import { guestKeyOf, loadGuestMemoryWithFallback, reservationCodeFromDossier, updateGuestMemory } from "./memory.server";
 import { logAgentRun } from "./observability.server";
 import { buildGuestContext } from "./memory/guest-context.server";
 import {
@@ -44,7 +44,15 @@ import { recordOperationalRequest } from "./memory/operational.server";
 import { AI_MODELS } from "./models";
 import { PROMPTS, stampVersions } from "./prompts";
 import { continuityLine } from "./continuity";
-import { humanSupportReply, isOnlyGreeting, stripPromiseSentences } from "./human-support";
+import { acknowledgementReply, humanSupportReply, isOnlyGreeting, stripPromiseSentences } from "./human-support";
+import { buildHandoffDraft, formatDraftForTeam } from "./human-loop/handoff-draft.server";
+import { accessGuidanceText, accessTiming, decideAccess } from "./access-guidance.server";
+import { decideReservationRequest, detectReservationRequest, reservationRequestGuidance } from "./reservation-change";
+import { loadCancellationWindow } from "./reservation-policy.server";
+import { applyVoiceRules, humanityMetrics, readGuestVoice, toneLint, rewritePreserves, voiceGuidance } from "./voice";
+import { makeTranslatable, translatableGuidance } from "./translatable";
+import { matchPlaybook, playbookText } from "./playbooks";
+import { matchPropertyPlaybooks, propertyPlaybookText, type PropertyPlaybook } from "./learning/property-playbooks";
 import { planExecution, type ExecutionPlan } from "./planner.server";
 import { reflectOnAnswer, type Reflection } from "./reflection.server";
 import { aggregateSourceWeight, confidenceOf, renderSourceRanking } from "./sources";
@@ -80,7 +88,7 @@ import { tenantOf } from "./tenant/context.server";
 import { bindConversationChannel } from "./channels/gateway.server";
 import type { ChannelType } from "./channels/types";
 import { buildRootCause } from "./observability/root-cause.server";
-import { guestSafetyDecision } from "./guest-safety.server";
+import { claimsRemoteAction, guestSafetyDecision } from "./guest-safety.server";
 import { maskDigitSequences } from "@/lib/guest-access.server";
 import { resolveStayAccess, stayFactsText } from "./stay-access.server";
 
@@ -185,6 +193,8 @@ export async function runHospitalityAgent(params: {
    * internos) NUNCA são revelados — regra para todos os canais.
    */
   reservationVerified?: boolean;
+  /** Código da reserva desta conversa (chave da memória). Opcional: sai do dossiê se faltar. */
+  reservationCode?: string | null;
   /** Dossiê completo da reserva oficial (código, ocupação, valores, taxas, cancelamento). */
   reservationDossier?: string | null;
 }): Promise<OrchestratorResult> {
@@ -246,7 +256,10 @@ export async function runHospitalityAgent(params: {
     intent.category === "cidade" ||
     intent.category === "recomendacao";
 
-  const guestKey = guestKeyOf(params.sessionId, params.guestName);
+  // Memória por RESERVA: o código vem do chamador ou do dossiê oficial.
+  const reservationCode = params.reservationCode ?? reservationCodeFromDossier(params.reservationDossier);
+  const guestKey = guestKeyOf(params.sessionId, params.guestName, reservationCode);
+  const legacyGuestKey = guestKeyOf(params.sessionId, params.guestName);
   rememberMessage(params.conversationId, "user", params.message);
   rememberIntent(params.conversationId, intent);
 
@@ -266,13 +279,79 @@ export async function runHospitalityAgent(params: {
     return { open: false } as { open: boolean };
   });
 
+  // REGRAS DE ACESSO (17/10/2026): ver `decideAccess`. Nos casos em que a IA
+  // precisa consultar a equipe antes de entregar, as credenciais nem chegam ao
+  // modelo (fail-closed) até a equipe responder na conversa ou antecipar a
+  // previsão no painel.
+  const accessTimingInfo = stayAccess.open
+    ? await accessTiming({
+        supabase,
+        property: property as Record<string, unknown>,
+        checkin: (stayAccess as { checkin?: string | null }).checkin,
+        checkout: (stayAccess as { checkout?: string | null }).checkout,
+        agreedCheckout: (stayAccess as { agreedCheckout?: string | null }).agreedCheckout,
+      })
+    : null;
+  // Pedido sobre a reserva (estender, "por fora", cancelar, reduzir, mudar período):
+  // o código decide a rota (plataforma / recusa gentil / equipe); o modelo só comunica.
+  const reservationRequestKind = detectReservationRequest(params.message);
+  let reservationRequestText = "";
+  if (reservationRequestKind) {
+    const needsWindow = !["extend", "outside_booking"].includes(reservationRequestKind);
+    const window = needsWindow
+      ? await loadCancellationWindow(supabase as never, {
+          propertyId,
+          code: reservationCode ?? null,
+          checkin: (stayAccess as { checkin?: string | null }).checkin,
+          checkout: (stayAccess as { checkout?: string | null }).checkout,
+        })
+      : null;
+    reservationRequestText = reservationRequestGuidance(
+      decideReservationRequest({ kind: reservationRequestKind, window }),
+      stayAccess.open || params.reservationVerified === true,
+    );
+  }
+  const teamAnswersForAccess =
+    stayAccess.open && params.conversationId
+      ? await pendingHumanAnswers({ supabase, conversationId: params.conversationId }).catch(() => [])
+      : [];
+  const accessMode = stayAccess.open
+    ? decideAccess({
+        isCheckinDay: !!accessTimingInfo?.isCheckinDay,
+        early: !!accessTimingInfo?.early,
+        released: (stayAccess as { released?: boolean }).released !== false,
+        hasTeamAnswer: teamAnswersForAccess.length > 0,
+      })
+    : "deliver";
+
   // Guardrail determinístico: acesso físico e credenciais não dependem de decisão do modelo.
   const safety = await guestSafetyDecision(params.message, String(property.slug ?? ""), {
     supabase,
     propertyId,
     stayOpen: stayAccess.open,
   });
-  if (safety.kind !== "none") {
+  // MODO CONVERSACIONAL de incidente de acesso (17/10/2026): com a estadia
+  // aberta, a IA conversa e conduz a entrada passo a passo (a equipe é acionada
+  // em paralelo). O roteiro fixo continua valendo quando a estadia NÃO está
+  // aberta (hóspede não verificado / fora da janela). Em ambos os casos o filtro
+  // determinístico `claimsRemoteAction` barra alegação de ação remota.
+  const conversationalIncident = safety.kind === "access_incident" && stayAccess.open === true;
+  if (conversationalIncident) {
+    handoffReason = "Incidente de acesso físico relatado pelo hóspede.";
+    handoffUrgency = "high";
+    void recordOperationalRequest({
+      supabase,
+      ownerId,
+      propertyId,
+      conversationId: params.conversationId,
+      guestKey,
+      guestName: params.guestName,
+      category: "acesso",
+      request: params.message.slice(0, 800),
+      metadata: { intent: intent.intent, urgency: "high", handoff: true, source: "access_incident_conversational" },
+    }).catch(() => undefined);
+  }
+  if (safety.kind !== "none" && !conversationalIncident) {
     const handoff = safety.kind === "access_incident";
     const plan: ExecutionPlan = {
       objective:
@@ -336,7 +415,7 @@ export async function runHospitalityAgent(params: {
 
   stage("memory", "Lembrando do seu histórico");
   // 2) Guest Context Engine + Memory Retrieval (curto prazo, longo prazo, operacional)
-  const memory = await loadGuestMemory(supabase, propertyId, guestKey);
+  const memory = await loadGuestMemoryWithFallback(supabase, propertyId, guestKey, legacyGuestKey);
   const guestContext = await buildGuestContext({
     supabase,
     ownerId,
@@ -610,6 +689,29 @@ export async function runHospitalityAgent(params: {
     }),
   ]);
 
+  // Voz do hóspede (registro, emoji, risada) e orientação de acesso por horário.
+  const guestVoice = readGuestVoice(params.history ?? [], params.message);
+  const voiceNegative = intent.sentiment === "negativo" || intent.category === "operacional" || conversationalIncident;
+  const playbook = matchPlaybook(
+    params.message,
+    (params.history ?? []).filter((m) => m.role === "user").map((m) => m.content),
+  );
+  // Playbooks APRENDIDOS deste imóvel (cérebro contínuo): o que a equipe já resolveu aqui.
+  let learnedPlaybooks: PropertyPlaybook[] = [];
+  try {
+    const { loadPropertyPlaybooks } = await import("./learning/property-playbooks.server");
+    const { markPlaybooksUsed } = await import("./learning/property-playbooks.server");
+    learnedPlaybooks = matchPropertyPlaybooks(
+      await loadPropertyPlaybooks(supabase, propertyId),
+      params.message,
+      (params.history ?? []).filter((m) => m.role === "user").map((m) => m.content),
+    );
+    if (learnedPlaybooks.length) void markPlaybooksUsed(supabase, learnedPlaybooks.map((p) => p.id));
+  } catch (e) {
+    console.error("[agent] playbooks do imóvel indisponíveis", e);
+  }
+  const accessGuidance = stayAccess.open ? accessGuidanceText(accessTimingInfo, conversationalIncident, accessMode) : "";
+
   const instructions =
     PROMPTS.agent.text +
     (explorationMode ? PROMPTS.exploration.text : "") +
@@ -623,7 +725,7 @@ export async function runHospitalityAgent(params: {
     `\n\nRANKING PERMANENTE DE FONTES (em conflito, o tier menor sempre vence)\n${renderSourceRanking()}` +
     `\n\nCONTEXTO ATUAL\n${context.text}` +
     (params.reservationDossier
-      ? `\n\n## RESERVA OFICIAL DESTE HÓSPEDE (fonte autoritativa, prevalece sobre qualquer outra)\n${params.reservationDossier}\n- Use estes dados (código, datas, hóspedes, valores, taxas, pagamento, cancelamento) para responder com precisão, sem perguntar o que já está aqui.\n- Valores e política: informe quando o hóspede perguntar; cancelamento/reembolso/alteração continuam sendo feitos pela plataforma (ver AUTONOMIA DA RESERVA).`
+      ? `\n\n## RESERVA OFICIAL DESTE HÓSPEDE (fonte autoritativa, prevalece sobre qualquer outra)\n${params.reservationDossier}\n- Use estes dados (código, datas, hóspedes, valores, taxas, pagamento, cancelamento) para responder com precisão, sem perguntar o que já está aqui.\n- Valores e política: informe quando o hóspede perguntar; cancelamento/alteração seguem a regra de AUTONOMIA DA RESERVA.`
       : "") +
     `\n\nCONTEXTO DO HÓSPEDE E MEMÓRIA (uso interno — nunca revele ao hóspede que existe histórico registrado)\n${guestContext.text}` +
     reservationModeContext +
@@ -643,10 +745,16 @@ export async function runHospitalityAgent(params: {
     (!reservationVerified
       ? `\n\nFECHAMENTO PRÉ-RESERVA (estilo obrigatório)\n- Responda primeiro à dúvida com precisão.\n- Termine com UMA frase curta, neutra e direta conduzindo à reserva, variando a cada mensagem. Exemplos de tom: "Vamos seguir com a reserva?", "Lembre-se de que os valores só ficam garantidos após a reserva confirmada, ok?", "Não prefere já garantir sua reserva para não correr o risco de outra pessoa reservar essas datas?".\n- PROIBIDO tom meloso ou bajulador ("será um prazer imenso", "ficaremos encantados", "prontinha para acolher vocês"), exclamações em excesso ou pressão insistente.\n- Não repita o convite se a mensagem anterior da conversa já terminou com um.\n\nRETENÇÃO (obrigatório)\n- PROIBIDO sugerir outra hospedagem, outro anúncio que não seja nosso, ou dar dicas de como reservar em outro lugar.\n- Se o hóspede exigir garantia que não podemos dar (ex.: entrada de manhã cedo), ofereça objetivamente a alternativa nossa: reservar também a noite anterior garante a unidade livre na chegada.\n- Se ele decidir não reservar: uma frase curta e sóbria (ex.: "Entendido, Cauane. Boa viagem!"). Sem "estamos sempre à disposição", "portas abertas" ou similares.\n- Nunca repita informação que já enviou nesta conversa.`
       : "") +
+    (stayAccess.open ? accessGuidance : "") +
+    reservationRequestText +
+    (playbook ? playbookText(playbook) : "") +
+    propertyPlaybookText(learnedPlaybooks) +
+    (replyInGuestLanguage ? "" : translatableGuidance()) +
+    `\n\nVOZ E ADAPTAÇÃO AO HÓSPEDE (obrigatório)\n${voiceGuidance(guestVoice, voiceNegative)}` +
     `\n\nANTI-REPETIÇÃO (obrigatório)\n- Leia suas mensagens anteriores nesta conversa antes de responder.\n- Nunca repita saudação, abertura, frase de fechamento ou informação já dada; se precisar retomar algo, resuma em poucas palavras.\n- Não cumprimente de novo se já cumprimentou nesta conversa.\n- Varie estrutura e vocabulário; nada de frases-modelo recorrentes.` +
-    `\n\nHIERARQUIA DE FONTES (sem conflito, nesta ordem)\n1. Anúncio do Airbnb (fonte airbnb_listing): é a verdade. Se a informação está lá, vale o anúncio, mesmo que outra fonte diga diferente.\n2. Não está no anúncio: o complemento é o sistema ConciergeIA como um todo (cadastro do imóvel, FAQ, regras, procedimentos, memória operacional e, se existir, o guia — que é só mais um desses locais). Ex.: número da vaga de garagem, eletrodoméstico não listado nas comodidades. Procure até encontrar e responda direto, sem mandar o hóspede abrir nada.\n3. Informação pública (distâncias, tempo de trajeto, bairros, pontos da cidade): use as referências da cidade e fontes públicas confiáveis (ex.: Google Maps). Na falta de dado confiável, diga que não tem certeza em vez de estimar.\n\nO QUE NUNCA SAI DO SISTEMA PARA O HÓSPEDE\n- Fale única e exclusivamente sobre o imóvel e a estadia (acesso, comodidades, regras da casa, cidade, recomendações). Jamais revele dados financeiros (valores de repasse, comissões, custos, faturamento, pagamentos à equipe), notas internas, observações da equipe, dados de outros hóspedes ou de proprietários, nem conversas operacionais. Se perguntarem, diga com naturalidade que não pode ajudar com isso pelo chat.\n\nENTRADA/SAÍDA AUTÔNOMA\n- Se o acesso é autônomo (cofre, fechadura eletrônica, senha, portaria), NUNCA peça aviso de trajeto, \"me avise 1 hora antes\" ou atualizações de chegada. Peça apenas que o hóspede confirme quando estiver dentro do imóvel (e, na saída, quando tiver deixado o imóvel).\n\nQUANDO NÃO RESPONDER (silêncio inteligente — exceção rara)\n- Responda exatamente ${SILENCE_TOKEN} (e nada mais) SOMENTE quando TODO o bloco de mensagens do hóspede for confirmação mecânica isolada, sem nenhuma informação nova (ex.: apenas "Ok", "Recebido", "Show").\n- NUNCA silencie "deu certo", "deeu", "abriu", "entramos", "acessei", "conseguimos": se confirma uma etapa intermediária da entrada (ex.: só o cofre do portão), entregue o próximo passo oficial; se o hóspede já está dentro ou era a última etapa, responda com o encerramento de ENTRADA CONCLUÍDA ("Maravilha, [nome]! ... Excelente estadia! 💜").\n- Se o bloco trouxer qualquer conteúdo além disso (planos, horário de chegada, trajeto, comentário, pergunta, sentimento), responda ao bloco inteiro normalmente. Conversa natural nunca fica sem resposta.\n\nCONVERSA CONTÍNUA E PROPOSITIVA (com cuidado)\n- Seja cordial, gentil e natural, como um coanfitrião atento; sem exageros, sem melação, sem excesso de exclamações.\n- Quando o hóspede abrir espaço (conta da viagem, chegada tarde, primeira vez na cidade, pergunta o que fazer), você pode propor UMA sugestão útil e confiável relacionada ao que ele disse (ex.: viagem longa e chegada à noite → boa viagem, lembrar que a entrada é autônoma e, se houver na base, uma opção de jantar perto aberta à noite).\n- Sem abertura do hóspede, não ofereça sugestões. Nunca invente lugares, horários ou distâncias: só o que estiver na base ou em fonte confiável.\n\nFORMATO (sempre organizado)\n- Nunca um bloco único de texto. Primeira frase responde direto; depois parágrafos curtos (1-2 frases) separados por linha em branco; itens/passos em lista. Resposta de uma frase só continua curta.\n\nFECHAMENTO CORDIAL\n- Agradecimento, elogio, votos ou despedida que chegam ANTES de você ter se despedido recebem resposta curta e calorosa, 1 a 2 frases, com o primeiro nome quando souber, sem melação (nada de \"estamos sempre à disposição\", \"portas abertas\"). Ex.: \"Imagina, Dayane! Tenha uma excelente noite.\"\n- FIM DE CICLO (silêncio obrigatório): se a SUA última mensagem já foi uma despedida/voto (boa noite, bom descanso, ótima estadia, boa viagem, aproveitem, excelente estadia) e o hóspede apenas retribui, agradece ou reage sem pergunta nem informação nova (\"Obrigada boa noite\", \"Valeu!\", \"Boa noite\", \"Igualmente\", emoji), responda exatamente ${SILENCE_TOKEN}. A conversa já terminou bem; não existe última palavra obrigatória.\n\nTOM HUMANO E ESPONTÂNEO\n- Fale como um anfitrião de verdade, não como SAC. Em momentos leves ou de celebração (elogio ao imóvel, empolgação, piada), pode reagir com risada moderada e natural: \"Haha, que maravilha! Aproveitem\", \"Hahaha que demais ler isso!\". No máximo uma risada por conversa curta; nunca em problemas ou reclamações.\n- ANTI-REPETIÇÃO: nunca repita nas mensagens seguidas as mesmas palavras, cumprimentos, votos, estrutura de frase ou emoji. Se já desejou \"ótima noite\", não deseje de novo. O 💜 é opcional e no máximo uma vez a cada várias mensagens. Varie a abertura (não comece sempre com \"Que bom\" ou o nome).\n- Reações a elogios são curtas (1 frase), sem reexplicar nada e sem perguntas.\n- Não repita informações já dadas nem faça novas perguntas no fechamento.\n- Afirmações que relatam problema ou necessidade ("Cheguei e não acho a chave", "O ar não gela", "O link não abre") NÃO são silêncio: responda e ajude.\n\nTRIAGEM ANTES DE ESCALAR\n- Problema prático: acolha em uma frase, consulte a base do imóvel e, se faltar algo, faça UMA pergunta curta de diagnóstico antes de pedir ajuda humana; ao escalar, descreva o diagnóstico no motivo.\n- Reclamação grave, conflito, ameaça de avaliação ruim ou cobrança agressiva: uma frase neutra de acolhimento (sem debater nem se justificar) e acione atendimento humano imediatamente.\n\nAUTONOMIA DA RESERVA (fale sempre no plural: nós, nossa equipe)\n- Cancelamento, reembolso ou alteração de período/datas: explique com cordialidade que não temos autonomia para isso pelo chat e oriente o hóspede a solicitar diretamente pelo menu da reserva ou pelo suporte da plataforma.\n- Acrescentar noites (estender a estadia) é a única exceção: ofereça verificar a disponibilidade em tom prático e neutro (ex.: "Podemos verificar a disponibilidade para essas noites. Quais datas você gostaria de acrescentar?"). PROIBIDO frases como "temos total interesse".\n\nMENSAGENS AUTOMÁTICAS DO ANFITRIÃO\n- O histórico pode conter mensagens programadas já enviadas ao hóspede (boas-vindas, link do guia, código da reserva). Leia-as antes de responder: se o hóspede comentar ou perguntar sobre elas, baseie-se exatamente no que foi enviado.\n- Nunca escreva assinatura no fim da mensagem.\n\nSEM MELAÇÃO\n- Nunca justifique a demora ou a cautela com frases como "Prefiro te dar a resposta certa a uma rápida", "Não quero te responder por cima" ou "para não te passar nada errado". Só use esse tipo de fala se o hóspede tiver cobrado rapidez (ex.: "não consegue me dizer agora?"). Nunca prometa retorno ("vou verificar e já te respondo"): se depende de humano, acione a equipe e siga só com a saudação ou em silêncio.` +
+    `\n\nHIERARQUIA DE FONTES (sem conflito, nesta ordem)\n1. Anúncio do Airbnb (fonte airbnb_listing): é a verdade. Se a informação está lá, vale o anúncio, mesmo que outra fonte diga diferente.\n2. Não está no anúncio: o complemento é o sistema ConciergeIA como um todo (cadastro do imóvel, FAQ, regras, procedimentos, memória operacional e, se existir, o guia — que é só mais um desses locais). Ex.: número da vaga de garagem, eletrodoméstico não listado nas comodidades. Procure até encontrar e responda direto, sem mandar o hóspede abrir nada.\n3. Informação pública (distâncias, tempo de trajeto, bairros, pontos da cidade): use as referências da cidade e fontes públicas confiáveis (ex.: Google Maps). Na falta de dado confiável, diga que não tem certeza em vez de estimar.\n\nO QUE NUNCA SAI DO SISTEMA PARA O HÓSPEDE\n- Fale única e exclusivamente sobre o imóvel e a estadia (acesso, comodidades, regras da casa, cidade, recomendações). Jamais revele dados financeiros (valores de repasse, comissões, custos, faturamento, pagamentos à equipe), notas internas, observações da equipe, dados de outros hóspedes ou de proprietários, nem conversas operacionais. Se perguntarem, diga com naturalidade que não pode ajudar com isso pelo chat.\n\nENTRADA/SAÍDA AUTÔNOMA\n- Se o acesso é autônomo (cofre, fechadura eletrônica, senha, portaria), NUNCA peça aviso de trajeto, \"me avise 1 hora antes\" ou atualizações de chegada. Peça apenas que o hóspede confirme quando estiver dentro do imóvel (e, na saída, quando tiver deixado o imóvel).\n\nQUANDO NÃO RESPONDER (silêncio inteligente — exceção rara)\n- Responda exatamente ${SILENCE_TOKEN} (e nada mais) SOMENTE quando TODO o bloco de mensagens do hóspede for confirmação mecânica isolada, sem nenhuma informação nova (ex.: apenas "Ok", "Recebido", "Show").\n- NUNCA silencie "deu certo", "deeu", "abriu", "entramos", "acessei", "conseguimos": se confirma uma etapa intermediária da entrada (ex.: só o cofre do portão), entregue o próximo passo oficial; se o hóspede já está dentro ou era a última etapa, responda com o encerramento de ENTRADA CONCLUÍDA ("Maravilha, [nome]! ... Excelente estadia! 💜").\n- Se o bloco trouxer qualquer conteúdo além disso (planos, horário de chegada, trajeto, comentário, pergunta, sentimento), responda ao bloco inteiro normalmente. Conversa natural nunca fica sem resposta.\n\nCONVERSA CONTÍNUA E PROPOSITIVA (com cuidado)\n- Seja cordial, gentil e natural, como um coanfitrião atento; sem exageros, sem melação, sem excesso de exclamações.\n- Quando o hóspede abrir espaço (conta da viagem, chegada tarde, primeira vez na cidade, pergunta o que fazer), você pode propor UMA sugestão útil e confiável relacionada ao que ele disse (ex.: viagem longa e chegada à noite → boa viagem, lembrar que a entrada é autônoma e, se houver na base, uma opção de jantar perto aberta à noite).\n- Sem abertura do hóspede, não ofereça sugestões. Nunca invente lugares, horários ou distâncias: só o que estiver na base ou em fonte confiável.\n\nFORMATO (sempre organizado)\n- Nunca um bloco único de texto. Primeira frase responde direto; depois parágrafos curtos (1-2 frases) separados por linha em branco; itens/passos em lista. Resposta de uma frase só continua curta.\n\nFECHAMENTO CORDIAL\n- Agradecimento, elogio, votos ou despedida que chegam ANTES de você ter se despedido recebem resposta curta e calorosa, 1 a 2 frases, com o primeiro nome quando souber, sem melação (nada de \"estamos sempre à disposição\", \"portas abertas\"). Ex.: \"Imagina, Dayane! Tenha uma excelente noite.\"\n- FIM DE CICLO (silêncio obrigatório): se a SUA última mensagem já foi uma despedida/voto (boa noite, bom descanso, ótima estadia, boa viagem, aproveitem, excelente estadia) e o hóspede apenas retribui, agradece ou reage sem pergunta nem informação nova (\"Obrigada boa noite\", \"Valeu!\", \"Boa noite\", \"Igualmente\", emoji), responda exatamente ${SILENCE_TOKEN}. A conversa já terminou bem; não existe última palavra obrigatória.\n\nTOM HUMANO E ESPONTÂNEO\n- Fale como um anfitrião de verdade, não como SAC. Em momentos leves ou de celebração (elogio ao imóvel, empolgação, piada), pode devolver uma risada leve e natural SOMENTE se o hóspede riu ou brincou antes (ex.: \"Haha, que bom!\"). Uma risada só, nunca repetida nas últimas falas, nunca em problemas ou reclamações, nunca gíria.\n- ANTI-REPETIÇÃO: nunca repita nas mensagens seguidas as mesmas palavras, cumprimentos, votos, estrutura de frase ou emoji. Se já desejou \"ótima noite\", não deseje de novo. O 💜 é opcional e no máximo uma vez a cada várias mensagens. Varie a abertura (não comece sempre com \"Que bom\" ou o nome).\n- Reações a elogios são curtas (1 frase), sem reexplicar nada e sem perguntas.\n- Não repita informações já dadas nem faça novas perguntas no fechamento.\n- Afirmações que relatam problema ou necessidade ("Cheguei e não acho a chave", "O ar não gela", "O link não abre") NÃO são silêncio: responda e ajude.\n\nTRIAGEM ANTES DE ESCALAR\n- Problema prático: acolha em uma frase, consulte a base do imóvel e, se faltar algo, faça UMA pergunta curta de diagnóstico antes de pedir ajuda humana; ao escalar, descreva o diagnóstico no motivo.\n- Reclamação grave, conflito, ameaça de avaliação ruim ou cobrança agressiva: uma frase neutra de acolhimento (sem debater nem se justificar) e acione atendimento humano imediatamente.\n\nAUTONOMIA DA RESERVA (fale sempre no plural: nós, nossa equipe)\n- Estender a estadia ou reservar "por fora": oriente sempre o caminho pela plataforma (detalhes da reserva, se há reserva confirmada; confirmar a reserva, se não há). Nunca feche por fora. Para estender, verifique a disponibilidade. PROIBIDO frases como "temos total interesse".\n- Cancelar, reduzir ou mudar período: siga o bloco PEDIDO SOBRE A RESERVA (decidido pelo sistema pela modalidade e pelo prazo). Prazo sem multa vencido: sem autorização por causa da modalidade, suporte da plataforma se insistir, sem acionar a equipe. Dentro do prazo (ou prazo indeterminado): equipe. Sem o bloco, não decida nada sozinha.\n\nMENSAGENS AUTOMÁTICAS DO ANFITRIÃO\n- O histórico pode conter mensagens programadas já enviadas ao hóspede (boas-vindas, link do guia, código da reserva). Leia-as antes de responder: se o hóspede comentar ou perguntar sobre elas, baseie-se exatamente no que foi enviado.\n- Nunca escreva assinatura no fim da mensagem.\n\nSEM MELAÇÃO\n- Nunca justifique a demora ou a cautela com frases como "Prefiro te dar a resposta certa a uma rápida", "Não quero te responder por cima" ou "para não te passar nada errado". Só use esse tipo de fala se o hóspede tiver cobrado rapidez (ex.: "não consegue me dizer agora?"). Nunca prometa ação sua nem prazo ("vou verificar e já te respondo", "estou checando agora"): se depende de humano, acione a equipe (request_human_handoff); o sistema envia um reconhecimento caloroso dizendo que a equipe retorna por aqui assim que possível, então NÃO escreva você mesma esse reconhecimento nem repita o aviso.` +
     (reservationVerified
-      ? `\n\nENTRADA E SAÍDA DO HÓSPEDE (registro no painel operacional)\n- Só chame register_guest_stay_event com CERTEZA ABSOLUTA de que o hóspede está DENTRO do imóvel (check-in) ou já SAIU dele (checkout, mesmo antes da data prevista).\n- Frases como "já chegamos", "estamos aqui", "chegamos no prédio" NÃO confirmam entrada: podem estar na portaria, na garagem ou em frente. Investigue com UMA pergunta natural e contextual, por exemplo: "Que bom! Vocês já conseguiram entrar no imóvel ou ainda estão do lado de fora?". Só registre quando ele afirmar que entrou/está dentro.\n- Planos ("vamos sair amanhã cedo", "que horas é o checkout?") NÃO são checkout. Na dúvida, pergunte se já deixaram o imóvel.\n- Se estiverem com dificuldade para entrar, oriente com as instruções de acesso nesta ordem de prioridade: 1) instruções do próprio anúncio (fonte airbnb_listing); 2) instruções do guia digital do imóvel. Não invente passos.\n- HORÁRIO PERMITIDO (check-in e check-out): o check-in só vale a partir do horário permitido do imóvel (ou do horário que a equipe definiu); o check-out tem horário limite. Se o hóspede disser que JÁ ENTROU antes do horário, ou pedir/mencionar sair DEPOIS do horário limite, chame search_stay_time_authorization e leia as mensagens da equipe e notas internas de TODOS os canais para entender se alguém da equipe autorizou a exceção (inclusive o horário definido pela equipe).\n- Achou autorização de entrada antecipada: registre o check-in citando o trecho literal em autorizacao_trecho. NÃO achou: NÃO registre; pergunte com gentileza se já está no imóvel e reforce o horário permitido de check-in.\n- Check-out acima do horário permitido: informe com gentileza que não é possível, salvo exceção autorizada pela equipe (se a busca encontrar essa autorização, siga o combinado). Nunca prometa exceção por conta própria.\n- PREVISÃO DE HORÁRIO: quando o hóspede disser a que horas vai CHEGAR ou SAIR (ex.: "chegamos às 15h", "saímos 10h30"), chame register_stay_time_forecast com evento checkin/checkout e confirme com carinho ("Anotado, te esperamos às 15h!"). Horário vago ("à tarde", "mais tarde", "às 3" sem manhã/tarde): NÃO registre, pergunte o horário exato. Previsão não é entrada/saída: só register_guest_stay_event marca como realizado.
+      ? `\n\nENTRADA E SAÍDA DO HÓSPEDE (registro no painel operacional)\n- Só chame register_guest_stay_event com CERTEZA ABSOLUTA de que o hóspede está DENTRO do imóvel (check-in) ou já SAIU dele (checkout, mesmo antes da data prevista).\n- Frases como "já chegamos", "estamos aqui", "chegamos no prédio" NÃO confirmam entrada: podem estar na portaria, na garagem ou em frente. Investigue com UMA pergunta natural e contextual, por exemplo: "Que bom! Vocês já conseguiram entrar no imóvel ou ainda estão do lado de fora?". Só registre quando ele afirmar que entrou/está dentro.\n- Planos ("vamos sair amanhã cedo", "que horas é o checkout?") NÃO são checkout. Na dúvida, pergunte se já deixaram o imóvel.\n- Se estiverem com dificuldade para entrar, oriente com as instruções de acesso nesta ordem de prioridade: 1) instruções do próprio anúncio (fonte airbnb_listing); 2) instruções do guia digital do imóvel. Não invente passos.\n- HORÁRIO PERMITIDO (check-in e check-out): o check-in só vale a partir do horário permitido do imóvel (ou do horário que a equipe definiu); o check-out tem horário limite. Se o hóspede disser que JÁ ENTROU antes do horário, ou pedir/mencionar sair DEPOIS do horário limite, chame search_stay_time_authorization e leia as mensagens da equipe e notas internas de TODOS os canais para entender se alguém da equipe autorizou a exceção (inclusive o horário definido pela equipe).\n- Achou autorização de entrada antecipada: registre o check-in citando o trecho literal em autorizacao_trecho. NÃO achou: NÃO registre; pergunte com gentileza se já está no imóvel e reforce o horário permitido de check-in.\n- Check-out acima do horário permitido: informe com gentileza que não é possível, salvo exceção autorizada pela equipe (se a busca encontrar essa autorização, siga o combinado). Nunca prometa exceção por conta própria.\n- PREVISÃO DE HORÁRIO: quando o hóspede disser a que horas vai CHEGAR ou SAIR (ex.: "chegamos às 15h", "saímos 10h30"), chame register_stay_time_forecast com evento checkin/checkout e confirme com carinho ("Anotado, te esperamos às 15h!"). Horário vago ("à tarde", "mais tarde", "às 3" sem manhã/tarde): NÃO registre e NÃO exija horário exato; peça uma ESTIMATIVA com base nas regras do anúncio (ex.: "o check-in é a partir das 15h; por volta de que horas vocês imaginam chegar?") e registre quando ele der uma estimativa clara. Você CONDUZ essa previsão (chegada e saída) e resolve sozinha: só registre o que estiver dentro do permitido em sistema ou alinhado com a equipe; se a ferramenta recusar por estar fora do permitido, explique o horário do anúncio e peça outra estimativa dentro dele, SEM acionar a equipe e sem prometer exceção: se a equipe quiser abrir uma exceção, ela mesma assume a conversa. Previsão não é entrada/saída: só register_guest_stay_event marca como realizado.
 - OBRIGATÓRIO E IMEDIATO: assim que o hóspede confirmar que está DENTRO do imóvel (ou concluiu a última etapa da entrada), chame register_guest_stay_event com checkin_completed NA MESMA resposta do encerramento de ENTRADA CONCLUÍDA. Assim que confirmar que SAIU ("já saímos", "deixei a chave no cofre", "fizemos o checkout"), chame com checkout_completed e agradeça a estadia. Nunca deixe essa baixa para a equipe.
 - Depois de registrar, confirme de forma breve e natural, sem mencionar sistema ou painel.`
       : "") +
@@ -1027,6 +1135,14 @@ export async function runHospitalityAgent(params: {
   // Todo transbordo vira pergunta respondível no cartão "A IA está te
   // perguntando" — sem isso, request_human_handoff só deixava um motivo solto.
   if (handoffReason && !escalationId && params.conversationId) {
+    // Ponto 1: a equipe recebe o caso mastigado (resumo + o que já foi feito + resposta sugerida).
+    const { usage: draftUsage, ...draft } = await buildHandoffDraft({
+      history: fullHistory,
+      guestMessage: params.message,
+      reason: handoffReason,
+      language: intent.language,
+    });
+    usage = mergeUsage(usage, draftUsage);
     escalationId = await askHumanSupervisor({
       supabase,
       ownerId,
@@ -1037,7 +1153,8 @@ export async function runHospitalityAgent(params: {
       agent: agent.key,
       trigger: "unknown_information",
       reason: handoffReason,
-      question: handoffReason.replace(/^\[[^\]]+\]\s*/, ""),
+      question: formatDraftForTeam(handoffReason, draft),
+      contextSnapshot: { draft },
     }).catch(() => null);
   }
 
@@ -1046,14 +1163,68 @@ export async function runHospitalityAgent(params: {
   if (handoffReason || escalationId) {
     const limpo = stripPromiseSentences(reply ?? "");
     const soSaudacao = !limpo || isOnlyGreeting(limpo);
+    // Reconhecimento caloroso com retorno da equipe: só com chamado REALMENTE
+    // criado e destinatário a avisar (o dono da conta sempre é notificado).
     reply = soSaudacao
-      ? humanSupportReply(fullHistory, params.guestName ?? null, intent.language)
+      ? acknowledgementReply({
+          history: fullHistory,
+          guestName: params.guestName ?? null,
+          // Airbnb traduz sozinho: a IA sempre escreve em português nesse canal.
+          language: replyInGuestLanguage ? intent.language : "pt",
+          ticketCreated: !!escalationId,
+          notifiable: !!ownerId,
+          formal: guestVoice.formal,
+        })
       : limpo;
+  }
+
+  // Incidente de acesso (modo conversacional): barra alegação de ação remota.
+  if (conversationalIncident && reply && claimsRemoteAction(reply)) {
+    reply = safety.reply;
   }
 
   // Saudação obrigatória: se a IA ainda não cumprimentou ninguém nesta
   // conversa, a resposta abre com um cumprimento (inclusive frases fixas).
   if (reply) reply = ensureGreeting(reply, fullHistory, params.guestName ?? null, intent.language);
+
+  // Voz: emoji/risada só se o hóspede usa, sem repetir (ver voice.ts) e, se a
+  // resposta repete abertura/fecho/trechos das últimas falas, UMA reescrita
+  // curta com modelo rápido (nunca em incidente/urgência/handoff; descartada
+  // se mexer em números, horários, links ou nomes).
+  let toneRewritten = false;
+  if (reply && reply !== SILENCE_TOKEN) {
+    reply = applyVoiceRules({ reply, history: fullHistory, voice: guestVoice, negative: voiceNegative, problem: voiceNegative });
+    const sensitiveTurn = conversationalIncident || intent.urgency === "high" || !!handoffReason || !!escalationId;
+    const issues = sensitiveTurn ? [] : toneLint(reply, fullHistory);
+    if (issues.length >= 1 && reply.length >= 40) {
+      try {
+        const rw = await chatText("intent", [
+          {
+            role: "system",
+            content:
+              "Reescreva a mensagem abaixo com outras palavras para não repetir as últimas falas do assistente. " +
+              "Mantenha o MESMO conteúdo, o mesmo idioma e o mesmo registro. Preserve exatamente números, horários, links e nomes. " +
+              "Sem gíria. Não adicione emoji, risada nem informação nova. Responda apenas com a mensagem reescrita.",
+          },
+          {
+            role: "user",
+            content:
+              `Últimas falas do assistente:\n${fullHistory.filter((m) => m.role === "assistant").slice(-3).map((m) => `- ${m.content.slice(0, 300)}`).join("\n")}\n\nMensagem a reescrever:\n${reply}`,
+          },
+        ]);
+        usage = mergeUsage(usage, rw.usage);
+        const out = rw.text.trim();
+        if (out && rewritePreserves(reply, out) && out.length <= reply.length * 1.4) {
+          reply = out;
+          toneRewritten = true;
+        }
+      } catch {
+        /* mantém o original */
+      }
+    }
+    // Canais com tradução automática: português simples e sem abreviações.
+    if (!replyInGuestLanguage) reply = makeTranslatable(reply);
+  }
 
   // Botões de resposta rápida — sempre que a IA termina fazendo uma pergunta
   // ao hóspede, ele deve poder responder num toque (e continuar livre para
@@ -1199,11 +1370,12 @@ export async function runHospitalityAgent(params: {
     plan,
     reflection,
     promptVersions: {
+      // Só os prompts que REALMENTE rodam nesta resposta (planner/supervisor são
+      // stubs determinísticos e a reflexão está desligada): carimbar os que não
+      // rodam fazia o otimizador de prompts atribuir resultado a texto inativo.
       ...stampVersions([
         "agent",
-        "planner",
-        "reflection",
-        "supervisor",
+        ...(skipReflection ? [] : (["reflection"] as const)),
         "validation",
         ...(explorationMode ? (["exploration"] as const) : []),
       ]),
@@ -1236,7 +1408,8 @@ export async function runHospitalityAgent(params: {
     proactiveTrigger: params.proactiveTrigger ?? null,
     autonomyLevel: params.autonomyLevel ?? agent.autonomy,
     actionApprovalStatus: handoffReason ? "waiting_human" : "not_required",
-    rootCause: buildRootCause({
+    rootCause: {
+      ...buildRootCause({
       decision: {
         agent: agent.key,
         routingReason: routing.reason,
@@ -1261,6 +1434,18 @@ export async function runHospitalityAgent(params: {
         approvalStatus: handoffReason ? "waiting_human" : "not_required",
       },
     }),
+      // Métricas de humanidade desta resposta (ver voice.ts / humanity-report).
+      playbooksUsed: learnedPlaybooks.map((p) => ({ id: p.id, topic: p.topic, v: p.version })),
+      humanity: humanityMetrics({
+        reply: reply ?? "",
+        guestMessage: params.message,
+        history: fullHistory,
+        voice: guestVoice,
+        negative: voiceNegative,
+        rewritten: toneRewritten,
+        acknowledged: /equipe/i.test(reply ?? "") && /por aqui|here|por aquí/i.test(reply ?? "") && !!escalationId,
+      }),
+    },
   }).catch(() => undefined);
 
   // Enterprise Audit Trail — rastro estruturado da decisão desta interação.

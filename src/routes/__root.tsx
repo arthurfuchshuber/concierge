@@ -544,16 +544,10 @@ function RootComponent() {
       client={queryClient}
       onSuccess={() => {
         if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-        queryClient
-          .getQueryCache()
-          .getAll()
-          .forEach((query: { queryKey?: readonly unknown[] } & Record<string, any>) => {
-            const key = String(query.queryKey?.[0] ?? "");
-            if (VOLATILE_PREFIXES.some((p) => key.startsWith(p))) {
-              // Mantém os dados na tela e revalida em segundo plano.
-              queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true });
-            }
-          });
+        // Ao abrir (logado ou voltando de sessão salva) TUDO é revalidado: a tela
+        // pinta com a última visão e o servidor corrige na hora, sem exceção de
+        // prefixo. Os dados antigos permanecem visíveis até a resposta chegar.
+        queryClient.invalidateQueries();
       }}
 
       persistOptions={{

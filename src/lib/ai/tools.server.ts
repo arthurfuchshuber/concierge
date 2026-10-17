@@ -191,11 +191,11 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       "Retorna 'confirmada' só com coincidência forte; 'ambigua' ou 'nao_encontrada' exigem pedir outro dado de validação.",
     parameters: schema(
       {
-        telefone: { type: "string", description: "Telefone informado ou do canal (qualquer formato)." },
-        codigo_reserva: { type: "string", description: "Código de confirmação da reserva." },
-        nome_completo: { type: "string", description: "Nome completo exatamente como dito pelo hóspede." },
+        telefone: { type: "string", description: "Telefone informado ou do canal (qualquer formato). String vazia se não houver." },
+        codigo_reserva: { type: "string", description: "Código de confirmação da reserva. String vazia se não houver." },
+        nome_completo: { type: "string", description: "Nome completo exatamente como dito pelo hóspede. String vazia se não houver." },
       },
-      [],
+      ["telefone", "codigo_reserva", "nome_completo"],
     ),
     execute: async (args) => {
       const norm = (s: unknown) =>
@@ -898,8 +898,8 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     description:
       "Registra no painel a PREVISÃO de horário que o hóspede informou: a que horas vai CHEGAR (checkin) ou " +
       "SAIR (checkout). Use quando ele disser um horário concreto (\"chegamos às 15h\", \"saímos umas 10h30\"). " +
-      "Isto NÃO é confirmação de entrada/saída (para isso use register_guest_stay_event). Se o horário for vago " +
-      "(\"à tarde\", \"depois do almoço\", \"às 3\" sem dizer manhã/tarde), NÃO chame: pergunte o horário exato. " +
+      "Isto NÃO é confirmação de entrada/saída (para isso use register_guest_stay_event). Aceita ESTIMATIVA (\"por volta das 15h\", \"umas 10h30\"). Se estiver vago demais " +
+      "(\"à tarde\", \"depois do almoço\", \"às 3\" sem dizer manhã/tarde), NÃO chame: peça uma ESTIMATIVA dentro das regras do anúncio (nunca exija horário exato). " +
       "Horário definido pela equipe prevalece e não é sobrescrito.",
     parameters: schema(
       {
@@ -916,9 +916,18 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         { kind: args.evento === "checkout" ? "checkout" : "checkin", time: args.horario },
       );
       if (r.ok) ctx.collectSource({ source: "operation", title: `previsão ${args.evento}: ${r.horario ?? ""}`, confidence: 1 });
-      return r.motivo === "horario_ambiguo"
-        ? { ...r, instrucao: "Horário vago: pergunte com gentileza o horário exato (e se é manhã ou tarde)." }
-        : r;
+      if (r.motivo === "horario_ambiguo")
+        return { ...r, instrucao: "Horário vago: peça com gentileza uma ESTIMATIVA dentro das regras do anúncio (ex.: 'o check-in é a partir das 15h; por volta de que horas vocês imaginam chegar?'), nunca o horário exato. Se for manhã ou tarde, proponha uma estimativa e registre quando ele concordar." };
+      if (r.motivo === "fora_do_permitido")
+        return {
+          ...r,
+          instrucao:
+            (args.evento === "checkout"
+              ? `Esse horário passa do limite de check-out do anúncio (${r.permitido}) e não há exceção alinhada com a equipe. `
+              : `Esse horário é antes do check-in permitido do anúncio (${r.permitido}) e não há exceção alinhada com a equipe. `) +
+            "Resolva SOZINHA, sem acionar a equipe: explique com gentileza o horário do anúncio e peça uma nova estimativa dentro dele (ex.: 'por volta das …'). NÃO prometa exceção e NÃO acione a equipe: não há exceções pela IA. Se a equipe quiser abrir uma exceção, ela mesma assume a conversa.",
+        };
+      return r;
     },
   });
 
@@ -1370,14 +1379,22 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
   tools.push({
     name: "request_human_handoff",
     description:
-      "Escala o atendimento para um humano. USE quando: o hóspede pedir humano/anfitrião; houver emergência ou " +
-      "problema operacional no imóvel (não abriu, quebrado, vazamento, sem energia, sem acesso); ou a informação " +
-      "necessária NÃO estiver nas fontes oficiais consultadas. Melhor escalar do que arriscar resposta errada.",
+      "Aciona a equipe humana. USE O MÍNIMO POSSÍVEL: quanto mais você resolve sozinha, melhor. ÁRVORE DE DECISÃO (nesta ordem):\n" +
+      "1) Dá para resolver com as fontes oficiais (anúncio, cadastro, FAQ, regras, estadia), com os PLAYBOOKS APRENDIDOS deste imóvel, " +
+      "com o histórico de casos parecidos (search_property_history) ou com UMA pergunta curta de diagnóstico? → NÃO escale: resolva.\n" +
+      "2) Regra, horário, cortesia ou exceção que o hóspede pede? → NÃO escale: explique a regra do anúncio com gentileza e ofereça o que " +
+      "está dentro dela. Você não concede nem repassa exceções; se a equipe quiser abrir uma, ela mesma assume a conversa.\n" +
+      "3) O hóspede pediu explicitamente um humano/anfitrião? → ESCALE.\n" +
+      "4) Emergência, risco à segurança, ou problema físico que exige ação no local depois de você orientar o diagnóstico? → ESCALE " +
+      "(urgência alta se risco), SEM abandonar a conversa: continue ajudando enquanto a equipe é avisada.\n" +
+      "5) Dinheiro, reembolso, desconto ou alteração contratual que só a equipe decide? → ESCALE. EXCEÇÕES (NÃO escale): estender estadia e reservar \"por fora\" (orientar a plataforma); cancelar/reduzir/mudar período com prazo sem multa VENCIDO (recusar com gentileza, conforme o bloco PEDIDO SOBRE A RESERVA). Dentro do prazo sem multa → ESCALE.\n" +
+      "Nunca escale por 'não tenho certeza' antes de pesquisar, nem para 'confirmar' o que as fontes já dizem. Escalar não substitui responder o que já se sabe.",
     parameters: schema(
       {
         reason: {
           type: "string",
-          description: "Resumo em 3ª pessoa do que o hóspede precisa (máx 220 caracteres).",
+          description:
+            "Resumo em 3ª pessoa do que o hóspede precisa (máx 220 caracteres), sempre com o SENTIMENTO dele neste momento (calmo, ansioso, irritado…) e, se houver atraso de check-in/check-out, qual e de quanto.",
         },
         urgency: { type: "string", enum: ["low", "normal", "high"] },
       },

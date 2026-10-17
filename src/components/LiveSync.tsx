@@ -1,6 +1,9 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureRealtimeAuth } from "@/lib/realtime-auth";
+import { getChangePulse } from "@/lib/change-pulse.functions";
 
 /**
  * AO VIVO PARA TODOS, EM TODO O PAINEL (pedido explícito, 01/10/2026):
@@ -28,7 +31,43 @@ const TABLES = [
   "property_chat_messages",
   "account_members",
   "property_assignments",
+  // 17/10/2026 — cobertura total: tudo que uma pessoa pode alterar numa tela
+  // precisa aparecer na das demais (a publicação no banco vem da migration
+  // 20261017120000_realtime_cobertura_total.sql).
+  "guide_access_logs",
+  "property_manual_items",
+  "property_faqs",
+  "property_checkout_items",
+  "property_emergency_contacts",
+  "property_types",
+  "city_references",
+  "city_reference_groups",
+  "city_reference_group_members",
+  "property_details",
+  "property_daily_tips",
+  "property_listing_raw_data",
+  "host_behavior",
+  "host_knowledge",
+  "ai_human_escalations",
+  "chat_message_feedback",
+  "ai_alerts",
+  "ai_learning_candidates",
+  "ai_prompt_change_candidates",
+  "ai_tenant_knowledge",
+  "account_member_permissions",
+  "account_member_invites",
+  "permission_assignments",
+  "owner_ledger_entries",
+  "owner_loose_documents",
+  "clicksign_documents",
+  "guest_itineraries",
+  "reservation_records_trash",
+  "stakeholder_link_aliases",
+  "provider_categories",
 ];
+
+/** Pulso de segurança: de quantos em quantos ms perguntar "algo mudou?". */
+const PULSE_MS = 8_000;
 
 /** Saúde do canal ao vivo: com ele conectado, o polling vira só rede de
  *  segurança espaçada (5 min); sem ele, volta a 30 s até reconectar. */
@@ -53,6 +92,7 @@ export function useFallbackInterval(unhealthyMs = 30_000) {
 
 export function LiveSync() {
   const qc = useQueryClient();
+  const pulseFn = useServerFn(getChangePulse);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -71,8 +111,7 @@ export function LiveSync() {
     const connect = async () => {
       if (stopped) return;
       // Token no socket ANTES de assinar: sem ele a RLS descarta os eventos.
-      const { data } = await supabase.auth.getSession();
-      if (data.session?.access_token) supabase.realtime.setAuth(data.session.access_token);
+      await ensureRealtimeAuth();
       if (stopped) return;
       if (channel) supabase.removeChannel(channel);
       let ch = supabase.channel(`live-sync-${Date.now()}-${attempt}`);
@@ -108,8 +147,40 @@ export function LiveSync() {
     window.addEventListener("online", refresh);
     window.addEventListener("focus", refresh);
 
+    // PULSO DE SEGURANÇA: mesmo com o canal "saudável", um evento pode se
+    // perder sem aviso. A cada PULSE_MS (só com a aba visível e online),
+    // compara a impressão digital das tabelas de operação; se mudou, relê a
+    // tela. Atraso máximo cai de minutos para poucos segundos.
+    let lastPulse: string | null = null;
+    let pulsing = false;
+    const pulse = async () => {
+      if (stopped || pulsing) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+      pulsing = true;
+      try {
+        const r = (await pulseFn()) as { pulse?: string } | undefined;
+        const p = r?.pulse ?? null;
+        if (p && lastPulse !== null && p !== lastPulse) refresh();
+        if (p) lastPulse = p;
+      } catch {
+        /* a próxima rodada tenta de novo */
+      } finally {
+        pulsing = false;
+      }
+    };
+    const pulseTimer = setInterval(() => void pulse(), PULSE_MS);
+    void pulse();
+    // Ao voltar para a aba, a fotografia anterior está velha: compara já.
+    const onVisiblePulse = () => {
+      if (document.visibilityState === "visible") void pulse();
+    };
+    document.addEventListener("visibilitychange", onVisiblePulse);
+
     return () => {
       stopped = true;
+      clearInterval(pulseTimer);
+      document.removeEventListener("visibilitychange", onVisiblePulse);
       setHealthy(false);
       authSub.subscription.unsubscribe();
       if (timer) clearTimeout(timer);
@@ -119,7 +190,7 @@ export function LiveSync() {
       window.removeEventListener("online", refresh);
       window.removeEventListener("focus", refresh);
     };
-  }, [qc]);
+  }, [qc, pulseFn]);
 
   return null;
 }
