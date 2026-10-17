@@ -2257,6 +2257,68 @@ export type Database = {
         }
         Relationships: []
       }
+      channex_calendar_import: {
+        Row: {
+          availability: number | null
+          booked: number | null
+          channex_property_id: string | null
+          closed_to_arrival: boolean | null
+          closed_to_departure: boolean | null
+          date: string
+          max_stay: number | null
+          min_stay: number | null
+          property_id: string | null
+          rate: number | null
+          rate_plan_id: string
+          room_type_id: string | null
+          source: string
+          stop_sell: boolean | null
+          synced_at: string
+        }
+        Insert: {
+          availability?: number | null
+          booked?: number | null
+          channex_property_id?: string | null
+          closed_to_arrival?: boolean | null
+          closed_to_departure?: boolean | null
+          date: string
+          max_stay?: number | null
+          min_stay?: number | null
+          property_id?: string | null
+          rate?: number | null
+          rate_plan_id: string
+          room_type_id?: string | null
+          source?: string
+          stop_sell?: boolean | null
+          synced_at?: string
+        }
+        Update: {
+          availability?: number | null
+          booked?: number | null
+          channex_property_id?: string | null
+          closed_to_arrival?: boolean | null
+          closed_to_departure?: boolean | null
+          date?: string
+          max_stay?: number | null
+          min_stay?: number | null
+          property_id?: string | null
+          rate?: number | null
+          rate_plan_id?: string
+          room_type_id?: string | null
+          source?: string
+          stop_sell?: boolean | null
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channex_calendar_import_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channex_pricing_keys: {
         Row: {
           api_key: string
@@ -2390,6 +2452,65 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "channex_twin_links_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channex_writeback_log: {
+        Row: {
+          after: Json | null
+          before: Json | null
+          created_at: string
+          error: string | null
+          http_status: number | null
+          id: string
+          operation: string
+          owner_id: string | null
+          property_id: string | null
+          request: Json | null
+          response: Json | null
+          source: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          operation: string
+          owner_id?: string | null
+          property_id?: string | null
+          request?: Json | null
+          response?: Json | null
+          source?: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          operation?: string
+          owner_id?: string | null
+          property_id?: string | null
+          request?: Json | null
+          response?: Json | null
+          source?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channex_writeback_log_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
@@ -4103,8 +4224,6 @@ export type Database = {
       }
       properties: {
         Row: {
-          airbnb_instant_booking: boolean | null
-          airbnb_cancellation_category: string | null
           access_codes_pin: string | null
           access_mode: Database["public"]["Enums"]["access_mode"]
           address: string | null
@@ -4114,6 +4233,7 @@ export type Database = {
           airbnb_bathroom_count: number | null
           airbnb_bed_count: number | null
           airbnb_bedroom_count: number | null
+          airbnb_cancellation_category: string | null
           airbnb_cancellation_policy: string | null
           airbnb_description_full: string | null
           airbnb_guest_count: number | null
@@ -4122,6 +4242,7 @@ export type Database = {
           airbnb_ical_last_sync_at: string | null
           airbnb_ical_url: string | null
           airbnb_ical_url_2: string | null
+          airbnb_instant_booking: boolean | null
           airbnb_listing_last_error: string | null
           airbnb_listing_last_sync_note: string | null
           airbnb_listing_last_synced_at: string | null
@@ -4206,8 +4327,6 @@ export type Database = {
           wifi_ssid: string | null
         }
         Insert: {
-          airbnb_instant_booking?: boolean | null
-          airbnb_cancellation_category?: string | null
           access_codes_pin?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
@@ -4217,6 +4336,7 @@ export type Database = {
           airbnb_bathroom_count?: number | null
           airbnb_bed_count?: number | null
           airbnb_bedroom_count?: number | null
+          airbnb_cancellation_category?: string | null
           airbnb_cancellation_policy?: string | null
           airbnb_description_full?: string | null
           airbnb_guest_count?: number | null
@@ -4225,6 +4345,7 @@ export type Database = {
           airbnb_ical_last_sync_at?: string | null
           airbnb_ical_url?: string | null
           airbnb_ical_url_2?: string | null
+          airbnb_instant_booking?: boolean | null
           airbnb_listing_last_error?: string | null
           airbnb_listing_last_sync_note?: string | null
           airbnb_listing_last_synced_at?: string | null
@@ -4309,8 +4430,6 @@ export type Database = {
           wifi_ssid?: string | null
         }
         Update: {
-          airbnb_instant_booking?: boolean | null
-          airbnb_cancellation_category?: string | null
           access_codes_pin?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
@@ -4320,6 +4439,7 @@ export type Database = {
           airbnb_bathroom_count?: number | null
           airbnb_bed_count?: number | null
           airbnb_bedroom_count?: number | null
+          airbnb_cancellation_category?: string | null
           airbnb_cancellation_policy?: string | null
           airbnb_description_full?: string | null
           airbnb_guest_count?: number | null
@@ -4328,6 +4448,7 @@ export type Database = {
           airbnb_ical_last_sync_at?: string | null
           airbnb_ical_url?: string | null
           airbnb_ical_url_2?: string | null
+          airbnb_instant_booking?: boolean | null
           airbnb_listing_last_error?: string | null
           airbnb_listing_last_sync_note?: string | null
           airbnb_listing_last_synced_at?: string | null
@@ -5165,29 +5286,29 @@ export type Database = {
       }
       property_reservations: {
         Row: {
-          net_total: number | null
-          host_net_payout: number | null
+          amount: number | null
           booking_modality: string | null
           cancellation_policy_category: string | null
           cancellation_policy_id: string | null
           channel_host_fee: number | null
-          cleaning_fee: number | null
-          cohost_payout: number | null
-          financial_breakdown: Json | null
-          is_humanitarian_stay: boolean
-          is_non_refundable: boolean
-          listing_base_price: number | null
-          amount: number | null
           checkin_date: string
           checkout_date: string
+          cleaning_fee: number | null
+          cohost_payout: number | null
           created_at: string
           currency: string | null
           daily_rates: Json | null
           external_uid: string
           feed_index: number
+          financial_breakdown: Json | null
           guest_contacts: Json
           guest_hint: string | null
+          host_net_payout: number | null
           id: string
+          is_humanitarian_stay: boolean
+          is_non_refundable: boolean
+          listing_base_price: number | null
+          net_total: number | null
           occupancy: Json | null
           ota_commission: number | null
           ota_name: string | null
@@ -5203,29 +5324,29 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          net_total?: number | null
-          host_net_payout?: number | null
+          amount?: number | null
           booking_modality?: string | null
           cancellation_policy_category?: string | null
           cancellation_policy_id?: string | null
           channel_host_fee?: number | null
-          cleaning_fee?: number | null
-          cohost_payout?: number | null
-          financial_breakdown?: Json | null
-          is_humanitarian_stay?: boolean
-          is_non_refundable?: boolean
-          listing_base_price?: number | null
-          amount?: number | null
           checkin_date: string
           checkout_date: string
+          cleaning_fee?: number | null
+          cohost_payout?: number | null
           created_at?: string
           currency?: string | null
           daily_rates?: Json | null
           external_uid: string
           feed_index?: number
+          financial_breakdown?: Json | null
           guest_contacts?: Json
           guest_hint?: string | null
+          host_net_payout?: number | null
           id?: string
+          is_humanitarian_stay?: boolean
+          is_non_refundable?: boolean
+          listing_base_price?: number | null
+          net_total?: number | null
           occupancy?: Json | null
           ota_commission?: number | null
           ota_name?: string | null
@@ -5241,29 +5362,29 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          net_total?: number | null
-          host_net_payout?: number | null
+          amount?: number | null
           booking_modality?: string | null
           cancellation_policy_category?: string | null
           cancellation_policy_id?: string | null
           channel_host_fee?: number | null
-          cleaning_fee?: number | null
-          cohost_payout?: number | null
-          financial_breakdown?: Json | null
-          is_humanitarian_stay?: boolean
-          is_non_refundable?: boolean
-          listing_base_price?: number | null
-          amount?: number | null
           checkin_date?: string
           checkout_date?: string
+          cleaning_fee?: number | null
+          cohost_payout?: number | null
           created_at?: string
           currency?: string | null
           daily_rates?: Json | null
           external_uid?: string
           feed_index?: number
+          financial_breakdown?: Json | null
           guest_contacts?: Json
           guest_hint?: string | null
+          host_net_payout?: number | null
           id?: string
+          is_humanitarian_stay?: boolean
+          is_non_refundable?: boolean
+          listing_base_price?: number | null
+          net_total?: number | null
           occupancy?: Json | null
           ota_commission?: number | null
           ota_name?: string | null
