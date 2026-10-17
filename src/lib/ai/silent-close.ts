@@ -42,7 +42,7 @@ const EMOJI_RE = /\p{Extended_Pictographic}/gu;
 const CHECKIN = [
   (n: string) => `${n ? `${n}, ` : ""}deu tudo certo com a sua entrada? Conseguiu acessar e se acomodar bem? Se algo não estiver como esperado, me conta por aqui que a gente resolve. Excelente estadia!`,
   (n: string) => `Oi${n ? `, ${n}` : ""}! Conseguiu entrar no imóvel tranquilamente? Me diz se encontrou tudo em ordem; qualquer detalhe, é só avisar. Aproveite a estadia!`,
-  (n: string) => `${n ? `${n}, ` : ""}passando para saber se o acesso funcionou e se já está instalado. Se notar qualquer coisa fora do lugar, nos avise logo para ajudarmos. Ótima estadia!`,
+  (n: string) => `${n ? `${n}, ` : ""}o acesso funcionou e você já está instalado? Se notar qualquer coisa fora do lugar, nos avise logo para ajudarmos. Ótima estadia!`,
   (n: string) => `E aí${n ? `, ${n}` : ""}, tudo certo por aí? Conseguiu entrar e o imóvel está como esperava? Fico à disposição para o que precisar. Boa estadia!`,
 ];
 
