@@ -44,6 +44,29 @@ export async function sweepStalledGuestReplies(limit = 20): Promise<number> {
     paused_until: string;
   }>) {
     try {
+      // Só avalia uma vez por mensagem pendente (evita reprocessar a cada minuto).
+      const { data: lastMsg } = await admin
+        .from("property_chat_messages")
+        .select("id, role")
+        .eq("conversation_id", c.id)
+        .not("is_internal_note", "is", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!lastMsg || lastMsg.role !== "user") continue;
+      const { data: own } = await admin.from("properties").select("owner_id").eq("id", c.property_id).maybeSingle();
+      if (!own?.owner_id) continue;
+      const { error: seen } = await admin.from("ops_push_log").insert({
+        owner_id: own.owner_id,
+        kind: "resume-gate",
+        dedupe_key: `resume-gate:${c.id}:${lastMsg.id}`,
+        payload: { conversationId: c.id, messageId: lastMsg.id },
+      });
+      if (seen) continue;
+      // Retoma SÓ se a resposta está explícita no cadastro do imóvel e não é
+      // assunto do atendimento humano em andamento. Senão, segue com a equipe.
+      const { canResumeAfterPause } = await import("./sweep-gates.server");
+      if (!(await canResumeAfterPause(admin, c.id, c.property_id))) continue;
       // Reivindica: devolve à IA só se ninguém mexeu na pausa desde a leitura.
       const { data: claimed } = await admin
         .from("property_chat_conversations")
