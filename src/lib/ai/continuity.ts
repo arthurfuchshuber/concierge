@@ -43,56 +43,22 @@ const LINES: Record<ContinuityKind, ByLanguage> = {
   // Frases curtas e diretas, sem justificativa ("prefiro a resposta certa à
   // rápida" etc.) — esse tipo de fala só cabe se o hóspede cobrar pressa, e aí
   // quem escreve é o modelo, com contexto.
+  // 17/10/2026: nenhuma forma promete retorno ("vou confirmar e já te respondo").
+  // São só reconhecimentos curtos; quem segue a conversa é a equipe acionada.
   confirming: {
-    pt: [
-      "Vou confirmar isso e já te respondo.",
-      "Vou checar esse ponto e já te falo.",
-      "Deixa eu confirmar esse detalhe. Já te aviso.",
-    ],
-    en: [
-      "Let me confirm this and get back to you.",
-      "I'll check this and let you know shortly.",
-      "Let me confirm that detail. I'll be right back.",
-    ],
-    es: [
-      "Voy a confirmarlo y te respondo.",
-      "Voy a revisar ese punto y te aviso.",
-      "Déjame confirmar ese detalle. Ya te digo.",
-    ],
+    pt: ["Entendi, anotado por aqui.", "Certo, anotado.", "Combinado, já registrei aqui."],
+    en: ["Got it, noted.", "Understood, noted here.", "Okay, I've noted that."],
+    es: ["Entendido, anotado.", "Perfecto, lo anoté.", "De acuerdo, queda anotado."],
   },
   pending: {
-    pt: [
-      "Vou verificar isso e já te respondo por aqui.",
-      "Estou checando essa informação e já te retorno.",
-      "Vou confirmar esse detalhe e já te aviso.",
-    ],
-    en: [
-      "I'll look into this and reply here shortly.",
-      "I'm checking this and will get back to you.",
-      "I'll confirm this detail and let you know.",
-    ],
-    es: [
-      "Voy a verificarlo y te respondo por aquí.",
-      "Estoy revisando esa información y te aviso.",
-      "Voy a confirmar ese detalle y te digo.",
-    ],
+    pt: ["Anotado por aqui.", "Entendi, registrado.", "Certo, anotei."],
+    en: ["Noted here.", "Understood, logged.", "Okay, noted."],
+    es: ["Anotado por aquí.", "Entendido, registrado.", "Perfecto, lo anoté."],
   },
   no_answer: {
-    pt: [
-      "Vou verificar e te respondo por aqui.",
-      "Vou checar isso e já te retorno.",
-      "Estou confirmando e já te falo.",
-    ],
-    en: [
-      "I'll check and reply here.",
-      "Let me look into it and get back to you.",
-      "Confirming now, I'll let you know.",
-    ],
-    es: [
-      "Voy a verificar y te respondo por aquí.",
-      "Lo reviso y te aviso.",
-      "Lo estoy confirmando y te digo.",
-    ],
+    pt: ["Entendi.", "Certo, anotado.", "Anotado."],
+    en: ["Understood.", "Got it, noted.", "Noted."],
+    es: ["Entendido.", "Perfecto, anotado.", "Anotado."],
   },
 };
 
