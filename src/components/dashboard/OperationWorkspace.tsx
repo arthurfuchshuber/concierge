@@ -2729,10 +2729,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const rowByStay = useMemo(() => {
     const checkin = new Map<string, ArrivalRow>();
     const checkout = new Map<string, ArrivalRow>();
-    for (const r of [...ciRows, ...kanbanCiRowsAll]) checkin.set(r.reservationId ?? r.logId, r);
-    for (const r of [...coRows, ...kanbanCoRowsAll]) checkout.set(r.reservationId ?? r.logId, r);
+    const tCi = tomorrowCheckinListQ.data?.rows ?? [];
+    const tCo = tomorrowCheckoutListQ.data?.rows ?? [];
+    for (const r of [...tCi, ...ciRows, ...kanbanCiRowsAll]) checkin.set(r.reservationId ?? r.logId, r);
+    for (const r of [...tCo, ...coRows, ...kanbanCoRowsAll]) checkout.set(r.reservationId ?? r.logId, r);
     return { checkin, checkout };
-  }, [ciRows, coRows, kanbanCiRowsAll, kanbanCoRowsAll]);
+  }, [ciRows, coRows, kanbanCiRowsAll, kanbanCoRowsAll, tomorrowCheckinListQ.data?.rows, tomorrowCheckoutListQ.data?.rows]);
 
   /**
    * Grava uma previsão. `side` decide EM QUAL LINHA do banco ela cai
