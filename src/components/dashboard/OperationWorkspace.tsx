@@ -2789,8 +2789,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   /** Monta um lado da previsão a partir da linha daquele lado. */
   const buildPredictionSide = useCallback(
-    (side: "checkin" | "checkout", fallbackRow: ArrivalRow): PredictionSide => {
+    (side: "checkin" | "checkout", fallbackRow: ArrivalRow, rowIsSide = false): PredictionSide => {
       const key = fallbackRow.reservationId ?? fallbackRow.logId;
+      // Ao vivo: quando o próprio card JÁ É a linha deste lado, ele é a fonte
+      // (chega pelo refetch em tempo real), sem depender do índice cruzado.
       /**
        * A linha DAQUELE lado, quando ela existe. Quando NÃO existe (a coluna
        * de Checkouts pode estar vazia, por exemplo), caímos na linha do card
@@ -2804,7 +2806,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
        * sido copiada para a outra — e bastaria confirmar para que virasse
        * verdade no banco.
        */
-      const own = rowByStay[side].get(key) ?? null;
+      const own = rowIsSide ? fallbackRow : (rowByStay[side].get(key) ?? null);
       const src = own ?? fallbackRow;
       // O horário que o HÓSPEDE informou é de CHEGADA — não diz nada sobre a
       // saída. Foi essa confusão que fez o checkout automático confirmar na
@@ -2858,10 +2860,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       kind: colKind,
       mode: colMode,
       getPrediction: (r: ArrivalRow): CardPrediction => ({
-        primary: buildPredictionSide(predKind, r),
+        primary: buildPredictionSide(predKind, r, predKind === colKind),
         // O outro lado vai junto, recolhido: quem já sabe a chegada E a saída
         // registra as duas sem sair do card (pedido explícito, 08/09/2026).
-        secondary: buildPredictionSide(otherKind, r),
+        secondary: buildPredictionSide(otherKind, r, otherKind === colKind),
       }),
       onMark: (row: ArrivalRow) => {
         if (colMode === "done" || colMode === "no_show") return;
