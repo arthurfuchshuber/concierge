@@ -12,6 +12,7 @@ const fns = vi.hoisted(() => ({
 
 vi.mock("@tanstack/react-start", () => ({
   useServerFn: (f: unknown) => f,
+  createMiddleware: () => ({ server: () => ({}), client: () => ({}) }),
   createServerFn: () => ({
     middleware: () => ({ inputValidator: () => ({ handler: () => null }) }),
   }),

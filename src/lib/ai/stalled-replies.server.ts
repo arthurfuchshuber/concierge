@@ -357,7 +357,7 @@ async function sweepSilentCloses(admin: Admin, limit: number): Promise<number> {
       if (/excelente estadia|boa viagem/i.test(last.content ?? "")) continue;
 
       const { findStayForEvent, applyStayEvent, assessStayTimes } = await import("./stay-events.server");
-      const stay = await findStayForEvent(admin, { propertyId: c.property_id, checkinDate: null, checkoutDate: null });
+      const stay = await findStayForEvent(admin, { propertyId: c.property_id, checkinDate: null, checkoutDate: null, conversationId: c.id });
       if (!stay) continue;
       const { data: st } = await admin
         .from("guest_arrival_status")

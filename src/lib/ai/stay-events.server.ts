@@ -14,8 +14,28 @@ function todayISO(): string {
 
 export async function findStayForEvent(
   supabase: SupabaseClient,
-  p: { propertyId: string; checkinDate: string | null; checkoutDate: string | null },
+  p: { propertyId: string; checkinDate: string | null; checkoutDate: string | null; conversationId?: string | null },
 ): Promise<Stay | null> {
+  // Reserva já vinculada à conversa (WhatsApp: telefone/código da Channex) vence qualquer dedução por data.
+  if (p.conversationId) {
+    const { data: conv } = await supabase
+      .from("property_chat_conversations")
+      .select("reservation_id")
+      .eq("id", p.conversationId)
+      .maybeSingle();
+    const rid = (conv as { reservation_id?: string | null } | null)?.reservation_id;
+    if (rid) {
+      const { data: r } = await supabase
+        .from("property_reservations")
+        .select("id, checkin_date, checkout_date, status, property_id")
+        .eq("id", rid)
+        .maybeSingle();
+      const row = r as { id: string; checkin_date: string; checkout_date: string | null; status: string | null; property_id: string } | null;
+      if (row && row.property_id === p.propertyId && !(row.status ?? "").toLowerCase().includes("cancel")) {
+        return { reservationId: row.id, checkinDate: row.checkin_date, checkoutDate: row.checkout_date };
+      }
+    }
+  }
   let q = supabase
     .from("property_reservations")
     .select("id, checkin_date, checkout_date, status")

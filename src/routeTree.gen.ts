@@ -88,6 +88,7 @@ import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './route
 import { Route as ApiPublicCronReindexKnowledgeRouteImport } from './routes/api/public/cron.reindex-knowledge'
 import { Route as ApiPublicCronReindexSystemKnowledgeRouteImport } from './routes/api/public/cron.reindex-system-knowledge'
 import { Route as ApiPublicCronSaasAlertsRouteImport } from './routes/api/public/cron.saas-alerts'
+import { Route as ApiPublicCronStalledRepliesRouteImport } from './routes/api/public/cron.stalled-replies'
 import { Route as ApiPublicCronSyncAirbnbIcalRouteImport } from './routes/api/public/cron.sync-airbnb-ical'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicWhatsappSinchWebhookRouteImport } from './routes/api/public/whatsapp/sinch-webhook'
@@ -536,6 +537,12 @@ const ApiPublicCronSaasAlertsRoute = ApiPublicCronSaasAlertsRouteImport.update({
   path: '/api/public/cron/saas-alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronStalledRepliesRoute =
+  ApiPublicCronStalledRepliesRouteImport.update({
+    id: '/api/public/cron/stalled-replies',
+    path: '/api/public/cron/stalled-replies',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronSyncAirbnbIcalRoute =
   ApiPublicCronSyncAirbnbIcalRouteImport.update({
     id: '/api/public/cron/sync-airbnb-ical',
@@ -648,6 +655,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/reindex-knowledge': typeof ApiPublicCronReindexKnowledgeRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
   '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
+  '/api/public/cron/stalled-replies': typeof ApiPublicCronStalledRepliesRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
@@ -731,6 +739,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/reindex-knowledge': typeof ApiPublicCronReindexKnowledgeRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
   '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
+  '/api/public/cron/stalled-replies': typeof ApiPublicCronStalledRepliesRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
@@ -819,6 +828,7 @@ export interface FileRoutesById {
   '/api/public/cron/reindex-knowledge': typeof ApiPublicCronReindexKnowledgeRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
   '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
+  '/api/public/cron/stalled-replies': typeof ApiPublicCronStalledRepliesRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
@@ -907,6 +917,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/reindex-knowledge'
     | '/api/public/cron/reindex-system-knowledge'
     | '/api/public/cron/saas-alerts'
+    | '/api/public/cron/stalled-replies'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/api/public/whatsapp/sinch-webhook'
@@ -990,6 +1001,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/reindex-knowledge'
     | '/api/public/cron/reindex-system-knowledge'
     | '/api/public/cron/saas-alerts'
+    | '/api/public/cron/stalled-replies'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/api/public/whatsapp/sinch-webhook'
@@ -1077,6 +1089,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/reindex-knowledge'
     | '/api/public/cron/reindex-system-knowledge'
     | '/api/public/cron/saas-alerts'
+    | '/api/public/cron/stalled-replies'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/api/public/whatsapp/sinch-webhook'
@@ -1137,6 +1150,7 @@ export interface RootRouteChildren {
   ApiPublicCronReindexKnowledgeRoute: typeof ApiPublicCronReindexKnowledgeRoute
   ApiPublicCronReindexSystemKnowledgeRoute: typeof ApiPublicCronReindexSystemKnowledgeRoute
   ApiPublicCronSaasAlertsRoute: typeof ApiPublicCronSaasAlertsRoute
+  ApiPublicCronStalledRepliesRoute: typeof ApiPublicCronStalledRepliesRoute
   ApiPublicCronSyncAirbnbIcalRoute: typeof ApiPublicCronSyncAirbnbIcalRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicWhatsappSinchWebhookRoute: typeof ApiPublicWhatsappSinchWebhookRoute
@@ -1700,6 +1714,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronSaasAlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/stalled-replies': {
+      id: '/api/public/cron/stalled-replies'
+      path: '/api/public/cron/stalled-replies'
+      fullPath: '/api/public/cron/stalled-replies'
+      preLoaderRoute: typeof ApiPublicCronStalledRepliesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/sync-airbnb-ical': {
       id: '/api/public/cron/sync-airbnb-ical'
       path: '/api/public/cron/sync-airbnb-ical'
@@ -1908,6 +1929,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronReindexSystemKnowledgeRoute:
     ApiPublicCronReindexSystemKnowledgeRoute,
   ApiPublicCronSaasAlertsRoute: ApiPublicCronSaasAlertsRoute,
+  ApiPublicCronStalledRepliesRoute: ApiPublicCronStalledRepliesRoute,
   ApiPublicCronSyncAirbnbIcalRoute: ApiPublicCronSyncAirbnbIcalRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicWhatsappSinchWebhookRoute: ApiPublicWhatsappSinchWebhookRoute,

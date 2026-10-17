@@ -36,6 +36,20 @@
       "when": 1792031191654,
       "tag": "0004_channex_pricing_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792266399813,
+      "tag": "0005_realtime_replica_and_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792266420984,
+      "tag": "0006_chat_conversation_reservation_link",
+      "breakpoints": true
     }
   ]
 }

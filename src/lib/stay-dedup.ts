@@ -1,7 +1,7 @@
 // Regras PURAS para trocar a reserva do iCal pela reserva da API (Channex) sem perder vínculos.
 // O iCal não traz o código de confirmação, então o par é imóvel + datas de entrada e saída.
 
-export type StayRow = { id: string; property_id: string; checkin_date: string; checkout_date: string; status: string | null; source: string };
+export type StayRow = { id: string; property_id: string; checkin_date: string; checkout_date: string; status: string | null; source: string; raw_summary?: string | null };
 export type CardRow = { id: string; reservation_id: string; kind: string; status?: string | null; concluded_at?: string | null; cleaning_type?: string | null };
 
 export const SUPERSEDED_TAG = "[substituída pela API Channex]";
