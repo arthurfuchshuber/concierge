@@ -5,7 +5,7 @@
  * - Primeira fala da IA na conversa: só a saudação.
  * - Já cumprimentou antes: silêncio no chat (a equipe é acionada no painel).
  */
-import { greetingFor } from "./greeting";
+import { greetingFor, hasGreeting } from "./greeting";
 import { SILENCE_TOKEN } from "./reply-finalize";
 
 const PROMISE =
@@ -30,4 +30,10 @@ export function humanSupportReply(
 ): string {
   const alreadySpoke = history.some((m) => m.role === "assistant" && m.content.trim());
   return alreadySpoke ? SILENCE_TOKEN : greetingFor(language, guestName, now);
+}
+
+/** O texto é só cumprimento (ex.: "Olá, Fernanda! Bom dia!")? */
+export function isOnlyGreeting(text: string): boolean {
+  const partes = text.split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
+  return partes.length > 0 && partes.every((x) => hasGreeting(x) && x.length <= 40);
 }

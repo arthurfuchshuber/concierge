@@ -44,6 +44,7 @@ import { recordOperationalRequest } from "./memory/operational.server";
 import { AI_MODELS } from "./models";
 import { PROMPTS, stampVersions } from "./prompts";
 import { continuityLine } from "./continuity";
+import { humanSupportReply, isOnlyGreeting, stripPromiseSentences } from "./human-support";
 import { planExecution, type ExecutionPlan } from "./planner.server";
 import { reflectOnAnswer, type Reflection } from "./reflection.server";
 import { aggregateSourceWeight, confidenceOf, renderSourceRanking } from "./sources";
@@ -1045,7 +1046,7 @@ export async function runHospitalityAgent(params: {
   // Sobra texto útil → vai; senão saudação (1ª fala) ou silêncio (ver human-support.ts).
   if (handoffReason || escalationId) {
     const limpo = stripPromiseSentences(reply ?? "");
-    const soSaudacao = !limpo || hasGreeting(limpo) && stripGreeting(limpo).length < 3;
+    const soSaudacao = !limpo || isOnlyGreeting(limpo);
     reply = soSaudacao
       ? humanSupportReply(fullHistory, params.guestName ?? null, intent.language)
       : limpo;
