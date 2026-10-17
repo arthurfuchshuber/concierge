@@ -1041,6 +1041,16 @@ export async function runHospitalityAgent(params: {
     }).catch(() => null);
   }
 
+  // Depende de humano: nunca prometer "vou confirmar e já te respondo".
+  // Sobra texto útil → vai; senão saudação (1ª fala) ou silêncio (ver human-support.ts).
+  if (handoffReason || escalationId) {
+    const limpo = stripPromiseSentences(reply ?? "");
+    const soSaudacao = !limpo || hasGreeting(limpo) && stripGreeting(limpo).length < 3;
+    reply = soSaudacao
+      ? humanSupportReply(fullHistory, params.guestName ?? null, intent.language)
+      : limpo;
+  }
+
   // Saudação obrigatória: se a IA ainda não cumprimentou ninguém nesta
   // conversa, a resposta abre com um cumprimento (inclusive frases fixas).
   if (reply) reply = ensureGreeting(reply, fullHistory, params.guestName ?? null, intent.language);
