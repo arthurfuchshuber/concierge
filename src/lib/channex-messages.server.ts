@@ -1026,6 +1026,10 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
       external_id: m.messageId,
       delivery_status: "delivered",
     });
+    if (!automated) {
+      const { completeStayFromHumanMessage } = await import("@/lib/ai/human-closing.server");
+      await completeStayFromHumanMessage(c.id, m.text);
+    }
   }
 }
 
