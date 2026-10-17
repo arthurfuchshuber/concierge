@@ -1,3 +1,4 @@
+import { richReservationFields } from "@/lib/reservation-rich";
 /**
  * Processamento da fila de webhooks do Channex.
  *
@@ -148,10 +149,36 @@ async function gravarReservaOficial(admin: SupabaseAdmin, booking: ResolvedBooki
       occupancy: a.occupancy ?? rooms[0]?.["occupancy"] ?? null,
       daily_rates: rooms.map((r) => ({ room_type_id: r["room_type_id"], rate_plan_id: r["rate_plan_id"], amount: r["amount"], days: r["days"] })),
       raw_payload: booking,
+      // Modalidade, política de cancelamento DA RESERVA e valores (17/10/2026).
+      ...richReservationFields(booking),
     } as never,
     { onConflict: "property_id,source,external_uid" },
   );
   if (error) throw new Error(error.message);
+  // A reserva da API substitui a do iCal (mesmo imóvel e datas), levando junto todos os vínculos.
+  try {
+    const { reconcileIcalForProperty } = await import("@/lib/stay-dedup.server");
+    await reconcileIcalForProperty(propertyId);
+  } catch (e) {
+    console.error("[channex] conciliação iCal", e);
+  }
+  // Repasse a co-anfitrião visto numa reserva => o anúncio tem co-anfitrião
+  // (o Channex não informa nomes). Alimenta `normalized.cohosts` na hora.
+  const rich = richReservationFields(booking);
+  if ((rich.cohost_payout ?? 0) > 0) {
+    try {
+      const { data: raw } = await admin.from("property_listing_raw_data").select("normalized").eq("property_id", propertyId).maybeSingle();
+      const norm = ((raw as { normalized?: Record<string, unknown> } | null)?.normalized ?? {}) as Record<string, unknown>;
+      if (raw && !(Array.isArray(norm["cohosts"]) && (norm["cohosts"] as unknown[]).length)) {
+        await admin
+          .from("property_listing_raw_data")
+          .update({ normalized: { ...norm, cohosts: [{ name: null, role: "co-anfitrião (repasse automático nas reservas)" }] } } as never)
+          .eq("property_id", propertyId);
+      }
+    } catch (e) {
+      console.error("[channex-webhook] cohosts", e);
+    }
+  }
 }
 
 async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
@@ -277,6 +304,10 @@ export async function processarFilaChannex(limite = 20): Promise<{ processados: 
       if (evento === "message" || evento === "new_message") {
         const { handleChannexMessage } = await import("@/lib/channex-messages.server");
         await handleChannexMessage(item.payload);
+      } else if (evento === "ari") {
+        // Calendário do Airbnb: importado na hora (somente leitura).
+        const { importAriWebhook } = await import("@/lib/calendar-import.server");
+        await importAriWebhook(item.payload);
       } else if (!evento || evento.startsWith("booking")) {
         await aplicarReserva(supabaseAdmin, item.payload);
       } else {

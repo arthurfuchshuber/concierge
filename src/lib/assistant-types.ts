@@ -183,6 +183,29 @@ export type AssistantAction =
         title: string | null;
         description: string | null;
       };
+    }
+  | {
+      /** Altera o anúncio no Airbnb (e no sistema) pelo caminho bidirecional (`pushListingSettingsFn`). */
+      kind: "listing_settings";
+      payload: {
+        propertyId: string;
+        propertyName: string;
+        patch: Record<string, unknown>;
+        /** A pessoa confirmou o cartão que diz que o preço será alterado. */
+        allowPricing: boolean;
+      };
+    }
+  | {
+      /** Altera o calendário (disponibilidade, estadia mínima/máxima, restrições, preço) — `pushCalendarFn`. */
+      kind: "calendar_change";
+      payload: {
+        propertyId: string;
+        propertyName: string;
+        dateFrom: string;
+        dateTo: string;
+        fields: Record<string, number | boolean | null>;
+        allowPricing: boolean;
+      };
     };
 
 export type PendingAction = {

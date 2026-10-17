@@ -1,3 +1,4 @@
+import { structuredListing, houseRulesText } from "@/lib/listing-structured";
 /**
  * Ingestão do anúncio oficial do Airbnb (via Channex) para o repositório
  * central do imóvel (`property_listing_raw_data`). Somente leitura na Channex:
@@ -196,7 +197,7 @@ export async function syncPilotListings(): Promise<Array<{ listingId: string; pr
         airbnb_listing_id: listingId,
         listing_meta: meta,
         raw_settings: rp.settings,
-        normalized: { ...(((prev as { normalized?: Record<string, unknown> } | null)?.normalized) ?? {}), facts, public_listing: pub },
+        normalized: { ...(((prev as { normalized?: Record<string, unknown> } | null)?.normalized) ?? {}), facts, public_listing: pub, ...structuredListing(rp.settings, Boolean((((prev as { normalized?: Record<string, any> } | null)?.normalized) ?? {})["cohosts"]?.length)) },
         synced_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       } as never,
@@ -285,6 +286,25 @@ export async function applyListingToProperty(args: {
   const occ = Array.isArray(args.meta.occupancies) ? (args.meta.occupancies as unknown[]).map(Number).filter((n) => Number.isFinite(n) && n > 0) : [];
   const guests = occ.length ? Math.max(...occ) : Number(args.settings?.pricing_setting?.guests_included) || null;
   if (guests) patch["airbnb_guest_count"] = Math.min(200, guests);
+  // Campos estruturados (17/10/2026): janela de check-in, reserva instantânea,
+  // política padrão e regras. Sempre refletem o anúncio; textos livres do
+  // anfitrião só são preenchidos quando estão vazios.
+  const st = structuredListing(args.settings, false);
+  if (st.checkin_window.end) patch["checkin_time_max"] = st.checkin_window.end;
+  if (st.instant_booking_enabled !== null) patch["airbnb_instant_booking"] = st.instant_booking_enabled;
+  if (st.cancellation_policy_default) patch["airbnb_cancellation_category"] = st.cancellation_policy_default;
+  {
+    const { data: cur } = await supabaseAdmin
+      .from("properties")
+      .select("airbnb_cancellation_policy, airbnb_house_rules")
+      .eq("id", args.propertyId)
+      .maybeSingle();
+    const c = cur as { airbnb_cancellation_policy?: string | null; airbnb_house_rules?: string | null } | null;
+    const blank = (t?: string | null) => !t || !t.trim() || /^Adicione as datas de viagem/i.test(t.trim());
+    if (st.cancellation_policy_label && blank(c?.airbnb_cancellation_policy)) patch["airbnb_cancellation_policy"] = st.cancellation_policy_label;
+    const hr = houseRulesText(st.house_rules);
+    if (hr && blank(c?.airbnb_house_rules)) patch["airbnb_house_rules"] = hr;
+  }
   if (args.pub) {
     patch["airbnb_description_full"] = args.pub.descriptions.join("\n\n").slice(0, 20_000);
     // Mesmo formato do editor do imóvel: { name, category, available }.
@@ -384,7 +404,7 @@ export async function syncAccountListing(args: {
       airbnb_listing_id: args.listingId,
       listing_meta: meta,
       raw_settings: rp.settings,
-      normalized: { ...(prevRow?.normalized ?? {}), facts, public_listing: pub },
+      normalized: { ...(prevRow?.normalized ?? {}), facts, public_listing: pub, ...structuredListing(rp.settings, Boolean((prevRow?.normalized as any)?.cohosts?.length)) },
       sync_paused_at: null,
       paused_reason: null,
       not_found_at: null,
@@ -403,5 +423,12 @@ export async function syncAccountListing(args: {
   });
   const { reindexProperty } = await import("@/lib/ai/indexing.server");
   await reindexProperty(supabaseAdmin as never, args.propertyId).catch(() => undefined);
+  // Conta/anúncio novo: já puxa o calendário da plataforma (somente importação).
+  try {
+    const { importCalendarWindow } = await import("@/lib/calendar-import.server");
+    await importCalendarWindow(args.propertyId);
+  } catch (e) {
+    console.error("[syncAccountListing] importação inicial do calendário", e);
+  }
   return { facts: facts.length, title };
 }

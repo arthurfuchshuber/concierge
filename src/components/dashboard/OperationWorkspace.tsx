@@ -3,6 +3,7 @@ import { ensureRealtimeAuth } from "@/lib/realtime-auth";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { SearchActionRow } from "./SearchActionRow";
 import { searchScore } from "@/lib/search-score";
+import { POLICY_LABEL } from "@/lib/reservation-rich";
 import { trimSeries } from "@/lib/trim-series";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Link } from "@tanstack/react-router";
@@ -10732,6 +10733,30 @@ function ArrivalCard({
               });
             if (row.bookingChannel) lines.push({ key: "channel", label: "Canal", value: <span className="truncate">{row.bookingChannel}</span> });
             if (occupants) lines.push({ key: "occupants", label: "Ocupantes", value: <span className="truncate">{occupants}</span> });
+            // Modalidade da reserva e política de cancelamento (mockup
+            // "Selos" aprovado em 17/10/2026): mesmas linhas pontilhadas; sem
+            // dado confirmado a linha simplesmente não aparece.
+            if (row.bookingModality === "instant_book" || row.bookingModality === "request_to_book")
+              lines.push({
+                key: "modality",
+                label: "Modalidade",
+                value: <span className="truncate">{row.bookingModality === "instant_book" ? "Instantânea" : "Pedido aceito"}</span>,
+              });
+            if (row.cancellationPolicy || row.isNonRefundable) {
+              const policyLabel = row.isNonRefundable
+                ? "Não reembolsável"
+                : POLICY_LABEL[row.cancellationPolicy as string] ?? null;
+              if (policyLabel)
+                lines.push({
+                  key: "cancellation",
+                  label: "Cancelamento",
+                  value: (
+                    <span className="truncate" style={row.isNonRefundable ? { color: "#e8883a" } : undefined}>
+                      {policyLabel}
+                    </span>
+                  ),
+                });
+            }
             if (lines.length === 0) return null;
             return (
               <div className="-mt-0.5 flex flex-col gap-[11px] pb-1.5 pl-[30px] pr-0.5 pt-1">

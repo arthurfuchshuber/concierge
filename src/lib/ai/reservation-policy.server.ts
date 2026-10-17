@@ -1,7 +1,11 @@
 /**
- * Lê, do banco, o que a regra de cancelamento precisa: modalidade (categoria da
- * política do anúncio, vinda da Channex), data/horário de check-in, noites e
- * quando a reserva foi feita. Falha de leitura = "desconhecido" (a equipe decide).
+ * Lê, do banco, o que a regra de cancelamento precisa: a MODALIDADE DA PRÓPRIA
+ * RESERVA (política de cancelamento que o Airbnb gravou nela: moderada, não
+ * reembolsável...), data/horário de check-in, noites e quando foi reservada.
+ *
+ * Sem a modalidade da reserva (reservas antigas sem o dado) o resultado é
+ * "unknown": a IA NÃO presume pela política do anúncio (decisão do anfitrião,
+ * 17/10/2026) e orienta o menu da reserva na plataforma.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { propertyTimeZone } from "@/lib/property-timezone";
@@ -9,59 +13,40 @@ import { cancellationWindow, type CancellationWindow } from "./reservation-chang
 
 type Admin = SupabaseClient;
 
-function findCategory(node: unknown): string | null {
-  if (!node || typeof node !== "object") return null;
-  const o = node as Record<string, unknown>;
-  if (typeof o.cancellation_policy_category === "string" && o.cancellation_policy_category) return o.cancellation_policy_category;
-  for (const v of Object.values(o)) {
-    const r = findCategory(v);
-    if (r) return r;
-  }
-  return null;
-}
-
 export async function loadCancellationWindow(
   admin: Admin,
   p: { propertyId: string; code: string | null; checkin?: string | null; checkout?: string | null },
 ): Promise<CancellationWindow> {
   try {
-    const [{ data: prop }, { data: raw }] = await Promise.all([
+    const unknown = (reason: string): CancellationWindow => ({ status: "unknown", policy: null, deadline: null, reason });
+    if (!p.code || !/^[A-Z0-9-]{3,40}$/i.test(p.code)) return unknown("reserva não identificada");
+    const [{ data: prop }, { data: rows }] = await Promise.all([
       admin.from("properties").select("checkin_time, city, country").eq("id", p.propertyId).maybeSingle(),
-      admin.from("property_listing_raw_data").select("raw_settings").eq("property_id", p.propertyId).limit(1).maybeSingle(),
+      admin
+        .from("property_reservations")
+        .select("checkin_date, checkout_date, cancellation_policy_category, raw_payload")
+        .eq("property_id", p.propertyId)
+        .contains("guest_contacts", { code: p.code })
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(1),
     ]);
+    const r = (rows?.[0] ?? null) as {
+      checkin_date?: string; checkout_date?: string; cancellation_policy_category?: string | null;
+      raw_payload?: { inserted_at?: string } | null;
+    } | null;
+    if (!r?.cancellation_policy_category) return unknown("modalidade da reserva não registrada");
     const pr = (prop ?? {}) as Record<string, unknown>;
     const tz = propertyTimeZone(pr.city as string | null, pr.country as string | null);
-    let checkin = p.checkin ?? null;
-    let checkout = p.checkout ?? null;
-    let bookedAt: string | null = null;
-    let explicit = false;
-    if (p.code && /^[A-Z0-9-]{3,40}$/i.test(p.code)) {
-      const { data } = await admin
-        .from("reservas")
-        .select("data_checkin, data_checkout, created_at, payload")
-        .ilike("codigo_reserva_channex", `%${p.code}`)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const r = data as { data_checkin?: string; data_checkout?: string; created_at?: string; payload?: { inserted_at?: string; modalidade_confirmada?: string } } | null;
-      if (r) {
-        checkin = checkin ?? (r.data_checkin ? String(r.data_checkin).slice(0, 10) : null);
-        checkout = checkout ?? (r.data_checkout ? String(r.data_checkout).slice(0, 10) : null);
-        bookedAt = r.payload?.inserted_at ?? r.created_at ?? null;
-        explicit = r.payload?.modalidade_confirmada === "listing_policy";
-      }
-    }
+    const checkin = r.checkin_date ? String(r.checkin_date).slice(0, 10) : (p.checkin ?? null);
+    const checkout = r.checkout_date ? String(r.checkout_date).slice(0, 10) : (p.checkout ?? null);
     const nights = checkin && checkout ? Math.round((Date.parse(checkout) - Date.parse(checkin)) / 86_400_000) : null;
-    // A modalidade do ANÚNCIO não vale como a da RESERVA (tarifa não reembolsável,
-    // estadia longa etc.). Só se calcula prazo com marca explícita na reserva;
-    // sem ela o resultado é "unknown" e a IA orienta o menu da plataforma.
-    const confirmed = explicit;
     return cancellationWindow({
-      category: confirmed ? findCategory((raw as { raw_settings?: unknown } | null)?.raw_settings) : null,
+      category: r.cancellation_policy_category,
       checkin,
       checkinTime: pr.checkin_time,
       nights,
-      bookedAt,
+      bookedAt: r.raw_payload?.inserted_at ?? null,
       tz,
       nowMs: Date.now(),
     });

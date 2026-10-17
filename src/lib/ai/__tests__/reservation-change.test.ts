@@ -26,6 +26,12 @@ describe("reservation-change", () => {
     expect(decideReservationRequest({ kind: "shorten", window: w }).route).toBe("decline");
     expect(decideReservationRequest({ kind: "extend", window: null }).route).toBe("platform");
   });
+  it("não reembolsável da própria reserva: sem prazo, recusa gentil", () => {
+    const w = cancellationWindow({ ...base, category: "tiered_pricing_non_refundable", nowMs: Date.parse("2026-10-20T12:00:00Z") });
+    expect(w.status).toBe("expired");
+    expect(w.policy).toBe("Não reembolsável");
+    expect(decideReservationRequest({ kind: "cancel", window: w }).route).toBe("decline");
+  });
   it("estadia longa amplia prazo", () => {
     const w = cancellationWindow({ ...base, nights: 30, category: "flexible", nowMs: Date.parse("2026-10-05T12:00:00Z") });
     expect(w.status).toBe("free");

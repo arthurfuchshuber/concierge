@@ -126,16 +126,25 @@ export async function airbnbClosedNights(icalUrl: string | null | undefined): Pr
 
 export const SEED_BASE_RATE = 100;
 
+/** Janela de reservas configurada NO ANÚNCIO (max_days_notice), lida ao vivo do canal. */
+export async function listingWindowDays(channelId: string | null | undefined, listingId: string | null | undefined, fallback = 270): Promise<number> {
+  if (!channelId || !listingId) return fallback;
+  const c = await cx<{ data: any }>(`/channels/${channelId}`).catch(() => null);
+  const rp = (c?.data?.attributes?.rate_plans ?? []).find((x: any) => String(x.settings?.listing_id) === String(listingId));
+  const n = Number(rp?.settings?.availability_rule?.max_days_notice);
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 730) : fallback;
+}
+
 /**
  * Carga inicial da unidade ainda NÃO mapeada: espelha o calendário real do Airbnb (fechado = 0,
- * livre = 1 até 270 dias) e, se a unidade ainda não tem nenhuma diária, uma tarifa base para a
+ * livre = 1 até a janela de reservas do anúncio) e, se a unidade ainda não tem nenhuma diária, uma tarifa base para a
  * ferramenta de preços ter ponto de partida. Seguro: sem mapeamento, nada chega ao Airbnb.
  */
 export async function seedUnitCalendar(propertyId: string, userId: string | null = null) {
   const d = await db();
   const { data: r } = await d
     .from("property_listing_raw_data")
-    .select("channex_property_id, channex_room_type_id, channex_rate_plan_id, owner_id, properties(airbnb_ical_url)")
+    .select("channex_property_id, channex_room_type_id, channex_rate_plan_id, channex_channel_id, airbnb_listing_id, owner_id, properties(airbnb_ical_url)")
     .eq("property_id", propertyId)
     .maybeSingle();
   if (!r?.channex_property_id || !r.channex_room_type_id || !r.channex_rate_plan_id) return { ok: false, reason: "no_unit" };
@@ -145,9 +154,11 @@ export async function seedUnitCalendar(propertyId: string, userId: string | null
   const base = { propertyId: r.channex_property_id, roomTypeId: r.channex_room_type_id, ratePlanId: r.channex_rate_plan_id };
   const changes: any[] = [];
   const now = Date.now();
-  for (let i = 0; i <= 365; i++) {
+  // Horizonte = janela de reservas do próprio anúncio (não um número fixo).
+  const windowDays = await listingWindowDays(r.channex_channel_id, r.airbnb_listing_id);
+  for (let i = 0; i <= Math.max(365, windowDays); i++) {
     const date = isoDay(new Date(now + i * 86_400_000));
-    const availability = i > 270 || closed.has(date) ? 0 : 1;
+    const availability = i > windowDays || closed.has(date) ? 0 : 1;
     const prev = changes[changes.length - 1];
     if (prev && prev.fields.availability === availability) prev.dateTo = date;
     else changes.push({ ...base, dateFrom: date, dateTo: date, fields: { availability } });
@@ -158,10 +169,32 @@ export async function seedUnitCalendar(propertyId: string, userId: string | null
     `/restrictions?filter[property_id]=${r.channex_property_id}&filter[date][gte]=${start}&filter[date][lte]=${end}&filter[restrictions]=rate`,
   ).catch(() => null);
   const seedRate = !!cur && pricedDays(cur.data?.[r.channex_rate_plan_id]) === 0;
-  if (seedRate) changes.push({ ...base, dateFrom: start, dateTo: isoDay(new Date(now + 365 * 86_400_000)), fields: { rate: SEED_BASE_RATE } });
+  if (seedRate) changes.push({ ...base, dateFrom: start, dateTo: isoDay(new Date(now + windowDays * 86_400_000)), fields: { rate: SEED_BASE_RATE } });
   await applyCalendarChanges(changes, userId, "full_connect_seed");
   const flushed = await flushAriOutbox();
   return { ok: flushed.batches.every((b: any) => b.ok), closedNights: closed.size, seedRate };
+}
+
+/**
+ * O anúncio já está mapeado no canal (manda reservas pela API)? `false` só quando a conta é Full e a
+ * Channex confirma que o anúncio NÃO está mapeado; qualquer dúvida ou conta Light => `null`.
+ */
+export async function isMappedOnChannel(propertyId: string): Promise<boolean | null> {
+  try {
+    const d = await db();
+    const { data: r } = await d
+      .from("property_listing_raw_data")
+      .select("owner_id, airbnb_listing_id, channex_channel_id")
+      .eq("property_id", propertyId)
+      .maybeSingle();
+    if (!r?.airbnb_listing_id || !r.channex_channel_id) return null;
+    const { data: mode } = await d.from("channex_account_settings").select("operation_mode").eq("owner_id", r.owner_id).maybeSingle();
+    if (mode?.operation_mode !== "full") return null;
+    const c = await cx<{ data: any }>(`/channels/${r.channex_channel_id}`);
+    return (c.data?.attributes?.rate_plans ?? []).some((rp: any) => String(rp.settings?.listing_id) === String(r.airbnb_listing_id));
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -293,6 +326,21 @@ export async function confirmFullConnection(ownerId: string, propertyId: string,
     `/restrictions?filter[property_id]=${fresh.channex_property_id}&filter[date][gte]=${start}&filter[date][lte]=${end}&filter[restrictions]=rate`,
   ).catch(() => ({ data: {} as Record<string, Record<string, { rate?: string | number }>> }));
   if (toolPricedDays(res.data?.[fresh.channex_rate_plan_id]) < 30) return { ok: false as const, reason: "no_rates" as const };
+  // Regra do anfitrião: preço só vai ao Airbnb depois de definido pela ferramenta de pricing.
+  // Se sobrou QUALQUER dia da janela do anúncio ainda com a tarifa-semente, não mapeia (senão a
+  // semente viraria preço real e sobrescreveria o original do calendário).
+  const windowDays = await listingWindowDays(String(r.channex_channel_id), String(r.airbnb_listing_id));
+  for (let from = 0; from <= windowDays; from += 180) {
+    const a = new Date(Date.now() + from * 86_400_000).toISOString().slice(0, 10);
+    const b = new Date(Date.now() + Math.min(from + 179, windowDays) * 86_400_000).toISOString().slice(0, 10);
+    const chunk = await cx<{ data: Record<string, Record<string, { rate?: string | number }>> }>(
+      `/restrictions?filter[property_id]=${fresh.channex_property_id}&filter[date][gte]=${a}&filter[date][lte]=${b}&filter[restrictions]=rate`,
+    ).catch(() => null);
+    if (!chunk) return { ok: false as const, reason: "no_rates" as const };
+    if (Object.values(chunk.data?.[fresh.channex_rate_plan_id] ?? {}).some((x) => Number(x?.rate ?? 0) === SEED_BASE_RATE)) {
+      return { ok: false as const, reason: "no_rates" as const };
+    }
+  }
   const { safeMapAirbnbListing } = await import("@/lib/channex-mapping.server");
   await safeMapAirbnbListing(
     {

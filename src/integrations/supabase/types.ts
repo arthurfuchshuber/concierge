@@ -4103,6 +4103,8 @@ export type Database = {
       }
       properties: {
         Row: {
+          airbnb_instant_booking: boolean | null
+          airbnb_cancellation_category: string | null
           access_codes_pin: string | null
           access_mode: Database["public"]["Enums"]["access_mode"]
           address: string | null
@@ -4204,6 +4206,8 @@ export type Database = {
           wifi_ssid: string | null
         }
         Insert: {
+          airbnb_instant_booking?: boolean | null
+          airbnb_cancellation_category?: string | null
           access_codes_pin?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
@@ -4305,6 +4309,8 @@ export type Database = {
           wifi_ssid?: string | null
         }
         Update: {
+          airbnb_instant_booking?: boolean | null
+          airbnb_cancellation_category?: string | null
           access_codes_pin?: string | null
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
@@ -5159,6 +5165,18 @@ export type Database = {
       }
       property_reservations: {
         Row: {
+          net_total: number | null
+          host_net_payout: number | null
+          booking_modality: string | null
+          cancellation_policy_category: string | null
+          cancellation_policy_id: string | null
+          channel_host_fee: number | null
+          cleaning_fee: number | null
+          cohost_payout: number | null
+          financial_breakdown: Json | null
+          is_humanitarian_stay: boolean
+          is_non_refundable: boolean
+          listing_base_price: number | null
           amount: number | null
           checkin_date: string
           checkout_date: string
@@ -5185,6 +5203,18 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          net_total?: number | null
+          host_net_payout?: number | null
+          booking_modality?: string | null
+          cancellation_policy_category?: string | null
+          cancellation_policy_id?: string | null
+          channel_host_fee?: number | null
+          cleaning_fee?: number | null
+          cohost_payout?: number | null
+          financial_breakdown?: Json | null
+          is_humanitarian_stay?: boolean
+          is_non_refundable?: boolean
+          listing_base_price?: number | null
           amount?: number | null
           checkin_date: string
           checkout_date: string
@@ -5211,6 +5241,18 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          net_total?: number | null
+          host_net_payout?: number | null
+          booking_modality?: string | null
+          cancellation_policy_category?: string | null
+          cancellation_policy_id?: string | null
+          channel_host_fee?: number | null
+          cleaning_fee?: number | null
+          cohost_payout?: number | null
+          financial_breakdown?: Json | null
+          is_humanitarian_stay?: boolean
+          is_non_refundable?: boolean
+          listing_base_price?: number | null
           amount?: number | null
           checkin_date?: string
           checkout_date?: string

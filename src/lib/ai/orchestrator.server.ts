@@ -16,6 +16,7 @@
  *   8. Confidence Threshold do próprio agente (auto | com ressalva | handoff)
  *   9. Gravação seletiva de memória + observabilidade (log completo)
  */
+import { GUEST_DATA_BOUNDARY } from "./guest-data-boundary";
 import { ensureGreeting } from "@/lib/ai/greeting";
 import { SILENCE_TOKEN, finalizeAgentReply } from "@/lib/ai/reply-finalize";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -747,6 +748,7 @@ export async function runHospitalityAgent(params: {
       : "") +
     (stayAccess.open ? accessGuidance : "") +
     reservationRequestText +
+    GUEST_DATA_BOUNDARY +
     (playbook ? playbookText(playbook) : "") +
     propertyPlaybookText(learnedPlaybooks) +
     (replyInGuestLanguage ? "" : translatableGuidance()) +

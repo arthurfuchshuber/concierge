@@ -364,7 +364,7 @@ export async function buildArrivalRows(
     let reservationsQuery = context.supabase
       .from("property_reservations")
       .select(
-        `id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at, ${RESERVATION_IDENTITY_COLUMNS}`,
+        `id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at, amount, booking_modality, cancellation_policy_category, is_non_refundable, cleaning_fee, net_total, host_net_payout, cohost_payout, ${RESERVATION_IDENTITY_COLUMNS}`,
       )
       .in("property_id", propIds)
       .in("source", ["airbnb", "channex"]);
@@ -1174,6 +1174,14 @@ export async function buildArrivalRows(
       return {
         logId: matchedLog?.id ?? `ical:${r.id}`,
         reservationId: r.id,
+        bookingModality: (r.booking_modality as "instant_book" | "request_to_book" | null) ?? null,
+        cancellationPolicy: r.cancellation_policy_category ?? null,
+        isNonRefundable: r.is_non_refundable === true,
+        cleaningFee: r.cleaning_fee ?? null,
+        payoutAmount: r.net_total ?? r.amount ?? null,
+        netTotal: r.net_total ?? null,
+        hostNetPayout: r.host_net_payout ?? null,
+        cohostPayout: r.cohost_payout ?? null,
         propertyId: r.property_id,
         propertyName: p?.name ?? null,
         ownerName: p?.ownerName ?? null,

@@ -736,6 +736,17 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
         }
       }
     }
+    // Campos que o Airbnb também guarda seguem para o anúncio; se recusar, volta ao valor do Airbnb.
+    try {
+      const { diffBidirectional } = await import("@/lib/listing-writeback");
+      const bidi = diffBidirectional(null, patch);
+      if (Object.keys(bidi).length) {
+        const { pushOrRestore } = await import("@/lib/listing-writeback.server");
+        for (const pid of updatedSet) await pushOrRestore({ propertyId: pid, patch: bidi, userId: context.userId, source: "edicao-em-massa" });
+      }
+    } catch (e) {
+      console.warn("[properties] envio em massa ao Airbnb falhou", e);
+    }
     return { updated: updatedSet.size };
   });
 
@@ -861,6 +872,8 @@ export const upsertProperty = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // Resultado do envio ao Airbnb (o Airbnb é a fonte da verdade do anúncio).
+    let airbnbSync: { ok: boolean; errors: string[] } | undefined;
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     const enforcing = enforce(userId, "imoveis.editor.write", { propertyId: data.id ?? null });
     const { resolveEffectivePlan, assertCanCreateGuide } = await import("@/lib/plan-guard.server");
@@ -1008,6 +1021,18 @@ export const upsertProperty = createServerFn({ method: "POST" })
       // e o salvamento falhava de vez. Tentamos de novo com espera curta.
       let updated: { id: string } | null = null;
       let error: { code?: string } | null = null;
+      // Estado anterior dos campos que o Airbnb também conhece (envio de volta).
+      let beforeBidi: Record<string, unknown> | null = null;
+      try {
+        const { data: b } = await writeClient
+          .from("properties")
+          .select("checkin_time, checkin_time_max, checkout_time, airbnb_cancellation_category, airbnb_instant_booking")
+          .eq("id", propertyId)
+          .maybeSingle();
+        beforeBidi = (b as Record<string, unknown> | null) ?? null;
+      } catch {
+        beforeBidi = null;
+      }
       for (let tentativa = 0; tentativa < 3; tentativa += 1) {
         if (tentativa > 0) await new Promise((r) => setTimeout(r, 400 * tentativa));
         const res = await writeClient
@@ -1022,6 +1047,24 @@ export const upsertProperty = createServerFn({ method: "POST" })
       }
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
       if (!updated) throw new Error("O guia não foi atualizado. Verifique sua permissão e tente novamente.");
+      // BIDIRECIONAL (17/10/2026): o que mudou aqui e o Airbnb também guarda (horários,
+      // política, reserva instantânea) segue para o anúncio. Melhor esforço: nunca derruba o salvamento.
+      if (beforeBidi) {
+        try {
+          const { diffBidirectional } = await import("@/lib/listing-writeback");
+          const patch = diffBidirectional(beforeBidi, propertyData as Record<string, unknown>);
+          if (Object.keys(patch).length) {
+            const { pushOrRestore } = await import("@/lib/listing-writeback.server");
+            const r = await pushOrRestore({ propertyId, patch, userId, source: "editor-imovel" });
+            if (!r.ok) {
+              console.warn("[properties] envio ao Airbnb", r.errors.join(" | "));
+              airbnbSync = { ok: false, errors: r.errors };
+            }
+          }
+        } catch (e) {
+          console.warn("[properties] envio ao Airbnb falhou", e);
+        }
+      }
     } else {
       await assertCanCreateGuide(supabase, userId, { ownerId: effectiveOwnerId });
       const { data: inserted, error } = await writeClient
@@ -1144,7 +1187,7 @@ export const upsertProperty = createServerFn({ method: "POST" })
     // Só reindexa a IA quando mudou algo que ela usa — não a cada tecla em
     // campos que não entram na base de conhecimento.
     const needsReindex = !sec || Object.values(sec).some(Boolean);
-    if (!needsReindex) return { id };
+    if (!needsReindex) return { id, airbnb: airbnbSync };
 
     /* REINDEXAÇÃO AGUARDADA (25/09/2026).
      * Era "fire-and-forget" (`void (async…)`). No servidor da nuvem o trabalho
@@ -1162,7 +1205,7 @@ export const upsertProperty = createServerFn({ method: "POST" })
       console.error("[properties] reindex pós-salvamento do guia falhou", e);
     }
 
-    return { id };
+    return { id, airbnb: airbnbSync };
 
   });
 

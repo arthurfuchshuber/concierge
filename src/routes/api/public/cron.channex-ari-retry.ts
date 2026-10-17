@@ -29,6 +29,9 @@ export const Route = createFileRoute("/api/public/cron/channex-ari-retry")({
           await syncChannexEntities({ source: "cron" }).catch((e) =>
             console.error("[cron:channex-entity-sync]", e),
           );
+          // Calendário do Airbnb (somente importação): reconfere um imóvel por batida.
+          const { importStaleCalendar } = await import("@/lib/calendar-import.server");
+          await importStaleCalendar().catch((e) => console.error("[cron:calendar-import]", e));
           // Respostas da IA cuja janela de consolidação já fechou (rede de segurança do webhook).
           const { processDueAiReplies } = await import("@/lib/channex-messages.server");
           await processDueAiReplies().catch((e) => console.error("[cron:ai-reply-due]", e));

@@ -1602,6 +1602,12 @@ function PropertyEditor() {
         () => undefined,
       );
       const r = await queuedSave;
+      // O Airbnb é a fonte da verdade do anúncio: se ele recusou, o valor voltou ao do Airbnb.
+      const airbnb = (r as { airbnb?: { ok: boolean; errors: string[] } } | undefined)?.airbnb;
+      if (airbnb && !airbnb.ok) {
+        toast.warning(`O Airbnb não aceitou a alteração: ${airbnb.errors[0] ?? "erro"}. O campo voltou ao valor do anúncio.`);
+        queryClient.invalidateQueries({ queryKey: ["property", id] });
+      }
       savedSectionsRef.current = { ...(savedSectionsRef.current ?? {}), ...currentSections };
       if (!silent) toast.success(isNew ? "Imóvel criado" : "Guia salvo");
       setAutoSaveError(null);

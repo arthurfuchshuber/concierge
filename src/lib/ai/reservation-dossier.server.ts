@@ -6,6 +6,7 @@
  * diárias, taxas, pagamento e política de cancelamento do anúncio.
  * Nunca busca por nome: consulta sem código não gera dossiê.
  */
+import { guestVisibleTotal, richReservationFields } from "@/lib/reservation-rich";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Admin = SupabaseClient;
@@ -59,7 +60,7 @@ export async function loadReservationDossier(
   let pr: Record<string, any> | null = null;
   if (code) {
     // Busca parametrizada (sem montar filtro em texto): o código nunca vira sintaxe de consulta.
-    const cols = "checkin_date, checkout_date, status, guest_hint, guest_contacts, amount, currency, occupancy, ota_name, payment_collect";
+    const cols = "checkin_date, checkout_date, status, guest_hint, guest_contacts, amount, channel_host_fee, currency, occupancy, ota_name, payment_collect";
     const [byHint, byCode] = await Promise.all([
       admin.from("property_reservations").select(cols).eq("property_id", params.propertyId).eq("guest_hint", code).limit(5),
       admin.from("property_reservations").select(cols).eq("property_id", params.propertyId).eq("guest_contacts->>code", code).limit(5),
@@ -90,7 +91,11 @@ export async function loadReservationDossier(
   const guestFull = [customer.name, customer.surname].filter(Boolean).join(" ") || row?.nome_hospede || null;
   const days = (room.days ?? {}) as Record<string, string>;
   const services = (Array.isArray(room.services) ? room.services : []) as Array<Record<string, any>>;
-  const total = row?.valor_total ?? payload.amount ?? pr?.amount;
+  // Só o que o hóspede enxerga: total BRUTO. Valores líquidos, comissão e repasses nunca entram aqui.
+  const total = guestVisibleTotal(
+    payload.amount ?? pr?.amount ?? row?.valor_total,
+    pr?.channel_host_fee ?? richReservationFields(payload).channel_host_fee,
+  );
   const finalCode = code ?? (String(row?.codigo_reserva_channex ?? payload.ota_reservation_code ?? "").replace(/^ABB-/, "") || null);
   const today = new Date().toISOString().slice(0, 10);
   const active = !!checkout && checkout >= today;
@@ -108,7 +113,7 @@ export async function loadReservationDossier(
       ? `Hóspedes: ${Number(occ.adults ?? 0) + Number(occ.children ?? 0)} (adultos ${occ.adults ?? 0}, crianças ${occ.children ?? 0}, bebês ${occ.infants ?? 0})`
       : "",
     pets != null ? `Pets: ${pets}` : "",
-    total != null ? `Valor total da reserva: ${money(total, cur)}` : "",
+    total != null ? `Valor total da reserva (bruto, o mesmo que o hóspede vê): ${money(total, cur)}` : "",
     Object.keys(days).length
       ? `Diárias: ${Object.entries(days).sort().map(([d, v]) => `${fmt(d)} ${money(v, cur)}`).join("; ")}`
       : "",

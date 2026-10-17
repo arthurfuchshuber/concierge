@@ -56,6 +56,8 @@ export const FREE_CANCEL_HOURS: Record<string, number | null> = {
   firm: 30 * 24,
   firm_14: 14 * 24,
   strict: null,
+  // Tarifa não reembolsável escolhida pelo hóspede: não há prazo sem multa.
+  tiered_pricing_non_refundable: null,
   super_strict_30: null,
   super_strict_60: null,
 };
@@ -71,6 +73,7 @@ const LABEL: Record<string, string> = {
   firm: "Firme",
   firm_14: "Firme (14 dias)",
   strict: "Rígida",
+  tiered_pricing_non_refundable: "Não reembolsável",
   better_strict_with_grace_period: "Rígida com período de carência",
   strict_14_with_grace_period: "Rígida com período de carência",
   super_strict_30: "Super rígida (30 dias)",

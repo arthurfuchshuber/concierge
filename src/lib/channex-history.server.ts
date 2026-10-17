@@ -1,3 +1,4 @@
+import { richReservationFields } from "@/lib/reservation-rich";
 /**
  * Carga retroativa (backfill) de tudo que a Channex expõe do passado para os
  * imóveis piloto: reservas (com contatos do hóspede), conversas + mensagens do
@@ -135,11 +136,21 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
         occupancy: (a.occupancy ?? rooms[0]?.occupancy ?? null) as never,
         daily_rates: rooms.map((r) => ({ room_type_id: r.room_type_id, rate_plan_id: r.rate_plan_id, amount: r.amount, days: r.days })) as never,
         raw_payload: b as never,
+        // Modalidade, política de cancelamento DA RESERVA e valores (17/10/2026).
+        ...richReservationFields(a),
       } as never,
       { onConflict: "property_id,source,external_uid" },
     );
     if (!error) result.reservations++;
     else console.error("[channex-history] reserva", b.id, error.message);
+  }
+  // Reservas da API substituem as do iCal nos imóveis tocados (vínculos migrados antes).
+  try {
+    const touched = Array.from(new Set(bookings.map((b: any) => propOf(b)).filter(Boolean))) as string[];
+    const { reconcileIcalWithApi } = await import("@/lib/stay-dedup.server");
+    await reconcileIcalWithApi(touched);
+  } catch (e) {
+    console.error("[channex-history] conciliação iCal", e);
   }
 
   // 2) Conversas + mensagens do Airbnb.

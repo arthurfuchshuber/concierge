@@ -200,7 +200,12 @@ export async function syncPropertyIcal(
     .eq("property_id", propertyId)
     .not("channex_property_id", "is", null)
     .limit(1);
-  if (cx && cx.length) return { ok: true, imported: 0, updated: 0, removed: 0 };
+  if (cx && cx.length) {
+    // Modo Full: a unidade própria existe desde a criação, mas o anúncio só passa a mandar reservas
+    // pela API depois de mapeado. Até lá o iCal continua sendo a fonte (nada fica às cegas).
+    const { isMappedOnChannel } = await import("@/lib/channex-full-connect.server");
+    if ((await isMappedOnChannel(propertyId)) !== false) return { ok: true, imported: 0, updated: 0, removed: 0 };
+  }
   try {
     const res = await fetchWithTimeout(icalUrl);
     if (!res.ok) {

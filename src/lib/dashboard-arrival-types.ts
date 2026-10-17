@@ -1,5 +1,16 @@
 // Tipos compartilhados da esteira de chegadas/saídas.
 export type ArrivalRow = {
+  /** Modalidade da reserva e política de cancelamento DA RESERVA (17/10/2026). Só dados; sem selo na tela até o mockup ser aprovado. */
+  bookingModality?: "instant_book" | "request_to_book" | null;
+  cancellationPolicy?: string | null;
+  isNonRefundable?: boolean;
+  cleaningFee?: number | null;
+  payoutAmount?: number | null;
+  /** Valor total líquido (depois da comissão do canal). */
+  netTotal?: number | null;
+  /** Líquido do anfitrião (total líquido menos o repasse do co-anfitrião). */
+  hostNetPayout?: number | null;
+  cohostPayout?: number | null;
   logId: string;
   reservationId: string | null;
   propertyId: string;

@@ -1,3 +1,4 @@
+import { structuredListing } from "@/lib/listing-structured";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Sincronização contínua de TUDO que a Channex expõe (fora reservas/mensagens,
@@ -255,7 +256,7 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
         const facts = [...normalizeListing(meta, rr?.raw_settings ?? {}), ...(pub ? publicFacts(pub) : [])];
         await admin
           .from("property_listing_raw_data")
-          .update({ normalized: { ...(rr?.normalized ?? {}), facts }, updated_at: new Date().toISOString() } as never)
+          .update({ normalized: { ...(rr?.normalized ?? {}), facts, ...structuredListing(rr?.raw_settings ?? {}, Boolean(rr?.normalized?.cohosts?.length)) }, updated_at: new Date().toISOString() } as never)
           .eq("property_id", propertyId);
       }
     } catch (e) {

@@ -1353,6 +1353,70 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
       },
     },
 
+    // ─────────────── anúncio e calendário (bidirecional, 17/10/2026) ───────────────
+    {
+      name: "preparar_alterar_anuncio",
+      description:
+        "Monta (SEM gravar) uma alteração no ANÚNCIO do Airbnb e no sistema ao mesmo tempo: horários de check-in/check-out (só horas cheias), política de cancelamento, reserva instantânea, regras (crianças, bebês, pets, festas, fumar), estadia mínima/máxima, antecedência, janela de reservas e publicar/despublicar. Passe null no que NÃO muda. A pessoa confirma na tela e só então vai ao Airbnb. NÃO altera preço nem calendário: isso só é importado do Airbnb.",
+      parameters: schema(
+        {
+          propertyId: { type: "string", description: "Id do imóvel (listar_imoveis)." },
+          checkinDe: { type: ["string", "null"], description: "HH:MM (hora cheia)." },
+          checkinAte: { type: ["string", "null"], description: "HH:MM (hora cheia)." },
+          checkout: { type: ["string", "null"], description: "HH:MM (hora cheia)." },
+          politicaCancelamento: { type: ["string", "null"], description: "flexible, moderate, firm, strict..." },
+          reservaInstantanea: { type: ["boolean", "null"], description: "true liga; desligar só no Airbnb." },
+          aceitaCriancas: { type: ["boolean", "null"] },
+          aceitaBebes: { type: ["boolean", "null"] },
+          aceitaPets: { type: ["boolean", "null"] },
+          aceitaFestas: { type: ["boolean", "null"] },
+          aceitaFumar: { type: ["boolean", "null"] },
+          estadiaMinima: { type: ["integer", "null"] },
+          estadiaMaxima: { type: ["integer", "null"] },
+          antecedenciaDias: { type: ["integer", "null"] },
+          janelaReservasDias: { type: ["integer", "null"] },
+          publicado: { type: ["boolean", "null"], description: "true publica; false despublica." },
+        },
+        ["propertyId", "checkinDe", "checkinAte", "checkout", "politicaCancelamento", "reservaInstantanea", "aceitaCriancas", "aceitaBebes", "aceitaPets", "aceitaFestas", "aceitaFumar", "estadiaMinima", "estadiaMaxima", "antecedenciaDias", "janelaReservasDias", "publicado"],
+      ),
+      execute: async (args) => {
+        const propertyId = String(args.propertyId);
+        if (!ctx.propertyIds.includes(propertyId)) return { erro: "Você não tem acesso a esse imóvel." };
+        const { data: prop } = await db.from("properties").select("name").eq("id", propertyId).maybeSingle();
+        const patch: Record<string, unknown> = {};
+        const preview: Array<{ label: string; value: string }> = [{ label: "Imóvel", value: (prop as { name?: string } | null)?.name ?? "—" }];
+        const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+        const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+        if (str(args.checkinDe)) { patch["checkin_time"] = str(args.checkinDe); preview.push({ label: "Check-in a partir de", value: str(args.checkinDe)! }); }
+        if (str(args.checkinAte)) { patch["checkin_time_max"] = str(args.checkinAte); preview.push({ label: "Check-in até", value: str(args.checkinAte)! }); }
+        if (str(args.checkout)) { patch["checkout_time"] = str(args.checkout); preview.push({ label: "Check-out até", value: str(args.checkout)! }); }
+        if (str(args.politicaCancelamento)) { patch["cancellation_category"] = str(args.politicaCancelamento); preview.push({ label: "Cancelamento", value: str(args.politicaCancelamento)! }); }
+        if (args.reservaInstantanea === true) { patch["instant_booking"] = true; preview.push({ label: "Reserva instantânea", value: "Ligar" }); }
+        if (args.reservaInstantanea === false) return { erro: "Desligar a reserva instantânea só é possível no Airbnb." };
+        const gc: Record<string, boolean> = {};
+        const gcRows: Array<[string, unknown, string]> = [
+          ["allows_children_as_host", args.aceitaCriancas, "Crianças"], ["allows_infants_as_host", args.aceitaBebes, "Bebês"],
+          ["allows_pets_as_host", args.aceitaPets, "Pets"], ["allows_events_as_host", args.aceitaFestas, "Festas e eventos"], ["allows_smoking_as_host", args.aceitaFumar, "Fumar"],
+        ];
+        for (const [k, v, label] of gcRows) if (typeof v === "boolean") { gc[k] = v; preview.push({ label, value: v ? "Permitido" : "Não permitido" }); }
+        if (Object.keys(gc).length) patch["guest_controls"] = gc;
+        const av: Record<string, number> = {};
+        const avRows: Array<[string, unknown, string]> = [
+          ["default_min_nights", args.estadiaMinima, "Estadia mínima"], ["default_max_nights", args.estadiaMaxima, "Estadia máxima"],
+          ["booking_lead_time", args.antecedenciaDias, "Antecedência (dias)"], ["max_days_notice", args.janelaReservasDias, "Janela de reservas (dias)"],
+        ];
+        for (const [k, v, label] of avRows) if (num(v) !== null) { av[k] = num(v)!; preview.push({ label, value: String(num(v)) }); }
+        if (Object.keys(av).length) patch["availability"] = av;
+        if (typeof args.publicado === "boolean") { patch["published"] = args.publicado; preview.push({ label: "Anúncio", value: args.publicado ? "Publicar" : "Despublicar" }); }
+        if (preview.length === 1) return { erro: "Nenhuma alteração informada." };
+        const action: AssistantAction = {
+          kind: "listing_settings",
+          payload: { propertyId, propertyName: preview[0]!.value, patch, allowPricing: false },
+        };
+        ctx.prepared.current = { action, confirmLabel: "Enviar ao Airbnb", preview };
+        return { pronto: true, resumo: preview };
+      },
+    },
     // ─────────────────────────── contexto ───────────────────────────
     {
       name: "data_de_hoje",

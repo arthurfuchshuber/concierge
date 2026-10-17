@@ -37,6 +37,7 @@ import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/Au
 import { createTask, deleteTasks, setTaskStatus, setTasksStatusBulk } from "@/lib/tasks.functions";
 import { advanceArrival, markNoShow, upsertArrivalStatus } from "@/lib/dashboard.functions";
 import { createRecordSituation } from "@/lib/reservation-records.functions";
+import { pushCalendarFn, pushListingSettingsFn } from "@/lib/listing-writeback.functions";
 import { extFor, inferKind } from "@/components/dashboard/record-draft";
 import { enviarMidia } from "@/lib/media-upload";
 import type { AssistantAsk, AssistantMessage, PendingAction } from "@/lib/assistant-types";
@@ -506,6 +507,17 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         await setStatusFn({
           data: { taskId: a.payload.taskId, status: a.payload.status },
         } as never);
+        return;
+      }
+      if (a.kind === "listing_settings" || a.kind === "calendar_change") {
+        const r =
+          a.kind === "listing_settings"
+            ? await pushListingSettingsFn({ data: { propertyId: a.payload.propertyId, patch: a.payload.patch, allowPricing: a.payload.allowPricing } } as never)
+            : await pushCalendarFn({
+                data: { propertyId: a.payload.propertyId, dateFrom: a.payload.dateFrom, dateTo: a.payload.dateTo, fields: a.payload.fields, allowPricing: a.payload.allowPricing },
+              } as never);
+        const res = r as { ok: boolean; errors: string[] };
+        if (!res.ok) throw new Error(res.errors?.[0] ?? "Não foi possível enviar ao Airbnb.");
         return;
       }
       if (a.kind === "set_prediction") {
