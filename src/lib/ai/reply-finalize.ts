@@ -22,9 +22,21 @@ export function redactHostMoney(text: string): string {
   return out || HOST_MONEY_FALLBACK;
 }
 
+const CONFIRMED_STAY = /\s*(?:a\s+)?(?:sua|seu|a|o)\s+(?:sa[ií]da|check-?out|check-?in|entrada)\s+(?:est[aá]|foi)\s+(?:confirmad[oa]|registrad[oa])[.!]?|\s*(?:Confirmamos|Registramos)\s+(?:a\s+|o\s+)?(?:sua\s+|seu\s+)?(?:sa[ií]da|check-?out|check-?in|entrada)[.!]?|\s*(?:Sa[ií]da|Check-?out|Check-?in)\s+confirmad[oa][.!]?/gi;
+
+/** Remove anúncios burocráticos de "saída confirmada" (pedido do anfitrião). */
+export function stripStayConfirmation(text: string): string {
+  if (!CONFIRMED_STAY.test(text)) return text;
+  CONFIRMED_STAY.lastIndex = 0;
+  return text.replace(CONFIRMED_STAY, (m, off: number, all: string) => {
+    const before = all.slice(0, off).trimEnd();
+    return /[!.?]$/.test(before) || before === "" ? "" : ".";
+  }).replace(/^\s+/, "").replace(/[ \t]+\n/g, "\n");
+}
+
 export function finalizeAgentReply(reply: string, channel: string | undefined | null): string {
   const text = (reply ?? "").trim();
   if (!text || (text.replace(/[\s.]/g, "").toUpperCase().includes("[SILENCIO]") && text.length < 40)) return "";
   void channel;
-  return redactHostMoney(text.replace(LEGACY_SIGNATURE, "").trim());
+  return redactHostMoney(stripStayConfirmation(text.replace(LEGACY_SIGNATURE, "").trim()));
 }
