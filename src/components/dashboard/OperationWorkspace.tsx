@@ -8293,67 +8293,186 @@ function OccupancyPanel({
       ? { from: blockSel.anchor, to: blockAddDays(blockSel.end, 1) }
       : { from: blockSel.end, to: blockAddDays(blockSel.anchor, 1) }
     : null;
-  /** Arrastar com o mouse (17/10/2026): botão apertado numa noite livre e solto em outra do MESMO imóvel
-   *  seleciona o intervalo enquanto se arrasta e, ao soltar, abre a janela "Bloquear datas". No toque
-   *  (celular) continua o "toque na 1ª e na última" — arrastar ali é rolar o calendário. */
+  /** CLIQUE-E-ARRASTA (reescrito em 17/10/2026, pedido explícito: "mais fácil, no desktop e no celular").
+   *  · Mouse/caneta: apertar numa noite livre e mover mais de 4px já começa a selecionar; soltar abre a
+   *    janela "Bloquear datas". Um clique parado continua sendo clique (toque na 1ª e na última noite).
+   *  · Celular: SEGURAR ~0,35s na noite (vibra de leve) e arrastar. Se o dedo andar antes disso, é só rolar
+   *    o calendário. Durante o arrasto a página não rola (ver o ouvinte de `touchmove` mais abaixo).
+   *  · A noite sob o dedo/mouse é lida na altura da LINHA do imóvel, então o ponteiro pode "tremer" para
+   *    cima/baixo sem perder a seleção — só o movimento horizontal conta.
+   *  · Chegando perto da borda do calendário ele rola sozinho para o lado.
+   *  · Se o caminho esbarra numa reserva ativa, a seleção PARA na última noite livre e avisa uma vez
+   *    (antes: congelava e ignorava o resto do arrasto). */
   const dragSuppressClickRef = useRef(false);
+  const dragActiveRef = useRef(false);
+  /** Linhas do "anúncio gêmeo" têm id composto (`<imóvel>__twin__<anúncio>`): o servidor e a lista de
+   *  bloqueios falam do IMÓVEL real. Bug real (17/10/2026): bloquear no anúncio 2 dava "Dados do bloqueio
+   *  incompletos (campo: propertyId)" porque esse id composto não é um código de imóvel. */
+  const baseId = (id: string) => id.split("__twin__")[0]!;
+  /** Seleção pronta (2+ noites): QUALQUER clique/toque fora da barra e da janela desmarca tudo na hora
+   *  (pedido explícito, 17/10/2026). O clique só desmarca — não começa outra seleção. */
+  const justClearedRef = useRef(false);
+  useEffect(() => {
+    if (!blockSel || blockSel.anchor === blockSel.end || blockOpen) return;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("[data-block-ui]")) return;
+      setBlockSel(null);
+      justClearedRef.current = true;
+      window.setTimeout(() => {
+        justClearedRef.current = false;
+      }, 350);
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [blockSel, blockOpen]);
+  useEffect(() => {
+    const stop = (e: TouchEvent) => {
+      if (dragActiveRef.current && e.cancelable) e.preventDefault();
+    };
+    document.addEventListener("touchmove", stop, { passive: false });
+    return () => document.removeEventListener("touchmove", stop);
+  }, []);
   function blockPointerDown(propertyId: string, day: string, ev: React.PointerEvent) {
-    if (!canBlock || ev.pointerType !== "mouse" || ev.button !== 0) return;
-    const target = ev.target as HTMLElement;
-    if (target.closest('[role="button"]') && target !== target.closest("[data-bc]")) return;
+    if (!canBlock || ev.button !== 0 || !ev.isPrimary) return;
+    if (justClearedRef.current) return;
     if (day < todayISO) return;
-    if ((blockPermQ.data?.blocks ?? []).some((b) => b.propertyId === propertyId && b.from <= day && day < b.to)) return;
+    if ((blockPermQ.data?.blocks ?? []).some((b) => b.propertyId === baseId(propertyId) && b.from <= day && day < b.to)) return;
     const stays = byProperty.get(propertyId) ?? [];
     if (firstBlockConflict(stays, day, blockAddDays(day, 1))) return;
+    const touch = ev.pointerType === "touch";
+    const cellEl = (ev.currentTarget as HTMLElement | null) ?? null;
+    if (!cellEl) return;
+    const rowRect = cellEl.getBoundingClientRect();
+    const rowY = rowRect.top + rowRect.height / 2;
+    // Quem rola de lado (o calendário) e a coluna fixa do nome (não conta como área de dias).
+    let scroller: HTMLElement | null = cellEl.parentElement;
+    while (scroller && !(scroller.scrollWidth > scroller.clientWidth + 1 && /(auto|scroll)/.test(getComputedStyle(scroller).overflowX))) {
+      scroller = scroller.parentElement;
+    }
+    const nameCol = cellEl.closest("tr")?.firstElementChild as HTMLElement | null;
+    const startX = ev.clientX;
+    const startY = ev.clientY;
+    let px = startX;
+    let active = false;
     let last = day;
-    let moved = false;
     let warned = false;
+    let timer = 0;
+    let raf = 0;
+    const prevSnap = scroller?.style.scrollSnapType ?? "";
+
+    const dayUnder = (): string | null => {
+      const el = document.elementFromPoint(px, rowY)?.closest<HTMLElement>("[data-bc]");
+      const [pid, d] = (el?.dataset.bc ?? "").split("|");
+      return el && pid === propertyId && d ? d : null;
+    };
+    const update = () => {
+      if (!active) return;
+      const d = dayUnder();
+      if (!d || d === last) return;
+      const dir = d >= day ? 1 : -1;
+      let cur = day;
+      while (cur !== d) {
+        const nxt = blockAddDays(cur, dir);
+        const lo = dir > 0 ? day : nxt;
+        const hi = dir > 0 ? nxt : day;
+        const hit = nxt < todayISO ? null : firstBlockConflict(stays, lo, blockAddDays(hi, 1));
+        if (nxt < todayISO || hit) {
+          if (!warned) {
+            warned = true;
+            toast.error("Não é possível bloquear", { description: hit ? conflictMessage(hit, lo) : "Escolha uma data a partir de hoje." });
+          }
+          break;
+        }
+        cur = nxt;
+      }
+      if (cur === last) return;
+      last = cur;
+      setBlockTap(null);
+      setBlockSel({ propertyId, anchor: day, end: cur });
+    };
+    const begin = () => {
+      if (active) return;
+      active = true;
+      dragActiveRef.current = true;
+      if (scroller) scroller.style.scrollSnapType = "none";
+      document.body.style.userSelect = "none";
+      setBlockTap(null);
+      setBlockOpen(false);
+      setBlockSel({ propertyId, anchor: day, end: day });
+      if (touch) navigator.vibrate?.(8);
+      tick();
+    };
+    // Rolagem automática para o lado quando o dedo/mouse chega perto da borda.
+    const tick = () => {
+      if (!active) return;
+      if (scroller) {
+        const r = scroller.getBoundingClientRect();
+        const left = Math.max(r.left, nameCol ? nameCol.getBoundingClientRect().right : r.left);
+        const ZONE = 44;
+        let dx = 0;
+        if (px > r.right - ZONE) dx = Math.min(18, ((px - (r.right - ZONE)) / ZONE) * 18);
+        else if (px < left + ZONE) dx = -Math.min(18, ((left + ZONE - px) / ZONE) * 18);
+        if (dx) {
+          scroller.scrollLeft += dx;
+          update();
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
     const onMove = (e: PointerEvent) => {
-      const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-bc]");
-      const [pid, d] = (cell?.dataset.bc ?? "").split("|");
-      if (!cell || pid !== propertyId || !d || d === last || d < todayISO) return;
-      const lo = day <= d ? day : d;
-      const hi = day <= d ? d : day;
-      const hit = firstBlockConflict(stays, lo, blockAddDays(hi, 1));
-      if (hit) {
-        if (!warned) {
-          warned = true;
-          toast.error("Não é possível bloquear", { description: conflictMessage(hit, lo) });
+      if (!e.isPrimary) return;
+      px = e.clientX;
+      if (!active) {
+        const dx = Math.abs(e.clientX - startX);
+        const dy = Math.abs(e.clientY - startY);
+        if (touch) {
+          if (dx > 8 || dy > 8) cleanup(false); // era para rolar a tela
+        } else if (dx > 4 || dy > 4) {
+          begin();
         }
         return;
       }
-      last = d;
-      if (d !== day) moved = true;
-      setBlockTap(null);
-      setBlockSel({ propertyId, anchor: day, end: d });
+      update();
     };
-    const onUp = () => {
+    const cleanup = (finish: boolean) => {
+      window.clearTimeout(timer);
+      cancelAnimationFrame(raf);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-      if (moved) {
+      window.removeEventListener("pointercancel", onCancel);
+      const wasActive = active;
+      active = false;
+      dragActiveRef.current = false;
+      document.body.style.userSelect = "";
+      if (scroller) scroller.style.scrollSnapType = prevSnap;
+      if (wasActive) {
         dragSuppressClickRef.current = true;
         window.setTimeout(() => {
           dragSuppressClickRef.current = false;
-        }, 0);
-        setBlockOpen(true);
+        }, 300);
+        // Arrastou por 2+ noites → já confirma. Só segurou (1 noite) → fica a barra para escolher a última.
+        if (finish && last !== day) setBlockOpen(true);
       }
     };
+    const onUp = () => cleanup(true);
+    const onCancel = () => cleanup(false);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    if (touch) timer = window.setTimeout(begin, 350);
   }
   function blockClick(propertyId: string, day: string, target: HTMLElement | null) {
     if (!canBlock) return;
-    if (dragSuppressClickRef.current) return;
+    if (dragSuppressClickRef.current || justClearedRef.current) return;
     // Clique numa reserva abre o histórico dela — não mexe na seleção.
     if (target?.closest('[role="button"]') && target !== target.closest("[data-bc]")) return;
     // Tocar numa noite JÁ bloqueada à mão (mockup 6): abre a barra "Bloqueado" com "Liberar datas".
-    const tapped = (blockPermQ.data?.blocks ?? []).find((b) => b.propertyId === propertyId && b.from <= day && day < b.to);
+    const tapped = (blockPermQ.data?.blocks ?? []).find((b) => b.propertyId === baseId(propertyId) && b.from <= day && day < b.to);
     if (tapped) {
       setBlockSel(null);
       setBlockOpen(false);
-      setBlockTap(tapped);
+      setBlockTap({ ...tapped, propertyId });
       return;
     }
     if (blockTap) setBlockTap(null);
@@ -8383,7 +8502,7 @@ function OccupancyPanel({
     if (!blockTap) return;
     setBlockBusy(true);
     try {
-      const r = await removeBlockFn({ data: { ownerId: blockOwnerId, propertyId: blockTap.propertyId, id: blockTap.id } });
+      const r = await removeBlockFn({ data: { ownerId: blockOwnerId, propertyId: baseId(blockTap.propertyId), id: blockTap.id } });
       if (r.connected && !r.ok) {
         toast.warning("Datas liberadas, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos.");
       } else {
@@ -8439,7 +8558,7 @@ function OccupancyPanel({
     setBlockBusy(true);
     try {
       const r = await createBlockFn({
-        data: { ownerId: blockOwnerId, propertyId: blockSel.propertyId, from: blockRange.from, to: blockRange.to, note },
+        data: { ownerId: blockOwnerId, propertyId: baseId(blockSel.propertyId), from: blockRange.from, to: blockRange.to, note },
       });
       if (r.connected && !r.ok) {
         toast.warning("Bloqueio salvo, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.");
@@ -8892,7 +9011,7 @@ function OccupancyPanel({
             /* DICA (mockup 2): some enquanto há seleção/bloqueio aberto. */
             <p className={`mb-3 flex items-center gap-1.5 text-[11px] text-muted-foreground ${blockSel || blockTap ? "hidden" : ""}`}>
               <CalendarX2 className="size-3 shrink-0" aria-hidden />
-              Toque numa noite livre e depois em outra para bloquear datas.
+              Toque numa noite livre e depois em outra — ou arraste (no celular, segure e arraste) — para bloquear datas.
             </p>
           )}
           {loading ? (
@@ -9228,7 +9347,7 @@ function OccupancyPanel({
                                   <div
                                     className={`relative flex h-6 w-full items-center ${
                                       canBlock
-                                        ? "cursor-pointer select-none rounded-[4px] hover:bg-foreground/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                                        ? "cursor-pointer select-none [-webkit-touch-callout:none] rounded-[4px] hover:bg-foreground/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                                         : ""
                                     }`}
                                     {...(canBlock
@@ -9239,6 +9358,8 @@ function OccupancyPanel({
                                           "aria-label": `Noite de ${d.slice(8, 10)}/${d.slice(5, 7)} · ${p.name}`,
                                           onFocus: () => setKbCell({ propertyId: p.id, day: d }),
                                           onPointerDown: (ev: React.PointerEvent) => blockPointerDown(p.id, d, ev),
+                                          // Segurar no celular abre o menu do sistema e cancela o arrasto.
+                                          onContextMenu: (ev: React.MouseEvent) => ev.preventDefault(),
                                           onClick: (ev: React.MouseEvent) => blockClick(p.id, d, ev.target as HTMLElement),
                                           onKeyDown: (e: React.KeyboardEvent) => {
                                             if (e.target !== e.currentTarget) return;
