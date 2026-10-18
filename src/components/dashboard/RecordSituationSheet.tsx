@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { track } from "@/lib/trail";
 import { comprimirImagem } from "@/lib/image-compress";
 import { comprimirVideo } from "@/lib/video-compress";
-import { ehFalhaDeRede, enviarMidia } from "@/lib/media-upload";
+import { chamarServidor, ehFalhaDeRede, enviarMidia } from "@/lib/media-upload";
 import { enfileirarSituacao } from "@/lib/offline/situation-outbox";
 import {
   apagarRascunho,
