@@ -1,3 +1,4 @@
+import { SituationOutboxRunner } from "@/components/dashboard/SituationOutboxRunner";
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Wrench, Home, Contact, Sparkles, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
@@ -616,6 +617,7 @@ function AdminLayout() {
           ) : (
             <>
               <LiveSync />
+              <SituationOutboxRunner />
               <Outlet />
             </>
           )}
