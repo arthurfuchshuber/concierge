@@ -1583,3 +1583,13 @@ dd {
 :is([role="dialog"], [role="alertdialog"]) .grid:not([class*="grid-cols"]):not([class*="grid-flow"]):not([class*="grid-rows"]):not([class*="subgrid"]) {
   grid-template-columns: minmax(0, 1fr);
 }
+
+/* Janelas grandes dos cards: sempre no centro da área visível; com teclado
+   aberto, no meio entre o topo do aparelho e o teclado. */
+.sg-vv-center[role="dialog"] {
+  top: var(--vv-center, 50%) !important;
+  --tw-translate-y: -50% !important;
+  translate: -50% -50% !important;
+  transform: none;
+  max-height: min(90dvh, calc(var(--vv-h, 100dvh) - 2rem)) !important;
+}
