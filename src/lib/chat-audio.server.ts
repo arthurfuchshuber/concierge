@@ -119,23 +119,26 @@ export async function loadAgentHistory(
 
   const { data } = await client
     .from("property_chat_messages")
-    .select("role, content, attachment_type, attachment_transcript, attachment_duration_ms")
+    .select("role, content, sender_type, is_internal_note, attachment_type, attachment_transcript, attachment_duration_ms")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
     .limit(limit);
 
   return ((data ?? []) as Array<Record<string, unknown>>)
-    .filter((m) => m.role === "user" || m.role === "assistant")
+    .filter((m) => (m.role === "user" || m.role === "assistant") && m.is_internal_note !== true)
     .reverse()
-    .map((m) => ({
-      role: String(m.role),
-      content: transcriptAsContent({
+    .map((m) => {
+      const text = transcriptAsContent({
         content: (m.content as string | null) ?? null,
         attachmentType: (m.attachment_type as string | null) ?? null,
         transcript: (m.attachment_transcript as string | null) ?? null,
         durationMs: (m.attachment_duration_ms as number | null) ?? null,
-      }),
-    }))
+      });
+      // Fala da equipe humana fica identificada: a IA precisa saber o que a
+      // equipe já combinou com o hóspede para não contradizer nem reabrir.
+      const human = m.role === "assistant" && m.sender_type === "human" && text.trim();
+      return { role: String(m.role), content: human ? `[Mensagem da equipe humana do anfitrião]: ${text}` : text };
+    })
     .filter((m) => m.content.trim().length > 0);
 }
 
