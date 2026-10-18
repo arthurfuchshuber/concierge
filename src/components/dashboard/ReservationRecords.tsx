@@ -1,3 +1,6 @@
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
+import { ClampName } from "@/components/ui/clamp-name";
+import { enfileirarSituacao } from "@/lib/offline/situation-outbox";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -358,42 +361,26 @@ function RecordEditDialog({
     }
     setEnviando(true);
     try {
-      const token = await garantirToken();
-      if (!token) {
-        toast.error("Sua sessão expirou. Entre de novo e tente outra vez.");
-        return;
-      }
+      // Mesma fila do aparelho do registro novo: guarda e envia em segundo
+      // plano, retomando sozinha se a internet cair.
       const mime = file.type || "application/octet-stream";
-      const kind = inferKind(mime);
-      const folder = target.logId ?? target.reservationId ?? "avulso";
-      const path = `${propertyId}/${folder}/${crypto.randomUUID()}.${extFor(kind, mime)}`;
-      const r = await enviarMidia({
-        bucket: "reservation-records",
-        path,
-        blob: file,
-        contentType: mime,
+      const ok = await enfileirarSituacao({
+        groupId,
+        criadoEm: Date.now(),
+        propertyId,
+        logId: target.logId,
+        reservationId: target.reservationId,
+        category: head.category,
+        title: (head.body ?? "").split("\n")[0] || null,
+        description: null,
+        criada: true,
+        midias: [{ key: crypto.randomUUID(), blob: file, kind: inferKind(mime), mime, name: file.name || null, durationMs: null }],
       });
-      if (!r.ok) {
-        toast.error(r.mensagem);
+      if (!ok) {
+        toast.error("Não consegui guardar o arquivo no aparelho. Libere espaço e tente de novo.");
         return;
       }
-      await chamarServidor(() =>
-        appendFn({
-          data: {
-            groupId,
-            propertyId,
-            path,
-            kind,
-            mime,
-            sizeBytes: file.size,
-            durationMs: null,
-          },
-        }),
-      );
-      toast.success("Adicionado ao registro.");
-      refresh();
-    } catch (e) {
-      toast.error((e as Error).message || "Não consegui adicionar.");
+      toast.message("Arquivo guardado — enviando em segundo plano.");
     } finally {
       setEnviando(false);
     }
@@ -999,8 +986,12 @@ export function ReservationRecordsDialog({
                 ? row.guestName
                 : "Registros da reserva"}
             </DialogTitle>
-            <div className="ds-meta mt-0.5 flex flex-wrap items-center gap-x-1.5 truncate">
-              <span className="truncate">{row.propertyName ?? "Imóvel"}</span>
+            {/* Regra global (18/10/2026): imóvel sempre com proprietário + chat. */}
+            <div className="mt-0.5">
+              <OwnerLine name={row.ownerName} phone={row.ownerPhone} country={row.ownerPhoneCountry} phonePosition="adjacent" />
+            </div>
+            <div className="ds-meta mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5">
+              <ClampName text={row.propertyName ?? "Imóvel"} className="max-w-full" />
               {records.length > 0 && (
                 <>
                   <span className="opacity-50">·</span>

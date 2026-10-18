@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarCheck2, CalendarX2, Loader2, MessageSquare, X } from "lucide-react";
+import { CalendarCheck2, CalendarX2, Loader2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   ResponsiveDialog,
@@ -12,7 +12,8 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { blockNights, ddmmISO } from "@/lib/manual-block-conflict";
-import { ownerLabel } from "@/components/dashboard/card-colors";
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
+import { ClampName } from "@/components/ui/clamp-name";
 
 /**
  * BLOQUEIO POR SELEÇÃO NO CALENDÁRIO (17/10/2026, mockups "Calendário" e
@@ -23,18 +24,13 @@ import { ownerLabel } from "@/components/dashboard/card-colors";
 
 export type BlockSelection = { propertyId: string; from: string; to: string };
 
-type Ctx = { propertyName: string; ownerName: string | null; city: string | null };
-
-function OwnerLine({ ownerName }: { ownerName: string | null }) {
-  const label = ownerLabel(ownerName);
-  if (!label) return null;
-  return (
-    <span className="flex items-center gap-1 text-[12px] text-muted-foreground">
-      {label}
-      <MessageSquare className="size-3" aria-hidden />
-    </span>
-  );
-}
+type Ctx = {
+  propertyName: string;
+  ownerName: string | null;
+  ownerPhone?: string | null;
+  ownerPhoneCountry?: string | null;
+  city: string | null;
+};
 
 /* BOTÕES DAS JANELAS DO DASHBOARD — mesmos do rodapé de "Criar pendência"
    (OperationWorkspace): `ds-surface` (12px), h-9, Cancelar fantasma e o
@@ -153,10 +149,14 @@ export function CalendarBlockDialog({
         </ResponsiveDialogHeader>
         <div className={cn("space-y-3 pt-3", isMobile ? "pb-1" : "px-5")}>
           <div className="rounded-[14px] border border-border bg-muted/20 px-3.5 py-3">
-            <p className="break-words text-[13px] font-bold leading-snug">{ctx.propertyName}</p>
-            <div className="mt-0.5">
-              <OwnerLine ownerName={ctx.ownerName} />
-            </div>
+            {/* Regra global (18/10/2026): proprietário + chat acima, título em 1 linha. */}
+            <OwnerLine
+              name={ctx.ownerName}
+              phone={ctx.ownerPhone ?? null}
+              country={ctx.ownerPhoneCountry ?? null}
+              phonePosition="adjacent"
+            />
+            <ClampName text={ctx.propertyName} className="text-[13px] font-bold leading-snug" />
             {ctx.city ? <p className="text-[11.5px] text-muted-foreground">{ctx.city}</p> : null}
           </div>
           <div className="grid grid-cols-3 gap-2">

@@ -431,7 +431,7 @@ export function OwnerPropertyWindow({
         side={isMobile ? "bottom" : "right"}
         className={
           isMobile
-            ? "w-full max-h-[75dvh] overflow-y-auto rounded-t-[var(--win-radius)] p-0"
+            ? "w-full max-h-[90dvh] overflow-y-auto rounded-t-[var(--win-radius)] p-0"
             : "w-full overflow-y-auto p-0 sm:max-w-xl"
         }
       >

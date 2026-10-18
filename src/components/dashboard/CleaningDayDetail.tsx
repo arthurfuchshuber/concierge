@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { setCleaningPriceOverride, setCleaningType } from "@/lib/cleaning-price.functions";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { ownerLabel } from "@/components/dashboard/card-colors";
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
+import { ClampName } from "@/components/ui/clamp-name";
 import { ownerPropertyLabel } from "@/lib/owner-gender";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
@@ -49,6 +50,8 @@ export type CleaningForecastItem = {
   date: string;
   propertyName: string;
   ownerName: string | null;
+  ownerPhone?: string | null;
+  ownerPhoneCountry?: string | null;
   timeLabel: string | null;
   guestName: string | null;
   estimateCents: number;
@@ -104,17 +107,25 @@ function timeSP(iso: string | null): string | null {
 const TH = "pb-2.5 text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground";
 const TD = "border-t border-border/60 py-3 align-top text-[12.5px]";
 
-function PropertyCell({ name, owner }: { name: string; owner: string | null }) {
+/**
+ * REGRA GLOBAL (18/10/2026): proprietário + ícone de chat acima, título do
+ * anúncio em UMA linha com reticências (toque mostra o nome completo).
+ */
+function PropertyCell({
+  name,
+  owner,
+  phone = null,
+  country = null,
+}: {
+  name: string;
+  owner: string | null;
+  phone?: string | null;
+  country?: string | null;
+}) {
   return (
-    <td className={`${TD} pr-2`}>
-      <span className="block break-words font-bold" title={name}>
-        {name}
-      </span>
-      {ownerLabel(owner) && (
-        <span className="mt-0.5 block break-words text-[11.5px] font-semibold text-foreground/80">
-          {ownerLabel(owner)}
-        </span>
-      )}
+    <td className={`${TD} pr-2`} style={{ maxWidth: 0, width: "60%" }}>
+      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" />
+      <ClampName text={name} className="font-bold" />
     </td>
   );
 }
@@ -128,25 +139,23 @@ function PropertyCell({ name, owner }: { name: string; owner: string | null }) {
 function DoneCell({
   name,
   owner,
+  phone = null,
+  country = null,
   action,
   children,
 }: {
   name: string;
   owner: string | null;
+  phone?: string | null;
+  country?: string | null;
   action: string | null;
   children: React.ReactNode;
 }) {
   const ownerText = ownerPropertyLabel(owner);
   return (
     <td className={`${TD} pr-2`} style={{ maxWidth: 0, width: "100%" }}>
-      <span className="block truncate font-bold" title={name}>
-        {name}
-      </span>
-      {ownerText && (
-        <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-foreground/80" title={ownerText}>
-          {ownerText}
-        </span>
-      )}
+      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" label={ownerText} />
+      <ClampName text={name} className="font-bold" />
       {action && (
         <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-foreground/80" title={action}>
           {action}
@@ -180,7 +189,7 @@ export function CleaningDayDetail(props: Parameters<typeof CleaningDayDetailCont
     <Dialog open onOpenChange={(v) => { if (!v) props.onClose(); }}>
       <DialogContent
         aria-label="Detalhe do dia"
-        className="flex max-h-[75dvh] w-[calc(100vw-2rem)] flex-col sm:max-w-md gap-0 p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden"
+        className="flex max-h-[90dvh] w-[calc(100vw-2rem)] flex-col sm:max-w-md gap-0 p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden"
       >
         <DialogTitle className="sr-only">Detalhe do dia</DialogTitle>
         <CleaningDayDetailContent {...props} />
@@ -235,7 +244,7 @@ export function CleaningDayDetailContent({
         <tbody>
           {rows.map((r) => (
             <tr key={r.id}>
-              <PropertyCell name={r.propertyName} owner={r.ownerName} />
+              <PropertyCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} />
               <td className={`${TD} pr-2`}>
                 <span className="block font-bold">{r.timeLabel ?? "—"}</span>
                 {r.guestName && (
@@ -286,7 +295,7 @@ export function CleaningDayDetailContent({
                 .join(" · ");
               return (
                 <tr key={r.id}>
-                  <DoneCell name={r.propertyName} owner={r.ownerName} action={action}>
+                  <DoneCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} action={action}>
                     <TypeToggle
                       statusId={r.id}
                       type={r.cleaningType}
@@ -321,6 +330,8 @@ export function CleaningDayDetailContent({
         key: string;
         name: string;
         owner: string | null;
+        phone: string | null;
+        country: string | null;
         count: number;
         cents: number;
         types: Set<string>;
@@ -332,6 +343,8 @@ export function CleaningDayDetailContent({
           key: r.propertyId,
           name: r.propertyName,
           owner: r.ownerName,
+          phone: r.ownerPhone ?? null,
+          country: r.ownerPhoneCountry ?? null,
           count: 0,
           cents: 0,
           types: new Set<string>(),
@@ -347,6 +360,8 @@ export function CleaningDayDetailContent({
           key: `pending:${r.id}`,
           name: r.propertyName,
           owner: r.ownerName,
+          phone: r.ownerPhone ?? null,
+          country: r.ownerPhoneCountry ?? null,
           count: 1,
           cents: r.priceCents ?? 0,
           types: new Set(["completa"]),
@@ -373,7 +388,7 @@ export function CleaningDayDetailContent({
           <tbody>
             {aggs.map((a) => (
               <tr key={a.key}>
-                <PropertyCell name={a.name} owner={a.owner} />
+                <PropertyCell name={a.name} owner={a.owner} phone={a.phone} country={a.country} />
                 <td className={`${TD} px-2 text-center font-bold`}>{a.count}</td>
                 <td className={`${TD} pr-2`}>
                   {a.types.size > 1 ? (

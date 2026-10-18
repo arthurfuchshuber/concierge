@@ -720,7 +720,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             fullScreen
               ? "h-dvh max-h-none w-full max-w-none overflow-y-auto rounded-none border-0 p-0 sm:max-w-none"
               : isMobile
-                ? "w-full max-h-[75dvh] rounded-t-[var(--win-radius)] overflow-y-auto p-0"
+                ? "w-full max-h-[90dvh] rounded-t-[var(--win-radius)] overflow-y-auto p-0"
                 : "w-full sm:max-w-3xl overflow-y-auto p-0"
           }
         >

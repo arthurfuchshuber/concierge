@@ -141,6 +141,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar as RangeCalendar } from "@/components/ui/calendar";
+import { ClampName } from "@/components/ui/clamp-name";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import {
@@ -218,7 +219,7 @@ import {
   type CleaningDailyPoint,
   type FreeProperty,
 } from "@/lib/dashboard.functions";
-import { sortCheckinRowsCore, sortCheckoutRows } from "@/lib/arrival-sorting";
+import { sortCheckinRowsCore, sortCheckoutRows, sortCleaningRows } from "@/lib/arrival-sorting";
 import {
   listTaskLinkOptions,
   listTasks,
@@ -1556,8 +1557,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     const done = coRows.filter((r) => r.status === "done");
     const seen = new Set(done.map((r) => r.logId));
     const early = (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "done" && !seen.has(r.logId));
-    const released = sortCheckoutRows([...done, ...early], turnoverCheckinSources, todayISO);
-    const awaiting = sortCheckoutRows(
+    const released = sortCleaningRows([...done, ...early], turnoverCheckinSources, todayISO);
+    const awaiting = sortCleaningRows(
       coRows.filter((r) => r.status === "pending"),
       turnoverCheckinSources,
       todayISO,
@@ -1816,6 +1817,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         date: r.date,
         propertyName: r.propertyName ?? "Imóvel",
         ownerName: r.ownerName ?? null,
+        ownerPhone: r.ownerPhone ?? null,
+        ownerPhoneCountry: r.ownerPhoneCountry ?? null,
         timeLabel: r.arrivalTimeOverride ?? r.standardTime ?? r.propertyCheckoutTime ?? null,
         guestName: r.guestName || null,
         estimateCents: estimate,
@@ -4340,7 +4343,7 @@ function useWholeCardsMaxHeight(key: unknown) {
       // (cabeçalho/abas) para a janela não passar de 75% da tela.
       const win = node.closest<HTMLElement>('[role="dialog"]');
       const chrome = win ? Math.max(0, win.offsetHeight - node.offsetHeight) : 0;
-      const cap = Math.max(120, Math.round(window.innerHeight * 0.75) - chrome);
+      const cap = Math.max(120, Math.round(window.innerHeight * 0.9) - chrome);
       const tops = items.map((i) => absoluteTop(i) - base);
       const bottoms = items.map((i) => absoluteTop(i) + i.offsetHeight - base);
       const total = bottoms[bottoms.length - 1];
@@ -4636,7 +4639,7 @@ function KpiCard({
            relatado, 23/09/2026: "os tooltips saíram do centro"). O `fixed`
            da base já é "positioned" o bastante para o `before:absolute` do
            fio de luz funcionar sem precisar de `relative` extra aqui. */
-        className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
+        className="sg-vv-center w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
       >
         <DialogHeader className="px-5 pt-5 pb-0">
           <div className="flex items-center gap-3">
@@ -4672,8 +4675,7 @@ function KpiCard({
             list.ref(el);
             screenshotRef.current = el;
           }}
-          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[75dvh] overflow-y-auto px-3 pt-3"
+          className="sg-elegant-scroll max-h-[90dvh] overflow-y-auto px-3 pt-3"
         >
           {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
@@ -4858,7 +4860,7 @@ function FreePropertiesCard({
           lista rola e o anticorte global (`useAntiClipWindow`) encolhe a área
           até o último cartão inteiro. Cada imóvel leva "Proprietário: nome" +
           mensagem e o botão do Maps (regra de todo lugar que cita um anúncio). */}
-      <DialogContent className="flex max-h-[75dvh] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
+      <DialogContent className="sg-vv-center flex max-h-[90dvh] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
         <DialogHeader className="shrink-0 px-5 pt-5 pb-0">
           <DialogTitle className="text-base font-display">Imóveis livres {dayLabel}</DialogTitle>
         </DialogHeader>
@@ -4930,10 +4932,14 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
             return (
               <li key={item.propertyId} className="flex items-center gap-3 rounded-[10px] border border-border bg-muted/20 px-3 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="break-words text-[13px] font-bold leading-snug">{item.propertyName}</p>
-                  {ownerLabel(item.ownerName) && (
-                    <p className="mt-0.5 break-words text-[11.5px] font-semibold text-foreground/80">{ownerLabel(item.ownerName)}</p>
-                  )}
+                  {/* Regra global (18/10/2026): proprietário + chat acima, título em 1 linha. */}
+                  <OwnerLine
+                    name={item.ownerName}
+                    phone={item.ownerPhone ?? null}
+                    country={item.ownerPhoneCountry ?? null}
+                    phonePosition="adjacent"
+                  />
+                  <ClampName text={item.propertyName} className="text-[13px] font-bold leading-snug" />
                 </div>
                 <p className="shrink-0 text-right text-[13px] font-bold tabular-nums">{centsToBRL(item.totalCents)}</p>
               </li>
@@ -5028,7 +5034,7 @@ function StatDisplayCard({
     {clickable && (
       detailItems && detailItems.length > 0 ? (
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="flex flex-col w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden">
+        <DialogContent className="sg-vv-center flex flex-col w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden">
           <DialogTitle className="sr-only">{label}</DialogTitle>
           <CleaningDayDetailContent
             date="all"
@@ -6906,7 +6912,7 @@ export function TasksDialog({
           <div
             ref={scroll.ref}
             style={scroll.maxHeight !== undefined ? { maxHeight: scroll.maxHeight } : undefined}
-            className="sg-elegant-scroll max-h-[75dvh] overflow-y-auto px-5 pb-5 space-y-3"
+            className="sg-elegant-scroll max-h-[90dvh] overflow-y-auto px-5 pb-5 space-y-3"
           >
             {loading ? (
               <div className="py-12 grid place-items-center text-muted-foreground">
@@ -7951,6 +7957,8 @@ function OccupancyPanel({
     name: string;
     city: string | null;
     ownerName?: string | null;
+    ownerPhone?: string | null;
+    ownerPhoneCountry?: string | null;
     /** Foto de capa do imóvel — a prévia que abre no nome. */
     heroImageUrl?: string | null;
   }>;
@@ -9598,7 +9606,13 @@ function OccupancyPanel({
       {blockSel && blockRange && (() => {
         const bp = properties.find((x) => x.id === blockSel.propertyId);
         if (!bp) return null;
-        const ctx = { propertyName: bp.name, ownerName: bp.ownerName ?? null, city: bp.city };
+        const ctx = {
+          propertyName: bp.name,
+          ownerName: bp.ownerName ?? null,
+          ownerPhone: bp.ownerPhone ?? null,
+          ownerPhoneCountry: bp.ownerPhoneCountry ?? null,
+          city: bp.city,
+        };
         return (
           <>
             {!blockOpen && (
@@ -9626,7 +9640,13 @@ function OccupancyPanel({
       {blockTap && (() => {
         const bp = properties.find((x) => x.id === blockTap.propertyId);
         if (!bp) return null;
-        const ctx = { propertyName: bp.name, ownerName: bp.ownerName ?? null, city: bp.city };
+        const ctx = {
+          propertyName: bp.name,
+          ownerName: bp.ownerName ?? null,
+          ownerPhone: bp.ownerPhone ?? null,
+          ownerPhoneCountry: bp.ownerPhoneCountry ?? null,
+          city: bp.city,
+        };
         return (
           <>
             {!releaseOpen && (
@@ -10103,16 +10123,19 @@ function ArrivalGroupPanel({
 }) {
   const { dot } = GROUP_TONE[tone];
   return (
-    <section aria-label={label} className={`${PANEL_SHELL} px-2.5 pb-2.5 pt-2.5`}>
-      {/* SEM os fios dos dois lados (pedido explícito, 24/09/2026, print
-          marcado com duas setas em cima das linhas) — o bloco
-          pontinho+rótulo+contagem continua centralizado, só sem o traço. */}
-      <div className="mb-2.5 flex items-center justify-center gap-2.5 px-1">
+    /* SEM painel de fundo (pedido explícito, 18/10/2026: "essa barra de
+       fundo seja removida"). O grupo é só o rótulo centralizado — pontinho +
+       RÓTULO + contagem, com fios que somem para os dois lados — e os cards
+       logo abaixo. */
+    <section aria-label={label} className="flex flex-col gap-3">
+      <div className="flex items-center gap-2.5 px-1">
+        <span aria-hidden className="h-px flex-1 bg-gradient-to-r from-transparent to-border" />
         <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: dot }} />
         <span className="ds-eyebrow shrink-0 text-[10px] tracking-[0.2em] text-muted-foreground">{label}</span>
         <CountPill>{count}</CountPill>
+        <span aria-hidden className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
       </div>
-      <div className="flex flex-col gap-3 px-1 pb-1">{children}</div>
+      <div className="flex flex-col gap-3">{children}</div>
     </section>
   );
 }
@@ -10224,7 +10247,9 @@ function ArrivalGroup({
   const atrasado = (r: ArrivalRow) => r.status !== "done" && r.date < hojeISO;
   const atrasados = rows.filter(atrasado);
   const noPrazo = rows.filter((r) => !atrasado(r));
-  const separar = atrasados.length > 0 && noPrazo.length > 0;
+  // Os rótulos só aparecem quando há ALGUM card em atraso (pedido explícito,
+  // 18/10/2026) e nunca em Concluídos / Não compareceu.
+  const separar = atrasados.length > 0 && mode !== "done" && mode !== "no_show";
 
   const cartaoEstadia = (r: ArrivalRow) => (
     <ArrivalCard
@@ -10268,9 +10293,11 @@ function ArrivalGroup({
           <ArrivalGroupPanel tone="late" label="Atrasados" count={atrasados.length}>
             {atrasados.map(cartao)}
           </ArrivalGroupPanel>
-          <ArrivalGroupPanel tone={kind} label={restLabel ?? "No prazo"} count={noPrazo.length}>
-            {noPrazo.map(cartao)}
-          </ArrivalGroupPanel>
+          {noPrazo.length > 0 && (
+            <ArrivalGroupPanel tone={kind} label={restLabel ?? "No prazo"} count={noPrazo.length}>
+              {noPrazo.map(cartao)}
+            </ArrivalGroupPanel>
+          )}
         </>
       ) : (
         rows.map(cartao)
@@ -10518,7 +10545,12 @@ function ArrivalCard({
   // e checkin pendente é azul.
   // A regra vive em card-colors.ts — é o mesmo padrão que os outros cards do
   // sistema passaram a usar (pedido explícito, 08/09/2026).
-  const periodoColorClass = periodColorClass({ overdue: isOverdue && !visualDone, kind, done });
+  // Concluídos / Não compareceu: período e linha "Permitido" em cinza neutro
+  // (padrão Kanban, 18/10/2026) — sem laranja/verde/azul de etapa.
+  const neutralTone = mode === "done" || mode === "no_show";
+  const periodoColorClass = neutralTone
+    ? "text-muted-foreground"
+    : periodColorClass({ overdue: isOverdue && !visualDone, kind, done });
   // Trava real do botão "Check-in realizado!": usa a data CONFIRMADA da
   // reserva (`row.guestCheckin`), nunca a prevista (`row.date`, que já pode
   // estar sobrescrita pela previsão de chegada). Uma previsão pra um dia
@@ -10650,7 +10682,7 @@ function ArrivalCard({
   const dropArrival = checkinConfirmed && rawPrimary?.kind === "checkin";
   const predictionPrimary = dropArrival ? rawSecondary : rawPrimary;
   const predictionSecondary = dropArrival ? null : rawSecondary?.kind === "checkin" && checkinConfirmed ? null : rawSecondary;
-  const predictionTime = predictionPrimary?.timeValue ?? null;
+  const predictionTime = mode === "done" || mode === "no_show" ? null : (predictionPrimary?.timeValue ?? null);
   const predictionDay = predictionDayLabel(
     predictionPrimary?.dateValue ||
       (predictionPrimary?.kind === "checkout" ? row.guestCheckout : row.guestCheckin) ||
@@ -10779,22 +10811,53 @@ function ArrivalCard({
    * mundo — por isso é montado uma vez só, fora da área expansível.
    */
   const periodoBlock = (
+    /* PERÍODO + SETA NA MESMA LINHA (pedido explícito, 18/10/2026): a seta
+       que ficava numa faixa abaixo do card veio para logo depois das datas.
+       Clicar no período OU na seta abre/recolhe o card. Recolhido, as datas
+       são texto simples (o clique chega ao card e alterna); aberto, voltam a
+       ser editáveis (DateEditor é um botão e, por isso, não alterna). */
     <div className={`flex flex-wrap items-center gap-1.5 text-[11.5px] tabular-nums ${periodoColorClass}`}>
-      <DateEditor
-        value={row.guestCheckin}
-        disabled={busy || isPendingFill}
-        onChange={(v) => onEditDates(row, { checkinDate: v })}
-      />
-      {row.guestCheckout && (
+      {openFull ? (
         <>
-          <span>→</span>
           <DateEditor
-            value={row.guestCheckout}
+            value={row.guestCheckin}
             disabled={busy || isPendingFill}
-            onChange={(v) => onEditDates(row, { checkoutDate: v })}
+            onChange={(v) => onEditDates(row, { checkinDate: v })}
           />
+          {row.guestCheckout && (
+            <>
+              <span>→</span>
+              <DateEditor
+                value={row.guestCheckout}
+                disabled={busy || isPendingFill}
+                onChange={(v) => onEditDates(row, { checkoutDate: v })}
+              />
+            </>
+          )}
+        </>
+      ) : (
+        <>
+          <span>{row.guestCheckin ? fmtDateBR(row.guestCheckin) : "—"}</span>
+          {row.guestCheckout && (
+            <>
+              <span>→</span>
+              <span>{fmtDateBR(row.guestCheckout)}</span>
+            </>
+          )}
         </>
       )}
+      <button
+        type="button"
+        aria-label={openFull ? "Recolher card" : "Expandir card"}
+        aria-expanded={openFull}
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleOpenFull();
+        }}
+        className="inline-grid size-4 place-items-center rounded text-muted-foreground/70 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+      >
+        <ChevronDown className={`size-3.5 transition-transform duration-200 ${openFull ? "rotate-180" : ""}`} />
+      </button>
     </div>
   );
 
@@ -10804,6 +10867,7 @@ function ArrivalCard({
       // aparece dentro de um popup de indicador (KpiCard) — inofensivo aqui
       // no Kanban, que não usa esse hook.
       data-whole-card
+      data-clip-row
       /* Visão Lista: o card inteiro abre o histórico da reserva (pedido
          explícito).
          O guarda abaixo é o que torna isso seguro. O card carrega botões que
@@ -10851,7 +10915,7 @@ function ArrivalCard({
          próprio `rounded-l`. E `isolate` cria o contexto de empilhamento do
          card, para a etiqueta ficar acima do card de cima sem depender da
          ordem em que os cards aparecem no DOM. */
-      className="group relative isolate flex cursor-pointer snap-start flex-col rounded-[10px] border border-border bg-muted/20 p-3 pl-3.5 pb-0 gap-2 transition-colors hover:bg-muted/35"
+      className="group relative isolate flex cursor-pointer snap-start flex-col rounded-[10px] border border-border bg-muted/20 p-3 pl-3.5 gap-2 transition-colors hover:bg-muted/35"
     >
       <CleaningPriceDialog
         open={priceOpen}
@@ -10990,9 +11054,9 @@ function ArrivalCard({
           />
           {/* O IMÓVEL é o título do card. O proprietário fica acima, menor e
               no rosa da marca: identifica sem disputar a leitura. */}
-          <div className="ds-card-title truncate" title={row.propertyName ?? undefined}>
-            {row.propertyName ?? "Sem nome"}
-          </div>
+          {/* Título SEMPRE em 1 linha com reticências (18/10/2026); tocar no
+              título cortado mostra o nome completo. */}
+          <ClampName text={row.propertyName ?? "Sem nome"} className="ds-card-title leading-tight" />
 
           {/* PERÍODO SEMPRE VISÍVEL, card aberto ou recolhido (pedido
               explícito, 24/09/2026: "coloque o período abaixo do título do
@@ -11000,6 +11064,18 @@ function ArrivalCard({
               para "Em Estadia" (23/09/2026); agora vale para toda lista —
               Checkouts, Check-ins, Limpeza — não só quando o card está aberto. */}
           {periodoBlock}
+          {/* "CHECK-IN PERMITIDO ENTRE…" logo abaixo do período, em TODOS os
+              status (18/10/2026). Pendentes: cor da etapa (vermelho atrasado /
+              azul no prazo); Concluídos e Não compareceu: cinza neutro. */}
+          {showPrediction && allowedPhrase && (
+            <div className={`flex items-baseline gap-1 text-[9.5px] font-bold uppercase tracking-wide ${periodoColorClass}`}>
+              {!cleaningWindowPhrase && predictionPrimary && (
+                <span>{predictionPrimary.kind === "checkout" ? "Checkout" : "Check-in"}</span>
+              )}
+              <span>Permitido</span>
+              <span className="font-semibold">{allowedPhrase}</span>
+            </div>
+          )}
         </div>
 
         {/* A COLUNA DA PREVISÃO — rótulo, horário, dia. Largura fixa de 78px
@@ -11024,8 +11100,8 @@ function ArrivalCard({
                    previsão (texto de horário, onde o destaque de fundo
                    continua fazendo sentido); o `group` deixa o ícone reagir
                    ao hover do botão sem precisar de estado próprio. */
-                className={`group w-[78px] shrink-0 rounded-[0.3rem] px-0.5 py-0.5 text-right transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed ${
-                  predictionTime ? "hover:bg-foreground/[0.05]" : ""
+                className={`group shrink-0 rounded-[0.3rem] py-0.5 text-right transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed ${
+                  predictionTime ? "w-[78px] px-0.5 hover:bg-foreground/[0.05]" : "w-7"
                 }`}
               >
                 {/* Com previsão, o rótulo "PREVISÃO" encima o horário. SEM
@@ -11201,25 +11277,6 @@ function ArrivalCard({
           explícito, mesma data: "remova o icone ao lado esquerdo... e
           alinhe a frase à esquerda do nome do hospede"). `-mt-1` mantém o
           mesmo respiro de 4px das outras linhas (o card usa gap-2). */}
-      {/* Só o passo ATUAL mostra o horário permitido: ao avançar, a linha do passo
-          anterior some (check-in feito → só o checkout; checkout feito /
-          concluído / não compareceu → nenhuma). Pedido de 16/10/2026. */}
-      {showPrediction && allowedPhrase && mode !== "done" && mode !== "no_show" && (
-        <div className={`-mt-1 flex items-baseline gap-1 text-[9.5px] font-bold uppercase tracking-wide ${periodoColorClass}`}>
-          {/* "CHECK-IN PERMITIDO ENTRE…" / "CHECKOUT PERMITIDO ATÉ…" (pedido
-              explícito, 16/10/2026): a frase diz de qual horário se trata, em
-              texto corrido, sem separador. Na Fila de Limpeza (janela livre
-              para limpar) continua só "Permitido…". A COR é a do status atual
-              (a mesma do período logo acima: azul chegada, verde estadia,
-              laranja saída, vermelho atrasado — pedido de 16/10/2026). */}
-          {!cleaningWindowPhrase && predictionPrimary && (
-            <span>{predictionPrimary.kind === "checkout" ? "Checkout" : "Check-in"}</span>
-          )}
-          <span>Permitido</span>
-          <span className="font-semibold">{allowedPhrase}</span>
-        </div>
-      )}
-
       {/* Alertas de conferência com o Airbnb (iCal) — divergência de datas,
           reserva não encontrada e horário fora da janela padrão, com correção
           em um clique. Some no modo "Lista" (pedido explícito). */}
@@ -11390,19 +11447,19 @@ function ArrivalCard({
           <span
             title="Esteira concluída"
             aria-label="Esteira concluída"
-            className="inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-[0.3rem] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-semibold h-7 px-2.5 text-[11px]"
+            className="inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-[0.3rem] bg-muted/40 text-muted-foreground border border-border/60 font-semibold h-7 px-2.5 text-[11px]"
           >
-            <CheckCircle2 className="size-3 shrink-0" />
+            <CheckCircle2 className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <span className="truncate">Concluído</span>
           </span>
         ) : mode === "no_show" ? (
           <span
             title="Hóspede não compareceu"
             aria-label="Hóspede não compareceu"
-            className="inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-[0.3rem] bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 font-semibold h-7 px-2.5 text-[11px]"
+            className="inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-[0.3rem] bg-muted/40 text-muted-foreground border border-border/60 font-semibold h-7 px-2.5 text-[11px]"
           >
-            <UserX className="size-3 shrink-0" />
-            <span className="truncate">Não veio</span>
+            <UserX className="size-3 shrink-0 text-rose-600 dark:text-rose-400" />
+            <span className="truncate">Não compareceu</span>
           </span>
         ) : (
           <button
@@ -11492,7 +11549,7 @@ function ArrivalCard({
                 mesma regra de reticências quando não couber"). Continua uma
                 linha só, com `truncate`: quem cede largura é o texto, nunca os
                 ícones ao lado. */}
-            <span className="truncate">
+            <span className="truncate text-[clamp(10px,2.9vw,12px)] tracking-[-0.01em]">
               {awaitingCheckout
                 ? "Aguardando Check-Out"
                 : mode === "cleaning"
@@ -11501,7 +11558,7 @@ function ArrivalCard({
                     ? "Concluir Check-Out"
                     : done
                       ? "Reabrir"
-                      : "Concluir Check-In"}
+                      : <><span className="max-[400px]:hidden">Concluir </span>Check-In</>}
             </span>
           </button>
         )}
@@ -11637,12 +11694,6 @@ function ArrivalCard({
           o clique do card inteiro. Um botão aqui dentro cairia no guarda de
           elemento interativo e teria que repetir a mesma lógica. O `aria` fica
           no card, que é quem de fato alterna. */}
-      <div
-        aria-hidden
-        className="-mx-3 -ml-3.5 mt-1 grid h-4 place-items-center border-t border-border/40 text-muted-foreground/70"
-      >
-        <ChevronDown className={`size-3 transition-transform duration-200 ${openFull ? "rotate-180" : ""}`} />
-      </div>
 
       {/* Confirmação de check antecipado */}
       <Dialog open={!!confirmMsg} onOpenChange={(o) => !o && setConfirmMsg(null)}>

@@ -86,14 +86,11 @@ export async function sweepStalledGuestReplies(limit = 20): Promise<number> {
     console.error("[silent-close] falhou", e);
     return 0;
   });
-  done += await sweepNeedsHumanFollowUps(admin, limit).catch((e) => {
-    console.error("[needs-human-followup] falhou", e);
-    return 0;
-  });
-  done += await sweepResolutionChecks(admin, limit).catch((e) => {
-    console.error("[resolution-check] falhou", e);
-    return 0;
-  });
+  // Follow-ups de acompanhamento ("a equipe já está com o seu caso", "deu certo
+  // por aí?") DESLIGADOS por decisão do anfitrião (18/10/2026): disparavam fora
+  // de contexto. Não religar sem pedido explícito.
+  void sweepNeedsHumanFollowUps;
+  void sweepResolutionChecks;
   // Cérebro contínuo: aprende com mensagens da IA que o anfitrião apagou/editou.
   done += await import("./learning/property-playbooks.server")
     .then((m) => m.sweepHostCorrections(admin, limit))

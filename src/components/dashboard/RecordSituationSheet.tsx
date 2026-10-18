@@ -23,7 +23,8 @@ import { toast } from "sonner";
 import { track } from "@/lib/trail";
 import { comprimirImagem } from "@/lib/image-compress";
 import { comprimirVideo } from "@/lib/video-compress";
-import { chamarServidor, ehFalhaDeRede, enviarMidia, garantirToken } from "@/lib/media-upload";
+import { chamarServidor, ehFalhaDeRede, enviarMidia } from "@/lib/media-upload";
+import { enfileirarSituacao } from "@/lib/offline/situation-outbox";
 import {
   apagarRascunho,
   chaveRascunho,
@@ -628,67 +629,40 @@ export function RecordSituationSheet({
      * o dia inteiro. Ver `media-upload.ts` e `_authenticated/route.tsx`.
      */
     try {
-      const token = await garantirToken();
-      if (!token) {
-        setErro("Sua sessão expirou. Entre de novo e registre — o texto continua aqui.");
+      /* FILA NO APARELHO (18/10/2026): registrar só GRAVA aqui (texto +
+         arquivos) e fecha. A fila envia em segundo plano, retoma sozinha e
+         nunca duplica — ver `situation-outbox.ts`. */
+      const groupId = grupoRef.current ?? crypto.randomUUID();
+      grupoRef.current = groupId;
+      const gravou = await enfileirarSituacao({
+        groupId,
+        criadoEm: Date.now(),
+        propertyId,
+        logId: target.logId,
+        reservationId: target.reservationId,
+        cardMode: cardMode ?? null,
+        category,
+        title: title.trim() || null,
+        description: description.trim() || null,
+        criada: false,
+        midias: items.map((it) => ({
+          key: it.key,
+          blob: it.blob,
+          kind: it.kind,
+          mime: it.mime,
+          name: it.name,
+          durationMs: it.durationMs,
+        })),
+      });
+      if (!gravou) {
+        setErro("Não consegui guardar no aparelho (armazenamento cheio ou bloqueado). Libere espaço e toque em “Tentar de novo”.");
         return;
       }
-
-      // A situação nasce UMA vez por folha. Numa segunda tentativa reusamos o
-      // mesmo grupo, senão cada toque viraria uma situação repetida.
-      let groupId = grupoRef.current;
-      if (!groupId) {
-        /* COM PRAZO (11/09/2026): esta é a PRIMEIRA chamada de rede do
-           caminho. Sem prazo, uma rede congelada travaria o botão aqui, antes
-           mesmo de qualquer arquivo — exatamente o sintoma relatado, só que um
-           passo antes. Ver `comPrazo` em `media-upload.ts`. */
-        const criada = await chamarServidor(
-          () =>
-            createFn({
-              data: {
-                propertyId,
-                logId: target.logId,
-                reservationId: target.reservationId,
-                cardMode: cardMode ?? undefined,
-                category,
-                title: title.trim() || null,
-                description: description.trim() || null,
-                media: [],
-                pendingMedia: items.length,
-              },
-            }),
-          /* 15/10/2026: em 4G o vídeo que já está subindo disputa a mesma
-             conexão; a resposta desta chamada chegou a levar >60s com tudo
-             gravado no servidor. Prazo maior + o servidor reencontra o mesmo
-             registro (15 min) se a pessoa tocar "Tentar de novo". */
-          { signal: ctrl.signal, prazoMs: 60_000 },
-        );
-        groupId = (criada as { groupId?: string })?.groupId ?? null;
-        if (!groupId) throw new Error("Não consegui abrir o registro.");
-        grupoRef.current = groupId;
-        tarefaRef.current = (criada as { taskId?: string | null })?.taskId ?? null;
-        if (items.length === 0) {
-          // Só texto: já terminou aqui — mensagem com "Desfazer".
-          avisarComDesfazer(
-            (criada as { taskCreated?: boolean })?.taskCreated
-              ? "Situação registrada e pendência aberta."
-              : "Situação registrada.",
-          );
-        } else if ((criada as { taskCreated?: boolean })?.taskCreated) {
-          toast.success("Situação registrada e pendência aberta.");
-        }
-      }
-
-      /* ENVIO EM SEGUNDO PLANO (28/09/2026): a situação já existe; os arquivos
-         seguem subindo depois que a janela fecha, para registrar em várias
-         reservas ao mesmo tempo. Cada término avisa no canto inferior direito.
-         Os envios saem do controle da folha (senão fechar cancelaria). */
       if (items.length > 0) {
-        for (const e of enviosRef.current.values()) e.ctrl.abort();
-        enviosRef.current.clear();
-        void enviarEmSegundoPlano([...items], groupId, title.trim() || "Situação");
-        setItems([]);
+        toast.message("Situação guardada — enviando em segundo plano", { position: "bottom-right" });
       }
+      for (const it of items) if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
+      setItems([]);
       void apagarRascunho(chave);
       onSaved();
       onOpenChange(false);

@@ -583,6 +583,10 @@ export const createRecordSituation = createServerFn({ method: "POST" })
          * primeiro, com o texto, e cada arquivo se junta a ela conforme sobe
          * (ver `appendSituationMedia`). Morrendo no meio, o que já subiu fica. */
         pendingMedia: z.number().int().min(0).max(SITUATION_MEDIA_MAX).optional(),
+        /* ID gerado NO APARELHO (18/10/2026): torna a criação idempotente.
+         * Repetir a chamada (rede lenta, fila do aparelho) devolve o mesmo
+         * registro em vez de criar outro. */
+        groupId: z.string().uuid().optional(),
       })
       // Sem reserva e sem registro do hóspede = registro só do IMÓVEL ("+" da
       // página Registros). Só vale sem coluna de origem (cardMode vazio).
@@ -604,6 +608,24 @@ export const createRecordSituation = createServerFn({ method: "POST" })
     // Mesma checagem de caminho do anexo avulso, para cada mídia.
     for (const m of data.media) {
       if (!m.path.startsWith(`${data.propertyId}/`)) throw new Error("Caminho de anexo inválido.");
+    }
+
+    // Idempotência pelo ID do aparelho: já existe → devolve o mesmo registro.
+    const jaCriada = async () => {
+      if (!data.groupId) return null;
+      const { data: row } = await supabase
+        .from("reservation_records")
+        .select("id, task_id, file_name, property_id")
+        .eq("id", data.groupId)
+        .maybeSingle();
+      const r = row as { id: string; task_id: string | null; file_name: string | null; property_id: string } | null;
+      if (!r) return null;
+      if (r.property_id !== data.propertyId) throw new Error("Situação de outro imóvel.");
+      return { ok: true, taskCreated: false, taskId: r.task_id, fileName: r.file_name, groupId: r.id, duplicate: true };
+    };
+    {
+      const existente = await jaCriada();
+      if (existente) return existente as never;
     }
 
     // A reserva escolhida precisa ser do imóvel escolhido (o "+" deixa
@@ -653,7 +675,7 @@ export const createRecordSituation = createServerFn({ method: "POST" })
       cardMode: data.cardMode ?? undefined,
     });
     const fileName = await nextRecordName(supabase, data.propertyId);
-    const groupId = crypto.randomUUID();
+    const groupId = data.groupId ?? crypto.randomUUID();
 
     const base = {
       property_id: data.propertyId,
@@ -687,7 +709,17 @@ export const createRecordSituation = createServerFn({ method: "POST" })
           }));
 
     const { error } = await supabase.from("reservation_records").insert(rows);
-    if (error) throw new Error(error.message);
+    if (error) {
+      // Corrida entre duas tentativas com o mesmo ID: a outra já gravou.
+      if ((error as { code?: string }).code === "23505") {
+        const existente = await jaCriada();
+        if (existente) {
+          if (taskId) await supabase.from("tasks").delete().eq("id", taskId);
+          return existente as never;
+        }
+      }
+      throw new Error(error.message);
+    }
     return { ok: true, taskCreated: !!taskId, taskId, fileName, groupId };
   });
 

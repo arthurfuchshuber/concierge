@@ -1,3 +1,4 @@
+import { ClampName } from "@/components/ui/clamp-name";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
@@ -87,12 +88,8 @@ function PropertyGroups({
         const first = p.items[0];
         return (
           <div key={p.id} className={`py-2.5 ${idx > 0 ? "border-t border-[var(--panel-div)]" : ""}`}>
-            <div className="flex items-center gap-2 text-[12.5px] font-bold leading-tight">
-              <span className="min-w-0 flex-1 truncate">{p.name}</span>
-              <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-[#c98c8c]">{p.items.length}</span>
-            </div>
             {first.ownerName && (
-              <div className="mt-0.5 flex min-w-0 items-center gap-0.5">
+              <div className="flex min-w-0 items-center gap-0.5">
                 <span className="min-w-0 truncate text-[11px] leading-snug text-muted-foreground" title={first.ownerName}>
                   {ownerText(first.ownerName)}
                 </span>
@@ -105,6 +102,11 @@ function PropertyGroups({
                 />
               </div>
             )}
+            {/* Regra global (18/10/2026): proprietário + chat acima, título em 1 linha. */}
+            <div className="mt-0.5 flex items-center gap-2 text-[12.5px] font-bold leading-tight">
+              <ClampName text={p.name} className="flex-1" />
+              <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-[#c98c8c]">{p.items.length}</span>
+            </div>
             <ul className="mt-1 space-y-0.5 border-l-2 border-[#c98c8c]/35 pl-2.5">
               {p.items.map((it) => {
                 const Icon = CATEGORY_BY_KEY.get(it.category)?.icon;
@@ -279,7 +281,7 @@ export function PendingSummary({
           com o conteúdo e só a lista de imóveis rola, por dentro. */}
       <DialogContent
         aria-describedby={undefined}
-        className="max-h-[min(75dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] max-w-[min(380px,calc(100vw-32px))] grid-cols-[minmax(0,1fr)] gap-0 overflow-x-hidden rounded-[var(--win-radius)] p-0 sm:p-0"
+        className="max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] max-w-[min(380px,calc(100vw-32px))] grid-cols-[minmax(0,1fr)] gap-0 overflow-x-hidden rounded-[var(--win-radius)] p-0 sm:p-0"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="min-w-0 px-5 pb-5 pt-4">

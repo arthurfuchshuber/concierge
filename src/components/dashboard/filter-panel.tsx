@@ -61,13 +61,13 @@ import { PopoverContent } from "@/components/ui/popover";
  *
  * ALTURA MÁXIMA (pedido explícito, 24/09/2026): ~75% da altura da TELA do
  * aparelho — não um teto fixo em rem — combinada com o espaço disponível que
- * o Radix calcula perto do gatilho (`min(75dvh, …)`). Antes era um teto fixo
+ * o Radix calcula perto do gatilho (`min(90dvh, …)`). Antes era um teto fixo
  * de `36rem`, que já ficava perto de 75% num celular comum mas não
  * acompanhava telas maiores/menores. `sg-elegant-scroll` já dava a barra de
  * rolagem fina e visível pedida.
  */
 export const FILTER_PANEL_CLASS =
-  "sg-elegant-scroll overscroll-contain relative before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] w-[280px] max-w-[calc(100vw-32px)] max-h-[min(75dvh,var(--radix-popover-content-available-height))] overflow-y-auto overflow-x-hidden rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)]";
+  "sg-elegant-scroll overscroll-contain relative before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] w-[280px] max-w-[calc(100vw-32px)] max-h-[min(90dvh,var(--radix-popover-content-available-height))] overflow-y-auto overflow-x-hidden rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)]";
 
 /**
  * Mesma casca, um tom mais claro (`--panel-2`) — para um quadrante que flutua

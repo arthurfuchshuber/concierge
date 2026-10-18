@@ -2,7 +2,8 @@ import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Clock3 } from "lucide-react";
 import { toast } from "sonner";
-import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
+import { ClampName } from "@/components/ui/clamp-name";
 import { PANEL_SHELL, PanelHeading, CountPill } from "@/components/dashboard/panel-chrome";
 import { notifyAction } from "@/components/UndoActionBar";
 import {
@@ -184,12 +185,9 @@ function ApprovalRow({
     <div className={`${PANEL_SHELL} flex flex-col gap-2.5 p-3`}>
       <div className="flex justify-between gap-2.5">
         <div className="min-w-0">
-          <span className="ds-card-title block">{item.propertyName}</span>
-          {item.ownerName && (
-            <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
-              {ownerLabel(item.ownerName)}
-            </span>
-          )}
+          {/* Regra global (18/10/2026): proprietário + chat acima, título em 1 linha. */}
+          <OwnerLine name={item.ownerName} phone={item.ownerPhone} country={item.ownerPhoneCountry} phonePosition="adjacent" />
+          <ClampName text={item.propertyName} className="ds-card-title" />
           {meta && <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{meta}</p>}
         </div>
         <div className="shrink-0 text-right">

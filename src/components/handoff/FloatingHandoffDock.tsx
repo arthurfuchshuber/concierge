@@ -383,7 +383,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
             role="dialog"
             aria-modal="true"
             aria-label="Central de atendimento"
-            className={`absolute left-1/2 top-1/2 flex h-[75dvh] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] text-foreground shadow-[0_30px_80px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:bg-[image:var(--panel-hair)] before:content-[''] ${
+            className={`absolute left-1/2 top-1/2 flex h-[90dvh] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] text-foreground shadow-[0_30px_80px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:bg-[image:var(--panel-hair)] before:content-[''] ${
               enlarged ? "w-[min(1240px,calc(100vw-2rem))]" : "w-[min(940px,calc(100vw-2rem))]"
             }`}
             style={viewport.covered ? { maxHeight: `calc(100dvh - ${viewport.covered}px - 2rem)` } : undefined}

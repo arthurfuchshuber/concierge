@@ -21,3 +21,12 @@ describe("detectStayCompletion", () => {
     expect(detectStayCompletion("Vamos sair amanhã cedo", "")).toBeNull();
   });
 });
+
+describe("checkout imediato", () => {
+  it("'Estamos saindo agora' é checkout concluído", () => {
+    expect(detectStayCompletion("Estamos saindo agora", "")).toBe("checkout");
+  });
+  it("'vamos sair mais tarde' não é", () => {
+    expect(detectStayCompletion("Vamos sair mais tarde", "")).toBeNull();
+  });
+});

@@ -9,7 +9,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CARD_OWNER, CARD_PROPERTY, ownerLabel } from "@/components/dashboard/card-colors";
+import { CARD_PROPERTY } from "@/components/dashboard/card-colors";
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
+import { ClampName } from "@/components/ui/clamp-name";
 import { CleaningProviderAvatar } from "@/components/dashboard/CleaningProviderAvatar";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
 import { CLEANING_APPROVALS_KEY } from "@/components/dashboard/CleaningApprovalPanel";
@@ -95,7 +97,6 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
     }
   }
 
-  const owner = ownerLabel(row.ownerName);
   const price = brl(m.priceCents);
   const detail = [
     m.reservationLinked ? row.guestName || "Reserva" : "Sem reserva",
@@ -108,14 +109,14 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
   return (
     <div
       data-whole-card
+      data-clip-row
       className="relative isolate flex snap-start flex-col gap-2 rounded-[10px] border border-border bg-muted/20 p-3 pl-3.5"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <span className={`${CARD_PROPERTY} block truncate`} title={row.propertyName ?? undefined}>
-            {row.propertyName ?? "Imóvel"}
-          </span>
-          {owner && <p className={`mt-0.5 truncate text-[11.5px] ${CARD_OWNER}`}>{owner}</p>}
+          {/* Regra global (18/10/2026): proprietário + chat acima, título em 1 linha. */}
+          <OwnerLine name={row.ownerName} phone={row.ownerPhone} country={row.ownerPhoneCountry} phonePosition="adjacent" />
+          <ClampName text={row.propertyName ?? "Imóvel"} className={CARD_PROPERTY} />
         </div>
         <span className="shrink-0 rounded-full bg-accent/[0.14] px-[9px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] text-accent">
           Manual

@@ -355,6 +355,8 @@ export type CleaningBreakdownItem = {
   propertyId: string;
   propertyName: string;
   ownerName: string | null;
+  ownerPhone?: string | null;
+  ownerPhoneCountry?: string | null;
   propertyAddress: string | null;
   mapsUrl: string | null;
   garageMapsUrl: string | null;
@@ -375,6 +377,8 @@ export type CleaningDayItem = {
   propertyId: string;
   propertyName: string;
   ownerName: string | null;
+  ownerPhone?: string | null;
+  ownerPhoneCountry?: string | null;
   cleaningType: "normal" | "completa" | null;
   priceCents: number | null;
   pending: boolean;
@@ -589,18 +593,22 @@ export const getCleaningStats = createServerFn({ method: "GET" })
         new Set(propArr.map((p) => p.owner_contact_id).filter((v): v is string => !!v)),
       );
       const ownerNameById = new Map<string, string>();
+      const ownerPhoneById = new Map<string, { phone: string | null; country: string | null }>();
       if (ownerIds.length > 0) {
         const { data: owners } = await context.supabase
           .from("property_owners")
-          .select("id, name, trade_name")
+          .select("id, name, trade_name, phone, phone_country")
           .in("id", ownerIds);
         for (const o of (owners ?? []) as Array<{
           id: string;
           name: string | null;
           trade_name: string | null;
+          phone: string | null;
+          phone_country: string | null;
         }>) {
           const label = (o.trade_name || o.name || "").trim();
           if (label) ownerNameById.set(o.id, label);
+          ownerPhoneById.set(o.id, { phone: o.phone ?? null, country: o.phone_country ?? null });
         }
       }
       breakdown = Array.from(byProperty.entries())
@@ -610,6 +618,8 @@ export const getCleaningStats = createServerFn({ method: "GET" })
             propertyId,
             propertyName: p?.name ?? "Imóvel",
             ownerName: p?.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
+            ownerPhone: p?.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.phone ?? null) : null,
+            ownerPhoneCountry: p?.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.country ?? null) : null,
             propertyAddress: p?.address ?? null,
             mapsUrl: p?.maps_url ?? null,
             garageMapsUrl: p?.garage_maps_url ?? null,
@@ -632,6 +642,8 @@ export const getCleaningStats = createServerFn({ method: "GET" })
             propertyId: r.property_id,
             propertyName: p?.name ?? "Imóvel",
             ownerName: p?.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
+            ownerPhone: p?.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.phone ?? null) : null,
+            ownerPhoneCountry: p?.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.country ?? null) : null,
             cleaningType:
               r.cleaning_type === "completa" || r.cleaning_type === "normal"
                 ? r.cleaning_type
@@ -2685,6 +2697,8 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         name: p.name ?? "Sem nome",
         city: p.city ?? null,
         ownerName: p.owner_contact_id ? (occOwnerName.get(p.owner_contact_id) ?? null) : null,
+        ownerPhone: p.owner_contact_id ? (occOwnerPhone.get(p.owner_contact_id)?.phone ?? null) : null,
+        ownerPhoneCountry: p.owner_contact_id ? (occOwnerPhone.get(p.owner_contact_id)?.country ?? null) : null,
         heroImageUrl: p.hero_image_url ?? null,
         providerName: providerId ? (occProviderName.get(providerId) ?? null) : null,
       };

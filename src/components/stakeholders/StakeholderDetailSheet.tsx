@@ -1,3 +1,4 @@
+import { ClampName } from "@/components/ui/clamp-name";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2185,12 +2186,12 @@ export function StakeholderDetailSheet({
                             <button
                               type="button"
                               onClick={() => setWindowPropertyId(p.id)}
-                              className="ds-card-title min-w-0 break-words text-left hover:underline"
+                              className="ds-card-title min-w-0 max-w-full truncate text-left hover:underline"
                             >
                               {p.name}
                             </button>
                           ) : (
-                            <p className="ds-card-title min-w-0 break-words">{p.name}</p>
+                            <ClampName text={p.name} className="ds-card-title" />
                           )}
                           <span
                             className={`shrink-0 rounded-[0.2rem] border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.cls}`}

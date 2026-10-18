@@ -836,7 +836,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       "(checkout_completed, inclusive antes da data prevista). Só chame com CERTEZA ABSOLUTA, confirmada " +
       "pelo próprio hóspede: para check-in, ele precisa estar DENTRO do imóvel (\"já chegamos\" ou \"estamos " +
       "aqui\" NÃO bastam — pode estar na portaria ou em frente). Para checkout, ele precisa já ter saído do " +
-      "imóvel (não apenas planejar sair). Em caso de dúvida, pergunte antes e NÃO chame. " +
+      "imóvel (não apenas planejar sair). \"Estamos saindo agora\" / \"saindo agora\" no dia da saída JÁ É checkout concluído: registre na hora e responda com agradecimento e boa viagem, sem pedir nova confirmação. Em caso de dúvida, pergunte antes e NÃO chame. " +
       "CHECK-IN ANTES DO HORÁRIO PERMITIDO: NÃO é registrado sozinho. Primeiro chame " +
       "search_stay_time_authorization e leia as mensagens da equipe; só se alguma delas autorizar a entrada " +
       "antecipada, chame esta ferramenta citando em `autorizacao_trecho` o trecho LITERAL dessa mensagem. " +

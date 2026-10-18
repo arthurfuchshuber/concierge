@@ -13,14 +13,17 @@ export function OwnerLine({
   country,
   phonePosition = "end",
   variant = "brand",
+  label: labelOverride,
 }: {
   variant?: "brand" | "neutral";
   name: string | null;
   phone: string | null;
   country: string | null;
   phonePosition?: "adjacent" | "end";
+  /** Texto pronto (ex.: "Proprietária do Imóvel: Patrícia") no lugar do padrão `ownerLabel`. */
+  label?: string | null;
 }) {
-  const label = ownerLabel(name);
+  const label = labelOverride ?? ownerLabel(name);
   if (!label) return null;
 
   return (

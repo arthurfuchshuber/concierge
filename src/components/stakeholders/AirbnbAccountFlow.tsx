@@ -565,7 +565,7 @@ function PairPicker({
                   : "enabled:hover:bg-secondary"
               }`}
             >
-              <b className="col-span-2 break-words font-semibold leading-[1.3] [overflow-wrap:anywhere]">
+              <b className="col-span-2 min-w-0 truncate font-semibold leading-[1.3]" title={o.title}>
                 {o.title}
               </b>
               <small className="min-w-0 text-[10.5px] leading-[1.3] text-muted-foreground">
@@ -2438,7 +2438,7 @@ function AirbnbAccountFlowInner({
                               : "bg-foreground/[0.03]"
                           }`}
                         >
-                          <b className="min-w-0 break-words text-[13px] font-bold leading-[1.3] [overflow-wrap:anywhere]">
+                          <b className="min-w-0 truncate text-[13px] font-bold leading-[1.3]" title={l.title}>
                             {l.title}
                           </b>
                           {l.city || tag ? (

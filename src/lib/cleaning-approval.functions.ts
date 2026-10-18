@@ -64,6 +64,8 @@ export type CleaningApprovalItem = {
   propertyId: string;
   propertyName: string;
   ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
   concludedAt: string | null;
   doneByName: string | null;
   priceCents: number | null;
@@ -133,18 +135,22 @@ export const listCleaningApprovals = createServerFn({ method: "GET" })
       new Set(propArr.map((p) => p.owner_contact_id).filter((v): v is string => !!v)),
     );
     const ownerNameById = new Map<string, string>();
+    const ownerPhoneById = new Map<string, { phone: string | null; country: string | null }>();
     if (ownerIds.length > 0) {
       const { data: owners } = await context.supabase
         .from("property_owners")
-        .select("id, name, trade_name")
+        .select("id, name, trade_name, phone, phone_country")
         .in("id", ownerIds);
       for (const o of (owners ?? []) as Array<{
         id: string;
         name: string | null;
         trade_name: string | null;
+        phone: string | null;
+        phone_country: string | null;
       }>) {
         const label = (o.trade_name || o.name || "").trim();
         if (label) ownerNameById.set(o.id, label);
+        ownerPhoneById.set(o.id, { phone: o.phone ?? null, country: o.phone_country ?? null });
       }
     }
 
@@ -177,6 +183,8 @@ export const listCleaningApprovals = createServerFn({ method: "GET" })
         propertyId: r.property_id,
         propertyName: p?.name ?? "Imóvel",
         ownerName: p?.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
+        ownerPhone: p?.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.phone ?? null) : null,
+        ownerPhoneCountry: p?.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.country ?? null) : null,
         concludedAt: r.concluded_at,
         doneByName: r.cleaning_done_by ? (nameByUser.get(r.cleaning_done_by) ?? null) : null,
         priceCents: r.cleaning_price_cents,
