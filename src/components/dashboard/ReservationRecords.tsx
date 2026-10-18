@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { ClampName } from "@/components/ui/clamp-name";
+=======
+>>>>>>> bd1e2fa36f3204148215d47b0c1d24c4870a93db
 import { enfileirarSituacao } from "@/lib/offline/situation-outbox";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
