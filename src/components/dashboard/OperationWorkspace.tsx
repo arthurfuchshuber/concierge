@@ -11501,7 +11501,7 @@ function ArrivalCard({
                     ? "Concluir Check-Out"
                     : done
                       ? "Reabrir"
-                      : "Concluir Check-In"}
+                      : <><span className="max-[400px]:hidden">Concluir </span>Check-In</>}
             </span>
           </button>
         )}
