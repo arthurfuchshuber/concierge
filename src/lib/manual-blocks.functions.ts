@@ -62,17 +62,51 @@ export const listManualBlocks = createServerFn({ method: "POST" })
     };
   });
 
+const BlockInput = z.object({
+  ownerId: z.string().uuid().nullable().optional(),
+  propertyId: z.string().uuid(),
+  from: ISO,
+  to: ISO,
+  note: z.string().max(200).nullable().optional(),
+});
+
+/**
+ * Qualquer falha inesperada vira uma frase em português COM a etapa onde
+ * ocorreu (17/10/2026: o aviso genérico "Um dos valores informados não é
+ * válido" escondia a causa real do erro ao bloquear). A causa técnica completa
+ * vai para o log do servidor; mensagens já em português do próprio fluxo
+ * (conflito com reserva, data inválida, Modo Leve) passam intactas.
+ */
+async function blockStep<T>(etapa: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e ?? "");
+    console.error(`[manual-block] falha na etapa "${etapa}":`, e);
+    if (/[ãõçáéíóúâêôà]/i.test(msg) && !/[{}<>_]/.test(msg) && msg.length < 240) throw e;
+    throw new Error(`Não foi possível bloquear agora (etapa: ${etapa}). Tente de novo em instantes.`);
+  }
+}
+
 export const createManualBlockFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) =>
-    z.object({ ownerId: z.string().uuid().nullable().optional(), propertyId: z.string().uuid(), from: ISO, to: ISO, note: z.string().max(200).nullable().optional() }).parse(i),
-  )
+  .inputValidator((i: unknown) => {
+    const r = BlockInput.safeParse(i);
+    if (!r.success) {
+      const campo = r.error.issues[0]?.path.join(".") || "dados";
+      console.error("[manual-block] entrada inválida:", JSON.stringify(r.error.issues), "recebido:", JSON.stringify(i));
+      throw new Error(`Dados do bloqueio incompletos (campo: ${campo}). Atualize a página e tente de novo.`);
+    }
+    return r.data;
+  })
   .handler(async ({ data, context }) => {
-    const ids = await editableProperties(context.supabase, context.userId, data.ownerId);
+    const ids = await blockStep("permissão", () => editableProperties(context.supabase, context.userId, data.ownerId));
     if (!ids.includes(data.propertyId)) throw new Error("Sem permissão para bloquear este imóvel.");
-    if (!(await isFullMode(context.supabase, context.userId, data.ownerId))) throw new Error(LIGHT_MSG);
-    const { createManualBlock } = await import("@/lib/manual-blocks.server");
-    return createManualBlock({ ...data, userId: context.userId });
+    if (!(await blockStep("modo da conta", () => isFullMode(context.supabase, context.userId, data.ownerId)))) throw new Error(LIGHT_MSG);
+    return blockStep("gravação", async () => {
+      const { createManualBlock } = await import("@/lib/manual-blocks.server");
+      return createManualBlock({ ...data, userId: context.userId });
+    });
   });
 
 export const removeManualBlockFn = createServerFn({ method: "POST" })

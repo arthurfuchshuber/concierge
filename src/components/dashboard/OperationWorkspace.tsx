@@ -8448,11 +8448,18 @@ function OccupancyPanel({
       }
       setBlockOpen(false);
       setBlockSel(null);
-      await Promise.all([
-        qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }),
-        qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }),
-      ]);
+      // Atualizar a tela NUNCA pode virar "erro ao bloquear": o bloqueio já está
+      // salvo nesse ponto. Falha ao recarregar o calendário é silenciosa.
+      try {
+        await Promise.all([
+          qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }),
+          qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }),
+        ]);
+      } catch (refreshErr) {
+        console.error("[manual-block] recarregar calendário falhou", refreshErr);
+      }
     } catch (e) {
+      console.error("[manual-block] erro ao bloquear", e);
       toast.error("Não é possível bloquear", { description: (e instanceof Error ? e.message : "").replace(/^Não é possível bloquear — /, "") || "Tente novamente." });
     } finally {
       setBlockBusy(false);
