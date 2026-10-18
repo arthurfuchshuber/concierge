@@ -1593,3 +1593,29 @@ dd {
   transform: none;
   max-height: min(90dvh, calc(var(--vv-h, 100dvh) - 2rem)) !important;
 }
+
+
+/* Ponto de atraso na borda superior do card (Kanban) — mockup A, 18/10/2026. */
+.late-dot__core {
+  position: relative;
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 3px var(--background), 0 0 10px 2px rgba(239, 68, 68, 0.7);
+}
+.late-dot__core::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(239, 68, 68, 0.75);
+  animation: late-dot-ring 2.2s ease-out infinite;
+}
+@keyframes late-dot-ring {
+  0% { transform: scale(0.8); opacity: 0.9; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .late-dot__core::after { animation: none; opacity: 0; }
+}

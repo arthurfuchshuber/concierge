@@ -10068,78 +10068,6 @@ function RingCell({
   );
 }
 
-/**
- * CABEÇALHO DE GRUPO — mesmo padrão de "Precisam de atenção" dos Registros
- * (`PANEL_SHELL` + `PanelHeading`: ícone em caixinha, rótulo em caixa alta,
- * fio que some, contagem na pílula neutra) — pedido explícito, 24/09/2026,
- * mockup aprovado: "implementar o mesmo cabeçalho... cabeçalho esse que
- * 'engloba' os cards em questão". Substitui o `SectionLabel` (só a palavra,
- * com fio dos dois lados) para os grupos Atrasados/Hoje do Kanban e dos
- * tooltips — os dois usam o mesmo `ArrivalGroup`, então o cabeçalho novo vale
- * para os dois de graça.
- *
- * Cada grupo usa a COR DO PRÓPRIO ESTADO, nunca uma cor nova: vermelho para
- * atrasado (mesmo vermelho da barra lateral/período atrasado), e a cor do
- * lado da esteira para o resto — azul chegada / laranja saída, os mesmos
- * ícones (`LogIn`/`LogOut`) já usados nos KPIs e no editor de previsão.
- */
-/** A cor de cada grupo — a MESMA cor do estado (`stageBarClass`/`periodColorClass`),
- * nunca uma cor nova. Vira só um pontinho no cabeçalho agora (ver `ArrivalGroupPanel`
- * abaixo) — o ícone-numa-caixa colorida saiu (mockup "mesmo ecossistema do
- * Dashboard/Limpeza", aprovado 24/09/2026). */
-const GROUP_TONE: Record<"late" | "checkin" | "checkout", { dot: string }> = {
-  late: { dot: "#ef4444" },
-  checkin: { dot: "#38bdf8" },
-  checkout: { dot: "#fb923c" },
-};
-
-/**
- * CABEÇALHO DE GRUPO — mesmo ecossistema visual do Dashboard/Limpeza (mockup
- * aprovado 24/09/2026, com um ajuste pedido na hora: "coloque ao centro a
- * informação atrasados/hoje").
- *
- * Duas mudanças em relação à 1ª versão (24/09/2026, cabeçalho à esquerda com
- * selo de ícone + fio no topo colorido):
- *  1. O selo de ícone numa caixa colorida vira um PONTINHO só — mesmo porte e
- *     mesma função do pontinho que o `PanelHeading` usa nos painéis do
- *     Dashboard e da Limpeza (`cleaningSeriesColor`/`dotColor`); a cor do
- *     estado continua a mesma, só a forma que deixa de "gritar".
- *  2. O bloco pontinho+rótulo+contagem vai para o CENTRO da linha, com o fio
- *     nos dois lados (como o `SectionLabel`), em vez de ficar à esquerda com
- *     o fio só sumindo à direita.
- * O raio e a sombra do painel continuam os do `PANEL_SHELL` — os mesmos dos
- * gráficos da Limpeza e do quadrante de engajamento da Operacional.
- */
-function ArrivalGroupPanel({
-  tone,
-  label,
-  count,
-  children,
-}: {
-  tone: "late" | "checkin" | "checkout";
-  label: string;
-  count: number;
-  children: React.ReactNode;
-}) {
-  const { dot } = GROUP_TONE[tone];
-  return (
-    /* SEM painel de fundo (pedido explícito, 18/10/2026: "essa barra de
-       fundo seja removida"). O grupo é só o rótulo centralizado — pontinho +
-       RÓTULO + contagem, com fios que somem para os dois lados — e os cards
-       logo abaixo. */
-    <section aria-label={label} className="flex flex-col gap-3">
-      <div className="flex items-center gap-2.5 px-1">
-        <span aria-hidden className="h-px flex-1 bg-gradient-to-r from-transparent to-border" />
-        <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: dot }} />
-        <span className="ds-eyebrow shrink-0 text-[10px] tracking-[0.2em] text-muted-foreground">{label}</span>
-        <CountPill>{count}</CountPill>
-        <span aria-hidden className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
-      </div>
-      <div className="flex flex-col gap-3">{children}</div>
-    </section>
-  );
-}
-
 function ArrivalGroup({
   title,
   rows,
@@ -10162,7 +10090,6 @@ function ArrivalGroup({
   expandedId: expandedIdProp,
   onExpandedChange,
   compact,
-  restLabel,
   cleaningTasks,
   nextCheckinByProperty,
   onToggleCleaningTask,
@@ -10249,8 +10176,6 @@ function ArrivalGroup({
   const noPrazo = rows.filter((r) => !atrasado(r));
   // Os rótulos só aparecem quando há ALGUM card em atraso (pedido explícito,
   // 18/10/2026) e nunca em Concluídos / Não compareceu.
-  const separar = atrasados.length > 0 && mode !== "done" && mode !== "no_show";
-
   const cartaoEstadia = (r: ArrivalRow) => (
     <ArrivalCard
       key={r.logId}
@@ -10287,21 +10212,8 @@ function ArrivalGroup({
     // gap maior que o "gap-1.5" de antes: dá espaço pro badge de engajamento
     // (fixo no topo de cada card, cortando a borda) sem sobrepor o card
     // anterior.
-    <div className={`flex flex-col gap-4 ${muted ? "opacity-70" : ""}`}>
-      {separar ? (
-        <>
-          <ArrivalGroupPanel tone="late" label="Atrasados" count={atrasados.length}>
-            {atrasados.map(cartao)}
-          </ArrivalGroupPanel>
-          {noPrazo.length > 0 && (
-            <ArrivalGroupPanel tone={kind} label={restLabel ?? "No prazo"} count={noPrazo.length}>
-              {noPrazo.map(cartao)}
-            </ArrivalGroupPanel>
-          )}
-        </>
-      ) : (
-        rows.map(cartao)
-      )}
+    <div className={`flex flex-col gap-4 ${atrasados.length > 0 ? "pt-1.5" : ""} ${muted ? "opacity-70" : ""}`}>
+      {rows.map(cartao)}
     </div>
   );
 }
@@ -11042,6 +10954,37 @@ function ArrivalCard({
           nenhuma. Substitui as antigas bordas de "atrasado"/"data futura",
           que só existiam em dois casos e deixavam o resto sem sinal. */}
       <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[10px] ${stageBarClass(stage)}`} />
+
+      {/* PONTO DE ATRASO (pedido explícito, 18/10/2026, mockup A aprovado): no
+          lugar das etiquetas "Atrasados"/"No prazo", cada card atrasado ganha
+          um ponto vermelho com onda suave no centro da borda superior. Tocar
+          no ponto abre a dica "Atrasado". */}
+      {stage === "late" && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label="Atrasado"
+              title="Atrasado"
+              onClick={(e) => e.stopPropagation()}
+              className="late-dot absolute left-1/2 top-0 z-[2] grid size-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+            >
+              <span aria-hidden className="late-dot__core" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="center"
+            className="ds-overlay-compact w-auto max-w-[min(18rem,calc(100vw-32px))] px-3 py-2 text-xs leading-snug"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="font-bold text-red-600 dark:text-red-400">Atrasado</p>
+            <p className="mt-0.5 text-muted-foreground">
+              {kind === "checkout" ? "Checkout" : "Check-in"} previsto para {fmtDateBR(row.date)} e ainda não
+              confirmado.
+            </p>
+          </PopoverContent>
+        </Popover>
+      )}
 
       <div className="flex items-start gap-3">
         {/* ds-card-lines: o espaçamento padrão entre linhas de card (styles.css). */}
