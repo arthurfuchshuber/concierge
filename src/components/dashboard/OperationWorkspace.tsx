@@ -11054,15 +11054,9 @@ function ArrivalCard({
           />
           {/* O IMÓVEL é o título do card. O proprietário fica acima, menor e
               no rosa da marca: identifica sem disputar a leitura. */}
-<<<<<<< HEAD
           {/* Título SEMPRE em 1 linha com reticências (18/10/2026); tocar no
               título cortado mostra o nome completo. */}
           <ClampName text={row.propertyName ?? "Sem nome"} className="ds-card-title leading-tight" />
-=======
-          <div className="ds-card-title line-clamp-2 [display:-webkit-box] whitespace-normal break-words leading-tight" title={row.propertyName ?? undefined}>
-            {row.propertyName ?? "Sem nome"}
-          </div>
->>>>>>> bd1e2fa36f3204148215d47b0c1d24c4870a93db
 
           {/* PERÍODO SEMPRE VISÍVEL, card aberto ou recolhido (pedido
               explícito, 24/09/2026: "coloque o período abaixo do título do
