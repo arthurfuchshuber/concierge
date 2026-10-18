@@ -152,3 +152,13 @@ describe("ordem base do servidor usa o relógio de cada lista", () => {
     ]);
   });
 });
+
+describe("fila de limpeza: giro do dia tem prioridade", () => {
+  it("Patrícia (checkout 11:00, check-in hoje 15:00) vem antes de Lívia (saída 08:00, sem chegada)", async () => {
+    const { sortCleaningRows } = await import("@/lib/arrival-sorting");
+    const livia = row({ propertyName: "Lívia", status: "done", arrivalTimeOverride: "08:00", propertyCheckoutTime: "15:00" });
+    const patricia = row({ propertyName: "Patrícia", propertyId: "PAT", status: "done", propertyCheckoutTime: "11:00" });
+    const ci = row({ propertyId: "PAT", date: TODAY, arrivalTimeOverride: "15:00" });
+    expect(ids(sortCleaningRows([livia, patricia], [[ci]], TODAY))).toEqual(["Patrícia", "Lívia"]);
+  });
+});

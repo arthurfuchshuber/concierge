@@ -218,7 +218,7 @@ import {
   type CleaningDailyPoint,
   type FreeProperty,
 } from "@/lib/dashboard.functions";
-import { sortCheckinRowsCore, sortCheckoutRows } from "@/lib/arrival-sorting";
+import { sortCheckinRowsCore, sortCheckoutRows, sortCleaningRows } from "@/lib/arrival-sorting";
 import {
   listTaskLinkOptions,
   listTasks,
@@ -1556,8 +1556,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     const done = coRows.filter((r) => r.status === "done");
     const seen = new Set(done.map((r) => r.logId));
     const early = (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "done" && !seen.has(r.logId));
-    const released = sortCheckoutRows([...done, ...early], turnoverCheckinSources, todayISO);
-    const awaiting = sortCheckoutRows(
+    const released = sortCleaningRows([...done, ...early], turnoverCheckinSources, todayISO);
+    const awaiting = sortCleaningRows(
       coRows.filter((r) => r.status === "pending"),
       turnoverCheckinSources,
       todayISO,
