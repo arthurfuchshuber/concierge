@@ -1,5 +1,5 @@
 import type { ArrivalRow } from "@/lib/dashboard.functions";
-import { compareLateThenDay, compareTimesNullLast, sortingTimeOf } from "@/lib/arrival-order";
+import { compareLateRows, compareLateThenDay, compareTimesNullLast, hasExplicitForecast, sortingTimeOf } from "@/lib/arrival-order";
 
 /**
  * ORDENAÇÃO DOS CARDS DE CHEGADA E SAÍDA (extraída do painel em 17/10/2026 para
@@ -55,24 +55,35 @@ export function buildSameDayCheckinLookup(checkinRowSources: ArrivalRow[][]): Ma
  * próximo escolhido). Imóveis sem coordenada cadastrada não competem nesse
  * critério; ficam ao final do grupo, na ordem que já tinham.
  */
-export function clusterByProximity(group: ArrivalRow[]): ArrivalRow[] {
-  if (group.length <= 2) return group;
+export function clusterByProximity(group: ArrivalRow[], anchor?: ArrivalRow | null): ArrivalRow[] {
+  const hasAnchor = !!anchor && anchor.lat != null && anchor.lng != null;
+  if (group.length <= 1 || (group.length === 2 && !hasAnchor)) return group;
   const withCoords = group.filter((r) => r.lat != null && r.lng != null);
   const withoutCoords = group.filter((r) => r.lat == null || r.lng == null);
   if (withCoords.length <= 1) return group;
 
+  const dist = (x: ArrivalRow, y: { lat?: number | null; lng?: number | null }) =>
+    haversineMeters({ lat: x.lat as number, lng: x.lng as number }, { lat: y.lat as number, lng: y.lng as number });
   const remaining = [...withCoords];
-  const chain: ArrivalRow[] = [remaining.shift() as ArrivalRow];
+  // Começa pelo que está mais perto do ÚLTIMO imóvel já ordenado (o anterior da lista), não pelo 1º do grupo.
+  let startIdx = 0;
+  if (hasAnchor) {
+    let best = Infinity;
+    remaining.forEach((cand, k) => {
+      const d = dist(cand, anchor as ArrivalRow);
+      if (d < best) {
+        best = d;
+        startIdx = k;
+      }
+    });
+  }
+  const chain: ArrivalRow[] = [remaining.splice(startIdx, 1)[0]];
   while (remaining.length > 0) {
     const last = chain[chain.length - 1];
     let bestIdx = 0;
     let bestDist = Infinity;
     for (let k = 0; k < remaining.length; k++) {
-      const cand = remaining[k];
-      const d = haversineMeters(
-        { lat: last.lat as number, lng: last.lng as number },
-        { lat: cand.lat as number, lng: cand.lng as number },
-      );
+      const d = dist(remaining[k], last);
       if (d < bestDist) {
         bestDist = d;
         bestIdx = k;
@@ -89,13 +100,16 @@ export function clusterByProximity(group: ArrivalRow[]): ArrivalRow[] {
  * 1) horário PREVISTO de saída (mais cedo primeiro) — sem previsão, o
  *    horário LIMITE de checkout do imóvel, só pra ordenar (nunca gravado);
  *    sem nenhum dos dois, vai por último;
- * 2) EMPATE de horário: imóvel com check-in no MESMO dia (giro) sobe, e entre
+ * 2) EMPATE de horário: quem tem previsão INFORMADA vem antes de quem só tem o
+ *    horário limite do imóvel (mesmo que o horário seja igual); depois, imóvel
+ *    com check-in no MESMO dia (giro) sobe, e entre
  *    giros vale o horário do check-in que está chegando (17/10/2026: antes o
  *    giro passava na frente do horário e um checkout das 11:00 ficava acima
  *    de um das 02:00 — o horário manda, o giro só desempata);
- * 3) o que ainda estiver empatado, por proximidade de endereço — encadeado
- *    pelo vizinho mais próximo do ÚLTIMO imóvel já ordenado (rota curta),
- *    não pelo tamanho do grupo de imóveis vizinhos.
+ * 3) o que ainda estiver empatado, por proximidade de endereço: o primeiro do
+ *    grupo é o mais perto do ÚLTIMO imóvel já ordenado na lista e os demais
+ *    seguem encadeados pelo vizinho mais próximo (rota curta).
+ *    Proximidade vale só para checkouts/limpeza — nos check-ins não existe.
  * `checkinRowSources` recebe TODAS as fontes de check-in relevantes pro
  * mesmo período das linhas de checkout (não só as pendentes: um giro conta
  * mesmo que o check-in já tenha sido marcado feito).
@@ -110,10 +124,15 @@ export function sortCheckoutRows(rows: ArrivalRow[], checkinRowSources: ArrivalR
   const cmp = (a: ArrivalRow, b: ArrivalRow) => {
     // 0) ATRASADO no topo (o mais antigo primeiro) e, depois, o dia mais próximo:
     //    vale antes de tudo — uma lista que cobre vários dias nunca mistura os dias.
+    const late = compareLateRows(a, b, "checkout", today);
+    if (late !== 0) return late;
     const day = compareLateThenDay(a, b, today);
     if (day !== 0) return day;
     const own = compareTimes(ownTime(a), ownTime(b));
     if (own !== 0) return own;
+    const ea = hasExplicitForecast(a, "checkout") ? 0 : 1;
+    const eb = hasExplicitForecast(b, "checkout") ? 0 : 1;
+    if (ea !== eb) return ea - eb;
     const ga = hasTurnover(a) ? 0 : 1;
     const gb = hasTurnover(b) ? 0 : 1;
     if (ga !== gb) return ga - gb;
@@ -126,7 +145,7 @@ export function sortCheckoutRows(rows: ArrivalRow[], checkinRowSources: ArrivalR
   while (i < sorted.length) {
     let j = i + 1;
     while (j < sorted.length && cmp(sorted[i], sorted[j]) === 0) j++;
-    result.push(...clusterByProximity(sorted.slice(i, j)));
+    result.push(...clusterByProximity(sorted.slice(i, j), result[result.length - 1]));
     i = j;
   }
   return result;
@@ -134,34 +153,31 @@ export function sortCheckoutRows(rows: ArrivalRow[], checkinRowSources: ArrivalR
 
 
 /**
- * Ordenação dos cards de chegada:
+ * Ordenação dos cards de chegada (check-in):
+ * 0) ATRASADOS no topo: tempo de atraso (mais antigo primeiro) → proprietário
+ *    A→Z → imóvel A→Z (`compareLateRows`);
  * 1) imóveis já liberados acima dos que ainda têm checkout/limpeza pendente
  *    (`blockedPropertyIds`) — bloqueado nunca compete por horário;
- * 2) atrasado no topo (o mais antigo primeiro) e dia mais próximo primeiro;
- * 3) horário previsto de chegada → sem previsão, o horário inicial do imóvel
- *    (só para ordenar, nunca gravado como previsão);
- * 4) empate: proximidade de endereço (rota curta) → proprietário/anúncio A→Z.
+ * 2) dia mais próximo primeiro (só faz diferença em listas de vários dias);
+ * 3) horário PREVISTO de chegada → sem previsão, o horário INICIAL de check-in
+ *    do imóvel (só para ordenar, nunca gravado como previsão);
+ * 4) nome do PROPRIETÁRIO A→Z;
+ * 5) nome do IMÓVEL A→Z.
+ * Proximidade de endereço NÃO entra nos check-ins (pedido de 17/10/2026).
  */
 export function sortCheckinRowsCore(rows: ArrivalRow[], blockedPropertyIds: { has(id: string): boolean }, today: string): ArrivalRow[] {
   const txt = (a?: string | null, b?: string | null) => (a ?? "").localeCompare(b ?? "", "pt-BR", { sensitivity: "base" });
   const time = (r: ArrivalRow) => sortingTimeOf(r, "checkin");
   const blockedRank = (r: ArrivalRow) => (blockedPropertyIds.has(r.propertyId) ? 1 : 0);
-  const cmp = (a: ArrivalRow, b: ArrivalRow) => {
+  return [...rows].sort((a, b) => {
+    const late = compareLateRows(a, b, "checkin", today);
+    if (late !== 0) return late;
     const rankDiff = blockedRank(a) - blockedRank(b);
     if (rankDiff !== 0) return rankDiff;
     const day = compareLateThenDay(a, b, today);
     if (day !== 0) return day;
-    return compareTimesNullLast(time(a), time(b));
-  };
-  const alpha = (a: ArrivalRow, b: ArrivalRow) => txt(a.ownerName, b.ownerName) || txt(a.propertyName, b.propertyName);
-  const sorted = [...rows].sort((a, b) => cmp(a, b) || alpha(a, b));
-  const result: ArrivalRow[] = [];
-  let i = 0;
-  while (i < sorted.length) {
-    let j = i + 1;
-    while (j < sorted.length && cmp(sorted[i], sorted[j]) === 0) j++;
-    result.push(...clusterByProximity(sorted.slice(i, j)));
-    i = j;
-  }
-  return result;
+    const t = compareTimesNullLast(time(a), time(b));
+    if (t !== 0) return t;
+    return txt(a.ownerName, b.ownerName) || txt(a.propertyName, b.propertyName);
+  });
 }

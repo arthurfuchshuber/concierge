@@ -46,12 +46,18 @@ describe("check-ins (pendentes, amanhã, futuros): relógio = previsão de CHECK
     const bloq = row({ propertyName: "bloqueado", propertyId: "B", arrivalTimeOverride: "08:00" });
     expect(ids(sortCheckinRowsCore([bloq, livre], new Set(["B"]), TODAY))).toEqual(["livre", "bloqueado"]);
   });
-  it("empate de horário: o mais PERTO do anterior vem em seguida (rota curta)", () => {
-    const at = (name: string, lat: number, lng: number) => row({ propertyName: name, lat, lng, arrivalTimeOverride: "15:00" });
-    const a = at("A", -25.5, -54.5);
-    const far = at("Longe", -25.9, -54.9);
-    const near = at("Perto", -25.5005, -54.5005);
-    expect(ids(sortCheckinRowsCore([a, far, near], NONE, TODAY))).toEqual(["A", "Perto", "Longe"]);
+  it("empate de horário: proprietário A→Z e depois imóvel A→Z (sem proximidade)", () => {
+    const at = (name: string, owner: string, lat: number, lng: number) =>
+      row({ propertyName: name, ownerName: owner, lat, lng, arrivalTimeOverride: "15:00" });
+    const a = at("Beta", "Ana", -25.5, -54.5);
+    const far = at("Alfa", "Zeca", -25.9, -54.9);
+    const near = at("Gama", "Ana", -25.5005, -54.5005);
+    expect(ids(sortCheckinRowsCore([far, near, a], NONE, TODAY))).toEqual(["Beta", "Gama", "Alfa"]);
+  });
+  it("previsão informada, senão horário inicial do imóvel, depois proprietário e imóvel", () => {
+    const sem = row({ propertyName: "Sem", ownerName: "A", propertyCheckinTime: "14:00" });
+    const com = row({ propertyName: "Com", ownerName: "Z", arrivalTimeOverride: "13:00" });
+    expect(ids(sortCheckinRowsCore([sem, com], NONE, TODAY))).toEqual(["Com", "Sem"]);
   });
 });
 
@@ -85,9 +91,45 @@ describe("checkouts (pendentes, amanhã): relógio = previsão de CHECKOUT", () 
     const ci = row({ propertyId: "G", date: TODAY, propertyCheckinTime: "15:00" });
     expect(ids(sort([comum, giro], [ci]))).toEqual(["giro", "comum"]);
   });
+  it("cenário real: 102, 103 e Lívia com previsão; Studio 101 (previsão 11:00) vem ANTES da Patrícia (sem previsão, limite 11:00)", () => {
+    const at = (name: string, lat: number, lng: number, extra: Partial<ArrivalRow>) => row({ propertyName: name, lat, lng, propertyCheckoutTime: "11:00", ...extra });
+    const s102 = at("102", -25.5, -54.5, { arrivalTimeOverride: "02:00" });
+    const s103 = at("103", -25.5002, -54.5002, { arrivalTimeOverride: "02:30" });
+    const livia = at("Lívia", -25.5004, -54.5004, { arrivalTimeOverride: "09:00" });
+    const patricia = at("Patrícia", -25.9, -54.9, {});
+    const s101 = at("101", -25.5006, -54.5006, { arrivalTimeOverride: "11:00" });
+    expect(ids(sort([patricia, s101, livia, s103, s102]))).toEqual(["102", "103", "Lívia", "101", "Patrícia"]);
+  });
+  it("mesmo horário e mesma condição: o mais perto do imóvel anterior vem primeiro", () => {
+    const at = (name: string, lat: number, lng: number, extra: Partial<ArrivalRow>) => row({ propertyName: name, lat, lng, propertyCheckoutTime: "11:00", ...extra });
+    const ancora = at("Âncora", -25.5, -54.5, { arrivalTimeOverride: "08:00" });
+    const longe = at("Longe", -25.9, -54.9, {});
+    const perto = at("Perto", -25.5005, -54.5005, {});
+    expect(ids(sort([longe, perto, ancora]))).toEqual(["Âncora", "Perto", "Longe"]);
+  });
   it("empate: proximidade de endereço", () => {
     const at = (name: string, lat: number, lng: number) => row({ propertyName: name, lat, lng, propertyCheckoutTime: "11:00" });
     expect(ids(sort([at("A", -25.5, -54.5), at("Longe", -25.9, -54.9), at("Perto", -25.5005, -54.5005)]))).toEqual(["A", "Perto", "Longe"]);
+  });
+});
+
+describe("atrasados: topo por tempo de atraso → proprietário → imóvel (check-ins e checkouts)", () => {
+  const late = (name: string, owner: string, date: string, extra: Partial<ArrivalRow> = {}) =>
+    row({ propertyName: name, ownerName: owner, date, ...extra });
+  it("check-ins: mais antigo primeiro; mesmo atraso → proprietário → imóvel; atrasado vence imóvel bloqueado", () => {
+    const hoje = row({ propertyName: "hoje", arrivalTimeOverride: "06:00" });
+    const a = late("B-imóvel", "Zeca", "2026-10-15", { arrivalTimeOverride: "10:00" });
+    const b = late("A-imóvel", "Zeca", "2026-10-15", { arrivalTimeOverride: "10:00" });
+    const c = late("C", "Ana", "2026-10-15", { arrivalTimeOverride: "10:00" });
+    const antigo = late("antigo", "Zzz", "2026-10-14", { propertyId: "BL" });
+    expect(ids(sortCheckinRowsCore([hoje, a, b, c, antigo], new Set(["BL"]), TODAY))).toEqual(["antigo", "C", "A-imóvel", "B-imóvel", "hoje"]);
+  });
+  it("checkouts: atrasados no topo pela mesma regra, sem giro nem proximidade entre eles", () => {
+    const hoje = row({ propertyName: "hoje", arrivalTimeOverride: "01:00" });
+    const a = late("B", "Zeca", "2026-10-16", { arrivalTimeOverride: "09:00", lat: -25.5, lng: -54.5 });
+    const b = late("A", "Ana", "2026-10-16", { arrivalTimeOverride: "09:00", lat: -25.9, lng: -54.9 });
+    const antigo = late("antigo", "Zzz", "2026-10-15", { arrivalTimeOverride: "23:00" });
+    expect(ids(sortCheckoutRows([hoje, a, b, antigo], [[]], TODAY))).toEqual(["antigo", "A", "B", "hoje"]);
   });
 });
 

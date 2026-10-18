@@ -30,10 +30,33 @@ function normTime(t: string | null | undefined): string | null {
   const m = (t ?? "").match(/^(\d{1,2}):(\d{2})/);
   return m ? `${m[1].padStart(2, "0")}:${m[2]}` : null;
 }
+/** Há previsão INFORMADA (equipe, hóspede ou IA)? Falso quando o horário vem só do limite do imóvel. */
+export function hasExplicitForecast(r: ArrivalRow, kind: "checkin" | "checkout"): boolean {
+  return normTime(forecastTimeOf(r, kind)) !== null;
+}
 export function sortingTimeOf(r: ArrivalRow, kind: "checkin" | "checkout"): string | null {
   return normTime(forecastTimeOf(r, kind)) ?? normTime(limitTimeOf(r, kind));
 }
 
+
+/**
+ * ATRASADOS (mesma regra para check-ins e checkouts): ficam no topo ordenados
+ * por TEMPO DE ATRASO (o que está esperando há mais tempo primeiro: data e
+ * horário mais antigos), depois nome do PROPRIETÁRIO A→Z e nome do IMÓVEL A→Z.
+ * Devolve 0 quando nenhum dos dois é atrasado (aí vale a regra de cada lista).
+ */
+export function compareLateRows(a: ArrivalRow, b: ArrivalRow, kind: "checkin" | "checkout", today: string): number {
+  const la = isLateRow(a, today);
+  const lb = isLateRow(b, today);
+  if (la !== lb) return la ? -1 : 1;
+  if (!la) return 0;
+  const d = a.date.localeCompare(b.date);
+  if (d !== 0) return d;
+  const t = compareTimesNullLast(sortingTimeOf(a, kind), sortingTimeOf(b, kind));
+  if (t !== 0) return t;
+  const txt = (x?: string | null, y?: string | null) => (x ?? "").localeCompare(y ?? "", "pt-BR", { sensitivity: "base" });
+  return txt(a.ownerName, b.ownerName) || txt(a.propertyName, b.propertyName);
+}
 
 /**
  * ATRASADO + DIA (mesma regra para TODAS as listas de chegada/saída).
@@ -82,6 +105,10 @@ export function compareArrivalRowsServer(a: ArrivalRow, b: ArrivalRow, kind: "ch
     if (d !== 0) return d;
     const t = compareTimesNullLast(sortingTimeOf(a, kind), sortingTimeOf(b, kind));
     if (t !== 0) return t;
+  }
+  if (kind === "checkin" || ra === 0) {
+    const o = (a.ownerName ?? "").localeCompare(b.ownerName ?? "", "pt-BR", { sensitivity: "base" });
+    if (o !== 0) return o;
   }
   return (a.propertyName ?? "").localeCompare(b.propertyName ?? "", "pt-BR");
 }
