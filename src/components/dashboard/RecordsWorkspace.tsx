@@ -1658,7 +1658,7 @@ function PropertyCard({
                   onOpenChange={(v) => v !== pendingOpen && onTogglePending()}
                 >
                   <DialogContent
-                    className="max-h-[75dvh] w-[min(372px,calc(100vw-2rem))] gap-0 overflow-x-hidden overflow-y-auto p-0"
+                    className="max-h-[90dvh] w-[min(372px,calc(100vw-2rem))] gap-0 overflow-x-hidden overflow-y-auto p-0"
                     aria-describedby={undefined}
                   >
                     <PendingPopoverBody group={group} onOpen={onOpen} onResolve={onResolve} />
@@ -1717,7 +1717,7 @@ function PropertyCard({
               volta para esta lista. */}
           <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
             <DialogContent
-              className="flex max-h-[75dvh] w-[min(372px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
+              className="flex max-h-[90dvh] w-[min(372px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
               aria-describedby={undefined}
             >
               <MoreRecordsBody

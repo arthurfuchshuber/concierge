@@ -5,7 +5,7 @@ import * as React from "react";
  * janela expande ou reduz a altura conforme o conteúdo, com teto de 75% da
  * tela; se passar, aplica a regra anticorte e a barra de rolagem".
  *
- * O teto de 75% mora no CSS de cada janela (`max-h-[min(75dvh,…)]`). Este hook
+ * O teto de 75% mora no CSS de cada janela (`max-h-[min(90dvh,…)]`). Este hook
  * é a metade ANTICORTE, aplicada AUTOMATICAMENTE pelas bases (Dialog,
  * AlertDialog, Drawer, Popover, HoverCard, menus) — nenhuma janela precisa
  * lembrar de chamar nada:

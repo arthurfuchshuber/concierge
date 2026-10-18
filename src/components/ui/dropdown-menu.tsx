@@ -97,7 +97,7 @@ const DropdownMenuContent = React.forwardRef<
       className={cn(
         // ALTURA (pedido explícito, 24/09/2026): nenhum tooltip/menu deve
         // consumir mais que ~75% da TELA do aparelho (não só o espaço perto
-        // do gatilho) — daí o `min(75dvh, …)` por cima da altura disponível
+        // do gatilho) — daí o `min(90dvh, …)` por cima da altura disponível
         // que o Radix já calcula. `sg-elegant-scroll`: barra de rolagem fina,
         // visível e na cor da marca (em vez da nativa, que some sozinha em
         // alguns navegadores/SOs — pedido explícito: "elegante e visível").
@@ -107,7 +107,7 @@ const DropdownMenuContent = React.forwardRef<
         // continuar nítido POR CIMA do véu que agora também cobre o
         // conteúdo do Dialog (antes o véu ficava em z-40, abaixo do Dialog,
         // e nunca aparecia nesse caso).
-        "sg-elegant-scroll overscroll-contain z-[60] max-h-[min(75dvh,var(--radix-dropdown-menu-content-available-height))] min-w-[8rem] overflow-y-auto overflow-x-hidden ds-overlay max-w-[calc(100vw-32px)] p-1 ",
+        "sg-elegant-scroll overscroll-contain z-[60] max-h-[min(90dvh,var(--radix-dropdown-menu-content-available-height))] min-w-[8rem] overflow-y-auto overflow-x-hidden ds-overlay max-w-[calc(100vw-32px)] p-1 ",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-dropdown-menu-content-transform-origin)",
         className,
       )}

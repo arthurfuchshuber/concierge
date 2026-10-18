@@ -79,7 +79,7 @@ export function MultiLinkPicker({
   if (variant === "menu") {
     return (
       <Dialog open={open} onOpenChange={(o) => !saving && onOpenChange(o)}>
-        <DialogContent className="grid max-h-[75dvh] w-[calc(100%-2rem)] max-w-[300px] gap-3 overflow-y-auto rounded-[12px] p-4">
+        <DialogContent className="grid max-h-[90dvh] w-[calc(100%-2rem)] max-w-[300px] gap-3 overflow-y-auto rounded-[12px] p-4">
           <DialogHeader className="space-y-0 text-left">
             <DialogTitle className="text-[13.5px] font-bold">{title}</DialogTitle>
             <DialogDescription className="sr-only">{description ?? title}</DialogDescription>
