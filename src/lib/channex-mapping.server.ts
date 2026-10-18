@@ -209,22 +209,42 @@ async function channexBookingNights(t: { channexPropertyId: string; roomTypeId: 
   }
 }
 
+/**
+ * VELOCIDADE DO BLOQUEIO (17/10/2026): a lista de reservas da Channex de uma unidade era baixada de novo para
+ * cada anúncio do par (principal e gêmeo leem as MESMAS duas unidades) e uma unidade por vez. `NightsCache`
+ * guarda a busca de cada unidade durante UM envio, e as unidades/anúncios rodam em paralelo.
+ */
+export type NightsCache = Map<string, Promise<Set<string>>>;
+function unitNights(u: { channexPropertyId: string; roomTypeId: string }, cache?: NightsCache): Promise<Set<string>> {
+  const key = `${u.channexPropertyId}:${u.roomTypeId}`;
+  const hit = cache?.get(key);
+  if (hit) return hit;
+  const p = (async () => {
+    const set = new Set<string>();
+    await channexBookingNights(u, set);
+    return set;
+  })();
+  cache?.set(key, p);
+  return p;
+}
+
 /** Noites com reserva ativa NA CHANNEX para o imóvel (anúncio principal + gêmeo). Usado na trava do bloqueio manual. */
 export async function channexBookedNights(propertyId: string): Promise<Set<string>> {
   const nights = new Set<string>();
+  const cache: NightsCache = new Map();
   const all = await allSyncTargets();
-  for (const t of all.filter((x) => x.propertyId === propertyId)) {
-    const units = [{ channexPropertyId: t.channexPropertyId, roomTypeId: t.roomTypeId }, ...(t.sibling ? [t.sibling] : [])];
-    for (const u of units) await channexBookingNights(u, nights);
-  }
+  const units = all
+    .filter((x) => x.propertyId === propertyId)
+    .flatMap((t) => [{ channexPropertyId: t.channexPropertyId, roomTypeId: t.roomTypeId }, ...(t.sibling ? [t.sibling] : [])]);
+  for (const set of await Promise.all(units.map((u) => unitNights(u, cache)))) for (const n of set) nights.add(n);
   return nights;
 }
 
 /** Noites ocupadas: reservas deste anúncio, do gêmeo e do imóvel no ConciergeIA. */
-async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promise<Set<string>> {
+async function activeBookingNights(t: SafeMapTarget, windowEnd?: string, cache?: NightsCache): Promise<Set<string>> {
   const nights = new Set<string>();
   const units = [{ channexPropertyId: t.channexPropertyId, roomTypeId: t.roomTypeId }, ...(t.sibling ? [t.sibling] : [])];
-  for (const u of units) await channexBookingNights(u, nights);
+  for (const set of await Promise.all(units.map((u) => unitNights(u, cache)))) for (const n of set) nights.add(n);
   // Bloqueios do anfitrião / Airbnb (iCal) e reservas registradas no ConciergeIA também fecham a data.
   if (t.propertyId) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -254,13 +274,13 @@ async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promis
  * noite reservada = 0, noite livre dentro da janela do anfitrião = 1, além dela = 0.
  * Só o delta entra na outbox ARI (limitador 20/min). Preços não são tocados.
  */
-export async function syncRealAvailability(t: SafeMapTarget, userId: string | null, fallbackWindow = 270, flush = true) {
+export async function syncRealAvailability(t: SafeMapTarget, userId: string | null, fallbackWindow = 270, flush = true, cache?: NightsCache) {
   const ch = await call("GET", `/channels/${t.channelId}`).catch(() => null);
   const rp = (ch?.data?.attributes?.rate_plans ?? []).find((r: any) => String(r.settings?.listing_id) === t.listingId);
   const notice = Number(rp?.settings?.availability_rule?.max_days_notice);
   const windowDays = Number.isFinite(notice) && notice > 0 ? notice : fallbackWindow;
   const windowEnd = iso(new Date(Date.now() + windowDays * 86_400_000));
-  const nights = await activeBookingNights(t, windowEnd);
+  const nights = await activeBookingNights(t, windowEnd, cache);
   // Anúncio ainda NÃO mapeado (aguardando "Já conectei"): a Channex não tem as reservas pela API,
   // então o iCal real do Airbnb continua valendo para nunca reabrir noites reservadas/bloqueadas.
   if (!rp && t.propertyId) {

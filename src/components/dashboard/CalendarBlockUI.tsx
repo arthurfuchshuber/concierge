@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, CalendarCheck2, CalendarX2, Loader2, MessageSquare } from "lucide-react";
+import { CalendarCheck2, CalendarX2, Loader2, MessageSquare, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   ResponsiveDialog,
@@ -68,35 +68,29 @@ export function CalendarBlockBar({
       role="region"
       data-block-ui
       aria-label={release ? "Bloqueio selecionado" : "Bloquear datas selecionadas"}
-      /* OPÇÃO "A · COMPACTA" (mockup aprovado, 17/10/2026): datas em destaque com o
-         chip de noites; imóvel e proprietário embaixo; ações empilhadas à direita.
-         Celular: sobe acima da navegação inferior (mesmo recuo da barra "Desfazer"
-         — 104px + área segura), pra não cobrir os 4 ícones. */
-      className="fixed inset-x-4 bottom-[calc(104px+env(safe-area-inset-bottom))] z-50 flex items-center gap-3 rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] py-3 pl-4 pr-3 shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] sm:inset-x-auto sm:bottom-8 sm:left-1/2 sm:w-[560px] sm:-translate-x-1/2"
+      /* OPÇÃO "A · PÍLULA" (mockup "Barra leve" aprovado, 17/10/2026): uma linha só —
+         datas + noites, ✕ e botão. Sem nome do imóvel/proprietário (já estão na linha
+         selecionada). Celular: acima da navegação inferior (104px + área segura). */
+      className="fixed inset-x-4 bottom-[calc(104px+env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-[460px] items-center gap-2 rounded-full border border-white/10 bg-[var(--panel)]/95 py-1.5 pl-5 pr-1.5 shadow-[0_8px_28px_rgba(0,0,0,0.45)] backdrop-blur-md sm:bottom-8"
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="flex items-center gap-1.5 text-[15px] font-bold">
-            {release ? <span className="text-[13px] font-semibold text-muted-foreground">Bloqueado</span> : null}
-            {ddmmISO(from)}
-            <ArrowRight className="size-3.5 text-muted-foreground" aria-hidden />
-            {ddmmISO(to)}
-          </span>
-          <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-bold text-accent">
-            {n} {n === 1 ? "noite" : "noites"}
-          </span>
-        </div>
-        <span className="truncate text-[12px] text-muted-foreground">{ctx.propertyName}</span>
-        <OwnerLine ownerName={ctx.ownerName} />
-      </div>
-      <div className="flex shrink-0 flex-col items-stretch gap-1.5">
-        <button type="button" className={BTN_PRIMARY} onClick={onConfirm}>
-          {release ? "Liberar datas" : "Bloquear"}
-        </button>
-        <button type="button" className="inline-flex h-7 items-center justify-center rounded-[var(--win-radius)] text-[12px] font-medium text-muted-foreground hover:text-foreground" onClick={onCancel}>
-          {release ? "Fechar" : "Cancelar"}
-        </button>
-      </div>
+      <span className="min-w-0 flex-1 truncate text-[14px] font-bold">
+        {release ? <span className="mr-1.5 text-[12px] font-semibold text-muted-foreground">Bloqueado</span> : null}
+        {ddmmISO(from)} <span aria-hidden>→</span> {ddmmISO(to)}
+        <span className="ml-1.5 font-semibold text-muted-foreground">
+          · {n} {n === 1 ? "noite" : "noites"}
+        </span>
+      </span>
+      <button
+        type="button"
+        aria-label={release ? "Fechar" : "Cancelar seleção"}
+        className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-foreground"
+        onClick={onCancel}
+      >
+        <X className="size-4" aria-hidden />
+      </button>
+      <button type="button" className={`${BTN_PRIMARY} !rounded-full px-5`} onClick={onConfirm}>
+        {release ? "Liberar datas" : "Bloquear"}
+      </button>
     </div>
   );
 }

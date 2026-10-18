@@ -8279,14 +8279,31 @@ function OccupancyPanel({
      abre com o dia de hoje logo depois da coluna do nome; o usuário rola para
      os lados para ver o resto. Roda uma vez por intervalo/largura de coluna. */
   const scrolledKeyRef = useRef<string | null>(null);
-  useEffect(() => {
+  /** Data (ISO) da coluna mais à esquerda no momento — o calendário é MANTIDO nela quando o
+   *  intervalo muda (ex.: depois de salvar/liberar um bloqueio o servidor devolve outro `start`/`days`,
+   *  o que antes recolocava a rolagem em "hoje" ou deslocava as datas; pedido explícito, 17/10/2026). */
+  const leftDateRef = useRef<string | null>(null);
+  const prevStartRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
     const scroller = outerEl?.firstElementChild as HTMLElement | null | undefined;
     if (!scroller) return;
-    const key = `${start}:${days}:${dayW}`;
-    if (scrolledKeyRef.current === key) return;
-    scrolledKeyRef.current = key;
-    const idx = dayList.indexOf(todayISO);
-    scroller.scrollLeft = idx > 0 ? idx * dayW : 0;
+    const key = `${dayW}`;
+    if (scrolledKeyRef.current === null || scrolledKeyRef.current !== key) {
+      // 1ª abertura (ou mudou a largura da coluna): abre em hoje.
+      scrolledKeyRef.current = key;
+      prevStartRef.current = start;
+      const idx = dayList.indexOf(todayISO);
+      scroller.scrollLeft = idx > 0 ? idx * dayW : 0;
+      leftDateRef.current = dayList[Math.max(0, Math.round(scroller.scrollLeft / dayW))] ?? null;
+      return;
+    }
+    if (prevStartRef.current !== start) {
+      // O intervalo mudou: volta EXATAMENTE para a mesma data que estava à esquerda.
+      prevStartRef.current = start;
+      const keep = leftDateRef.current;
+      const idx = keep ? dayList.indexOf(keep) : -1;
+      if (idx >= 0) scroller.scrollLeft = idx * dayW;
+    }
   }, [outerEl, start, days, dayW, dayList, todayISO]);
   const dayIndex = useMemo(() => new Map(dayList.map((d, i) => [d, i])), [dayList]);
   const blockRange = blockSel
@@ -8452,8 +8469,9 @@ function OccupancyPanel({
         window.setTimeout(() => {
           dragSuppressClickRef.current = false;
         }, 300);
-        // Arrastou por 2+ noites → já confirma. Só segurou (1 noite) → fica a barra para escolher a última.
-        if (finish && last !== day) setBlockOpen(true);
+        // Soltou o arrasto: a seleção fica e aparece a barra inferior. A janela "Bloquear datas" só abre
+        // quando a pessoa clica em "Bloquear" na barra (pedido explícito, 17/10/2026).
+        void finish;
       }
     };
     const onUp = () => cleanup(true);
@@ -8532,6 +8550,18 @@ function OccupancyPanel({
     setBlockBusy(true);
     try {
       const realId = baseId(blockTap.propertyId);
+      const tapped = blockTap;
+      // Tira a barra da tela NA HORA (as demais telas abertas atualizam pelo canal ao vivo).
+      qcBlock.setQueriesData({ queryKey: ["dash-occupancy"] }, (old: unknown) => {
+        const o = old as { stays?: Array<{ propertyId: string; checkin: string; checkout: string | null; blocked?: boolean }> } | undefined;
+        if (!o || !Array.isArray(o.stays)) return old;
+        return {
+          ...o,
+          stays: o.stays.filter(
+            (st) => !(st.blocked && st.propertyId === realId && st.checkin === tapped.from && (st.checkout ?? st.checkin) === tapped.to),
+          ),
+        };
+      });
       await removeBlockFn({ data: { ownerId: blockOwnerId, propertyId: realId, id: blockTap.id } });
       setReleaseOpen(false);
       setBlockTap(null);
@@ -9059,7 +9089,11 @@ function OccupancyPanel({
                     maxWidth: "100%",
                     ...(list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : {}),
                   }}
-                  onScroll={(e) => setFirstVisIdx(Math.max(0, Math.floor(e.currentTarget.scrollLeft / dayW)))}
+                  onScroll={(e) => {
+                const i = Math.max(0, Math.floor(e.currentTarget.scrollLeft / dayW));
+                leftDateRef.current = dayList[i] ?? leftDateRef.current;
+                setFirstVisIdx(i);
+              }}
                   className="sg-elegant-scroll overflow-auto snap-x snap-proximity"
                 >
                   <table
@@ -9386,6 +9420,9 @@ function OccupancyPanel({
                                           "aria-label": `Noite de ${d.slice(8, 10)}/${d.slice(5, 7)} · ${p.name}`,
                                           onFocus: () => setKbCell({ propertyId: p.id, day: d }),
                                           onPointerDown: (ev: React.PointerEvent) => blockPointerDown(p.id, d, ev),
+                                          // Clique do mouse NÃO foca a noite: o foco fazia o navegador "puxar" a tela para
+                                          // cima ao abrir a barra inferior (pedido explícito, 17/10/2026). Teclado segue igual.
+                                          onMouseDown: (ev: React.MouseEvent) => ev.preventDefault(),
                                           // Segurar no celular abre o menu do sistema e cancela o arrasto.
                                           onContextMenu: (ev: React.MouseEvent) => ev.preventDefault(),
                                           onClick: (ev: React.MouseEvent) => blockClick(p.id, d, ev.target as HTMLElement),

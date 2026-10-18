@@ -349,7 +349,8 @@ export async function flushAriOutbox(): Promise<FlushResult> {
     for (const items of byProp.values()) groups.push({ kind, items });
   }
 
-  for (const { kind, items } of groups) {
+  // Um lote por propriedade da Channex: em paralelo (cada um é uma chamada independente).
+  await Promise.all(groups.map(async ({ kind, items }) => {
     const batchId = crypto.randomUUID();
     const ids = items.map((r) => r.id);
     await sb.from("channex_ari_outbox").update({ status: "sending", batch_id: batchId }).in("id", ids);
@@ -396,7 +397,7 @@ export async function flushAriOutbox(): Promise<FlushResult> {
       }
     }
     result.batches.push({ kind, items: items.length, ok: res.ok, status: res.status, taskId: res.taskId, error: res.error, warnings: res.json?.meta?.warnings ? JSON.stringify(res.json.meta.warnings).slice(0, 1000) : null });
-  }
+    }));
   return result;
 }
 

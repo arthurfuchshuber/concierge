@@ -23,7 +23,9 @@ export async function pushPropertyAvailability(propertyId: string, userId: strin
   if (!primaries.length) return { connected: false, ok: true };
   const siblingRts = new Set(primaries.map((t) => t.sibling?.roomTypeId).filter(Boolean) as string[]);
   const targets = all.filter((t) => t.propertyId === propertyId || siblingRts.has(t.roomTypeId));
-  for (const t of targets) await syncRealAvailability(t, userId, 270, false);
+  // Anúncios do par em paralelo e lendo as reservas da Channex uma única vez (cache por envio).
+  const cache = new Map<string, Promise<Set<string>>>();
+  await Promise.all(targets.map((t) => syncRealAvailability(t, userId, 270, false, cache)));
   const flushed = await flushAriOutbox();
   return { connected: true, ok: flushed.batches.every((b) => b.ok) };
 }
