@@ -51,14 +51,14 @@ const PopoverContent = React.forwardRef<
         // TAMANHO MÁXIMO DE TELA (pedido explícito, 24/09/2026): além de
         // nunca estourar o espaço disponível perto do gatilho, nenhum
         // tooltip pode passar de ~75% da ALTURA TOTAL do aparelho — daí o
-        // `min(75dvh, …)`. `sg-elegant-scroll`: barra de rolagem fina,
+        // `min(90dvh, …)`. `sg-elegant-scroll`: barra de rolagem fina,
         // visível e na cor da marca (pedido explícito: "elegante e
         // visível" — a nativa some sozinha em alguns navegadores/SOs).
         // z-[60]: acima do véu global (`GlobalOverlayScrim`, z-[55]) e do
         // overlay de Dialog (z-50) — corrigido no mesmo pedido do desfoque:
         // um Popover aberto dentro de um Dialog já aberto precisa continuar
         // nítido POR CIMA do véu que agora também cobre o conteúdo do Dialog.
-        "sg-elegant-scroll overscroll-contain z-[60] w-72 max-h-[min(75dvh,var(--radix-popover-content-available-height))] overflow-y-auto ds-overlay max-w-[calc(100vw-32px)] p-4  outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-popover-content-transform-origin)",
+        "sg-elegant-scroll overscroll-contain z-[60] w-72 max-h-[min(90dvh,var(--radix-popover-content-available-height))] overflow-y-auto ds-overlay max-w-[calc(100vw-32px)] p-4  outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-popover-content-transform-origin)",
         className,
       )}
       {...props}

@@ -4340,7 +4340,7 @@ function useWholeCardsMaxHeight(key: unknown) {
       // (cabeçalho/abas) para a janela não passar de 75% da tela.
       const win = node.closest<HTMLElement>('[role="dialog"]');
       const chrome = win ? Math.max(0, win.offsetHeight - node.offsetHeight) : 0;
-      const cap = Math.max(120, Math.round(window.innerHeight * 0.75) - chrome);
+      const cap = Math.max(120, Math.round(window.innerHeight * 0.9) - chrome);
       const tops = items.map((i) => absoluteTop(i) - base);
       const bottoms = items.map((i) => absoluteTop(i) + i.offsetHeight - base);
       const total = bottoms[bottoms.length - 1];
@@ -4672,7 +4672,7 @@ function KpiCard({
             list.ref(el);
             screenshotRef.current = el;
           }}
-          className="sg-elegant-scroll max-h-[75dvh] overflow-y-auto px-3 pt-3"
+          className="sg-elegant-scroll max-h-[90dvh] overflow-y-auto px-3 pt-3"
         >
           {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
@@ -4857,7 +4857,7 @@ function FreePropertiesCard({
           lista rola e o anticorte global (`useAntiClipWindow`) encolhe a área
           até o último cartão inteiro. Cada imóvel leva "Proprietário: nome" +
           mensagem e o botão do Maps (regra de todo lugar que cita um anúncio). */}
-      <DialogContent className="flex max-h-[75dvh] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
+      <DialogContent className="flex max-h-[90dvh] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
         <DialogHeader className="shrink-0 px-5 pt-5 pb-0">
           <DialogTitle className="text-base font-display">Imóveis livres {dayLabel}</DialogTitle>
         </DialogHeader>
@@ -6905,7 +6905,7 @@ export function TasksDialog({
           <div
             ref={scroll.ref}
             style={scroll.maxHeight !== undefined ? { maxHeight: scroll.maxHeight } : undefined}
-            className="sg-elegant-scroll max-h-[75dvh] overflow-y-auto px-5 pb-5 space-y-3"
+            className="sg-elegant-scroll max-h-[90dvh] overflow-y-auto px-5 pb-5 space-y-3"
           >
             {loading ? (
               <div className="py-12 grid place-items-center text-muted-foreground">

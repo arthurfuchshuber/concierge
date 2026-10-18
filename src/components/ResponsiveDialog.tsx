@@ -66,7 +66,7 @@ export function ResponsiveDialogContent({
   const isMobile = useIsMobile();
   if (isMobile) {
     return (
-      <DrawerContent className={cn("max-h-[75dvh] px-4 pb-[max(1rem,env(safe-area-inset-bottom))]", className)}>
+      <DrawerContent className={cn("max-h-[90dvh] px-4 pb-[max(1rem,env(safe-area-inset-bottom))]", className)}>
         {scrollable ? <div className="sg-elegant-scroll min-h-0 overflow-y-auto">{children}</div> : children}
       </DrawerContent>
     );
