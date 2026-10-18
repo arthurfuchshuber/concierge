@@ -394,7 +394,14 @@ function RootComponent() {
          evento de rolagem. Abaixo de 120px não é teclado: é a casca do
          navegador, e ela não pode mexer no centro da janela. */
       const inset = coberto > 120 ? Math.round(coberto) : 0;
-      document.documentElement.style.setProperty("--kb-inset", `${inset}px`);
+      const root = document.documentElement.style;
+      root.setProperty("--kb-inset", `${inset}px`);
+      /* CENTRO REAL (18/10/2026): janelas grandes ficam SEMPRE no meio da área
+         visível — com teclado aberto, no meio entre o topo do aparelho e o
+         teclado (inclui o deslocamento do iOS ao rolar a área visível). */
+      const keyboard = inset > 0 || vv.offsetTop > 8;
+      root.setProperty("--vv-center", keyboard ? `${Math.round(vv.offsetTop + vv.height / 2)}px` : "50%");
+      root.setProperty("--vv-h", keyboard ? `${Math.round(vv.height)}px` : "100dvh");
     };
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
