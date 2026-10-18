@@ -218,7 +218,7 @@ import {
   type CleaningDailyPoint,
   type FreeProperty,
 } from "@/lib/dashboard.functions";
-import { sortCheckinRowsCore, sortCheckoutRows } from "@/lib/arrival-sorting";
+import { sortCheckinRowsCore, sortCheckoutRows, sortCleaningRows } from "@/lib/arrival-sorting";
 import {
   listTaskLinkOptions,
   listTasks,
