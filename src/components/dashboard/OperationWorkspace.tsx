@@ -4636,7 +4636,7 @@ function KpiCard({
            relatado, 23/09/2026: "os tooltips saíram do centro"). O `fixed`
            da base já é "positioned" o bastante para o `before:absolute` do
            fio de luz funcionar sem precisar de `relative` extra aqui. */
-        className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
+        className="sg-vv-center w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
       >
         <DialogHeader className="px-5 pt-5 pb-0">
           <div className="flex items-center gap-3">
@@ -4857,7 +4857,7 @@ function FreePropertiesCard({
           lista rola e o anticorte global (`useAntiClipWindow`) encolhe a área
           até o último cartão inteiro. Cada imóvel leva "Proprietário: nome" +
           mensagem e o botão do Maps (regra de todo lugar que cita um anúncio). */}
-      <DialogContent className="flex max-h-[90dvh] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
+      <DialogContent className="sg-vv-center flex max-h-[90dvh] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
         <DialogHeader className="shrink-0 px-5 pt-5 pb-0">
           <DialogTitle className="text-base font-display">Imóveis livres {dayLabel}</DialogTitle>
         </DialogHeader>
@@ -5027,7 +5027,7 @@ function StatDisplayCard({
     {clickable && (
       detailItems && detailItems.length > 0 ? (
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="flex flex-col w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden">
+        <DialogContent className="sg-vv-center flex flex-col w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden">
           <DialogTitle className="sr-only">{label}</DialogTitle>
           <CleaningDayDetailContent
             date="all"
