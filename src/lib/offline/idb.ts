@@ -93,3 +93,13 @@ export async function idbLimparTudo(): Promise<void> {
     /* nada a fazer */
   }
 }
+
+/** Chaves que começam com um prefixo (para filas guardadas no aparelho). */
+export async function idbChaves(prefixo: string): Promise<string[]> {
+  try {
+    const todas = await transacao<IDBValidKey[]>("readonly", (loja) => loja.getAllKeys());
+    return todas.map(String).filter((k) => k.startsWith(prefixo));
+  } catch {
+    return [];
+  }
+}
