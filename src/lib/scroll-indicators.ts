@@ -18,7 +18,7 @@
 const CANDIDATES =
   '[class*="overflow-y-"], [class*="overflow-auto"], [class*="sg-elegant-scroll"], [role="dialog"], [data-radix-scroll-area-viewport]';
 const TRACK_MARGIN = 14; // mesma folga da barra global (cantos arredondados)
-const THUMB_W = 4;
+const THUMB_W = 3;
 const MIN_THUMB = 28;
 
 function hasOverlayScrollbars(): boolean {

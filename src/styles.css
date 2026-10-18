@@ -523,7 +523,7 @@
   }
 }
 ::-webkit-scrollbar {
-  /* 6px: com 3px era impossível arrastar com o mouse. */
+  /* 6px de área útil: com 3px era impossível arrastar com o mouse. */
   width: 6px;
   height: 6px;
 }
@@ -532,8 +532,12 @@
   margin: 14px;
 }
 ::-webkit-scrollbar-thumb {
-  /* Lilás da marca, translúcido/sutil (pedido 26/09/2026). */
+  /* Lilás da marca, translúcido/sutil (pedido 26/09/2026). Mais fina ainda
+     (17/10/2026): o traço visível tem 3px, mas a área de agarrar segue com
+     6px — a borda transparente + `background-clip` faz isso. */
   background: color-mix(in oklab, oklch(0.58 0.2 300) 35%, transparent);
+  background-clip: padding-box;
+  border: 1.5px solid transparent;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {

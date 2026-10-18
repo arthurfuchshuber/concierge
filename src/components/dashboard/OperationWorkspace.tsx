@@ -8293,8 +8293,59 @@ function OccupancyPanel({
       ? { from: blockSel.anchor, to: blockAddDays(blockSel.end, 1) }
       : { from: blockSel.end, to: blockAddDays(blockSel.anchor, 1) }
     : null;
+  /** Arrastar com o mouse (17/10/2026): botão apertado numa noite livre e solto em outra do MESMO imóvel
+   *  seleciona o intervalo enquanto se arrasta e, ao soltar, abre a janela "Bloquear datas". No toque
+   *  (celular) continua o "toque na 1ª e na última" — arrastar ali é rolar o calendário. */
+  const dragSuppressClickRef = useRef(false);
+  function blockPointerDown(propertyId: string, day: string, ev: React.PointerEvent) {
+    if (!canBlock || ev.pointerType !== "mouse" || ev.button !== 0) return;
+    const target = ev.target as HTMLElement;
+    if (target.closest('[role="button"]') && target !== target.closest("[data-bc]")) return;
+    if (day < todayISO) return;
+    if ((blockPermQ.data?.blocks ?? []).some((b) => b.propertyId === propertyId && b.from <= day && day < b.to)) return;
+    const stays = byProperty.get(propertyId) ?? [];
+    if (firstBlockConflict(stays, day, blockAddDays(day, 1))) return;
+    let last = day;
+    let moved = false;
+    let warned = false;
+    const onMove = (e: PointerEvent) => {
+      const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-bc]");
+      const [pid, d] = (cell?.dataset.bc ?? "").split("|");
+      if (!cell || pid !== propertyId || !d || d === last || d < todayISO) return;
+      const lo = day <= d ? day : d;
+      const hi = day <= d ? d : day;
+      const hit = firstBlockConflict(stays, lo, blockAddDays(hi, 1));
+      if (hit) {
+        if (!warned) {
+          warned = true;
+          toast.error("Não é possível bloquear", { description: conflictMessage(hit, lo) });
+        }
+        return;
+      }
+      last = d;
+      if (d !== day) moved = true;
+      setBlockTap(null);
+      setBlockSel({ propertyId, anchor: day, end: d });
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      if (moved) {
+        dragSuppressClickRef.current = true;
+        window.setTimeout(() => {
+          dragSuppressClickRef.current = false;
+        }, 0);
+        setBlockOpen(true);
+      }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  }
   function blockClick(propertyId: string, day: string, target: HTMLElement | null) {
     if (!canBlock) return;
+    if (dragSuppressClickRef.current) return;
     // Clique numa reserva abre o histórico dela — não mexe na seleção.
     if (target?.closest('[role="button"]') && target !== target.closest("[data-bc]")) return;
     // Tocar numa noite JÁ bloqueada à mão (mockup 6): abre a barra "Bloqueado" com "Liberar datas".
@@ -9170,7 +9221,7 @@ function OccupancyPanel({
                                   <div
                                     className={`relative flex h-6 w-full items-center ${
                                       canBlock
-                                        ? "cursor-pointer rounded-[4px] hover:bg-foreground/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                                        ? "cursor-pointer select-none rounded-[4px] hover:bg-foreground/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                                         : ""
                                     }`}
                                     {...(canBlock
@@ -9180,6 +9231,7 @@ function OccupancyPanel({
                                             (kbCell ? kbCell.propertyId === p.id && kbCell.day === d : p.id === properties[0]?.id && d === todayISO) ? 0 : -1,
                                           "aria-label": `Noite de ${d.slice(8, 10)}/${d.slice(5, 7)} · ${p.name}`,
                                           onFocus: () => setKbCell({ propertyId: p.id, day: d }),
+                                          onPointerDown: (ev: React.PointerEvent) => blockPointerDown(p.id, d, ev),
                                           onClick: (ev: React.MouseEvent) => blockClick(p.id, d, ev.target as HTMLElement),
                                           onKeyDown: (e: React.KeyboardEvent) => {
                                             if (e.target !== e.currentTarget) return;
@@ -9209,20 +9261,10 @@ function OccupancyPanel({
                                         />
                                       );
                                     })()}
-                                    {/* Bug real corrigido (25/09/2026, print: "linha
-                                        horizontal cortando a faixa de status"): antes
-                                        era UM fio só, com largura cheia, sempre
-                                        renderizado — e como "Ocupado" usa uma cor com
-                                        opacidade (`bg-primary/35`), o fio aparecia por
-                                        baixo, visível como um traço no meio da faixa
-                                        colorida. Agora é um fio por METADE, e só
-                                        aparece na metade que realmente está "Livre". */}
-                                    {!occ[idxA] && (
-                                      <span className="absolute left-0 top-1/2 h-px w-1/2 -translate-y-1/2 bg-border/50" />
-                                    )}
-                                    {!occ[idxB] && (
-                                      <span className="absolute right-0 top-1/2 h-px w-1/2 -translate-y-1/2 bg-border/50" />
-                                    )}
+                                    {/* SEM LINHA NO MEIO (17/10/2026, pedido explícito): as ÚNICAS
+                                        linhas horizontais do calendário são as divisórias de cima e
+                                        de baixo de cada imóvel. O fio central que existia nas metades
+                                        "Livres" foi removido — nunca cruza o meio da linha. */}
                                     {([0, 1] as const).map((half) => {
                                       const part = half === 0 ? a : b;
                                       if (part === "free") return <div key={half} className="h-full w-1/2" />;

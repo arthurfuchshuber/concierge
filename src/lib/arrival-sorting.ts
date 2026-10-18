@@ -86,12 +86,14 @@ export function clusterByProximity(group: ArrivalRow[]): ArrivalRow[] {
 /**
  * Ordenação dos checkouts (pedido explícito), em ordem de prioridade:
  * 0) atrasado no topo e dia mais próximo primeiro (`compareLateThenDay`);
- * 1) imóvel com check-in previsto no MESMO dia (giro) sobe pro topo;
- * 2) dentro do giro, pelo horário previsto do check-in que está chegando
- *    (mais cedo primeiro);
- * 3) o que sobrar (inclusive quem não tem giro) pelo horário previsto do
- *    próprio checkout (mais cedo primeiro);
- * 4) o que ainda estiver empatado, por proximidade de endereço — encadeado
+ * 1) horário PREVISTO de saída (mais cedo primeiro) — sem previsão, o
+ *    horário LIMITE de checkout do imóvel, só pra ordenar (nunca gravado);
+ *    sem nenhum dos dois, vai por último;
+ * 2) EMPATE de horário: imóvel com check-in no MESMO dia (giro) sobe, e entre
+ *    giros vale o horário do check-in que está chegando (17/10/2026: antes o
+ *    giro passava na frente do horário e um checkout das 11:00 ficava acima
+ *    de um das 02:00 — o horário manda, o giro só desempata);
+ * 3) o que ainda estiver empatado, por proximidade de endereço — encadeado
  *    pelo vizinho mais próximo do ÚLTIMO imóvel já ordenado (rota curta),
  *    não pelo tamanho do grupo de imóveis vizinhos.
  * `checkinRowSources` recebe TODAS as fontes de check-in relevantes pro
@@ -110,14 +112,13 @@ export function sortCheckoutRows(rows: ArrivalRow[], checkinRowSources: ArrivalR
     //    vale antes de tudo — uma lista que cobre vários dias nunca mistura os dias.
     const day = compareLateThenDay(a, b, today);
     if (day !== 0) return day;
+    const own = compareTimes(ownTime(a), ownTime(b));
+    if (own !== 0) return own;
     const ga = hasTurnover(a) ? 0 : 1;
     const gb = hasTurnover(b) ? 0 : 1;
     if (ga !== gb) return ga - gb;
-    if (ga === 0) {
-      const c = compareTimes(turnoverTime(a), turnoverTime(b));
-      if (c !== 0) return c;
-    }
-    return compareTimes(ownTime(a), ownTime(b));
+    if (ga === 0) return compareTimes(turnoverTime(a), turnoverTime(b));
+    return 0;
   };
   const sorted = [...rows].sort(cmp);
   const result: ArrivalRow[] = [];

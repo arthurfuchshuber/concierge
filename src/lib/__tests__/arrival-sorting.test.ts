@@ -73,9 +73,15 @@ describe("checkouts (pendentes, amanhã): relógio = previsão de CHECKOUT", () 
     const amanha = row({ propertyName: "amanhã", date: "2026-10-18", propertyCheckoutTime: "07:00" });
     expect(ids(sort([amanha, hoje, atras]))).toEqual(["atrasado", "hoje", "amanhã"]);
   });
-  it("giro (check-in no mesmo imóvel e dia) sobe ao topo, mantido pelo pedido anterior", () => {
-    const giro = row({ propertyName: "giro", propertyId: "G", propertyCheckoutTime: "12:00" });
-    const comum = row({ propertyName: "comum", propertyCheckoutTime: "08:00" });
+  it("o horário de saída manda: 02:00 fica acima de 11:00 mesmo que o de 11:00 tenha giro", () => {
+    const giro = row({ propertyName: "giro-11h", propertyId: "G", propertyCheckoutTime: "11:00" });
+    const cedo = row({ propertyName: "cedo-02h", propertyCheckoutTime: "02:00" });
+    const ci = row({ propertyId: "G", date: TODAY, propertyCheckinTime: "15:00" });
+    expect(ids(sort([giro, cedo], [ci]))).toEqual(["cedo-02h", "giro-11h"]);
+  });
+  it("mesmo horário de saída: o giro desempata e sobe", () => {
+    const giro = row({ propertyName: "giro", propertyId: "G", propertyCheckoutTime: "11:00" });
+    const comum = row({ propertyName: "comum", propertyCheckoutTime: "11:00" });
     const ci = row({ propertyId: "G", date: TODAY, propertyCheckinTime: "15:00" });
     expect(ids(sort([comum, giro], [ci]))).toEqual(["giro", "comum"]);
   });
