@@ -105,7 +105,7 @@ export const createManualBlockFn = createServerFn({ method: "POST" })
     if (!(await blockStep("modo da conta", () => isFullMode(context.supabase, context.userId, data.ownerId)))) throw new Error(LIGHT_MSG);
     return blockStep("gravação", async () => {
       const { createManualBlock } = await import("@/lib/manual-blocks.server");
-      return createManualBlock({ ...data, userId: context.userId });
+      return createManualBlock({ ...data, userId: context.userId, push: false });
     });
   });
 
@@ -117,5 +117,20 @@ export const removeManualBlockFn = createServerFn({ method: "POST" })
     if (!ids.includes(data.propertyId)) throw new Error("Sem permissão para desbloquear este imóvel.");
     if (!(await isFullMode(context.supabase, context.userId, data.ownerId))) throw new Error(LIGHT_MSG);
     const { removeManualBlock } = await import("@/lib/manual-blocks.server");
-    return removeManualBlock({ ...data, userId: context.userId });
+    return removeManualBlock({ ...data, userId: context.userId, push: false });
+  });
+
+/**
+ * Envio aos anúncios depois de gravar/liberar (ver `push: false` em manual-blocks.server.ts): recalcula a
+ * disponibilidade do imóvel e de TODOS os anúncios ligados a ele (inclusive o gêmeo) na Channex, que
+ * propaga ao Airbnb. Devolve `{ connected, ok }` — nunca lança por falha de envio.
+ */
+export const syncBlockAvailabilityFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ ownerId: z.string().uuid().nullable().optional(), propertyId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const ids = await editableProperties(context.supabase, context.userId, data.ownerId);
+    if (!ids.includes(data.propertyId)) throw new Error("Sem permissão para este imóvel.");
+    const { safePush } = await import("@/lib/manual-blocks.server");
+    return safePush(data.propertyId, context.userId);
   });

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FILTER_PANEL_CLASS, FILTER_PANEL_COLLISION, FILTER_PANEL_OFFSET } from "@/components/dashboard/filter-panel";
 import { ACTION_ICON, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
-import { createManualBlockFn, listManualBlocks, removeManualBlockFn } from "@/lib/manual-blocks.functions";
+import { createManualBlockFn, listManualBlocks, removeManualBlockFn, syncBlockAvailabilityFn } from "@/lib/manual-blocks.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
 const ddmm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
@@ -20,6 +20,7 @@ export function ManualBlockButton() {
   const listFn = useServerFn(listManualBlocks);
   const createFn = useServerFn(createManualBlockFn);
   const removeFn = useServerFn(removeManualBlockFn);
+  const syncFn = useServerFn(syncBlockAvailabilityFn);
   const qc = useQueryClient();
   const key = ["manual-blocks", ownerId];
   const { data } = useQuery({ queryKey: key, queryFn: () => listFn({ data: { ownerId } }) });
@@ -33,15 +34,26 @@ export function ManualBlockButton() {
   if (!data?.canEdit) return null;
   const names = new Map(data.properties.map((p) => [p.id, p.name]));
 
+  /** Envio aos anúncios fora do pedido de gravar (a tela não fica presa esperando a Channex). */
+  async function pushListings(pid: string, release: boolean) {
+    const tid = toast.loading(release ? "Reabrindo as datas nos anúncios…" : "Fechando as datas nos anúncios…");
+    try {
+      const r = await syncFn({ data: { ownerId, propertyId: pid } });
+      if (r.connected && !r.ok) toast.warning("Salvo aqui, mas não consegui atualizar os anúncios. Tente de novo em alguns minutos.", { id: tid });
+      else toast.success(r.connected ? (release ? "Datas liberadas em todos os anúncios." : "Datas bloqueadas em todos os anúncios.") : release ? "Datas liberadas." : "Bloqueio salvo.", { id: tid });
+    } catch {
+      toast.warning("Salvo aqui, mas não consegui atualizar os anúncios. Tente de novo em alguns minutos.", { id: tid });
+    }
+  }
+
   async function save() {
     if (!propertyId || !from || !to) return toast.error("Escolha o imóvel e as datas.");
     setBusy(true);
     try {
-      const r = await createFn({ data: { ownerId, propertyId, from, to, note: note || null } });
-      if (r.connected && !r.ok) toast.warning("Bloqueio salvo, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.");
-      else toast.success(r.connected ? "Datas bloqueadas em todos os anúncios." : "Bloqueio salvo.");
+      await createFn({ data: { ownerId, propertyId, from, to, note: note || null } });
       setFrom(""); setTo(""); setNote("");
       await qc.invalidateQueries({ queryKey: key });
+      void pushListings(propertyId, false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível bloquear.");
     } finally { setBusy(false); }
@@ -50,10 +62,9 @@ export function ManualBlockButton() {
   async function remove(id: string, pid: string) {
     setBusy(true);
     try {
-      const r = await removeFn({ data: { ownerId, propertyId: pid, id } });
-      if (r.connected && !r.ok) toast.warning("Datas liberadas aqui, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos.");
-      else toast.success("Datas liberadas.");
+      await removeFn({ data: { ownerId, propertyId: pid, id } });
       await qc.invalidateQueries({ queryKey: key });
+      void pushListings(pid, true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível liberar.");
     } finally { setBusy(false); }

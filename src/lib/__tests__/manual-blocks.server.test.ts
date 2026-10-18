@@ -140,4 +140,22 @@ describe("createManualBlock (servidor)", () => {
     expect(r).toMatchObject({ connected: true, ok: false });
     expect(rows.filter((x) => x.status === "blocked")).toHaveLength(1);
   });
+
+  it("push:false grava e devolve na hora, sem tocar nos anúncios (envio vem depois)", async () => {
+    pushThrows = true; // se tentasse enviar, o envio quebraria
+    const { createManualBlock } = await import("@/lib/manual-blocks.server");
+    const r = await createManualBlock({ propertyId: P, from: future(5), to: future(8), userId: null, push: false });
+    expect(r).toMatchObject({ merged: false });
+    expect(r).not.toHaveProperty("connected");
+    expect(rows.filter((x) => x.source === "manual" && x.status === "blocked")).toHaveLength(1);
+  });
+
+  it("push:false também vale ao liberar", async () => {
+    const { createManualBlock, removeManualBlock } = await import("@/lib/manual-blocks.server");
+    const c = await createManualBlock({ propertyId: P, from: future(5), to: future(8), userId: null, push: false });
+    pushThrows = true;
+    const r = await removeManualBlock({ id: c.id, propertyId: P, userId: null, push: false });
+    expect(r).toEqual({});
+    expect(rows.find((x) => x.id === c.id)?.status).toBe("cancelled");
+  });
 });

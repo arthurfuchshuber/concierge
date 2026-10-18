@@ -53,7 +53,7 @@ import { ManualCleaningButton } from "@/components/dashboard/ManualCleaningButto
 import { ManualBlockButton } from "@/components/dashboard/ManualBlockButton";
 import { CalendarBlockBar, CalendarBlockDialog } from "@/components/dashboard/CalendarBlockUI";
 import { addDaysISO as blockAddDays, conflictMessage, firstBlockConflict } from "@/lib/manual-block-conflict";
-import { createManualBlockFn, listManualBlocks, removeManualBlockFn } from "@/lib/manual-blocks.functions";
+import { createManualBlockFn, listManualBlocks, removeManualBlockFn, syncBlockAvailabilityFn } from "@/lib/manual-blocks.functions";
 import { useOperationMode } from "@/components/admin-pages/ChannexModeCard";
 import { ManualCleaningCard } from "@/components/dashboard/ManualCleaningCard";
 import {
@@ -8059,6 +8059,7 @@ function OccupancyPanel({
   const listBlocksFn = useServerFn(listManualBlocks);
   const createBlockFn = useServerFn(createManualBlockFn);
   const removeBlockFn = useServerFn(removeManualBlockFn);
+  const syncBlockFn = useServerFn(syncBlockAvailabilityFn);
   const qcBlock = useQueryClient();
   const blockPermQ = useQuery({
     queryKey: ["manual-blocks", blockOwnerId],
@@ -8498,22 +8499,52 @@ function OccupancyPanel({
       setBlockSel({ propertyId, anchor: a, end: day });
     }
   }
+  /** Depois de gravar/liberar: fecha (ou reabre) as datas em TODOS os anúncios do imóvel — o principal e o
+   *  gêmeo, nos dois sentidos — pela Channex. Roda fora do pedido de gravar para a tela nunca ficar presa. */
+  async function syncListings(realPropertyId: string, release: boolean) {
+    const tid = toast.loading(release ? "Reabrindo as datas nos anúncios…" : "Fechando as datas nos anúncios…");
+    try {
+      const r = await syncBlockFn({ data: { ownerId: blockOwnerId, propertyId: realPropertyId } });
+      if (r.connected && !r.ok) {
+        toast.warning(
+          release
+            ? "Datas liberadas aqui, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos."
+            : "Bloqueio salvo aqui, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.",
+          { id: tid },
+        );
+      } else if (r.connected) {
+        toast.success(release ? "Datas liberadas em todos os anúncios." : "Datas bloqueadas em todos os anúncios.", { id: tid });
+      } else {
+        toast.success(release ? "Datas liberadas." : "Bloqueio salvo.", { id: tid });
+      }
+    } catch (e) {
+      console.error("[manual-block] envio aos anúncios falhou", e);
+      toast.warning(
+        release
+          ? "Datas liberadas aqui, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos."
+          : "Bloqueio salvo aqui, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.",
+        { id: tid },
+      );
+    }
+  }
   async function releaseBlock() {
     if (!blockTap) return;
     setBlockBusy(true);
     try {
-      const r = await removeBlockFn({ data: { ownerId: blockOwnerId, propertyId: baseId(blockTap.propertyId), id: blockTap.id } });
-      if (r.connected && !r.ok) {
-        toast.warning("Datas liberadas, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos.");
-      } else {
-        toast.success(r.connected ? "Datas liberadas em todos os anúncios." : "Datas liberadas.");
-      }
+      const realId = baseId(blockTap.propertyId);
+      await removeBlockFn({ data: { ownerId: blockOwnerId, propertyId: realId, id: blockTap.id } });
       setReleaseOpen(false);
       setBlockTap(null);
-      await Promise.all([
-        qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }),
-        qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }),
-      ]);
+      // Liberou no ConciergeIA: a tela atualiza JÁ; reabrir nos anúncios segue em seguida, com aviso próprio.
+      try {
+        await Promise.all([
+          qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }),
+          qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }),
+        ]);
+      } catch (refreshErr) {
+        console.error("[manual-block] recarregar calendário falhou", refreshErr);
+      }
+      void syncListings(realId, true);
     } catch (e) {
       toast.error("Não foi possível liberar", { description: e instanceof Error && e.message ? e.message : "Tente novamente." });
     } finally {
@@ -8557,14 +8588,10 @@ function OccupancyPanel({
     if (!blockSel || !blockRange) return;
     setBlockBusy(true);
     try {
-      const r = await createBlockFn({
-        data: { ownerId: blockOwnerId, propertyId: baseId(blockSel.propertyId), from: blockRange.from, to: blockRange.to, note },
+      const realId = baseId(blockSel.propertyId);
+      await createBlockFn({
+        data: { ownerId: blockOwnerId, propertyId: realId, from: blockRange.from, to: blockRange.to, note },
       });
-      if (r.connected && !r.ok) {
-        toast.warning("Bloqueio salvo, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.");
-      } else {
-        toast.success(r.connected ? "Datas bloqueadas em todos os anúncios." : "Bloqueio salvo.");
-      }
       setBlockOpen(false);
       setBlockSel(null);
       // Atualizar a tela NUNCA pode virar "erro ao bloquear": o bloqueio já está
@@ -8577,6 +8604,7 @@ function OccupancyPanel({
       } catch (refreshErr) {
         console.error("[manual-block] recarregar calendário falhou", refreshErr);
       }
+      void syncListings(realId, false);
     } catch (e) {
       console.error("[manual-block] erro ao bloquear", e);
       toast.error("Não é possível bloquear", { description: (e instanceof Error ? e.message : "").replace(/^Não é possível bloquear — /, "") || "Tente novamente." });

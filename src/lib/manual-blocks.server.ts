@@ -31,7 +31,7 @@ export async function pushPropertyAvailability(propertyId: string, userId: strin
 const todayUTC = () => new Date().toISOString().slice(0, 10);
 
 /** Reserva ativa dentro de [from, to) no banco OU na Channex (gêmeos inclusos). Devolve a mensagem de erro, ou null. */
-async function findActiveConflict(db: any, propertyId: string, from: string, to: string): Promise<string | null> {
+async function findActiveConflict(db: any, propertyId: string, from: string, to: string, withChannex = true): Promise<string | null> {
   const { activeStays, firstBlockConflict, conflictMessage, firstNightIn, ddmmISO } = await import("@/lib/manual-block-conflict");
   const { data, error } = await db
     .from("property_reservations")
@@ -43,6 +43,7 @@ async function findActiveConflict(db: any, propertyId: string, from: string, to:
   const hit = firstBlockConflict(activeStays((data ?? []) as any[]), from, to);
   if (hit) return `Não é possível bloquear — ${conflictMessage(hit, from)}`;
   // Reservas que ainda só existem na Channex (ex.: do anúncio gêmeo) também travam.
+  if (!withChannex) return null;
   try {
     const { channexBookedNights } = await import("@/lib/channex-mapping.server");
     const night = firstNightIn(await channexBookedNights(propertyId), from, to);
@@ -53,7 +54,14 @@ async function findActiveConflict(db: any, propertyId: string, from: string, to:
   return null;
 }
 
-export async function createManualBlock(input: { propertyId: string; from: string; to: string; note?: string | null; userId: string | null }) {
+/**
+ * `push: false` (usado pela tela, 17/10/2026): só grava e devolve NA HORA. O envio aos anúncios (Channex →
+ * Airbnb e gêmeo) levava dezenas de segundos dentro do mesmo pedido, a tela ficava presa no "Bloqueando…" e
+ * o calendário não atualizava — o bloqueio existia no banco e no Airbnb mas não aparecia no ConciergeIA.
+ * Agora a tela atualiza assim que grava e chama `syncBlockAvailability` em seguida, com aviso próprio.
+ */
+export async function createManualBlock(input: { propertyId: string; from: string; to: string; note?: string | null; userId: string | null; push?: boolean }) {
+  const push = input.push !== false;
   const { validateBlockDates, planBlockMerge } = await import("@/lib/manual-block-conflict");
   const invalid = validateBlockDates(input.from, input.to, todayUTC());
   if (invalid) throw new Error(invalid);
@@ -76,7 +84,7 @@ export async function createManualBlock(input: { propertyId: string; from: strin
     input.from,
     input.to,
   );
-  if (plan.coveringId) return { id: plan.coveringId, merged: true, ...(await safePush(input.propertyId, input.userId)) };
+  if (plan.coveringId) return { id: plan.coveringId, merged: true, ...(push ? await safePush(input.propertyId, input.userId) : {}) };
 
   const { data, error } = await db
     .from("property_reservations")
@@ -97,7 +105,7 @@ export async function createManualBlock(input: { propertyId: string; from: strin
 
   // Reconferência depois de gravar: se uma reserva entrou no meio-tempo (duas pessoas ao mesmo
   // tempo), desfaz este bloqueio em vez de fechar a data por cima de hóspede.
-  const late = await findActiveConflict(db, input.propertyId, plan.from, plan.to).catch(() => null);
+  const late = await findActiveConflict(db, input.propertyId, plan.from, plan.to, push).catch(() => null);
   if (late) {
     await db.from("property_reservations").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", newId);
     throw new Error(late);
@@ -110,11 +118,11 @@ export async function createManualBlock(input: { propertyId: string; from: strin
       .eq("property_id", input.propertyId)
       .eq("source", "manual");
   }
-  return { id: newId, merged: plan.absorbIds.length > 0, ...(await safePush(input.propertyId, input.userId)) };
+  return { id: newId, merged: plan.absorbIds.length > 0, ...(push ? await safePush(input.propertyId, input.userId) : {}) };
 }
 
 /** O bloqueio já está salvo: falha ao avisar os anúncios vira `ok: false` (a tela avisa), nunca erro. */
-async function safePush(propertyId: string, userId: string | null) {
+export async function safePush(propertyId: string, userId: string | null) {
   try {
     return await pushPropertyAvailability(propertyId, userId);
   } catch (e) {
@@ -123,7 +131,7 @@ async function safePush(propertyId: string, userId: string | null) {
   }
 }
 
-export async function removeManualBlock(input: { id: string; propertyId: string; userId: string | null }) {
+export async function removeManualBlock(input: { id: string; propertyId: string; userId: string | null; push?: boolean }) {
   const db = await admin();
   const { error } = await db
     .from("property_reservations")
@@ -133,5 +141,5 @@ export async function removeManualBlock(input: { id: string; propertyId: string;
     .eq("source", "manual")
     .eq("status", "blocked");
   if (error) throw new Error(error.message);
-  return safePush(input.propertyId, input.userId);
+  return input.push === false ? {} : safePush(input.propertyId, input.userId);
 }
