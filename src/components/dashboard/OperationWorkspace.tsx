@@ -10990,7 +10990,7 @@ function ArrivalCard({
           />
           {/* O IMÓVEL é o título do card. O proprietário fica acima, menor e
               no rosa da marca: identifica sem disputar a leitura. */}
-          <div className="ds-card-title line-clamp-2 whitespace-normal break-words leading-tight" title={row.propertyName ?? undefined}>
+          <div className="ds-card-title line-clamp-2 [display:-webkit-box] whitespace-normal break-words leading-tight" title={row.propertyName ?? undefined}>
             {row.propertyName ?? "Sem nome"}
           </div>
 
