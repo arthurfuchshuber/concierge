@@ -8440,6 +8440,12 @@ function OccupancyPanel({
     };
     const onMove = (e: PointerEvent) => {
       if (!e.isPrimary) return;
+      // Mouse sem botão apertado = o "soltar" se perdeu (fora da janela, menu, etc.): ENCERRA o arrasto.
+      // Sem isso o calendário seguia o mouse sozinho, só de passar por cima (pedido explícito, 17/10/2026).
+      if (!touch && e.buttons === 0) {
+        cleanup(active);
+        return;
+      }
       px = e.clientX;
       if (!active) {
         const dx = Math.abs(e.clientX - startX);
@@ -8459,6 +8465,7 @@ function OccupancyPanel({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onCancel);
+      window.removeEventListener("blur", onCancel);
       const wasActive = active;
       active = false;
       dragActiveRef.current = false;
@@ -8479,6 +8486,7 @@ function OccupancyPanel({
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onCancel);
+    window.addEventListener("blur", onCancel);
     if (touch) timer = window.setTimeout(begin, 350);
   }
   function blockClick(propertyId: string, day: string, target: HTMLElement | null) {
@@ -9066,8 +9074,10 @@ function OccupancyPanel({
       </div>
       <div className="border-t border-border/50 px-4 sm:px-5 pt-4 pb-5">
           {canBlock && !loading && properties.length > 0 && (
-            /* DICA (mockup 2): some enquanto há seleção/bloqueio aberto. */
-            <p className={`mb-3 flex items-center gap-1.5 text-[11px] text-muted-foreground ${blockSel || blockTap ? "hidden" : ""}`}>
+            /* DICA (mockup 2): some enquanto há seleção/bloqueio aberto — mas FICA OCUPANDO o lugar
+               (`invisible`, não `hidden`): antes ela sumia e o calendário "subia" ~28px no começo do arrasto
+               (pedido explícito, 17/10/2026). */
+            <p className={`mb-3 flex items-center gap-1.5 text-[11px] text-muted-foreground ${blockSel || blockTap ? "invisible" : ""}`}>
               <CalendarX2 className="size-3 shrink-0" aria-hidden />
               Toque numa noite livre e depois em outra — ou arraste (no celular, segure e arraste) — para bloquear datas.
             </p>
