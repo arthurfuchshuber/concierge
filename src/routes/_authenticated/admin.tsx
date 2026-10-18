@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tan
 import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Wrench, Home, Contact, Sparkles, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
+import { createPortal } from "react-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -117,6 +118,8 @@ function AdminLayout() {
   const { isAdmin, isLoading: adminLoading } = useIsAdmin();
   const [email, setEmail] = useState<string>("");
   const [open, setOpen] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
+  useEffect(() => setPortalReady(true), []);
   // Recolher o menu lateral (só desktop — no mobile o menu já é um overlay
   // que abre/fecha por cima, "recolher" não se aplica lá). Lembra a escolha
   // entre sessões.
@@ -399,13 +402,15 @@ function AdminLayout() {
                       }`}
                     >
                       <Icon className={`size-4 shrink-0 ${hasActive ? "text-accent" : ""}`} strokeWidth={2} />
-                      <span className="flex-1 truncate">{group.label}</span>
-                      <span
-                        className={`grid size-6 shrink-0 place-items-center rounded-lg ${
-                          "bg-foreground/[0.06] text-foreground"
-                        }`}
-                      >
-                        {isOpen ? <Minus className="size-3.5" strokeWidth={2.4} /> : <Plus className="size-3.5" strokeWidth={2.4} />}
+                      {/* ÍCONE −/+ AO LADO DO NOME (mockup 1 aprovado, 17/10/2026):
+                          sem caixinha, 12px, cinza suave, logo depois do texto. */}
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate">{group.label}</span>
+                        {isOpen ? (
+                          <Minus className="size-3 shrink-0 text-muted-foreground opacity-70" strokeWidth={2} strokeLinecap="round" aria-hidden />
+                        ) : (
+                          <Plus className="size-3 shrink-0 text-muted-foreground opacity-70" strokeWidth={2} strokeLinecap="round" aria-hidden />
+                        )}
                       </span>
                     </button>
                   )}
@@ -555,9 +560,15 @@ function AdminLayout() {
         {/* Desktop: sem cabeçalho, então o botão flutua no canto superior direito
             (fora do fluxo — não altera o layout). No celular ele ocupa a vaga
             à direita do cabeçalho, alinhado ao botão de menu. */}
-        <div className="fixed right-4 top-3 z-30 hidden lg:block">
-          <ThemeToggle />
-        </div>
+        {/* Portal no <body>: algum ancestral (animação/filtro/contain) vira o
+            "bloco" do `fixed` e fazia o botão rolar junto com a página (17/10/2026). */}
+        {portalReady &&
+          createPortal(
+            <div className="fixed right-4 top-3 z-30 hidden lg:block">
+              <ThemeToggle />
+            </div>,
+            document.body,
+          )}
         {/* Mobile topbar */}
         {/* CABEÇALHO DO CELULAR — padrão "A · Noite" (mockup aprovado,
             17/09/2026): fundo do app com transparência e desfoque, fio de 1px

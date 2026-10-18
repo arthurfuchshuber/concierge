@@ -22,12 +22,27 @@ async function editableProperties(sb: any, userId: string, ownerId: string | nul
   return accessiblePropertyIds(sb, tenantId, userId);
 }
 
+/**
+ * Bloqueio manual só existe no Modo Full (17/10/2026): no Modo Leve a conta
+ * bloqueia direto na plataforma de hospedagem, então nenhum botão/recurso
+ * de bloqueio aparece e o servidor recusa a ação.
+ */
+async function isFullMode(sb: any, userId: string, ownerId: string | null | undefined) {
+  const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+  const tenantId = await resolveAuthorizedAccountOwnerId(sb as never, userId, ownerId ?? null);
+  if (!tenantId) return false;
+  const { getAccountMode } = await import("@/lib/channex-mode.server");
+  return (await getAccountMode(tenantId)).mode === "full";
+}
+
+const LIGHT_MSG = "Bloqueio de datas só está disponível no Modo Full. No Modo Leve, bloqueie direto na plataforma de hospedagem.";
+
 export const listManualBlocks = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ ownerId: z.string().uuid().nullable().optional() }).parse(i ?? {}))
   .handler(async ({ data, context }) => {
     const ids = await editableProperties(context.supabase, context.userId, data.ownerId);
-    if (!ids.length) return { canEdit: false, properties: [], blocks: [] };
+    if (!ids.length || !(await isFullMode(context.supabase, context.userId, data.ownerId))) return { canEdit: false, properties: [], blocks: [] };
     const today = new Date().toISOString().slice(0, 10);
     const [{ data: props }, { data: blocks }] = await Promise.all([
       context.supabase.from("properties").select("id, name").in("id", ids).order("name"),
@@ -55,6 +70,7 @@ export const createManualBlockFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const ids = await editableProperties(context.supabase, context.userId, data.ownerId);
     if (!ids.includes(data.propertyId)) throw new Error("Sem permissão para bloquear este imóvel.");
+    if (!(await isFullMode(context.supabase, context.userId, data.ownerId))) throw new Error(LIGHT_MSG);
     const { createManualBlock } = await import("@/lib/manual-blocks.server");
     return createManualBlock({ ...data, userId: context.userId });
   });
@@ -65,6 +81,7 @@ export const removeManualBlockFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const ids = await editableProperties(context.supabase, context.userId, data.ownerId);
     if (!ids.includes(data.propertyId)) throw new Error("Sem permissão para desbloquear este imóvel.");
+    if (!(await isFullMode(context.supabase, context.userId, data.ownerId))) throw new Error(LIGHT_MSG);
     const { removeManualBlock } = await import("@/lib/manual-blocks.server");
     return removeManualBlock({ ...data, userId: context.userId });
   });

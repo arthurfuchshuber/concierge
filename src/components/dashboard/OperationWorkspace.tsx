@@ -53,7 +53,7 @@ import { ManualCleaningButton } from "@/components/dashboard/ManualCleaningButto
 import { ManualBlockButton } from "@/components/dashboard/ManualBlockButton";
 import { CalendarBlockBar, CalendarBlockDialog } from "@/components/dashboard/CalendarBlockUI";
 import { addDaysISO as blockAddDays, conflictMessage, firstBlockConflict } from "@/lib/manual-block-conflict";
-import { createManualBlockFn, listManualBlocks } from "@/lib/manual-blocks.functions";
+import { createManualBlockFn, listManualBlocks, removeManualBlockFn } from "@/lib/manual-blocks.functions";
 import { useOperationMode } from "@/components/admin-pages/ChannexModeCard";
 import { ManualCleaningCard } from "@/components/dashboard/ManualCleaningCard";
 import {
@@ -90,6 +90,7 @@ import {
   MoreVertical,
   Banknote,
   CalendarRange,
+  CalendarX2,
   CalendarClock,
   User,
   Users,
@@ -217,7 +218,7 @@ import {
   type CleaningDailyPoint,
   type FreeProperty,
 } from "@/lib/dashboard.functions";
-import { sortingTimeOf } from "@/lib/arrival-order";
+import { sortCheckinRowsCore, sortCheckoutRows } from "@/lib/arrival-sorting";
 import {
   listTaskLinkOptions,
   listTasks,
@@ -377,130 +378,6 @@ function centsToBRLShort(cents: number): string {
 }
 
 /* ---------- Ordenação de checkouts (pedido explícito) ---------- */
-
-/** Distância em metros entre duas coordenadas (fórmula de haversine). */
-function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const R = 6371000;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(Math.min(1, h)));
-}
-
-/**
- * Mapa `propriedade|data` → horário previsto do check-in daquele dia (ou
- * `null` se houver check-in sem horário definido) — usado só pra decidir se
- * um checkout "cruza" com uma chegada no mesmo imóvel no mesmo dia (giro).
- * Quando há mais de um check-in no mesmo imóvel/dia (raro), fica o mais cedo.
- */
-function buildSameDayCheckinLookup(checkinRowSources: ArrivalRow[][]): Map<string, string | null> {
-  const map = new Map<string, string | null>();
-  for (const rows of checkinRowSources) {
-    for (const r of rows) {
-      const key = `${r.propertyId}|${r.date}`;
-      const t = sortingTimeOf(r, "checkin");
-      if (!map.has(key)) {
-        map.set(key, t);
-      } else {
-        const cur = map.get(key) ?? null;
-        if (t && (!cur || t < cur)) map.set(key, t);
-      }
-    }
-  }
-  return map;
-}
-
-/**
- * Encadeia os itens de um grupo empatado pelo vizinho mais próximo (rota
- * curta): parte do primeiro item do grupo e, a cada passo, escolhe entre os
- * restantes aquele que está mais perto do ÚLTIMO item já encadeado — não do
- * primeiro. Pedido explícito, com exemplo real: "casa da Patrícia" → o
- * próximo deve ser quem está mais perto DELA (ex.: "casa do Arthur"), e o
- * seguinte, mais perto do Arthur (ex.: "studio da Eliete") — não uma
- * propriedade distante só porque pertence a um grupo com mais unidades
- * (ex.: vários "studios do Clayton" longe dali). Isso também garante que
- * imóveis no mesmo endereço apareçam juntos (distância ~0 = sempre o
- * próximo escolhido). Imóveis sem coordenada cadastrada não competem nesse
- * critério; ficam ao final do grupo, na ordem que já tinham.
- */
-function clusterByProximity(group: ArrivalRow[]): ArrivalRow[] {
-  if (group.length <= 2) return group;
-  const withCoords = group.filter((r) => r.lat != null && r.lng != null);
-  const withoutCoords = group.filter((r) => r.lat == null || r.lng == null);
-  if (withCoords.length <= 1) return group;
-
-  const remaining = [...withCoords];
-  const chain: ArrivalRow[] = [remaining.shift() as ArrivalRow];
-  while (remaining.length > 0) {
-    const last = chain[chain.length - 1];
-    let bestIdx = 0;
-    let bestDist = Infinity;
-    for (let k = 0; k < remaining.length; k++) {
-      const cand = remaining[k];
-      const d = haversineMeters(
-        { lat: last.lat as number, lng: last.lng as number },
-        { lat: cand.lat as number, lng: cand.lng as number },
-      );
-      if (d < bestDist) {
-        bestDist = d;
-        bestIdx = k;
-      }
-    }
-    chain.push(remaining.splice(bestIdx, 1)[0]);
-  }
-  return [...chain, ...withoutCoords];
-}
-
-/**
- * Ordenação dos checkouts (pedido explícito), em ordem de prioridade:
- * 1) imóvel com check-in previsto no MESMO dia (giro) sobe pro topo;
- * 2) dentro do giro, pelo horário previsto do check-in que está chegando
- *    (mais cedo primeiro);
- * 3) o que sobrar (inclusive quem não tem giro) pelo horário previsto do
- *    próprio checkout (mais cedo primeiro);
- * 4) o que ainda estiver empatado, por proximidade de endereço — encadeado
- *    pelo vizinho mais próximo do ÚLTIMO imóvel já ordenado (rota curta),
- *    não pelo tamanho do grupo de imóveis vizinhos.
- * `checkinRowSources` recebe TODAS as fontes de check-in relevantes pro
- * mesmo período das linhas de checkout (não só as pendentes: um giro conta
- * mesmo que o check-in já tenha sido marcado feito).
- */
-function sortCheckoutRows(rows: ArrivalRow[], checkinRowSources: ArrivalRow[][]): ArrivalRow[] {
-  const sameDayCheckin = buildSameDayCheckinLookup(checkinRowSources);
-  const ownTime = (r: ArrivalRow) => sortingTimeOf(r, "checkout");
-  const turnoverKey = (r: ArrivalRow) => `${r.propertyId}|${r.date}`;
-  const hasTurnover = (r: ArrivalRow) => sameDayCheckin.has(turnoverKey(r));
-  const turnoverTime = (r: ArrivalRow) => sameDayCheckin.get(turnoverKey(r)) ?? null;
-  const compareTimes = (ta: string | null, tb: string | null) => {
-    if (ta === tb) return 0;
-    if (!ta) return 1;
-    if (!tb) return -1;
-    return ta.localeCompare(tb);
-  };
-  const cmp = (a: ArrivalRow, b: ArrivalRow) => {
-    const ga = hasTurnover(a) ? 0 : 1;
-    const gb = hasTurnover(b) ? 0 : 1;
-    if (ga !== gb) return ga - gb;
-    if (ga === 0) {
-      const c = compareTimes(turnoverTime(a), turnoverTime(b));
-      if (c !== 0) return c;
-    }
-    return compareTimes(ownTime(a), ownTime(b));
-  };
-  const sorted = [...rows].sort(cmp);
-  const result: ArrivalRow[] = [];
-  let i = 0;
-  while (i < sorted.length) {
-    let j = i + 1;
-    while (j < sorted.length && cmp(sorted[i], sorted[j]) === 0) j++;
-    result.push(...clusterByProximity(sorted.slice(i, j)));
-    i = j;
-  }
-  return result;
-}
 
 /* ---------- Info tooltip ---------- */
 function InfoHint({ title, children }: { title?: string; children: React.ReactNode }) {
@@ -1647,8 +1524,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       sortCheckoutRows(
         coRows.filter((r) => r.status === "pending"),
         turnoverCheckinSources,
+        todayISO,
       ),
-    [coRows, turnoverCheckinSources],
+    [coRows, turnoverCheckinSources, todayISO],
   );
   const rawTomorrowCheckinPendingRows = useMemo(
     () => (tomorrowCheckinListQ.data?.rows ?? []).filter((r) => r.status === "pending"),
@@ -1659,8 +1537,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       sortCheckoutRows(
         (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "pending"),
         turnoverCheckinSources,
+        todayISO,
       ),
-    [tomorrowCheckoutListQ.data?.rows, turnoverCheckinSources],
+    [tomorrowCheckoutListQ.data?.rows, turnoverCheckinSources, todayISO],
   );
   /**
    * "Fila de Limpeza" precisa incluir também o checkout ANTECIPADO de um
@@ -1677,13 +1556,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     const done = coRows.filter((r) => r.status === "done");
     const seen = new Set(done.map((r) => r.logId));
     const early = (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "done" && !seen.has(r.logId));
-    const released = sortCheckoutRows([...done, ...early], turnoverCheckinSources);
+    const released = sortCheckoutRows([...done, ...early], turnoverCheckinSources, todayISO);
     const awaiting = sortCheckoutRows(
       coRows.filter((r) => r.status === "pending"),
       turnoverCheckinSources,
+      todayISO,
     );
     return [...released, ...awaiting];
-  }, [coRows, tomorrowCheckoutListQ.data?.rows, turnoverCheckinSources]);
+  }, [coRows, tomorrowCheckoutListQ.data?.rows, turnoverCheckinSources, todayISO]);
 
   const concludedRows = concludedQ.data?.rows ?? [];
   // Imóveis com check-out pendente OU limpeza em andamento bloqueiam novos
@@ -1722,40 +1602,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    *    sempre abaixo dos liberados (mesmo racional do botão bloqueado no
    *    Kanban: enquanto o imóvel não libera, o check-in nem entra na
    *    "disputa" de prioridade).
-   * 2) horário previsto de chegada (mais cedo primeiro; sem horário vai por último)
+   * 2) atrasado no topo (o mais antigo primeiro) e dia mais próximo primeiro
+   * 3) horário previsto de chegada (mais cedo primeiro; sem horário vai por último)
    * 3) proprietário A→Z
    * 4) nome do anúncio A→Z
    */
   const sortCheckinRows = useCallback(
-    (rows: ArrivalRow[]) => {
-      const txt = (a?: string | null, b?: string | null) =>
-        (a ?? "").localeCompare(b ?? "", "pt-BR", { sensitivity: "base" });
-      const time = (r: ArrivalRow) => sortingTimeOf(r, "checkin");
-      const blockedRank = (r: ArrivalRow) => (cleaningPendingPropIds.has(r.propertyId) ? 1 : 0);
-      // Horário previsto (ou, sem previsão, o horário inicial do imóvel) →
-      // empate: proximidade de endereço (rota curta) → proprietário/anúncio A→Z.
-      const cmp = (a: ArrivalRow, b: ArrivalRow) => {
-        const rankDiff = blockedRank(a) - blockedRank(b);
-        if (rankDiff !== 0) return rankDiff;
-        const ta = time(a);
-        const tb = time(b);
-        if (ta !== tb) return !ta ? 1 : !tb ? -1 : ta.localeCompare(tb);
-        return 0;
-      };
-      const alpha = (a: ArrivalRow, b: ArrivalRow) =>
-        txt(a.ownerName, b.ownerName) || txt(a.propertyName, b.propertyName);
-      const sorted = [...rows].sort((a, b) => cmp(a, b) || alpha(a, b));
-      const result: ArrivalRow[] = [];
-      let i = 0;
-      while (i < sorted.length) {
-        let j = i + 1;
-        while (j < sorted.length && cmp(sorted[i], sorted[j]) === 0) j++;
-        result.push(...clusterByProximity(sorted.slice(i, j)));
-        i = j;
-      }
-      return result;
-    },
-    [cleaningPendingPropIds],
+    (rows: ArrivalRow[]) => sortCheckinRowsCore(rows, cleaningPendingPropIds, todayISO),
+    [cleaningPendingPropIds, todayISO],
   );
   const checkinPendingRows = useMemo(
     () => sortCheckinRows(rawCheckinPendingRows),
@@ -2504,8 +2358,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         // "all" range já cobre o período inteiro — inclusive giros com
         // check-in fora da janela filtrada no momento.
         [kanbanCiRowsAll],
+        todayISO,
       ),
-    [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanCheckoutFrom, kanbanPeriodEnd, kanbanCiRowsAll],
+    [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanCheckoutFrom, kanbanPeriodEnd, kanbanCiRowsAll, todayISO],
   );
   // "Em Estadia" é sobre quem está hospedado AGORA — o período filtra pela
   // SOBREPOSIÇÃO da estadia com o intervalo escolhido (não só a data de
@@ -2537,8 +2392,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     );
     const released = inWindow.filter((r) => r.status === "done");
     const awaitingCheckout = inWindow.filter((r) => r.status !== "done");
-    return [...sortCheckoutRows(released, [kanbanCiRowsAll]), ...sortCheckoutRows(awaitingCheckout, [kanbanCiRowsAll])];
-  }, [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll]);
+    return [
+      ...sortCheckoutRows(released, [kanbanCiRowsAll], todayISO),
+      ...sortCheckoutRows(awaitingCheckout, [kanbanCiRowsAll], todayISO),
+    ];
+  }, [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll, todayISO]);
   // "Concluídos" nunca foi limitado por Hoje/Amanhã/7 dias/Todos (a busca de
   // concluídos já ignorava esse seletor antes) — só ganha os filtros de
   // Cidade/Proprietário agora, mantendo o mesmo comportamento de período.
@@ -2561,10 +2419,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
      não se repete aqui. */
   const kanbanFutureRows = useMemo(() => {
     const inCheckin = new Set(kanbanCheckinPendingRows.map((r) => r.logId));
-    return kanbanCiRowsAll
-      .filter((r) => r.status === "pending" && r.date > todayISO && matchesKanbanOwnerCity(r) && !inCheckin.has(r.logId))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [kanbanCiRowsAll, kanbanCheckinPendingRows, matchesKanbanOwnerCity, todayISO]);
+    // Dia mais próximo primeiro; dentro do dia, a MESMA regra dos check-ins (previsão de
+    // check-in → horário inicial do imóvel → proximidade de endereço).
+    return sortCheckinRows(
+      kanbanCiRowsAll.filter(
+        (r) => r.status === "pending" && r.date > todayISO && matchesKanbanOwnerCity(r) && !inCheckin.has(r.logId),
+      ),
+    );
+  }, [kanbanCiRowsAll, kanbanCheckinPendingRows, matchesKanbanOwnerCity, todayISO, sortCheckinRows]);
   const kanbanCounts = {
     future: kanbanFutureRows.length,
     checkin: kanbanCheckinPendingRows.length,
@@ -8196,6 +8058,7 @@ function OccupancyPanel({
   const blockOwnerId = blockImp?.userId ?? null;
   const listBlocksFn = useServerFn(listManualBlocks);
   const createBlockFn = useServerFn(createManualBlockFn);
+  const removeBlockFn = useServerFn(removeManualBlockFn);
   const qcBlock = useQueryClient();
   const blockPermQ = useQuery({
     queryKey: ["manual-blocks", blockOwnerId],
@@ -8203,18 +8066,35 @@ function OccupancyPanel({
     staleTime: 60_000,
   });
   const canBlock = !!blockPermQ.data?.canEdit;
-  const blockLightMode = useOperationMode().data?.mode === "light";
   const [blockSel, setBlockSel] = useState<{ propertyId: string; anchor: string; end: string } | null>(null);
   const [blockOpen, setBlockOpen] = useState(false);
   const [blockBusy, setBlockBusy] = useState(false);
+  /** Bloqueio manual tocado (mockups 6 e 7): barra "Bloqueado" → janela "Liberar datas". */
+  const [blockTap, setBlockTap] = useState<{ id: string; propertyId: string; from: string; to: string } | null>(null);
+  const [releaseOpen, setReleaseOpen] = useState(false);
+  /** Célula com foco do teclado (roving tabindex: só UMA noite entra na ordem do Tab). */
+  const [kbCell, setKbCell] = useState<{ propertyId: string; day: string } | null>(null);
+  // Filtro/busca que esconde o imóvel selecionado: a seleção some junto (nada de barra "fantasma").
   useEffect(() => {
-    if (!blockSel) return;
+    if (blockSel && !properties.some((x) => x.id === blockSel.propertyId)) {
+      setBlockSel(null);
+      setBlockOpen(false);
+    }
+    if (blockTap && !properties.some((x) => x.id === blockTap.propertyId)) {
+      setBlockTap(null);
+      setReleaseOpen(false);
+    }
+  }, [blockSel, blockTap, properties]);
+  useEffect(() => {
+    if (!blockSel && !blockTap) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !blockOpen) setBlockSel(null);
+      if (e.key !== "Escape") return;
+      if (blockSel && !blockOpen) setBlockSel(null);
+      if (blockTap && !releaseOpen) setBlockTap(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [blockSel, blockOpen]);
+  }, [blockSel, blockOpen, blockTap, releaseOpen]);
   const [mobileSearch, setMobileSearch] = useState(false);
   /** Primeiro dia que aparece no visor (muda ao rolar): a legenda só mostra o que existe nos dias VISÍVEIS. */
   const [firstVisIdx, setFirstVisIdx] = useState(0);
@@ -8413,10 +8293,19 @@ function OccupancyPanel({
       ? { from: blockSel.anchor, to: blockAddDays(blockSel.end, 1) }
       : { from: blockSel.end, to: blockAddDays(blockSel.anchor, 1) }
     : null;
-  function blockClick(propertyId: string, day: string, ev: React.MouseEvent) {
+  function blockClick(propertyId: string, day: string, target: HTMLElement | null) {
     if (!canBlock) return;
     // Clique numa reserva abre o histórico dela — não mexe na seleção.
-    if ((ev.target as HTMLElement).closest('[role="button"]')) return;
+    if (target?.closest('[role="button"]') && target !== target.closest("[data-bc]")) return;
+    // Tocar numa noite JÁ bloqueada à mão (mockup 6): abre a barra "Bloqueado" com "Liberar datas".
+    const tapped = (blockPermQ.data?.blocks ?? []).find((b) => b.propertyId === propertyId && b.from <= day && day < b.to);
+    if (tapped) {
+      setBlockSel(null);
+      setBlockOpen(false);
+      setBlockTap(tapped);
+      return;
+    }
+    if (blockTap) setBlockTap(null);
     if (day < todayISO) {
       toast.error("Não é possível bloquear", { description: "Escolha uma data a partir de hoje." });
       return;
@@ -8439,6 +8328,61 @@ function OccupancyPanel({
       setBlockSel({ propertyId, anchor: a, end: day });
     }
   }
+  async function releaseBlock() {
+    if (!blockTap) return;
+    setBlockBusy(true);
+    try {
+      const r = await removeBlockFn({ data: { ownerId: blockOwnerId, propertyId: blockTap.propertyId, id: blockTap.id } });
+      if (r.connected && !r.ok) {
+        toast.warning("Datas liberadas, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos.");
+      } else {
+        toast.success(r.connected ? "Datas liberadas em todos os anúncios." : "Datas liberadas.");
+      }
+      setReleaseOpen(false);
+      setBlockTap(null);
+      await Promise.all([
+        qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }),
+        qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }),
+      ]);
+    } catch (e) {
+      toast.error("Não foi possível liberar", { description: e instanceof Error && e.message ? e.message : "Tente novamente." });
+    } finally {
+      setBlockBusy(false);
+    }
+  }
+  /** Shift + ←/→: estende a seleção já iniciada (mesmo imóvel), com a mesma checagem de conflito do toque. */
+  function kbExtend(propertyId: string, day: string, key: string) {
+    if (!blockSel || blockSel.propertyId !== propertyId) return false;
+    const i = dayList.indexOf(day) + (key === "ArrowRight" ? 1 : -1);
+    const nd = dayList[i];
+    if (!nd || nd < todayISO) return true;
+    const lo = blockSel.anchor <= nd ? blockSel.anchor : nd;
+    const hi = blockSel.anchor <= nd ? nd : blockSel.anchor;
+    const hit = firstBlockConflict(byProperty.get(propertyId) ?? [], lo, blockAddDays(hi, 1));
+    if (hit) {
+      toast.error("Não é possível bloquear", { description: conflictMessage(hit, lo) });
+      return true;
+    }
+    setBlockSel({ propertyId, anchor: blockSel.anchor, end: nd });
+    kbMove(propertyId, day, key);
+    return true;
+  }
+  function kbMove(propertyId: string, day: string, key: string) {
+    const rowIdx = properties.findIndex((x) => x.id === propertyId);
+    const dIdx = dayList.indexOf(day);
+    let r = rowIdx;
+    let c = dIdx;
+    if (key === "ArrowLeft") c -= 1;
+    else if (key === "ArrowRight") c += 1;
+    else if (key === "ArrowUp") r -= 1;
+    else if (key === "ArrowDown") r += 1;
+    const np = properties[r];
+    const nd = dayList[c];
+    if (!np || !nd) return;
+    const el = document.querySelector<HTMLElement>(`[data-bc="${np.id}|${nd}"]`);
+    el?.focus();
+    el?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
   async function saveBlock(note: string | null) {
     if (!blockSel || !blockRange) return;
     setBlockBusy(true);
@@ -8446,7 +8390,11 @@ function OccupancyPanel({
       const r = await createBlockFn({
         data: { ownerId: blockOwnerId, propertyId: blockSel.propertyId, from: blockRange.from, to: blockRange.to, note },
       });
-      toast.success(r.connected ? "Datas bloqueadas em todos os anúncios." : "Bloqueio salvo.");
+      if (r.connected && !r.ok) {
+        toast.warning("Bloqueio salvo, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.");
+      } else {
+        toast.success(r.connected ? "Datas bloqueadas em todos os anúncios." : "Bloqueio salvo.");
+      }
       setBlockOpen(false);
       setBlockSel(null);
       await Promise.all([
@@ -8882,6 +8830,13 @@ function OccupancyPanel({
         )}
       </div>
       <div className="border-t border-border/50 px-4 sm:px-5 pt-4 pb-5">
+          {canBlock && !loading && properties.length > 0 && (
+            /* DICA (mockup 2): some enquanto há seleção/bloqueio aberto. */
+            <p className={`mb-3 flex items-center gap-1.5 text-[11px] text-muted-foreground ${blockSel || blockTap ? "hidden" : ""}`}>
+              <CalendarX2 className="size-3 shrink-0" aria-hidden />
+              Toque numa noite livre e depois em outra para bloquear datas.
+            </p>
+          )}
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
@@ -9213,8 +9168,32 @@ function OccupancyPanel({
                                       pela ordem no DOM) elas passavam por cima dos
                                       dias fixos no topo. */}
                                   <div
-                                    className={`relative flex h-6 w-full items-center ${canBlock ? "cursor-pointer" : ""}`}
-                                    onClick={canBlock ? (ev) => blockClick(p.id, d, ev) : undefined}
+                                    className={`relative flex h-6 w-full items-center ${
+                                      canBlock
+                                        ? "cursor-pointer rounded-[4px] hover:bg-foreground/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                                        : ""
+                                    }`}
+                                    {...(canBlock
+                                      ? {
+                                          "data-bc": `${p.id}|${d}`,
+                                          tabIndex:
+                                            (kbCell ? kbCell.propertyId === p.id && kbCell.day === d : p.id === properties[0]?.id && d === todayISO) ? 0 : -1,
+                                          "aria-label": `Noite de ${d.slice(8, 10)}/${d.slice(5, 7)} · ${p.name}`,
+                                          onFocus: () => setKbCell({ propertyId: p.id, day: d }),
+                                          onClick: (ev: React.MouseEvent) => blockClick(p.id, d, ev.target as HTMLElement),
+                                          onKeyDown: (e: React.KeyboardEvent) => {
+                                            if (e.target !== e.currentTarget) return;
+                                            if (e.key === "Enter" || e.key === " ") {
+                                              e.preventDefault();
+                                              blockClick(p.id, d, null);
+                                            } else if (e.key.startsWith("Arrow")) {
+                                              e.preventDefault();
+                                              if (e.shiftKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && kbExtend(p.id, d, e.key)) return;
+                                              kbMove(p.id, d, e.key);
+                                            }
+                                          },
+                                        }
+                                      : {})}
                                   >
                                     {(() => {
                                       if (!blockSel || !blockRange || blockSel.propertyId !== p.id) return null;
@@ -9393,9 +9372,38 @@ function OccupancyPanel({
               from={blockRange.from}
               to={blockRange.to}
               busy={blockBusy}
-              lightMode={blockLightMode}
               onClose={() => setBlockOpen(false)}
               onSave={saveBlock}
+            />
+          </>
+        );
+      })()}
+      {blockTap && (() => {
+        const bp = properties.find((x) => x.id === blockTap.propertyId);
+        if (!bp) return null;
+        const ctx = { propertyName: bp.name, ownerName: bp.ownerName ?? null, city: bp.city };
+        return (
+          <>
+            {!releaseOpen && (
+              <CalendarBlockBar
+                mode="release"
+                ctx={ctx}
+                from={blockTap.from}
+                to={blockTap.to}
+                onCancel={() => setBlockTap(null)}
+                onConfirm={() => setReleaseOpen(true)}
+              />
+            )}
+            <CalendarBlockDialog
+              mode="release"
+              key={`rel:${blockTap.id}`}
+              open={releaseOpen}
+              ctx={ctx}
+              from={blockTap.from}
+              to={blockTap.to}
+              busy={blockBusy}
+              onClose={() => setReleaseOpen(false)}
+              onSave={() => void releaseBlock()}
             />
           </>
         );

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { CalendarX2, Loader2, MessageSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CalendarCheck2, CalendarX2, Loader2, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   ResponsiveDialog,
@@ -37,6 +36,14 @@ function OwnerLine({ ownerName }: { ownerName: string | null }) {
   );
 }
 
+/* BOTÕES DAS JANELAS DO DASHBOARD — mesmos do rodapé de "Criar pendência"
+   (OperationWorkspace): `ds-surface` (12px), h-9, Cancelar fantasma e o
+   primário no gradiente da marca. Não usam o `Button` do shadcn de propósito. */
+const BTN_CANCEL =
+  "ds-surface inline-flex h-9 items-center justify-center px-3 text-[13px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60";
+const BTN_PRIMARY =
+  "ds-surface inline-flex h-9 items-center justify-center gap-2 px-4 text-[13px] font-semibold bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white transition-opacity hover:opacity-90 disabled:opacity-60";
+
 /** Barra flutuante: aparece quando há intervalo escolhido. */
 export function CalendarBlockBar({
   ctx,
@@ -44,34 +51,42 @@ export function CalendarBlockBar({
   to,
   onCancel,
   onConfirm,
+  mode = "block",
 }: {
   ctx: Ctx;
   from: string;
   to: string;
   onCancel: () => void;
   onConfirm: () => void;
+  /** "release" = tocou num bloqueio existente (mockup 6): "Bloqueado · dd/mm a dd/mm" + Fechar / Liberar datas. */
+  mode?: "block" | "release";
 }) {
   const n = blockNights(from, to);
+  const release = mode === "release";
   return (
     <div
       role="region"
-      aria-label="Bloquear datas selecionadas"
-      className="fixed inset-x-4 bottom-4 z-50 flex flex-col gap-3 rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] sm:inset-x-auto sm:bottom-8 sm:left-1/2 sm:w-[560px] sm:-translate-x-1/2 sm:flex-row sm:items-center sm:gap-4 sm:py-3 sm:pl-4 sm:pr-3"
+      aria-label={release ? "Bloqueio selecionado" : "Bloquear datas selecionadas"}
+      /* Celular: sobe acima da navegação inferior (mesmo recuo da barra
+         "Desfazer" — 104px + área segura), pra não cobrir os 4 ícones. */
+      className="fixed inset-x-4 bottom-[calc(104px+env(safe-area-inset-bottom))] z-50 flex flex-col gap-3 rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] p-4 shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] sm:inset-x-auto sm:bottom-8 sm:left-1/2 sm:w-[560px] sm:-translate-x-1/2 sm:flex-row sm:items-center sm:gap-4 sm:py-3 sm:pl-4 sm:pr-3"
     >
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="text-sm font-semibold">
-          {n} {n === 1 ? "noite" : "noites"} · {ddmmISO(from)} a {ddmmISO(to)}
+          {release
+            ? `Bloqueado · ${ddmmISO(from)} a ${ddmmISO(to)}`
+            : `${n} ${n === 1 ? "noite" : "noites"} · ${ddmmISO(from)} a ${ddmmISO(to)}`}
         </span>
         <span className="truncate text-[12px] text-muted-foreground">{ctx.propertyName}</span>
         <OwnerLine ownerName={ctx.ownerName} />
       </div>
       <div className="flex gap-2 sm:shrink-0">
-        <Button variant="outline" className="flex-1 sm:flex-none" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button className="flex-1 sm:flex-none" onClick={onConfirm}>
-          Bloquear
-        </Button>
+        <button type="button" className={cn(BTN_CANCEL, "flex-1 sm:flex-none")} onClick={onCancel}>
+          {release ? "Fechar" : "Cancelar"}
+        </button>
+        <button type="button" className={cn(BTN_PRIMARY, "flex-1 sm:flex-none")} onClick={onConfirm}>
+          {release ? "Liberar datas" : "Bloquear"}
+        </button>
       </div>
     </div>
   );
@@ -84,22 +99,26 @@ export function CalendarBlockDialog({
   from,
   to,
   busy,
-  lightMode,
   onClose,
   onSave,
+  mode = "block",
 }: {
+  /** "release" = janela "Liberar datas" (mockup 7): sem motivo, botão "Liberar N noites". */
+  mode?: "block" | "release";
   open: boolean;
   ctx: Ctx;
   from: string;
   to: string;
   busy: boolean;
-  lightMode: boolean;
   onClose: () => void;
   onSave: (note: string | null) => void;
 }) {
   const isMobile = useIsMobile();
   const [note, setNote] = useState("");
   const n = blockNights(from, to);
+  const release = mode === "release";
+  const HeadIcon = release ? CalendarCheck2 : CalendarX2;
+  const nights = `${n} ${n === 1 ? "noite" : "noites"}`;
   const tile = (label: string, value: string) => (
     <div className="rounded-[10px] border border-border bg-muted/20 px-3 py-2.5">
       <div className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground">{label}</div>
@@ -118,13 +137,13 @@ export function CalendarBlockDialog({
         <ResponsiveDialogHeader className={cn(!isMobile && "px-5 pt-5 pb-0")}>
           <div className="flex items-center gap-3">
             <div className="grid size-10 place-items-center rounded-xl bg-accent/10 text-accent">
-              <CalendarX2 className="size-5" />
+              <HeadIcon className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <ResponsiveDialogTitle className="text-base font-display leading-tight truncate">Bloquear datas</ResponsiveDialogTitle>
+              <ResponsiveDialogTitle className="text-base font-display leading-tight truncate">{release ? "Liberar datas" : "Bloquear datas"}</ResponsiveDialogTitle>
               <ResponsiveDialogDescription className="ds-meta mt-0.5">
                 {ddmmISO(from)} a {ddmmISO(to)} · {n} {n === 1 ? "noite" : "noites"}
-                {lightMode ? " · fica só no ConciergeIA" : " · fecha também nos anúncios conectados"}
+                {release ? " · volta a abrir também nos anúncios conectados" : " · fecha também nos anúncios conectados"}
               </ResponsiveDialogDescription>
             </div>
           </div>
@@ -142,6 +161,7 @@ export function CalendarBlockDialog({
             {tile("Libera em", ddmmISO(to))}
             {tile("Noites", String(n))}
           </div>
+          {!release && (
           <label className="block space-y-1.5">
             <span className="text-[12px] font-medium text-muted-foreground">Motivo (opcional)</span>
             <Input
@@ -149,23 +169,24 @@ export function CalendarBlockDialog({
               maxLength={200}
               placeholder="Ex.: manutenção, uso do proprietário"
               onChange={(e) => setNote(e.target.value)}
-              className="rounded-[8px]"
+              className="rounded-[8px] bg-foreground/[0.04] text-[13px]"
             />
           </label>
+          )}
         </div>
         <ResponsiveDialogFooter
           className={cn(
-            "gap-2 border-t border-border/40 pt-4",
-            isMobile ? "flex-col-reverse [&>button]:w-full" : "mx-5 mb-5 mt-4 flex-row justify-end sm:space-x-0",
+            "gap-2 border-t border-border/60 pt-3",
+            isMobile ? "flex-col-reverse [&>button]:w-full" : "mx-5 mb-5 mt-4 flex-row items-center justify-end sm:space-x-0",
           )}
         >
-          <Button variant="outline" disabled={busy} onClick={onClose}>
+          <button type="button" className={cn(BTN_CANCEL, isMobile && "w-full")} disabled={busy} onClick={onClose}>
             Cancelar
-          </Button>
-          <Button disabled={busy} onClick={() => onSave(note.trim() || null)}>
-            {busy && <Loader2 className="animate-spin" />}
-            Bloquear {n} {n === 1 ? "noite" : "noites"}
-          </Button>
+          </button>
+          <button type="button" className={cn(BTN_PRIMARY, isMobile && "w-full")} disabled={busy} onClick={() => onSave(release ? null : note.trim() || null)}>
+            {busy && <Loader2 className="size-3.5 animate-spin" />}
+            {release ? "Liberar" : "Bloquear"} {nights}
+          </button>
         </ResponsiveDialogFooter>
       </ResponsiveDialogContent>
     </ResponsiveDialog>

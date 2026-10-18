@@ -1,5 +1,6 @@
 // Server-only: construtor da esteira (Kanban) de chegadas/saídas.
 // Fonte única de verdade compartilhada entre o dashboard e as notificações push.
+import { compareArrivalRowsServer } from "@/lib/arrival-order";
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 import { liveDateOverride } from "@/lib/arrival-date-base";
 import { resolveReservationIdentity, RESERVATION_IDENTITY_COLUMNS } from "@/lib/reservation-identity";
@@ -1387,21 +1388,10 @@ export async function buildArrivalRows(
     // regra é "a data já passou e a ação continua pendente", sem olhar o lado.
     // Entre os atrasados, o mais antigo vem primeiro — quanto mais tempo
     // esperando, mais em cima.
-    const atrasado = (r: ArrivalRow): boolean => r.status !== "done" && r.date < today;
-    const effTime = (r: ArrivalRow): string => r.arrivalTimeOverride ?? r.guestArrivalTime ?? "99:99";
-    rows.sort((a, b) => {
-      const aAtraso = atrasado(a);
-      const bAtraso = atrasado(b);
-      if (aAtraso !== bAtraso) return aAtraso ? -1 : 1;
-      // Atrasados: do mais antigo para o mais recente. Os demais seguem a regra
-      // de sempre — mais recente primeiro. Empate: horário previsto DESC →
-      // residência A→Z.
-      const d = aAtraso ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
-      if (d !== 0) return d;
-      const t = effTime(b).localeCompare(effTime(a));
-      if (t !== 0) return t;
-      return (a.propertyName ?? "").localeCompare(b.propertyName ?? "", "pt-BR");
-    });
+    // A regra mora em `arrival-order.ts` (a mesma que o painel usa): atrasado → pendente →
+    // concluído, com o relógio de CADA lista (chegada usa a previsão de chegada; saída, a de
+    // saída; sem previsão, o horário limite/inicial do imóvel — só para ordenar).
+    rows.sort((a, b) => compareArrivalRowsServer(a, b, data.kind, today));
 
     return { rows };
 }

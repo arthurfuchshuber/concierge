@@ -10,7 +10,6 @@ import { FILTER_PANEL_CLASS, FILTER_PANEL_COLLISION, FILTER_PANEL_OFFSET } from 
 import { ACTION_ICON, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
 import { createManualBlockFn, listManualBlocks, removeManualBlockFn } from "@/lib/manual-blocks.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
-import { useOperationMode } from "@/components/admin-pages/ChannexModeCard";
 
 const ddmm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
 
@@ -30,7 +29,6 @@ export function ManualBlockButton() {
   const [to, setTo] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  const lightMode = useOperationMode().data?.mode === "light";
 
   if (!data?.canEdit) return null;
   const names = new Map(data.properties.map((p) => [p.id, p.name]));
@@ -40,7 +38,8 @@ export function ManualBlockButton() {
     setBusy(true);
     try {
       const r = await createFn({ data: { ownerId, propertyId, from, to, note: note || null } });
-      toast.success(r.connected ? "Datas bloqueadas em todos os anúncios." : "Bloqueio salvo.");
+      if (r.connected && !r.ok) toast.warning("Bloqueio salvo, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.");
+      else toast.success(r.connected ? "Datas bloqueadas em todos os anúncios." : "Bloqueio salvo.");
       setFrom(""); setTo(""); setNote("");
       await qc.invalidateQueries({ queryKey: key });
     } catch (e) {
@@ -51,8 +50,9 @@ export function ManualBlockButton() {
   async function remove(id: string, pid: string) {
     setBusy(true);
     try {
-      await removeFn({ data: { ownerId, propertyId: pid, id } });
-      toast.success("Datas liberadas.");
+      const r = await removeFn({ data: { ownerId, propertyId: pid, id } });
+      if (r.connected && !r.ok) toast.warning("Datas liberadas aqui, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos.");
+      else toast.success("Datas liberadas.");
       await qc.invalidateQueries({ queryKey: key });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível liberar.");
@@ -69,9 +69,6 @@ export function ManualBlockButton() {
       <PopoverContent className={FILTER_PANEL_CLASS} collisionPadding={FILTER_PANEL_COLLISION} sideOffset={FILTER_PANEL_OFFSET}>
         <div className="space-y-3 p-3">
           <p className="text-sm font-semibold">Bloquear datas</p>
-          {lightMode && (
-            <p className="text-xs text-muted-foreground">Sua conta está no Modo Leve: bloqueie as datas direto na plataforma de hospedagem. Aqui o bloqueio fica só no ConciergeIA.</p>
-          )}
           <select className="h-9 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm" value={propertyId} onChange={(e) => setPropertyId(e.target.value)}>
             <option value="">Imóvel…</option>
             {data.properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}

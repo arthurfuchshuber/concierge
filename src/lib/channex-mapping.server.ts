@@ -209,6 +209,17 @@ async function channexBookingNights(t: { channexPropertyId: string; roomTypeId: 
   }
 }
 
+/** Noites com reserva ativa NA CHANNEX para o imóvel (anúncio principal + gêmeo). Usado na trava do bloqueio manual. */
+export async function channexBookedNights(propertyId: string): Promise<Set<string>> {
+  const nights = new Set<string>();
+  const all = await allSyncTargets();
+  for (const t of all.filter((x) => x.propertyId === propertyId)) {
+    const units = [{ channexPropertyId: t.channexPropertyId, roomTypeId: t.roomTypeId }, ...(t.sibling ? [t.sibling] : [])];
+    for (const u of units) await channexBookingNights(u, nights);
+  }
+  return nights;
+}
+
 /** Noites ocupadas: reservas deste anúncio, do gêmeo e do imóvel no ConciergeIA. */
 async function activeBookingNights(t: SafeMapTarget, windowEnd?: string): Promise<Set<string>> {
   const nights = new Set<string>();

@@ -28,33 +28,64 @@ export async function pushPropertyAvailability(propertyId: string, userId: strin
   return { connected: true, ok: flushed.batches.every((b) => b.ok) };
 }
 
-export async function createManualBlock(input: { propertyId: string; from: string; to: string; note?: string | null; userId: string | null }) {
-  if (!(input.to > input.from)) throw new Error("A data final precisa ser depois da inicial.");
-  const db = await admin();
-  // Trava final: não bloqueia por cima de reserva ativa (mesma regra do calendário).
-  const { data: clash, error: clashErr } = await db
+const todayUTC = () => new Date().toISOString().slice(0, 10);
+
+/** Reserva ativa dentro de [from, to) no banco OU na Channex (gêmeos inclusos). Devolve a mensagem de erro, ou null. */
+async function findActiveConflict(db: any, propertyId: string, from: string, to: string): Promise<string | null> {
+  const { activeStays, firstBlockConflict, conflictMessage, firstNightIn, ddmmISO } = await import("@/lib/manual-block-conflict");
+  const { data, error } = await db
     .from("property_reservations")
-    .select("checkin_date, checkout_date, raw_summary, status")
+    .select("checkin_date, checkout_date, status, source")
+    .eq("property_id", propertyId)
+    .lt("checkin_date", to)
+    .gt("checkout_date", from);
+  if (error) throw new Error(error.message);
+  const hit = firstBlockConflict(activeStays((data ?? []) as any[]), from, to);
+  if (hit) return `Não é possível bloquear — ${conflictMessage(hit, from)}`;
+  // Reservas que ainda só existem na Channex (ex.: do anúncio gêmeo) também travam.
+  try {
+    const { channexBookedNights } = await import("@/lib/channex-mapping.server");
+    const night = firstNightIn(await channexBookedNights(propertyId), from, to);
+    if (night) return `Não é possível bloquear — O dia ${ddmmISO(night)} já tem reserva ativa.`;
+  } catch (e) {
+    console.error("[manual-block] Channex indisponível na checagem de conflito; vale a checagem do banco", e);
+  }
+  return null;
+}
+
+export async function createManualBlock(input: { propertyId: string; from: string; to: string; note?: string | null; userId: string | null }) {
+  const { validateBlockDates, planBlockMerge } = await import("@/lib/manual-block-conflict");
+  const invalid = validateBlockDates(input.from, input.to, todayUTC());
+  if (invalid) throw new Error(invalid);
+  const db = await admin();
+  const clash = await findActiveConflict(db, input.propertyId, input.from, input.to);
+  if (clash) throw new Error(clash);
+
+  // Bloqueios que já existem: cobre tudo → não duplica; encosta/sobrepõe → vira um só.
+  const { data: existingRows, error: exErr } = await db
+    .from("property_reservations")
+    .select("id, checkin_date, checkout_date")
     .eq("property_id", input.propertyId)
-    .lt("checkin_date", input.to)
-    .gt("checkout_date", input.from)
-    .or("status.is.null,status.not.in.(cancelled,blocked)");
-  if (clashErr) throw new Error(clashErr.message);
-  const { firstBlockConflict, conflictMessage } = await import("@/lib/manual-block-conflict");
-  const hit = firstBlockConflict(
-    ((clash ?? []) as any[]).map((r) => ({ checkin: r.checkin_date as string, checkout: r.checkout_date as string | null, guest: null })),
+    .eq("source", "manual")
+    .eq("status", "blocked")
+    .lte("checkin_date", input.to)
+    .gte("checkout_date", input.from);
+  if (exErr) throw new Error(exErr.message);
+  const plan = planBlockMerge(
+    ((existingRows ?? []) as any[]).map((r) => ({ id: r.id as string, from: r.checkin_date as string, to: r.checkout_date as string })),
     input.from,
     input.to,
   );
-  if (hit) throw new Error(`Não é possível bloquear — ${conflictMessage(hit, input.from)}`);
+  if (plan.coveringId) return { id: plan.coveringId, merged: true, ...(await safePush(input.propertyId, input.userId)) };
+
   const { data, error } = await db
     .from("property_reservations")
     .insert({
       property_id: input.propertyId,
       source: "manual",
       external_uid: `manual-${crypto.randomUUID()}`,
-      checkin_date: input.from,
-      checkout_date: input.to,
+      checkin_date: plan.from,
+      checkout_date: plan.to,
       status: "blocked",
       raw_summary: input.note?.trim() || "Bloqueio manual",
       synced_at: new Date().toISOString(),
@@ -62,8 +93,34 @@ export async function createManualBlock(input: { propertyId: string; from: strin
     .select("id")
     .single();
   if (error) throw new Error(error.message);
-  const push = await pushPropertyAvailability(input.propertyId, input.userId);
-  return { id: data.id as string, ...push };
+  const newId = data.id as string;
+
+  // Reconferência depois de gravar: se uma reserva entrou no meio-tempo (duas pessoas ao mesmo
+  // tempo), desfaz este bloqueio em vez de fechar a data por cima de hóspede.
+  const late = await findActiveConflict(db, input.propertyId, plan.from, plan.to).catch(() => null);
+  if (late) {
+    await db.from("property_reservations").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", newId);
+    throw new Error(late);
+  }
+  if (plan.absorbIds.length) {
+    await db
+      .from("property_reservations")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .in("id", plan.absorbIds)
+      .eq("property_id", input.propertyId)
+      .eq("source", "manual");
+  }
+  return { id: newId, merged: plan.absorbIds.length > 0, ...(await safePush(input.propertyId, input.userId)) };
+}
+
+/** O bloqueio já está salvo: falha ao avisar os anúncios vira `ok: false` (a tela avisa), nunca erro. */
+async function safePush(propertyId: string, userId: string | null) {
+  try {
+    return await pushPropertyAvailability(propertyId, userId);
+  } catch (e) {
+    console.error("[manual-block] envio aos anúncios falhou", e);
+    return { connected: true, ok: false };
+  }
 }
 
 export async function removeManualBlock(input: { id: string; propertyId: string; userId: string | null }) {
@@ -73,7 +130,8 @@ export async function removeManualBlock(input: { id: string; propertyId: string;
     .update({ status: "cancelled", updated_at: new Date().toISOString() })
     .eq("id", input.id)
     .eq("property_id", input.propertyId)
-    .eq("source", "manual");
+    .eq("source", "manual")
+    .eq("status", "blocked");
   if (error) throw new Error(error.message);
-  return pushPropertyAvailability(input.propertyId, input.userId);
+  return safePush(input.propertyId, input.userId);
 }
