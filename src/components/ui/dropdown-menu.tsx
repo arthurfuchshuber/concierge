@@ -54,10 +54,18 @@ const DropdownMenuSubContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.SubContent>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>
 >(({ className, ...props }, ref) => {
-  const [layerRef, layerNodeRef] = useOverlayLayer("float", useAntiClipWindow(ref));
+  // SUBMENU NÃO ENTRA NA PILHA DE CAMADAS (bug real, 17/10/2026: ao abrir
+  // "Silenciar notificações" tudo ficava desfocado, inclusive as opções de
+  // tempo). O submenu NÃO tem Portal próprio: vive dentro do conteúdo do
+  // menu pai, no contexto de empilhamento dele. Registrá-lo como camada nova
+  // subia o véu global (`GlobalOverlayScrim`, z = topo − 1) para ACIMA do
+  // menu pai — e, como o submenu está preso no z do pai, o véu cobria os
+  // dois. Sem camada própria, o véu continua logo abaixo do menu pai e o
+  // submenu herda a nitidez dele.
+  const innerRef = useAntiClipWindow(ref);
   return (
   <DropdownMenuPrimitive.SubContent
-    ref={layerNodeRef}
+    ref={innerRef}
     className={cn(
       // z-[60]: acima do véu global (`GlobalOverlayScrim`, z-[55]) — mesma
       // correção do Popover (ver comentário em `DropdownMenuContent` abaixo).
@@ -65,8 +73,6 @@ const DropdownMenuSubContent = React.forwardRef<
       className,
     )}
     {...props}
-    onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
-    onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
   />
   );
 });

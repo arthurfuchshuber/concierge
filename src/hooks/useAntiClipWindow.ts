@@ -23,6 +23,8 @@ import * as React from "react";
  */
 
 const MAX_DEPTH = 4;
+/** Folga mínima (px) entre o último card inteiro e a borda de baixo da janela. */
+const MIN_CLEARANCE = 12;
 
 function isOutOfFlow(el: HTMLElement): boolean {
   const pos = getComputedStyle(el).position;
@@ -85,8 +87,17 @@ function fitScroller(el: HTMLElement) {
   // (Vale em QUALQUER posição de rolagem: antes só valia com scrollTop = 0 e a altura mudava ~7 px
   // conforme a pessoa rolava, o que fazia a janela "trepidar".)
   if (fit > 0) {
-    const pad = parseFloat(own.paddingBottom) || 0;
-    const room = Number.isFinite(nextTop) ? Math.max(0, nextTop - fit - 1) : pad;
+    // RESPIRO MÍNIMO (bug real, 17/10/2026: abrindo um card em "Atrasados" o
+    // último card ficava ENCOSTADO na borda da janela). Quando a área que rola
+    // não tem padding embaixo (o respiro mora num <div> interno, como na lista
+    // dos KPIs), `pad` era 0 e o corte caía rente ao fim do card. Agora a área
+    // visível termina SEMPRE com pelo menos `MIN_CLEARANCE` px de folga depois
+    // do último card inteiro — limitada ao espaço real até a próxima unidade,
+    // para nunca deixar uma tira dela aparecendo.
+    const pad = Math.max(parseFloat(own.paddingBottom) || 0, MIN_CLEARANCE);
+    const room = Number.isFinite(nextTop)
+      ? Math.max(0, nextTop - fit - 1)
+      : Math.max(0, el.scrollHeight - fit);
     fit += Math.min(pad, room);
   }
   if (fit > 0 && fit < avail) {
