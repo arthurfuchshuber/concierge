@@ -151,6 +151,35 @@ export function sortCheckoutRows(rows: ArrivalRow[], checkinRowSources: ArrivalR
   return result;
 }
 
+/**
+ * Ordenação da FILA DE LIMPEZA (18/10/2026, caso Lívia × Patrícia): imóvel com
+ * check-in no MESMO dia (giro) tem prioridade máxima — precisa estar limpo antes
+ * da próxima chegada — e entre giros manda a chegada mais cedo. Depois, os
+ * demais pela ordem normal dos checkouts (horário de saída → proximidade).
+ * Atrasado e dia continuam na frente de tudo.
+ */
+export function sortCleaningRows(rows: ArrivalRow[], checkinRowSources: ArrivalRow[][], today: string): ArrivalRow[] {
+  const sameDayCheckin = buildSameDayCheckinLookup(checkinRowSources);
+  const key = (r: ArrivalRow) => `${r.propertyId}|${r.date}`;
+  const giro = rows.filter((r) => sameDayCheckin.has(key(r)));
+  const rest = rows.filter((r) => !sameDayCheckin.has(key(r)));
+  const cmpGiro = (a: ArrivalRow, b: ArrivalRow) =>
+    compareLateRows(a, b, "checkout", today) ||
+    compareLateThenDay(a, b, today) ||
+    compareTimesNullLast(sameDayCheckin.get(key(a)) ?? null, sameDayCheckin.get(key(b)) ?? null) ||
+    compareTimesNullLast(sortingTimeOf(a, "checkout"), sortingTimeOf(b, "checkout"));
+  const restSorted = sortCheckoutRows(rest, checkinRowSources, today);
+  // Atrasados/dias anteriores sem giro ainda vêm antes dos giros de hoje.
+  const isEarlier = (r: ArrivalRow) => r.date < today;
+  return [
+    ...restSorted.filter(isEarlier),
+    ...[...giro].sort(cmpGiro),
+    ...restSorted.filter((r) => !isEarlier(r)),
+  ];
+}
+
+
+
 
 /**
  * Ordenação dos cards de chegada (check-in):
