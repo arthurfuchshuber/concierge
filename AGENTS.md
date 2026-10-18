@@ -23,4 +23,4 @@
 - Server-function bearer tokens come from `attachFreshSupabaseAuth` (`src/lib/fresh-auth-middleware.ts`), which refreshes the session shortly before expiry with a single shared refresh; the generated attacher is intentionally replaced so hourly token rollover never fails calls.
 - Permission checks treat a failed lookup as "still loading" and keep the last known decision, never as denial, so transient network/session errors never lock screens into read-only.
 - Guest access to listing data (Wi-Fi, codes, address, instructions) is decided once by `resolveStayAccess` (`src/lib/ai/stay-access.server.ts`) for every channel: confirmed stay in progress, not checked out and not marked no-show unlocks everything; otherwise locked, so all channels share one rule.
-- Situation records (photos/videos/audio/files) are saved to an on-device IndexedDB outbox (`src/lib/offline/situation-outbox.ts`) and sent by `SituationOutboxRunner` with a client-generated group id and fixed file paths; creation/append are idempotent so retries after slow mobile networks never lose or duplicate records.
+- Subdirectories have their own `AGENTS.md`; read it before changing files there.
