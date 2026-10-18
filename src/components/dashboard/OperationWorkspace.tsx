@@ -4672,7 +4672,6 @@ function KpiCard({
             list.ref(el);
             screenshotRef.current = el;
           }}
-          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
           className="sg-elegant-scroll max-h-[75dvh] overflow-y-auto px-3 pt-3"
         >
           {loading ? (
@@ -10804,6 +10803,7 @@ function ArrivalCard({
       // aparece dentro de um popup de indicador (KpiCard) — inofensivo aqui
       // no Kanban, que não usa esse hook.
       data-whole-card
+      data-clip-row
       /* Visão Lista: o card inteiro abre o histórico da reserva (pedido
          explícito).
          O guarda abaixo é o que torna isso seguro. O card carrega botões que
@@ -10990,7 +10990,7 @@ function ArrivalCard({
           />
           {/* O IMÓVEL é o título do card. O proprietário fica acima, menor e
               no rosa da marca: identifica sem disputar a leitura. */}
-          <div className="ds-card-title truncate" title={row.propertyName ?? undefined}>
+          <div className="ds-card-title line-clamp-2 [display:-webkit-box] whitespace-normal break-words leading-tight" title={row.propertyName ?? undefined}>
             {row.propertyName ?? "Sem nome"}
           </div>
 
@@ -11492,7 +11492,7 @@ function ArrivalCard({
                 mesma regra de reticências quando não couber"). Continua uma
                 linha só, com `truncate`: quem cede largura é o texto, nunca os
                 ícones ao lado. */}
-            <span className="truncate">
+            <span className="truncate text-[clamp(10px,2.9vw,12px)] tracking-[-0.01em]">
               {awaitingCheckout
                 ? "Aguardando Check-Out"
                 : mode === "cleaning"
@@ -11501,7 +11501,7 @@ function ArrivalCard({
                     ? "Concluir Check-Out"
                     : done
                       ? "Reabrir"
-                      : "Concluir Check-In"}
+                      : <><span className="max-[400px]:hidden">Concluir </span>Check-In</>}
             </span>
           </button>
         )}
