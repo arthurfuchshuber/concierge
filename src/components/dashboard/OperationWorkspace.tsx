@@ -10990,7 +10990,7 @@ function ArrivalCard({
           />
           {/* O IMÓVEL é o título do card. O proprietário fica acima, menor e
               no rosa da marca: identifica sem disputar a leitura. */}
-          <div className="ds-card-title line-clamp-2 break-words leading-tight" title={row.propertyName ?? undefined}>
+          <div className="ds-card-title line-clamp-2 whitespace-normal break-words leading-tight" title={row.propertyName ?? undefined}>
             {row.propertyName ?? "Sem nome"}
           </div>
 
@@ -11492,7 +11492,7 @@ function ArrivalCard({
                 mesma regra de reticências quando não couber"). Continua uma
                 linha só, com `truncate`: quem cede largura é o texto, nunca os
                 ícones ao lado. */}
-            <span className="truncate">
+            <span className="truncate text-[clamp(10px,2.9vw,12px)] tracking-[-0.01em]">
               {awaitingCheckout
                 ? "Aguardando Check-Out"
                 : mode === "cleaning"
