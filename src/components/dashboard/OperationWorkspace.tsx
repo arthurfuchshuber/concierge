@@ -51,6 +51,10 @@ import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
 import { ManualCleaningButton } from "@/components/dashboard/ManualCleaningButton";
 import { ManualBlockButton } from "@/components/dashboard/ManualBlockButton";
+import { CalendarBlockBar, CalendarBlockDialog } from "@/components/dashboard/CalendarBlockUI";
+import { addDaysISO as blockAddDays, conflictMessage, firstBlockConflict } from "@/lib/manual-block-conflict";
+import { createManualBlockFn, listManualBlocks } from "@/lib/manual-blocks.functions";
+import { useOperationMode } from "@/components/admin-pages/ChannexModeCard";
 import { ManualCleaningCard } from "@/components/dashboard/ManualCleaningCard";
 import {
   X,
@@ -213,6 +217,7 @@ import {
   type CleaningDailyPoint,
   type FreeProperty,
 } from "@/lib/dashboard.functions";
+import { sortingTimeOf } from "@/lib/arrival-order";
 import {
   listTaskLinkOptions,
   listTasks,
@@ -396,7 +401,7 @@ function buildSameDayCheckinLookup(checkinRowSources: ArrivalRow[][]): Map<strin
   for (const rows of checkinRowSources) {
     for (const r of rows) {
       const key = `${r.propertyId}|${r.date}`;
-      const t = r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
+      const t = sortingTimeOf(r, "checkin");
       if (!map.has(key)) {
         map.set(key, t);
       } else {
@@ -465,7 +470,7 @@ function clusterByProximity(group: ArrivalRow[]): ArrivalRow[] {
  */
 function sortCheckoutRows(rows: ArrivalRow[], checkinRowSources: ArrivalRow[][]): ArrivalRow[] {
   const sameDayCheckin = buildSameDayCheckinLookup(checkinRowSources);
-  const ownTime = (r: ArrivalRow) => r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
+  const ownTime = (r: ArrivalRow) => sortingTimeOf(r, "checkout");
   const turnoverKey = (r: ArrivalRow) => `${r.propertyId}|${r.date}`;
   const hasTurnover = (r: ArrivalRow) => sameDayCheckin.has(turnoverKey(r));
   const turnoverTime = (r: ArrivalRow) => sameDayCheckin.get(turnoverKey(r)) ?? null;
@@ -1725,17 +1730,30 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     (rows: ArrivalRow[]) => {
       const txt = (a?: string | null, b?: string | null) =>
         (a ?? "").localeCompare(b ?? "", "pt-BR", { sensitivity: "base" });
-      const time = (r: ArrivalRow) => r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
+      const time = (r: ArrivalRow) => sortingTimeOf(r, "checkin");
       const blockedRank = (r: ArrivalRow) => (cleaningPendingPropIds.has(r.propertyId) ? 1 : 0);
-      return [...rows].sort((a, b) => {
+      // Horário previsto (ou, sem previsão, o horário inicial do imóvel) →
+      // empate: proximidade de endereço (rota curta) → proprietário/anúncio A→Z.
+      const cmp = (a: ArrivalRow, b: ArrivalRow) => {
         const rankDiff = blockedRank(a) - blockedRank(b);
         if (rankDiff !== 0) return rankDiff;
         const ta = time(a);
         const tb = time(b);
-        if (ta && tb && ta !== tb) return ta.localeCompare(tb);
-        if (!!ta !== !!tb) return ta ? -1 : 1;
-        return txt(a.ownerName, b.ownerName) || txt(a.propertyName, b.propertyName);
-      });
+        if (ta !== tb) return !ta ? 1 : !tb ? -1 : ta.localeCompare(tb);
+        return 0;
+      };
+      const alpha = (a: ArrivalRow, b: ArrivalRow) =>
+        txt(a.ownerName, b.ownerName) || txt(a.propertyName, b.propertyName);
+      const sorted = [...rows].sort((a, b) => cmp(a, b) || alpha(a, b));
+      const result: ArrivalRow[] = [];
+      let i = 0;
+      while (i < sorted.length) {
+        let j = i + 1;
+        while (j < sorted.length && cmp(sorted[i], sorted[j]) === 0) j++;
+        result.push(...clusterByProximity(sorted.slice(i, j)));
+        i = j;
+      }
+      return result;
     },
     [cleaningPendingPropIds],
   );
@@ -2729,10 +2747,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const rowByStay = useMemo(() => {
     const checkin = new Map<string, ArrivalRow>();
     const checkout = new Map<string, ArrivalRow>();
-    for (const r of [...ciRows, ...kanbanCiRowsAll]) checkin.set(r.reservationId ?? r.logId, r);
-    for (const r of [...coRows, ...kanbanCoRowsAll]) checkout.set(r.reservationId ?? r.logId, r);
+    const tCi = tomorrowCheckinListQ.data?.rows ?? [];
+    const tCo = tomorrowCheckoutListQ.data?.rows ?? [];
+    for (const r of [...tCi, ...ciRows, ...kanbanCiRowsAll]) checkin.set(r.reservationId ?? r.logId, r);
+    for (const r of [...tCo, ...coRows, ...kanbanCoRowsAll]) checkout.set(r.reservationId ?? r.logId, r);
     return { checkin, checkout };
-  }, [ciRows, coRows, kanbanCiRowsAll, kanbanCoRowsAll]);
+  }, [ciRows, coRows, kanbanCiRowsAll, kanbanCoRowsAll, tomorrowCheckinListQ.data?.rows, tomorrowCheckoutListQ.data?.rows]);
 
   /**
    * Grava uma previsão. `side` decide EM QUAL LINHA do banco ela cai
@@ -2787,8 +2807,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   /** Monta um lado da previsão a partir da linha daquele lado. */
   const buildPredictionSide = useCallback(
-    (side: "checkin" | "checkout", fallbackRow: ArrivalRow): PredictionSide => {
+    (side: "checkin" | "checkout", fallbackRow: ArrivalRow, rowIsSide = false): PredictionSide => {
       const key = fallbackRow.reservationId ?? fallbackRow.logId;
+      // Ao vivo: quando o próprio card JÁ É a linha deste lado, ele é a fonte
+      // (chega pelo refetch em tempo real), sem depender do índice cruzado.
       /**
        * A linha DAQUELE lado, quando ela existe. Quando NÃO existe (a coluna
        * de Checkouts pode estar vazia, por exemplo), caímos na linha do card
@@ -2802,7 +2824,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
        * sido copiada para a outra — e bastaria confirmar para que virasse
        * verdade no banco.
        */
-      const own = rowByStay[side].get(key) ?? null;
+      const own = rowIsSide ? fallbackRow : (rowByStay[side].get(key) ?? null);
       const src = own ?? fallbackRow;
       // O horário que o HÓSPEDE informou é de CHEGADA — não diz nada sobre a
       // saída. Foi essa confusão que fez o checkout automático confirmar na
@@ -2856,10 +2878,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       kind: colKind,
       mode: colMode,
       getPrediction: (r: ArrivalRow): CardPrediction => ({
-        primary: buildPredictionSide(predKind, r),
+        primary: buildPredictionSide(predKind, r, predKind === colKind),
         // O outro lado vai junto, recolhido: quem já sabe a chegada E a saída
         // registra as duas sem sair do card (pedido explícito, 08/09/2026).
-        secondary: buildPredictionSide(otherKind, r),
+        secondary: buildPredictionSide(otherKind, r, otherKind === colKind),
       }),
       onMark: (row: ArrivalRow) => {
         if (colMode === "done" || colMode === "no_show") return;
@@ -8165,6 +8187,34 @@ function OccupancyPanel({
      `query` filtra ao digitar; `mobileSearch` só controla o campo no celular
      (a lupa troca o título pelo campo, com um X para fechar). */
   const [query, setQuery] = useState("");
+  /* BLOQUEIO POR SELEÇÃO (17/10/2026): toque numa noite livre, depois em outra
+     (mesmo imóvel) → barra "N noites · dd/mm a dd/mm" → janela "Bloquear
+     datas". Só quem pode editar a operação vê/usa (mesma regra do botão
+     "Bloquear datas"); o servidor revalida tudo, inclusive conflito com
+     reserva ativa. */
+  const { impersonation: blockImp } = useImpersonation();
+  const blockOwnerId = blockImp?.userId ?? null;
+  const listBlocksFn = useServerFn(listManualBlocks);
+  const createBlockFn = useServerFn(createManualBlockFn);
+  const qcBlock = useQueryClient();
+  const blockPermQ = useQuery({
+    queryKey: ["manual-blocks", blockOwnerId],
+    queryFn: () => listBlocksFn({ data: { ownerId: blockOwnerId } }),
+    staleTime: 60_000,
+  });
+  const canBlock = !!blockPermQ.data?.canEdit;
+  const blockLightMode = useOperationMode().data?.mode === "light";
+  const [blockSel, setBlockSel] = useState<{ propertyId: string; anchor: string; end: string } | null>(null);
+  const [blockOpen, setBlockOpen] = useState(false);
+  const [blockBusy, setBlockBusy] = useState(false);
+  useEffect(() => {
+    if (!blockSel) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !blockOpen) setBlockSel(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [blockSel, blockOpen]);
   const [mobileSearch, setMobileSearch] = useState(false);
   /** Primeiro dia que aparece no visor (muda ao rolar): a legenda só mostra o que existe nos dias VISÍVEIS. */
   const [firstVisIdx, setFirstVisIdx] = useState(0);
@@ -8358,6 +8408,57 @@ function OccupancyPanel({
     scroller.scrollLeft = idx > 0 ? idx * dayW : 0;
   }, [outerEl, start, days, dayW, dayList, todayISO]);
   const dayIndex = useMemo(() => new Map(dayList.map((d, i) => [d, i])), [dayList]);
+  const blockRange = blockSel
+    ? blockSel.anchor <= blockSel.end
+      ? { from: blockSel.anchor, to: blockAddDays(blockSel.end, 1) }
+      : { from: blockSel.end, to: blockAddDays(blockSel.anchor, 1) }
+    : null;
+  function blockClick(propertyId: string, day: string, ev: React.MouseEvent) {
+    if (!canBlock) return;
+    // Clique numa reserva abre o histórico dela — não mexe na seleção.
+    if ((ev.target as HTMLElement).closest('[role="button"]')) return;
+    if (day < todayISO) {
+      toast.error("Não é possível bloquear", { description: "Escolha uma data a partir de hoje." });
+      return;
+    }
+    const stays = byProperty.get(propertyId) ?? [];
+    const next = blockSel && blockSel.propertyId === propertyId && blockSel.anchor === blockSel.end ? blockSel : null;
+    const a = next ? next.anchor : day;
+    const lo = a <= day ? a : day;
+    const hi = a <= day ? day : a;
+    const hit = firstBlockConflict(stays, lo, blockAddDays(hi, 1));
+    if (hit) {
+      toast.error("Não é possível bloquear", { description: conflictMessage(hit, lo) });
+      return;
+    }
+    if (!next) {
+      setBlockSel({ propertyId, anchor: day, end: day });
+    } else if (day === a) {
+      setBlockSel(null); // tocar de novo na mesma noite desmarca
+    } else {
+      setBlockSel({ propertyId, anchor: a, end: day });
+    }
+  }
+  async function saveBlock(note: string | null) {
+    if (!blockSel || !blockRange) return;
+    setBlockBusy(true);
+    try {
+      const r = await createBlockFn({
+        data: { ownerId: blockOwnerId, propertyId: blockSel.propertyId, from: blockRange.from, to: blockRange.to, note },
+      });
+      toast.success(r.connected ? "Datas bloqueadas em todos os anúncios." : "Bloqueio salvo.");
+      setBlockOpen(false);
+      setBlockSel(null);
+      await Promise.all([
+        qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }),
+        qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }),
+      ]);
+    } catch (e) {
+      toast.error("Não é possível bloquear", { description: (e instanceof Error ? e.message : "").replace(/^Não é possível bloquear — /, "") || "Tente novamente." });
+    } finally {
+      setBlockBusy(false);
+    }
+  }
   const brl = (amount: number | null, currency: string | null) =>
     amount == null || !(amount > 0)
       ? null
@@ -9111,7 +9212,24 @@ function OccupancyPanel({
                                       e ao rolar a tela (empate de z-index resolvido
                                       pela ordem no DOM) elas passavam por cima dos
                                       dias fixos no topo. */}
-                                  <div className="relative flex h-6 w-full items-center">
+                                  <div
+                                    className={`relative flex h-6 w-full items-center ${canBlock ? "cursor-pointer" : ""}`}
+                                    onClick={canBlock ? (ev) => blockClick(p.id, d, ev) : undefined}
+                                  >
+                                    {(() => {
+                                      if (!blockSel || !blockRange || blockSel.propertyId !== p.id) return null;
+                                      const left = d > blockRange.from && d <= blockRange.to;
+                                      const right = d >= blockRange.from && d < blockRange.to;
+                                      if (!left && !right) return null;
+                                      const side = left && right ? "inset-x-0" : left ? "left-0 w-1/2" : "right-0 w-1/2";
+                                      const cap = !left ? "border-l-[1.5px] rounded-l-[4px]" : !right ? "border-r-[1.5px] rounded-r-[4px]" : "";
+                                      return (
+                                        <span
+                                          aria-hidden
+                                          className={`pointer-events-none absolute top-0 z-[4] h-full border-y-[1.5px] border-accent/75 bg-accent/20 ${side} ${cap}`}
+                                        />
+                                      );
+                                    })()}
                                     {/* Bug real corrigido (25/09/2026, print: "linha
                                         horizontal cortando a faixa de status"): antes
                                         era UM fio só, com largura cheia, sempre
@@ -9253,6 +9371,35 @@ function OccupancyPanel({
             </>
           )}
       </div>
+      {blockSel && blockRange && (() => {
+        const bp = properties.find((x) => x.id === blockSel.propertyId);
+        if (!bp) return null;
+        const ctx = { propertyName: bp.name, ownerName: bp.ownerName ?? null, city: bp.city };
+        return (
+          <>
+            {!blockOpen && (
+              <CalendarBlockBar
+                ctx={ctx}
+                from={blockRange.from}
+                to={blockRange.to}
+                onCancel={() => setBlockSel(null)}
+                onConfirm={() => setBlockOpen(true)}
+              />
+            )}
+            <CalendarBlockDialog
+              key={`${blockSel.propertyId}:${blockRange.from}:${blockRange.to}`}
+              open={blockOpen}
+              ctx={ctx}
+              from={blockRange.from}
+              to={blockRange.to}
+              busy={blockBusy}
+              lightMode={blockLightMode}
+              onClose={() => setBlockOpen(false)}
+              onSave={saveBlock}
+            />
+          </>
+        );
+      })()}
       {journeyReservationId && (
         <ReservationJourneyDialog
           open

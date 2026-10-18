@@ -31,6 +31,22 @@ export async function pushPropertyAvailability(propertyId: string, userId: strin
 export async function createManualBlock(input: { propertyId: string; from: string; to: string; note?: string | null; userId: string | null }) {
   if (!(input.to > input.from)) throw new Error("A data final precisa ser depois da inicial.");
   const db = await admin();
+  // Trava final: não bloqueia por cima de reserva ativa (mesma regra do calendário).
+  const { data: clash, error: clashErr } = await db
+    .from("property_reservations")
+    .select("checkin_date, checkout_date, raw_summary, status")
+    .eq("property_id", input.propertyId)
+    .lt("checkin_date", input.to)
+    .gt("checkout_date", input.from)
+    .or("status.is.null,status.not.in.(cancelled,blocked)");
+  if (clashErr) throw new Error(clashErr.message);
+  const { firstBlockConflict, conflictMessage } = await import("@/lib/manual-block-conflict");
+  const hit = firstBlockConflict(
+    ((clash ?? []) as any[]).map((r) => ({ checkin: r.checkin_date as string, checkout: r.checkout_date as string | null, guest: null })),
+    input.from,
+    input.to,
+  );
+  if (hit) throw new Error(`Não é possível bloquear — ${conflictMessage(hit, input.from)}`);
   const { data, error } = await db
     .from("property_reservations")
     .insert({

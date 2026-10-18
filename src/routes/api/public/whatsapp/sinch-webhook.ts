@@ -132,6 +132,26 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
           if (r) picked = { row: r, by: "telefone" };
         }
 
+        // Código citado no texto, mas fora do lote em memória: busca direta.
+        if (!picked) {
+          const { extractReservationCodes } = await import("@/lib/whatsapp-guest-match");
+          const codes = extractReservationCodes(inbound);
+          for (const code of codes) {
+            const { data: hits } = await supabaseAdmin
+              .from("property_reservations")
+              .select("id, property_id, checkin_date, checkout_date, status, guest_contacts")
+              .in("property_id", propertyIds)
+              .eq("source", "channex")
+              .neq("status", "cancelled")
+              .ilike("guest_contacts->>code", code)
+              .limit(2);
+            if (hits && hits.length === 1) {
+              picked = { row: hits[0] as any, by: "codigo" };
+              break;
+            }
+          }
+        }
+
         if (!picked) {
           // Não descarta: pede o código da reserva (sem pedir nome).
           try {

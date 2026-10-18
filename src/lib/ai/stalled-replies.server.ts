@@ -44,6 +44,29 @@ export async function sweepStalledGuestReplies(limit = 20): Promise<number> {
     paused_until: string;
   }>) {
     try {
+      // Só avalia uma vez por mensagem pendente (evita reprocessar a cada minuto).
+      const { data: lastMsg } = await admin
+        .from("property_chat_messages")
+        .select("id, role")
+        .eq("conversation_id", c.id)
+        .not("is_internal_note", "is", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!lastMsg || lastMsg.role !== "user") continue;
+      const { data: own } = await admin.from("properties").select("owner_id").eq("id", c.property_id).maybeSingle();
+      if (!own?.owner_id) continue;
+      const { error: seen } = await admin.from("ops_push_log").insert({
+        owner_id: own.owner_id,
+        kind: "resume-gate",
+        dedupe_key: `resume-gate:${c.id}:${lastMsg.id}`,
+        payload: { conversationId: c.id, messageId: lastMsg.id },
+      });
+      if (seen) continue;
+      // Retoma SÓ se a resposta está explícita no cadastro do imóvel e não é
+      // assunto do atendimento humano em andamento. Senão, segue com a equipe.
+      const { canResumeAfterPause } = await import("./sweep-gates.server");
+      if (!(await canResumeAfterPause(admin, c.id, c.property_id))) continue;
       // Reivindica: devolve à IA só se ninguém mexeu na pausa desde a leitura.
       const { data: claimed } = await admin
         .from("property_chat_conversations")
@@ -280,7 +303,12 @@ async function sweepResolutionChecks(admin: Admin, limit: number): Promise<numbe
       });
       if (dup) continue;
 
-      const reply = resolutionCheckText(c.guest_name, list.length);
+      // Só pergunta com contexto real (passo prático dado para um problema) e
+      // citando o problema concreto; sem contexto, não manda nada.
+      const { contextualResolutionQuestion } = await import("./sweep-gates.server");
+      const { firstName } = await import("./silent-close");
+      const reply = await contextualResolutionQuestion(list, firstName(c.guest_name));
+      if (!reply) continue;
       const channel = stalledChannel(c.guest_session_id);
       if (channel === "whatsapp") {
         const phone = String(c.guest_session_id).slice("wa:".length);
@@ -354,7 +382,7 @@ async function sweepSilentCloses(admin: Admin, limit: number): Promise<number> {
           : null;
       if (!kind) continue;
       // Já encerrado pela própria IA? Não repete.
-      if (/excelente estadia|boa viagem/i.test(last.content ?? "")) continue;
+      if (/excelente estadia|boa estadia|otima estadia|ótima estadia|aproveite a estadia|boa viagem|até a próxima/i.test(last.content ?? "")) continue;
 
       const { findStayForEvent, applyStayEvent, assessStayTimes } = await import("./stay-events.server");
       const stay = await findStayForEvent(admin, { propertyId: c.property_id, checkinDate: null, checkoutDate: null, conversationId: c.id });
@@ -382,7 +410,15 @@ async function sweepSilentCloses(admin: Admin, limit: number): Promise<number> {
       });
       if (dup) continue;
 
-      const reply = silentCloseText(kind, c.guest_name);
+      const { data: aiHist } = await admin
+        .from("property_chat_messages")
+        .select("content")
+        .eq("conversation_id", c.id)
+        .eq("role", "assistant")
+        .order("created_at", { ascending: false })
+        .limit(40);
+      const prevAi = ((aiHist ?? []) as Array<{ content: string | null }>).map((m) => m.content ?? "");
+      const reply = silentCloseText(kind, c.guest_name, prevAi, prevAi.length);
       const channel = stalledChannel(c.guest_session_id);
       if (channel === "whatsapp") {
         const phone = String(c.guest_session_id).slice("wa:".length);
