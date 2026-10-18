@@ -4672,7 +4672,6 @@ function KpiCard({
             list.ref(el);
             screenshotRef.current = el;
           }}
-          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
           className="sg-elegant-scroll max-h-[75dvh] overflow-y-auto px-3 pt-3"
         >
           {loading ? (
@@ -10804,6 +10803,7 @@ function ArrivalCard({
       // aparece dentro de um popup de indicador (KpiCard) — inofensivo aqui
       // no Kanban, que não usa esse hook.
       data-whole-card
+      data-clip-row
       /* Visão Lista: o card inteiro abre o histórico da reserva (pedido
          explícito).
          O guarda abaixo é o que torna isso seguro. O card carrega botões que
@@ -10990,7 +10990,7 @@ function ArrivalCard({
           />
           {/* O IMÓVEL é o título do card. O proprietário fica acima, menor e
               no rosa da marca: identifica sem disputar a leitura. */}
-          <div className="ds-card-title truncate" title={row.propertyName ?? undefined}>
+          <div className="ds-card-title line-clamp-2 break-words leading-tight" title={row.propertyName ?? undefined}>
             {row.propertyName ?? "Sem nome"}
           </div>
 
