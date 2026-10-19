@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link, useBlocker } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, useBlocker, redirect } from "@tanstack/react-router";
 import { useGuidePreviewUrl } from "@/hooks/useGuidePreviewUrl";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useState, useEffect, useRef } from "react";
@@ -173,6 +173,11 @@ import { isNewLayoutAccount } from "@/lib/new-layout-accounts";
 const NATIVE_AIRBNB_OWNERS = new Set(["25239e5b-1a66-46f1-b9a2-829c499cc366"]);
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
+  // Imóveis só nascem pela importação da conta conectada (19/10/2026):
+  // a criação manual ("new") foi desativada e volta para Proprietários.
+  beforeLoad: ({ params }) => {
+    if (params.id === "new") throw redirect({ to: "/admin/proprietarios", replace: true });
+  },
   // `houseOnly`: abre direto (e trava) na aba "A casa", sem a barra de abas —
   // usado pelo botão "Editar" do imóvel dentro do proprietário em
   // Stakeholders, que precisa espelhar exatamente esta mesma aba, sem
