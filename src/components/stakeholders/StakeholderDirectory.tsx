@@ -267,6 +267,26 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     }
   }
 
+  function renderDetail() {
+    if (!detailId) return null;
+    return (
+      <StakeholderDetailSheet
+        kind={kind}
+        id={detailId}
+        accountOwnerId={activeAccountId}
+        newLayout={newLayout}
+        onClose={() => setDetailId(null)}
+        onEdit={() => {
+          const row = rows.find((r) => r.id === detailId);
+          if (row) {
+            setDetailId(null);
+            openEdit(row);
+          }
+        }}
+      />
+    );
+  }
+
   async function remove(id: string) {
     try {
       await delFn({ data: { kind, id, accountOwnerId: activeAccountId } });
@@ -674,18 +694,19 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
         onSaved={afterSaved}
       />
 
-      {/* Próximo passo: criar a residência dentro do proprietário recém-criado */}
+      {/* Imóveis só nascem pela importação da conta conectada (19/10/2026):
+          após cadastrar o proprietário, só oferece abrir a ficha. */}
       <Dialog open={!!createdOwner} onOpenChange={(o) => !o && setCreatedOwner(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="font-display text-2xl">Proprietário criado</DialogTitle>
             <DialogDescription>
-              {createdOwner?.name} já está cadastrado. Quer criar a primeira residência dele agora?
+              {createdOwner?.name} já está cadastrado. Os imóveis dele entram pela importação dos
+              anúncios da conta conectada.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button
-              variant="ghost"
               className="rounded-full"
               onClick={() => {
                 const id = createdOwner?.id;
@@ -695,53 +716,33 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             >
               Abrir ficha
             </Button>
-            <Button asChild className="rounded-full">
-              <Link
-                to="/admin/properties/$id"
-                params={{ id: "new" }}
-                search={{ ownerId: createdOwner?.id }}
-                onClick={() => setCreatedOwner(null)}
-              >
-                <Home className="size-4 mr-1.5" /> Criar residência
-              </Link>
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Detail — bottom-sheet no mobile, painel lateral no desktop */}
-      <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
-        <SheetContent
-          side={isMobile ? "bottom" : "right"}
-          // Ficha do proprietário (layout novo): tela cheia, como pedido em 13/10/2026.
-          // O X vira o botão redondo de 32px das janelas do sistema.
-          closeClassName={fullScreen ? "hidden" : undefined}
-          className={
-            fullScreen
-              ? "h-dvh max-h-none w-full max-w-none overflow-y-auto rounded-none border-0 p-0 sm:max-w-none"
-              : isMobile
+      {/* Detail — proprietário (layout novo) abre em janela central como em Guias;
+          demais: bottom-sheet no mobile, painel lateral no desktop */}
+      {fullScreen ? (
+        <Dialog open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
+          <DialogContent className="w-[min(94vw,880px)] max-w-none sm:max-w-[880px] max-h-[90dvh] overflow-y-auto p-0 gap-0 [&>button]:hidden">
+            <DialogTitle className="sr-only">Ficha do proprietário</DialogTitle>
+            {detailId && renderDetail()}
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
+          <SheetContent
+            side={isMobile ? "bottom" : "right"}
+            className={
+              isMobile
                 ? "w-full max-h-[90dvh] rounded-t-[var(--win-radius)] overflow-y-auto p-0"
                 : "w-full sm:max-w-3xl overflow-y-auto p-0"
-          }
-        >
-          {detailId && (
-            <StakeholderDetailSheet
-              kind={kind}
-              id={detailId}
-              accountOwnerId={activeAccountId}
-              newLayout={newLayout}
-              onClose={() => setDetailId(null)}
-              onEdit={() => {
-                const row = rows.find((r) => r.id === detailId);
-                if (row) {
-                  setDetailId(null);
-                  openEdit(row);
-                }
-              }}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
+            }
+          >
+            {detailId && renderDetail()}
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }
