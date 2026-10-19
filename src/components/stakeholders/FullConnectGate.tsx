@@ -136,22 +136,17 @@ export function FullConnectGate() {
         toast.success("Todos os anúncios foram conectados ao Airbnb com o calendário aberto.");
       } else {
         const parts: string[] = [];
+        if (done)
+          parts.push(`${done} ${done === 1 ? "anúncio já foi conectado" : "anúncios já foram conectados"} com sucesso.`);
         if (missing.length)
           parts.push(
-            `Ainda não recebemos as diárias de: ${missing.join(", ")}. Confira na sua ferramenta de precificação se esses anúncios foram ativados e se a sincronização das diárias está ligada, seguindo os passos acima.`,
+            `Motivo: as diárias de ${missing.join(", ")} ainda não chegaram da sua ferramenta de precificação (são necessários pelo menos os próximos 30 dias com preço definido por ela).\n\nO que fazer: abra a ferramenta de precificação, confira se esses anúncios estão ativos e com a sincronização das diárias ligada, clique em sincronizar e aguarde alguns minutos antes de tentar de novo.`,
           );
         if (failed.length)
           parts.push(
-            `Não foi possível conferir agora: ${failed.join(", ")}. Tente de novo em 1 minuto.`,
+            `Motivo: não conseguimos conferir ${failed.join(", ")} agora (falha temporária de conexão).\n\nO que fazer: aguarde 1 minuto e toque novamente em "Já conectei".`,
           );
-        if (done)
-          parts.unshift(`${done} ${done === 1 ? "anúncio conectado" : "anúncios conectados"}.`);
-        setBulkError(parts.join(" "));
-        requestAnimationFrame(() =>
-          document
-            .getElementById("full-connect-steps")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-        );
+        setBulkError(parts.join("\n\n"));
       }
     } finally {
       setBusy(null);
