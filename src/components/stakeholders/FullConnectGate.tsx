@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, Loader2, Lock } from "lucide-react";
@@ -85,6 +85,11 @@ export function FullConnectGate() {
 
   const [bulkError, setBulkError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
+  function closeError() {
+    setBulkError(null);
+    requestAnimationFrame(() => mainRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
+  }
 
   /** "Já conectei" global: confere cada anúncio; liga os que têm diárias e explica os que faltam. */
   async function confirmAll() {
@@ -120,7 +125,7 @@ export function FullConnectGate() {
             missing.push(it.propertyName);
             setNotice((n) => ({
               ...n,
-              [it.propertyId]: "Faltam as diárias deste anúncio na sua ferramenta de precificação.",
+              [it.propertyId]: "",
             }));
           }
         } catch {
@@ -184,8 +189,10 @@ export function FullConnectGate() {
   return (
     <Dialog open={open}>
       <DialogContent
+        ref={mainRef}
         hideClose
-        className="max-h-[90dvh] max-w-[380px] gap-3 overflow-y-auto p-4 sm:p-4"
+        style={{ width: "min(calc(100% - 2rem), 380px)", maxWidth: 380 }}
+        className="max-h-[90dvh] gap-3 overflow-y-auto p-4 sm:p-4"
         onEscapeKeyDown={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
@@ -204,14 +211,27 @@ export function FullConnectGate() {
           </DialogDescription>
         </div>
 
-        {bulkError ? (
-          <div
-            role="alert"
-            className="rounded-[14px] bg-destructive/10 p-2.5 text-[12.5px] leading-[1.5] text-destructive shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--destructive)_25%,transparent)]"
+        <Dialog open={!!bulkError} onOpenChange={(v) => { if (!v) closeError(); }}>
+          <DialogContent
+            hideClose
+            style={{ width: "min(calc(100% - 2rem), 340px)", maxWidth: 340 }}
+            className="max-h-[90dvh] gap-3 overflow-y-auto p-4 sm:p-4"
           >
-            {bulkError}
-          </div>
-        ) : null}
+            <DialogTitle className="font-display text-[16px] font-extrabold leading-[1.25]">
+              Ainda não foi possível ativar
+            </DialogTitle>
+            <DialogDescription className="whitespace-pre-line text-[12.5px] leading-[1.5] text-foreground/85">
+              {bulkError}
+            </DialogDescription>
+            <button
+              type="button"
+              onClick={closeError}
+              className="h-10 rounded-[12px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[13px] font-extrabold text-white"
+            >
+              Ok!
+            </button>
+          </DialogContent>
+        </Dialog>
 
         <ol
           id="full-connect-steps"
@@ -304,9 +324,6 @@ export function FullConnectGate() {
                   )
                 ) : null}
                 {it.error ? <p className="text-xs text-destructive">{it.error}</p> : null}
-                {notice[it.propertyId] ? (
-                  <p className="text-xs text-destructive">{notice[it.propertyId]}</p>
-                ) : null}
               </div>
             ))}
           </div>
