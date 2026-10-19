@@ -203,15 +203,19 @@ export const answerEscalation = createServerFn({ method: "POST" })
           pushTitle: "Resposta sobre o seu pedido",
           instruction:
             `A equipe respondeu internamente à sua pergunta "${pergunta}": "${data.answer}". ` +
-            "Leve essa resposta ao hóspede agora, na sua própria voz, como continuidade natural da conversa. " +
-            "Não diga que consultou ninguém, não mencione equipe nem transferência — do ponto de vista dele, " +
-            "quem sempre esteve na conversa é você. Se a resposta abrir um próximo passo, ofereça-o.",
+            "Trate essa escolha como FATO verdadeiro, não como o texto a enviar. Responda como concierge de alto padrão: " +
+            "releia a conversa inteira e a pergunta real do hóspede, combine a decisão com os dados reais do imóvel e da reserva " +
+            "(busque nas fontes quando necessário — localização do item, instruções, horários) e conduza a conversa: " +
+            "se houver próximo passo natural, ofereça-o; se a decisão liberar algo, entregue o necessário para ele agir. " +
+            "Seja conciso e elegante: sem repetir o que já foi dito, sem excesso, sem inventar nada fora das fontes. " +
+            "Não diga que consultou ninguém, não mencione equipe nem transferência — do ponto de vista dele, quem sempre esteve na conversa é você.",
         });
         entregue = r.sent;
         if (entregue) {
+          const snap = ((esc as { context_snapshot?: Record<string, unknown> | null } | null)?.context_snapshot ?? {}) as Record<string, unknown>;
           await context.supabase
             .from("ai_human_escalations")
-            .update({ applied_to_guest: true })
+            .update({ applied_to_guest: true, context_snapshot: { ...snap, delivered_message_id: r.messageId ?? null } } as never)
             .eq("id", data.escalationId);
         }
       } catch (e) {
