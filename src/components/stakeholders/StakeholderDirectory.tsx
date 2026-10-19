@@ -267,6 +267,26 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     }
   }
 
+  function renderDetail() {
+    if (!detailId) return null;
+    return (
+      <StakeholderDetailSheet
+        kind={kind}
+        id={detailId}
+        accountOwnerId={activeAccountId}
+        newLayout={newLayout}
+        onClose={() => setDetailId(null)}
+        onEdit={() => {
+          const row = rows.find((r) => r.id === detailId);
+          if (row) {
+            setDetailId(null);
+            openEdit(row);
+          }
+        }}
+      />
+    );
+  }
+
   async function remove(id: string) {
     try {
       await delFn({ data: { kind, id, accountOwnerId: activeAccountId } });
