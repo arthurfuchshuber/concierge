@@ -185,8 +185,19 @@ export async function seedUnitCalendar(propertyId: string, userId: string | null
     .eq("property_id", propertyId)
     .maybeSingle();
   if (!r?.channex_property_id || !r.channex_room_type_id || !r.channex_rate_plan_id) return { ok: false, reason: "no_unit" };
-  const closed = await airbnbClosedNights(r.properties?.airbnb_ical_url);
-  if (!closed) return { ok: false, reason: "no_ical" };
+  // Sem iCal: a unidade ainda não está mapeada (nada chega ao Airbnb), então vale o que o ConciergeIA
+  // já sabe (reservas confirmadas + bloqueios manuais importados). Com iCal, soma o calendário real.
+  const closed = (await airbnbClosedNights(r.properties?.airbnb_ical_url)) ?? new Set<string>();
+  const { data: known } = await d
+    .from("property_reservations")
+    .select("checkin_date, checkout_date, status, source")
+    .eq("property_id", propertyId)
+    .in("status", ["confirmed", "blocked"])
+    .gte("checkout_date", isoDay(new Date()));
+  for (const k of (known ?? []) as any[]) {
+    if (k.status === "blocked" && k.source !== "manual") continue;
+    for (let x = new Date(`${k.checkin_date}T00:00:00Z`); isoDay(x) < k.checkout_date; x = new Date(x.getTime() + 86_400_000)) closed.add(isoDay(x));
+  }
   const { applyCalendarChanges, flushAriOutbox } = await import("@/lib/channex-ari.server");
   const base = { propertyId: r.channex_property_id, roomTypeId: r.channex_room_type_id, ratePlanId: r.channex_rate_plan_id };
   const changes: any[] = [];
