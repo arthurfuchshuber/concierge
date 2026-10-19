@@ -171,6 +171,16 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       }
       // Senhas travadas nesta conversa: o texto recuperado passa pela mesma
       // máscara de `get_property_facts` (16/09/2026).
+      if (!passages.length) {
+        return {
+          found: 0,
+          aviso:
+            "Nada encontrado na base para esta consulta. Use get_property_facts (descrição, comodidades, regras, " +
+            "condomínio, segurança) para responder com o que existe. Se o item não aparece em nenhuma fonte, diga " +
+            "com gentileza e clareza que o imóvel não dispõe dele.",
+          passages: [],
+        };
+      }
       return {
         found: passages.length,
         passages: passages.map((p) => ({
