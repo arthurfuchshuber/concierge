@@ -57,6 +57,13 @@
       "when": 1792270031493,
       "tag": "0007_publish_missing_realtime_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792444035093,
+      "tag": "0008_full_connect_conductor_and_unit_lock",
+      "breakpoints": true
     }
   ]
 }
