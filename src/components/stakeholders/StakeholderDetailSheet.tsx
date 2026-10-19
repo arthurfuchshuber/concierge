@@ -992,15 +992,13 @@ export function StakeholderDetailSheet({
             steps={[
               { value: "timeline", label: "Timeline", icon: Pin },
               { value: "imoveis", label: "Imóveis", icon: Home, count: properties.length },
-              { value: "financeiro", label: "Financeiro", icon: Coins },
+              // Financeiro, Acessos e Log ocultos temporariamente (pedido 19/10/2026).
               {
                 value: "documentos",
                 label: "Documentos",
                 icon: FileText,
                 count: feedDocs.length + looseDocs.length,
               },
-              { value: "acessos", label: "Acessos", icon: User },
-              { value: "log", label: "Log", icon: Activity },
             ]}
           />
         </div>
@@ -1858,18 +1856,24 @@ export function StakeholderDetailSheet({
               Imóveis
             </TabsTrigger>
           )}
-          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="financeiro">
-            Financeiro
-          </TabsTrigger>
+          {kind !== "owner" && (
+            <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="financeiro">
+              Financeiro
+            </TabsTrigger>
+          )}
           <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="documentos">
             Documentos
           </TabsTrigger>
-          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="acessos">
-            Acessos
-          </TabsTrigger>
-          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="log">
-            Log
-          </TabsTrigger>
+          {kind !== "owner" && (
+            <>
+              <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="acessos">
+                Acessos
+              </TabsTrigger>
+              <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="log">
+                Log
+              </TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         {/* -------------------- Acessos -------------------- */}
@@ -2297,16 +2301,6 @@ export function StakeholderDetailSheet({
               </div>
             )}
 
-            {kind === "owner" && (
-              <Link
-                to="/admin/properties/$id"
-                params={{ id: "new" }}
-                search={{ returnTo: returnToHere, ownerId: row?.id }}
-                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-              >
-                <Plus className="size-3.5" /> Criar nova residência
-              </Link>
-            )}
           </TabsContent>
         )}
 
