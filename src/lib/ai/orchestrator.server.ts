@@ -1157,6 +1157,7 @@ export async function runHospitalityAgent(params: {
       reason: handoffReason,
       question: formatDraftForTeam(handoffReason, draft),
       contextSnapshot: { draft },
+      guestMessage: params.message,
     }).catch(() => null);
   }
 
