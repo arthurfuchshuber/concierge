@@ -173,6 +173,8 @@ export async function learnFromHumanAnswer(params: {
   agent?: string;
   question: string;
   humanAnswer: string;
+  /** Escopo escolhido explicitamente pela equipe (imóvel ou todos os imóveis). */
+  forcedScope?: LearningScope;
 }): Promise<{ candidateId: string | null; distilled: Distilled | null }> {
   // Cérebro contínuo: a mesma resposta humana também refina o PLAYBOOK deste imóvel
   // (sem esperar aprovação quando é de baixo risco). Falha aqui nunca afeta o resto.
@@ -200,6 +202,9 @@ export async function learnFromHumanAnswer(params: {
     propertyName: params.propertyName,
   });
   if (!distilled) return { candidateId: null, distilled: null };
+  if (params.forcedScope && distilled.recommendedScope !== "temporary_exception") {
+    distilled.recommendedScope = params.forcedScope;
+  }
 
   const candidateId = await queueLearningCandidate({
     supabase: params.supabase,
