@@ -1504,6 +1504,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
               </button>
             </div>
           </div>
+          )}
         </div>
       )}
 
