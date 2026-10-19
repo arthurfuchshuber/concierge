@@ -186,6 +186,10 @@ export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | nu
   // 2) Mapeia e carrega reservas futuras.
   await call("POST", `/channels/${t.channelId}/mappings`, { mapping: { rate_plan_id: t.ratePlanId, settings: { listing_id: t.listingId } } });
   await call("POST", `/channels/${t.channelId}/execute/load_future_reservations`, { listing_id: t.listingId }).catch(() => null);
+  // Canal recém-conectado nasce inativo na Channex e represa preços/disponibilidade: ativa (idempotente).
+  if (channel?.data?.attributes?.is_active === false) {
+    await call("POST", `/channels/${t.channelId}/activate`).catch(() => null);
+  }
 
   // 3) Recalcula com a janela exata do anfitrião e as reservas recém-importadas.
   const sync = await syncRealAvailability(t, userId);
