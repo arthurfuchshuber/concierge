@@ -90,6 +90,7 @@ async function hasConfirmedReservation(
 
 type Inbound = {
   messageId: string | null;
+  otaMessageId?: string | null;
   text: string;
   sender: string;
   threadId: string | null;
@@ -397,7 +398,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
       .from("property_chat_messages")
       .select("id")
       .eq("channel", "airbnb" as never)
-      .or(extIds.map((id) => `external_id.eq.${id},content.ilike.%${id}%`).filter((_, i) => i < 0).join(",") || `external_id.in.(${extIds.join(",")})`)
+      .in("external_id", extIds)
       .limit(1);
     if (dup?.length) return;
   }
