@@ -49,7 +49,16 @@ export function buildDecisionSpec(guestMessage: string, kind?: DecisionKind): De
   if (/\b(pode|posso|podemos|permitido|aceita|can i|may i|se puede)\b/.test(m)) {
     return { kind: "fact", options: ["Sim, é permitido", "Não é permitido", "Depende — eu assumo"] };
   }
-  return { kind: kind ?? "fact", options: ["Sim", "Não", "Eu assumo a conversa"] };
+  return { kind: kind ?? "fact", options: ["Sim", "Não", TAKEOVER_OPTION] };
+}
+
+/**
+ * Opção "eu assumo": a equipe passa a responder direto ao hóspede (ex.: dúvida
+ * aberta como senha do Wi-Fi). Nunca vira resposta da IA nem conhecimento.
+ */
+export const TAKEOVER_OPTION = "Eu assumo a conversa";
+export function isTakeoverOption(option: string): boolean {
+  return option.trim() === TAKEOVER_OPTION || option.trim() === "Depende — eu assumo";
 }
 
 /** Só dúvidas sobre o imóvel podem virar conhecimento — nunca decisões operacionais. */

@@ -134,10 +134,13 @@ export const answerEscalation = createServerFn({ method: "POST" })
       .eq("id", data.escalationId)
       .maybeSingle();
     if (readErr) throw new Error(readErr.message);
-    const { readDecisionSpec, canBecomeKnowledge, actionFor, learningScopeOf } = await import("./ai/human-loop/decision-options");
+    const { readDecisionSpec, canBecomeKnowledge, actionFor, learningScopeOf, isTakeoverOption } = await import("./ai/human-loop/decision-options");
     const spec = readDecisionSpec((esc as { context_snapshot?: unknown } | null)?.context_snapshot);
     // Decisão operacional (ex.: liberar check-in antecipado) nunca vira conhecimento.
     if (spec && !canBecomeKnowledge(spec.kind)) data.saveAsKnowledge = false;
+    // "Eu assumo a conversa": a equipe responde direto — nada vai ao hóspede pela IA.
+    const takeover = !!spec && isTakeoverOption(data.answer);
+    if (takeover) data.saveAsKnowledge = false;
 
     const { error } = await context.supabase
       .from("ai_human_escalations")
