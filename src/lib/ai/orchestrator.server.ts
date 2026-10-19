@@ -17,7 +17,7 @@
  *   9. Gravação seletiva de memória + observabilidade (log completo)
  */
 import { GUEST_DATA_BOUNDARY } from "./guest-data-boundary";
-import { ensureGreeting } from "@/lib/ai/greeting";
+import { isCourtesyEcho, ensureGreeting } from "@/lib/ai/greeting";
 import { SILENCE_TOKEN, finalizeAgentReply } from "@/lib/ai/reply-finalize";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { EMPTY_USAGE, chatText, mergeUsage, runAgent, type Usage } from "./gateway.server";
@@ -1189,6 +1189,11 @@ export async function runHospitalityAgent(params: {
   // Incidente de acesso (modo conversacional): barra alegação de ação remota.
   if (conversationalIncident && reply && claimsRemoteAction(reply)) {
     reply = safety.reply;
+  }
+
+  // Fim do ping-pong: hóspede só retribuindo após nosso agradecimento/fechamento.
+  if (reply && !(params as { proactiveTrigger?: string }).proactiveTrigger && isCourtesyEcho(params.message, fullHistory)) {
+    reply = SILENCE_TOKEN;
   }
 
   // Saudação obrigatória: se a IA ainda não cumprimentou ninguém nesta
