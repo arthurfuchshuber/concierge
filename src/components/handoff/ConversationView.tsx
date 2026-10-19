@@ -212,10 +212,22 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
     () => escalations.filter((e) => e.status === "answered" || e.status === "dismissed"),
     [escalations],
   );
-  const pendingAsk = useMemo(
-    () => escalations.find((e) => e.status === "pending") ?? null,
+  /* Várias perguntas no mesmo chat (19/10/2026): todas pendentes ficam na
+     base, em cascata. Com só uma, ela já vem aberta; com mais, ficam
+     recolhidas e a equipe expande a que quiser responder. */
+  const pendingAsks = useMemo(
+    () => escalations.filter((e) => e.status === "pending"),
     [escalations],
   );
+  const [openAskId, setOpenAskId] = useState<string | null>(null);
+  const pendingAsk = useMemo(
+    () =>
+      pendingAsks.length === 1
+        ? pendingAsks[0]
+        : (pendingAsks.find((e) => e.id === openAskId) ?? null),
+    [pendingAsks, openAskId],
+  );
+  const hasPendingAsk = pendingAsks.length > 0;
   const [askText, setAskText] = useState("");
   const [askRecording, setAskRecording] = useState(false);
   const [askTranscribing, setAskTranscribing] = useState(false);
