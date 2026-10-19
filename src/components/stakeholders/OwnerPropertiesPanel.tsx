@@ -119,13 +119,6 @@ export function OwnerPropertiesPanel({
   const [reimport, setReimport] = useState(false);
   const [toggling, setToggling] = useState(false);
   const setActiveFn = useServerFn(setAirbnbListingActive);
-  const accountsFn = useServerFn(listAirbnbAccounts);
-  const accountsQ = useQuery({
-    queryKey: ["airbnb-accounts", accountOwnerId ?? null],
-    queryFn: () => accountsFn({ data: { accountOwnerId: accountOwnerId ?? null } }),
-    staleTime: 60_000,
-  });
-  const connectedAccounts = (accountsQ.data ?? []).filter((a) => a.status !== "disconnected");
 
   async function applyToggle() {
     if (!confirm) return;
@@ -307,60 +300,16 @@ export function OwnerPropertiesPanel({
         }
       />
 
-      {/* Contas Conectadas + Anúncios Conectados (nunca "conta conectada" no singular). */}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-2">
-        <div className={`${PANEL_SHELL} grid min-w-0 gap-1.5 px-3.5 py-2.5`}>
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <span className="ds-eyebrow text-[10px] tracking-[0.2em]">Contas Conectadas</span>
-            <span className="text-[11px] font-bold tabular-nums text-muted-foreground">
-              {connectedAccounts.length}
-            </span>
-          </div>
-          {connectedAccounts.length === 0 ? (
-            <span className="text-[12px] text-muted-foreground">Nenhuma conta no momento.</span>
-          ) : (
-            connectedAccounts.map((a) => (
-              <span key={a.channelId} className="flex min-w-0 items-center gap-2 text-[12.5px]">
-                <span
-                  aria-hidden
-                  className={`size-1.5 shrink-0 rounded-full bg-current ${a.status === "active" ? "ds-ok" : "ds-atencao"}`}
-                />
-                <b className="min-w-0 flex-1 break-words font-semibold">{a.title}</b>
-                <em className="shrink-0 text-[11px] not-italic text-muted-foreground tabular-nums">
-                  {a.listings ?? 0} {a.listings === 1 ? "anúncio" : "anúncios"}
-                </em>
-              </span>
-            ))
-          )}
-        </div>
-        <div className={`${PANEL_SHELL} grid min-w-0 gap-1.5 px-3.5 py-2.5`}>
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <span className="ds-eyebrow text-[10px] tracking-[0.2em]">Anúncios Conectados</span>
-            <button
-              type="button"
-              onClick={() => setReimport(true)}
-              className="inline-flex h-7 shrink-0 items-center gap-[5px] rounded-full px-2.5 text-[11.5px] font-bold text-foreground/90 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] transition-colors hover:bg-foreground/[0.05]"
-            >
-              <RefreshCw className="size-3" />
-              ReImportar
-            </button>
-          </div>
-          {nActive === 0 ? (
-            <span className="text-[12px] text-muted-foreground">Nenhum anúncio conectado.</span>
-          ) : (
-            items
-              .filter((i) => i.active)
-              .map((i) => (
-                <span key={i.id} className="flex min-w-0 items-center gap-2 text-[12.5px]">
-                  <span aria-hidden className="ds-ok size-1.5 shrink-0 rounded-full bg-current" />
-                  <span className="min-w-0 flex-1 break-words">{i.name}</span>
-                </span>
-              ))
-          )}
-          {lastSync ? (
-            <span className="text-[11px] text-muted-foreground">Sincronizados {sinceLabel(lastSync)}</span>
-          ) : null}
-        </div>
+      {/* Contas/Anúncios Conectados vivem na faixa da página Proprietários; aqui só importar. */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setReimport(true)}
+          className="inline-flex h-7 shrink-0 items-center gap-[5px] rounded-full px-2.5 text-[11.5px] font-bold text-foreground/90 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] transition-colors hover:bg-foreground/[0.05]"
+        >
+          <RefreshCw className="size-3" />
+          Importar anúncios
+        </button>
       </div>
 
       {filtered.length === 0 ? (
