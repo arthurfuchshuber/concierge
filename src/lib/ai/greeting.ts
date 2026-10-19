@@ -62,6 +62,12 @@ export function ensureGreeting(
   force = false,
 ): string {
   if (!reply.trim() || hasGreeting(reply) || /\[SILENCIO\]/i.test(reply)) return reply;
+  // Saudação recente (IA ou humano da equipe) nas últimas falas: nunca repete,
+  // nem no retorno após decisão da equipe.
+  const recentGreeted = history
+    .slice(-6)
+    .some((m) => m.role !== "user" && hasGreeting(m.content));
+  if (recentGreeted) return reply;
   // Qualquer resposta anterior do assistente já abriu a conversa: não cumprimenta de novo.
   const alreadyAnswered = history.some((m) => m.role === "assistant" && m.content.trim());
   if (alreadyAnswered && !force) return reply;
