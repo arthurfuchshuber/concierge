@@ -178,10 +178,14 @@ export const answerEscalation = createServerFn({ method: "POST" })
     // Decisões operacionais com ação, ou "Aguardar o horário oficial": nada a dizer ao hóspede.
     // Cartões proativos são internos (ação ou "virar conhecimento?") — nunca falam com o hóspede.
     const proactive = !!(esc as { context_snapshot?: { proactive?: boolean } } | null)?.context_snapshot?.proactive;
+    // Regra (19/10/2026): a IA responde a tudo. Toda decisão sobre o pedido do
+    // hóspede vira UMA resposta na hora. Silêncio só em: "Eu assumo", cartão de
+    // conhecimento (fact proativo), ação técnica executada no sistema ou "Aguardar".
     const silentDecision =
       takeover ||
-      proactive ||
-      (!!spec && spec.kind === "operational" && (data.answer === "Aguardar o horário oficial" || !!spec.actions));
+      (proactive && spec?.kind === "fact") ||
+      action !== "none" ||
+      data.answer === "Aguardar o horário oficial";
     if (takeover && conversationId) {
       const { error: claimErr } = await context.supabase
         .from("property_chat_conversations")

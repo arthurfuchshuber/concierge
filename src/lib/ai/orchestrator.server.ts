@@ -1161,20 +1161,22 @@ export async function runHospitalityAgent(params: {
     }).catch(() => null);
   }
 
-  // Depende de humano: nunca prometer "vou confirmar e já te respondo".
-  // Sobra texto útil → vai; senão saudação (1ª fala) ou silêncio (ver human-support.ts).
-  if (handoffReason || escalationId) {
+  // DÚVIDA COM A EQUIPE = SILÊNCIO TOTAL (19/10/2026, regra do anfitrião).
+  // Com pergunta aberta no painel, nada vai ao hóspede (nem "agradeço o aviso",
+  // nem "passei para a equipe"). A resposta única sai quando a equipe decide
+  // (`answerEscalation` → `speakWithAgent`), evitando excesso de mensagens.
+  if (escalationId) {
+    reply = SILENCE_TOKEN;
+  } else if (handoffReason) {
     const limpo = stripPromiseSentences(reply ?? "");
     const soSaudacao = !limpo || isOnlyGreeting(limpo);
-    // Reconhecimento caloroso com retorno da equipe: só com chamado REALMENTE
-    // criado e destinatário a avisar (o dono da conta sempre é notificado).
     reply = soSaudacao
       ? acknowledgementReply({
           history: fullHistory,
           guestName: params.guestName ?? null,
           // Airbnb traduz sozinho: a IA sempre escreve em português nesse canal.
           language: replyInGuestLanguage ? intent.language : "pt",
-          ticketCreated: !!escalationId,
+          ticketCreated: false,
           notifiable: !!ownerId,
           formal: guestVoice.formal,
         })
