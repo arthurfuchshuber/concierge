@@ -469,6 +469,16 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     .update({ last_message_at: new Date().toISOString() })
     .eq("id", convId);
 
+  // Código da reserva liga a conversa e dá baixa de check-in/out mesmo com a IA pausada.
+  try {
+    const link = await import("@/lib/ai/conversation-link.server");
+    const res = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => null);
+    if (res?.code) await link.linkConversationByCode(admin, { conversationId: convId, propertyId: listing.property_id, code: res.code });
+    await link.applyStayCompletionOnIngest(admin, { conversationId: convId, propertyId: listing.property_id, message: m.text });
+  } catch (e) {
+    console.error("[channex-messages] vínculo/baixa falhou", e);
+  }
+
   const { data: prop } = await admin.from("properties").select("*").eq("id", listing.property_id).maybeSingle();
   const propertyName = (prop as { name?: string } | null)?.name ?? "";
 
