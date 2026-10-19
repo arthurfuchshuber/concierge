@@ -471,7 +471,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
             }
           : undefined,
       );
-      if (r && (r as { entregue?: boolean }).entregue === false) {
+      if (r && !silent && (r as { entregue?: boolean }).entregue === false) {
         setErrorMsg(
           "Resposta salva, mas não consegui entregar ao hóspede agora. Vou tentar de novo.",
         );
