@@ -406,17 +406,19 @@ export async function confirmFullConnection(ownerId: string, propertyId: string,
     .select("channex_property_id, channex_room_type_id, channex_rate_plan_id")
     .eq("property_id", propertyId)
     .single();
-  const start = new Date().toISOString().slice(0, 10);
-  const end = new Date(Date.now() + 29 * 86_400_000).toISOString().slice(0, 10);
+  // A noite de hoje é ignorada: ferramentas de preço (ex.: PriceLabs) param de precificar o dia
+  // corrente após o horário de check-in, então ela pode ficar com a tarifa-semente sem ser vendável.
+  const start = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  const end = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
   const res = await cx<{ data: Record<string, Record<string, { rate?: string | number }>> }>(
     `/restrictions?filter[property_id]=${fresh.channex_property_id}&filter[date][gte]=${start}&filter[date][lte]=${end}&filter[restrictions]=rate`,
   ).catch(() => ({ data: {} as Record<string, Record<string, { rate?: string | number }>> }));
   if (toolPricedDays(res.data?.[fresh.channex_rate_plan_id]) < 30) return { ok: false as const, reason: "no_rates" as const };
   // Regra do anfitrião: preço só vai ao Airbnb depois de definido pela ferramenta de pricing.
-  // Se sobrou QUALQUER dia da janela do anúncio ainda com a tarifa-semente, não mapeia (senão a
+  // Se sobrou QUALQUER dia futuro da janela ainda com a tarifa-semente, não mapeia (senão a
   // semente viraria preço real e sobrescreveria o original do calendário).
   const windowDays = await listingWindowDays(String(r.channex_channel_id), String(r.airbnb_listing_id));
-  for (let from = 0; from <= windowDays; from += 180) {
+  for (let from = 1; from <= windowDays; from += 180) {
     const a = new Date(Date.now() + from * 86_400_000).toISOString().slice(0, 10);
     const b = new Date(Date.now() + Math.min(from + 179, windowDays) * 86_400_000).toISOString().slice(0, 10);
     const chunk = await cx<{ data: Record<string, Record<string, { rate?: string | number }>> }>(
