@@ -11,10 +11,19 @@
  */
 export type DecisionKind = "operational" | "fact";
 
+/** Ação que o sistema executa quando a equipe escolhe a opção. */
+export const DECISION_ACTIONS = ["checkin_done", "checkout_done", "none"] as const;
+export type DecisionAction = (typeof DECISION_ACTIONS)[number];
+
 export type DecisionSpec = {
   kind: DecisionKind;
   options: string[];
+  /** Opção → ação no sistema (copiloto proativo). Ausente = só resposta. */
+  actions?: Record<string, DecisionAction>;
 };
+
+/** Onde o conhecimento salvo vale: só neste imóvel ou em todos da conta. */
+export type KnowledgeScope = "property" | "global";
 
 const norm = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -54,7 +63,28 @@ export function readDecisionSpec(snapshot: unknown): DecisionSpec | null {
   if (!d || !Array.isArray(d.options)) return null;
   const options = d.options.filter((o): o is string => typeof o === "string" && !!o.trim());
   if (!options.length) return null;
-  return { kind: d.kind === "operational" ? "operational" : "fact", options };
+  const raw = (d as { actions?: unknown }).actions;
+  const actions: Record<string, DecisionAction> = {};
+  if (raw && typeof raw === "object") {
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      if ((DECISION_ACTIONS as readonly string[]).includes(String(v))) actions[k] = v as DecisionAction;
+    }
+  }
+  return {
+    kind: d.kind === "operational" ? "operational" : "fact",
+    options,
+    ...(Object.keys(actions).length ? { actions } : {}),
+  };
+}
+
+/** Ação vinculada à opção escolhida ("none" quando não há). */
+export function actionFor(spec: DecisionSpec | null, option: string): DecisionAction {
+  return spec?.actions?.[option] ?? "none";
+}
+
+/** Escopo de conhecimento → escopo de aprendizado do backend. */
+export function learningScopeOf(scope: KnowledgeScope): "property" | "owner_portfolio" {
+  return scope === "global" ? "owner_portfolio" : "property";
 }
 
 /**
