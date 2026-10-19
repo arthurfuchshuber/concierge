@@ -453,7 +453,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     name: "list_recommendations",
     description:
       "Lista recomendações curadas pelo anfitrião e referências oficiais da cidade. Use antes de sugerir qualquer " +
-      "lugar — nunca invente estabelecimentos.",
+      "lugar — nunca invente estabelecimentos. A lista já vem ordenada do mais perto ao mais longe entre os mais relevantes (volume e nota das avaliações): recomende nessa ordem, priorizando os próximos; só ignore a proximidade para pontos turísticos ou se o hóspede pedir qualquer região.",
     parameters: schema(
       {
         categoria: {
