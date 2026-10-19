@@ -42,6 +42,6 @@ export const importIcalBlocksFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(context.userId, "stakeholders.vinculo-imovel", { propertyId: data.propertyId });
-    const { importIcalBlocks } = await import("@/lib/channex-full-connect.server");
+    const { importIcalBlocks } = await import("@/lib/ical-blocks.server");
     return importIcalBlocks(data.propertyId, data.url, context.userId);
   });
