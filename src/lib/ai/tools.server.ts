@@ -38,6 +38,24 @@ function metersBetween(a: LatLng, b: LatLng): number {
 }
 
 /** Distância pronta para a IA citar: metros, texto, minutos a pé e se dá para ir a pé. */
+/** Relevância × proximidade; retorna os `limit` melhores do mais perto ao mais longe. */
+export function rankByRelevanceAndDistance<T extends { row: Record<string, unknown>; meters: number | null }>(
+  items: T[],
+  limit: number,
+): T[] {
+  const score = (it: T) => {
+    const n = Number(it.row.user_ratings_total ?? 0) || 0;
+    const r = Number(it.row.rating ?? 0) || 0;
+    const quality = Math.log10(1 + n) * (r > 0 ? r / 5 : 0.6);
+    const km = it.meters != null ? it.meters / 1000 : 15;
+    return quality / (1 + km / 3);
+  };
+  return [...items]
+    .sort((a, b) => score(b) - score(a))
+    .slice(0, limit)
+    .sort((a, b) => (a.meters ?? Infinity) - (b.meters ?? Infinity));
+}
+
 function distanceInfo(m: number | null) {
   if (m == null || !Number.isFinite(m) || m <= 0) return {};
   const texto = m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1).replace(".", ",")} km`;
@@ -435,7 +453,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     name: "list_recommendations",
     description:
       "Lista recomendações curadas pelo anfitrião e referências oficiais da cidade. Use antes de sugerir qualquer " +
-      "lugar — nunca invente estabelecimentos.",
+      "lugar — nunca invente estabelecimentos. A lista já vem ordenada do mais perto ao mais longe entre os mais relevantes (volume e nota das avaliações): recomende nessa ordem, priorizando os próximos; só ignore a proximidade para pontos turísticos ou se o hóspede pedir qualquer região.",
     parameters: schema(
       {
         categoria: {
@@ -468,7 +486,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       const groupId = (membership as { group_id: string } | null)?.group_id ?? null;
       let cityQ = ctx.supabase
         .from("city_references")
-        .select("name, category, type, note, lat, lng")
+        .select("name, category, type, note, lat, lng, rating, user_ratings_total")
         .eq("is_hidden", false)
         .order("user_ratings_total", { ascending: false })
         .limit(80);
@@ -491,17 +509,23 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
           const { distance_meters, ...rest } = r;
           return { ...rest, ...distanceInfo(distance_meters != null ? Number(distance_meters) : null) };
         });
-      const cidade = ((cityRefs ?? []) as Array<Record<string, unknown>>)
-        .filter(matches)
-        .slice(0, 30)
-        .map((r) => {
-          const { lat, lng, ...rest } = r;
+      // Ordenação (19/10/2026): relevância (volume + nota) ponderada pela
+      // proximidade, depois exibida do mais perto ao mais longe. Antes ia só
+      // por volume, e a Jauense (perto, 8 mil avaliações) sumia atrás de
+      // lugares a 6 km.
+      const cidade = rankByRelevanceAndDistance(
+        ((cityRefs ?? []) as Array<Record<string, unknown>>).filter(matches).map((r) => {
           const m =
-            home && lat != null && lng != null
-              ? metersBetween(home, { lat: Number(lat), lng: Number(lng) })
+            home && r.lat != null && r.lng != null
+              ? metersBetween(home, { lat: Number(r.lat), lng: Number(r.lng) })
               : null;
-          return { ...rest, ...distanceInfo(m) };
-        });
+          return { row: r, meters: m };
+        }),
+        30,
+      ).map(({ row, meters }) => {
+        const { lat: _la, lng: _ln, rating: _r, user_ratings_total: _u, ...rest } = row;
+        return { ...rest, ...distanceInfo(meters) };
+      });
 
 
       // Ilustra só os primeiros de cada grupo com foto real — o resto fica

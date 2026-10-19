@@ -41,6 +41,18 @@ export type EscalationInput = {
 /** Cria a pergunta ao supervisor humano. Retorna o id do escalonamento. */
 export async function askHumanSupervisor(input: EscalationInput): Promise<string | null> {
   try {
+    // Uma pergunta por situação: se já há pendência nesta conversa (ex.: o
+    // Copiloto Proativo já perguntou), reaproveita em vez de empilhar outra.
+    if (input.conversationId) {
+      const { data: pend } = await input.supabase
+        .from("ai_human_escalations")
+        .select("id")
+        .eq("conversation_id", input.conversationId)
+        .eq("status", "pending")
+        .limit(1);
+      const existing = (pend as Array<{ id: string }> | null)?.[0]?.id;
+      if (existing) return String(existing);
+    }
     const { data, error } = await input.supabase
       .from("ai_human_escalations")
       .insert({
