@@ -1053,7 +1053,10 @@ export async function runHospitalityAgent(params: {
             : "planejador sinalizou necessidade de humano em tema sensível"
         : null;
 
-    if (!explorationMode && (forcedHuman || (sensitive && tier === "handoff"))) {
+    // Entrega da decisão da equipe: o humano acabou de responder — nunca reabre
+    // outra pergunta sobre a mesma situação (o hóspede ficaria sem resposta).
+    const deliveringHumanAnswer = (params as { proactiveTrigger?: string }).proactiveTrigger === "human_answer";
+    if (!explorationMode && !deliveringHumanAnswer && (forcedHuman || (sensitive && tier === "handoff"))) {
       handoffReason =
         (forcedCause
           ? `${forcedCause} (confiança ${Math.round(confidence * 100)}%). `
