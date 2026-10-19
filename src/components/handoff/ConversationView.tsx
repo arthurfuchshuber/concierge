@@ -72,7 +72,7 @@ import { KnowledgeFillDialog } from "@/components/handoff/KnowledgeFillDialog";
 import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { transcribeAssistantAudio } from "@/lib/assistant.functions";
-import { Mic } from "lucide-react";
+import { Mic, ChevronDown, ChevronUp } from "lucide-react";
 import {
   COMPOSER_FIELD,
   COMPOSER_INPUT,
