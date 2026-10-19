@@ -337,7 +337,7 @@ export function FullConnectGate() {
               <button
                 type="button"
                 onClick={() => {
-                  setBlockIds(new Set(draftPick));
+                  setBlockIds(new Set([...draftPick, ...Object.keys(icalDone)]));
                   setPicking(false);
                 }}
                 className="h-9 rounded-[11px] bg-primary px-3 text-[12px] font-bold text-primary-foreground"
@@ -379,9 +379,20 @@ export function FullConnectGate() {
             </button>
           )
         ) : null}
-        {pendingIcal.length > 0 ? (
+        {pendingIcal.length > 0 && !picking ? (
           <p className="text-[11.5px] leading-[1.45] text-muted-foreground">
-            Finalize a importação dos bloqueios manuais dos anúncios selecionados para continuar.
+            Finalize a importação dos bloqueios manuais dos anúncios selecionados para continuar.{" "}
+            <button
+              type="button"
+              disabled={importing}
+              onClick={() => {
+                setDraftPick(new Set(pendingIcal.map((i) => i.propertyId)));
+                setPicking(true);
+              }}
+              className="font-semibold text-foreground underline underline-offset-2"
+            >
+              Alterar seleção
+            </button>
           </p>
         ) : null}
 
