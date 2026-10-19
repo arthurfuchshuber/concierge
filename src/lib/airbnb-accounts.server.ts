@@ -86,6 +86,12 @@ export async function activeChannelIds(admin: Admin, accountId: string): Promise
 }
 
 export async function listAccounts(admin: Admin, accountId: string): Promise<AirbnbAccount[]> {
+  // Link de conexão aberto em outro aparelho: a tela de espera não estava aberta para registrar.
+  // Reivindica aqui os canais criados pelo link desta conta ("Airbnb <id>") ainda sem dono.
+  for (let i = 0; i < 5; i++) {
+    const r = await detectNew(admin, accountId, [], accountId).catch(() => ({ found: null }));
+    if (!r.found || r.found.duplicate) break;
+  }
   const regs = await registry(admin, accountId, true);
   const { data: raw } = await admin
     .from("property_listing_raw_data")
