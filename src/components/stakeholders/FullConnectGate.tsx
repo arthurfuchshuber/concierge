@@ -400,7 +400,7 @@ export function FullConnectGate() {
                 setDraftPick(new Set([...blockIds].filter((id) => icalDone[id] === undefined)));
                 if (items.length === 1) {
                   setBlockIds(new Set([items[0].propertyId]));
-                } else setPicking(true);
+                } else { setPickSearch(""); setPicking(true); }
               }}
               className="flex h-[42px] items-center justify-center rounded-[13px] text-[13px] font-extrabold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
             >
