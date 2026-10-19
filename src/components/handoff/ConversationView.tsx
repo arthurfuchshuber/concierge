@@ -1334,11 +1334,44 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
           Aparece para qualquer pessoa com permissão de chat — consultar não é
           tomar posse. Some sozinho quando respondido.
           ------------------------------------------------------------------ */}
-      {status !== "resolved" && canChat && pendingAsk && (
-        <div className="shrink-0 border-t border-zinc-200 bg-white px-3 pb-2 pt-2.5">
+      {status !== "resolved" && canChat && hasPendingAsk && (
+        <div className="shrink-0 max-h-[60vh] overflow-y-auto border-t border-zinc-200 bg-white px-3 pb-2 pt-2.5">
+          {pendingAsks.length > 1 && (
+            <div className="mb-1.5 space-y-1.5">
+              {pendingAsks
+                .filter((e) => e.id !== pendingAsk?.id)
+                .map((e) => (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => setOpenAskId(e.id)}
+                    aria-expanded={false}
+                    className="flex w-full min-w-0 items-center gap-2 rounded-xl border border-violet-300 bg-violet-50 px-3 py-2 text-left text-zinc-900 hover:bg-violet-100"
+                  >
+                    <Sparkles className="size-3.5 shrink-0 text-violet-700" />
+                    <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold">
+                      {e.question_to_human || "A IA precisa de uma decisão sua."}
+                    </span>
+                    <ChevronDown className="size-4 shrink-0 text-violet-700" />
+                  </button>
+                ))}
+            </div>
+          )}
+          {pendingAsk && (
           <div className="rounded-xl border border-violet-300 bg-violet-50 p-3 text-zinc-900">
             <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-violet-700">
-              <Sparkles className="size-3" /> a IA está te perguntando
+              <Sparkles className="size-3" /> <span className="flex-1">a IA está te perguntando</span>
+              {pendingAsks.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setOpenAskId(null)}
+                  aria-label="Recolher pergunta"
+                  aria-expanded
+                  className="grid size-6 place-items-center rounded-full hover:bg-violet-100"
+                >
+                  <ChevronUp className="size-4" />
+                </button>
+              )}
             </div>
             <p className="text-[13px] font-semibold leading-snug text-zinc-900">
               {pendingAsk.question_to_human || "A IA precisa de uma decisão sua."}
