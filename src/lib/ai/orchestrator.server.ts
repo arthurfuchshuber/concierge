@@ -1193,7 +1193,15 @@ export async function runHospitalityAgent(params: {
 
   // Saudação obrigatória: se a IA ainda não cumprimentou ninguém nesta
   // conversa, a resposta abre com um cumprimento (inclusive frases fixas).
-  if (reply) reply = ensureGreeting(reply, fullHistory, params.guestName ?? null, intent.language);
+  if (reply) reply = ensureGreeting(
+      reply,
+      fullHistory,
+      params.guestName ?? null,
+      intent.language,
+      new Date(),
+      // Retorno após decisão da equipe é uma nova abordagem: sempre cumprimenta.
+      (params as { proactiveTrigger?: string }).proactiveTrigger === "human_answer",
+    );
 
   // Voz: emoji/risada só se o hóspede usa, sem repetir (ver voice.ts) e, se a
   // resposta repete abertura/fecho/trechos das últimas falas, UMA reescrita

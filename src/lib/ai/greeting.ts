@@ -59,11 +59,12 @@ export function ensureGreeting(
   guestName: string | null,
   language: string | null | undefined,
   now = new Date(),
+  force = false,
 ): string {
   if (!reply.trim() || hasGreeting(reply) || /\[SILENCIO\]/i.test(reply)) return reply;
   // Qualquer resposta anterior do assistente já abriu a conversa: não cumprimenta de novo.
   const alreadyAnswered = history.some((m) => m.role === "assistant" && m.content.trim());
-  if (alreadyAnswered) return reply;
+  if (alreadyAnswered && !force) return reply;
   const seed = history.length + (guestName?.length ?? 0);
   return `${greetingFor(language, guestName, now, seed)} ${reply}`;
 }
