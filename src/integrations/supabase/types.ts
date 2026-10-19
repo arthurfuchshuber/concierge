@@ -2567,6 +2567,21 @@ export type Database = {
           },
         ]
       }
+      channex_unit_locks: {
+        Row: {
+          locked_at: string
+          property_id: string
+        }
+        Insert: {
+          locked_at?: string
+          property_id: string
+        }
+        Update: {
+          locked_at?: string
+          property_id?: string
+        }
+        Relationships: []
+      }
       channex_writeback_log: {
         Row: {
           after: Json | null
@@ -3134,6 +3149,24 @@ export type Database = {
           processado?: boolean
           processado_em?: string | null
           tentativas?: number
+        }
+        Relationships: []
+      }
+      full_connect_conductors: {
+        Row: {
+          created_at: string
+          property_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          property_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          property_id?: string
+          user_id?: string
         }
         Relationships: []
       }

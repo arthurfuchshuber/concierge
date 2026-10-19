@@ -13,7 +13,7 @@ export const getPendingFullConnections = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const accountId = await accountOf(context.supabase, context.userId);
     const { listPendingFullConnections, ensureAccountPricingKey } = await import("@/lib/channex-full-connect.server");
-    const items = await listPendingFullConnections(accountId);
+    const items = await listPendingFullConnections(accountId, context.userId);
     const apiKey = items.length
       ? await ensureAccountPricingKey(accountId).catch((e) => {
           console.error("[full-connect] pricing key", e);
