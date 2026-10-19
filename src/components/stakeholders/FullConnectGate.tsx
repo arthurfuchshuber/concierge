@@ -292,7 +292,7 @@ export function FullConnectGate() {
                         placeholder="Link do iCal (https://www.airbnb.com.br/calendar/ical/….ics)"
                         value={icalUrl[it.propertyId] ?? ""}
                         onChange={(e) => setIcalUrl((u) => ({ ...u, [it.propertyId]: e.target.value }))}
-                        className="h-9 w-full min-w-0 rounded-[10px] bg-background/60 px-2.5 text-[12px] text-foreground outline-none shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] focus:shadow-[inset_0_0_0_1px_var(--primary)]"
+                        className={`h-9 w-full min-w-0 rounded-[10px] px-2.5 text-[12px] text-foreground outline-none ${isIcs(icalUrl[it.propertyId] ?? "") ? "bg-background/60 shadow-[inset_0_0_0_1px_var(--primary)]" : "bg-destructive/10 shadow-[inset_0_0_0_1.5px_var(--destructive)]"}`}
                       />
                       {icalUrl[it.propertyId] && !isIcs(icalUrl[it.propertyId]) ? (
                         <p className="text-[11px] text-destructive">Use o link de exportação do Airbnb (termina em .ics).</p>
@@ -312,48 +312,58 @@ export function FullConnectGate() {
           </div>
         </div>
 
-        {picking ? (
-          <div className={`${card} grid gap-2 p-3`}>
-            <p className="text-[12.5px] font-bold">Quais anúncios possuem bloqueios manuais para importar?</p>
-            {items.map((it) => (
-              <label key={it.propertyId} className="flex min-w-0 items-center gap-2 text-[12px]">
-                <input
-                  type="checkbox"
-                  className="size-4 shrink-0 accent-[var(--primary)]"
-                  checked={draftPick.has(it.propertyId)}
-                  onChange={(e) =>
-                    setDraftPick((cur) => {
-                      const next = new Set(cur);
-                      if (e.target.checked) next.add(it.propertyId);
-                      else next.delete(it.propertyId);
-                      return next;
-                    })
-                  }
-                />
-                <span className="min-w-0 break-words">{it.propertyName}</span>
-              </label>
-            ))}
-            <div className="flex flex-wrap gap-2">
+        <Dialog open={picking} onOpenChange={(v) => !v && setPicking(false)}>
+          <DialogContent hideClose className="max-h-[90dvh] max-w-[360px] gap-3 overflow-y-auto p-4 sm:p-4">
+            <DialogTitle className="font-display text-[16px] font-extrabold leading-[1.25]">
+              Quais anúncios possuem bloqueios manuais para importar?
+            </DialogTitle>
+            <DialogDescription className="text-[12px] text-muted-foreground">
+              Selecione os anúncios. Em seguida, cole o link do iCal de cada um.
+            </DialogDescription>
+            <div className="grid gap-2">
+              {items.map((it) => (
+                <label key={it.propertyId} className={`${card} flex min-w-0 cursor-pointer items-center gap-2.5 px-3 py-2.5 text-[12.5px]`}>
+                  <input
+                    type="checkbox"
+                    className="size-4 shrink-0 accent-[var(--primary)]"
+                    checked={draftPick.has(it.propertyId)}
+                    onChange={(e) =>
+                      setDraftPick((cur) => {
+                        const next = new Set(cur);
+                        if (e.target.checked) next.add(it.propertyId);
+                        else next.delete(it.propertyId);
+                        return next;
+                      })
+                    }
+                  />
+                  <PropertyThumb src={it.imageUrl} className="size-8 shrink-0 rounded-[8px]" />
+                  <span className="min-w-0 break-words font-semibold">{it.propertyName}</span>
+                </label>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setPicking(false)}
+                className="h-10 rounded-[12px] text-[13px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
+              >
+                Cancelar
+              </button>
               <button
                 type="button"
                 onClick={() => {
                   setBlockIds(new Set([...draftPick, ...Object.keys(icalDone)]));
                   setPicking(false);
                 }}
-                className="h-9 rounded-[11px] bg-primary px-3 text-[12px] font-bold text-primary-foreground"
+                className="h-10 rounded-[12px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[13px] font-extrabold text-white"
               >
                 Confirmar
               </button>
-              <button
-                type="button"
-                onClick={() => setPicking(false)}
-                className="h-9 rounded-[11px] px-3 text-[12px] font-semibold text-muted-foreground"
-              >
-                Cancelar
-              </button>
             </div>
-          </div>
-        ) : items.length > 0 ? (
+          </DialogContent>
+        </Dialog>
+
+        {items.length > 0 ? (
           pendingIcal.length > 0 ? (
             <button
               type="button"
