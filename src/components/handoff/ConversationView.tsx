@@ -26,7 +26,7 @@ import { attachStaffMessage } from "@/lib/chat-attachments.functions";
 import { listConversationEscalations, answerEscalation, reopenEscalationDecision } from "@/lib/ai-supervision.functions";
 import { notifyAction } from "@/components/UndoActionBar";
 import { dismissEscalation } from "@/lib/handoff.functions";
-import { readDecisionSpec, canBecomeKnowledge } from "@/lib/ai/human-loop/decision-options";
+import { readDecisionSpec, canBecomeKnowledge, isTakeoverOption } from "@/lib/ai/human-loop/decision-options";
 import { minutesLeft } from "@/lib/ai/pause";
 import {
   Send,
@@ -275,7 +275,8 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
   const [knowledgeScope, setKnowledgeScope] = useState<"property" | "global" | null>(null);
   const reopenDecisionFn = useServerFn(reopenEscalationDecision);
   const askSpec = useMemo(() => readDecisionSpec(pendingAsk?.context_snapshot), [pendingAsk]);
-  const askNeedsKnowledge = !askSpec || canBecomeKnowledge(askSpec.kind);
+  const askNeedsKnowledge =
+    (!askSpec || canBecomeKnowledge(askSpec.kind)) && !(askSpec && chosenOption && isTakeoverOption(chosenOption));
   useEffect(() => {
     setChosenOption(null);
     setSaveKnowledge(null);
