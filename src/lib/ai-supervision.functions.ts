@@ -176,9 +176,19 @@ export const answerEscalation = createServerFn({ method: "POST" })
       executed = await runDecisionAction(context.supabase, conversationId, action);
     }
     // Decisões operacionais com ação, ou "Aguardar o horário oficial": nada a dizer ao hóspede.
+    // Cartões proativos são internos (ação ou "virar conhecimento?") — nunca falam com o hóspede.
     const proactive = !!(esc as { context_snapshot?: { proactive?: boolean } } | null)?.context_snapshot?.proactive;
     const silentDecision =
-      (!!spec && spec.kind === "operational" && (data.answer === "Aguardar o horário oficial" || proactive || !!spec.actions));
+      takeover ||
+      proactive ||
+      (!!spec && spec.kind === "operational" && (data.answer === "Aguardar o horário oficial" || !!spec.actions));
+    if (takeover && conversationId) {
+      const { error: claimErr } = await context.supabase
+        .from("property_chat_conversations")
+        .update({ status: "assigned", assigned_to: context.userId, claim_requested_by: null, claim_requested_at: null })
+        .eq("id", conversationId);
+      if (claimErr) console.error("[supervision] assumir conversa falhou", claimErr.message);
+    }
     if (conversationId && !silentDecision) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
