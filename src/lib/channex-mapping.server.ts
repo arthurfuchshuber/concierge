@@ -287,9 +287,10 @@ export async function syncRealAvailability(t: SafeMapTarget, userId: string | nu
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop } = await supabaseAdmin.from("properties").select("airbnb_ical_url").eq("id", t.propertyId).maybeSingle();
     const { airbnbClosedNights } = await import("@/lib/channex-full-connect.server");
+    // Sem link de iCal: valem as reservas + bloqueios manuais já no ConciergeIA (unidade não mapeada
+    // não chega ao Airbnb). Link existente mas ilegível lança erro e cancela, para não reabrir datas.
     const closed = await airbnbClosedNights((prop as any)?.airbnb_ical_url);
-    if (!closed) throw new Error("iCal indisponível para anúncio não mapeado; sincronização cancelada para não reabrir datas.");
-    for (const n of closed) nights.add(n);
+    for (const n of closed ?? []) nights.add(n);
   }
 
   const from = new Date();
