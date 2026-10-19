@@ -115,7 +115,7 @@ export const listConversationEscalations = createServerFn({ method: "GET" })
 /** Resposta humana à dúvida da IA — vira verdade absoluta na conversa. */
 export const answerEscalation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { escalationId: string; answer: string; saveAsKnowledge?: boolean }) => {
+  .inputValidator((input: { escalationId: string; answer: string; saveAsKnowledge?: boolean; knowledgeScope?: "property" | "global" }) => {
     if (!input?.escalationId) throw new Error("escalationId obrigatório");
     const answer = String(input.answer ?? "").trim();
     if (!answer) throw new Error("Resposta obrigatória");
@@ -124,6 +124,7 @@ export const answerEscalation = createServerFn({ method: "POST" })
       answer: answer.slice(0, 2000),
       // Escolha EXPLÍCITA da equipe (18/10/2026): nada pré-marcado.
       saveAsKnowledge: input.saveAsKnowledge === true,
+      knowledgeScope: (input.knowledgeScope === "global" ? "global" : "property") as "property" | "global",
     };
   })
   .handler(async ({ data, context }) => {
@@ -133,7 +134,7 @@ export const answerEscalation = createServerFn({ method: "POST" })
       .eq("id", data.escalationId)
       .maybeSingle();
     if (readErr) throw new Error(readErr.message);
-    const { readDecisionSpec, canBecomeKnowledge } = await import("./ai/human-loop/decision-options");
+    const { readDecisionSpec, canBecomeKnowledge, actionFor, learningScopeOf } = await import("./ai/human-loop/decision-options");
     const spec = readDecisionSpec((esc as { context_snapshot?: unknown } | null)?.context_snapshot);
     // Decisão operacional (ex.: liberar check-in antecipado) nunca vira conhecimento.
     if (spec && !canBecomeKnowledge(spec.kind)) data.saveAsKnowledge = false;
@@ -179,8 +180,16 @@ export const answerEscalation = createServerFn({ method: "POST" })
         .neq("id", data.escalationId)
         .eq("status", "pending");
     }
-    // "Aguardar o horário oficial": nada a dizer ao hóspede — ele já sabe o horário.
-    const silentDecision = !!spec && spec.kind === "operational" && data.answer === "Aguardar o horário oficial";
+    // Ação vinculada à opção (copiloto proativo): executa agora, com desfazer na tela.
+    const action = actionFor(spec, data.answer);
+    let executed: { action: string; reservationId: string; previouslyDone: boolean } | null = null;
+    if (action !== "none" && conversationId) {
+      executed = await runDecisionAction(context.supabase, conversationId, action);
+    }
+    // Decisões operacionais com ação, ou "Aguardar o horário oficial": nada a dizer ao hóspede.
+    const proactive = !!(esc as { context_snapshot?: { proactive?: boolean } } | null)?.context_snapshot?.proactive;
+    const silentDecision =
+      (!!spec && spec.kind === "operational" && (data.answer === "Aguardar o horário oficial" || proactive || !!spec.actions));
     if (conversationId && !silentDecision) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -243,6 +252,7 @@ export const answerEscalation = createServerFn({ method: "POST" })
           agent: e.agent_type ?? undefined,
           question: e.question_to_human ?? "",
           humanAnswer: data.answer,
+          forcedScope: learningScopeOf(data.knowledgeScope),
         });
         aprendizado = r.candidateId;
       } catch (err) {
@@ -252,7 +262,90 @@ export const answerEscalation = createServerFn({ method: "POST" })
       }
     }
 
-    return { ok: true, entregue, aprendizado };
+    return { ok: true, entregue, aprendizado, executed, silent: silentDecision };
+  });
+
+type Sb = import("@supabase/supabase-js").SupabaseClient;
+
+/** Executa a ação escolhida no cartão (check-in/check-out), pela mesma rotina do painel. */
+async function runDecisionAction(
+  sb: Sb,
+  conversationId: string,
+  action: "checkin_done" | "checkout_done",
+): Promise<{ action: string; reservationId: string; previouslyDone: boolean } | null> {
+  const { data: conv } = await sb
+    .from("property_chat_conversations")
+    .select("property_id, reservation_id")
+    .eq("id", conversationId)
+    .maybeSingle();
+  const c = conv as { property_id: string | null; reservation_id: string | null } | null;
+  if (!c?.property_id || !c.reservation_id) throw new Error("Esta conversa ainda não está ligada a uma reserva.");
+  const kind = action === "checkin_done" ? "checkin" : "checkout";
+  const { data: rows } = await sb.from("guest_arrival_status").select("kind, status, done_at").eq("reservation_id", c.reservation_id);
+  const list = (rows ?? []) as Array<{ kind: string; status: string; done_at: string | null }>;
+  const previouslyDone = list.some((r) => r.kind === kind && (r.status === "done" || !!r.done_at));
+  const { findStayForEvent, applyStayEvent } = await import("./ai/stay-events.server");
+  const stay = await findStayForEvent(sb, { propertyId: c.property_id, checkinDate: null, checkoutDate: null, conversationId });
+  if (!stay) throw new Error("Não encontrei a estadia desta conversa.");
+  const r = await applyStayEvent(sb, stay, kind);
+  if (!r.ok) throw new Error(r.motivo === "checkin_futuro" ? "O check-in desta reserva ainda é em data futura." : "Não foi possível registrar no painel.");
+  return { action, reservationId: stay.reservationId, previouslyDone };
+}
+
+/**
+ * DESFAZER / REFAZER DECISÃO (19/10/2026).
+ * Reabre a pergunta da IA para a equipe escolher de novo e, se a decisão tinha
+ * executado uma ação (check-in/check-out), volta o card do painel um passo.
+ */
+export const reopenEscalationDecision = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { escalationId: string; revert?: { action: string; reservationId: string; previouslyDone: boolean } | null }) => {
+    if (!input?.escalationId) throw new Error("escalationId obrigatório");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { data: esc, error } = await context.supabase
+      .from("ai_human_escalations")
+      .select("id, conversation_id, human_response, context_snapshot")
+      .eq("id", data.escalationId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!esc) throw new Error("Pergunta não encontrada.");
+
+    // Ação a reverter: a informada pela tela (desfazer de 5s) ou a deduzida da resposta gravada.
+    let revert = data.revert ?? null;
+    if (!revert) {
+      const { readDecisionSpec, actionFor } = await import("./ai/human-loop/decision-options");
+      const e = esc as { conversation_id: string | null; human_response: string | null; context_snapshot: unknown };
+      const action = actionFor(readDecisionSpec(e.context_snapshot), e.human_response ?? "");
+      if (action !== "none" && e.conversation_id) {
+        const { data: conv } = await context.supabase
+          .from("property_chat_conversations")
+          .select("reservation_id")
+          .eq("id", e.conversation_id)
+          .maybeSingle();
+        const rid = (conv as { reservation_id?: string | null } | null)?.reservation_id;
+        if (rid) revert = { action, reservationId: rid, previouslyDone: false };
+      }
+    }
+    if (revert && !revert.previouslyDone) {
+      const kind = revert.action === "checkout_done" ? "checkout" : revert.action === "checkin_done" ? "checkin" : null;
+      if (kind) {
+        const { error: uErr } = await context.supabase
+          .from("guest_arrival_status")
+          .update({ status: "pending", done_at: null, concluded_at: null } as never)
+          .eq("reservation_id", revert.reservationId)
+          .eq("kind", kind);
+        if (uErr) throw new Error(uErr.message);
+      }
+    }
+
+    const { error: rErr } = await context.supabase
+      .from("ai_human_escalations")
+      .update({ status: "pending", human_response: null, resolved_at: null, applied_to_guest: false } as never)
+      .eq("id", data.escalationId);
+    if (rErr) throw new Error(rErr.message);
+    return { ok: true };
   });
 
 /** Conhecimento destilado aguardando aprovação humana. */

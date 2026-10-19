@@ -474,7 +474,11 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     const link = await import("@/lib/ai/conversation-link.server");
     const res = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => null);
     if (res?.code) await link.linkConversationByCode(admin, { conversationId: convId, propertyId: listing.property_id, code: res.code });
-    await link.applyStayCompletionOnIngest(admin, { conversationId: convId, propertyId: listing.property_id, message: m.text });
+    const auto = await link.applyStayCompletionOnIngest(admin, { conversationId: convId, propertyId: listing.property_id, message: m.text });
+    if (!auto) {
+      const { proposeProactiveDecision } = await import("@/lib/ai/human-loop/proactive-decisions.server");
+      await proposeProactiveDecision(admin, { conversationId: convId, trigger: "guest" });
+    }
   } catch (e) {
     console.error("[channex-messages] vínculo/baixa falhou", e);
   }
@@ -1055,6 +1059,9 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
     if (!automated) {
       const { completeStayFromHumanMessage } = await import("@/lib/ai/human-closing.server");
       await completeStayFromHumanMessage(c.id, m.text);
+      // Copiloto proativo: fala da equipe pode indicar ação no app (ex.: chaves entregues).
+      const { proposeProactiveDecision } = await import("@/lib/ai/human-loop/proactive-decisions.server");
+      await proposeProactiveDecision(admin, { conversationId: c.id, trigger: "staff" });
     }
   }
 }

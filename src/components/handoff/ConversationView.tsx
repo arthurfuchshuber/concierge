@@ -23,7 +23,8 @@ import {
 } from "@/lib/handoff.functions";
 import { MessageText } from "@/components/handoff/MessageText";
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
-import { listConversationEscalations, answerEscalation } from "@/lib/ai-supervision.functions";
+import { listConversationEscalations, answerEscalation, reopenEscalationDecision } from "@/lib/ai-supervision.functions";
+import { notifyAction } from "@/components/UndoActionBar";
 import { dismissEscalation } from "@/lib/handoff.functions";
 import { readDecisionSpec, canBecomeKnowledge } from "@/lib/ai/human-loop/decision-options";
 import { minutesLeft } from "@/lib/ai/pause";
@@ -259,6 +260,8 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
   // Sem pré-marcação: a equipe escolhe explicitamente (18/10/2026).
   const [saveKnowledge, setSaveKnowledge] = useState<boolean | null>(null);
   const [chosenOption, setChosenOption] = useState<string | null>(null);
+  const [knowledgeScope, setKnowledgeScope] = useState<"property" | "global" | null>(null);
+  const reopenDecisionFn = useServerFn(reopenEscalationDecision);
   const askSpec = useMemo(() => readDecisionSpec(pendingAsk?.context_snapshot), [pendingAsk]);
   const askNeedsKnowledge = !askSpec || canBecomeKnowledge(askSpec.kind);
   useEffect(() => {
@@ -431,13 +434,31 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
           escalationId: pendingAsk.id,
           answer: (askSpec ? chosenOption : askText.trim()) ?? "",
           saveAsKnowledge: askNeedsKnowledge && saveKnowledge === true,
+          knowledgeScope: knowledgeScope ?? "property",
         },
       });
     },
     onSuccess: (r) => {
+      const escId = pendingAsk?.id;
       setAskText("");
       setChosenOption(null);
       setSaveKnowledge(null);
+      setKnowledgeScope(null);
+      const ex = (r as { executed?: { action: string; reservationId: string; previouslyDone: boolean } | null }).executed ?? null;
+      const msg =
+        ex?.action === "checkin_done" ? "Check-in registrado." : ex?.action === "checkout_done" ? "Check-out registrado." : "Decisão enviada.";
+      // Desfazer de 5s: só quando nada foi dito ao hóspede (decisão interna).
+      const silent = !!(r as { silent?: boolean }).silent;
+      notifyAction(
+        msg,
+        escId && silent
+          ? () => {
+              void reopenDecisionFn({ data: { escalationId: escId, revert: ex } })
+                .then(invalidateAll)
+                .catch((e) => setErrorMsg(friendlyErrorMessage(e, "Não foi possível desfazer.")));
+            }
+          : undefined,
+      );
       if (r && (r as { entregue?: boolean }).entregue === false) {
         setErrorMsg(
           "Resposta salva, mas não consegui entregar ao hóspede agora. Vou tentar de novo.",
@@ -1085,6 +1106,19 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                   <p className="mt-0.5 font-medium">
                     {e.status === "dismissed" ? "Descartada." : e.human_response}
                   </p>
+                  {canChat && e.status === "answered" && !pendingAsk && readDecisionSpec(e.context_snapshot) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void reopenDecisionFn({ data: { escalationId: e.id, revert: null } })
+                          .then(invalidateAll)
+                          .catch((err) => setErrorMsg(friendlyErrorMessage(err, "Não foi possível refazer.")));
+                      }}
+                      className="mt-1 inline-flex items-center gap-1 text-[10.5px] font-semibold text-violet-700 hover:underline"
+                    >
+                      Refazer decisão
+                    </button>
+                  )}
                 </div>
               ))}
             </Fragment>
@@ -1318,7 +1352,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                   ))}
                 </div>
                 {askNeedsKnowledge && chosenOption && (
-                  <KnowledgeChoice value={saveKnowledge} onChange={setSaveKnowledge} />
+                  <KnowledgeChoice value={saveKnowledge} onChange={setSaveKnowledge} scope={knowledgeScope} onScope={setKnowledgeScope} />
                 )}
                 <div className="flex justify-end">
                   <button
@@ -1327,7 +1361,8 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                     disabled={
                       answer.isPending ||
                       !chosenOption ||
-                      (askNeedsKnowledge && saveKnowledge === null)
+                      (askNeedsKnowledge && saveKnowledge === null) ||
+                      (askNeedsKnowledge && saveKnowledge === true && knowledgeScope === null)
                     }
                     className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-45"
                   >
@@ -1395,7 +1430,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                 )}
                 <button
                   type="submit"
-                  disabled={answer.isPending || !askText.trim() || askTranscribing || saveKnowledge === null}
+                  disabled={answer.isPending || !askText.trim() || askTranscribing || saveKnowledge === null || (saveKnowledge === true && knowledgeScope === null)}
                   aria-label="Enviar resposta"
                   className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600 text-white disabled:opacity-45"
                 >
@@ -1408,7 +1443,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
               </div>
             </form>
                 <div className="mt-2">
-                  <KnowledgeChoice value={saveKnowledge} onChange={setSaveKnowledge} />
+                  <KnowledgeChoice value={saveKnowledge} onChange={setSaveKnowledge} scope={knowledgeScope} onScope={setKnowledgeScope} />
                 </div>
               </>
             )}
@@ -1726,22 +1761,27 @@ export function useMyUserId() {
   return id;
 }
 
-/** Pergunta explícita, sem opção pré-marcada: vira conhecimento deste imóvel? */
+/** Pergunta explícita, sem opção pré-marcada: vira conhecimento? E onde vale? */
 function KnowledgeChoice({
   value,
   onChange,
+  scope,
+  onScope,
 }: {
   value: boolean | null;
   onChange: (v: boolean) => void;
+  scope: "property" | "global" | null;
+  onScope: (v: "property" | "global") => void;
 }) {
-  const opt = (v: boolean, label: string) => (
+  const pill = (active: boolean, label: string, onClick: () => void) => (
     <button
+      key={label}
       type="button"
       role="radio"
-      aria-checked={value === v}
-      onClick={() => onChange(v)}
+      aria-checked={active}
+      onClick={onClick}
       className={`rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
-        value === v
+        active
           ? "border-zinc-900 bg-zinc-900 text-white"
           : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100"
       }`}
@@ -1750,14 +1790,23 @@ function KnowledgeChoice({
     </button>
   );
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-2">
-      <p className="text-[11.5px] font-semibold text-zinc-900">
-        Transformar esta resposta em conhecimento deste imóvel?
-      </p>
-      <div role="radiogroup" className="mt-1.5 flex flex-wrap gap-1.5">
-        {opt(true, "Sim, salvar para este imóvel")}
-        {opt(false, "Não, só desta vez")}
+    <div className="space-y-2 rounded-lg border border-zinc-200 bg-white p-2">
+      <div>
+        <p className="text-[11.5px] font-semibold text-zinc-900">Salvar esta resposta como conhecimento da IA?</p>
+        <div role="radiogroup" className="mt-1.5 flex flex-wrap gap-1.5">
+          {pill(value === true, "Sim, salvar", () => onChange(true))}
+          {pill(value === false, "Não, só desta vez", () => onChange(false))}
+        </div>
       </div>
+      {value === true && (
+        <div>
+          <p className="text-[11.5px] font-semibold text-zinc-900">Onde esse conhecimento vale?</p>
+          <div role="radiogroup" className="mt-1.5 flex flex-wrap gap-1.5">
+            {pill(scope === "property", "Apenas deste imóvel", () => onScope("property"))}
+            {pill(scope === "global", "Global (todos os imóveis)", () => onScope("global"))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
