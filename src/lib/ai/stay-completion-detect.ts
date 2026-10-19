@@ -12,7 +12,7 @@ const CHECKOUT_DONE =
   /\b(ja\s+(sai|saimos|deixamos|entregamos|fizemos\s+o\s+check-?out|fiz\s+o\s+check-?out)|fizemos\s+o\s+check-?out|fiz\s+o\s+check-?out|check-?out\s+(feito|realizado|concluido)|deixe[ia]\s+(a|as)\s+chaves?\s+(no|na|em)|chaves?\s+(deixadas?|devolvidas?)\s+(no|na)|acabamos\s+de\s+sair|saimos\s+(agora|ja|do\s+(apto|apartamento|imovel|studio))|(estamos|estou|to|tamos)\s+saindo(\s+agora)?|saindo\s+agora|(estamos|estou)\s+(liberando|deixando)\s+o\s+(apto|apartamento|imovel|studio|ape|casa))/;
 const CHECKOUT_PLAN = /\b(vamos|vou|iremos|vamos\s+sair|amanha|que\s+horas|posso|podemos|pretendo|mais\s+tarde|daqui\s+a)\b/;
 const CHECKIN_DONE =
-  /\b(entramos|entrei|ja\s+estamos\s+dentro|estamos\s+dentro|estou\s+dentro|ja\s+estou\s+no\s+(apto|apartamento|imovel|studio)|estamos\s+no\s+(apto|apartamento|imovel|studio)|conseguimos\s+entrar|consegui\s+entrar|acessei\s+o\s+(apto|apartamento|imovel|studio))\b/;
+  /\b(entramos|entrei|ja\s+estamos\s+dentro|estamos\s+dentro|estou\s+dentro|ja\s+estou\s+no\s+(apto|apartamento|imovel|studio)|estamos\s+no\s+(apto|apartamento|imovel|studio)|conseguimos\s+entrar|consegui\s+entrar|acessei\s+o\s+(apto|apartamento|imovel|studio)|deu\s+tudo\s+certo|ja\s+estamos\s+(acomodados|instalados))\b/;
 const NEGATION = /\b(nao|ainda\s+nao|sem\s+conseguir)\b/;
 
 export function detectStayCompletion(

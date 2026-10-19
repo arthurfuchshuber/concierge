@@ -56,7 +56,7 @@ export const listConversationEscalations = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("ai_human_escalations")
       .select(
-        "id, conversation_id, agent_type, reason, trigger, question_to_human, human_response, status, applied_to_guest, created_at, resolved_at",
+        "id, conversation_id, agent_type, reason, trigger, question_to_human, human_response, status, applied_to_guest, created_at, resolved_at, context_snapshot",
       )
       .eq("conversation_id", data.conversationId)
       .in("status", ["pending", "answered", "dismissed"])
@@ -102,7 +102,7 @@ export const listConversationEscalations = createServerFn({ method: "GET" })
         status: "pending",
       } as never)
       .select(
-        "id, conversation_id, agent_type, reason, trigger, question_to_human, human_response, status, applied_to_guest, created_at, resolved_at",
+        "id, conversation_id, agent_type, reason, trigger, question_to_human, human_response, status, applied_to_guest, created_at, resolved_at, context_snapshot",
       )
       .maybeSingle();
     if (insErr || !created) {
@@ -122,19 +122,21 @@ export const answerEscalation = createServerFn({ method: "POST" })
     return {
       escalationId: input.escalationId,
       answer: answer.slice(0, 2000),
-      // Marcado por padrão (decisão de produto, 11/09): a IA aprende sozinha e
-      // o atendente desmarca quando for caso isolado. Nada entra na memória
-      // sem a aprovação na tela de conhecimento — isto só cria a candidata.
-      saveAsKnowledge: input.saveAsKnowledge !== false,
+      // Escolha EXPLÍCITA da equipe (18/10/2026): nada pré-marcado.
+      saveAsKnowledge: input.saveAsKnowledge === true,
     };
   })
   .handler(async ({ data, context }) => {
     const { data: esc, error: readErr } = await context.supabase
       .from("ai_human_escalations")
-      .select("id, conversation_id, question_to_human, owner_id, property_id, agent_type")
+      .select("id, conversation_id, question_to_human, owner_id, property_id, agent_type, context_snapshot")
       .eq("id", data.escalationId)
       .maybeSingle();
     if (readErr) throw new Error(readErr.message);
+    const { readDecisionSpec, canBecomeKnowledge } = await import("./ai/human-loop/decision-options");
+    const spec = readDecisionSpec((esc as { context_snapshot?: unknown } | null)?.context_snapshot);
+    // Decisão operacional (ex.: liberar check-in antecipado) nunca vira conhecimento.
+    if (spec && !canBecomeKnowledge(spec.kind)) data.saveAsKnowledge = false;
 
     const { error } = await context.supabase
       .from("ai_human_escalations")

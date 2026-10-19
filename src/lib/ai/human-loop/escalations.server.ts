@@ -1,3 +1,4 @@
+import { buildDecisionSpec } from "./decision-options";
 /**
  * Human-in-the-Loop — a IA pergunta ao supervisor humano quando não sabe.
  *
@@ -32,6 +33,9 @@ export type EscalationInput = {
   question: string;
   confidence?: number | null;
   contextSnapshot?: Record<string, unknown>;
+  /** Fala do hóspede que originou a dúvida — gera os botões de resposta. */
+  guestMessage?: string | null;
+  decisionKind?: "operational" | "fact";
 };
 
 /** Cria a pergunta ao supervisor humano. Retorna o id do escalonamento. */
@@ -51,7 +55,7 @@ export async function askHumanSupervisor(input: EscalationInput): Promise<string
         reason: input.reason.slice(0, 800),
         question_to_human: input.question.slice(0, 1200),
         confidence_score: input.confidence ?? null,
-        context_snapshot: (input.contextSnapshot ?? {}) as never,
+        context_snapshot: withDecision(input) as never,
         status: "pending",
       })
       .select("id")
@@ -142,4 +146,12 @@ export function renderHumanAnswers(answers: AnsweredEscalation[]): string {
  */
 export function pendingNotice(language: string, seed = 0): string {
   return continuityLine("pending", language, seed);
+}
+
+function withDecision(input: EscalationInput): Record<string, unknown> {
+  const snap = { ...(input.contextSnapshot ?? {}) };
+  if (!snap.decision) {
+    snap.decision = buildDecisionSpec(input.guestMessage ?? input.question, input.decisionKind);
+  }
+  return snap;
 }
