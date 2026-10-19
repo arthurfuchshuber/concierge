@@ -840,7 +840,7 @@ async function askEarlyCheckinApproval(
       propertyId: opts.propertyId,
       conversationId: c.id,
       guestName: c.guest_name,
-      agent: "concierge" as never,
+      agent: "reservation",
       trigger: "policy_exception",
       reason: "early_checkin_approval",
       question: `A limpeza foi concluída e ${c.guest_name ?? "o hóspede"} pediu para entrar antes das ${String(opts.checkinHour).padStart(2, "0")}h. Posso liberar o check-in agora?`,

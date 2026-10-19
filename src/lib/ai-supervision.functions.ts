@@ -179,7 +179,9 @@ export const answerEscalation = createServerFn({ method: "POST" })
         .neq("id", data.escalationId)
         .eq("status", "pending");
     }
-    if (conversationId) {
+    // "Aguardar o horário oficial": nada a dizer ao hóspede — ele já sabe o horário.
+    const silentDecision = !!spec && spec.kind === "operational" && data.answer === "Aguardar o horário oficial";
+    if (conversationId && !silentDecision) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { speakWithAgent } = await import("@/lib/ai/outbound/speak.server");
