@@ -51,6 +51,11 @@ export function FullConnectGate() {
   });
   const items = q.data?.items ?? [];
   const open = perm.allowed && !syncBlocking && items.length > 0;
+  const [pickSearch, setPickSearch] = useState("");
+  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const pickItems = pickSearch.trim()
+    ? items.filter((i) => norm(i.propertyName ?? "").includes(norm(pickSearch.trim())))
+    : items;
 
   async function confirm(propertyId: string) {
     setBusy(propertyId);
@@ -313,15 +318,29 @@ export function FullConnectGate() {
         </div>
 
         <Dialog open={picking} onOpenChange={(v) => !v && setPicking(false)}>
-          <DialogContent hideClose className="max-h-[90dvh] max-w-[360px] gap-3 overflow-y-auto p-4 sm:p-4">
+          <DialogContent
+            hideClose
+            style={{ width: "min(calc(100% - 2rem), 360px)", maxWidth: 360 }}
+            className="max-h-[90dvh] gap-3 overflow-y-auto p-4 sm:p-4"
+          >
             <DialogTitle className="font-display text-[16px] font-extrabold leading-[1.25]">
               Quais anúncios possuem bloqueios manuais para importar?
             </DialogTitle>
             <DialogDescription className="text-[12px] text-muted-foreground">
               Selecione os anúncios. Em seguida, cole o link do iCal de cada um.
             </DialogDescription>
+            <input
+              type="search"
+              value={pickSearch}
+              onChange={(e) => setPickSearch(e.target.value)}
+              placeholder="Buscar anúncio…"
+              className="h-9 w-full min-w-0 rounded-[10px] bg-background/60 px-2.5 text-[12.5px] text-foreground outline-none shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] focus:shadow-[inset_0_0_0_1px_var(--primary)]"
+            />
             <div className="grid gap-2">
-              {items.map((it) => (
+              {pickItems.length === 0 ? (
+                <p className="py-2 text-center text-[12px] text-muted-foreground">Nenhum anúncio encontrado.</p>
+              ) : null}
+              {pickItems.map((it) => (
                 <label key={it.propertyId} className={`${card} flex min-w-0 cursor-pointer items-center gap-2.5 px-3 py-2.5 text-[12.5px]`}>
                   <input
                     type="checkbox"
@@ -337,7 +356,7 @@ export function FullConnectGate() {
                     }
                   />
                   <PropertyThumb src={it.imageUrl} className="size-8 shrink-0 rounded-[8px]" />
-                  <span className="min-w-0 break-words font-semibold">{it.propertyName}</span>
+                  <ClampName text={it.propertyName} passThrough className="flex-1 font-semibold" />
                 </label>
               ))}
             </div>
@@ -381,7 +400,7 @@ export function FullConnectGate() {
                 setDraftPick(new Set([...blockIds].filter((id) => icalDone[id] === undefined)));
                 if (items.length === 1) {
                   setBlockIds(new Set([items[0].propertyId]));
-                } else setPicking(true);
+                } else { setPickSearch(""); setPicking(true); }
               }}
               className="flex h-[42px] items-center justify-center rounded-[13px] text-[13px] font-extrabold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
             >
