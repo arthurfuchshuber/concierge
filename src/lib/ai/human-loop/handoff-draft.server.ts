@@ -68,13 +68,15 @@ export async function buildHandoffDraft(params: {
   }
 }
 
-/** Texto final gravado em `question_to_human` (limite de 1200 do escalonamento). */
+/**
+ * Texto final gravado em `question_to_human`: curto e objetivo (estilo
+ * aprovado pelo anfitrião, ~35 palavras), sem metadados internos como
+ * "Resumo", "Já feito pela IA" ou "Sugestão de resposta" — esses ficam no
+ * `context_snapshot.draft`.
+ */
 export function formatDraftForTeam(reason: string, d: Omit<HandoffDraft, "usage">): string {
-  const parts = [
-    clip(reason.replace(/^\[[^\]]+\]\s*/, ""), 300),
-    d.summary && `Resumo: ${d.summary}`,
-    d.tried && `Já feito pela IA: ${d.tried}`,
-    d.suggestedReply && `Sugestão de resposta: ${d.suggestedReply}`,
-  ].filter(Boolean);
-  return parts.join("\n\n").slice(0, 1200);
+  const base = (reason.replace(/^\[[^\]]+\]\s*/, "").trim() || d.summary || "").replace(/\s+/g, " ");
+  const words = base.split(" ");
+  const short = words.length > 35 ? `${words.slice(0, 35).join(" ")}…` : base;
+  return short.slice(0, 400);
 }

@@ -98,6 +98,16 @@ export async function proposeProactiveDecision(
     const spec = sanitizeProposal(data, { hasReservation: !!c.reservation_id, checkinDone: done("checkin"), checkoutDone: done("checkout") });
     if (!spec) return null;
 
+    // Rechecagem após a IA pensar: o transbordo do atendimento pode ter
+    // criado a pergunta nesse intervalo — nunca duas para a mesma situação.
+    const { data: pend2 } = await admin
+      .from("ai_human_escalations")
+      .select("id")
+      .eq("conversation_id", c.id)
+      .eq("status", "pending")
+      .limit(1);
+    if (pend2?.length) return null;
+
     const { data: ins, error } = await admin
       .from("ai_human_escalations")
       .insert({
