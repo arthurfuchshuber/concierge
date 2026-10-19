@@ -21,6 +21,22 @@ type Admin = SupabaseClient;
 
 const MAX_PASSAGES = 12;
 
+/** Teto por consulta ao banco: uma consulta lenta nunca pode travar a resposta ao hóspede. */
+export const RAG_DB_DEADLINE_MS = 8_000;
+
+/** Resolve com `null` se a consulta ao banco passar do prazo (só banco, nunca chamadas de modelo). */
+export async function withDbDeadline<T>(work: PromiseLike<T>, ms = RAG_DB_DEADLINE_MS): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms);
+  });
+  try {
+    return await Promise.race([Promise.resolve(work), deadline]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export async function hybridRetrieve(params: {
   supabase: Admin;
   ownerId: string;
@@ -40,12 +56,16 @@ export async function hybridRetrieve(params: {
     usage = mergeUsage(usage, embedUsage);
     if (vector?.length) {
       retrievalUsed.push("vector");
-      const { data } = await supabase.rpc("match_ai_kb_chunks", {
-        query_embedding: vector as unknown as string,
-        _owner_id: ownerId,
-        _property_id: propertyId,
-        match_count: limit,
-      });
+      const res = await withDbDeadline(
+        supabase.rpc("match_ai_kb_chunks", {
+          query_embedding: vector as unknown as string,
+          _owner_id: ownerId,
+          _property_id: propertyId,
+          match_count: limit,
+        }),
+      );
+      if (!res) console.warn("[rag] busca vetorial passou do prazo — seguindo sem ela");
+      const data = res?.data;
       for (const row of (data ?? []) as Array<Record<string, unknown>>) {
         const source = String(row.source ?? "guide");
         const confidence = Number(row.confidence ?? confidenceOf(source));
@@ -68,12 +88,16 @@ export async function hybridRetrieve(params: {
   // 2) Busca textual (full text search)
   try {
     retrievalUsed.push("text");
-    const { data } = await supabase.rpc("search_ai_kb_chunks_text", {
-      _query: query,
-      _owner_id: ownerId,
-      _property_id: propertyId,
-      match_count: limit,
-    });
+    const res = await withDbDeadline(
+      supabase.rpc("search_ai_kb_chunks_text", {
+        _query: query,
+        _owner_id: ownerId,
+        _property_id: propertyId,
+        match_count: limit,
+      }),
+    );
+    if (!res) console.warn("[rag] busca textual passou do prazo — seguindo sem ela");
+    const data = res?.data;
     for (const row of (data ?? []) as Array<Record<string, unknown>>) {
       const id = String(row.id);
       const source = String(row.source ?? "guide");
