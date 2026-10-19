@@ -203,15 +203,19 @@ export const answerEscalation = createServerFn({ method: "POST" })
           pushTitle: "Resposta sobre o seu pedido",
           instruction:
             `A equipe respondeu internamente à sua pergunta "${pergunta}": "${data.answer}". ` +
-            "Leve essa resposta ao hóspede agora, na sua própria voz, como continuidade natural da conversa. " +
-            "Não diga que consultou ninguém, não mencione equipe nem transferência — do ponto de vista dele, " +
-            "quem sempre esteve na conversa é você. Se a resposta abrir um próximo passo, ofereça-o.",
+            "Trate essa escolha como FATO verdadeiro, não como o texto a enviar. Responda como concierge de alto padrão: " +
+            "releia a conversa inteira e a pergunta real do hóspede, combine a decisão com os dados reais do imóvel e da reserva " +
+            "(busque nas fontes quando necessário — localização do item, instruções, horários) e conduza a conversa: " +
+            "se houver próximo passo natural, ofereça-o; se a decisão liberar algo, entregue o necessário para ele agir. " +
+            "Seja conciso e elegante: sem repetir o que já foi dito, sem excesso, sem inventar nada fora das fontes. " +
+            "Não diga que consultou ninguém, não mencione equipe nem transferência — do ponto de vista dele, quem sempre esteve na conversa é você.",
         });
         entregue = r.sent;
         if (entregue) {
+          const snap = ((esc as { context_snapshot?: Record<string, unknown> | null } | null)?.context_snapshot ?? {}) as Record<string, unknown>;
           await context.supabase
             .from("ai_human_escalations")
-            .update({ applied_to_guest: true })
+            .update({ applied_to_guest: true, context_snapshot: { ...snap, delivered_message_id: r.messageId ?? null } } as never)
             .eq("id", data.escalationId);
         }
       } catch (e) {
@@ -340,12 +344,47 @@ export const reopenEscalationDecision = createServerFn({ method: "POST" })
       }
     }
 
+    /* REFAZER APAGA A RESPOSTA JÁ ENVIADA (pedido explícito, 19/10/2026).
+     * Guia/painel: a mensagem some da conversa. Airbnb não permite apagar
+     * mensagens entregues pela API: removemos do histórico e enviamos uma
+     * retificação curta para o hóspede desconsiderar a anterior. */
+    const snap = ((esc as { context_snapshot?: Record<string, unknown> | null }).context_snapshot ?? {}) as Record<string, unknown>;
+    const deliveredId = typeof snap.delivered_message_id === "string" ? snap.delivered_message_id : null;
+    let apagada = false;
+    const convId = (esc as { conversation_id: string | null }).conversation_id;
+    if (deliveredId && convId) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: conv } = await supabaseAdmin
+        .from("property_chat_conversations")
+        .select("guest_session_id, property_id")
+        .eq("id", convId)
+        .maybeSingle();
+      await supabaseAdmin.from("property_chat_messages").delete().eq("id", deliveredId).eq("conversation_id", convId);
+      apagada = true;
+      const session = String((conv as { guest_session_id?: string | null } | null)?.guest_session_id ?? "");
+      if (session.startsWith("airbnb:")) {
+        try {
+          const { deliverToAirbnbThread } = await import("@/lib/channex-messages.server");
+          await deliverToAirbnbThread(supabaseAdmin, {
+            conversationId: convId,
+            threadId: session.slice("airbnb:".length),
+            propertyId: String((conv as { property_id?: string }).property_id ?? ""),
+            text: "Retificando minha mensagem anterior: por favor, desconsidere-a. Já te retorno com a informação correta.",
+            senderType: "ai",
+          });
+        } catch (e) {
+          console.error("[supervision] retificação Airbnb falhou", (e as Error)?.message);
+        }
+      }
+      delete snap.delivered_message_id;
+    }
+
     const { error: rErr } = await context.supabase
       .from("ai_human_escalations")
-      .update({ status: "pending", human_response: null, resolved_at: null, applied_to_guest: false } as never)
+      .update({ status: "pending", human_response: null, resolved_at: null, applied_to_guest: false, context_snapshot: snap } as never)
       .eq("id", data.escalationId);
     if (rErr) throw new Error(rErr.message);
-    return { ok: true };
+    return { ok: true, apagada };
   });
 
 /** Conhecimento destilado aguardando aprovação humana. */

@@ -31,7 +31,8 @@ Ações disponíveis no sistema:
 Regras:
 - Pergunte só quando houver indício concreto na conversa (ex.: chaves entregues, hóspede já dentro, hóspede já saiu, pedido que exige decisão da equipe).
 - Não pergunte sobre algo que o estado da estadia mostra que já foi feito.
-- Pergunta curta, em português, citando o fato observado. 2 a 3 opções curtas (até 6 palavras), mutuamente exclusivas, cada uma com sua ação.
+- Pergunta CLARA em 2 partes (máx. ~35 palavras): 1 frase de contexto factual (quem, qual imóvel, o que foi observado) + 1 pergunta de decisão direta. Nem vaga ("Fazer algo?"), nem longa. 2 a 3 opções curtas (até 6 palavras), mutuamente exclusivas e autoexplicativas, cada uma com sua ação.
+- Também aprenda com a equipe: se a equipe escreveu ao hóspede uma informação permanente do imóvel que parece nova (ex.: onde fica um item, como usar um aparelho), proponha kind "fact" perguntando se deve virar conhecimento, com opções e action "none".
 - kind "operational" para decisões pontuais desta estadia; "fact" só para informação permanente do imóvel.
 - Na dúvida se vale perguntar, responda shouldAsk false.
 Responda só JSON: {"shouldAsk": boolean, "question": string, "kind": "operational"|"fact", "options": [{"label": string, "action": string}]}`;
