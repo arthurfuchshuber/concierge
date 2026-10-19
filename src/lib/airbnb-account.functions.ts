@@ -483,6 +483,7 @@ export const importAirbnbListings = createServerFn({ method: "POST" })
       try {
         const r = await createFromListing(admin, accountId, l, ownerOf.get(l.listingId) as string);
         imported += 1;
+        await (await import("@/lib/channex-full-connect.server")).setFullConnectConductor(r.propertyId, context.userId).catch(() => {});
         pending.push(...r.pending);
       } catch (e) {
         failed.push({ title: l.title, error: e instanceof Error ? e.message : String(e) });
@@ -666,6 +667,7 @@ export const syncExistingProperty = createServerFn({ method: "POST" })
     await enforce(context.userId, "stakeholders.vinculo-imovel", { propertyId: data.propertyId });
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
     const r = await linkExisting(admin, accountId, data.propertyId, data.listingId);
+    await (await import("@/lib/channex-full-connect.server")).setFullConnectConductor(data.propertyId, context.userId).catch(() => {});
     return { ok: true as const, title: r.title, pending: r.pending, channexPropertyId: r.channexPropertyId };
   });
 
@@ -694,6 +696,7 @@ export const syncAirbnbPair = createServerFn({ method: "POST" })
       const { enforce } = await import("@/lib/permissions/permission.enforce.server");
       await enforce(context.userId, "stakeholders.vinculo-imovel", { propertyId: data.propertyId });
       const r = await linkExisting(admin, accountId, data.propertyId, data.listingId);
+      await (await import("@/lib/channex-full-connect.server")).setFullConnectConductor(data.propertyId, context.userId).catch(() => {});
       return {
         kind: "linked" as const,
         propertyId: data.propertyId,
@@ -715,6 +718,7 @@ export const syncAirbnbPair = createServerFn({ method: "POST" })
     if (!listing || listing.notFound) throw new Error("Anúncio não encontrado no Airbnb.");
     if (listing.imported) throw new Error("Este anúncio já está ligado a outro imóvel.");
     const r = await createFromListing(admin, accountId, listing, data.ownerId as string);
+    await (await import("@/lib/channex-full-connect.server")).setFullConnectConductor(r.propertyId, context.userId).catch(() => {});
     return {
       kind: "created" as const,
       propertyId: r.propertyId,
