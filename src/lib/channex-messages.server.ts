@@ -1038,7 +1038,6 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
       await admin.from("property_chat_conversations").update(pausePatch()).eq("id", c.id);
       await purgePendingChatForThread(admin, m.threadId);
     }
-    let proposeAfter = !automated;
     if (m.messageId) {
       const { data: dup } = await admin
         .from("property_chat_messages")
@@ -1060,6 +1059,9 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
     if (!automated) {
       const { completeStayFromHumanMessage } = await import("@/lib/ai/human-closing.server");
       await completeStayFromHumanMessage(c.id, m.text);
+      // Copiloto proativo: fala da equipe pode indicar ação no app (ex.: chaves entregues).
+      const { proposeProactiveDecision } = await import("@/lib/ai/human-loop/proactive-decisions.server");
+      await proposeProactiveDecision(admin, { conversationId: c.id, trigger: "staff" });
     }
   }
 }
