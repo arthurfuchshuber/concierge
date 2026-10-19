@@ -25,6 +25,7 @@ import { MessageText } from "@/components/handoff/MessageText";
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
 import { listConversationEscalations, answerEscalation } from "@/lib/ai-supervision.functions";
 import { dismissEscalation } from "@/lib/handoff.functions";
+import { readDecisionSpec, canBecomeKnowledge } from "@/lib/ai/human-loop/decision-options";
 import { minutesLeft } from "@/lib/ai/pause";
 import {
   Send,
@@ -202,6 +203,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
         status: string | null;
         created_at: string | null;
         resolved_at: string | null;
+        context_snapshot?: unknown;
       }>,
     [escQ.data],
   );
@@ -254,7 +256,15 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
       setAskTranscribing(false);
     }
   }
-  const [saveKnowledge, setSaveKnowledge] = useState(true);
+  // Sem pré-marcação: a equipe escolhe explicitamente (18/10/2026).
+  const [saveKnowledge, setSaveKnowledge] = useState<boolean | null>(null);
+  const [chosenOption, setChosenOption] = useState<string | null>(null);
+  const askSpec = useMemo(() => readDecisionSpec(pendingAsk?.context_snapshot), [pendingAsk]);
+  const askNeedsKnowledge = !askSpec || canBecomeKnowledge(askSpec.kind);
+  useEffect(() => {
+    setChosenOption(null);
+    setSaveKnowledge(null);
+  }, [pendingAsk?.id]);
 
   const tagItemsFn = useServerFn(getTagItemsForConversation);
   const { data: tagItemsData } = useQuery({
@@ -419,13 +429,15 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
       return answerFn({
         data: {
           escalationId: pendingAsk.id,
-          answer: askText.trim(),
-          saveAsKnowledge: saveKnowledge,
+          answer: (askSpec ? chosenOption : askText.trim()) ?? "",
+          saveAsKnowledge: askNeedsKnowledge && saveKnowledge === true,
         },
       });
     },
     onSuccess: (r) => {
       setAskText("");
+      setChosenOption(null);
+      setSaveKnowledge(null);
       if (r && (r as { entregue?: boolean }).entregue === false) {
         setErrorMsg(
           "Resposta salva, mas não consegui entregar ao hóspede agora. Vou tentar de novo.",
@@ -1285,6 +1297,47 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
             <p className="text-[13px] font-semibold leading-snug text-zinc-900">
               {pendingAsk.question_to_human || "A IA precisa de uma decisão sua."}
             </p>
+            {askSpec ? (
+              <div className="mt-2.5 space-y-2.5">
+                <div role="radiogroup" aria-label="Resposta" className="flex flex-wrap gap-1.5">
+                  {askSpec.options.map((o) => (
+                    <button
+                      key={o}
+                      type="button"
+                      role="radio"
+                      aria-checked={chosenOption === o}
+                      onClick={() => setChosenOption(o)}
+                      className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                        chosenOption === o
+                          ? "border-violet-600 bg-violet-600 text-white"
+                          : "border-violet-300 bg-white text-violet-800 hover:bg-violet-100"
+                      }`}
+                    >
+                      {o}
+                    </button>
+                  ))}
+                </div>
+                {askNeedsKnowledge && chosenOption && (
+                  <KnowledgeChoice value={saveKnowledge} onChange={setSaveKnowledge} />
+                )}
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => answer.mutate()}
+                    disabled={
+                      answer.isPending ||
+                      !chosenOption ||
+                      (askNeedsKnowledge && saveKnowledge === null)
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-45"
+                  >
+                    {answer.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+                    Enviar decisão
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
             <form
               className="mt-2.5 rounded-xl border border-zinc-300 bg-white p-2"
               onSubmit={(e) => {
@@ -1342,7 +1395,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                 )}
                 <button
                   type="submit"
-                  disabled={answer.isPending || !askText.trim() || askTranscribing}
+                  disabled={answer.isPending || !askText.trim() || askTranscribing || saveKnowledge === null}
                   aria-label="Enviar resposta"
                   className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600 text-white disabled:opacity-45"
                 >
@@ -1354,20 +1407,13 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                 </button>
               </div>
             </form>
+                <div className="mt-2">
+                  <KnowledgeChoice value={saveKnowledge} onChange={setSaveKnowledge} />
+                </div>
+              </>
+            )}
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-              <label
-                htmlFor="salvar-regra"
-                className="inline-flex cursor-pointer items-center gap-1.5 text-[10.5px] text-muted-foreground"
-              >
-                <input
-                  id="salvar-regra"
-                  type="checkbox"
-                  checked={saveKnowledge}
-                  onChange={(e) => setSaveKnowledge(e.target.checked)}
-                  className="size-3 accent-violet-600"
-                />
-                Salvar como regra, para ela não perguntar de novo
-              </label>
+<span />
               <button
                 type="button"
                 onClick={() => dismiss.mutate()}
@@ -1678,4 +1724,40 @@ export function useMyUserId() {
     supabase.auth.getUser().then(({ data }) => setId(data.user?.id ?? null));
   }, []);
   return id;
+}
+
+/** Pergunta explícita, sem opção pré-marcada: vira conhecimento deste imóvel? */
+function KnowledgeChoice({
+  value,
+  onChange,
+}: {
+  value: boolean | null;
+  onChange: (v: boolean) => void;
+}) {
+  const opt = (v: boolean, label: string) => (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={value === v}
+      onClick={() => onChange(v)}
+      className={`rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
+        value === v
+          ? "border-zinc-900 bg-zinc-900 text-white"
+          : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100"
+      }`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white p-2">
+      <p className="text-[11.5px] font-semibold text-zinc-900">
+        Transformar esta resposta em conhecimento deste imóvel?
+      </p>
+      <div role="radiogroup" className="mt-1.5 flex flex-wrap gap-1.5">
+        {opt(true, "Sim, salvar para este imóvel")}
+        {opt(false, "Não, só desta vez")}
+      </div>
+    </div>
+  );
 }
