@@ -65,6 +65,7 @@ import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { OwnerPropertyCounts } from "./OwnerPropertyCounts";
 import { Stepper } from "@/components/editor/Stepper";
 import { OwnerPropertiesList } from "./OwnerPropertiesList";
+import { ConnectedAccountsBar } from "./ConnectedAccountsBar";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import {
@@ -460,6 +461,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
 
   const pageTabs = newLayout ? (
     <div className="mb-4">
+      {kind === "owner" ? <ConnectedAccountsBar /> : null}
       <Stepper
         withIcons
         steps={[
