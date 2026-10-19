@@ -13,7 +13,7 @@
  *    caminho fixo, então repetir nunca duplica registro nem arquivo.
  */
 import { idbApagar, idbChaves, idbGravar, idbLer } from "@/lib/offline/idb";
-import { enviarMidia, garantirToken, comPrazo } from "@/lib/media-upload";
+import { enviarMidia, garantirToken, chamarServidor } from "@/lib/media-upload";
 import { comprimirImagem } from "@/lib/image-compress";
 import { comprimirVideo } from "@/lib/video-compress";
 import { extFor } from "@/components/dashboard/record-draft";
@@ -149,7 +149,7 @@ async function processarUm(job: TrabalhoSituacao): Promise<void> {
     if (!token) throw new Error("Sessão expirada — entre de novo para concluir o envio.");
 
     if (!job.criada) {
-      const r = await comPrazo(
+      const r = await chamarServidor(() =>
         s.criar({
           groupId: job.groupId,
           propertyId: job.propertyId,
@@ -162,7 +162,7 @@ async function processarUm(job: TrabalhoSituacao): Promise<void> {
           media: [],
           pendingMedia: job.midias.length,
         }),
-        PRAZO_CHAMADA_MS,
+        { prazoMs: PRAZO_CHAMADA_MS },
       );
       job.criada = true;
       job.taskId = r?.taskId ?? null;
@@ -212,7 +212,7 @@ async function processarUm(job: TrabalhoSituacao): Promise<void> {
         await salvar(job);
       }
 
-      await comPrazo(
+      await chamarServidor(() =>
         s.anexar({
           groupId: job.groupId,
           propertyId: job.propertyId,
@@ -222,7 +222,7 @@ async function processarUm(job: TrabalhoSituacao): Promise<void> {
           sizeBytes: m.blob.size,
           durationMs: m.durationMs,
         }),
-        PRAZO_CHAMADA_MS,
+        { prazoMs: PRAZO_CHAMADA_MS },
       );
       m.anexada = true;
       await salvar(job);
@@ -231,7 +231,7 @@ async function processarUm(job: TrabalhoSituacao): Promise<void> {
     await idbApagar(PREFIXO + job.groupId);
     emitir({ tipo: "concluida", job });
   } catch (e) {
-    const msg = e instanceof Error && e.message !== "PRAZO" ? e.message : "A internet está lenta.";
+    const msg = mensagemAmigavel(e);
     job.tentativas = (job.tentativas ?? 0) + 1;
     job.ultimoErro = msg;
     await salvar(job);
@@ -239,4 +239,14 @@ async function processarUm(job: TrabalhoSituacao): Promise<void> {
   } finally {
     ativos -= 1;
   }
+}
+
+/** Nunca mostra erro técnico em inglês do navegador para a equipe. */
+export function mensagemAmigavel(e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e ?? "");
+  if (!raw || raw === "PRAZO") return "A internet está lenta.";
+  if (/failed to fetch|networkerror|load failed|network request failed|fetch failed|timeout|aborted/i.test(raw)) {
+    return "A internet oscilou.";
+  }
+  return /[.!?]$/.test(raw.trim()) ? raw.trim() : `${raw.trim()}.`;
 }

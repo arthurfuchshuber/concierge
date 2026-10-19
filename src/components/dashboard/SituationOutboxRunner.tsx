@@ -72,10 +72,15 @@ export function SituationOutboxRunner() {
           severity: "warning",
           metadata: { groupId: e.job.groupId, propertyId: e.job.propertyId, tentativas: e.job.tentativas, erro: e.erro },
         });
+        // Oscilações passageiras se resolvem sozinhas: só avisa após 3 rodadas.
+        if ((e.job.tentativas ?? 0) < 3) {
+          toast.dismiss(id);
+          return;
+        }
         toast.message("Envio pausado — continua sozinho", {
           id,
           description: `${rotulo}: ${e.erro} Está guardado no aparelho e será enviado assim que a conexão melhorar.`,
-          duration: 8000,
+          duration: 6000,
           ...pos,
         });
       }
