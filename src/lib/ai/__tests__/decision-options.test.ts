@@ -26,3 +26,13 @@ describe("decisões por botões", () => {
     expect(detectStayCompletion("Deu tudo certo!", "")).toBe("checkin");
   });
 });
+
+import { isTakeoverOption, TAKEOVER_OPTION } from "../human-loop/decision-options";
+describe("assumir a conversa", () => {
+  it("dúvida aberta oferece 'Eu assumo a conversa' e ela é reconhecida", () => {
+    const s = buildDecisionSpec("Qual a senha do wifi?");
+    expect(s.options).toContain(TAKEOVER_OPTION);
+    expect(isTakeoverOption(TAKEOVER_OPTION)).toBe(true);
+    expect(isTakeoverOption("Sim")).toBe(false);
+  });
+});
