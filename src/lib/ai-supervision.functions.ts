@@ -344,12 +344,47 @@ export const reopenEscalationDecision = createServerFn({ method: "POST" })
       }
     }
 
+    /* REFAZER APAGA A RESPOSTA JÁ ENVIADA (pedido explícito, 19/10/2026).
+     * Guia/painel: a mensagem some da conversa. Airbnb não permite apagar
+     * mensagens entregues pela API: removemos do histórico e enviamos uma
+     * retificação curta para o hóspede desconsiderar a anterior. */
+    const snap = ((esc as { context_snapshot?: Record<string, unknown> | null }).context_snapshot ?? {}) as Record<string, unknown>;
+    const deliveredId = typeof snap.delivered_message_id === "string" ? snap.delivered_message_id : null;
+    let apagada = false;
+    const convId = (esc as { conversation_id: string | null }).conversation_id;
+    if (deliveredId && convId) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: conv } = await supabaseAdmin
+        .from("property_chat_conversations")
+        .select("guest_session_id, property_id")
+        .eq("id", convId)
+        .maybeSingle();
+      await supabaseAdmin.from("property_chat_messages").delete().eq("id", deliveredId).eq("conversation_id", convId);
+      apagada = true;
+      const session = String((conv as { guest_session_id?: string | null } | null)?.guest_session_id ?? "");
+      if (session.startsWith("airbnb:")) {
+        try {
+          const { deliverToAirbnbThread } = await import("@/lib/channex-messages.server");
+          await deliverToAirbnbThread(supabaseAdmin, {
+            conversationId: convId,
+            threadId: session.slice("airbnb:".length),
+            propertyId: String((conv as { property_id?: string }).property_id ?? ""),
+            text: "Retificando minha mensagem anterior: por favor, desconsidere-a. Já te retorno com a informação correta.",
+            senderType: "ai",
+          });
+        } catch (e) {
+          console.error("[supervision] retificação Airbnb falhou", (e as Error)?.message);
+        }
+      }
+      delete snap.delivered_message_id;
+    }
+
     const { error: rErr } = await context.supabase
       .from("ai_human_escalations")
-      .update({ status: "pending", human_response: null, resolved_at: null, applied_to_guest: false } as never)
+      .update({ status: "pending", human_response: null, resolved_at: null, applied_to_guest: false, context_snapshot: snap } as never)
       .eq("id", data.escalationId);
     if (rErr) throw new Error(rErr.message);
-    return { ok: true };
+    return { ok: true, apagada };
   });
 
 /** Conhecimento destilado aguardando aprovação humana. */
