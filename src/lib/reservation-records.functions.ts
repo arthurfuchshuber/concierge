@@ -1440,6 +1440,10 @@ export type AccountRecord = ReservationRecord & {
   propertyId: string;
   propertyName: string;
   ownerName: string | null;
+  /** Proprietário do imóvel (id) — preenche "quem arca/pagou" sozinho. */
+  ownerContactId?: string | null;
+  /** Prestadores vinculados ao imóvel — só pergunta qual quando houver mais de um. */
+  propertyProviderIds?: string[];
   ownerPhone: string | null;
   ownerPhoneCountry: string | null;
   /**
@@ -1853,6 +1857,19 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     const paths = Array.from(new Set([...coverPaths, ...extraPaths])).slice(0, MAX_SIGNED);
     const urlByPath = await signPathsCached(supabase, paths);
 
+    const providersByProp = new Map<string, string[]>();
+    if (usedPropIds.length > 0) {
+      const { data: pp } = await supabase
+        .from("property_providers")
+        .select("property_id, provider_id")
+        .in("property_id", usedPropIds);
+      for (const l of (pp ?? []) as Array<{ property_id: string; provider_id: string }>) {
+        const list = providersByProp.get(l.property_id) ?? [];
+        if (!list.includes(l.provider_id)) list.push(l.provider_id);
+        providersByProp.set(l.property_id, list);
+      }
+    }
+
     const records: AccountRecord[] = selected.map((r) => {
       const prop = propById.get(r.property_id);
       const task = r.task_id ? (taskById.get(r.task_id) ?? null) : null;
@@ -1889,6 +1906,8 @@ export const listAccountRecords = createServerFn({ method: "GET" })
         propertyCoverUrl: prop?.coverUrl ?? null,
         propertyCoverUrls: prop?.coverUrls ?? [],
         ownerName: prop?.ownerContactId ? (ownerNameById.get(prop.ownerContactId) ?? null) : null,
+        ownerContactId: prop?.ownerContactId ?? null,
+        propertyProviderIds: providersByProp.get(r.property_id) ?? [],
         ownerPhone: prop?.ownerContactId ? (ownerPhoneById.get(prop.ownerContactId)?.phone ?? null) : null,
         ownerPhoneCountry: prop?.ownerContactId ? (ownerPhoneById.get(prop.ownerContactId)?.country ?? null) : null,
         isResolution: r.is_resolution,
