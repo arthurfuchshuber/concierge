@@ -35,7 +35,12 @@ export async function importIcalBlocks(propertyId: string, icalUrl: string, user
   const { isAllowedIcalUrl } = await import("@/lib/airbnb-ical-url");
   if (!isAllowedIcalUrl(url) || !isAirbnbIcsLink(url))
     throw new Error("Link inválido. Use o link de exportação do calendário do Airbnb (termina em .ics).");
-  const res = await fetch(url, { headers: { Accept: "text/calendar" } }).catch(() => null);
+  let timedOut = false;
+  const res = await fetch(url, { headers: { Accept: "text/calendar" }, signal: AbortSignal.timeout(10_000) }).catch((e) => {
+    timedOut = e?.name === "TimeoutError" || e?.name === "AbortError";
+    return null;
+  });
+  if (timedOut) throw new Error("O Airbnb demorou para responder ao link do calendário. Tente novamente em alguns instantes.");
   if (!res?.ok) throw new Error("Não conseguimos ler este link. Confira se copiou o link de exportação correto.");
   const body = await res.text();
   if (!body.includes("BEGIN:VCALENDAR")) throw new Error("Este link não é um calendário iCal válido.");
