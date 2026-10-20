@@ -30,3 +30,15 @@ describe("checkout imediato", () => {
     expect(detectStayCompletion("Vamos sair mais tarde", "")).toBeNull();
   });
 });
+
+describe("checkout por contexto (20/10/2026)", () => {
+  it("espaço liberado dá baixa", () => {
+    expect(detectStayCompletion("Bom dia! Espaço liberado. Obrigada", "")).toBe("checkout");
+  });
+  it("despedida da IA (boa viagem) dá baixa", () => {
+    expect(detectStayCompletion("Tudo certo por aqui, obrigada", "Agradecemos pela estadia. Boa viagem!")).toBe("checkout");
+  });
+  it("boa viagem com plano do hóspede não dá baixa", () => {
+    expect(detectStayCompletion("Vamos sair amanhã cedo", "Boa viagem amanhã!")).toBeNull();
+  });
+});
