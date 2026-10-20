@@ -46,11 +46,19 @@ export function buildDecisionSpec(guestMessage: string, kind?: DecisionKind): De
       options: ["Sim, tem no imóvel", "Não tem", "Disponível sob solicitação"],
     };
   }
+  if (OPEN_QUESTION.test(m)) return { kind: kind ?? "fact", options: [] };
   if (/\b(pode|posso|podemos|permitido|aceita|can i|may i|se puede)\b/.test(m)) {
     return { kind: "fact", options: ["Sim, é permitido", "Não é permitido", "Depende — eu assumo"] };
   }
   return { kind: kind ?? "fact", options: ["Sim", "Não", TAKEOVER_OPTION] };
 }
+
+/**
+ * Pergunta ABERTA (dias, horários, onde, como, qual, senha…): "Sim/Não" não
+ * responde nada. Sai sem botões → o cartão abre o campo de resposta livre.
+ */
+const OPEN_QUESTION =
+  /\b(qua(l|is)|quando|onde|como|quanto|quantos?|que horas?|horarios?|dias?|endereco|senha|codigo|numero|telefone|contato|what|when|where|how|which|cual|cuando|donde|como)\b/;
 
 /**
  * Opção "eu assumo": a equipe passa a responder direto ao hóspede (ex.: dúvida
