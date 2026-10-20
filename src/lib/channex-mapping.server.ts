@@ -209,7 +209,22 @@ export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | nu
 
   // 3) Recalcula com a janela exata do anfitrião e as reservas recém-importadas.
   const sync = await syncRealAvailability(t, userId);
+  // 4) Publica o anúncio no Airbnb (idempotente) para preços/disponibilidade não ficarem represados.
+  await publishListing(t.channelId, t.listingId);
   return { listingId: t.listingId, status: "mapped" as const, sync };
+}
+
+/** Publica o anúncio no canal (idempotente, até 3 tentativas). Falha não desfaz o mapeamento já seguro. */
+export async function publishListing(channelId: string, listingId: string) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const ok = await call("POST", `/channels/${channelId}/execute/publish`, { listing_id: listingId })
+      .then(() => true)
+      .catch(() => false);
+    if (ok) return true;
+    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+  }
+  console.warn("[channex] publish falhou", channelId, listingId);
+  return false;
 }
 
 /** Noites ocupadas por reservas ativas de uma unidade na Channex (paginado). */

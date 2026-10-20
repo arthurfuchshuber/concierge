@@ -64,6 +64,7 @@ import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ClampName } from "@/components/ui/clamp-name";
+import { getPendingFullConnections } from "@/lib/channex-full-connect.functions";
 import type { PropertyConnectionRow } from "@/lib/property-connection";
 
 /**
@@ -154,6 +155,18 @@ export function OwnerPropertiesList({
     retry: false,
   });
   const airbnbAccounts = useMemo(() => accountsQ.data ?? [], [accountsQ.data]);
+  // Selo de status do Modo Full: anúncios aguardando "Já conectei todos".
+  const pendingFullFn = useServerFn(getPendingFullConnections);
+  const pendingFullQ = useQuery({
+    queryKey: ["full-connect-pending"],
+    queryFn: () => pendingFullFn(),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const pendingFullIds = useMemo(
+    () => new Set((pendingFullQ.data?.items ?? []).map((i: { propertyId: string }) => i.propertyId)),
+    [pendingFullQ.data],
+  );
   // Imóveis dispensados do aviso ("Não sincronizar"): marca no card + "Voltar a sincronizar".
   const dismissedFn = useServerFn(listSyncDismissedProperties);
   const dismissedQ = useQuery({
@@ -582,10 +595,21 @@ export function OwnerPropertiesList({
                       text={p.name}
                       className="text-[14.5px] font-extrabold leading-tight"
                     />
-                    {place ? (
+                    {place || p.airbnbListingId ? (
                       <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
-                        <MapPin className="size-3 shrink-0" />
-                        <span className="truncate">{place}</span>
+                        {place ? (
+                          <>
+                            <MapPin className="size-3 shrink-0" />
+                            <span className="min-w-0 truncate">{place}</span>
+                          </>
+                        ) : null}
+                        {p.airbnbListingId ? (
+                          <span
+                            className={`ml-auto shrink-0 whitespace-nowrap text-[10.5px] font-extrabold ${pendingFullIds.has(p.id) ? "ds-atencao" : "ds-ok"}`}
+                          >
+                            {pendingFullIds.has(p.id) ? "Pendente de ativação" : "Airbnb · Conectado"}
+                          </span>
+                        ) : null}
                       </span>
                     ) : null}
                   </span>
