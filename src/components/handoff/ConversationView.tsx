@@ -1365,7 +1365,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
           {pendingAsk && (
           <div className="rounded-xl border border-violet-300 bg-violet-50 p-3 text-zinc-900">
             <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-violet-700">
-              <Sparkles className="size-3" /> <span className="flex-1">a IA está te perguntando</span>
+              <Sparkles className="size-3" /> <span className="flex-1">{askHostLearning ? "a IA quer aprender sua resposta" : "a IA está te perguntando"}</span>
               {pendingAsks.length > 1 && (
                 <button
                   type="button"
@@ -1450,7 +1450,9 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                 placeholder={
                   askTranscribing
                     ? "Transcrevendo seu áudio…"
-                    : "Responda à IA — ela leva ao hóspede na voz dela…"
+                    : askHostLearning
+                      ? "Ajuste a resposta que a IA vai aprender…"
+                      : "Responda à IA — ela leva ao hóspede na voz dela…"
                 }
                 className="block w-full min-w-0 resize-none whitespace-pre-wrap break-words bg-transparent px-1 text-[13px] leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-500"
               />
