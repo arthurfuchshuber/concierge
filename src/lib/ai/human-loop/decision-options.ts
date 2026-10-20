@@ -40,13 +40,13 @@ const AMENITY =
 export function buildDecisionSpec(guestMessage: string, kind?: DecisionKind): DecisionSpec {
   const m = norm(guestMessage ?? "");
   if (kind === "operational") return { kind, options: ["Sim, pode", "Não"] };
+  if (OPEN_QUESTION.test(m)) return { kind: kind ?? "fact", options: [] };
   if (AMENITY.test(m)) {
     return {
       kind: "fact",
       options: ["Sim, tem no imóvel", "Não tem", "Disponível sob solicitação"],
     };
   }
-  if (OPEN_QUESTION.test(m)) return { kind: kind ?? "fact", options: [] };
   if (/\b(pode|posso|podemos|permitido|aceita|can i|may i|se puede)\b/.test(m)) {
     return { kind: "fact", options: ["Sim, é permitido", "Não é permitido", "Depende — eu assumo"] };
   }

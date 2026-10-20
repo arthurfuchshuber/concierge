@@ -36,3 +36,15 @@ describe("assumir a conversa", () => {
     expect(isTakeoverOption("Sim")).toBe(false);
   });
 });
+
+import { buildDecisionSpec as build2, readDecisionSpec as read2 } from "@/lib/ai/human-loop/decision-options";
+describe("perguntas abertas", () => {
+  it("dias de coleta de lixo não recebem Sim/Não", () => {
+    const s = build2("Quais são os dias da coleta de lixo aqui na rua?");
+    expect(s.options).toEqual([]);
+    expect(read2({ decision: s })).toBeNull();
+  });
+  it("pergunta de amenidade mantém botões", () => {
+    expect(build2("Tem ferro de passar?").options).toContain("Não tem");
+  });
+});
