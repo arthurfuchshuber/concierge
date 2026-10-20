@@ -167,6 +167,24 @@ async function call(method: string, path: string, body?: unknown): Promise<any> 
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
+/**
+ * Ativa o canal na Channex e confirma relendo o estado (até 3 tentativas). Nunca engole falha:
+ * canal inativo represa preços/disponibilidade, então lança erro claro para o usuário.
+ */
+export async function ensureChannelActive(channelId: string) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const ch = await call("GET", `/channels/${channelId}`).catch(() => null);
+    if (ch?.data?.attributes?.is_active === true) return;
+    await call("POST", `/channels/${channelId}/activate`).catch(() => null);
+    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+  }
+  const final = await call("GET", `/channels/${channelId}`).catch(() => null);
+  if (final?.data?.attributes?.is_active === true) return;
+  throw new Error(
+    "Motivo: a conexão da conta do Airbnb não pôde ser ligada na Channex, então os preços não chegariam ao Airbnb.\n\nO que fazer: aguarde alguns minutos e toque em \"Já conectei todos\" de novo. Se persistir, reconecte a conta do Airbnb em Contas Conectadas.",
+  );
+}
+
 /** Garante calendário REAL aberto e só então mapeia. Idempotente. */
 export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | null) {
   const channel = await call("GET", `/channels/${t.channelId}`);
@@ -186,10 +204,8 @@ export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | nu
   // 2) Mapeia e carrega reservas futuras.
   await call("POST", `/channels/${t.channelId}/mappings`, { mapping: { rate_plan_id: t.ratePlanId, settings: { listing_id: t.listingId } } });
   await call("POST", `/channels/${t.channelId}/execute/load_future_reservations`, { listing_id: t.listingId }).catch(() => null);
-  // Canal recém-conectado nasce inativo na Channex e represa preços/disponibilidade: ativa (idempotente).
-  if (channel?.data?.attributes?.is_active === false) {
-    await call("POST", `/channels/${t.channelId}/activate`).catch(() => null);
-  }
+  // Canal recém-conectado nasce inativo na Channex e represa preços/disponibilidade: ativa e CONFIRMA.
+  await ensureChannelActive(t.channelId);
 
   // 3) Recalcula com a janela exata do anfitrião e as reservas recém-importadas.
   const sync = await syncRealAvailability(t, userId);

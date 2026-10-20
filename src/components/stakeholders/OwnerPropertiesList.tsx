@@ -49,6 +49,7 @@ import {
   FilterScreenHeader,
 } from "@/components/dashboard/filter-panel";
 import { AirbnbAccountFlow, type AirbnbFlowRequest } from "./AirbnbAccountFlow";
+import { ConnectedAccountsBar } from "./ConnectedAccountsBar";
 import { toast } from "sonner";
 import {
   listAirbnbAccounts,
@@ -507,6 +508,7 @@ export function OwnerPropertiesList({
         placeholder="Buscar imóvel, proprietário, cidade…"
         actions={<>{filterButton}</>}
       />
+      <ConnectedAccountsBar />
 
       {items.length > 0 ? (
         <div

@@ -50,7 +50,7 @@ export function ConnectedAccountsBar() {
 
   return (
     <>
-      <div className={`${PANEL_SHELL} mb-4 flex min-w-0 items-center justify-between gap-3 px-3.5 py-2.5`}>
+      <div className={`${PANEL_SHELL} flex min-w-0 items-center justify-between gap-3 px-3.5 py-2.5`}>
         <span className="grid min-w-0 gap-0.5">
           <span className="ds-eyebrow text-[10px] tracking-[0.2em]">Airbnb</span>
           <span className="text-[12px] text-muted-foreground">
