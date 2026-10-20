@@ -294,6 +294,14 @@ export async function detectNew(
     },
     { onConflict: "owner_id,channex_channel_id" },
   );
+  // Liga o canal já na conexão (sem anúncios mapeados é inofensivo); a confirmação obrigatória
+  // acontece de novo antes de mapear, em safeMapAirbnbListing.
+  try {
+    const { ensureChannelActive } = await import("@/lib/channex-mapping.server");
+    await ensureChannelActive(pick.id);
+  } catch (e) {
+    console.warn("[airbnb] canal ainda inativo após conexão", pick.id, e);
+  }
   return { found: { channelId: pick.id, title, duplicate: false } };
 }
 
