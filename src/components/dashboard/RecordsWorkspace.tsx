@@ -2702,8 +2702,8 @@ type PayerKind = "company" | "owner" | "provider" | "guest";
  */
 const PAYER_OPTIONS = [
   { key: "company" as const, label: "A empresa" },
-  { key: "owner" as const, label: "Proprietário" },
-  { key: "provider" as const, label: "Prestador" },
+  { key: "owner" as const, label: "Proprietário(a)" },
+  { key: "provider" as const, label: "Prestador(a)" },
   { key: "guest" as const, label: "Hóspede" },
 ] satisfies ReadonlyArray<{ key: PayerKind; label: string }>;
 
@@ -2892,10 +2892,30 @@ function ResolveDialog({
       toast.error(e instanceof Error ? e.message : "Não foi possível resolver."),
   });
 
-  const options = payer === "owner" ? owners : payer === "provider" ? providers : [];
-  const needsWho = hasCost && payer !== "company" && payer !== "guest";
-  const paidByOptions = paidBy === "owner" ? owners : paidBy === "provider" ? providers : [];
-  const needsWhoPaid = hasCost && paidBy !== "company" && paidBy !== "guest";
+  // Proprietário e hóspede já são conhecidos pela reserva/imóvel (pedido
+  // explícito, 20/10/2026): entram sozinhos. Prestador só pergunta "qual"
+  // quando o imóvel tem mais de um vinculado (ou nenhum cadastrado).
+  const ownerId = record?.ownerContactId ?? null;
+  const propProviders = providers.filter((p) =>
+    (record?.propertyProviderIds ?? []).includes(p.id),
+  );
+  const providerChoices = propProviders.length > 0 ? propProviders : providers;
+  const autoIdFor = (k: PayerKind): string | null =>
+    k === "owner" ? ownerId : k === "provider" && providerChoices.length === 1 ? providerChoices[0].id : null;
+  const knownNames = (selectedProviderId: string | null) => ({
+    owner: record?.ownerName ?? null,
+    guest: record?.guestName ?? null,
+    provider:
+      providerChoices.length === 1
+        ? providerChoices[0].name
+        : (providers.find((p) => p.id === selectedProviderId)?.name ?? null),
+  });
+  const pickerFor = (k: PayerKind) =>
+    k === "provider" ? providerChoices.length > 1 : k === "owner" ? !ownerId : false;
+  const options = payer === "owner" ? owners : payer === "provider" ? providerChoices : [];
+  const needsWho = hasCost && pickerFor(payer);
+  const paidByOptions = paidBy === "owner" ? owners : paidBy === "provider" ? providerChoices : [];
+  const needsWhoPaid = hasCost && pickerFor(paidBy);
 
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
@@ -2960,9 +2980,10 @@ function ResolveDialog({
                   </span>
                   <PayerButtonGroup
                     value={payer}
+                    names={knownNames(payerId)}
                     onSelect={(k) => {
                       setPayer(k);
-                      setPayerId(null);
+                      setPayerId(autoIdFor(k));
                     }}
                   />
                 </div>
@@ -2972,9 +2993,10 @@ function ResolveDialog({
                   </span>
                   <PayerButtonGroup
                     value={paidBy}
+                    names={knownNames(paidById)}
                     onSelect={(k) => {
                       setPaidBy(k);
-                      setPaidById(null);
+                      setPaidById(autoIdFor(k));
                     }}
                   />
                 </div>
