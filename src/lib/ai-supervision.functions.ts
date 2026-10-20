@@ -178,11 +178,14 @@ export const answerEscalation = createServerFn({ method: "POST" })
     // Decisões operacionais com ação, ou "Aguardar o horário oficial": nada a dizer ao hóspede.
     // Cartões proativos são internos (ação ou "virar conhecimento?") — nunca falam com o hóspede.
     const proactive = !!(esc as { context_snapshot?: { proactive?: boolean } } | null)?.context_snapshot?.proactive;
+    // Cartão de aprendizado da resposta dada direto no Airbnb: o hóspede já recebeu.
+    const hostLearning = !!(esc as { context_snapshot?: { host_learning?: boolean } } | null)?.context_snapshot?.host_learning;
     // Regra (19/10/2026): a IA responde a tudo. Toda decisão sobre o pedido do
     // hóspede vira UMA resposta na hora. Silêncio só em: "Eu assumo", cartão de
     // conhecimento (fact proativo), ação técnica executada no sistema ou "Aguardar".
     const silentDecision =
       takeover ||
+      hostLearning ||
       (proactive && spec?.kind === "fact") ||
       action !== "none" ||
       data.answer === "Aguardar o horário oficial";

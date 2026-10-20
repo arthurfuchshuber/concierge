@@ -1039,6 +1039,11 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
       await purgePendingChatForThread(admin, m.threadId);
       // O anfitrião já respondeu direto no Airbnb: a pergunta da IA à equipe
       // perde o sentido e sai da tela (já entregue, a IA não repete).
+      const { data: openAsks } = await admin
+        .from("ai_human_escalations")
+        .select("id, owner_id, property_id, agent_type, guest_name, question_to_human, context_snapshot")
+        .eq("conversation_id", c.id)
+        .eq("status", "pending");
       await admin
         .from("ai_human_escalations")
         .update({
@@ -1049,6 +1054,16 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
         } as never)
         .eq("conversation_id", c.id)
         .eq("status", "pending");
+      try {
+        const { offerHostAnswerLearning } = await import("@/lib/ai/human-loop/host-answer-learning.server");
+        await offerHostAnswerLearning(admin as never, {
+          conversationId: c.id,
+          hostText: m.text,
+          openAsks: (openAsks ?? []) as never,
+        });
+      } catch (e) {
+        console.error("[channex-messages] oferta de aprendizado falhou", (e as Error)?.message);
+      }
     }
     if (m.messageId) {
       const { data: dup } = await admin
