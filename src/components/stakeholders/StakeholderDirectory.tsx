@@ -461,7 +461,6 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
 
   const pageTabs = newLayout ? (
     <div className="mb-4">
-      {kind === "owner" ? <ConnectedAccountsBar /> : null}
       <Stepper
         withIcons
         steps={[
@@ -558,6 +557,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           </p>
         )}
       </div>
+      {newLayout && kind === "owner" ? <div className="mb-4"><ConnectedAccountsBar /></div> : null}
 
       {isLoading ? (
         <LoadingListState count={4} />
