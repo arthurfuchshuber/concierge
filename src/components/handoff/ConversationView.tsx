@@ -277,9 +277,13 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
   const askSpec = useMemo(() => readDecisionSpec(pendingAsk?.context_snapshot), [pendingAsk]);
   const askNeedsKnowledge =
     (!askSpec || canBecomeKnowledge(askSpec.kind)) && !(askSpec && chosenOption && isTakeoverOption(chosenOption));
+  const askHostLearning = !!(pendingAsk?.context_snapshot as { host_learning?: boolean } | null)?.host_learning;
   useEffect(() => {
     setChosenOption(null);
     setSaveKnowledge(null);
+    // Resposta dada direto no Airbnb: chega mapeada e editável.
+    const draft = (pendingAsk?.context_snapshot as { host_learning?: boolean; draft?: string } | null);
+    if (draft?.host_learning && typeof draft.draft === "string") setAskText(draft.draft);
   }, [pendingAsk?.id]);
 
   const tagItemsFn = useServerFn(getTagItemsForConversation);
