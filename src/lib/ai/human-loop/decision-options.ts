@@ -40,6 +40,7 @@ const AMENITY =
 export function buildDecisionSpec(guestMessage: string, kind?: DecisionKind): DecisionSpec {
   const m = norm(guestMessage ?? "");
   if (kind === "operational") return { kind, options: ["Sim, pode", "Não"] };
+  if (OPEN_QUESTION.test(m)) return { kind: kind ?? "fact", options: [] };
   if (AMENITY.test(m)) {
     return {
       kind: "fact",
@@ -51,6 +52,13 @@ export function buildDecisionSpec(guestMessage: string, kind?: DecisionKind): De
   }
   return { kind: kind ?? "fact", options: ["Sim", "Não", TAKEOVER_OPTION] };
 }
+
+/**
+ * Pergunta ABERTA (dias, horários, onde, como, qual, senha…): "Sim/Não" não
+ * responde nada. Sai sem botões → o cartão abre o campo de resposta livre.
+ */
+const OPEN_QUESTION =
+  /\b(qua(l|is)|quando|onde|como|quanto|quantos?|que horas?|horarios?|dias?|endereco|senha|codigo|numero|telefone|contato|what|when|where|how|which|cual|cuando|donde|como)\b/;
 
 /**
  * Opção "eu assumo": a equipe passa a responder direto ao hóspede (ex.: dúvida

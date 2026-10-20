@@ -1037,6 +1037,18 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
     if (!automated) {
       await admin.from("property_chat_conversations").update(pausePatch()).eq("id", c.id);
       await purgePendingChatForThread(admin, m.threadId);
+      // O anfitrião já respondeu direto no Airbnb: a pergunta da IA à equipe
+      // perde o sentido e sai da tela (já entregue, a IA não repete).
+      await admin
+        .from("ai_human_escalations")
+        .update({
+          status: "answered",
+          human_response: m.text.slice(0, 2000),
+          resolved_at: new Date().toISOString(),
+          applied_to_guest: true,
+        } as never)
+        .eq("conversation_id", c.id)
+        .eq("status", "pending");
     }
     if (m.messageId) {
       const { data: dup } = await admin

@@ -30,9 +30,21 @@ describe("decisões por botões", () => {
 import { isTakeoverOption, TAKEOVER_OPTION } from "../human-loop/decision-options";
 describe("assumir a conversa", () => {
   it("dúvida aberta oferece 'Eu assumo a conversa' e ela é reconhecida", () => {
-    const s = buildDecisionSpec("Qual a senha do wifi?");
+    const s = buildDecisionSpec("O condomínio libera a piscina à noite?");
     expect(s.options).toContain(TAKEOVER_OPTION);
     expect(isTakeoverOption(TAKEOVER_OPTION)).toBe(true);
     expect(isTakeoverOption("Sim")).toBe(false);
+  });
+});
+
+import { buildDecisionSpec as build2, readDecisionSpec as read2 } from "@/lib/ai/human-loop/decision-options";
+describe("perguntas abertas", () => {
+  it("dias de coleta de lixo não recebem Sim/Não", () => {
+    const s = build2("Quais são os dias da coleta de lixo aqui na rua?");
+    expect(s.options).toEqual([]);
+    expect(read2({ decision: s })).toBeNull();
+  });
+  it("pergunta de amenidade mantém botões", () => {
+    expect(build2("Tem ferro de passar?").options).toContain("Não tem");
   });
 });
