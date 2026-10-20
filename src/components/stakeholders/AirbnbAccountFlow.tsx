@@ -674,6 +674,7 @@ function AirbnbAccountFlowInner({
   const syncFn = useServerFn(syncExistingProperty);
   const pairFn = useServerFn(syncAirbnbPair);
   const dismissFn = useServerFn(setPropertySyncDismissed);
+  const linkTwinFn = useServerFn(linkTwin);
 
   const [step, setStep] = useState<Step>("start");
   const [channelId, setChannelId] = useState<string | null>(null);
@@ -699,6 +700,8 @@ function AirbnbAccountFlowInner({
   const [formOpen, setFormOpen] = useState(false);
   /** De → para: proprietário de cada anúncio escolhido (2 ou mais). */
   const [pairOwners, setPairOwners] = useState<Record<string, string>>({});
+  // Gêmeos escolhidos no import: anúncio gêmeo → anúncio principal (mesmo imóvel físico).
+  const [twinOf, setTwinOf] = useState<Record<string, string>>({});
   /** Quem recebe o proprietário recém-cadastrado: um anúncio ou o fluxo de 1 anúncio. */
   const [createFor, setCreateFor] = useState<string | null>(null);
   /** Sincronizar imóvel existente. */
@@ -765,6 +768,7 @@ function AirbnbAccountFlowInner({
     setValRes(null);
     setModeChoice("light");
     setPairOwners({});
+    setTwinOf({});
     setCreateFor(null);
     setSyncListing(null);
     setSyncRes(null);
@@ -1056,9 +1060,13 @@ function AirbnbAccountFlowInner({
   }
   async function doImport() {
     if (!channelId) return;
+    const twins = picked.length > 1 ? Object.entries(twinOf).filter(([t, p]) => picked.includes(t) && picked.includes(p)) : [];
+    const twinIds = new Set(twins.map(([t]) => t));
     const items =
       picked.length > 1
-        ? picked.map((listingId) => ({ listingId, ownerId: pairOwners[listingId] }))
+        ? picked
+            .filter((id) => !twinIds.has(id))
+            .map((listingId) => ({ listingId, ownerId: pairOwners[listingId] }))
         : ownerId
           ? picked.map((listingId) => ({ listingId, ownerId }))
           : [];
@@ -1066,9 +1074,19 @@ function AirbnbAccountFlowInner({
     setStep("importing");
     try {
       const res = await importFn({ data: { accountOwnerId, items } });
+      // Gêmeos marcados pelo usuário: amarra cada um ao anúncio principal já importado (unidade própria no PriceLabs).
+      const twinErrors: string[] = [];
+      for (const [twinListingId, primaryListingId] of twins) {
+        try {
+          await linkTwinFn({ data: { channelId, primaryListingId, twinListingId } });
+        } catch (e) {
+          twinErrors.push(e instanceof Error ? e.message : "falha ao unir gêmeo");
+        }
+      }
+      if (twinErrors.length)
+        toast.error(`Não foi possível unir ${twinErrors.length} anúncio(s) gêmeo(s). Una pela aba de gêmeos. ${twinErrors[0]}`);
       setResult(res);
       refreshAll();
-      // Gêmeos: só sugestões (nunca unimos sozinhos); atualiza as sugestões já exibidas no painel.
       qc.invalidateQueries({ queryKey: ["twin-suggestions"] });
       setStep("result");
     } catch (e) {
@@ -1890,7 +1908,8 @@ function AirbnbAccountFlowInner({
               />
               {(() => {
                 const multi = step === "pairs";
-                const ownerOf = (id: string) => (multi ? (pairOwners[id] ?? null) : ownerId);
+                const ownerOf = (id: string): string | null =>
+                  multi ? (pairOwners[twinOf[id] ?? id] ?? null) : ownerId;
                 const linked = picked.filter((id) => ownerOf(id)).length;
                 const missingN = n - linked;
                 const ready = n > 0 && missingN === 0;
@@ -1928,6 +1947,43 @@ function AirbnbAccountFlowInner({
                                 ) : null}
                               </span>
                             </span>
+                            {multi ? (
+                              <label className="flex min-w-0 items-center gap-2 text-[11.5px] text-muted-foreground">
+                                <span className="shrink-0">Gêmeo de:</span>
+                                <select
+                                  value={twinOf[id] ?? ""}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setTwinOf((c) => {
+                                      const next = { ...c };
+                                      if (v) next[id] = v;
+                                      else delete next[id];
+                                      // Um anúncio principal nunca é gêmeo de outro (evita cadeia).
+                                      for (const k of Object.keys(next)) if (next[k] === id) delete next[k];
+                                      return next;
+                                    });
+                                  }}
+                                  className="min-w-0 flex-1 truncate rounded-[9px] bg-foreground/[0.04] px-2 py-1.5 text-[12px] text-foreground"
+                                >
+                                  <option value="">Nenhum (imóvel próprio)</option>
+                                  {picked
+                                    .filter((o) => o !== id && !twinOf[o])
+                                    .map((o) => {
+                                      const ol = (inv.data?.listings ?? []).find((x) => x.listingId === o);
+                                      return (
+                                        <option key={o} value={o}>
+                                          {ol?.title ?? o}
+                                        </option>
+                                      );
+                                    })}
+                                </select>
+                              </label>
+                            ) : null}
+                            {multi && twinOf[id] ? (
+                              <small className="text-[11px] text-muted-foreground">
+                                Mesmo imóvel físico: usa o proprietário do anúncio principal.
+                              </small>
+                            ) : (
                             <OwnerPicker
                               row
                               value={ownerOf(id)}
@@ -1943,6 +1999,7 @@ function AirbnbAccountFlowInner({
                                 setFormOpen(true);
                               }}
                             />
+                            )}
                           </div>
                         );
                       })}
