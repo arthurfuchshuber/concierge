@@ -166,6 +166,10 @@ async function call(method: string, path: string, body?: unknown): Promise<any> 
 }
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
+/** "Hoje" no fuso do imóvel (Brasil): em UTC o dia vira às 21h e a noite de hoje sumia do envio. */
+export function todayLocalIso(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(now);
+}
 
 /**
  * Ativa o canal na Channex e confirma relendo o estado (até 3 tentativas). Nunca engole falha:
@@ -283,7 +287,7 @@ async function activeBookingNights(t: SafeMapTarget, windowEnd?: string, cache?:
   // Bloqueios do anfitrião / Airbnb (iCal) e reservas registradas no ConciergeIA também fecham a data.
   if (t.propertyId) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const today = iso(new Date());
+    const today = todayLocalIso();
     const { data } = await supabaseAdmin
       .from("property_reservations")
       .select("checkin_date, checkout_date, status, source")
@@ -328,7 +332,7 @@ export async function syncRealAvailability(t: SafeMapTarget, userId: string | nu
     for (const n of closed ?? []) nights.add(n);
   }
 
-  const from = new Date();
+  const from = new Date(`${todayLocalIso()}T00:00:00Z`);
   const merged: Parameters<typeof applyCalendarChanges>[0] = [];
   for (let i = 0; i <= 365; i++) {
     const date = iso(new Date(from.getTime() + i * 86_400_000));
