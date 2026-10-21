@@ -1048,10 +1048,10 @@ export async function runHospitalityAgent(params: {
       ? "hóspede pediu atendimento humano"
       : forcedHuman
         ? finalValidation.needsHuman
-          ? "validação anti-alucinação pediu humano em tema sensível"
+          ? "a IA bloqueou a própria resposta por segurança e precisa da equipe (o hóspede NÃO pediu humano)"
           : reflection.needsHuman
-            ? "autoavaliação pediu humano em tema sensível"
-            : "planejador sinalizou necessidade de humano em tema sensível"
+            ? "a IA ficou em dúvida sobre a resposta e precisa da equipe (o hóspede NÃO pediu humano)"
+            : "a IA precisa da equipe neste tema sensível (o hóspede NÃO pediu humano)"
         : null;
 
     // Entrega da decisão da equipe: o humano acabou de responder — nunca reabre
