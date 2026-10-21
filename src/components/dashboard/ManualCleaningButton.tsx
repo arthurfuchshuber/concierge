@@ -343,7 +343,6 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
         setOpen(false);
       }}
     >
-    >
         {conflict ? (
           <>
             <FilterScreenHeader
