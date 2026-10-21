@@ -318,6 +318,7 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
       open={open}
       title={conflict ? "Já existe uma limpeza" : "Nova limpeza"}
       progress={conflict ? "" : `${stepNumber} de 6`}
+      onBack={conflict ? () => setConflict(null) : step > 1 && !busy ? () => setStep(step - 1) : undefined}
       footer={conflict ? null : (
               <button
                 type="button"
@@ -591,15 +592,21 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
                 question={QUESTIONS[5]}
                 onReopen={() => {}}
               >
-                <MoneyInput
-                  cents={cents}
-                  onChange={(c) => {
-                    setCents(c);
-                    setCentsEdited(true);
-                  }}
-                  placeholder="0,00"
-                  disabled={busy}
-                />
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-display text-[14px] font-bold text-muted-foreground">
+                    R$
+                  </span>
+                  <MoneyInput
+                    cents={cents}
+                    onChange={(c) => {
+                      setCents(c);
+                      setCentsEdited(true);
+                    }}
+                    placeholder="0,00"
+                    disabled={busy}
+                    className="h-11 pl-10 font-display text-[16px] font-bold tabular-nums"
+                  />
+                </div>
                 <span className="mt-1.5 block text-[11px] leading-snug text-muted-foreground">
                   Preenchido com o valor da limpeza {type === "completa" ? "completa" : "normal"}{" "}
                   deste imóvel. Altere se precisar.

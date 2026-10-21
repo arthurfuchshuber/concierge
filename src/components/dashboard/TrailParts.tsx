@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Check, Home, MapPin, Search, User, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Check, Home, MapPin, Search, User, type LucideIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -178,6 +178,7 @@ export function TrailDialog({
   title,
   progress,
   footer,
+  onBack,
   children,
 }: {
   open: boolean;
@@ -185,6 +186,8 @@ export function TrailDialog({
   title: string;
   progress: string;
   footer: ReactNode;
+  /** Passo anterior. Sem ele (1º passo), o botão secundário vira "Cancelar". */
+  onBack?: () => void;
   children: ReactNode;
 }) {
   return (
@@ -193,15 +196,42 @@ export function TrailDialog({
         onOpenAutoFocus={(e) => e.preventDefault()}
         className="flex h-[min(680px,90dvh)] w-[min(560px,calc(100vw-24px))] max-w-none flex-col gap-0 overflow-hidden border-[var(--panel-border)] bg-[var(--panel)] p-0 sm:max-w-none"
       >
-        <div className="flex shrink-0 items-center gap-3 border-b border-[var(--panel-div)] py-3.5 pl-5 pr-14">
-          <DialogTitle className="ds-eyebrow min-w-0 flex-1 text-muted-foreground">{title}</DialogTitle>
-          <span className="shrink-0 text-[12px] font-semibold tabular-nums text-foreground/55">{progress}</span>
+        <div className="flex shrink-0 items-center gap-2 border-b border-[var(--panel-div)] py-3 pl-3 pr-14">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Voltar ao passo anterior"
+              className="grid size-8 shrink-0 place-items-center rounded-full text-foreground/70 transition-colors hover:bg-foreground/[0.06]"
+            >
+              <ArrowLeft className="size-4" />
+            </button>
+          ) : (
+            <span className="w-2 shrink-0" />
+          )}
+          <DialogTitle className="min-w-0 flex-1 break-words font-display text-[16px] font-bold leading-snug text-foreground">
+            {title}
+          </DialogTitle>
+          {progress ? (
+            <span className="shrink-0 font-display text-[12px] font-semibold tabular-nums text-foreground/55">{progress}</span>
+          ) : null}
         </div>
         <DialogDescription className="sr-only">Responda as perguntas, uma de cada vez.</DialogDescription>
-        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4">
+        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 sm:px-5">
           {children}
         </div>
-        {footer ? <div className="shrink-0 border-t border-[var(--panel-div)] px-5 py-3.5">{footer}</div> : null}
+        {footer ? (
+          <div className="flex shrink-0 items-center gap-2 border-t border-[var(--panel-div)] px-4 py-3 sm:px-5">
+            <button
+              type="button"
+              onClick={() => (onBack ? onBack() : onOpenChange(false))}
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-[10px] border border-border px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-foreground/[0.05]"
+            >
+              {onBack ? "Voltar" : "Cancelar"}
+            </button>
+            <div className="min-w-0 flex-1">{footer}</div>
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

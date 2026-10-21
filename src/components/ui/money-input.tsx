@@ -32,6 +32,7 @@ export function MoneyInput({
   onBlur,
   placeholder,
   disabled,
+  className,
 }: {
   cents: number | null;
   onChange: (cents: number | null) => void;
@@ -40,6 +41,7 @@ export function MoneyInput({
   onBlur?: () => void;
   placeholder?: string;
   disabled?: boolean;
+  className?: string;
 }) {
   const [text, setText] = useState(() => centsToReaisInput(cents));
   // Só resincroniza o texto exibido quando o valor muda por FORA deste
@@ -59,6 +61,7 @@ export function MoneyInput({
       inputMode="decimal"
       placeholder={placeholder ?? "0,00"}
       disabled={disabled}
+      className={className}
       value={text}
       onChange={(e) => {
         const raw = e.target.value;
