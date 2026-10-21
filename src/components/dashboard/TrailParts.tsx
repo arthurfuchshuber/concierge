@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Check, Search, type LucideIcon } from "lucide-react";
+import { Check, Home, MapPin, Search, User, type LucideIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 /**
@@ -153,7 +154,7 @@ export function PickList({
           />
         </label>
       )}
-      <div className="sg-elegant-scroll max-h-[168px] overflow-y-auto overscroll-contain">
+      <div className="sg-elegant-scroll max-h-[min(48dvh,380px)] overflow-y-auto overscroll-contain">
         {empty ? (
           <p className="px-3.5 py-3 text-[12px] text-muted-foreground">{empty}</p>
         ) : (
@@ -164,3 +165,123 @@ export function PickList({
   );
 }
 
+
+/**
+ * JANELA DA TRILHA (pedido explícito, 20/10/2026, com prints): "abrir a
+ * janela inteira e grande ao centro da tela" e "o passo a passo precisa seguir
+ * sempre com o mesmo tamanho de janela". Altura FIXA (até 90% da tela) do
+ * primeiro ao último passo; só o miolo rola. Cabeçalho e botão final fixos.
+ */
+export function TrailDialog({
+  open,
+  onOpenChange,
+  title,
+  progress,
+  footer,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: string;
+  progress: string;
+  footer: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="flex h-[min(680px,90dvh)] w-[min(560px,calc(100vw-24px))] max-w-none flex-col gap-0 overflow-hidden border-[var(--panel-border)] bg-[var(--panel)] p-0 sm:max-w-none"
+      >
+        <div className="flex shrink-0 items-center gap-3 border-b border-[var(--panel-div)] py-3.5 pl-5 pr-14">
+          <DialogTitle className="ds-eyebrow min-w-0 flex-1 text-muted-foreground">{title}</DialogTitle>
+          <span className="shrink-0 text-[12px] font-semibold tabular-nums text-foreground/55">{progress}</span>
+        </div>
+        <DialogDescription className="sr-only">Responda as perguntas, uma de cada vez.</DialogDescription>
+        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4">
+          {children}
+        </div>
+        <div className="shrink-0 border-t border-[var(--panel-div)] px-5 py-3.5">{footer}</div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Linha de imóvel com foto, nome inteiro (quebra, nunca corta), proprietário e cidade. */
+export function PropertyPickRow({
+  name,
+  photoUrl,
+  ownerName,
+  city,
+  extra,
+  selected,
+  last,
+  onClick,
+}: {
+  name: string;
+  photoUrl?: string | null;
+  ownerName?: string | null;
+  city?: string | null;
+  extra?: string | null;
+  selected: boolean;
+  last?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={cn(
+        "flex w-full min-w-0 items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-foreground/[0.04]",
+        !last && "border-b border-[var(--panel-div)]",
+        selected && "bg-accent/[0.10]",
+      )}
+    >
+      <span className="relative size-14 shrink-0 overflow-hidden rounded-[10px] bg-foreground/[0.06]">
+        {photoUrl ? (
+          <img src={photoUrl} alt="" loading="lazy" className="size-full object-cover" />
+        ) : (
+          <Home className="absolute inset-0 m-auto size-5 text-muted-foreground" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        {extra ? (
+          <span className="block text-[13px] font-bold leading-snug text-foreground">{extra}</span>
+        ) : null}
+        <span
+          className={cn(
+            "block break-words leading-snug",
+            extra ? "text-[12px] text-foreground/80" : "text-[13px] font-semibold text-foreground",
+          )}
+        >
+          {name}
+        </span>
+        {(ownerName || city) && (
+          <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+            {ownerName && (
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <User className="size-3 shrink-0" />
+                <span className="break-words">{ownerName}</span>
+              </span>
+            )}
+            {city && (
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <MapPin className="size-3 shrink-0" />
+                <span className="break-words">{city}</span>
+              </span>
+            )}
+          </span>
+        )}
+      </span>
+      <span
+        className={cn(
+          "grid size-5 shrink-0 place-items-center rounded-full",
+          selected ? "bg-accent text-accent-foreground" : "ring-1 ring-inset ring-foreground/20",
+        )}
+      >
+        {selected && <Check className="size-3" strokeWidth={3} />}
+      </span>
+    </button>
+  );
+}
