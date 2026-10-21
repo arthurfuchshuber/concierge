@@ -13,13 +13,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { MoneyInput } from "@/components/ui/money-input";
 import {
-  FILTER_PANEL_CLASS,
-  FILTER_PANEL_OFFSET,
   FilterDateCalendar,
-  FitPopoverContent,
   FilterOptionRow,
   FilterScreenHeader,
 } from "@/components/dashboard/filter-panel";
@@ -32,7 +28,7 @@ import {
 } from "@/lib/manual-cleaning.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { cn } from "@/lib/utils";
-import { Choice, PickList, Step, ddmm, norm } from "@/components/dashboard/TrailParts";
+import { Choice, PickList, PropertyPickRow, Step, TrailDialog, ddmm, norm } from "@/components/dashboard/TrailParts";
 
 /**
  * "NOVA LIMPEZA" — o "+" ao lado de Filtros e o quadrante em perguntas
@@ -307,8 +303,32 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
   const stepNumber = Math.min(step, 6);
 
   return (
-    <Popover
+    <>
+      <button
+        type="button"
+        title="Nova limpeza"
+        aria-label="Nova limpeza"
+        onClick={() => setOpen(true)}
+        className={`${ACTION_SEGMENT} text-accent`}
+      >
+        <Plus className={ACTION_ICON} />
+        <span className="lg:hidden">Limpeza</span>
+      </button>
+    <TrailDialog
       open={open}
+      title={conflict ? "Já existe uma limpeza" : "Nova limpeza"}
+      progress={conflict ? "" : `${stepNumber} de 6`}
+      footer={conflict ? null : (
+              <button
+                type="button"
+                disabled={!ready || busy}
+                onClick={() => void submit("ask")}
+                className="ds-surface inline-flex h-10 w-full items-center justify-center gap-1.5 bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-2 text-[13px] font-bold text-white disabled:opacity-40"
+              >
+                <Plus className="size-3.5 shrink-0" />
+                <span className="truncate">{busy ? "Criando…" : "Criar limpeza"}</span>
+              </button>
+      )}
       onOpenChange={(next) => {
         if (next) {
           setOpen(true);
@@ -323,23 +343,7 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
         setOpen(false);
       }}
     >
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          title="Nova limpeza"
-          aria-label="Nova limpeza"
-          className={`${ACTION_SEGMENT} text-accent`}
-        >
-          <Plus className={ACTION_ICON} />
-          <span className="lg:hidden">Limpeza</span>
-        </button>
-      </PopoverTrigger>
-      <FitPopoverContent
-        align="end"
-        sideOffset={FILTER_PANEL_OFFSET}
-        className={`${FILTER_PANEL_CLASS} w-[300px]`}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
+    >
         {conflict ? (
           <>
             <FilterScreenHeader
@@ -393,13 +397,7 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
           </>
         ) : (
           <>
-            <div className="flex items-center justify-between gap-2 border-b border-[var(--panel-div)] px-3.5 py-3">
-              <span className="ds-eyebrow text-muted-foreground">Nova limpeza</span>
-              <span className="text-[11px] font-semibold tabular-nums text-foreground/55">
-                {stepNumber} de 6
-              </span>
-            </div>
-            <ol className="flex flex-col px-3.5 pb-0 pt-3.5">
+            <ol className="flex flex-col">
               <Step
                 n={1}
                 active={step === 1}
@@ -464,15 +462,22 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
                             : null
                     }
                   >
-                    {shownRes.map((r, i) => (
-                      <FilterOptionRow
-                        key={r.id}
-                        label={`${resLabel(r)} · ${propName(r.propertyId)}`}
-                        selected={r.id === reservationId}
-                        onClick={() => pickProperty(r.propertyId, r.id)}
-                        last={i === shownRes.length - 1}
-                      />
-                    ))}
+                    {shownRes.map((r, i) => {
+                      const p = properties.find((x) => x.id === r.propertyId);
+                      return (
+                        <PropertyPickRow
+                          key={r.id}
+                          extra={resLabel(r)}
+                          name={propName(r.propertyId)}
+                          photoUrl={p?.photoUrl}
+                          ownerName={p?.ownerName}
+                          city={p?.city}
+                          selected={r.id === reservationId}
+                          onClick={() => pickProperty(r.propertyId, r.id)}
+                          last={i === shownRes.length - 1}
+                        />
+                      );
+                    })}
                   </PickList>
                 ) : (
                   <PickList
@@ -490,9 +495,12 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
                     }
                   >
                     {shownProps.map((p, i) => (
-                      <FilterOptionRow
+                      <PropertyPickRow
                         key={p.id}
-                        label={p.name}
+                        name={p.name}
+                        photoUrl={p.photoUrl}
+                        ownerName={p.ownerName}
+                        city={p.city}
                         selected={p.id === propertyId}
                         onClick={() => pickProperty(p.id, null)}
                         last={i === shownProps.length - 1}
@@ -599,20 +607,9 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
                 </span>
               </Step>
             </ol>
-            <div className="border-t border-[var(--panel-div)] px-3.5 py-3">
-              <button
-                type="button"
-                disabled={!ready || busy}
-                onClick={() => void submit("ask")}
-                className="ds-surface inline-flex h-8 w-full items-center justify-center gap-1.5 bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-2 text-[12px] font-bold text-white disabled:opacity-40"
-              >
-                <Plus className="size-3 shrink-0" />
-                <span className="truncate">{busy ? "Criando…" : "Criar limpeza"}</span>
-              </button>
-            </div>
           </>
         )}
-      </FitPopoverContent>
-    </Popover>
+    </TrailDialog>
+    </>
   );
 }

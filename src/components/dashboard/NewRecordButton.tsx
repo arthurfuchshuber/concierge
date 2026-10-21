@@ -2,18 +2,13 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CalendarCheck, Home, Plus } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  FILTER_PANEL_CLASS,
-  FILTER_PANEL_COLLISION,
-  FILTER_PANEL_OFFSET,
-  FilterOptionRow,
-} from "@/components/dashboard/filter-panel";
 import { ACTION_ICON, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
 import {
   Choice,
   PickList,
+  PropertyPickRow,
   Step,
+  TrailDialog,
   ddmm,
   norm,
 } from "@/components/dashboard/TrailParts";
@@ -140,37 +135,37 @@ export function NewRecordButton() {
 
   return (
     <>
-      <Popover
-        open={open}
-        onOpenChange={(next) => {
-          setOpen(next);
-        }}
+      <button
+        type="button"
+        title="Novo registro"
+        aria-label="Novo registro"
+        onClick={() => setOpen(true)}
+        className={`${ACTION_SEGMENT} text-accent`}
       >
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            title="Novo registro"
-            aria-label="Novo registro"
-            className={`${ACTION_SEGMENT} text-accent`}
-          >
-            <Plus className={ACTION_ICON} />
-            <span className="lg:hidden">Registro</span>
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="end"
-          sideOffset={FILTER_PANEL_OFFSET}
-          collisionPadding={FILTER_PANEL_COLLISION}
-          className={`${FILTER_PANEL_CLASS} w-[300px]`}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <div className="flex items-center justify-between gap-2 border-b border-[var(--panel-div)] px-3.5 py-3">
-            <span className="ds-eyebrow text-muted-foreground">Novo registro</span>
-            <span className="text-[11px] font-semibold tabular-nums text-foreground/55">
-              {Math.min(step, 3)} de 3
-            </span>
-          </div>
-          <ol className="flex flex-col px-3.5 pb-0 pt-3.5">
+        <Plus className={ACTION_ICON} />
+        <span className="lg:hidden">Registro</span>
+      </button>
+      <TrailDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Novo registro"
+        progress={`${Math.min(step, 3)} de 3`}
+        footer={
+            <button
+              type="button"
+              disabled={!ready}
+              onClick={() => {
+                if (!property || !category) return;
+                setSheet({ propertyId: property.id, reservationId, category });
+                setOpen(false);
+              }}
+              className="ds-surface inline-flex h-10 w-full items-center justify-center gap-1.5 bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-2 text-[13px] font-bold text-white disabled:opacity-40"
+            >
+              <span className="truncate">Continuar</span>
+            </button>
+        }
+      >
+          <ol className="flex flex-col">
             <Step
               n={1}
               active={step === 1}
@@ -236,9 +231,13 @@ export function NewRecordButton() {
                   }
                 >
                   {shownRes.map((r, i) => (
-                    <FilterOptionRow
+                    <PropertyPickRow
                       key={r.id}
-                      label={`${resLabel(r)} · ${propName(r.propertyId)}`}
+                      extra={resLabel(r)}
+                      name={propName(r.propertyId)}
+                      photoUrl={properties.find((x) => x.id === r.propertyId)?.photoUrl}
+                      ownerName={properties.find((x) => x.id === r.propertyId)?.ownerName}
+                      city={properties.find((x) => x.id === r.propertyId)?.city}
                       selected={r.id === reservationId}
                       onClick={() => pickProperty(r.propertyId, r.id)}
                       last={i === shownRes.length - 1}
@@ -261,9 +260,12 @@ export function NewRecordButton() {
                   }
                 >
                   {shownProps.map((p, i) => (
-                    <FilterOptionRow
+                    <PropertyPickRow
                       key={p.id}
-                      label={p.name}
+                      name={p.name}
+                      photoUrl={p.photoUrl}
+                      ownerName={p.ownerName}
+                      city={p.city}
                       selected={p.id === propertyId}
                       onClick={() => pickProperty(p.id, null)}
                       last={i === shownProps.length - 1}
@@ -307,22 +309,7 @@ export function NewRecordButton() {
               </PickList>
             </Step>
           </ol>
-          <div className="border-t border-[var(--panel-div)] px-3.5 py-3">
-            <button
-              type="button"
-              disabled={!ready}
-              onClick={() => {
-                if (!property || !category) return;
-                setSheet({ propertyId: property.id, reservationId, category });
-                setOpen(false);
-              }}
-              className="ds-surface inline-flex h-8 w-full items-center justify-center gap-1.5 bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-2 text-[12px] font-bold text-white disabled:opacity-40"
-            >
-              <span className="truncate">Continuar</span>
-            </button>
-          </div>
-        </PopoverContent>
-      </Popover>
+      </TrailDialog>
 
       {sheet && (
         <RecordSituationSheet

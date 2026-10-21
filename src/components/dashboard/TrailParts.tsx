@@ -70,7 +70,7 @@ export function Step({
             <span className="block truncate text-[10.5px] leading-tight text-muted-foreground">
               {question}
             </span>
-            <span className="mt-0.5 block truncate text-[13px] font-bold leading-snug text-foreground">
+            <span className="mt-0.5 block break-words text-[13px] font-bold leading-snug text-foreground">
               {answer}
             </span>
           </button>
