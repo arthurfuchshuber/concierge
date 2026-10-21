@@ -2039,6 +2039,8 @@ export type NewRecordProperty = {
   ownerName: string | null;
   ownerPhone: string | null;
   ownerPhoneCountry: string | null;
+  photoUrl: string | null;
+  city: string | null;
 };
 export type NewRecordReservation = {
   id: string;
@@ -2154,6 +2156,8 @@ export const getNewRecordOptions = createServerFn({ method: "POST" })
           ownerName: o?.name ?? null,
           ownerPhone: o?.phone ?? null,
           ownerPhoneCountry: o?.country ?? null,
+          photoUrl: p.hero_image_url ?? null,
+          city: p.city ?? null,
         };
       }),
       reservations: resRows.map((r) => ({
