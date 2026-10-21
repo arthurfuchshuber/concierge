@@ -51,8 +51,29 @@ export const getCleaningProviderBoard = createServerFn({ method: "POST" })
         .limit(5000),
     ]);
 
-    const provIds = new Set((provs ?? []).map((p) => p.id));
-    const list = (provs ?? []).filter((p) => (p.status ?? "").toLowerCase() !== "cancelado" && (p.status ?? "") !== "canceled");
+    // Usuários de limpeza (membros com recorte) nem sempre podem ler a lista
+    // de prestadores pela RLS — o avatar ficava "?". Completa SÓ os prestadores
+    // já atribuídos/padrão dos imóveis que este usuário enxerga, da MESMA conta
+    // já validada, e só id/nome/status (nada de contato).
+    const visible = [...(provs ?? [])];
+    {
+      const have = new Set(visible.map((p) => p.id));
+      const wanted = new Set<string>();
+      for (const l of links ?? []) if (l.provider_id && !have.has(l.provider_id)) wanted.add(l.provider_id);
+      for (const r of rows ?? [])
+        if (r.assigned_provider_id && !have.has(r.assigned_provider_id)) wanted.add(r.assigned_provider_id as string);
+      if (wanted.size > 0) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: extra } = await supabaseAdmin
+          .from("service_providers")
+          .select("id, name, trade_name, member_user_id, status")
+          .eq("account_owner_id", ownerId)
+          .in("id", Array.from(wanted));
+        for (const p of extra ?? []) visible.push(p);
+      }
+    }
+    const provIds = new Set(visible.map((p) => p.id));
+    const list = visible.filter((p) => (p.status ?? "").toLowerCase() !== "cancelado" && (p.status ?? "") !== "canceled");
     const userIds = list.map((p) => p.member_user_id).filter(Boolean) as string[];
     const avatars = new Map<string, string | null>();
     if (userIds.length) {
