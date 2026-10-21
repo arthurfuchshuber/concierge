@@ -2070,7 +2070,7 @@ export const getNewRecordOptions = createServerFn({ method: "POST" })
     const from = new Date(Date.now() - 3 * 3600_000 - 7 * 86400_000).toISOString().slice(0, 10);
     const to = new Date(Date.now() - 3 * 3600_000 + 90 * 86400_000).toISOString().slice(0, 10);
     const [{ data: props }, { data: res }] = await Promise.all([
-      sb.from("properties").select("id, name, owner_contact_id").in("id", propIds).order("name"),
+      sb.from("properties").select("id, name, owner_contact_id, hero_image_url, city").in("id", propIds).order("name"),
       sb
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
@@ -2081,7 +2081,7 @@ export const getNewRecordOptions = createServerFn({ method: "POST" })
         .limit(400),
     ]);
 
-    type PropRow = { id: string; name: string | null; owner_contact_id: string | null };
+    type PropRow = { id: string; name: string | null; owner_contact_id: string | null; hero_image_url: string | null; city: string | null };
     const propRows = (props ?? []) as PropRow[];
     const ownerIds = Array.from(
       new Set(propRows.map((p) => p.owner_contact_id).filter((v): v is string => !!v)),
