@@ -69,6 +69,7 @@ export async function buildManualCleaningRows(
     muted_until: string | null;
     done_at: string | null;
     created_at: string;
+    concluded_at: string | null;
   };
   const rows = (raw ?? []) as Row[];
   if (rows.length === 0) return [];
@@ -218,8 +219,9 @@ export async function buildManualCleaningRows(
       cleaningPriceNormalCents: p?.cleaning_price_normal_cents ?? null,
       cleaningPriceFullCents: p?.cleaning_price_full_cents ?? null,
       date,
+      // Sem reserva: só a data da limpeza (o card mostra uma data única).
       guestCheckin: linked?.checkin_date ?? date,
-      guestCheckout: linked?.checkout_date ?? date,
+      guestCheckout: linked ? linked.checkout_date : date,
       reservationCode: null,
       createdAt: r.created_at,
       status: "done",
@@ -231,6 +233,7 @@ export async function buildManualCleaningRows(
       pendingFill: false,
       ical: { hasIcal: false, matched: false, icalCheckin: null, icalCheckout: null },
       additionalGuests: [],
+      ...(r.concluded_at ? { concludedAt: r.concluded_at } : {}),
       manual: {
         id: r.id,
         cleaningType: type,
