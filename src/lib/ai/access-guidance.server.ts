@@ -146,10 +146,17 @@ export function accessGuidanceText(t: AccessTiming | null, incident: boolean, mo
     L.push("- A estadia está em andamento: use apenas o que está liberado no contexto; não invente dados de acesso.");
   }
   if (mode === "deliver") {
-    L.push(
-      "- Você PODE informar senhas, códigos e instruções de entrada. Ao fazer isso, reforce com gentileza o horário de check-in e as regras do anúncio (uma frase natural, sem tom de bronca). Siga as instruções oficiais do imóvel sem acionar a equipe.",
-      "- Se o contexto trouxer resposta da equipe sobre este acesso, ela manda: siga o que a equipe disse.",
-    );
+    if (t?.early) {
+      L.push(
+        "- Você PODE informar senhas, códigos e instruções de entrada. Ao fazer isso, reforce com gentileza o horário de check-in e as regras do anúncio (uma frase natural, sem tom de bronca). Siga as instruções oficiais do imóvel sem acionar a equipe.",
+      );
+    } else {
+      L.push(
+        "- Você PODE informar senhas, códigos e instruções de entrada. Siga as instruções oficiais do imóvel sem acionar a equipe.",
+        "- O horário de check-in JÁ PASSOU: é PROIBIDO mencionar o horário de início do check-in (ex.: \"o check-in já está permitido desde as 15h\", \"a entrada é a partir das 15h\"). Essa informação é inútil agora. Foque 100% em conduzir a entrada e peça que o hóspede avise quando estiver dentro.",
+      );
+    }
+    L.push("- Se o contexto trouxer resposta da equipe sobre este acesso, ela manda: siga o que a equipe disse.");
   } else if (mode === "deliver_not_released") {
     L.push(
       "- Ainda é ANTES do horário de check-in e o imóvel ainda NÃO foi liberado pela operação (limpeza ou saída anterior em andamento).",
