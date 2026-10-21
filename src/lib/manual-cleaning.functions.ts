@@ -85,6 +85,8 @@ export type ManualCleaningProperty = {
   id: string;
   name: string;
   ownerName: string | null;
+  photoUrl: string | null;
+  city: string | null;
   normalCents: number | null;
   fullCents: number | null;
   defaultProviderId: string | null;
@@ -130,7 +132,7 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
       sb
         .from("properties")
         .select(
-          "id, name, owner_contact_id, cleaning_price_normal_cents, cleaning_price_full_cents",
+          "id, name, owner_contact_id, cleaning_price_normal_cents, cleaning_price_full_cents, hero_image_url, city",
         )
         .in("id", propIds)
         .order("name"),
@@ -155,6 +157,8 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
       id: string;
       name: string | null;
       owner_contact_id: string | null;
+      hero_image_url: string | null;
+      city: string | null;
       cleaning_price_normal_cents: number | null;
       cleaning_price_full_cents: number | null;
     };
@@ -245,6 +249,8 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
         id: p.id,
         name: (p.name ?? "Imóvel").trim(),
         ownerName: p.owner_contact_id ? (ownerName.get(p.owner_contact_id) ?? null) : null,
+        photoUrl: p.hero_image_url ?? null,
+        city: p.city ?? null,
         normalCents: p.cleaning_price_normal_cents,
         fullCents: p.cleaning_price_full_cents,
         defaultProviderId: defaults.get(p.id) ?? null,
