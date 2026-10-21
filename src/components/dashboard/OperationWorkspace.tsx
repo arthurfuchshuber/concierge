@@ -2405,7 +2405,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       ...sortCheckoutRows(released, [kanbanCiRowsAll], todayISO),
       ...sortCheckoutRows(awaitingCheckout, [kanbanCiRowsAll], todayISO),
     ];
-  }, [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll, todayISO]);
+  }, [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll, todayISO, periodRange]);
   // "Concluídos" nunca foi limitado por Hoje/Amanhã/7 dias/Todos (a busca de
   // concluídos já ignorava esse seletor antes) — só ganha os filtros de
   // Cidade/Proprietário agora, mantendo o mesmo comportamento de período.
