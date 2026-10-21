@@ -39,7 +39,7 @@ function database(rows: Row[] = []) {
 function request(supabase: SupabaseClient): EscalationInput {
   return {
     supabase, ownerId: "owner", propertyId: "property", conversationId: "conversation",
-    agent: "concierge", trigger: "unknown_information", reason: "Confirmar senha da porta",
+    agent: "generalist", trigger: "unknown_information", reason: "Confirmar senha da porta",
     question: "Qual é a senha da porta?", guestMessage: "Qual a senha da porta?",
     contextSnapshot: { draft: { summary: "Hóspede precisa da senha da porta" } },
   };
@@ -80,6 +80,38 @@ describe("perguntas distintas não são absorvidas por cartões pendentes", () =
     const input = request(db.client);
     await askHumanSupervisor(input);
     rows[0].created_at = "2020-01-01T00:00:00.000Z";
+    await askHumanSupervisor(input);
+    expect(db.inserted).toHaveLength(2);
+  });
+  it.each([{ proactive: true }, { proactive: true, host_learning: true }])(
+    "mesmo texto em cartão auxiliar %j não absorve a dúvida do hóspede", async (flags) => {
+      const db = database();
+      const input = request(db.client);
+      await askHumanSupervisor({ ...input, contextSnapshot: flags });
+      await askHumanSupervisor(input);
+      expect(db.inserted).toHaveLength(2);
+    },
+  );
+  it("pergunta já respondida não absorve nova pergunta", async () => {
+    const rows: Row[] = [];
+    const db = database(rows);
+    const input = request(db.client);
+    await askHumanSupervisor(input);
+    rows[0].status = "answered";
+    await askHumanSupervisor(input);
+    expect(db.inserted).toHaveLength(2);
+  });
+  it("não reaproveita cartões de outro imóvel", async () => {
+    const db = database();
+    const input = request(db.client);
+    await askHumanSupervisor(input);
+    await askHumanSupervisor({ ...input, propertyId: "other-property" });
+    expect(db.inserted).toHaveLength(2);
+  });
+  it("sem conversa, cria perguntas independentes", async () => {
+    const db = database();
+    const input = { ...request(db.client), conversationId: null, propertyId: null };
+    await askHumanSupervisor(input);
     await askHumanSupervisor(input);
     expect(db.inserted).toHaveLength(2);
   });

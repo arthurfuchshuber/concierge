@@ -46,7 +46,7 @@ export async function askHumanSupervisor(input: EscalationInput): Promise<string
     // Cartões antigos, proativos ou de aprendizado não absorvem dúvidas novas.
     const normalize = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
     const escalationKey = JSON.stringify([
-      input.agent, input.trigger, normalize(input.question.slice(0, 1200)),
+      input.propertyId, input.agent, input.trigger, normalize(input.question.slice(0, 1200)),
       normalize((input.guestMessage ?? input.question).slice(0, 1200)),
       input.decisionKind ?? null, !!snapshot.proactive, !!snapshot.host_learning,
     ]);
@@ -55,7 +55,6 @@ export async function askHumanSupervisor(input: EscalationInput): Promise<string
         .from("ai_human_escalations")
         .select("id")
         .eq("owner_id", input.ownerId)
-        .eq("property_id", input.propertyId)
         .eq("conversation_id", input.conversationId)
         .eq("status", "pending")
         .eq("context_snapshot->>escalation_key", escalationKey)
