@@ -32,20 +32,26 @@ export async function buildManualCleaningRows(
   supabase: unknown,
   propIds: string[],
   today: string,
+  opts: { concluded?: boolean } = {},
 ): Promise<ArrivalRow[]> {
   const sb = supabase as Sb;
   if (propIds.length === 0) return [];
-  const { data: raw, error } = await sb
+  // `concluded`: as manuais já finalizadas, para a coluna "Concluídos".
+  let q = sb
     .from("guest_arrival_status")
     .select(
-      "id, property_id, manual_date, manual_cleaning_type, manual_reservation_id, cleaning_price_override_cents, note, muted_until, done_at, created_at",
+      "id, property_id, manual_date, manual_cleaning_type, manual_reservation_id, cleaning_price_override_cents, note, muted_until, done_at, created_at, concluded_at",
     )
     .eq("manual", true)
-    .is("concluded_at", null)
-    .in("property_id", propIds)
-    .lte("manual_date", today)
-    .order("manual_date", { ascending: true })
-    .limit(500);
+    .in("property_id", propIds);
+  q = opts.concluded
+    ? q.not("concluded_at", "is", null).order("concluded_at", { ascending: false }).limit(200)
+    : q
+        .is("concluded_at", null)
+        .lte("manual_date", today)
+        .order("manual_date", { ascending: true })
+        .limit(500);
+  const { data: raw, error } = await q;
   // Uma falha aqui (ex.: coluna ainda não criada num ambiente novo) nunca pode
   // derrubar o quadro inteiro: as manuais só deixam de aparecer.
   if (error) {
