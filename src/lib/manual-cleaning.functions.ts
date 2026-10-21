@@ -284,6 +284,8 @@ const CreateInput = z.object({
   date: DateStr,
   cleaningType: z.enum(["normal", "completa"]),
   cents: z.number().int().min(0).max(100_000_00),
+  /** Descrição livre da limpeza (aparece no card). */
+  note: z.string().trim().max(1000).nullable().optional(),
   /**
    * `ask` (padrão): se a reserva já tem limpeza, não grava e devolve o aviso.
    * `add`: soma (cria a extra). `replace`: troca prestador e valor da que existe.
@@ -412,6 +414,7 @@ export const createManualCleaning = createServerFn({ method: "POST" })
           manual_created_by: context.userId,
           assigned_provider_id: data.providerId,
           cleaning_price_override_cents: data.cents,
+          note: data.note ? data.note : null,
           ...overrideMeta,
         })
         .select("id")

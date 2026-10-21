@@ -32,20 +32,26 @@ export async function buildManualCleaningRows(
   supabase: unknown,
   propIds: string[],
   today: string,
+  opts: { concluded?: boolean } = {},
 ): Promise<ArrivalRow[]> {
   const sb = supabase as Sb;
   if (propIds.length === 0) return [];
-  const { data: raw, error } = await sb
+  // `concluded`: as manuais já finalizadas, para a coluna "Concluídos".
+  let q = sb
     .from("guest_arrival_status")
     .select(
-      "id, property_id, manual_date, manual_cleaning_type, manual_reservation_id, cleaning_price_override_cents, note, muted_until, done_at, created_at",
+      "id, property_id, manual_date, manual_cleaning_type, manual_reservation_id, cleaning_price_override_cents, note, muted_until, done_at, created_at, concluded_at",
     )
     .eq("manual", true)
-    .is("concluded_at", null)
-    .in("property_id", propIds)
-    .lte("manual_date", today)
-    .order("manual_date", { ascending: true })
-    .limit(500);
+    .in("property_id", propIds);
+  q = opts.concluded
+    ? q.not("concluded_at", "is", null).order("concluded_at", { ascending: false }).limit(200)
+    : q
+        .is("concluded_at", null)
+        .lte("manual_date", today)
+        .order("manual_date", { ascending: true })
+        .limit(500);
+  const { data: raw, error } = await q;
   // Uma falha aqui (ex.: coluna ainda não criada num ambiente novo) nunca pode
   // derrubar o quadro inteiro: as manuais só deixam de aparecer.
   if (error) {
@@ -63,6 +69,7 @@ export async function buildManualCleaningRows(
     muted_until: string | null;
     done_at: string | null;
     created_at: string;
+    concluded_at: string | null;
   };
   const rows = (raw ?? []) as Row[];
   if (rows.length === 0) return [];
@@ -212,8 +219,9 @@ export async function buildManualCleaningRows(
       cleaningPriceNormalCents: p?.cleaning_price_normal_cents ?? null,
       cleaningPriceFullCents: p?.cleaning_price_full_cents ?? null,
       date,
+      // Sem reserva: só a data da limpeza (o card mostra uma data única).
       guestCheckin: linked?.checkin_date ?? date,
-      guestCheckout: linked?.checkout_date ?? date,
+      guestCheckout: linked ? linked.checkout_date : date,
       reservationCode: null,
       createdAt: r.created_at,
       status: "done",
@@ -225,6 +233,7 @@ export async function buildManualCleaningRows(
       pendingFill: false,
       ical: { hasIcal: false, matched: false, icalCheckin: null, icalCheckout: null },
       additionalGuests: [],
+      ...(r.concluded_at ? { concludedAt: r.concluded_at } : {}),
       manual: {
         id: r.id,
         cleaningType: type,

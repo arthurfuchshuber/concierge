@@ -150,6 +150,7 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
   const [type, setType] = useState<"normal" | "completa" | null>(null);
   const [cents, setCents] = useState<number | null>(null);
   const [centsEdited, setCentsEdited] = useState(false);
+  const [note, setNote] = useState("");
   const [search, setSearch] = useState("");
   const [conflict, setConflict] = useState<ManualCleaningConflict | null>(null);
   const [busy, setBusy] = useState(false);
@@ -183,6 +184,7 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
     setDate(undefined);
     setType(null);
     setCents(null);
+    setNote("");
     setCentsEdited(false);
     setSearch("");
     setConflict(null);
@@ -267,6 +269,7 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
           date: isoOf(date),
           cleaningType: type,
           cents,
+          note: note.trim() || null,
           onConflict,
         },
       });
@@ -611,6 +614,19 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
                   Preenchido com o valor da limpeza {type === "completa" ? "completa" : "normal"}{" "}
                   deste imóvel. Altere se precisar.
                 </span>
+                <label className="mt-4 block">
+                  <span className="mb-1.5 block font-display text-[13px] font-semibold text-foreground">
+                    Descrição <span className="font-normal text-muted-foreground">(opcional)</span>
+                  </span>
+                  <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value.slice(0, 1000))}
+                    disabled={busy}
+                    rows={3}
+                    placeholder="Ex.: limpeza após manutenção, trocar roupa de cama…"
+                    className="block w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-[14px] leading-snug outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </label>
               </Step>
             </ol>
           </>

@@ -2968,6 +2968,18 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
       });
     }
 
+    // Limpezas manuais finalizadas também entram em "Concluídos" (21/10/2026).
+    {
+      const { buildManualCleaningRows } = await import("@/lib/manual-cleaning.server");
+      const manual = await buildManualCleaningRows(context.supabase, propIds, todayISO(), {
+        concluded: true,
+      });
+      if (manual.length > 0) {
+        out.push(...manual);
+        out.sort((a, b) => (b.concludedAt ?? "").localeCompare(a.concludedAt ?? ""));
+      }
+    }
+
     if (!searching) return { rows: out };
 
     // Busca (sem acento, sem caixa) por hóspede, imóvel, proprietário ou

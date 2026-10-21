@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Ban, Check, MoreVertical } from "lucide-react";
+import { Ban, Check, CheckCircle2, Clock, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -16,6 +16,7 @@ import { CleaningProviderAvatar } from "@/components/dashboard/CleaningProviderA
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
 import { CLEANING_APPROVALS_KEY } from "@/components/dashboard/CleaningApprovalPanel";
 import { notifyAction } from "@/components/UndoActionBar";
+import { ReservationRecordsButton } from "@/components/dashboard/ReservationRecords";
 import { concludeManualCleaning, reopenManualCleaning } from "@/lib/manual-cleaning.functions";
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 
@@ -45,6 +46,16 @@ import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
  * Tipo e valor foram definidos na criação: finalizar NÃO pergunta o tipo de
  * novo. O "Desfazer" de 5 s devolve a limpeza para a fila.
  */
+
+function ddmmyyyy(iso: string | null | undefined) {
+  if (!iso) return null;
+  const [y, m, d] = iso.slice(0, 10).split("-");
+  return y && m && d ? `${d}/${m}/${y}` : null;
+}
+
+function hhmm(t: string | null | undefined) {
+  return t ? t.slice(0, 5) : null;
+}
 
 function brl(c: number | null | undefined) {
   if (c == null) return null;
@@ -97,6 +108,7 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
     }
   }
 
+  const concluded = !!row.concludedAt;
   const price = brl(m.priceCents);
   const detail = [
     m.reservationLinked ? row.guestName || "Reserva" : "Sem reserva",
@@ -105,6 +117,15 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
   ]
     .filter(Boolean)
     .join(" · ");
+  // Data: sem reserva, só a data da limpeza; com reserva, a saída do hóspede.
+  const exitDate = ddmmyyyy(m.reservationLinked ? (row.guestCheckout ?? row.date) : row.date);
+  // Janela permitida: do horário de checkout ao de check-in do imóvel.
+  const from = hhmm(row.propertyCheckoutTime);
+  const to = hhmm(row.propertyCheckinTime);
+  const windowLabel =
+    from && to ? `Permitido entre ${from} e ${to}` : from ? `Permitido a partir das ${from}` : to ? `Permitido até ${to}` : null;
+  // Anexos ficam na própria limpeza (id da linha), nunca na reserva vinculada.
+  const recordsRow: ArrivalRow = { ...row, logId: m.id, reservationId: null };
 
   return (
     <div
@@ -113,20 +134,49 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
       className="relative isolate flex snap-start flex-col gap-2 rounded-[10px] border border-border bg-muted/20 p-3 pl-3.5"
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           {/* Regra global (18/10/2026): proprietário + chat acima, título em 1 linha. */}
           <OwnerLine name={row.ownerName} phone={row.ownerPhone} country={row.ownerPhoneCountry} phonePosition="adjacent" />
           <ClampName text={row.propertyName ?? "Imóvel"} className={CARD_PROPERTY} />
         </div>
-        <span className="shrink-0 rounded-full bg-accent/[0.14] px-[9px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] text-accent">
+        {exitDate && (
+          <div className="shrink-0 text-right leading-tight">
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+              Saída
+            </span>
+            <span className="block font-display text-[12.5px] font-bold tabular-nums text-foreground">
+              {exitDate}
+            </span>
+          </div>
+        )}
+      </div>
+      <p className="text-[11.5px] leading-snug text-muted-foreground" title={detail}>
+        {detail}
+      </p>
+      {row.note?.trim() && (
+        <p className="whitespace-pre-line break-words rounded-md bg-background/60 px-2 py-1.5 text-[12px] leading-snug text-foreground">
+          {row.note}
+        </p>
+      )}
+      <div className="flex flex-col items-start gap-1.5">
+        {windowLabel && (
+          <span className="inline-flex items-center gap-1 text-[11.5px] font-medium text-muted-foreground">
+            <Clock className="size-3 shrink-0" />
+            {windowLabel}
+          </span>
+        )}
+        <span className="rounded-full bg-accent/[0.14] px-[9px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] text-accent">
           Manual
         </span>
       </div>
-      <p className="truncate text-[11.5px] text-muted-foreground" title={detail}>
-        {detail}
-      </p>
 
       <div className="flex min-w-0 items-center gap-1.5">
+        {concluded ? (
+          <span className="box-border inline-flex h-7 min-w-0 flex-1 items-center justify-center gap-2 rounded-[0.3rem] bg-emerald-600/15 px-2.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+            <CheckCircle2 className="size-3 shrink-0" />
+            <span className="truncate">Concluído</span>
+          </span>
+        ) : (
         <button
           type="button"
           onClick={() => void finish(false)}
@@ -138,6 +188,7 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
           <Check className="size-3 shrink-0" />
           <span className="truncate">Finalizar Limpeza</span>
         </button>
+        )}
         <CleaningProviderAvatar
           propertyId={row.propertyId}
           logId={row.logId}
@@ -145,6 +196,8 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
         />
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           <PropertyAccessButton row={row} />
+          <ReservationRecordsButton row={recordsRow} mode={concluded ? "done" : "cleaning"} compact />
+          {!concluded && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -173,6 +226,7 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
         </div>
       </div>
     </div>
