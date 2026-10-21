@@ -24,3 +24,4 @@
 - Permission checks treat a failed lookup as "still loading" and keep the last known decision, never as denial, so transient network/session errors never lock screens into read-only.
 - Guest access to listing data (Wi-Fi, codes, address, instructions) is decided once by `resolveStayAccess` (`src/lib/ai/stay-access.server.ts`) for every channel: confirmed stay in progress, not checked out and not marked no-show unlocks everything; otherwise locked, so all channels share one rule.
 - Subdirectories have their own `AGENTS.md`; read it before changing files there.
+- AI escalation isolation follows `src/lib/ai/AGENTS.md` to prevent lost guest questions.

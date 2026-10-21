@@ -1,2 +1,3 @@
 # AI rules
+- Human escalations deduplicate only identical requests within a short retry window, scoped to owner/property/conversation; unrelated pending, proactive and learning cards must never suppress a new guest question.
 - AI decision cards (`ai_human_escalations.context_snapshot.decision`) may carry whitelisted actions (`DECISION_ACTIONS`); the proactive copilot (`proactive-decisions.server.ts`) only proposes them, the action runs on the team's click in `answerEscalation` and `reopenEscalationDecision` undoes it, so the AI never changes operations on its own.

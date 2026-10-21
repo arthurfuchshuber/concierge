@@ -2,8 +2,8 @@ import { buildDecisionSpec } from "./decision-options";
 /**
  * Human-in-the-Loop — a IA pergunta ao supervisor humano quando não sabe.
  *
- * Fluxo: a IA registra a dúvida (`ai_human_escalations`), avisa o hóspede que
- * está confirmando com a equipe e NUNCA inventa a resposta. Quando um humano
+ * Fluxo: a IA registra a dúvida (`ai_human_escalations`) e aguarda a decisão
+ * da equipe em silêncio, sem inventar a resposta. Quando um humano
  * responde, a decisão volta para a conversa e vira candidata a conhecimento.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -41,14 +41,24 @@ export type EscalationInput = {
 /** Cria a pergunta ao supervisor humano. Retorna o id do escalonamento. */
 export async function askHumanSupervisor(input: EscalationInput): Promise<string | null> {
   try {
-    // Uma pergunta por situação: se já há pendência nesta conversa (ex.: o
-    // Copiloto Proativo já perguntou), reaproveita em vez de empilhar outra.
+    const snapshot = withDecision(input);
+    // Deduplicação conservadora de repetição/retry, não de conversa inteira.
+    // Cartões antigos, proativos ou de aprendizado não absorvem dúvidas novas.
+    const normalize = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+    const escalationKey = JSON.stringify([
+      input.propertyId, input.agent, input.trigger, normalize(input.question.slice(0, 1200)),
+      normalize((input.guestMessage ?? input.question).slice(0, 1200)),
+      input.decisionKind ?? null, !!snapshot.proactive, !!snapshot.host_learning,
+    ]);
     if (input.conversationId) {
       const { data: pend } = await input.supabase
         .from("ai_human_escalations")
         .select("id")
+        .eq("owner_id", input.ownerId)
         .eq("conversation_id", input.conversationId)
         .eq("status", "pending")
+        .eq("context_snapshot->>escalation_key", escalationKey)
+        .gte("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
         .limit(1);
       const existing = (pend as Array<{ id: string }> | null)?.[0]?.id;
       if (existing) return String(existing);
@@ -67,7 +77,7 @@ export async function askHumanSupervisor(input: EscalationInput): Promise<string
         reason: input.reason.slice(0, 800),
         question_to_human: input.question.slice(0, 1200),
         confidence_score: input.confidence ?? null,
-        context_snapshot: withDecision(input) as never,
+        context_snapshot: { ...snapshot, escalation_key: escalationKey } as never,
         status: "pending",
       })
       .select("id")
