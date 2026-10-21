@@ -201,7 +201,7 @@ export function TrailDialog({
         <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4">
           {children}
         </div>
-        <div className="shrink-0 border-t border-[var(--panel-div)] px-5 py-3.5">{footer}</div>
+        {footer ? <div className="shrink-0 border-t border-[var(--panel-div)] px-5 py-3.5">{footer}</div> : null}
       </DialogContent>
     </Dialog>
   );
