@@ -2390,8 +2390,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // os liberados (na ordem de sempre, via sortCheckoutRows) e só depois os
   // que ainda aguardam check-out (mesma ordenação interna, só que atrás).
   const kanbanCleaningRows = useMemo(() => {
+    // Limpeza criada à mão e ainda não finalizada (20/10/2026: "deve ser
+    // criada normalmente como se fosse um card de checkout") nunca some da
+    // fila por virar o dia — só um período escolhido nos Filtros a recorta.
     const inWindow = kanbanCoRowsAll.filter(
-      (r) => matchesKanbanOwnerCity(r) && r.date >= kanbanPeriodStart && r.date <= kanbanPeriodEnd,
+      (r) =>
+        matchesKanbanOwnerCity(r) &&
+        (r.date >= kanbanPeriodStart || (!periodRange && r.manual)) &&
+        r.date <= kanbanPeriodEnd,
     );
     const released = inWindow.filter((r) => r.status === "done");
     const awaitingCheckout = inWindow.filter((r) => r.status !== "done");
@@ -2399,7 +2405,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       ...sortCheckoutRows(released, [kanbanCiRowsAll], todayISO),
       ...sortCheckoutRows(awaitingCheckout, [kanbanCiRowsAll], todayISO),
     ];
-  }, [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll, todayISO]);
+  }, [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll, todayISO, periodRange]);
   // "Concluídos" nunca foi limitado por Hoje/Amanhã/7 dias/Todos (a busca de
   // concluídos já ignorava esse seletor antes) — só ganha os filtros de
   // Cidade/Proprietário agora, mantendo o mesmo comportamento de período.

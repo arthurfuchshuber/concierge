@@ -150,6 +150,7 @@ export function NewRecordButton() {
         onOpenChange={setOpen}
         title="Novo registro"
         progress={`${Math.min(step, 3)} de 3`}
+        onBack={step > 1 ? () => setStep(step - 1) : undefined}
         footer={
             <button
               type="button"

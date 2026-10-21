@@ -444,13 +444,22 @@ async function pushToProvider(
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { notifyManualCleaningAssigned } = await import("@/lib/ops-push.server");
-    const r = await notifyManualCleaningAssigned(supabaseAdmin as never, {
+    const send = notifyManualCleaningAssigned(supabaseAdmin as never, {
       propertyId,
       providerId,
       refKey,
       date,
       today,
+    }).catch((err) => {
+      console.error("[manual-cleaning] falha ao enviar push ao prestador:", err);
+      return null;
     });
+    // Salvamento nunca espera a rede do push além de 3 s (20/10/2026:
+    // "demorou muito para carregar o salvamento"). A limpeza já está gravada.
+    const r = await Promise.race([
+      send,
+      new Promise<null>((res) => setTimeout(() => res(null), 3000)),
+    ]);
     return (r?.sent ?? 0) > 0;
   } catch (err) {
     console.error("[manual-cleaning] falha ao enviar push ao prestador:", err);
