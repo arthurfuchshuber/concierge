@@ -27,6 +27,9 @@ vi.mock("@/lib/playbook.functions", () => ({
   savePlaybookNote: vi.fn(),
   addPlaybookRow: vi.fn(),
 }));
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children, to }: { children: React.ReactNode; to: string }) => <a href={to}>{children}</a>,
+}));
 vi.mock("@/components/dashboard/OwnerLine", () => ({
   OwnerLine: ({ label }: { label: string }) => <div>{label}</div>,
 }));
@@ -65,13 +68,24 @@ describe("PlaybookPage", () => {
     expect(screen.getAllByText("••••••").length).toBeGreaterThan(0);
   });
 
-  it("no máximo duas linhas abertas e a Nota do anfitrião só aparece na aberta", async () => {
+  it("quantas linhas quiser abertas e a Nota do anfitrião só aparece na aberta", async () => {
     mount();
     await screen.findByText("Proprietário(a): Arthur");
     fireEvent.click(screen.getAllByLabelText("Abrir ou fechar seção")[0]);
     expect(screen.queryAllByText("Nota do anfitrião")).toHaveLength(0);
     for (const label of ["Título público", "Tipo de espaço", "Bairro"]) fireEvent.click(screen.getByText(label));
-    expect(screen.getAllByText("Nota do anfitrião")).toHaveLength(2);
+    expect(screen.getAllByText("Nota do anfitrião")).toHaveLength(3);
     void within;
+  });
+
+  it("tem Voltar para a lista de proprietários e Modo leitura com entrada e saída explícitas", async () => {
+    mount();
+    await screen.findByText("Proprietário(a): Arthur");
+    expect(screen.getByText("Voltar").closest("a")?.getAttribute("href")).toBe("/admin/proprietarios");
+    expect(screen.queryByText("Sair do modo leitura")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Entrar no modo leitura"));
+    expect(screen.getAllByText("Sair do modo leitura").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByText("Sair do modo leitura"));
+    expect(screen.queryByText("Modo leitura: tudo aberto")).toBeNull();
   });
 });

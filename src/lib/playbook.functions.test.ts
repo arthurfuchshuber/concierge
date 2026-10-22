@@ -33,6 +33,8 @@ function from(table: string) {
   const b: Record<string, unknown> = {};
   for (const m of ["select", "update", "delete", "insert", "upsert"]) {
     b[m] = (...a: unknown[]) => {
+      // `.insert(...).select("id")` continua sendo um insert.
+      if (m === "select" && rec.op !== "select") return b;
       rec.op = m;
       rec.args = a;
       return b;
@@ -87,9 +89,14 @@ describe("Playbook · funções de servidor", () => {
   });
 
   it("checklist de saída troca a lista inteira, tirando a numeração", async () => {
+    results.property_checkout_items = [{ id: "old1" }];
     const { savePlaybookRow } = await import("@/lib/playbook.functions");
     await savePlaybookRow({ data: { propertyId: PID, rowId: "f:checklist_de_saida", value: "1. Apague as luzes\n2) Feche o portão\n\n" } });
-    expect(lastOps("property_checkout_items", "delete")).toHaveLength(1);
+    // grava as novas ANTES de apagar as antigas (nunca deixa o imóvel sem lista)
+    const seq = ops.filter((o) => o.table === "property_checkout_items").map((o) => o.op);
+    expect(seq.indexOf("insert")).toBeGreaterThan(-1);
+    expect(seq.indexOf("insert")).toBeLessThan(seq.indexOf("delete"));
+    expect(lastOps("property_checkout_items", "delete")[0].filters).toContainEqual(["id", ["old1"]]);
     expect(lastOps("property_checkout_items", "insert")[0].args[0]).toEqual([
       { property_id: PID, label: "Apague as luzes", position: 0 },
       { property_id: PID, label: "Feche o portão", position: 1 },

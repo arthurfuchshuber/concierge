@@ -79,9 +79,11 @@ describe("busca e abertura", () => {
     const row = find(buildPlaybook(src()), "f:codigo_do_portao");
     expect(matchesQuery(row, "1234")).toBe(false);
     expect(matchesQuery(row, "portão")).toBe(true);
+    expect(matchesQuery({ ...row, note: "ligar para o zelador" }, "zelador")).toBe(true);
+    expect(matchesQuery({ ...row, note: "" }, "zelador")).toBe(false);
   });
-  it("no máximo 2 linhas abertas e 1 seção por vez", () => {
-    expect(toggleRow(toggleRow(toggleRow([], "a"), "b"), "c")).toEqual(["b", "c"]);
+  it("linhas abertas sem limite e 1 seção por vez", () => {
+    expect(toggleRow(toggleRow(toggleRow([], "a"), "b"), "c")).toEqual(["a", "b", "c"]);
     expect(toggleRow(["a"], "a")).toEqual([]);
     expect(toggleSection("s1", "s2")).toBe("s2");
     expect(toggleSection("s1", "s1")).toBeNull();

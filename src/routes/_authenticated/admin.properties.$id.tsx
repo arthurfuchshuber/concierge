@@ -2950,6 +2950,7 @@ function PropertyEditor() {
     .replace(/^\w/, (c) => c.toUpperCase());
   const currentOwner = propertyOwnerOptions.find((o) => o.id === form.property.owner_contact_id);
   const showPreview = !!previewSlug;
+  const showPlaybook = !isNew && !!id;
   const showMaps = !!(form.property.garage_maps_url || form.property.maps_url || form.property.address);
   const propertyAddressLine = [form.property.address, form.property.city].filter((v) => (v ?? "").trim()).join(", ") || null;
 
@@ -3004,7 +3005,7 @@ function PropertyEditor() {
               ) : null}
             </div>
 
-            {((!houseOnly && !(singleStepMode && !needsRequiredHouseInfo)) || showPreview || showMaps) && (
+            {((!houseOnly && !(singleStepMode && !needsRequiredHouseInfo)) || showPreview || showMaps || showPlaybook) && (
               <div className="mt-5 flex flex-col gap-2 lg:mt-0 lg:flex-row lg:items-center lg:gap-2">
                 {/* Modo "só a casa" (link "Editar" dentro do Proprietário, em
                     Stakeholders): trava em "house" e nunca mostra esta barra —
@@ -3026,7 +3027,7 @@ function PropertyEditor() {
                     />
                   </div>
                 )}
-                {(showPreview || showMaps) && (
+                {(showPreview || showMaps || showPlaybook) && (
                   /* UMA PEÇA SÓ, PARTIDA AO MEIO — como Filtros|Pendências no
                      Kanban (pedido explícito, 01/10/2026): à esquerda o olho +
                      "Pré-Visualizar", à direita o pin + "Localização". O botão
@@ -3048,6 +3049,18 @@ function PropertyEditor() {
                         <Eye className={ACTION_ICON} />
                         <span className="lg:hidden">Pré-Visualizar</span>
                       </button>
+                    )}
+                    {showPlaybook && (
+                      <Link
+                        to="/admin/playbook/$id"
+                        params={{ id }}
+                        title="Playbook do imóvel"
+                        aria-label="Playbook"
+                        className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+                      >
+                        <FileText className={ACTION_ICON} />
+                        <span className="lg:hidden">Playbook</span>
+                      </Link>
                     )}
                     {showMaps && (
                       <PropertyMapsButton

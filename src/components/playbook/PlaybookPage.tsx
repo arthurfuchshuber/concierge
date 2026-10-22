@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Copy, Info, Lock, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Copy, Info, Lock, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
@@ -33,9 +34,9 @@ import { AUDIENCE_LABEL, PLAYBOOK_SECTIONS, type Audience } from "@/lib/playbook
  *
  * O Playbook é o registro do imóvel — a fonte da verdade, editada direto aqui.
  * Regras de tela (todas pedidas pelo usuário):
- *   · abre SEMPRE tudo recolhido; só uma seção aberta por vez; no máximo duas
- *     linhas abertas ao mesmo tempo (atualizar a página recolhe tudo);
- *   · "Modo leitura / Imprimir" abre tudo para ler e imprimir;
+ *   · abre SEMPRE tudo recolhido; só uma seção aberta por vez; dentro dela,
+ *     quantas linhas quiser (atualizar a página recolhe tudo);
+ *   · "Modo leitura" (liga/desliga) abre tudo para ler; "Imprimir" abre tudo e imprime;
  *   · a busca filtra as linhas e abre as seções com resultado;
  *   · o botão de tema NÃO fica aqui (já mora no cabeçalho do sistema);
  *   · códigos e senhas aparecem mascarados e nunca entram na busca;
@@ -44,8 +45,8 @@ import { AUDIENCE_LABEL, PLAYBOOK_SECTIONS, type Audience } from "@/lib/playbook
  */
 
 const AUD_CHIP: Record<Audience, string> = {
-  G: "text-[#7fb79a] bg-[color-mix(in_oklab,#7fb79a_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#7fb79a_30%,transparent)]",
-  P: "text-[#c9a962] bg-[color-mix(in_oklab,#c9a962_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c9a962_30%,transparent)]",
+  G: "text-success bg-[color-mix(in_oklab,var(--success)_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--success)_30%,transparent)]",
+  P: "text-warning bg-[color-mix(in_oklab,var(--warning)_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--warning)_30%,transparent)]",
   I: "text-muted-foreground bg-[color-mix(in_oklab,var(--foreground)_7%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]",
 };
 
@@ -181,11 +182,9 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
     setEdit({ id: row.id, draft });
   }
 
+  // Modo leitura e impressão são controles separados: entrar/sair do modo
+  // leitura é explícito; imprimir sempre abre tudo e chama a impressão.
   const printNow = () => {
-    if (read) {
-      setRead(false);
-      return;
-    }
     setRead(true);
     window.setTimeout(() => window.print(), 250);
   };
@@ -200,6 +199,13 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
             "Proprietário(a): nome" + ícone de mensagem (regra de todo lugar
             que cita um imóvel). O botão de tema fica no cabeçalho do sistema. */}
         <div className="ds-page-heading">
+          <Link
+            to="/admin/proprietarios"
+            className="mb-1 inline-flex w-fit items-center gap-1.5 text-[12.5px] font-bold text-muted-foreground hover:text-foreground print:hidden"
+          >
+            <ArrowLeft className="size-3.5" />
+            Voltar
+          </Link>
           <p className="ds-eyebrow ds-data text-[10.5px] tracking-[0.2em]">{hoje}</p>
           <div className="ds-page-heading min-w-0">
             <h1 className="ds-page-title !text-lg truncate">Playbook do imóvel</h1>
@@ -223,18 +229,41 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           placeholder="Buscar campo, valor ou observação"
           className="print:hidden"
           actions={
-            <button
-              type="button"
-              onClick={printNow}
-              aria-label="Modo leitura / Imprimir"
-              title="Modo leitura / Imprimir"
-              aria-pressed={read}
-              className={`${ACTION_SEGMENT} ${read ? "text-accent" : ACTION_BUTTON_TONE}`}
-            >
-              <Printer className={ACTION_ICON} />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setRead((v) => !v)}
+                aria-label={read ? "Sair do modo leitura" : "Entrar no modo leitura"}
+                title={read ? "Sair do modo leitura" : "Entrar no modo leitura"}
+                aria-pressed={read}
+                className={`${ACTION_SEGMENT} ${read ? "text-accent" : ACTION_BUTTON_TONE}`}
+              >
+                <BookOpen className={ACTION_ICON} />
+              </button>
+              <button
+                type="button"
+                onClick={printNow}
+                aria-label="Imprimir"
+                title="Imprimir"
+                className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+              >
+                <Printer className={ACTION_ICON} />
+              </button>
+            </>
           }
         />
+
+        {read ? (
+          <div className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-[12.5px] font-bold text-foreground print:hidden ${WELL}`}>
+            <span className="inline-flex items-center gap-2">
+              <BookOpen className="size-3.5 text-accent" />
+              Modo leitura: tudo aberto
+            </span>
+            <button type="button" onClick={() => setRead(false)} className="underline underline-offset-2 hover:text-accent">
+              Sair do modo leitura
+            </button>
+          </div>
+        ) : null}
 
         <Legend />
 
@@ -317,7 +346,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                           onClick={() => setOpenRows((cur) => toggleRow(cur, r.id))}
                           className={`relative cursor-pointer border-b border-[var(--panel-div)] text-[13px] font-medium leading-normal transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_2.5%,transparent)] max-[900px]:block max-[900px]:py-1.5 ${ROW_GRID} ${open ? "bg-[var(--panel-well)]" : ""}`}
                         >
-                          <div className="min-w-0 break-words px-4 py-3 font-extrabold text-foreground max-[900px]:py-1.5 max-[900px]:pr-[150px]">
+                          <div className="min-w-0 break-words px-4 py-3 font-extrabold text-foreground max-[900px]:py-1.5">
                             {r.label}
                           </div>
 
@@ -418,8 +447,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                             ) : null}
                           </div>
 
-                          <div className="flex min-w-0 flex-col items-end gap-2 px-4 py-3 max-[900px]:static max-[900px]:p-0">
-                            <AudienceChip au={r.au} className="max-[900px]:absolute max-[900px]:right-4 max-[900px]:top-3" />
+                          <div className="flex min-w-0 flex-col items-end gap-2 px-4 py-3 max-[900px]:items-start max-[900px]:pb-2.5 max-[900px]:pt-0">
+                            <AudienceChip au={r.au} />
                           </div>
                         </div>
                       );

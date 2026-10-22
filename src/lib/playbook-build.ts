@@ -473,16 +473,16 @@ export function matchesQuery(row: PlaybookRow, q: string): boolean {
   const needle = q.trim().toLowerCase();
   if (!needle) return true;
   // Segredo mascarado: o valor real nunca entra na busca.
-  const hay = `${row.label} ${row.secret ? "" : row.value} ${row.obs} ${AUDIENCE_LABEL[row.au]}`.toLowerCase();
+  const hay = `${row.label} ${row.secret ? "" : row.value} ${row.obs} ${row.note ?? ""} ${AUDIENCE_LABEL[row.au]}`.toLowerCase();
   return hay.includes(needle);
 }
 
 /**
- * Regra de abertura (pedido explícito): a tela SEMPRE abre tudo recolhido,
- * só uma seção aberta por vez e no máximo duas linhas abertas ao mesmo tempo.
+ * Regra de abertura: a tela SEMPRE abre tudo recolhido e só uma seção fica
+ * aberta por vez; dentro da seção ativa, quantas linhas quiser podem ficar abertas.
  */
 export function toggleRow(open: string[], id: string): string[] {
-  return open.includes(id) ? open.filter((x) => x !== id) : [...open, id].slice(-2);
+  return open.includes(id) ? open.filter((x) => x !== id) : [...open, id];
 }
 export function toggleSection(current: string | null, id: string): string | null {
   return current === id ? null : id;

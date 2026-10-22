@@ -215,22 +215,38 @@ function cleanLines(text: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Troca a lista inteira SEM deixar o imóvel desprotegido: primeiro grava as
+ * linhas novas, só então apaga as antigas (por id). Se a gravação falhar, nada
+ * foi apagado; se a limpeza das antigas falhar, as novas são desfeitas.
+ * Texto vazio = "limpar a lista" (único caso em que só há exclusão).
+ */
 async function replaceList(sb: AnySb, table: "property_checkout_items" | "property_emergency_contacts", propertyId: string, text: string) {
   const lines = cleanLines(text);
-  const del = await sb.from(table).delete().eq("property_id", propertyId);
-  if (del.error) throw new Error(del.error.message);
-  if (lines.length === 0) return;
-  const rows =
-    table === "property_checkout_items"
-      ? lines.map((label, position) => ({ property_id: propertyId, label, position }))
-      : lines.map((l, position) => {
-          const i = l.lastIndexOf(":");
-          return i > 0
-            ? { property_id: propertyId, label: l.slice(0, i).trim(), number: l.slice(i + 1).trim(), position }
-            : { property_id: propertyId, label: l, number: "", position };
-        });
-  const ins = await sb.from(table).insert(rows);
-  if (ins.error) throw new Error(ins.error.message);
+  const old = await sb.from(table).select("id").eq("property_id", propertyId);
+  if (old.error) throw new Error(old.error.message);
+  const oldIds = ((old.data ?? []) as Array<{ id: string }>).map((r) => r.id);
+  let newIds: string[] = [];
+  if (lines.length > 0) {
+    const rows =
+      table === "property_checkout_items"
+        ? lines.map((label, position) => ({ property_id: propertyId, label, position }))
+        : lines.map((l, position) => {
+            const i = l.lastIndexOf(":");
+            return i > 0
+              ? { property_id: propertyId, label: l.slice(0, i).trim(), number: l.slice(i + 1).trim(), position }
+              : { property_id: propertyId, label: l, number: "", position };
+          });
+    const ins = await sb.from(table).insert(rows).select("id");
+    if (ins.error) throw new Error(ins.error.message);
+    newIds = ((ins.data ?? []) as Array<{ id: string }>).map((r) => r.id);
+  }
+  if (oldIds.length === 0) return;
+  const del = await sb.from(table).delete().eq("property_id", propertyId).in("id", oldIds);
+  if (del.error) {
+    if (newIds.length > 0) await sb.from(table).delete().eq("property_id", propertyId).in("id", newIds);
+    throw new Error(del.error.message);
+  }
 }
 
 function coerce(kind: string, value: string): string | number | boolean | null {
@@ -243,7 +259,7 @@ function coerce(kind: string, value: string): string | number | boolean | null {
     return num;
   }
   if (kind === "access") {
-    if (v !== "public" && v !== "pin") throw new Error("Modo de acesso inválido.");
+    if (v !== "public" && v !== "pin") throw new Error("Escolha Público ou Senha por reserva — este campo não pode ficar vazio.");
     return v;
   }
   return v || null;
