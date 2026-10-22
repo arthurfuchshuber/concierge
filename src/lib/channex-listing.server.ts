@@ -443,3 +443,33 @@ export async function syncAccountListing(args: {
   }
   return { facts: facts.length, title };
 }
+
+/**
+ * Scrap público COMPLETO do anúncio (descrição, comodidades, capa única), sem Channex nem IA — custo zero.
+ * Roda ao fim do onboarding/ativação, quando o imóvel já está sincronizado por completo.
+ */
+export async function scrapePublicListingForProperty(propertyId: string): Promise<{ ok: boolean }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("property_listing_raw_data" as never)
+    .select("airbnb_listing_id, listing_meta, raw_settings, normalized")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  const row = data as { airbnb_listing_id?: string; listing_meta?: Record<string, unknown>; raw_settings?: Record<string, any>; normalized?: Record<string, any> } | null;
+  if (!row?.airbnb_listing_id) return { ok: false };
+  const lid = String(row.airbnb_listing_id);
+  const pub = await fetchPublicListing(lid).catch(() => null);
+  const meta = row.listing_meta ?? {};
+  const settings = row.raw_settings ?? {};
+  if (pub) {
+    const facts = [...normalizeListing(meta, settings), ...publicFacts(pub)];
+    await supabaseAdmin
+      .from("property_listing_raw_data" as never)
+      .update({ normalized: { ...(row.normalized ?? {}), facts, public_listing: pub }, updated_at: new Date().toISOString() } as never)
+      .eq("property_id", propertyId);
+  }
+  await applyListingToProperty({ propertyId, listingId: lid, meta: meta as Record<string, unknown>, settings, pub });
+  const { reindexProperty } = await import("@/lib/ai/indexing.server");
+  await reindexProperty(supabaseAdmin as never, propertyId).catch(() => undefined);
+  return { ok: Boolean(pub) };
+}
