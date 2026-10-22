@@ -65,10 +65,10 @@ function AudienceChip({ au, className = "", children }: { au: Audience; classNam
 
 const WELL = "bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]";
 // Tabela com rolagem lateral (22/10/2026): colunas A, B e D se ajustam ao maior dado (nada cortado;
-// B quebra linha só a partir de 520px); C tem largura fixa mínima de 460px. As linhas usam subgrade
+// B quebra linha só a partir de 520px); C tem largura fixa de 440px; D recebe a sobra, com a etiqueta colada à C. As linhas usam subgrade
 // para as colunas ficarem alinhadas entre si.
 const TABLE_COLS =
-  "grid w-max min-w-full grid-cols-[fit-content(320px)_fit-content(520px)_minmax(460px,1fr)_max-content]";
+  "grid w-max min-w-full grid-cols-[fit-content(320px)_fit-content(520px)_440px_minmax(max-content,1fr)]";
 const ROW_GRID = "col-span-4 grid grid-cols-subgrid";
 const CLAMP2 = "[display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden";
 const ICON_BTN =
@@ -333,7 +333,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                       className={`${ROW_GRID} border-b border-[var(--panel-div)] bg-[var(--panel-well)] text-muted-foreground`}
                     >
                       {["Campo", "Valor / Instrução", "Observação da IA", "Audiência"].map((h, i) => (
-                        <div key={h} className={`ds-eyebrow whitespace-nowrap px-4 py-2.5 ${i === 3 ? "text-right" : ""}`}>
+                        <div key={h} className={`ds-eyebrow whitespace-nowrap px-4 py-2.5 `}>
                           {h}
                         </div>
                       ))}
@@ -388,31 +388,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                                 {r.value}
                               </span>
                             )}
-                            {!editing ? (
-                              <div className="-mr-2 -my-2 flex flex-none" onClick={(e) => e.stopPropagation()}>
-                                {r.copy ? (
-                                  <button type="button" aria-label="Copiar" title="Copiar" className={ICON_BTN} onClick={() => void copy(r)}>
-                                    <Copy className="size-[15px]" />
-                                  </button>
-                                ) : null}
-                                {r.edit ? (
-                                  <button type="button" aria-label="Editar" title="Editar" className={ICON_BTN} onClick={() => startEdit(r)}>
-                                    <PencilLine className="size-[15px]" />
-                                  </button>
-                                ) : null}
-                                {r.deletable && (!r.empty || r.removesRow) ? (
-                                  <button
-                                    type="button"
-                                    aria-label="Excluir"
-                                    title="Excluir"
-                                    className={`${ICON_BTN} hover:!text-destructive`}
-                                    onClick={() => setToDelete(r)}
-                                  >
-                                    <Trash2 className="size-[15px]" />
-                                  </button>
-                                ) : null}
-                              </div>
-                            ) : null}
+                            {/* Botões copiar/editar/excluir ocultos por ora (pedido 22/10/2026). */}
                           </div>
 
                           <div
@@ -450,7 +426,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                             ) : null}
                           </div>
 
-                          <div className="flex flex-col items-end gap-2 whitespace-nowrap px-4 py-3">
+                          <div className="flex flex-col items-start gap-2 whitespace-nowrap px-4 py-3">
                             <AudienceChip au={r.au} />
                           </div>
                         </div>
