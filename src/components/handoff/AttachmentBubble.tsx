@@ -49,9 +49,15 @@ export function AttachmentBubble({ attachment }: { attachment: AttachmentInfo })
     }
     if (!attachment.path) return;
     setLoading(true);
+    let objectUrl: string | null = null;
     signFn({ data: { path: attachment.path } })
       .then((res) => {
-        if (!cancelled) setResolvedUrl(res.url);
+        if (cancelled) return;
+        const bin = atob(res.base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        objectUrl = URL.createObjectURL(new Blob([bytes], { type: res.mime }));
+        setResolvedUrl(objectUrl);
       })
       .catch(() => {})
       .finally(() => {
@@ -59,6 +65,7 @@ export function AttachmentBubble({ attachment }: { attachment: AttachmentInfo })
       });
     return () => {
       cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [attachment.path, attachment.url, signFn]);
 

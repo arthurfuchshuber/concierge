@@ -26,13 +26,18 @@ export const signChatAttachmentUrl = createServerFn({ method: "POST" })
       .eq("id", propertyId)
       .maybeSingle();
     if (!prop) throw new Error("Sem acesso a este anexo.");
-    // RLS on storage.objects also enforces property access. TTL mínimo: o link
-    // só serve para carregar a mídia agora; acesso removido expira em segundos.
-    const { data: signed, error } = await context.supabase.storage
+    // Sem link assinado: o arquivo é lido agora, com a RLS do usuário, e
+    // entregue direto. Nenhum link reutilizável sobrevive à remoção do acesso.
+    const { data: blob, error } = await context.supabase.storage
       .from("chat-attachments")
-      .createSignedUrl(data.path, 60);
-    if (error || !signed) throw new Error("Não consegui gerar o link do anexo.");
-    return { url: signed.signedUrl };
+      .download(data.path);
+    if (error || !blob) throw new Error("Não consegui carregar o anexo.");
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    return { base64: btoa(bin), mime: blob.type || "application/octet-stream" };
   });
 
 /**
