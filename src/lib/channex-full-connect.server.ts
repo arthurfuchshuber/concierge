@@ -128,6 +128,9 @@ async function createUnit(d: any, r: any): Promise<string> {
   }
   const { grantPriceLabsAccess } = await import("@/lib/channex-twins.server");
   await grantPriceLabsAccess(prop.data.id).catch((e) => console.error("[full-connect] pricing key", e));
+  // Unidade nova nasce com o app Messages: sem ele as mensagens do Airbnb nunca chegam (o cron também autocura).
+  const { syncMessagesApp } = await import("@/lib/channex-messages-app.server");
+  await syncMessagesApp([prop.data.id], true).catch((e) => console.error("[full-connect] messages app", e));
   const { error } = await d
     .from("property_listing_raw_data")
     .update({ channex_property_id: prop.data.id, channex_room_type_id: rt.data.id, channex_rate_plan_id: rp.data.id })
