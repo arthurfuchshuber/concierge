@@ -48,7 +48,40 @@ const PROPERTY_COLUMNS =
   "id, name, short_description, address, city, state, country, maps_url, in_condominium, apartment_number, apartment_floor, parking_spots, vehicles_max, " +
   "airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_bathroom_count, airbnb_rooms_beds, airbnb_amenities, airbnb_house_rules, airbnb_safety_info, " +
   "access_mode, gate_label, gate_code, gate_instructions, checkin_time, checkin_time_max, checkin_instructions, checkin_note, checkout_time, checkout_instructions, checkout_note, " +
-  "wifi_ssid, wifi_password, house_rules, host_phone, owner_contact_id";
+  "wifi_ssid, wifi_password, house_rules, host_phone, owner_contact_id, airbnb_description_full, airbnb_cancellation_policy, airbnb_cancellation_category, lat, lng";
+
+/** Consulta ao Google Places: endereço + cidade + estado + país (sem repetir o que já está no endereço). */
+export function geoQuery(property: Record<string, unknown>): string {
+  return [property.address, property.city, property.state, property.country]
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .filter(Boolean)
+    .join(", ");
+}
+
+const plain = (t: unknown) =>
+  String(t ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+/**
+ * Candidato só vale se for da MESMA cidade do imóvel. Com cidade cadastrada, candidato sem cidade ou de outra
+ * cidade é recusado; as coordenadas (quando as duas pontas têm) ainda precisam bater. Sem cidade cadastrada,
+ * só aceita candidato perto das coordenadas do imóvel — nunca "o primeiro da lista" às cegas.
+ */
+export function geoCandidateMatches(property: Record<string, unknown>) {
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v.trim() && Number.isFinite(Number(v)) ? Number(v) : null);
+  const lat = num(property.lat);
+  const lng = num(property.lng);
+  const city = plain(property.city);
+  return (c: { city?: string | null; lat: number | null; lng: number | null }) => {
+    const haveCoords = lat !== null && lng !== null && c.lat !== null && c.lng !== null;
+    const coordsOk = haveCoords && Math.abs((c.lat as number) - (lat as number)) < 0.05 && Math.abs((c.lng as number) - (lng as number)) < 0.05;
+    if (city) return plain(c.city) === city && (!haveCoords || coordsOk);
+    return coordsOk;
+  };
+}
 
 export type PlaybookData = {
   propertyId: string;
@@ -145,12 +178,10 @@ export const getPlaybook = createServerFn({ method: "POST" })
     if (!geoChecked && String(property.address ?? "").trim() && (!haveGeo("f:bairro") || !haveGeo("f:cep"))) {
       try {
         const { searchAddressCandidatesGoogle } = await import("@/lib/maps.functions");
-        const cands = await searchAddressCandidatesGoogle(String(property.address));
-        const lat = Number(property.lat);
-        const lng = Number(property.lng);
-        const near = (c: { lat: number | null; lng: number | null }) =>
-          !Number.isFinite(lat) || c.lat === null || c.lng === null || (Math.abs(c.lat - lat) < 0.01 && Math.abs(c.lng - lng) < 0.01);
-        const best = cands.find(near);
+        // Rua e número sozinhos fazem o Google preferir a capital (Foz do Iguaçu virava Belo Horizonte):
+        // a consulta leva cidade, estado e país, e o candidato precisa ser da cidade do imóvel.
+        const cands = await searchAddressCandidatesGoogle(geoQuery(property));
+        const best = cands.find(geoCandidateMatches(property));
         if (best) {
           const add = [
             !haveGeo("f:bairro") && best.district ? { field_key: "f:bairro", value: best.district } : null,
@@ -169,6 +200,15 @@ export const getPlaybook = createServerFn({ method: "POST" })
         }
       } catch (e) {
         console.error("[playbook] geocode falhou", e);
+      }
+    }
+
+    // Telefone do anfitrião vazio no imóvel: usa o do proprietário vinculado (só leitura, não grava no imóvel).
+    if (!String(property.host_phone ?? "").trim() && ownerRes.data) {
+      const ph = (ownerRes.data as { phone: string | null; phone_country: string | null }).phone;
+      if (ph && ph.trim()) {
+        const { formatIntlPhone } = await import("@/lib/masks");
+        property.host_phone = formatIntlPhone(ph, (ownerRes.data as { phone_country: string | null }).phone_country);
       }
     }
 

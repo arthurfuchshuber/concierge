@@ -65,6 +65,15 @@ export const PLAYBOOK_FIELDS: FieldMeta[] = [
     "obs": "Diz o que o hóspede ocupa: o imóvel inteiro, um quarto privativo ou um quarto compartilhado. A IA deve usar quando perguntarem se vão dividir com alguém, se há outros hóspedes ou se o anfitrião mora no local, respondendo de acordo com o valor ao lado. Não afirmar nada sobre moradores além do que consta neste documento."
   },
   {
+    "key": "descricao_completa_anuncio",
+    "section": 1,
+    "label": "Descrição do anúncio no Airbnb",
+    "au": "P",
+    "copy": false,
+    "secret": false,
+    "obs": "Texto integral descritivo do espaço cadastrado na plataforma."
+  },
+  {
     "key": "endereco_rua_e_numero",
     "section": 1,
     "label": "Endereço (rua e número)",
@@ -495,6 +504,42 @@ export const PLAYBOOK_FIELDS: FieldMeta[] = [
     "copy": false,
     "secret": false,
     "obs": "Avisos de segurança publicados no anúncio (alarmes, câmeras, detectores). A IA deve usar em dúvidas sobre segurança, alarmes ou câmeras, respondendo com exatidão o que está escrito, sem suavizar e sem afirmar equipamentos que não constam."
+  },
+  {
+    "key": "politica_de_cancelamento",
+    "section": 4,
+    "label": "Política de cancelamento",
+    "au": "P",
+    "copy": false,
+    "secret": false,
+    "obs": "Política de cancelamento oficial do anúncio. A IA deve usar quando o hóspede perguntar sobre cancelar ou alterar a reserva, informando só o que está escrito e encaminhando exceções à equipe."
+  },
+  {
+    "key": "taxa_de_limpeza",
+    "section": 4,
+    "label": "Taxa de limpeza",
+    "au": "P",
+    "copy": false,
+    "secret": false,
+    "obs": "Valor da taxa de limpeza cobrada pelo anúncio. A IA deve usar quando o hóspede perguntar sobre custos extras, informando só o que está escrito."
+  },
+  {
+    "key": "taxa_hospede_adicional",
+    "section": 4,
+    "label": "Taxa de hóspede adicional",
+    "au": "P",
+    "copy": false,
+    "secret": false,
+    "obs": "Hóspedes incluídos na diária e valor por hóspede adicional. A IA deve usar quando houver dúvida sobre quantas pessoas cabem no valor ou custo por pessoa extra."
+  },
+  {
+    "key": "taxa_pet",
+    "section": 4,
+    "label": "Taxa de pet",
+    "au": "P",
+    "copy": false,
+    "secret": false,
+    "obs": "Valor cobrado por animal de estimação, quando o anúncio tem essa taxa. A IA deve usar junto da regra de animais de estimação."
   },
   {
     "key": "regras_adicionais_da_casa",

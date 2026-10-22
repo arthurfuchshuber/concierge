@@ -383,7 +383,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                               </div>
                             ) : (
                               <span
-                                className={`min-w-0 flex-1 whitespace-pre-line block ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
+                                className={`min-w-0 flex-1 whitespace-pre-line block ${r.value.length > 600 ? "max-h-[min(60vh,28rem)] overflow-y-auto overscroll-contain pr-1" : ""} ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
                               >
                                 {r.value}
                               </span>

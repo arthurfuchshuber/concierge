@@ -116,3 +116,65 @@ describe("nome interno e título público", () => {
     expect(find(s, "f:cep").edit).toBe("textarea");
   });
 });
+
+describe("lacunas do dossiê (22/10/2026)", () => {
+  const rules = (text: string) => src({ property: { ...src().property, airbnb_house_rules: text } });
+  it("comodidades antes do primeiro cabeçalho não se perdem", () => {
+    const s = buildPlaybook(
+      src({
+        property: {
+          ...src().property,
+          airbnb_amenities: [
+            { name: "Ar-condicionado", available: true, category: null },
+            { name: "TV", available: true, category: null },
+            { name: "Secador de cabelo", available: true, category: null },
+            { name: "Banheiro", available: true, category: null },
+            { name: "Chuveiro", available: true, category: null },
+            { name: "Cozinha e sala de jantar", available: true, category: null },
+            { name: "Geladeira", available: true, category: null },
+          ],
+        },
+      }),
+    );
+    expect(find(s, "f:climatizacao").value).toBe("Ar-condicionado");
+    expect(find(s, "f:entretenimento").value).toBe("TV");
+    expect(find(s, "f:banheiro").value).toBe("Secador de cabelo · Chuveiro");
+    expect(find(s, "f:cozinha_e_sala_de_jantar").value).toBe("Geladeira");
+  });
+  it("horário de silêncio com o intervalo na linha seguinte", () => {
+    const s = buildPlaybook(rules("Horário de silêncio\n22:00 - 08:00\nProibido fumar"));
+    expect(find(s, "f:horario_de_silencio").value).toBe("22:00 às 08:00");
+  });
+  it("regras adicionais sem dois-pontos", () => {
+    const s = buildPlaybook(rules("Proibido fumar\nRegras adicionais\nProibido festas\n- não deixar lixo"));
+    expect(find(s, "f:regras_adicionais_da_casa").value).toBe("Festas\nNão deixar lixo");
+  });
+  it("descrição completa do anúncio entra na seção 1", () => {
+    const s = buildPlaybook(src({ property: { ...src().property, airbnb_description_full: "Texto longo do anúncio." } }));
+    const row = find(s, "f:descricao_completa_anuncio");
+    expect(row.value).toBe("Texto longo do anúncio.");
+    expect(row.label).toBe("Descrição do anúncio no Airbnb");
+    expect(row.au).toBe("P");
+    expect(s[0].rows.includes(row)).toBe(true);
+    expect(row.edit).toBeNull();
+  });
+  it("política de cancelamento e taxas vêm do anúncio/Channex", () => {
+    const s = buildPlaybook(
+      src({
+        property: { ...src().property, airbnb_cancellation_policy: "Flexível", airbnb_cancellation_category: "FLEXIBLE" },
+        listingFacts: [
+          {
+            key: "precos",
+            title: "Preços",
+            content: "Hóspedes incluídos na diária: 2\nPor hóspede adicional: R$ 50,00 por noite\nTaxa de limpeza R$ 120,00 por reserva\nTaxa de pet R$ 30,00 por reserva por pet",
+          },
+        ],
+      }),
+    );
+    expect(find(s, "f:politica_de_cancelamento").value).toBe("Flexível\nCategoria: FLEXIBLE");
+    expect(find(s, "f:taxa_de_limpeza").value).toBe("Taxa de limpeza R$ 120,00 por reserva");
+    expect(find(s, "f:taxa_hospede_adicional").value).toBe("Hóspedes incluídos na diária: 2\nPor hóspede adicional: R$ 50,00 por noite");
+    expect(find(s, "f:taxa_pet").value).toBe("Taxa de pet R$ 30,00 por reserva por pet");
+    expect(find(s, "f:taxa_de_limpeza").au).toBe("P");
+  });
+});

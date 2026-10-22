@@ -194,4 +194,32 @@ describe("Playbook · funções de servidor", () => {
     const out = await getPlaybook({ data: { propertyId: PID } });
     expect(out.propertyName).toBe("Casa X");
   });
+
+  it("geolocalização: consulta com cidade/estado/país e recusa candidato de outra cidade", async () => {
+    results = {
+      properties: { id: PID, name: "Casa X", address: "Rua Mato Grosso, 89", city: "Foz do Iguaçu", state: "PR", country: "Brasil", lat: null, lng: null, owner_contact_id: null },
+      property_playbook_entries: [],
+    };
+    geocode.mockResolvedValue([{ district: "Barro Preto", cep: "30190080", city: "Belo Horizonte", lat: -19.9, lng: -43.9 }]);
+    const { getPlaybook } = await import("@/lib/playbook.functions");
+    await getPlaybook({ data: { propertyId: PID } });
+    expect(geocode).toHaveBeenCalledWith("Rua Mato Grosso, 89, Foz do Iguaçu, PR, Brasil");
+    expect(lastOps("property_playbook_entries", "upsert")).toHaveLength(0);
+    // Mesma cidade (sem acento/caixa diferentes): aceita, mesmo sem coordenadas no imóvel.
+    geocode.mockResolvedValue([{ district: "Centro", cep: "85851000", city: "FOZ DO IGUACU", lat: -25.5, lng: -54.5 }]);
+    await getPlaybook({ data: { propertyId: PID } });
+    const saved = lastOps("property_playbook_entries", "upsert").map((o) => o.args[0]);
+    expect(saved).toContainEqual(expect.objectContaining({ field_key: "f:bairro", value: "Centro" }));
+  });
+
+  it("telefone do anfitrião vazio usa o do proprietário vinculado", async () => {
+    results = {
+      properties: { id: PID, name: "Casa X", address: "", host_phone: "", owner_contact_id: "22222222-2222-4222-8222-222222222222" },
+      property_owners: { name: "Livia", trade_name: null, phone: "11987654321", phone_country: "BR" },
+      property_playbook_entries: [{ id: "1", field_key: "f:_geo", value: "1", note: null, custom_label: null, custom_audience: null, section_num: null }],
+    };
+    const { getPlaybook } = await import("@/lib/playbook.functions");
+    const out = await getPlaybook({ data: { propertyId: PID } });
+    expect(out.source.property.host_phone).toBe("+55 11 98765 4321");
+  });
 });

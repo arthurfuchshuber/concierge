@@ -174,28 +174,25 @@ const OTHER_HEADERS = new Set([
 function amenityLine(p: Record<string, unknown>, group: string): string {
   const all = amenities(p).filter((a) => a.available);
   const norm = (t: string) => t.trim().toLowerCase();
-  const hasHeaders = all.some((a) => norm(a.name) in HEADER_TO_GROUP);
-  if (hasHeaders) {
-    let current: string | null = null;
-    const out: string[] = [];
-    for (const a of all) {
-      const k = norm(a.name);
-      if (k in HEADER_TO_GROUP) {
-        current = HEADER_TO_GROUP[k];
-        continue;
-      }
-      if (OTHER_HEADERS.has(k)) {
-        current = null;
-        continue;
-      }
-      if (current === group) out.push(a.name);
+  // Classificador híbrido (22/10/2026): o cabeçalho do Airbnb manda quando existe; item que vem ANTES do
+  // primeiro cabeçalho (os "destaques" do topo), sob cabeçalho sem grupo no Playbook ou sem cabeçalho nenhum
+  // é classificado pela tabela de palavras-chave. Nenhuma comodidade disponível se perde por falta de cabeçalho.
+  const byKeyword = (name: string) => AMENITY_GROUPS.find((g) => g.test.test(name))?.key ?? null;
+  let current: string | null = null;
+  const out: string[] = [];
+  for (const a of all) {
+    const k = norm(a.name);
+    if (k in HEADER_TO_GROUP) {
+      current = HEADER_TO_GROUP[k];
+      continue;
     }
-    return out.join(" · ");
+    if (OTHER_HEADERS.has(k)) {
+      current = null;
+      continue;
+    }
+    if ((current ?? byKeyword(a.name)) === group) out.push(a.name);
   }
-  return all
-    .filter((a) => AMENITY_GROUPS.find((g) => g.test.test(a.name))?.key === group)
-    .map((a) => a.name)
-    .join(" · ");
+  return out.join(" · ");
 }
 
 function absentAmenities(p: Record<string, unknown>): string {
@@ -214,11 +211,22 @@ function ruleLine(p: Record<string, unknown>, re: RegExp): string | null {
   return null;
 }
 
+/** "Horário de silêncio" e o intervalo podem vir em linhas seguidas: olha a própria linha e a seguinte. */
+function silenceRange(p: Record<string, unknown>): [string, string] | null {
+  const lines = rulesText(p).split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (!/hor[aá]rio de sil[eê]ncio/i.test(lines[i])) continue;
+    const m = `${lines[i]} ${lines[i + 1] ?? ""}`.match(/(\d{1,2}:\d{2})\s*(?:[-–—]|[aà]s|a)\s*(\d{1,2}:\d{2})/i);
+    if (m) return [m[1], m[2]];
+  }
+  return null;
+}
+
 function additionalRules(p: Record<string, unknown>): string {
   const own = s(p.house_rules);
   if (own) return own;
   const t = rulesText(p);
-  const i = t.search(/Regras adicionais:/i);
+  const i = t.search(/Regras adicionais:?/i);
   if (i < 0) return "";
   return t
     .slice(i)
@@ -308,7 +316,7 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
   const cinMax = s(p.checkin_time_max);
   const cout = s(p.checkout_time);
 
-  const silence = ruleLine(p, /hor[aá]rio de sil[eê]ncio/i)?.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
+  const silence = silenceRange(p);
   const petsLine = ruleLine(p, /animais/i);
   const petsMax = petsLine?.match(/at[eé]\s+(\d+)/i)?.[1];
   const maxGuestsRule = ruleLine(p, /m[aá]ximo de \d+ h[oó]spedes/i)?.match(/(\d+)/)?.[1];
@@ -316,9 +324,24 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
   const safety = s(p.airbnb_safety_info);
   const cameraLine = safety.split("\n").find((l) => /c[aâ]mera/i.test(l))?.trim() ?? "";
 
+  // Políticas e taxas vêm da Channex: os fatos normalizados do anúncio ("precos" e "cancelamento").
+  const factLines = (key: string) =>
+    (src.listingFacts ?? [])
+      .filter((f) => f.key === key)
+      .flatMap((f) => f.content.split("\n"))
+      .map((l) => l.trim())
+      .filter(Boolean);
+  const priceLines = factLines("precos");
+  const priceLine = (re: RegExp) => priceLines.find((l) => re.test(l)) ?? "";
+  const cancelCategory = s(p.airbnb_cancellation_category);
+  const cancellation =
+    [s(p.airbnb_cancellation_policy), cancelCategory ? `Categoria: ${cancelCategory}` : ""].filter(Boolean).join("\n") ||
+    factLines("cancelamento").join("\n");
+
   const values: Record<string, string> = {
     titulo_publico: s(p.name) || splitListingTitle(src.listingTitle, s(p.name)).publicTitle,
     tipo_de_espaco: s(p.short_description),
+    descricao_completa_anuncio: s(p.airbnb_description_full),
     // Só rua e número: bairro, cidade e estado têm linha própria.
     endereco_rua_e_numero: s(p.address).split(/\s-\s/)[0].trim(),
     bairro: entryValue("bairro") || addr.district,
@@ -355,7 +378,7 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     banheiro: amenityLine(p, "banheiro"),
     ausentes_no_anuncio: absentAmenities(p),
     manuais_de_equipamentos: src.manuals.map((m) => m.title).filter(Boolean).join("\n") || entryValue("manuais_de_equipamentos"),
-    horario_de_silencio: silence ? `${silence[1]} às ${silence[2]}` : "",
+    horario_de_silencio: silence ? `${silence[0]} às ${silence[1]}` : "",
     animais_de_estimacao: petsLine ? (/n[aã]o/i.test(petsLine) ? "Não permitidos" : `Permitidos${petsMax ? ` · até ${petsMax} animais` : ""}`) : "",
     fumar: ruleLine(p, /fumar/i) ? `Proibido${/independentemente do ambiente/i.test(additional) ? " em qualquer ambiente do imóvel" : ""}` : "",
     festas_e_eventos: rulesText(p) ? (ruleLine(p, /n[aã]o s[aã]o permitidas festas/i) ? "Não permitidos" : "Permitidos") : "",
@@ -369,6 +392,10 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     regras_adicionais_da_casa: additional,
     contatos_de_emergencia: src.emergency.map((c) => `${c.label}: ${c.number}`.trim()).join("\n"),
     telefone_do_anfitriao: s(p.host_phone),
+    politica_de_cancelamento: cancellation,
+    taxa_de_limpeza: priceLine(/^Taxa de limpeza(?! para)/i),
+    taxa_hospede_adicional: [priceLine(/^Hóspedes incluídos/i), priceLine(/^Por hóspede adicional/i)].filter(Boolean).join("\n"),
+    taxa_pet: priceLine(/^Taxa de pet/i),
   };
   for (const k of ENTRY_FIELDS) values[k] = values[k] || entryValue(k);
 
