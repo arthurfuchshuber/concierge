@@ -444,5 +444,8 @@ export async function confirmFullConnection(ownerId: string, propertyId: string,
     },
     userId,
   );
+  // Imóvel sincronizado por completo: scrap público integral (dados + capa), custo zero.
+  const { scrapePublicListingForProperty } = await import("@/lib/channex-listing.server");
+  await scrapePublicListingForProperty(propertyId).catch((e) => console.error("[full-connect] scrap", e));
   return { ok: true as const, already: false };
 }
