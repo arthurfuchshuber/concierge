@@ -8641,22 +8641,39 @@ function OccupancyPanel({
     setBlockBusy(true);
     try {
       const realId = baseId(blockSel.propertyId);
-      await createBlockFn({
-        data: { ownerId: blockOwnerId, propertyId: realId, from: blockRange.from, to: blockRange.to, note },
+      const range = { ...blockRange };
+      const label = note?.trim() ? `Bloqueado: ${note.trim()}` : "Bloqueado";
+      const created = await createBlockFn({
+        data: { ownerId: blockOwnerId, propertyId: realId, from: range.from, to: range.to, note },
       });
+      // Mostra o bloqueio NA HORA (mesma ideia do "Liberar datas"); o servidor confirma depois.
+      qcBlock.setQueriesData({ queryKey: ["dash-occupancy"] }, (old: unknown) => {
+        const o = old as { stays?: unknown[] } | undefined;
+        if (!o || !Array.isArray(o.stays)) return old;
+        return {
+          ...o,
+          stays: [
+            ...o.stays,
+            { propertyId: realId, checkin: range.from, checkout: range.to, guest: label, checkinDone: false, checkoutDone: false, blocked: true },
+          ],
+        };
+      });
+      const newId = (created as { id?: string } | null)?.id;
+      if (newId) {
+        qcBlock.setQueriesData({ queryKey: ["manual-blocks"] }, (old: unknown) => {
+          const o = old as { blocks?: unknown[] } | undefined;
+          if (!o || !Array.isArray(o.blocks)) return old;
+          return { ...o, blocks: [...o.blocks, { id: newId, propertyId: realId, from: range.from, to: range.to, note: note ?? null }] };
+        });
+      }
       setBlockOpen(false);
       setBlockSel(null);
-      // Atualizar a tela NUNCA pode virar "erro ao bloquear": o bloqueio já está
-      // salvo nesse ponto. Falha ao recarregar o calendário é silenciosa.
-      try {
-        await Promise.all([
-          qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }),
-          qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }),
-        ]);
-      } catch (refreshErr) {
-        console.error("[manual-block] recarregar calendário falhou", refreshErr);
-      }
-      void syncListings(realId, false);
+      // Fechar nos anúncios primeiro (não disputa com a recarga pesada do calendário);
+      // a recarga em segundo plano só confirma o que já está na tela.
+      void syncListings(realId, false).finally(() => {
+        qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }).catch(() => {});
+        qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }).catch(() => {});
+      });
     } catch (e) {
       console.error("[manual-block] erro ao bloquear", e);
       toast.error("Não é possível bloquear", { description: (e instanceof Error ? e.message : "").replace(/^Não é possível bloquear — /, "") || "Tente novamente." });
