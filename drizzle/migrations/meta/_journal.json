@@ -64,6 +64,13 @@
       "when": 1792444035093,
       "tag": "0008_full_connect_conductor_and_unit_lock",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792647443980,
+      "tag": "0009_property_playbook_entries",
+      "breakpoints": true
     }
   ]
 }
