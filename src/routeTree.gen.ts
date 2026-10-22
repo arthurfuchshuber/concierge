@@ -69,8 +69,8 @@ import { Route as AuthenticatedAdminDashboardCalendarioRouteImport } from './rou
 import { Route as AuthenticatedAdminDashboardFinanceiroRouteImport } from './routes/_authenticated/admin.dashboard.financeiro'
 import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
 import { Route as AuthenticatedAdminDashboardRegistrosRouteImport } from './routes/_authenticated/admin.dashboard.registros'
-import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminPlaybookIdRouteImport } from './routes/_authenticated/admin.playbook.$id'
+import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminRecomendacoesSigmaIndexRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.index'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
@@ -426,16 +426,16 @@ const AuthenticatedAdminDashboardRegistrosRoute =
     path: '/registros',
     getParentRoute: () => AuthenticatedAdminDashboardRoute,
   } as any)
-const AuthenticatedAdminPropertiesIdRoute =
-  AuthenticatedAdminPropertiesIdRouteImport.update({
-    id: '/properties/$id',
-    path: '/properties/$id',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
 const AuthenticatedAdminPlaybookIdRoute =
   AuthenticatedAdminPlaybookIdRouteImport.update({
     id: '/playbook/$id',
     path: '/playbook/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPropertiesIdRoute =
+  AuthenticatedAdminPropertiesIdRouteImport.update({
+    id: '/properties/$id',
+    path: '/properties/$id',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminRecomendacoesSigmaIndexRoute =
@@ -644,8 +644,8 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
-  '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/playbook/$id': typeof AuthenticatedAdminPlaybookIdRoute
+  '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
@@ -729,8 +729,8 @@ export interface FileRoutesByTo {
   '/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
-  '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/playbook/$id': typeof AuthenticatedAdminPlaybookIdRoute
+  '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
@@ -819,8 +819,8 @@ export interface FileRoutesById {
   '/_authenticated/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
   '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/_authenticated/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
-  '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/playbook/$id': typeof AuthenticatedAdminPlaybookIdRoute
+  '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
@@ -909,8 +909,8 @@ export interface FileRouteTypes {
     | '/admin/dashboard/financeiro'
     | '/admin/dashboard/kanban'
     | '/admin/dashboard/registros'
-    | '/admin/properties/$id'
     | '/admin/playbook/$id'
+    | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/channex-ari-retry'
@@ -994,8 +994,8 @@ export interface FileRouteTypes {
     | '/admin/dashboard/financeiro'
     | '/admin/dashboard/kanban'
     | '/admin/dashboard/registros'
-    | '/admin/properties/$id'
     | '/admin/playbook/$id'
+    | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/channex-ari-retry'
@@ -1083,8 +1083,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/dashboard/financeiro'
     | '/_authenticated/admin/dashboard/kanban'
     | '/_authenticated/admin/dashboard/registros'
-    | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/playbook/$id'
+    | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/channex-ari-retry'
@@ -1594,18 +1594,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardRegistrosRouteImport
       parentRoute: typeof AuthenticatedAdminDashboardRoute
     }
-    '/_authenticated/admin/properties/$id': {
-      id: '/_authenticated/admin/properties/$id'
-      path: '/properties/$id'
-      fullPath: '/admin/properties/$id'
-      preLoaderRoute: typeof AuthenticatedAdminPropertiesIdRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
     '/_authenticated/admin/playbook/$id': {
       id: '/_authenticated/admin/playbook/$id'
       path: '/playbook/$id'
       fullPath: '/admin/playbook/$id'
       preLoaderRoute: typeof AuthenticatedAdminPlaybookIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/properties/$id': {
+      id: '/_authenticated/admin/properties/$id'
+      path: '/properties/$id'
+      fullPath: '/admin/properties/$id'
+      preLoaderRoute: typeof AuthenticatedAdminPropertiesIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/recomendacoes-sigma/': {
@@ -1831,8 +1831,8 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminStakeholdersRoute: typeof AuthenticatedAdminStakeholdersRoute
   AuthenticatedAdminTaxonomiaRoute: typeof AuthenticatedAdminTaxonomiaRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
-  AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRoute
   AuthenticatedAdminPlaybookIdRoute: typeof AuthenticatedAdminPlaybookIdRoute
+  AuthenticatedAdminPropertiesIdRoute: typeof AuthenticatedAdminPropertiesIdRoute
   AuthenticatedAdminRecomendacoesSigmaCityKeyRoute: typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   AuthenticatedAdminRecomendacoesSigmaIndexRoute: typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
 }
@@ -1856,8 +1856,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminStakeholdersRoute: AuthenticatedAdminStakeholdersRoute,
   AuthenticatedAdminTaxonomiaRoute: AuthenticatedAdminTaxonomiaRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
-  AuthenticatedAdminPropertiesIdRoute: AuthenticatedAdminPropertiesIdRoute,
   AuthenticatedAdminPlaybookIdRoute: AuthenticatedAdminPlaybookIdRoute,
+  AuthenticatedAdminPropertiesIdRoute: AuthenticatedAdminPropertiesIdRoute,
   AuthenticatedAdminRecomendacoesSigmaCityKeyRoute:
     AuthenticatedAdminRecomendacoesSigmaCityKeyRoute,
   AuthenticatedAdminRecomendacoesSigmaIndexRoute:
