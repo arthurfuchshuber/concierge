@@ -8544,7 +8544,13 @@ function OccupancyPanel({
   async function syncListings(realPropertyId: string, release: boolean) {
     const tid = toast.loading(release ? "Reabrindo as datas nos anúncios…" : "Fechando as datas nos anúncios…");
     try {
-      const r = await syncBlockFn({ data: { ownerId: blockOwnerId, propertyId: realPropertyId } });
+      const call = () => syncBlockFn({ data: { ownerId: blockOwnerId, propertyId: realPropertyId } });
+      // Uma nova tentativa silenciosa antes de avisar: oscilações curtas de conexão não viram alerta.
+      let r = await call().catch(() => null);
+      if (!r || (r.connected && !r.ok)) {
+        await new Promise((res) => setTimeout(res, 2500));
+        r = await call();
+      }
       if (r.connected && !r.ok) {
         toast.warning(
           release
