@@ -4,7 +4,7 @@ import { useAntiClipWindow } from "@/hooks/useAntiClipWindow";
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -37,13 +37,15 @@ const DialogContent = React.forwardRef<
     /** Janela obrigatória (sem "X"): só fecha quando a pessoa cumprir o que ela pede. */
     hideClose?: boolean;
     /**
-     * TELA CHEIA NO TABLET E NO CELULAR (pedido explícito, 21/10/2026): abaixo de `lg` a janela
-     * ocupa a tela inteira, sem margem nas laterais nem no topo, e o "X" de canto fica colado
-     * no canto superior direito. No computador (lg+) a janela continua centralizada como antes.
+     * JANELA "COMO PÁGINA" (regra global, 22/10/2026): no tablet e no celular (abaixo de `lg`) a
+     * janela NÃO é tela cheia — fica logo abaixo do cabeçalho do sistema (60px + 20px de respiro),
+     * com 10px nas laterais, sem "X": quem fecha é o "Voltar" no canto superior direito, na mesma
+     * linha da data (`DialogDateRow`). No computador (lg+) segue centralizada, com o "X" de canto.
+     * Janelas pequenas (confirmações, menus, passos) NÃO usam esta prop e mantêm o "X".
      */
-    bleed?: boolean;
+    pageLike?: boolean;
   }
->(({ className, children, hideClose, bleed, ...props }, ref) => {
+>(({ className, children, hideClose, pageLike, ...props }, ref) => {
   const [layerRef, layerNodeRef] = useOverlayLayer("window", useAntiClipWindow(ref));
   return (
     <DialogPortal>
@@ -56,8 +58,8 @@ const DialogContent = React.forwardRef<
           // `min(...)` garante o menor dos dois. `sg-elegant-scroll`: barra de
           // rolagem fina e visível, igual aos demais tooltips/popovers.
           "sg-elegant-scroll fixed left-[50%] top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-[calc(100%_-_2rem)] max-w-lg translate-x-[-50%] translate-y-[calc(-50%_-_var(--kb-inset,0px)_/_2)] gap-4 rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] text-foreground p-5 sm:p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] overflow-y-auto",
-          bleed &&
-            "max-lg:!left-0 max-lg:!top-0 max-lg:!h-[100dvh] max-lg:!max-h-none max-lg:!w-screen max-lg:!max-w-none max-lg:!translate-x-0 max-lg:!translate-y-0 max-lg:!rounded-none max-lg:!border-0",
+          pageLike &&
+            "max-lg:!left-[10px] max-lg:!top-[80px] max-lg:!h-[calc(100dvh_-_80px)] max-lg:!max-h-none max-lg:!w-[calc(100vw_-_20px)] max-lg:!max-w-none max-lg:!translate-x-0 max-lg:!translate-y-0 max-lg:!rounded-b-none max-lg:!border-b-0",
           className,
         )}
         {...props}
@@ -70,11 +72,11 @@ const DialogContent = React.forwardRef<
             data-window-close
             // X DE CANTO MAIS DELICADO (pedido explícito, 21/10/2026, mockup aprovado): aba de 32px
             // (era 44px), canto de 12px, fundo e fio de luz mais leves e ícone de 13px com traço 1.8.
-            // Mora AQUI para valer em todas as janelas; abaixo de `lg`, em janela de tela cheia
-            // (`bleed`), o canto superior direito é reto.
+            // Mora AQUI para valer em todas as janelas; abaixo de `lg`, em janela "como página"
+            // (`pageLike`), ele some e o "Voltar" (`DialogDateRow`) assume.
             className={cn(
               "absolute right-0 top-0 z-[5] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] text-muted-foreground shadow-[inset_1px_-1px_0_color-mix(in_oklab,var(--foreground)_9%,transparent)] transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_10%,transparent)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
-              bleed && "max-lg:!rounded-tr-none",
+              pageLike && "max-lg:hidden",
             )}
           >
             <X className="size-[13px]" strokeWidth={1.8} />
@@ -86,6 +88,40 @@ const DialogContent = React.forwardRef<
   );
 });
 DialogContent.displayName = DialogPrimitive.Content.displayName;
+
+/**
+ * Linha de topo das janelas "como página" (mockup aprovado, 22/10/2026): data dourada igual à das
+ * páginas (`PageShell`) e, abaixo de `lg`, o "Voltar" alinhado à direita NA MESMA linha. No
+ * computador o "Voltar" some (fecha pelo "X" de canto) e a linha reserva 40px para ele.
+ */
+const DialogDateRow = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
+  const hoje = new Date()
+    .toLocaleDateString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    })
+    .replace(/^\w/, (c) => c.toUpperCase());
+  return (
+    <div
+      className={cn("flex min-w-0 items-center justify-between gap-3 lg:pr-10", className)}
+      {...props}
+    >
+      <p className="ds-eyebrow ds-data truncate text-[10.5px] leading-[22px] tracking-[0.2em]">
+        {hoje}
+      </p>
+      <DialogPrimitive.Close
+        data-window-close
+        className="inline-flex h-[22px] shrink-0 cursor-pointer items-center gap-1 rounded-md text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+      >
+        <ArrowLeft className="size-[13px]" strokeWidth={1.8} />
+        Voltar
+      </DialogPrimitive.Close>
+    </div>
+  );
+};
+DialogDateRow.displayName = "DialogDateRow";
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn("flex flex-col space-y-1.5 text-left pr-12", className)} {...props} />
@@ -99,7 +135,6 @@ const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
       "flex flex-col-reverse gap-2 pt-4 mt-1 border-t border-border/50 sm:flex-row sm:justify-end sm:gap-2",
       className,
     )}
-
     {...props}
   />
 );
@@ -137,6 +172,7 @@ export {
   DialogClose,
   DialogContent,
   DialogHeader,
+  DialogDateRow,
   DialogFooter,
   DialogTitle,
   DialogDescription,

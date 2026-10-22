@@ -182,7 +182,7 @@ export function OwnerFinancePanel({
               </PopoverTrigger>
               <PopoverContent
                 align="end"
-                className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+                className="w-[240px] p-2"
                 onOpenAutoFocus={(e) => e.preventDefault()}
               >
                 <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
@@ -239,7 +239,7 @@ export function OwnerFinancePanel({
                             aria-hidden
                             className={`grid size-4 shrink-0 place-items-center rounded-[5px] ${
                               on
-                                ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-white"
+                                ? "bg-gradient-to-br from-brand-purple to-brand-magenta text-white"
                                 : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)]"
                             }`}
                           >
@@ -297,7 +297,7 @@ export function OwnerFinancePanel({
               return (
                 <div
                   key={e.id}
-                  className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-[12px] bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                  className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-sm bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                 >
                   <span className="grid size-8 place-items-center rounded-[10px] bg-foreground/[0.05] text-muted-foreground">
                     {isRec ? (
@@ -347,7 +347,7 @@ export function OwnerFinancePanel({
                       }
                       className={`grid size-7 place-items-center rounded-[7px] transition-colors disabled:opacity-40 ${
                         e.paid_at
-                          ? "bg-[#4f8f73] text-white"
+                          ? "ds-ok-solid text-white"
                           : "text-muted-foreground shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)] hover:text-foreground"
                       }`}
                     >
@@ -437,7 +437,7 @@ function EntryWindow({
 
   return (
     <Dialog open={!!entry} onOpenChange={(o) => !o && !busy && onClose()}>
-      <DialogContent className="max-w-[380px] gap-3 p-4 sm:p-4">
+      <DialogContent className="max-w-[380px] gap-3.5 p-[18px] sm:p-[18px]">
         <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 pr-9">
           <DialogTitle className="font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
             {cur ? "Editar lançamento" : "Novo lançamento"}
@@ -512,7 +512,7 @@ function EntryWindow({
           <Switch
             checked={paid}
             onCheckedChange={setPaid}
-            className="data-[state=checked]:bg-[#4f8f73] data-[state=unchecked]:bg-foreground/[0.14] [&>span]:bg-[#d8d2ca] data-[state=checked]:[&>span]:bg-white"
+            className="data-[state=checked]:ds-ok-solid data-[state=unchecked]:bg-foreground/[0.14] [&>span]:bg-muted-foreground data-[state=checked]:[&>span]:bg-white"
           />
         </div>
 
@@ -542,7 +542,7 @@ function EntryWindow({
                 }),
               )
             }
-            className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] px-4 text-[12.5px] font-bold text-white disabled:opacity-40"
+            className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-gradient-to-br from-brand-purple to-brand-magenta px-4 text-[12.5px] font-bold text-white disabled:opacity-40"
           >
             {busy && <Loader2 className="size-3.5 animate-spin" />}
             Salvar

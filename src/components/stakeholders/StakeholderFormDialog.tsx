@@ -21,6 +21,7 @@ import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
+  DialogDateRow,
   DialogHeader,
   DialogTitle,
   DialogDescription,
@@ -222,7 +223,7 @@ function FormGroups({
   setOpenSection: (id: string | null) => void;
   children: React.ReactNode;
 }) {
-  if (newLayout) return <GroupList className="mt-5 flex flex-col">{children}</GroupList>;
+  if (newLayout) return <GroupList className="flex flex-col">{children}</GroupList>;
   return (
     <SectionGroup openId={openSection} onOpenIdChange={setOpenSection}>
       <DenseSections>{children}</DenseSections>
@@ -761,31 +762,31 @@ export function StakeholderFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Layout novo (proprietário): tela cheia no tablet/celular (`bleed`), sem margem nas
-          laterais nem no topo, X de canto delicado e rodapé "Cancelar | Salvar" fixo embaixo
-          (pedido explícito, 21/10/2026). No computador segue centralizada, até 2xl. */}
+      {/* Layout novo (proprietário): janela "como página" (regra global, 22/10/2026) — no
+          tablet/celular fica abaixo do cabeçalho do sistema com "Voltar" no topo direito e o
+          rodapé "Cancelar | Salvar" fixo embaixo; no computador, centralizada (880px) com "X". */}
       <DialogContent
-        bleed={newLayout}
-        className={`ds-form-dialog w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden ${
-          newLayout ? "max-lg:grid-rows-[auto_minmax(0,1fr)_auto] max-lg:overflow-y-hidden" : ""
+        pageLike={newLayout}
+        className={`ds-form-dialog overflow-x-hidden ${
+          newLayout
+            ? "w-[min(94vw,880px)] max-w-none gap-6 bg-background p-4 sm:max-w-[880px] sm:p-7 max-lg:grid-rows-[auto_minmax(0,1fr)_auto] max-lg:overflow-y-hidden"
+            : "w-[calc(100vw-1.5rem)] max-w-2xl"
         }`}
       >
         {newLayout ? (
           <DialogHeader className="space-y-0 text-left">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-              <div className="min-w-0">
-                <p className="ds-eyebrow text-[10.5px] tracking-[0.2em] text-muted-foreground capitalize">
-                  {singular}
-                </p>
-                <DialogTitle className="mt-1.5 font-display text-[20px] font-bold leading-[1.15] tracking-[-0.01em] capitalize">
+            <div className="grid gap-1.5">
+              <DialogDateRow />
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                <DialogTitle className="ds-eyebrow text-[10.5px] font-normal leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
                   {form.id ? `Editar ${singular}` : `Novo ${singular}`}
                 </DialogTitle>
+                <PresenceAvatars users={presence.users} />
               </div>
-              <PresenceAvatars users={presence.users} />
+              <DialogDescription className="text-xs leading-[1.45] text-muted-foreground">
+                CNPJ e CEP preenchem os dados automaticamente.
+              </DialogDescription>
             </div>
-            <DialogDescription className="mt-2 text-xs leading-[1.45] text-muted-foreground">
-              CNPJ e CEP preenchem os dados automaticamente.
-            </DialogDescription>
           </DialogHeader>
         ) : (
           <DialogHeader className="pb-4 border-b border-border/40">
@@ -802,7 +803,7 @@ export function StakeholderFormDialog({
         )}
 
         <div
-          className={`space-y-3 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1 ${newLayout ? "max-lg:max-h-none max-lg:min-h-0" : ""}`}
+          className={`max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1 ${newLayout ? "flex flex-col gap-6 max-lg:max-h-none max-lg:min-h-0" : "space-y-3"}`}
         >
           {/* Tipo — só na criação; ao editar, o tipo já está definido.
               Sempre só 2 opções fixas (não rola/varia como uma barra de
@@ -812,7 +813,7 @@ export function StakeholderFormDialog({
               deixava os 2 botões encolhidos ao conteúdo e o quadro sem
               borda, parecendo "desenquadrado". */}
           {newLayout && (
-            <div className="mt-2">
+            <div>
               <Stepper
                 current={form.person_type}
                 onChange={(v) => {
@@ -1407,7 +1408,7 @@ export function StakeholderFormDialog({
 
         {newLayout ? (
           <div className="grid justify-items-center border-t border-foreground/[0.07] pt-3">
-            <div className={`${ACTION_BAR} !h-11 !w-full max-w-[420px] !rounded-[13px]`}>
+            <div className={`${ACTION_BAR} !h-11 !w-full max-w-[420px] !rounded-md`}>
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}

@@ -14,6 +14,8 @@ export const Route = createFileRoute("/_authenticated/admin/dashboard/financeiro
       },
       { property: "og:title", content: "Financeiro — ConciergeIA" },
       { property: "og:description", content: "Histórico e custos das limpezas realizadas." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: DashboardFinanceiro,

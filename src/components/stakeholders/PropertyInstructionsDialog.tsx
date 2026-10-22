@@ -3,7 +3,7 @@ import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CoverImage } from "@/components/ui/cover-image";
+import { PropertyPhotoHeader } from "./PropertyPhotoHeader";
 import type { PropertyListItem } from "./property-actions";
 
 /**
@@ -38,10 +38,7 @@ export function PropertyInstructionsDialog({
       >
         {p && (
           <>
-            <div className="flex shrink-0 items-center gap-3 px-4 pb-3 pt-4 pr-14">
-              <span className="relative size-12 shrink-0 overflow-hidden rounded-[10px] bg-secondary">
-                <CoverImage urls={[p.hero_image_url, ...(p.gallery_images ?? [])]} empty={false} />
-              </span>
+            <PropertyPhotoHeader urls={[p.hero_image_url, ...(p.gallery_images ?? [])]}>
               <div className="min-w-0">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   {title}
@@ -59,7 +56,7 @@ export function PropertyInstructionsDialog({
                   </div>
                 )}
               </div>
-            </div>
+            </PropertyPhotoHeader>
             <DialogDescription className="sr-only">{title} deste imóvel.</DialogDescription>
             <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto px-4 pb-3">
               {empty ? (

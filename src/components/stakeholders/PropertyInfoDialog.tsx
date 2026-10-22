@@ -4,7 +4,7 @@ import { BookOpen, Copy, ExternalLink, Lock, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CoverImage } from "@/components/ui/cover-image";
+import { PropertyPhotoHeader } from "./PropertyPhotoHeader";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import type { PropertyListItem } from "./property-actions";
 import {
@@ -145,10 +145,7 @@ export function PropertyInfoDialog({
       >
         {p && (
           <>
-            <div className="flex shrink-0 items-center gap-3 px-4 pb-3 pt-4 pr-14">
-              <span className="relative size-12 shrink-0 overflow-hidden rounded-[10px] bg-secondary">
-                <CoverImage urls={[p.hero_image_url, ...(p.gallery_images ?? [])]} empty={false} />
-              </span>
+            <PropertyPhotoHeader urls={[p.hero_image_url, ...(p.gallery_images ?? [])]}>
               <div className="min-w-0">
                 <DialogTitle
                   className="block truncate text-[14px] font-bold leading-tight"
@@ -178,7 +175,7 @@ export function PropertyInfoDialog({
                   </div>
                 ) : null}
               </div>
-            </div>
+            </PropertyPhotoHeader>
             <DialogDescription className="sr-only">
               Informações do imóvel: acesso e dados sincronizados do Airbnb.
             </DialogDescription>

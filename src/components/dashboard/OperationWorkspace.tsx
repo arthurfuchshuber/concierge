@@ -2,6 +2,7 @@ import { useFallbackInterval } from "@/components/LiveSync";
 import { ensureRealtimeAuth } from "@/lib/realtime-auth";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { SearchActionRow } from "./SearchActionRow";
+import { cleaningStatsQueryOptions } from "./cleaning-stats-query";
 import { searchScore } from "@/lib/search-score";
 import { POLICY_LABEL } from "@/lib/reservation-rich";
 import { trimSeries } from "@/lib/trim-series";
@@ -1069,7 +1070,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         { locale: ptBR },
       )}`
     : "";
-  const cleaningStatsQ = useQuery({
+  const cleaningStatsQ = useQuery(cleaningStatsQueryOptions({
     queryKey: [
       "dash-cleaning-stats",
       activeOwnerId ?? "self",
@@ -1088,40 +1089,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           providerNames: providerFilters.length > 0 ? providerFilters : undefined,
         },
       }),
-    staleTime: 10_000,
-    placeholderData: keepPreviousData,
     enabled: authed && cleaningStatsEnabled,
-  });
-  // Gráficos da aba Limpeza: MESMA janela dos cards — um número só por
-  // período, nunca um card "hoje" acima de um gráfico de 7 dias.
-  const cleaningTrendRange = cleaningStatsRange;
-  const cleaningTrendQ = useQuery({
-    queryKey: [
-      "dash-cleaning-stats",
-      activeOwnerId ?? "self",
-      cleaningTrendRange.start,
-      cleaningTrendRange.end,
-      cleaningStatsPropertyIds?.join(",") ?? "",
-      providerFilters.join(","),
-    ],
-    queryFn: () =>
-      cleaningStatsFn({
-        data: {
-          ownerId: activeOwnerId,
-          rangeStart: cleaningTrendRange.start,
-          rangeEnd: cleaningTrendRange.end,
-          propertyIds: cleaningStatsPropertyIds,
-          providerNames: providerFilters.length > 0 ? providerFilters : undefined,
-        },
-      }),
-    staleTime: 10_000,
-    placeholderData: keepPreviousData,
-    enabled: authed && view === "limpeza" && cleaningStatsEnabled,
-  });
-  // Consulta desligada (período todo no futuro) ainda devolveria o dado do
-  // período anterior por causa do `keepPreviousData` — daí o filtro aqui.
+  }));
+  // Um único observador e estado de carregamento para cards e gráficos.
+  const cleaningTrendQ = cleaningStatsQ;
+  // Período todo no futuro não deve incluir realizadas do cache.
   const cleaningStatsData = cleaningStatsEnabled ? cleaningStatsQ.data : undefined;
-  const cleaningTrendData = cleaningStatsEnabled ? cleaningTrendQ.data : undefined;
+  const cleaningTrendData = cleaningStatsData;
   // Completas aguardando aprovação no período dos cards — ficam FORA dos
   // totais e aparecem só como aviso embaixo deles.
   const pendingApproval = cleaningStatsData?.pendingApproval ?? { count: 0, totalCents: 0 };
@@ -1923,7 +1897,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       forecastCount: cleaningForecast.cleaningsExpected,
       forecastCents: cleaningForecast.estimatedTotalCents,
       statsLoading:
-        (cleaningPeriod.hasPast && (cleaningStatsQ.isLoading || cleaningStatsQ.isPlaceholderData)) ||
+        (cleaningPeriod.hasPast && cleaningStatsQ.isLoading) ||
         (cleaningPeriod.hasFuture && cleaningForecastListQ.isLoading),
       trendLoading:
         (cleaningPeriod.hasPast && cleaningTrendQ.isLoading) ||
@@ -1937,7 +1911,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     cleaningStatsData,
     cleaningForecast,
     cleaningStatsQ.isLoading,
-    cleaningStatsQ.isPlaceholderData,
     cleaningTrendQ.isLoading,
     cleaningForecastListQ.isLoading,
   ]);
@@ -2039,7 +2012,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       costLabel: past ? "Custo Total Limpeza" : "Custo Estimado",
       costValue: past ? (cleaningStatsData?.totalCents ?? 0) : cleaningForecast.estimatedTotalCents,
       costNote: past && pendingApproval.count > 0 ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise` : null,
-      statsLoading: past ? cleaningStatsQ.isLoading || cleaningStatsQ.isPlaceholderData : cleaningForecastListQ.isLoading,
+      statsLoading: past ? cleaningStatsQ.isLoading : cleaningForecastListQ.isLoading,
       trendLoading: past ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading,
       daily: past ? cleaningTrendData?.daily : cleaningForecast.daily,
       breakdown: past ? cleaningTrendData?.breakdown : cleaningForecast.breakdown,
@@ -8571,7 +8544,13 @@ function OccupancyPanel({
   async function syncListings(realPropertyId: string, release: boolean) {
     const tid = toast.loading(release ? "Reabrindo as datas nos anúncios…" : "Fechando as datas nos anúncios…");
     try {
-      const r = await syncBlockFn({ data: { ownerId: blockOwnerId, propertyId: realPropertyId } });
+      const call = () => syncBlockFn({ data: { ownerId: blockOwnerId, propertyId: realPropertyId } });
+      // Uma nova tentativa silenciosa antes de avisar: oscilações curtas de conexão não viram alerta.
+      let r = await call().catch(() => null);
+      if (!r || (r.connected && !r.ok)) {
+        await new Promise((res) => setTimeout(res, 2500));
+        r = await call();
+      }
       if (r.connected && !r.ok) {
         toast.warning(
           release
@@ -8668,22 +8647,39 @@ function OccupancyPanel({
     setBlockBusy(true);
     try {
       const realId = baseId(blockSel.propertyId);
-      await createBlockFn({
-        data: { ownerId: blockOwnerId, propertyId: realId, from: blockRange.from, to: blockRange.to, note },
+      const range = { ...blockRange };
+      const label = note?.trim() ? `Bloqueado: ${note.trim()}` : "Bloqueado";
+      const created = await createBlockFn({
+        data: { ownerId: blockOwnerId, propertyId: realId, from: range.from, to: range.to, note },
       });
+      // Mostra o bloqueio NA HORA (mesma ideia do "Liberar datas"); o servidor confirma depois.
+      qcBlock.setQueriesData({ queryKey: ["dash-occupancy"] }, (old: unknown) => {
+        const o = old as { stays?: unknown[] } | undefined;
+        if (!o || !Array.isArray(o.stays)) return old;
+        return {
+          ...o,
+          stays: [
+            ...o.stays,
+            { propertyId: realId, checkin: range.from, checkout: range.to, guest: label, checkinDone: false, checkoutDone: false, blocked: true },
+          ],
+        };
+      });
+      const newId = (created as { id?: string } | null)?.id;
+      if (newId) {
+        qcBlock.setQueriesData({ queryKey: ["manual-blocks"] }, (old: unknown) => {
+          const o = old as { blocks?: unknown[] } | undefined;
+          if (!o || !Array.isArray(o.blocks)) return old;
+          return { ...o, blocks: [...o.blocks, { id: newId, propertyId: realId, from: range.from, to: range.to, note: note ?? null }] };
+        });
+      }
       setBlockOpen(false);
       setBlockSel(null);
-      // Atualizar a tela NUNCA pode virar "erro ao bloquear": o bloqueio já está
-      // salvo nesse ponto. Falha ao recarregar o calendário é silenciosa.
-      try {
-        await Promise.all([
-          qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }),
-          qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }),
-        ]);
-      } catch (refreshErr) {
-        console.error("[manual-block] recarregar calendário falhou", refreshErr);
-      }
-      void syncListings(realId, false);
+      // Fechar nos anúncios primeiro (não disputa com a recarga pesada do calendário);
+      // a recarga em segundo plano só confirma o que já está na tela.
+      void syncListings(realId, false).finally(() => {
+        qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }).catch(() => {});
+        qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }).catch(() => {});
+      });
     } catch (e) {
       console.error("[manual-block] erro ao bloquear", e);
       toast.error("Não é possível bloquear", { description: (e instanceof Error ? e.message : "").replace(/^Não é possível bloquear — /, "") || "Tente novamente." });

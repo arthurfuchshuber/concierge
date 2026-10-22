@@ -1432,6 +1432,10 @@ dd {
 @utility ds-ok {
   color: #7fb79a;
 }
+/* Fundo sólido "ok" (interruptor ligado, selo concluído) — par do texto `ds-ok`. */
+@utility ds-ok-solid {
+  background-color: #4f8f73;
+}
 @utility ds-falta {
   color: #c98c8c;
 }

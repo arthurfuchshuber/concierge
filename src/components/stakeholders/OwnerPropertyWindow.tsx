@@ -4,7 +4,6 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpen,
   Check,
-  ChevronDown,
   Coins,
   Eye,
   EyeOff,
@@ -26,9 +25,14 @@ import {
   Flame,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDateRow,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { Stepper } from "@/components/editor/Stepper";
 import {
   ACTION_BAR,
@@ -80,7 +84,6 @@ export function OwnerPropertyWindow({
   returnTo: string;
   owner?: { name: string | null; phone: string | null; country: string | null };
 }) {
-  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [tab, setTab] = useState("publicas");
@@ -426,24 +429,25 @@ export function OwnerPropertyWindow({
   const ownerText = ownerLabel(owner?.name ?? null);
 
   return (
-    <Sheet open={!!propertyId} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent
-        side={isMobile ? "bottom" : "right"}
-        className={
-          isMobile
-            ? "w-full max-h-[90dvh] overflow-y-auto rounded-t-[var(--win-radius)] p-0"
-            : "w-full overflow-y-auto p-0 sm:max-w-xl"
-        }
+    <Dialog open={!!propertyId} onOpenChange={(o) => !o && onClose()}>
+      {/* Janela "como página" CENTRALIZADA no computador (880px, igual à do proprietário) e, no
+          celular/tablet, abaixo do cabeçalho do sistema com "Voltar" no topo direito
+          (mockup aprovado, 22/10/2026). Fundo preto da página para os cartões "saltarem". */}
+      <DialogContent
+        pageLike
+        className="max-h-[90dvh] w-[min(94vw,880px)] max-w-none gap-0 overflow-y-auto bg-background p-0 sm:max-w-[880px]"
       >
-        <SheetTitle className="sr-only">{p?.name ?? "Imóvel"}</SheetTitle>
-        <SheetDescription className="sr-only">
+        <DialogTitle className="sr-only">{p?.name ?? "Imóvel"}</DialogTitle>
+        <DialogDescription className="sr-only">
           Informações públicas e confidenciais do imóvel.
-        </SheetDescription>
-        <div className="flex w-full min-w-0 flex-col px-4 pb-7 pt-2.5">
-          <div
-            aria-hidden
-            className="mx-auto mb-[18px] h-1 w-9 rounded bg-foreground/[0.18] md:hidden"
-          />
+        </DialogDescription>
+        <div className="flex w-full min-w-0 flex-col gap-6 px-4 pb-7 pt-4 sm:px-7 sm:pt-7">
+          <div className="grid gap-1.5">
+            <DialogDateRow />
+            <p className="ds-eyebrow text-[10.5px] leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
+              Sobre o imóvel
+            </p>
+          </div>
           {q.isLoading || !p ? (
             <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" /> Carregando…
@@ -452,7 +456,7 @@ export function OwnerPropertyWindow({
             <>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-3">
-                  <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-[14px] bg-[linear-gradient(145deg,color-mix(in_oklab,var(--ds-data-color,#cbb87f)_16%,transparent),color-mix(in_oklab,var(--foreground)_3%,transparent))] ds-data shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_12%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+                  <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-md bg-[linear-gradient(145deg,color-mix(in_oklab,currentColor_16%,transparent),color-mix(in_oklab,var(--foreground)_3%,transparent))] ds-data shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_12%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
                     {p.hero_image_url ? (
                       <img src={p.hero_image_url} alt="" className="size-full object-cover" />
                     ) : (
@@ -460,10 +464,7 @@ export function OwnerPropertyWindow({
                     )}
                   </span>
                   <div className="min-w-0">
-                    <p className="ds-eyebrow text-[10.5px] tracking-[0.2em] text-muted-foreground">
-                      Imóvel
-                    </p>
-                    <h2 className="mt-1 truncate font-display text-[19px] font-bold leading-[1.15] tracking-[-0.01em]">
+                    <h2 className="truncate font-display text-[19px] font-bold leading-[1.15] tracking-[-0.01em]">
                       {p.name}
                     </h2>
                     {ownerText && (
@@ -479,7 +480,7 @@ export function OwnerPropertyWindow({
                     )}
                   </div>
                 </div>
-                <div className={`${ACTION_BAR} !h-9 !w-auto shrink-0 !rounded-[11px]`}>
+                <div className={`${ACTION_BAR} !h-9 !w-auto shrink-0 !rounded-sm`}>
                   <Link
                     to="/admin/properties/$id"
                     params={{ id: p.id }}
@@ -490,19 +491,10 @@ export function OwnerPropertyWindow({
                   >
                     <Pencil className={ACTION_ICON} />
                   </Link>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    aria-label="Fechar"
-                    title="Fechar"
-                    className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
-                  >
-                    <ChevronDown className={ACTION_ICON} />
-                  </button>
                 </div>
               </div>
 
-              <div className="mt-5">
+              <div>
                 <Stepper
                   current={tab}
                   onChange={(v) => {
@@ -517,7 +509,7 @@ export function OwnerPropertyWindow({
                 />
               </div>
 
-              <div className="mt-4 flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <span className="whitespace-nowrap text-[11.5px] text-muted-foreground">
                   <b className="font-extrabold text-foreground">
                     {done} de {measurable.length}
@@ -536,7 +528,7 @@ export function OwnerPropertyWindow({
                 </span>
               </div>
 
-              <div className="mt-6 grid gap-6">
+              <div className="grid gap-6">
                 {(tab === "publicas" ? pub : conf).map((g) => (
                   <div key={g.title}>
                     <GroupTitle title={g.title} count={g.count} />
@@ -547,7 +539,7 @@ export function OwnerPropertyWindow({
             </>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

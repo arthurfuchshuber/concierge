@@ -34,7 +34,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDateRow,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectTrigger,
@@ -101,15 +107,7 @@ import {
 } from "./owner-ui";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
-import {
-  Coins,
-  StickyNote,
-  Check,
-  User,
-  Activity,
-  Filter,
-  Trash2,
-} from "lucide-react";
+import { Coins, StickyNote, Check, User, Activity, Filter, Trash2 } from "lucide-react";
 
 /** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.
  *  !flex-none sobrescreve o !flex-1 padrão de TabsTrigger (ui/tabs.tsx) — aqui
@@ -166,7 +164,14 @@ function GroupLabel({ children, count }: { children: React.ReactNode; count: num
   );
 }
 
-type PreviewTarget = { name: string; url?: string | null; docId?: string; looseId?: string } | null;
+type PreviewTarget = {
+  name: string;
+  url?: string | null;
+  docId?: string;
+  looseId?: string;
+  /** Linha de apoio sob o nome (ex.: "Assinado · 2 de 2 · 3 ago 2026"). */
+  subtitle?: string;
+} | null;
 
 function fmt(iso: string) {
   try {
@@ -817,17 +822,21 @@ export function StakeholderDetailSheet({
     );
 
     return (
-      <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col overflow-x-hidden px-4 pb-7 pt-[5px]">
-        {/* Sem "Voltar": a ficha fecha pelo X de canto da janela (pedido explícito, 21/10/2026). */}
+      <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col overflow-x-hidden px-4 pb-7 pt-4 sm:px-7 sm:pt-7">
+        {/* Topo da janela "como página" (mockup aprovado, 22/10/2026): data dourada + "Voltar" à
+            direita (celular/tablet) ou "X" de canto (computador), depois a etiqueta e o nome. */}
+        <DialogDateRow className="mb-1.5" />
         {/* Cabeçalho: rótulo, nome (1 linha, reticências) com o botão de contato colado e UMA
             linha com situação + vigência. Ações (Ver/Editar) ficam no botão da barra de busca. */}
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-          <p className="ds-eyebrow pr-10 text-[10.5px] leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
+          <p className="ds-eyebrow text-[10.5px] leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
             Proprietário
           </p>
           <div className="flex min-w-0 items-center gap-1">
             <h2 className="ds-page-title min-w-0 truncate !text-lg">{ownerNameMenu}</h2>
-            {extracting ? <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" /> : null}
+            {extracting ? (
+              <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
+            ) : null}
             <PhoneActionButton
               phone={ownerPhone}
               country={ownerCountry}
@@ -908,10 +917,12 @@ export function StakeholderDetailSheet({
 
         {/* "Ver Proprietário": janela ao meio da tela com os dados detalhados. */}
         <Dialog open={dataOpen} onOpenChange={setDataOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="ds-section-title truncate pr-8" title={displayName}>
-                {displayName}
+          <DialogContent pageLike className="max-w-md gap-0 bg-background p-4 sm:p-7">
+            {/* Cabeçalho (mockup aprovado): data + "Voltar", depois só a etiqueta — sem título extra. */}
+            <DialogDateRow className="mb-1.5" />
+            <DialogHeader className="mb-6 gap-0 pr-0">
+              <DialogTitle className="ds-eyebrow text-[10.5px] font-normal leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
+                Dados cadastrais
               </DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-x-4 gap-y-4">
@@ -968,7 +979,7 @@ export function StakeholderDetailSheet({
         </Dialog>
 
         {/* Abas (mockup `.tabs`): a mesma barra do Dashboard, só abas inteiras (anti-corte). */}
-        <div className="mt-5">
+        <div className="mt-6">
           <Stepper
             compact
             current={ownerTab}
@@ -987,7 +998,7 @@ export function StakeholderDetailSheet({
           />
         </div>
 
-        <div className="mt-3.5 grid">
+        <div className="mt-6 grid">
           {/* ---------------- Timeline (mockup P1) ---------------- */}
           {ownerTab === "timeline" &&
             (() => {
@@ -1041,7 +1052,7 @@ export function StakeholderDetailSheet({
                           </PopoverTrigger>
                           <PopoverContent
                             align="end"
-                            className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+                            className="w-[240px] p-2"
                             onOpenAutoFocus={(e) => e.preventDefault()}
                           >
                             <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
@@ -1084,7 +1095,7 @@ export function StakeholderDetailSheet({
                                     aria-hidden
                                     className={`grid size-4 shrink-0 place-items-center rounded-[5px] ${
                                       on
-                                        ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-white"
+                                        ? "bg-gradient-to-br from-brand-purple to-brand-magenta text-white"
                                         : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)]"
                                     }`}
                                   >
@@ -1102,43 +1113,55 @@ export function StakeholderDetailSheet({
                       </>
                     }
                   />
-                  <div className="mt-[26px]">
+                  <div className="mt-6">
                     {feed.isLoading && (
                       <p className="mb-3 flex items-center gap-1.5 ds-meta">
                         <Loader2 className="size-3 animate-spin" /> Buscando agenda e documentos…
                       </p>
                     )}
                     {noteOpen && (
-                      <div className={`${PANEL_SHELL} mb-5 space-y-2 p-3`}>
+                      /* Campo de nota compacto (mockup aprovado, 22/10/2026): sem cartão em volta,
+                         começa com 1 linha e cresce com o texto; Cancelar (X) e Salvar (✓) só com
+                         ícone, DENTRO do campo, no canto inferior direito. */
+                      <div className="relative mb-6">
                         <textarea
                           value={note}
-                          onChange={(e) => setNote(e.target.value)}
-                          rows={3}
+                          onChange={(e) => {
+                            setNote(e.target.value);
+                            e.currentTarget.style.height = "auto";
+                            e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                          }}
+                          rows={1}
                           maxLength={1000}
+                          autoFocus
                           placeholder="Escreva uma nota sobre este proprietário…"
-                          className="w-full resize-none rounded-[8px] bg-foreground/[0.04] px-3 py-2 text-[13px] text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent)] placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="block min-h-10 w-full resize-none rounded-[9px] bg-foreground/[0.04] py-2.5 pl-3 pr-[84px] text-[13px] leading-[1.4] text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent)] [field-sizing:content] placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:rounded-[13px]"
                         />
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1">
                           <button
                             type="button"
+                            aria-label="Cancelar nota"
+                            title="Cancelar"
                             onClick={() => {
                               setNote("");
                               setNoteOpen(false);
                             }}
-                            className="h-9 rounded-[8px] px-3 text-[12px] font-semibold text-muted-foreground hover:text-foreground"
+                            className="grid size-[30px] place-items-center rounded-[9px] text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground sm:rounded-[10px]"
                           >
-                            Cancelar
+                            <X className="size-4" />
                           </button>
                           <button
                             type="button"
+                            aria-label="Salvar nota"
+                            title="Salvar nota"
                             disabled={busy || !note.trim()}
                             onClick={async () => {
                               await submitNote();
                               setNoteOpen(false);
                             }}
-                            className="h-9 rounded-[8px] px-3.5 text-[12px] font-semibold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] hover:bg-foreground/[0.05] disabled:opacity-40"
+                            className="grid size-[30px] place-items-center rounded-[9px] text-accent transition-colors hover:bg-foreground/[0.06] disabled:opacity-40 sm:rounded-[10px]"
                           >
-                            Salvar nota
+                            <Check className="size-4" />
                           </button>
                         </div>
                       </div>
@@ -1321,7 +1344,7 @@ export function StakeholderDetailSheet({
                           </PopoverTrigger>
                           <PopoverContent
                             align="end"
-                            className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+                            className="w-[240px] p-2"
                             onOpenAutoFocus={(e) => e.preventDefault()}
                           >
                             <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
@@ -1366,7 +1389,7 @@ export function StakeholderDetailSheet({
                                     aria-hidden
                                     className={`grid size-4 shrink-0 place-items-center rounded-[5px] ${
                                       on
-                                        ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-white"
+                                        ? "bg-gradient-to-br from-brand-purple to-brand-magenta text-white"
                                         : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)]"
                                     }`}
                                   >
@@ -1388,7 +1411,7 @@ export function StakeholderDetailSheet({
                       </>
                     }
                   />
-                  <div className="mt-[26px] grid gap-2">
+                  <div className="mt-6 grid gap-2">
                     {feed.isLoading ? (
                       <p className="flex items-center gap-1.5 ds-meta">
                         <Loader2 className="size-3 animate-spin" /> Buscando documentos…
@@ -1408,7 +1431,7 @@ export function StakeholderDetailSheet({
                         ...looseShown.map((d) => (
                           <div
                             key={`loose-${d.id}`}
-                            className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-[12px] bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                            className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-sm bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                           >
                             <span className="row-span-2 grid size-8 self-start place-items-center rounded-[10px] bg-foreground/[0.05] text-muted-foreground">
                               <FileText className="size-[15px]" />
@@ -1465,7 +1488,7 @@ export function StakeholderDetailSheet({
                           return (
                             <div
                               key={d.id}
-                              className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-[12px] bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                              className="relative grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-[3px] rounded-sm bg-foreground/[0.03] py-3 pl-3 pr-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                             >
                               <span className="row-span-2 grid size-8 self-start place-items-center rounded-[10px] bg-foreground/[0.05] text-muted-foreground">
                                 <FileText className="size-[15px]" />
@@ -1476,7 +1499,15 @@ export function StakeholderDetailSheet({
                               <span className="flex items-center">
                                 <button
                                   type="button"
-                                  onClick={() => setPreview({ name: d.name, docId: d.id })}
+                                  onClick={() =>
+                                    setPreview({
+                                      name: d.name,
+                                      docId: d.id,
+                                      subtitle: signed
+                                        ? `Assinado${n ? ` · ${n} de ${n}` : ""} · ${shortDate(d.finishedAt as string)} ${new Date(d.finishedAt as string).getFullYear()}`
+                                        : `Pendente${n ? ` · ${done} de ${n}` : ""}`,
+                                    })
+                                  }
                                   aria-label="Visualizar documento"
                                   title="Visualizar documento"
                                   className="grid size-7 place-items-center text-muted-foreground transition-colors hover:text-foreground"
@@ -2274,7 +2305,6 @@ export function StakeholderDetailSheet({
                 })}
               </div>
             )}
-
           </TabsContent>
         )}
 
@@ -2412,14 +2442,26 @@ function DocPreviewDialog({ doc, onClose }: { doc: PreviewTarget; onClose: () =>
 
   return (
     <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden">
-        <DialogHeader className="px-5 pt-5 pb-3">
-          <DialogTitle className="text-base truncate pr-8">{doc?.name}</DialogTitle>
+      {/* Mockup aprovado: janela pequena (com "X"), cabeçalho com ícone, nome em 1 linha e a
+          situação do documento; o leitor ocupa a largura toda, com cantos do sistema. */}
+      <DialogContent className="max-w-4xl gap-3.5 overflow-hidden p-[18px]">
+        <DialogHeader className="flex-row items-center gap-3 space-y-0 pr-9">
+          <span className="grid size-10 shrink-0 place-items-center rounded-sm bg-foreground/[0.06] text-muted-foreground">
+            <FileText className="size-[18px]" />
+          </span>
+          <div className="grid min-w-0 gap-1">
+            <DialogTitle className="truncate font-display text-lg font-bold tracking-[-0.02em]">
+              {doc?.name}
+            </DialogTitle>
+            {doc?.subtitle ? (
+              <p className="truncate text-[12px] text-muted-foreground">{doc.subtitle}</p>
+            ) : null}
+          </div>
         </DialogHeader>
         {doc && (
           <>
             {isLoading ? (
-              <div className="flex h-[70vh] items-center justify-center gap-2 border-t border-border bg-muted text-sm text-muted-foreground">
+              <div className="flex h-[70vh] items-center justify-center gap-2 rounded-sm bg-muted text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" /> Gerando link seguro…
               </div>
             ) : data?.base64 ? (
@@ -2428,17 +2470,17 @@ function DocPreviewDialog({ doc, onClose }: { doc: PreviewTarget; onClose: () =>
               <iframe
                 src={externalUrl}
                 title={doc.name}
-                className="h-[70vh] w-full border-t border-border bg-muted"
+                className="h-[70vh] w-full rounded-sm bg-muted"
               />
             ) : (
-              <div className="flex h-[40vh] items-center justify-center border-t border-border bg-muted px-6 text-center text-sm text-muted-foreground">
+              <div className="flex h-[40vh] items-center justify-center rounded-sm bg-muted px-6 text-center text-sm text-muted-foreground">
                 {isError
                   ? "Não foi possível gerar o link do documento."
                   : "Documento sem arquivo disponível."}
               </div>
             )}
             {externalUrl && (
-              <div className="flex justify-end gap-2 px-5 py-3">
+              <div className="flex justify-end gap-2">
                 <a
                   href={externalUrl}
                   target="_blank"
@@ -2511,7 +2553,7 @@ function PdfPages({ base64 }: { base64: string }) {
 
   if (error) {
     return (
-      <div className="flex h-[40vh] items-center justify-center border-t border-border bg-muted px-6 text-center text-sm text-muted-foreground">
+      <div className="flex h-[40vh] items-center justify-center rounded-sm bg-muted px-6 text-center text-sm text-muted-foreground">
         Não foi possível renderizar este documento.
       </div>
     );

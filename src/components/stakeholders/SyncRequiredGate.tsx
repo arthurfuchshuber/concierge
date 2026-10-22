@@ -61,8 +61,10 @@ export function SyncRequiredGate() {
   }
 
   const pending = q.data?.properties ?? [];
-  const previewFull = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("verConexao");
-  const blocking = !previewFull && !snoozedUntil && perm.allowed && !!q.data?.blocking && pending.length > 0;
+  const previewFull =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).has("verConexao");
+  const blocking =
+    !previewFull && !snoozedUntil && perm.allowed && !!q.data?.blocking && pending.length > 0;
 
   // Abertura SÍNCRONA (sem estado nem efeito no meio): no mesmo quadro em que a consulta confirma
   // o bloqueio, o <Dialog> já recebe open=true. Só abre quando não há outra janela na frente
@@ -140,7 +142,12 @@ export function SyncRequiredGate() {
       {blocking || flow ? (
         <div aria-hidden className="fixed inset-0 z-[49] bg-background/85 backdrop-blur-md" />
       ) : null}
-      <Dialog open={shouldBeOpen} onOpenChange={(o) => { if (!o) snooze(); }}>
+      <Dialog
+        open={shouldBeOpen}
+        onOpenChange={(o) => {
+          if (!o) snooze();
+        }}
+      >
         <DialogContent
           onOpenAutoFocus={() => {
             // Janela montada: espera 2 quadros para o fundo desfocado pintar e só então solta a cobertura.
@@ -156,9 +163,7 @@ export function SyncRequiredGate() {
                 <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-secondary text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
                   <Lock className="size-4" />
                 </span>
-                <span className="min-w-0 truncate">
-                  Sincronize seus imóveis
-                </span>
+                <span className="min-w-0 truncate">Sincronize seus imóveis</span>
               </DialogTitle>
               <DialogDescription className="text-[12.5px] leading-[1.55]">
                 <b className="font-bold text-foreground">
@@ -178,14 +183,18 @@ export function SyncRequiredGate() {
                 <div
                   key={a.channelId}
                   data-clip-row
-                  className="flex items-center gap-3 rounded-[14px] bg-foreground/[0.03] p-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                  className="flex items-center gap-3 rounded-md bg-foreground/[0.03] p-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
                 >
                   <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-secondary text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
                     <UserRound className="size-4" />
                   </span>
                   <div className="grid min-w-0 flex-1 gap-0.5">
                     <div className="flex min-w-0 items-center gap-2">
-                      <ClampName text={a.title} passThrough className="min-w-0 flex-1 text-[13px] font-bold" />
+                      <ClampName
+                        text={a.title}
+                        passThrough
+                        className="min-w-0 flex-1 text-[13px] font-bold"
+                      />
                       {a.status === "active" && free === 0 && (a.listings ?? 0) > 0 && (
                         <span className="ds-ok shrink-0 whitespace-nowrap rounded-full bg-[color-mix(in_oklab,currentColor_14%,transparent)] px-2 py-0.5 text-[10.5px] font-bold">
                           Todos vinculados
@@ -194,9 +203,14 @@ export function SyncRequiredGate() {
                     </div>
                     {a.status === "active" ? (
                       <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11.5px] text-muted-foreground">
-                        <span className="whitespace-nowrap"><b className="font-bold text-foreground">{a.listings ?? 0}</b> no Airbnb</span>
+                        <span className="whitespace-nowrap">
+                          <b className="font-bold text-foreground">{a.listings ?? 0}</b> no Airbnb
+                        </span>
                         <span aria-hidden>·</span>
-                        <span className="whitespace-nowrap"><b className="font-bold text-foreground">{a.imported}</b> {a.imported === 1 ? "sincronizado" : "sincronizados"}</span>
+                        <span className="whitespace-nowrap">
+                          <b className="font-bold text-foreground">{a.imported}</b>{" "}
+                          {a.imported === 1 ? "sincronizado" : "sincronizados"}
+                        </span>
                       </span>
                     ) : (
                       <span className="truncate text-[11.5px] ds-atencao">Precisa reconectar</span>
@@ -211,14 +225,14 @@ export function SyncRequiredGate() {
             <button
               type="button"
               onClick={link}
-              className="flex h-[46px] items-center justify-center gap-2 rounded-[13px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[13.5px] font-extrabold text-white"
+              className="flex h-[46px] items-center justify-center gap-2 rounded-md bg-gradient-to-br from-brand-purple to-brand-magenta text-[13.5px] font-extrabold text-white"
             >
               Vincular anúncios
             </button>
             <button
               type="button"
               onClick={() => setFlow({ type: "connect" })}
-              className="flex h-11 items-center justify-center gap-2 rounded-[13px] bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
+              className="flex h-11 items-center justify-center gap-2 rounded-md bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
             >
               Conectar conta
             </button>
@@ -226,51 +240,51 @@ export function SyncRequiredGate() {
               type="button"
               aria-expanded={showPending}
               onClick={() => setShowPending((v) => !v)}
-              className="flex h-11 items-center justify-center gap-2 rounded-[13px] bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
+              className="flex h-11 items-center justify-center gap-2 rounded-md bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
             >
               Imóveis pendentes
               <span className="font-semibold text-muted-foreground">{left}</span>
             </button>
           </div>
           {showPending ? (
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-            {rows.map((p) => {
-              const cur = p;
-              return (
-                <div
-                  key={p.id}
-                  data-clip-row
-                  className="flex items-center gap-3 rounded-[14px] bg-foreground/[0.03] p-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
-                >
-                  <PropertyThumb
-                    src={cur.imageUrl}
-                    fallbacks={cur.imageUrls}
-                    className="size-[34px] rounded-[9px]"
-                  />
-                  <div className="grid min-w-0 flex-1 gap-1">
-                    <ClampName text={cur.name} passThrough className="text-[13px] font-bold" />
-                    <div className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
-                      {cur.ownerName ? (
-                        <>
-                          <span className="truncate">
-                            Proprietário(a):{" "}
-                            <b className="font-semibold text-foreground">{cur.ownerName}</b>
-                          </span>
-                          <PhoneActionButton
-                            phone={cur.ownerPhone}
-                            country={cur.ownerPhoneCountry}
-                            size={11}
-                            alwaysShow
-                            className="shrink-0 !p-0"
-                          />
-                        </>
-                      ) : null}
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
+              {rows.map((p) => {
+                const cur = p;
+                return (
+                  <div
+                    key={p.id}
+                    data-clip-row
+                    className="flex items-center gap-3 rounded-md bg-foreground/[0.03] p-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+                  >
+                    <PropertyThumb
+                      src={cur.imageUrl}
+                      fallbacks={cur.imageUrls}
+                      className="size-[34px] rounded-[9px]"
+                    />
+                    <div className="grid min-w-0 flex-1 gap-1">
+                      <ClampName text={cur.name} passThrough className="text-[13px] font-bold" />
+                      <div className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
+                        {cur.ownerName ? (
+                          <>
+                            <span className="truncate">
+                              Proprietário(a):{" "}
+                              <b className="font-semibold text-foreground">{cur.ownerName}</b>
+                            </span>
+                            <PhoneActionButton
+                              phone={cur.ownerPhone}
+                              country={cur.ownerPhoneCountry}
+                              size={11}
+                              alwaysShow
+                              className="shrink-0 !p-0"
+                            />
+                          </>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
           ) : null}
         </DialogContent>
       </Dialog>

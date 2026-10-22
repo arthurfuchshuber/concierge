@@ -5277,6 +5277,56 @@ export type Database = {
         }
         Relationships: []
       }
+      property_playbook_entries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          custom_audience: string | null
+          custom_label: string | null
+          field_key: string
+          id: string
+          note: string | null
+          property_id: string
+          section_num: number | null
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          custom_audience?: string | null
+          custom_label?: string | null
+          field_key: string
+          id?: string
+          note?: string | null
+          property_id: string
+          section_num?: number | null
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          custom_audience?: string | null
+          custom_label?: string | null
+          field_key?: string
+          id?: string
+          note?: string | null
+          property_id?: string
+          section_num?: number | null
+          updated_at?: string
+          value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_playbook_entries_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_providers: {
         Row: {
           account_owner_id: string

@@ -151,8 +151,8 @@ function PrimaryBtn({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`flex h-[46px] shrink-0 items-center justify-center gap-2 rounded-[13px] text-[13.5px] font-extrabold text-white disabled:opacity-40 ${
-        danger ? "bg-[#b24a4a]" : "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae]"
+      className={`flex h-[46px] shrink-0 items-center justify-center gap-2 rounded-md text-[13.5px] font-extrabold text-white disabled:opacity-40 ${
+        danger ? "bg-destructive" : "bg-gradient-to-br from-brand-purple to-brand-magenta"
       }`}
     >
       {children}
@@ -164,7 +164,7 @@ function SecondaryBtn({ children, onClick }: { children: ReactNode; onClick?: ()
     <button
       type="button"
       onClick={onClick}
-      className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-[13px] bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
+      className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-md bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
     >
       {children}
     </button>
@@ -173,9 +173,9 @@ function SecondaryBtn({ children, onClick }: { children: ReactNode; onClick?: ()
 function IconBox({ kind, children }: { kind: "ok" | "falta" | "neutral"; children: ReactNode }) {
   const cls =
     kind === "ok"
-      ? "ds-ok rounded-[15px] bg-[color-mix(in_oklab,#7fb79a_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#7fb79a_35%,transparent)]"
+      ? "ds-ok rounded-md bg-[color-mix(in_oklab,#7fb79a_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#7fb79a_35%,transparent)]"
       : kind === "falta"
-        ? "ds-falta rounded-[15px] bg-[color-mix(in_oklab,#c98c8c_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c98c8c_35%,transparent)]"
+        ? "ds-falta rounded-md bg-[color-mix(in_oklab,#c98c8c_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c98c8c_35%,transparent)]"
         : "ds-surface bg-secondary text-muted-foreground";
   return <span className={`grid size-12 place-items-center ${cls}`}>{children}</span>;
 }
@@ -196,7 +196,7 @@ function Desc({ children }: { children: ReactNode }) {
 function InfoBox({ kind, lines }: { kind: "ok" | "falta"; lines: Array<[typeof Check, string]> }) {
   return (
     <div
-      className={`grid gap-2 rounded-[12px] px-[13px] py-3 ${
+      className={`grid gap-2 rounded-sm px-[13px] py-3 ${
         kind === "ok"
           ? "bg-[color-mix(in_oklab,#7fb79a_7%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#7fb79a_25%,transparent)]"
           : "bg-[color-mix(in_oklab,#c98c8c_7%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c98c8c_25%,transparent)]"
@@ -219,7 +219,7 @@ function Stepper({ step, label }: { step: 1 | 2 | 3; label: string }) {
           <span
             key={i}
             className={`h-1 flex-1 rounded-full ${
-              i <= step ? "bg-gradient-to-r from-[#7c1ad8] to-[#e82dae]" : "bg-foreground/10"
+              i <= step ? "bg-gradient-to-r from-brand-purple to-brand-magenta" : "bg-foreground/10"
             }`}
           />
         ))}
@@ -277,7 +277,7 @@ function Box({ state }: { state: "off" | "on" | "locked" }) {
         state === "locked"
           ? "bg-foreground/20 text-white"
           : state === "on"
-            ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-white"
+            ? "bg-gradient-to-br from-brand-purple to-brand-magenta text-white"
             : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)]"
       }`}
     >
@@ -286,7 +286,7 @@ function Box({ state }: { state: "off" | "on" | "locked" }) {
   );
 }
 const rowCls = (state: "off" | "on" | "locked") =>
-  `flex w-full items-center gap-[11px] rounded-[14px] px-3 py-2.5 text-left ${INSET} ${
+  `flex w-full items-center gap-[11px] rounded-md px-3 py-2.5 text-left ${INSET} ${
     state === "locked"
       ? "bg-foreground/[0.025]"
       : state === "on"
@@ -300,7 +300,7 @@ function Radio({ on }: { on: boolean }) {
       aria-hidden
       className={`grid size-[18px] shrink-0 place-items-center rounded-full ${
         on
-          ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae]"
+          ? "bg-gradient-to-br from-brand-purple to-brand-magenta"
           : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)]"
       }`}
     >
@@ -311,7 +311,7 @@ function Radio({ on }: { on: boolean }) {
 
 function AttentionBox({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-start gap-2 rounded-[12px] bg-[color-mix(in_oklab,#c9a962_7%,transparent)] px-[13px] py-3 text-[12px] leading-[1.45] text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c9a962_30%,transparent)]">
+    <div className="flex items-start gap-2 rounded-sm bg-[color-mix(in_oklab,#c9a962_7%,transparent)] px-[13px] py-3 text-[12px] leading-[1.45] text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c9a962_30%,transparent)]">
       <TriangleAlert className="mt-0.5 size-[14px] shrink-0 ds-atencao" />
       <span>{children}</span>
     </div>
@@ -566,7 +566,10 @@ function PairPicker({
                   : "enabled:hover:bg-secondary"
               }`}
             >
-              <b className="col-span-2 min-w-0 truncate font-semibold leading-[1.3]" title={o.title}>
+              <b
+                className="col-span-2 min-w-0 truncate font-semibold leading-[1.3]"
+                title={o.title}
+              >
                 {o.title}
               </b>
               <small className="min-w-0 text-[10.5px] leading-[1.3] text-muted-foreground">
@@ -1061,7 +1064,10 @@ function AirbnbAccountFlowInner({
   }
   async function doImport() {
     if (!channelId) return;
-    const twins = picked.length > 1 ? Object.entries(twinOf).filter(([t, p]) => picked.includes(t) && picked.includes(p)) : [];
+    const twins =
+      picked.length > 1
+        ? Object.entries(twinOf).filter(([t, p]) => picked.includes(t) && picked.includes(p))
+        : [];
     const twinIds = new Set(twins.map(([t]) => t));
     const items =
       picked.length > 1
@@ -1085,7 +1091,9 @@ function AirbnbAccountFlowInner({
         }
       }
       if (twinErrors.length)
-        toast.error(`Não foi possível unir ${twinErrors.length} anúncio(s) gêmeo(s). Una pela aba de gêmeos. ${twinErrors[0]}`);
+        toast.error(
+          `Não foi possível unir ${twinErrors.length} anúncio(s) gêmeo(s). Una pela aba de gêmeos. ${twinErrors[0]}`,
+        );
       setResult(res);
       refreshAll();
       qc.invalidateQueries({ queryKey: ["twin-suggestions"] });
@@ -1281,7 +1289,7 @@ function AirbnbAccountFlowInner({
   ).length;
   const bulkRowsN = bulkProps.length + bulkLoose.length;
   const syncChip = syncProp ? (
-    <div className="flex min-w-0 items-center gap-2.5 rounded-[12px] bg-foreground/[0.04] px-[11px] py-[9px] text-[12.5px] font-bold">
+    <div className="flex min-w-0 items-center gap-2.5 rounded-sm bg-foreground/[0.04] px-[11px] py-[9px] text-[12.5px] font-bold">
       <PropertyThumb
         src={syncProp.imageUrl}
         fallbacks={syncProp.imageUrls}
@@ -1555,7 +1563,7 @@ function AirbnbAccountFlowInner({
                       className={rowCls(blocked ? "locked" : on ? "on" : "off")}
                     >
                       <Box state={blocked ? "locked" : on ? "on" : "off"} />
-                      <span className="grid size-[46px] shrink-0 place-items-center rounded-[11px] bg-foreground/[0.05] text-[13px] font-extrabold">
+                      <span className="grid size-[46px] shrink-0 place-items-center rounded-sm bg-foreground/[0.05] text-[13px] font-extrabold">
                         {a.title
                           .split(/\s+/)
                           .slice(0, 2)
@@ -1775,7 +1783,7 @@ function AirbnbAccountFlowInner({
                     <>
                       <Box state={locked ? "locked" : on ? "on" : "off"} />
                       <span
-                        className={`grid size-[46px] shrink-0 place-items-center rounded-[11px] bg-foreground/[0.05] text-muted-foreground ${locked ? "opacity-60" : ""}`}
+                        className={`grid size-[46px] shrink-0 place-items-center rounded-sm bg-foreground/[0.05] text-muted-foreground ${locked ? "opacity-60" : ""}`}
                       >
                         <Home className="size-[18px]" />
                       </span>
@@ -1929,10 +1937,10 @@ function AirbnbAccountFlowInner({
                           <div
                             key={id}
                             data-clip-row
-                            className={`grid gap-2.5 rounded-[14px] bg-foreground/[0.03] p-2.5 ${INSET}`}
+                            className={`grid gap-2.5 rounded-md bg-foreground/[0.03] p-2.5 ${INSET}`}
                           >
                             <span className="flex min-w-0 items-center gap-2.5">
-                              <span className="grid size-[46px] shrink-0 place-items-center rounded-[11px] bg-foreground/[0.05] text-muted-foreground">
+                              <span className="grid size-[46px] shrink-0 place-items-center rounded-sm bg-foreground/[0.05] text-muted-foreground">
                                 <Home className="size-[18px]" />
                               </span>
                               <span className="grid min-w-0 flex-1 gap-0.5">
@@ -1960,7 +1968,8 @@ function AirbnbAccountFlowInner({
                                       if (v) next[id] = v;
                                       else delete next[id];
                                       // Um anúncio principal nunca é gêmeo de outro (evita cadeia).
-                                      for (const k of Object.keys(next)) if (next[k] === id) delete next[k];
+                                      for (const k of Object.keys(next))
+                                        if (next[k] === id) delete next[k];
                                       return next;
                                     });
                                   }}
@@ -1970,7 +1979,9 @@ function AirbnbAccountFlowInner({
                                   {picked
                                     .filter((o) => o !== id && !twinOf[o])
                                     .map((o) => {
-                                      const ol = (inv.data?.listings ?? []).find((x) => x.listingId === o);
+                                      const ol = (inv.data?.listings ?? []).find(
+                                        (x) => x.listingId === o,
+                                      );
                                       return (
                                         <option key={o} value={o}>
                                           {ol?.title ?? o}
@@ -1985,21 +1996,21 @@ function AirbnbAccountFlowInner({
                                 Mesmo imóvel físico: usa o proprietário do anúncio principal.
                               </small>
                             ) : (
-                            <OwnerPicker
-                              row
-                              value={ownerOf(id)}
-                              owners={(owners.data?.rows ?? []) as OwnerRow[]}
-                              missing={!ownerOf(id)}
-                              onChange={(oid) =>
-                                multi
-                                  ? setPairOwners((c) => ({ ...c, [id]: oid }))
-                                  : setOwnerId(oid)
-                              }
-                              onCreate={() => {
-                                setCreateFor(multi ? id : null);
-                                setFormOpen(true);
-                              }}
-                            />
+                              <OwnerPicker
+                                row
+                                value={ownerOf(id)}
+                                owners={(owners.data?.rows ?? []) as OwnerRow[]}
+                                missing={!ownerOf(id)}
+                                onChange={(oid) =>
+                                  multi
+                                    ? setPairOwners((c) => ({ ...c, [id]: oid }))
+                                    : setOwnerId(oid)
+                                }
+                                onCreate={() => {
+                                  setCreateFor(multi ? id : null);
+                                  setFormOpen(true);
+                                }}
+                              />
                             )}
                           </div>
                         );
@@ -2017,7 +2028,7 @@ function AirbnbAccountFlowInner({
                       Cadastrar novo proprietário
                     </button>
                     <div
-                      className={`rounded-[12px] px-[13px] py-3 text-[12px] leading-[1.5] ${
+                      className={`rounded-sm px-[13px] py-3 text-[12px] leading-[1.5] ${
                         ready
                           ? "bg-[color-mix(in_oklab,#7fb79a_9%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#7fb79a_28%,transparent)]"
                           : "bg-[color-mix(in_oklab,#c9a24a_9%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c9a24a_32%,transparent)]"
@@ -2109,7 +2120,7 @@ function AirbnbAccountFlowInner({
                       className={rowCls(on ? "on" : "off")}
                     >
                       <Radio on={on} />
-                      <span className="grid size-[46px] shrink-0 place-items-center rounded-[11px] bg-foreground/[0.05] text-muted-foreground">
+                      <span className="grid size-[46px] shrink-0 place-items-center rounded-sm bg-foreground/[0.05] text-muted-foreground">
                         <Home className="size-[18px]" />
                       </span>
                       <span className="grid min-w-0 flex-1 gap-[3px]">
@@ -2148,7 +2159,7 @@ function AirbnbAccountFlowInner({
               />
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <div
-                  className={`grid min-w-0 gap-1 rounded-[12px] bg-foreground/[0.04] px-3 py-2.5 ${INSET}`}
+                  className={`grid min-w-0 gap-1 rounded-sm bg-foreground/[0.04] px-3 py-2.5 ${INSET}`}
                 >
                   <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
                     Imóvel no sistema
@@ -2170,7 +2181,7 @@ function AirbnbAccountFlowInner({
                 </div>
                 <ArrowRight className="mx-auto size-4 rotate-90 text-muted-foreground" />
                 <div
-                  className={`grid min-w-0 gap-1 rounded-[12px] bg-foreground/[0.04] px-3 py-2.5 ${INSET}`}
+                  className={`grid min-w-0 gap-1 rounded-sm bg-foreground/[0.04] px-3 py-2.5 ${INSET}`}
                 >
                   <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
                     Anúncio no Airbnb
@@ -2209,7 +2220,7 @@ function AirbnbAccountFlowInner({
                 </Desc>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
-                <div className="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-[#7c1ad8] to-[#e82dae]" />
+                <div className="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-brand-purple to-brand-magenta" />
               </div>
             </>
           ) : null}
@@ -2248,7 +2259,7 @@ function AirbnbAccountFlowInner({
                 />
               )}
               {syncRes.channexPropertyId ? (
-                <div className="grid gap-1.5 rounded-[12px] bg-foreground/[0.03] p-2.5 text-[12px] leading-[1.5] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+                <div className="grid gap-1.5 rounded-sm bg-foreground/[0.03] p-2.5 text-[12px] leading-[1.5] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
                   <span className="text-muted-foreground">
                     Para importar este anúncio na sua ferramenta de precificação, conecte-a à
                     Channex e use o código do imóvel abaixo. O calendário do Airbnb continua livre.
@@ -2342,7 +2353,7 @@ function AirbnbAccountFlowInner({
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#7c1ad8] to-[#e82dae] transition-all"
+                    className="h-full rounded-full bg-gradient-to-r from-brand-purple to-brand-magenta transition-all"
                     style={{
                       width: `${bulkRowsN > 0 ? Math.round((100 * bulkPairsN) / bulkRowsN) : 0}%`,
                     }}
@@ -2383,7 +2394,7 @@ function AirbnbAccountFlowInner({
                         <div
                           key={p.id}
                           data-clip-row
-                          className={`grid min-w-0 gap-2 rounded-[14px] bg-foreground/[0.03] p-2.5 ${INSET}`}
+                          className={`grid min-w-0 gap-2 rounded-md bg-foreground/[0.03] p-2.5 ${INSET}`}
                         >
                           <div className="flex min-w-0 items-center gap-2">
                             <ClampName
@@ -2494,13 +2505,16 @@ function AirbnbAccountFlowInner({
                         <div
                           key={l.listingId}
                           data-clip-row
-                          className={`grid min-w-0 gap-2 rounded-[14px] p-2.5 ${INSET} ${
+                          className={`grid min-w-0 gap-2 rounded-md p-2.5 ${INSET} ${
                             isNew && !looseOwner(l.listingId)
                               ? "bg-[color-mix(in_oklab,#c98c8c_7%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c98c8c_40%,transparent)]"
                               : "bg-foreground/[0.03]"
                           }`}
                         >
-                          <b className="min-w-0 truncate text-[13px] font-bold leading-[1.3]" title={l.title}>
+                          <b
+                            className="min-w-0 truncate text-[13px] font-bold leading-[1.3]"
+                            title={l.title}
+                          >
                             {l.title}
                           </b>
                           {l.city || tag ? (
@@ -2538,7 +2552,7 @@ function AirbnbAccountFlowInner({
                   <div
                     key={p.id}
                     data-clip-row
-                    className={`flex min-w-0 items-center gap-2.5 rounded-[14px] bg-foreground/[0.02] p-2.5 opacity-85 ${INSET}`}
+                    className={`flex min-w-0 items-center gap-2.5 rounded-md bg-foreground/[0.02] p-2.5 opacity-85 ${INSET}`}
                   >
                     <ClampName
                       as="b"
@@ -2567,7 +2581,7 @@ function AirbnbAccountFlowInner({
                   type="button"
                   disabled={bulkPairsN === 0}
                   onClick={startBulk}
-                  className="flex h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--win-radius)] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] px-1.5 text-[12.5px] font-extrabold text-white disabled:opacity-40 sm:text-[13.5px]"
+                  className="flex h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--win-radius)] bg-gradient-to-br from-brand-purple to-brand-magenta px-1.5 text-[12.5px] font-extrabold text-white disabled:opacity-40 sm:text-[13.5px]"
                 >
                   <RefreshCw className="size-3.5 shrink-0 sm:size-4" />
                   <span className="min-w-0 truncate">
@@ -2603,7 +2617,7 @@ function AirbnbAccountFlowInner({
                         </div>
                         <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-[#7c1ad8] to-[#e82dae] transition-[width]"
+                            className="h-full rounded-full bg-gradient-to-r from-brand-purple to-brand-magenta transition-[width]"
                             style={{
                               width: `${Math.round((100 * (done + failed)) / (total || 1))}%`,
                             }}
@@ -2638,7 +2652,7 @@ function AirbnbAccountFlowInner({
                         <div
                           key={j.key}
                           data-clip-row
-                          className={`flex items-start gap-2.5 rounded-[14px] px-3 py-2.5 ${INSET} ${
+                          className={`flex items-start gap-2.5 rounded-md px-3 py-2.5 ${INSET} ${
                             j.status === "err"
                               ? "bg-[color-mix(in_oklab,#c98c8c_7%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c98c8c_40%,transparent)]"
                               : j.status === "wait"
@@ -2721,7 +2735,7 @@ function AirbnbAccountFlowInner({
                 </Desc>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
-                <div className="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-[#7c1ad8] to-[#e82dae]" />
+                <div className="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-brand-purple to-brand-magenta" />
               </div>
             </>
           ) : null}
@@ -2821,7 +2835,7 @@ function AirbnbAccountFlowInner({
                 </IconBox>
                 <Title>Desconectar conta</Title>
               </div>
-              <div className="flex items-center gap-2.5 rounded-[12px] bg-foreground/[0.04] px-[11px] py-[9px] text-[12.5px] font-bold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_9%,transparent)]">
+              <div className="flex items-center gap-2.5 rounded-sm bg-foreground/[0.04] px-[11px] py-[9px] text-[12.5px] font-bold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_9%,transparent)]">
                 <span className="grid size-[34px] shrink-0 place-items-center rounded-[9px] bg-foreground/[0.05] text-[12px] font-extrabold">
                   {(account?.title ?? "?")
                     .split(/\s+/)

@@ -52,7 +52,11 @@ export function FullConnectGate() {
   const items = q.data?.items ?? [];
   const open = perm.allowed && !syncBlocking && items.length > 0;
   const [pickSearch, setPickSearch] = useState("");
-  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const norm = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
   const pickItems = pickSearch.trim()
     ? items.filter((i) => norm(i.propertyName ?? "").includes(norm(pickSearch.trim())))
     : items;
@@ -142,7 +146,9 @@ export function FullConnectGate() {
       } else {
         const parts: string[] = [];
         if (done)
-          parts.push(`${done} ${done === 1 ? "anúncio já foi conectado" : "anúncios já foram conectados"} com sucesso.`);
+          parts.push(
+            `${done} ${done === 1 ? "anúncio já foi conectado" : "anúncios já foram conectados"} com sucesso.`,
+          );
         if (missing.length)
           parts.push(
             `Motivo: as diárias de ${missing.join(", ")} ainda não chegaram da sua ferramenta de precificação (são necessários pelo menos os próximos 30 dias com preço definido por ela).\n\nO que fazer: abra a ferramenta de precificação, confira se esses anúncios estão ativos e com a sincronização das diárias ligada, clique em sincronizar e aguarde alguns minutos antes de tentar de novo.`,
@@ -165,26 +171,35 @@ export function FullConnectGate() {
     'Depois de finalizar a importação, conecte sua ferramenta de precificação ao fornecedor "Channex" com o código abaixo, importe os anúncios e sincronize as diárias. As reservas confirmadas na plataforma serão importadas automaticamente.',
     `Volte aqui e toque em "${items.length > 1 ? "Já conectei todos" : "Já conectei"}".`,
   ];
-  const isIcs = (u: string) => /^https:\/\/([a-z0-9-]+\.)*airbnb\.[a-z.]+\/.+\.ics(\?.*)?$/i.test(u.trim());
-  const pendingIcal = items.filter((i) => blockIds.has(i.propertyId) && icalDone[i.propertyId] === undefined);
-  const icalReady = pendingIcal.length > 0 && pendingIcal.every((i) => isIcs(icalUrl[i.propertyId] ?? ""));
+  const isIcs = (u: string) =>
+    /^https:\/\/([a-z0-9-]+\.)*airbnb\.[a-z.]+\/.+\.ics(\?.*)?$/i.test(u.trim());
+  const pendingIcal = items.filter(
+    (i) => blockIds.has(i.propertyId) && icalDone[i.propertyId] === undefined,
+  );
+  const icalReady =
+    pendingIcal.length > 0 && pendingIcal.every((i) => isIcs(icalUrl[i.propertyId] ?? ""));
 
   async function importIcal() {
     setImporting(true);
     for (const it of pendingIcal) {
       setIcalErr((e) => ({ ...e, [it.propertyId]: "" }));
       try {
-        const r = await importFn({ data: { propertyId: it.propertyId, url: (icalUrl[it.propertyId] ?? "").trim() } });
+        const r = await importFn({
+          data: { propertyId: it.propertyId, url: (icalUrl[it.propertyId] ?? "").trim() },
+        });
         setIcalDone((d) => ({ ...d, [it.propertyId]: r.imported }));
       } catch (e) {
-        setIcalErr((x) => ({ ...x, [it.propertyId]: e instanceof Error ? e.message : "Não foi possível importar." }));
+        setIcalErr((x) => ({
+          ...x,
+          [it.propertyId]: e instanceof Error ? e.message : "Não foi possível importar.",
+        }));
       }
     }
     setImporting(false);
   }
   const eyebrow = "ds-eyebrow text-[10px] tracking-[0.2em] text-muted-foreground";
   const card =
-    "rounded-[14px] bg-foreground/[0.03] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]";
+    "rounded-md bg-foreground/[0.03] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]";
 
   return (
     <Dialog open={open}>
@@ -192,14 +207,14 @@ export function FullConnectGate() {
         ref={mainRef}
         hideClose
         style={{ width: "min(calc(100% - 2rem), 380px)", maxWidth: 380 }}
-        className="max-h-[90dvh] gap-3 overflow-y-auto p-4 sm:p-4"
+        className="max-h-[90dvh] gap-3.5 overflow-y-auto p-[18px] sm:p-[18px]"
         onEscapeKeyDown={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
         <div className="grid gap-2">
           <div className="flex items-center gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-[color-mix(in_oklab,#c9a24a_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c9a24a_35%,transparent)] ds-atencao">
+            <span className="grid size-10 shrink-0 place-items-center rounded-sm bg-[color-mix(in_oklab,#c9a24a_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c9a24a_35%,transparent)] ds-atencao">
               <Lock className="size-[18px]" />
             </span>
             <DialogTitle className="min-w-0 font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
@@ -211,11 +226,16 @@ export function FullConnectGate() {
           </DialogDescription>
         </div>
 
-        <Dialog open={!!bulkError} onOpenChange={(v) => { if (!v) closeError(); }}>
+        <Dialog
+          open={!!bulkError}
+          onOpenChange={(v) => {
+            if (!v) closeError();
+          }}
+        >
           <DialogContent
             hideClose
             style={{ width: "min(calc(100% - 2rem), 340px)", maxWidth: 340 }}
-            className="max-h-[90dvh] gap-3 overflow-y-auto p-4 sm:p-4"
+            className="max-h-[90dvh] gap-3.5 overflow-y-auto p-[18px] sm:p-[18px]"
           >
             <DialogTitle className="font-display text-[16px] font-extrabold leading-[1.25]">
               Ainda não foi possível ativar
@@ -226,7 +246,7 @@ export function FullConnectGate() {
             <button
               type="button"
               onClick={closeError}
-              className="h-10 rounded-[12px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[13px] font-extrabold text-white"
+              className="h-10 rounded-sm bg-gradient-to-br from-brand-purple to-brand-magenta text-[13px] font-extrabold text-white"
             >
               Ok!
             </button>
@@ -235,14 +255,14 @@ export function FullConnectGate() {
 
         <ol
           id="full-connect-steps"
-          className="grid scroll-mt-4 gap-2 rounded-[12px] bg-foreground/[0.03] px-[13px] py-3 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+          className="grid scroll-mt-4 gap-2 rounded-sm bg-foreground/[0.03] px-[13px] py-3 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
         >
           {steps.map((s, i) => (
             <li
               key={i}
               className="flex items-start gap-2.5 text-[12px] leading-[1.45] text-foreground/85"
             >
-              <b className="grid size-[18px] shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[10px] text-white">
+              <b className="grid size-[18px] shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta text-[10px] text-white">
                 {i + 1}
               </b>
               {s}
@@ -253,7 +273,7 @@ export function FullConnectGate() {
         <div className="grid gap-1.5">
           <span className={eyebrow}>Chave de API · uma só para todos</span>
           {apiKey ? (
-            <div className="flex min-w-0 items-center gap-2 rounded-[12px] bg-foreground/[0.04] px-3 py-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+            <div className="flex min-w-0 items-center gap-2 rounded-sm bg-foreground/[0.04] px-3 py-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
               <code className="min-w-0 flex-1 truncate text-[12px] text-foreground">{apiKey}</code>
               <CopyButton value={apiKey} size={14} className="size-7 text-foreground/85" />
             </div>
@@ -268,10 +288,7 @@ export function FullConnectGate() {
             {items.map((it) => (
               <div key={it.propertyId} className={`${card} grid gap-1.5 px-3 py-2.5`}>
                 <div className="flex items-center gap-[11px]">
-                  <PropertyThumb
-                    src={it.imageUrl}
-                    className="size-[46px] shrink-0 rounded-[11px]"
-                  />
+                  <PropertyThumb src={it.imageUrl} className="size-[46px] shrink-0 rounded-sm" />
                   <span className="grid min-w-0 flex-1 gap-[3px]">
                     <ClampName
                       text={it.propertyName}
@@ -311,11 +328,15 @@ export function FullConnectGate() {
                         inputMode="url"
                         placeholder="Link do iCal (https://www.airbnb.com.br/calendar/ical/….ics)"
                         value={icalUrl[it.propertyId] ?? ""}
-                        onChange={(e) => setIcalUrl((u) => ({ ...u, [it.propertyId]: e.target.value }))}
+                        onChange={(e) =>
+                          setIcalUrl((u) => ({ ...u, [it.propertyId]: e.target.value }))
+                        }
                         className={`h-9 w-full min-w-0 rounded-[10px] px-2.5 text-[12px] text-foreground outline-none ${isIcs(icalUrl[it.propertyId] ?? "") ? "bg-background/60 shadow-[inset_0_0_0_1px_var(--primary)]" : "bg-destructive/10 shadow-[inset_0_0_0_1.5px_var(--destructive)]"}`}
                       />
                       {icalUrl[it.propertyId] && !isIcs(icalUrl[it.propertyId]) ? (
-                        <p className="text-[11px] text-destructive">Use o link de exportação do Airbnb (termina em .ics).</p>
+                        <p className="text-[11px] text-destructive">
+                          Use o link de exportação do Airbnb (termina em .ics).
+                        </p>
                       ) : null}
                       {icalErr[it.propertyId] ? (
                         <p className="text-[11px] text-destructive">{icalErr[it.propertyId]}</p>
@@ -333,7 +354,7 @@ export function FullConnectGate() {
           <DialogContent
             hideClose
             style={{ width: "min(calc(100% - 2rem), 360px)", maxWidth: 360 }}
-            className="max-h-[90dvh] gap-3 overflow-y-auto p-4 sm:p-4"
+            className="max-h-[90dvh] gap-3.5 overflow-y-auto p-[18px] sm:p-[18px]"
           >
             <DialogTitle className="font-display text-[16px] font-extrabold leading-[1.25]">
               Quais anúncios possuem bloqueios manuais para importar?
@@ -350,10 +371,15 @@ export function FullConnectGate() {
             />
             <div className="grid gap-2">
               {pickItems.length === 0 ? (
-                <p className="py-2 text-center text-[12px] text-muted-foreground">Nenhum anúncio encontrado.</p>
+                <p className="py-2 text-center text-[12px] text-muted-foreground">
+                  Nenhum anúncio encontrado.
+                </p>
               ) : null}
               {pickItems.map((it) => (
-                <label key={it.propertyId} className={`${card} flex min-w-0 cursor-pointer items-center gap-2.5 px-3 py-2.5 text-[12.5px]`}>
+                <label
+                  key={it.propertyId}
+                  className={`${card} flex min-w-0 cursor-pointer items-center gap-2.5 px-3 py-2.5 text-[12.5px]`}
+                >
                   <input
                     type="checkbox"
                     className="size-4 shrink-0 accent-[var(--primary)]"
@@ -376,7 +402,7 @@ export function FullConnectGate() {
               <button
                 type="button"
                 onClick={() => setPicking(false)}
-                className="h-10 rounded-[12px] text-[13px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
+                className="h-10 rounded-sm text-[13px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
               >
                 Cancelar
               </button>
@@ -386,7 +412,7 @@ export function FullConnectGate() {
                   setBlockIds(new Set([...draftPick, ...Object.keys(icalDone)]));
                   setPicking(false);
                 }}
-                className="h-10 rounded-[12px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[13px] font-extrabold text-white"
+                className="h-10 rounded-sm bg-gradient-to-br from-brand-purple to-brand-magenta text-[13px] font-extrabold text-white"
               >
                 Confirmar
               </button>
@@ -400,7 +426,7 @@ export function FullConnectGate() {
               type="button"
               disabled={!icalReady || importing}
               onClick={importIcal}
-              className="flex h-[42px] items-center justify-center gap-2 rounded-[13px] bg-foreground/[0.06] text-[13px] font-extrabold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] disabled:opacity-40"
+              className="flex h-[42px] items-center justify-center gap-2 rounded-md bg-foreground/[0.06] text-[13px] font-extrabold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] disabled:opacity-40"
             >
               {importing ? <Loader2 className="size-4 animate-spin" /> : null}
               {importing ? "Importando bloqueios…" : "Importar agora!"}
@@ -412,9 +438,12 @@ export function FullConnectGate() {
                 setDraftPick(new Set([...blockIds].filter((id) => icalDone[id] === undefined)));
                 if (items.length === 1) {
                   setBlockIds(new Set([items[0].propertyId]));
-                } else { setPickSearch(""); setPicking(true); }
+                } else {
+                  setPickSearch("");
+                  setPicking(true);
+                }
               }}
-              className="flex h-[42px] items-center justify-center rounded-[13px] text-[13px] font-extrabold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
+              className="flex h-[42px] items-center justify-center rounded-md text-[13px] font-extrabold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
             >
               Importar bloqueios manuais
             </button>
@@ -440,9 +469,11 @@ export function FullConnectGate() {
         {items.length > 0 ? (
           <button
             type="button"
-            disabled={busy !== null || pendingIcal.length > 0 || picking || !items.some((i) => i.unitCode)}
+            disabled={
+              busy !== null || pendingIcal.length > 0 || picking || !items.some((i) => i.unitCode)
+            }
             onClick={confirmAll}
-            className="flex h-[46px] items-center justify-center gap-2 rounded-[13px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[13.5px] font-extrabold text-white disabled:opacity-40"
+            className="flex h-[46px] items-center justify-center gap-2 rounded-md bg-gradient-to-br from-brand-purple to-brand-magenta text-[13.5px] font-extrabold text-white disabled:opacity-40"
           >
             {busy === "__all__" ? <Loader2 className="size-4 animate-spin" /> : null}
             {busy === "__all__"

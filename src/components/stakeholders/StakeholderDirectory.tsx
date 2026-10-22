@@ -459,8 +459,9 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     </button>
   );
 
+  // Ritmo do sistema (mockup aprovado): 24px entre os blocos da página.
   const pageTabs = newLayout ? (
-    <div className="mb-4">
+    <div className="mb-6">
       <Stepper
         withIcons
         steps={[
@@ -491,7 +492,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       {pageTabs}
       {/* Barra de ações — mesmo padrão de Operação/Guias:
           altura 36px, cantos retos, fundo secondary/50, texto 12px. */}
-      <div className="flex flex-col gap-2 mb-5">
+      <div className={`flex flex-col gap-2 ${newLayout ? "mb-6" : "mb-5"}`}>
         {newLayout ? (
           /* Mesma peça de Guias/Operação/Registros: busca + ações numa casca só
              no celular, dois objetos na altura da barra de abas no computador.
@@ -557,7 +558,11 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           </p>
         )}
       </div>
-      {newLayout && kind === "owner" ? <div className="mb-4"><ConnectedAccountsBar /></div> : null}
+      {newLayout && kind === "owner" ? (
+        <div className="mb-6">
+          <ConnectedAccountsBar />
+        </div>
+      ) : null}
 
       {isLoading ? (
         <LoadingListState count={4} />
@@ -599,7 +604,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           const active = kanbanColumns.find((c) => c.key === kanbanTab) ?? kanbanColumns[0];
           const items = filtered.filter(active.test);
           return (
-            <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
               <Stepper
                 steps={(cols.length ? cols : kanbanColumns).map((c) => ({
                   value: c.key,
@@ -699,17 +704,19 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       {/* Imóveis só nascem pela importação da conta conectada (19/10/2026):
           após cadastrar o proprietário, só oferece abrir a ficha. */}
       <Dialog open={!!createdOwner} onOpenChange={(o) => !o && setCreatedOwner(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-display text-2xl">Proprietário criado</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="max-w-md gap-3.5 p-[18px] sm:p-[18px]">
+          <DialogHeader className="gap-1.5 space-y-0 pr-9">
+            <DialogTitle className="font-display text-lg font-extrabold leading-[1.2] tracking-[-0.01em]">
+              Proprietário criado
+            </DialogTitle>
+            <DialogDescription className="text-[12.5px] leading-[1.5]">
               {createdOwner?.name} já está cadastrado. Os imóveis dele entram pela importação dos
               anúncios da conta conectada.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
             <Button
-              className="rounded-full"
+              className="h-10 rounded-[9px] bg-gradient-to-r from-brand-purple to-brand-magenta px-[18px] text-[12.5px] font-semibold text-white hover:opacity-90"
               onClick={() => {
                 const id = createdOwner?.id;
                 setCreatedOwner(null);
@@ -726,11 +733,12 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           demais: bottom-sheet no mobile, painel lateral no desktop */}
       {fullScreen ? (
         <Dialog open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
-          {/* Tela cheia no tablet/celular (`bleed`) e com o X de canto: o botão "Voltar" saiu da
-              ficha (pedido explícito, 21/10/2026). No computador segue centralizada, até 880px. */}
+          {/* Janela "como página" (regra global, 22/10/2026): no tablet/celular fica abaixo do
+              cabeçalho do sistema com "Voltar" no topo direito; no computador, centralizada
+              (880px) com "X" de canto. Fundo preto da página para os cartões "saltarem". */}
           <DialogContent
-            bleed
-            className="w-[min(94vw,880px)] max-w-none sm:max-w-[880px] max-h-[90dvh] overflow-y-auto p-0 gap-0"
+            pageLike
+            className="w-[min(94vw,880px)] max-w-none sm:max-w-[880px] max-h-[90dvh] overflow-y-auto bg-background p-0 gap-0"
           >
             <DialogTitle className="sr-only">Ficha do proprietário</DialogTitle>
             {detailId && renderDetail()}
@@ -844,7 +852,7 @@ function StakeholderCard({
                 <MoreVertical className="size-3.5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 rounded-[8px]">
+            <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
@@ -995,7 +1003,7 @@ function StakeholderCard({
                 <MoreVertical className="size-3.5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 rounded-[8px]">
+            <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();

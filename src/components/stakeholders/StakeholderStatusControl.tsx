@@ -27,7 +27,12 @@ import {
 import type { StakeholderKind } from "./constants";
 
 export type StakeholderStatusValue =
-  "active" | "documentation" | "contract" | "signature" | "paused" | "canceled";
+  | "active"
+  | "documentation"
+  | "contract"
+  | "signature"
+  | "paused"
+  | "canceled";
 type StageValue = "documentation" | "contract" | "signature";
 
 /**
@@ -183,14 +188,17 @@ export function StakeholderStatusControl({
       )}
 
       <Dialog open={!!statusDraft} onOpenChange={(o) => !o && setStatusDraft(null)}>
-        <DialogContent className="sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent
+          className="gap-3.5 p-[18px] sm:max-w-sm sm:p-[18px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <DialogHeader className="gap-1.5 space-y-0 pr-9">
+            <DialogTitle className="font-display text-lg font-extrabold leading-[1.2] tracking-[-0.01em]">
               {statusDraft?.status === "canceled" ? "Data final do contrato" : "Marcar como Ativo"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="status-date">
+          <div className="grid gap-2">
+            <Label htmlFor="status-date" className="text-xs font-semibold">
               {statusDraft?.status === "canceled" ? "Data final" : "Data da alteração"}
             </Label>
             <Input
@@ -209,7 +217,7 @@ export function StakeholderStatusControl({
           {statusDraft?.status === "active" &&
             statusDraft.date &&
             isFutureDate(statusDraft.date) && (
-              <div className="space-y-2 rounded-lg border border-border bg-secondary/30 p-3">
+              <div className="space-y-2 rounded-sm bg-foreground/[0.03] p-3 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
                 <p className="text-xs text-foreground">
                   A data é futura. Qual a situação real do cliente até lá?
                 </p>
@@ -236,17 +244,25 @@ export function StakeholderStatusControl({
           {statusDraft?.status === "canceled" &&
             statusDraft.date &&
             isFutureDate(statusDraft.date) && (
-              <p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-[11px] text-yellow-600 dark:text-yellow-400">
+              <p className="ds-atencao rounded-sm bg-[color-mix(in_oklab,currentColor_10%,transparent)] p-3 text-[11px] leading-[1.5] shadow-[inset_0_0_0_1px_color-mix(in_oklab,currentColor_30%,transparent)]">
                 O cadastro ficará como <strong>Cancelando</strong> até a data informada. Nesse dia,
                 a equipe será consultada para confirmar o cancelamento ou reverter para Ativo.
               </p>
             )}
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setStatusDraft(null)}>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              className="h-10 rounded-[9px] bg-foreground/[0.06] px-[18px] text-[12.5px] font-semibold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
+              onClick={() => setStatusDraft(null)}
+            >
               Cancelar
             </Button>
-            <Button onClick={confirmStatus} disabled={busy || !statusDraft?.date || needsStage}>
+            <Button
+              className="h-10 rounded-[9px] bg-gradient-to-r from-brand-purple to-brand-magenta px-[18px] text-[12.5px] font-semibold text-white hover:opacity-90"
+              onClick={confirmStatus}
+              disabled={busy || !statusDraft?.date || needsStage}
+            >
               {busy && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
               Confirmar
             </Button>

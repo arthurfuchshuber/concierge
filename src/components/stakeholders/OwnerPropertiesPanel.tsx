@@ -191,7 +191,7 @@ export function OwnerPropertiesPanel({
       aria-hidden
       className={`grid size-4 shrink-0 place-items-center rounded-[5px] ${
         on
-          ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-white"
+          ? "bg-gradient-to-br from-brand-purple to-brand-magenta text-white"
           : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)]"
       }`}
     >
@@ -249,7 +249,7 @@ export function OwnerPropertiesPanel({
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-[240px] rounded-[14px] border-0 bg-popover/95 p-2 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+        className="w-[240px] p-2"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1.5">
@@ -505,7 +505,7 @@ export function OwnerPropertiesPanel({
                       checked={p.active}
                       onCheckedChange={(v) => setConfirm({ id: p.id, next: v })}
                       aria-label={p.active ? "Desativar anúncio" : "Ativar anúncio"}
-                      className="data-[state=checked]:bg-[#4f8f73] data-[state=unchecked]:bg-foreground/[0.14] [&>span]:bg-[#d8d2ca] data-[state=checked]:[&>span]:bg-white"
+                      className="data-[state=checked]:ds-ok-solid data-[state=unchecked]:bg-foreground/[0.14] [&>span]:bg-muted-foreground data-[state=checked]:[&>span]:bg-white"
                     />
                   </span>
                 </span>
@@ -528,7 +528,7 @@ export function OwnerPropertiesPanel({
               <DialogTitle className="pr-11 font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
                 {confirm.next ? "Ativar este anúncio?" : "Desativar este anúncio?"}
               </DialogTitle>
-              <div className="flex items-center gap-2.5 rounded-[12px] bg-foreground/[0.04] px-[11px] py-[9px] text-[12.5px] font-bold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_9%,transparent)]">
+              <div className="flex items-center gap-2.5 rounded-sm bg-foreground/[0.04] px-[11px] py-[9px] text-[12.5px] font-bold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_9%,transparent)]">
                 <span className="relative size-[34px] shrink-0 overflow-hidden rounded-[9px] bg-foreground/[0.05]">
                   <CoverImage
                     urls={[confirmProp.hero_image_url, ...(confirmProp.gallery_images ?? [])]}
@@ -556,7 +556,7 @@ export function OwnerPropertiesPanel({
                 )}
               </DialogDescription>
               <div
-                className={`grid gap-2 rounded-[12px] px-[13px] py-3 ${
+                className={`grid gap-2 rounded-sm px-[13px] py-3 ${
                   confirm.next
                     ? "bg-[color-mix(in_oklab,#7fb79a_7%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#7fb79a_25%,transparent)]"
                     : "bg-[color-mix(in_oklab,#c98c8c_7%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c98c8c_25%,transparent)]"
@@ -593,8 +593,10 @@ export function OwnerPropertiesPanel({
                   type="button"
                   disabled={toggling}
                   onClick={applyToggle}
-                  className={`flex h-[46px] items-center justify-center rounded-[13px] text-[13.5px] font-extrabold text-white disabled:opacity-60 ${
-                    confirm.next ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae]" : "bg-[#b24a4a]"
+                  className={`flex h-[46px] items-center justify-center rounded-md text-[13.5px] font-extrabold text-white disabled:opacity-60 ${
+                    confirm.next
+                      ? "bg-gradient-to-br from-brand-purple to-brand-magenta"
+                      : "bg-destructive"
                   }`}
                 >
                   {confirm.next ? "Sim, ativar anúncio" : "Sim, desativar anúncio"}
@@ -602,7 +604,7 @@ export function OwnerPropertiesPanel({
                 <button
                   type="button"
                   onClick={() => setConfirm(null)}
-                  className="flex h-11 items-center justify-center rounded-[13px] bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
+                  className="flex h-11 items-center justify-center rounded-md bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
                 >
                   Cancelar
                 </button>
@@ -743,7 +745,7 @@ function ReimportWindow({
         }
       }}
     >
-      <DialogContent className="max-w-[380px] gap-3 p-4 sm:p-4">
+      <DialogContent className="max-w-[380px] gap-3.5 p-[18px] sm:p-[18px]">
         <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 pr-11">
           <DialogTitle className="font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
             ReImportar anúncios
@@ -814,7 +816,7 @@ function ReimportWindow({
                       : [...cur, l.listingId],
                   )
                 }
-                className={`flex items-center gap-[11px] rounded-[14px] px-3 py-2.5 text-left shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)] ${
+                className={`flex items-center gap-[11px] rounded-md px-3 py-2.5 text-left shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)] ${
                   locked
                     ? "bg-foreground/[0.025]"
                     : on
@@ -828,14 +830,14 @@ function ReimportWindow({
                     locked
                       ? "bg-foreground/20 text-white"
                       : on
-                        ? "bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-white"
+                        ? "bg-gradient-to-br from-brand-purple to-brand-magenta text-white"
                         : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)]"
                   }`}
                 >
                   {on ? <Check className="size-2.5" strokeWidth={3} /> : null}
                 </span>
                 <span
-                  className={`relative size-[46px] shrink-0 overflow-hidden rounded-[11px] bg-foreground/[0.05] ${locked ? "opacity-60" : ""}`}
+                  className={`relative size-[46px] shrink-0 overflow-hidden rounded-sm bg-foreground/[0.05] ${locked ? "opacity-60" : ""}`}
                 >
                   <CoverImage urls={[l.prop?.hero_image_url, ...(l.prop?.gallery_images ?? [])]} />
                 </span>
@@ -870,7 +872,7 @@ function ReimportWindow({
             type="button"
             disabled={n === 0 || busy}
             onClick={doImport}
-            className="flex h-[46px] items-center justify-center gap-2 rounded-[13px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[13.5px] font-extrabold text-white disabled:opacity-40"
+            className="flex h-[46px] items-center justify-center gap-2 rounded-md bg-gradient-to-br from-brand-purple to-brand-magenta text-[13.5px] font-extrabold text-white disabled:opacity-40"
           >
             <RefreshCw className="size-4" />
             {n === 0 ? "Importar anúncios" : `Importar ${n} ${n === 1 ? "anúncio" : "anúncios"}`}
@@ -878,7 +880,7 @@ function ReimportWindow({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-11 items-center justify-center rounded-[13px] bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
+            className="flex h-11 items-center justify-center rounded-md bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
           >
             Cancelar
           </button>

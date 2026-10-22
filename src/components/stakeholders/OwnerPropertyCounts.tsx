@@ -65,7 +65,7 @@ function CountButton({
       <PopoverContent
         align={align}
         onClick={(e) => e.stopPropagation()}
-        className="w-[290px] rounded-[14px] border-0 bg-popover/95 p-1.5 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_24px_48px_-12px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+        className="w-[290px] p-1.5"
       >
         <p className="ds-eyebrow flex items-center gap-2 px-2.5 pb-2 pt-2.5 text-[10px] tracking-[0.2em] text-muted-foreground">
           <span
