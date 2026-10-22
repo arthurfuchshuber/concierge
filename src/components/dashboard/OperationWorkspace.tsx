@@ -2,6 +2,7 @@ import { useFallbackInterval } from "@/components/LiveSync";
 import { ensureRealtimeAuth } from "@/lib/realtime-auth";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { SearchActionRow } from "./SearchActionRow";
+import { cleaningStatsQueryOptions } from "./cleaning-stats-query";
 import { searchScore } from "@/lib/search-score";
 import { POLICY_LABEL } from "@/lib/reservation-rich";
 import { trimSeries } from "@/lib/trim-series";
@@ -1069,7 +1070,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         { locale: ptBR },
       )}`
     : "";
-  const cleaningStatsQ = useQuery({
+  const cleaningStatsQ = useQuery(cleaningStatsQueryOptions({
     queryKey: [
       "dash-cleaning-stats",
       activeOwnerId ?? "self",
@@ -1088,40 +1089,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           providerNames: providerFilters.length > 0 ? providerFilters : undefined,
         },
       }),
-    staleTime: 10_000,
-    placeholderData: keepPreviousData,
     enabled: authed && cleaningStatsEnabled,
-  });
-  // Gráficos da aba Limpeza: MESMA janela dos cards — um número só por
-  // período, nunca um card "hoje" acima de um gráfico de 7 dias.
-  const cleaningTrendRange = cleaningStatsRange;
-  const cleaningTrendQ = useQuery({
-    queryKey: [
-      "dash-cleaning-stats",
-      activeOwnerId ?? "self",
-      cleaningTrendRange.start,
-      cleaningTrendRange.end,
-      cleaningStatsPropertyIds?.join(",") ?? "",
-      providerFilters.join(","),
-    ],
-    queryFn: () =>
-      cleaningStatsFn({
-        data: {
-          ownerId: activeOwnerId,
-          rangeStart: cleaningTrendRange.start,
-          rangeEnd: cleaningTrendRange.end,
-          propertyIds: cleaningStatsPropertyIds,
-          providerNames: providerFilters.length > 0 ? providerFilters : undefined,
-        },
-      }),
-    staleTime: 10_000,
-    placeholderData: keepPreviousData,
-    enabled: authed && view === "limpeza" && cleaningStatsEnabled,
-  });
-  // Consulta desligada (período todo no futuro) ainda devolveria o dado do
-  // período anterior por causa do `keepPreviousData` — daí o filtro aqui.
+  }));
+  // Um único observador e estado de carregamento para cards e gráficos.
+  const cleaningTrendQ = cleaningStatsQ;
+  // Período todo no futuro não deve incluir realizadas do cache.
   const cleaningStatsData = cleaningStatsEnabled ? cleaningStatsQ.data : undefined;
-  const cleaningTrendData = cleaningStatsEnabled ? cleaningTrendQ.data : undefined;
+  const cleaningTrendData = cleaningStatsData;
   // Completas aguardando aprovação no período dos cards — ficam FORA dos
   // totais e aparecem só como aviso embaixo deles.
   const pendingApproval = cleaningStatsData?.pendingApproval ?? { count: 0, totalCents: 0 };
@@ -1923,7 +1897,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       forecastCount: cleaningForecast.cleaningsExpected,
       forecastCents: cleaningForecast.estimatedTotalCents,
       statsLoading:
-        (cleaningPeriod.hasPast && (cleaningStatsQ.isLoading || cleaningStatsQ.isPlaceholderData)) ||
+        (cleaningPeriod.hasPast && cleaningStatsQ.isLoading) ||
         (cleaningPeriod.hasFuture && cleaningForecastListQ.isLoading),
       trendLoading:
         (cleaningPeriod.hasPast && cleaningTrendQ.isLoading) ||
@@ -1937,7 +1911,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     cleaningStatsData,
     cleaningForecast,
     cleaningStatsQ.isLoading,
-    cleaningStatsQ.isPlaceholderData,
     cleaningTrendQ.isLoading,
     cleaningForecastListQ.isLoading,
   ]);
@@ -2039,7 +2012,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       costLabel: past ? "Custo Total Limpeza" : "Custo Estimado",
       costValue: past ? (cleaningStatsData?.totalCents ?? 0) : cleaningForecast.estimatedTotalCents,
       costNote: past && pendingApproval.count > 0 ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise` : null,
-      statsLoading: past ? cleaningStatsQ.isLoading || cleaningStatsQ.isPlaceholderData : cleaningForecastListQ.isLoading,
+      statsLoading: past ? cleaningStatsQ.isLoading : cleaningForecastListQ.isLoading,
       trendLoading: past ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading,
       daily: past ? cleaningTrendData?.daily : cleaningForecast.daily,
       breakdown: past ? cleaningTrendData?.breakdown : cleaningForecast.breakdown,
