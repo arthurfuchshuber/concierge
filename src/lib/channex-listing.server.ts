@@ -219,11 +219,16 @@ const stripHtml = (h: string) =>
 
 /** Lê a página pública do anúncio (descrição completa, "o que você vai receber", comodidades). Somente leitura. */
 export async function fetchPublicListing(listingId: string): Promise<PublicListing | null> {
-  const res = await fetch(`https://www.airbnb.com.br/rooms/${listingId}`, {
-    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36", "Accept-Language": "pt-BR,pt;q=0.9" },
-  });
-  if (!res.ok) return null;
-  const html = await res.text();
+  // Leitura nativa (custo zero): até 2 tentativas com timeout, para o scrap não falhar à toa.
+  let html: string | null = null;
+  for (let i = 0; i < 2 && !html; i++) {
+    const res = await fetch(`https://www.airbnb.com.br/rooms/${listingId}`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36", "Accept-Language": "pt-BR,pt;q=0.9" },
+      signal: AbortSignal.timeout(12_000),
+    }).catch(() => null);
+    if (res?.ok) html = await res.text().catch(() => null);
+  }
+  if (!html) return null;
   const m = html.match(/<script id="data-deferred-state-0"[^>]*>([\s\S]*?)<\/script>/);
   if (!m) return null;
   let root: unknown;
