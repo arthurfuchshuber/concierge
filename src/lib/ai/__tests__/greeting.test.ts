@@ -25,3 +25,14 @@ describe("saudação e silêncio", () => {
     expect(ensureGreeting("[SILENCIO]", [], "Fernanda", "en", tarde)).toBe("[SILENCIO]");
   });
 });
+
+describe("saudação recente", () => {
+  it("não repete saudação recente nem com force", () => {
+    const h = [{ role: "assistant", content: "Olá, Pedro! Bom dia!" }, { role: "user", content: "ok" }];
+    expect(ensureGreeting("Mantemos o valor.", h, "Pedro", "pt-BR", new Date(), true)).toBe("Mantemos o valor.");
+  });
+  it("force cumprimenta se não houve saudação recente", () => {
+    const h = [{ role: "assistant", content: "Certo." }, { role: "user", content: "ok" }];
+    expect(ensureGreeting("Mantemos o valor.", h, "Pedro", "pt-BR", new Date(), true)).not.toBe("Mantemos o valor.");
+  });
+});

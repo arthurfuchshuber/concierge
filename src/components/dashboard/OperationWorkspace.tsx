@@ -2390,8 +2390,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // os liberados (na ordem de sempre, via sortCheckoutRows) e só depois os
   // que ainda aguardam check-out (mesma ordenação interna, só que atrás).
   const kanbanCleaningRows = useMemo(() => {
+    // Limpeza criada à mão e ainda não finalizada (20/10/2026: "deve ser
+    // criada normalmente como se fosse um card de checkout") nunca some da
+    // fila por virar o dia — só um período escolhido nos Filtros a recorta.
     const inWindow = kanbanCoRowsAll.filter(
-      (r) => matchesKanbanOwnerCity(r) && r.date >= kanbanPeriodStart && r.date <= kanbanPeriodEnd,
+      (r) =>
+        matchesKanbanOwnerCity(r) &&
+        (r.date >= kanbanPeriodStart || (!periodRange && r.manual)) &&
+        r.date <= kanbanPeriodEnd,
     );
     const released = inWindow.filter((r) => r.status === "done");
     const awaitingCheckout = inWindow.filter((r) => r.status !== "done");
@@ -2399,7 +2405,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       ...sortCheckoutRows(released, [kanbanCiRowsAll], todayISO),
       ...sortCheckoutRows(awaitingCheckout, [kanbanCiRowsAll], todayISO),
     ];
-  }, [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll, todayISO]);
+  }, [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll, todayISO, periodRange]);
   // "Concluídos" nunca foi limitado por Hoje/Amanhã/7 dias/Todos (a busca de
   // concluídos já ignorava esse seletor antes) — só ganha os filtros de
   // Cidade/Proprietário agora, mantendo o mesmo comportamento de período.
@@ -4307,7 +4313,7 @@ type CardPrediction = {
  * NÃO existe mais limite de "N cards visíveis" — ele fez as janelas de
  * Checkouts/Check-ins/Fila de Limpeza voltarem a abrir curtas (2 cards),
  * ignorando os 75%. O teto é só a altura da tela. */
-function useWholeCardsMaxHeight(key: unknown) {
+function useWholeCardsMaxHeight(key: unknown, maxItems?: number) {
   // Callback ref em state: o conteúdo vive num portal (Dialog) e só monta
   // quando abre — assim o cálculo dispara exatamente quando o nó aparece.
   const [node, setNode] = useState<HTMLDivElement | null>(null);
@@ -4342,20 +4348,47 @@ function useWholeCardsMaxHeight(key: unknown) {
       // O teto de 75% vale para a JANELA INTEIRA: desconta o que não é lista
       // (cabeçalho/abas) para a janela não passar de 75% da tela.
       const win = node.closest<HTMLElement>('[role="dialog"]');
-      const chrome = win ? Math.max(0, win.offsetHeight - node.offsetHeight) : 0;
+      // BUG (21/10/2026, print da "Fila de Limpeza": o 4º card aparecia
+      // cortado): `win.offsetHeight - node.offsetHeight` dá ~0 quando a lista
+      // é mais alta que a janela (a janela já está travada nos 90% e a lista
+      // transborda), então o cabeçalho não era descontado e a lista passava do
+      // teto — o `overflow-hidden` da janela cortava o último card. Agora o
+      // "resto da janela" é somado direto: tudo que está em fluxo ao lado da
+      // lista (cabeçalho, rodapé), em cada nível entre a lista e a janela.
+      let chrome = 0;
+      if (win) {
+        let cur: HTMLElement = node;
+        while (cur !== win && cur.parentElement) {
+          const parent: HTMLElement = cur.parentElement;
+          for (const sib of Array.from(parent.children) as HTMLElement[]) {
+            if (sib === cur) continue;
+            const pos = getComputedStyle(sib).position;
+            if (pos === "absolute" || pos === "fixed") continue;
+            chrome += sib.offsetHeight;
+          }
+          const cs = getComputedStyle(parent);
+          chrome += (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+          cur = parent;
+        }
+        chrome += 2; // bordas da janela
+      }
       const cap = Math.max(120, Math.round(window.innerHeight * 0.9) - chrome);
       const tops = items.map((i) => absoluteTop(i) - base);
       const bottoms = items.map((i) => absoluteTop(i) + i.offsetHeight - base);
       const total = bottoms[bottoms.length - 1];
-      if (total <= cap) {
+      // TETO POR QUANTIDADE (pedido explícito, 21/10/2026 — calendário de ocupação: 8 imóveis):
+      // além do teto de altura, a lista termina na borda inferior do N-ésimo card (sempre inteiro).
+      const limitedBottom = maxItems !== undefined && bottoms.length > maxItems ? bottoms[maxItems - 1] : undefined;
+      if (limitedBottom === undefined && total <= cap) {
         setMaxHeight(undefined);
         return;
       }
-      let height = total;
+      let height = limitedBottom ?? total;
       if (height > cap) {
         // Recua somente para um card COMPLETO. Mesmo se o primeiro for mais
         // alto que o limite visual, nunca o corta ao meio.
-        height = bottoms.filter((b) => b <= cap).pop() ?? bottoms[0];
+        // (menos a folga visual: o card inteiro + respiro cabem no teto)
+        height = bottoms.filter((b) => b <= cap - 12).pop() ?? bottoms[0];
       }
       const selectedIndex = bottoms.findIndex((bottom) => bottom === height);
       const nextTop = tops[selectedIndex + 1];
@@ -4618,7 +4651,7 @@ function KpiCard({
             >
               {loading ? "—" : rows.length}
             </div>
-            <span className="ds-card-date">{rangeLabel}</span>
+            {/* Etiqueta de data (Hoje/Amanhã) removida do cartão (pedido explícito, 21/10/2026). */}
           </button>
         )}
       </DialogTrigger>
@@ -8764,7 +8797,7 @@ function OccupancyPanel({
     return { res, rows: shownProperties.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownProperties, byProperty, textTokens]);
-  const list = useWholeCardsMaxHeight(`${shownProperties.length}:${loading}:${dayW}`);
+  const list = useWholeCardsMaxHeight(`${shownProperties.length}:${loading}:${dayW}`, 8);
 
   // ROLAGEM EM UM EIXO SÓ (pedido explícito, 17/10/2026: "o calendário não
   // pode ficar deslizando na diagonal — ou desce/sobe, ou vai para os lados").
@@ -9153,7 +9186,7 @@ function OccupancyPanel({
                             <th
                               key={g.key}
                               colSpan={g.n}
-                              className="sticky top-0 z-20 relative h-[22px] bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-1.5 pt-1 text-center shadow-[0_4px_0_0_color-mix(in_oklab,var(--foreground)_1.5%,var(--card))]"
+                              className="sticky top-0 z-20 relative h-[30px] bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-2 pt-2.5 text-center shadow-[0_4px_0_0_color-mix(in_oklab,var(--foreground)_1.5%,var(--card))]"
                             >
                               {k > 0 && (
                                 <span aria-hidden className="pointer-events-none absolute bottom-0 left-0 top-0 w-px bg-foreground/20" />
@@ -9217,7 +9250,7 @@ function OccupancyPanel({
                             <th
                               key={d}
                               style={{ width: dayW, minWidth: dayW }}
-                              className="sticky top-[26px] z-20 relative snap-start bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-2 font-medium tabular-nums"
+                              className="sticky top-[34px] z-20 relative snap-start bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-2 font-medium tabular-nums"
                             >
                               {i < dayList.length - 1 && (
                                 <span

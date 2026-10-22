@@ -6,6 +6,7 @@ import {
   BookOpen,
   Copy,
   ExternalLink,
+  FileText,
   Filter,
   Home,
   Info,
@@ -49,6 +50,7 @@ import {
   FilterScreenHeader,
 } from "@/components/dashboard/filter-panel";
 import { AirbnbAccountFlow, type AirbnbFlowRequest } from "./AirbnbAccountFlow";
+import { ConnectedAccountsBar } from "./ConnectedAccountsBar";
 import { toast } from "sonner";
 import {
   listAirbnbAccounts,
@@ -63,6 +65,7 @@ import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ClampName } from "@/components/ui/clamp-name";
+import { getPendingFullConnections } from "@/lib/channex-full-connect.functions";
 import type { PropertyConnectionRow } from "@/lib/property-connection";
 
 /**
@@ -103,7 +106,6 @@ export function OwnerPropertiesList({
   const [integrationFilters, setIntegrationFilters] = useState<string[]>([]);
   const [filterScreen, setFilterScreen] = useState<FilterScreen>("root");
   const [flow, setFlow] = useState<AirbnbFlowRequest>(null);
-  const [connectMenu, setConnectMenu] = useState(false);
   const { impersonation } = useImpersonation();
   const accountOwnerId = impersonation?.userId ?? null;
   const qc = useQueryClient();
@@ -153,6 +155,18 @@ export function OwnerPropertiesList({
     retry: false,
   });
   const airbnbAccounts = useMemo(() => accountsQ.data ?? [], [accountsQ.data]);
+  // Selo de status do Modo Full: anúncios aguardando "Já conectei todos".
+  const pendingFullFn = useServerFn(getPendingFullConnections);
+  const pendingFullQ = useQuery({
+    queryKey: ["full-connect-pending"],
+    queryFn: () => pendingFullFn(),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const pendingFullIds = useMemo(
+    () => new Set((pendingFullQ.data?.items ?? []).map((i: { propertyId: string }) => i.propertyId)),
+    [pendingFullQ.data],
+  );
   // Imóveis dispensados do aviso ("Não sincronizar"): marca no card + "Voltar a sincronizar".
   const dismissedFn = useServerFn(listSyncDismissedProperties);
   const dismissedQ = useQuery({
@@ -288,60 +302,6 @@ export function OwnerPropertiesList({
       },
     ],
     [items],
-  );
-
-  const menuItem =
-    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary";
-
-  // Faixa "Contas do Airbnb" (mockup Main aprovado): resumo + "Gerenciar" (conectar / ReSincronizar).
-  const pendingN = items.filter((i) => i.pending).length;
-  const connectButton = (
-    <Popover open={connectMenu} onOpenChange={setConnectMenu}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="h-9 shrink-0 rounded-[10px] bg-foreground/[0.05] px-3.5 text-[12px] font-bold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
-          aria-label="Gerenciar contas do Airbnb"
-        >
-          Gerenciar
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        className="w-[240px] p-1.5"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <div className="px-2.5 pb-1.5 pt-1.5">
-          <span className="ds-eyebrow">Airbnb</span>
-        </div>
-        <button
-          type="button"
-          className={menuItem}
-          onClick={() => {
-            setConnectMenu(false);
-            setFlow({ type: "connect" });
-          }}
-        >
-          <Plus className="size-3.5 text-muted-foreground" /> Conectar nova conta
-        </button>
-        <button
-          type="button"
-          disabled={airbnbAccounts.length === 0}
-          className={`${menuItem} disabled:pointer-events-none disabled:opacity-40`}
-          onClick={() => {
-            setConnectMenu(false);
-            setFlow({ type: "resync" });
-          }}
-        >
-          <RefreshCw className="size-3.5 text-muted-foreground" /> ReSincronizar conta
-          {airbnbAccounts.length > 0 ? (
-            <em className="ml-auto text-[11px] font-bold not-italic text-muted-foreground tabular-nums">
-              {airbnbAccounts.length} {airbnbAccounts.length === 1 ? "conta" : "contas"}
-            </em>
-          ) : null}
-        </button>
-      </PopoverContent>
-    </Popover>
   );
 
   const filterButton = (
@@ -507,22 +467,7 @@ export function OwnerPropertiesList({
         placeholder="Buscar imóvel, proprietário, cidade…"
         actions={<>{filterButton}</>}
       />
-
-      {items.length > 0 ? (
-        <div
-          className={`${PANEL_SHELL} flex min-w-0 items-center justify-between gap-3 px-3.5 py-2.5`}
-        >
-          <span className="grid min-w-0 gap-0.5">
-            <span className="ds-eyebrow text-[10px] tracking-[0.2em]">Contas do Airbnb</span>
-            <span className="truncate text-[12px] text-muted-foreground">
-              {airbnbAccounts.length} {airbnbAccounts.length === 1 ? "conta" : "contas"} ·{" "}
-              {items.length} {items.length === 1 ? "imóvel" : "imóveis"} · {pendingN}{" "}
-              {pendingN === 1 ? "pendente" : "pendentes"}
-            </span>
-          </span>
-          {connectButton}
-        </div>
-      ) : null}
+      <ConnectedAccountsBar />
 
       {items.length === 0 ? (
         <EmptyState
@@ -576,14 +521,39 @@ export function OwnerPropertiesList({
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col justify-between gap-2 py-3 pl-3.5 pr-2.5">
                   <span className="grid min-w-0 gap-1.5">
-                    <ClampName
-                      text={p.name}
-                      className="text-[14.5px] font-extrabold leading-tight"
-                    />
-                    {place ? (
+                    {/* Título + ícone do dossiê (pedido explícito, 21/10/2026): o título termina
+                        ANTES do ícone, que fica alinhado à direita, na mesma coluna do ⋯ da linha
+                        de baixo (mesmo tamanho: size-7). */}
+                    <span className="flex min-w-0 items-start gap-1">
+                      <ClampName
+                        text={p.name}
+                        className="min-w-0 flex-1 text-[14.5px] font-extrabold leading-tight"
+                      />
+                      <Link
+                        to="/admin/playbook/$id"
+                        params={{ id: p.id }}
+                        title="Playbook do imóvel"
+                        aria-label={`Playbook do imóvel ${p.name}`}
+                        className="-mt-1 inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                      >
+                        <FileText className="size-4" />
+                      </Link>
+                    </span>
+                    {place || p.airbnbListingId ? (
                       <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
-                        <MapPin className="size-3 shrink-0" />
-                        <span className="truncate">{place}</span>
+                        {place ? (
+                          <>
+                            <MapPin className="size-3 shrink-0" />
+                            <span className="min-w-0 truncate">{place}</span>
+                          </>
+                        ) : null}
+                        {/* A etiqueta "Airbnb · Conectado" saiu (pedido explícito, 21/10/2026): conectado é o
+                            normal e não precisa de selo. Só o aviso de ativação pendente continua. */}
+                        {p.airbnbListingId && pendingFullIds.has(p.id) ? (
+                          <span className="ml-auto shrink-0 whitespace-nowrap text-[10.5px] font-extrabold ds-atencao">
+                            Pendente de ativação
+                          </span>
+                        ) : null}
                       </span>
                     ) : null}
                   </span>

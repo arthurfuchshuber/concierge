@@ -1440,6 +1440,10 @@ export type AccountRecord = ReservationRecord & {
   propertyId: string;
   propertyName: string;
   ownerName: string | null;
+  /** Proprietário do imóvel (id) — preenche "quem arca/pagou" sozinho. */
+  ownerContactId?: string | null;
+  /** Prestadores vinculados ao imóvel — só pergunta qual quando houver mais de um. */
+  propertyProviderIds?: string[];
   ownerPhone: string | null;
   ownerPhoneCountry: string | null;
   /**
@@ -1853,6 +1857,19 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     const paths = Array.from(new Set([...coverPaths, ...extraPaths])).slice(0, MAX_SIGNED);
     const urlByPath = await signPathsCached(supabase, paths);
 
+    const providersByProp = new Map<string, string[]>();
+    if (usedPropIds.length > 0) {
+      const { data: pp } = await supabase
+        .from("property_providers")
+        .select("property_id, provider_id")
+        .in("property_id", usedPropIds);
+      for (const l of (pp ?? []) as Array<{ property_id: string; provider_id: string }>) {
+        const list = providersByProp.get(l.property_id) ?? [];
+        if (!list.includes(l.provider_id)) list.push(l.provider_id);
+        providersByProp.set(l.property_id, list);
+      }
+    }
+
     const records: AccountRecord[] = selected.map((r) => {
       const prop = propById.get(r.property_id);
       const task = r.task_id ? (taskById.get(r.task_id) ?? null) : null;
@@ -1889,6 +1906,8 @@ export const listAccountRecords = createServerFn({ method: "GET" })
         propertyCoverUrl: prop?.coverUrl ?? null,
         propertyCoverUrls: prop?.coverUrls ?? [],
         ownerName: prop?.ownerContactId ? (ownerNameById.get(prop.ownerContactId) ?? null) : null,
+        ownerContactId: prop?.ownerContactId ?? null,
+        propertyProviderIds: providersByProp.get(r.property_id) ?? [],
         ownerPhone: prop?.ownerContactId ? (ownerPhoneById.get(prop.ownerContactId)?.phone ?? null) : null,
         ownerPhoneCountry: prop?.ownerContactId ? (ownerPhoneById.get(prop.ownerContactId)?.country ?? null) : null,
         isResolution: r.is_resolution,
@@ -2020,6 +2039,8 @@ export type NewRecordProperty = {
   ownerName: string | null;
   ownerPhone: string | null;
   ownerPhoneCountry: string | null;
+  photoUrl: string | null;
+  city: string | null;
 };
 export type NewRecordReservation = {
   id: string;
@@ -2051,7 +2072,7 @@ export const getNewRecordOptions = createServerFn({ method: "POST" })
     const from = new Date(Date.now() - 3 * 3600_000 - 7 * 86400_000).toISOString().slice(0, 10);
     const to = new Date(Date.now() - 3 * 3600_000 + 90 * 86400_000).toISOString().slice(0, 10);
     const [{ data: props }, { data: res }] = await Promise.all([
-      sb.from("properties").select("id, name, owner_contact_id").in("id", propIds).order("name"),
+      sb.from("properties").select("id, name, owner_contact_id, hero_image_url, city").in("id", propIds).order("name"),
       sb
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
@@ -2062,7 +2083,7 @@ export const getNewRecordOptions = createServerFn({ method: "POST" })
         .limit(400),
     ]);
 
-    type PropRow = { id: string; name: string | null; owner_contact_id: string | null };
+    type PropRow = { id: string; name: string | null; owner_contact_id: string | null; hero_image_url: string | null; city: string | null };
     const propRows = (props ?? []) as PropRow[];
     const ownerIds = Array.from(
       new Set(propRows.map((p) => p.owner_contact_id).filter((v): v is string => !!v)),
@@ -2135,6 +2156,8 @@ export const getNewRecordOptions = createServerFn({ method: "POST" })
           ownerName: o?.name ?? null,
           ownerPhone: o?.phone ?? null,
           ownerPhoneCountry: o?.country ?? null,
+          photoUrl: p.hero_image_url ?? null,
+          city: p.city ?? null,
         };
       }),
       reservations: resRows.map((r) => ({

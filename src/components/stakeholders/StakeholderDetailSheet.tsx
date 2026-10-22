@@ -83,7 +83,6 @@ import { OwnerPropertyWindow } from "./OwnerPropertyWindow";
 import { OwnerAccessList } from "./OwnerAccessList";
 import { Stepper } from "@/components/editor/Stepper";
 import {
-  ACTION_BAR,
   ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
   ACTION_ICON,
@@ -110,8 +109,6 @@ import {
   Activity,
   Filter,
   Trash2,
-  ArrowLeft,
-  MoreVertical,
 } from "lucide-react";
 
 /** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.
@@ -788,8 +785,9 @@ export function StakeholderDetailSheet({
       return groups;
     })();
 
-    // Botão único (padrão dos botões de filtro) com as ações da ficha.
-    const ownerMenu = (
+    // MENU DA FICHA NO NOME DO PROPRIETÁRIO (pedido explícito, 21/10/2026): o botão "⋮" saiu de
+    // todas as barras de busca; clicar no nome abre o mesmo menu (Ver / Editar / Importar dados).
+    const ownerNameMenu = (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -797,16 +795,12 @@ export function StakeholderDetailSheet({
             aria-label="Ações do proprietário"
             title="Ações do proprietário"
             disabled={extracting}
-            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+            className="min-w-0 max-w-full cursor-pointer truncate rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
           >
-            {extracting ? (
-              <Loader2 className={`${ACTION_ICON} animate-spin`} />
-            ) : (
-              <MoreVertical className={ACTION_ICON} />
-            )}
+            {displayName}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="start">
           <DropdownMenuItem onSelect={() => setDataOpen(true)}>
             <User className="size-3.5" /> Ver Proprietário
           </DropdownMenuItem>
@@ -823,27 +817,17 @@ export function StakeholderDetailSheet({
     );
 
     return (
-      <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col overflow-x-hidden px-4 pb-7 pt-[21px]">
-        {/* Voltar: o mesmo botão das janelas do Dashboard e das páginas de Guias Digitais.
-            A ficha ocupa a tela inteira, então o X do painel fica oculto. */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="mb-5 inline-flex w-fit items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" /> Voltar
-        </button>
-
+      <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col overflow-x-hidden px-4 pb-7 pt-[5px]">
+        {/* Sem "Voltar": a ficha fecha pelo X de canto da janela (pedido explícito, 21/10/2026). */}
         {/* Cabeçalho: rótulo, nome (1 linha, reticências) com o botão de contato colado e UMA
             linha com situação + vigência. Ações (Ver/Editar) ficam no botão da barra de busca. */}
         <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-          <p className="ds-eyebrow text-[10.5px] leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
+          <p className="ds-eyebrow pr-10 text-[10.5px] leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">
             Proprietário
           </p>
           <div className="flex min-w-0 items-center gap-1">
-            <h2 className="ds-page-title min-w-0 truncate !text-lg" title={displayName}>
-              {displayName}
-            </h2>
+            <h2 className="ds-page-title min-w-0 truncate !text-lg">{ownerNameMenu}</h2>
+            {extracting ? <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" /> : null}
             <PhoneActionButton
               phone={ownerPhone}
               country={ownerCountry}
@@ -992,15 +976,13 @@ export function StakeholderDetailSheet({
             steps={[
               { value: "timeline", label: "Timeline", icon: Pin },
               { value: "imoveis", label: "Imóveis", icon: Home, count: properties.length },
-              { value: "financeiro", label: "Financeiro", icon: Coins },
+              // Financeiro, Acessos e Log ocultos temporariamente (pedido 19/10/2026).
               {
                 value: "documentos",
                 label: "Documentos",
                 icon: FileText,
                 count: feedDocs.length + looseDocs.length,
               },
-              { value: "acessos", label: "Acessos", icon: User },
-              { value: "log", label: "Log", icon: Activity },
             ]}
           />
         </div>
@@ -1034,7 +1016,6 @@ export function StakeholderDetailSheet({
                     placeholder="Buscar na timeline…"
                     actions={
                       <>
-                        {ownerMenu}
                         <button
                           type="button"
                           onClick={() => setNoteOpen((o) => !o)}
@@ -1263,7 +1244,6 @@ export function StakeholderDetailSheet({
               onOpen={(pid) => setWindowPropertyId(pid)}
               onTransfer={(pid, target) => handleTransfer(pid, target)}
               accountOwnerId={accountOwnerId}
-              menuAction={ownerMenu}
               onChanged={() => {
                 qc.invalidateQueries({ queryKey });
                 qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
@@ -1275,7 +1255,6 @@ export function StakeholderDetailSheet({
           {/* ---------------- Financeiro (mockup P3) ---------------- */}
           {ownerTab === "financeiro" && (
             <OwnerFinancePanel
-              menuAction={ownerMenu}
               ownerId={id}
               accountOwnerId={accountOwnerId}
               properties={properties.map((p) => ({ id: p.id, name: p.name }))}
@@ -1305,7 +1284,6 @@ export function StakeholderDetailSheet({
                     placeholder="Buscar contrato…"
                     actions={
                       <>
-                        {ownerMenu}
                         <input
                           ref={looseInputRef}
                           type="file"
@@ -1550,12 +1528,6 @@ export function StakeholderDetailSheet({
                 </>
               );
             })()}
-
-          {(ownerTab === "acessos" || ownerTab === "log") && (
-            <div className="mb-[10px] flex justify-end">
-              <div className={`${ACTION_BAR} !h-9 !w-auto !rounded-[11px]`}>{ownerMenu}</div>
-            </div>
-          )}
 
           {/* ---------------- Acessos (Prop9) ---------------- */}
           {ownerTab === "acessos" &&
@@ -1858,18 +1830,24 @@ export function StakeholderDetailSheet({
               Imóveis
             </TabsTrigger>
           )}
-          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="financeiro">
-            Financeiro
-          </TabsTrigger>
+          {kind !== "owner" && (
+            <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="financeiro">
+              Financeiro
+            </TabsTrigger>
+          )}
           <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="documentos">
             Documentos
           </TabsTrigger>
-          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="acessos">
-            Acessos
-          </TabsTrigger>
-          <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="log">
-            Log
-          </TabsTrigger>
+          {kind !== "owner" && (
+            <>
+              <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="acessos">
+                Acessos
+              </TabsTrigger>
+              <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="log">
+                Log
+              </TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         {/* -------------------- Acessos -------------------- */}
@@ -2297,16 +2275,6 @@ export function StakeholderDetailSheet({
               </div>
             )}
 
-            {kind === "owner" && (
-              <Link
-                to="/admin/properties/$id"
-                params={{ id: "new" }}
-                search={{ returnTo: returnToHere, ownerId: row?.id }}
-                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-              >
-                <Plus className="size-3.5" /> Criar nova residência
-              </Link>
-            )}
           </TabsContent>
         )}
 

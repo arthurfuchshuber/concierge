@@ -85,6 +85,8 @@ export type ManualCleaningProperty = {
   id: string;
   name: string;
   ownerName: string | null;
+  photoUrl: string | null;
+  city: string | null;
   normalCents: number | null;
   fullCents: number | null;
   defaultProviderId: string | null;
@@ -130,7 +132,7 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
       sb
         .from("properties")
         .select(
-          "id, name, owner_contact_id, cleaning_price_normal_cents, cleaning_price_full_cents",
+          "id, name, owner_contact_id, cleaning_price_normal_cents, cleaning_price_full_cents, hero_image_url, city",
         )
         .in("id", propIds)
         .order("name"),
@@ -155,6 +157,8 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
       id: string;
       name: string | null;
       owner_contact_id: string | null;
+      hero_image_url: string | null;
+      city: string | null;
       cleaning_price_normal_cents: number | null;
       cleaning_price_full_cents: number | null;
     };
@@ -245,6 +249,8 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
         id: p.id,
         name: (p.name ?? "Imóvel").trim(),
         ownerName: p.owner_contact_id ? (ownerName.get(p.owner_contact_id) ?? null) : null,
+        photoUrl: p.hero_image_url ?? null,
+        city: p.city ?? null,
         normalCents: p.cleaning_price_normal_cents,
         fullCents: p.cleaning_price_full_cents,
         defaultProviderId: defaults.get(p.id) ?? null,
@@ -278,6 +284,8 @@ const CreateInput = z.object({
   date: DateStr,
   cleaningType: z.enum(["normal", "completa"]),
   cents: z.number().int().min(0).max(100_000_00),
+  /** Descrição livre da limpeza (aparece no card). */
+  note: z.string().trim().max(1000).nullable().optional(),
   /**
    * `ask` (padrão): se a reserva já tem limpeza, não grava e devolve o aviso.
    * `add`: soma (cria a extra). `replace`: troca prestador e valor da que existe.
@@ -406,6 +414,7 @@ export const createManualCleaning = createServerFn({ method: "POST" })
           manual_created_by: context.userId,
           assigned_provider_id: data.providerId,
           cleaning_price_override_cents: data.cents,
+          note: data.note ? data.note : null,
           ...overrideMeta,
         })
         .select("id")
@@ -438,13 +447,22 @@ async function pushToProvider(
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { notifyManualCleaningAssigned } = await import("@/lib/ops-push.server");
-    const r = await notifyManualCleaningAssigned(supabaseAdmin as never, {
+    const send = notifyManualCleaningAssigned(supabaseAdmin as never, {
       propertyId,
       providerId,
       refKey,
       date,
       today,
+    }).catch((err) => {
+      console.error("[manual-cleaning] falha ao enviar push ao prestador:", err);
+      return null;
     });
+    // Salvamento nunca espera a rede do push além de 3 s (20/10/2026:
+    // "demorou muito para carregar o salvamento"). A limpeza já está gravada.
+    const r = await Promise.race([
+      send,
+      new Promise<null>((res) => setTimeout(() => res(null), 3000)),
+    ]);
     return (r?.sent ?? 0) > 0;
   } catch (err) {
     console.error("[manual-cleaning] falha ao enviar push ao prestador:", err);

@@ -737,10 +737,18 @@ export async function notifyCleaningDone(
 export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyId: string }) {
   const { data: prop } = await admin
     .from("properties")
-    .select("owner_id, slug")
+    .select("owner_id, slug, checkin_time")
     .eq("id", opts.propertyId)
     .maybeSingle();
   if (!prop) return { sent: 0 };
+  // ANTES do horário oficial, liberar é decisão HUMANA (18/10/2026): a IA só
+  // pergunta à equipe (botões) quando o hóspede pediu para antecipar; nunca
+  // avisa o hóspede por conta própria.
+  const checkinHour = Number(String((prop as { checkin_time?: string | null }).checkin_time ?? "15").slice(0, 2)) || 15;
+  const nowHour = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", hourCycle: "h23" }).format(new Date()),
+  );
+  const beforeOfficial = nowHour < checkinHour;
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
   const { data: logs } = await admin
     .from("guide_access_logs")
@@ -772,6 +780,16 @@ export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyI
       (c) => c.guest_name && norm(c.guest_name) === target,
     );
     let n = 0;
+    if (beforeOfficial) {
+      await askEarlyCheckinApproval(admin, {
+        ownerId: String(prop.owner_id),
+        propertyId: opts.propertyId,
+        conversations: mine,
+        checkinHour,
+      });
+      await admin.from("ops_push_log").delete().eq("dedupe_key", dedupeKey);
+      continue;
+    }
     for (const c of mine) {
       const r = await sendPushToGuest(c.id, {
         title: "Seu imóvel foi liberado para check-in",
@@ -784,6 +802,51 @@ export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyI
     sent += n;
   }
   return { sent };
+}
+
+/** Limpeza pronta + hóspede pediu antecipação → pergunta à equipe por botões. */
+async function askEarlyCheckinApproval(
+  admin: Admin,
+  opts: {
+    ownerId: string;
+    propertyId: string;
+    conversations: Array<{ id: string; guest_name: string | null }>;
+    checkinHour: number;
+  },
+) {
+  const { guestWantsEarlyCheckin, EARLY_CHECKIN_OPTIONS } = await import("@/lib/ai/human-loop/decision-options");
+  const { askHumanSupervisor } = await import("@/lib/ai/human-loop/escalations.server");
+  for (const c of opts.conversations) {
+    const { data: msgs } = await admin
+      .from("property_chat_messages")
+      .select("content")
+      .eq("conversation_id", c.id)
+      .eq("sender_type", "guest")
+      .order("created_at", { ascending: false })
+      .limit(30);
+    const texts = ((msgs ?? []) as Array<{ content: string | null }>).map((m) => m.content ?? "");
+    if (!guestWantsEarlyCheckin(texts, opts.checkinHour)) continue;
+    const { data: open } = await admin
+      .from("ai_human_escalations")
+      .select("id")
+      .eq("conversation_id", c.id)
+      .eq("trigger", "policy_exception")
+      .eq("status", "pending")
+      .limit(1);
+    if (open?.length) continue;
+    await askHumanSupervisor({
+      supabase: admin as never,
+      ownerId: opts.ownerId,
+      propertyId: opts.propertyId,
+      conversationId: c.id,
+      guestName: c.guest_name,
+      agent: "reservation",
+      trigger: "policy_exception",
+      reason: "early_checkin_approval",
+      question: `A limpeza foi concluída e ${c.guest_name ?? "o hóspede"} pediu para entrar antes das ${String(opts.checkinHour).padStart(2, "0")}h. Posso liberar o check-in agora?`,
+      contextSnapshot: { decision: { kind: "operational", options: [...EARLY_CHECKIN_OPTIONS] } },
+    });
+  }
 }
 
 /**

@@ -13,7 +13,7 @@ export const getPendingFullConnections = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const accountId = await accountOf(context.supabase, context.userId);
     const { listPendingFullConnections, ensureAccountPricingKey } = await import("@/lib/channex-full-connect.server");
-    const items = await listPendingFullConnections(accountId);
+    const items = await listPendingFullConnections(accountId, context.userId);
     const apiKey = items.length
       ? await ensureAccountPricingKey(accountId).catch((e) => {
           console.error("[full-connect] pricing key", e);
@@ -33,4 +33,15 @@ export const confirmFullConnectionFn = createServerFn({ method: "POST" })
     const accountId = await accountOf(context.supabase, context.userId);
     const { confirmFullConnection } = await import("@/lib/channex-full-connect.server");
     return confirmFullConnection(accountId, data.propertyId, context.userId);
+  });
+
+/** "Importar agora!": importa os bloqueios manuais do iCal do anúncio antes do "Já conectei". */
+export const importIcalBlocksFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ propertyId: z.string().uuid(), url: z.string().url().max(2000) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "stakeholders.vinculo-imovel", { propertyId: data.propertyId });
+    const { importIcalBlocks } = await import("@/lib/ical-blocks.server");
+    return importIcalBlocks(data.propertyId, data.url, context.userId);
   });

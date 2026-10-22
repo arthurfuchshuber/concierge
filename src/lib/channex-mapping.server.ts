@@ -166,6 +166,28 @@ async function call(method: string, path: string, body?: unknown): Promise<any> 
 }
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
+/** "Hoje" no fuso do imóvel (Brasil): em UTC o dia vira às 21h e a noite de hoje sumia do envio. */
+export function todayLocalIso(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(now);
+}
+
+/**
+ * Ativa o canal na Channex e confirma relendo o estado (até 3 tentativas). Nunca engole falha:
+ * canal inativo represa preços/disponibilidade, então lança erro claro para o usuário.
+ */
+export async function ensureChannelActive(channelId: string) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const ch = await call("GET", `/channels/${channelId}`).catch(() => null);
+    if (ch?.data?.attributes?.is_active === true) return;
+    await call("POST", `/channels/${channelId}/activate`).catch(() => null);
+    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+  }
+  const final = await call("GET", `/channels/${channelId}`).catch(() => null);
+  if (final?.data?.attributes?.is_active === true) return;
+  throw new Error(
+    "Motivo: a conexão da conta do Airbnb não pôde ser ligada na Channex, então os preços não chegariam ao Airbnb.\n\nO que fazer: aguarde alguns minutos e toque em \"Já conectei todos\" de novo. Se persistir, reconecte a conta do Airbnb em Contas Conectadas.",
+  );
+}
 
 /** Garante calendário REAL aberto e só então mapeia. Idempotente. */
 export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | null) {
@@ -186,10 +208,27 @@ export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | nu
   // 2) Mapeia e carrega reservas futuras.
   await call("POST", `/channels/${t.channelId}/mappings`, { mapping: { rate_plan_id: t.ratePlanId, settings: { listing_id: t.listingId } } });
   await call("POST", `/channels/${t.channelId}/execute/load_future_reservations`, { listing_id: t.listingId }).catch(() => null);
+  // Canal recém-conectado nasce inativo na Channex e represa preços/disponibilidade: ativa e CONFIRMA.
+  await ensureChannelActive(t.channelId);
 
   // 3) Recalcula com a janela exata do anfitrião e as reservas recém-importadas.
   const sync = await syncRealAvailability(t, userId);
+  // 4) Publica o anúncio no Airbnb (idempotente) para preços/disponibilidade não ficarem represados.
+  await publishListing(t.channelId, t.listingId);
   return { listingId: t.listingId, status: "mapped" as const, sync };
+}
+
+/** Publica o anúncio no canal (idempotente, até 3 tentativas). Falha não desfaz o mapeamento já seguro. */
+export async function publishListing(channelId: string, listingId: string) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const ok = await call("POST", `/channels/${channelId}/execute/publish`, { listing_id: listingId })
+      .then(() => true)
+      .catch(() => false);
+    if (ok) return true;
+    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+  }
+  console.warn("[channex] publish falhou", channelId, listingId);
+  return false;
 }
 
 /** Noites ocupadas por reservas ativas de uma unidade na Channex (paginado). */
@@ -248,7 +287,7 @@ async function activeBookingNights(t: SafeMapTarget, windowEnd?: string, cache?:
   // Bloqueios do anfitrião / Airbnb (iCal) e reservas registradas no ConciergeIA também fecham a data.
   if (t.propertyId) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const today = iso(new Date());
+    const today = todayLocalIso();
     const { data } = await supabaseAdmin
       .from("property_reservations")
       .select("checkin_date, checkout_date, status, source")
@@ -287,12 +326,13 @@ export async function syncRealAvailability(t: SafeMapTarget, userId: string | nu
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop } = await supabaseAdmin.from("properties").select("airbnb_ical_url").eq("id", t.propertyId).maybeSingle();
     const { airbnbClosedNights } = await import("@/lib/channex-full-connect.server");
+    // Sem link de iCal: valem as reservas + bloqueios manuais já no ConciergeIA (unidade não mapeada
+    // não chega ao Airbnb). Link existente mas ilegível lança erro e cancela, para não reabrir datas.
     const closed = await airbnbClosedNights((prop as any)?.airbnb_ical_url);
-    if (!closed) throw new Error("iCal indisponível para anúncio não mapeado; sincronização cancelada para não reabrir datas.");
-    for (const n of closed) nights.add(n);
+    for (const n of closed ?? []) nights.add(n);
   }
 
-  const from = new Date();
+  const from = new Date(`${todayLocalIso()}T00:00:00Z`);
   const merged: Parameters<typeof applyCalendarChanges>[0] = [];
   for (let i = 0; i <= 365; i++) {
     const date = iso(new Date(from.getTime() + i * 86_400_000));

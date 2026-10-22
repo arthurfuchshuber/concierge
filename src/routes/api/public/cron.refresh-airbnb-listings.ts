@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// DESLIGADO (27/09/2026) a pedido do cliente: a atualização do anúncio do
-// Airbnb consome créditos do Firecrawl e passa a acontecer SOMENTE quando o
-// usuário clica em Importar/Sincronizar no editor do imóvel. O agendamento
-// no banco também foi desativado. Este endpoint não executa mais nada.
+// Revisão diária (reativada 22/10/2026): só a FOTO DE CAPA do anúncio, lida
+// nativamente da página pública (sem Firecrawl, sem IA — custo zero). Cada
+// imóvel fica com uma única foto. Demais dados seguem sincronização manual.
 export const Route = createFileRoute("/api/public/cron/refresh-airbnb-listings")({
   server: {
     handlers: {
@@ -12,7 +11,13 @@ export const Route = createFileRoute("/api/public/cron/refresh-airbnb-listings")
         if (!isValidCronSecret(request)) {
           return new Response("Unauthorized", { status: 401 });
         }
-        return Response.json({ ok: true, disabled: true, reason: "sincronização apenas manual" });
+        try {
+          const { refreshAllListingCovers } = await import("@/lib/airbnb-cover.server");
+          return Response.json({ ok: true, ...(await refreshAllListingCovers()) });
+        } catch (err) {
+          console.error("[cron:refresh-airbnb-listings]", err);
+          return Response.json({ ok: false }, { status: 500 });
+        }
       },
     },
   },

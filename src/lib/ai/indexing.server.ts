@@ -245,6 +245,53 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
       content: [d.title, d.content].filter(Boolean).join(" — "),
     });
   }
+  // PLAYBOOK DO IMÓVEL (21/10/2026): a "Nota do anfitrião" de cada linha, os
+  // valores dos campos manuais sem coluna própria (voltagem, lixo, disjuntores…)
+  // e as linhas criadas à mão entram na base da IA junto da instrução padrão.
+  // Linhas de Equipe Interna levam o aviso para nunca serem repassadas ao hóspede.
+  try {
+    const { PLAYBOOK_FIELDS } = await import("@/lib/playbook-catalog");
+    const { data: pbEntries } = await supabase
+      .from("property_playbook_entries" as never)
+      .select("field_key, value, note, custom_label, custom_audience")
+      .eq("property_id", propertyId);
+    const metaByKey = new Map<string, (typeof PLAYBOOK_FIELDS)[number]>(PLAYBOOK_FIELDS.map((f) => [`f:${f.key}`, f]));
+    const faqQuestion = new Map<string, string>(
+      ((faqs.data ?? []) as Array<Record<string, unknown>>).map((f) => [`faq:${String(f.id)}`, String(f.question ?? "FAQ")]),
+    );
+    for (const e of (pbEntries ?? []) as unknown as Array<{
+      field_key: string;
+      value: string | null;
+      note: string | null;
+      custom_label: string | null;
+      custom_audience: string | null;
+    }>) {
+      const meta = metaByKey.get(e.field_key);
+      const label = meta?.label ?? e.custom_label ?? faqQuestion.get(e.field_key) ?? "Campo do Playbook";
+      const internal = (meta?.au ?? e.custom_audience) === "I";
+      const guard = internal ? " (uso interno: nunca repassar ao hóspede)" : "";
+      const isCustom = e.field_key.startsWith("custom:");
+      // Valor próprio do Playbook (sem coluna no cadastro) e linhas criadas à mão.
+      if (e.value && (isCustom || meta)) {
+        pushChunk(chunks, {
+          source: "property_detail",
+          sourceId: `playbook:${e.field_key}`,
+          title: `${name} — ${label}`,
+          content: `${label}${guard}: ${e.value}`,
+        });
+      }
+      if (e.note) {
+        pushChunk(chunks, {
+          source: "property_detail",
+          sourceId: `playbook-note:${e.field_key}`,
+          title: `${name} — Nota do anfitrião: ${label}`,
+          content: `Nota do anfitrião sobre "${label}"${guard}: ${e.note}`,
+        });
+      }
+    }
+  } catch (e) {
+    console.error("[indexing] playbook entries", e);
+  }
   for (const k of (knowledge.data ?? []) as Array<Record<string, unknown>>) {
     if (k.scope_property_id && k.scope_property_id !== propertyId) continue;
     pushChunk(chunks, { source: "host_knowledge", sourceId: String(k.id), title: String(k.title ?? ""), content: String(k.body ?? "") });

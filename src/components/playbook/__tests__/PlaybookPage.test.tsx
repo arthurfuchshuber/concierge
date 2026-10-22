@@ -1,0 +1,77 @@
+// @vitest-environment jsdom
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@tanstack/react-start", () => ({
+  useServerFn: (fn: unknown) => fn,
+  createServerFn: () => ({ middleware: () => ({ inputValidator: () => ({ handler: () => ({}) }) }) }),
+}));
+vi.mock("@/lib/playbook.functions", () => ({
+  getPlaybook: async () => ({
+    propertyId: "p1",
+    propertyName: "Casa Charmosa",
+    owner: { name: "Arthur Tenório", phone: null, country: null },
+    source: {
+      property: { name: "Casa Charmosa", gate_code: "9999", maps_url: "https://maps.app.goo.gl/x" },
+      faqs: [],
+      checkout: [],
+      emergency: [],
+      manuals: [],
+      providers: [],
+      entries: [],
+    },
+  }),
+  savePlaybookRow: vi.fn(),
+  deletePlaybookRow: vi.fn(),
+  savePlaybookNote: vi.fn(),
+  addPlaybookRow: vi.fn(),
+}));
+vi.mock("@/components/dashboard/OwnerLine", () => ({
+  OwnerLine: ({ label }: { label: string }) => <div>{label}</div>,
+}));
+
+import { PlaybookPage } from "@/components/playbook/PlaybookPage";
+
+function mount() {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <PlaybookPage propertyId="p1" />
+    </QueryClientProvider>,
+  );
+}
+
+describe("PlaybookPage", () => {
+  it("abre tudo recolhido, mostra o proprietário e abre uma seção por vez", async () => {
+    mount();
+    expect(await screen.findByText("Proprietário(a): Arthur")).toBeTruthy();
+    expect(screen.queryByText("Link do mapa")).toBeNull();
+    const pills = screen.getAllByLabelText("Abrir ou fechar seção");
+    expect(pills).toHaveLength(5);
+    fireEvent.click(pills[0]);
+    expect(screen.getByText("Link do mapa")).toBeTruthy();
+    fireEvent.click(pills[1]);
+    expect(screen.queryByText("Link do mapa")).toBeNull();
+    expect(screen.getByText("Código do portão")).toBeTruthy();
+  });
+
+  it("mascara o código e a busca abre a seção com resultado", async () => {
+    mount();
+    await screen.findByText("Proprietário(a): Arthur");
+    fireEvent.change(screen.getByPlaceholderText("Buscar campo, valor ou observação"), { target: { value: "portão" } });
+    expect(screen.getByText("Código do portão")).toBeTruthy();
+    expect(screen.queryByText("9999")).toBeNull();
+    expect(screen.getAllByText("••••••").length).toBeGreaterThan(0);
+  });
+
+  it("no máximo duas linhas abertas e a Nota do anfitrião só aparece na aberta", async () => {
+    mount();
+    await screen.findByText("Proprietário(a): Arthur");
+    fireEvent.click(screen.getAllByLabelText("Abrir ou fechar seção")[0]);
+    expect(screen.queryAllByText("Nota do anfitrião")).toHaveLength(0);
+    for (const label of ["Título público", "Tipo de espaço", "Bairro"]) fireEvent.click(screen.getByText(label));
+    expect(screen.getAllByText("Nota do anfitrião")).toHaveLength(2);
+    void within;
+  });
+});

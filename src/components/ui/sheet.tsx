@@ -76,10 +76,12 @@ const SheetContent = React.forwardRef<
         <SheetPrimitive.Close
           className={
             closeClassName ??
-            "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary"
+            // MESMO X DE CANTO DAS JANELAS (pedido explícito, 21/10/2026): aba delicada de 32px
+            // colada no canto superior direito. Painéis que passam `closeClassName` seguem com o seu.
+            "absolute right-0 top-0 z-[5] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] text-muted-foreground shadow-[inset_1px_-1px_0_color-mix(in_oklab,var(--foreground)_9%,transparent)] transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_10%,transparent)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
           }
         >
-          <X className="h-4 w-4" />
+          <X className="size-[13px]" strokeWidth={1.8} />
           <span className="sr-only">Close</span>
         </SheetPrimitive.Close>
         {children}

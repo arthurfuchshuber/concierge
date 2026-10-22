@@ -2702,31 +2702,48 @@ type PayerKind = "company" | "owner" | "provider" | "guest";
  */
 const PAYER_OPTIONS = [
   { key: "company" as const, label: "A empresa" },
-  { key: "owner" as const, label: "Proprietário" },
-  { key: "provider" as const, label: "Prestador" },
+  { key: "owner" as const, label: "Proprietário(a)" },
+  { key: "provider" as const, label: "Prestador(a)" },
   { key: "guest" as const, label: "Hóspede" },
 ] satisfies ReadonlyArray<{ key: PayerKind; label: string }>;
 
+/**
+ * Opções sempre à vista (pedido explícito, 20/10/2026): proprietário e
+ * hóspede vêm da própria reserva/imóvel, então o nome aparece direto no
+ * botão — ninguém precisa abrir lista para escolher quem já é conhecido.
+ */
 function PayerButtonGroup({
   value,
   onSelect,
+  names,
 }: {
   value: PayerKind;
   onSelect: (key: PayerKind) => void;
+  names?: Partial<Record<PayerKind, string | null>>;
 }) {
   return (
-    <Select value={value} onValueChange={(v) => onSelect(v as PayerKind)}>
-      <SelectTrigger className="mt-1 h-9 w-full min-w-0 rounded-[0.3rem] border-0 bg-foreground/[0.04] text-[12px] font-semibold [&>span]:truncate">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {PAYER_OPTIONS.map((o) => (
-          <SelectItem key={o.key} value={o.key} className="text-[12px]">
-            {o.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="mt-1 grid grid-cols-1 gap-1">
+      {PAYER_OPTIONS.map((o) => {
+        const active = value === o.key;
+        const who = names?.[o.key];
+        return (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => onSelect(o.key)}
+            aria-pressed={active}
+            className={`flex min-w-0 items-center gap-1.5 rounded-[0.3rem] px-2 py-1.5 text-left text-[11.5px] transition-colors ${
+              active
+                ? "bg-primary text-primary-foreground font-semibold"
+                : "bg-foreground/[0.04] text-foreground hover:bg-foreground/[0.08]"
+            }`}
+          >
+            <span className="shrink-0">{o.label}</span>
+            {who && <span className="min-w-0 truncate opacity-75">· {who}</span>}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -2875,10 +2892,30 @@ function ResolveDialog({
       toast.error(e instanceof Error ? e.message : "Não foi possível resolver."),
   });
 
-  const options = payer === "owner" ? owners : payer === "provider" ? providers : [];
-  const needsWho = hasCost && payer !== "company" && payer !== "guest";
-  const paidByOptions = paidBy === "owner" ? owners : paidBy === "provider" ? providers : [];
-  const needsWhoPaid = hasCost && paidBy !== "company" && paidBy !== "guest";
+  // Proprietário e hóspede já são conhecidos pela reserva/imóvel (pedido
+  // explícito, 20/10/2026): entram sozinhos. Prestador só pergunta "qual"
+  // quando o imóvel tem mais de um vinculado (ou nenhum cadastrado).
+  const ownerId = record?.ownerContactId ?? null;
+  const propProviders = providers.filter((p) =>
+    (record?.propertyProviderIds ?? []).includes(p.id),
+  );
+  const providerChoices = propProviders.length > 0 ? propProviders : providers;
+  const autoIdFor = (k: PayerKind): string | null =>
+    k === "owner" ? ownerId : k === "provider" && providerChoices.length === 1 ? providerChoices[0].id : null;
+  const knownNames = (selectedProviderId: string | null) => ({
+    owner: record?.ownerName ?? null,
+    guest: record?.guestName ?? null,
+    provider:
+      providerChoices.length === 1
+        ? providerChoices[0].name
+        : (providers.find((p) => p.id === selectedProviderId)?.name ?? null),
+  });
+  const pickerFor = (k: PayerKind) =>
+    k === "provider" ? providerChoices.length > 1 : k === "owner" ? !ownerId : false;
+  const options = payer === "owner" ? owners : payer === "provider" ? providerChoices : [];
+  const needsWho = hasCost && pickerFor(payer);
+  const paidByOptions = paidBy === "owner" ? owners : paidBy === "provider" ? providerChoices : [];
+  const needsWhoPaid = hasCost && pickerFor(paidBy);
 
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
@@ -2943,9 +2980,10 @@ function ResolveDialog({
                   </span>
                   <PayerButtonGroup
                     value={payer}
+                    names={knownNames(payerId)}
                     onSelect={(k) => {
                       setPayer(k);
-                      setPayerId(null);
+                      setPayerId(autoIdFor(k));
                     }}
                   />
                 </div>
@@ -2955,9 +2993,10 @@ function ResolveDialog({
                   </span>
                   <PayerButtonGroup
                     value={paidBy}
+                    names={knownNames(paidById)}
                     onSelect={(k) => {
                       setPaidBy(k);
-                      setPaidById(null);
+                      setPaidById(autoIdFor(k));
                     }}
                   />
                 </div>

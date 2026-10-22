@@ -26,6 +26,6 @@ export const createGuidePreviewToken = createServerFn({ method: "POST" })
     }
     if (!allowed) return { token: null as string | null };
     const { createGuidePreviewTokenFor } = await import("@/lib/guide-preview.server");
-    return { token: await createGuidePreviewTokenFor(data.slug) };
+    return { token: await createGuidePreviewTokenFor(data.slug, context.userId) };
   });
 

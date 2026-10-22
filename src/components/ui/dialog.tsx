@@ -36,8 +36,14 @@ const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     /** Janela obrigatória (sem "X"): só fecha quando a pessoa cumprir o que ela pede. */
     hideClose?: boolean;
+    /**
+     * TELA CHEIA NO TABLET E NO CELULAR (pedido explícito, 21/10/2026): abaixo de `lg` a janela
+     * ocupa a tela inteira, sem margem nas laterais nem no topo, e o "X" de canto fica colado
+     * no canto superior direito. No computador (lg+) a janela continua centralizada como antes.
+     */
+    bleed?: boolean;
   }
->(({ className, children, hideClose, ...props }, ref) => {
+>(({ className, children, hideClose, bleed, ...props }, ref) => {
   const [layerRef, layerNodeRef] = useOverlayLayer("window", useAntiClipWindow(ref));
   return (
     <DialogPortal>
@@ -50,6 +56,8 @@ const DialogContent = React.forwardRef<
           // `min(...)` garante o menor dos dois. `sg-elegant-scroll`: barra de
           // rolagem fina e visível, igual aos demais tooltips/popovers.
           "sg-elegant-scroll fixed left-[50%] top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-[calc(100%_-_2rem)] max-w-lg translate-x-[-50%] translate-y-[calc(-50%_-_var(--kb-inset,0px)_/_2)] gap-4 rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] text-foreground p-5 sm:p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] overflow-y-auto",
+          bleed &&
+            "max-lg:!left-0 max-lg:!top-0 max-lg:!h-[100dvh] max-lg:!max-h-none max-lg:!w-screen max-lg:!max-w-none max-lg:!translate-x-0 max-lg:!translate-y-0 max-lg:!rounded-none max-lg:!border-0",
           className,
         )}
         {...props}
@@ -60,9 +68,16 @@ const DialogContent = React.forwardRef<
         {hideClose ? null : (
           <DialogPrimitive.Close
             data-window-close
-            className="absolute right-0 top-0 z-[5] grid size-11 cursor-pointer place-items-center rounded-bl-[16px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--foreground)_7%,transparent)] text-muted-foreground shadow-[inset_1px_-1px_0_color-mix(in_oklab,var(--foreground)_13%,transparent)] transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_12%,transparent)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+            // X DE CANTO MAIS DELICADO (pedido explícito, 21/10/2026, mockup aprovado): aba de 32px
+            // (era 44px), canto de 12px, fundo e fio de luz mais leves e ícone de 13px com traço 1.8.
+            // Mora AQUI para valer em todas as janelas; abaixo de `lg`, em janela de tela cheia
+            // (`bleed`), o canto superior direito é reto.
+            className={cn(
+              "absolute right-0 top-0 z-[5] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] text-muted-foreground shadow-[inset_1px_-1px_0_color-mix(in_oklab,var(--foreground)_9%,transparent)] transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_10%,transparent)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
+              bleed && "max-lg:!rounded-tr-none",
+            )}
           >
-            <X className="h-4 w-4" />
+            <X className="size-[13px]" strokeWidth={1.8} />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}

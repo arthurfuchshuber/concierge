@@ -267,5 +267,8 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
     listingsUpdated += 1;
   }
 
+  // Auto-cura: todo anúncio ativo precisa do app Messages, senão as mensagens do Airbnb nunca chegam.
+  const { healMissingMessagesApps } = await import("@/lib/channex-messages-app.server");
+  await healMissingMessagesApps(admin).catch((e) => console.error("[entity-sync] messages heal", e));
   return { entities: recs.length, changed: changedRecs.length, renamedRoomTypes: renamed, listingsUpdated };
 }

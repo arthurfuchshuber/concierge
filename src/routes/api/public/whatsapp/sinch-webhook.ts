@@ -219,6 +219,13 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
           delivery_status: "delivered",
         });
 
+        try {
+          const { applyStayCompletionOnIngest } = await import("@/lib/ai/conversation-link.server");
+          await applyStayCompletionOnIngest(supabaseAdmin as never, { conversationId: convId, propertyId: log.property_id as string, message: inbound });
+        } catch (e) {
+          console.error("[sinch] baixa de estadia falhou", e);
+        }
+
         // Espelho no Conversation Core: mesma entidade de conversa do chat web.
         try {
           const { resolveCoreConversation, appendCoreMessage } =

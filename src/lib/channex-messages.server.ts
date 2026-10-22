@@ -90,6 +90,7 @@ async function hasConfirmedReservation(
 
 type Inbound = {
   messageId: string | null;
+  otaMessageId?: string | null;
   text: string;
   sender: string;
   threadId: string | null;
@@ -121,10 +122,11 @@ export function parseChannexMessage(payload: unknown): Inbound | null {
   if (!text && attachments.length === 0) return null;
   return {
     messageId: str(p.id) ?? str(p.ota_message_id),
+    otaMessageId: str(p.ota_message_id),
     text,
     sender: String(p.sender ?? p.meta?.role ?? "guest").toLowerCase(),
     threadId: str(p.message_thread_id) ?? str(p.thread_id),
-    bookingId: str(p.booking_id),
+    bookingId: str(p.booking_id) ?? str(root.booking_id) ?? str(root.data?.attributes?.booking_id),
     channexPropertyId: str(p.property_id) ?? str(root.property_id),
     guestName: str(p.guest_name) ?? str(p.meta?.name) ?? str(p.sender_name),
     attachments,
@@ -388,14 +390,17 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
 
   // Idempotência: mesma mensagem não é processada duas vezes.
-  if (m.messageId) {
+  // Reenvios da Channex podem trazer outro `id` com o mesmo `ota_message_id`: checa ambos,
+  // senão cada reenvio empurrava a janela de resposta para frente.
+  const extIds = [m.messageId, m.otaMessageId].filter((v): v is string => !!v);
+  if (extIds.length) {
     const { data: dup } = await admin
       .from("property_chat_messages")
       .select("id")
       .eq("channel", "airbnb" as never)
-      .eq("external_id", m.messageId)
-      .maybeSingle();
-    if (dup) return;
+      .in("external_id", extIds)
+      .limit(1);
+    if (dup?.length) return;
   }
 
   const listing = await resolveListing(admin, m);
@@ -407,7 +412,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   const sessionId = `airbnb:${m.threadId}`;
   const { data: existing } = await admin
     .from("property_chat_conversations")
-    .select("id, ai_paused, paused_until, assigned_to")
+    .select("id, ai_paused, paused_until, assigned_to, ai_reply_due_at, ai_reply_ctx")
     .eq("property_id", listing.property_id)
     .eq("guest_session_id", sessionId)
     .maybeSingle();
@@ -464,6 +469,20 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     .update({ last_message_at: new Date().toISOString() })
     .eq("id", convId);
 
+  // Código da reserva liga a conversa e dá baixa de check-in/out mesmo com a IA pausada.
+  try {
+    const link = await import("@/lib/ai/conversation-link.server");
+    const res = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => null);
+    if (res?.code) await link.linkConversationByCode(admin, { conversationId: convId, propertyId: listing.property_id, code: res.code });
+    const auto = await link.applyStayCompletionOnIngest(admin, { conversationId: convId, propertyId: listing.property_id, message: m.text });
+    if (!auto) {
+      const { proposeProactiveDecision } = await import("@/lib/ai/human-loop/proactive-decisions.server");
+      await proposeProactiveDecision(admin, { conversationId: convId, trigger: "guest" });
+    }
+  } catch (e) {
+    console.error("[channex-messages] vínculo/baixa falhou", e);
+  }
+
   const { data: prop } = await admin.from("properties").select("*").eq("id", listing.property_id).maybeSingle();
   const propertyName = (prop as { name?: string } | null)?.name ?? "";
 
@@ -511,11 +530,15 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   // JANELA DE CONSOLIDAÇÃO: a mensagem já está gravada (nada se perde); a IA não roda agora.
   // Cada nova mensagem do mesmo hóspede REINICIA a espera; quando a janela fecha, uma única
   // execução responde a todas as frases picadas de uma vez (ver `processDueAiReplies`).
+  const pending = existing as { ai_reply_due_at?: string | null; ai_reply_ctx?: { firstAt?: string } | null } | null;
+  const firstAt =
+    pending?.ai_reply_due_at && pending.ai_reply_ctx?.firstAt ? pending.ai_reply_ctx.firstAt : new Date().toISOString();
   await admin
     .from("property_chat_conversations")
     .update({
-      ai_reply_due_at: new Date(Date.now() + AI_REPLY_DEBOUNCE_MS).toISOString(),
+      ai_reply_due_at: nextAiReplyDueAt(Date.now(), new Date(firstAt).getTime()),
       ai_reply_ctx: {
+        firstAt,
         threadId: m.threadId,
         bookingId: m.bookingId,
         channexPropertyId: m.channexPropertyId,
@@ -528,6 +551,13 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
 
 /** Espera sem novas mensagens antes de a IA responder (15–20 s: o hóspede costuma mandar frases em sequência). */
 export const AI_REPLY_DEBOUNCE_MS = 15_000;
+/** Teto absoluto de espera desde a 1ª mensagem ainda não respondida. */
+export const AI_REPLY_MAX_WAIT_MS = 30_000;
+
+/** Prazo da resposta: reinicia a cada mensagem, mas nunca passa de 30 s após a primeira. */
+export function nextAiReplyDueAt(nowMs: number, firstAtMs: number): string {
+  return new Date(Math.min(nowMs + AI_REPLY_DEBOUNCE_MS, firstAtMs + AI_REPLY_MAX_WAIT_MS)).toISOString();
+}
 
 type ReplyCtx = {
   threadId: string;
@@ -1007,6 +1037,33 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
     if (!automated) {
       await admin.from("property_chat_conversations").update(pausePatch()).eq("id", c.id);
       await purgePendingChatForThread(admin, m.threadId);
+      // O anfitrião já respondeu direto no Airbnb: a pergunta da IA à equipe
+      // perde o sentido e sai da tela (já entregue, a IA não repete).
+      const { data: openAsks } = await admin
+        .from("ai_human_escalations")
+        .select("id, owner_id, property_id, agent_type, guest_name, question_to_human, context_snapshot")
+        .eq("conversation_id", c.id)
+        .eq("status", "pending");
+      await admin
+        .from("ai_human_escalations")
+        .update({
+          status: "answered",
+          human_response: m.text.slice(0, 2000),
+          resolved_at: new Date().toISOString(),
+          applied_to_guest: true,
+        } as never)
+        .eq("conversation_id", c.id)
+        .eq("status", "pending");
+      try {
+        const { offerHostAnswerLearning } = await import("@/lib/ai/human-loop/host-answer-learning.server");
+        await offerHostAnswerLearning(admin as never, {
+          conversationId: c.id,
+          hostText: m.text,
+          openAsks: (openAsks ?? []) as never,
+        });
+      } catch (e) {
+        console.error("[channex-messages] oferta de aprendizado falhou", (e as Error)?.message);
+      }
     }
     if (m.messageId) {
       const { data: dup } = await admin
@@ -1029,6 +1086,9 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
     if (!automated) {
       const { completeStayFromHumanMessage } = await import("@/lib/ai/human-closing.server");
       await completeStayFromHumanMessage(c.id, m.text);
+      // Copiloto proativo: fala da equipe pode indicar ação no app (ex.: chaves entregues).
+      const { proposeProactiveDecision } = await import("@/lib/ai/human-loop/proactive-decisions.server");
+      await proposeProactiveDecision(admin, { conversationId: c.id, trigger: "staff" });
     }
   }
 }

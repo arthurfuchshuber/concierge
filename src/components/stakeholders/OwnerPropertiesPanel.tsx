@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   importAirbnbListings,
   listAirbnbAccountListings,
+  listAirbnbAccounts,
   setAirbnbListingActive,
 } from "@/lib/airbnb-account.functions";
 import { Link } from "@tanstack/react-router";
@@ -26,7 +27,13 @@ import {
 import { toast } from "sonner";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { SortMenu } from "@/components/dashboard/SortMenu";
-import { ACTION_SEGMENT, ACTION_BAR, PANEL_SHELL } from "@/components/dashboard/panel-chrome";
+import {
+  ACTION_SEGMENT,
+  ACTION_BAR,
+  ACTION_ICON,
+  ACTION_BUTTON_TONE,
+  PANEL_SHELL,
+} from "@/components/dashboard/panel-chrome";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { CoverImage } from "@/components/ui/cover-image";
 import { EmptyState } from "@/components/ds/EmptyState";
@@ -90,10 +97,7 @@ export function OwnerPropertiesPanel({
   onTransfer,
   accountOwnerId,
   onChanged,
-  menuAction,
 }: {
-  /** Botão único de ações da ficha, no início da barra de busca. */
-  menuAction?: React.ReactNode;
   accountOwnerId?: string | null;
   /** Recarrega a ficha depois de ativar/desativar/importar. */
   onChanged: () => void;
@@ -285,7 +289,17 @@ export function OwnerPropertiesPanel({
         placeholder="Buscar imóvel…"
         actions={
           <>
-            {menuAction}
+            {/* Sincronizar: só o ícone, no lugar que era do "⋮" (pedido explícito, 21/10/2026).
+                Abre a mesma janela de "Importar anúncios" que o botão de texto abria. */}
+            <button
+              type="button"
+              onClick={() => setReimport(true)}
+              aria-label="Importar anúncios"
+              title="Importar anúncios"
+              className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+            >
+              <RefreshCw className={ACTION_ICON} />
+            </button>
             <SortMenu
               value={sort}
               defaultValue="default"
@@ -299,33 +313,7 @@ export function OwnerPropertiesPanel({
         }
       />
 
-      {/* Faixa da conta do Airbnb (mockup `.zsy`) — o ReImportar é o único botão de importação. */}
-      <div className="flex items-center gap-2.5 rounded-[14px] bg-[color-mix(in_oklab,#7fb79a_7%,transparent)] px-3 py-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,#7fb79a_25%,transparent)]">
-        <span className="ds-ok grid size-[30px] shrink-0 place-items-center rounded-full bg-[color-mix(in_oklab,#7fb79a_15%,transparent)]">
-          <RefreshCw className="size-3.5" />
-        </span>
-        <span className="grid min-w-0 flex-1 gap-px">
-          <b className="truncate text-[12.5px] font-bold text-foreground">
-            {hasConnection ? "Conta do Airbnb conectada" : "Conta do Airbnb não conectada"}
-          </b>
-          <span className="truncate text-[12px] text-muted-foreground">
-            {hasConnection
-              ? lastSync
-                ? `Sincronizada ${sinceLabel(lastSync)}`
-                : "Aguardando a primeira sincronização"
-              : "Conecte para importar seus anúncios"}
-          </span>
-        </span>
-        <button
-          type="button"
-          onClick={() => setReimport(true)}
-          className="inline-flex h-7 shrink-0 items-center gap-[5px] rounded-full px-2.5 text-[11.5px] font-bold text-foreground/90 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] transition-colors hover:bg-foreground/[0.05]"
-        >
-          <RefreshCw className="size-3" />
-          ReImportar
-        </button>
-      </div>
-
+      {/* Contas/Anúncios Conectados vivem na faixa da página Proprietários; "Importar anúncios" é o ícone de sincronizar na busca. */}
       {filtered.length === 0 ? (
         <EmptyState
           icon={Home}

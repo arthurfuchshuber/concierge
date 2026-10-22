@@ -56,7 +56,7 @@ export const listConversationEscalations = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("ai_human_escalations")
       .select(
-        "id, conversation_id, agent_type, reason, trigger, question_to_human, human_response, status, applied_to_guest, created_at, resolved_at",
+        "id, conversation_id, agent_type, reason, trigger, question_to_human, human_response, status, applied_to_guest, created_at, resolved_at, context_snapshot",
       )
       .eq("conversation_id", data.conversationId)
       .in("status", ["pending", "answered", "dismissed"])
@@ -102,7 +102,7 @@ export const listConversationEscalations = createServerFn({ method: "GET" })
         status: "pending",
       } as never)
       .select(
-        "id, conversation_id, agent_type, reason, trigger, question_to_human, human_response, status, applied_to_guest, created_at, resolved_at",
+        "id, conversation_id, agent_type, reason, trigger, question_to_human, human_response, status, applied_to_guest, created_at, resolved_at, context_snapshot",
       )
       .maybeSingle();
     if (insErr || !created) {
@@ -115,26 +115,32 @@ export const listConversationEscalations = createServerFn({ method: "GET" })
 /** Resposta humana à dúvida da IA — vira verdade absoluta na conversa. */
 export const answerEscalation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { escalationId: string; answer: string; saveAsKnowledge?: boolean }) => {
+  .inputValidator((input: { escalationId: string; answer: string; saveAsKnowledge?: boolean; knowledgeScope?: "property" | "global" }) => {
     if (!input?.escalationId) throw new Error("escalationId obrigatório");
     const answer = String(input.answer ?? "").trim();
     if (!answer) throw new Error("Resposta obrigatória");
     return {
       escalationId: input.escalationId,
       answer: answer.slice(0, 2000),
-      // Marcado por padrão (decisão de produto, 11/09): a IA aprende sozinha e
-      // o atendente desmarca quando for caso isolado. Nada entra na memória
-      // sem a aprovação na tela de conhecimento — isto só cria a candidata.
-      saveAsKnowledge: input.saveAsKnowledge !== false,
+      // Escolha EXPLÍCITA da equipe (18/10/2026): nada pré-marcado.
+      saveAsKnowledge: input.saveAsKnowledge === true,
+      knowledgeScope: (input.knowledgeScope === "global" ? "global" : "property") as "property" | "global",
     };
   })
   .handler(async ({ data, context }) => {
     const { data: esc, error: readErr } = await context.supabase
       .from("ai_human_escalations")
-      .select("id, conversation_id, question_to_human, owner_id, property_id, agent_type")
+      .select("id, conversation_id, question_to_human, owner_id, property_id, agent_type, context_snapshot")
       .eq("id", data.escalationId)
       .maybeSingle();
     if (readErr) throw new Error(readErr.message);
+    const { readDecisionSpec, canBecomeKnowledge, actionFor, learningScopeOf, isTakeoverOption } = await import("./ai/human-loop/decision-options");
+    const spec = readDecisionSpec((esc as { context_snapshot?: unknown } | null)?.context_snapshot);
+    // Decisão operacional (ex.: liberar check-in antecipado) nunca vira conhecimento.
+    if (spec && !canBecomeKnowledge(spec.kind)) data.saveAsKnowledge = false;
+    // "Eu assumo a conversa": a equipe responde direto — nada vai ao hóspede pela IA.
+    const takeover = !!spec && isTakeoverOption(data.answer);
+    if (takeover) data.saveAsKnowledge = false;
 
     const { error } = await context.supabase
       .from("ai_human_escalations")
@@ -161,23 +167,36 @@ export const answerEscalation = createServerFn({ method: "POST" })
      */
     const conversationId = (esc as { conversation_id?: string | null } | null)?.conversation_id;
     let entregue = false;
-    // Outras pendências abertas da MESMA conversa são respondidas por esta:
-    // fecha todas para o hóspede nunca receber a mesma resposta duas vezes.
-    if (conversationId) {
-      await context.supabase
-        .from("ai_human_escalations")
-        .update({
-          human_response: data.answer,
-          human_user_id: context.userId,
-          status: "answered",
-          resolved_at: new Date().toISOString(),
-          applied_to_guest: true,
-        })
-        .eq("conversation_id", conversationId)
-        .neq("id", data.escalationId)
-        .eq("status", "pending");
+    // Cada pergunta é independente: a resposta vale SÓ para esta escalação.
+    // Outras perguntas abertas da mesma conversa seguem pendentes, separadas.
+    // Ação vinculada à opção (copiloto proativo): executa agora, com desfazer na tela.
+    const action = actionFor(spec, data.answer);
+    let executed: { action: string; reservationId: string; previouslyDone: boolean } | null = null;
+    if (action !== "none" && conversationId) {
+      executed = await runDecisionAction(context.supabase, conversationId, action);
     }
-    if (conversationId) {
+    // Decisões operacionais com ação, ou "Aguardar o horário oficial": nada a dizer ao hóspede.
+    // Cartões proativos são internos (ação ou "virar conhecimento?") — nunca falam com o hóspede.
+    const proactive = !!(esc as { context_snapshot?: { proactive?: boolean } } | null)?.context_snapshot?.proactive;
+    // Cartão de aprendizado da resposta dada direto no Airbnb: o hóspede já recebeu.
+    const hostLearning = !!(esc as { context_snapshot?: { host_learning?: boolean } } | null)?.context_snapshot?.host_learning;
+    // Regra (19/10/2026): a IA responde a tudo. Toda decisão sobre o pedido do
+    // hóspede vira UMA resposta na hora. Silêncio só em: "Eu assumo", cartão de
+    // conhecimento (fact proativo), ação técnica executada no sistema ou "Aguardar".
+    const silentDecision =
+      takeover ||
+      hostLearning ||
+      (proactive && spec?.kind === "fact") ||
+      action !== "none" ||
+      data.answer === "Aguardar o horário oficial";
+    if (takeover && conversationId) {
+      const { error: claimErr } = await context.supabase
+        .from("property_chat_conversations")
+        .update({ status: "assigned", assigned_to: context.userId, claim_requested_by: null, claim_requested_at: null })
+        .eq("id", conversationId);
+      if (claimErr) console.error("[supervision] assumir conversa falhou", claimErr.message);
+    }
+    if (conversationId && !silentDecision) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { speakWithAgent } = await import("@/lib/ai/outbound/speak.server");
@@ -190,15 +209,19 @@ export const answerEscalation = createServerFn({ method: "POST" })
           pushTitle: "Resposta sobre o seu pedido",
           instruction:
             `A equipe respondeu internamente à sua pergunta "${pergunta}": "${data.answer}". ` +
-            "Leve essa resposta ao hóspede agora, na sua própria voz, como continuidade natural da conversa. " +
-            "Não diga que consultou ninguém, não mencione equipe nem transferência — do ponto de vista dele, " +
-            "quem sempre esteve na conversa é você. Se a resposta abrir um próximo passo, ofereça-o.",
+            "Trate essa escolha como FATO verdadeiro, não como o texto a enviar. Responda como concierge de alto padrão: " +
+            "releia a conversa inteira e a pergunta real do hóspede, combine a decisão com os dados reais do imóvel e da reserva " +
+            "(busque nas fontes quando necessário — localização do item, instruções, horários) e conduza a conversa: " +
+            "se houver próximo passo natural, ofereça-o; se a decisão liberar algo, entregue o necessário para ele agir. " +
+            "Seja conciso e elegante: sem repetir o que já foi dito, sem excesso, sem inventar nada fora das fontes. " +
+            "Não diga que consultou ninguém, não mencione equipe nem transferência — do ponto de vista dele, quem sempre esteve na conversa é você.",
         });
         entregue = r.sent;
         if (entregue) {
+          const snap = ((esc as { context_snapshot?: Record<string, unknown> | null } | null)?.context_snapshot ?? {}) as Record<string, unknown>;
           await context.supabase
             .from("ai_human_escalations")
-            .update({ applied_to_guest: true })
+            .update({ applied_to_guest: true, context_snapshot: { ...snap, delivered_message_id: r.messageId ?? null } } as never)
             .eq("id", data.escalationId);
         }
       } catch (e) {
@@ -239,6 +262,7 @@ export const answerEscalation = createServerFn({ method: "POST" })
           agent: e.agent_type ?? undefined,
           question: e.question_to_human ?? "",
           humanAnswer: data.answer,
+          forcedScope: learningScopeOf(data.knowledgeScope),
         });
         aprendizado = r.candidateId;
       } catch (err) {
@@ -248,7 +272,125 @@ export const answerEscalation = createServerFn({ method: "POST" })
       }
     }
 
-    return { ok: true, entregue, aprendizado };
+    return { ok: true, entregue, aprendizado, executed, silent: silentDecision };
+  });
+
+type Sb = import("@supabase/supabase-js").SupabaseClient;
+
+/** Executa a ação escolhida no cartão (check-in/check-out), pela mesma rotina do painel. */
+async function runDecisionAction(
+  sb: Sb,
+  conversationId: string,
+  action: "checkin_done" | "checkout_done",
+): Promise<{ action: string; reservationId: string; previouslyDone: boolean } | null> {
+  const { data: conv } = await sb
+    .from("property_chat_conversations")
+    .select("property_id, reservation_id")
+    .eq("id", conversationId)
+    .maybeSingle();
+  const c = conv as { property_id: string | null; reservation_id: string | null } | null;
+  if (!c?.property_id || !c.reservation_id) throw new Error("Esta conversa ainda não está ligada a uma reserva.");
+  const kind = action === "checkin_done" ? "checkin" : "checkout";
+  const { data: rows } = await sb.from("guest_arrival_status").select("kind, status, done_at").eq("reservation_id", c.reservation_id);
+  const list = (rows ?? []) as Array<{ kind: string; status: string; done_at: string | null }>;
+  const previouslyDone = list.some((r) => r.kind === kind && (r.status === "done" || !!r.done_at));
+  const { findStayForEvent, applyStayEvent } = await import("./ai/stay-events.server");
+  const stay = await findStayForEvent(sb, { propertyId: c.property_id, checkinDate: null, checkoutDate: null, conversationId });
+  if (!stay) throw new Error("Não encontrei a estadia desta conversa.");
+  const r = await applyStayEvent(sb, stay, kind);
+  if (!r.ok) throw new Error(r.motivo === "checkin_futuro" ? "O check-in desta reserva ainda é em data futura." : "Não foi possível registrar no painel.");
+  return { action, reservationId: stay.reservationId, previouslyDone };
+}
+
+/**
+ * DESFAZER / REFAZER DECISÃO (19/10/2026).
+ * Reabre a pergunta da IA para a equipe escolher de novo e, se a decisão tinha
+ * executado uma ação (check-in/check-out), volta o card do painel um passo.
+ */
+export const reopenEscalationDecision = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { escalationId: string; revert?: { action: string; reservationId: string; previouslyDone: boolean } | null }) => {
+    if (!input?.escalationId) throw new Error("escalationId obrigatório");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { data: esc, error } = await context.supabase
+      .from("ai_human_escalations")
+      .select("id, conversation_id, human_response, context_snapshot")
+      .eq("id", data.escalationId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!esc) throw new Error("Pergunta não encontrada.");
+
+    // Ação a reverter: a informada pela tela (desfazer de 5s) ou a deduzida da resposta gravada.
+    let revert = data.revert ?? null;
+    if (!revert) {
+      const { readDecisionSpec, actionFor } = await import("./ai/human-loop/decision-options");
+      const e = esc as { conversation_id: string | null; human_response: string | null; context_snapshot: unknown };
+      const action = actionFor(readDecisionSpec(e.context_snapshot), e.human_response ?? "");
+      if (action !== "none" && e.conversation_id) {
+        const { data: conv } = await context.supabase
+          .from("property_chat_conversations")
+          .select("reservation_id")
+          .eq("id", e.conversation_id)
+          .maybeSingle();
+        const rid = (conv as { reservation_id?: string | null } | null)?.reservation_id;
+        if (rid) revert = { action, reservationId: rid, previouslyDone: false };
+      }
+    }
+    if (revert && !revert.previouslyDone) {
+      const kind = revert.action === "checkout_done" ? "checkout" : revert.action === "checkin_done" ? "checkin" : null;
+      if (kind) {
+        const { error: uErr } = await context.supabase
+          .from("guest_arrival_status")
+          .update({ status: "pending", done_at: null, concluded_at: null } as never)
+          .eq("reservation_id", revert.reservationId)
+          .eq("kind", kind);
+        if (uErr) throw new Error(uErr.message);
+      }
+    }
+
+    /* REFAZER APAGA A RESPOSTA JÁ ENVIADA (pedido explícito, 19/10/2026).
+     * Guia/painel: a mensagem some da conversa. Airbnb não permite apagar
+     * mensagens entregues pela API: removemos do histórico e enviamos uma
+     * retificação curta para o hóspede desconsiderar a anterior. */
+    const snap = ((esc as { context_snapshot?: Record<string, unknown> | null }).context_snapshot ?? {}) as Record<string, unknown>;
+    const deliveredId = typeof snap.delivered_message_id === "string" ? snap.delivered_message_id : null;
+    let apagada = false;
+    const convId = (esc as { conversation_id: string | null }).conversation_id;
+    if (deliveredId && convId) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: conv } = await supabaseAdmin
+        .from("property_chat_conversations")
+        .select("guest_session_id, property_id")
+        .eq("id", convId)
+        .maybeSingle();
+      await supabaseAdmin.from("property_chat_messages").delete().eq("id", deliveredId).eq("conversation_id", convId);
+      apagada = true;
+      const session = String((conv as { guest_session_id?: string | null } | null)?.guest_session_id ?? "");
+      if (session.startsWith("airbnb:")) {
+        try {
+          const { deliverToAirbnbThread } = await import("@/lib/channex-messages.server");
+          await deliverToAirbnbThread(supabaseAdmin, {
+            conversationId: convId,
+            threadId: session.slice("airbnb:".length),
+            propertyId: String((conv as { property_id?: string }).property_id ?? ""),
+            text: "Retificando minha mensagem anterior: por favor, desconsidere-a. Já te retorno com a informação correta.",
+            senderType: "ai",
+          });
+        } catch (e) {
+          console.error("[supervision] retificação Airbnb falhou", (e as Error)?.message);
+        }
+      }
+      delete snap.delivered_message_id;
+    }
+
+    const { error: rErr } = await context.supabase
+      .from("ai_human_escalations")
+      .update({ status: "pending", human_response: null, resolved_at: null, applied_to_guest: false, context_snapshot: snap } as never)
+      .eq("id", data.escalationId);
+    if (rErr) throw new Error(rErr.message);
+    return { ok: true, apagada };
   });
 
 /** Conhecimento destilado aguardando aprovação humana. */

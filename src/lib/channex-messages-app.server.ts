@@ -57,6 +57,33 @@ export async function syncMessagesApp(channexPropertyIds: string[], enabled: boo
   }
 }
 
+/** Propriedades Channex de anúncios ativos (não pausados) que ainda não têm o app Messages instalado. */
+export function missingMessagesProperties(activeIds: string[], installedIds: string[]): string[] {
+  const have = new Set(installedIds);
+  return [...new Set(activeIds.filter(Boolean))].filter((id) => !have.has(id));
+}
+
+/**
+ * Auto-cura: instala o app Messages em toda propriedade Channex de anúncio ativo (e gêmeos)
+ * que estiver sem ele. Só instala o que falta; nunca desativa nada.
+ */
+export async function healMissingMessagesApps(admin: any): Promise<string[]> {
+  const [{ data: raws }, { data: twins }] = await Promise.all([
+    admin.from("property_listing_raw_data").select("property_id, channex_property_id").is("sync_paused_at", null).not("channex_property_id", "is", null),
+    admin.from("channex_twin_links").select("property_id, primary_channex_property_id, twin_channex_property_id").eq("status", "active"),
+  ]);
+  const activeProps = new Set(((raws ?? []) as any[]).map((r) => r.property_id));
+  const ids: string[] = ((raws ?? []) as any[]).map((r) => r.channex_property_id);
+  for (const t of (twins ?? []) as any[]) if (activeProps.has(t.property_id)) ids.push(t.primary_channex_property_id, t.twin_channex_property_id);
+  const installed = await listInstalled();
+  const missing = missingMessagesProperties(ids, installed.map((i) => i.attributes.property_id));
+  for (const pid of missing) {
+    await install(pid).catch((e) => console.error("[messages-heal] install", pid, e));
+  }
+  if (missing.length) console.warn("[messages-heal] app Messages instalado em", missing);
+  return missing;
+}
+
 /** Propriedades Channex do imóvel (principal + gêmeos ativos). */
 export async function channexPropertiesFor(admin: any, propertyId: string): Promise<string[]> {
   const [{ data: raw }, { data: twins }] = await Promise.all([

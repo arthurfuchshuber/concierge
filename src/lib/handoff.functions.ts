@@ -1358,6 +1358,19 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
         }
       })();
     }
+    // Copiloto também lê o que a equipe escreve pelo painel (ações e aprendizado contínuo).
+    if (!data.internalNote) {
+      void (async () => {
+        try {
+          await new Promise((r) => setTimeout(r, 1500));
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { proposeProactiveDecision } = await import("@/lib/ai/human-loop/proactive-decisions.server");
+          await proposeProactiveDecision(supabaseAdmin as never, { conversationId: data.conversationId, trigger: "staff" });
+        } catch (e) {
+          console.error("[handoff] copiloto falhou", (e as Error)?.message);
+        }
+      })();
+    }
     // Expande [[info:...]] com valores da propriedade e [[tag:...]] em links do guia.
     let content = data.content;
     try {

@@ -761,7 +761,15 @@ export function StakeholderFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="ds-form-dialog w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden">
+      {/* Layout novo (proprietário): tela cheia no tablet/celular (`bleed`), sem margem nas
+          laterais nem no topo, X de canto delicado e rodapé "Cancelar | Salvar" fixo embaixo
+          (pedido explícito, 21/10/2026). No computador segue centralizada, até 2xl. */}
+      <DialogContent
+        bleed={newLayout}
+        className={`ds-form-dialog w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden ${
+          newLayout ? "max-lg:grid-rows-[auto_minmax(0,1fr)_auto] max-lg:overflow-y-hidden" : ""
+        }`}
+      >
         {newLayout ? (
           <DialogHeader className="space-y-0 text-left">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
@@ -793,7 +801,9 @@ export function StakeholderFormDialog({
           </DialogHeader>
         )}
 
-        <div className="space-y-3 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
+        <div
+          className={`space-y-3 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1 ${newLayout ? "max-lg:max-h-none max-lg:min-h-0" : ""}`}
+        >
           {/* Tipo — só na criação; ao editar, o tipo já está definido.
               Sempre só 2 opções fixas (não rola/varia como uma barra de
               abas), então usa flex comum com flex-1 em cada botão para

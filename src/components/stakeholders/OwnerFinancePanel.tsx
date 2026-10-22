@@ -72,10 +72,7 @@ export function OwnerFinancePanel({
   ownerId,
   accountOwnerId,
   properties,
-  menuAction,
 }: {
-  /** Botão único de ações da ficha, no início da barra de busca. */
-  menuAction?: React.ReactNode;
   ownerId: string;
   accountOwnerId?: string | null;
   properties: Array<{ id: string; name: string }>;
@@ -152,7 +149,6 @@ export function OwnerFinancePanel({
         placeholder="Buscar lançamento…"
         actions={
           <>
-            {menuAction}
             <button
               type="button"
               onClick={() => setEditing("new")}

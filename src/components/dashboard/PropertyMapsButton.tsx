@@ -90,7 +90,28 @@ export function PropertyMapsButton({
     window.open(mapsHref, "_blank", "noopener,noreferrer");
   };
 
-  if (!mapsHref) return null;
+  // IMÓVEL SEM ENDEREÇO NEM LINK DO MAPS (bug 21/10/2026, print de "Imóveis
+  // livres hoje": em alguns imóveis o ícone sumia e a linha ficava com um
+  // buraco). O ícone agora aparece SEMPRE onde o imóvel é citado — quando não
+  // há como localizar, ele fica apagado e, ao tocar, explica o que falta.
+  // (Com `trigger` próprio, o chamador decide o que mostrar: segue sem nada.)
+  if (!mapsHref) {
+    if (trigger) return null;
+    return (
+      <button
+        type="button"
+        aria-label="Endereço não cadastrado"
+        title="Endereço não cadastrado"
+        onClick={(e) => {
+          e.stopPropagation();
+          toast.info("Este imóvel ainda não tem endereço nem link do Maps cadastrado.");
+        }}
+        className="grid shrink-0 place-items-center rounded-[0.3rem] bg-[var(--chip-bg)] border border-border/50 size-7 text-muted-foreground/40 hover:text-muted-foreground"
+      >
+        <MapPin className="size-3.5" />
+      </button>
+    );
+  }
 
   return (
     <DropdownMenu>

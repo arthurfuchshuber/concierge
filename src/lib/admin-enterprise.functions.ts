@@ -351,7 +351,7 @@ export const adminCancelEnterpriseSubscription = createServerFn({ method: "POST"
   }) =>
     z
       .object({
-        paddleSubscriptionId: z.string().min(3).max(80),
+        paddleSubscriptionId: z.string().regex(/^sub_[A-Za-z0-9]{3,77}$/),
         environment: PaddleEnvSchema,
         immediate: z.boolean(),
       })
@@ -359,6 +359,16 @@ export const adminCancelEnterpriseSubscription = createServerFn({ method: "POST"
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
+    // Só cancela assinaturas Enterprise registradas neste sistema, no mesmo ambiente.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: known } = await supabaseAdmin
+      .from("subscriptions")
+      .select("paddle_subscription_id")
+      .eq("paddle_subscription_id", data.paddleSubscriptionId)
+      .eq("environment", data.environment)
+      .eq("product_id", "enterprise_plan")
+      .maybeSingle();
+    if (!known) throw new Error("Assinatura Enterprise não encontrada.");
     const res = await gatewayFetch(
       data.environment,
       `/subscriptions/${data.paddleSubscriptionId}/cancel`,

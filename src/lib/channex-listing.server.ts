@@ -219,11 +219,16 @@ const stripHtml = (h: string) =>
 
 /** Lê a página pública do anúncio (descrição completa, "o que você vai receber", comodidades). Somente leitura. */
 export async function fetchPublicListing(listingId: string): Promise<PublicListing | null> {
-  const res = await fetch(`https://www.airbnb.com.br/rooms/${listingId}`, {
-    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36", "Accept-Language": "pt-BR,pt;q=0.9" },
-  });
-  if (!res.ok) return null;
-  const html = await res.text();
+  // Leitura nativa (custo zero): até 2 tentativas com timeout, para o scrap não falhar à toa.
+  let html: string | null = null;
+  for (let i = 0; i < 2 && !html; i++) {
+    const res = await fetch(`https://www.airbnb.com.br/rooms/${listingId}`, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36", "Accept-Language": "pt-BR,pt;q=0.9" },
+      signal: AbortSignal.timeout(12_000),
+    }).catch(() => null);
+    if (res?.ok) html = await res.text().catch(() => null);
+  }
+  if (!html) return null;
   const m = html.match(/<script id="data-deferred-state-0"[^>]*>([\s\S]*?)<\/script>/);
   if (!m) return null;
   let root: unknown;
@@ -313,6 +318,12 @@ export async function applyListingToProperty(args: {
       ...args.pub.unavailable.map((name) => ({ name: name.slice(0, 120), category: null, available: false })),
     ].slice(0, 300);
     patch["airbnb_listing_last_synced_at"] = new Date().toISOString();
+  }
+  {
+    // Só a foto de capa do anúncio (leitura nativa, custo zero); imóvel fica com 1 foto.
+    const { fetchListingCover } = await import("@/lib/airbnb-cover.server");
+    const cover = await fetchListingCover(args.listingId).catch(() => null);
+    if (cover) { patch["hero_image_url"] = cover; patch["gallery_images"] = [cover]; }
   }
   if (Object.keys(patch).length) {
     const { error } = await supabaseAdmin.from("properties").update(patch as never).eq("id", args.propertyId);
@@ -431,4 +442,34 @@ export async function syncAccountListing(args: {
     console.error("[syncAccountListing] importação inicial do calendário", e);
   }
   return { facts: facts.length, title };
+}
+
+/**
+ * Scrap público COMPLETO do anúncio (descrição, comodidades, capa única), sem Channex nem IA — custo zero.
+ * Roda ao fim do onboarding/ativação, quando o imóvel já está sincronizado por completo.
+ */
+export async function scrapePublicListingForProperty(propertyId: string): Promise<{ ok: boolean }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("property_listing_raw_data" as never)
+    .select("airbnb_listing_id, listing_meta, raw_settings, normalized")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  const row = data as { airbnb_listing_id?: string; listing_meta?: Record<string, unknown>; raw_settings?: Record<string, any>; normalized?: Record<string, any> } | null;
+  if (!row?.airbnb_listing_id) return { ok: false };
+  const lid = String(row.airbnb_listing_id);
+  const pub = await fetchPublicListing(lid).catch(() => null);
+  const meta = row.listing_meta ?? {};
+  const settings = row.raw_settings ?? {};
+  if (pub) {
+    const facts = [...normalizeListing(meta, settings), ...publicFacts(pub)];
+    await supabaseAdmin
+      .from("property_listing_raw_data" as never)
+      .update({ normalized: { ...(row.normalized ?? {}), facts, public_listing: pub }, updated_at: new Date().toISOString() } as never)
+      .eq("property_id", propertyId);
+  }
+  await applyListingToProperty({ propertyId, listingId: lid, meta: meta as Record<string, unknown>, settings, pub });
+  const { reindexProperty } = await import("@/lib/ai/indexing.server");
+  await reindexProperty(supabaseAdmin as never, propertyId).catch(() => undefined);
+  return { ok: Boolean(pub) };
 }

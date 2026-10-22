@@ -143,8 +143,8 @@ describe("desfecho real: 'deu certo?'", () => {
 describe("rascunho para a equipe", () => {
   it("fallback traz resumo e o que a IA já orientou", () => {
     const d = fallbackDraft([{ role: "assistant", content: "Verifique o disjuntor." }], "Continua sem luz", "sem energia");
-    expect(formatDraftForTeam("sem energia", d)).toMatch(/Resumo:.*Continua sem luz/s);
-    expect(formatDraftForTeam("sem energia", d)).toMatch(/disjuntor/);
-    expect(formatDraftForTeam("x".repeat(3000), d).length).toBeLessThanOrEqual(1200);
+    expect(formatDraftForTeam("sem energia", d)).toBe("sem energia");
+    expect(formatDraftForTeam("sem energia", d)).not.toMatch(/Resumo|Já feito|Sugestão/);
+    expect(formatDraftForTeam(Array(60).fill("palavra").join(" "), d).split(" ").length).toBeLessThanOrEqual(35);
   });
 });

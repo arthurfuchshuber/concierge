@@ -70,6 +70,38 @@ async function unmappedRows(ownerId: string) {
 async function ensureUnit(r: any): Promise<string> {
   if (r.channex_room_type_id && r.channex_rate_plan_id && r.channex_property_id) return r.channex_property_id;
   const d = await db();
+  // Trava anti-duplicação: só uma chamada por imóvel cria a unidade (outras abas/usuários/retentativas esperam).
+  const { data: fresh0 } = await d
+    .from("property_listing_raw_data")
+    .select("channex_property_id, channex_room_type_id, channex_rate_plan_id")
+    .eq("property_id", r.property_id)
+    .maybeSingle();
+  if (fresh0?.channex_property_id && fresh0.channex_room_type_id && fresh0.channex_rate_plan_id) return fresh0.channex_property_id;
+  if (!(await claimUnitLock(d, r.property_id))) throw new Error("Unidade em preparação.");
+  try {
+    return await createUnit(d, r);
+  } catch (e) {
+    await d.from("channex_unit_locks").delete().eq("property_id", r.property_id);
+    throw e;
+  }
+}
+
+const UNIT_LOCK_MS = 10 * 60_000;
+async function claimUnitLock(d: any, propertyId: string): Promise<boolean> {
+  const { error } = await d.from("channex_unit_locks").insert({ property_id: propertyId });
+  if (!error) return true;
+  const { data: cur } = await d.from("channex_unit_locks").select("locked_at").eq("property_id", propertyId).maybeSingle();
+  if (!cur || Date.now() - new Date(cur.locked_at).getTime() < UNIT_LOCK_MS) return false;
+  const { data: won } = await d
+    .from("channex_unit_locks")
+    .update({ locked_at: new Date().toISOString() })
+    .eq("property_id", propertyId)
+    .eq("locked_at", cur.locked_at)
+    .select("property_id");
+  return (won ?? []).length > 0;
+}
+
+async function createUnit(d: any, r: any): Promise<string> {
   const fallback = String(r.properties?.name ?? "Imóvel");
   const raw = String(r.listing_meta?.title ?? r.listing_meta?.name ?? fallback);
   // Mesma regra de nomes da sincronização: unidade exclusiva → propriedade = nome interno, quarto = título público.
@@ -96,6 +128,9 @@ async function ensureUnit(r: any): Promise<string> {
   }
   const { grantPriceLabsAccess } = await import("@/lib/channex-twins.server");
   await grantPriceLabsAccess(prop.data.id).catch((e) => console.error("[full-connect] pricing key", e));
+  // Unidade nova nasce com o app Messages: sem ele as mensagens do Airbnb nunca chegam (o cron também autocura).
+  const { syncMessagesApp } = await import("@/lib/channex-messages-app.server");
+  await syncMessagesApp([prop.data.id], true).catch((e) => console.error("[full-connect] messages app", e));
   const { error } = await d
     .from("property_listing_raw_data")
     .update({ channex_property_id: prop.data.id, channex_room_type_id: rt.data.id, channex_rate_plan_id: rp.data.id })
@@ -153,8 +188,19 @@ export async function seedUnitCalendar(propertyId: string, userId: string | null
     .eq("property_id", propertyId)
     .maybeSingle();
   if (!r?.channex_property_id || !r.channex_room_type_id || !r.channex_rate_plan_id) return { ok: false, reason: "no_unit" };
-  const closed = await airbnbClosedNights(r.properties?.airbnb_ical_url);
-  if (!closed) return { ok: false, reason: "no_ical" };
+  // Sem iCal: a unidade ainda não está mapeada (nada chega ao Airbnb), então vale o que o ConciergeIA
+  // já sabe (reservas confirmadas + bloqueios manuais importados). Com iCal, soma o calendário real.
+  const closed = (await airbnbClosedNights(r.properties?.airbnb_ical_url)) ?? new Set<string>();
+  const { data: known } = await d
+    .from("property_reservations")
+    .select("checkin_date, checkout_date, status, source")
+    .eq("property_id", propertyId)
+    .in("status", ["confirmed", "blocked"])
+    .gte("checkout_date", isoDay(new Date()));
+  for (const k of (known ?? []) as any[]) {
+    if (k.status === "blocked" && k.source !== "manual") continue;
+    for (let x = new Date(`${k.checkin_date}T00:00:00Z`); isoDay(x) < k.checkout_date; x = new Date(x.getTime() + 86_400_000)) closed.add(isoDay(x));
+  }
   const { applyCalendarChanges, flushAriOutbox } = await import("@/lib/channex-ari.server");
   const base = { propertyId: r.channex_property_id, roomTypeId: r.channex_room_type_id, ratePlanId: r.channex_rate_plan_id };
   const changes: any[] = [];
@@ -226,10 +272,23 @@ export async function seedIfUnmapped(propertyId: string) {
 }
 
 
-export async function listPendingFullConnections(ownerId: string): Promise<PendingFullConnection[]> {
+/** Registra quem conduziu a importação/vínculo: só essa pessoa vê a janela "Finalize a ativação". */
+export async function setFullConnectConductor(propertyId: string, userId: string) {
+  const d = await db();
+  await d.from("full_connect_conductors").upsert({ property_id: propertyId, user_id: userId });
+}
+
+export async function listPendingFullConnections(ownerId: string, userId?: string): Promise<PendingFullConnection[]> {
   if (!FULL_CONNECT_ACCOUNTS.has(ownerId)) return [];
   const out: PendingFullConnection[] = [];
-  const rows = await unmappedRows(ownerId);
+  let rows = await unmappedRows(ownerId);
+  if (userId && rows.length) {
+    const d0 = await db();
+    const { data: cs } = await d0.from("full_connect_conductors").select("property_id, user_id").in("property_id", rows.map((r: any) => r.property_id));
+    const by = new Map(((cs ?? []) as any[]).map((c) => [c.property_id, c.user_id]));
+    // Sem condutor registrado (vínculos antigos) → vale para quem tem acesso; com condutor → só ele.
+    rows = rows.filter((r: any) => !by.has(r.property_id) || by.get(r.property_id) === userId);
+  }
   const extra = new Map<string, Pick<PendingFullConnection, "ownerName" | "ownerPhone" | "ownerPhoneCountry" | "imageUrl">>();
   try {
     const d = await db();
@@ -350,17 +409,19 @@ export async function confirmFullConnection(ownerId: string, propertyId: string,
     .select("channex_property_id, channex_room_type_id, channex_rate_plan_id")
     .eq("property_id", propertyId)
     .single();
-  const start = new Date().toISOString().slice(0, 10);
-  const end = new Date(Date.now() + 29 * 86_400_000).toISOString().slice(0, 10);
+  // A noite de hoje é ignorada: ferramentas de preço (ex.: PriceLabs) param de precificar o dia
+  // corrente após o horário de check-in, então ela pode ficar com a tarifa-semente sem ser vendável.
+  const start = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  const end = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
   const res = await cx<{ data: Record<string, Record<string, { rate?: string | number }>> }>(
     `/restrictions?filter[property_id]=${fresh.channex_property_id}&filter[date][gte]=${start}&filter[date][lte]=${end}&filter[restrictions]=rate`,
   ).catch(() => ({ data: {} as Record<string, Record<string, { rate?: string | number }>> }));
   if (toolPricedDays(res.data?.[fresh.channex_rate_plan_id]) < 30) return { ok: false as const, reason: "no_rates" as const };
   // Regra do anfitrião: preço só vai ao Airbnb depois de definido pela ferramenta de pricing.
-  // Se sobrou QUALQUER dia da janela do anúncio ainda com a tarifa-semente, não mapeia (senão a
+  // Se sobrou QUALQUER dia futuro da janela ainda com a tarifa-semente, não mapeia (senão a
   // semente viraria preço real e sobrescreveria o original do calendário).
   const windowDays = await listingWindowDays(String(r.channex_channel_id), String(r.airbnb_listing_id));
-  for (let from = 0; from <= windowDays; from += 180) {
+  for (let from = 1; from <= windowDays; from += 180) {
     const a = new Date(Date.now() + from * 86_400_000).toISOString().slice(0, 10);
     const b = new Date(Date.now() + Math.min(from + 179, windowDays) * 86_400_000).toISOString().slice(0, 10);
     const chunk = await cx<{ data: Record<string, Record<string, { rate?: string | number }>> }>(
@@ -383,5 +444,8 @@ export async function confirmFullConnection(ownerId: string, propertyId: string,
     },
     userId,
   );
+  // Imóvel sincronizado por completo: scrap público integral (dados + capa), custo zero.
+  const { scrapePublicListingForProperty } = await import("@/lib/channex-listing.server");
+  await scrapePublicListingForProperty(propertyId).catch((e) => console.error("[full-connect] scrap", e));
   return { ok: true as const, already: false };
 }

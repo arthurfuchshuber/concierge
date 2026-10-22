@@ -86,6 +86,12 @@ export async function activeChannelIds(admin: Admin, accountId: string): Promise
 }
 
 export async function listAccounts(admin: Admin, accountId: string): Promise<AirbnbAccount[]> {
+  // Link de conexão aberto em outro aparelho: a tela de espera não estava aberta para registrar.
+  // Reivindica aqui os canais criados pelo link desta conta ("Airbnb <id>") ainda sem dono.
+  for (let i = 0; i < 5; i++) {
+    const r = await detectNew(admin, accountId, [], accountId).catch(() => ({ found: null }));
+    if (!r.found || r.found.duplicate) break;
+  }
   const regs = await registry(admin, accountId, true);
   const { data: raw } = await admin
     .from("property_listing_raw_data")
@@ -288,6 +294,14 @@ export async function detectNew(
     },
     { onConflict: "owner_id,channex_channel_id" },
   );
+  // Liga o canal já na conexão (sem anúncios mapeados é inofensivo); a confirmação obrigatória
+  // acontece de novo antes de mapear, em safeMapAirbnbListing.
+  try {
+    const { ensureChannelActive } = await import("@/lib/channex-mapping.server");
+    await ensureChannelActive(pick.id);
+  } catch (e) {
+    console.warn("[airbnb] canal ainda inativo após conexão", pick.id, e);
+  }
   return { found: { channelId: pick.id, title, duplicate: false } };
 }
 

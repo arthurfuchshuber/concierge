@@ -100,7 +100,7 @@ export async function loadAgentHistory(
   admin: { from: (t: string) => never } | unknown,
   conversationId: string,
   limit = 20,
-): Promise<Array<{ role: string; content: string }>> {
+): Promise<Array<{ role: string; content: string; at?: string | null }>> {
   const client = admin as {
     from: (t: string) => {
       select: (cols: string) => {
@@ -119,7 +119,7 @@ export async function loadAgentHistory(
 
   const { data } = await client
     .from("property_chat_messages")
-    .select("role, content, sender_type, is_internal_note, attachment_type, attachment_transcript, attachment_duration_ms")
+    .select("role, content, created_at, sender_type, is_internal_note, attachment_type, attachment_transcript, attachment_duration_ms")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -137,7 +137,7 @@ export async function loadAgentHistory(
       // Fala da equipe humana fica identificada: a IA precisa saber o que a
       // equipe já combinou com o hóspede para não contradizer nem reabrir.
       const human = m.role === "assistant" && m.sender_type === "human" && text.trim();
-      return { role: String(m.role), content: human ? `[Mensagem da equipe humana do anfitrião]: ${text}` : text };
+      return { role: String(m.role), content: human ? `[Mensagem da equipe humana do anfitrião]: ${text}` : text, at: (m.created_at as string | null) ?? null };
     })
     .filter((m) => m.content.trim().length > 0);
 }

@@ -135,9 +135,20 @@ export function useAntiClipWindow<T extends HTMLElement>(
     if (!node || typeof window === "undefined") return;
 
     let raf = 0;
+    // CONTEÚDO QUE MUDA DE ALTURA SEM MEXER NO DOM (bug 21/10/2026, prints da
+    // "Limpezas Realizadas"/"Fila de Limpeza": a última linha aparecia cortada).
+    // Depois de fixar a altura da área que rola, uma linha que cresce sozinha
+    // (fonte web carregando, foto/avatar, texto que quebra) NÃO dispara o
+    // MutationObserver nem o ResizeObserver da janela (a janela mantém a mesma
+    // altura) — o corte ficava velho. Agora cada área que rola e cada filho
+    // direto dela também são observados, e a fonte pronta refaz a conta.
+    const inner = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => schedule()) : null;
     const run = () => {
       raf = 0;
-      for (const s of scrollersIn(node)) fitScroller(s);
+      for (const s of scrollersIn(node)) {
+        fitScroller(s);
+        if (inner) for (const c of Array.from(s.children)) inner.observe(c);
+      }
     };
     const schedule = () => {
       if (!raf) raf = requestAnimationFrame(run);
@@ -145,6 +156,7 @@ export function useAntiClipWindow<T extends HTMLElement>(
     schedule();
     const t1 = window.setTimeout(schedule, 120);
     const t2 = window.setTimeout(schedule, 320); // depois da animação de abertura
+    void document.fonts?.ready.then(schedule);
     const mo = new MutationObserver(schedule);
     mo.observe(node, { childList: true, subtree: true, characterData: true });
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : null;
@@ -157,6 +169,7 @@ export function useAntiClipWindow<T extends HTMLElement>(
       window.clearTimeout(t2);
       mo.disconnect();
       ro?.disconnect();
+      inner?.disconnect();
       window.removeEventListener("resize", schedule);
       window.visualViewport?.removeEventListener("resize", schedule);
     };

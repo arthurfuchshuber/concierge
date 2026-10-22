@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Lock } from "lucide-react";
+import { CheckCircle2, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import {
   getPendingFullConnections,
   confirmFullConnectionFn,
+  importIcalBlocksFn,
 } from "@/lib/channex-full-connect.functions";
 import { useUnsyncedProperties } from "./useUnsyncedProperties";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -27,6 +28,15 @@ export function FullConnectGate() {
   const qc = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Record<string, string>>({});
+  const importFn = useServerFn(importIcalBlocksFn);
+  // Bloqueios manuais: escolher anúncios → link obrigatório em cada um → "Importar agora!".
+  const [picking, setPicking] = useState(false);
+  const [draftPick, setDraftPick] = useState<Set<string>>(new Set());
+  const [blockIds, setBlockIds] = useState<Set<string>>(new Set());
+  const [icalUrl, setIcalUrl] = useState<Record<string, string>>({});
+  const [icalErr, setIcalErr] = useState<Record<string, string>>({});
+  const [icalDone, setIcalDone] = useState<Record<string, number>>({});
+  const [importing, setImporting] = useState(false);
 
   // Prioridade: o aviso de conexão aparece por cima da janela de sincronização (montado depois dela).
   void unsynced;
@@ -41,6 +51,11 @@ export function FullConnectGate() {
   });
   const items = q.data?.items ?? [];
   const open = perm.allowed && !syncBlocking && items.length > 0;
+  const [pickSearch, setPickSearch] = useState("");
+  const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const pickItems = pickSearch.trim()
+    ? items.filter((i) => norm(i.propertyName ?? "").includes(norm(pickSearch.trim())))
+    : items;
 
   async function confirm(propertyId: string) {
     setBusy(propertyId);
@@ -70,6 +85,11 @@ export function FullConnectGate() {
 
   const [bulkError, setBulkError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
+  function closeError() {
+    setBulkError(null);
+    requestAnimationFrame(() => mainRef.current?.scrollTo({ top: 0, behavior: "smooth" }));
+  }
 
   /** "Já conectei" global: confere cada anúncio; liga os que têm diárias e explica os que faltam. */
   async function confirmAll() {
@@ -105,7 +125,7 @@ export function FullConnectGate() {
             missing.push(it.propertyName);
             setNotice((n) => ({
               ...n,
-              [it.propertyId]: "Faltam as diárias deste anúncio na sua ferramenta de precificação.",
+              [it.propertyId]: "",
             }));
           }
         } catch {
@@ -121,22 +141,17 @@ export function FullConnectGate() {
         toast.success("Todos os anúncios foram conectados ao Airbnb com o calendário aberto.");
       } else {
         const parts: string[] = [];
+        if (done)
+          parts.push(`${done} ${done === 1 ? "anúncio já foi conectado" : "anúncios já foram conectados"} com sucesso.`);
         if (missing.length)
           parts.push(
-            `Ainda não recebemos as diárias de: ${missing.join(", ")}. Confira na sua ferramenta de precificação se esses anúncios foram ativados e se a sincronização das diárias está ligada, seguindo os passos acima.`,
+            `Motivo: as diárias de ${missing.join(", ")} ainda não chegaram da sua ferramenta de precificação (são necessários pelo menos os próximos 30 dias com preço definido por ela).\n\nO que fazer: abra a ferramenta de precificação, confira se esses anúncios estão ativos e com a sincronização das diárias ligada, clique em sincronizar e aguarde alguns minutos antes de tentar de novo.`,
           );
         if (failed.length)
           parts.push(
-            `Não foi possível conferir agora: ${failed.join(", ")}. Tente de novo em 1 minuto.`,
+            `Motivo: não conseguimos conferir ${failed.join(", ")} agora (falha temporária de conexão).\n\nO que fazer: aguarde 1 minuto e toque novamente em "Já conectei".`,
           );
-        if (done)
-          parts.unshift(`${done} ${done === 1 ? "anúncio conectado" : "anúncios conectados"}.`);
-        setBulkError(parts.join(" "));
-        requestAnimationFrame(() =>
-          document
-            .getElementById("full-connect-steps")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-        );
+        setBulkError(parts.join("\n\n"));
       }
     } finally {
       setBusy(null);
@@ -146,10 +161,27 @@ export function FullConnectGate() {
 
   const apiKey = q.data?.apiKey ?? null;
   const steps = [
-    'Na sua ferramenta de precificação, conecte ao fornecedor "Channex" usando o código abaixo.',
-    "Importe os anúncios e sincronize as diárias.",
-    'Volte aqui e toque em "Já conectei".',
+    "Se você possui bloqueios manuais no calendário, importe-os usando o link do iCal de cada anúncio.",
+    'Depois de finalizar a importação, conecte sua ferramenta de precificação ao fornecedor "Channex" com o código abaixo, importe os anúncios e sincronize as diárias. As reservas confirmadas na plataforma serão importadas automaticamente.',
+    `Volte aqui e toque em "${items.length > 1 ? "Já conectei todos" : "Já conectei"}".`,
   ];
+  const isIcs = (u: string) => /^https:\/\/([a-z0-9-]+\.)*airbnb\.[a-z.]+\/.+\.ics(\?.*)?$/i.test(u.trim());
+  const pendingIcal = items.filter((i) => blockIds.has(i.propertyId) && icalDone[i.propertyId] === undefined);
+  const icalReady = pendingIcal.length > 0 && pendingIcal.every((i) => isIcs(icalUrl[i.propertyId] ?? ""));
+
+  async function importIcal() {
+    setImporting(true);
+    for (const it of pendingIcal) {
+      setIcalErr((e) => ({ ...e, [it.propertyId]: "" }));
+      try {
+        const r = await importFn({ data: { propertyId: it.propertyId, url: (icalUrl[it.propertyId] ?? "").trim() } });
+        setIcalDone((d) => ({ ...d, [it.propertyId]: r.imported }));
+      } catch (e) {
+        setIcalErr((x) => ({ ...x, [it.propertyId]: e instanceof Error ? e.message : "Não foi possível importar." }));
+      }
+    }
+    setImporting(false);
+  }
   const eyebrow = "ds-eyebrow text-[10px] tracking-[0.2em] text-muted-foreground";
   const card =
     "rounded-[14px] bg-foreground/[0.03] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]";
@@ -157,8 +189,10 @@ export function FullConnectGate() {
   return (
     <Dialog open={open}>
       <DialogContent
+        ref={mainRef}
         hideClose
-        className="max-h-[90dvh] max-w-[380px] gap-3 overflow-y-auto p-4 sm:p-4"
+        style={{ width: "min(calc(100% - 2rem), 380px)", maxWidth: 380 }}
+        className="max-h-[90dvh] gap-3 overflow-y-auto p-4 sm:p-4"
         onEscapeKeyDown={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
@@ -172,20 +206,32 @@ export function FullConnectGate() {
               Finalize a ativação
             </DialogTitle>
           </div>
-          <DialogDescription className="text-[12.5px] leading-[1.5]">
-            Os anúncios ficam "Conectados" ao Airbnb e não travam o calendário depois de sua
-            ferramenta de precificação for sincronizado novamente.
+          <DialogDescription className="sr-only">
+            Passos para ativar os anúncios no Airbnb.
           </DialogDescription>
         </div>
 
-        {bulkError ? (
-          <div
-            role="alert"
-            className="rounded-[14px] bg-destructive/10 p-2.5 text-[12.5px] leading-[1.5] text-destructive shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--destructive)_25%,transparent)]"
+        <Dialog open={!!bulkError} onOpenChange={(v) => { if (!v) closeError(); }}>
+          <DialogContent
+            hideClose
+            style={{ width: "min(calc(100% - 2rem), 340px)", maxWidth: 340 }}
+            className="max-h-[90dvh] gap-3 overflow-y-auto p-4 sm:p-4"
           >
-            {bulkError}
-          </div>
-        ) : null}
+            <DialogTitle className="font-display text-[16px] font-extrabold leading-[1.25]">
+              Ainda não foi possível ativar
+            </DialogTitle>
+            <DialogDescription className="whitespace-pre-line text-[12.5px] leading-[1.5] text-foreground/85">
+              {bulkError}
+            </DialogDescription>
+            <button
+              type="button"
+              onClick={closeError}
+              className="h-10 rounded-[12px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[13px] font-extrabold text-white"
+            >
+              Ok!
+            </button>
+          </DialogContent>
+        </Dialog>
 
         <ol
           id="full-connect-steps"
@@ -249,19 +295,152 @@ export function FullConnectGate() {
                     ) : null}
                   </span>
                 </div>
-                {it.error ? <p className="text-xs text-destructive">{it.error}</p> : null}
-                {notice[it.propertyId] ? (
-                  <p className="text-xs text-destructive">{notice[it.propertyId]}</p>
+                {blockIds.has(it.propertyId) ? (
+                  icalDone[it.propertyId] !== undefined ? (
+                    <p className="flex items-center gap-1.5 text-[11.5px] text-foreground/85">
+                      <CheckCircle2 className="size-3.5 shrink-0 text-primary" />
+                      {icalDone[it.propertyId] === 1
+                        ? "1 bloqueio importado."
+                        : `${icalDone[it.propertyId]} bloqueios importados.`}
+                    </p>
+                  ) : (
+                    <div className="grid gap-1">
+                      <input
+                        type="url"
+                        required
+                        inputMode="url"
+                        placeholder="Link do iCal (https://www.airbnb.com.br/calendar/ical/….ics)"
+                        value={icalUrl[it.propertyId] ?? ""}
+                        onChange={(e) => setIcalUrl((u) => ({ ...u, [it.propertyId]: e.target.value }))}
+                        className={`h-9 w-full min-w-0 rounded-[10px] px-2.5 text-[12px] text-foreground outline-none ${isIcs(icalUrl[it.propertyId] ?? "") ? "bg-background/60 shadow-[inset_0_0_0_1px_var(--primary)]" : "bg-destructive/10 shadow-[inset_0_0_0_1.5px_var(--destructive)]"}`}
+                      />
+                      {icalUrl[it.propertyId] && !isIcs(icalUrl[it.propertyId]) ? (
+                        <p className="text-[11px] text-destructive">Use o link de exportação do Airbnb (termina em .ics).</p>
+                      ) : null}
+                      {icalErr[it.propertyId] ? (
+                        <p className="text-[11px] text-destructive">{icalErr[it.propertyId]}</p>
+                      ) : null}
+                    </div>
+                  )
                 ) : null}
+                {it.error ? <p className="text-xs text-destructive">{it.error}</p> : null}
               </div>
             ))}
           </div>
         </div>
 
+        <Dialog open={picking} onOpenChange={(v) => !v && setPicking(false)}>
+          <DialogContent
+            hideClose
+            style={{ width: "min(calc(100% - 2rem), 360px)", maxWidth: 360 }}
+            className="max-h-[90dvh] gap-3 overflow-y-auto p-4 sm:p-4"
+          >
+            <DialogTitle className="font-display text-[16px] font-extrabold leading-[1.25]">
+              Quais anúncios possuem bloqueios manuais para importar?
+            </DialogTitle>
+            <DialogDescription className="text-[12px] text-muted-foreground">
+              Selecione os anúncios. Em seguida, cole o link do iCal de cada um.
+            </DialogDescription>
+            <input
+              type="search"
+              value={pickSearch}
+              onChange={(e) => setPickSearch(e.target.value)}
+              placeholder="Buscar anúncio…"
+              className="h-9 w-full min-w-0 rounded-[10px] bg-background/60 px-2.5 text-[12.5px] text-foreground outline-none shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] focus:shadow-[inset_0_0_0_1px_var(--primary)]"
+            />
+            <div className="grid gap-2">
+              {pickItems.length === 0 ? (
+                <p className="py-2 text-center text-[12px] text-muted-foreground">Nenhum anúncio encontrado.</p>
+              ) : null}
+              {pickItems.map((it) => (
+                <label key={it.propertyId} className={`${card} flex min-w-0 cursor-pointer items-center gap-2.5 px-3 py-2.5 text-[12.5px]`}>
+                  <input
+                    type="checkbox"
+                    className="size-4 shrink-0 accent-[var(--primary)]"
+                    checked={draftPick.has(it.propertyId)}
+                    onChange={(e) =>
+                      setDraftPick((cur) => {
+                        const next = new Set(cur);
+                        if (e.target.checked) next.add(it.propertyId);
+                        else next.delete(it.propertyId);
+                        return next;
+                      })
+                    }
+                  />
+                  <PropertyThumb src={it.imageUrl} className="size-8 shrink-0 rounded-[8px]" />
+                  <ClampName text={it.propertyName} passThrough className="flex-1 font-semibold" />
+                </label>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setPicking(false)}
+                className="h-10 rounded-[12px] text-[13px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBlockIds(new Set([...draftPick, ...Object.keys(icalDone)]));
+                  setPicking(false);
+                }}
+                className="h-10 rounded-[12px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[13px] font-extrabold text-white"
+              >
+                Confirmar
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {items.length > 0 ? (
+          pendingIcal.length > 0 ? (
+            <button
+              type="button"
+              disabled={!icalReady || importing}
+              onClick={importIcal}
+              className="flex h-[42px] items-center justify-center gap-2 rounded-[13px] bg-foreground/[0.06] text-[13px] font-extrabold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] disabled:opacity-40"
+            >
+              {importing ? <Loader2 className="size-4 animate-spin" /> : null}
+              {importing ? "Importando bloqueios…" : "Importar agora!"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setDraftPick(new Set([...blockIds].filter((id) => icalDone[id] === undefined)));
+                if (items.length === 1) {
+                  setBlockIds(new Set([items[0].propertyId]));
+                } else { setPickSearch(""); setPicking(true); }
+              }}
+              className="flex h-[42px] items-center justify-center rounded-[13px] text-[13px] font-extrabold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
+            >
+              Importar bloqueios manuais
+            </button>
+          )
+        ) : null}
+        {pendingIcal.length > 0 && !picking ? (
+          <p className="text-[11.5px] leading-[1.45] text-muted-foreground">
+            Finalize a importação dos bloqueios manuais dos anúncios selecionados para continuar.{" "}
+            <button
+              type="button"
+              disabled={importing}
+              onClick={() => {
+                setDraftPick(new Set(pendingIcal.map((i) => i.propertyId)));
+                setPicking(true);
+              }}
+              className="font-semibold text-foreground underline underline-offset-2"
+            >
+              Alterar seleção
+            </button>
+          </p>
+        ) : null}
+
         {items.length > 0 ? (
           <button
             type="button"
-            disabled={busy !== null || !items.some((i) => i.unitCode)}
+            disabled={busy !== null || pendingIcal.length > 0 || picking || !items.some((i) => i.unitCode)}
             onClick={confirmAll}
             className="flex h-[46px] items-center justify-center gap-2 rounded-[13px] bg-gradient-to-br from-[#7c1ad8] to-[#e82dae] text-[13.5px] font-extrabold text-white disabled:opacity-40"
           >

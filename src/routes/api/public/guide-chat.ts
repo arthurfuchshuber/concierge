@@ -234,6 +234,16 @@ async function runGuideChat(
      * sempre, e ninguém lembrava de devolver. Agora falar direto pausa por 30
      * minutos e a expiração é lida AQUI, no momento do uso — se já passou, a
      * conversa volta para a IA neste mesmo instante. Ver `lib/ai/pause.ts`. */
+    // Código da reserva é soberano: liga a conversa e dá baixa de check-in/out mesmo com a IA pausada.
+    if (!body.demo && body.reservationCode && !landing.isLandingCopy(body.slug)) {
+      try {
+        const link = await import("@/lib/ai/conversation-link.server");
+        await link.linkConversationByCode(supabaseAdmin as SupabaseClient, { conversationId, propertyId: String(prop.id), code: body.reservationCode });
+        await link.applyStayCompletionOnIngest(supabaseAdmin as SupabaseClient, { conversationId, propertyId: String(prop.id), message: body.message });
+      } catch (e) {
+        console.error("guide-chat vínculo/baixa falhou", e);
+      }
+    }
     const { resolvePause, resumePatch } = await import("@/lib/ai/pause");
     const humanoNoComando = await resolvePause(supabaseAdmin, conversationId, convState);
 
