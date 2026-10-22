@@ -51,19 +51,25 @@ const AUD_CHIP: Record<Audience, string> = {
   I: "text-muted-foreground bg-[color-mix(in_oklab,var(--foreground)_7%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]",
 };
 
-function AudienceChip({ au, className = "" }: { au: Audience; className?: string }) {
+function AudienceChip({ au, className = "", children }: { au: Audience; className?: string; children?: React.ReactNode }) {
   return (
     <span
       className={`inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[9.5px] font-bold uppercase leading-none tracking-[0.12em] ${AUD_CHIP[au]} ${className}`}
     >
       <i className="inline-block size-1.5 rounded-full bg-current" />
       {AUDIENCE_LABEL[au]}
+      {children}
     </span>
   );
 }
 
 const WELL = "bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]";
-const ROW_GRID = "min-[901px]:grid min-[901px]:grid-cols-[200px_minmax(0,1.1fr)_minmax(0,1.4fr)_190px]";
+// Tabela com rolagem lateral (22/10/2026): colunas A, B e D se ajustam ao maior dado (nada cortado;
+// B quebra linha só a partir de 520px); C tem largura fixa mínima de 460px. As linhas usam subgrade
+// para as colunas ficarem alinhadas entre si.
+const TABLE_COLS =
+  "grid w-max min-w-full grid-cols-[fit-content(320px)_fit-content(520px)_minmax(460px,1fr)_max-content]";
+const ROW_GRID = "col-span-4 grid grid-cols-subgrid";
 const CLAMP2 = "[display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden";
 const ICON_BTN =
   "grid size-8 place-items-center rounded-lg border-0 bg-transparent p-0 text-muted-foreground hover:text-foreground";
@@ -82,23 +88,24 @@ function Legend() {
         <span className="ds-eyebrow text-[10px] tracking-[0.2em] text-muted-foreground">Audiência</span>
         <span className="h-px min-w-6 flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent max-[900px]:hidden" />
         {items.map(([au, long]) => (
-          <span key={au} className="inline-flex items-center gap-1.5">
-            <AudienceChip au={au} />
+          <span key={au} className="inline-flex items-center">
+            <AudienceChip au={au} className="pr-1">
             <Popover>
               <PopoverTrigger asChild>
                 <button
                   type="button"
                   aria-label={`Explicação: ${AUDIENCE_LABEL[au]}`}
                   title="Ver explicação"
-                  className="grid size-6 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground data-[state=open]:text-foreground"
+                  className="grid size-4 place-items-center rounded-full opacity-70 transition-opacity hover:opacity-100 data-[state=open]:opacity-100"
                 >
-                  <Info className="size-3.5" />
+                  <Info className="size-3" />
                 </button>
               </PopoverTrigger>
               <PopoverContent align="start" className="w-64 p-3 text-xs font-medium text-muted-foreground">
                 {long}
               </PopoverContent>
             </Popover>
+            </AudienceChip>
           </span>
         ))}
       </div>
@@ -320,11 +327,13 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
                 {isOpen ? (
                   <div>
+                   <div className="overflow-x-auto">
+                    <div className={TABLE_COLS}>
                     <div
-                      className={`${ROW_GRID} border-b border-[var(--panel-div)] bg-[var(--panel-well)] text-muted-foreground max-[900px]:hidden`}
+                      className={`${ROW_GRID} border-b border-[var(--panel-div)] bg-[var(--panel-well)] text-muted-foreground`}
                     >
                       {["Campo", "Valor / Instrução", "Observação da IA", "Audiência"].map((h, i) => (
-                        <div key={h} className={`ds-eyebrow px-4 py-2.5 ${i === 3 ? "text-right" : ""}`}>
+                        <div key={h} className={`ds-eyebrow whitespace-nowrap px-4 py-2.5 ${i === 3 ? "text-right" : ""}`}>
                           {h}
                         </div>
                       ))}
@@ -338,13 +347,13 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                         <div
                           key={r.id}
                           onClick={() => setOpenRows((cur) => toggleRow(cur, r.id))}
-                          className={`relative cursor-pointer border-b border-[var(--panel-div)] text-[13px] font-medium leading-normal transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_2.5%,transparent)] max-[900px]:block max-[900px]:py-1.5 ${ROW_GRID} ${open ? "bg-[var(--panel-well)]" : ""}`}
+                          className={`relative cursor-pointer border-b border-[var(--panel-div)] text-[13px] font-medium leading-normal transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_2.5%,transparent)] ${ROW_GRID} ${open ? "bg-[var(--panel-well)]" : ""}`}
                         >
-                          <div className="min-w-0 break-words px-4 py-3 font-extrabold text-foreground max-[900px]:py-1.5">
+                          <div className="min-w-0 break-words px-4 py-3 font-extrabold text-foreground">
                             {r.label}
                           </div>
 
-                          <div className="flex min-w-0 items-start gap-2 break-words px-4 py-3 max-[900px]:py-1.5">
+                          <div className="flex min-w-0 items-start gap-2 break-words px-4 py-3">
                             {editing ? (
                               <div className="min-w-0 flex-1" onClick={(e) => e.stopPropagation()}>
                                 <EditField row={r} draft={edit!.draft} onChange={(v) => setEdit({ id: r.id, draft: v })} />
@@ -374,7 +383,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                               </div>
                             ) : (
                               <span
-                                className={`min-w-0 flex-1 whitespace-pre-line ${open ? "block" : CLAMP2} ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
+                                className={`min-w-0 flex-1 whitespace-pre-line block ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
                               >
                                 {r.value}
                               </span>
@@ -407,7 +416,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                           </div>
 
                           <div
-                            className={`min-w-0 break-words px-4 py-3 text-xs leading-[1.45] text-muted-foreground max-[900px]:py-1.5 ${open ? "" : "max-[900px]:hidden"}`}
+                            className={`min-w-0 break-words px-4 py-3 text-xs leading-[1.45] text-muted-foreground`}
                           >
                             {open ? (
                               <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-[var(--faint)]">
@@ -441,12 +450,14 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                             ) : null}
                           </div>
 
-                          <div className="flex min-w-0 flex-col items-end gap-2 px-4 py-3 max-[900px]:items-start max-[900px]:pb-2.5 max-[900px]:pt-0">
+                          <div className="flex flex-col items-end gap-2 whitespace-nowrap px-4 py-3">
                             <AudienceChip au={r.au} />
                           </div>
                         </div>
                       );
                     })}
+                    </div>
+                   </div>
 
                     {rows.length === 0 ? (
                       <div className="px-5 py-6 text-[13px] font-medium text-muted-foreground">Nenhum campo corresponde à busca.</div>

@@ -3,7 +3,6 @@ import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tan
 import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Wrench, Home, Contact, Sparkles, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
-import { createPortal } from "react-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -119,8 +118,6 @@ function AdminLayout() {
   const { isAdmin, isLoading: adminLoading } = useIsAdmin();
   const [email, setEmail] = useState<string>("");
   const [open, setOpen] = useState(false);
-  const [portalReady, setPortalReady] = useState(false);
-  useEffect(() => setPortalReady(true), []);
   // Recolher o menu lateral (só desktop — no mobile o menu já é um overlay
   // que abre/fecha por cima, "recolher" não se aplica lá). Lembra a escolha
   // entre sessões.
@@ -540,14 +537,19 @@ function AdminLayout() {
               </div>
             )}
           </div>
+          <div className={`flex items-center gap-2 ${collapsed ? "flex-col" : "w-full"}`}>
           <button
             onClick={signOut}
             title={collapsed ? "Sair / Trocar usuário" : undefined}
-            className={`flex items-center gap-3 rounded-xl border border-border bg-secondary/40 text-sm font-semibold transition-colors hover:bg-secondary ${collapsed ? "size-9 justify-center px-0 py-0" : "h-11 w-full px-3.5"}`}
+            className={`flex items-center gap-3 rounded-xl border border-border bg-secondary/40 text-sm font-semibold transition-colors hover:bg-secondary ${collapsed ? "size-9 justify-center px-0 py-0" : "h-11 min-w-0 flex-1 px-3.5"}`}
           >
             <LogOut className="size-4 shrink-0" strokeWidth={2} />
             {!collapsed && "Sair / Trocar usuário"}
           </button>
+            <ThemeToggle
+              className={`hidden shrink-0 border border-border bg-secondary/40 hover:bg-secondary lg:grid ${collapsed ? "!size-9" : ""}`}
+            />
+          </div>
         </div>
       </aside>
 
@@ -558,18 +560,8 @@ function AdminLayout() {
 
       {/* Main */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Desktop: sem cabeçalho, então o botão flutua no canto superior direito
-            (fora do fluxo — não altera o layout). No celular ele ocupa a vaga
-            à direita do cabeçalho, alinhado ao botão de menu. */}
-        {/* Portal no <body>: algum ancestral (animação/filtro/contain) vira o
-            "bloco" do `fixed` e fazia o botão rolar junto com a página (17/10/2026). */}
-        {portalReady &&
-          createPortal(
-            <div className="fixed right-4 top-3 z-30 hidden lg:block">
-              <ThemeToggle />
-            </div>,
-            document.body,
-          )}
+        {/* Botão de tema: no desktop fica no rodapé do menu lateral, ao lado de
+            "Sair / Trocar usuário" (22/10/2026); no celular, no cabeçalho. */}
         {/* Mobile topbar */}
         {/* CABEÇALHO DO CELULAR — padrão "A · Noite" (mockup aprovado,
             17/09/2026): fundo do app com transparência e desfoque, fio de 1px
