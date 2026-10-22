@@ -313,7 +313,22 @@ export function OwnerPropertiesPanel({
         }
       />
 
+<<<<<<< HEAD
       {/* Contas/Anúncios Conectados vivem na faixa da página Proprietários; "Importar anúncios" é o ícone de sincronizar na busca. */}
+=======
+      {/* Contas/Anúncios Conectados vivem na faixa da página Proprietários; aqui só importar. */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setReimport(true)}
+          className="inline-flex h-7 shrink-0 items-center gap-[5px] rounded-full px-2.5 text-[11.5px] font-bold text-foreground/90 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] transition-colors hover:bg-foreground/[0.05]"
+        >
+          <RefreshCw className="size-3" />
+          Importar anúncios
+        </button>
+      </div>
+
+>>>>>>> 3fb495aacfce97848e5da53bf1c7ab578dc00184
       {filtered.length === 0 ? (
         <EmptyState
           icon={Home}
