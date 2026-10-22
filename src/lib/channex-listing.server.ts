@@ -314,6 +314,12 @@ export async function applyListingToProperty(args: {
     ].slice(0, 300);
     patch["airbnb_listing_last_synced_at"] = new Date().toISOString();
   }
+  {
+    // Só a foto de capa do anúncio (leitura nativa, custo zero); imóvel fica com 1 foto.
+    const { fetchListingCover } = await import("@/lib/airbnb-cover.server");
+    const cover = await fetchListingCover(args.listingId).catch(() => null);
+    if (cover) { patch["hero_image_url"] = cover; patch["gallery_images"] = [cover]; }
+  }
   if (Object.keys(patch).length) {
     const { error } = await supabaseAdmin.from("properties").update(patch as never).eq("id", args.propertyId);
     if (error) throw new Error(error.message);
