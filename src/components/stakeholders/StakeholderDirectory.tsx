@@ -726,16 +726,12 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           demais: bottom-sheet no mobile, painel lateral no desktop */}
       {fullScreen ? (
         <Dialog open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
-<<<<<<< HEAD
           {/* Tela cheia no tablet/celular (`bleed`) e com o X de canto: o botão "Voltar" saiu da
               ficha (pedido explícito, 21/10/2026). No computador segue centralizada, até 880px. */}
           <DialogContent
             bleed
             className="w-[min(94vw,880px)] max-w-none sm:max-w-[880px] max-h-[90dvh] overflow-y-auto p-0 gap-0"
           >
-=======
-          <DialogContent className="w-[min(94vw,880px)] max-w-none sm:max-w-[880px] max-h-[90dvh] overflow-y-auto p-0 gap-0 [&>button]:hidden">
->>>>>>> 3fb495aacfce97848e5da53bf1c7ab578dc00184
             <DialogTitle className="sr-only">Ficha do proprietário</DialogTitle>
             {detailId && renderDetail()}
           </DialogContent>

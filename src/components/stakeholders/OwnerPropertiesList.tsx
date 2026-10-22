@@ -468,25 +468,6 @@ export function OwnerPropertiesList({
         actions={<>{filterButton}</>}
       />
       <ConnectedAccountsBar />
-<<<<<<< HEAD
-=======
-
-      {items.length > 0 ? (
-        <div
-          className={`${PANEL_SHELL} flex min-w-0 items-center justify-between gap-3 px-3.5 py-2.5`}
-        >
-          <span className="grid min-w-0 gap-0.5">
-            <span className="ds-eyebrow text-[10px] tracking-[0.2em]">Contas do Airbnb</span>
-            <span className="truncate text-[12px] text-muted-foreground">
-              {airbnbAccounts.length} {airbnbAccounts.length === 1 ? "conta" : "contas"} ·{" "}
-              {items.length} {items.length === 1 ? "imóvel" : "imóveis"} · {pendingN}{" "}
-              {pendingN === 1 ? "pendente" : "pendentes"}
-            </span>
-          </span>
-          {connectButton}
-        </div>
-      ) : null}
->>>>>>> 3fb495aacfce97848e5da53bf1c7ab578dc00184
 
       {items.length === 0 ? (
         <EmptyState
@@ -540,7 +521,6 @@ export function OwnerPropertiesList({
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col justify-between gap-2 py-3 pl-3.5 pr-2.5">
                   <span className="grid min-w-0 gap-1.5">
-<<<<<<< HEAD
                     {/* Título + ícone do dossiê (pedido explícito, 21/10/2026): o título termina
                         ANTES do ícone, que fica alinhado à direita, na mesma coluna do ⋯ da linha
                         de baixo (mesmo tamanho: size-7). */}
@@ -559,12 +539,6 @@ export function OwnerPropertiesList({
                         <FileText className="size-4" />
                       </Link>
                     </span>
-=======
-                    <ClampName
-                      text={p.name}
-                      className="text-[14.5px] font-extrabold leading-tight"
-                    />
->>>>>>> 3fb495aacfce97848e5da53bf1c7ab578dc00184
                     {place || p.airbnbListingId ? (
                       <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
                         {place ? (
@@ -573,19 +547,11 @@ export function OwnerPropertiesList({
                             <span className="min-w-0 truncate">{place}</span>
                           </>
                         ) : null}
-<<<<<<< HEAD
                         {/* A etiqueta "Airbnb · Conectado" saiu (pedido explícito, 21/10/2026): conectado é o
                             normal e não precisa de selo. Só o aviso de ativação pendente continua. */}
                         {p.airbnbListingId && pendingFullIds.has(p.id) ? (
                           <span className="ml-auto shrink-0 whitespace-nowrap text-[10.5px] font-extrabold ds-atencao">
                             Pendente de ativação
-=======
-                        {p.airbnbListingId ? (
-                          <span
-                            className={`ml-auto shrink-0 whitespace-nowrap text-[10.5px] font-extrabold ${pendingFullIds.has(p.id) ? "ds-atencao" : "ds-ok"}`}
-                          >
-                            {pendingFullIds.has(p.id) ? "Pendente de ativação" : "Airbnb · Conectado"}
->>>>>>> 3fb495aacfce97848e5da53bf1c7ab578dc00184
                           </span>
                         ) : null}
                       </span>
