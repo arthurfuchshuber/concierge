@@ -1039,27 +1039,34 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
       await purgePendingChatForThread(admin, m.threadId);
       // O anfitrião já respondeu direto no Airbnb: a pergunta da IA à equipe
       // perde o sentido e sai da tela (já entregue, a IA não repete).
-      const { data: openAsks } = await admin
+      // Cards proativos/de aprendizado NUNCA são fechados por mensagens do
+      // anfitrião: só somem quando a equipe responde ou descarta.
+      const { data: allOpen } = await admin
         .from("ai_human_escalations")
         .select("id, owner_id, property_id, agent_type, guest_name, question_to_human, context_snapshot")
         .eq("conversation_id", c.id)
         .eq("status", "pending");
-      await admin
-        .from("ai_human_escalations")
-        .update({
-          status: "answered",
-          human_response: m.text.slice(0, 2000),
-          resolved_at: new Date().toISOString(),
-          applied_to_guest: true,
-        } as never)
-        .eq("conversation_id", c.id)
-        .eq("status", "pending");
+      const openAsks = ((allOpen ?? []) as Array<{ id: string; context_snapshot: Record<string, unknown> | null }>).filter(
+        (r) => !r.context_snapshot?.proactive && !r.context_snapshot?.host_learning,
+      );
+      if (openAsks.length) {
+        await admin
+          .from("ai_human_escalations")
+          .update({
+            status: "answered",
+            human_response: m.text.slice(0, 2000),
+            resolved_at: new Date().toISOString(),
+            applied_to_guest: true,
+          } as never)
+          .in("id", openAsks.map((r) => r.id))
+          .eq("status", "pending");
+      }
       try {
         const { offerHostAnswerLearning } = await import("@/lib/ai/human-loop/host-answer-learning.server");
         await offerHostAnswerLearning(admin as never, {
           conversationId: c.id,
           hostText: m.text,
-          openAsks: (openAsks ?? []) as never,
+          openAsks: openAsks as never,
         });
       } catch (e) {
         console.error("[channex-messages] oferta de aprendizado falhou", (e as Error)?.message);

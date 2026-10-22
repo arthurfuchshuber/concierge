@@ -93,6 +93,10 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = (event.notification.data && event.notification.data.url) || "/atendimento";
+  let conversationId = event.notification.data && event.notification.data.conversationId;
+  if (!conversationId) {
+    try { conversationId = new URL(url, self.location.origin).searchParams.get("conversation") || undefined; } catch {}
+  }
   event.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
@@ -101,7 +105,7 @@ self.addEventListener("notificationclick", (event) => {
           const clientUrl = new URL(client.url);
           if (clientUrl.origin === self.location.origin) {
             await client.focus();
-            client.postMessage({ type: "handoff-focus", url });
+            client.postMessage({ type: "handoff-focus", url, conversationId });
             return;
           }
         } catch {}
