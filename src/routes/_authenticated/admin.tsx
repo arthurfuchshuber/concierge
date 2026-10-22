@@ -88,8 +88,8 @@ const SIDEBAR_GROUPS = [
     ],
   },
 ] as const;
-/** Itens soltos, na ordem do menu: antes do grupo "Stakeholders" só Guias Digitais. */
-const SIDEBAR_ORDER = ["group:dashboard", "/admin/guias", "group:stakeholders", "/admin/atendimento", "/admin/administrativo"] as const;
+/** Ordem do menu (22/10/2026): Dashboard, Stakeholders, Guias Digitais, Atendimento, Administrativo. */
+const SIDEBAR_ORDER = ["group:dashboard", "group:stakeholders", "/admin/guias", "/admin/atendimento", "/admin/administrativo"] as const;
 
 const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
@@ -176,9 +176,9 @@ function AdminLayout() {
    */
   const BOTTOM_NAV_PATHS = [
     "/admin/dashboard",
-    "/admin/guias",
     "/admin/proprietarios",
     "/admin/prestadores",
+    "/admin/guias",
     "/admin/atendimento",
   ];
   const liveBottomNav = nav

@@ -50,7 +50,7 @@ describe("PlaybookPage", () => {
     mount();
     expect(await screen.findByText("Proprietário(a): Arthur")).toBeTruthy();
     expect(screen.queryByText("Link do mapa")).toBeNull();
-    const pills = screen.getAllByLabelText("Abrir ou fechar seção");
+    const pills = screen.getAllByRole("button", { name: /\d+ campos$/ });
     expect(pills).toHaveLength(5);
     fireEvent.click(pills[0]);
     expect(screen.getByText("Link do mapa")).toBeTruthy();
@@ -71,7 +71,7 @@ describe("PlaybookPage", () => {
   it("quantas linhas quiser abertas e a Nota do anfitrião só aparece na aberta", async () => {
     mount();
     await screen.findByText("Proprietário(a): Arthur");
-    fireEvent.click(screen.getAllByLabelText("Abrir ou fechar seção")[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /\d+ campos$/ })[0]);
     expect(screen.queryAllByText("Nota do anfitrião")).toHaveLength(0);
     for (const label of ["Título público", "Tipo de espaço", "Bairro"]) fireEvent.click(screen.getByText(label));
     expect(screen.getAllByText("Nota do anfitrião")).toHaveLength(3);

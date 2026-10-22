@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -68,45 +69,38 @@ const ICON_BTN =
   "grid size-8 place-items-center rounded-lg border-0 bg-transparent p-0 text-muted-foreground hover:text-foreground";
 
 function Legend() {
-  const items: Array<[Audience, string, string]> = [
-    ["G", "só durante estadia confirmada", "Liberado só durante estadia confirmada."],
-    ["P", "liberado na pré-reserva", "Liberado já na pré-reserva."],
-    ["I", "nunca exibido ao hóspede", "Confidencial, nunca exibido ao hóspede."],
+  const items: Array<[Audience, string]> = [
+    ["G", "Liberado só durante estadia confirmada."],
+    ["P", "Liberado já na pré-reserva."],
+    ["I", "Confidencial, nunca exibido ao hóspede."],
   ];
   return (
     <div className="print:hidden">
-      {/* Computador: legenda inteira numa linha. */}
-      <div className="flex flex-wrap items-center gap-3 max-[900px]:hidden">
+      {/* Etiqueta + botão "i" (22/10/2026): a explicação de cada audiência abre no "i", não fica
+          escrita ao lado. Mesma peça no computador e no celular; quebra linha sem cortar item. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className="ds-eyebrow text-[10px] tracking-[0.2em] text-muted-foreground">Audiência</span>
-        <span className="h-px min-w-6 flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent" />
-        {items.map(([au, short]) => (
-          <span key={au} className="inline-flex items-center gap-2 text-xs font-medium leading-[1.45] text-muted-foreground">
+        <span className="h-px min-w-6 flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent max-[900px]:hidden" />
+        {items.map(([au, long]) => (
+          <span key={au} className="inline-flex items-center gap-1.5">
             <AudienceChip au={au} />
-            {short}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Explicação: ${AUDIENCE_LABEL[au]}`}
+                  title="Ver explicação"
+                  className="grid size-6 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground data-[state=open]:text-foreground"
+                >
+                  <Info className="size-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-64 p-3 text-xs font-medium text-muted-foreground">
+                {long}
+              </PopoverContent>
+            </Popover>
           </span>
         ))}
-      </div>
-      {/* Celular: um botão "i" abre a legenda (não ocupa a tela). */}
-      <div className="hidden max-[900px]:block">
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className={`flex h-9 w-full items-center gap-2 rounded-lg px-3 text-foreground ${WELL}`}
-            >
-              <span className="ds-eyebrow flex-1 truncate text-left text-muted-foreground">Audiência de cada dado</span>
-              <Info className="size-3.5" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] space-y-3 p-4 text-xs font-medium">
-            {items.map(([au, , long]) => (
-              <div key={au} className="flex flex-col items-start gap-1 text-muted-foreground">
-                <AudienceChip au={au} />
-                {long}
-              </div>
-            ))}
-          </PopoverContent>
-        </Popover>
       </div>
     </div>
   );
@@ -134,7 +128,6 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const [read, setRead] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [openRows, setOpenRows] = useState<string[]>([]);
-  const [fullTitle, setFullTitle] = useState<Record<string, boolean>>({});
   const [edit, setEdit] = useState<EditState>(null);
   const [busy, setBusy] = useState(false);
   const [toDelete, setToDelete] = useState<PlaybookRow | null>(null);
@@ -143,10 +136,6 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
   const sections = useMemo(() => (query.data ? buildPlaybook(query.data.source) : []), [query.data]);
   const refresh = () => qc.invalidateQueries({ queryKey: ["playbook", propertyId] });
-
-  const hoje = new Date()
-    .toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "numeric", month: "long" })
-    .replace(/^\w/, (c) => c.toUpperCase());
 
   async function run(action: () => Promise<unknown>, ok: string) {
     setBusy(true);
@@ -199,14 +188,14 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
             "Proprietário(a): nome" + ícone de mensagem (regra de todo lugar
             que cita um imóvel). O botão de tema fica no cabeçalho do sistema. */}
         <div className="ds-page-heading">
-          <Link
-            to="/admin/proprietarios"
-            className="mb-1 inline-flex w-fit items-center gap-1.5 text-[12.5px] font-bold text-muted-foreground hover:text-foreground print:hidden"
-          >
-            <ArrowLeft className="size-3.5" />
-            Voltar
-          </Link>
-          <p className="ds-eyebrow ds-data text-[10.5px] tracking-[0.2em]">{hoje}</p>
+          <PageDateRow
+            back={
+              <Link to="/admin/proprietarios" className={PAGE_BACK_CLASS}>
+                <ArrowLeft className="size-3.5" />
+                Voltar
+              </Link>
+            }
+          />
           <div className="ds-page-heading min-w-0">
             <h1 className="ds-page-title !text-lg truncate">Playbook do imóvel</h1>
             <p className="ds-page-subtitle">{query.data?.propertyName ?? "Carregando…"}</p>
@@ -286,42 +275,47 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
             const all = sec?.rows ?? [];
             const rows = all.filter((r) => matchesQuery(r, qq));
             const isOpen = qq ? rows.length > 0 : read || openSection === meta.id;
-            const full = !!fullTitle[meta.id];
             return (
               <section
                 key={meta.id}
                 id={meta.id}
                 className="ds-3d relative overflow-hidden rounded-[14px] border-0 bg-card print:break-inside-avoid-page"
               >
+                {/* Cabeçalho inteiro é o botão da categoria (22/10/2026): tocar em qualquer ponto
+                    abre/fecha a lista de campos daquela categoria. */}
                 <div
-                  className={`flex items-start gap-3 py-4 pl-5 pr-4 max-[900px]:px-4 ${isOpen ? "border-b border-[var(--panel-div)]" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isOpen}
+                  onClick={() => {
+                    setOpenSection((cur) => toggleSection(cur, meta.id));
+                    setOpenRows([]);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setOpenSection((cur) => toggleSection(cur, meta.id));
+                      setOpenRows([]);
+                    }
+                  }}
+                  className={`flex cursor-pointer items-start gap-3 py-4 pl-5 pr-4 transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_2.5%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-[900px]:px-4 ${isOpen ? "border-b border-[var(--panel-div)]" : ""}`}
                 >
                   <span className="grid size-6 flex-none place-items-center self-center rounded-lg bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] font-display text-xs font-bold text-muted-foreground">
                     {meta.num}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <button
-                      type="button"
-                      onClick={() => setFullTitle((p) => ({ ...p, [meta.id]: !full }))}
-                      className={`block w-full border-0 bg-transparent p-0 text-left font-display text-[15px] font-bold leading-tight text-foreground ${full ? "" : "max-[900px]:truncate max-[900px]:whitespace-nowrap"}`}
+                    <div
+                      className={`font-display text-[15px] font-bold leading-tight text-foreground ${isOpen ? "" : "max-[900px]:truncate max-[900px]:whitespace-nowrap"}`}
                     >
                       {meta.title}
-                    </button>
-                    <div className={`mt-0.5 text-xs font-medium leading-[1.45] text-muted-foreground ${full ? "" : "max-[900px]:truncate max-[900px]:whitespace-nowrap"}`}>
+                    </div>
+                    <div className={`mt-0.5 text-xs font-medium leading-[1.45] text-muted-foreground ${isOpen ? "" : "max-[900px]:truncate max-[900px]:whitespace-nowrap"}`}>
                       {meta.desc}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Abrir ou fechar seção"
-                    onClick={() => {
-                      setOpenSection((cur) => toggleSection(cur, meta.id));
-                      setOpenRows([]);
-                    }}
-                    className="mt-px inline-grid h-4 min-w-4 flex-none place-items-center rounded-full border-0 bg-[color-mix(in_oklab,var(--foreground)_7%,transparent)] px-[5px] text-[9.5px] font-extrabold leading-none tabular-nums text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
-                  >
+                  <span className="mt-px inline-grid h-4 min-w-4 flex-none place-items-center rounded-full bg-[color-mix(in_oklab,var(--foreground)_7%,transparent)] px-[5px] text-[9.5px] font-extrabold leading-none tabular-nums text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
                     {qq ? `${rows.length} de ${all.length}` : `${all.length} campos`}
-                  </button>
+                  </span>
                 </div>
 
                 {isOpen ? (

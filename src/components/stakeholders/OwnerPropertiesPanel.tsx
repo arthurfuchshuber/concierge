@@ -381,7 +381,7 @@ export function OwnerPropertiesPanel({
                             type="button"
                             title="Mais opções"
                             aria-label="Mais opções"
-                            className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                            className="-mr-1 inline-flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                           >
                             <MoreHorizontal className="size-4" />
                           </button>

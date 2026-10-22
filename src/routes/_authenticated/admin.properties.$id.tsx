@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, Link, useBlocker, redirect } from "@tanstack/react-router";
+import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useGuidePreviewUrl } from "@/hooks/useGuidePreviewUrl";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useState, useEffect, useRef } from "react";
@@ -2716,12 +2717,14 @@ function PropertyEditor() {
     const isDirty = !isNew && savedPropertyKey !== "" && savedPropertyKey !== JSON.stringify(form.property);
     return (
       <div className="ds-dense-fields ds-presence-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
-        <Link
-          to={backTo as "/admin/guias"}
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors"
-        >
-          <ArrowLeft className="size-3.5" /> Voltar
-        </Link>
+        <PageDateRow
+          className="mb-1.5"
+          back={
+            <Link to={backTo as "/admin/guias"} className={PAGE_BACK_CLASS}>
+              <ArrowLeft className="size-3.5" /> Voltar
+            </Link>
+          }
+        />
 
         <header className="mb-3 min-w-0">
           {/* Sem nome definido ainda (nada em "A casa" pede Nome — ele só
@@ -2956,12 +2959,6 @@ function PropertyEditor() {
 
   return (
     <div className="ds-dense-fields ds-presence-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
-      <Link
-        to={backTo as "/admin/guias"}
-        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors"
-      >
-        <ArrowLeft className="size-3.5" /> Voltar
-      </Link>
       {readOnly ? (
         <EditorNotice tone="amber" icon={Lock} className="mb-5">
           Você tem acesso apenas para visualizar este guia. A edição está bloqueada.
@@ -2978,7 +2975,13 @@ function PropertyEditor() {
             à direita (a peça colada à esquerda das abas, mesma altura). No
             celular, as abas ocupam a largura inteira e a peça vem embaixo. */}
         <div className="ds-page-heading">
-          <p className="ds-eyebrow ds-data text-[10.5px] tracking-[0.2em]">{hojeExtenso}</p>
+          <PageDateRow
+            back={
+              <Link to={backTo as "/admin/guias"} className={PAGE_BACK_CLASS}>
+                <ArrowLeft className="size-3.5" /> Voltar
+              </Link>
+            }
+          />
           <div className="lg:flex lg:items-end lg:justify-between lg:gap-8">
             <div className="ds-page-heading min-w-0 lg:flex-1">
               <h1 className="ds-page-title !text-lg truncate">{form.property.name || "Sem título"}</h1>

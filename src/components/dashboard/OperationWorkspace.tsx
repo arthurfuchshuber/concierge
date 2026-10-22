@@ -4852,7 +4852,7 @@ function FreePropertiesCard({
           >
             {loading ? "—" : properties.length}
           </div>
-          <span className="ds-card-date">{dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)}</span>
+          {/* Etiqueta de data removida (22/10/2026): mesma altura dos demais cartões de número. */}
         </button>
       </DialogTrigger>
       {/* Casca "Grafite Quente" — mesmo padrão do `KpiCard` logo acima

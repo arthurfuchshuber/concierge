@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, ArrowLeft, Eye, Lock, Pencil, ShieldOff, Home, Mail, RotateCw, Trash2, Link2, Users } from "lucide-react";
@@ -384,9 +385,11 @@ export function UserAccess({
   return (
     <div className="space-y-4">
       {onBack ? (
-        <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5">
-          <ArrowLeft className="h-4 w-4" /> Voltar
-        </Button>
+        <div className="flex justify-end">
+          <button type="button" onClick={onBack} className={PAGE_BACK_CLASS}>
+            <ArrowLeft className="size-3.5" /> Voltar
+          </button>
+        </div>
       ) : null}
 
       <Card className="flex flex-wrap items-center justify-between gap-3 p-4">

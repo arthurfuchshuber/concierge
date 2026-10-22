@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useState } from "react";
@@ -54,9 +55,13 @@ function SigmaPackEditor() {
 
   return (
     <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-8">
-      <Link to="/admin/recomendacoes-sigma" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-        <ArrowLeft className="size-3.5" /> Voltar
-      </Link>
+      <PageDateRow
+        back={
+          <Link to="/admin/recomendacoes-sigma" className={PAGE_BACK_CLASS}>
+            <ArrowLeft className="size-3.5" /> Voltar
+          </Link>
+        }
+      />
 
       <PageHeader
         title={pack.city_label}
