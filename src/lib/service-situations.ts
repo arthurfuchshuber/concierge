@@ -10,10 +10,10 @@ export const SYSTEM_SITUATIONS: ReadonlyArray<{
   name: string;
   detail: string;
 }> = [
-  { key: "cleaning", name: "Limpeza", detail: "Limpezas feitas na saída do hóspede ou avulsas." },
-  { key: "maintenance", name: "Manutenção", detail: "Consertos e reparos no imóvel." },
-  { key: "damage", name: "Danos", detail: "Danos causados por hóspedes ou terceiros." },
-  { key: "other", name: "Outro", detail: "Objetos esquecidos, incidentes e demais situações." },
+  { key: "cleaning", name: "Limpeza", detail: "Nova limpeza de um imóvel ou reserva" },
+  { key: "maintenance", name: "Manutenção", detail: "Reparo ou serviço no imóvel" },
+  { key: "damage", name: "Danos", detail: "Cobrança por dano causado" },
+  { key: "other", name: "Outro", detail: "Outra situação financeira" },
 ];
 
 export type ServiceSituation = {

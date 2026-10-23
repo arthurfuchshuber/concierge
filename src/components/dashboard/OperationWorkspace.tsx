@@ -2235,32 +2235,24 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // Textos que dependem da situação. A Limpeza mantém os dela.
   const periodShort = cleaningPeriodLabel.replace(/^Período /, "");
   const onlyCleaningTexts = sel === "cleaning";
+  // Mockups aprovados (Limpeza-Danos / -Taxa / Filtro-Situacao): título da
+  // página = só o nome da situação; gráficos "{Nome} · Qtde/Custo/Eficiência";
+  // linha dourada "Últimos 7 Dias - Visão …" sob cada título.
+  const svcName = sel === null ? "Todas as situações" : (selName ?? "");
+  const svcWindow = cleaningPeriodView ? periodShort : cleaningWindow === "past" ? "Últimos 7 Dias" : "Próximos 7 Dias";
   const servicesTexts = {
-    pageTitle: onlyCleaningTexts
-      ? null
-      : sel === null
-        ? "Todas as Situações"
-        : cleaningPeriodView
-          ? `${selName} · ${periodShort}`
-          : `${selName} · ${cleaningWindow === "past" ? "Últimos 7d" : "Próximos 7d"}`,
+    pageTitle: onlyCleaningTexts ? null : sel === null ? "Todas as Situações" : (selName ?? ""),
     pageSubtitle: onlyCleaningTexts
       ? null
       : sel === null
-        ? "Histórico e custos de todos os serviços."
-        : `Histórico e custos de ${(selName ?? "").toLocaleLowerCase("pt-BR")}.`,
-    barTitle:
-      onlyCleaningTexts || cleaningScreen.forecastOnly || cleaningScreen.series === "split"
-        ? cleaningScreen.barTitle
-        : sel === null
-          ? "Serviços por dia"
-          : `${selName} por dia`,
-    areaTitle:
-      onlyCleaningTexts || cleaningScreen.forecastOnly || cleaningScreen.series === "split"
-        ? cleaningScreen.areaTitle
-        : sel === null
-          ? cleaningScreen.areaTitle
-          : `${selName} · custo`,
-    efficiencyTitle: onlyCleaningTexts ? null : `Eficiência — ${sel === null ? "Todas as Situações" : selName}`,
+        ? "Histórico e custos de todas as situações."
+        : `Histórico e custos de ${selName ?? ""}.`,
+    barTitle: onlyCleaningTexts ? cleaningScreen.barTitle : `${svcName} · Qtde`,
+    areaTitle: onlyCleaningTexts ? cleaningScreen.areaTitle : `${svcName} · Custo`,
+    efficiencyTitle: onlyCleaningTexts ? null : `${svcName} · Eficiência`,
+    barSub: onlyCleaningTexts ? undefined : `${svcWindow} - Visão por Dia`,
+    efficiencySub: onlyCleaningTexts ? undefined : `${svcWindow} - Visão Geral`,
+    topSub: onlyCleaningTexts ? undefined : `${svcWindow} - Visão por Imóvel`,
     unit: (onlyCleaningTexts ? "limpeza" : "serviço") as "limpeza" | "serviço",
   };
 
@@ -3755,6 +3747,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="ds-card-grid grid-cols-1 lg:grid-cols-2">
               <CleaningDailyBarChart
                 title={servicesTexts.barTitle}
+                subtitle={servicesTexts.barSub}
                 data={cleaningChartDaily}
                 detail={servicesDetail(cleaningScreen.barDetail)}
                 loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
@@ -3762,6 +3755,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
               <CleaningDailyAreaChart
                 title={servicesTexts.areaTitle}
+                subtitle={servicesTexts.barSub}
                 data={cleaningChartDaily}
                 detail={servicesDetail(cleaningScreen.areaDetail)}
                 loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
@@ -3780,6 +3774,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
                   forecast={cleaningScreen.forecastOnly}
                   title={servicesTexts.efficiencyTitle ?? undefined}
+                  subtitle={servicesTexts.efficiencySub}
                   unit={servicesTexts.unit}
                 />
               </div>
@@ -3789,6 +3784,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
                   series={cleaningScreen.series}
                   unit={servicesTexts.unit}
+                  subtitle={servicesTexts.topSub}
                 />
               </div>
             </div>
@@ -5527,8 +5523,21 @@ type ChartPick = {
  *     encolhe até o último dia INTEIRO (regra anti-corte, ver
  *     useAntiClipColumns). Sem degradê nas bordas — proibido pelo cliente.
  */
+/** Linha dourada sob o título (mockups das situações): 10.5px/500, ouro a 70%. */
+function GoldSubtitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="text-[10.5px] font-medium"
+      style={{ color: "color-mix(in oklab, var(--gold, #cbb87f) 70%, transparent)", margin: "-6px 0 10px 16px" }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function CleaningChartFrame({
   title,
+  subtitle,
   data,
   loading,
   detail,
@@ -5537,6 +5546,7 @@ function CleaningChartFrame({
   children,
 }: {
   title: string;
+  subtitle?: string;
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
   /** Cor do ponto do cabeçalho — a mesma da série desenhada abaixo. */
@@ -5616,6 +5626,7 @@ function CleaningChartFrame({
           </span>
         }
       />
+      {subtitle ? <GoldSubtitle>{subtitle}</GoldSubtitle> : null}
       {loading || !data || days === 0 ? (
         <div className="h-32 grid place-items-center text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
@@ -5669,9 +5680,11 @@ function CleaningDailyBarChart({
   data,
   loading,
   title = "Limpezas por dia",
+  subtitle,
   detail,
   series = "done",
 }: {
+  subtitle?: string;
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
   /** A mesma tela serve às duas janelas (últimos 7d / próximos 7d); só o
@@ -5686,6 +5699,7 @@ function CleaningDailyBarChart({
   return (
     <CleaningChartFrame
       title={title}
+      subtitle={subtitle}
       data={data}
       loading={loading}
       detail={detail}
@@ -5766,9 +5780,11 @@ function CleaningDailyAreaChart({
   data,
   loading,
   title = "Custo total por dia",
+  subtitle,
   detail,
   series = "done",
 }: {
+  subtitle?: string;
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
   title?: string;
@@ -5783,6 +5799,7 @@ function CleaningDailyAreaChart({
   return (
     <CleaningChartFrame
       title={title}
+      subtitle={subtitle}
       data={data}
       loading={loading}
       detail={detail}
@@ -5907,7 +5924,9 @@ function CleaningTopProperties({
   loading,
   series = "done",
   unit = "limpeza",
+  subtitle,
 }: {
+  subtitle?: string;
   items: CleaningTopItem[] | undefined;
   loading: boolean;
   /** "limpeza" ou "serviço" — só muda os textos da aba Serviços. */
@@ -5926,6 +5945,7 @@ function CleaningTopProperties({
         className="mb-2.5"
         right={<span className="text-[10px] text-muted-foreground">{unit === "limpeza" ? "nº de limpezas" : "nº de serviços"}</span>}
       />
+      {subtitle ? <GoldSubtitle>{subtitle}</GoldSubtitle> : null}
       {loading ? (
         <div className="py-6 grid place-items-center text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
@@ -5994,7 +6014,9 @@ function CleaningEfficiencyPanel({
   forecast,
   title = "Eficiência da limpeza",
   unit = "limpeza",
+  subtitle,
 }: {
+  subtitle?: string;
   daily: CleaningDailyPoint[] | undefined;
   items: CleaningBreakdownItem[] | undefined;
   loading: boolean;
@@ -6043,6 +6065,7 @@ function CleaningEfficiencyPanel({
         className="mb-2.5"
         right={<span className="text-[10px] text-muted-foreground">{forecast ? "previsto" : "no período"}</span>}
       />
+      {subtitle ? <GoldSubtitle>{subtitle}</GoldSubtitle> : null}
       {loading ? (
         <div className="py-6 grid place-items-center text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />

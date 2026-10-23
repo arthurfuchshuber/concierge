@@ -401,3 +401,125 @@ export const getServiceExtras = createServerFn({ method: "GET" })
       .sort((a, b) => (b.concludedAt ?? "").localeCompare(a.concludedAt ?? ""));
     return { items, names };
   });
+
+// ----- Novo serviço (trilha completa do "+", 23/10/2026) -----
+
+const CreateServiceInput = z.object({
+  ownerId: z.string().uuid().nullable().optional(),
+  /** Chave do sistema (maintenance, damage, other) ou uuid de situação própria. */
+  situation: z.string().min(1).max(64),
+  propertyId: z.string().uuid(),
+  reservationId: z.string().uuid().nullable().optional(),
+  providerId: z.string().uuid(),
+  date: IsoDay,
+  cents: z.number().int().min(0).max(100_000_00),
+  note: z.string().trim().max(1000).nullable().optional(),
+});
+
+/**
+ * Cria um SERVIÇO já realizado (Manutenção, Danos, Outro ou situação criada
+ * pelo usuário): imóvel ou reserva → prestador → data → valor. Mora em `tasks`
+ * como pendência concluída, que é exatamente o que a aba Serviços lê para
+ * "Serviços Extras" (cartões, gráficos, Eficiência e Top 5): situação =
+ * `situation`, quem resolveu = prestador, dia = `completed_at`, custo =
+ * `amount_spent_cents`.
+ *
+ * Trava de permissão: a mesma do dinheiro de limpeza (dono da conta ou quem
+ * recebeu "Aprovar limpeza completa") — quem faz o serviço não cria a própria
+ * cobrança. Quem não tem a permissão continua com o registro simples.
+ */
+export const createServiceRecord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => CreateServiceInput.parse(i))
+  .handler(async ({ data, context }): Promise<{ id: string; situationName: string }> => {
+    const owner = await accountOwner(context, data.ownerId);
+    const db = context.supabase as unknown as AnyClient;
+
+    const { userCanApproveCleaning } = await import("@/lib/cleaning-approval.functions");
+    if (!(await userCanApproveCleaning(context.userId, owner))) {
+      throw new Error("Você não tem permissão para criar serviços com valor.");
+    }
+
+    // Situação: do sistema (exceto Limpeza, que tem a trilha própria) ou da conta.
+    let situationName: string;
+    if (isSystemSituation(data.situation)) {
+      if (data.situation === "cleaning") throw new Error("Limpeza usa a trilha “Nova limpeza”.");
+      situationName = SYSTEM_SITUATIONS.find((s) => s.key === data.situation)?.name ?? "Outro";
+    } else {
+      const { data: row } = await db
+        .from("service_situations")
+        .select("id, name")
+        .eq("id", data.situation)
+        .eq("account_owner_id", owner)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (!row) throw new Error("Situação não encontrada.");
+      situationName = (row as { name: string }).name;
+    }
+
+    const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
+    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
+    if (!propIds.includes(data.propertyId)) throw new Error("Você não tem acesso a este imóvel.");
+
+    const [{ data: prop }, { data: prov }] = await Promise.all([
+      db.from("properties").select("owner_id, owner_contact_id").eq("id", data.propertyId).maybeSingle(),
+      db.from("service_providers").select("account_owner_id").eq("id", data.providerId).maybeSingle(),
+    ]);
+    const p = prop as { owner_id: string | null; owner_contact_id: string | null } | null;
+    const pv = prov as { account_owner_id: string } | null;
+    if (!p?.owner_id || !pv || pv.account_owner_id !== p.owner_id) {
+      throw new Error("Este prestador não pertence à conta deste imóvel.");
+    }
+
+    if (data.reservationId) {
+      const { data: resv } = await db
+        .from("property_reservations")
+        .select("id, property_id")
+        .eq("id", data.reservationId)
+        .maybeSingle();
+      if (!resv || (resv as { property_id: string }).property_id !== data.propertyId) {
+        throw new Error("Esta reserva não é deste imóvel.");
+      }
+    }
+
+    const category =
+      data.situation === "maintenance" ? "maintenance" : data.situation === "damage" ? "inspection" : "other";
+    const note = data.note?.trim() || null;
+    // Meio-dia de Brasília do dia escolhido: cai no dia certo em qualquer fuso de leitura.
+    const completedAt = `${data.date}T15:00:00.000Z`;
+    const { data: ins, error } = await db
+      .from("tasks")
+      .insert({
+        account_owner_id: owner,
+        property_id: data.propertyId,
+        owner_contact_id: null,
+        reservation_id: data.reservationId ?? null,
+        title: note ? note.slice(0, 120) : situationName,
+        description: note,
+        category,
+        situation: data.situation,
+        priority: "medium",
+        status: "done",
+        completed_at: completedAt,
+        amount_spent_cents: data.cents,
+        resolved_by_provider_id: data.providerId,
+        resolution_note: note,
+        show_in_cleaning: false,
+        created_by: context.userId,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error("Não foi possível criar o serviço.");
+    try {
+      await db.from("audit_logs").insert({
+        user_id: context.userId,
+        action: "service_record_create",
+        table_name: "tasks",
+        record_id: (ins as { id: string }).id,
+        new_data: data,
+      });
+    } catch {
+      /* auditoria nunca derruba a operação */
+    }
+    return { id: (ins as { id: string }).id, situationName };
+  });

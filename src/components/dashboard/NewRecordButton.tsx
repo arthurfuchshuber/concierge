@@ -210,6 +210,7 @@ export function NewRecordButton() {
             </Step>
             <Step
               n={2}
+              bleed
               active={step === 2}
               done={answered[1]}
               question={question2}
@@ -231,19 +232,30 @@ export function NewRecordButton() {
                           : null
                   }
                 >
-                  {shownRes.map((r, i) => (
-                    <PropertyPickRow
-                      key={r.id}
-                      extra={resLabel(r)}
-                      name={propName(r.propertyId)}
-                      photoUrl={properties.find((x) => x.id === r.propertyId)?.photoUrl}
-                      ownerName={properties.find((x) => x.id === r.propertyId)?.ownerName}
-                      city={properties.find((x) => x.id === r.propertyId)?.city}
-                      selected={r.id === reservationId}
-                      onClick={() => pickProperty(r.propertyId, r.id)}
-                      last={i === shownRes.length - 1}
-                    />
-                  ))}
+                  {shownRes.map((r, i) => {
+                    const p = properties.find((x) => x.id === r.propertyId);
+                    return (
+                      <PropertyPickRow
+                        key={r.id}
+                        name={propName(r.propertyId)}
+                        photoUrl={p?.photoUrl}
+                        ownerName={p?.ownerName}
+                        ownerPhone={p?.ownerPhone}
+                        ownerPhoneCountry={p?.ownerPhoneCountry}
+                        city={p?.city}
+                        address={p?.address}
+                        mapsUrl={p?.mapsUrl}
+                        garageMapsUrl={p?.garageMapsUrl}
+                        lines={[
+                          { icon: "user", text: r.label || "Reserva" },
+                          { icon: "calendar", text: `${ddmm(r.checkin)} → ${ddmm(r.checkout)}` },
+                        ]}
+                        selected={r.id === reservationId}
+                        onClick={() => pickProperty(r.propertyId, r.id)}
+                        last={i === shownRes.length - 1}
+                      />
+                    );
+                  })}
                 </PickList>
               ) : (
                 <PickList
@@ -266,7 +278,12 @@ export function NewRecordButton() {
                       name={p.name}
                       photoUrl={p.photoUrl}
                       ownerName={p.ownerName}
+                      ownerPhone={p.ownerPhone}
+                      ownerPhoneCountry={p.ownerPhoneCountry}
                       city={p.city}
+                      address={p.address}
+                      mapsUrl={p.mapsUrl}
+                      garageMapsUrl={p.garageMapsUrl}
                       selected={p.id === propertyId}
                       onClick={() => pickProperty(p.id, null)}
                       last={i === shownProps.length - 1}

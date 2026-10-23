@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { providerActivityLabel, reservationGuestLine } from "@/lib/manual-cleaning-labels";
 
 /**
  * LIMPEZA CRIADA MANUALMENTE (mockup "Nova limpeza em perguntas · v2.1",
@@ -85,18 +86,32 @@ export type ManualCleaningProperty = {
   id: string;
   name: string;
   ownerName: string | null;
+  /** Telefone do proprietário — alimenta o ícone verde de chat do cartão. */
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
   photoUrl: string | null;
   city: string | null;
+  /** Endereço e links do Maps — alimentam o MESMO botão do Maps dos demais cartões. */
+  address: string | null;
+  mapsUrl: string | null;
+  garageMapsUrl: string | null;
   normalCents: number | null;
   fullCents: number | null;
   defaultProviderId: string | null;
 };
-export type ManualCleaningProvider = { id: string; name: string };
+export type ManualCleaningProvider = {
+  id: string;
+  name: string;
+  /** Atividade principal ("Limpeza", "Manutenção"…): aparece como "Nome · Atividade". */
+  activity: string | null;
+};
 export type ManualCleaningReservation = {
   id: string;
   propertyId: string;
-  /** Hóspede (do formulário) ou código da reserva. */
+  /** Nome do hóspede (do formulário do guia) ou, na falta, o que a reserva trouxe. */
   label: string;
+  /** Linha pronta do cartão: "Hóspede: Fulano" ou "Cód. Reserva: HM3WPKRQWM". */
+  guestLine: string;
   checkin: string;
   checkout: string | null;
 };
@@ -109,7 +124,18 @@ export type ManualCleaningReservation = {
 export const getManualCleaningOptions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
-    z.object({ ownerId: z.string().uuid().nullable().optional() }).parse(i ?? {}),
+    z
+      .object({
+        ownerId: z.string().uuid().nullable().optional(),
+        /**
+         * Trilha de SERVIÇO (Manutenção, Danos, Outro e as criadas pelo
+         * usuário): a lista de reservas não se limita ao check-out até hoje —
+         * serviço pode ser de uma estadia em curso ou próxima (ex.: check-in
+         * presencial).
+         */
+        forService: z.boolean().optional(),
+      })
+      .parse(i ?? {}),
   )
   .handler(async ({ data, context }) => {
     const sb = context.supabase as unknown as Sb;
@@ -126,30 +152,36 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
     const propIds = await accessiblePropertyIds(sb as never, data.ownerId ?? null, context.userId);
     if (propIds.length === 0) return { ...empty, canCreate: true };
 
-    const from = new Date(Date.now() - 3 * 3600_000 - 7 * 86400_000).toISOString().slice(0, 10);
-    const to = new Date(Date.now() - 3 * 3600_000 + 90 * 86400_000).toISOString().slice(0, 10);
+    // RESERVAS (mockup 2, nota do canvas): "A lista só traz reservas com
+    // check-out até hoje, sem aviso na tela." Olhamos os últimos 120 dias.
+    const to = data.forService
+      ? new Date(Date.now() - 3 * 3600_000 + 90 * 86400_000).toISOString().slice(0, 10)
+      : todaySP();
+    const from = new Date(Date.now() - 3 * 3600_000 - 120 * 86400_000).toISOString().slice(0, 10);
     const [{ data: props }, { data: provs }, { data: links }, { data: res }] = await Promise.all([
       sb
         .from("properties")
         .select(
-          "id, name, owner_contact_id, cleaning_price_normal_cents, cleaning_price_full_cents, hero_image_url, city",
+          "id, name, owner_contact_id, cleaning_price_normal_cents, cleaning_price_full_cents, hero_image_url, city, address, maps_url, garage_maps_url",
         )
         .in("id", propIds)
         .order("name"),
       sb
         .from("service_providers")
-        .select("id, name, trade_name, status")
+        .select("id, name, trade_name, status, category, categories")
         .eq("account_owner_id", tenantId)
         .order("name"),
       sb.from("property_providers").select("property_id, provider_id").in("property_id", propIds),
       // Em curso, recém-encerradas (7 dias) e as próximas (90 dias).
       sb
         .from("property_reservations")
-        .select("id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
+        .select(
+          "id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary, external_uid, reservation_url",
+        )
         .in("property_id", propIds)
         .gte("checkout_date", from)
-        .lte("checkin_date", to)
-        .order("checkin_date", { ascending: true })
+        .lte("checkout_date", to)
+        .order("checkout_date", { ascending: false })
         .limit(400),
     ]);
 
@@ -161,24 +193,33 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
       city: string | null;
       cleaning_price_normal_cents: number | null;
       cleaning_price_full_cents: number | null;
+      address: string | null;
+      maps_url: string | null;
+      garage_maps_url: string | null;
     };
     const propRows = (props ?? []) as PropRow[];
     const ownerIds = Array.from(
       new Set(propRows.map((p) => p.owner_contact_id).filter((v): v is string => !!v)),
     );
     const ownerName = new Map<string, string>();
+    const ownerPhone = new Map<string, { phone: string | null; country: string | null }>();
     if (ownerIds.length > 0) {
       const { data: owners } = await sb
         .from("property_owners")
-        .select("id, name, trade_name")
+        .select("id, name, trade_name, phone, phone_country")
         .in("id", ownerIds);
       for (const o of (owners ?? []) as Array<{
         id: string;
         name: string | null;
         trade_name: string | null;
+        phone: string | null;
+        phone_country: string | null;
       }>) {
         const label = (o.trade_name || o.name || "").trim();
-        if (label) ownerName.set(o.id, label);
+        if (label) {
+          ownerName.set(o.id, label);
+          ownerPhone.set(o.id, { phone: o.phone ?? null, country: o.phone_country ?? null });
+        }
       }
     }
 
@@ -188,10 +229,16 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
         name: string | null;
         trade_name: string | null;
         status: string | null;
+        category: string | null;
+        categories: string[] | null;
       }>
     )
       .filter((p) => !/^cancel/i.test(p.status ?? ""))
-      .map((p) => ({ id: p.id, name: (p.trade_name || p.name || "Prestador").trim() }));
+      .map((p) => ({
+        id: p.id,
+        name: (p.trade_name || p.name || "Prestador").trim(),
+        activity: providerActivityLabel(p.category, p.categories),
+      }));
     const validProv = new Set(providers.map((p) => p.id));
     const defaults = new Map<string, string>();
     for (const l of (links ?? []) as Array<{ property_id: string; provider_id: string }>) {
@@ -207,6 +254,8 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
       guest_hint: string | null;
       status: string | null;
       raw_summary: string | null;
+      external_uid: string | null;
+      reservation_url: string | null;
     };
     // Mesmo critério de "reserva de verdade" da esteira: cancelada e bloqueio
     // de calendário não são estadia.
@@ -249,8 +298,15 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
         id: p.id,
         name: (p.name ?? "Imóvel").trim(),
         ownerName: p.owner_contact_id ? (ownerName.get(p.owner_contact_id) ?? null) : null,
+        ownerPhone: p.owner_contact_id ? (ownerPhone.get(p.owner_contact_id)?.phone ?? null) : null,
+        ownerPhoneCountry: p.owner_contact_id
+          ? (ownerPhone.get(p.owner_contact_id)?.country ?? null)
+          : null,
         photoUrl: p.hero_image_url ?? null,
         city: p.city ?? null,
+        address: p.address ?? null,
+        mapsUrl: p.maps_url ?? null,
+        garageMapsUrl: p.garage_maps_url ?? null,
         normalCents: p.cleaning_price_normal_cents,
         fullCents: p.cleaning_price_full_cents,
         defaultProviderId: defaults.get(p.id) ?? null,
@@ -260,6 +316,12 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
         id: r.id,
         propertyId: r.property_id,
         label: guestByStay.get(`${r.property_id}|${r.checkin_date}`) ?? (r.guest_hint ?? "").trim(),
+        guestLine: reservationGuestLine(
+          guestByStay.get(`${r.property_id}|${r.checkin_date}`),
+          r.guest_hint,
+          r.external_uid,
+          r.reservation_url,
+        ),
         checkin: r.checkin_date,
         checkout: r.checkout_date,
       })),
@@ -309,7 +371,9 @@ export const createManualCleaning = createServerFn({ method: "POST" })
       if (!allowed) throw new Error("Você não tem permissão para criar limpezas.");
 
       const today = todaySP();
-      if (data.date < today) throw new Error("Escolha hoje ou uma data futura.");
+      // Mockup 4 (nota do canvas): "qualquer dia do calendário pode ser
+      // escolhido, inclusive dias passados" — a trava de "só hoje ou futuro"
+      // (02/10/2026) foi retirada por decisão posterior do cliente.
 
       const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
       const propIds = await accessiblePropertyIds(
@@ -444,6 +508,9 @@ async function pushToProvider(
   date: string,
   today: string,
 ): Promise<boolean> {
+  // Limpeza lançada para um dia que já passou (registro retroativo): não há
+  // o que avisar ao prestador.
+  if (date < today) return false;
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { notifyManualCleaningAssigned } = await import("@/lib/ops-push.server");

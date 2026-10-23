@@ -14,11 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { MoneyInput } from "@/components/ui/money-input";
-import {
-  FilterDateCalendar,
-  FilterOptionRow,
-  FilterScreenHeader,
-} from "@/components/dashboard/filter-panel";
+import { FilterDateCalendar, FilterScreenHeader } from "@/components/dashboard/filter-panel";
 import { ACTION_ICON, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
 import {
   createManualCleaning,
@@ -26,9 +22,19 @@ import {
   getManualCleaningOptions,
   type ManualCleaningConflict,
 } from "@/lib/manual-cleaning.functions";
+import { createServiceRecord } from "@/lib/service-situations.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { cn } from "@/lib/utils";
-import { Choice, PickList, PropertyPickRow, Step, TrailDialog, ddmm, norm } from "@/components/dashboard/TrailParts";
+import {
+  Choice,
+  PickList,
+  PropertyPickRow,
+  ProviderPickRow,
+  Step,
+  TrailDialog,
+  ddmm,
+  norm,
+} from "@/components/dashboard/TrailParts";
 
 /**
  * "NOVA LIMPEZA" — o "+" ao lado de Filtros e o quadrante em perguntas
@@ -68,6 +74,14 @@ const QUESTIONS = [
   "Qual tipo de limpeza?",
   "Confirme o valor desta limpeza!",
 ] as const;
+
+/**
+ * Situação de SERVIÇO que usa esta mesma trilha (Manutenção, Danos, Outro e as
+ * criadas pelo usuário). Sem situação (ou "cleaning") a trilha é a Nova
+ * limpeza de sempre, com 6 perguntas; com situação são 5 — sai o "tipo de
+ * limpeza" — e o fim cria o serviço em vez da limpeza.
+ */
+export type TrailSituation = { id: string; name: string };
 
 function brl(c: number | null | undefined) {
   if (c == null) return "Sem preço cadastrado";
@@ -152,14 +166,22 @@ export function ManualCleaningButton() {
 export function ManualCleaningHost({
   open,
   onOpenChange,
+  situation,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  situation?: TrailSituation | null;
 }) {
   const ownerId = useImpersonation().impersonation?.userId ?? null;
   const access = useManualCleaningAccess(ownerId);
   if (!access.data?.canCreate) return null;
-  return <ManualCleaningPanel ownerId={ownerId} controlled={{ open, onOpenChange }} />;
+  return (
+    <ManualCleaningPanel
+      ownerId={ownerId}
+      situation={situation ?? null}
+      controlled={{ open, onOpenChange }}
+    />
+  );
 }
 
 /** Diz se a pessoa pode criar limpeza (usado pela janela "Sobre o que é a situação?"). */
@@ -172,11 +194,16 @@ type Link = "imovel" | "reserva";
 
 function ManualCleaningPanel({
   ownerId,
+  situation = null,
   controlled,
 }: {
   ownerId: string | null;
+  situation?: TrailSituation | null;
   controlled?: { open: boolean; onOpenChange: (open: boolean) => void };
 }) {
+  const isClean = !situation || situation.id === "cleaning";
+  /** Quantas perguntas tem a trilha (e qual é a do valor). */
+  const TOTAL = isClean ? 6 : 5;
   const qc = useQueryClient();
   const [innerOpen, setInnerOpen] = useState(false);
   const open = controlled ? controlled.open : innerOpen;
@@ -188,7 +215,7 @@ function ManualCleaningPanel({
   const [providerId, setProviderId] = useState<string | null>(null);
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [type, setType] = useState<"normal" | "completa" | null>(null);
-  const [cents, setCents] = useState<number | null>(null);
+  const [cents, setCents] = useState<number | null>(isClean ? null : 0);
   const [centsEdited, setCentsEdited] = useState(false);
   const [note, setNote] = useState("");
   const [search, setSearch] = useState("");
@@ -197,9 +224,10 @@ function ManualCleaningPanel({
 
   const optionsFn = useServerFn(getManualCleaningOptions);
   const createFn = useServerFn(createManualCleaning);
+  const createServiceFn = useServerFn(createServiceRecord);
   const q = useQuery({
-    queryKey: ["manual-cleaning-options", ownerId],
-    queryFn: () => optionsFn({ data: { ownerId } }),
+    queryKey: ["manual-cleaning-options", ownerId, isClean ? "clean" : "service"],
+    queryFn: () => optionsFn({ data: { ownerId, forService: !isClean } }),
     enabled: open,
     staleTime: 60_000,
   });
@@ -212,8 +240,8 @@ function ManualCleaningPanel({
   const reservation = reservations.find((r) => r.id === reservationId) ?? null;
   const provider = providers.find((p) => p.id === providerId) ?? null;
   const propName = (id: string) => properties.find((p) => p.id === id)?.name ?? "Imóvel";
-  const resLabel = (r: { label: string; checkin: string; checkout: string | null }) =>
-    `${r.label || "Reserva"} · ${ddmm(r.checkin)} → ${ddmm(r.checkout)}`;
+  const resLabel = (r: { guestLine: string; checkin: string; checkout: string | null }) =>
+    `${r.guestLine} · ${ddmm(r.checkin)} → ${ddmm(r.checkout)}`;
 
   const reset = () => {
     setStep(1);
@@ -223,7 +251,7 @@ function ManualCleaningPanel({
     setProviderId(null);
     setDate(undefined);
     setType(null);
-    setCents(null);
+    setCents(isClean ? null : 0);
     setNote("");
     setCentsEdited(false);
     setSearch("");
@@ -236,9 +264,11 @@ function ManualCleaningPanel({
    * seguintes. `keep` diz quais das respostas 3–5 continuam valendo.
    */
   const nextStep = (n: number, keep: { provider: boolean; date: boolean; type: boolean }) => {
-    const done = [true, true, keep.provider, keep.date, keep.type];
-    for (let i = n; i < 5; i += 1) if (!done[i]) return i + 1;
-    return 6;
+    const done = isClean
+      ? [true, true, keep.provider, keep.date, keep.type]
+      : [true, true, keep.provider, keep.date];
+    for (let i = n; i < TOTAL - 1; i += 1) if (!done[i]) return i + 1;
+    return TOTAL;
   };
 
   /** Imóvel definido (direto ou pela reserva): zera o que dependia do anterior. */
@@ -248,18 +278,23 @@ function ManualCleaningPanel({
     setReservationId(resId);
     if (changed) {
       const p = properties.find((x) => x.id === id);
-      setProviderId(null);
-      if (!centsEdited && type)
+      // Mockup 3: o prestador do imóvel já vem marcado (✓ "Nome · Atividade"),
+      // mas a pergunta continua aberta para confirmar ou trocar.
+      setProviderId(p?.defaultProviderId ?? null);
+      if (isClean && !centsEdited && type)
         setCents(type === "completa" ? (p?.fullCents ?? null) : (p?.normalCents ?? null));
+      setSearch("");
+      setStep(3);
+      return;
     }
     setSearch("");
-    setStep(nextStep(2, { provider: !changed && !!providerId, date: !!date, type: !!type }));
+    setStep(nextStep(2, { provider: !!providerId, date: !!date, type: !!type }));
   };
   const pickType = (t: "normal" | "completa") => {
     setType(t);
     if (!centsEdited)
       setCents(t === "completa" ? (property?.fullCents ?? null) : (property?.normalCents ?? null));
-    setStep(6);
+    setStep(TOTAL);
   };
   const keepAll = { provider: !!providerId, date: !!date, type: !!type };
 
@@ -276,10 +311,10 @@ function ManualCleaningPanel({
     link === "reserva" ? !!reservation : !!property,
     !!provider,
     !!date,
-    !!type,
+    isClean ? !!type : false,
     false,
   ];
-  const ready = answered.slice(0, 5).every(Boolean) && cents != null && step === 6;
+  const ready = answered.slice(0, TOTAL - 1).every(Boolean) && cents != null && step === TOTAL;
   const question2 =
     link === "reserva" ? "Qual reserva?" : link === "imovel" ? "Qual imóvel?" : QUESTIONS[1];
 
@@ -288,15 +323,50 @@ function ManualCleaningPanel({
     ? properties.filter((p) => norm(`${p.name} ${p.ownerName ?? ""}`).includes(sq))
     : properties;
   const shownRes = sq
-    ? reservations.filter((r) => norm(`${r.label} ${propName(r.propertyId)}`).includes(sq))
+    ? reservations.filter((r) =>
+        norm(`${r.label} ${r.guestLine} ${propName(r.propertyId)}`).includes(sq),
+      )
     : reservations;
-  // Prestador padrão do imóvel sempre em primeiro.
+  // Prestador do imóvel sempre em primeiro.
   const defaultProviderId = property?.defaultProviderId ?? null;
   const orderedProviders = [...providers].sort((a, b) =>
     a.id === defaultProviderId ? -1 : b.id === defaultProviderId ? 1 : 0,
   );
 
+  /** Fim da trilha de SERVIÇO: cria o serviço (alimenta Serviços Extras). */
+  async function submitService() {
+    if (!situation || !property || !provider || !date || cents == null) return;
+    setBusy(true);
+    try {
+      await createServiceFn({
+        data: {
+          ownerId,
+          situation: situation.id,
+          propertyId: property.id,
+          reservationId: link === "reserva" ? reservationId : null,
+          providerId: provider.id,
+          date: isoOf(date),
+          cents,
+          note: note.trim() || null,
+        },
+      });
+      toast.success(
+        `Serviço “${situation.name}” criado. Entra em Serviços Extras de ${ddmm(isoOf(date))}.`,
+      );
+      for (const k of ["dash-service-extras", "dash-tasks", "dash-list", "account-records"]) {
+        void qc.invalidateQueries({ predicate: (x) => x.queryKey[0] === k });
+      }
+      setOpen(false);
+      reset();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível criar o serviço.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submit(onConflict: "ask" | "add" | "replace") {
+    if (!isClean) return submitService();
     if (!property || !provider || !date || !type || cents == null) return;
     setBusy(true);
     try {
@@ -318,18 +388,23 @@ function ManualCleaningPanel({
         return;
       }
       const future = isoOf(date) > isoOf(today);
+      const past = isoOf(date) < isoOf(today);
       const base =
         res.mode === "replaced"
           ? "Limpeza da reserva atualizada."
-          : future
-            ? `Limpeza criada para ${ddmm(isoOf(date))}. Ela entra na fila nesse dia.`
-            : "Limpeza criada. Já está na Fila de Limpeza.";
+          : past
+            ? `Limpeza criada em ${ddmm(isoOf(date))}.`
+            : future
+              ? `Limpeza criada para ${ddmm(isoOf(date))}. Ela entra na fila nesse dia.`
+              : "Limpeza criada. Já está na Fila de Limpeza.";
       // O prestador é avisado por push; se ele não tem login ou não ativou as
       // notificações, quem criou precisa saber que o aviso não saiu.
       toast.success(
-        res.notified
-          ? `${base} ${provider.name} foi avisado(a).`
-          : `${base} ${provider.name} não tem notificação ativa — avise por fora.`,
+        past
+          ? base
+          : res.notified
+            ? `${base} ${provider.name} foi avisado(a).`
+            : `${base} ${provider.name} não tem notificação ativa — avise por fora.`,
       );
       void qc.invalidateQueries({ predicate: (x) => x.queryKey[0] === "dash-list" });
       void qc.invalidateQueries({ queryKey: ["cleaning-board"] });
@@ -343,7 +418,7 @@ function ManualCleaningPanel({
     }
   }
 
-  const stepNumber = Math.min(step, 6);
+  const stepNumber = Math.min(step, TOTAL);
 
   return (
     <>
@@ -361,8 +436,8 @@ function ManualCleaningPanel({
       )}
     <TrailDialog
       open={open}
-      title={conflict ? "Já existe uma limpeza" : "Nova limpeza"}
-      progress={conflict ? "" : `${stepNumber} de 6`}
+      title={conflict ? "Já existe uma limpeza" : isClean ? "Nova limpeza" : `Novo serviço · ${situation?.name}`}
+      progress={conflict ? "" : `${stepNumber} de ${TOTAL}`}
       onBack={conflict ? () => setConflict(null) : step > 1 && !busy ? () => setStep(step - 1) : undefined}
       footer={conflict ? null : (
               <button
@@ -372,7 +447,9 @@ function ManualCleaningPanel({
                 className="ds-surface inline-flex h-10 w-full items-center justify-center gap-1.5 bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-2 text-[13px] font-bold text-white disabled:opacity-40"
               >
                 <Plus className="size-3.5 shrink-0" />
-                <span className="truncate">{busy ? "Criando…" : "Criar limpeza"}</span>
+                <span className="truncate">
+                  {busy ? "Criando…" : isClean ? "Criar limpeza" : "Criar serviço"}
+                </span>
               </button>
       )}
       onOpenChange={(next) => {
@@ -486,6 +563,7 @@ function ManualCleaningPanel({
               </Step>
               <Step
                 n={2}
+                bleed
                 active={step === 2}
                 done={answered[1]}
                 question={question2}
@@ -512,11 +590,19 @@ function ManualCleaningPanel({
                       return (
                         <PropertyPickRow
                           key={r.id}
-                          extra={resLabel(r)}
                           name={propName(r.propertyId)}
                           photoUrl={p?.photoUrl}
                           ownerName={p?.ownerName}
+                          ownerPhone={p?.ownerPhone}
+                          ownerPhoneCountry={p?.ownerPhoneCountry}
                           city={p?.city}
+                          address={p?.address}
+                          mapsUrl={p?.mapsUrl}
+                          garageMapsUrl={p?.garageMapsUrl}
+                          lines={[
+                            { icon: "user", text: r.guestLine },
+                            { icon: "calendar", text: `${ddmm(r.checkin)} → ${ddmm(r.checkout)}` },
+                          ]}
                           selected={r.id === reservationId}
                           onClick={() => pickProperty(r.propertyId, r.id)}
                           last={i === shownRes.length - 1}
@@ -545,7 +631,12 @@ function ManualCleaningPanel({
                         name={p.name}
                         photoUrl={p.photoUrl}
                         ownerName={p.ownerName}
+                        ownerPhone={p.ownerPhone}
+                        ownerPhoneCountry={p.ownerPhoneCountry}
                         city={p.city}
+                        address={p.address}
+                        mapsUrl={p.mapsUrl}
+                        garageMapsUrl={p.garageMapsUrl}
                         selected={p.id === propertyId}
                         onClick={() => pickProperty(p.id, null)}
                         last={i === shownProps.length - 1}
@@ -566,13 +657,10 @@ function ManualCleaningPanel({
                   empty={orderedProviders.length === 0 ? "Nenhum prestador cadastrado." : null}
                 >
                   {orderedProviders.map((p, i) => (
-                    <FilterOptionRow
+                    <ProviderPickRow
                       key={p.id}
-                      label={
-                        p.id === property?.defaultProviderId
-                          ? `${p.name} · padrão deste imóvel`
-                          : p.name
-                      }
+                      name={p.name}
+                      activity={p.activity}
                       selected={p.id === providerId}
                       onClick={() => {
                         setProviderId(p.id);
@@ -599,11 +687,11 @@ function ManualCleaningPanel({
                       setStep(nextStep(4, { ...keepAll, date: true }));
                     }}
                     today={today}
-                    min={today}
                     quickNoWrap
                   />
                 </div>
               </Step>
+              {isClean && (
               <Step
                 n={5}
                 active={step === 5}
@@ -629,12 +717,13 @@ function ManualCleaningPanel({
                   />
                 </div>
               </Step>
+              )}
               <Step
-                n={6}
-                active={step === 6}
+                n={TOTAL}
+                active={step === TOTAL}
                 done={false}
                 last
-                question={QUESTIONS[5]}
+                question={isClean ? QUESTIONS[5] : "Confirme o valor deste serviço!"}
                 onReopen={() => {}}
               >
                 <div className="relative">
@@ -653,8 +742,9 @@ function ManualCleaningPanel({
                   />
                 </div>
                 <span className="mt-1.5 block text-[11px] leading-snug text-muted-foreground">
-                  Preenchido com o valor da limpeza {type === "completa" ? "completa" : "normal"}{" "}
-                  deste imóvel. Altere se precisar.
+                  {isClean
+                    ? `Preenchido com o valor da limpeza ${type === "completa" ? "completa" : "normal"} deste imóvel. Altere se precisar.`
+                    : "Quanto custou este serviço. Pode ficar em R$ 0,00."}
                 </span>
                 <label className="mt-4 block">
                   <span className="mb-1.5 block font-display text-[13px] font-semibold text-foreground">
@@ -665,7 +755,11 @@ function ManualCleaningPanel({
                     onChange={(e) => setNote(e.target.value.slice(0, 1000))}
                     disabled={busy}
                     rows={3}
-                    placeholder="Ex.: limpeza após manutenção, trocar roupa de cama…"
+                    placeholder={
+                      isClean
+                        ? "Ex.: limpeza após manutenção, trocar roupa de cama…"
+                        : "Ex.: troca do chuveiro, retirada do entulho…"
+                    }
                     className="block w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-[14px] leading-snug outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </label>

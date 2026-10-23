@@ -2076,6 +2076,9 @@ export type NewRecordProperty = {
   ownerPhoneCountry: string | null;
   photoUrl: string | null;
   city: string | null;
+  address?: string | null;
+  mapsUrl?: string | null;
+  garageMapsUrl?: string | null;
 };
 export type NewRecordReservation = {
   id: string;
@@ -2107,7 +2110,11 @@ export const getNewRecordOptions = createServerFn({ method: "POST" })
     const from = new Date(Date.now() - 3 * 3600_000 - 7 * 86400_000).toISOString().slice(0, 10);
     const to = new Date(Date.now() - 3 * 3600_000 + 90 * 86400_000).toISOString().slice(0, 10);
     const [{ data: props }, { data: res }] = await Promise.all([
-      sb.from("properties").select("id, name, owner_contact_id, hero_image_url, city").in("id", propIds).order("name"),
+      sb
+        .from("properties")
+        .select("id, name, owner_contact_id, hero_image_url, city, address, maps_url, garage_maps_url")
+        .in("id", propIds)
+        .order("name"),
       sb
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
@@ -2118,7 +2125,16 @@ export const getNewRecordOptions = createServerFn({ method: "POST" })
         .limit(400),
     ]);
 
-    type PropRow = { id: string; name: string | null; owner_contact_id: string | null; hero_image_url: string | null; city: string | null };
+    type PropRow = {
+      id: string;
+      name: string | null;
+      owner_contact_id: string | null;
+      hero_image_url: string | null;
+      city: string | null;
+      address: string | null;
+      maps_url: string | null;
+      garage_maps_url: string | null;
+    };
     const propRows = (props ?? []) as PropRow[];
     const ownerIds = Array.from(
       new Set(propRows.map((p) => p.owner_contact_id).filter((v): v is string => !!v)),
@@ -2193,6 +2209,9 @@ export const getNewRecordOptions = createServerFn({ method: "POST" })
           ownerPhoneCountry: o?.country ?? null,
           photoUrl: p.hero_image_url ?? null,
           city: p.city ?? null,
+          address: p.address ?? null,
+          mapsUrl: p.maps_url ?? null,
+          garageMapsUrl: p.garage_maps_url ?? null,
         };
       }),
       reservations: resRows.map((r) => ({
