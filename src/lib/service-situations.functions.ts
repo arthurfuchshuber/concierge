@@ -435,7 +435,7 @@ const CreateServiceInput = z.object({
 export const createServiceRecord = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => CreateServiceInput.parse(i))
-  .handler(async ({ data, context }): Promise<{ id: string; situationName: string }> => {
+  .handler(async ({ data, context }): Promise<{ id: string; situationName: string; groupId: string | null }> => {
     const owner = await accountOwner(context, data.ownerId);
     const db = context.supabase as unknown as AnyClient;
 

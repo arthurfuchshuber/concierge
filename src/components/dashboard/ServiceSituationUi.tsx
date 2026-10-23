@@ -39,6 +39,7 @@ import {
 } from "@/lib/service-situations";
 import { getNewRecordOptions, type RecordCategory } from "@/lib/reservation-records.functions";
 import { armarSituacao, desarmarSituacao } from "@/lib/offline/situation-outbox";
+import { markDialogHandoff } from "@/lib/global-overlay-store";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +54,7 @@ import { cn } from "@/lib/utils";
  *      (a dos quadrantes de Filtros), 16px de folga da borda no celular,
  *      nunca mais alta que a tela. Título e busca fixos; a lista rola com
  *      barra fina; "Adicionar situação" fica fixo no pé.
- *  · `SituationFormDialog`  "Nova situação": só título (Title Case automático,
+ *  · `SituationForm` (dentro da mesma janela da lista)  "Nova situação": só título (Title Case automático,
  *      menos de/da/do/das/dos/e) e Detalhamento, que vira a descrição da
  *      situação na lista.
  *  · `SituationFilterSegment` / `SituationOptionRow`  o filtro de situação
@@ -94,9 +95,18 @@ export function SituationPickerDialog({
   onAdd,
   onEdit,
   onDelete,
+  form,
+  formBusy,
+  onSubmitForm,
+  onCloseForm,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Adicionar/editar mora NESTA mesma janela (uma casca só, sem piscar): `form` troca a vista. */
+  form: { initial: ServiceSituation | null } | null;
+  formBusy: boolean;
+  onSubmitForm: (v: { name: string; detail: string }) => void;
+  onCloseForm: () => void;
   situations: ServiceSituation[];
   loading: boolean;
   canCreateCleaning: boolean;
@@ -119,6 +129,11 @@ export function SituationPickerDialog({
     <Dialog
       open={open}
       onOpenChange={(v) => {
+        if (!v && form) {
+          // Do formulário, "fechar" volta à lista — a janela não fecha nem pisca.
+          if (!formBusy) onCloseForm();
+          return;
+        }
         if (!v) {
           // "Clique ao fundo volta uma janela": da confirmação, volta à lista.
           if (confirm && !busy) {
@@ -131,6 +146,9 @@ export function SituationPickerDialog({
         onOpenChange(v);
       }}
     >
+      {form ? (
+        <SituationForm initial={form.initial} busy={formBusy} onCancel={onCloseForm} onSubmit={onSubmitForm} />
+      ) : (
       <DialogContent
         hideClose
         onOpenAutoFocus={(e) => e.preventDefault()}
@@ -274,6 +292,7 @@ export function SituationPickerDialog({
           </>
         )}
       </DialogContent>
+      )}
     </Dialog>
   );
 }
@@ -281,28 +300,6 @@ export function SituationPickerDialog({
 /* ------------------------------------------------------------------------ */
 /* Janela "Nova situação"                                                    */
 /* ------------------------------------------------------------------------ */
-
-export function SituationFormDialog({
-  open,
-  onOpenChange,
-  initial,
-  busy,
-  onSubmit,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  /** Preenchido ao editar. */
-  initial: ServiceSituation | null;
-  busy: boolean;
-  onSubmit: (v: { name: string; detail: string }) => void;
-}) {
-  // Montado só quando aberto: cada abertura nasce limpa (ou com a situação editada).
-  return (
-    <Dialog open={open} onOpenChange={(v) => !busy && onOpenChange(v)}>
-      {open && <SituationForm initial={initial} busy={busy} onCancel={() => onOpenChange(false)} onSubmit={onSubmit} />}
-    </Dialog>
-  );
-}
 
 function SituationForm({
   initial,
@@ -560,6 +557,7 @@ export function NewServiceButton() {
         toast.success("Situação criada.");
       }
       refresh();
+      markDialogHandoff();
       setForm(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível salvar a situação.");
@@ -582,12 +580,20 @@ export function NewServiceButton() {
       </button>
 
       <SituationPickerDialog
-        open={pickerOpen && !form}
+        open={pickerOpen}
         onOpenChange={setPickerOpen}
+        form={form}
+        formBusy={saving}
+        onSubmitForm={(v) => void submitForm(v)}
+        onCloseForm={() => {
+          markDialogHandoff();
+          setForm(null);
+        }}
         situations={q.data?.situations ?? []}
         loading={q.isLoading}
         canCreateCleaning={canCreateCleaning}
         onPick={(s) => {
+          markDialogHandoff();
           setPickerOpen(false);
           if (s.id === "cleaning") setCleaningOpen(true);
           // Com permissão de dinheiro: a trilha completa (imóvel/reserva →
@@ -595,8 +601,14 @@ export function NewServiceButton() {
           else if (canCreateCleaning) setServiceTrail(s);
           else setTrail(s);
         }}
-        onAdd={() => setForm({ initial: null })}
-        onEdit={(s) => setForm({ initial: s })}
+        onAdd={() => {
+          markDialogHandoff();
+          setForm({ initial: null });
+        }}
+        onEdit={(s) => {
+          markDialogHandoff();
+          setForm({ initial: s });
+        }}
         onDelete={async (s) => {
           try {
             await deleteFn({ data: { ownerId, id: s.id } });
@@ -607,14 +619,6 @@ export function NewServiceButton() {
             throw e;
           }
         }}
-      />
-
-      <SituationFormDialog
-        open={!!form}
-        onOpenChange={(v) => !v && setForm(null)}
-        initial={form?.initial ?? null}
-        busy={saving}
-        onSubmit={(v) => void submitForm(v)}
       />
 
       {/* "Limpeza" cai no passo 1 de "Nova limpeza". */}
@@ -728,6 +732,7 @@ function ServiceRecordTrail({
               if (!property) return;
               // Deixa a situação pronta: o registro que sair da folha a leva junto.
               armarSituacao(property.id, situation.id);
+              markDialogHandoff();
               setSheet({ propertyId: property.id, reservationId });
             }}
             className="ds-surface inline-flex h-10 w-full items-center justify-center gap-1.5 bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-2 text-[13px] font-bold text-white disabled:opacity-40"

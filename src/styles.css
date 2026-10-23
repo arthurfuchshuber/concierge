@@ -1629,3 +1629,11 @@ dd {
 @media (prefers-reduced-motion: reduce) {
   .late-dot__core::after { animation: none; opacity: 0; }
 }
+
+
+/* Troca de janela sem piscar: durante a troca (ver `markDialogHandoff`), os véus
+   não animam nem entrando nem saindo — o da janela que sai some na hora e o da
+   que entra já nasce inteiro. */
+html[data-dialog-handoff] [data-dialog-overlay] {
+  animation: none !important;
+}

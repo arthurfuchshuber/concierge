@@ -1,4 +1,4 @@
-import { anyWindowOpenNow, guardNestedOutside, useOverlayLayer } from "@/lib/global-overlay-store";
+import { anyWindowOpenNow, dialogHandoffActive, guardNestedOutside, useOverlayLayer } from "@/lib/global-overlay-store";
 import { useAntiClipWindow } from "@/hooks/useAntiClipWindow";
 ("use client");
 
@@ -20,10 +20,11 @@ const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
 >(({ className, ...props }, ref) => {
-  const [skipFade] = React.useState(() => anyWindowOpenNow());
+  const [skipFade] = React.useState(() => anyWindowOpenNow() || dialogHandoffActive());
   return (
   <DialogPrimitive.Overlay
     ref={ref}
+    data-dialog-overlay
     className={cn(
       "fixed inset-0 z-50 bg-background/70 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       // Janela trocada por outra: sem fade, o véu já está lá (evita o "pisca").

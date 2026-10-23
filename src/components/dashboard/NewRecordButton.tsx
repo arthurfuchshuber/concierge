@@ -15,6 +15,7 @@ import {
 import { RecordSituationSheet } from "@/components/dashboard/RecordSituationSheet";
 import { CATEGORIES } from "@/components/dashboard/record-categories";
 import { getNewRecordOptions, type RecordCategory } from "@/lib/reservation-records.functions";
+import { markDialogHandoff } from "@/lib/global-overlay-store";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { cn } from "@/lib/utils";
 
@@ -157,6 +158,7 @@ export function NewRecordButton() {
               disabled={!ready}
               onClick={() => {
                 if (!property || !category) return;
+                markDialogHandoff();
                 setSheet({ propertyId: property.id, reservationId, category });
                 setOpen(false);
               }}

@@ -96,6 +96,18 @@ Restaura o que o registro antigo tinha (mídias, título, ditado) dentro da tril
 - **`TrailParts.tsx`:** removida a seta de voltar do cabeçalho (o botão "Voltar" do rodapé continua).
 - Não há rascunho guardado do serviço (se fechar a janela antes de criar, perde o que digitou) — a folha antiga tinha; diga se quer.
 
+## Correção do "pisca" ao trocar de janela (pedido do Lovable, 23/10/2026)
+- **`global-overlay-store.ts`:** novo `markDialogHandoff()` — antes de trocar uma janela por outra, marca o `<html>` com
+  `data-dialog-handoff` por ~450 ms.
+- **`styles.css`:** durante a troca, `[data-dialog-overlay]` fica sem animação (o véu da janela que sai some na hora e o da que entra
+  já nasce inteiro) — a tela de trás não aparece mais.
+- **`ui/dialog.tsx`:** o véu ganhou `data-dialog-overlay` e também pula o fade-in durante a troca.
+- **`ServiceSituationUi.tsx`:** lista de situações e formulário (Adicionar/Editar) viraram UMA janela só (`SituationFormDialog`
+  removido; o formulário entra dentro do mesmo `<Dialog>`; "Cancelar"/clique fora volta à lista). Escolher a situação, abrir a
+  trilha e ir para a folha de registro chamam `markDialogHandoff()`.
+- **`NewRecordButton.tsx`:** "Continuar" → folha de registro também usa a troca sem piscar.
+- Não mexi em arquivos gerados nem na integração com `global-overlay-store` além do acréscimo acima.
+
 ## Não verificado aqui
 Sem `tsc`/`vite build` completos e sem navegador (registro npm do projeto bloqueado neste ambiente). Passaram 110 testes
 isolados e a checagem de sintaxe. Validar no Lovable: lista de Imóvel/Reserva, Prestador pré-marcado, data passada e "Criar serviço".

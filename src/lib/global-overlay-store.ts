@@ -176,6 +176,29 @@ const getWindowSnapshot = () => stack.some((l) => l.kind === "window");
 export function anyWindowOpenNow(): boolean {
   return getWindowSnapshot();
 }
+/**
+ * TROCA DE JANELA SEM PISCAR (23/10/2026): quando uma janela dá lugar a outra
+ * (lista de situações → formulário → trilha → folha de registro), o véu da que
+ * sai NÃO pode fazer o fade-out nem o véu da que entra o fade-in — senão a tela
+ * de trás aparece por ~150 ms a cada toque. Quem faz a troca chama
+ * `markDialogHandoff()` ANTES de mudar o estado; por ~450 ms o `<html>` leva
+ * `data-dialog-handoff` e o CSS (styles.css) tira as animações dos véus.
+ */
+let handoffTimer: ReturnType<typeof setTimeout> | null = null;
+export function markDialogHandoff(ms = 450): void {
+  if (typeof document === "undefined") return;
+  const el = document.documentElement;
+  el.setAttribute("data-dialog-handoff", "");
+  if (handoffTimer) clearTimeout(handoffTimer);
+  handoffTimer = setTimeout(() => {
+    el.removeAttribute("data-dialog-handoff");
+    handoffTimer = null;
+  }, ms);
+}
+export function dialogHandoffActive(): boolean {
+  return typeof document !== "undefined" && document.documentElement.hasAttribute("data-dialog-handoff");
+}
+
 /** true enquanto qualquer Dialog/Sheet/Drawer estiver aberto. */
 export function useAnyWindowOpen(): boolean {
   return React.useSyncExternalStore(subscribe, getWindowSnapshot, getServerSnapshot);
