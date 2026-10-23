@@ -411,3 +411,252 @@ export const addPlaybookRow = createServerFn({ method: "POST" })
     await reindex(data.propertyId);
     return { ok: true, rowId: key };
   });
+
+/* ───────────────────────── EDIÇÃO EM MASSA / REPLICAÇÃO ─────────────────────────
+ * Replica (ou muda a audiência de) uma linha do Playbook em vários imóveis da mesma conta.
+ * A política de campos vive em `playbook-bulk.ts` (lista branca, recusa no backend).
+ * Passo a passo: 1) recusa campo proibido ANTES de tocar no banco; 2) confere acesso ao imóvel
+ * de origem e a TODOS os destinos — se um falhar, nada é gravado; 3) aplica imóvel por imóvel,
+ * sem derrubar os demais se um falhar; 4) reindexa e registra a trilha de auditoria.
+ */
+const BulkInput = z.object({
+  sourcePropertyId: z.string().uuid(),
+  targetPropertyIds: z.array(z.string().uuid()).min(1).max(200),
+  action: z.enum(["content", "audience", "both"]),
+  audience: z.enum(["G", "P", "I"]).optional(),
+  source: z.union([
+    z.object({ kind: z.literal("row"), rowId: z.string().min(3).max(80) }),
+    z.object({
+      kind: z.literal("new"),
+      label: z.string().trim().min(1).max(120),
+      section: z.number().int().min(1).max(5),
+      value: z.string().trim().min(1).max(20000),
+    }),
+  ]),
+});
+
+type BulkSource =
+  | { kind: "column" | "list" | "entry"; key: string; rowId: string; value: string }
+  | { kind: "faq"; key: string; rowId: string; question: string; value: string }
+  | { kind: "custom"; key: string; rowId: string; label: string; section: number; audience: "G" | "P" | "I" | null; value: string };
+
+async function readBulkSource(sb: AnySb, propertyId: string, rowId: string, c: Extract<import("@/lib/playbook-bulk").BulkRowClass, { ok: true }>): Promise<BulkSource> {
+  const { BULK_COLUMN_FIELDS } = await import("@/lib/playbook-bulk");
+  if (c.kind === "column") {
+    const col = BULK_COLUMN_FIELDS[c.key]!;
+    const { data, error } = await sb.from("properties").select(col).eq("id", propertyId).maybeSingle();
+    if (error) throw new Error(error.message);
+    return { kind: "column", key: c.key, rowId, value: String((data as Record<string, unknown> | null)?.[col] ?? "") };
+  }
+  if (c.kind === "list") {
+    const { data, error } = await sb.from("property_checkout_items").select("label, position").eq("property_id", propertyId).order("position", { ascending: true });
+    if (error) throw new Error(error.message);
+    return { kind: "list", key: c.key, rowId, value: ((data ?? []) as Array<{ label: string }>).map((r) => r.label).join("\n") };
+  }
+  if (c.kind === "faq") {
+    const { data, error } = await sb.from("property_faqs").select("question, answer").eq("id", c.key).eq("property_id", propertyId).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("A pergunta de origem não foi encontrada neste imóvel.");
+    return { kind: "faq", key: c.key, rowId, question: String(data.question ?? ""), value: String(data.answer ?? "") };
+  }
+  const { data, error } = await sb
+    .from("property_playbook_entries")
+    .select("value, custom_label, custom_audience, section_num")
+    .eq("property_id", propertyId)
+    .eq("field_key", rowId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (c.kind === "entry") return { kind: "entry", key: c.key, rowId, value: String(data?.value ?? "") };
+  if (!data) throw new Error("A linha de origem não foi encontrada neste imóvel.");
+  return {
+    kind: "custom",
+    key: c.key,
+    rowId,
+    label: String(data.custom_label ?? ""),
+    section: (data.section_num as number | null) ?? 5,
+    audience: (data.custom_audience as "G" | "P" | "I" | null) ?? null,
+    value: String(data.value ?? ""),
+  };
+}
+
+type BulkOutcome = { propertyId: string; result: "updated" | "created" | "skipped"; reason?: string };
+
+async function findCustomInTarget(sb: AnySb, propertyId: string, label: string, section: number) {
+  const { sameCustomRow } = await import("@/lib/playbook-bulk");
+  const { data, error } = await sb
+    .from("property_playbook_entries")
+    .select("field_key, custom_label, section_num")
+    .eq("property_id", propertyId)
+    .like("field_key", "custom:%");
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as Array<{ field_key: string; custom_label: string | null; section_num: number | null }>;
+  return rows.find((r) => sameCustomRow(r, { custom_label: label, section_num: section })) ?? null;
+}
+
+async function applyBulkToProperty(
+  sb: AnySb,
+  userId: string,
+  propertyId: string,
+  src: BulkSource | { kind: "new"; label: string; section: number; value: string },
+  action: "content" | "audience" | "both",
+  audience: "G" | "P" | "I" | undefined,
+): Promise<BulkOutcome> {
+  const { BULK_COLUMN_FIELDS } = await import("@/lib/playbook-bulk");
+  const wantsContent = action !== "audience";
+  const wantsAudience = action !== "content";
+
+  if (src.kind === "column") {
+    const { error } = await sb.from("properties").update({ [BULK_COLUMN_FIELDS[src.key]!]: src.value.trim() || null }).eq("id", propertyId);
+    if (error) throw new Error(error.message);
+    return { propertyId, result: "updated" };
+  }
+  if (src.kind === "list") {
+    await replaceList(sb, "property_checkout_items", propertyId, src.value);
+    return { propertyId, result: "updated" };
+  }
+  if (src.kind === "entry") {
+    await upsertEntry(sb, userId, propertyId, src.rowId, { value: src.value.trim() || null });
+    return { propertyId, result: "updated" };
+  }
+  if (src.kind === "faq") {
+    const { data, error } = await sb.from("property_faqs").select("id, question").eq("property_id", propertyId);
+    if (error) throw new Error(error.message);
+    const q = src.question.trim().toLowerCase();
+    const found = ((data ?? []) as Array<{ id: string; question: string }>).find((r) => r.question.trim().toLowerCase() === q);
+    if (found) {
+      const up = await sb.from("property_faqs").update({ answer: src.value.trim() }).eq("id", found.id).eq("property_id", propertyId);
+      if (up.error) throw new Error(up.error.message);
+      return { propertyId, result: "updated" };
+    }
+    const ins = await sb.from("property_faqs").insert({ property_id: propertyId, question: src.question.trim(), answer: src.value.trim() });
+    if (ins.error) throw new Error(ins.error.message);
+    return { propertyId, result: "created" };
+  }
+  // custom (linha existente na origem) ou new (nota digitada em lote)
+  const label = src.kind === "new" ? src.label : src.label;
+  const section = src.section;
+  const aud = wantsAudience ? audience : src.kind === "custom" ? (src.audience ?? undefined) : audience;
+  const found = await findCustomInTarget(sb, propertyId, label, section);
+  if (found) {
+    const patch: Record<string, unknown> = {};
+    if (wantsContent) patch.value = src.value.trim() || null;
+    if (wantsAudience && aud) patch.custom_audience = aud;
+    await upsertEntry(sb, userId, propertyId, found.field_key, patch);
+    return { propertyId, result: "updated" };
+  }
+  if (!wantsContent) return { propertyId, result: "skipped", reason: "A linha não existe neste imóvel (só a audiência foi pedida)." };
+  await upsertEntry(sb, userId, propertyId, `custom:${crypto.randomUUID()}`, {
+    value: src.value.trim() || null,
+    custom_label: label,
+    custom_audience: aud ?? "I",
+    section_num: section,
+  });
+  return { propertyId, result: "created" };
+}
+
+export const bulkUpdatePlaybookEntries = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => BulkInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { classifyBulkRow, assertBulkContentSafe } = await import("@/lib/playbook-bulk");
+    const sb = context.supabase as AnySb;
+    const targets = Array.from(new Set(data.targetPropertyIds)).filter((id) => id !== data.sourcePropertyId);
+    if (targets.length === 0) throw new Error("Escolha ao menos um imóvel de destino diferente do imóvel de origem.");
+    if (data.action !== "content" && !data.audience) throw new Error("Escolha a audiência (Hóspede Ativo, Público ou Equipe Interna).");
+
+    // 1) Política de campos: ANTES de qualquer consulta ao banco.
+    let cls: Extract<ReturnType<typeof classifyBulkRow>, { ok: true }> | null = null;
+    if (data.source.kind === "row") {
+      const c = classifyBulkRow(data.source.rowId);
+      if (!c.ok) throw new Error(c.reason);
+      cls = c;
+      if (data.action !== "content" && c.kind !== "custom") {
+        throw new Error("A audiência só pode ser alterada em massa nas linhas criadas à mão (as demais têm audiência fixa).");
+      }
+    } else {
+      if (data.action === "audience") throw new Error("Uma nota nova precisa de conteúdo; use \"Replicar conteúdo\" ou \"Ambos\".");
+      assertBulkContentSafe(data.source.label, data.source.value);
+    }
+
+    // 2) Acesso ao imóvel de origem e a TODOS os destinos — um negado cancela tudo.
+    await assertAccess(sb, context.userId, data.sourcePropertyId);
+    for (const id of targets) {
+      try {
+        await assertAccess(sb, context.userId, id);
+      } catch {
+        throw new Error("Você não tem permissão para editar um dos imóveis de destino. Nada foi alterado.");
+      }
+    }
+
+    // Mesma conta: replicar entre contas diferentes não é permitido.
+    {
+      const { data: owners, error } = await sb.from("properties").select("id, owner_id").in("id", [data.sourcePropertyId, ...targets]);
+      if (error) throw new Error(error.message);
+      const rows = (owners ?? []) as Array<{ id: string; owner_id: string | null }>;
+      const own = new Set(rows.map((r) => r.owner_id));
+      if (rows.length !== targets.length + 1 || own.size !== 1) {
+        throw new Error("Todos os imóveis precisam ser da mesma conta. Nada foi alterado.");
+      }
+    }
+
+    // 3) Origem.
+    let src: Parameters<typeof applyBulkToProperty>[3];
+    if (data.source.kind === "row" && cls) {
+      const read = await readBulkSource(sb, data.sourcePropertyId, data.source.rowId, cls);
+      if (read.kind === "custom") assertBulkContentSafe(read.label, read.value);
+      else if (read.kind === "faq") assertBulkContentSafe(read.question, read.value);
+      else assertBulkContentSafe(null, read.value);
+      src = read;
+    } else if (data.source.kind === "new") {
+      src = { kind: "new", label: data.source.label, section: data.source.section, value: data.source.value };
+    } else {
+      throw new Error("Origem inválida.");
+    }
+
+    // 4) Aplicação imóvel por imóvel.
+    const applied: BulkOutcome[] = [];
+    const failed: Array<{ propertyId: string; error: string }> = [];
+    for (const propertyId of targets) {
+      try {
+        const out = await applyBulkToProperty(sb, context.userId, propertyId, src, data.action, data.audience);
+        applied.push(out);
+        if (out.result !== "skipped") await reindex(propertyId);
+      } catch (e) {
+        failed.push({ propertyId, error: e instanceof Error ? e.message : "Falha ao aplicar." });
+      }
+    }
+
+    // 5) Trilha de auditoria (nunca derruba a operação).
+    try {
+      const { data: prop } = await sb.from("properties").select("owner_id").eq("id", data.sourcePropertyId).maybeSingle();
+      const tenantId = (prop as { owner_id?: string } | null)?.owner_id;
+      if (tenantId) {
+        const { recordAudit } = await import("@/lib/permissions/permission.repository.server");
+        await recordAudit({
+          tenantId,
+          actorId: context.userId,
+          scopeType: "PROPERTY",
+          scopeId: data.sourcePropertyId,
+          action: "playbook_bulk_update",
+          metadata: {
+            field: data.source.kind === "row" ? data.source.rowId : `nota:${data.source.label}`,
+            action: data.action,
+            audience: data.audience ?? null,
+            sourcePropertyId: data.sourcePropertyId,
+            applied: applied.filter((a) => a.result !== "skipped").map((a) => a.propertyId),
+            skipped: applied.filter((a) => a.result === "skipped").map((a) => a.propertyId),
+            failed: failed.map((f) => f.propertyId),
+          },
+        });
+      }
+    } catch (e) {
+      console.error("[playbook] auditoria da edição em massa falhou", e);
+    }
+
+    return {
+      ok: failed.length === 0,
+      applied: applied.filter((a) => a.result !== "skipped").length,
+      skipped: applied.filter((a) => a.result === "skipped").map((a) => ({ propertyId: a.propertyId, reason: a.reason ?? "" })),
+      failed,
+    };
+  });

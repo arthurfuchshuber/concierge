@@ -157,30 +157,70 @@ export function parseChannexMessage(payload: unknown): Inbound | null {
   };
 }
 
-/** Descreve fotos do hóspede com modelo de visão para a IA "ver" a imagem. Nunca lança. */
-async function describeGuestPhotos(urls: string[], guestText: string): Promise<string | null> {
-  const key = process.env["LOVABLE_API_KEY"];
-  if (!key || urls.length === 0) return null;
+export type GuestPhotoFile = { url: string; mime: string; bytes: Uint8Array };
+
+/** Baixa as fotos do hóspede (com a chave da Channex quando for URL dela). Nunca lança. */
+export async function downloadGuestPhotos(urls: string[]): Promise<GuestPhotoFile[]> {
   const chKey = process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"];
-  const images: string[] = [];
+  const files: GuestPhotoFile[] = [];
   for (const url of urls) {
     try {
       const authed = !!chKey && isChannexUrl(url);
       let res = await fetch(url, authed ? { headers: { "user-api-key": chKey! } } : undefined);
       if (!res.ok && chKey && !authed) res = await fetch(url, { headers: { "user-api-key": chKey } });
       if (!res.ok) continue;
-      const mime = (res.headers.get("content-type") ?? "image/jpeg").split(";")[0]!;
+      const mime = (res.headers.get("content-type") ?? "image/jpeg").split(";")[0]!.trim().toLowerCase();
       if (!mime.startsWith("image/")) continue;
-      const buf = new Uint8Array(await res.arrayBuffer());
-      if (buf.byteLength > 8_000_000) continue;
-      let bin = "";
-      for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
-      images.push(`data:${mime};base64,${btoa(bin)}`);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.byteLength === 0 || bytes.byteLength > 8_000_000) continue;
+      files.push({ url, mime, bytes });
     } catch (e) {
       console.warn("[channex-messages] falha ao baixar foto", e);
     }
   }
-  if (images.length === 0) return null;
+  return files;
+}
+
+/** Extensão do arquivo a partir do MIME real (jpeg, png, webp...). */
+export function extFromMime(mime: string): string {
+  const sub = (mime.split("/")[1] ?? "jpeg").split("+")[0]!.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return sub === "jpg" || !sub ? "jpeg" : sub;
+}
+
+/**
+ * Guarda a foto no bucket privado "chat-attachments" para o operador ver a miniatura.
+ * Caminho: <property_id>/<conversation_id>/<uuid>.<ext>. NUNCA lança: se o upload falhar
+ * (rede, timeout), devolve null e o webhook segue normalmente, só sem a miniatura.
+ */
+export async function persistGuestPhotoAttachment(
+  admin: any,
+  p: { propertyId: string; conversationId: string; file: GuestPhotoFile },
+): Promise<{ path: string; mime: string; sizeBytes: number } | null> {
+  try {
+    const path = `${p.propertyId}/${p.conversationId}/${crypto.randomUUID()}.${extFromMime(p.file.mime)}`;
+    const { error } = await admin.storage
+      .from("chat-attachments")
+      .upload(path, p.file.bytes, { contentType: p.file.mime, upsert: false });
+    if (error) {
+      console.warn("[channex-messages] upload da foto falhou", error.message ?? error);
+      return null;
+    }
+    return { path, mime: p.file.mime, sizeBytes: p.file.bytes.byteLength };
+  } catch (e) {
+    console.warn("[channex-messages] upload da foto falhou", e);
+    return null;
+  }
+}
+
+/** Descreve fotos do hóspede com modelo de visão para a IA "ver" a imagem. Nunca lança. */
+async function describeGuestPhotos(files: GuestPhotoFile[], guestText: string): Promise<string | null> {
+  const key = process.env["LOVABLE_API_KEY"];
+  if (!key || files.length === 0) return null;
+  const images = files.map((f) => {
+    let bin = "";
+    for (let i = 0; i < f.bytes.length; i += 0x8000) bin += String.fromCharCode(...f.bytes.subarray(i, i + 0x8000));
+    return `data:${f.mime};base64,${btoa(bin)}`;
+  });
   try {
     const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -400,6 +440,47 @@ export async function deliverToAirbnbThread(
   return { ok: status === "sent", messageId, text };
 }
 
+/**
+ * Monta o conteúdo e as colunas de anexo da mensagem do hóspede (texto e/ou foto).
+ * Baixa a foto, a IA "vê" (transcrição), e a imagem é guardada no storage para a miniatura do
+ * operador. Falha em qualquer etapa nunca derruba o webhook nem a resposta da IA.
+ */
+export async function buildGuestPhotoMessage(
+  admin: any,
+  p: { text: string; urls: string[]; haveAttachment: boolean; propertyId: string; conversationId: string },
+): Promise<{ content: string; photoDesc: string | null; attachmentFields: Record<string, unknown> }> {
+  let content = p.text;
+  if (p.urls.length === 0) {
+    if (!content && p.haveAttachment) {
+      // Foto sem texto e sem caminho utilizável: a mensagem não pode sumir em silêncio.
+      content = "[Foto enviada pelo hóspede — não foi possível visualizar; peça gentilmente para descrever o que aparece]";
+    }
+    return { content, photoDesc: null, attachmentFields: {} };
+  }
+  const files = await downloadGuestPhotos(p.urls);
+  const photoDesc = await describeGuestPhotos(files, p.text);
+  const n = p.urls.length;
+  const label = n > 1 ? `${n} fotos enviadas` : "Foto enviada";
+  const tag = photoDesc
+    ? `[${label} pelo hóspede — conteúdo: ${photoDesc}]`
+    : `[${label} pelo hóspede — não foi possível visualizar; peça gentilmente para descrever o que aparece]`;
+  content = content ? `${content}\n${tag}` : tag;
+
+  const saved = files[0] ? await persistGuestPhotoAttachment(admin, { propertyId: p.propertyId, conversationId: p.conversationId, file: files[0] }) : null;
+  const attachmentFields: Record<string, unknown> = saved
+    ? {
+        attachment_path: saved.path,
+        attachment_type: "image",
+        attachment_mime: saved.mime,
+        attachment_size_bytes: saved.sizeBytes,
+        attachment_name: `foto-airbnb.${extFromMime(saved.mime)}`,
+        attachment_transcript: photoDesc,
+      }
+    : // Sem arquivo guardado: mantém o que já havia (tipo + transcrição), sem caminho.
+      { attachment_type: "image", attachment_name: "foto-airbnb", attachment_transcript: photoDesc };
+  return { content, photoDesc, attachmentFields };
+}
+
 /** Processa um evento `message` da fila Channex. */
 export async function handleChannexMessage(payload: unknown): Promise<void> {
   const m = parseChannexMessage(payload);
@@ -465,20 +546,13 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   }
 
   const guestMsgAt = new Date().toISOString();
-  let content = m.text;
-  let photoDesc: string | null = null;
-  if (m.attachments?.length) {
-    photoDesc = await describeGuestPhotos(m.attachments, m.text);
-    const n = m.attachments.length;
-    const label = n > 1 ? `${n} fotos enviadas` : "Foto enviada";
-    const tag = photoDesc
-      ? `[${label} pelo hóspede — conteúdo: ${photoDesc}]`
-      : `[${label} pelo hóspede — não foi possível visualizar; peça gentilmente para descrever o que aparece]`;
-    content = content ? `${content}\n${tag}` : tag;
-  } else if (!content && m.haveAttachment) {
-    // Foto sem texto e sem caminho utilizável: a mensagem não pode sumir em silêncio.
-    content = "[Foto enviada pelo hóspede — não foi possível visualizar; peça gentilmente para descrever o que aparece]";
-  }
+  const { content, attachmentFields } = await buildGuestPhotoMessage(admin, {
+    text: m.text,
+    urls: m.attachments ?? [],
+    haveAttachment: !!m.haveAttachment,
+    propertyId: listing.property_id,
+    conversationId: convId,
+  });
   await admin.from("property_chat_messages").insert({
     conversation_id: convId,
     role: "user",
@@ -487,9 +561,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     channel: "airbnb" as never,
     external_id: m.messageId,
     delivery_status: "delivered",
-    ...(m.attachments?.length
-      ? { attachment_type: "image", attachment_name: m.attachments[0]!.slice(0, 500), attachment_transcript: photoDesc }
-      : {}),
+    ...attachmentFields,
   });
 
   await admin
