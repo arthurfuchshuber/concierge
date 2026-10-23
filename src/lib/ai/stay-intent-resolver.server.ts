@@ -110,13 +110,41 @@ export function forecastAllowed(p: {
   const permitido = `${String(Math.floor(std / 60)).padStart(2, "0")}:${String(std % 60).padStart(2, "0")}`;
   const ag = mm(p.agreed);
   if (p.kind === "checkout") return v <= std || (ag != null && v <= ag) ? { ok: true } : { ok: false, permitido };
-  return v >= std || (ag != null && v >= ag) ? { ok: true } : { ok: false, permitido };
+  // Madrugada (00:00–05:59) num check-in = chegada TARDIA da noite da diária de
+  // entrada (ex.: "chegamos 00:00"), não chegada antes do horário oficial.
+  const effV = v < 360 ? v + 1440 : v;
+  const effAg = ag != null ? (ag < 360 ? ag + 1440 : ag) : null;
+  return effV >= std || (effAg != null && effV >= effAg) ? { ok: true } : { ok: false, permitido };
 }
 
 /** "Saio no limite", "nos últimos minutos permitidos", "no horário máximo" → horário limite. Pura. */
 export function isLimitExpression(input: unknown): boolean {
   const s = String(input ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   return /\b(limite|ultim[oa]s?\s+min|ultimo\s+minuto|ultima\s+hora|horario\s+maximo|maximo\s+permitido|horario\s+(do\s+)?checkout|no\s+horario\s+certo|ate\s+o\s+fim\s+do\s+horario)/.test(s);
+}
+
+/**
+ * Detecta, numa mensagem do hóspede, uma PREVISÃO de horário de chegada ou de
+ * saída ("Chegaremos por volta das 00:00", "Vamos sair às 10h", "saio no
+ * limite"). Pura. Perguntas e pedidos de autorização ("Podemos entrar às
+ * 10h?") NÃO são previsão — viram null.
+ */
+export function detectStayForecast(message: string): { kind: StayKind; time: string } | null {
+  const raw = String(message ?? "");
+  const s = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  if (!s) return null;
+  if (s.includes("?")) return null;
+  if (/\b(podemos|posso|seria possivel|tem como|sera que|nao sei|talvez|se der)\b/.test(s)) return null;
+
+  const isIn = /\b(cheg\w*|check-?in|entrada|previsao de chegada|horario de chegada)/.test(s);
+  const isOut = /\b(sai\w*|check-?out|desocup\w*|liberar\w*|deixar o (apto|imovel|quarto|casa|flat))/.test(s);
+  if (!isIn && !isOut) return null;
+
+  const kind: StayKind = isOut && !isIn ? "checkout" : "checkin";
+  if (kind === "checkout" && isLimitExpression(s)) return { kind, time: "limite" };
+
+  const time = normalizeStayTime(s);
+  return time ? { kind, time } : null;
 }
 
 export async function registerStayTimeForecast(

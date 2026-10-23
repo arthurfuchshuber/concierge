@@ -5018,18 +5018,21 @@ function EngagementFlags({
   readInstructions,
   hasPasswords,
   viewedPasswords,
+  checkinDone = false,
   variant = "text",
 }: {
   openedGuide?: boolean;
   readInstructions?: boolean;
   hasPasswords?: boolean;
   viewedPasswords?: boolean;
+  /** Check-in já concluído: quem entrou teve a senha — nunca alertar "Não viu as senhas". */
+  checkinDone?: boolean;
   variant?: "text" | "pills";
 }) {
   // "Não acessou o guia" foi removido a pedido: mostramos apenas instruções e senhas.
   const flags: Array<{ icon: typeof Eye; label: string }> = [];
   if (!readInstructions) flags.push({ icon: ListChecks, label: "Não leu as instruções" });
-  if (hasPasswords && !viewedPasswords) flags.push({ icon: KeyRound, label: "Não viu as senhas" });
+  if (hasPasswords && !viewedPasswords && !checkinDone) flags.push({ icon: KeyRound, label: "Não viu as senhas" });
   if (flags.length === 0) return null;
   if (variant === "pills") {
     return (
@@ -11705,6 +11708,7 @@ function ArrivalCard({
               readInstructions={row.readInstructions}
               hasPasswords={row.hasPasswords}
               viewedPasswords={row.viewedPasswords}
+              checkinDone={row.status === "done"}
             />
           </span>
         )}

@@ -81,6 +81,46 @@ export async function applyStayCompletionOnIngest(
   return r.ok ? kind : null;
 }
 
+/**
+ * Previsão de horário (chegada/saída) dita pelo hóspede → painel
+ * (`guest_arrival_status.arrival_time_override`), INDEPENDENTE da IA: roda na
+ * entrada da mensagem, antes de qualquer trava de pausa, então vale também
+ * quando o atendimento é humano. Mesma validação/segurança de
+ * `registerStayTimeForecast` (nunca regride, não sobrescreve horário da equipe,
+ * respeita o horário permitido do imóvel).
+ */
+export async function applyStayForecastOnIngest(
+  admin: SupabaseClient,
+  p: { conversationId: string; propertyId: string; message: string },
+): Promise<{ ok: boolean; kind?: "checkin" | "checkout"; time?: string } | null> {
+  const { detectStayForecast, registerStayTimeForecast } = await import("./stay-intent-resolver.server");
+  const forecast = detectStayForecast(p.message);
+  if (!forecast) return null;
+
+  const { data: conv } = await admin
+    .from("property_chat_conversations")
+    .select("reservation_id, guest_name")
+    .eq("id", p.conversationId)
+    .maybeSingle();
+  const guestName = (conv as { guest_name?: string | null } | null)?.guest_name ?? null;
+
+  const { findStayForEvent } = await import("./stay-events.server");
+  const stay = await findStayForEvent(admin, {
+    propertyId: p.propertyId,
+    checkinDate: null,
+    checkoutDate: null,
+    conversationId: p.conversationId,
+  });
+  if (!stay) return null;
+
+  const res = await registerStayTimeForecast(
+    admin,
+    { propertyId: p.propertyId, checkinDate: stay.checkinDate, checkoutDate: stay.checkoutDate, guestName },
+    { kind: forecast.kind, time: forecast.time },
+  );
+  return res.ok ? { ok: true, kind: forecast.kind, time: res.horario ?? forecast.time } : null;
+}
+
 /* ───────────────────────── Memória contínua entre canais ─────────────────────────
  * Hóspede que já falava no Airbnb e abre o Guia com o código da reserva NÃO começa
  * do zero: as conversas recentes (7 dias) da MESMA reserva, em qualquer canal, entram

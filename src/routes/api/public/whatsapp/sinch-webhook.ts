@@ -220,8 +220,12 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
         });
 
         try {
-          const { applyStayCompletionOnIngest } = await import("@/lib/ai/conversation-link.server");
+          const { applyStayCompletionOnIngest, applyStayForecastOnIngest } = await import("@/lib/ai/conversation-link.server");
           await applyStayCompletionOnIngest(supabaseAdmin as never, { conversationId: convId, propertyId: log.property_id as string, message: inbound });
+          // Previsão de horário gravada no painel mesmo com atendimento humano.
+          await applyStayForecastOnIngest(supabaseAdmin as never, { conversationId: convId, propertyId: log.property_id as string, message: inbound }).catch((e: unknown) =>
+            console.error("[sinch] previsão de estadia falhou", e),
+          );
         } catch (e) {
           console.error("[sinch] baixa de estadia falhou", e);
         }

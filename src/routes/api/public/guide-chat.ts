@@ -240,6 +240,9 @@ async function runGuideChat(
         const link = await import("@/lib/ai/conversation-link.server");
         await link.linkConversationByCode(supabaseAdmin as SupabaseClient, { conversationId, propertyId: String(prop.id), code: body.reservationCode });
         await link.applyStayCompletionOnIngest(supabaseAdmin as SupabaseClient, { conversationId, propertyId: String(prop.id), message: body.message });
+        await link
+          .applyStayForecastOnIngest(supabaseAdmin as SupabaseClient, { conversationId, propertyId: String(prop.id), message: body.message })
+          .catch((e: unknown) => console.error("guide-chat previsão no ingest falhou", e));
       } catch (e) {
         console.error("guide-chat vínculo/baixa falhou", e);
       }

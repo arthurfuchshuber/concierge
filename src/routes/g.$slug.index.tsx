@@ -1240,9 +1240,17 @@ function Guide({ data }: { data: GuideOk }) {
   // "viu as senhas" quando TODAS as senhas de acesso foram abertas. Wi-Fi não
   // é senha de acesso ao imóvel, portanto não é registrado.
   const passwordsTrackedRef = useRef<Set<string>>(new Set());
-  const markPasswordsSeen = (kind: "lock" | "gate" | "wifi" = "lock") => {
+  // `force`: o hóspede está CONCLUINDO a etapa de senhas do onboarding — se ele
+  // passou por ela com o resumo de acesso na tela, já tomou ciência das senhas,
+  // então não descartamos o evento mesmo com a janela de check-in ainda travada.
+  // "onboarding" grava um evento consolidado ("senhas:onboarding") que o painel
+  // lê como "viu fechadura e portão" (ver arrival-passwords.ts).
+  const markPasswordsSeen = (
+    kind: "lock" | "gate" | "wifi" | "onboarding" = "lock",
+    opts?: { force?: boolean },
+  ) => {
     if (kind === "wifi") return;
-    if (passwordsTrackedRef.current.has(kind) || checkinLocked) return;
+    if (passwordsTrackedRef.current.has(kind) || (checkinLocked && opts?.force !== true)) return;
     passwordsTrackedRef.current.add(kind);
     const sid = getGuideSessionId(slug);
     const pagePath = typeof window !== "undefined" ? window.location.pathname : null;
@@ -4262,7 +4270,7 @@ function WholeItemsScroll({
  */
 function PostAccessOnboarding({
   active,
-  onDone,
+  onDone: onDoneProp,
   guestName,
   propertyName,
   city,
@@ -4323,7 +4331,7 @@ function PostAccessOnboarding({
   wifiPassword?: string | null;
   wifiSsid?: string | null;
   requestUnlock: (cb?: () => void) => void;
-  markPasswordsSeen: (kind?: "lock" | "gate" | "wifi") => void;
+  markPasswordsSeen: (kind?: "lock" | "gate" | "wifi" | "onboarding", opts?: { force?: boolean }) => void;
   theme: "dark" | "light";
   navItems: Array<{ key: BottomNavKey; label: string }>;
   /** Volta pro formulário de identificação — só existe na 1ª etapa do
@@ -4375,7 +4383,27 @@ function PostAccessOnboarding({
   const [stepIndex, setStepIndex] = useState(0);
   const current = flow[Math.min(stepIndex, flow.length - 1)];
   const step = current === "intro" ? 0 : current === "final" ? 3 : 1;
-  const goNext = () => setStepIndex((i) => Math.min(i + 1, flow.length - 1));
+  // Passou pela etapa de senhas = viu o resumo de acesso: registra fechadura,
+  // portão e o evento consolidado "senhas:onboarding" (sem exigir o toque no 👁
+  // de cada código). Dispara ao avançar da etapa e ao concluir o onboarding.
+  const passwordsReachedRef = useRef(false);
+  const passwordsDoneRef = useRef(false);
+  const concludePasswords = () => {
+    if (passwordsDoneRef.current) return;
+    if (!lockCode && !gateCode) return;
+    passwordsDoneRef.current = true;
+    if (lockCode) markPasswordsSeen("lock", { force: true });
+    if (gateCode) markPasswordsSeen("gate", { force: true });
+    markPasswordsSeen("onboarding", { force: true });
+  };
+  const onDone = () => {
+    if (passwordsReachedRef.current) concludePasswords();
+    onDoneProp();
+  };
+  const goNext = () => {
+    if (current === "passwords") concludePasswords();
+    setStepIndex((i) => Math.min(i + 1, flow.length - 1));
+  };
   const goBack = () => setStepIndex((i) => Math.max(i - 1, 0));
   /** Acordeão de senhas: todos recolhidos ao abrir, apenas um aberto por vez. */
   const [openPwd, setOpenPwd] = useState<string | null>(null);
@@ -4383,8 +4411,13 @@ function PostAccessOnboarding({
     if (active) {
       setStepIndex(0);
       setOpenPwd(null);
+      passwordsReachedRef.current = false;
+      passwordsDoneRef.current = false;
     }
   }, [active]);
+  useEffect(() => {
+    if (active && current === "passwords") passwordsReachedRef.current = true;
+  }, [active, current]);
 
   if (!active) return null;
 

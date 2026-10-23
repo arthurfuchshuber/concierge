@@ -1011,6 +1011,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       "senhas",
       "senhas:lock",
       "senhas:gate",
+      "senhas:onboarding",
     ]);
     // "Leu" = permaneceu ao menos 5s na aba Chegada (mesma regra dos cards).
     const evs = engagementEvents.filter((event) => event.section === "checkin-lido");
@@ -1018,7 +1019,8 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       (event) =>
         event.section === "senhas" ||
         event.section === "senhas:lock" ||
-        event.section === "senhas:gate",
+        event.section === "senhas:gate" ||
+        event.section === "senhas:onboarding",
     );
 
     // Quem viu / quem não viu.
@@ -1070,8 +1072,9 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     // configuradas no imóvel (fechadura e/ou portão). Wi-Fi não entra.
     const codeEvRows = codeEvs as Array<EventRow & { section?: string }>;
     const codesSeen = seenSets(codeEvRows);
-    const lockSeen = seenSets(codeEvRows.filter((e) => e.section === "senhas:lock"));
-    const gateSeen = seenSets(codeEvRows.filter((e) => e.section === "senhas:gate"));
+    // "senhas:onboarding" = concluiu a etapa de senhas do onboarding (viu tudo).
+    const lockSeen = seenSets(codeEvRows.filter((e) => e.section === "senhas:lock" || e.section === "senhas:onboarding"));
+    const gateSeen = seenSets(codeEvRows.filter((e) => e.section === "senhas:gate" || e.section === "senhas:onboarding"));
     const accessCodesByProp = new Map<string, Array<"lock" | "gate">>();
     for (const p of (props ?? []) as Array<{
       id: string;

@@ -575,6 +575,10 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     const res = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => null);
     if (res?.code) await link.linkConversationByCode(admin, { conversationId: convId, propertyId: listing.property_id, code: res.code });
     const auto = await link.applyStayCompletionOnIngest(admin, { conversationId: convId, propertyId: listing.property_id, message: m.text });
+    // Previsão de horário (chegada/saída) vai pro painel mesmo com a IA pausada ou desligada.
+    await link
+      .applyStayForecastOnIngest(admin, { conversationId: convId, propertyId: listing.property_id, message: m.text })
+      .catch((e: unknown) => console.error("[channex-messages] previsão no ingest falhou", e));
     if (!auto) {
       const { proposeProactiveDecision } = await import("@/lib/ai/human-loop/proactive-decisions.server");
       await proposeProactiveDecision(admin, { conversationId: convId, trigger: "guest" });

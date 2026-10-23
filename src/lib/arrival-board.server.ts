@@ -3,6 +3,15 @@
 import { compareArrivalRowsServer } from "@/lib/arrival-order";
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 import { liveDateOverride } from "@/lib/arrival-date-base";
+import {
+  addSeen,
+  hasSeen,
+  messageHasAccessCode,
+  newPasswordSeen,
+  newSeen,
+  registerPasswordEvent,
+  resolveViewedPasswords,
+} from "@/lib/arrival-passwords";
 import { resolveReservationIdentity, RESERVATION_IDENTITY_COLUMNS } from "@/lib/reservation-identity";
 
 export type { ArrivalRow };
@@ -426,6 +435,7 @@ export async function buildArrivalRows(
               "senhas",
               "senhas:lock",
               "senhas:gate",
+              "senhas:onboarding",
               "saida",
               "residencia",
               "faq",
@@ -527,6 +537,8 @@ export async function buildArrivalRows(
         hasPasswords: boolean;
         hasAccessInfo: boolean;
         accessCodes: Array<"lock" | "gate">;
+        /** Valores dos códigos (fechadura/portão) — só para reconhecer entrega no chat. */
+        codeValues: string[];
         checkin_time: string | null;
         checkin_time_max: string | null;
         checkout_time: string | null;
@@ -576,6 +588,7 @@ export async function buildArrivalRows(
           ...(p.lock_code?.trim() ? (["lock"] as const) : []),
           ...(p.gate_code?.trim() ? (["gate"] as const) : []),
         ] as Array<"lock" | "gate">,
+        codeValues: [p.lock_code?.trim() ?? "", p.gate_code?.trim() ?? ""].filter((c) => c.length > 0),
         checkin_time: p.checkin_time,
         checkin_time_max: p.checkin_time_max,
         checkout_time: p.checkout_time,
@@ -591,28 +604,7 @@ export async function buildArrivalRows(
     // Casamos por chave estrita (nome+telefone) E por chave "solta" (só nome /
     // só telefone), exatamente como as barras de engajamento do dashboard —
     // caso contrário card e barra divergem para o mesmo hóspede.
-    const eventKey = (pid: string, name: string | null, phone: string | null) =>
-      `${pid}|${(name || "").trim().toLowerCase()}|${(phone || "").replace(/\D/g, "")}`;
-    const looseKey = (pid: string, name: string | null) => `${pid}|${(name || "").trim().toLowerCase()}`;
-    const phoneKey = (pid: string, phone: string | null) => {
-      const d = (phone || "").replace(/\D/g, "");
-      return d.length >= 8 ? `${pid}|${d.slice(-8)}` : null;
-    };
-
-    type SeenSets = { strict: Set<string>; loose: Set<string>; phones: Set<string> };
-    const newSeen = (): SeenSets => ({ strict: new Set(), loose: new Set(), phones: new Set() });
-    const addSeen = (set: SeenSets, pid: string, name: string | null, phone: string | null) => {
-      set.strict.add(eventKey(pid, name, phone));
-      if ((name || "").trim()) set.loose.add(looseKey(pid, name));
-      const pk = phoneKey(pid, phone);
-      if (pk) set.phones.add(pk);
-    };
-    const hasSeen = (set: SeenSets, pid: string, name: string | null, phone: string | null) => {
-      if (set.strict.has(eventKey(pid, name, phone))) return true;
-      if ((name || "").trim() && set.loose.has(looseKey(pid, name))) return true;
-      const pk = phoneKey(pid, phone);
-      return !!pk && set.phones.has(pk);
-    };
+    // eventKey/looseKey/phoneKey/addSeen/hasSeen vivem em `arrival-passwords.ts`.
 
     const openedCheckin = newSeen();
     // Abriu o guia = existe QUALQUER evento de navegação do hóspede.
@@ -621,10 +613,8 @@ export async function buildArrivalRows(
     // "checkin-lido", disparado pelo guia só depois desse tempo).
     const readInstructions = newSeen();
     // Senhas de ACESSO ao imóvel (fechadura/portão) — Wi-Fi não conta.
-    // Só marcamos como "viu" quando todas as senhas configuradas foram abertas.
-    const seenLock = newSeen();
-    const seenGate = newSeen();
-    const seenAnyPassword = newSeen();
+    // Regra completa em `arrival-passwords.ts` (onboarding, chat, check-in feito).
+    const passwordSeen = newPasswordSeen();
     for (const ev of sectionEvents as Array<{
       property_id: string;
       section: string;
@@ -635,20 +625,54 @@ export async function buildArrivalRows(
       addSeen(openedGuide, ...args);
       if (ev.section === "checkin") addSeen(openedCheckin, ...args);
       else if (ev.section === "checkin-lido") addSeen(readInstructions, ...args);
-      else if (ev.section === "senhas:lock") { addSeen(seenLock, ...args); addSeen(seenAnyPassword, ...args); }
-      else if (ev.section === "senhas:gate") { addSeen(seenGate, ...args); addSeen(seenAnyPassword, ...args); }
-      else if (ev.section === "senhas") addSeen(seenAnyPassword, ...args);
+      else registerPasswordEvent(passwordSeen, ev.section, ...args);
     }
 
-    /** Viu TODAS as senhas de acesso configuradas no imóvel. */
-    const sawAllPasswords = (pid: string, name: string | null, phone: string | null) => {
-      const codes = propMap.get(pid)?.accessCodes ?? [];
-      if (codes.length === 0) return true;
-      // Registros antigos gravavam só "senhas" (sem detalhar qual). Nesses
-      // casos consideramos como visto para não reportar falso negativo.
-      if (codes.length === 1 && hasSeen(seenAnyPassword, pid, name, phone)) return true;
-      return codes.every((c) => hasSeen(c === "lock" ? seenLock : seenGate, pid, name, phone));
-    };
+    // Credenciais entregues no CHAT (Guia, IA, anfitrião, Airbnb/WhatsApp):
+    // se uma mensagem da equipe/IA contém o código da fechadura ou do portão,
+    // o hóspede já tem a senha — mesmo que nunca tenha tocado no olho (👁).
+    const chatDeliveredReservations = new Set<string>();
+    {
+      const codeProps = new Map<string, string[]>();
+      for (const [pid, p] of propMap) if (p.codeValues.length > 0) codeProps.set(pid, p.codeValues);
+      if (codeProps.size > 0) {
+        try {
+          const convs: Array<{ id: string; property_id: string; reservation_id: string | null; guest_name: string | null }> = [];
+          const pids = Array.from(codeProps.keys());
+          for (let i = 0; i < pids.length; i += 100) {
+            const { data: cs } = await context.supabase
+              .from("property_chat_conversations")
+              .select("id, property_id, reservation_id, guest_name")
+              .in("property_id", pids.slice(i, i + 100))
+              .order("last_message_at", { ascending: false })
+              .limit(2000);
+            convs.push(...((cs ?? []) as typeof convs));
+          }
+          const convById = new Map(convs.map((c) => [c.id, c]));
+          const convIds = Array.from(convById.keys());
+          const since = new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString();
+          for (let i = 0; i < convIds.length; i += 100) {
+            const { data: ms } = await context.supabase
+              .from("property_chat_messages")
+              .select("conversation_id, content")
+              .in("conversation_id", convIds.slice(i, i + 100))
+              .in("sender_type", ["ai", "human"])
+              .eq("is_internal_note", false)
+              .gte("created_at", since)
+              .limit(5000);
+            for (const m of (ms ?? []) as Array<{ conversation_id: string; content: string | null }>) {
+              const conv = convById.get(m.conversation_id);
+              if (!conv) continue;
+              if (!messageHasAccessCode(m.content, codeProps.get(conv.property_id) ?? [])) continue;
+              if (conv.reservation_id) chatDeliveredReservations.add(conv.reservation_id);
+              addSeen(passwordSeen.chat, conv.property_id, conv.guest_name, null);
+            }
+          }
+        } catch {
+          // Falha ao consultar o chat nunca derruba o painel: só perde esse atalho.
+        }
+      }
+    }
 
     type StatusRow = {
       log_id: string | null;
@@ -1085,7 +1109,14 @@ export async function buildArrivalRows(
         openedCheckin: hasSeen(openedCheckin, l.property_id, l.guest_name, l.guest_phone),
         openedGuide: hasSeen(openedGuide, l.property_id, l.guest_name, l.guest_phone),
         readInstructions: hasSeen(readInstructions, l.property_id, l.guest_name, l.guest_phone),
-        viewedPasswords: sawAllPasswords(l.property_id, l.guest_name, l.guest_phone),
+        viewedPasswords: resolveViewedPasswords({
+          checkinDone: checkinDoneLogs.has(l.id),
+          accessCodes: p?.accessCodes ?? [],
+          seen: passwordSeen,
+          propertyId: l.property_id,
+          name: l.guest_name,
+          phone: l.guest_phone,
+        }),
         guestName: l.guest_name,
         guestPhone: l.guest_phone,
         guestPhoneCountry: l.guest_phone_country,
@@ -1207,7 +1238,17 @@ export async function buildArrivalRows(
         openedCheckin: matchedLog ? hasSeen(openedCheckin, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
         openedGuide: matchedLog ? hasSeen(openedGuide, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
         readInstructions: matchedLog ? hasSeen(readInstructions, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        viewedPasswords: matchedLog ? sawAllPasswords(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
+        // Sem log web, cruza com os dados da PRÓPRIA reserva (nome/telefone);
+        // check-in concluído ou credencial entregue no chat = já viu.
+        viewedPasswords: resolveViewedPasswords({
+          checkinDone: checkinDoneReservations.has(r.id) || (!!matchedLog && checkinDoneLogs.has(matchedLog.id)),
+          accessCodes: p?.accessCodes ?? [],
+          seen: passwordSeen,
+          propertyId: r.property_id,
+          name: matchedLog?.guest_name ?? ident.guestName ?? (r as { guest_name?: string | null }).guest_name ?? null,
+          phone: matchedLog?.guest_phone ?? ident.guestPhone ?? (r as { guest_phone?: string | null }).guest_phone ?? null,
+          chatDeliveredToReservation: chatDeliveredReservations.has(r.id),
+        }),
         guestName: matchedLog?.guest_name ?? ident.guestName ?? "Reserva Airbnb",
         guestPhone: matchedLog?.guest_phone ?? ident.guestPhone,
         guestPhoneCountry: matchedLog?.guest_phone ? (matchedLog?.guest_phone_country ?? null) : null,
