@@ -23,6 +23,7 @@ import { ClampName } from "@/components/ui/clamp-name";
 import { ownerPropertyLabel } from "@/lib/owner-gender";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
+import type { ExtraServiceItem } from "@/lib/service-situations";
 
 /**
  * A TABELA DO DIA (mockup aprovado, 17/09/2026).
@@ -43,6 +44,12 @@ import type { CleaningDayItem } from "@/lib/dashboard.functions";
  *
  * Completa aguardando aprovação aparece na tabela com "em análise", mas fica
  * fora do total — igual aos cards.
+ *
+ * ABA SERVIÇOS (23/10/2026): "done" e "cost" aceitam também `extras` — os
+ * serviços que NÃO são limpeza (manutenção, danos, outro e as situações
+ * criadas pelo usuário). Entram na mesma tabela do dia: em "done", num bloco
+ * "Serviços" logo abaixo das limpezas, com a situação em cada linha; em
+ * "cost", como linhas por imóvel e situação. O total do rodapé soma tudo.
  */
 
 export type CleaningForecastItem = {
@@ -58,7 +65,7 @@ export type CleaningForecastItem = {
 };
 
 export type DayDetailSource =
-  | { mode: "done" | "cost"; items: CleaningDayItem[] }
+  | { mode: "done" | "cost"; items: CleaningDayItem[]; extras?: ExtraServiceItem[] }
   | { mode: "forecast"; items: CleaningForecastItem[] };
 
 const WEEKDAY = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -269,63 +276,112 @@ export function CleaningDayDetailContent({
     );
   } else {
     const rows = source.items.filter((i) => date === "all" || i.date === date);
+    const xrows = (source.extras ?? []).filter((i) => date === "all" || i.date === date);
     const counted = rows.filter((r) => !r.pending);
     const pending = rows.filter((r) => r.pending);
-    const total = counted.reduce((n, r) => n + (r.priceCents ?? 0), 0);
+    const extrasTotal = xrows.reduce((n, r) => n + (r.priceCents ?? 0), 0);
+    const total = counted.reduce((n, r) => n + (r.priceCents ?? 0), 0) + extrasTotal;
     const pendingTotal = pending.reduce((n, r) => n + (r.priceCents ?? 0), 0);
+    const total_ = rows.length + xrows.length;
 
     if (source.mode === "done") {
+      const cleaningWord = `${rows.length} ${rows.length === 1 ? "limpeza concluída" : "limpezas concluídas"}`;
+      const extraWord = `${xrows.length} ${xrows.length === 1 ? "serviço extra" : "serviços extras"}`;
       subtitle =
-        rows.length === 0
-          ? "Nenhuma limpeza concluída"
-          : `${rows.length} ${rows.length === 1 ? "limpeza concluída" : "limpezas concluídas"}`;
-      body = rows.length > 0 && (
-        <table className="w-full border-collapse tabular-nums">
-          <thead>
-            <tr>
-              <th className={`${TH} text-left`}>Imóvel</th>
-              <th className={`${TH} px-0 text-center !tracking-[0.04em]`}>Prestador</th>
-              <th className={`${TH} px-0 text-center !tracking-[0.04em]`}>Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => {
-              const action = [dateSP(r.concludedAt), timeSP(r.concludedAt), r.doneByName]
-                .filter(Boolean)
-                .join(" · ");
-              return (
-                <tr key={r.id}>
-                  <DoneCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} action={action}>
-                    <TypeToggle
-                      statusId={r.id}
-                      type={r.cleaningType}
-                      pending={r.pending}
-                      title={r.propertyName}
-                      canEdit={canEdit}
-                    />
-                  </DoneCell>
-                  <td className={`${TD} px-0.5 text-center !align-middle`}>
-                    {(r.logId || r.reservationId) && (
-                      <CleaningProviderAvatar
-                        propertyId={r.propertyId}
-                        logId={r.logId ?? ""}
-                        reservationId={r.reservationId}
-                        look={canEdit ? "raised" : "plain"}
-                      />
-                    )}
-                  </td>
-                  <td className={`${TD} text-center !align-middle`}>
-                    <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} canEdit={canEdit} />
-                  </td>
+        total_ === 0
+          ? "Nenhum serviço concluído"
+          : rows.length > 0 && xrows.length > 0
+            ? `${cleaningWord} · ${extraWord}`
+            : rows.length > 0
+              ? cleaningWord
+              : `${xrows.length} ${xrows.length === 1 ? "serviço concluído" : "serviços concluídos"}`;
+      body = total_ > 0 && (
+        <>
+          {rows.length > 0 && (
+            <table className="w-full border-collapse tabular-nums">
+              <thead>
+                <tr>
+                  <th className={`${TH} text-left`}>Imóvel</th>
+                  <th className={`${TH} px-0 text-center !tracking-[0.04em]`}>Prestador</th>
+                  <th className={`${TH} px-0 text-center !tracking-[0.04em]`}>Valor</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const action = [dateSP(r.concludedAt), timeSP(r.concludedAt), r.doneByName]
+                    .filter(Boolean)
+                    .join(" · ");
+                  return (
+                    <tr key={r.id}>
+                      <DoneCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} action={action}>
+                        <TypeToggle
+                          statusId={r.id}
+                          type={r.cleaningType}
+                          pending={r.pending}
+                          title={r.propertyName}
+                          canEdit={canEdit}
+                        />
+                      </DoneCell>
+                      <td className={`${TD} px-0.5 text-center !align-middle`}>
+                        {(r.logId || r.reservationId) && (
+                          <CleaningProviderAvatar
+                            propertyId={r.propertyId}
+                            logId={r.logId ?? ""}
+                            reservationId={r.reservationId}
+                            look={canEdit ? "raised" : "plain"}
+                          />
+                        )}
+                      </td>
+                      <td className={`${TD} text-center !align-middle`}>
+                        <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} canEdit={canEdit} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          {xrows.length > 0 && (
+            <table className={`w-full border-collapse tabular-nums ${rows.length > 0 ? "mt-4" : ""}`}>
+              <thead>
+                <tr>
+                  <th className={`${TH} text-left`}>{rows.length > 0 ? "Serviços extras" : "Imóvel"}</th>
+                  <th className={`${TH} text-right`}>Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {xrows.map((r) => {
+                  const action = [dateSP(r.concludedAt), timeSP(r.concludedAt), r.doneByName]
+                    .filter(Boolean)
+                    .join(" · ");
+                  return (
+                    <tr key={r.id}>
+                      <DoneCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} action={action}>
+                        <span
+                          className="mt-0.5 block truncate text-[11.5px] font-semibold text-foreground/80"
+                          title={`${r.situationName}: ${r.title}`}
+                        >
+                          Situação: {r.situationName}
+                        </span>
+                        <span className="block truncate text-[11px] text-muted-foreground" title={r.title}>
+                          {r.title}
+                        </span>
+                      </DoneCell>
+                      <td className={`${TD} text-right !align-middle font-bold`}>
+                        <span className="whitespace-nowrap">{brl(r.priceCents ?? 0)}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </>
       );
     } else {
       // Uma linha por imóvel, do maior valor para o menor. O tipo resume o
-      // que houve ali ("Normal", "Completa" ou os dois).
+      // que houve ali ("Normal", "Completa" ou os dois). Serviços extras entram
+      // como linhas próprias (imóvel + situação), com a situação no lugar do tipo.
       type Agg = {
         key: string;
         name: string;
@@ -336,6 +392,7 @@ export function CleaningDayDetailContent({
         cents: number;
         types: Set<string>;
         pending: boolean;
+        label?: string;
       };
       const byProp = new Map<string, Agg>();
       for (const r of counted) {
@@ -355,6 +412,24 @@ export function CleaningDayDetailContent({
         if (r.cleaningType) cur.types.add(r.cleaningType);
         byProp.set(r.propertyId, cur);
       }
+      for (const r of xrows) {
+        const k = `extra:${r.propertyId}:${r.situation}`;
+        const cur = byProp.get(k) ?? {
+          key: k,
+          name: r.propertyName,
+          owner: r.ownerName,
+          phone: r.ownerPhone ?? null,
+          country: r.ownerPhoneCountry ?? null,
+          count: 0,
+          cents: 0,
+          types: new Set<string>(),
+          pending: false,
+          label: r.situationName,
+        };
+        cur.count += 1;
+        cur.cents += r.priceCents ?? 0;
+        byProp.set(k, cur);
+      }
       for (const r of pending) {
         byProp.set(`pending:${r.id}`, {
           key: `pending:${r.id}`,
@@ -371,17 +446,28 @@ export function CleaningDayDetailContent({
       const aggs = Array.from(byProp.values()).sort(
         (a, b) => Number(a.pending) - Number(b.pending) || b.cents - a.cents,
       );
+      const hasExtras = xrows.length > 0;
+      const itemWord =
+        hasExtras && rows.length === 0
+          ? xrows.length === 1
+            ? "serviço"
+            : "serviços"
+          : hasExtras
+            ? "itens"
+            : rows.length === 1
+              ? "limpeza"
+              : "limpezas";
       subtitle =
-        rows.length === 0
+        total_ === 0
           ? "Nenhum custo neste dia"
-          : `${rows.length} ${rows.length === 1 ? "limpeza" : "limpezas"} · do maior para o menor valor`;
+          : `${total_} ${itemWord} · do maior para o menor valor`;
       body = aggs.length > 0 && (
         <table className="w-full border-collapse tabular-nums">
           <thead>
             <tr>
               <th className={`${TH} text-left`}>Imóvel</th>
               <th className={`${TH} px-2 text-center`}>Qtd</th>
-              <th className={`${TH} text-left`}>Tipo</th>
+              <th className={`${TH} text-left`}>{hasExtras ? "Tipo / situação" : "Tipo"}</th>
               <th className={`${TH} text-right`}>Valor</th>
             </tr>
           </thead>
@@ -391,7 +477,9 @@ export function CleaningDayDetailContent({
                 <PropertyCell name={a.name} owner={a.owner} phone={a.phone} country={a.country} />
                 <td className={`${TD} px-2 text-center font-bold`}>{a.count}</td>
                 <td className={`${TD} pr-2`}>
-                  {a.types.size > 1 ? (
+                  {a.label ? (
+                    <span className="block font-semibold text-foreground">{a.label}</span>
+                  ) : a.types.size > 1 ? (
                     <span className="block font-bold text-muted-foreground">Normal + completa</span>
                   ) : (
                     <TypeLabel
@@ -408,11 +496,11 @@ export function CleaningDayDetailContent({
       );
     }
 
-    footer = rows.length > 0 && (
+    footer = total_ > 0 && (
       <>
         <span className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground">
           {source.mode === "done" && pending.length > 0
-            ? `Total · ${counted.length} no custo`
+            ? `Total · ${counted.length + xrows.length} no custo`
             : "Total do dia"}
         </span>
         <span className="text-right">

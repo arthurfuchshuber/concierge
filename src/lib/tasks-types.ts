@@ -26,6 +26,20 @@ export function defaultShowInCleaning(category: TaskCategory): boolean {
   return category === "maintenance";
 }
 
+/**
+ * QUEM é a parte de uma despesa (23/10/2026, mockups 0i/0j/0k). Os valores são
+ * os que já existem no banco (`cost_payer`, `paid_by`): "company" é o
+ * ANFITRIÃO (a conta/empresa cadastrada — na tela aparece pelo nome fantasia).
+ */
+export type TaskParty = "company" | "owner" | "provider" | "guest";
+
+export const TASK_PARTY_LABEL: Record<TaskParty, string> = {
+  company: "Anfitrião",
+  owner: "Proprietário",
+  provider: "Prestador",
+  guest: "Hóspede",
+};
+
 export type TaskRow = {
   id: string;
   title: string;
@@ -41,6 +55,9 @@ export type TaskRow = {
   propertyName: string | null;
   ownerContactId: string | null;
   ownerName: string | null;
+  /** Contato do proprietário (ícone de mensagem da janela de conclusão). */
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
   /** Vínculo pontual com uma estadia específica — quando presente, a
    * pendência é "pontual" (some quando a estadia termina). Sem nenhum dos
    * dois, é "recorrente" (permanente do imóvel/proprietário). */
@@ -48,7 +65,7 @@ export type TaskRow = {
   reservationId: string | null;
   /** Gasto (em centavos) da pendência — pontuais e as com recurrenceDays
    * guardam aqui; recorrentes-por-limpeza guardam por ocorrência em
-   * TaskCompletion.amountSpentCents. */
+   * TaskCompletion.amountSpentCents. É o "Valor da resolução". */
   amountSpentCents: number | null;
   /** Repetição por tempo (independente do modelo "recorrente por limpeza"):
    * ao concluir, a pendência volta pendente com um novo prazo N dias à
@@ -60,6 +77,24 @@ export type TaskRow = {
   resolvedByProviderId: string | null;
   resolvedByProviderName: string | null;
   resolutionNote: string | null;
+  /* ---- Contabilização da despesa (23/10/2026) -------------------------
+   * Tudo que a janela "Concluir pendência" grava, lido de volta para os
+   * perfis/dashboards. Todos anuláveis: pendência antiga não tem nada disso. */
+  /** "Valor a pagar" — pode diferir do valor da resolução. */
+  amountDueCents: number | null;
+  /** Botão "Não recebeu / Já recebeu" do valor da resolução. */
+  resolutionReceived: boolean;
+  /** "Quem deve pagar" (+ id quando proprietário/prestador). */
+  costPayer: TaskParty | null;
+  costPayerId: string | null;
+  /** "Quem pagou" (só preenchido quando "Já foi pago") e "Valor pago". */
+  paidBy: TaskParty | null;
+  paidById: string | null;
+  amountPaidCents: number | null;
+  /** Diferença com sinal (valor a pagar − valor da resolução) e destino. */
+  differenceCents: number | null;
+  differenceTo: TaskParty | null;
+  differenceToId: string | null;
 };
 
 /** Uma marca de "feito" pra uma pendência RECORRENTE numa limpeza

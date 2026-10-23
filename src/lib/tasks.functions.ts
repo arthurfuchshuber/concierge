@@ -14,6 +14,7 @@ import type {
   TaskLinkOwner,
   TaskLinkProperty,
   TaskLinkProvider,
+  TaskParty,
   TaskPriority,
   TaskRow,
   TaskStatus,
@@ -53,6 +54,9 @@ export const listTaskLinkOptions = createServerFn({ method: "GET" })
       properties: TaskLinkProperty[];
       owners: TaskLinkOwner[];
       providers: TaskLinkProvider[];
+      /** Nome da empresa (anfitrião) cadastrada na conta — aparece no lugar
+       * de "Anfitrião" nas janelas de despesa (23/10/2026). */
+      companyName: string | null;
     }> => {
       const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
       const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
@@ -67,30 +71,33 @@ export const listTaskLinkOptions = createServerFn({ method: "GET" })
         ),
       ]);
 
-      const [{ data: props }, { data: ownerRows }, { data: providerRows }] = await Promise.all([
-        propIds.length > 0
-          ? db
-              .from("properties")
-              .select("id, name, owner_contact_id")
-              .in("id", propIds)
-              .order("name")
-          : Promise.resolve({ data: [] }),
-        db
-          .from("property_owners")
-          .select("id, name, trade_name")
-          .eq("account_owner_id", accountOwnerId)
-          .neq("status", "canceled")
-          .order("name"),
-        // Prestadores ativos — alimentam "quem resolveu" ao concluir uma
-        // pendência. Vêm junto nesta mesma função (em vez de uma busca à
-        // parte) porque a tela de Pendências já consome ela.
-        db
-          .from("service_providers")
-          .select("id, name, trade_name, category, categories, city, status")
-          .eq("account_owner_id", accountOwnerId)
-          .eq("status", "active")
-          .order("name"),
-      ]);
+      const [{ data: props }, { data: ownerRows }, { data: providerRows }, { data: companyRow }] =
+        await Promise.all([
+          propIds.length > 0
+            ? db
+                .from("properties")
+                .select("id, name, owner_contact_id")
+                .in("id", propIds)
+                .order("name")
+            : Promise.resolve({ data: [] }),
+          db
+            .from("property_owners")
+            .select("id, name, trade_name")
+            .eq("account_owner_id", accountOwnerId)
+            .neq("status", "canceled")
+            .order("name"),
+          // Prestadores ativos — alimentam "quem resolveu" ao concluir uma
+          // pendência. Vêm junto nesta mesma função (em vez de uma busca à
+          // parte) porque a tela de Pendências já consome ela.
+          db
+            .from("service_providers")
+            .select("id, name, trade_name, category, categories, city, status")
+            .eq("account_owner_id", accountOwnerId)
+            .eq("status", "active")
+            .order("name"),
+          // Nome fantasia da empresa da conta (o "Anfitrião Sigma" das telas).
+          db.from("profiles").select("trade_name").eq("id", accountOwnerId).maybeSingle(),
+        ]);
 
       const ownerNameById = new Map<string, string>();
       for (const o of (ownerRows ?? []) as Array<{
@@ -139,7 +146,10 @@ export const listTaskLinkOptions = createServerFn({ method: "GET" })
         }))
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
-      return { properties, owners, providers };
+      const companyName =
+        ((companyRow as { trade_name: string | null } | null)?.trade_name ?? "").trim() || null;
+
+      return { properties, owners, providers, companyName };
     },
   );
 
@@ -170,7 +180,7 @@ export const listTasks = createServerFn({ method: "GET" })
       let query = db
         .from("tasks")
         .select(
-          "id, title, description, category, priority, due_date, show_in_cleaning, status, completed_at, created_at, property_id, owner_contact_id, log_id, reservation_id, amount_spent_cents, recurrence_days, resolved_by_provider_id, resolution_note",
+          "id, title, description, category, priority, due_date, show_in_cleaning, status, completed_at, created_at, property_id, owner_contact_id, log_id, reservation_id, amount_spent_cents, recurrence_days, resolved_by_provider_id, resolution_note, amount_due_cents, resolution_received, cost_payer, cost_payer_id, paid_by, paid_by_id, amount_paid_cents, difference_cents, difference_to, difference_to_id",
         )
         .eq("account_owner_id", accountOwnerId)
         .in("status", ["pending", "done"])
@@ -200,6 +210,16 @@ export const listTasks = createServerFn({ method: "GET" })
         recurrence_days: number | null;
         resolved_by_provider_id: string | null;
         resolution_note: string | null;
+        amount_due_cents: number | null;
+        resolution_received: boolean | null;
+        cost_payer: string | null;
+        cost_payer_id: string | null;
+        paid_by: string | null;
+        paid_by_id: string | null;
+        amount_paid_cents: number | null;
+        difference_cents: number | null;
+        difference_to: string | null;
+        difference_to_id: string | null;
       }>;
 
       // Nomes de imóvel/proprietário em 2 buscas em lote (mesma técnica do
@@ -231,16 +251,25 @@ export const listTasks = createServerFn({ method: "GET" })
       );
       const { data: ownerRows } =
         ownerIdsUsed.length > 0
-          ? await db.from("property_owners").select("id, name, trade_name").in("id", ownerIdsUsed)
+          ? await db
+              .from("property_owners")
+              .select("id, name, trade_name, phone, phone_country")
+              .in("id", ownerIdsUsed)
           : { data: [] };
       const ownerNameById = new Map<string, string>();
+      // Contato do proprietário — alimenta o ícone de mensagem da janela
+      // "Concluir pendência" (23/10/2026, mockup 0i).
+      const ownerContactById = new Map<string, { phone: string | null; country: string | null }>();
       for (const o of (ownerRows ?? []) as Array<{
         id: string;
         name: string | null;
         trade_name: string | null;
+        phone: string | null;
+        phone_country: string | null;
       }>) {
         const label = (o.trade_name || o.name || "").trim();
         if (label) ownerNameById.set(o.id, label);
+        ownerContactById.set(o.id, { phone: o.phone, country: o.phone_country });
       }
 
       // Nome de quem resolveu — mesma técnica em lote das duas buscas acima.
@@ -282,6 +311,10 @@ export const listTasks = createServerFn({ method: "GET" })
           propertyName: prop?.name ?? null,
           ownerContactId: r.owner_contact_id,
           ownerName: effectiveOwnerId ? (ownerNameById.get(effectiveOwnerId) ?? null) : null,
+          ownerPhone: effectiveOwnerId ? (ownerContactById.get(effectiveOwnerId)?.phone ?? null) : null,
+          ownerPhoneCountry: effectiveOwnerId
+            ? (ownerContactById.get(effectiveOwnerId)?.country ?? null)
+            : null,
           logId: r.log_id,
           reservationId: r.reservation_id,
           amountSpentCents: r.amount_spent_cents,
@@ -291,6 +324,16 @@ export const listTasks = createServerFn({ method: "GET" })
             ? (providerNameById.get(r.resolved_by_provider_id) ?? null)
             : null,
           resolutionNote: r.resolution_note,
+          amountDueCents: r.amount_due_cents,
+          resolutionReceived: !!r.resolution_received,
+          costPayer: (r.cost_payer as TaskParty | null) ?? null,
+          costPayerId: r.cost_payer_id,
+          paidBy: (r.paid_by as TaskParty | null) ?? null,
+          paidById: r.paid_by_id,
+          amountPaidCents: r.amount_paid_cents,
+          differenceCents: r.difference_cents,
+          differenceTo: (r.difference_to as TaskParty | null) ?? null,
+          differenceToId: r.difference_to_id,
         };
       });
 
@@ -385,6 +428,13 @@ export const createTask = createServerFn({ method: "POST" })
         title: data.title,
         description: data.description ?? null,
         category: data.category,
+        // Situação (aba Serviços): manutenção→Manutenção, limpeza→Limpeza, resto→Outro.
+        situation:
+          data.category === "maintenance"
+            ? "maintenance"
+            : data.category === "cleaning"
+              ? "cleaning"
+              : "other",
         priority: data.priority,
         due_date: data.dueDate ?? null,
         show_in_cleaning: data.showInCleaning ?? defaultShowInCleaning(data.category),
@@ -400,11 +450,13 @@ export const createTask = createServerFn({ method: "POST" })
 
 // ----- Concluir / reabrir / arquivar (pendências pontuais e gestão geral) -----
 
+const PartyEnum = z.enum(["company", "owner", "provider", "guest"]);
+
 const SetTaskStatusInput = z.object({
   taskId: z.string().uuid(),
   status: z.enum(["pending", "done", "canceled"]),
   /** Só relevante ao concluir ("done") uma pendência que ainda não tinha
-   * valor — ver diálogo de conclusão na UI. */
+   * valor — ver diálogo de conclusão na UI. É o "Valor da resolução". */
   amountSpentCents: z.number().int().min(0).nullable().optional(),
   /** Prestação de contas da conclusão (pedido explícito, 07/09/2026) — os
    * dois OPCIONAIS: dá pra concluir sem informar nada, como antes. */
@@ -416,8 +468,13 @@ const SetTaskStatusInput = z.object({
    * um dano pode ser consertado pelo prestador e cobrado do proprietário, ou
    * absorvido pela empresa. "Hóspede" (pedido explícito, 24/09/2026) também
    * pode ser o responsável — ex.: dano causado por ele.
+   *
+   * 23/10/2026 (mockup 0k): o servidor agora IMPÕE as regras do seletor —
+   * proprietário = o dono do imóvel da pendência (não se escolhe outro),
+   * hóspede = o da reserva vinculada (sem reserva, não existe), anfitrião =
+   * a própria conta, prestador = o único escolhido de uma lista.
    */
-  costPayer: z.enum(["company", "owner", "provider", "guest"]).nullable().optional(),
+  costPayer: PartyEnum.nullable().optional(),
   costPayerId: z.string().uuid().nullable().optional(),
   /**
    * QUEM PAGOU DE FATO (pedido explícito, 24/09/2026) — pergunta nova,
@@ -426,10 +483,83 @@ const SetTaskStatusInput = z.object({
    * efetivamente pago, que pode ser menor que `amountSpentCents` (o "Valor
    * da Resolução") em caso de pagamento parcial.
    */
-  paidBy: z.enum(["company", "owner", "provider", "guest"]).nullable().optional(),
+  paidBy: PartyEnum.nullable().optional(),
   paidById: z.string().uuid().nullable().optional(),
   amountPaidCents: z.number().int().min(0).nullable().optional(),
+  /** 23/10/2026 (mockups 0i/0j) — "Valor a pagar", botão "Já recebeu" e a
+   * DIFERENÇA entre o valor a pagar e o valor da resolução, com o destino
+   * escolhido na janela "Há uma diferença de valores". */
+  amountDueCents: z.number().int().min(0).nullable().optional(),
+  resolutionReceived: z.boolean().optional(),
+  differenceCents: z.number().int().nullable().optional(),
+  differenceTo: PartyEnum.nullable().optional(),
+  differenceToId: z.string().uuid().nullable().optional(),
 });
+
+/**
+ * Resolve QUEM é uma parte (anfitrião/proprietário/prestador/hóspede) de uma
+ * pendência, aplicando as regras do mockup 0k:
+ *  - proprietário → o dono do imóvel/pendência. Nunca o que o cliente mandou;
+ *  - hóspede      → só existe se a pendência tem estadia (reserva ou acesso);
+ *  - anfitrião    → sem id (é a conta);
+ *  - prestador    → id obrigatório e precisa ser um prestador da conta.
+ */
+async function resolveParty(
+  db: AnyClient,
+  party: TaskParty | null | undefined,
+  sentId: string | null | undefined,
+  ctx: { ownerId: string | null; hasStay: boolean },
+  label: string,
+): Promise<string | null> {
+  if (!party) return null;
+  if (party === "company") return null;
+  if (party === "guest") {
+    if (!ctx.hasStay) throw new Error(`${label}: esta pendência não tem hóspede vinculado.`);
+    return null;
+  }
+  if (party === "owner") {
+    if (!ctx.ownerId) throw new Error(`${label}: esta pendência não tem proprietário vinculado.`);
+    return ctx.ownerId;
+  }
+  // provider
+  if (!sentId) throw new Error(`${label}: escolha o prestador.`);
+  const { data: prov } = await db
+    .from("service_providers")
+    .select("id")
+    .eq("id", sentId)
+    .maybeSingle();
+  if (!prov) throw new Error(`${label}: prestador inválido.`);
+  return sentId;
+}
+
+/** Dono efetivo (da pendência ou, na falta, do imóvel) e se há estadia
+ * vinculada — o que as regras do seletor "Quem deve pagar" precisam saber. */
+async function loadPartyContext(
+  db: AnyClient,
+  taskId: string,
+): Promise<{ ownerId: string | null; hasStay: boolean }> {
+  const { data: t } = await db
+    .from("tasks")
+    .select("owner_contact_id, property_id, reservation_id, log_id")
+    .eq("id", taskId)
+    .single();
+  const row = t as {
+    owner_contact_id: string | null;
+    property_id: string | null;
+    reservation_id: string | null;
+    log_id: string | null;
+  } | null;
+  let ownerId = row?.owner_contact_id ?? null;
+  if (!ownerId && row?.property_id) {
+    const { data: p } = await db
+      .from("properties")
+      .select("owner_contact_id")
+      .eq("id", row.property_id)
+      .maybeSingle();
+    ownerId = (p as { owner_contact_id: string | null } | null)?.owner_contact_id ?? null;
+  }
+  return { ownerId, hasStay: !!(row?.reservation_id || row?.log_id) };
+}
 
 export const setTaskStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -447,15 +577,61 @@ export const setTaskStatus = createServerFn({ method: "POST" })
     if (data.resolvedByProviderId !== undefined)
       patch.resolved_by_provider_id = data.resolvedByProviderId;
     if (data.resolutionNote !== undefined) patch.resolution_note = data.resolutionNote || null;
-    if (data.costPayer !== undefined) patch.cost_payer = data.costPayer;
-    if (data.costPayerId !== undefined) patch.cost_payer_id = data.costPayerId;
-    // "A empresa"/"Hóspede" não têm id pra guardar — só proprietário e
-    // prestador (cadastros próprios) têm um id pra selecionar.
-    if (data.costPayer === "company" || data.costPayer === "guest") patch.cost_payer_id = null;
-    if (data.paidBy !== undefined) patch.paid_by = data.paidBy;
-    if (data.paidById !== undefined) patch.paid_by_id = data.paidById;
-    if (data.paidBy === "company" || data.paidBy === "guest") patch.paid_by_id = null;
+
+    // Contexto para validar as partes: dono efetivo e se há estadia.
+    const needsParties =
+      data.status === "done" &&
+      (data.costPayer !== undefined || data.paidBy !== undefined || data.differenceTo !== undefined);
+    if (needsParties) {
+      const ctx = await loadPartyContext(db, data.taskId);
+      if (data.costPayer !== undefined) {
+        patch.cost_payer = data.costPayer;
+        patch.cost_payer_id = await resolveParty(db, data.costPayer, data.costPayerId, ctx, "Quem deve pagar");
+      }
+      if (data.paidBy !== undefined) {
+        patch.paid_by = data.paidBy;
+        patch.paid_by_id = await resolveParty(db, data.paidBy, data.paidById, ctx, "Quem pagou");
+      }
+      if (data.differenceTo !== undefined) {
+        patch.difference_to = data.differenceTo;
+        patch.difference_to_id = await resolveParty(
+          db,
+          data.differenceTo,
+          data.differenceToId,
+          ctx,
+          "Destino da diferença",
+        );
+      }
+    } else {
+      // Fluxos antigos (sem as novas regras) seguem exatamente como antes.
+      if (data.costPayer !== undefined) patch.cost_payer = data.costPayer;
+      if (data.costPayerId !== undefined) patch.cost_payer_id = data.costPayerId;
+      // "A empresa"/"Hóspede" não têm id pra guardar — só proprietário e
+      // prestador (cadastros próprios) têm um id pra selecionar.
+      if (data.costPayer === "company" || data.costPayer === "guest") patch.cost_payer_id = null;
+      if (data.paidBy !== undefined) patch.paid_by = data.paidBy;
+      if (data.paidById !== undefined) patch.paid_by_id = data.paidById;
+      if (data.paidBy === "company" || data.paidBy === "guest") patch.paid_by_id = null;
+    }
     if (data.amountPaidCents !== undefined) patch.amount_paid_cents = data.amountPaidCents;
+    if (data.amountDueCents !== undefined) patch.amount_due_cents = data.amountDueCents;
+    if (data.resolutionReceived !== undefined) patch.resolution_received = data.resolutionReceived;
+    if (data.differenceCents !== undefined) {
+      // A diferença é SEMPRE derivada: valor a pagar − valor da resolução.
+      // O que o cliente manda só vale se bater com a conta (evita número
+      // inventado), e sem diferença não há destino.
+      const spent = data.amountSpentCents ?? 0;
+      const due = data.amountDueCents ?? 0;
+      const expected = due - spent;
+      if (data.differenceCents !== null && data.differenceCents !== expected) {
+        throw new Error("A diferença informada não confere com os valores.");
+      }
+      patch.difference_cents = data.differenceCents === 0 ? null : data.differenceCents;
+      if (!data.differenceCents) {
+        patch.difference_to = null;
+        patch.difference_to_id = null;
+      }
+    }
     // Reabrir limpa a prestação de contas da conclusão anterior — senão a
     // pendência volta pendente ainda exibindo "resolvida por Fulano".
     if (data.status === "pending") {
@@ -466,6 +642,11 @@ export const setTaskStatus = createServerFn({ method: "POST" })
       patch.paid_by = null;
       patch.paid_by_id = null;
       patch.amount_paid_cents = null;
+      patch.amount_due_cents = null;
+      patch.resolution_received = false;
+      patch.difference_cents = null;
+      patch.difference_to = null;
+      patch.difference_to_id = null;
     }
 
     if (data.status === "done") {
@@ -522,6 +703,18 @@ const ToggleCleaningInput = z
      * quem resolveu e como — antes esses campos eram descartados aqui. */
     resolvedByProviderId: z.string().uuid().nullable().optional(),
     resolutionNote: z.string().max(2000).nullable().optional(),
+    /** Mesma prestação de contas da conclusão pontual (23/10/2026) — cabe na
+     * baixa da ocorrência para a despesa também ser contabilizada. */
+    amountDueCents: z.number().int().min(0).nullable().optional(),
+    resolutionReceived: z.boolean().optional(),
+    costPayer: PartyEnum.nullable().optional(),
+    costPayerId: z.string().uuid().nullable().optional(),
+    paidBy: PartyEnum.nullable().optional(),
+    paidById: z.string().uuid().nullable().optional(),
+    amountPaidCents: z.number().int().min(0).nullable().optional(),
+    differenceCents: z.number().int().nullable().optional(),
+    differenceTo: PartyEnum.nullable().optional(),
+    differenceToId: z.string().uuid().nullable().optional(),
   })
   .refine((v) => !!v.logId || !!v.reservationId, {
     message: "Informe a estadia (log ou reserva).",
@@ -554,6 +747,20 @@ export const toggleCleaningCompletion = createServerFn({ method: "POST" })
         // recoloca a marca exatamente como estava (quem, quando, quanto).
         return { checked: false, removed: found };
       }
+      const ctx = await loadPartyContext(db, data.taskId);
+      const costPayerId = await resolveParty(db, data.costPayer, data.costPayerId, ctx, "Quem deve pagar");
+      const paidById = await resolveParty(db, data.paidBy, data.paidById, ctx, "Quem pagou");
+      const differenceToId = await resolveParty(
+        db,
+        data.differenceTo,
+        data.differenceToId,
+        ctx,
+        "Destino da diferença",
+      );
+      const expectedDiff = (data.amountDueCents ?? 0) - (data.amountSpentCents ?? 0);
+      if (data.differenceCents != null && data.differenceCents !== expectedDiff) {
+        throw new Error("A diferença informada não confere com os valores.");
+      }
       const { error } = await db.from("task_completions").insert({
         task_id: data.taskId,
         log_id: data.logId ?? null,
@@ -562,6 +769,16 @@ export const toggleCleaningCompletion = createServerFn({ method: "POST" })
         resolved_by_provider_id: data.resolvedByProviderId ?? null,
         resolution_note: data.resolutionNote?.trim() || null,
         completed_by: context.userId,
+        amount_due_cents: data.amountDueCents ?? null,
+        resolution_received: data.resolutionReceived ?? false,
+        cost_payer: data.costPayer ?? null,
+        cost_payer_id: costPayerId,
+        paid_by: data.paidBy ?? null,
+        paid_by_id: paidById,
+        amount_paid_cents: data.amountPaidCents ?? null,
+        difference_cents: data.differenceCents ? data.differenceCents : null,
+        difference_to: data.differenceCents ? (data.differenceTo ?? null) : null,
+        difference_to_id: data.differenceCents ? differenceToId : null,
       });
       if (error) throw new Error(error.message);
       return { checked: true, removed: null };
@@ -688,10 +905,14 @@ export const setTasksStatusBulk = createServerFn({ method: "POST" })
  * de volta. Só as colunas que as ações mexem entram na foto — título,
  * vínculos e criador nunca mudam por aqui. A política "Account can manage
  * tasks" continua valendo: ninguém restaura pendência de outra conta.
+ *
+ * 23/10/2026: a foto passou a incluir as colunas novas da despesa (valor a
+ * pagar, recebido, diferença e destino). São OPCIONAIS no schema para que uma
+ * foto tirada por uma versão anterior da tela (cache) ainda restaure.
  * ------------------------------------------------------------------------ */
 
 const TASK_SNAPSHOT_COLUMNS =
-  "id, status, completed_at, due_date, amount_spent_cents, resolved_by_provider_id, resolution_note, cost_payer, cost_payer_id, paid_by, paid_by_id, amount_paid_cents";
+  "id, status, completed_at, due_date, amount_spent_cents, resolved_by_provider_id, resolution_note, cost_payer, cost_payer_id, paid_by, paid_by_id, amount_paid_cents, amount_due_cents, resolution_received, difference_cents, difference_to, difference_to_id";
 
 export type TaskSnapshot = z.infer<typeof TaskSnapshotSchema>;
 
@@ -716,11 +937,16 @@ const TaskSnapshotSchema = z.object({
   amount_spent_cents: z.number().int().min(0).nullable(),
   resolved_by_provider_id: z.string().uuid().nullable(),
   resolution_note: z.string().max(2000).nullable(),
-  cost_payer: z.enum(["company", "owner", "provider", "guest"]).nullable(),
+  cost_payer: PartyEnum.nullable(),
   cost_payer_id: z.string().uuid().nullable(),
-  paid_by: z.enum(["company", "owner", "provider", "guest"]).nullable(),
+  paid_by: PartyEnum.nullable(),
   paid_by_id: z.string().uuid().nullable(),
   amount_paid_cents: z.number().int().min(0).nullable(),
+  amount_due_cents: z.number().int().min(0).nullable().optional(),
+  resolution_received: z.boolean().optional(),
+  difference_cents: z.number().int().nullable().optional(),
+  difference_to: PartyEnum.nullable().optional(),
+  difference_to_id: z.string().uuid().nullable().optional(),
 });
 
 export const restoreTask = createServerFn({ method: "POST" })
@@ -738,7 +964,7 @@ export const restoreTask = createServerFn({ method: "POST" })
     }
     if (b.completed_at && Number.isNaN(new Date(b.completed_at).getTime())) throw new Error("Data inválida.");
     // Apenas os campos permitidos (allowlist explícita), nunca o objeto do cliente.
-    const cols = {
+    const cols: Record<string, unknown> = {
       status: b.status,
       completed_at: b.completed_at ? new Date(b.completed_at).toISOString() : null,
       due_date: b.due_date,
@@ -751,6 +977,11 @@ export const restoreTask = createServerFn({ method: "POST" })
       paid_by_id: b.paid_by_id,
       amount_paid_cents: b.amount_paid_cents,
     };
+    if (b.amount_due_cents !== undefined) cols.amount_due_cents = b.amount_due_cents;
+    if (b.resolution_received !== undefined) cols.resolution_received = b.resolution_received;
+    if (b.difference_cents !== undefined) cols.difference_cents = b.difference_cents;
+    if (b.difference_to !== undefined) cols.difference_to = b.difference_to;
+    if (b.difference_to_id !== undefined) cols.difference_to_id = b.difference_to_id;
     const { data: updated, error } = await db.from("tasks").update(cols).eq("id", b.id).select("id");
     if (error) throw new Error("Não foi possível desfazer.");
     if (!updated || (updated as unknown[]).length === 0) throw new Error("Sem permissão para editar esta pendência.");
@@ -758,7 +989,7 @@ export const restoreTask = createServerFn({ method: "POST" })
   });
 
 const COMPLETION_COLUMNS =
-  "id, task_id, log_id, reservation_id, amount_spent_cents, completed_by, completed_at, resolved_by_provider_id, resolution_note";
+  "id, task_id, log_id, reservation_id, amount_spent_cents, completed_by, completed_at, resolved_by_provider_id, resolution_note, amount_due_cents, resolution_received, cost_payer, cost_payer_id, paid_by, paid_by_id, amount_paid_cents, difference_cents, difference_to, difference_to_id";
 
 export type CompletionSnapshot = {
   id: string;
@@ -770,6 +1001,17 @@ export type CompletionSnapshot = {
   completed_at: string;
   resolved_by_provider_id: string | null;
   resolution_note: string | null;
+  // 23/10/2026 — prestação de contas da despesa (opcionais: baixa antiga não tem).
+  amount_due_cents?: number | null;
+  resolution_received?: boolean;
+  cost_payer?: TaskParty | null;
+  cost_payer_id?: string | null;
+  paid_by?: TaskParty | null;
+  paid_by_id?: string | null;
+  amount_paid_cents?: number | null;
+  difference_cents?: number | null;
+  difference_to?: TaskParty | null;
+  difference_to_id?: string | null;
 };
 
 export const restoreTaskCompletion = createServerFn({ method: "POST" })
@@ -787,6 +1029,16 @@ export const restoreTaskCompletion = createServerFn({ method: "POST" })
           completed_at: z.string(),
           resolved_by_provider_id: z.string().uuid().nullable(),
           resolution_note: z.string().max(2000).nullable(),
+          amount_due_cents: z.number().int().min(0).nullable().optional(),
+          resolution_received: z.boolean().optional(),
+          cost_payer: PartyEnum.nullable().optional(),
+          cost_payer_id: z.string().uuid().nullable().optional(),
+          paid_by: PartyEnum.nullable().optional(),
+          paid_by_id: z.string().uuid().nullable().optional(),
+          amount_paid_cents: z.number().int().min(0).nullable().optional(),
+          difference_cents: z.number().int().nullable().optional(),
+          difference_to: PartyEnum.nullable().optional(),
+          difference_to_id: z.string().uuid().nullable().optional(),
         }),
       })
       .parse(i),
@@ -828,6 +1080,16 @@ export const restoreTaskCompletion = createServerFn({ method: "POST" })
       completed_at: completedAt.toISOString(),
       resolved_by_provider_id: r.resolved_by_provider_id,
       resolution_note: r.resolution_note,
+      amount_due_cents: r.amount_due_cents ?? null,
+      resolution_received: r.resolution_received ?? false,
+      cost_payer: r.cost_payer ?? null,
+      cost_payer_id: r.cost_payer_id ?? null,
+      paid_by: r.paid_by ?? null,
+      paid_by_id: r.paid_by_id ?? null,
+      amount_paid_cents: r.amount_paid_cents ?? null,
+      difference_cents: r.difference_cents ?? null,
+      difference_to: r.difference_to ?? null,
+      difference_to_id: r.difference_to_id ?? null,
     });
     if (error) throw new Error("Não foi possível desfazer.");
     return { ok: true };

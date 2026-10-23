@@ -3,6 +3,7 @@ import { ensureRealtimeAuth } from "@/lib/realtime-auth";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { SearchActionRow } from "./SearchActionRow";
 import { cleaningStatsQueryOptions } from "./cleaning-stats-query";
+import { TaskResolveDialog, settlementToServer, type ResolveValues } from "@/components/dashboard/TaskResolveDialog";
 import { searchScore } from "@/lib/search-score";
 import { POLICY_LABEL } from "@/lib/reservation-rich";
 import { trimSeries } from "@/lib/trim-series";
@@ -50,7 +51,14 @@ import {
 } from "@/components/dashboard/CleaningDayDetail";
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
-import { ManualCleaningButton } from "@/components/dashboard/ManualCleaningButton";
+import {
+  NewServiceButton,
+  SituationFilterSegment,
+  SituationOptionRow,
+  type SituationOption,
+} from "@/components/dashboard/ServiceSituationUi";
+import { getServiceExtras } from "@/lib/service-situations.functions";
+import { SYSTEM_SITUATIONS, type ExtraServiceItem } from "@/lib/service-situations";
 import { ManualBlockButton } from "@/components/dashboard/ManualBlockButton";
 import { CalendarBlockBar, CalendarBlockDialog } from "@/components/dashboard/CalendarBlockUI";
 import { addDaysISO as blockAddDays, conflictMessage, firstBlockConflict } from "@/lib/manual-block-conflict";
@@ -111,6 +119,9 @@ import {
   History,
   Clock3,
   HardHat,
+  Wrench,
+  Receipt,
+  Layers,
   Building2 as PropertyFilterIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -120,9 +131,7 @@ import { notifyAction } from "@/components/UndoActionBar";
 import { ReservationRecordsButton, ReservationRecordsDialog } from "@/components/dashboard/ReservationRecords";
 import {
   AttachmentPicker,
-  AttachmentsSending,
   uploadPendingAttachments,
-  AudioAttachButton,
   type PendingAttachment,
 } from "@/components/dashboard/TaskAttachments";
 import { attachTaskRecord, deleteReservationRecord } from "@/lib/reservation-records.functions";
@@ -846,6 +855,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const cleaningBoardQ = useCleaningBoard();
   // Filtro de Imóveis (pedido explícito, 26/09/2026) — ids, aba Limpeza.
   const [propertyFilters, setPropertyFilters] = useState<string[]>([]);
+  // Filtro de SITUAÇÃO da aba Serviços (23/10/2026): `null` = todas.
+  const [serviceSituation, setServiceSituation] = useState<string | null>(null);
   // Busca da linha "buscar + ações" (Kanban/Limpeza) — zera ao trocar de aba.
   const [opSearch, setOpSearch] = useState("");
   useEffect(() => setOpSearch(""), [view]);
@@ -861,6 +872,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     setCityFilters([]);
     setProviderFilters([]);
     setPropertyFilters([]);
+    setServiceSituation(null);
   }
 
   // O calendário de ocupação é SEMPRE o completo (16/10/2026): o período de
@@ -1100,6 +1112,35 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // totais e aparecem só como aviso embaixo deles.
   const pendingApproval = cleaningStatsData?.pendingApproval ?? { count: 0, totalCents: 0 };
 
+  /**
+   * SERVIÇOS EXTRAS (aba Serviços, 23/10/2026): tudo que foi resolvido e NÃO é
+   * limpeza — manutenção, danos, outro e as situações criadas pelo usuário.
+   * Mesma janela, mesmos imóveis e mesma regra de visibilidade da limpeza (o
+   * servidor recorta por vínculo). O recorte por SITUAÇÃO é feito aqui no
+   * cliente, para o filtro trocar tudo na hora, sem nova ida ao servidor.
+   */
+  const extrasFn = useServerFn(getServiceExtras);
+  const extrasQ = useQuery({
+    queryKey: [
+      "dash-service-extras",
+      activeOwnerId ?? "self",
+      cleaningStatsRange.start,
+      cleaningStatsRange.end,
+      cleaningStatsPropertyIds?.join(",") ?? "",
+    ],
+    queryFn: () =>
+      extrasFn({
+        data: {
+          ownerId: activeOwnerId,
+          rangeStart: cleaningStatsRange.start,
+          rangeEnd: cleaningStatsRange.end,
+          propertyIds: cleaningStatsPropertyIds,
+        },
+      }),
+    enabled: authed && view === "limpeza" && cleaningStatsEnabled,
+    staleTime: 30_000,
+  });
+
   // Uma única rotina de recarga, com "debounce": evita disparar 4-5 requisições
   // seguidas (mutação + eventos em tempo real) — o que deixava o app lento no celular.
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1116,6 +1157,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               k === "dash-eng" ||
               k === "dash-occupancy" ||
               k === "dash-cleaning-stats" ||
+              k === "dash-service-extras" ||
               k === CLEANING_APPROVALS_KEY
             );
           },
@@ -2031,6 +2073,198 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   })();
 
   /**
+   * A ABA SERVIÇOS POR CIMA DA TELA DE LIMPEZA (mockups aprovados, 23/10/2026).
+   *
+   * `cleaningScreen` continua sendo a fonte da LIMPEZA (realizadas, previstas,
+   * período misto). Aqui entram os serviços extras e o filtro de situação:
+   *   · `null` (todas)  → limpezas + extras somados nos gráficos, no Top 5 e
+   *                        na Eficiência; os 4 cartões mostram cada parte;
+   *   · "cleaning"      → só limpeza, com os textos da limpeza de sempre;
+   *   · qualquer outra  → só aquela situação: os cartões de limpeza zeram
+   *                        (0 / R$ 0) e tudo o mais troca na hora.
+   * Extras só existem como "realizados": a previsão (próximos 7d) é de limpeza.
+   */
+  const extrasActive = cleaningPeriod ? cleaningStatsEnabled : cleaningWindow === "past";
+  const sel = serviceSituation;
+  const limpezaOn = sel === null || sel === "cleaning";
+  const situationNames = extrasQ.data?.names ?? {};
+  const extrasAll = useMemo<ExtraServiceItem[]>(() => {
+    const items = extrasActive ? (extrasQ.data?.items ?? []) : [];
+    if (providerFilters.length === 0) return items;
+    // Mesmo filtro de Prestador da limpeza: por quem concluiu.
+    const wanted = new Set(providerFilters);
+    const none = wanted.has(NO_PROVIDER_LABEL);
+    return items.filter((i) => (i.doneByName ? wanted.has(i.doneByName) : none));
+  }, [extrasActive, extrasQ.data?.items, providerFilters]);
+  const extrasSel = useMemo<ExtraServiceItem[]>(
+    () => (sel === "cleaning" ? [] : sel === null ? extrasAll : extrasAll.filter((i) => i.situation === sel)),
+    [extrasAll, sel],
+  );
+  const selName =
+    sel === null
+      ? null
+      : (SYSTEM_SITUATIONS.find((x) => x.key === sel)?.name ?? situationNames[sel] ?? "Serviço");
+
+  /** Só as situações COM dado no período (e dentro do que o perfil enxerga). */
+  const situationOptions = useMemo<SituationOption[]>(() => {
+    const counts = new Map<string, number>();
+    for (const i of extrasAll) counts.set(i.situation, (counts.get(i.situation) ?? 0) + 1);
+    const rows: SituationOption[] = [];
+    const cleaningCount = cleaningScreen.countValue;
+    if (cleaningCount > 0 || sel === "cleaning") rows.push({ id: "cleaning", label: "Limpeza", count: cleaningCount });
+    for (const x of SYSTEM_SITUATIONS) {
+      if (x.key === "cleaning") continue;
+      const c = counts.get(x.key) ?? 0;
+      if (c > 0 || sel === x.key) rows.push({ id: x.key, label: x.name, count: c });
+    }
+    const customIds = Array.from(counts.keys()).filter((k) => !SYSTEM_SITUATIONS.some((x) => x.key === k));
+    if (sel && !SYSTEM_SITUATIONS.some((x) => x.key === sel) && !customIds.includes(sel)) customIds.push(sel);
+    customIds
+      .map((id) => ({ id, label: situationNames[id] ?? "Serviço", count: counts.get(id) ?? 0 }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"))
+      .forEach((r) => rows.push(r));
+    return [{ id: null, label: "Todas as situações", count: rows.reduce((n, r) => n + r.count, 0) }, ...rows];
+  }, [extrasAll, cleaningScreen.countValue, sel, situationNames]);
+
+  const extrasCount = extrasSel.length;
+  const extrasCents = extrasSel.reduce((n, i) => n + (i.priceCents ?? 0), 0);
+  const extrasBreakdown = useMemo<CleaningBreakdownItem[]>(() => {
+    const map = new Map<string, CleaningBreakdownItem>();
+    for (const i of extrasSel) {
+      const cur = map.get(i.propertyId) ?? {
+        propertyId: i.propertyId,
+        propertyName: i.propertyName,
+        ownerName: i.ownerName,
+        ownerPhone: i.ownerPhone,
+        ownerPhoneCountry: i.ownerPhoneCountry,
+        propertyAddress: null,
+        mapsUrl: null,
+        garageMapsUrl: null,
+        count: 0,
+        totalCents: 0,
+      };
+      cur.count += 1;
+      cur.totalCents += i.priceCents ?? 0;
+      map.set(i.propertyId, cur);
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => b.count - a.count || a.propertyName.localeCompare(b.propertyName, "pt-BR"),
+    );
+  }, [extrasSel]);
+
+  /** Série diária: limpeza (se a situação a inclui) + extras do dia. */
+  const servicesDaily = useMemo(() => {
+    type Pt = CleaningDailyPoint & Partial<CleaningPeriodPoint>;
+    const base = cleaningScreen.daily as Pt[] | undefined;
+    if (!base) return base;
+    if (limpezaOn && extrasSel.length === 0) return base;
+    const byDate = new Map<string, { n: number; cents: number }>();
+    for (const i of extrasSel) {
+      const cur = byDate.get(i.date) ?? { n: 0, cents: 0 };
+      cur.n += 1;
+      cur.cents += i.priceCents ?? 0;
+      byDate.set(i.date, cur);
+    }
+    return base.map((p): Pt => {
+      let q: Pt = p;
+      if (!limpezaOn) {
+        q = { ...p, count: 0, totalCents: 0 };
+        if (p.doneCount !== undefined) {
+          q = {
+            ...q,
+            doneCount: 0,
+            doneCents: 0,
+            forecastCount: 0,
+            forecastCents: 0,
+            pastLineCents: p.pastLineCents == null ? null : 0,
+            futureLineCents: p.futureLineCents == null ? null : 0,
+          };
+        }
+      }
+      const e = byDate.get(p.date);
+      if (!e) return q;
+      q = { ...q, count: q.count + e.n, totalCents: q.totalCents + e.cents };
+      if (q.doneCount !== undefined) {
+        q = {
+          ...q,
+          doneCount: (q.doneCount ?? 0) + e.n,
+          doneCents: (q.doneCents ?? 0) + e.cents,
+          pastLineCents: q.pastLineCents == null ? q.pastLineCents : q.pastLineCents + e.cents,
+          futureLineCents: q.futureLineCents == null ? q.futureLineCents : q.futureLineCents + e.cents,
+        };
+      }
+      return q;
+    });
+  }, [cleaningScreen.daily, limpezaOn, extrasSel]);
+
+  /** Top 5 e Eficiência: limpeza + extras, por imóvel. */
+  const servicesBreakdown = useMemo<CleaningTopItem[]>(() => {
+    const map = new Map<string, CleaningTopItem>();
+    if (limpezaOn) {
+      for (const b of (cleaningScreen.breakdown ?? []) as CleaningTopItem[]) map.set(b.propertyId, { ...b });
+    }
+    for (const x of extrasBreakdown) {
+      const cur = map.get(x.propertyId);
+      if (cur) {
+        cur.count += x.count;
+        cur.totalCents += x.totalCents;
+        cur.doneCount = (cur.doneCount ?? 0) + x.count;
+      } else {
+        map.set(x.propertyId, { ...x, doneCount: x.count });
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => b.count - a.count || a.propertyName.localeCompare(b.propertyName, "pt-BR"),
+    );
+  }, [limpezaOn, cleaningScreen.breakdown, extrasBreakdown]);
+
+  /** Tabela do dia: as limpezas de sempre + os extras da situação escolhida. */
+  const servicesDetail = useCallback(
+    (d: DayDetailSource | ((date: string) => DayDetailSource[])): DayDetailSource | ((date: string) => DayDetailSource[]) => {
+      const patch = (src: DayDetailSource): DayDetailSource =>
+        src.mode === "forecast"
+          ? limpezaOn
+            ? src
+            : { mode: "forecast", items: [] }
+          : { ...src, items: limpezaOn ? src.items : [], extras: extrasSel };
+      return typeof d === "function" ? (date: string) => d(date).map(patch) : patch(d);
+    },
+    [limpezaOn, extrasSel],
+  );
+
+  // Textos que dependem da situação. A Limpeza mantém os dela.
+  const periodShort = cleaningPeriodLabel.replace(/^Período /, "");
+  const onlyCleaningTexts = sel === "cleaning";
+  const servicesTexts = {
+    pageTitle: onlyCleaningTexts
+      ? null
+      : sel === null
+        ? "Todas as Situações"
+        : cleaningPeriodView
+          ? `${selName} · ${periodShort}`
+          : `${selName} · ${cleaningWindow === "past" ? "Últimos 7d" : "Próximos 7d"}`,
+    pageSubtitle: onlyCleaningTexts
+      ? null
+      : sel === null
+        ? "Histórico e custos de todos os serviços."
+        : `Histórico e custos de ${(selName ?? "").toLocaleLowerCase("pt-BR")}.`,
+    barTitle:
+      onlyCleaningTexts || cleaningScreen.forecastOnly || cleaningScreen.series === "split"
+        ? cleaningScreen.barTitle
+        : sel === null
+          ? "Serviços por dia"
+          : `${selName} por dia`,
+    areaTitle:
+      onlyCleaningTexts || cleaningScreen.forecastOnly || cleaningScreen.series === "split"
+        ? cleaningScreen.areaTitle
+        : sel === null
+          ? cleaningScreen.areaTitle
+          : `${selName} · custo`,
+    efficiencyTitle: onlyCleaningTexts ? null : `Eficiência — ${sel === null ? "Todas as Situações" : selName}`,
+    unit: (onlyCleaningTexts ? "limpeza" : "serviço") as "limpeza" | "serviço",
+  };
+
+  /**
    * SÓ MOSTRAR ATÉ ONDE HÁ DEMANDA DE VERDADE (pedido explícito, 23/09/2026:
    * "limitar a visão de dias dos gráficos para mostrar somente até o dia que
    * realmente tenha demanda").
@@ -2050,10 +2284,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // Regra global: do primeiro ao último dia com dado dentro do período.
   const cleaningChartDaily = useMemo(
     () =>
-      cleaningScreen.daily
-        ? trimSeries(cleaningScreen.daily, (d) => d.count > 0 || (d.totalCents ?? 0) > 0)
-        : cleaningScreen.daily,
-    [cleaningScreen.daily],
+      servicesDaily
+        ? trimSeries(servicesDaily, (d) => d.count > 0 || (d.totalCents ?? 0) > 0)
+        : servicesDaily,
+    [servicesDaily],
   );
 
   // ---------------------------------------------------------------------
@@ -2133,7 +2367,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       /** Prestação de contas da conclusão (07/09/2026) — ambos opcionais. */
       resolvedByProviderId?: string | null;
       resolutionNote?: string | null;
-    }) => setTaskStatusFn({ data: v }),
+    } & Partial<Omit<ReturnType<typeof settlementToServer>, "amountSpentCents" | "resolvedByProviderId" | "resolutionNote">>) =>
+      setTaskStatusFn({ data: v }),
     onMutate: (v) => patchTaskStatus(v.taskId, v.status),
     onSuccess: invalidateTasks,
     onError: (e) => {
@@ -2166,7 +2401,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       amountSpentCents?: number | null;
       resolvedByProviderId?: string | null;
       resolutionNote?: string | null;
-    }) => toggleCleaningFn({ data: v }),
+    } & Partial<Omit<ReturnType<typeof settlementToServer>, "amountSpentCents" | "resolvedByProviderId" | "resolutionNote">>) =>
+      toggleCleaningFn({ data: v }),
     onSuccess: invalidateTasks,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar checklist."),
   });
@@ -2214,12 +2450,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     setResolvePrompt(null);
   }
 
-  async function confirmResolve(v: {
-    amountSpentCents: number | null;
-    providerId: string | null;
-    note: string | null;
-    files: PendingAttachment[];
-  }) {
+  async function confirmResolve(v: ResolveValues) {
     if (!resolvePrompt) return;
     const task = resolvePrompt.task;
     // Anexo precisa de um imóvel (é ele que define a pasta e a permissão do
@@ -2236,9 +2467,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       const res = await setTaskStatusMutation.mutateAsync({
         taskId: task.id,
         status: "done",
-        amountSpentCents: v.amountSpentCents,
-        resolvedByProviderId: v.providerId,
-        resolutionNote: v.note,
+        // Valor da resolução, quem resolveu, comprovação e TODA a prestação
+        // de contas da despesa (quem deve pagar, valor a pagar, quem pagou,
+        // diferença e destino) — 23/10/2026, mockups 0i/0j/0k.
+        ...settlementToServer(v),
       });
       undo = restoreTaskUndo(res.before);
     } else {
@@ -2249,11 +2481,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       };
       const res = await toggleCleaningTaskMutation.mutateAsync({
         ...vars,
-        amountSpentCents: v.amountSpentCents,
-        // A tela de conclusão é a mesma dos dois gatilhos: quem resolveu e
-        // como foi resolvido também ficam gravados na ocorrência da limpeza.
-        resolvedByProviderId: v.providerId,
-        resolutionNote: v.note,
+        // A tela de conclusão é a mesma dos dois gatilhos: quem resolveu,
+        // como foi resolvido e a prestação de contas da despesa também ficam
+        // gravados na ocorrência da limpeza.
+        ...settlementToServer(v),
       });
       undo = toggleUndo(res, vars);
     }
@@ -2982,7 +3213,19 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   desenha nada (a peça fica como era). */}
               {/* Só na aba LIMPEZA (pedido explícito, 09/10/2026): o Kanban não é
                   lugar de criar limpeza — o "+" saiu daqui. */}
-              {view === "limpeza" && <ManualCleaningButton />}
+              {/* ABA SERVIÇOS (23/10/2026): o filtro de situação (só no
+                  computador — no celular é a 1ª linha do menu Filtros) vem
+                  ANTES do "+", que abre "Sobre o que é a situação?". */}
+              {view === "limpeza" && (
+                <>
+                  <SituationFilterSegment
+                    options={situationOptions}
+                    value={serviceSituation}
+                    onChange={setServiceSituation}
+                  />
+                  <NewServiceButton />
+                </>
+              )}
               {view !== "limpeza" && <ManualBlockButton />}
               {view === "limpeza" && cleaningPeriod && (
                 /* PERÍODO NO LUGAR DO INTERRUPTOR (pedido explícito,
@@ -3108,12 +3351,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onProviderFiltersChange={setProviderFilters}
                 providerOptions={providerOptions}
                 providerSubtitles={providerSubtitles}
-                hasCustomFilters={hasCustomFilters}
+                hasCustomFilters={hasCustomFilters || (view === "limpeza" && serviceSituation !== null)}
                 {...(view === "limpeza"
                   ? {
                       propertyFilters,
                       onPropertyFiltersChange: setPropertyFilters,
                       propertyOptions,
+                      situationOptions,
+                      situation: serviceSituation,
+                      onSituationChange: setServiceSituation,
                     }
                   : {})}
                 onClearAll={clearAllFilters}
@@ -3147,7 +3393,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
            dele. Um botão de filtro que não filtra a tela seria pior do que
            não ter botão. */
         title={
-          view === "limpeza"
+          view === "limpeza" && servicesTexts.pageTitle
+            ? servicesTexts.pageTitle
+            : view === "limpeza"
             ? cleaningPeriodView
               ? cleaningPeriodLabel
               : cleaningWindow === "past"
@@ -3156,7 +3404,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             : undefined
         }
         subtitle={
-          view === "limpeza"
+          view === "limpeza" && servicesTexts.pageSubtitle
+            ? servicesTexts.pageSubtitle
+            : view === "limpeza"
             ? cleaningPeriodView
               ? cleaningPeriodView.kind === "past"
                 ? "Histórico e custos das limpezas realizadas no período."
@@ -3415,30 +3665,71 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               separa do cabeçalho é o `ds-lead-block` (24px). */}
           <div className="ds-card-grid ds-lead-block mt-6">
             <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
-              <div className="col-span-1">
-                <StatDisplayCard
-                  label={cleaningScreen.countLabel}
-                  detailItems={cleaningTrendData?.items}
-                  value={cleaningScreen.countValue}
-                  valueSizeClass={bigNumberSizeClass([String(cleaningScreen.countValue), centsToBRLShort(cleaningScreen.costValue)])}
-                  icon={CheckCircle2}
-                  loading={cleaningScreen.statsLoading}
-                  note={cleaningScreen.countNote}
-                  breakdown={cleaningScreen.breakdown}
-                />
-              </div>
-              <div className="col-span-1">
-                <StatDisplayCard
-                  label={cleaningScreen.costLabel}
-                  detailItems={cleaningTrendData?.items}
-                  value={centsToBRLShort(cleaningScreen.costValue)}
-                  valueSizeClass={bigNumberSizeClass([String(cleaningScreen.countValue), centsToBRLShort(cleaningScreen.costValue)])}
-                  icon={Banknote}
-                  loading={cleaningScreen.statsLoading}
-                  note={cleaningScreen.costNote}
-                  breakdown={cleaningScreen.breakdown}
-                />
-              </div>
+              {(() => {
+                // Os 4 cartões (mockup 23/10/2026): Limpezas Realizadas, Custo
+                // Total Limpeza, Serviços Extras (qtd) e Custo Total Extras
+                // (R$). Com uma situação que não é limpeza, os dois primeiros
+                // zeram e os dois últimos mostram só aquela situação.
+                const cleanCount = limpezaOn ? cleaningScreen.countValue : 0;
+                const cleanCost = limpezaOn ? cleaningScreen.costValue : 0;
+                const sizes = bigNumberSizeClass([
+                  String(cleanCount),
+                  centsToBRLShort(cleanCost),
+                  String(extrasCount),
+                  centsToBRLShort(extrasCents),
+                ]);
+                const extrasLoading = extrasActive ? extrasQ.isLoading : false;
+                return (
+                  <>
+                    <div className="col-span-1">
+                      <StatDisplayCard
+                        label={cleaningScreen.countLabel}
+                        detailItems={limpezaOn ? cleaningTrendData?.items : undefined}
+                        value={cleanCount}
+                        valueSizeClass={sizes}
+                        icon={CheckCircle2}
+                        loading={cleaningScreen.statsLoading}
+                        note={limpezaOn ? cleaningScreen.countNote : null}
+                        breakdown={limpezaOn ? cleaningScreen.breakdown : undefined}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <StatDisplayCard
+                        label={cleaningScreen.costLabel}
+                        detailItems={limpezaOn ? cleaningTrendData?.items : undefined}
+                        value={centsToBRLShort(cleanCost)}
+                        valueSizeClass={sizes}
+                        icon={Banknote}
+                        loading={cleaningScreen.statsLoading}
+                        note={limpezaOn ? cleaningScreen.costNote : null}
+                        breakdown={limpezaOn ? cleaningScreen.breakdown : undefined}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <StatDisplayCard
+                        label="Serviços Extras"
+                        extraItems={extrasSel}
+                        value={extrasCount}
+                        valueSizeClass={sizes}
+                        icon={Wrench}
+                        loading={extrasLoading}
+                        breakdown={extrasBreakdown}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <StatDisplayCard
+                        label="Custo Total Extras"
+                        extraItems={extrasSel}
+                        value={centsToBRLShort(extrasCents)}
+                        valueSizeClass={sizes}
+                        icon={Receipt}
+                        loading={extrasLoading}
+                        breakdown={extrasBreakdown}
+                      />
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* BUSCA + AÇÕES ABAIXO DOS CARTÕES (pedido explícito, 03/10/2026:
@@ -3463,17 +3754,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 personalizado — só a fonte muda (ver `cleaningScreen`). */}
             <div className="ds-card-grid grid-cols-1 lg:grid-cols-2">
               <CleaningDailyBarChart
-                title={cleaningScreen.barTitle}
+                title={servicesTexts.barTitle}
                 data={cleaningChartDaily}
-                detail={cleaningScreen.barDetail}
-                loading={cleaningScreen.trendLoading}
+                detail={servicesDetail(cleaningScreen.barDetail)}
+                loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
                 series={cleaningScreen.series}
               />
               <CleaningDailyAreaChart
-                title={cleaningScreen.areaTitle}
+                title={servicesTexts.areaTitle}
                 data={cleaningChartDaily}
-                detail={cleaningScreen.areaDetail}
-                loading={cleaningScreen.trendLoading}
+                detail={servicesDetail(cleaningScreen.areaDetail)}
+                loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
                 series={cleaningScreen.series}
               />
             </div>
@@ -3484,17 +3775,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="ds-card-grid grid-cols-1 lg:grid-cols-2 items-stretch">
               <div className="lg:order-2">
                 <CleaningEfficiencyPanel
-                  daily={cleaningScreen.daily}
-                  items={cleaningScreen.breakdown}
-                  loading={cleaningScreen.trendLoading}
+                  daily={servicesDaily}
+                  items={servicesBreakdown}
+                  loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
                   forecast={cleaningScreen.forecastOnly}
+                  title={servicesTexts.efficiencyTitle ?? undefined}
+                  unit={servicesTexts.unit}
                 />
               </div>
               <div className="lg:order-1">
                 <CleaningTopProperties
-                  items={cleaningScreen.breakdown}
-                  loading={cleaningScreen.trendLoading}
+                  items={servicesBreakdown}
+                  loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
                   series={cleaningScreen.series}
+                  unit={servicesTexts.unit}
                 />
               </div>
             </div>
@@ -3756,6 +4050,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               state={resolvePrompt}
               onOpenChange={(v) => !v && closeResolvePrompt()}
               providers={taskLinkOptionsQ.data?.providers ?? []}
+              companyName={taskLinkOptionsQ.data?.companyName ?? null}
+              guestName={
+                resolvePrompt
+                  ? ((resolvePrompt.task.reservationId && guestNameByStayRef.get(`res:${resolvePrompt.task.reservationId}`)) ||
+                      (resolvePrompt.task.logId && guestNameByStayRef.get(`log:${resolvePrompt.task.logId}`)) ||
+                      (resolvePrompt.kind === "cleaning" ? resolvePrompt.row.guestName : null) ||
+                      null)
+                  : null
+              }
               onConfirm={confirmResolve}
             />
           </section>
@@ -3830,7 +4133,9 @@ const OPERATION_TABS = [
   // A aba "Limpeza" foi MOVIDA para a página "Financeiro" (menu lateral,
   // dentro de Dashboard) — 11/10/2026. Só a CATEGORIA se chama Financeiro; a
   // aba continua "Limpeza". Não aparece mais nas abas do Operacional.
-  { view: "limpeza" as const, label: "Limpeza", to: "/admin/dashboard/financeiro" },
+  // Renomeada para "Serviços" em 23/10/2026: além da limpeza, passa a mostrar
+  // manutenção, danos, outro e as situações criadas pelo usuário.
+  { view: "limpeza" as const, label: "Serviços", to: "/admin/dashboard/financeiro" },
   // "Registros" (09/09/2026): as três primeiras respondem O QUE FAZER; esta
   // responde O QUE FOI FEITO — as fotos, vídeos, áudios e notas que hoje só
   // existem dentro do clipe de uma reserva específica.
@@ -3846,7 +4151,7 @@ const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }>
     title: "Kanban Operacional",
     subtitle: "Cada reserva na etapa em que ela realmente está.",
   },
-  limpeza: { title: "Limpeza", subtitle: "Histórico e custos das limpezas realizadas." },
+  limpeza: { title: "Serviços", subtitle: "Histórico e custos dos serviços realizados." },
   registros: {
     title: "Registros",
     subtitle: "Fotos, vídeos, áudios e notas de todos os imóveis.",
@@ -5004,6 +5309,7 @@ function StatDisplayCard({
   sparkline,
   note,
   detailItems,
+  extraItems,
   valueSizeClass = "text-[26px] sm:text-[30px]",
 }: {
   /** Tamanho do número COMPARTILHADO pelo grupo (ver `bigNumberSizeClass`). */
@@ -5011,6 +5317,8 @@ function StatDisplayCard({
   /** Limpezas uma a uma — quando vem, a janela é a MESMA do gráfico
    * (responsável, tipo e valor editáveis, sem corte). */
   detailItems?: CleaningDayItem[];
+  /** Serviços extras (não-limpeza) — abrem a mesma tabela, com a situação em cada linha. */
+  extraItems?: ExtraServiceItem[];
   label: string;
   value: string | number;
   icon: React.ElementType;
@@ -5038,7 +5346,7 @@ function StatDisplayCard({
   return (
     <>
     {clickable && (
-      detailItems && detailItems.length > 0 ? (
+      (detailItems && detailItems.length > 0) || (extraItems && extraItems.length > 0) ? (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sg-vv-center flex flex-col w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden">
           <DialogTitle className="sr-only">{label}</DialogTitle>
@@ -5046,7 +5354,7 @@ function StatDisplayCard({
             date="all"
             title={label}
             icon={Icon}
-            source={{ mode: "done", items: detailItems }}
+            source={{ mode: "done", items: detailItems ?? [], extras: extraItems }}
             caretX={null}
             onClose={() => setOpen(false)}
           />
@@ -5595,9 +5903,12 @@ function CleaningTopProperties({
   items,
   loading,
   series = "done",
+  unit = "limpeza",
 }: {
   items: CleaningTopItem[] | undefined;
   loading: boolean;
+  /** "limpeza" ou "serviço" — só muda os textos da aba Serviços. */
+  unit?: "limpeza" | "serviço";
   /** Mesma regra de cor dos gráficos: verde realizado, laranja fraco
    * previsto; no período misto a barra de cada imóvel se divide nas duas. */
   series?: CleaningSeries;
@@ -5610,14 +5921,14 @@ function CleaningTopProperties({
         title="Top 5 imóveis"
         dotColor={cleaningSeriesColor(series)}
         className="mb-2.5"
-        right={<span className="text-[10px] text-muted-foreground">nº de limpezas</span>}
+        right={<span className="text-[10px] text-muted-foreground">{unit === "limpeza" ? "nº de limpezas" : "nº de serviços"}</span>}
       />
       {loading ? (
         <div className="py-6 grid place-items-center text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
         </div>
       ) : top.length === 0 ? (
-        <div className="py-6 text-center text-xs text-muted-foreground">Nenhuma limpeza no período.</div>
+        <div className="py-6 text-center text-xs text-muted-foreground">{unit === "limpeza" ? "Nenhuma limpeza no período." : "Nenhum serviço no período."}</div>
       ) : (
         <ul className="space-y-1.5">
           {top.map((item) => (
@@ -5678,11 +5989,16 @@ function CleaningEfficiencyPanel({
   items,
   loading,
   forecast,
+  title = "Eficiência da limpeza",
+  unit = "limpeza",
 }: {
   daily: CleaningDailyPoint[] | undefined;
   items: CleaningBreakdownItem[] | undefined;
   loading: boolean;
   forecast?: boolean;
+  /** Na aba Serviços: "Eficiência — [Situação]". */
+  title?: string;
+  unit?: "limpeza" | "serviço";
 }) {
   const series = daily ?? [];
   const breakdown = items ?? [];
@@ -5695,9 +6011,9 @@ function CleaningEfficiencyPanel({
 
   const cells: { label: string; value: string; hint: string }[] = [
     {
-      label: forecast ? "Custo médio estimado" : "Custo médio por limpeza",
+      label: forecast ? "Custo médio estimado" : `Custo médio por ${unit}`,
       value: centsToBRLShort(avgCents),
-      hint: totalCount > 0 ? `${totalCount} limpeza${totalCount === 1 ? "" : "s"} no período` : "sem limpezas",
+      hint: totalCount > 0 ? `${totalCount} ${unit}${totalCount === 1 ? "" : "s"} no período` : `sem ${unit}s`,
     },
     {
       label: "Imóveis atendidos",
@@ -5712,14 +6028,14 @@ function CleaningEfficiencyPanel({
     {
       label: "Dia de pico",
       value: peak && peak.count > 0 ? fmtDateBR(peak.date) : "—",
-      hint: peak && peak.count > 0 ? `${peak.count} limpeza${peak.count === 1 ? "" : "s"}` : "sem movimento",
+      hint: peak && peak.count > 0 ? `${peak.count} ${unit}${peak.count === 1 ? "" : "s"}` : "sem movimento",
     },
   ];
 
   return (
     <div className={`${PANEL_SHELL} h-full w-full px-3.5 py-3.5`}>
       <PanelHeading
-        title="Eficiência da limpeza"
+        title={title}
         dotColor={forecast ? CLEANING_FORECAST_COLOR : CLEANING_DONE_COLOR}
         className="mb-2.5"
         right={<span className="text-[10px] text-muted-foreground">{forecast ? "previsto" : "no período"}</span>}
@@ -5744,221 +6060,12 @@ function CleaningEfficiencyPanel({
 }
 
 /**
- * Conclusão de pendência com prestação de contas (pedido explícito,
- * 07/09/2026): quem resolveu, quanto custou e a comprovação. Os três são
- * OPCIONAIS — o botão "Concluir" funciona com tudo em branco, que é o
- * comportamento que existia antes.
+ * A janela "Concluir pendência" (com a prestação de contas da despesa) mora em
+ * `TaskResolveDialog.tsx` desde 23/10/2026 (mockups 0i/0j/0k). O nome continua
+ * exportado DAQUI para que os gatilhos existentes (Pendências e o checklist
+ * da limpeza) não precisem mudar de import.
  */
-export function TaskResolveDialog({
-  state,
-  onOpenChange,
-  providers,
-  onConfirm,
-}: {
-  state: { kind: "status" | "cleaning"; task: TaskRow } | null;
-  onOpenChange: (v: boolean) => void;
-  providers: TaskLinkProvider[];
-  onConfirm: (v: {
-    amountSpentCents: number | null;
-    providerId: string | null;
-    note: string | null;
-    files: PendingAttachment[];
-  }) => Promise<void>;
-}) {
-  const [providerId, setProviderId] = useState<string | null>(null);
-  const [providerOpen, setProviderOpen] = useState(false);
-  const [cents, setCents] = useState<number | null>(null);
-  const [note, setNote] = useState("");
-  const [files, setFiles] = useState<PendingAttachment[]>([]);
-  const [saving, setSaving] = useState(false);
-  const task = state?.task;
-
-  // Reabrir o diálogo pra outra pendência não pode herdar o que foi digitado
-  // na anterior.
-  useEffect(() => {
-    if (!state) return;
-    setProviderId(null);
-    setProviderOpen(false);
-    setCents(state.task.amountSpentCents ?? null);
-    setNote("");
-    setFiles([]);
-    setSaving(false);
-  }, [state?.task.id, state?.kind]);
-
-  async function submit() {
-    if (saving) return;
-    setSaving(true);
-    try {
-      await onConfirm({
-        amountSpentCents: cents,
-        providerId,
-        note: note.trim() || null,
-        files,
-      });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não consegui concluir a pendência.");
-      setSaving(false);
-    }
-  }
-
-  const selected = providers.find((p) => p.id === providerId) ?? null;
-
-  return (
-    <Dialog open={!!state} onOpenChange={onOpenChange}>
-      {/* Mesmas classes do dialog de PENDÊNCIAS (largura, curva, borda,
-          fundo, sombra) — pedido explícito (07/09/2026): esta tela destoava
-          do padrão do resto do sistema. */}
-      <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-lg p-0 overflow-hidden">
-        <DialogTitle className="sr-only">Concluir pendência</DialogTitle>
-        <DialogDescription className="sr-only">
-          Registre quem resolveu, quanto custou e a comprovação da resolução.
-        </DialogDescription>
-
-        {/* Cabeçalho no mesmo formato do de Pendências: ds-page-title +
-            ds-page-subtitle, com pr-9 pra não passar por baixo do X. */}
-        <div className="px-5 pt-5 pb-3">
-          <h2 className="ds-page-title truncate pr-9">Concluir pendência</h2>
-          <p className="ds-page-subtitle mt-1.5 truncate">{task?.title}</p>
-          {(task?.propertyName || task?.ownerName) && (
-            <div className="mt-2.5 flex flex-wrap gap-1.5">
-              {task?.propertyName && (
-                <span className="inline-flex max-w-full items-center gap-1 rounded-[0.3rem] border border-border/60 bg-secondary/40 px-2 py-1 text-[10.5px] text-muted-foreground">
-                  <Home className="size-3 shrink-0" />
-                  <span className="truncate text-foreground/80">{task.propertyName}</span>
-                </span>
-              )}
-              {task?.ownerName && (
-                <span className="inline-flex max-w-full items-center gap-1 rounded-[0.3rem] border border-border/60 bg-secondary/40 px-2 py-1 text-[10.5px] text-muted-foreground">
-                  <User className="size-3 shrink-0" />
-                  <span className="truncate text-foreground/80">{ownerLabel(task.ownerName)}</span>
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="sg-elegant-scroll max-h-[56vh] space-y-2.5 overflow-y-auto px-5 pb-4">
-          <TaskFormGroup label="Quem resolveu" />
-          {/* Dropdown buscável (pedido explícito): lista completa de
-              prestadores + busca por nome, cidade ou tipo de serviço. Mesmo
-              par Popover+Command já usado no título da nova pendência. */}
-          <Popover open={providerOpen} onOpenChange={setProviderOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="h-[42px] w-full rounded-lg border border-border bg-background px-2.5 text-left"
-              >
-                <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Responsável (opcional)
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className={`min-w-0 flex-1 truncate text-xs ${selected ? "font-semibold" : "text-muted-foreground"}`}
-                  >
-                    {selected ? selected.name : "Selecione o Responsável"}
-                  </span>
-                  <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-                </span>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
-              <Command>
-                <CommandInput placeholder="Buscar por nome, cidade ou tipo…" />
-                <CommandList className="sg-elegant-scroll max-h-56">
-                  <CommandEmpty>Nenhum prestador encontrado.</CommandEmpty>
-                  <CommandGroup>
-                    {selected && (
-                      <CommandItem
-                        value="__limpar__ remover responsavel"
-                        onSelect={() => {
-                          setProviderId(null);
-                          setProviderOpen(false);
-                        }}
-                        className="cursor-pointer text-muted-foreground"
-                      >
-                        <X className="size-3.5 shrink-0" /> Sem responsável
-                      </CommandItem>
-                    )}
-                    {providers.map((p) => (
-                      <CommandItem
-                        key={p.id}
-                        // O `value` é o que a busca do Command filtra: nome +
-                        // cidade + categorias, atendendo os três critérios.
-                        value={`${p.name} ${p.city ?? ""} ${p.categories.join(" ")}`}
-                        onSelect={() => {
-                          setProviderId(p.id);
-                          setProviderOpen(false);
-                        }}
-                        className="cursor-pointer"
-                      >
-                        <span className="grid size-6 shrink-0 place-items-center rounded-full border border-border/60 bg-secondary/50 text-[9px] font-bold text-muted-foreground">
-                          {p.name.slice(0, 2).toUpperCase()}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-xs font-medium">{p.name}</span>
-                          {(p.city || p.categories.length > 0) && (
-                            <span className="block truncate text-[10px] capitalize text-muted-foreground">
-                              {[p.city, p.categories.join(" · ")].filter(Boolean).join(" — ")}
-                            </span>
-                          )}
-                        </span>
-                        {providerId === p.id && <Check className="size-3.5 shrink-0 text-emerald-500" />}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-
-          <TaskFormGroup label="Quanto custou" />
-          <div className="flex h-[42px] flex-col justify-center rounded-lg border border-border bg-background px-2.5">
-            <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Valor (opcional)
-            </span>
-            <MoneyInput cents={cents} onChange={setCents} placeholder="0,00" />
-          </div>
-
-          <TaskFormGroup label="Comprovação" />
-          <AttachmentPicker files={files} onChange={setFiles} disabled={saving} showAudio={false} />
-          {/* Pedido explícito: o campo de texto ganha o microfone ao lado,
-              pra quem prefere explicar falando. */}
-          <div className="flex items-start gap-2">
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-              maxLength={2000}
-              placeholder="Como foi resolvido…"
-              className="w-full flex-1 resize-none rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs"
-            />
-            <AudioAttachButton files={files} onChange={setFiles} disabled={saving} />
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-1">
-            {saving && <AttachmentsSending count={files.length} />}
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              disabled={saving}
-              className="rounded-md px-2 py-1.5 text-xs hover:bg-secondary disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={saving}
-              className="rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-            >
-              {saving ? "Concluindo…" : "Concluir"}
-            </button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
+export { TaskResolveDialog } from "@/components/dashboard/TaskResolveDialog";
 
 /** Rótulo de seção do formulário de pendência — dá hierarquia ao que antes
  * era uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026). */
@@ -7459,6 +7566,9 @@ function CalendarFiltersButton({
   propertyOptions,
   hidePeriod,
   quadrantTrigger,
+  situationOptions,
+  situation,
+  onSituationChange,
 }: {
   periodRange: { start: string; end: string } | null;
   onPeriodRangeChange: (next: { start: string; end: string } | null) => void;
@@ -7499,8 +7609,14 @@ function CalendarFiltersButton({
   /** Gatilho com quadrante de fundo (mesmo tom da busca e do ícone de período);
    * no celular vira só o ícone. */
   quadrantTrigger?: boolean;
+  /** Filtro de Situação (aba Serviços, 23/10/2026). No celular é a PRIMEIRA
+   * linha deste menu; no computador o mesmo filtro mora num segmento ao lado
+   * do "+", então a linha some (`lg:hidden`). */
+  situationOptions?: SituationOption[];
+  situation?: string | null;
+  onSituationChange?: (next: string | null) => void;
 }) {
-  type Screen = "root" | "period" | "city" | "owner" | "provider" | "property";
+  type Screen = "root" | "period" | "city" | "owner" | "provider" | "property" | "situation";
   const [screen, setScreen] = useState<Screen>("root");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange | undefined>(
@@ -7651,6 +7767,17 @@ function CalendarFiltersButton({
         {screen === "root" ? (
           <>
             <FilterRootHeader canClear={hasCustomFilters} onClear={onClearAll} />
+            {situationOptions && onSituationChange && (
+              <div className="lg:hidden">
+                <FilterMenuRow
+                  icon={Layers}
+                  label="Situação"
+                  value={situationOptions.find((o) => o.id === (situation ?? null))?.label ?? "Todas"}
+                  active={situation != null}
+                  onClick={() => setScreen("situation")}
+                />
+              </div>
+            )}
             {!hidePeriod && (
               <FilterMenuRow
                 icon={CalendarRange}
@@ -7712,6 +7839,31 @@ function CalendarFiltersButton({
                 />
               </FilterSection>
             )}
+          </>
+        ) : null}
+
+        {screen === "situation" && situationOptions && onSituationChange ? (
+          <>
+            <FilterScreenHeader
+              icon={Layers}
+              title="Situação"
+              onBack={() => setScreen("root")}
+              right={<FilterHeaderClear disabled={situation == null} onClick={() => onSituationChange(null)} />}
+            />
+            <div className="border-t border-[var(--panel-div)]">
+              {situationOptions.map((o, i) => (
+                <SituationOptionRow
+                  key={o.id ?? "all"}
+                  option={o}
+                  selected={o.id === (situation ?? null)}
+                  last={i === situationOptions.length - 1}
+                  onClick={() => {
+                    onSituationChange(o.id);
+                    setScreen("root");
+                  }}
+                />
+              ))}
+            </div>
           </>
         ) : null}
 

@@ -53,6 +53,11 @@ import { Choice, PickList, PropertyPickRow, Step, TrailDialog, ddmm, norm } from
  *  · O valor nasce com o preço do tipo escolhido e acompanha a troca de tipo
  *    — a menos que já tenha sido alterado à mão, aí ele é respeitado.
  *  · O "+" só aparece para quem pode criar (ver `manual-cleaning.functions.ts`).
+ *
+ * ABA SERVIÇOS (23/10/2026): quem abre esta trilha, ali, é a janela "Sobre o
+ * que é a situação?" — escolher "Limpeza" cai no passo 1 daqui. Por isso o
+ * painel também aceita ser CONTROLADO de fora (`ManualCleaningHost`), sem o
+ * gatilho "+" próprio.
  */
 
 const QUESTIONS = [
@@ -124,23 +129,58 @@ function Decision({
   );
 }
 
-export function ManualCleaningButton() {
-  const ownerId = useImpersonation().impersonation?.userId ?? null;
+function useManualCleaningAccess(ownerId: string | null) {
   const accessFn = useServerFn(getManualCleaningAccess);
-  const access = useQuery({
+  return useQuery({
     queryKey: ["manual-cleaning-access", ownerId],
     queryFn: () => accessFn({ data: { ownerId } }),
     staleTime: 5 * 60_000,
   });
+}
+
+export function ManualCleaningButton() {
+  const ownerId = useImpersonation().impersonation?.userId ?? null;
+  const access = useManualCleaningAccess(ownerId);
   if (!access.data?.canCreate) return null;
   return <ManualCleaningPanel ownerId={ownerId} />;
 }
 
+/**
+ * A mesma trilha, sem o "+" próprio, aberta de fora (aba Serviços). Se a
+ * pessoa não pode criar limpeza, não desenha nada.
+ */
+export function ManualCleaningHost({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const ownerId = useImpersonation().impersonation?.userId ?? null;
+  const access = useManualCleaningAccess(ownerId);
+  if (!access.data?.canCreate) return null;
+  return <ManualCleaningPanel ownerId={ownerId} controlled={{ open, onOpenChange }} />;
+}
+
+/** Diz se a pessoa pode criar limpeza (usado pela janela "Sobre o que é a situação?"). */
+export function useCanCreateCleaning(): boolean {
+  const ownerId = useImpersonation().impersonation?.userId ?? null;
+  return !!useManualCleaningAccess(ownerId).data?.canCreate;
+}
+
 type Link = "imovel" | "reserva";
 
-function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
+function ManualCleaningPanel({
+  ownerId,
+  controlled,
+}: {
+  ownerId: string | null;
+  controlled?: { open: boolean; onOpenChange: (open: boolean) => void };
+}) {
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [innerOpen, setInnerOpen] = useState(false);
+  const open = controlled ? controlled.open : innerOpen;
+  const setOpen = controlled ? controlled.onOpenChange : setInnerOpen;
   const [step, setStep] = useState(1);
   const [link, setLink] = useState<Link | null>(null);
   const [propertyId, setPropertyId] = useState<string | null>(null);
@@ -307,16 +347,18 @@ function ManualCleaningPanel({ ownerId }: { ownerId: string | null }) {
 
   return (
     <>
-      <button
-        type="button"
-        title="Nova limpeza"
-        aria-label="Nova limpeza"
-        onClick={() => setOpen(true)}
-        className={`${ACTION_SEGMENT} text-accent`}
-      >
-        <Plus className={ACTION_ICON} />
-        <span className="lg:hidden">Limpeza</span>
-      </button>
+      {!controlled && (
+        <button
+          type="button"
+          title="Nova limpeza"
+          aria-label="Nova limpeza"
+          onClick={() => setOpen(true)}
+          className={`${ACTION_SEGMENT} text-accent`}
+        >
+          <Plus className={ACTION_ICON} />
+          <span className="lg:hidden">Limpeza</span>
+        </button>
+      )}
     <TrailDialog
       open={open}
       title={conflict ? "Já existe uma limpeza" : "Nova limpeza"}

@@ -33,6 +33,11 @@ import { StatCard } from "@/components/ds/StatCard";
  * carrega. Nos Registros não vale acordar essa cadeia inteira para uma linha
  * de apoio — sem ela o painel mostra "Hóspede", como já fazia para qualquer
  * pendência sem reserva vinculada.
+ *
+ * 23/10/2026 — a janela de conclusão ganhou a prestação de contas completa da
+ * despesa (mockups 0i/0j/0k): este arquivo repassa tudo que ela devolve ao
+ * servidor (`settlementToServer`) e entrega a ela o nome da empresa e do
+ * hóspede.
  */
 
 import { useCallback, useState } from "react";
@@ -46,11 +51,13 @@ import {
   ACTION_BUTTON_TONE,
   ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
-import { TasksDialog, TaskResolveDialog } from "@/components/dashboard/OperationWorkspace";
+import { TasksDialog } from "@/components/dashboard/OperationWorkspace";
 import {
-  uploadPendingAttachments,
-  type PendingAttachment,
-} from "@/components/dashboard/TaskAttachments";
+  TaskResolveDialog,
+  settlementToServer,
+  type ResolveValues,
+} from "@/components/dashboard/TaskResolveDialog";
+import { uploadPendingAttachments } from "@/components/dashboard/TaskAttachments";
 import { attachTaskRecord, deleteReservationRecord } from "@/lib/reservation-records.functions";
 import {
   createTask,
@@ -182,13 +189,20 @@ export function PendenciasButton({
   });
 
   const mudarStatus = useMutation({
-    mutationFn: (v: {
-      taskId: string;
-      status: "pending" | "done" | "canceled";
-      amountSpentCents?: number | null;
-      resolvedByProviderId?: string | null;
-      resolutionNote?: string | null;
-    }) => setStatusFn({ data: v }),
+    mutationFn: (
+      v: {
+        taskId: string;
+        status: "pending" | "done" | "canceled";
+        amountSpentCents?: number | null;
+        resolvedByProviderId?: string | null;
+        resolutionNote?: string | null;
+      } & Partial<
+        Omit<
+          ReturnType<typeof settlementToServer>,
+          "amountSpentCents" | "resolvedByProviderId" | "resolutionNote"
+        >
+      >,
+    ) => setStatusFn({ data: v }),
     onMutate: (v) => pintarStatus(v.taskId, v.status),
     onSuccess: invalidar,
     onError: (e) => {
@@ -211,7 +225,8 @@ export function PendenciasButton({
 
   /* A TELA DE CONCLUSÃO abre SEMPRE ao concluir (não só quando falta valor):
      ela não pergunta o gasto, pergunta a prestação de contas inteira —
-     quem resolveu, quanto custou e a comprovação. Tudo opcional. */
+     quem resolveu, quanto custou, quem deve pagar e a comprovação. Tudo
+     opcional. */
   const [conclusao, setConclusao] = useState<{ kind: "status"; task: TaskRow } | null>(null);
 
   function pedirStatus(taskId: string, status: "pending" | "done" | "canceled") {
@@ -234,12 +249,7 @@ export function PendenciasButton({
     );
   }
 
-  async function confirmarConclusao(v: {
-    amountSpentCents: number | null;
-    providerId: string | null;
-    note: string | null;
-    files: PendingAttachment[];
-  }) {
+  async function confirmarConclusao(v: ResolveValues) {
     if (!conclusao) return;
     const task = conclusao.task;
     /* Anexo precisa de um imóvel — é ele que define a pasta e a permissão do
@@ -254,9 +264,10 @@ export function PendenciasButton({
     const res = await mudarStatus.mutateAsync({
       taskId: task.id,
       status: "done",
-      amountSpentCents: v.amountSpentCents,
-      resolvedByProviderId: v.providerId,
-      resolutionNote: v.note,
+      // Valor da resolução, quem resolveu, comprovação e a prestação de contas
+      // da despesa inteira (quem deve pagar, valor a pagar, quem pagou,
+      // diferença e destino) — 23/10/2026.
+      ...settlementToServer(v),
     });
     /* Comprovação sobe DEPOIS da conclusão gravada — se a pessoa desistir no
        meio, nada de arquivo órfão no storage. Falha de anexo não desfaz a
@@ -330,6 +341,8 @@ export function PendenciasButton({
         state={conclusao}
         onOpenChange={(v) => !v && setConclusao(null)}
         providers={linkOptionsQ.data?.providers ?? []}
+        companyName={linkOptionsQ.data?.companyName ?? null}
+        guestName={conclusao && guestNameForTask ? guestNameForTask(conclusao.task) : null}
         onConfirm={confirmarConclusao}
       />
     </>

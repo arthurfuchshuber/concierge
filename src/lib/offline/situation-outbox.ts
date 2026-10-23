@@ -11,6 +11,12 @@
  *    o navegador e a cada 30 s;
  *  · é idempotente: o ID da situação nasce no aparelho e cada arquivo tem
  *    caminho fixo, então repetir nunca duplica registro nem arquivo.
+ *
+ * ABA SERVIÇOS (23/10/2026): a janela "Sobre o que é a situação?" escolhe a
+ * situação ANTES de abrir a folha de registro. Em vez de abrir um canal novo
+ * entre as duas, a escolha fica "armada" aqui (`armarSituacao`) e o primeiro
+ * trabalho gravado para aquele imóvel a leva — vai dentro do próprio trabalho
+ * guardado no aparelho, então sobrevive a queda de rede e a reabertura do app.
  */
 import { idbApagar, idbChaves, idbGravar, idbLer } from "@/lib/offline/idb";
 import { enviarMidia, garantirToken, chamarServidor } from "@/lib/media-upload";
@@ -21,6 +27,8 @@ import { extFor } from "@/components/dashboard/record-draft";
 const PREFIXO = "fila-situacao:";
 const VALIDADE_MS = 1000 * 60 * 60 * 24 * 7;
 const PRAZO_CHAMADA_MS = 90_000;
+/** Quanto tempo a situação escolhida na aba Serviços espera a folha ser registrada. */
+const VALIDADE_ARMADA_MS = 1000 * 60 * 60;
 
 export type MidiaFila = {
   key: string;
@@ -46,6 +54,8 @@ export type TrabalhoSituacao = {
   category: string;
   title: string | null;
   description: string | null;
+  /** Situação da aba Serviços (chave do sistema ou uuid de situação própria). */
+  situationId?: string | null;
   /** true quando a situação já existe no servidor (ou é um anexo a uma existente). */
   criada: boolean;
   taskId?: string | null;
@@ -92,7 +102,27 @@ export function envioEmAndamento(): boolean {
   return ativos > 0;
 }
 
+/* Situação escolhida na aba Serviços, à espera da folha de registro. Uma por
+   imóvel; vale por uma hora e é consumida pelo primeiro trabalho gravado. */
+const armadas = new Map<string, { situationId: string; em: number }>();
+
+/** Deixa a situação escolhida pronta para o próximo registro daquele imóvel. */
+export function armarSituacao(propertyId: string, situationId: string) {
+  armadas.set(propertyId, { situationId, em: Date.now() });
+}
+/** Desarma (a pessoa desistiu antes de registrar). */
+export function desarmarSituacao(propertyId: string) {
+  armadas.delete(propertyId);
+}
+
 export async function enfileirarSituacao(job: TrabalhoSituacao): Promise<boolean> {
+  const armada = armadas.get(job.propertyId);
+  if (armada) {
+    armadas.delete(job.propertyId);
+    if (Date.now() - armada.em <= VALIDADE_ARMADA_MS && !job.situationId) {
+      job.situationId = armada.situationId;
+    }
+  }
   const ok = await idbGravar(PREFIXO + job.groupId, job);
   if (ok) void processarFila();
   return ok;
@@ -159,6 +189,7 @@ async function processarUm(job: TrabalhoSituacao): Promise<void> {
           category: job.category,
           title: job.title,
           description: job.description,
+          situationId: job.situationId ?? undefined,
           media: [],
           pendingMedia: job.midias.length,
         }),

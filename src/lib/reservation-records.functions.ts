@@ -95,6 +95,18 @@ const CardMode = z.enum(["checkin", "checkout", "stay", "cleaning", "done", "no_
 /** Marca das pendências que o próprio registro abriu — só essas somem junto. */
 const DESCRICAO_PENDENCIA_AUTOMATICA = "Aberta automaticamente a partir de um registro da reserva.";
 
+const OTHER_SERVICE_RULE = {
+  taskCategory: "inspection" as const,
+  priority: "medium" as const,
+  showInCleaning: false,
+  prefix: "Serviço",
+};
+
+const SITUATION_BY_CATEGORY: Record<string, string> = {
+  damage: "damage",
+  maintenance: "maintenance",
+};
+
 const TASK_RULES: Record<
   string,
   {
@@ -360,9 +372,14 @@ async function createLinkedTask(
      * no checklist da limpeza — ver `show_in_cleaning` no insert abaixo.
      */
     cardMode?: z.infer<typeof CardMode>;
+    /** Situação do Serviço (aba Serviços): chave do sistema ou uuid de situação própria. */
+    situation?: string | null;
   },
 ): Promise<string | null> {
-  const rule = TASK_RULES[input.category];
+  // Categoria "Outro" não abre pendência no "+ Registro". Na aba Serviços ela
+  // abre (a situação é um serviço com custo), por isso só ganha regra quando
+  // vem com situação explícita.
+  const rule = TASK_RULES[input.category] ?? (input.situation ? OTHER_SERVICE_RULE : undefined);
   if (!rule) return null;
 
   const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
@@ -384,6 +401,10 @@ async function createLinkedTask(
       title,
       description: DESCRICAO_PENDENCIA_AUTOMATICA,
       category: rule.taskCategory,
+      /* Situação (aba Serviços): damage→Danos, maintenance→Manutenção, o resto
+         (esquecido, incidente, outro) cai em "Outro" — a menos que o usuário
+         tenha escolhido uma situação criada por ele. */
+      situation: input.situation ?? SITUATION_BY_CATEGORY[input.category] ?? "other",
       priority: rule.priority,
       due_date: null,
       /* "APARECE NA LIMPEZA" SEGUE A ORIGEM, NÃO SÓ A CATEGORIA (pedido
@@ -587,6 +608,18 @@ export const createRecordSituation = createServerFn({ method: "POST" })
          * Repetir a chamada (rede lenta, fila do aparelho) devolve o mesmo
          * registro em vez de criar outro. */
         groupId: z.string().uuid().optional(),
+        /* Situação própria criada na aba Serviços (uuid). Vazio = a do sistema. */
+        situationId: z
+          .string()
+          .max(40)
+          .refine(
+            (v) =>
+              ["cleaning", "maintenance", "damage", "other"].includes(v) ||
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
+            "Situação inválida.",
+          )
+          .optional()
+          .nullable(),
       })
       // Sem reserva e sem registro do hóspede = registro só do IMÓVEL ("+" da
       // página Registros). Só vale sem coluna de origem (cardMode vazio).
@@ -673,6 +706,7 @@ export const createRecordSituation = createServerFn({ method: "POST" })
       reservationId: data.reservationId,
       body: (data.title ?? "").trim() || null,
       cardMode: data.cardMode ?? undefined,
+      situation: data.situationId ?? undefined,
     });
     const fileName = await nextRecordName(supabase, data.propertyId);
     const groupId = data.groupId ?? crypto.randomUUID();
@@ -688,6 +722,7 @@ export const createRecordSituation = createServerFn({ method: "POST" })
       task_id: taskId,
       group_id: groupId,
       file_name: fileName,
+      situation_id: data.situationId && /^[0-9a-f]{8}-/i.test(data.situationId) ? data.situationId : null,
     };
 
     // Sem mídia é uma nota: a principal é a própria nota. Com mídia, a
