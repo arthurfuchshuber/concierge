@@ -23,6 +23,9 @@ import {
   type ManualCleaningConflict,
 } from "@/lib/manual-cleaning.functions";
 import { createServiceRecord } from "@/lib/service-situations.functions";
+import { ServiceDetailsFields } from "@/components/dashboard/ServiceDetailsFields";
+import { enfileirarSituacao } from "@/lib/offline/situation-outbox";
+import type { DraftItem } from "@/components/dashboard/record-draft";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { cn } from "@/lib/utils";
 import {
@@ -218,6 +221,9 @@ function ManualCleaningPanel({
   const [cents, setCents] = useState<number | null>(isClean ? null : 0);
   const [centsEdited, setCentsEdited] = useState(false);
   const [note, setNote] = useState("");
+  /** Serviço: título (até 50) e mídias da última pergunta (mockup 0l). */
+  const [svcTitle, setSvcTitle] = useState("");
+  const [svcItems, setSvcItems] = useState<DraftItem[]>([]);
   const [search, setSearch] = useState("");
   const [conflict, setConflict] = useState<ManualCleaningConflict | null>(null);
   const [busy, setBusy] = useState(false);
@@ -253,6 +259,8 @@ function ManualCleaningPanel({
     setType(null);
     setCents(isClean ? null : 0);
     setNote("");
+    setSvcTitle("");
+    setSvcItems([]);
     setCentsEdited(false);
     setSearch("");
     setConflict(null);
@@ -314,7 +322,11 @@ function ManualCleaningPanel({
     isClean ? !!type : false,
     false,
   ];
-  const ready = answered.slice(0, TOTAL - 1).every(Boolean) && cents != null && step === TOTAL;
+  const ready =
+    answered.slice(0, TOTAL - 1).every(Boolean) &&
+    cents != null &&
+    step === TOTAL &&
+    (isClean || svcTitle.trim().length > 0);
   const question2 =
     link === "reserva" ? "Qual reserva?" : link === "imovel" ? "Qual imóvel?" : QUESTIONS[1];
 
@@ -338,7 +350,8 @@ function ManualCleaningPanel({
     if (!situation || !property || !provider || !date || cents == null) return;
     setBusy(true);
     try {
-      await createServiceFn({
+      const groupId = crypto.randomUUID();
+      const res = await createServiceFn({
         data: {
           ownerId,
           situation: situation.id,
@@ -347,9 +360,43 @@ function ManualCleaningPanel({
           providerId: provider.id,
           date: isoOf(date),
           cents,
-          note: note.trim() || null,
+          title: svcTitle.trim(),
+          description: note.trim() || null,
+          groupId,
         },
       });
+      // Mídias: vão pela fila do aparelho (guarda, envia em segundo plano,
+      // retoma sozinha). O registro principal já nasceu no servidor.
+      if (svcItems.length > 0) {
+        if (res.groupId) {
+          const ok = await enfileirarSituacao({
+            groupId: res.groupId,
+            criadoEm: Date.now(),
+            propertyId: property.id,
+            reservationId: link === "reserva" ? (reservationId ?? undefined) : undefined,
+            cardMode: null,
+            category: situation.id === "maintenance" ? "maintenance" : situation.id === "damage" ? "damage" : "other",
+            title: svcTitle.trim(),
+            description: note.trim() || null,
+            situationId: situation.id,
+            criada: true,
+            taskId: res.id,
+            taskCreated: true,
+            midias: svcItems.map((it) => ({
+              key: it.key,
+              blob: it.blob,
+              kind: it.kind,
+              mime: it.mime,
+              name: it.name,
+              durationMs: it.durationMs,
+            })),
+          });
+          if (ok) toast.message("Serviço criado — enviando as mídias em segundo plano", { position: "bottom-right" });
+          else toast.error("O serviço foi criado, mas não consegui guardar as mídias no aparelho. Anexe de novo em Registros.");
+        } else {
+          toast.error("O serviço foi criado, mas as mídias não puderam ser anexadas. Anexe de novo em Registros.");
+        }
+      }
       toast.success(
         `Serviço “${situation.name}” criado. Entra em Serviços Extras de ${ddmm(isoOf(date))}.`,
       );
@@ -723,9 +770,11 @@ function ManualCleaningPanel({
                 active={step === TOTAL}
                 done={false}
                 last
-                question={isClean ? QUESTIONS[5] : "Confirme o valor deste serviço!"}
+                question={isClean ? QUESTIONS[5] : "Informe os detalhes do serviço:"}
                 onReopen={() => {}}
               >
+                {isClean ? (
+                  <>
                 <div className="relative">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-display text-[14px] font-bold text-muted-foreground">
                     R$
@@ -763,6 +812,24 @@ function ManualCleaningPanel({
                     className="block w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-[14px] leading-snug outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </label>
+                  </>
+                ) : (
+                  <ServiceDetailsFields
+                    propertyId={property?.id ?? ""}
+                    title={svcTitle}
+                    onTitle={setSvcTitle}
+                    cents={cents}
+                    onCents={(c) => {
+                      setCents(c);
+                      setCentsEdited(true);
+                    }}
+                    description={note}
+                    onDescription={setNote}
+                    items={svcItems}
+                    onItems={setSvcItems}
+                    disabled={busy}
+                  />
+                )}
               </Step>
             </ol>
           </>

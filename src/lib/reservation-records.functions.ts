@@ -338,6 +338,11 @@ function composeBody(title: string | null | undefined, description: string | nul
   return `${t}\n${d}`;
 }
 
+/** Versões exportadas para o "Novo serviço" (service-situations.functions.ts). */
+export const nextRecordNameFor = (supabase: AnyClient, propertyId: string) => nextRecordName(supabase, propertyId);
+export const composeRecordBody = composeBody;
+export const resolveAuthorNameFor = (supabase: AnyClient, userId: string) => resolveAuthorName(supabase, userId);
+
 /** Nome de quem está registrando — mesmo fallback usado no handoff. */
 async function resolveAuthorName(supabase: AnyClient, userId: string): Promise<string> {
   const { data: prof } = await supabase

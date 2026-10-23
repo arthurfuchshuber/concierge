@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowLeft, CalendarDays, Check, MapPin, Search, User, type LucideIcon } from "lucide-react";
+import { CalendarDays, Check, MapPin, Search, User, type LucideIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ClampName } from "@/components/ui/clamp-name";
 import { CoverImage } from "@/components/ui/cover-image";
@@ -203,19 +203,7 @@ export function TrailDialog({
         onOpenAutoFocus={(e) => e.preventDefault()}
         className="flex h-[min(600px,90dvh)] w-[min(560px,calc(100vw-24px))] sm:h-[min(680px,90dvh)] max-w-none flex-col gap-0 overflow-hidden border-[var(--panel-border)] bg-[var(--panel)] p-0 sm:max-w-none"
       >
-        <div className="flex shrink-0 items-center gap-2 border-b border-[var(--panel-div)] py-3 pl-3 pr-14">
-          {onBack ? (
-            <button
-              type="button"
-              onClick={onBack}
-              aria-label="Voltar ao passo anterior"
-              className="grid size-8 shrink-0 place-items-center rounded-full text-foreground/70 transition-colors hover:bg-foreground/[0.06]"
-            >
-              <ArrowLeft className="size-4" />
-            </button>
-          ) : (
-            <span className="w-2 shrink-0" />
-          )}
+        <div className="flex shrink-0 items-center gap-2 border-b border-[var(--panel-div)] py-3 pl-4 pr-14">
           <DialogTitle className="min-w-0 flex-1 break-words font-display text-[16px] font-bold leading-snug text-foreground">
             {title}
           </DialogTitle>

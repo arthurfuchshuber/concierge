@@ -82,6 +82,20 @@ Comparei texto a texto cada tela do canvas com o código. Corrigido:
 - **Conflito a decidir:** as notas do canvas (n9/n10) divergem dos títulos renderizados; segui o que está desenhado.
 - **Pergunta aberta:** serviços perderam mídia/título/ditado do registro antigo (não há mockup). Restaurar?
 
+## Última pergunta do serviço (mockup 0l, aprovado em 23/10/2026)
+Restaura o que o registro antigo tinha (mídias, título, ditado) dentro da trilha nova do serviço.
+- **`ServiceDetailsFields.tsx` (novo):** "Informe os detalhes do serviço:" — Título (obrigatório, 50 caracteres, contador 0/50,
+  microfone/ditado) e Valor lado a lado no computador (Valor com 150px) e um abaixo do outro no celular; depois Descrição (ditado)
+  e Fotos e vídeos (miniaturas com prévia, "+", Foto/Vídeo/Galeria/Arquivo, máx. 10). Sem o texto "Prefere falar?".
+- **`ManualCleaningButton.tsx`:** o último passo do serviço usa o componente acima (a Limpeza continua igual); "Criar serviço" só
+  acende com título; ao criar, as mídias vão pela fila do aparelho (`enfileirarSituacao`, já existente: guarda, envia em segundo plano,
+  retoma e não duplica).
+- **`service-situations.functions.ts`:** `createServiceRecord` agora recebe `title` (≤50), `description` e `groupId`; grava o título na
+  pendência concluída e cria o registro principal (título + descrição) ligado a ela, onde as mídias se juntam.
+- **`reservation-records.functions.ts`:** só exporta três ajudantes (`nextRecordNameFor`, `composeRecordBody`, `resolveAuthorNameFor`).
+- **`TrailParts.tsx`:** removida a seta de voltar do cabeçalho (o botão "Voltar" do rodapé continua).
+- Não há rascunho guardado do serviço (se fechar a janela antes de criar, perde o que digitou) — a folha antiga tinha; diga se quer.
+
 ## Não verificado aqui
 Sem `tsc`/`vite build` completos e sem navegador (registro npm do projeto bloqueado neste ambiente). Passaram 110 testes
 isolados e a checagem de sintaxe. Validar no Lovable: lista de Imóvel/Reserva, Prestador pré-marcado, data passada e "Criar serviço".

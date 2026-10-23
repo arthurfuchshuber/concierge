@@ -413,7 +413,11 @@ const CreateServiceInput = z.object({
   providerId: z.string().uuid(),
   date: IsoDay,
   cents: z.number().int().min(0).max(100_000_00),
-  note: z.string().trim().max(1000).nullable().optional(),
+  /** Título curto (mesmo limite do registro: 50). Obrigatório. */
+  title: z.string().trim().min(1, "Escreva um título para o serviço.").max(50),
+  description: z.string().trim().max(4000).nullable().optional(),
+  /** ID gerado no aparelho: o registro (texto + mídias) nasce com ele e as mídias se juntam depois. */
+  groupId: z.string().uuid().optional(),
 });
 
 /**
@@ -484,7 +488,7 @@ export const createServiceRecord = createServerFn({ method: "POST" })
 
     const category =
       data.situation === "maintenance" ? "maintenance" : data.situation === "damage" ? "inspection" : "other";
-    const note = data.note?.trim() || null;
+    const note = data.description?.trim() || null;
     // Meio-dia de Brasília do dia escolhido: cai no dia certo em qualquer fuso de leitura.
     const completedAt = `${data.date}T15:00:00.000Z`;
     const { data: ins, error } = await db
@@ -494,7 +498,7 @@ export const createServiceRecord = createServerFn({ method: "POST" })
         property_id: data.propertyId,
         owner_contact_id: null,
         reservation_id: data.reservationId ?? null,
-        title: note ? note.slice(0, 120) : situationName,
+        title: data.title.slice(0, 120),
         description: note,
         category,
         situation: data.situation,
@@ -510,6 +514,43 @@ export const createServiceRecord = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error("Não foi possível criar o serviço.");
+    const taskId = (ins as { id: string }).id;
+
+    // REGISTRO DO SERVIÇO (título + descrição + mídias): a linha principal do
+    // grupo nasce aqui, ligada à pendência concluída; as mídias se juntam a ela
+    // depois, pela fila do aparelho (`appendSituationMedia`). Falhar aqui não
+    // desfaz o serviço — o dinheiro e o dia já estão gravados.
+    let groupId: string | null = null;
+    try {
+      const rr = await import("@/lib/reservation-records.functions");
+      groupId = data.groupId ?? crypto.randomUUID();
+      const [fileName, who] = await Promise.all([
+        rr.nextRecordNameFor(db as never, data.propertyId),
+        rr.resolveAuthorNameFor(db as never, context.userId),
+      ]);
+      const body = rr.composeRecordBody(data.title, data.description);
+      const recCategory =
+        data.situation === "maintenance" ? "maintenance" : data.situation === "damage" ? "damage" : "other";
+      const { error: recErr } = await db.from("reservation_records").insert({
+        id: groupId,
+        group_id: groupId,
+        property_id: data.propertyId,
+        log_id: null,
+        reservation_id: data.reservationId ?? null,
+        category: recCategory,
+        card_mode: null,
+        kind: "note",
+        body: body ?? "",
+        created_by: context.userId,
+        created_by_name: who,
+        task_id: taskId,
+        file_name: fileName,
+        situation_id: /^[0-9a-f]{8}-/i.test(data.situation) ? data.situation : null,
+      });
+      if (recErr) groupId = null;
+    } catch {
+      groupId = null;
+    }
     try {
       await db.from("audit_logs").insert({
         user_id: context.userId,
@@ -521,5 +562,5 @@ export const createServiceRecord = createServerFn({ method: "POST" })
     } catch {
       /* auditoria nunca derruba a operação */
     }
-    return { id: (ins as { id: string }).id, situationName };
+    return { id: taskId, situationName, groupId };
   });
