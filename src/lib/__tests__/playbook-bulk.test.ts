@@ -158,7 +158,8 @@ describe("bulkUpdatePlaybookEntries — campos PERMITIDOS", () => {
     expect(ups.every((o) => o.args[0].house_rules === "Silêncio após as 22h.")).toBe(true);
     expect(reindex).toHaveBeenCalledTimes(2);
     expect(audit).toHaveBeenCalledOnce();
-    expect(audit.mock.calls[0]![0]).toMatchObject({ action: "playbook_bulk_update", actorId: "u1", tenantId: "owner-1" });
+    const auditCalls = audit.mock.calls as unknown as Array<[Record<string, unknown>]>;
+    expect(auditCalls[0]?.[0]).toMatchObject({ action: "playbook_bulk_update", actorId: "u1", tenantId: "owner-1" });
   });
 
   it("linha personalizada + audiência: atualiza onde já existe (mesmo título) e cria onde não existe", async () => {

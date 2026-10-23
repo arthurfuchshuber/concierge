@@ -533,7 +533,10 @@ async function applyBulkToProperty(
     return { propertyId, result: "created" };
   }
   // custom (linha existente na origem) ou new (nota digitada em lote)
-  const label = src.kind === "new" ? src.label : src.label;
+  if (src.kind !== "new" && src.kind !== "custom") {
+    return { propertyId, result: "skipped", reason: "Tipo de linha não suporta linha personalizada." };
+  }
+  const label = src.label;
   const section = src.section;
   const aud = wantsAudience ? audience : src.kind === "custom" ? (src.audience ?? undefined) : audience;
   const found = await findCustomInTarget(sb, propertyId, label, section);
