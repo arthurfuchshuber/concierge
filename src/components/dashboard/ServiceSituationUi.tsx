@@ -55,8 +55,11 @@ import { cn } from "@/lib/utils";
  *      (escolha única, com contagem, só das situações COM dado no período).
  */
 
+// ATENÇÃO: NÃO colocar `relative` aqui. O DialogContent base já é `fixed` e centralizado;
+// `relative` vence `fixed` no tailwind-merge e a janela sai do overlay (vai parar no pé da
+// página, cortada). `fixed` já serve de referência para o "X" e o fio de luz (absolute).
 const SHELL =
-  "sg-elegant-scroll relative flex w-[min(280px,calc(100vw-32px))] max-w-none flex-col gap-0 overflow-hidden rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] sm:max-w-none";
+  "sg-elegant-scroll flex w-[min(280px,calc(100vw-32px))] max-w-none flex-col gap-0 overflow-hidden rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] sm:max-w-none";
 
 /** Botão retangular de 5px com o degradê da marca — o padrão dos botões de confirmar. */
 const BTN_PRIMARY =

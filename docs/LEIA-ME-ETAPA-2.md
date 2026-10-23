@@ -21,3 +21,6 @@ Aplicar por cima do projeto (mesmos caminhos). Base: commit ef30d11e. A migraç�
 
 ## Não verificado
 vite build, vitest, execução ponta a ponta no app real e tsc da árvore completa (só harness com stubs + render Playwright das janelas). Este ZIP contém só arquivos novos/alterados.
+
+## Correção (23/10/2026, 16:40) — janela "Sobre o que é a situação?" aparecia no pé da página
+Causa: a classe `SHELL` de `ServiceSituationUi.tsx` tinha `relative`, que no tailwind-merge sobrescreve o `fixed` do `DialogContent` base — a janela saía do overlay (desktop: cortada no rodapé; mobile: invisível). Removido `relative`; `fixed` já serve de referência para o "X" e o fio de luz. Vale para a janela de situações e para o formulário "Nova situação".
