@@ -1,4 +1,4 @@
-import { guardNestedOutside, useOverlayLayer } from "@/lib/global-overlay-store";
+import { anyWindowOpenNow, guardNestedOutside, useOverlayLayer } from "@/lib/global-overlay-store";
 "use client";
 
 import * as React from "react";
@@ -19,16 +19,21 @@ const SheetPortal = SheetPrimitive.Portal;
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
->(({ className, ...props }, ref) => (
+>(({ className, ...props }, ref) => {
+  const [skipFade] = React.useState(() => anyWindowOpenNow());
+  return (
   <SheetPrimitive.Overlay
     className={cn(
       "fixed inset-0 z-50 bg-background/70 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      // Janela trocada por outra: sem fade, o véu já está lá (evita o "pisca").
+      skipFade && "data-[state=open]:!animate-none",
       className,
     )}
     {...props}
     ref={ref}
   />
-));
+  );
+});
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(

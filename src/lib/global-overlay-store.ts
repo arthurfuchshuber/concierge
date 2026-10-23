@@ -166,6 +166,16 @@ export function useGlobalOverlayOpen(): boolean {
 }
 
 const getWindowSnapshot = () => stack.some((l) => l.kind === "window");
+
+/**
+ * Leitura pontual (sem assinar): já existe alguma Dialog/Sheet/AlertDialog aberta
+ * (inclusive uma que está saindo)? Usada pelos véus das janelas para NÃO
+ * reanimar o fade quando uma janela é trocada por outra — senão o véu antigo
+ * some enquanto o novo ainda está transparente e a tela de trás "pisca".
+ */
+export function anyWindowOpenNow(): boolean {
+  return getWindowSnapshot();
+}
 /** true enquanto qualquer Dialog/Sheet/Drawer estiver aberto. */
 export function useAnyWindowOpen(): boolean {
   return React.useSyncExternalStore(subscribe, getWindowSnapshot, getServerSnapshot);

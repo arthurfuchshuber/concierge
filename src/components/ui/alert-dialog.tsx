@@ -2,7 +2,7 @@ import * as React from "react";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 
 import { cn } from "@/lib/utils";
-import { useOverlayLayer } from "@/lib/global-overlay-store";
+import { anyWindowOpenNow, useOverlayLayer } from "@/lib/global-overlay-store";
 import { useAntiClipWindow } from "@/hooks/useAntiClipWindow";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -15,16 +15,21 @@ const AlertDialogPortal = AlertDialogPrimitive.Portal;
 const AlertDialogOverlay = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
+>(({ className, ...props }, ref) => {
+  const [skipFade] = React.useState(() => anyWindowOpenNow());
+  return (
   <AlertDialogPrimitive.Overlay
     className={cn(
       "fixed inset-0 z-50 bg-background/70 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      // Janela trocada por outra: sem fade, o véu já está lá (evita o "pisca").
+      skipFade && "data-[state=open]:!animate-none",
       className,
     )}
     {...props}
     ref={ref}
   />
-));
+  );
+});
 AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 
 const AlertDialogContent = React.forwardRef<
