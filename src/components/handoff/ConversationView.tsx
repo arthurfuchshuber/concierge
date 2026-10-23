@@ -27,7 +27,7 @@ import { listConversationEscalations, answerEscalation, reopenEscalationDecision
 import { notifyAction } from "@/components/UndoActionBar";
 import { dismissEscalation } from "@/lib/handoff.functions";
 import { readDecisionSpec, canBecomeKnowledge, isTakeoverOption } from "@/lib/ai/human-loop/decision-options";
-import { minutesLeft } from "@/lib/ai/pause";
+import { isPausedNow, minutesLeft } from "@/lib/ai/pause";
 import {
   Send,
   UserCheck,
@@ -672,6 +672,11 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
   const pausaMinutos = minutesLeft(conv);
   const isLockedByOther = !!(conv?.assigned_to && myUserId && conv.assigned_to !== myUserId);
   const isUnassigned = !conv?.assigned_to;
+  /* ANFITRIÃO NO COMANDO (Airbnb): quando ele responde direto no app do Airbnb a IA é pausada
+   * e a conversa vai para "Humano" sem responsável. Nesse caso o campo de resposta fica liberado
+   * (o envio já atribui a conversa a quem responde) — sem o banner "Assuma a conversa". */
+  const hostInCommand = !isLockedByOther && isUnassigned && isPausedNow(conv);
+  const canCompose = isMine || hostInCommand;
   const iRequested = !!(
     conv?.claim_requested_by &&
     myUserId &&
@@ -1517,7 +1522,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
 
       {status !== "resolved" &&
         canChat &&
-        (!isMine ? (
+        (!canCompose ? (
           <div
             className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2"
             style={{

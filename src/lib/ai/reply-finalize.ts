@@ -34,9 +34,47 @@ export function stripStayConfirmation(text: string): string {
   }).replace(/^\s+/, "").replace(/[ \t]+\n/g, "\n");
 }
 
+type LineKind = "blank" | "dash" | "num" | "cont" | "text";
+
+/**
+ * Normalização determinística de listas (mesmo se o modelo oscilar):
+ * - itens com hífen ("- ") sempre separados por linha em branco;
+ * - itens numerados ("1. ") ficam juntos, sem linha em branco entre eles;
+ * - linha em branco entre a lista e os parágrafos ao redor.
+ * Linhas indentadas logo após um item são continuação dele e não são separadas.
+ */
+export function formatListSpacing(text: string): string {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const out: string[] = [];
+  let prev: LineKind | null = null; // último tipo não vazio
+  let sawBlank = false;
+  let lastListKind: "dash" | "num" = "dash";
+  for (const raw of lines) {
+    const line = raw.replace(/[ \t]+$/, "");
+    if (!line.trim()) {
+      sawBlank = true;
+      continue;
+    }
+    const inList = prev === "dash" || prev === "num" || (prev === "cont");
+    let kind: LineKind = /^\s*-\s+\S/.test(line) ? "dash" : /^\s*\d+[.)]\s+\S/.test(line) ? "num" : "text";
+    if (kind === "text" && inList && !sawBlank && /^\s+/.test(line)) kind = "cont";
+    let sep = "";
+    if (prev !== null) {
+      if (kind === "cont") sep = "\n";
+      else if (kind === "dash") sep = "\n\n";
+      else if (kind === "num") sep = prev === "num" || (prev === "cont" && lastListKind === "num") ? "\n" : "\n\n";
+      else sep = inList ? "\n\n" : sawBlank ? "\n\n" : "\n";
+    }
+    if (kind === "dash" || kind === "num") lastListKind = kind;
+    out.push(sep + line);
+    prev = kind;
+    sawBlank = false;
+  }
+  return out.join("");
+}
 export function finalizeAgentReply(reply: string, channel: string | undefined | null): string {
   const text = (reply ?? "").trim();
   if (!text || (text.replace(/[\s.]/g, "").toUpperCase().includes("[SILENCIO]") && text.length < 40)) return "";
   void channel;
-  return redactHostMoney(stripStayConfirmation(text.replace(LEGACY_SIGNATURE, "").trim()));
+  return formatListSpacing(redactHostMoney(stripStayConfirmation(text.replace(LEGACY_SIGNATURE, "").trim())));
 }

@@ -72,6 +72,7 @@ export function voiceGuidance(v: GuestVoice, negative: boolean): string {
       ? "- Ele riu: pode devolver uma risada leve (uma só, ex.: 'haha'), sem forçar."
       : "- Não use risadas (kkk/haha) se ele não riu agora.",
     "- Nunca repita a abertura nem o fecho das suas últimas falas; varie o vocabulário.",
+    "- Não espelhe cargos, profissões ou rótulos corporativos que ele citar (\"os auditores\", \"os peritos\"); trate o grupo de forma natural (\"a equipe\", \"vocês três\", \"até 3 pessoas\").",
   ];
   return lines.join("\n");
 }

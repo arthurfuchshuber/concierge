@@ -86,6 +86,8 @@ function EquipePage() {
     queryKey: ["handoff-access"],
     queryFn: () => accessFn(),
     staleTime: 5 * 60_000,
+    retry: 2,
+    retryDelay: (n) => 1000 * (n + 1),
   });
   const team = useQuery({
     queryKey: ["my-team", acctId],

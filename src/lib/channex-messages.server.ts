@@ -8,7 +8,10 @@
  *    mensagem NÃO é respondida (evita responder com dados do imóvel errado).
  *  - Pausa humana / handoff respeitados (mesma regra do WhatsApp/Guia).
  */
-const CHANNEX_BASE = "https://app.channex.io/api/v1";
+/** Base da API Channex conforme o ambiente (staging só quando CHANNEX_ENV=staging). */
+export function channexBase(): string {
+  return process.env["CHANNEX_ENV"] === "staging" ? "https://staging.channex.io/api/v1" : "https://app.channex.io/api/v1";
+}
 
 function apiKey(): string {
   const key = process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"];
@@ -17,7 +20,7 @@ function apiKey(): string {
 }
 
 async function channex<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${CHANNEX_BASE}${path}`, {
+  const res = await fetch(`${channexBase()}${path}`, {
     ...init,
     headers: { "user-api-key": apiKey(), Accept: "application/json", "Content-Type": "application/json" },
   });
@@ -98,20 +101,38 @@ type Inbound = {
   channexPropertyId: string | null;
   guestName: string | null;
   attachments?: string[];
+  /** A Channex marcou `have_attachment`, mesmo que o caminho do anexo não tenha vindo. */
+  haveAttachment?: boolean;
 };
 
 function str(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v : typeof v === "number" ? String(v) : null;
 }
 
-function parseAttachments(v: unknown): string[] {
+/**
+ * Anexos do webhook. A Channex manda caminho RELATIVO ("attachments/<thread>/<msg>/<uuid>.jpeg");
+ * ele vira a URL canônica da API (que exige o header `user-api-key` no download).
+ */
+export function parseAttachments(v: unknown): string[] {
   if (!Array.isArray(v)) return [];
   const out: string[] = [];
   for (const a of v) {
-    const url = typeof a === "string" ? a : (str((a as any)?.url) ?? str((a as any)?.link));
-    if (url && /^https?:\/\//.test(url)) out.push(url);
+    const raw = typeof a === "string" ? a : (str((a as any)?.url) ?? str((a as any)?.link));
+    const url = raw?.trim();
+    if (!url) continue;
+    if (/^https?:\/\//.test(url)) out.push(url);
+    else if (/^\/?attachments\//.test(url)) out.push(`${channexBase()}/${url.replace(/^\/+/, "")}`);
   }
   return out.slice(0, 6);
+}
+
+/** URLs da própria Channex exigem a chave de API no download. */
+export function isChannexUrl(url: string): boolean {
+  try {
+    return /(^|\.)channex\.io$/i.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
 }
 
 export function parseChannexMessage(payload: unknown): Inbound | null {
@@ -119,7 +140,9 @@ export function parseChannexMessage(payload: unknown): Inbound | null {
   const p = (root.payload ?? root.data?.attributes ?? root) as Record<string, any>;
   const attachments = parseAttachments(p.attachments);
   const text = str(p.message) ?? str(p.text) ?? "";
-  if (!text && attachments.length === 0) return null;
+  // Foto sem texto: a Channex manda `message: null` + `have_attachment: true`. Isso é mensagem válida.
+  const hasAttachment = p.have_attachment === true || attachments.length > 0;
+  if (!text && !hasAttachment) return null;
   return {
     messageId: str(p.id) ?? str(p.ota_message_id),
     otaMessageId: str(p.ota_message_id),
@@ -130,6 +153,7 @@ export function parseChannexMessage(payload: unknown): Inbound | null {
     channexPropertyId: str(p.property_id) ?? str(root.property_id),
     guestName: str(p.guest_name) ?? str(p.meta?.name) ?? str(p.sender_name),
     attachments,
+    ...(p.have_attachment === true ? { haveAttachment: true } : {}),
   };
 }
 
@@ -141,8 +165,9 @@ async function describeGuestPhotos(urls: string[], guestText: string): Promise<s
   const images: string[] = [];
   for (const url of urls) {
     try {
-      let res = await fetch(url);
-      if (!res.ok && chKey) res = await fetch(url, { headers: { "user-api-key": chKey } });
+      const authed = !!chKey && isChannexUrl(url);
+      let res = await fetch(url, authed ? { headers: { "user-api-key": chKey! } } : undefined);
+      if (!res.ok && chKey && !authed) res = await fetch(url, { headers: { "user-api-key": chKey } });
       if (!res.ok) continue;
       const mime = (res.headers.get("content-type") ?? "image/jpeg").split(";")[0]!;
       if (!mime.startsWith("image/")) continue;
@@ -450,6 +475,9 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
       ? `[${label} pelo hóspede — conteúdo: ${photoDesc}]`
       : `[${label} pelo hóspede — não foi possível visualizar; peça gentilmente para descrever o que aparece]`;
     content = content ? `${content}\n${tag}` : tag;
+  } else if (!content && m.haveAttachment) {
+    // Foto sem texto e sem caminho utilizável: a mensagem não pode sumir em silêncio.
+    content = "[Foto enviada pelo hóspede — não foi possível visualizar; peça gentilmente para descrever o que aparece]";
   }
   await admin.from("property_chat_messages").insert({
     conversation_id: convId,
@@ -497,7 +525,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
         conversationId: convId,
         propertyName,
         guestName: m.guestName,
-        guestMessage: m.text,
+        guestMessage: content,
       });
     } catch (e) {
       console.error("[channex-messages] push falhou", e);
@@ -1011,8 +1039,17 @@ export function isAutomatedHostMessage(payload: unknown, text: string): boolean 
   return false;
 }
 
+/** Patch aplicado quando o anfitrião responde no Airbnb: pausa a IA e leva a conversa para "Humano". */
+export function hostTakeoverPatch<T extends Record<string, unknown>>(pause: T, now = new Date()): T & {
+  status: "assigned";
+  resolved_at: null;
+  last_message_at: string;
+} {
+  return { ...pause, status: "assigned", resolved_at: null, last_message_at: now.toISOString() };
+}
+
 /** Mensagem do anfitrião vinda do Airbnb: registra e (se humana) pausa a IA. */
-async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> {
+export async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> {
   if (!m.threadId) return;
   const { supabaseAdmin: admin } = await import("@/integrations/supabase/client.server");
   const { pausePatch } = await import("@/lib/ai/pause");
@@ -1035,7 +1072,9 @@ async function pauseOnHostMessage(m: Inbound, automated = false): Promise<void> 
     );
     if (isEcho) continue;
     if (!automated) {
-      await admin.from("property_chat_conversations").update(pausePatch()).eq("id", c.id);
+      // Anfitrião falando direto no Airbnb = atendimento humano: sai da aba "IA"/"Resolvidas"
+      // e vai para "Humano" (status in needs_human/assigned). `assigned_to` não é tocado.
+      await admin.from("property_chat_conversations").update(hostTakeoverPatch(pausePatch())).eq("id", c.id);
       await purgePendingChatForThread(admin, m.threadId);
       // O anfitrião já respondeu direto no Airbnb: a pergunta da IA à equipe
       // perde o sentido e sai da tela (já entregue, a IA não repete).

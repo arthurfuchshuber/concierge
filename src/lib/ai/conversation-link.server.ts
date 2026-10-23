@@ -80,3 +80,59 @@ export async function applyStayCompletionOnIngest(
   const r = await applyStayEvent(admin, stay, kind);
   return r.ok ? kind : null;
 }
+
+/* ───────────────────────── Memória contínua entre canais ─────────────────────────
+ * Hóspede que já falava no Airbnb e abre o Guia com o código da reserva NÃO começa
+ * do zero: as conversas recentes (7 dias) da MESMA reserva, em qualquer canal, entram
+ * no histórico que a IA lê. A conversa do Guia continua sendo a do navegador (a sessão
+ * é a credencial do polling); o que se unifica é a memória.
+ */
+export type HistoryTurn = { role: string; content: string; at?: string | null };
+
+/** Junta o histórico da própria conversa com o de outros canais, em ordem cronológica. */
+export function mergeCrossChannelHistory(own: HistoryTurn[], others: HistoryTurn[], limit = 30): HistoryTurn[] {
+  if (others.length === 0) return own;
+  const t = (x: HistoryTurn) => (x.at ? new Date(x.at).getTime() : 0);
+  const seen = new Set<string>();
+  const merged = [...others, ...own]
+    .map((x, i) => ({ x, i }))
+    .sort((a, b) => t(a.x) - t(b.x) || a.i - b.i)
+    .map(({ x }) => x)
+    .filter((x) => {
+      const k = `${x.role}|${x.at ?? ""}|${x.content}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  return merged.slice(-limit);
+}
+
+/** Mensagens recentes de OUTRAS conversas ligadas à mesma reserva (Airbnb, WhatsApp, Guia). */
+export async function loadReservationSiblingHistory(
+  admin: SupabaseClient,
+  p: { conversationId: string; days?: number; perConversation?: number; maxConversations?: number },
+): Promise<HistoryTurn[]> {
+  const { data: conv } = await admin
+    .from("property_chat_conversations")
+    .select("reservation_id")
+    .eq("id", p.conversationId)
+    .maybeSingle();
+  const rid = (conv as { reservation_id?: string | null } | null)?.reservation_id ?? null;
+  if (!rid) return [];
+  const since = new Date(Date.now() - (p.days ?? 7) * 86_400_000).toISOString();
+  const { data: sibs } = await admin
+    .from("property_chat_conversations")
+    .select("id")
+    .eq("reservation_id", rid)
+    .neq("id", p.conversationId)
+    .gte("last_message_at", since)
+    .order("last_message_at", { ascending: false })
+    .limit(p.maxConversations ?? 4);
+  const { loadAgentHistory } = await import("@/lib/chat-audio.server");
+  const out: HistoryTurn[] = [];
+  for (const s of (sibs ?? []) as Array<{ id: string }>) {
+    const h = await loadAgentHistory(admin, s.id, p.perConversation ?? 20);
+    out.push(...h.filter((m) => !m.at || m.at >= since));
+  }
+  return out;
+}

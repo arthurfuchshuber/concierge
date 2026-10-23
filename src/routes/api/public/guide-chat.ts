@@ -309,7 +309,20 @@ async function runGuideChat(
        Izabela, 10/09). Agora a transcrição entra no lugar, marcada como fala —
        transcrição vem torta e a IA precisa saber disso antes de interpretar. */
     const { loadAgentHistory } = await import("@/lib/chat-audio.server");
-    const prior = await loadAgentHistory(supabaseAdmin, conversationId, 20);
+    const ownHistory = await loadAgentHistory(supabaseAdmin, conversationId, 20);
+    /* CONTINUIDADE ENTRE CANAIS: com o código da reserva (já ligado acima), a IA também lê
+       o que o hóspede conversou nos últimos 7 dias em outros canais da MESMA reserva
+       (Airbnb, WhatsApp, outro aparelho). Sem isso o Guia atendia como primeiro contato. */
+    let prior = ownHistory;
+    if (!body.demo && body.reservationCode && !landing.isLandingCopy(body.slug)) {
+      try {
+        const link = await import("@/lib/ai/conversation-link.server");
+        const others = await link.loadReservationSiblingHistory(supabaseAdmin as SupabaseClient, { conversationId });
+        prior = link.mergeCrossChannelHistory(ownHistory, others, 30);
+      } catch (e) {
+        console.error("guide-chat histórico entre canais falhou", e);
+      }
+    }
 
     await supabaseAdmin.from("property_chat_messages").insert({
       conversation_id: conversationId,

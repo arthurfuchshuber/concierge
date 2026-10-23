@@ -35,11 +35,11 @@ function AtendimentoPage() {
 
   const access = useQuery({
     queryKey: ["handoff-access"],
-    queryFn: async () => {
-      try { return await accessFn(); } catch { return { allowed: false as const, as: null, plan: null }; }
-    },
+    // Falha transitória = "ainda carregando": mantém a última decisão, nunca nega.
+    queryFn: () => accessFn(),
     staleTime: 5 * 60_000,
-    retry: false,
+    retry: 2,
+    retryDelay: (n) => 1000 * (n + 1),
   });
 
   const { impersonation } = useImpersonation();
