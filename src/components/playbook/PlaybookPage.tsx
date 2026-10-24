@@ -3,7 +3,7 @@ import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, BookOpen, Copy, CopyPlus, Info, Lock, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Copy, CopyPlus, Eye, EyeOff, Info, KeyRound, Lock, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
@@ -117,6 +117,21 @@ function Legend() {
 
 type EditState = { id: string; draft: string } | null;
 
+/**
+ * DOSSIÊ SEM CAMPOS VAZIOS (24/10/2026): campo manual opcional sem valor não aparece.
+ * Só os campos-padrão abaixo ficam sempre visíveis; os demais entram pelo
+ * "Adicionar campo" da seção e somem de novo quando o valor é excluído.
+ */
+const STANDARD_MANUAL_FIELDS = new Set([
+  "f:modo_de_acesso",
+  "f:instrucoes_de_check_in",
+  "f:instrucoes_de_check_out",
+  "f:nome_da_rede_wi_fi",
+  "f:senha_do_wi_fi",
+  "f:telefone_do_anfitriao",
+]);
+const isOptionalEmpty = (r: PlaybookRow) => r.empty && !!r.edit && !STANDARD_MANUAL_FIELDS.has(r.id);
+
 export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const qc = useQueryClient();
   const fetchFn = useServerFn(getPlaybook);
@@ -143,6 +158,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [adding, setAdding] = useState<{ section: number; label: string; value: string; au: Audience } | null>(null);
   const [replicating, setReplicating] = useState<PlaybookRow | null>(null);
+  const [revealed, setRevealed] = useState<string[]>([]);
+  const [shown, setShown] = useState<string[]>([]);
 
   const sections = useMemo(() => (query.data ? buildPlaybook(query.data.source) : []), [query.data]);
   const refresh = () => qc.invalidateQueries({ queryKey: ["playbook", propertyId] });
@@ -282,7 +299,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
         ) : (
           PLAYBOOK_SECTIONS.map((meta, idx) => {
             const sec = sections[idx];
-            const all = sec?.rows ?? [];
+            const all = (sec?.rows ?? []).filter((r) => !isOptionalEmpty(r) || revealed.includes(r.id) || edit?.id === r.id);
+            const hidden = (sec?.rows ?? []).filter((r) => isOptionalEmpty(r) && !revealed.includes(r.id) && edit?.id !== r.id);
             const rows = all.filter((r) => matchesQuery(r, qq));
             const isOpen = qq ? rows.length > 0 : read || openSection === meta.id;
             return (
@@ -388,9 +406,23 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                               <span
                                 className={`min-w-0 flex-1 whitespace-pre-line block ${r.value.length > 600 ? "max-h-[min(60vh,28rem)] overflow-y-auto overscroll-contain pr-1" : ""} ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
                               >
-                                {r.value}
+                                {r.secret && shown.includes(r.id) ? r.raw : r.value}
                               </span>
                             )}
+                            {r.secret && !r.empty && !editing ? (
+                              <button
+                                type="button"
+                                aria-label={shown.includes(r.id) ? "Ocultar" : "Mostrar"}
+                                title={shown.includes(r.id) ? "Ocultar" : "Mostrar"}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShown((cur) => (cur.includes(r.id) ? cur.filter((x) => x !== r.id) : [...cur, r.id]));
+                                }}
+                                className={`${ICON_BTN} size-7 flex-none print:hidden`}
+                              >
+                                {shown.includes(r.id) ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                              </button>
+                            ) : null}
                             {/* Botões copiar/editar/excluir ocultos por ora (pedido 22/10/2026). */}
                           </div>
 
@@ -431,7 +463,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
                           <div className="flex flex-col items-start gap-2 whitespace-nowrap px-4 py-3">
                             <AudienceChip au={r.au} />
-                            {!r.empty && classifyBulkRow(r.id).ok ? (
+                            {!r.empty && !!r.edit && classifyBulkRow(r.id).ok ? (
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -455,7 +487,36 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                       <div className="px-5 py-6 text-[13px] font-medium text-muted-foreground">Nenhum campo corresponde à busca.</div>
                     ) : null}
 
-                    <div className="px-4 py-3 print:hidden">
+                    <div className="flex flex-wrap gap-2 px-4 py-3 print:hidden">
+                      {hidden.length > 0 ? (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-muted-foreground hover:text-foreground ${WELL}`}
+                            >
+                              <KeyRound className="size-[15px]" />
+                              Adicionar campo
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="start" className="w-72 max-h-[60vh] overflow-y-auto overscroll-contain p-1.5">
+                            {hidden.map((r) => (
+                              <button
+                                key={r.id}
+                                type="button"
+                                onClick={() => {
+                                  setRevealed((cur) => [...cur, r.id]);
+                                  startEdit(r);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] font-medium text-foreground hover:bg-secondary/60"
+                              >
+                                {r.secret ? <KeyRound className="size-3.5 flex-none text-muted-foreground" /> : <Plus className="size-3.5 flex-none text-muted-foreground" />}
+                                <span className="min-w-0 break-words">{r.label}</span>
+                              </button>
+                            ))}
+                          </PopoverContent>
+                        </Popover>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => setAdding({ section: meta.num ? Number(meta.num) : idx + 1, label: "", value: "", au: "I" })}
