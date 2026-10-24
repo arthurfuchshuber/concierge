@@ -17,8 +17,8 @@ export function OwnerLine({
   /** Mantido por compatibilidade; o nome é sempre em destaque. */
   variant?: "brand" | "neutral";
   name: string | null;
-  phone: string | null;
-  country: string | null;
+  phone?: string | null;
+  country?: string | null;
   phonePosition?: "adjacent" | "end";
   /** Rótulo alternativo (ex.: "Proprietária do Imóvel:"); o nome vem depois. */
   label?: string | null;
@@ -39,8 +39,8 @@ export function OwnerLine({
         {full}
       </span>
       <PhoneActionButton
-        phone={phone}
-        country={country}
+        phone={phone ?? null}
+        country={country ?? null}
         size={size}
         alwaysShow
         className={`-my-1 ${phonePosition === "end" ? "ml-auto" : ""}`}
