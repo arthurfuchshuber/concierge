@@ -75,7 +75,7 @@ beforeEach(() => {
   audit.mockClear();
   tables = {
     properties: [
-      { id: SRC, owner_id: "owner-1", house_rules: "Silêncio após as 22h." },
+      { id: SRC, owner_id: "owner-1", checkin_instructions: "Silêncio após as 22h." },
       { id: T1, owner_id: "owner-1" },
       { id: T2, owner_id: "owner-1" },
     ],
@@ -123,7 +123,7 @@ describe("bulkUpdatePlaybookEntries — campos PROIBIDOS", () => {
   it("audiência só em linhas criadas à mão", async () => {
     const { bulkUpdatePlaybookEntries } = await import("@/lib/playbook.functions");
     await expect(
-      bulkUpdatePlaybookEntries({ data: { ...base, action: "audience", audience: "P", source: { kind: "row", rowId: "f:regras_adicionais_da_casa" } } }),
+      bulkUpdatePlaybookEntries({ data: { ...base, action: "audience", audience: "P", source: { kind: "row", rowId: "f:instrucoes_de_check_in" } } }),
     ).rejects.toThrow(/audiência/i);
   });
 });
@@ -133,7 +133,7 @@ describe("bulkUpdatePlaybookEntries — permissões", () => {
     denied.add(T2);
     const { bulkUpdatePlaybookEntries } = await import("@/lib/playbook.functions");
     await expect(
-      bulkUpdatePlaybookEntries({ data: { ...base, action: "content", source: { kind: "row", rowId: "f:regras_adicionais_da_casa" } } }),
+      bulkUpdatePlaybookEntries({ data: { ...base, action: "content", source: { kind: "row", rowId: "f:instrucoes_de_check_in" } } }),
     ).rejects.toThrow(/permissão/i);
     expect(writes()).toHaveLength(0);
   });
@@ -142,20 +142,20 @@ describe("bulkUpdatePlaybookEntries — permissões", () => {
     tables["properties"]![2]!.owner_id = "owner-2";
     const { bulkUpdatePlaybookEntries } = await import("@/lib/playbook.functions");
     await expect(
-      bulkUpdatePlaybookEntries({ data: { ...base, action: "content", source: { kind: "row", rowId: "f:regras_adicionais_da_casa" } } }),
+      bulkUpdatePlaybookEntries({ data: { ...base, action: "content", source: { kind: "row", rowId: "f:instrucoes_de_check_in" } } }),
     ).rejects.toThrow(/mesma conta/i);
     expect(writes()).toHaveLength(0);
   });
 });
 
 describe("bulkUpdatePlaybookEntries — campos PERMITIDOS", () => {
-  it("regras da casa vão para a coluna house_rules de todos os destinos", async () => {
+  it("instruções de check-in vão para a coluna checkin_instructions de todos os destinos", async () => {
     const { bulkUpdatePlaybookEntries } = await import("@/lib/playbook.functions");
-    const r = await bulkUpdatePlaybookEntries({ data: { ...base, action: "content", source: { kind: "row", rowId: "f:regras_adicionais_da_casa" } } });
+    const r = await bulkUpdatePlaybookEntries({ data: { ...base, action: "content", source: { kind: "row", rowId: "f:instrucoes_de_check_in" } } });
     expect(r).toMatchObject({ ok: true, applied: 2, failed: [] });
     const ups = writes().filter((o) => o.table === "properties" && o.op === "update");
     expect(ups.map((o) => o.filters[0])).toEqual([["id", T1], ["id", T2]]);
-    expect(ups.every((o) => o.args[0].house_rules === "Silêncio após as 22h.")).toBe(true);
+    expect(ups.every((o) => o.args[0].checkin_instructions === "Silêncio após as 22h.")).toBe(true);
     expect(reindex).toHaveBeenCalledTimes(2);
     expect(audit).toHaveBeenCalledOnce();
     const auditCalls = audit.mock.calls as unknown as Array<[Record<string, unknown>]>;
@@ -205,5 +205,12 @@ describe("bulkUpdatePlaybookEntries — campos PERMITIDOS", () => {
     expect(r.applied).toBe(2);
     const up = writes().filter((o) => o.op === "upsert");
     expect(up.every((o) => o.args[0].custom_audience === "G" && o.args[0].custom_label === "Áreas comuns")).toBe(true);
+  });
+});
+
+import { classifyBulkRow as classifyRule } from "@/lib/playbook-bulk";
+describe("regras da casa vêm do anúncio", () => {
+  it("não podem ser replicadas", () => {
+    expect(classifyRule("f:regras_adicionais_da_casa").ok).toBe(false);
   });
 });
