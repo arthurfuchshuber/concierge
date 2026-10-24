@@ -295,7 +295,9 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           PLAYBOOK_SECTIONS.map((meta, idx) => {
             const sec = sections[idx];
             const all = (sec?.rows ?? []).filter((r) => !isOptionalEmpty(r) || revealed.includes(r.id) || edit?.id === r.id);
-            const hidden = (sec?.rows ?? []).filter((r) => isOptionalEmpty(r) && !revealed.includes(r.id) && edit?.id !== r.id);
+            const hidden = (sec?.rows ?? []).filter(
+              (r) => isOptionalEmpty(r) && isAddable(r) && !revealed.includes(r.id) && edit?.id !== r.id,
+            );
             const rows = all.filter((r) => matchesQuery(r, qq));
             const isOpen = qq ? rows.length > 0 : read || openSection === meta.id;
             return (
