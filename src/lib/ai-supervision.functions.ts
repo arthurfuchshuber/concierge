@@ -183,12 +183,27 @@ export const answerEscalation = createServerFn({ method: "POST" })
     // Regra (19/10/2026): a IA responde a tudo. Toda decisão sobre o pedido do
     // hóspede vira UMA resposta na hora. Silêncio só em: "Eu assumo", cartão de
     // conhecimento (fact proativo), ação técnica executada no sistema ou "Aguardar".
+    // Antecipação liberada pela equipe (limpeza pronta): o horário de agora vira
+    // fato da reserva, então a IA nunca volta ao horário padrão depois.
+    const earlyRelease = !!(esc as { context_snapshot?: { early_release?: unknown } } | null)?.context_snapshot?.early_release;
+    const { earlyReleaseApproved, earlyReleaseSilent } = await import("./ai/human-loop/decision-options");
+    if (earlyRelease && conversationId && earlyReleaseApproved(data.answer)) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { registerAgreedStayTime } = await import("./ai/stay-intent-resolver.server");
+        const nowHm = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
+        const propertyId = (esc as { property_id?: string | null } | null)?.property_id;
+        if (propertyId) await registerAgreedStayTime(supabaseAdmin as never, { propertyId, conversationId, kind: "checkin", time: nowHm });
+      } catch (e) {
+        console.error("[supervision] registrar liberação antecipada falhou", (e as Error)?.message);
+      }
+    }
     const silentDecision =
       takeover ||
       hostLearning ||
       (proactive && spec?.kind === "fact") ||
       action !== "none" ||
-      data.answer === "Aguardar o horário oficial";
+      earlyReleaseSilent(data.answer);
     if (takeover && conversationId) {
       const { error: claimErr } = await context.supabase
         .from("property_chat_conversations")
