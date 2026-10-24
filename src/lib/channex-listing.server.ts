@@ -213,12 +213,10 @@ export async function syncPilotListings(): Promise<Array<{ listingId: string; pr
   return out;
 }
 
-export type PublicListing = { descriptions: string[]; amenities: string[]; unavailable: string[] };
+export type { PublicListing } from "@/lib/airbnb-public-parse";
+import { parsePublicListingHtml, type PublicListing } from "@/lib/airbnb-public-parse";
 
-const stripHtml = (h: string) =>
-  h.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
-
-/** Lê a página pública do anúncio (descrição completa, "o que você vai receber", comodidades). Somente leitura. */
+/** Lê a página pública do anúncio (descrição, comodidades, capacidade, cômodos, regras, segurança, capa). Somente leitura. */
 export async function fetchPublicListing(listingId: string): Promise<PublicListing | null> {
   // Leitura nativa (custo zero): até 2 tentativas com timeout, para o scrap não falhar à toa.
   let html: string | null = null;
@@ -229,26 +227,7 @@ export async function fetchPublicListing(listingId: string): Promise<PublicListi
     }).catch(() => null);
     if (res?.ok) html = await res.text().catch(() => null);
   }
-  if (!html) return null;
-  const m = html.match(/<script id="data-deferred-state-0"[^>]*>([\s\S]*?)<\/script>/);
-  if (!m) return null;
-  let root: unknown;
-  try { root = JSON.parse(m[1]!); } catch { return null; }
-  const descriptions = new Set<string>();
-  const amenities = new Set<string>();
-  const unavailable = new Set<string>();
-  const walk = (n: any, depth: number) => {
-    if (!n || typeof n !== "object" || depth > 40) return;
-    if (Array.isArray(n)) { for (const x of n) walk(x, depth + 1); return; }
-    if (typeof n.htmlText === "string") { const t = stripHtml(n.htmlText); if (t.length > 20) descriptions.add(t); }
-    if (typeof n.__typename === "string" && /Amenity/i.test(n.__typename) && typeof n.title === "string") {
-      const label = [n.title, typeof n.subtitle === "string" && n.subtitle ? `(${n.subtitle})` : ""].join(" ").trim();
-      (n.available === false ? unavailable : amenities).add(label);
-    }
-    for (const v of Object.values(n)) walk(v, depth + 1);
-  };
-  walk(root, 0);
-  return { descriptions: [...descriptions], amenities: [...amenities], unavailable: [...unavailable] };
+  return html ? parsePublicListingHtml(html) : null;
 }
 
 export function publicFacts(p: PublicListing): Fact[] {
@@ -256,6 +235,17 @@ export function publicFacts(p: PublicListing): Fact[] {
   p.descriptions.forEach((d, i) => out.push({ key: `descricao_${i}`, title: "Descrição do anúncio no Airbnb (inclui o que o hóspede recebe)", content: d }));
   if (p.amenities.length) out.push({ key: "comodidades", title: "Comodidades oferecidas (anúncio Airbnb)", content: p.amenities.join("\n") });
   if (p.unavailable.length) out.push({ key: "comodidades_ausentes", title: "Comodidades NÃO oferecidas (anúncio Airbnb)", content: p.unavailable.join("\n") });
+  const cap = [
+    p.spaceType,
+    p.guests != null ? `${p.guests} hóspedes` : "",
+    p.bedrooms != null ? `${p.bedrooms} quarto(s)` : "",
+    p.beds != null ? `${p.beds} cama(s)` : "",
+    p.bathrooms != null ? `${p.bathrooms} banheiro(s)` : "",
+  ].filter(Boolean).join(" · ");
+  if (cap) out.push({ key: "capacidade_publica", title: "Espaço e capacidade (anúncio Airbnb)", content: cap });
+  if (p.roomsBeds?.length) out.push({ key: "onde_dormir", title: "Onde você vai dormir (anúncio Airbnb)", content: p.roomsBeds.map((r) => `${r.room}: ${r.beds}`).join("\n") });
+  if (p.houseRules) out.push({ key: "regras_publicas", title: "Regras da casa (anúncio Airbnb)", content: p.houseRules });
+  if (p.safety) out.push({ key: "seguranca_publica", title: "Segurança e propriedade (anúncio Airbnb)", content: p.safety });
   return out;
 }
 
@@ -318,12 +308,25 @@ export async function applyListingToProperty(args: {
       ...args.pub.amenities.map((name) => ({ name: name.slice(0, 120), category: null, available: true })),
       ...args.pub.unavailable.map((name) => ({ name: name.slice(0, 120), category: null, available: false })),
     ].slice(0, 300);
+    // Espaço, capacidade e cômodos (27/10/2026): o anúncio é soberano; ausente não zera o salvo.
+    const pb = args.pub;
+    if (pb.bedrooms != null) patch["airbnb_bedroom_count"] = Math.min(200, Math.round(pb.bedrooms));
+    if (pb.beds != null) patch["airbnb_bed_count"] = Math.min(200, Math.round(pb.beds));
+    if (pb.bathrooms != null) patch["airbnb_bathroom_count"] = Math.min(200, pb.bathrooms);
+    if (pb.guests != null && !patch["airbnb_guest_count"]) patch["airbnb_guest_count"] = Math.min(200, pb.guests);
+    if (pb.roomsBeds?.length) patch["airbnb_rooms_beds"] = pb.roomsBeds.slice(0, 30);
+    if (pb.houseRules) patch["airbnb_house_rules"] = pb.houseRules.slice(0, 10_000);
+    if (pb.safety) patch["airbnb_safety_info"] = pb.safety.slice(0, 5_000);
+    if (pb.spaceType) {
+      const { data: cur } = await supabaseAdmin.from("properties").select("short_description").eq("id", args.propertyId).maybeSingle();
+      if (!String((cur as { short_description?: string | null } | null)?.short_description ?? "").trim()) patch["short_description"] = pb.spaceType.slice(0, 200);
+    }
     patch["airbnb_listing_last_synced_at"] = new Date().toISOString();
   }
   {
     // Só a foto de capa do anúncio (leitura nativa, custo zero); imóvel fica com 1 foto.
     const { fetchListingCover } = await import("@/lib/airbnb-cover.server");
-    const cover = await fetchListingCover(args.listingId).catch(() => null);
+    const cover = args.pub?.cover ?? (await fetchListingCover(args.listingId).catch(() => null));
     if (cover) { patch["hero_image_url"] = cover; patch["gallery_images"] = [cover]; }
   }
   if (Object.keys(patch).length) {
@@ -449,7 +452,7 @@ export async function syncAccountListing(args: {
  * Scrap público COMPLETO do anúncio (descrição, comodidades, capa única), sem Channex nem IA — custo zero.
  * Roda ao fim do onboarding/ativação, quando o imóvel já está sincronizado por completo.
  */
-export async function scrapePublicListingForProperty(propertyId: string): Promise<{ ok: boolean }> {
+export async function scrapePublicListingForProperty(propertyId: string, opts: { onlyIfChanged?: boolean } = {}): Promise<{ ok: boolean; changed?: boolean }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin
     .from("property_listing_raw_data" as never)
@@ -462,6 +465,8 @@ export async function scrapePublicListingForProperty(propertyId: string): Promis
   const pub = await fetchPublicListing(lid).catch(() => null);
   const meta = row.listing_meta ?? {};
   const settings = row.raw_settings ?? {};
+  const changed = !pub || JSON.stringify(row.normalized?.public_listing ?? null) !== JSON.stringify(pub);
+  if (opts.onlyIfChanged && !changed) return { ok: true, changed: false };
   if (pub) {
     const facts = [...normalizeListing(meta, settings), ...publicFacts(pub)];
     await supabaseAdmin
@@ -472,5 +477,5 @@ export async function scrapePublicListingForProperty(propertyId: string): Promis
   await applyListingToProperty({ propertyId, listingId: lid, meta: meta as Record<string, unknown>, settings, pub });
   const { reindexProperty } = await import("@/lib/ai/indexing.server");
   await reindexProperty(supabaseAdmin as never, propertyId).catch(() => undefined);
-  return { ok: Boolean(pub) };
+  return { ok: Boolean(pub), changed };
 }
