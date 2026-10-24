@@ -288,6 +288,9 @@ export async function eventTimeline(
   const conversation = event.conversation_id as string | null;
 
   let rel = supabase.from("ai_system_events").select("*").neq("id", params.eventId);
+  // Eventos relacionados sempre restritos ao mesmo cliente do evento base.
+  const scopeTenant = params.tenantId ?? (event.tenant_id as string | null);
+  rel = scopeTenant ? rel.eq("tenant_id", scopeTenant) : rel.is("tenant_id", null);
   if (correlation) rel = rel.eq("correlation_id", correlation);
   else if (conversation) rel = rel.eq("conversation_id", conversation);
   else {
