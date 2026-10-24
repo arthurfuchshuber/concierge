@@ -663,3 +663,25 @@ export const bulkUpdatePlaybookEntries = createServerFn({ method: "POST" })
       failed,
     };
   });
+
+/** Imóveis da mesma conta que o usuário pode receber numa replicação (exclui a origem). */
+export const listBulkTargets = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ propertyId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as AnySb;
+    await assertAccess(sb, context.userId, data.propertyId);
+    const { data: src } = await sb.from("properties").select("owner_id").eq("id", data.propertyId).maybeSingle();
+    const ownerId = (src as { owner_id?: string } | null)?.owner_id;
+    if (!ownerId) return [] as Array<{ id: string; name: string }>;
+    const { data: rows, error } = await sb
+      .from("properties")
+      .select("id, name, archived_at")
+      .eq("owner_id", ownerId)
+      .neq("id", data.propertyId)
+      .order("name", { ascending: true });
+    if (error) throw new Error(error.message);
+    return ((rows ?? []) as Array<{ id: string; name: string | null; archived_at: string | null }>)
+      .filter((r) => !r.archived_at)
+      .map((r) => ({ id: r.id, name: r.name ?? "Imóvel" }));
+  });
