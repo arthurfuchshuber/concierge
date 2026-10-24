@@ -4,6 +4,7 @@ import { structuredListing, houseRulesText } from "@/lib/listing-structured";
  * central do imóvel (`property_listing_raw_data`). Somente leitura na Channex:
  * nunca envia ARI. Restrito a uma allowlist de anúncios em validação.
  */
+import { getChannelCached } from "@/lib/channex-channel-cache.server";
 const CHANNEX_BASE = "https://app.channex.io/api/v1";
 export const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
 const CLAYTON_CHANNEL_ID = "24c871d9-d6fd-46f5-944d-a38b8a4df189";
@@ -147,7 +148,7 @@ export async function syncPilotListings(): Promise<Array<{ listingId: string; pr
   const channels = new Map<string, { channel: Ch; metas: Array<Record<string, unknown>> }>();
   for (const channelId of new Set(Object.values(PILOT_LISTING_CONFIG).map((c) => c.channelId))) {
     const [channel, listings] = await Promise.all([
-      channexGet<Ch>(`/channels/${channelId}`),
+      getChannelCached(channelId) as Promise<Ch>,
       channexGet<{ data: { listing_id_dictionary: { values: Array<Record<string, unknown>> } } }>(`/channels/${channelId}/action/listings`),
     ]);
     channels.set(channelId, { channel, metas: listings.data?.listing_id_dictionary?.values ?? [] });
@@ -357,7 +358,7 @@ export async function syncAccountListing(args: {
     };
   };
   const [channel, listings] = await Promise.all([
-    channexGet<Ch>(`/channels/${args.channelId}`),
+    getChannelCached(args.channelId) as Promise<Ch>,
     channexGet<{ data: { listing_id_dictionary: { values: Array<Record<string, unknown>> } } }>(
       `/channels/${args.channelId}/action/listings`,
     ),
