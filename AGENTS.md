@@ -26,3 +26,6 @@
 - Subdirectories have their own `AGENTS.md`; read it before changing files there.
 - AI escalation isolation follows `src/lib/ai/AGENTS.md` to prevent lost guest questions.
 - Cleaning totals and charts use one query observer without previous-period placeholder data, so date-filter transitions cannot mix periods or loading states.
+- Window overlays (dialog, alert-dialog, sheet, drawer bases in `src/components/ui`) carry `data-dialog-overlay`; closing overlays never fade and `html` keeps `scrollbar-gutter: stable` (`src/styles.css`), so opening/switching windows never flashes the page behind. New windows must use these bases.
+- Conversations escalated to a human never auto-open the full Atendimento window: they become `QuickChatBubbles` beside the floating button (stacked when several) that expand into an in-place mini-chat; only an explicit push click opens the full window.
+- Playbook hides empty manually-editable optional rows (only `STANDARD_MANUAL_FIELDS` stay visible) and offers them via "Adicionar campo"; "Replicar" only shows on manually-edited rows, never on listing/scrap data such as house rules.

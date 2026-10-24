@@ -23,6 +23,7 @@ const SheetOverlay = React.forwardRef<
   const [skipFade] = React.useState(() => anyWindowOpenNow());
   return (
   <SheetPrimitive.Overlay
+    data-dialog-overlay
     className={cn(
       "fixed inset-0 z-50 bg-background/70 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       // Janela trocada por outra: sem fade, o véu já está lá (evita o "pisca").

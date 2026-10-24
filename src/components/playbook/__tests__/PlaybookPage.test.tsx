@@ -75,7 +75,7 @@ describe("PlaybookPage", () => {
     await screen.findByText("Proprietário(a): Arthur");
     fireEvent.click(screen.getAllByRole("button", { name: /\d+ campos$/ })[0]);
     expect(screen.queryAllByText("Nota do anfitrião")).toHaveLength(0);
-    for (const label of ["Título público", "Tipo de espaço", "Bairro"]) fireEvent.click(screen.getByText(label));
+    for (const label of ["Título público", "Tipo de espaço", "Cidade"]) fireEvent.click(screen.getByText(label));
     expect(screen.getAllByText("Nota do anfitrião")).toHaveLength(3);
     void within;
   });

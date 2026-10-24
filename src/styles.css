@@ -1637,3 +1637,16 @@ dd {
 html[data-dialog-handoff] [data-dialog-overlay] {
   animation: none !important;
 }
+
+/* REGRA ANTI-PISCADA GLOBAL (24/10/2026): nenhuma janela pode deixar a tela de
+   trás aparecer. Véu que sai some na hora (nunca fica meio transparente enquanto
+   o da próxima janela entra) e a página não "pula" quando a rolagem é travada.
+   Toda janela nova usa as bases de ui/ (dialog, alert-dialog, sheet, drawer),
+   que já marcam o véu com data-dialog-overlay. */
+html {
+  scrollbar-gutter: stable;
+}
+[data-dialog-overlay][data-state="closed"] {
+  animation: none !important;
+  opacity: 0;
+}

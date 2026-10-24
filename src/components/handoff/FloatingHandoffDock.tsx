@@ -16,6 +16,7 @@ import { Headphones, X, Expand, Shrink, ArrowLeft } from "lucide-react";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { useAntiClipRows } from "@/hooks/useAntiClipRows";
+import { QuickChatBubbles, type QuickChatItem } from "@/components/handoff/QuickChatBubbles";
 import { useLockBodyScroll, useVisualViewport, viewportOverlayStyle } from "@/hooks/useVisualViewport";
 
 /** "2026-10-15" → "15/10/2026" (data pura, sem fuso). */
@@ -108,6 +109,8 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
   const [state, setState] = useState<DockState>(() => loadState());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [enlarged, setEnlarged] = useState(false);
+  // Chamados novos viram balão junto ao botão (nunca abrem a janela inteira sozinhos).
+  const [bubbleIds, setBubbleIds] = useState<string[]>([]);
   // Com o Atendimento aberto a página atrás não rola — ver useLockBodyScroll.
   useLockBodyScroll(state.open && !state.minimized);
   const [dockBottom, setDockBottom] = useState(() => loadDockBottom());
@@ -225,9 +228,11 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
       // Primeira leitura da sessão só registra o que já estava na fila.
       if (firstPendingRef.current) firstPendingRef.current = false;
       else if (fresh.length > 0) {
-      playBeep();
-        setState({ open: true, minimized: false });
-    }
+        playBeep();
+        setBubbleIds((cur) => [...fresh.filter((id) => !cur.includes(id)), ...cur]);
+      }
+      // Chamado atendido/assumido sai do balão.
+      setBubbleIds((cur) => cur.filter((id) => ids.includes(id)));
     }
     if (n > 0) {
       try { if ("setAppBadge" in navigator) (navigator as any).setAppBadge(n); } catch {}
@@ -267,7 +272,12 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
       const already = !!msg.conversationId && known.has(msg.conversationId);
       if (msg.conversationId) known.set(msg.conversationId, Date.now());
       if (!explicit && already) return;
-      if (!explicit) playBeep();
+      if (!explicit) {
+        playBeep();
+        const cid = msg.conversationId;
+        if (cid) setBubbleIds((cur) => (cur.includes(cid) ? cur : [cid, ...cur]));
+        return;
+      }
       setState({ open: true, minimized: false });
       if (msg.conversationId) setActiveId(msg.conversationId);
     });
@@ -623,5 +633,35 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
     </>
   );
 
-  return createPortal(dock, document.body);
+  const bubbleItems: QuickChatItem[] = state.open
+    ? []
+    : bubbleIds.flatMap((id) => {
+        const c = (convs as Array<{ id: string; guest_name: string | null; guest_session_id: string | null; handoff_reason?: string | null; properties: { name: string | null } | null }>).find((x) => x.id === id);
+        if (!c) return [];
+        return [{
+          id,
+          guestName: c.guest_name?.trim() || "Hóspede",
+          propertyName: c.properties?.name ?? "",
+          reason: c.handoff_reason ?? null,
+          sessionId: c.guest_session_id,
+        }];
+      });
+
+  return createPortal(
+    <>
+      {dock}
+      <QuickChatBubbles
+        items={bubbleItems}
+        bottom={`calc(env(safe-area-inset-bottom,0px) + ${dockBottom + 68}px)`}
+        myUserId={myUserId}
+        onOpenFull={(id) => {
+          setBubbleIds((cur) => cur.filter((x) => x !== id));
+          setActiveId(id);
+          setState({ open: true, minimized: false });
+        }}
+        onDismiss={(id) => setBubbleIds((cur) => (id === "all" ? [] : cur.filter((x) => x !== id)))}
+      />
+    </>,
+    document.body,
+  );
 }
