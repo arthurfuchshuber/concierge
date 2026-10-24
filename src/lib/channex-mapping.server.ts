@@ -9,6 +9,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { applyCalendarChanges, flushAriOutbox } from "@/lib/channex-ari.server";
+import { getChannelCached, refreshChannel } from "@/lib/channex-channel-cache.server";
 
 const CHANNEX_BASE = "https://app.channex.io/api/v1";
 
@@ -191,7 +192,7 @@ export async function ensureChannelActive(channelId: string) {
 
 /** Garante calendário REAL aberto e só então mapeia. Idempotente. */
 export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | null) {
-  const channel = await call("GET", `/channels/${t.channelId}`);
+  const channel = { data: await refreshChannel(t.channelId) };
   const mapped = (channel?.data?.attributes?.rate_plans ?? []).some(
     (r: any) => String(r.settings?.listing_id) === t.listingId,
   );
@@ -211,6 +212,7 @@ export async function safeMapAirbnbListing(t: SafeMapTarget, userId: string | nu
   // Canal recém-conectado nasce inativo na Channex e represa preços/disponibilidade: ativa e CONFIRMA.
   await ensureChannelActive(t.channelId);
 
+  await refreshChannel(t.channelId).catch(() => null);
   // 3) Recalcula com a janela exata do anfitrião e as reservas recém-importadas.
   const sync = await syncRealAvailability(t, userId);
   // 4) Publica o anúncio no Airbnb (idempotente) para preços/disponibilidade não ficarem represados.
@@ -314,7 +316,7 @@ async function activeBookingNights(t: SafeMapTarget, windowEnd?: string, cache?:
  * Só o delta entra na outbox ARI (limitador 20/min). Preços não são tocados.
  */
 export async function syncRealAvailability(t: SafeMapTarget, userId: string | null, fallbackWindow = 270, flush = true, cache?: NightsCache) {
-  const ch = await call("GET", `/channels/${t.channelId}`).catch(() => null);
+  const ch = await getChannelCached(t.channelId).catch(() => null);
   const rp = (ch?.data?.attributes?.rate_plans ?? []).find((r: any) => String(r.settings?.listing_id) === t.listingId);
   const notice = Number(rp?.settings?.availability_rule?.max_days_notice);
   const windowDays = Number.isFinite(notice) && notice > 0 ? notice : fallbackWindow;

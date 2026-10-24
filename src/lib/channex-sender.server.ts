@@ -5,6 +5,7 @@
  * O anúncio continua mapeado na Channex como está — preços, calendário e
  * PriceLabs nunca são tocados.
  */
+import { getChannelCached } from "@/lib/channex-channel-cache.server";
 const B = "https://app.channex.io/api/v1";
 
 function headers() {
@@ -32,7 +33,7 @@ async function loadAirbnbChannels(ownerId: string): Promise<Chan[]> {
     if (c.attributes?.channel !== "AirBNB") continue;
     if (scope && !scope.has(String(c.id))) continue;
     const [full, listings] = await Promise.all([
-      cx<{ data: any }>(`/channels/${c.id}`),
+      getChannelCached(String(c.id)),
       cx<{ data: any }>(`/channels/${c.id}/action/listings`).catch(() => null),
     ]);
     const a = full.data?.attributes ?? {};
