@@ -180,5 +180,7 @@ describe("previsão conduzida pela IA: só dentro do permitido ou alinhada", () 
   it("entrada antecipada autorizada pela equipe é lida da mensagem", () => {
     expect(parseAgreedTime("checkin", [{ texto: "Pode sim, liberamos a entrada antecipada às 12h." }], "15:00")).toBe("12:00");
     expect(parseAgreedTime("checkin", [{ texto: "Check-in só às 15h, tudo bem?" }], "15:00")).toBeNull();
+    expect(parseAgreedTime("checkin", [{ texto: "Conseguiremos liberar às 13h00 para vocês." }], "15:00")).toBe("13:00");
+    expect(parseAgreedTime("checkin", [{ texto: "Não conseguiremos liberar às 13h, só às 15h." }], "15:00")).toBeNull();
   });
 });

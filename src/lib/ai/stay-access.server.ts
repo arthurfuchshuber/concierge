@@ -47,15 +47,15 @@ export function parseAgreedTime(
   const topic =
     kind === "checkout"
       ? /(check-?out|saida|sair|deixar o imovel|desocup)/
-      : /(check-?in|entrada|entrar|chegar|chegada|antecip)/;
+      : /(check-?in|entrada|entrar|chegar|chegada|antecip|liber)/;
   for (const m of messages) {
     const t = m.texto
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
     if (!topic.test(t)) continue;
-    if (/\?\s*$/.test(t.trim()) || /(nao (da|pode|conseguimos)|impossivel|nao foi possivel)/.test(t)) continue;
-    if (!/(pode|podem|liberad|autoriz|combinad|alinhad|ok|tudo bem|sem problema|tardio|estendid|antecip|ate as?)/.test(t)) continue;
+    if (/\?\s*$/.test(t.trim()) || /(nao (da|pode|conseguimos|conseguiremos)|impossivel|nao foi possivel)/.test(t)) continue;
+    if (!/(pode|podem|liberad|liberar|liberamos|liberaremos|conseguimos|conseguiremos|autoriz|combinad|alinhad|ok|tudo bem|sem problema|tardio|estendid|antecip|ate as?)/.test(t)) continue;
     const tm = t.match(/\b(?:ate\s+(?:as\s+)?|as\s+|por volta d?as?\s+)?(\d{1,2})\s*(?:h|:)\s*(\d{2})?\b/);
     if (!tm) continue;
     const h = Number(tm[1]);
