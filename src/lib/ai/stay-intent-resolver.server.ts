@@ -229,3 +229,73 @@ export async function registerStayDone(supabase: SupabaseClient, ref: Ref, kind:
   if (!stay) return { ok: false, motivo: "reserva_nao_encontrada" };
   return applyStayEvent(supabase, stay, kind);
 }
+
+/**
+ * EXCEÇÃO ACORDADA PELA EQUIPE VIRA FATO DA RESERVA (24/10/2026).
+ *
+ * Horário combinado pela equipe (no chat ou ao liberar a entrada antecipada)
+ * é gravado na reserva com origem `staff`. A IA passa a ler esse fato em todos
+ * os canais, sem depender de reler a conversa — não volta ao horário padrão
+ * minutos depois. Nunca mexe em etapa já concluída.
+ */
+export async function registerAgreedStayTime(
+  supabase: SupabaseClient,
+  p: { propertyId: string; conversationId: string; kind: StayKind; time: string },
+): Promise<boolean> {
+  const time = normalizeStayTime(p.time) ?? (/^\d{2}:\d{2}$/.test(p.time) ? p.time : null);
+  if (!time) return false;
+  const stay = await findStayForEvent(supabase, {
+    propertyId: p.propertyId,
+    checkinDate: null,
+    checkoutDate: null,
+    conversationId: p.conversationId,
+  });
+  if (!stay) return false;
+  const { data } = await supabase
+    .from("guest_arrival_status")
+    .select("id, status, done_at, arrival_time_override, arrival_time_source")
+    .eq("kind", p.kind)
+    .eq("reservation_id", stay.reservationId)
+    .limit(1);
+  const row = ((data ?? [])[0] as Row | undefined) ?? null;
+  if (row) {
+    if (row.status === "done" || row.done_at) return false;
+    if (row.arrival_time_source === "staff" && row.arrival_time_override?.slice(0, 5) === time) return true;
+    const { error } = await supabase
+      .from("guest_arrival_status")
+      .update({ arrival_time_override: time, arrival_time_source: "staff" })
+      .eq("id", row.id);
+    return !error;
+  }
+  const { error } = await supabase.from("guest_arrival_status").insert({
+    property_id: p.propertyId,
+    kind: p.kind,
+    reservation_id: stay.reservationId,
+    arrival_time_override: time,
+    arrival_time_source: "staff",
+  });
+  return !error;
+}
+
+/** Mensagem da equipe ao hóspede com horário combinado → grava na reserva. */
+export async function applyAgreedTimeFromStaffMessage(
+  supabase: SupabaseClient,
+  p: { propertyId: string; conversationId: string; message: string },
+): Promise<{ kind: StayKind; time: string } | null> {
+  const text = String(p.message ?? "").trim();
+  if (!text) return null;
+  const { data: prop } = await supabase
+    .from("properties")
+    .select("checkin_time, checkout_time")
+    .eq("id", p.propertyId)
+    .maybeSingle();
+  const pr = (prop ?? {}) as { checkin_time?: string | null; checkout_time?: string | null };
+  const { parseAgreedTime } = await import("./stay-access.server");
+  for (const kind of ["checkin", "checkout"] as const) {
+    const time = parseAgreedTime(kind, [{ texto: text }], kind === "checkin" ? pr.checkin_time : pr.checkout_time);
+    if (!time) continue;
+    const ok = await registerAgreedStayTime(supabase, { ...p, kind, time });
+    return ok ? { kind, time } : null;
+  }
+  return null;
+}
