@@ -26,6 +26,8 @@ vi.mock("@/lib/playbook.functions", () => ({
   deletePlaybookRow: vi.fn(),
   savePlaybookNote: vi.fn(),
   addPlaybookRow: vi.fn(),
+  listBulkTargets: vi.fn(async () => []),
+  bulkUpdatePlaybookEntries: vi.fn(),
 }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => <a href={to}>{children}</a>,
