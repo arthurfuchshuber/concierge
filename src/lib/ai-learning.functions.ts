@@ -58,6 +58,19 @@ export const reviewLearningCandidate = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const tenantId = await assertTenantAccess(context as never, data.tenantId);
+    // Aprovar/rejeitar aprendizado altera a memória da IA: exige titular,
+    // admin SaaS ou membro com permissão explícita de treinar a IA.
+    if (tenantId !== context.userId) {
+      const [{ data: isAdmin }, { data: canTrain }] = await Promise.all([
+        context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+        context.supabase.rpc("has_member_permission", {
+          _user_id: context.userId,
+          _owner_id: tenantId,
+          _permission: "ai_train",
+        }),
+      ]);
+      if (!isAdmin && !canTrain) throw new Error("Sem permissão para revisar aprendizados da IA.");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { approveAndApply, rejectCandidate } = await import("@/lib/ai/learning/candidates.server");
     if (data.action === "reject") {
