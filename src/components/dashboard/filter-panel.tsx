@@ -611,7 +611,10 @@ export function FilterPeriodCalendar({
   today,
   min,
   max,
+  defaultChip,
 }: {
+  /** Atalho "padrão" (ex.: "Últimos 7 dias") que limpa o período; vem primeiro e marcado quando não há período. */
+  defaultChip?: { label: string; active: boolean; onSelect: () => void };
   value: DateRange | undefined;
   /** Recebe cada clique; o pai decide quando propagar (intervalo completo). */
   onChange: (next: DateRange | undefined) => void;
@@ -628,7 +631,7 @@ export function FilterPeriodCalendar({
 
   const quick: Array<{ key: string; label: string; range: DateRange | undefined }> = [
     { key: "today", label: "Hoje", range: clampRange(today, today, min, max) },
-    { key: "7d", label: "7 dias", range: clampRange(today, addDays(today, 6), min, max) },
+    { key: "7d", label: defaultChip ? "Próximos 7 dias" : "7 dias", range: clampRange(today, addDays(today, 6), min, max) },
     { key: "month", label: "Este mês", range: clampRange(startOfMonth(today), endOfMonth(today), min, max) },
   ];
   const sameRange = (a?: DateRange, b?: DateRange) =>
@@ -654,7 +657,20 @@ export function FilterPeriodCalendar({
 
   return (
     <>
-      <div className="flex gap-1.5 px-3.5 pt-2.5">
+      <div className="flex flex-wrap gap-1.5 px-3.5 pt-2.5">
+        {defaultChip ? (
+          <button
+            type="button"
+            onClick={defaultChip.onSelect}
+            className={`rounded-full px-[11px] py-[5px] text-[11px] font-semibold transition-colors ${
+              defaultChip.active
+                ? "bg-accent/[0.14] text-accent"
+                : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {defaultChip.label}
+          </button>
+        ) : null}
         {quick.map((q) => {
           const active = sameRange(q.range, value);
           return (

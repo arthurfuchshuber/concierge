@@ -180,3 +180,8 @@ Corrige os 4 pontos dos prints do cliente. Só layout; nenhuma regra de negócio
 2. **Espaço botões ↔ calendário**: o corpo do calendário não tem mais respiro de 16px no topo; botões → linha → calendário = o mesmo respiro de cima do quadrante (14px).
 3. **Anticorte em tabelas/listas** (print "Limpezas Realizadas"): `useAntiClipWindow.ts` agora sempre abre `TABLE/TBODY/UL/OL` em linhas e usa a linha (`<tr>`/`<li>`) como unidade — antes a tabela inteira contava como um bloco e a última linha ficava cortada. Vale para toda janela (a regra mora na base).
 4. **Lista de reservas do "Novo serviço"** (`manual-cleaning.functions.ts`, `ManualCleaningButton.tsx`, `NewRecordButton.tsx`): só estadias já iniciadas (check-in ≤ hoje); ordem sempre check-out do mais recente para o mais antigo, com ou sem busca (antes a lista trazia reservas futuras e os 400 slots eram tomados por elas).
+
+## Período só dentro de Filtros (23/10/2026, 18h40)
+- `OperationWorkspace.tsx`: saíram da barra da aba Serviços o botão do interruptor "últimos/próximos 7 dias" (ícone de brilho) e o selo do período personalizado. A janela fica sempre nos últimos 7 dias, a não ser que se escolha um período.
+- Dentro de Filtros › Período: a linha mostra "Últimos 7 dias" quando nenhum período foi escolhido, e a tela traz o atalho "Últimos 7 dias" (marcado por padrão; limpa o período) antes de Hoje / Próximos 7 dias / Este mês. "Limpar" volta aos últimos 7 dias. Só na aba Serviços (`defaultPeriodLabel`); Kanban continua como era.
+- `filter-panel.tsx`: `FilterPeriodCalendar` ganhou a prop opcional `defaultChip`.

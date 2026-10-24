@@ -3218,55 +3218,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 </>
               )}
               {view !== "limpeza" && <ManualBlockButton />}
-              {view === "limpeza" && cleaningPeriod && (
-                /* PERÍODO NO LUGAR DO INTERRUPTOR (pedido explícito,
-                   23/09/2026). Com período personalizado o interruptor
-                   "últimos/próximos 7 dias" não manda mais — então ele sai, e
-                   no lugar dele fica o selo do período. Tocar nele limpa o
-                   período e devolve a tela aos 7 dias fixos.
-                   COR NEUTRA (pedido explícito, 23/09/2026: "a cor precisa
-                   ser a mesma que as letras do botão Filtros"): um período
-                   personalizado mistura realizado e previsto, então não é
-                   nem verde nem laranja — mesmo tom do gatilho "Filtros"
-                   (`ACTION_BUTTON_TONE`), sem o destaque âmbar que o
-                   interruptor fixo tinha antes. */
-                <button
-                  type="button"
-                  onClick={() => setPeriodRange(null)}
-                  title="Limpar período e voltar aos 7 dias"
-                  aria-label={`${cleaningPeriodLabel} — limpar período`}
-                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
-                >
-                  <CalendarRange className={ACTION_ICON} />
-                  {/* Sem a palavra "Período" no botão (pedido explícito,
-                      23/09/2026) — o título da tela já diz; aqui só as datas. */}
-                  <span className="lg:hidden">{cleaningPeriodLabel.replace(/^Período /, "")}</span>
-                  <X className="size-3 shrink-0 opacity-70" />
-                </button>
-              )}
-              {view === "limpeza" && !cleaningPeriod && (
-                /* Interruptor das duas janelas. COR e TEXTO mostram o status
-                 ATUAL (a janela que está na tela), não a ação do clique —
-                 senão fica confuso (pedido explícito, 23/09/2026: cor verde
-                 com texto "Próximos 7 dias" parecia contraditório). Verde +
-                 "Últimos 7 dias" enquanto mostra o realizado; laranja fraco +
-                 "Próximos 7 dias" enquanto mostra o previsto. O título
-                 (tooltip) continua descrevendo a ação do clique. */
-                <button
-                  type="button"
-                  onClick={() => setCleaningWindow((w) => (w === "past" ? "next" : "past"))}
-                  title={cleaningWindow === "past" ? "Ver os próximos 7 dias" : "Voltar aos últimos 7 dias"}
-                  aria-pressed={cleaningWindow === "next"}
-                  /* Cor neutra de volta (pedido explícito, 25/09/2026: "remova
-                     as cores dos botoes dos status do kanban e da aba
-                     limpeza") — o verde/laranja por janela saiu; o `title`
-                     continua descrevendo qual janela o clique abre. */
-                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
-                >
-                  <Sparkles className={ACTION_ICON} />
-                  <span className="lg:hidden">{cleaningWindow === "past" ? "Últimos 7 dias" : "Próximos 7 dias"}</span>
-                </button>
-              )}
+              {/* Aba Serviços (23/10/2026): saíram da barra o interruptor "últimos/próximos
+                  7 dias" e o selo do período. O período mora SÓ dentro do botão Filtros,
+                  sempre pré-selecionado em "Últimos 7 dias". */}
               {/* O BOTÃO "PENDÊNCIAS" MUDOU DE ABA (pedido explícito,
                   18/09/2026): saiu do Kanban e passou a morar nos REGISTROS,
                   que é onde as pendências já aparecem ("Precisam de atenção").
@@ -3351,6 +3305,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       situationOptions,
                       situation: serviceSituation,
                       onSituationChange: setServiceSituation,
+                      defaultPeriodLabel: "Últimos 7 dias",
                     }
                   : {})}
                 onClearAll={clearAllFilters}
@@ -7572,7 +7527,10 @@ function CalendarFiltersButton({
   situationOptions,
   situation,
   onSituationChange,
+  defaultPeriodLabel,
 }: {
+  /** Nome do período quando nenhum foi escolhido (aba Serviços: "Últimos 7 dias", sempre pré-selecionado). */
+  defaultPeriodLabel?: string;
   periodRange: { start: string; end: string } | null;
   onPeriodRangeChange: (next: { start: string; end: string } | null) => void;
   cityFilters: string[];
@@ -7646,7 +7604,7 @@ function CalendarFiltersButton({
 
   const periodLabel = periodRange
     ? `${format(parseISODateLocal(periodRange.start), "dd/MM", { locale: ptBR })} – ${format(parseISODateLocal(periodRange.end), "dd/MM", { locale: ptBR })}`
-    : "Todos";
+    : (defaultPeriodLabel ?? "Todos");
   // Limite do calendário de "Período" (só quando `demandMin`/`demandMax`
   // vêm informados — hoje, só a aba Limpeza passa esses dois; ver o pedido
   // explícito acima, na declaração das props). Mesmo padrão já usado em
@@ -7887,6 +7845,18 @@ function CalendarFiltersButton({
               }
             />
             <FilterPeriodCalendar
+              defaultChip={
+                defaultPeriodLabel
+                  ? {
+                      label: defaultPeriodLabel,
+                      active: !draft?.from && !periodRange,
+                      onSelect: () => {
+                        setDraft(undefined);
+                        onPeriodRangeChange(null);
+                      },
+                    }
+                  : undefined
+              }
               value={draft}
               month={calendarMonth}
               onMonthChange={setCalendarMonth}
