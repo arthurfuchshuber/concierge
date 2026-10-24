@@ -142,7 +142,40 @@ export async function assessStayTimes(
     arrival_time_override: string | null;
     arrival_time_source: string | null;
   }>).find((r) => r.arrival_time_source === "staff" && r.arrival_time_override);
-  const staffT = hm(staffRow?.arrival_time_override);
+  let staffT = hm(staffRow?.arrival_time_override);
+
+  // Exceção combinada pela EQUIPE direto no chat (ex.: "Conseguiremos liberar às
+  // 13h00") vale como horário liberado, mesmo sem gravação no painel — evita a
+  // IA voltar ao horário padrão minutos depois de reafirmar o acordo.
+  if (!staffT && std) {
+    try {
+      const { data: convs } = await supabase
+        .from("property_chat_conversations")
+        .select("id")
+        .eq("property_id", p.propertyId)
+        .eq("reservation_id", p.stay.reservationId)
+        .limit(10);
+      const ids = ((convs ?? []) as Array<{ id: string }>).map((c) => c.id);
+      if (ids.length) {
+        const { data: msgs } = await supabase
+          .from("property_chat_messages")
+          .select("content")
+          .in("conversation_id", ids)
+          .eq("sender_type", "human")
+          .order("created_at", { ascending: false })
+          .limit(40);
+        const { parseAgreedTime } = await import("./stay-access.server");
+        const agreed = parseAgreedTime(
+          "checkin",
+          ((msgs ?? []) as Array<{ content: string | null }>).map((m) => ({ texto: m.content ?? "" })),
+          pr.checkin_time,
+        );
+        if (agreed) staffT = hm(agreed);
+      }
+    } catch {
+      /* sem acordo legível: mantém o padrão */
+    }
+  }
 
   let early = false;
   let allowed: string | null = std ? label(std) : null;
