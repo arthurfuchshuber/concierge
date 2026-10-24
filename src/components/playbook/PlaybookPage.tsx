@@ -122,15 +122,10 @@ type EditState = { id: string; draft: string } | null;
  * Só os campos-padrão abaixo ficam sempre visíveis; os demais entram pelo
  * "Adicionar campo" da seção e somem de novo quando o valor é excluído.
  */
-const STANDARD_MANUAL_FIELDS = new Set([
-  "f:modo_de_acesso",
-  "f:instrucoes_de_check_in",
-  "f:instrucoes_de_check_out",
-  "f:nome_da_rede_wi_fi",
-  "f:senha_do_wi_fi",
-  "f:telefone_do_anfitriao",
-]);
+const STANDARD_MANUAL_FIELDS = new Set(["f:modo_de_acesso"]);
 const isOptionalEmpty = (r: PlaybookRow) => r.empty && !!r.edit && !STANDARD_MANUAL_FIELDS.has(r.id);
+/** Campos vazios que não existiam no antigo "Editar guia" nunca aparecem (nem no menu). */
+const isAddable = (r: PlaybookRow) => r.guideField === true;
 
 export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const qc = useQueryClient();
