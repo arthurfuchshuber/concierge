@@ -395,7 +395,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => setEdit(null)}
+                                    onClick={() => { setEdit(null); setRevealed((cur) => cur.filter((x) => x !== r.id)); }}
                                     className={`h-8 rounded-lg px-3 text-xs font-bold text-muted-foreground ${WELL}`}
                                   >
                                     Cancelar
