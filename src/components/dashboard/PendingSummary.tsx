@@ -88,10 +88,9 @@ function PropertyGroups({
         return (
           <div key={p.id} className={`py-2.5 ${idx > 0 ? "border-t border-[var(--panel-div)]" : ""}`}>
             {first.ownerName && (
-              <div className="flex min-w-0 items-center gap-0.5">
-                <span className="min-w-0 truncate text-[11px] leading-snug text-muted-foreground" title={first.ownerName}>
-                  {ownerText(first.ownerName)}
-                </span>
+              <div className="flex min-w-0 items-center gap-1.5 text-[11px] leading-snug" title={ownerText(first.ownerName)}>
+                <span className="shrink-0 text-muted-foreground">Proprietário(a):</span>
+                <span className="min-w-0 truncate font-semibold text-foreground">{first.ownerName.trim()}</span>
                 <PhoneActionButton
                   phone={first.ownerPhone}
                   country={first.ownerPhoneCountry}
