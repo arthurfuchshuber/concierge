@@ -1131,10 +1131,10 @@ export async function pauseOnHostMessage(m: Inbound, automated = false): Promise
   const { pausePatch } = await import("@/lib/ai/pause");
   const { data: convs } = await admin
     .from("property_chat_conversations")
-    .select("id")
+    .select("id, property_id")
     .eq("guest_session_id", `airbnb:${m.threadId}`);
   const norm = (x: string) => x.replace(/\s+/g, " ").trim();
-  for (const c of (convs ?? []) as Array<{ id: string }>) {
+  for (const c of (convs ?? []) as Array<{ id: string; property_id: string | null }>) {
     // Eco das próprias respostas da IA (enviadas pela API) não conta como anfitrião.
     const since = new Date(Date.now() - 10 * 60_000).toISOString();
     const { data: aiRecent } = await admin

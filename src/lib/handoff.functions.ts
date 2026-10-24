@@ -1365,10 +1365,10 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
           await new Promise((r) => setTimeout(r, 1500));
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { proposeProactiveDecision } = await import("@/lib/ai/human-loop/proactive-decisions.server");
-          if (conv.property_id) {
+          if (cur?.property_id) {
             const { applyAgreedTimeFromStaffMessage } = await import("@/lib/ai/stay-intent-resolver.server");
             await applyAgreedTimeFromStaffMessage(supabaseAdmin as never, {
-              propertyId: String(conv.property_id),
+              propertyId: String(cur.property_id),
               conversationId: data.conversationId,
               message: data.content,
             }).catch(() => null);
