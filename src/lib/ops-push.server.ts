@@ -737,7 +737,7 @@ export async function notifyCleaningDone(
 export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyId: string }) {
   const { data: prop } = await admin
     .from("properties")
-    .select("owner_id, slug, checkin_time")
+    .select("owner_id, slug, checkin_time, name")
     .eq("id", opts.propertyId)
     .maybeSingle();
   if (!prop) return { sent: 0 };
@@ -786,7 +786,7 @@ export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyI
         propertyId: opts.propertyId,
         conversations: mine,
         checkinHour,
-        propertyName: prop.name ?? null,
+        propertyName: (prop as { name?: string | null }).name ?? null,
       });
       await admin.from("ops_push_log").delete().eq("dedupe_key", dedupeKey);
       continue;
