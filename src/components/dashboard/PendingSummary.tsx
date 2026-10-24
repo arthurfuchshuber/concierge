@@ -35,7 +35,7 @@ import type { PendingItem, RecordCategory } from "@/lib/reservation-records.func
 type Drill = { from: "bucket" | "cat"; bucket: string | null; cat: RecordCategory | null };
 
 /** "Proprietário(a): Nome" — mesmo texto em todo lugar que cita imóvel/anúncio. */
-const ownerText = (name: string) => `Proprietário(a): ${name.trim().split(/\s+/)[0]}`;
+const ownerText = (name: string) => `Proprietário(a): ${name.trim()}`;
 
 const ORDER: RecordCategory[] = ["maintenance", "damage", "incident", "forgotten"];
 

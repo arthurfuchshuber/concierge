@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { ownerLabel } from "@/components/dashboard/card-colors";
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
 
 /**
  * CABEÇALHO PADRÃO DE JANELAS (26/09/2026): selo de ícone, título, subtítulo

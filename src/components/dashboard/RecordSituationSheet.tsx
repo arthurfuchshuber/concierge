@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { RequiredMark } from "@/components/ds/RequiredMark";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { ownerLabel } from "@/components/dashboard/card-colors";
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { notifyAction } from "@/components/UndoActionBar";
