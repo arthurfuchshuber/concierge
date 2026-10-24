@@ -23,6 +23,8 @@ import * as React from "react";
  */
 
 const MAX_DEPTH = 4;
+/** Contêineres que sempre se abrem em linhas, em qualquer tamanho. */
+const LIST_TAGS = new Set(["TABLE", "TBODY", "UL", "OL"]);
 /** Folga mínima (px) entre o último card inteiro e a borda de baixo da janela. */
 const MIN_CLEARANCE = 12;
 
@@ -40,6 +42,10 @@ function collectUnits(root: HTMLElement, avail: number): HTMLElement[] {
         out.push(child);
       } else if (child.querySelector("[data-clip-row]")) {
         walk(child, depth + 1);
+      } else if (LIST_TAGS.has(child.tagName) && child.children.length > 0) {
+        // Tabelas e listas: a unidade é a LINHA (<tr>/<li>), nunca a tabela inteira
+        // (print de 23/10/2026: "Limpezas Realizadas" cortava a última linha).
+        walk(child, depth);
       } else if (
         depth < MAX_DEPTH &&
         child.children.length > 0 &&

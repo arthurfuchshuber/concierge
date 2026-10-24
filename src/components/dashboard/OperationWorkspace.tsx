@@ -9196,7 +9196,7 @@ function OccupancyPanel({
             <div> com dois botões independentes (título+ícone / filtros),
             mais a setinha por último. Clicar no título OU na setinha
             expande/recolhe; clicar no botão de filtros não. */}
-      <div className="flex w-full items-center gap-2 py-3.5 pl-2.5 pr-4 text-left">
+      <div className="flex w-full items-center gap-2 py-3.5 pl-4 pr-4 text-left sm:pl-5 sm:pr-5">
         {mobileSearch ? (
           <>
             {searchField("min-w-0 flex-1", true)}
@@ -9261,7 +9261,7 @@ function OccupancyPanel({
           </>
         )}
       </div>
-      <div className="border-t border-border/50 px-4 sm:px-5 pt-4 pb-5">
+      <div className="border-t border-border/50 px-4 sm:px-5 pt-0 pb-5">
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />

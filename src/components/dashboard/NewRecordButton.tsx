@@ -101,12 +101,17 @@ export function NewRecordButton() {
     [properties, sq],
   );
   const shownRes = useMemo(
-    () =>
-      sq
-        ? reservations.filter((r) =>
+    () => {
+      // Check-out do MAIS RECENTE para o MAIS ANTIGO, com ou sem busca (23/10/2026).
+      const sorted = [...reservations].sort((x, y) =>
+        String(y.checkout ?? y.checkin).localeCompare(String(x.checkout ?? x.checkin)),
+      );
+      return sq
+        ? sorted.filter((r) =>
             norm(`${r.label} ${properties.find((p) => p.id === r.propertyId)?.name ?? ""}`).includes(sq),
           )
-        : reservations,
+        : sorted;
+    },
     [reservations, properties, sq],
   );
 

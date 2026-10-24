@@ -174,3 +174,9 @@ Corrige os 4 pontos dos prints do cliente. Só layout; nenhuma regra de negócio
 - Teste: `src/lib/__tests__/service-draft.test.ts`.
 - **Maps**: continua nos cartões da lista de IMÓVEIS e no resumo de "Qual imóvel?"; só saiu da lista/resumo de RESERVAS desta janela (nada mudou em outros cartões).
 - **Auditoria dos mockups** (texto de todos os quadros contra o código + medidas da trilha): único desvio de texto encontrado = `Servico-Final` ainda tinha o cabeçalho antigo "Novo serviço · Danos" (corrigido no canvas para título + subtítulo). `Limpeza-Despesa` mostra a janela de despesa ANTIGA ("Responsável pela despesa"), substituída pelos quadros 0i–0k; o código segue 0i–0k.
+
+## Ajustes de 23/10/2026 (18h30)
+1. **Título do Calendário de ocupação** alinhado à esquerda do conteúdo do quadrante (mesmo recuo do corpo: 16px; 20px no computador) — `OperationWorkspace.tsx`.
+2. **Espaço botões ↔ calendário**: o corpo do calendário não tem mais respiro de 16px no topo; botões → linha → calendário = o mesmo respiro de cima do quadrante (14px).
+3. **Anticorte em tabelas/listas** (print "Limpezas Realizadas"): `useAntiClipWindow.ts` agora sempre abre `TABLE/TBODY/UL/OL` em linhas e usa a linha (`<tr>`/`<li>`) como unidade — antes a tabela inteira contava como um bloco e a última linha ficava cortada. Vale para toda janela (a regra mora na base).
+4. **Lista de reservas do "Novo serviço"** (`manual-cleaning.functions.ts`, `ManualCleaningButton.tsx`, `NewRecordButton.tsx`): só estadias já iniciadas (check-in ≤ hoje); ordem sempre check-out do mais recente para o mais antigo, com ou sem busca (antes a lista trazia reservas futuras e os 400 slots eram tomados por elas).

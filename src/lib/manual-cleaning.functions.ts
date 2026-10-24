@@ -152,8 +152,9 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
     const propIds = await accessiblePropertyIds(sb as never, data.ownerId ?? null, context.userId);
     if (propIds.length === 0) return { ...empty, canCreate: true };
 
-    // RESERVAS (mockup 2, nota do canvas): "A lista só traz reservas com
-    // check-out até hoje, sem aviso na tela." Olhamos os últimos 120 dias.
+    // RESERVAS: só estadias já iniciadas (check-in até hoje), do check-out mais
+    // recente para o mais antigo. Limpeza: check-out até hoje; serviço: também a que
+    // está em curso. Olhamos os últimos 120 dias.
     const to = data.forService
       ? new Date(Date.now() - 3 * 3600_000 + 90 * 86400_000).toISOString().slice(0, 10)
       : todaySP();
@@ -181,6 +182,9 @@ export const getManualCleaningOptions = createServerFn({ method: "POST" })
         .in("property_id", propIds)
         .gte("checkout_date", from)
         .lte("checkout_date", to)
+        // Só estadias que JÁ COMEÇARAM (check-in até hoje): reserva futura não aparece
+        // (pedido de 23/10/2026). Ordem fixa: check-out do MAIS RECENTE para o MAIS ANTIGO.
+        .lte("checkin_date", todaySP())
         .order("checkout_date", { ascending: false })
         .limit(400),
     ]);

@@ -425,11 +425,15 @@ function ManualCleaningPanel({
   const shownProps = sq
     ? properties.filter((p) => norm(`${p.name} ${p.ownerName ?? ""}`).includes(sq))
     : properties;
+  // Ordem fixa (pedido de 23/10/2026): check-out do MAIS RECENTE para o MAIS ANTIGO — com ou sem busca.
+  const resSorted = [...reservations].sort((x, y) =>
+    String(y.checkout ?? y.checkin).localeCompare(String(x.checkout ?? x.checkin)),
+  );
   const shownRes = sq
-    ? reservations.filter((r) =>
+    ? resSorted.filter((r) =>
         norm(`${r.label} ${r.guestLine} ${propName(r.propertyId)}`).includes(sq),
       )
-    : reservations;
+    : resSorted;
   // Prestador do imóvel sempre em primeiro.
   const defaultProviderId = property?.defaultProviderId ?? null;
   const orderedProviders = [...providers].sort((a, b) =>
