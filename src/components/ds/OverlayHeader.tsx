@@ -46,12 +46,7 @@ export function OverlayHeader({
           <span className="mt-0.5 block break-words text-[11px] leading-snug text-muted-foreground">{subtitle}</span>
         )}
         {owner?.name && (
-          <div className="mt-0.5 flex min-w-0 items-center gap-0.5">
-            <span className="min-w-0 truncate text-[11px] leading-snug text-muted-foreground" title={owner.name}>
-              {ownerLabel(owner.name)}
-            </span>
-            <PhoneActionButton phone={owner.phone} country={owner.country} size={12} alwaysShow className="-my-1" />
-          </div>
+          <OwnerLine name={owner.name} phone={owner.phone} country={owner.country} phonePosition="adjacent" className="mt-0.5 text-[11px]" />
         )}
         {chips && <div className="mt-2 flex flex-wrap gap-1">{chips}</div>}
       </div>

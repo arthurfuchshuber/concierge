@@ -704,13 +704,8 @@ export function RecordSituationSheet({
           <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
             {propertyLabel}
           </span>
-          {owner && ownerLabel(owner.name) && (
-            <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-              <span className="min-w-0 truncate text-[10.5px] text-muted-foreground" title={owner.name ?? undefined}>
-                {ownerLabel(owner.name)}
-              </span>
-              <PhoneActionButton phone={owner.phone} country={owner.country} size={12} alwaysShow />
-            </div>
+          {owner?.name && (
+            <OwnerLine name={owner.name} phone={owner.phone} country={owner.country} phonePosition="adjacent" className="mt-0.5 text-[11px]" />
           )}
           {contextLine && (
             <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
