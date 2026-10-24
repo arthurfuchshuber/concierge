@@ -1,7 +1,7 @@
 /**
  * PLAYBOOK — EDIÇÃO EM MASSA / REPLICAÇÃO (política de segurança, pura e testável).
  *
- * O que pode ser copiado entre imóveis da mesma conta é uma LISTA BRANCA: regras da casa e
+ * O que pode ser copiado entre imóveis da mesma conta é uma LISTA BRANCA de campos EDITADOS NO SISTEMA (regras da casa vêm do anúncio e só mudam na plataforma):
  * convivência, FAQ geral, instruções padronizadas de check-in/check-out, checklist de saída,
  * descarte de lixo e as notas/linhas criadas à mão (bairro, cidade, governança).
  * Tudo que NÃO está na lista branca é recusado — inclusive campos que ainda nem existem.
@@ -13,7 +13,6 @@
 
 /** Campos do Playbook (f:<campo>) que podem ser replicados. */
 export const BULK_REPLICABLE_FIELDS: ReadonlySet<string> = new Set([
-  "regras_adicionais_da_casa",
   "instrucoes_de_check_in",
   "aviso_de_check_in",
   "instrucoes_de_check_out",
@@ -24,7 +23,6 @@ export const BULK_REPLICABLE_FIELDS: ReadonlySet<string> = new Set([
 
 /** Campos que gravam coluna de `properties` (subconjunto da lista branca). */
 export const BULK_COLUMN_FIELDS: Readonly<Record<string, string>> = {
-  regras_adicionais_da_casa: "house_rules",
   instrucoes_de_check_in: "checkin_instructions",
   aviso_de_check_in: "checkin_note",
   instrucoes_de_check_out: "checkout_instructions",

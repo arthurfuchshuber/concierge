@@ -3,6 +3,7 @@
  * unidade própria na Channex (o PriceLabs lista os dois) e calendários
  * travados juntos pelo ConciergeIA a partir de `channex_twin_links`.
  */
+import { getChannelCached } from "@/lib/channex-channel-cache.server";
 const B = "https://app.channex.io/api/v1";
 
 function headers() {
@@ -38,7 +39,7 @@ export async function listAirbnbListings(): Promise<ListingRow[]> {
   for (const c of chans.data ?? []) {
     if (c.attributes?.channel !== "AirBNB") continue;
     const [full, listings] = await Promise.all([
-      cx<{ data: any }>(`/channels/${c.id}`),
+      getChannelCached(String(c.id)),
       cx<{ data: any }>(`/channels/${c.id}/action/listings`).catch(() => null),
     ]);
     const titles = new Map<string, string>(

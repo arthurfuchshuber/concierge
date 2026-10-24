@@ -41,10 +41,10 @@ export const CARD_OWNER = "text-foreground font-semibold";
  * mão em cada tela.
  */
 export function ownerLabel(name: string | null | undefined): string | null {
-  if (!name) return null;
-  const firstName = name.trim().split(/\s+/)[0];
-  if (!firstName) return null;
-  return `Proprietário: ${firstName}`;
+  const full = name?.trim();
+  if (!full) return null;
+  // Padrão atual (24/10/2026): rótulo "Proprietário(a):" + nome inteiro.
+  return `Proprietário(a): ${full}`;
 }
 
 /** Nome do imóvel — tipografia de título do card, cor de texto cheia. */

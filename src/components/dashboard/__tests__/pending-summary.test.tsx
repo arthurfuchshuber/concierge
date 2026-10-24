@@ -69,7 +69,7 @@ describe("Tooltip do 'Ver só elas'", () => {
     setup();
     fireEvent.click(await screen.findByText("Imóveis"));
     expect(screen.getByText("Lâmpada queimada")).toBeTruthy();
-    expect(screen.getByText("Proprietário(a): Marina")).toBeTruthy();
+    expect(screen.getByText("Marina Souza")).toBeTruthy();
     expect(screen.queryByText("Mais antiga há 23 dias")).toBeNull();
   });
 

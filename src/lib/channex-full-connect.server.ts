@@ -10,6 +10,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { SIGMA_ACCOUNT_ID } from "@/lib/sync-alert-accounts";
+import { getChannelCached, refreshChannel } from "@/lib/channex-channel-cache.server";
 
 const B = "https://app.channex.io/api/v1";
 async function cx<T = any>(path: string, init?: RequestInit): Promise<T> {
@@ -60,7 +61,7 @@ async function unmappedRows(ownerId: string) {
   const list = (rows ?? []) as any[];
   const mapped = new Set<string>();
   for (const ch of new Set(list.map((r) => String(r.channex_channel_id)))) {
-    const c = await cx<{ data: any }>(`/channels/${ch}`);
+    const c = await getChannelCached(ch);
     for (const rp of c.data?.attributes?.rate_plans ?? []) mapped.add(String(rp.settings?.listing_id));
   }
   return list.filter((r) => !mapped.has(String(r.airbnb_listing_id)));
@@ -125,6 +126,7 @@ async function createUnit(d: any, r: any): Promise<string> {
   const props: string[] = ch.properties ?? [];
   if (!props.includes(prop.data.id)) {
     await cx(`/channels/${r.channex_channel_id}`, { method: "PUT", body: JSON.stringify({ channel: { properties: [...props, prop.data.id] } }) });
+    await refreshChannel(String(r.channex_channel_id)).catch(() => null);
   }
   const { grantPriceLabsAccess } = await import("@/lib/channex-twins.server");
   await grantPriceLabsAccess(prop.data.id).catch((e) => console.error("[full-connect] pricing key", e));
@@ -169,7 +171,7 @@ export const SEED_BASE_RATE = 100;
 /** Janela de reservas configurada NO ANÚNCIO (max_days_notice), lida ao vivo do canal. */
 export async function listingWindowDays(channelId: string | null | undefined, listingId: string | null | undefined, fallback = 270): Promise<number> {
   if (!channelId || !listingId) return fallback;
-  const c = await cx<{ data: any }>(`/channels/${channelId}`).catch(() => null);
+  const c = await getChannelCached(channelId).catch(() => null);
   const rp = (c?.data?.attributes?.rate_plans ?? []).find((x: any) => String(x.settings?.listing_id) === String(listingId));
   const n = Number(rp?.settings?.availability_rule?.max_days_notice);
   return Number.isFinite(n) && n > 0 ? Math.min(n, 730) : fallback;
@@ -241,7 +243,7 @@ export async function isMappedOnChannel(propertyId: string): Promise<boolean | n
     if (!r?.airbnb_listing_id || !r.channex_channel_id) return null;
     const { data: mode } = await d.from("channex_account_settings").select("operation_mode").eq("owner_id", r.owner_id).maybeSingle();
     if (mode?.operation_mode !== "full") return null;
-    const c = await cx<{ data: any }>(`/channels/${r.channex_channel_id}`);
+    const c = await getChannelCached(String(r.channex_channel_id));
     return (c.data?.attributes?.rate_plans ?? []).some((rp: any) => String(rp.settings?.listing_id) === String(r.airbnb_listing_id));
   } catch {
     return null;
@@ -262,7 +264,7 @@ export async function seedIfUnmapped(propertyId: string) {
     .maybeSingle();
   if (!r?.channex_rate_plan_id || !r.airbnb_listing_id) return { ok: false, reason: "no_unit" };
   if (r.channex_channel_id) {
-    const c = await cx<{ data: any }>(`/channels/${r.channex_channel_id}`);
+    const c = await getChannelCached(String(r.channex_channel_id));
     const mapped = (c.data?.attributes?.rate_plans ?? []).some(
       (rp: any) => String(rp.settings?.listing_id) === String(r.airbnb_listing_id),
     );

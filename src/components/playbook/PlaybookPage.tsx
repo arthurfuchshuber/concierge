@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, BookOpen, Copy, Info, Lock, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Copy, CopyPlus, Eye, EyeOff, Info, KeyRound, Lock, MoreHorizontal, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   addPlaybookRow,
@@ -28,7 +29,9 @@ import {
   savePlaybookRow,
 } from "@/lib/playbook.functions";
 import { buildPlaybook, matchesQuery, toggleRow, toggleSection, type PlaybookRow } from "@/lib/playbook-build";
-import { AUDIENCE_LABEL, PLAYBOOK_SECTIONS, type Audience } from "@/lib/playbook-catalog";
+import { AUDIENCE_LABEL, PLAYBOOK_SECTIONS, type Audience, type PlaybookSectionMeta } from "@/lib/playbook-catalog";
+import { classifyBulkRow } from "@/lib/playbook-bulk";
+import { ReplicateRowDialog } from "@/components/playbook/ReplicateRowDialog";
 
 /**
  * PLAYBOOK DO IMÓVEL (mockup P01 aprovado, 21/10/2026).
@@ -73,13 +76,67 @@ const ROW_GRID = "col-span-4 grid grid-cols-subgrid";
 const CLAMP2 = "[display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden";
 const ICON_BTN =
   "grid size-8 place-items-center rounded-lg border-0 bg-transparent p-0 text-muted-foreground hover:text-foreground";
+const CLAMP3 = "[display:-webkit-box] [-webkit-line-clamp:3] [-webkit-box-orient:vertical] overflow-hidden";
+
+/** Explicação de cada audiência — a mesma no "i" da legenda (computador) e na palavra colorida de cada campo (celular). */
+const AUDIENCE_HELP: Record<Audience, string> = {
+  G: "Liberado só durante estadia confirmada.",
+  P: "Liberado já na pré-reserva.",
+  I: "Confidencial, nunca exibido ao hóspede.",
+};
+/** Frase curta da linha de audiência no celular (mockup aprovado: "Público · IA pode usar com hóspedes."). */
+const AUDIENCE_LINE: Record<Audience, string> = {
+  G: "IA só usa durante a estadia.",
+  P: "IA pode usar com hóspedes.",
+  I: "IA nunca mostra ao hóspede.",
+};
+const AUD_TEXT: Record<Audience, string> = { G: "text-success", P: "text-warning", I: "text-muted-foreground" };
+
+/**
+ * CELULAR (mockup "Proposta 1 e 2" aprovado, 24/10/2026): a audiência deixa de ser uma etiqueta com
+ * borda e vira só a palavra colorida, na linha da observação de cada campo. Tocar na palavra abre a
+ * mesma explicação que o "i" da legenda abre no computador — a legenda sai da tela no celular.
+ */
+function AudienceText({ au }: { au: Audience }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Explicação: ${AUDIENCE_LABEL[au]}`}
+          className={AUD_TEXT[au]}
+        >
+          {AUDIENCE_LABEL[au]}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        onClick={(e) => e.stopPropagation()}
+        className="w-64 p-3 text-xs font-medium text-muted-foreground"
+      >
+        {AUDIENCE_HELP[au]}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Mesmo ponto de corte do restante da página (`max-[900px]:`). Sem `matchMedia` (testes) vale o desenho do computador. */
+function useNarrow() {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mql = window.matchMedia("(max-width: 900px)");
+    const sync = () => setNarrow(mql.matches);
+    sync();
+    mql.addEventListener("change", sync);
+    return () => mql.removeEventListener("change", sync);
+  }, []);
+  return narrow;
+}
 
 function Legend() {
-  const items: Array<[Audience, string]> = [
-    ["G", "Liberado só durante estadia confirmada."],
-    ["P", "Liberado já na pré-reserva."],
-    ["I", "Confidencial, nunca exibido ao hóspede."],
-  ];
+  const items: Array<[Audience, string]> = (["G", "P", "I"] as Audience[]).map((au) => [au, AUDIENCE_HELP[au]]);
   return (
     <div className="print:hidden">
       {/* Etiqueta + botão "i" (22/10/2026): a explicação de cada audiência abre no "i", não fica
@@ -115,6 +172,17 @@ function Legend() {
 
 type EditState = { id: string; draft: string } | null;
 
+/**
+ * DOSSIÊ SEM CAMPOS VAZIOS (24/10/2026): campo manual opcional sem valor não aparece.
+ * Só os campos-padrão abaixo ficam sempre visíveis; os demais entram pelo
+ * "Adicionar campo" da seção e somem de novo quando o valor é excluído.
+ */
+const STANDARD_MANUAL_FIELDS = new Set(["f:modo_de_acesso"]);
+// Vazio = oculto, venha do anúncio ou do cadastro manual: nenhuma linha mostra "não cadastrado".
+const isOptionalEmpty = (r: PlaybookRow) => r.empty && !STANDARD_MANUAL_FIELDS.has(r.id);
+/** Campos vazios que não existiam no antigo "Editar guia" nunca aparecem (nem no menu). */
+const isAddable = (r: PlaybookRow) => r.guideField === true;
+
 export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const qc = useQueryClient();
   const fetchFn = useServerFn(getPlaybook);
@@ -140,6 +208,9 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const [toDelete, setToDelete] = useState<PlaybookRow | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [adding, setAdding] = useState<{ section: number; label: string; value: string; au: Audience } | null>(null);
+  const [replicating, setReplicating] = useState<PlaybookRow | null>(null);
+  const [revealed, setRevealed] = useState<string[]>([]);
+  const [shown, setShown] = useState<string[]>([]);
 
   const sections = useMemo(() => (query.data ? buildPlaybook(query.data.source) : []), [query.data]);
   const refresh = () => qc.invalidateQueries({ queryKey: ["playbook", propertyId] });
@@ -187,6 +258,108 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
   const owner = query.data?.owner ?? null;
   const qq = q.trim();
+  const narrow = useNarrow();
+
+  /** Editor de valor (mesmo no computador e no celular). */
+  const renderEditor = (r: PlaybookRow) => (
+    <div className="min-w-0 flex-1" onClick={(e) => e.stopPropagation()}>
+      <EditField row={r} draft={edit!.draft} onChange={(v) => setEdit({ id: r.id, draft: v })} />
+      <div className="mt-2 flex gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={async () => {
+            const ok = await run(() => saveFn({ data: { propertyId, rowId: r.id, value: edit!.draft } }), "Salvo.");
+            if (ok) setEdit(null);
+          }}
+          className="h-8 rounded-lg bg-foreground px-3 text-xs font-bold text-background disabled:opacity-50"
+        >
+          Salvar
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setEdit(null);
+            setRevealed((cur) => cur.filter((x) => x !== r.id));
+          }}
+          className={`h-8 rounded-lg px-3 text-xs font-bold text-muted-foreground ${WELL}`}
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+
+  /** "Nota do anfitrião" (mesmo no computador e no celular). */
+  const renderNote = (r: PlaybookRow, noteVal: string, className = "mt-3") => (
+    <div className={className} onClick={(e) => e.stopPropagation()}>
+      <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-muted-foreground">
+        <PencilLine className="size-[11px]" />
+        Nota do anfitrião
+      </span>
+      <textarea
+        rows={2}
+        value={noteVal}
+        onChange={(e) => setNotes((p) => ({ ...p, [r.id]: e.target.value }))}
+        onBlur={() => {
+          if ((notes[r.id] ?? r.note) === r.note) return;
+          void run(() => noteFn({ data: { propertyId, rowId: r.id, note: notes[r.id] ?? "" } }), "Nota salva.").then((ok) => {
+            if (ok) setNotes((p) => { const { [r.id]: _x, ...rest } = p; return rest; });
+          });
+        }}
+        placeholder="Contexto só deste imóvel, que a IA lê junto da instrução padrão."
+        className={`block min-h-14 w-full resize-none rounded-lg border-0 px-3 py-2 text-[13px] font-medium leading-[1.45] text-foreground outline-none placeholder:text-[var(--faint)] focus:shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--accent)_60%,transparent)] ${WELL}`}
+      />
+    </div>
+  );
+
+  /** Botões "Adicionar campo" / "Adicionar linha / campo" de cada seção. */
+  const renderAddButtons = (meta: PlaybookSectionMeta, idx: number, hidden: PlaybookRow[], plain = false) => {
+    const btn = plain
+      ? "inline-flex h-8 items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"
+      : `inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-muted-foreground hover:text-foreground ${WELL}`;
+    return (
+    <>
+      {hidden.length > 0 ? (
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={btn}
+            >
+              <KeyRound className="size-[15px]" />
+              Adicionar campo
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-72 max-h-[60vh] overflow-y-auto overscroll-contain p-1.5">
+            {hidden.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => {
+                  setRevealed((cur) => [...cur, r.id]);
+                  startEdit(r);
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] font-medium text-foreground hover:bg-secondary/60"
+              >
+                {r.secret ? <KeyRound className="size-3.5 flex-none text-muted-foreground" /> : <Plus className="size-3.5 flex-none text-muted-foreground" />}
+                <span className="min-w-0 break-words">{r.label}</span>
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => setAdding({ section: meta.num ? Number(meta.num) : idx + 1, label: "", value: "", au: "I" })}
+        className={btn}
+      >
+        <Plus className="size-[15px]" />
+        Adicionar linha / campo
+      </button>
+    </>
+    );
+  };
 
   return (
     <div className="ds-dense-fields w-full max-w-[1440px] px-2.5 py-5 sm:px-5 lg:px-8 lg:py-8">
@@ -204,17 +377,38 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
             }
           />
           <div className="ds-page-heading min-w-0">
-            <h1 className="ds-page-title !text-lg truncate">Playbook do imóvel</h1>
+            {narrow ? (
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <h1 className="ds-page-title !text-lg min-w-0 truncate">Playbook do imóvel</h1>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Mais ações"
+                      title="Mais ações"
+                      className="-mr-2 grid size-8 flex-none place-items-center rounded-lg border-0 bg-transparent p-0 text-muted-foreground hover:text-foreground print:hidden"
+                    >
+                      <MoreHorizontal className="size-5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => setRead((v) => !v)}>
+                      <BookOpen className="size-4" />
+                      {read ? "Sair do modo leitura" : "Entrar no modo leitura"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={printNow}>
+                      <Printer className="size-4" />
+                      Imprimir
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ) : (
+              <h1 className="ds-page-title !text-lg truncate">Playbook do imóvel</h1>
+            )}
             <p className="ds-page-subtitle">{query.data?.propertyName ?? "Carregando…"}</p>
             {owner?.name ? (
-              <OwnerLine
-                name={owner.name}
-                phone={owner.phone}
-                country={owner.country}
-                phonePosition="adjacent"
-                variant="neutral"
-                label={`Proprietário(a): ${owner.name.trim().split(/\s+/)[0]}`}
-              />
+              <OwnerLine name={owner.name} phone={owner.phone} country={owner.country} phonePosition="adjacent" size={13} />
             ) : null}
           </div>
         </div>
@@ -224,7 +418,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           onChange={setQ}
           placeholder="Buscar campo, valor ou observação"
           className="print:hidden"
-          actions={
+          actions={narrow ? undefined : (
             <>
               <button
                 type="button"
@@ -246,7 +440,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                 <Printer className={ACTION_ICON} />
               </button>
             </>
-          }
+          )}
         />
 
         {read ? (
@@ -261,7 +455,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           </div>
         ) : null}
 
-        <Legend />
+        {narrow ? null : <Legend />}
 
         {qq && query.data && sections.every((sec) => sec.rows.every((r) => !matchesQuery(r, qq))) ? (
           <div className="py-6 text-center text-[13px] font-medium text-muted-foreground">Nenhum campo corresponde à busca.</div>
@@ -277,11 +471,150 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
             </button>
           </div>
         ) : (
-          PLAYBOOK_SECTIONS.map((meta, idx) => {
+          <div className={narrow ? "-mt-2.5 flex flex-col" : "contents"}>
+          {PLAYBOOK_SECTIONS.map((meta, idx) => {
             const sec = sections[idx];
-            const all = sec?.rows ?? [];
+            const all = (sec?.rows ?? []).filter((r) => !isOptionalEmpty(r) || revealed.includes(r.id) || edit?.id === r.id);
+            const hidden = (sec?.rows ?? []).filter(
+              (r) => isOptionalEmpty(r) && isAddable(r) && !revealed.includes(r.id) && edit?.id !== r.id,
+            );
             const rows = all.filter((r) => matchesQuery(r, qq));
             const isOpen = qq ? rows.length > 0 : read || openSection === meta.id;
+            if (narrow) {
+              const toggleSec = () => {
+                setOpenSection((cur) => toggleSection(cur, meta.id));
+                setOpenRows([]);
+              };
+              return (
+                <section key={meta.id} id={meta.id} className="print:break-inside-avoid-page">
+                  {/* CELULAR (mockup aprovado 24/10/2026): lista plana, sem cartão, sem seta, sem borda.
+                      Número, título numa linha só (reticências) e (quantidade) centralizada na linha do título. */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isOpen}
+                    aria-label={`${meta.title}, ${all.length} campos`}
+                    onClick={toggleSec}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleSec();
+                      }
+                    }}
+                    className={`flex cursor-pointer gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isOpen ? "items-start pb-1.5 pt-[18px]" : "h-16 items-center"}`}
+                  >
+                    <span
+                      className={`w-6 flex-none font-display text-[13px] font-semibold leading-[19px] ${isOpen ? "text-accent" : "text-[var(--faint)]"}`}
+                    >
+                      {meta.num}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate whitespace-nowrap font-display text-[15px] font-semibold leading-[19px] text-foreground">
+                        {meta.title}
+                      </div>
+                      {isOpen ? (
+                        <div className="mt-[3px] truncate whitespace-nowrap text-[12.5px] leading-[17px] text-muted-foreground">
+                          {meta.desc}
+                        </div>
+                      ) : null}
+                    </div>
+                    <span className="flex-none font-display text-[13px] font-medium leading-[19px] tabular-nums text-muted-foreground">
+                      ({qq ? `${rows.length} de ${all.length}` : all.length})
+                    </span>
+                  </div>
+
+                  {isOpen ? (
+                    <div className="ml-9 pb-1.5 pt-3.5">
+                      {rows.map((r, i) => {
+                        const open = read || openRows.includes(r.id);
+                        const editing = edit?.id === r.id;
+                        const noteVal = notes[r.id] ?? r.note;
+                        const long = r.value.length > 120 || r.value.includes("\n");
+                        return (
+                          <div
+                            key={r.id}
+                            onClick={() => setOpenRows((cur) => toggleRow(cur, r.id))}
+                            className={`cursor-pointer ${i > 0 ? "mt-5" : ""}`}
+                          >
+                            <div className="text-[12.5px] leading-[17px] text-muted-foreground">{r.label}</div>
+                            <div className="mt-[3px] flex items-start gap-2">
+                              {editing ? (
+                                renderEditor(r)
+                              ) : (
+                                <span
+                                  className={`min-w-0 flex-1 whitespace-pre-line break-words text-[15px] leading-[21px] ${open ? "" : CLAMP3} ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
+                                >
+                                  {r.secret && shown.includes(r.id) ? r.raw : r.value}
+                                </span>
+                              )}
+                              {r.secret && !r.empty && !editing ? (
+                                <button
+                                  type="button"
+                                  aria-label={shown.includes(r.id) ? "Ocultar" : "Mostrar"}
+                                  title={shown.includes(r.id) ? "Ocultar" : "Mostrar"}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShown((cur) => (cur.includes(r.id) ? cur.filter((x) => x !== r.id) : [...cur, r.id]));
+                                  }}
+                                  className={`${ICON_BTN} -my-1 size-7 flex-none print:hidden`}
+                                >
+                                  {shown.includes(r.id) ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                </button>
+                              ) : null}
+                            </div>
+                            {!editing ? (
+                              <div className={`${long ? "mt-[5px]" : "mt-[3px]"} flex items-center justify-between gap-3 text-xs leading-4`}>
+                                <div className="min-w-0 truncate whitespace-nowrap text-[var(--faint)]">
+                                  <AudienceText au={r.au} /> · {AUDIENCE_LINE[r.au]}
+                                </div>
+                                {long ? (
+                                  <span className="flex-none font-bold text-accent">{open ? "Ver menos" : "Ver tudo"}</span>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            {open && !editing ? (
+                              <>
+                                {r.obs ? (
+                                  <div className="mt-3 text-xs leading-[1.45] text-muted-foreground">
+                                    <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-[var(--faint)]">
+                                      <Lock className="size-[11px]" />
+                                      Observação da IA · padrão do sistema
+                                    </span>
+                                    {r.obs}
+                                  </div>
+                                ) : null}
+                                {renderNote(r, noteVal, "mt-3")}
+                                {!r.empty && !!r.edit && classifyBulkRow(r.id).ok ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setReplicating(r);
+                                    }}
+                                    className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground hover:text-foreground print:hidden"
+                                  >
+                                    <CopyPlus className="size-[13px]" />
+                                    Replicar
+                                  </button>
+                                ) : null}
+                              </>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                      {rows.length === 0 ? (
+                        <div className="text-[13px] font-medium text-muted-foreground">Nenhum campo corresponde à busca.</div>
+                      ) : null}
+                      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 print:hidden">{renderAddButtons(meta, idx, hidden, true)}</div>
+                    </div>
+                  ) : null}
+
+                  {idx < PLAYBOOK_SECTIONS.length - 1 ? (
+                    <div className={`ml-9 h-px bg-[var(--panel-div)] ${isOpen ? "mt-3" : ""}`} />
+                  ) : null}
+                </section>
+              );
+            }
             return (
               <section
                 key={meta.id}
@@ -355,39 +688,28 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
                           <div className="flex min-w-0 items-start gap-2 break-words px-4 py-3">
                             {editing ? (
-                              <div className="min-w-0 flex-1" onClick={(e) => e.stopPropagation()}>
-                                <EditField row={r} draft={edit!.draft} onChange={(v) => setEdit({ id: r.id, draft: v })} />
-                                <div className="mt-2 flex gap-2">
-                                  <button
-                                    type="button"
-                                    disabled={busy}
-                                    onClick={async () => {
-                                      const ok = await run(
-                                        () => saveFn({ data: { propertyId, rowId: r.id, value: edit!.draft } }),
-                                        "Salvo.",
-                                      );
-                                      if (ok) setEdit(null);
-                                    }}
-                                    className="h-8 rounded-lg bg-foreground px-3 text-xs font-bold text-background disabled:opacity-50"
-                                  >
-                                    Salvar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setEdit(null)}
-                                    className={`h-8 rounded-lg px-3 text-xs font-bold text-muted-foreground ${WELL}`}
-                                  >
-                                    Cancelar
-                                  </button>
-                                </div>
-                              </div>
+                              renderEditor(r)
                             ) : (
                               <span
                                 className={`min-w-0 flex-1 whitespace-pre-line block ${r.value.length > 600 ? "max-h-[min(60vh,28rem)] overflow-y-auto overscroll-contain pr-1" : ""} ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
                               >
-                                {r.value}
+                                {r.secret && shown.includes(r.id) ? r.raw : r.value}
                               </span>
                             )}
+                            {r.secret && !r.empty && !editing ? (
+                              <button
+                                type="button"
+                                aria-label={shown.includes(r.id) ? "Ocultar" : "Mostrar"}
+                                title={shown.includes(r.id) ? "Ocultar" : "Mostrar"}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShown((cur) => (cur.includes(r.id) ? cur.filter((x) => x !== r.id) : [...cur, r.id]));
+                                }}
+                                className={`${ICON_BTN} size-7 flex-none print:hidden`}
+                              >
+                                {shown.includes(r.id) ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                              </button>
+                            ) : null}
                             {/* Botões copiar/editar/excluir ocultos por ora (pedido 22/10/2026). */}
                           </div>
 
@@ -401,33 +723,24 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                               </span>
                             ) : null}
                             <span className={open ? "block" : CLAMP2}>{r.obs}</span>
-                            {open ? (
-                              <div className="mt-3" onClick={(e) => e.stopPropagation()}>
-                                <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-muted-foreground">
-                                  <PencilLine className="size-[11px]" />
-                                  Nota do anfitrião
-                                </span>
-                                <textarea
-                                  rows={2}
-                                  value={noteVal}
-                                  onChange={(e) => setNotes((p) => ({ ...p, [r.id]: e.target.value }))}
-                                  onBlur={() => {
-                                    if ((notes[r.id] ?? r.note) === r.note) return;
-                                    void run(() => noteFn({ data: { propertyId, rowId: r.id, note: notes[r.id] ?? "" } }), "Nota salva.").then(
-                                      (ok) => {
-                                        if (ok) setNotes((p) => { const { [r.id]: _x, ...rest } = p; return rest; });
-                                      },
-                                    );
-                                  }}
-                                  placeholder="Contexto só deste imóvel, que a IA lê junto da instrução padrão."
-                                  className={`block min-h-14 w-full resize-none rounded-lg border-0 px-3 py-2 text-[13px] font-medium leading-[1.45] text-foreground outline-none placeholder:text-[var(--faint)] focus:shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--accent)_60%,transparent)] ${WELL}`}
-                                />
-                              </div>
-                            ) : null}
+                            {open ? renderNote(r, noteVal) : null}
                           </div>
 
                           <div className="flex flex-col items-start gap-2 whitespace-nowrap px-4 py-3">
                             <AudienceChip au={r.au} />
+                            {!r.empty && !!r.edit && classifyBulkRow(r.id).ok ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setReplicating(r);
+                                }}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground hover:text-foreground print:hidden"
+                              >
+                                <CopyPlus className="size-[13px]" />
+                                Replicar
+                              </button>
+                            ) : null}
                           </div>
                         </div>
                       );
@@ -439,23 +752,23 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                       <div className="px-5 py-6 text-[13px] font-medium text-muted-foreground">Nenhum campo corresponde à busca.</div>
                     ) : null}
 
-                    <div className="px-4 py-3 print:hidden">
-                      <button
-                        type="button"
-                        onClick={() => setAdding({ section: meta.num ? Number(meta.num) : idx + 1, label: "", value: "", au: "I" })}
-                        className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-muted-foreground hover:text-foreground ${WELL}`}
-                      >
-                        <Plus className="size-[15px]" />
-                        Adicionar linha / campo
-                      </button>
+                    <div className="flex flex-wrap gap-2 px-4 py-3 print:hidden">
+                      {renderAddButtons(meta, idx, hidden)}
                     </div>
                   </div>
                 ) : null}
               </section>
             );
-          })
+          })}
+        </div>
         )}
       </div>
+
+      <ReplicateRowDialog
+        propertyId={propertyId}
+        row={replicating ? { id: replicating.id, label: replicating.label, value: replicating.value } : null}
+        onClose={() => setReplicating(null)}
+      />
 
       <AlertDialog open={!!toDelete} onOpenChange={(v) => !v && setToDelete(null)}>
         <AlertDialogContent>

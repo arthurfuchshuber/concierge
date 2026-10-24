@@ -13,6 +13,7 @@
  *
  * Somente servidor. Nunca envia calendário, preço ou disponibilidade.
  */
+import { getChannelCached } from "@/lib/channex-channel-cache.server";
 const BASE = "https://app.channex.io/api/v1";
 const APP_BASE = "https://app.channex.io";
 
@@ -67,7 +68,7 @@ export async function registry(
     ...new Set((raw ?? []).map((r) => r.channex_channel_id).filter(Boolean) as string[]),
   ].filter((id) => !known.has(id));
   for (const id of legacy) {
-    const title = await cx<{ data: { attributes?: { title?: string } } }>("GET", `/channels/${id}`)
+    const title = await getChannelCached(id)
       .then((r) => r.data?.attributes?.title ?? null)
       .catch(() => null);
     await db(admin)
@@ -127,10 +128,7 @@ export async function listAccounts(admin: Admin, accountId: string): Promise<Air
       });
       continue;
     }
-    const ch = await cx<{ data: { attributes?: { title?: string } } }>(
-      "GET",
-      `/channels/${id}`,
-    ).catch(() => null);
+    const ch = await getChannelCached(id).catch(() => null);
     const values = await cx<{ data: { listing_id_dictionary: { values: Array<{ id?: unknown }> } } }>(
       "GET",
       `/channels/${id}/action/listings`,

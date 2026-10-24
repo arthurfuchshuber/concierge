@@ -13,7 +13,7 @@ vi.mock("@/lib/playbook.functions", () => ({
     propertyName: "Casa Charmosa",
     owner: { name: "Arthur Tenório", phone: null, country: null },
     source: {
-      property: { name: "Casa Charmosa", gate_code: "9999", maps_url: "https://maps.app.goo.gl/x" },
+      property: { name: "Casa Charmosa", gate_code: "9999", maps_url: "https://maps.app.goo.gl/x", short_description: "Espaço inteiro: casa", city: "Foz do Iguaçu" },
       faqs: [],
       checkout: [],
       emergency: [],
@@ -26,12 +26,14 @@ vi.mock("@/lib/playbook.functions", () => ({
   deletePlaybookRow: vi.fn(),
   savePlaybookNote: vi.fn(),
   addPlaybookRow: vi.fn(),
+  listBulkTargets: vi.fn(async () => []),
+  bulkUpdatePlaybookEntries: vi.fn(),
 }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => <a href={to}>{children}</a>,
 }));
 vi.mock("@/components/dashboard/OwnerLine", () => ({
-  OwnerLine: ({ label }: { label: string }) => <div>{label}</div>,
+  OwnerLine: ({ name }: { name: string }) => <div>{`Proprietário(a): ${name}`}</div>,
 }));
 
 import { PlaybookPage } from "@/components/playbook/PlaybookPage";
@@ -48,7 +50,7 @@ function mount() {
 describe("PlaybookPage", () => {
   it("abre tudo recolhido, mostra o proprietário e abre uma seção por vez", async () => {
     mount();
-    expect(await screen.findByText("Proprietário(a): Arthur")).toBeTruthy();
+    expect(await screen.findByText("Proprietário(a): Arthur Tenório")).toBeTruthy();
     expect(screen.queryByText("Link do mapa")).toBeNull();
     const pills = screen.getAllByRole("button", { name: /\d+ campos$/ });
     expect(pills).toHaveLength(5);
@@ -61,7 +63,7 @@ describe("PlaybookPage", () => {
 
   it("mascara o código e a busca abre a seção com resultado", async () => {
     mount();
-    await screen.findByText("Proprietário(a): Arthur");
+    await screen.findByText("Proprietário(a): Arthur Tenório");
     fireEvent.change(screen.getByPlaceholderText("Buscar campo, valor ou observação"), { target: { value: "portão" } });
     expect(screen.getByText("Código do portão")).toBeTruthy();
     expect(screen.queryByText("9999")).toBeNull();
@@ -70,17 +72,19 @@ describe("PlaybookPage", () => {
 
   it("quantas linhas quiser abertas e a Nota do anfitrião só aparece na aberta", async () => {
     mount();
-    await screen.findByText("Proprietário(a): Arthur");
+    await screen.findByText("Proprietário(a): Arthur Tenório");
     fireEvent.click(screen.getAllByRole("button", { name: /\d+ campos$/ })[0]);
     expect(screen.queryAllByText("Nota do anfitrião")).toHaveLength(0);
-    for (const label of ["Título público", "Tipo de espaço", "Bairro"]) fireEvent.click(screen.getByText(label));
+    for (const label of ["Título público", "Tipo de espaço", "Cidade"]) fireEvent.click(screen.getByText(label));
     expect(screen.getAllByText("Nota do anfitrião")).toHaveLength(3);
+    expect(screen.queryByText("Quartos")).toBeNull();
+    expect(screen.queryByText("não cadastrado")).toBeNull();
     void within;
   });
 
   it("tem Voltar para a lista de proprietários e Modo leitura com entrada e saída explícitas", async () => {
     mount();
-    await screen.findByText("Proprietário(a): Arthur");
+    await screen.findByText("Proprietário(a): Arthur Tenório");
     expect(screen.getByText("Voltar").closest("a")?.getAttribute("href")).toBe("/admin/proprietarios");
     expect(screen.queryByText("Sair do modo leitura")).toBeNull();
     fireEvent.click(screen.getByLabelText("Entrar no modo leitura"));

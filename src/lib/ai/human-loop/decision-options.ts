@@ -28,10 +28,26 @@ export type KnowledgeScope = "property" | "global";
 const norm = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-export const EARLY_CHECKIN_OPTIONS = [
-  "Liberar check-in agora",
-  "Aguardar o horário oficial",
-] as const;
+/**
+ * Limpeza concluída + hóspede quis antecipar (24/10/2026): a equipe decide se a
+ * IA leva a notícia, se ela mesma avisa, ou se fica o horário oficial.
+ */
+export const EARLY_RELEASE_AI = "Sim, a IA pode avisar";
+export const EARLY_RELEASE_SELF = "Liberar, eu mesmo aviso";
+export const EARLY_RELEASE_KEEP = "Manter horário oficial";
+export const EARLY_CHECKIN_OPTIONS = [EARLY_RELEASE_AI, EARLY_RELEASE_SELF, EARLY_RELEASE_KEEP] as const;
+
+/** Respostas do cartão de antecipação que liberam a entrada agora. */
+export function earlyReleaseApproved(answer: string): boolean {
+  const a = answer.trim();
+  return a === EARLY_RELEASE_AI || a === EARLY_RELEASE_SELF || a === "Liberar check-in agora";
+}
+
+/** Respostas em que a IA NÃO fala com o hóspede. */
+export function earlyReleaseSilent(answer: string): boolean {
+  const a = answer.trim();
+  return a === EARLY_RELEASE_SELF || a === EARLY_RELEASE_KEEP || a === "Aguardar o horário oficial";
+}
 
 const AMENITY =
   /\b(tem|teria|possui|dispoe|disponibiliza|ha|existe|vem com|has|is there|do you have|hay|tiene)\b/;
