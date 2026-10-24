@@ -50,7 +50,7 @@ export function DailyBarChartCard({
   const anti = useAntiClipColumns(days, DAY_MIN_PX);
   const [selected, setSelected] = useState<string | null>(null);
   const [pickX, setPickX] = useState<number | null>(null);
-  const [, setScrollLeft] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
 
   const dayKey = data?.map((d) => d.date).join(",") ?? "";
   useEffect(() => {

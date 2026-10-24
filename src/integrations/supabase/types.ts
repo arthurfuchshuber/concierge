@@ -5925,6 +5925,7 @@ export type Database = {
           mime: string | null
           property_id: string
           reservation_id: string | null
+          situation_id: string | null
           size_bytes: number | null
           storage_path: string | null
           task_id: string | null
@@ -5946,6 +5947,7 @@ export type Database = {
           mime?: string | null
           property_id: string
           reservation_id?: string | null
+          situation_id?: string | null
           size_bytes?: number | null
           storage_path?: string | null
           task_id?: string | null
@@ -5967,6 +5969,7 @@ export type Database = {
           mime?: string | null
           property_id?: string
           reservation_id?: string | null
+          situation_id?: string | null
           size_bytes?: number | null
           storage_path?: string | null
           task_id?: string | null
@@ -5977,6 +5980,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_records_situation_id_fkey"
+            columns: ["situation_id"]
+            isOneToOne: false
+            referencedRelation: "service_situations"
             referencedColumns: ["id"]
           },
           {
@@ -6121,6 +6131,39 @@ export type Database = {
           status?: string
           status_changed_at?: string | null
           trade_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      service_situations: {
+        Row: {
+          account_owner_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          detail: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          account_owner_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          detail?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          account_owner_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          detail?: string | null
+          id?: string
+          name?: string
           updated_at?: string
         }
         Relationships: []
@@ -6543,35 +6586,65 @@ export type Database = {
       }
       task_completions: {
         Row: {
+          amount_due_cents: number | null
+          amount_paid_cents: number | null
           amount_spent_cents: number | null
           completed_at: string
           completed_by: string | null
+          cost_payer: string | null
+          cost_payer_id: string | null
+          difference_cents: number | null
+          difference_to: string | null
+          difference_to_id: string | null
           id: string
           log_id: string | null
+          paid_by: string | null
+          paid_by_id: string | null
           reservation_id: string | null
           resolution_note: string | null
+          resolution_received: boolean
           resolved_by_provider_id: string | null
           task_id: string
         }
         Insert: {
+          amount_due_cents?: number | null
+          amount_paid_cents?: number | null
           amount_spent_cents?: number | null
           completed_at?: string
           completed_by?: string | null
+          cost_payer?: string | null
+          cost_payer_id?: string | null
+          difference_cents?: number | null
+          difference_to?: string | null
+          difference_to_id?: string | null
           id?: string
           log_id?: string | null
+          paid_by?: string | null
+          paid_by_id?: string | null
           reservation_id?: string | null
           resolution_note?: string | null
+          resolution_received?: boolean
           resolved_by_provider_id?: string | null
           task_id: string
         }
         Update: {
+          amount_due_cents?: number | null
+          amount_paid_cents?: number | null
           amount_spent_cents?: number | null
           completed_at?: string
           completed_by?: string | null
+          cost_payer?: string | null
+          cost_payer_id?: string | null
+          difference_cents?: number | null
+          difference_to?: string | null
+          difference_to_id?: string | null
           id?: string
           log_id?: string | null
+          paid_by?: string | null
+          paid_by_id?: string | null
           reservation_id?: string | null
           resolution_note?: string | null
+          resolution_received?: boolean
           resolved_by_provider_id?: string | null
           task_id?: string
         }
@@ -6595,6 +6668,7 @@ export type Database = {
       tasks: {
         Row: {
           account_owner_id: string
+          amount_due_cents: number | null
           amount_paid_cents: number | null
           amount_spent_cents: number | null
           category: string
@@ -6604,6 +6678,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          difference_cents: number | null
+          difference_to: string | null
+          difference_to_id: string | null
           due_date: string | null
           id: string
           log_id: string | null
@@ -6615,14 +6692,17 @@ export type Database = {
           recurrence_days: number | null
           reservation_id: string | null
           resolution_note: string | null
+          resolution_received: boolean
           resolved_by_provider_id: string | null
           show_in_cleaning: boolean
+          situation: string | null
           status: string
           title: string
           updated_at: string
         }
         Insert: {
           account_owner_id: string
+          amount_due_cents?: number | null
           amount_paid_cents?: number | null
           amount_spent_cents?: number | null
           category?: string
@@ -6632,6 +6712,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          difference_cents?: number | null
+          difference_to?: string | null
+          difference_to_id?: string | null
           due_date?: string | null
           id?: string
           log_id?: string | null
@@ -6643,14 +6726,17 @@ export type Database = {
           recurrence_days?: number | null
           reservation_id?: string | null
           resolution_note?: string | null
+          resolution_received?: boolean
           resolved_by_provider_id?: string | null
           show_in_cleaning?: boolean
+          situation?: string | null
           status?: string
           title: string
           updated_at?: string
         }
         Update: {
           account_owner_id?: string
+          amount_due_cents?: number | null
           amount_paid_cents?: number | null
           amount_spent_cents?: number | null
           category?: string
@@ -6660,6 +6746,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          difference_cents?: number | null
+          difference_to?: string | null
+          difference_to_id?: string | null
           due_date?: string | null
           id?: string
           log_id?: string | null
@@ -6671,8 +6760,10 @@ export type Database = {
           recurrence_days?: number | null
           reservation_id?: string | null
           resolution_note?: string | null
+          resolution_received?: boolean
           resolved_by_provider_id?: string | null
           show_in_cleaning?: boolean
+          situation?: string | null
           status?: string
           title?: string
           updated_at?: string
