@@ -3,11 +3,7 @@ import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-<<<<<<< HEAD
 import { ArrowLeft, BookOpen, Copy, CopyPlus, Eye, EyeOff, Info, KeyRound, Lock, MoreHorizontal, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
-=======
-import { ArrowLeft, BookOpen, Copy, CopyPlus, Eye, EyeOff, Info, KeyRound, Lock, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
->>>>>>> ba0ae5b150104bb885bee9d0e2f638387c2708ee
 import { toast } from "sonner";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
@@ -33,11 +29,7 @@ import {
   savePlaybookRow,
 } from "@/lib/playbook.functions";
 import { buildPlaybook, matchesQuery, toggleRow, toggleSection, type PlaybookRow } from "@/lib/playbook-build";
-<<<<<<< HEAD
 import { AUDIENCE_LABEL, PLAYBOOK_SECTIONS, type Audience, type PlaybookSectionMeta } from "@/lib/playbook-catalog";
-=======
-import { AUDIENCE_LABEL, PLAYBOOK_SECTIONS, type Audience } from "@/lib/playbook-catalog";
->>>>>>> ba0ae5b150104bb885bee9d0e2f638387c2708ee
 import { classifyBulkRow } from "@/lib/playbook-bulk";
 import { ReplicateRowDialog } from "@/components/playbook/ReplicateRowDialog";
 
@@ -696,36 +688,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
                           <div className="flex min-w-0 items-start gap-2 break-words px-4 py-3">
                             {editing ? (
-<<<<<<< HEAD
                               renderEditor(r)
-=======
-                              <div className="min-w-0 flex-1" onClick={(e) => e.stopPropagation()}>
-                                <EditField row={r} draft={edit!.draft} onChange={(v) => setEdit({ id: r.id, draft: v })} />
-                                <div className="mt-2 flex gap-2">
-                                  <button
-                                    type="button"
-                                    disabled={busy}
-                                    onClick={async () => {
-                                      const ok = await run(
-                                        () => saveFn({ data: { propertyId, rowId: r.id, value: edit!.draft } }),
-                                        "Salvo.",
-                                      );
-                                      if (ok) setEdit(null);
-                                    }}
-                                    className="h-8 rounded-lg bg-foreground px-3 text-xs font-bold text-background disabled:opacity-50"
-                                  >
-                                    Salvar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => { setEdit(null); setRevealed((cur) => cur.filter((x) => x !== r.id)); }}
-                                    className={`h-8 rounded-lg px-3 text-xs font-bold text-muted-foreground ${WELL}`}
-                                  >
-                                    Cancelar
-                                  </button>
-                                </div>
-                              </div>
->>>>>>> ba0ae5b150104bb885bee9d0e2f638387c2708ee
                             ) : (
                               <span
                                 className={`min-w-0 flex-1 whitespace-pre-line block ${r.value.length > 600 ? "max-h-[min(60vh,28rem)] overflow-y-auto overscroll-contain pr-1" : ""} ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
@@ -790,47 +753,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                     ) : null}
 
                     <div className="flex flex-wrap gap-2 px-4 py-3 print:hidden">
-<<<<<<< HEAD
                       {renderAddButtons(meta, idx, hidden)}
-=======
-                      {hidden.length > 0 ? (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <button
-                              type="button"
-                              className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-muted-foreground hover:text-foreground ${WELL}`}
-                            >
-                              <KeyRound className="size-[15px]" />
-                              Adicionar campo
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent align="start" className="w-72 max-h-[60vh] overflow-y-auto overscroll-contain p-1.5">
-                            {hidden.map((r) => (
-                              <button
-                                key={r.id}
-                                type="button"
-                                onClick={() => {
-                                  setRevealed((cur) => [...cur, r.id]);
-                                  startEdit(r);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] font-medium text-foreground hover:bg-secondary/60"
-                              >
-                                {r.secret ? <KeyRound className="size-3.5 flex-none text-muted-foreground" /> : <Plus className="size-3.5 flex-none text-muted-foreground" />}
-                                <span className="min-w-0 break-words">{r.label}</span>
-                              </button>
-                            ))}
-                          </PopoverContent>
-                        </Popover>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => setAdding({ section: meta.num ? Number(meta.num) : idx + 1, label: "", value: "", au: "I" })}
-                        className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-muted-foreground hover:text-foreground ${WELL}`}
-                      >
-                        <Plus className="size-[15px]" />
-                        Adicionar linha / campo
-                      </button>
->>>>>>> ba0ae5b150104bb885bee9d0e2f638387c2708ee
                     </div>
                   </div>
                 ) : null}
