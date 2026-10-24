@@ -162,3 +162,15 @@ Corrige os 4 pontos dos prints do cliente. Só layout; nenhuma regra de negócio
 5. **Calendário de ocupação**: removidos o ícone à esquerda do título e a linha "Toque numa noite livre…".
 6. Ajustes finos da trilha para bater com os mockups 0m–0o: espaço entre passos 12px, título/subtítulo com gap 10px, corpo com 14px no topo, entrelinhas 1,3/1,35 e gap 5px na linha do proprietário.
 7. **Lovable**: o HEAD (8ede80f) contém exatamente as entregas anteriores; só houve reformatação de espaços em `tasks.functions.ts`, `pendencias.tsx` e `CleaningDayDetail.tsx` (adotada).
+
+## Lovable #3 (23/10/2026) — fila offline e avisos de envio
+- `src/lib/offline/situation-outbox.ts` (`processarUm`): erro "Situação não encontrada." apaga o trabalho do IndexedDB na hora, sem somar tentativa; emite `concluida` com `midias: []` para a tela atualizar sem aviso falso de "arquivos enviados".
+- `SituationOutboxRunner.tsx`: aviso "Envio pausado" com texto fixo e limpo (sem `rótulo: erro`), 5s; posição `top-center`; `concluida` sem mídias só fecha o aviso de progresso.
+- `RecordSituationSheet.tsx` e `ManualCleaningButton.tsx`: avisos de segundo plano em `top-center`.
+- Teste novo da regex do erro irrecuperável em `situation-outbox.test.ts`.
+
+## Rascunho do "Novo serviço" + auditoria (23/10/2026, 18h30)
+- **Rascunho**: `src/lib/offline/service-draft.ts` (novo) + `ManualCleaningButton.tsx`. No "Novo serviço" (não na Limpeza) cada resposta — vínculo, imóvel/reserva, prestador, data, título, valor, descrição e fotos/vídeos — é guardada no aparelho (IndexedDB, 500ms depois da última mudança), uma chave por situação. Ao reabrir (mesmo após recarregar o app) a trilha volta de onde parou. Some ao criar o serviço e em 48h. Sem tela nova (nenhuma pergunta de "retomar").
+- Teste: `src/lib/__tests__/service-draft.test.ts`.
+- **Maps**: continua nos cartões da lista de IMÓVEIS e no resumo de "Qual imóvel?"; só saiu da lista/resumo de RESERVAS desta janela (nada mudou em outros cartões).
+- **Auditoria dos mockups** (texto de todos os quadros contra o código + medidas da trilha): único desvio de texto encontrado = `Servico-Final` ainda tinha o cabeçalho antigo "Novo serviço · Danos" (corrigido no canvas para título + subtítulo). `Limpeza-Despesa` mostra a janela de despesa ANTIGA ("Responsável pela despesa"), substituída pelos quadros 0i–0k; o código segue 0i–0k.

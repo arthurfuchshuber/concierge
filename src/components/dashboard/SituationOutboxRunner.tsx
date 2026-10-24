@@ -30,7 +30,7 @@ export function SituationOutboxRunner() {
       anexar: (data) => appendSituationMedia({ data: data as never }),
     });
 
-    const pos = { position: "bottom-right" as const };
+    const pos = { position: "top-center" as const };
     const refrescar = () => {
       for (const k of ["account-records", "reservation-records", "dash-tasks"]) {
         void qc.invalidateQueries({ queryKey: [k] });
@@ -62,6 +62,8 @@ export function SituationOutboxRunner() {
         refrescar();
         if (e.job.midias.length > 0) {
           toast.success(`${e.job.midias.length} arquivo(s) enviados`, { id, description: rotulo, duration: 5000, ...pos });
+        } else {
+          toast.dismiss(id);
         }
       } else if (e.tipo === "pendente") {
         ultimoTxt.delete(id);
@@ -79,8 +81,8 @@ export function SituationOutboxRunner() {
         }
         toast.message("Envio pausado — continua sozinho", {
           id,
-          description: `${rotulo}: ${e.erro} Está guardado no aparelho e será enviado assim que a conexão melhorar.`,
-          duration: 6000,
+          description: "Os arquivos estão guardados no aparelho e serão enviados automaticamente assim que a conexão estabilizar.",
+          duration: 5000,
           ...pos,
         });
       }

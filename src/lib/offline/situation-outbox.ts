@@ -262,6 +262,15 @@ async function processarUm(job: TrabalhoSituacao): Promise<void> {
     await idbApagar(PREFIXO + job.groupId);
     emitir({ tipo: "concluida", job });
   } catch (e) {
+    const rawMsg = e instanceof Error ? e.message : String(e ?? "");
+    // Registro excluído/desfeito no servidor: não é oscilação de internet. Descarta o
+    // trabalho do aparelho na hora (sem somar tentativa, sem ficar no IndexedDB).
+    if (/situa[cç][aã]o n[aã]o encontrada/i.test(rawMsg)) {
+      await idbApagar(PREFIXO + job.groupId);
+      // midias vazias: a tela só atualiza e some com o aviso, sem "arquivos enviados" falso.
+      emitir({ tipo: "concluida", job: { ...job, midias: [] } });
+      return;
+    }
     const msg = mensagemAmigavel(e);
     job.tentativas = (job.tentativas ?? 0) + 1;
     job.ultimoErro = msg;

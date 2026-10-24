@@ -20,3 +20,12 @@ describe("fila de situações no aparelho", () => {
     expect(caminhoMidia(job, m)).toBe("prop-1/res-1/11111111-abc.jpg");
   });
 });
+
+describe("descarte de trabalho órfão", () => {
+  it("o erro 'Situação não encontrada.' é reconhecido como irrecuperável", () => {
+    const re = /situa[cç][aã]o n[aã]o encontrada/i;
+    expect(re.test("Situação não encontrada.")).toBe(true);
+    expect(re.test("Situacao nao encontrada")).toBe(true);
+    expect(re.test("Failed to fetch")).toBe(false);
+  });
+});

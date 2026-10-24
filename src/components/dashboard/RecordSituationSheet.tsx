@@ -525,7 +525,7 @@ export function RecordSituationSheet({
   async function enviarEmSegundoPlano(lote: DraftItem[], groupId: string, rotulo: string) {
     const id = `bg-${groupId}`;
     const total = lote.length;
-    const pos = { position: "bottom-right" as const };
+    const pos = { position: "top-center" as const };
     let feitos = 0;
     let atual: string | null = null;
     let ultimo = "";
@@ -659,7 +659,7 @@ export function RecordSituationSheet({
         return;
       }
       if (items.length > 0) {
-        toast.message("Situação guardada — enviando em segundo plano", { position: "bottom-right" });
+        toast.message("Situação guardada — enviando em segundo plano", { position: "top-center" });
       }
       for (const it of items) if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
       setItems([]);

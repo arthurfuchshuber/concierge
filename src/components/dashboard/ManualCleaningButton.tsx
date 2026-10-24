@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -25,7 +25,12 @@ import {
 import { createServiceRecord } from "@/lib/service-situations.functions";
 import { ServiceDetailsFields } from "@/components/dashboard/ServiceDetailsFields";
 import { enfileirarSituacao } from "@/lib/offline/situation-outbox";
-import type { DraftItem } from "@/components/dashboard/record-draft";
+import { draftItemFrom, type DraftItem } from "@/components/dashboard/record-draft";
+import {
+  apagarRascunhoServico,
+  gravarRascunhoServico,
+  lerRascunhoServico,
+} from "@/lib/offline/service-draft";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { cn } from "@/lib/utils";
 import {
@@ -269,6 +274,67 @@ function ManualCleaningPanel({
   };
 
   /**
+   * RASCUNHO DO SERVIÇO (23/10/2026): só no "Novo serviço". Ao abrir, devolve o que a
+   * pessoa já tinha respondido (inclusive fotos/vídeos); a cada resposta, guarda no
+   * aparelho (IndexedDB). Some ao criar o serviço e em 48 horas.
+   */
+  const draftReady = useRef(false);
+  const situationKey = isClean ? null : (situation?.id ?? null);
+  useEffect(() => {
+    if (!open || !situationKey) return;
+    let cancelled = false;
+    draftReady.current = false;
+    void lerRascunhoServico(situationKey).then((r) => {
+      if (cancelled) return;
+      if (r) {
+        setStep(Math.min(Math.max(1, r.step), TOTAL));
+        setLink(r.link);
+        setPropertyId(r.propertyId);
+        setReservationId(r.reservationId);
+        setProviderId(r.providerId);
+        setDate(r.date ? new Date(`${r.date}T12:00:00`) : undefined);
+        setCents(r.cents);
+        setCentsEdited(r.centsEdited);
+        setSvcTitle(r.title);
+        setNote(r.note);
+        setSvcItems(r.midias.map((m) => draftItemFrom(m.blob, { name: m.name, mime: m.mime, durationMs: m.durationMs })));
+      }
+      draftReady.current = true;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, situationKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!open || !situationKey || !draftReady.current) return;
+    const t = window.setTimeout(() => {
+      void gravarRascunhoServico({
+        criadoEm: Date.now(),
+        situationId: situationKey,
+        step,
+        link,
+        propertyId,
+        reservationId,
+        providerId,
+        date: date ? isoOf(date) : null,
+        cents,
+        centsEdited,
+        title: svcTitle,
+        note,
+        midias: svcItems.map((it) => ({
+          key: it.key,
+          blob: it.blob,
+          kind: it.kind,
+          mime: it.mime,
+          name: it.name,
+          durationMs: it.durationMs,
+        })),
+      });
+    }, 500);
+    return () => window.clearTimeout(t);
+  }, [open, situationKey, step, link, propertyId, reservationId, providerId, date, cents, centsEdited, svcTitle, note, svcItems]);
+
+  /**
    * Depois de responder a pergunta `n`, abre a PRÓXIMA SEM RESPOSTA — quem
    * reabriu uma resposta antiga só para corrigi-la não precisa repassar as
    * seguintes. `keep` diz quais das respostas 3–5 continuam valendo.
@@ -416,7 +482,7 @@ function ManualCleaningPanel({
               durationMs: it.durationMs,
             })),
           });
-          if (ok) toast.message("Serviço criado — enviando as mídias em segundo plano", { position: "bottom-right" });
+          if (ok) toast.message("Serviço criado — enviando as mídias em segundo plano", { position: "top-center" });
           else toast.error("O serviço foi criado, mas não consegui guardar as mídias no aparelho. Anexe de novo em Registros.");
         } else {
           toast.error("O serviço foi criado, mas as mídias não puderam ser anexadas. Anexe de novo em Registros.");
@@ -428,6 +494,8 @@ function ManualCleaningPanel({
       for (const k of ["dash-service-extras", "dash-tasks", "dash-list", "account-records"]) {
         void qc.invalidateQueries({ predicate: (x) => x.queryKey[0] === k });
       }
+      draftReady.current = false;
+      void apagarRascunhoServico(situation.id);
       setOpen(false);
       reset();
     } catch (e) {
