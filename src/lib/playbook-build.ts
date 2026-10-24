@@ -71,6 +71,8 @@ export type PlaybookRow = {
   deletable: boolean;
   /** Excluir remove a linha (FAQ, prestador, linha própria) em vez de só esvaziar. */
   removesRow: boolean;
+  /** Campo que existia no antigo "Editar guia" (coluna/lista real). Só esses entram no "Adicionar campo". */
+  guideField?: boolean;
 };
 
 export type PlaybookSectionData = { id: string; num: number; rows: PlaybookRow[] };
@@ -427,6 +429,7 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
       edit: editable && !editLocked ? kind : null,
       deletable: editable && !editLocked && (isEntry || isList || meta.key === "telefone_do_anfitriao" || meta.key === "regras_adicionais_da_casa"),
       removesRow: false,
+      guideField: !!col || isList,
     });
   }
 
