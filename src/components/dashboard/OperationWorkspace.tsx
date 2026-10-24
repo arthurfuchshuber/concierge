@@ -99,7 +99,6 @@ import {
   MoreVertical,
   Banknote,
   CalendarRange,
-  CalendarX2,
   CalendarClock,
   User,
   Users,
@@ -5567,16 +5566,6 @@ function CleaningChartFrame({
   /** X do dia tocado, nas coordenadas do gráfico (antes da rolagem). */
   const [pickX, setPickX] = useState<number | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
-  // "role para o lado" SÓ quando ainda há dias fora da vista, à direita
-  // (pedido explícito, 23/09/2026): some quando todos os dias cabem e também
-  // quando a pessoa já rolou até o último dia. Folga de 2px para o
-  // arredondamento de subpixel do navegador.
-  const hasHiddenDays =
-    days > 0 &&
-    anti.scrolls &&
-    anti.viewportWidth != null &&
-    anti.contentWidth != null &&
-    scrollLeft + anti.viewportWidth < anti.contentWidth - 2;
 
   // Trocou a janela (últimos 7d ↔ próximos 7d) ou o período e o dia aberto
   // saiu da série: fecha. Recarga a cada 30s com os mesmos dias não fecha.
@@ -5613,18 +5602,6 @@ function CleaningChartFrame({
         title={days > 0 ? `${title} (${days} ${days === 1 ? "dia" : "dias"})` : title}
         dotColor={tone}
         className="mb-2.5"
-        right={
-          /* O texto fica sempre montado (mesmo escondido) para reservar a
-             mesma altura no cabeçalho — sem isso o quadrante encolhia um
-             pouco quando o aviso sumia (pedido explícito, 23/09/2026). */
-          <span
-            className="text-[10px] text-muted-foreground"
-            style={hasHiddenDays ? undefined : { visibility: "hidden" }}
-            aria-hidden={hasHiddenDays ? undefined : true}
-          >
-            role para o lado
-          </span>
-        }
       />
       {subtitle ? <GoldSubtitle>{subtitle}</GoldSubtitle> : null}
       {loading || !data || days === 0 ? (
@@ -5891,7 +5868,7 @@ function CleaningDailyAreaChart({
               dataKey="totalCents"
               position="top"
               offset={6}
-              formatter={(v: number) => (v ? `R$${Math.round(v / 100).toLocaleString("pt-BR")}` : "")}
+              formatter={(v: number) => (v ? `R$ ${Math.round(v / 100).toLocaleString("pt-BR")}` : "")}
               style={{ fontSize: 9.5, fill: "var(--muted-foreground)" }}
             />
           </Area>
@@ -9244,9 +9221,6 @@ function OccupancyPanel({
                  FIXO (16/10/2026). */
               className="flex min-w-0 flex-1 items-center gap-2 text-left"
             >
-              <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
-                <CalendarRange className="size-3.5" strokeWidth={2} />
-              </span>
               <span className="ds-card-title min-w-0 flex-1 text-[14px] !font-medium" title="Calendário de ocupação">
                 Calendário de ocupação
               </span>
@@ -9288,15 +9262,6 @@ function OccupancyPanel({
         )}
       </div>
       <div className="border-t border-border/50 px-4 sm:px-5 pt-4 pb-5">
-          {canBlock && !loading && properties.length > 0 && (
-            /* DICA (mockup 2): some enquanto há seleção/bloqueio aberto — mas FICA OCUPANDO o lugar
-               (`invisible`, não `hidden`): antes ela sumia e o calendário "subia" ~28px no começo do arrasto
-               (pedido explícito, 17/10/2026). */
-            <p className={`mb-3 flex items-center gap-1.5 text-[11px] text-muted-foreground ${blockSel || blockTap ? "invisible" : ""}`}>
-              <CalendarX2 className="size-3 shrink-0" aria-hidden />
-              Toque numa noite livre e depois em outra — ou arraste (no celular, segure e arraste) — para bloquear datas.
-            </p>
-          )}
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
@@ -11129,6 +11094,7 @@ function ArrivalCard({
                                   <span className="ml-1.5 text-[10.5px] font-medium text-muted-foreground">{day.label}</span>
                                 ) : null}
                               </span>
+                              <ForecastDiff side={side} />
                             </span>
                             {hasValue ? (
                               <Pencil className="size-[13px] shrink-0 text-foreground" aria-label="Editar" />
@@ -11298,6 +11264,7 @@ function ArrivalCard({
                     {predictionDay.label}
                   </span>
                 )}
+                {predictionTime && <ForecastDiff side={predictionPrimary} />}
               </button>
             }
           />
@@ -12080,6 +12047,51 @@ function timeToMinutes(s: string): number {
 }
 
 /**
+ * DIFERENÇA DA PREVISÃO PARA O HORÁRIO OFICIAL (Lovable #2, 23/10/2026).
+ * A lista de horários é livre (24h) e a IA grava o que o hóspede disse; o que
+ * avisa a equipe é este rótulo vermelho sob o horário previsto:
+ *  · check-in ANTES do início permitido → "-3h" (previsto 12:00, permitido 15:00);
+ *  · check-out DEPOIS do limite → "+1h" (previsto 12:00, limite 11:00).
+ * Madrugada (00:00–05:59) no check-in é chegada TARDIA da noite, não antecipação
+ * (mesma regra de `forecastAllowed`). Só vale no dia da reserva confirmada.
+ * Pura: devolve null quando não há diferença a destacar.
+ */
+export function forecastDiffLabel(
+  side: Pick<PredictionSide, "kind" | "timeValue" | "dateValue" | "confirmedDate" | "standardTime"> | null | undefined,
+): string | null {
+  if (!side?.timeValue || !side.standardTime) return null;
+  if (side.dateValue && side.confirmedDate && side.dateValue !== side.confirmedDate) return null;
+  if (!/^\d{1,2}:\d{2}/.test(side.timeValue) || !/^\d{1,2}:\d{2}/.test(side.standardTime)) return null;
+  const v = timeToMinutes(side.timeValue);
+  const std = timeToMinutes(side.standardTime);
+  let diff: number;
+  if (side.kind === "checkin") {
+    if (v < 360) return null;
+    diff = std - v;
+  } else {
+    diff = v - std;
+  }
+  if (diff <= 0) return null;
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  const txt = h > 0 ? `${h}h${m ? String(m).padStart(2, "0") : ""}` : `${m}min`;
+  return `${side.kind === "checkin" ? "-" : "+"}${txt}`;
+}
+
+function ForecastDiff({ side }: { side: Parameters<typeof forecastDiffLabel>[0] }) {
+  const label = forecastDiffLabel(side);
+  if (!label) return null;
+  return (
+    <span
+      className="block text-red-500 font-bold text-[10px] tabular-nums leading-tight"
+      title={side?.kind === "checkin" ? "Antes do check-in permitido" : "Depois do limite de check-out"}
+    >
+      {label}
+    </span>
+  );
+}
+
+/**
  * Data e horário previstos são dois campos SEPARADOS de novo (pedido
  * explícito, 05/09/2026: "quero que fiquem separados como antes, porém
  * ambos no layout padrão dos tooltips") — cada botão abre seu próprio
@@ -12257,59 +12269,17 @@ function PredictedEditor({
   const minDate = active?.dateMin ? parseISODateLocal(active.dateMin) : undefined;
   const maxDate = active?.dateMax ? parseISODateLocal(active.dateMax) : undefined;
 
-  // A janela do imóvel só vale enquanto a previsão cai no mesmo dia da reserva
-  // confirmada: mudou o dia, qualquer horário passa a ser possível.
-  const dayShifted = !!activeDate && !!active?.confirmedDate && activeDate !== active.confirmedDate;
-  const liveMinTime = dayShifted
-    ? null
-    : active?.kind === "checkout"
-      ? (active?.standardTimeMax ?? null)
-      : (active?.standardTime ?? null);
-  const liveMaxTime = dayShifted
-    ? null
-    : active?.kind === "checkout"
-      ? (active?.standardTime ?? null)
-      : (active?.standardTimeMax ?? null);
   const timeSlots = useMemo(() => {
-    if (!liveMinTime && !liveMaxTime) return TIME_SLOTS;
     /**
-     * FOLGA DE 3 HORAS PARA CADA LADO da janela configurada do imóvel
-     * (pedido explícito, 09/09/2026).
-     *
-     * A janela do imóvel é o horário CONTRATADO, e a previsão é outra coisa:
-     * é o que de fato vai acontecer. Hóspede pedindo late checkout, voo de
-     * madrugada, chegada adiantada — a realidade fica fora da janela com
-     * frequência, e a lista travada nela obrigava a não registrar previsão
-     * nenhuma justamente nos casos que mais precisam de uma.
-     *
-     * Três horas, e não "liberar tudo", porque a janela ainda é a referência:
-     * ela continua sendo o que a lista mostra primeiro e o que a frase
-     * "Permitido: entre X e Y" no card afirma. A folga é margem, não a
-     * remoção do limite.
+     * LISTA LIVRE DE 24H (Lovable #2, 23/10/2026). Antes havia uma folga de 3h
+     * ao redor da janela do imóvel (`SLACK_MIN`, 09/09/2026); agora qualquer
+     * horário pode ser escolhido — a equipe registra o que o hóspede pediu,
+     * e o card destaca em vermelho a diferença para o horário oficial
+     * (`forecastDiffLabel`). A janela segue como referência na frase
+     * "Permitido: entre X e Y".
      */
-    const SLACK_MIN = 3 * 60;
-    const a = liveMinTime ? timeToMinutes(liveMinTime) - SLACK_MIN : -Infinity;
-    const b = liveMaxTime ? timeToMinutes(liveMaxTime) + SLACK_MIN : Infinity;
-    /**
-     * JANELA QUE VIRA A NOITE (corrigido 24/09/2026, print marcado: "o campo
-     * horário em 'saída', ao ser clicado, nada abre"). No checkout, `min` é
-     * o horário de ABERTURA (`standardTimeMax`) e `max` o horário LIMITE
-     * (`standardTime`) — quando o imóvel libera a saída já na noite anterior
-     * (ex.: "entre 23:00 e 15:00"), `min` (23:00) fica MAIOR que `max`
-     * (15:00) em minutos-desde-a-meia-noite. O filtro `v >= a && v <= b`
-     * pressupõe um intervalo comum (min < max) e, com a virada, `a > b`
-     * torna a condição impossível para qualquer horário — a lista saía
-     * vazia (o popover abria, só que sem nenhum horário dentro). Com a
-     * virada, o intervalo válido é a UNIÃO das duas pontas do relógio (do
-     * `a` até meia-noite, e de meia-noite até `b`), não a interseção — daí
-     * o `||` no lugar do `&&` só neste caso.
-     */
-    const wraps = a > b;
-    return TIME_SLOTS.filter((t) => {
-      const v = timeToMinutes(t);
-      return wraps ? v >= a || v <= b : v >= a && v <= b;
-    });
-  }, [liveMinTime, liveMaxTime]);
+    return TIME_SLOTS;
+  }, []);
 
   /**
    * Um lado no resumo — LAYOUT COMPACTO (mockup aprovado "Quadrante Previsão

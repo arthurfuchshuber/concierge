@@ -353,14 +353,13 @@ export function FilterSection({ children }: { children: ReactNode }) {
 
 /** Cabeçalho de tela interna: voltar, selo pequeno, título em Sora e extra à direita. */
 export function FilterScreenHeader({
-  icon,
   title,
-  onBack,
   right,
 }: {
-  icon: LucideIcon;
+  /** Mantidos só por compatibilidade com quem chama: o cabeçalho não mostra mais seta nem ícone (23/10/2026). */
+  icon?: LucideIcon;
   title: string;
-  onBack: () => void;
+  onBack?: () => void;
   right?: ReactNode;
 }) {
   return (
@@ -369,15 +368,6 @@ export function FilterScreenHeader({
        especificamente no Print 5") — o respiro do próprio padding já separa
        o cabeçalho do corpo da tela, sem precisar de um traço. */
     <div className="flex items-center gap-[9px] px-3.5 py-[11px]">
-      <button
-        type="button"
-        onClick={onBack}
-        aria-label="Voltar para Filtros"
-        className="grid size-[22px] shrink-0 place-items-center rounded-[7px] text-foreground/55 transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
-      >
-        <ChevronLeft className="size-3.5" strokeWidth={2.5} />
-      </button>
-      <FilterIconBadge icon={icon} size="sm" />
       <span className="ds-card-title min-w-0 flex-1">{title}</span>
       {right ? <span className="flex shrink-0 items-center self-center leading-none">{right}</span> : null}
     </div>

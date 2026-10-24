@@ -29,16 +29,32 @@ describe("detectStayForecast — saída", () => {
 });
 
 describe("detectStayForecast — não é previsão", () => {
-  it("perguntas e pedidos de autorização", () => {
-    expect(detectStayForecast("Podemos entrar às 10h?")).toBeNull();
+  it("dúvida sobre o horário oficial e incerteza", () => {
     expect(detectStayForecast("Que horas é o checkin?")).toBeNull();
-    expect(detectStayForecast("Posso sair às 14h")).toBeNull();
+    expect(detectStayForecast("O check-in é às 15h?")).toBeNull();
     expect(detectStayForecast("Talvez a gente chegue às 22h")).toBeNull();
+    expect(detectStayForecast("No sé si llegamos a las 22h")).toBeNull();
   });
   it("sem horário ou fora do assunto", () => {
     expect(detectStayForecast("Obrigado, tudo certo!")).toBeNull();
     expect(detectStayForecast("Chegamos à tarde")).toBeNull();
     expect(detectStayForecast("")).toBeNull();
+  });
+});
+
+describe("detectStayForecast — espanhol e perguntas de antecipação (23/10/2026)", () => {
+  it("'consigo ingresar antes? Meio dia?' → check-in 12:00", () => {
+    expect(detectStayForecast("consigo ingresar antes? Meio dia?")).toEqual({ kind: "checkin", time: "12:00" });
+  });
+  it("pedidos de antecipação com horário são previsão", () => {
+    expect(detectStayForecast("Podemos chegar às 12h?")).toEqual({ kind: "checkin", time: "12:00" });
+    expect(detectStayForecast("Será que dá pra chegar mais cedo, umas 11h?")).toEqual({ kind: "checkin", time: "11:00" });
+    expect(detectStayForecast("Posso sair às 14h")).toEqual({ kind: "checkout", time: "14:00" });
+  });
+  it("espanhol", () => {
+    expect(detectStayForecast("Llegamos a las 18h")).toEqual({ kind: "checkin", time: "18:00" });
+    expect(detectStayForecast("Podemos ingresar a las 12:00?")).toEqual({ kind: "checkin", time: "12:00" });
+    expect(detectStayForecast("Salimos a las 10h")).toEqual({ kind: "checkout", time: "10:00" });
   });
 });
 
@@ -110,7 +126,7 @@ describe("applyStayForecastOnIngest", () => {
       kind: "checkin",
       reservation_id: "res-1",
       arrival_time_override: "00:00",
-      arrival_time_source: "ai",
+      arrival_time_source: "guest",
     });
   });
 
@@ -123,13 +139,19 @@ describe("applyStayForecastOnIngest", () => {
 
   it("mensagem sem previsão não toca no banco", async () => {
     const { admin, writes } = fakeAdmin(base);
-    expect(await applyStayForecastOnIngest(admin, { conversationId: "c1", propertyId: "prop-1", message: "Podemos entrar às 10h?" })).toBeNull();
+    expect(await applyStayForecastOnIngest(admin, { conversationId: "c1", propertyId: "prop-1", message: "Que horas é o checkin?" })).toBeNull();
     expect(writes).toHaveLength(0);
   });
 
-  it("previsão fora do permitido (10h no check-in) não é gravada", async () => {
+  it("previsão ANTES do check-in oficial (10h) agora é gravada — sem trava", async () => {
     const { admin, writes } = fakeAdmin(base);
-    expect(await applyStayForecastOnIngest(admin, { conversationId: "c1", propertyId: "prop-1", message: "Chegamos às 10h" })).toBeNull();
-    expect(writes.filter((x) => x.table === "guest_arrival_status")).toHaveLength(0);
+    expect(await applyStayForecastOnIngest(admin, { conversationId: "c1", propertyId: "prop-1", message: "Chegamos às 10h" })).toEqual({ ok: true, kind: "checkin", time: "10:00" });
+    expect(writes.find((x) => x.table === "guest_arrival_status")?.values).toMatchObject({ arrival_time_override: "10:00", arrival_time_source: "guest" });
+  });
+  it("pergunta de antecipação em espanhol grava 12:00", async () => {
+    const { admin, writes } = fakeAdmin(base);
+    const r = await applyStayForecastOnIngest(admin, { conversationId: "c1", propertyId: "prop-1", message: "consigo ingresar antes? Meio dia?" });
+    expect(r).toEqual({ ok: true, kind: "checkin", time: "12:00" });
+    expect(writes.find((x) => x.table === "guest_arrival_status")?.values).toMatchObject({ arrival_time_override: "12:00" });
   });
 });

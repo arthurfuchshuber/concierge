@@ -4,7 +4,7 @@ import { useAntiClipWindow } from "@/hooks/useAntiClipWindow";
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ArrowLeft, X } from "lucide-react";
+import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -121,7 +121,6 @@ const DialogDateRow = ({ className, ...props }: React.HTMLAttributes<HTMLDivElem
         data-window-close
         className="inline-flex h-[22px] shrink-0 cursor-pointer items-center gap-1 rounded-md text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
       >
-        <ArrowLeft className="size-[13px]" strokeWidth={1.8} />
         Voltar
       </DialogPrimitive.Close>
     </div>

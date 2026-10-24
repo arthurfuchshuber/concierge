@@ -73,31 +73,31 @@ export const listTaskLinkOptions = createServerFn({ method: "GET" })
 
       const [{ data: props }, { data: ownerRows }, { data: providerRows }, { data: companyRow }] =
         await Promise.all([
-          propIds.length > 0
-            ? db
-                .from("properties")
-                .select("id, name, owner_contact_id")
-                .in("id", propIds)
-                .order("name")
-            : Promise.resolve({ data: [] }),
-          db
-            .from("property_owners")
-            .select("id, name, trade_name")
-            .eq("account_owner_id", accountOwnerId)
-            .neq("status", "canceled")
-            .order("name"),
-          // Prestadores ativos — alimentam "quem resolveu" ao concluir uma
-          // pendência. Vêm junto nesta mesma função (em vez de uma busca à
-          // parte) porque a tela de Pendências já consome ela.
-          db
-            .from("service_providers")
-            .select("id, name, trade_name, category, categories, city, status")
-            .eq("account_owner_id", accountOwnerId)
-            .eq("status", "active")
-            .order("name"),
+        propIds.length > 0
+          ? db
+              .from("properties")
+              .select("id, name, owner_contact_id")
+              .in("id", propIds)
+              .order("name")
+          : Promise.resolve({ data: [] }),
+        db
+          .from("property_owners")
+          .select("id, name, trade_name")
+          .eq("account_owner_id", accountOwnerId)
+          .neq("status", "canceled")
+          .order("name"),
+        // Prestadores ativos — alimentam "quem resolveu" ao concluir uma
+        // pendência. Vêm junto nesta mesma função (em vez de uma busca à
+        // parte) porque a tela de Pendências já consome ela.
+        db
+          .from("service_providers")
+          .select("id, name, trade_name, category, categories, city, status")
+          .eq("account_owner_id", accountOwnerId)
+          .eq("status", "active")
+          .order("name"),
           // Nome fantasia da empresa da conta (o "Anfitrião Sigma" das telas).
           db.from("profiles").select("trade_name").eq("id", accountOwnerId).maybeSingle(),
-        ]);
+      ]);
 
       const ownerNameById = new Map<string, string>();
       for (const o of (ownerRows ?? []) as Array<{
@@ -604,14 +604,14 @@ export const setTaskStatus = createServerFn({ method: "POST" })
       }
     } else {
       // Fluxos antigos (sem as novas regras) seguem exatamente como antes.
-      if (data.costPayer !== undefined) patch.cost_payer = data.costPayer;
-      if (data.costPayerId !== undefined) patch.cost_payer_id = data.costPayerId;
-      // "A empresa"/"Hóspede" não têm id pra guardar — só proprietário e
-      // prestador (cadastros próprios) têm um id pra selecionar.
-      if (data.costPayer === "company" || data.costPayer === "guest") patch.cost_payer_id = null;
-      if (data.paidBy !== undefined) patch.paid_by = data.paidBy;
-      if (data.paidById !== undefined) patch.paid_by_id = data.paidById;
-      if (data.paidBy === "company" || data.paidBy === "guest") patch.paid_by_id = null;
+    if (data.costPayer !== undefined) patch.cost_payer = data.costPayer;
+    if (data.costPayerId !== undefined) patch.cost_payer_id = data.costPayerId;
+    // "A empresa"/"Hóspede" não têm id pra guardar — só proprietário e
+    // prestador (cadastros próprios) têm um id pra selecionar.
+    if (data.costPayer === "company" || data.costPayer === "guest") patch.cost_payer_id = null;
+    if (data.paidBy !== undefined) patch.paid_by = data.paidBy;
+    if (data.paidById !== undefined) patch.paid_by_id = data.paidById;
+    if (data.paidBy === "company" || data.paidBy === "guest") patch.paid_by_id = null;
     }
     if (data.amountPaidCents !== undefined) patch.amount_paid_cents = data.amountPaidCents;
     if (data.amountDueCents !== undefined) patch.amount_due_cents = data.amountDueCents;

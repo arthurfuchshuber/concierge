@@ -68,11 +68,11 @@ describe("normalizeStayTime", () => {
 
 describe("previsão de horário", () => {
   beforeEach(() => applyStayEvent.mockClear());
-  it("grava previsão de check-in com source 'ai'", async () => {
+  it("grava previsão de check-in com source 'guest'", async () => {
     const { db, writes } = fakeDb();
     const r = await registerStayTimeForecast(db, ref, { kind: "checkin", time: "15h" });
     expect(r).toMatchObject({ ok: true, horario: "15:00" });
-    expect(writes[0].row).toMatchObject({ kind: "checkin", arrival_time_override: "15:00", arrival_time_source: "ai", reservation_id: "res1", log_id: "log1" });
+    expect(writes[0].row).toMatchObject({ kind: "checkin", arrival_time_override: "15:00", arrival_time_source: "guest", reservation_id: "res1", log_id: "log1" });
   });
   it("grava previsão de check-out e atualiza linha existente (sem duplicar)", async () => {
     const { db, writes, rows } = fakeDb([{ id: "a", kind: "checkout", reservation_id: "res1", status: "pending", arrival_time_override: "09:00", arrival_time_source: "guest" }]);
@@ -81,7 +81,7 @@ describe("previsão de horário", () => {
     expect(writes).toHaveLength(1);
     expect(writes[0].op).toBe("update");
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ arrival_time_override: "10:30", arrival_time_source: "ai" });
+    expect(rows[0]).toMatchObject({ arrival_time_override: "10:30", arrival_time_source: "guest" });
   });
   it("não sobrescreve horário da equipe nem regride 'done'", async () => {
     const staff = fakeDb([{ id: "a", kind: "checkin", reservation_id: "res1", status: "pending", arrival_time_override: "12:00", arrival_time_source: "staff" }]);
@@ -90,6 +90,13 @@ describe("previsão de horário", () => {
     const done = fakeDb([{ id: "b", kind: "checkin", reservation_id: "res1", status: "done", done_at: "2026-10-14T15:00:00Z", arrival_time_override: null, arrival_time_source: null }]);
     expect(await registerStayTimeForecast(done.db, ref, { kind: "checkin", time: "16h" })).toMatchObject({ ok: true, motivo: "ja_concluido" });
     expect(done.writes).toHaveLength(0);
+  });
+  it("sem trava: grava check-in antes do oficial e check-out depois do limite", async () => {
+    const a = fakeDb();
+    expect(await registerStayTimeForecast(a.db, ref, { kind: "checkin", time: "12:00" })).toMatchObject({ ok: true, horario: "12:00" });
+    expect(a.writes[0].row).toMatchObject({ arrival_time_override: "12:00", arrival_time_source: "guest" });
+    const b = fakeDb();
+    expect(await registerStayTimeForecast(b.db, ref, { kind: "checkout", time: "15:00" })).toMatchObject({ ok: true, horario: "15:00" });
   });
   it("horário ambíguo não grava", async () => {
     const { db, writes } = fakeDb();

@@ -32,6 +32,7 @@ export function Step({
   bleed,
   question,
   answer,
+  answerNode,
   onReopen,
   children,
 }: {
@@ -43,11 +44,13 @@ export function Step({
   bleed?: boolean;
   question: string;
   answer?: string;
+  /** Resposta estruturada (resumo de imóvel/reserva); tem prioridade sobre `answer`. */
+  answerNode?: ReactNode;
   onReopen: () => void;
   children?: ReactNode;
 }) {
   return (
-    <li className="relative grid grid-cols-[22px_minmax(0,1fr)] gap-2.5 pb-3.5">
+    <li className="relative grid grid-cols-[22px_minmax(0,1fr)] gap-2.5 pb-3">
       {!last && (
         <span
           aria-hidden
@@ -68,19 +71,31 @@ export function Step({
       </span>
       <div className="min-w-0 pt-[3px]">
         {done && !active ? (
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onClick={onReopen}
+            onKeyDown={(e) => {
+              if (e.target !== e.currentTarget) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onReopen();
+              }
+            }}
             title="Alterar esta resposta"
-            className="block w-full min-w-0 text-left"
+            className="block w-full min-w-0 cursor-pointer text-left"
           >
             <span className="block truncate text-[10.5px] leading-tight text-muted-foreground">
               {question}
             </span>
-            <span className="mt-0.5 block break-words text-[13px] font-bold leading-snug text-foreground">
-              {answer}
-            </span>
-          </button>
+            {answerNode ? (
+              <span className="mt-1 block min-w-0">{answerNode}</span>
+            ) : (
+              <span className="mt-0.5 block break-words text-[13px] font-bold leading-snug text-foreground">
+                {answer}
+              </span>
+            )}
+          </div>
         ) : (
           <span
             className={cn(
@@ -174,15 +189,18 @@ export function PickList({
 
 
 /**
- * JANELA DA TRILHA (pedido explícito, 20/10/2026, com prints): "abrir a
- * janela inteira e grande ao centro da tela" e "o passo a passo precisa seguir
- * sempre com o mesmo tamanho de janela". Altura FIXA (até 90% da tela) do
- * primeiro ao último passo; só o miolo rola. Cabeçalho e botão final fixos.
+ * JANELA DA TRILHA. A versão de 20/10/2026 tinha altura FIXA e deixava um vão
+ * vazio abaixo dos botões nos passos curtos (print de 23/10/2026). Agora (mockups
+ * 0m–0o, aprovados em 23/10/2026) a altura ACOMPANHA O CONTEÚDO, com teto de 90%
+ * da tela (`max-h-[90dvh]`); só o miolo rola, e quando rola vale a regra
+ * ANTICORTE (aplicada pela base `Dialog` + `data-clip-row` nas linhas das
+ * listas). Cabeçalho (título em 1 linha + subtítulo) e botões ficam fixos.
  */
 export function TrailDialog({
   open,
   onOpenChange,
   title,
+  subtitle,
   progress,
   footer,
   onBack,
@@ -191,6 +209,8 @@ export function TrailDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   title: string;
+  /** Segunda linha do cabeçalho (ex.: o tipo de situação). O título fica sempre em 1 linha. */
+  subtitle?: string | null;
   progress: string;
   footer: ReactNode;
   /** Passo anterior. Sem ele (1º passo), o botão secundário vira "Cancelar". */
@@ -201,18 +221,23 @@ export function TrailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         onOpenAutoFocus={(e) => e.preventDefault()}
-        className="flex h-[min(600px,90dvh)] w-[min(560px,calc(100vw-24px))] sm:h-[min(680px,90dvh)] max-w-none flex-col gap-0 overflow-hidden border-[var(--panel-border)] bg-[var(--panel)] p-0 sm:max-w-none"
+        className="flex h-auto max-h-[90dvh] w-[min(560px,calc(100vw-24px))] max-w-none flex-col gap-0 overflow-hidden border-[var(--panel-border)] bg-[var(--panel)] p-0 sm:max-w-none"
       >
-        <div className="flex shrink-0 items-center gap-2 border-b border-[var(--panel-div)] py-3 pl-4 pr-14">
-          <DialogTitle className="min-w-0 flex-1 break-words font-display text-[16px] font-bold leading-snug text-foreground">
-            {title}
-          </DialogTitle>
+        <div className="flex shrink-0 items-center gap-2.5 border-b border-[var(--panel-div)] py-2.5 pl-4 pr-14">
+          <div className="min-w-0 flex-1">
+            <DialogTitle className="block truncate font-display text-[16px] font-bold leading-tight text-foreground">
+              {title}
+            </DialogTitle>
+            {subtitle ? (
+              <span className="mt-0.5 block truncate text-[11.5px] leading-tight text-muted-foreground">{subtitle}</span>
+            ) : null}
+          </div>
           {progress ? (
             <span className="shrink-0 font-display text-[12px] font-semibold tabular-nums text-foreground/55">{progress}</span>
           ) : null}
         </div>
         <DialogDescription className="sr-only">Responda as perguntas, uma de cada vez.</DialogDescription>
-        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 sm:px-5">
+        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3.5 sm:px-5">
           {children}
         </div>
         {footer ? (
@@ -232,17 +257,34 @@ export function TrailDialog({
   );
 }
 
+/** "Hóspede: Ana" → "Ana" (o ícone de pessoa já diz que é o hóspede). */
+export function guestShort(label: string | null | undefined) {
+  return String(label ?? "").replace(/^Hóspede:\s*/i, "").trim() || "Reserva";
+}
+
+type PickLine = {
+  icon: "user" | "calendar";
+  text: string;
+  /** Texto colado ao lado do principal, separado por hífen (reserva: o período). */
+  suffix?: string;
+};
+
+function LineIcon({ icon }: { icon: PickLine["icon"] }) {
+  return icon === "user" ? <User className="size-3 shrink-0" /> : <CalendarDays className="size-3 shrink-0" />;
+}
+
 /**
- * CARTÃO DE IMÓVEL / RESERVA DA TRILHA (mockups 1 e 2 de "Nova limpeza — ajustes
- * v3", aprovados 23/10/2026). É o MESMO cartão da aba Imóveis (Proprietários):
- *  · foto colada à esquerda, em altura cheia (96px de largura);
- *  · à direita, título em UMA linha com reticências (toque mostra o nome inteiro)
- *    e o botão do Maps (28px) no topo, alinhado ao título;
- *  · logo abaixo, uma informação por linha (cidade — ou, na reserva: hóspede/
- *    código, período e cidade);
- *  · no rodapé "Proprietário(a): nome" com o ícone verde de chat colado ao nome;
+ * CARTÃO DE IMÓVEL / RESERVA DA TRILHA — versão COMPACTA (mockups 0n e 0o,
+ * aprovados em 23/10/2026; substitui o cartão alto dos mockups 1 e 2, que o
+ * cliente achou "grosseiro", com poluição visual):
+ *  · foto vira miniatura quadrada de 52px com cantos arredondados;
+ *  · título do imóvel em UMA linha (toque mostra o nome inteiro) e, à direita, o
+ *    Maps de sempre — exceto na RESERVA (`hideMaps`, pedido explícito);
+ *  · uma informação por linha, 11,5px: imóvel → cidade; reserva → hóspede
+ *    "- 22/10 → 25/10" (período colado ao nome, mesma fonte e cor, sem ícone);
+ *  · "Proprietário(a): nome" com o ícone verde de chat colado ao nome;
  *  · SEM bolinha de seleção: o cartão marcado ganha fundo rosa suave.
- * Altura mínima 104px, divisória entre cartões.
+ * Cada cartão é uma `data-clip-row` (unidade da regra anticorte da lista).
  */
 export function PropertyPickRow({
   name,
@@ -254,6 +296,7 @@ export function PropertyPickRow({
   address,
   mapsUrl,
   garageMapsUrl,
+  hideMaps,
   lines,
   selected,
   last,
@@ -268,8 +311,10 @@ export function PropertyPickRow({
   address?: string | null;
   mapsUrl?: string | null;
   garageMapsUrl?: string | null;
-  /** Linhas extras acima da cidade (reserva: hóspede/código e período). */
-  lines?: Array<{ icon: "user" | "calendar"; text: string }>;
+  /** Reserva: sem o botão do Maps. */
+  hideMaps?: boolean;
+  /** Linhas acima da cidade (reserva: hóspede + período). */
+  lines?: PickLine[];
   selected: boolean;
   last?: boolean;
   onClick: () => void;
@@ -281,6 +326,7 @@ export function PropertyPickRow({
       aria-checked={selected}
       aria-label={`Selecionar ${name}`}
       tabIndex={0}
+      data-clip-row
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return;
@@ -290,25 +336,25 @@ export function PropertyPickRow({
         }
       }}
       className={cn(
-        "relative flex min-h-[104px] cursor-pointer items-stretch outline-none transition-colors hover:bg-foreground/[0.03] focus-visible:bg-foreground/[0.05]",
+        "relative flex cursor-pointer items-start gap-2.5 px-3 py-2.5 outline-none transition-colors hover:bg-foreground/[0.03] focus-visible:bg-foreground/[0.05]",
         !last && "border-b border-[var(--panel-div)]",
         selected && "bg-accent/10 hover:bg-accent/10",
       )}
     >
-      <span className="relative w-24 shrink-0 overflow-hidden bg-foreground/[0.05] text-muted-foreground">
+      <span className="relative size-[52px] shrink-0 overflow-hidden rounded-lg bg-foreground/[0.05] text-muted-foreground">
         <CoverImage urls={[photoUrl]} />
       </span>
-      <span className="flex min-w-0 flex-1 flex-col justify-between gap-2 py-3 pl-3.5 pr-2.5">
-        <span className="grid min-w-0 gap-1.5">
-          <span className="flex min-w-0 items-start gap-1">
-            <ClampName
-              text={name}
-              passThrough
-              className="min-w-0 flex-1 text-[14.5px] font-extrabold leading-tight text-foreground"
-            />
-            {/* O Maps é o botão de sempre (menu: copiar link / copiar endereço /
-                abrir app). Os cliques dele NÃO selecionam o cartão. */}
-            <span className="-mt-1 shrink-0" onClick={stop} onKeyDown={stop}>
+      <span className="grid min-w-0 flex-1 gap-[3px]">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <ClampName
+            text={name}
+            passThrough
+            className="min-w-0 flex-1 text-[13px] font-extrabold leading-[1.3] text-foreground"
+          />
+          {/* O Maps é o botão de sempre (menu: copiar link / copiar endereço /
+              abrir app). Os cliques dele NÃO selecionam o cartão. */}
+          {hideMaps ? null : (
+            <span className="-my-1 shrink-0" onClick={stop} onKeyDown={stop}>
               <PropertyMapsButton
                 propertyName={name}
                 propertyAddress={address ?? null}
@@ -316,46 +362,115 @@ export function PropertyPickRow({
                 garageMapsUrl={garageMapsUrl ?? null}
               />
             </span>
-          </span>
-          {(lines ?? []).map((l) => (
-            <span
-              key={`${l.icon}:${l.text}`}
-              className="flex min-w-0 items-center gap-1.5 text-[11.5px] leading-snug text-muted-foreground"
-            >
-              {l.icon === "user" ? (
-                <User className="size-3 shrink-0" />
-              ) : (
-                <CalendarDays className="size-3 shrink-0" />
-              )}
-              <span className="min-w-0 truncate">{l.text}</span>
-            </span>
-          ))}
-          {city ? (
-            <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] leading-snug text-muted-foreground">
-              <MapPin className="size-3 shrink-0" />
-              <span className="min-w-0 truncate">{city}</span>
-            </span>
-          ) : null}
-        </span>
-        <span className="flex min-w-0 items-center gap-1.5 text-xs" onClick={stop} onKeyDown={stop}>
-          <span className="shrink-0 text-[11.5px] text-muted-foreground">Proprietário(a):</span>
-          {ownerName ? (
-            <span className="min-w-0 truncate font-semibold text-foreground">{ownerName}</span>
-          ) : (
-            <span className="min-w-0 truncate font-semibold ds-atencao">sem proprietário</span>
           )}
-          {ownerName ? (
-            <PhoneActionButton
-              phone={ownerPhone}
-              country={ownerPhoneCountry}
-              size={13}
-              alwaysShow
-              className="-my-1.5 shrink-0"
-            />
-          ) : null}
         </span>
+        {(lines ?? []).map((l) => (
+          <span
+            key={`${l.icon}:${l.text}`}
+            className="flex min-w-0 items-center gap-1.5 text-[11.5px] leading-[1.35] text-muted-foreground"
+          >
+            <LineIcon icon={l.icon} />
+            <span className="min-w-0 truncate">{l.text}</span>
+            {l.suffix ? <span className="shrink-0 -ml-0.5 tabular-nums">- {l.suffix}</span> : null}
+          </span>
+        ))}
+        {city ? (
+          <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] leading-[1.35] text-muted-foreground">
+            <MapPin className="size-3 shrink-0" />
+            <span className="min-w-0 truncate">{city}</span>
+          </span>
+        ) : null}
+        <OwnerLine name={ownerName} phone={ownerPhone} country={ownerPhoneCountry} onStop={stop} />
       </span>
     </div>
+  );
+}
+
+function OwnerLine({
+  name,
+  phone,
+  country,
+  onStop,
+}: {
+  name?: string | null;
+  phone?: string | null;
+  country?: string | null;
+  onStop?: (e: { stopPropagation: () => void }) => void;
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-[5px] text-[11.5px] leading-[1.35]">
+      <span className="shrink-0 text-muted-foreground">Proprietário(a):</span>
+      {name ? (
+        <span className="min-w-0 truncate font-semibold text-foreground">{name}</span>
+      ) : (
+        <span className="min-w-0 truncate font-semibold ds-atencao">sem proprietário</span>
+      )}
+      {name ? (
+        <span className="-my-1.5 shrink-0" onClick={onStop} onKeyDown={onStop}>
+          <PhoneActionButton phone={phone} country={country} size={13} alwaysShow />
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * RESPOSTA ESTRUTURADA de "Qual imóvel?" / "Qual reserva?" (mockup 0m): em vez de
+ * uma frase única que quebra, uma informação por linha — nome do imóvel (+ Maps,
+ * só no imóvel), hóspede "- período" (reserva) e Proprietário(a) com chat.
+ */
+export function PropertySummary({
+  name,
+  ownerName,
+  ownerPhone,
+  ownerPhoneCountry,
+  guest,
+  period,
+  address,
+  mapsUrl,
+  garageMapsUrl,
+  showMaps,
+}: {
+  name: string;
+  ownerName?: string | null;
+  ownerPhone?: string | null;
+  ownerPhoneCountry?: string | null;
+  guest?: string | null;
+  period?: string | null;
+  address?: string | null;
+  mapsUrl?: string | null;
+  garageMapsUrl?: string | null;
+  showMaps?: boolean;
+}) {
+  return (
+    <span className="grid min-w-0 gap-[3px]">
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span className="min-w-0 flex-1 truncate text-[13px] font-bold leading-snug text-foreground">{name}</span>
+        {showMaps ? (
+          <span className="-my-1 shrink-0" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            <PropertyMapsButton
+              propertyName={name}
+              propertyAddress={address ?? null}
+              mapsUrl={mapsUrl ?? null}
+              garageMapsUrl={garageMapsUrl ?? null}
+            />
+          </span>
+        ) : null}
+      </span>
+      {guest ? (
+        <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] leading-[1.35] text-muted-foreground">
+          <User className="size-3 shrink-0" />
+          <span className="min-w-0 truncate">{guest}</span>
+          {period ? <span className="shrink-0 -ml-0.5 tabular-nums">- {period}</span> : null}
+        </span>
+      ) : null}
+      <OwnerLine
+        name={ownerName}
+        phone={ownerPhone}
+        country={ownerPhoneCountry}
+        onStop={(e) => e.stopPropagation()}
+      />
+    </span>
   );
 }
 
@@ -382,6 +497,7 @@ export function ProviderPickRow({
       type="button"
       role="radio"
       aria-checked={selected}
+      data-clip-row
       onClick={onClick}
       className={cn(
         "flex w-full items-center gap-[9px] px-3.5 py-2.5 text-left text-foreground transition-colors hover:bg-foreground/[0.04]",

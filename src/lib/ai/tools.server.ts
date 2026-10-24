@@ -935,7 +935,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       "SAIR (checkout). Use quando ele disser um horário concreto (\"chegamos às 15h\", \"saímos umas 10h30\"). " +
       "Isto NÃO é confirmação de entrada/saída (para isso use register_guest_stay_event). Aceita ESTIMATIVA (\"por volta das 15h\", \"umas 10h30\"). Se estiver vago demais " +
       "(\"à tarde\", \"depois do almoço\", \"às 3\" sem dizer manhã/tarde), NÃO chame: peça uma ESTIMATIVA dentro das regras do anúncio (nunca exija horário exato). " +
-      "Horário definido pela equipe prevalece e não é sobrescrito. " +
+      "Horário definido pela equipe prevalece e não é sobrescrito. Registre QUALQUER horário que o hóspede disser, mesmo antes do check-in oficial ou depois do checkout: o registro não é autorização — a equipe vê a diferença em vermelho no painel; ao responder, continue informando o horário oficial e que a antecipação depende da limpeza. " +
       "CHECKOUT NO LIMITE: se o hóspede disser que sai 'no limite', 'nos últimos minutos', 'no horário máximo', CHAME com horario='limite' (o sistema grava o horário limite do anúncio). " +
       "Madrugada: envie no formato 24h com zero à esquerda (ex.: '02:30'). Chame NO MESMO turno em que o hóspede informar.",
     parameters: schema(
@@ -955,15 +955,6 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       if (r.ok) ctx.collectSource({ source: "operation", title: `previsão ${args.evento}: ${r.horario ?? ""}`, confidence: 1 });
       if (r.motivo === "horario_ambiguo")
         return { ...r, instrucao: "Horário vago: peça com gentileza uma ESTIMATIVA dentro das regras do anúncio (ex.: 'o check-in é a partir das 15h; por volta de que horas vocês imaginam chegar?'), nunca o horário exato. Se for manhã ou tarde, proponha uma estimativa e registre quando ele concordar." };
-      if (r.motivo === "fora_do_permitido")
-        return {
-          ...r,
-          instrucao:
-            (args.evento === "checkout"
-              ? `Esse horário passa do limite de check-out do anúncio (${r.permitido}) e não há exceção alinhada com a equipe. `
-              : `Esse horário é antes do check-in permitido do anúncio (${r.permitido}) e não há exceção alinhada com a equipe. `) +
-            "Resolva SOZINHA, sem acionar a equipe: explique com gentileza o horário do anúncio e peça uma nova estimativa dentro dele (ex.: 'por volta das …'). NÃO prometa exceção e NÃO acione a equipe: não há exceções pela IA. Se a equipe quiser abrir uma exceção, ela mesma assume a conversa.",
-        };
       return r;
     },
   });

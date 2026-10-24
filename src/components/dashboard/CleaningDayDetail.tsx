@@ -298,48 +298,48 @@ export function CleaningDayDetailContent({
       body = total_ > 0 && (
         <>
           {rows.length > 0 && (
-            <table className="w-full border-collapse tabular-nums">
-              <thead>
-                <tr>
-                  <th className={`${TH} text-left`}>Imóvel</th>
-                  <th className={`${TH} px-0 text-center !tracking-[0.04em]`}>Prestador</th>
-                  <th className={`${TH} px-0 text-center !tracking-[0.04em]`}>Valor</th>
+        <table className="w-full border-collapse tabular-nums">
+          <thead>
+            <tr>
+              <th className={`${TH} text-left`}>Imóvel</th>
+              <th className={`${TH} px-0 text-center !tracking-[0.04em]`}>Prestador</th>
+              <th className={`${TH} px-0 text-center !tracking-[0.04em]`}>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const action = [dateSP(r.concludedAt), timeSP(r.concludedAt), r.doneByName]
+                .filter(Boolean)
+                .join(" · ");
+              return (
+                <tr key={r.id}>
+                  <DoneCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} action={action}>
+                    <TypeToggle
+                      statusId={r.id}
+                      type={r.cleaningType}
+                      pending={r.pending}
+                      title={r.propertyName}
+                      canEdit={canEdit}
+                    />
+                  </DoneCell>
+                  <td className={`${TD} px-0.5 text-center !align-middle`}>
+                    {(r.logId || r.reservationId) && (
+                      <CleaningProviderAvatar
+                        propertyId={r.propertyId}
+                        logId={r.logId ?? ""}
+                        reservationId={r.reservationId}
+                        look={canEdit ? "raised" : "plain"}
+                      />
+                    )}
+                  </td>
+                  <td className={`${TD} text-center !align-middle`}>
+                    <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} canEdit={canEdit} />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const action = [dateSP(r.concludedAt), timeSP(r.concludedAt), r.doneByName]
-                    .filter(Boolean)
-                    .join(" · ");
-                  return (
-                    <tr key={r.id}>
-                      <DoneCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} action={action}>
-                        <TypeToggle
-                          statusId={r.id}
-                          type={r.cleaningType}
-                          pending={r.pending}
-                          title={r.propertyName}
-                          canEdit={canEdit}
-                        />
-                      </DoneCell>
-                      <td className={`${TD} px-0.5 text-center !align-middle`}>
-                        {(r.logId || r.reservationId) && (
-                          <CleaningProviderAvatar
-                            propertyId={r.propertyId}
-                            logId={r.logId ?? ""}
-                            reservationId={r.reservationId}
-                            look={canEdit ? "raised" : "plain"}
-                          />
-                        )}
-                      </td>
-                      <td className={`${TD} text-center !align-middle`}>
-                        <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} canEdit={canEdit} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+              );
+            })}
+          </tbody>
+        </table>
           )}
           {xrows.length > 0 && (
             <table className={`w-full border-collapse tabular-nums ${rows.length > 0 ? "mt-4" : ""}`}>

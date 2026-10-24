@@ -7,6 +7,8 @@ import {
   Choice,
   PickList,
   PropertyPickRow,
+  PropertySummary,
+  guestShort,
   Step,
   TrailDialog,
   ddmm,
@@ -118,6 +120,29 @@ export function NewRecordButton() {
     link === "reserva" ? (reservation ? resLabel(reservation) : undefined) : property?.name,
     category ? CATEGORIES.find((c) => c.key === category)?.label : undefined,
   ];
+  /** Resposta estruturada do passo 2 (mockup 0m): uma informação por linha. */
+  const step2Summary =
+    link === "reserva" && reservation ? (
+      <PropertySummary
+        name={propName(reservation.propertyId)}
+        guest={guestShort(reservation.label)}
+        period={`${ddmm(reservation.checkin)} → ${ddmm(reservation.checkout)}`}
+        ownerName={property?.ownerName}
+        ownerPhone={property?.ownerPhone}
+        ownerPhoneCountry={property?.ownerPhoneCountry}
+      />
+    ) : link === "imovel" && property ? (
+      <PropertySummary
+        showMaps
+        name={property.name}
+        ownerName={property.ownerName}
+        ownerPhone={property.ownerPhone}
+        ownerPhoneCountry={property.ownerPhoneCountry}
+        address={property.address}
+        mapsUrl={property.mapsUrl}
+        garageMapsUrl={property.garageMapsUrl}
+      />
+    ) : undefined;
   const question2 =
     link === "reserva" ? "Qual reserva?" : link === "imovel" ? "Qual imóvel?" : QUESTIONS[1];
   const ready = answered.every(Boolean) && step === 3;
@@ -217,6 +242,7 @@ export function NewRecordButton() {
               done={answered[1]}
               question={question2}
               answer={answers[1]}
+              answerNode={step2Summary}
               onReopen={() => answered[0] && setStep(2)}
             >
               {link === "reserva" ? (
@@ -244,13 +270,13 @@ export function NewRecordButton() {
                         ownerName={p?.ownerName}
                         ownerPhone={p?.ownerPhone}
                         ownerPhoneCountry={p?.ownerPhoneCountry}
-                        city={p?.city}
-                        address={p?.address}
-                        mapsUrl={p?.mapsUrl}
-                        garageMapsUrl={p?.garageMapsUrl}
+                        hideMaps
                         lines={[
-                          { icon: "user", text: r.label || "Reserva" },
-                          { icon: "calendar", text: `${ddmm(r.checkin)} → ${ddmm(r.checkout)}` },
+                          {
+                            icon: "user",
+                            text: guestShort(r.label),
+                            suffix: `${ddmm(r.checkin)} → ${ddmm(r.checkout)}`,
+                          },
                         ]}
                         selected={r.id === reservationId}
                         onClick={() => pickProperty(r.propertyId, r.id)}

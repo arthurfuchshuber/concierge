@@ -32,6 +32,8 @@ import {
   Choice,
   PickList,
   PropertyPickRow,
+  PropertySummary,
+  guestShort,
   ProviderPickRow,
   Step,
   TrailDialog,
@@ -322,6 +324,29 @@ function ManualCleaningPanel({
     isClean ? !!type : false,
     false,
   ];
+  /** Resposta estruturada do passo 2 (mockup 0m): uma informação por linha. */
+  const step2Summary =
+    link === "reserva" && reservation && property ? (
+      <PropertySummary
+        name={property.name}
+        guest={guestShort(reservation.guestLine)}
+        period={`${ddmm(reservation.checkin)} → ${ddmm(reservation.checkout)}`}
+        ownerName={property.ownerName}
+        ownerPhone={property.ownerPhone}
+        ownerPhoneCountry={property.ownerPhoneCountry}
+      />
+    ) : link === "imovel" && property ? (
+      <PropertySummary
+        showMaps
+        name={property.name}
+        ownerName={property.ownerName}
+        ownerPhone={property.ownerPhone}
+        ownerPhoneCountry={property.ownerPhoneCountry}
+        address={property.address}
+        mapsUrl={property.mapsUrl}
+        garageMapsUrl={property.garageMapsUrl}
+      />
+    ) : undefined;
   const ready =
     answered.slice(0, TOTAL - 1).every(Boolean) &&
     cents != null &&
@@ -483,7 +508,8 @@ function ManualCleaningPanel({
       )}
     <TrailDialog
       open={open}
-      title={conflict ? "Já existe uma limpeza" : isClean ? "Nova limpeza" : `Novo serviço · ${situation?.name}`}
+      title={conflict ? "Já existe uma limpeza" : isClean ? "Nova limpeza" : "Novo serviço"}
+      subtitle={conflict || isClean ? null : situation?.name}
       progress={conflict ? "" : `${stepNumber} de ${TOTAL}`}
       onBack={conflict ? () => setConflict(null) : step > 1 && !busy ? () => setStep(step - 1) : undefined}
       footer={conflict ? null : (
@@ -615,6 +641,7 @@ function ManualCleaningPanel({
                 done={answered[1]}
                 question={question2}
                 answer={answers[1]}
+                answerNode={step2Summary}
                 onReopen={() => answered[0] && setStep(2)}
               >
                 {link === "reserva" ? (
@@ -642,13 +669,13 @@ function ManualCleaningPanel({
                           ownerName={p?.ownerName}
                           ownerPhone={p?.ownerPhone}
                           ownerPhoneCountry={p?.ownerPhoneCountry}
-                          city={p?.city}
-                          address={p?.address}
-                          mapsUrl={p?.mapsUrl}
-                          garageMapsUrl={p?.garageMapsUrl}
+                          hideMaps
                           lines={[
-                            { icon: "user", text: r.guestLine },
-                            { icon: "calendar", text: `${ddmm(r.checkin)} → ${ddmm(r.checkout)}` },
+                            {
+                              icon: "user",
+                              text: guestShort(r.guestLine),
+                              suffix: `${ddmm(r.checkin)} → ${ddmm(r.checkout)}`,
+                            },
                           ]}
                           selected={r.id === reservationId}
                           onClick={() => pickProperty(r.propertyId, r.id)}

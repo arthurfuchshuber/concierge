@@ -7,7 +7,7 @@
  *
  *  1. PREVISÃO de horário (check-in / check-out previstos) →
  *     `registerStayTimeForecast`: grava `guest_arrival_status.arrival_time_override`
- *     com `arrival_time_source = 'ai'`.
+ *     com `arrival_time_source = 'guest'` (a IA registra o que o hóspede disse; 'staff' é só da equipe).
  *  2. CONFIRMAÇÃO definitiva (check-in / check-out realizados) →
  *     `registerStayDone`: delega a `applyStayEvent` (mesma rotina do clique
  *     manual: `status = done`, `done_at = now()`).
@@ -126,18 +126,29 @@ export function isLimitExpression(input: unknown): boolean {
 /**
  * Detecta, numa mensagem do hóspede, uma PREVISÃO de horário de chegada ou de
  * saída ("Chegaremos por volta das 00:00", "Vamos sair às 10h", "saio no
- * limite"). Pura. Perguntas e pedidos de autorização ("Podemos entrar às
- * 10h?") NÃO são previsão — viram null.
+ * limite", "consigo ingresar antes? Meio dia?"). Pura. Pedido de antecipação
+ * com horário também é previsão (o painel mostra a diferença em vermelho);
+ * só incerteza ("talvez", "não sei") e dúvida sobre o horário oficial viram null.
  */
 export function detectStayForecast(message: string): { kind: StayKind; time: string } | null {
   const raw = String(message ?? "");
   const s = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
   if (!s) return null;
-  if (s.includes("?")) return null;
-  if (/\b(podemos|posso|seria possivel|tem como|sera que|nao sei|talvez|se der)\b/.test(s)) return null;
+  // Só dúvida/incerteza descarta. Pergunta de ANTECIPAÇÃO ("consigo ingresar
+  // antes? Meio dia?", "podemos chegar às 12h?") é intenção de horário: entra.
+  if (/\b(nao sei|no se si|talvez|se der|quizas|tal vez)\b/.test(s)) return null;
 
-  const isIn = /\b(cheg\w*|check-?in|entrada|previsao de chegada|horario de chegada)/.test(s);
-  const isOut = /\b(sai\w*|check-?out|desocup\w*|liberar\w*|deixar o (apto|imovel|quarto|casa|flat))/.test(s);
+  const asks = s.includes("?");
+  // Verbos de chegada/saída (pt + es). "check-in"/"entrada" soltos, numa PERGUNTA,
+  // costumam ser dúvida sobre o horário oficial ("o check-in é às 15h?") — aí só
+  // vale com verbo de movimento ou com "antes".
+  const inVerb = /\b(cheg\w*|ingres\w*|lleg\w*|entrar|entraremos|entramos)\b/.test(s);
+  const outVerb = /\b(sai\w*|sal[ei]\w*|salgo|saldr\w*|desocup\w*|liberar\w*|deixar o (apto|imovel|quarto|casa|flat))\b/.test(s);
+  const inNoun = /\b(check-?in|entrada|previsao de chegada|horario de chegada|hora de llegada)\b/.test(s);
+  const outNoun = /\bcheck-?out\b/.test(s);
+  const early = /\b(antes|antecipa\w*|adelant\w*|mais cedo|mas temprano)\b/.test(s);
+  const isIn = inVerb || (inNoun && (!asks || early));
+  const isOut = outVerb || (outNoun && !asks);
   if (!isIn && !isOut) return null;
 
   const kind: StayKind = isOut && !isIn ? "checkout" : "checkin";
@@ -164,22 +175,9 @@ export async function registerStayTimeForecast(
   if (!stay) return { ok: false, motivo: "reserva_nao_encontrada" };
   const logId = await findLogId(supabase, { propertyId: ref.propertyId, checkinDate: stay.checkinDate, guestName: ref.guestName });
 
-  // Dentro do permitido em sistema ou alinhado com a equipe; senão não grava.
-  try {
-    const { data: prop } = await supabase.from("properties").select("checkin_time, checkout_time").eq("id", ref.propertyId).maybeSingle();
-    const pr = (prop ?? {}) as Record<string, unknown>;
-    const standard = input.kind === "checkout" ? pr.checkout_time : pr.checkin_time;
-    let verdict = forecastAllowed({ kind: input.kind, time, standard });
-    if (!verdict.ok && ref.guestName) {
-      const { loadStaffMessages } = await import("./stay-events.server");
-      const { parseAgreedTime } = await import("./stay-access.server");
-      const agreed = parseAgreedTime(input.kind, await loadStaffMessages(supabase, { propertyId: ref.propertyId, guestName: ref.guestName }), standard);
-      verdict = forecastAllowed({ kind: input.kind, time, standard, agreed });
-    }
-    if (!verdict.ok) return { ok: false, motivo: "fora_do_permitido", permitido: verdict.permitido };
-  } catch (e) {
-    console.error("[stay-intent] não foi possível validar a previsão", e);
-  }
+  // SEM trava de horário (23/10/2026): IA e equipe registram qualquer horário
+  // informado pelo hóspede, mesmo antes do check-in oficial ou depois do
+  // checkout. O painel destaca a diferença em vermelho; quem decide é a equipe.
 
   const sel = "id, status, done_at, arrival_time_override, arrival_time_source";
   const byRes = await supabase
@@ -198,13 +196,13 @@ export async function registerStayTimeForecast(
     if (existing.status === "done" || existing.done_at) return { ok: true, motivo: "ja_concluido" };
     if (existing.arrival_time_source === "staff" && existing.arrival_time_override)
       return { ok: false, motivo: "horario_definido_pela_equipe" };
-    if (existing.arrival_time_override === time && existing.arrival_time_source === "ai")
+    if (existing.arrival_time_override === time && (existing.arrival_time_source === "ai" || existing.arrival_time_source === "guest"))
       return { ok: true, horario: time, ja_registrado: true };
     const { error } = await supabase
       .from("guest_arrival_status")
       .update({
         arrival_time_override: time,
-        arrival_time_source: "ai",
+        arrival_time_source: "guest",
         ...(logId ? { log_id: logId } : {}),
         reservation_id: stay.reservationId,
       })
@@ -219,7 +217,7 @@ export async function registerStayTimeForecast(
     reservation_id: stay.reservationId,
     ...(logId ? { log_id: logId } : {}),
     arrival_time_override: time,
-    arrival_time_source: "ai",
+    arrival_time_source: "guest",
   });
   if (error) return { ok: false, motivo: "erro_ao_gravar" };
   return { ok: true, horario: time };

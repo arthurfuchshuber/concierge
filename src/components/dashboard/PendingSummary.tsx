@@ -1,6 +1,5 @@
 import { ClampName } from "@/components/ui/clamp-name";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft } from "lucide-react";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CATEGORY_BY_KEY } from "@/components/dashboard/record-categories";
@@ -232,7 +231,6 @@ export function PendingSummary({
           onClick={() => setDrill(null)}
           className="flex min-h-8 w-full items-center gap-1 pr-11 text-left text-[12px] font-bold text-muted-foreground transition-colors hover:text-foreground"
         >
-          <ChevronLeft className="size-4 shrink-0" />
           <span className="min-w-0 truncate">Resumo das pendências</span>
         </button>
         <p className="mt-1 truncate font-display text-[17px] font-extrabold leading-tight">{title}</p>

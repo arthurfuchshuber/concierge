@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { FilterIconBadge } from "@/components/dashboard/filter-panel";
 import { cn } from "@/lib/utils";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { ownerLabel } from "@/components/dashboard/card-colors";
@@ -21,6 +20,7 @@ export function OverlayHeader({
   className,
 }: {
   owner?: { name: string | null; phone?: string | null; country?: string | null } | null;
+  /** Sem uso: janelas não mostram mais ícone no cabeçalho (23/10/2026). */
   icon?: LucideIcon;
   eyebrow?: ReactNode;
   title: ReactNode;
@@ -30,7 +30,6 @@ export function OverlayHeader({
 }) {
   return (
     <div className={cn("flex min-w-0 items-start gap-2.5", className)}>
-      {icon && <FilterIconBadge icon={icon} />}
       <div className="min-w-0 flex-1">
         {eyebrow && (
           <span className="block text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground">

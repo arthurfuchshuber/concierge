@@ -6,8 +6,7 @@ import { PANEL_SHELL, PanelHeading } from "@/components/dashboard/panel-chrome";
 
 /**
  * CARTÃO DE GRÁFICO POR DIA — o mesmo desenho de "Limpezas por dia":
- * ponto + título em caixa alta com "(N DIAS)", "role para o lado" só quando
- * há dias escondidos, barras com o número em cima e colunas que nunca ficam
+ * ponto + título em caixa alta com "(N DIAS)", barras com o número em cima e colunas que nunca ficam
  * cortadas na borda (`useAntiClipColumns`). Tocar numa barra abre a tabela do
  * dia logo abaixo, com a seta apontando para ela.
  *
@@ -51,13 +50,7 @@ export function DailyBarChartCard({
   const anti = useAntiClipColumns(days, DAY_MIN_PX);
   const [selected, setSelected] = useState<string | null>(null);
   const [pickX, setPickX] = useState<number | null>(null);
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const hasHiddenDays =
-    days > 0 &&
-    anti.scrolls &&
-    anti.viewportWidth != null &&
-    anti.contentWidth != null &&
-    scrollLeft + anti.viewportWidth < anti.contentWidth - 2;
+  const [, setScrollLeft] = useState(0);
 
   const dayKey = data?.map((d) => d.date).join(",") ?? "";
   useEffect(() => {
@@ -72,15 +65,6 @@ export function DailyBarChartCard({
         title={days > 0 ? `${title} (${days} ${days === 1 ? "dia" : "dias"})` : title}
         dotColor={tone}
         className="mb-2.5"
-        right={
-          <span
-            className="text-[10px] text-muted-foreground"
-            style={hasHiddenDays ? undefined : { visibility: "hidden" }}
-            aria-hidden={hasHiddenDays ? undefined : true}
-          >
-            role para o lado
-          </span>
-        }
       />
       {loading ? (
         <div className="grid h-32 place-items-center text-muted-foreground">

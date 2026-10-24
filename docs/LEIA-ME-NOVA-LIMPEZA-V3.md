@@ -111,3 +111,54 @@ Restaura o que o registro antigo tinha (mídias, título, ditado) dentro da tril
 ## Não verificado aqui
 Sem `tsc`/`vite build` completos e sem navegador (registro npm do projeto bloqueado neste ambiente). Passaram 110 testes
 isolados e a checagem de sintaxe. Validar no Lovable: lista de Imóvel/Reserva, Prestador pré-marcado, data passada e "Criar serviço".
+
+## Solicitação do Lovable nº 2 — IA, previsão de horário e aprendizado (23/10/2026)
+- **`ai/orchestrator.server.ts` (prompt):** o "nos avise quando estiver dentro da acomodação" só vale com check-in **HOJE**; para amanhã/futuro
+  é proibido. Nova etapa de preparação e acolhimento (Guia Digital aberto? instruções de chegada claras?) e, havendo pedido de antecipação,
+  o texto "Avisaremos por aqui amanhã assim que tivermos a confirmação da limpeza; senão, a entrada garantida é a partir das [horário oficial]".
+- **`ai/stay-intent-resolver.server.ts`:**
+  `detectStayForecast` entende espanhol (`ingresar`, `llegar`, `salimos`…) e **não descarta mais** pergunta/pedido de antecipação
+  ("consigo ingresar antes? Meio dia?" → check-in 12:00). Só incerteza ("talvez", "não sei", "no sé si") e dúvida sobre o horário oficial
+  ("o check-in é às 15h?") continuam sendo ignoradas. `registerStayTimeForecast` **não bloqueia mais** nenhum horário (saiu `fora_do_permitido`)
+  e grava `arrival_time_source = 'guest'` ('staff' segue protegido; 'ai' antigo ainda pode ser atualizado). `forecastAllowed` continua
+  exportada (não é mais usada para barrar).
+- **`ai/tools.server.ts`:** a ferramenta `register_stay_time_forecast` perdeu o ramo "fora do permitido" e orienta a IA a registrar e seguir
+  informando o horário oficial.
+- **`dashboard/OperationWorkspace.tsx`:** seletor de horário (`PredictedEditor`) com as 24h livres (sem a folga de 3h `SLACK_MIN`).
+  Novo `forecastDiffLabel` + `ForecastDiff`: etiqueta `text-red-500 font-bold text-[10px] tabular-nums` sob o horário previsto —
+  check-in antes do permitido: "-3h" (previsto 12:00, permitido 15:00); check-out depois do limite: "+1h". Madrugada no check-in
+  (00:00–05:59) é chegada tardia e não recebe etiqueta; só vale no dia da reserva confirmada. Aparece na coluna PREVISÃO do cartão e nos lados do histórico.
+- **`channex-messages.server.ts`:** a fala do anfitrião só "responde" escalações pendentes criadas nas **últimas 4 horas**.
+- **`ai/human-loop/host-answer-learning.server.ts`:** `distillHumanDecision` nulo / `shouldLearn !== true` / sem memória → aborta, **sem card**;
+  removido o fallback `draft = hostText`; erro na destilação também aborta. Novo `isRoutineHostScript` (saudação, agradecimento, desculpa,
+  link do guia, instruções de check-in/check-out) ignora antes mesmo de chamar a IA.
+- **Testes:** `stay-intent-forecast-ingest`, `stay-intent-resolver` (ajustados: source 'guest', sem trava) e `host-answer-learning` (novos casos). 125 passando nos arquivos isolados.
+- Sem migração: a constraint de `arrival_time_source` já aceita 'guest'.
+
+## Nova limpeza/serviço/registro — cabeçalho, resumo, janela justa e listas compactas (mockups 0m, 0n, 0o — 23/10/2026)
+Corrige os 4 pontos dos prints do cliente. Só layout; nenhuma regra de negócio mudou.
+- **`TrailParts.tsx`**
+  - `TrailDialog`: nova prop `subtitle`; o título fica em UMA linha (reticências) e o subtítulo (ex.: "Check-in Presencial") vai abaixo, em 11,5px cinza.
+    A altura deixou de ser fixa (`h-[min(600px,90dvh)]`, que deixava o vão vazio sob os botões): agora `h-auto max-h-[90dvh]` — acompanha o conteúdo e
+    nunca passa de 90% da tela; só o miolo rola.
+  - Regra ANTICORTE: continua vindo da base `Dialog` (hook `useAntiClipWindow`); as linhas das listas (`PropertyPickRow`, `ProviderPickRow`)
+    ganharam `data-clip-row`, a "unidade" que a regra usa para nunca cortar um cartão ao meio na borda de baixo.
+  - `PropertyPickRow`: cartão COMPACTO — miniatura 52px arredondada, nome em 1 linha, uma informação por linha em 11,5px, Proprietário(a) + chat.
+    Nova prop `hideMaps` (reserva não mostra o Maps) e `lines[].suffix` (reserva: "Hóspede - 22/10 → 25/10", mesma fonte e cor do nome, sem ícone de calendário).
+    A reserva não mostra mais a cidade. Imóvel segue com Maps + cidade + proprietário.
+  - Novos: `PropertySummary` (resposta estruturada do passo "Qual imóvel/reserva?": nome, hóspede - período, Proprietário(a)+chat; Maps só no imóvel),
+    `guestShort` (tira o prefixo "Hóspede: ") e `OwnerLine`.
+  - `Step`: nova prop `answerNode`; a resposta recolhida virou `div role="button"` (não pode haver botão dentro de botão: chat e Maps do resumo).
+- **`ManualCleaningButton.tsx`:** título "Novo serviço" + subtítulo com a situação; passo 2 respondido usa `PropertySummary`; lista de reservas compacta sem Maps.
+- **`NewRecordButton.tsx`:** mesmo resumo estruturado e lista de reservas compacta.
+- Não verificado em navegador (sem build aqui); conferir a altura em celular baixo e a rolagem da lista com muitas reservas.
+
+## Rodada de 23/10/2026 (18h) — 5 correções + conferência com o Lovable
+
+1. **"role para o lado" removido** dos cartões de gráfico (`OperationWorkspace.tsx` → `CleaningChartFrame`; `ds/DailyBarChartCard.tsx`).
+2. **Seta de voltar e ícone removidos dos cabeçalhos**: `FilterScreenHeader` (submenus de filtro, ex.: Situação) agora mostra só título + "Limpar"; `OverlayHeader` sem selo de ícone; "Voltar" do topo (`DialogDateRow`) sem seta; "Resumo das pendências" sem seta. Setas de mês do calendário e de carrossel de fotos permanecem (não são cabeçalho de janela).
+3. **"R$ 750"**: rótulo do gráfico de área (`OperationWorkspace.tsx`, formatter) agora com espaço.
+4. **"Outro" → "Outras Situações"** em `service-situations.ts` e `service-situations.functions.ts` (a categoria de pendência `TASK_CATEGORY_LABEL.other` continua "Outro": é outro conceito).
+5. **Calendário de ocupação**: removidos o ícone à esquerda do título e a linha "Toque numa noite livre…".
+6. Ajustes finos da trilha para bater com os mockups 0m–0o: espaço entre passos 12px, título/subtítulo com gap 10px, corpo com 14px no topo, entrelinhas 1,3/1,35 e gap 5px na linha do proprietário.
+7. **Lovable**: o HEAD (8ede80f) contém exatamente as entregas anteriores; só houve reformatação de espaços em `tasks.functions.ts`, `pendencias.tsx` e `CleaningDayDetail.tsx` (adotada).

@@ -1160,7 +1160,10 @@ export async function pauseOnHostMessage(m: Inbound, automated = false): Promise
         .from("ai_human_escalations")
         .select("id, owner_id, property_id, agent_type, guest_name, question_to_human, context_snapshot")
         .eq("conversation_id", c.id)
-        .eq("status", "pending");
+        .eq("status", "pending")
+        // Só pendências RECENTES (últimas 4h): consulta de dias atrás nunca é
+        // "respondida" por uma fala de hoje (23/10/2026).
+        .gte("created_at", new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString());
       const openAsks = ((allOpen ?? []) as Array<{ id: string; context_snapshot: Record<string, unknown> | null }>).filter(
         (r) => !r.context_snapshot?.proactive && !r.context_snapshot?.host_learning,
       );

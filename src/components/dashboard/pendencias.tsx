@@ -191,11 +191,11 @@ export function PendenciasButton({
   const mudarStatus = useMutation({
     mutationFn: (
       v: {
-        taskId: string;
-        status: "pending" | "done" | "canceled";
-        amountSpentCents?: number | null;
-        resolvedByProviderId?: string | null;
-        resolutionNote?: string | null;
+      taskId: string;
+      status: "pending" | "done" | "canceled";
+      amountSpentCents?: number | null;
+      resolvedByProviderId?: string | null;
+      resolutionNote?: string | null;
       } & Partial<
         Omit<
           ReturnType<typeof settlementToServer>,

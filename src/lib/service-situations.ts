@@ -1,7 +1,7 @@
 // Situações da aba Serviços (Dashboard › Financeiro) — tipos e helpers puros,
 // usados no cliente e no servidor.
 //
-// As quatro do sistema (Limpeza, Manutenção, Danos, Outro) não têm lápis nem
+// As quatro do sistema (Limpeza, Manutenção, Danos, Outras Situações) não têm lápis nem
 // lixeira. As demais são criadas pelo usuário ("Adicionar situação").
 export type SystemSituationKey = "cleaning" | "maintenance" | "damage" | "other";
 
@@ -13,7 +13,7 @@ export const SYSTEM_SITUATIONS: ReadonlyArray<{
   { key: "cleaning", name: "Limpeza", detail: "Nova limpeza de um imóvel ou reserva" },
   { key: "maintenance", name: "Manutenção", detail: "Reparo ou serviço no imóvel" },
   { key: "damage", name: "Danos", detail: "Cobrança por dano causado" },
-  { key: "other", name: "Outro", detail: "Outra situação financeira" },
+  { key: "other", name: "Outras Situações", detail: "Outra situação financeira" },
 ];
 
 export type ServiceSituation = {

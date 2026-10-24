@@ -389,7 +389,7 @@ export const getServiceExtras = createServerFn({ method: "GET" })
           ownerPhone: o?.phone ?? null,
           ownerPhoneCountry: o?.country ?? null,
           situation: r.situation,
-          situationName: names[r.situation] ?? "Outro",
+          situationName: names[r.situation] ?? "Outras Situações",
           title: r.title,
           priceCents: r.cents,
           concludedAt: r.at,
@@ -448,7 +448,7 @@ export const createServiceRecord = createServerFn({ method: "POST" })
     let situationName: string;
     if (isSystemSituation(data.situation)) {
       if (data.situation === "cleaning") throw new Error("Limpeza usa a trilha “Nova limpeza”.");
-      situationName = SYSTEM_SITUATIONS.find((s) => s.key === data.situation)?.name ?? "Outro";
+      situationName = SYSTEM_SITUATIONS.find((s) => s.key === data.situation)?.name ?? "Outras Situações";
     } else {
       const { data: row } = await db
         .from("service_situations")
