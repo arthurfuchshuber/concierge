@@ -13,7 +13,7 @@ vi.mock("@/lib/playbook.functions", () => ({
     propertyName: "Casa Charmosa",
     owner: { name: "Arthur Tenório", phone: null, country: null },
     source: {
-      property: { name: "Casa Charmosa", gate_code: "9999", maps_url: "https://maps.app.goo.gl/x" },
+      property: { name: "Casa Charmosa", gate_code: "9999", maps_url: "https://maps.app.goo.gl/x", short_description: "Espaço inteiro: casa", city: "Foz do Iguaçu" },
       faqs: [],
       checkout: [],
       emergency: [],
@@ -77,6 +77,8 @@ describe("PlaybookPage", () => {
     expect(screen.queryAllByText("Nota do anfitrião")).toHaveLength(0);
     for (const label of ["Título público", "Tipo de espaço", "Cidade"]) fireEvent.click(screen.getByText(label));
     expect(screen.getAllByText("Nota do anfitrião")).toHaveLength(3);
+    expect(screen.queryByText("Quartos")).toBeNull();
+    expect(screen.queryByText("não cadastrado")).toBeNull();
     void within;
   });
 
