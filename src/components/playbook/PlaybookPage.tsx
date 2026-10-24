@@ -223,14 +223,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
             <h1 className="ds-page-title !text-lg truncate">Playbook do imóvel</h1>
             <p className="ds-page-subtitle">{query.data?.propertyName ?? "Carregando…"}</p>
             {owner?.name ? (
-              <OwnerLine
-                name={owner.name}
-                phone={owner.phone}
-                country={owner.country}
-                phonePosition="adjacent"
-                variant="neutral"
-                label={`Proprietário(a): ${owner.name.trim().split(/\s+/)[0]}`}
-              />
+              <OwnerLine name={owner.name} phone={owner.phone} country={owner.country} phonePosition="adjacent" size={13} />
             ) : null}
           </div>
         </div>

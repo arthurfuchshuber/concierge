@@ -771,7 +771,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
             {(owner?.name ?? propertyOwnerName) && (
               <div className="flex min-w-0 items-center gap-1.5 text-[12px]">
                 <span className="truncate text-zinc-600" title={owner?.name ?? propertyOwnerName ?? ""}>
-                  Proprietário: <b className="font-semibold text-zinc-900">{ownerLabel(owner?.name ?? propertyOwnerName)?.replace(/^Proprietário:\s*/, "")}</b>
+                  Proprietário(a): <b className="font-semibold text-zinc-900">{(owner?.name ?? propertyOwnerName)?.trim()}</b>
                 </span>
                 {owner?.phone && (
                   <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -1774,7 +1774,7 @@ export function ConversationList({
             {owner?.name && (
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="shrink truncate min-w-0 text-[11px] text-muted-foreground" title={owner.name}>
-                  Proprietário: <b className="font-semibold text-foreground/85">{ownerLabel(owner.name)?.replace(/^Proprietário:\s*/, "")}</b>
+                  Proprietário(a): <b className="font-semibold text-foreground">{owner.name?.trim()}</b>
                 </span>
                 <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
                   <PhoneActionButton phone={owner.phone} country={owner.phoneCountry} size={11} />

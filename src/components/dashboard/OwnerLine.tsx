@@ -1,46 +1,49 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 
 /**
- * Nome do proprietário em destaque com o botão de contato (ícone) à direita.
- *
- * Rótulo "Proprietário: " + só o primeiro nome — pedido explícito
- * (25/09/2026), ver `ownerLabel` em `card-colors.ts`.
+ * PADRÃO ÚNICO DO PROPRIETÁRIO (24/10/2026): rótulo "Proprietário(a):" suave,
+ * NOME INTEIRO em destaque (cor de texto cheia) e ícone verde de chat colado
+ * ao nome. Toda tela que cita o dono de um imóvel usa esta peça.
  */
 export function OwnerLine({
   name,
   phone,
   country,
   phonePosition = "end",
-  variant = "brand",
   label: labelOverride,
+  size = 12,
+  className = "",
 }: {
+  /** Mantido por compatibilidade; o nome é sempre em destaque. */
   variant?: "brand" | "neutral";
   name: string | null;
-  phone: string | null;
-  country: string | null;
+  phone?: string | null;
+  country?: string | null;
   phonePosition?: "adjacent" | "end";
-  /** Texto pronto (ex.: "Proprietária do Imóvel: Patrícia") no lugar do padrão `ownerLabel`. */
+  /** Rótulo alternativo (ex.: "Proprietária do Imóvel:"); o nome vem depois. */
   label?: string | null;
+  size?: number;
+  className?: string;
 }) {
-  const label = labelOverride ?? ownerLabel(name);
-  if (!label) return null;
+  const full = name?.trim();
+  if (!full) return null;
+  const prefix = (labelOverride ?? "Proprietário(a):").replace(/:\s*.*$/, ":");
 
   return (
-    <div className="flex w-full min-w-0 max-w-full items-center gap-1.5 overflow-hidden">
+    <div className={`flex w-full min-w-0 max-w-full items-center gap-1.5 overflow-hidden text-xs ${className}`}>
+      <span className="shrink-0 text-muted-foreground">{prefix}</span>
       <span
-        className={`${phonePosition === "end" ? "flex-1" : "shrink"} min-w-0 truncate text-xs ${variant === "neutral" ? "text-muted-foreground" : CARD_OWNER}`}
-        title={name ?? undefined}
+        className={`${phonePosition === "end" ? "flex-1" : "shrink"} min-w-0 truncate font-semibold text-foreground`}
+        title={full}
       >
-        {label}
+        {full}
       </span>
-
       <PhoneActionButton
-        phone={phone}
-        country={country}
-        size={12}
+        phone={phone ?? null}
+        country={country ?? null}
+        size={size}
         alwaysShow
-        className={phonePosition === "end" ? "ml-auto" : ""}
+        className={`-my-1 ${phonePosition === "end" ? "ml-auto" : ""}`}
       />
     </div>
   );
