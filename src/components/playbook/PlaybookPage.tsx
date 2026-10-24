@@ -3,7 +3,7 @@ import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, BookOpen, Copy, Info, Lock, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Copy, CopyPlus, Info, Lock, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
@@ -29,6 +29,8 @@ import {
 } from "@/lib/playbook.functions";
 import { buildPlaybook, matchesQuery, toggleRow, toggleSection, type PlaybookRow } from "@/lib/playbook-build";
 import { AUDIENCE_LABEL, PLAYBOOK_SECTIONS, type Audience } from "@/lib/playbook-catalog";
+import { classifyBulkRow } from "@/lib/playbook-bulk";
+import { ReplicateRowDialog } from "@/components/playbook/ReplicateRowDialog";
 
 /**
  * PLAYBOOK DO IMÓVEL (mockup P01 aprovado, 21/10/2026).
@@ -140,6 +142,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const [toDelete, setToDelete] = useState<PlaybookRow | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [adding, setAdding] = useState<{ section: number; label: string; value: string; au: Audience } | null>(null);
+  const [replicating, setReplicating] = useState<PlaybookRow | null>(null);
 
   const sections = useMemo(() => (query.data ? buildPlaybook(query.data.source) : []), [query.data]);
   const refresh = () => qc.invalidateQueries({ queryKey: ["playbook", propertyId] });
@@ -428,6 +431,19 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
                           <div className="flex flex-col items-start gap-2 whitespace-nowrap px-4 py-3">
                             <AudienceChip au={r.au} />
+                            {!r.empty && classifyBulkRow(r.id).ok ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setReplicating(r);
+                                }}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground hover:text-foreground print:hidden"
+                              >
+                                <CopyPlus className="size-[13px]" />
+                                Replicar
+                              </button>
+                            ) : null}
                           </div>
                         </div>
                       );
@@ -456,6 +472,12 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           })
         )}
       </div>
+
+      <ReplicateRowDialog
+        propertyId={propertyId}
+        row={replicating ? { id: replicating.id, label: replicating.label, value: replicating.value } : null}
+        onClose={() => setReplicating(null)}
+      />
 
       <AlertDialog open={!!toDelete} onOpenChange={(v) => !v && setToDelete(null)}>
         <AlertDialogContent>

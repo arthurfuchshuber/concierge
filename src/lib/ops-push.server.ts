@@ -737,7 +737,7 @@ export async function notifyCleaningDone(
 export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyId: string }) {
   const { data: prop } = await admin
     .from("properties")
-    .select("owner_id, slug, checkin_time")
+    .select("owner_id, slug, checkin_time, name")
     .eq("id", opts.propertyId)
     .maybeSingle();
   if (!prop) return { sent: 0 };
@@ -786,6 +786,7 @@ export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyI
         propertyId: opts.propertyId,
         conversations: mine,
         checkinHour,
+        propertyName: (prop as { name?: string | null }).name ?? null,
       });
       await admin.from("ops_push_log").delete().eq("dedupe_key", dedupeKey);
       continue;
@@ -812,9 +813,11 @@ async function askEarlyCheckinApproval(
     propertyId: string;
     conversations: Array<{ id: string; guest_name: string | null }>;
     checkinHour: number;
+    propertyName?: string | null;
   },
 ) {
   const { guestWantsEarlyCheckin, EARLY_CHECKIN_OPTIONS } = await import("@/lib/ai/human-loop/decision-options");
+  const { detectStayForecast } = await import("@/lib/ai/stay-intent-resolver.server");
   const { askHumanSupervisor } = await import("@/lib/ai/human-loop/escalations.server");
   for (const c of opts.conversations) {
     const { data: msgs } = await admin
@@ -826,6 +829,14 @@ async function askEarlyCheckinApproval(
       .limit(30);
     const texts = ((msgs ?? []) as Array<{ content: string | null }>).map((m) => m.content ?? "");
     if (!guestWantsEarlyCheckin(texts, opts.checkinHour)) continue;
+    let wished: string | null = null;
+    for (const t of texts) {
+      const f = detectStayForecast(t);
+      if (f?.kind === "checkin") {
+        wished = f.time;
+        break;
+      }
+    }
     const { data: open } = await admin
       .from("ai_human_escalations")
       .select("id")
@@ -843,8 +854,14 @@ async function askEarlyCheckinApproval(
       agent: "reservation",
       trigger: "policy_exception",
       reason: "early_checkin_approval",
-      question: `A limpeza foi concluída e ${c.guest_name ?? "o hóspede"} pediu para entrar antes das ${String(opts.checkinHour).padStart(2, "0")}h. Posso liberar o check-in agora?`,
-      contextSnapshot: { decision: { kind: "operational", options: [...EARLY_CHECKIN_OPTIONS] } },
+      question:
+        `A limpeza${opts.propertyName ? ` de ${opts.propertyName}` : ""} foi concluída e ${c.guest_name ?? "o hóspede"} ` +
+        `havia pedido para entrar antes das ${String(opts.checkinHour).padStart(2, "0")}h` +
+        `${wished ? ` (previsão informada: ${wished})` : ""}. Posso avisar que o imóvel já está liberado?`,
+      contextSnapshot: {
+        decision: { kind: "operational", options: [...EARLY_CHECKIN_OPTIONS] },
+        early_release: { requested_time: wished },
+      },
     });
   }
 }

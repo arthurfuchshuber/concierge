@@ -1131,10 +1131,10 @@ export async function pauseOnHostMessage(m: Inbound, automated = false): Promise
   const { pausePatch } = await import("@/lib/ai/pause");
   const { data: convs } = await admin
     .from("property_chat_conversations")
-    .select("id")
+    .select("id, property_id")
     .eq("guest_session_id", `airbnb:${m.threadId}`);
   const norm = (x: string) => x.replace(/\s+/g, " ").trim();
-  for (const c of (convs ?? []) as Array<{ id: string }>) {
+  for (const c of (convs ?? []) as Array<{ id: string; property_id: string | null }>) {
     // Eco das próprias respostas da IA (enviadas pela API) não conta como anfitrião.
     const since = new Date(Date.now() - 10 * 60_000).toISOString();
     const { data: aiRecent } = await admin
@@ -1211,6 +1211,13 @@ export async function pauseOnHostMessage(m: Inbound, automated = false): Promise
     if (!automated) {
       const { completeStayFromHumanMessage } = await import("@/lib/ai/human-closing.server");
       await completeStayFromHumanMessage(c.id, m.text);
+      // Horário combinado pela equipe vira fato da reserva (a IA não se contradiz depois).
+      if (c.property_id) {
+        const { applyAgreedTimeFromStaffMessage } = await import("@/lib/ai/stay-intent-resolver.server");
+        await applyAgreedTimeFromStaffMessage(admin, { propertyId: c.property_id, conversationId: c.id, message: m.text }).catch(
+          (e: unknown) => console.error("[channex-messages] horário combinado falhou", e),
+        );
+      }
       // Copiloto proativo: fala da equipe pode indicar ação no app (ex.: chaves entregues).
       const { proposeProactiveDecision } = await import("@/lib/ai/human-loop/proactive-decisions.server");
       await proposeProactiveDecision(admin, { conversationId: c.id, trigger: "staff" });
