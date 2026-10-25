@@ -61,13 +61,28 @@ describe("PlaybookPage (celular)", () => {
     expect(screen.queryByText("Hóspede Ativo")).toBeNull();
     const heads = screen.getAllByRole("button", { name: /, \d+ campos$/ });
     expect(heads).toHaveLength(5);
-    expect(screen.queryByText("Link do mapa")).toBeNull();
+    expect(screen.queryByText(/Link do mapa/)).toBeNull();
     fireEvent.click(heads[0]);
-    expect(screen.getByText("Link do mapa")).toBeTruthy();
+    expect(screen.getByText(/Link do mapa/)).toBeTruthy();
     fireEvent.click(heads[1]);
-    expect(screen.queryByText("Link do mapa")).toBeNull();
-    expect(screen.getByText("Código do portão")).toBeTruthy();
+    expect(screen.queryByText(/Link do mapa/)).toBeNull();
+    expect(screen.getByText(/Código do portão/)).toBeTruthy();
     expect(screen.queryByLabelText("Mais ações")).toBeNull();
-    expect(screen.getByLabelText("Entrar no modo leitura")).toBeTruthy();
+    expect(screen.queryByLabelText("Entrar no modo leitura")).toBeNull();
+    expect(screen.queryByLabelText("Imprimir")).toBeNull();
+  });
+
+  it("tocar num campo abre a janela com abas Texto / Nota / IA", async () => {
+    mount();
+    const heads = await screen.findAllByRole("button", { name: /, \d+ campos$/ });
+    fireEvent.click(heads[0]);
+    fireEvent.click(screen.getByText(/Link do mapa/));
+    const dlg = await screen.findByRole("dialog");
+    expect(within(dlg).getByRole("tab", { name: "Texto" })).toBeTruthy();
+    expect(within(dlg).getByText("https://maps.app.goo.gl/x")).toBeTruthy();
+    fireEvent.click(within(dlg).getByRole("tab", { name: "IA" }));
+    expect(within(dlg).getByText(/Observação da IA/)).toBeTruthy();
+    fireEvent.click(within(dlg).getByRole("tab", { name: "Nota" }));
+    expect(within(dlg).getByText(/Nota do anfitrião/)).toBeTruthy();
   });
 });

@@ -83,14 +83,6 @@ const AUDIENCE_HELP: Record<Audience, string> = {
   P: "Liberado já na pré-reserva.",
   I: "Confidencial, nunca exibido ao hóspede.",
 };
-/** Frase curta da linha de audiência no celular (mockup aprovado: "Público · IA pode usar com hóspedes."). */
-const AUDIENCE_LINE: Record<Audience, string> = {
-  G: "IA só usa durante a estadia.",
-  P: "IA pode usar com hóspedes.",
-  I: "IA nunca mostra ao hóspede.",
-};
-const AUD_TEXT: Record<Audience, string> = { G: "text-success", P: "text-warning", I: "text-muted-foreground" };
-
 /**
  * CELULAR (mockup "Proposta 1 e 2" aprovado, 24/10/2026): a audiência deixa de ser uma etiqueta com
  * borda e vira só a palavra colorida, na linha da observação de cada campo. Tocar na palavra abre a
@@ -104,7 +96,7 @@ function AudienceText({ au }: { au: Audience }) {
           type="button"
           onClick={(e) => e.stopPropagation()}
           aria-label={`Explicação: ${AUDIENCE_LABEL[au]}`}
-          className={AUD_TEXT[au]}
+          className="text-muted-foreground"
         >
           {AUDIENCE_LABEL[au]}
         </button>
@@ -258,6 +250,9 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const owner = query.data?.owner ?? null;
   const qq = q.trim();
   const narrow = useNarrow();
+  /** CELULAR (mockup "Ver tudo B" aprovado, 25/10/2026): janela do campo com abas Texto / Nota / IA. */
+  const [view, setView] = useState<{ idx: number; id: string; tab: "texto" | "nota" | "ia" } | null>(null);
+  const viewRow = view ? (sections[view.idx]?.rows ?? []).find((x) => x.id === view.id) ?? null : null;
 
   /** Editor de valor (mesmo no computador e no celular). */
   const renderEditor = (r: PlaybookRow) => (
@@ -315,7 +310,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   /** Botões "Adicionar campo" / "Adicionar linha / campo" de cada seção. */
   const renderAddButtons = (meta: PlaybookSectionMeta, idx: number, hidden: PlaybookRow[], plain = false) => {
     const btn = plain
-      ? "inline-flex h-8 items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"
+      ? "inline-flex h-8 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       : `inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-muted-foreground hover:text-foreground ${WELL}`;
     return (
     <>
@@ -389,7 +384,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           onChange={setQ}
           placeholder="Buscar campo, valor ou observação"
           className="print:hidden"
-          actions={(
+          actions={narrow ? undefined : (
             <>
               <button
                 type="button"
@@ -472,48 +467,50 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                         toggleSec();
                       }
                     }}
-                    className={`flex cursor-pointer gap-3 px-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isOpen ? "items-start pb-2 pt-3.5" : "h-14 items-center"}`}
+                    className={`flex cursor-pointer gap-3 px-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring h-14 items-center`}
                   >
                     <span
-                      className={`grid size-6 flex-none place-items-center rounded-lg bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] font-display text-xs font-bold ${isOpen ? "text-accent" : "text-muted-foreground"}`}
+                      className={`grid size-6 flex-none place-items-center rounded-lg bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] font-display text-xs font-bold ${isOpen ? "text-foreground" : "text-muted-foreground"}`}
                     >
                       {meta.num}
                     </span>
-                    <div className={`min-w-0 flex-1 ${isOpen ? "mt-[2.5px]" : ""}`}>
+                    <div className="min-w-0 flex-1">
                       <div className="truncate whitespace-nowrap font-display text-[15px] font-semibold leading-[19px] text-foreground">
                         {meta.title}
                       </div>
-                      {isOpen ? (
-                        <div className="mt-[3px] truncate whitespace-nowrap text-[12.5px] leading-[17px] text-muted-foreground">
-                          {meta.desc}
-                        </div>
-                      ) : null}
                     </div>
-                    <span className={`flex-none font-display text-[13px] font-medium leading-[19px] tabular-nums text-muted-foreground ${isOpen ? "mt-[2.5px]" : ""}`}>
+                    <span className="flex-none font-display text-[13px] font-medium leading-[19px] tabular-nums text-muted-foreground">
                       ({qq ? `${rows.length} de ${all.length}` : all.length})
                     </span>
                   </div>
 
                   {isOpen ? (
-                    <div className="pb-3.5 pl-[50px] pr-3.5 pt-2.5">
+                    <div className="pb-[18px] pl-[50px] pr-3.5">
                       {rows.map((r, i) => {
-                        const open = read || openRows.includes(r.id);
+                        const open = read;
                         const editing = edit?.id === r.id;
-                        const noteVal = notes[r.id] ?? r.note;
                         const long = r.value.length > 120 || r.value.includes("\n");
                         return (
                           <div
                             key={r.id}
-                            onClick={() => setOpenRows((cur) => toggleRow(cur, r.id))}
-                            className={`cursor-pointer ${i > 0 ? "mt-5" : ""}`}
+                            onClick={() => !editing && setView({ idx, id: r.id, tab: "texto" })}
+                            className={`cursor-pointer ${i > 0 ? "mt-[18px]" : ""}`}
                           >
-                            <div className="text-[12.5px] leading-[17px] text-muted-foreground">{r.label}</div>
-                            <div className="mt-[3px] flex items-start gap-2">
+                            <div className="text-sm leading-5 text-muted-foreground">
+                              {r.label}
+                              {r.au !== "P" ? (
+                                <>
+                                  {" · "}
+                                  <AudienceText au={r.au} />
+                                </>
+                              ) : null}
+                            </div>
+                            <div className="flex items-start gap-2">
                               {editing ? (
                                 renderEditor(r)
                               ) : (
                                 <span
-                                  className={`min-w-0 flex-1 whitespace-pre-line break-words text-[15px] leading-[21px] ${open ? "" : CLAMP3} ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
+                                  className={`min-w-0 flex-1 whitespace-pre-line break-words text-sm leading-5 ${open ? "" : CLAMP3} ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
                                 >
                                   {r.secret && shown.includes(r.id) ? r.raw : r.value}
                                 </span>
@@ -533,42 +530,10 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                                 </button>
                               ) : null}
                             </div>
-                            {!editing ? (
-                              <div className={`${long ? "mt-[5px]" : "mt-[3px]"} flex items-center justify-between gap-3 text-xs leading-4`}>
-                                <div className="min-w-0 truncate whitespace-nowrap text-[var(--faint)]">
-                                  <AudienceText au={r.au} /> · {AUDIENCE_LINE[r.au]}
-                                </div>
-                                {long ? (
-                                  <span className="flex-none font-bold text-accent">{open ? "Ver menos" : "Ver tudo"}</span>
-                                ) : null}
+                            {!editing && long ? (
+                              <div className="text-sm leading-5 text-muted-foreground underline underline-offset-2">
+                                {read ? "Ver menos" : "Ver tudo"}
                               </div>
-                            ) : null}
-                            {open && !editing ? (
-                              <>
-                                {r.obs ? (
-                                  <div className="mt-3 text-xs leading-[1.45] text-muted-foreground">
-                                    <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-[var(--faint)]">
-                                      <Lock className="size-[11px]" />
-                                      Observação da IA · padrão do sistema
-                                    </span>
-                                    {r.obs}
-                                  </div>
-                                ) : null}
-                                {renderNote(r, noteVal, "mt-3")}
-                                {!r.empty && !!r.edit && classifyBulkRow(r.id).ok ? (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setReplicating(r);
-                                    }}
-                                    className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground hover:text-foreground print:hidden"
-                                  >
-                                    <CopyPlus className="size-[13px]" />
-                                    Replicar
-                                  </button>
-                                ) : null}
-                              </>
                             ) : null}
                           </div>
                         );
@@ -576,7 +541,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                       {rows.length === 0 ? (
                         <div className="text-[13px] font-medium text-muted-foreground">Nenhum campo corresponde à busca.</div>
                       ) : null}
-                      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 print:hidden">{renderAddButtons(meta, idx, hidden, true)}</div>
+                      <div className="mt-5 flex flex-wrap gap-x-4 gap-y-1 print:hidden">{renderAddButtons(meta, idx, hidden, true)}</div>
                     </div>
                   ) : null}
 
@@ -766,6 +731,82 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={narrow && !!viewRow} onOpenChange={(v) => !v && setView(null)}>
+        <DialogContent aria-describedby={undefined} className="max-w-lg gap-4 p-5">
+          {viewRow && view ? (
+            <>
+              <div className="min-w-0 pr-6">
+                <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">
+                  {viewRow.label}
+                </DialogTitle>
+                <div className="mt-0.5 truncate text-xs leading-[18px] text-muted-foreground">
+                  Categoria {PLAYBOOK_SECTIONS[view.idx]?.num} · {PLAYBOOK_SECTIONS[view.idx]?.title}
+                </div>
+              </div>
+              <div role="tablist" className="ds-tabs">
+                {(
+                  [
+                    ["texto", "Texto"],
+                    ["nota", "Nota"],
+                    ["ia", "IA"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={view.tab === key}
+                    onClick={() => setView({ ...view, tab: key })}
+                    className={`h-[34px] flex-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${view.tab === key ? "ds-tab-active" : "text-muted-foreground"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {view.tab === "texto" ? (
+                <div className={viewRow.empty ? "italic text-[var(--faint)]" : viewRow.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}>
+                  {(viewRow.secret && shown.includes(viewRow.id) ? viewRow.raw : viewRow.value).split("\n").map((line, i) => (
+                    <p key={i} data-clip-row className={`break-words text-sm leading-5 ${i > 0 ? "mt-3.5" : ""}`}>
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+              {view.tab === "nota" ? renderNote(viewRow, notes[viewRow.id] ?? viewRow.note, "") : null}
+              {view.tab === "ia" ? (
+                <div className="text-sm leading-5 text-muted-foreground">
+                  <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-[var(--faint)]">
+                    <Lock className="size-[11px]" />
+                    Observação da IA · padrão do sistema
+                  </span>
+                  {viewRow.obs ? <>{viewRow.obs}<br /></> : null}
+                  {AUDIENCE_LABEL[viewRow.au]}: {AUDIENCE_HELP[viewRow.au].toLowerCase()}
+                </div>
+              ) : null}
+              <div className="h-px bg-[var(--panel-div)]" />
+              <div className="flex items-center justify-between gap-3 text-[13px] leading-[18px] text-muted-foreground">
+                <span>
+                  {AUDIENCE_LABEL[viewRow.au]} · {AUDIENCE_HELP[viewRow.au].charAt(0).toLowerCase() + AUDIENCE_HELP[viewRow.au].slice(1)}
+                </span>
+                {!viewRow.empty && !!viewRow.edit && classifyBulkRow(viewRow.id).ok ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplicating(viewRow);
+                      setView(null);
+                    }}
+                    className="inline-flex flex-none items-center gap-1 font-bold hover:text-foreground print:hidden"
+                  >
+                    <CopyPlus className="size-[13px]" />
+                    Replicar
+                  </button>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!adding} onOpenChange={(v) => !v && setAdding(null)}>
         <DialogContent className="sm:max-w-md">
