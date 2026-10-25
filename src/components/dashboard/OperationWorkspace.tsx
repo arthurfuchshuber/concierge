@@ -11283,8 +11283,9 @@ function ArrivalCard({
                 label: "Hóspede",
                 value: (
                   <>
-                    <span className="min-w-0 truncate">{titleCaseName(row.guestName)}</span>
+                    {/* Ícone de conversa à ESQUERDA do nome (pedido explícito, 25/10/2026). */}
                     <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+                    <span className="min-w-0 truncate">{titleCaseName(row.guestName)}</span>
                     <ExtraGuests guests={row.additionalGuests ?? []} />
                   </>
                 ),
@@ -11307,15 +11308,8 @@ function ArrivalCard({
               });
             if (row.bookingChannel) lines.push({ key: "channel", label: "Canal", value: <span className="truncate">{row.bookingChannel}</span> });
             if (occupants) lines.push({ key: "occupants", label: "Ocupantes", value: <span className="truncate">{occupants}</span> });
-            // Modalidade da reserva e política de cancelamento (mockup
-            // "Selos" aprovado em 17/10/2026): mesmas linhas pontilhadas; sem
-            // dado confirmado a linha simplesmente não aparece.
-            if (row.bookingModality === "instant_book" || row.bookingModality === "request_to_book")
-              lines.push({
-                key: "modality",
-                label: "Modalidade",
-                value: <span className="truncate">{row.bookingModality === "instant_book" ? "Instantânea" : "Pedido aceito"}</span>,
-              });
+            // Política de cancelamento DA RESERVA (mockup "Selos", 17/10/2026). A linha "Modalidade" saiu dos
+            // cards (pedido explícito, 25/10/2026); o dado `bookingModality` continua nos tipos e na IA.
             if (row.cancellationPolicy || row.isNonRefundable) {
               const policyLabel = row.isNonRefundable
                 ? "Não reembolsável"

@@ -67,6 +67,10 @@ describe("PlaybookPage (celular)", () => {
     fireEvent.click(heads[1]);
     expect(screen.queryByText(/Link do mapa/)).toBeNull();
     expect(screen.getByText(/Código do portão/)).toBeTruthy();
+    // Audiência: linha própria abaixo do valor, com o nome novo (sem "Hóspede Ativo").
+    expect(screen.getAllByText(/Quem Pode Ver:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /Explicação: (Reserva Ativa|Equipe Interna)/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Hóspede Ativo")).toBeNull();
     expect(screen.queryByLabelText("Mais ações")).toBeNull();
     expect(screen.queryByLabelText("Entrar no modo leitura")).toBeNull();
     expect(screen.queryByLabelText("Imprimir")).toBeNull();

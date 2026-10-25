@@ -90,8 +90,8 @@ const AUDIENCE_HELP: Record<Audience, string> = {
  * à mão escolhe aqui.
  */
 const NEW_INFO_AUD: Array<{ au: Audience; label: string; dot: string }> = [
-  { au: "P", label: "Público", dot: "bg-warning" },
-  { au: "G", label: "Reserva Ativa", dot: "bg-success" },
+  { au: "P", label: "Público", dot: "bg-success" },
+  { au: "G", label: "Reserva Ativa", dot: "bg-warning" },
   { au: "I", label: "Equipe Interna", dot: "bg-muted-foreground" },
 ];
 const PILL =
@@ -103,6 +103,10 @@ const FIELD_LABEL = "mb-1.5 text-[10px] font-bold uppercase leading-tight tracki
  * borda e vira só a palavra colorida, na linha da observação de cada campo. Tocar na palavra abre a
  * mesma explicação que o "i" da legenda abre no computador — a legenda sai da tela no celular.
  */
+/** Nome da audiência no celular (mockup "Subcategorias D", 25/10/2026) e a cor do próprio nome. */
+const AUD_NAME: Record<Audience, string> = { P: "Público", G: "Reserva Ativa", I: "Equipe Interna" };
+const AUD_TEXT: Record<Audience, string> = { P: "text-success", G: "text-warning", I: "text-foreground/70" };
+
 function AudienceText({ au }: { au: Audience }) {
   return (
     <Popover>
@@ -110,10 +114,10 @@ function AudienceText({ au }: { au: Audience }) {
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
-          aria-label={`Explicação: ${AUDIENCE_LABEL[au]}`}
-          className="text-muted-foreground"
+          aria-label={`Explicação: ${AUD_NAME[au]}`}
+          className={AUD_TEXT[au]}
         >
-          {AUDIENCE_LABEL[au]}
+          {AUD_NAME[au]}
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -517,12 +521,6 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                           >
                             <div className="text-sm leading-5 text-muted-foreground">
                               {r.label}
-                              {r.au !== "P" ? (
-                                <>
-                                  {" · "}
-                                  <AudienceText au={r.au} />
-                                </>
-                              ) : null}
                             </div>
                             <div className="flex items-start gap-2">
                               {editing ? (
@@ -552,6 +550,11 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                             {!editing && long ? (
                               <div className="text-sm leading-5 text-muted-foreground underline underline-offset-2">
                                 {read ? "Ver menos" : "Ver tudo"}
+                              </div>
+                            ) : null}
+                            {r.au !== "P" ? (
+                              <div className="text-sm leading-5 text-muted-foreground">
+                                Quem Pode Ver: <AudienceText au={r.au} />
                               </div>
                             ) : null}
                           </div>
@@ -823,13 +826,13 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                     Observação da IA · padrão do sistema
                   </span>
                   {viewRow.obs ? <>{viewRow.obs}<br /></> : null}
-                  {AUDIENCE_LABEL[viewRow.au]}: {AUDIENCE_HELP[viewRow.au].toLowerCase()}
+                  {AUD_NAME[viewRow.au]}: {AUDIENCE_HELP[viewRow.au].toLowerCase()}
                 </div>
               ) : null}
               <div className="h-px bg-[var(--panel-div)]" />
               <div className="flex items-center justify-between gap-3 text-[13px] leading-[18px] text-muted-foreground">
                 <span>
-                  {AUDIENCE_LABEL[viewRow.au]} · {AUDIENCE_HELP[viewRow.au].charAt(0).toLowerCase() + AUDIENCE_HELP[viewRow.au].slice(1)}
+                  {AUD_NAME[viewRow.au]} · {AUDIENCE_HELP[viewRow.au].charAt(0).toLowerCase() + AUDIENCE_HELP[viewRow.au].slice(1)}
                 </span>
                 {!viewRow.empty && !!viewRow.edit && classifyBulkRow(viewRow.id).ok ? (
                   <button
