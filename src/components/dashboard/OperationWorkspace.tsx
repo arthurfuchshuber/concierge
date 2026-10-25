@@ -126,6 +126,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { CleaningApprovalPanel, CLEANING_APPROVALS_KEY } from "@/components/dashboard/CleaningApprovalPanel";
+import { cancelarEtapa, enfileirarEtapa, semPendentes } from "@/lib/offline/stage-outbox";
 import { notifyAction } from "@/components/UndoActionBar";
 import { ReservationRecordsButton, ReservationRecordsDialog } from "@/components/dashboard/ReservationRecords";
 import {
@@ -768,7 +769,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   });
   const checkoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", range, activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } }),
+    queryFn: async () => semPendentes(await listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } })),
     staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
@@ -782,7 +783,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   });
   const tomorrowCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self", "top-card"],
-    queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
+    queryFn: async () => semPendentes(await listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } })),
     staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
@@ -806,7 +807,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   });
   const kanbanCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "all", activeOwnerId ?? "self", "kanban-filtros"],
-    queryFn: () => listFn({ data: { kind: "checkout", range: "all", ownerId: activeOwnerId } }),
+    queryFn: async () => semPendentes(await listFn({ data: { kind: "checkout", range: "all", ownerId: activeOwnerId } })),
     staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
@@ -1340,12 +1341,26 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     } else {
       optimisticMove(row, from);
     }
-    advance.mutate({
-      ...target,
-      from,
-      ...(cleaningType ? { cleaningType } : {}),
-      ...(skipCleaning ? { skipCleaning: true } : {}),
-    });
+    // Finalizar Limpeza: grava no aparelho e a fila entrega com retentativa,
+    // mesmo com 4G oscilando ou app fechado (`stage-outbox.ts`).
+    const viaFila = from === "cleaning" && !skipCleaning;
+    if (viaFila) {
+      setBusyRowId(null);
+      void enfileirarEtapa({
+        rowId: row.logId,
+        ...target,
+        from: "cleaning",
+        ...(cleaningType ? { cleaningType } : {}),
+        rotulo: row.propertyName ?? "Limpeza",
+      });
+    } else {
+      advance.mutate({
+        ...target,
+        from,
+        ...(cleaningType ? { cleaningType } : {}),
+        ...(skipCleaning ? { skipCleaning: true } : {}),
+      });
+    }
     // Feedback padrão do produto: mensagem no topo + "Desfazer" por 5s.
     // Desfazer precisa devolver o card à coluna de ORIGEM. No atalho
     // "Limpeza não será realizada" o check-out é marcado como feito mesmo
@@ -1375,6 +1390,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             ? "Liberado à limpeza."
             : "Limpeza concluída.";
     notifyAction(message, () => {
+      if (viaFila) {
+        void cancelarEtapa(row.logId).then((naFila) => {
+          if (naFila) {
+            refreshDashboard(0);
+            return;
+          }
+          setBusyRowId(row.logId);
+          revert.mutate({ ...target, from: stageAfter });
+        });
+        return;
+      }
       setBusyRowId(row.logId);
       revert.mutate({ ...target, from: stageAfter });
     });
@@ -1761,7 +1787,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const forecastEnabled = !cleaningPeriod || cleaningPeriod.hasFuture;
   const cleaningForecastListQ = useQuery({
     queryKey: ["dash-list", "checkout", "all-forecast", activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind: "checkout", range: forecastRange, ownerId: activeOwnerId } }),
+    queryFn: async () => semPendentes(await listFn({ data: { kind: "checkout", range: forecastRange, ownerId: activeOwnerId } })),
     staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "limpeza",
