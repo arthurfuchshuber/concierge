@@ -111,6 +111,9 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
   const [enlarged, setEnlarged] = useState(false);
   // Chamados novos viram balão junto ao botão (nunca abrem a janela inteira sozinhos).
   const [bubbleIds, setBubbleIds] = useState<string[]>([]);
+  // Mini-chat aberto no balão: não pode sumir ao responder/assumir (status vira "assigned").
+  const openBubbleRef = useRef<string | null>(null);
+  const bubbleCacheRef = useRef<Map<string, QuickChatItem>>(new Map());
   // Com o Atendimento aberto a página atrás não rola — ver useLockBodyScroll.
   useLockBodyScroll(state.open && !state.minimized);
   const [dockBottom, setDockBottom] = useState(() => loadDockBottom());
@@ -231,8 +234,8 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
         playBeep();
         setBubbleIds((cur) => [...fresh.filter((id) => !cur.includes(id)), ...cur]);
       }
-      // Chamado atendido/assumido sai do balão.
-      setBubbleIds((cur) => cur.filter((id) => ids.includes(id)));
+      // Chamado atendido/assumido sai do balão — exceto o que está aberto no mini-chat.
+      setBubbleIds((cur) => cur.filter((id) => ids.includes(id) || id === openBubbleRef.current));
     }
     if (n > 0) {
       try { if ("setAppBadge" in navigator) (navigator as any).setAppBadge(n); } catch {}
@@ -637,14 +640,19 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
     ? []
     : bubbleIds.flatMap((id) => {
         const c = (convs as Array<{ id: string; guest_name: string | null; guest_session_id: string | null; handoff_reason?: string | null; properties: { name: string | null } | null }>).find((x) => x.id === id);
-        if (!c) return [];
-        return [{
+        if (!c) {
+          const cached = bubbleCacheRef.current.get(id);
+          return cached ? [cached] : [];
+        }
+        const item: QuickChatItem = {
           id,
           guestName: c.guest_name?.trim() || "Hóspede",
           propertyName: c.properties?.name ?? "",
           reason: c.handoff_reason ?? null,
           sessionId: c.guest_session_id,
-        }];
+        };
+        bubbleCacheRef.current.set(id, item);
+        return [item];
       });
 
   return createPortal(
@@ -654,7 +662,19 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
         items={bubbleItems}
         bottom={`calc(env(safe-area-inset-bottom,0px) + ${dockBottom + 68}px)`}
         myUserId={myUserId}
+        onOpenChatChange={(id) => {
+          const prev = openBubbleRef.current;
+          openBubbleRef.current = id;
+          // Ao recolher, solta o chamado que já foi atendido.
+          if (prev && prev !== id) {
+            const pendingIds = (pendingQ.data as { ids?: string[] } | undefined)?.ids;
+            if (Array.isArray(pendingIds) && !pendingIds.includes(prev)) {
+              setBubbleIds((cur) => cur.filter((x) => x !== prev));
+            }
+          }
+        }}
         onOpenFull={(id) => {
+          openBubbleRef.current = null;
           setBubbleIds((cur) => cur.filter((x) => x !== id));
           setActiveId(id);
           setState({ open: true, minimized: false });
