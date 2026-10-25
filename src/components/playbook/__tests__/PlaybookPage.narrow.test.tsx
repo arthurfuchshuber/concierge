@@ -85,4 +85,29 @@ describe("PlaybookPage (celular)", () => {
     fireEvent.click(within(dlg).getByRole("tab", { name: "Nota" }));
     expect(within(dlg).getByText(/Nota do anfitrião/)).toBeTruthy();
   });
+
+  it('"+ Campo" lista os campos vazios e o do Airbnb abre o alerta; "+ Nova Info" exige título e texto', async () => {
+    mount();
+    const heads = await screen.findAllByRole("button", { name: /, \d+ campos$/ });
+    fireEvent.click(heads[0]);
+    fireEvent.click(screen.getByRole("button", { name: "+ Campo" }));
+    const list = await screen.findByRole("dialog");
+    expect(within(list).getByText("Campos Vazios")).toBeTruthy();
+    const airbnb = within(list).getAllByText("Só no Airbnb");
+    expect(airbnb.length).toBeGreaterThan(0);
+    fireEvent.click(airbnb[0].closest("button")!);
+    const alert = await screen.findByRole("dialog");
+    expect(within(alert).getByText("Edite no Airbnb")).toBeTruthy();
+    fireEvent.click(within(alert).getByRole("button", { name: "Entendi" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Nova Info" }));
+    const nova = await screen.findByRole("dialog");
+    expect(within(nova).getAllByText(/Obrigatório/)).toHaveLength(2);
+    const add = within(nova).getByRole("button", { name: "Adicionar" }) as HTMLButtonElement;
+    expect(add.disabled).toBe(true);
+    fireEvent.change(within(nova).getByPlaceholderText(/coleta de lixo/), { target: { value: "Lixo" } });
+    fireEvent.change(within(nova).getByPlaceholderText(/precisa saber/), { target: { value: "Terça" } });
+    expect(add.disabled).toBe(false);
+    expect(within(nova).getByText("Público")).toBeTruthy();
+  });
 });

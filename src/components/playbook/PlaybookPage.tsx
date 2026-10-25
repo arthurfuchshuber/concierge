@@ -3,7 +3,7 @@ import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, BookOpen, Copy, CopyPlus, Eye, EyeOff, Info, KeyRound, Lock, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, ChevronDown, Copy, CopyPlus, Eye, EyeOff, Info, KeyRound, Lock, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
@@ -83,6 +83,21 @@ const AUDIENCE_HELP: Record<Audience, string> = {
   P: "Liberado já na pré-reserva.",
   I: "Confidencial, nunca exibido ao hóspede.",
 };
+/**
+ * CELULAR — "Nova Info" (mockup aprovado, 25/10/2026): nomes da audiência no seletor "Quem Pode Ver".
+ * Público = liberado já na pré-reserva; Reserva Ativa = só durante estadia confirmada. O que chega
+ * sozinho do Channex/scrap já vem com a audiência certa e NÃO tem seletor: só informação criada
+ * à mão escolhe aqui.
+ */
+const NEW_INFO_AUD: Array<{ au: Audience; label: string; dot: string }> = [
+  { au: "P", label: "Público", dot: "bg-warning" },
+  { au: "G", label: "Reserva Ativa", dot: "bg-success" },
+  { au: "I", label: "Equipe Interna", dot: "bg-muted-foreground" },
+];
+const PILL =
+  "flex h-9 flex-1 items-center justify-center rounded-[9px] bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] text-[13px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)] hover:text-foreground";
+const FIELD_LABEL = "mb-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-[var(--faint)]";
+
 /**
  * CELULAR (mockup "Proposta 1 e 2" aprovado, 24/10/2026): a audiência deixa de ser uma etiqueta com
  * borda e vira só a palavra colorida, na linha da observação de cada campo. Tocar na palavra abre a
@@ -198,7 +213,11 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const [busy, setBusy] = useState(false);
   const [toDelete, setToDelete] = useState<PlaybookRow | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
-  const [adding, setAdding] = useState<{ section: number; label: string; value: string; au: Audience } | null>(null);
+  const [adding, setAdding] = useState<{ section: number; label: string; value: string; note: string; au: Audience } | null>(null);
+  /** CELULAR: janela "Campos Vazios" (índice da categoria) e alerta de campo que só se edita no anúncio. */
+  const [pick, setPick] = useState<number | null>(null);
+  const [locked, setLocked] = useState<PlaybookRow | null>(null);
+  const [audOpen, setAudOpen] = useState(false);
   const [replicating, setReplicating] = useState<PlaybookRow | null>(null);
   const [revealed, setRevealed] = useState<string[]>([]);
   const [shown, setShown] = useState<string[]>([]);
@@ -310,7 +329,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   /** Botões "Adicionar campo" / "Adicionar linha / campo" de cada seção. */
   const renderAddButtons = (meta: PlaybookSectionMeta, idx: number, hidden: PlaybookRow[], plain = false) => {
     const btn = plain
-      ? "inline-flex h-8 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      ? "inline-flex h-5 items-center text-sm leading-5 text-muted-foreground hover:text-foreground"
       : `inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-bold text-muted-foreground hover:text-foreground ${WELL}`;
     return (
     <>
@@ -321,7 +340,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
               type="button"
               className={btn}
             >
-              <KeyRound className="size-[15px]" />
+              {plain ? "+ " : <KeyRound className="size-[15px]" />}
               Adicionar campo
             </button>
           </PopoverTrigger>
@@ -345,10 +364,10 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
       ) : null}
       <button
         type="button"
-        onClick={() => setAdding({ section: meta.num ? Number(meta.num) : idx + 1, label: "", value: "", au: "I" })}
+        onClick={() => setAdding({ section: meta.num ? Number(meta.num) : idx + 1, label: "", value: "", note: "", au: "I" })}
         className={btn}
       >
-        <Plus className="size-[15px]" />
+        {plain ? "+ " : <Plus className="size-[15px]" />}
         Adicionar linha / campo
       </button>
     </>
@@ -510,7 +529,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                                 renderEditor(r)
                               ) : (
                                 <span
-                                  className={`min-w-0 flex-1 whitespace-pre-line break-words text-sm leading-5 ${open ? "" : CLAMP3} ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
+                                  className={`min-w-0 flex-1 break-words text-sm leading-5 ${open ? "whitespace-pre-line" : `whitespace-normal ${CLAMP3}`} ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
                                 >
                                   {r.secret && shown.includes(r.id) ? r.raw : r.value}
                                 </span>
@@ -541,7 +560,30 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                       {rows.length === 0 ? (
                         <div className="text-[13px] font-medium text-muted-foreground">Nenhum campo corresponde à busca.</div>
                       ) : null}
-                      <div className="mt-5 flex flex-wrap gap-x-4 gap-y-1 print:hidden">{renderAddButtons(meta, idx, hidden, true)}</div>
+                      {(() => {
+                        // "+ Campo" lista TODO campo vazio da categoria (os que só existem no anúncio vão com cadeado).
+                        const empties = (sec?.rows ?? []).filter(
+                          (r) => isOptionalEmpty(r) && !revealed.includes(r.id) && edit?.id !== r.id,
+                        );
+                        return (
+                          <div className="mt-5 flex gap-2 print:hidden">
+                            {empties.length > 0 ? (
+                              <button type="button" onClick={() => setPick(idx)} className={PILL}>
+                                + Campo
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setAdding({ section: meta.num ? Number(meta.num) : idx + 1, label: "", value: "", note: "", au: "P" })
+                              }
+                              className={PILL}
+                            >
+                              + Nova Info
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   ) : null}
 
@@ -808,7 +850,199 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!adding} onOpenChange={(v) => !v && setAdding(null)}>
+      {/* CELULAR — "+ Campo": todos os campos vazios da categoria (mockup "Campo-Lista"). */}
+      <Dialog open={narrow && pick !== null} onOpenChange={(v) => !v && setPick(null)}>
+        <DialogContent aria-describedby={undefined} className="max-w-lg gap-3.5 p-5">
+          {pick !== null ? (
+            <>
+              <div className="min-w-0 pr-6">
+                <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">Campos Vazios</DialogTitle>
+                <div className="mt-0.5 truncate text-xs leading-[18px] text-muted-foreground">
+                  Categoria {PLAYBOOK_SECTIONS[pick]?.num} · {PLAYBOOK_SECTIONS[pick]?.title}
+                </div>
+              </div>
+              <p className="-mt-1 text-[13px] leading-[18px] text-muted-foreground">
+                Escolha um campo para preencher. Os marcados com cadeado só podem ser editados no anúncio da plataforma.
+              </p>
+              <div>
+                {(sections[pick]?.rows ?? [])
+                  .filter((r) => isOptionalEmpty(r) && !revealed.includes(r.id) && edit?.id !== r.id)
+                  .map((r) => {
+                    const isLocked = !r.edit;
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        data-clip-row
+                        onClick={() => {
+                          setPick(null);
+                          if (isLocked) {
+                            setLocked(r);
+                            return;
+                          }
+                          setOpenSection(PLAYBOOK_SECTIONS[pick]?.id ?? null);
+                          setRevealed((cur) => [...cur, r.id]);
+                          startEdit(r);
+                        }}
+                        className="flex min-h-11 w-full items-center gap-2.5 border-t border-[var(--panel-div)] px-1 text-left"
+                      >
+                        <span className="grid w-4 flex-none place-items-center text-muted-foreground">
+                          {isLocked ? <Lock className="size-[13px]" strokeWidth={1.8} /> : <Plus className="size-3.5" strokeWidth={1.8} />}
+                        </span>
+                        <span className={`min-w-0 flex-1 text-sm leading-5 ${isLocked ? "text-muted-foreground" : "text-foreground"}`}>{r.label}</span>
+                        {isLocked ? (
+                          <span className="flex-none text-[11px] font-semibold tracking-[0.04em] text-[var(--faint)]">Só no Airbnb</span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* CELULAR — alerta de campo que só se edita no anúncio (mockup "Campo-Alerta"). */}
+      <Dialog open={narrow && !!locked} onOpenChange={(v) => !v && setLocked(null)}>
+        <DialogContent aria-describedby={undefined} className="max-w-lg gap-4 p-5">
+          <div className="flex items-center gap-2.5 pr-6">
+            <Lock className="size-[22px] flex-none text-warning" strokeWidth={1.8} />
+            <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">Edite no Airbnb</DialogTitle>
+          </div>
+          <p className="text-sm leading-5 text-foreground">
+            O campo <b className="font-semibold">{locked?.label}</b> vem do anúncio na plataforma e só pode ser alterado lá. Depois de
+            salvar no Airbnb, a sincronização atualiza o Playbook sozinha.
+          </p>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setLocked(null)}
+              className="inline-flex h-9 items-center rounded-[9px] bg-foreground px-[18px] text-[13px] font-bold text-background"
+            >
+              Entendi
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* CELULAR — "+ Nova Info" (mockups "Nova-Info" e "Nova-Info-Aberto"). */}
+      <Dialog open={narrow && !!adding} onOpenChange={(v) => !v && setAdding(null)}>
+        <DialogContent aria-describedby={undefined} className="max-w-lg gap-3.5 p-5">
+          {adding ? (
+            <>
+              <div className="min-w-0 pr-6">
+                <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">Nova Info</DialogTitle>
+                <div className="mt-0.5 truncate text-xs leading-[18px] text-muted-foreground">
+                  Categoria {adding.section} · {PLAYBOOK_SECTIONS[adding.section - 1]?.title}
+                </div>
+              </div>
+              <div>
+                <div className={FIELD_LABEL}>
+                  Título<span className="font-semibold normal-case tracking-[0.04em] text-warning"> · Obrigatório</span>
+                </div>
+                <input
+                  value={adding.label}
+                  onChange={(e) => setAdding({ ...adding, label: e.target.value })}
+                  maxLength={120}
+                  placeholder="Ex.: Horário da coleta de lixo"
+                  className={`h-10 w-full rounded-[9px] border-0 px-3 text-sm text-foreground outline-none placeholder:text-[var(--faint)] ${WELL}`}
+                />
+              </div>
+              <div>
+                <div className={FIELD_LABEL}>
+                  Texto<span className="font-semibold normal-case tracking-[0.04em] text-warning"> · Obrigatório</span>
+                </div>
+                <textarea
+                  rows={2}
+                  value={adding.value}
+                  onChange={(e) => setAdding({ ...adding, value: e.target.value })}
+                  placeholder="O que o hóspede precisa saber"
+                  className={`block h-[60px] w-full resize-none rounded-[9px] border-0 px-3 py-2.5 text-sm leading-5 text-foreground outline-none placeholder:text-[var(--faint)] ${WELL}`}
+                />
+              </div>
+              <div>
+                <div className={FIELD_LABEL}>
+                  Nota do Anfitrião<span className="font-semibold normal-case tracking-[0.04em] text-muted-foreground"> · Opcional</span>
+                </div>
+                <textarea
+                  rows={1}
+                  value={adding.note}
+                  onChange={(e) => setAdding({ ...adding, note: e.target.value })}
+                  placeholder="Contexto só deste imóvel, que a IA lê junto"
+                  className={`block h-10 w-full resize-none rounded-[9px] border-0 px-3 py-2.5 text-sm leading-5 text-foreground outline-none placeholder:text-[var(--faint)] ${WELL}`}
+                />
+              </div>
+              <div>
+                <div className={FIELD_LABEL}>Quem Pode Ver</div>
+                <Popover open={audOpen} onOpenChange={setAudOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className={`flex h-10 w-full items-center justify-between rounded-[9px] px-3 text-sm text-foreground ${WELL}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <i className={`size-2 rounded-full ${NEW_INFO_AUD.find((o) => o.au === adding.au)?.dot}`} />
+                        {NEW_INFO_AUD.find((o) => o.au === adding.au)?.label}
+                      </span>
+                      <ChevronDown className="size-3.5 text-muted-foreground" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] rounded-xl p-1.5">
+                    {NEW_INFO_AUD.map((o) => (
+                      <button
+                        key={o.au}
+                        type="button"
+                        onClick={() => {
+                          setAdding({ ...adding, au: o.au });
+                          setAudOpen(false);
+                        }}
+                        className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left ${adding.au === o.au ? "bg-[color-mix(in_oklab,var(--foreground)_7%,transparent)]" : ""}`}
+                      >
+                        <i className={`size-2 flex-none rounded-full ${o.dot}`} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm leading-5 text-foreground">{o.label}</span>
+                          <span className="block text-xs leading-4 text-muted-foreground">{AUDIENCE_HELP[o.au].replace(/\.$/, "")}</span>
+                        </span>
+                        {adding.au === o.au ? <Check className="size-3.5 flex-none text-foreground" /> : null}
+                      </button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+                <div className="mt-1.5 text-xs leading-4 text-muted-foreground">{AUDIENCE_HELP[adding.au]}</div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAdding(null)}
+                  className="inline-flex h-9 items-center rounded-[9px] bg-[color-mix(in_oklab,var(--foreground)_4.5%,transparent)] px-4 text-[13px] font-bold text-muted-foreground"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || !adding.label.trim() || !adding.value.trim()}
+                  onClick={async () => {
+                    let rowId = "";
+                    const ok = await run(async () => {
+                      const r = (await addFn({
+                        data: { propertyId, section: adding.section, label: adding.label, value: adding.value, audience: adding.au },
+                      })) as { rowId?: string };
+                      rowId = r?.rowId ?? "";
+                      if (rowId && adding.note.trim()) await noteFn({ data: { propertyId, rowId, note: adding.note } });
+                    }, "Info adicionada.");
+                    if (ok) setAdding(null);
+                  }}
+                  className="inline-flex h-9 items-center rounded-[9px] bg-foreground px-[18px] text-[13px] font-bold text-background disabled:opacity-50"
+                >
+                  Adicionar
+                </button>
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!narrow && !!adding} onOpenChange={(v) => !v && setAdding(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Adicionar linha / campo</DialogTitle>
