@@ -640,14 +640,19 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
     ? []
     : bubbleIds.flatMap((id) => {
         const c = (convs as Array<{ id: string; guest_name: string | null; guest_session_id: string | null; handoff_reason?: string | null; properties: { name: string | null } | null }>).find((x) => x.id === id);
-        if (!c) return [];
-        return [{
+        if (!c) {
+          const cached = bubbleCacheRef.current.get(id);
+          return cached ? [cached] : [];
+        }
+        const item: QuickChatItem = {
           id,
           guestName: c.guest_name?.trim() || "Hóspede",
           propertyName: c.properties?.name ?? "",
           reason: c.handoff_reason ?? null,
           sessionId: c.guest_session_id,
-        }];
+        };
+        bubbleCacheRef.current.set(id, item);
+        return [item];
       });
 
   return createPortal(
@@ -657,7 +662,19 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
         items={bubbleItems}
         bottom={`calc(env(safe-area-inset-bottom,0px) + ${dockBottom + 68}px)`}
         myUserId={myUserId}
+        onOpenChatChange={(id) => {
+          const prev = openBubbleRef.current;
+          openBubbleRef.current = id;
+          // Ao recolher, solta o chamado que já foi atendido.
+          if (prev && prev !== id) {
+            const pendingIds = (pendingQ.data as { ids?: string[] } | undefined)?.ids;
+            if (Array.isArray(pendingIds) && !pendingIds.includes(prev)) {
+              setBubbleIds((cur) => cur.filter((x) => x !== prev));
+            }
+          }
+        }}
         onOpenFull={(id) => {
+          openBubbleRef.current = null;
           setBubbleIds((cur) => cur.filter((x) => x !== id));
           setActiveId(id);
           setState({ open: true, minimized: false });
