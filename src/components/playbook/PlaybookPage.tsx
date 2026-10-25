@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -128,6 +128,69 @@ function AudienceText({ au }: { au: Audience }) {
         {AUDIENCE_HELP[au]}
       </PopoverContent>
     </Popover>
+  );
+}
+
+/**
+ * CELULAR (pedido explícito, 25/10/2026): valor em até 3 linhas; se não couber, o texto termina em
+ * "…" e o "Ver tudo" fica colado no FIM da última linha (não numa linha separada). Mede com um
+ * espelho invisível e acha, por busca binária, o maior trecho que ainda cabe junto de "… Ver tudo".
+ */
+const CLAMP_LINES = 3;
+const LINE_PX = 20;
+function ClampedValue({ text, full, className }: { text: string; full: boolean; className: string }) {
+  const probe = useRef<HTMLSpanElement>(null);
+  const box = useRef<HTMLSpanElement>(null);
+  const [cut, setCut] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const el = probe.current;
+    const wrap = box.current;
+    if (!el || !wrap || full) return;
+    const limit = CLAMP_LINES * LINE_PX + 2;
+    const measure = () => {
+      el.textContent = text;
+      if (el.offsetHeight <= limit) {
+        setCut(null);
+        return;
+      }
+      let lo = 0;
+      let hi = text.length;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        el.textContent = `${text.slice(0, mid).trimEnd()}… Ver tudo`;
+        if (el.offsetHeight <= limit) lo = mid;
+        else hi = mid - 1;
+      }
+      setCut(lo);
+    };
+    measure();
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(measure);
+      ro.observe(wrap);
+    }
+    void document.fonts?.ready?.then(measure);
+    return () => ro?.disconnect();
+  }, [text, full]);
+
+  if (full) return <span className={`min-w-0 flex-1 whitespace-pre-line ${className}`}>{text}</span>;
+  return (
+    <span ref={box} className={`relative min-w-0 flex-1 ${className}`}>
+      <span
+        ref={probe}
+        aria-hidden
+        className="pointer-events-none invisible absolute left-0 top-0 w-full whitespace-normal break-words text-sm leading-5"
+      />
+      {cut === null ? (
+        text
+      ) : (
+        <>
+          {text.slice(0, cut).trimEnd()}…{" "}
+          <span className="text-muted-foreground underline underline-offset-2">Ver tudo</span>
+        </>
+      )}
+    </span>
   );
 }
 
@@ -512,7 +575,6 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                       {rows.map((r, i) => {
                         const open = read;
                         const editing = edit?.id === r.id;
-                        const long = r.value.length > 120 || r.value.includes("\n");
                         return (
                           <div
                             key={r.id}
@@ -526,11 +588,11 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                               {editing ? (
                                 renderEditor(r)
                               ) : (
-                                <span
-                                  className={`min-w-0 flex-1 break-words text-sm leading-5 ${open ? "whitespace-pre-line" : `whitespace-normal ${CLAMP3}`} ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
-                                >
-                                  {r.secret && shown.includes(r.id) ? r.raw : r.value}
-                                </span>
+                                <ClampedValue
+                                  text={r.secret && shown.includes(r.id) ? r.raw : r.value}
+                                  full={open}
+                                  className={`break-words text-sm leading-5 ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
+                                />
                               )}
                               {r.secret && !r.empty && !editing ? (
                                 <button
@@ -547,16 +609,9 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                                 </button>
                               ) : null}
                             </div>
-                            {!editing && long ? (
-                              <div className="text-sm leading-5 text-muted-foreground underline underline-offset-2">
-                                {read ? "Ver menos" : "Ver tudo"}
-                              </div>
-                            ) : null}
-                            {r.au !== "P" ? (
-                              <div className="text-sm leading-5 text-muted-foreground">
-                                Quem Pode Ver: <AudienceText au={r.au} />
-                              </div>
-                            ) : null}
+                            <div className="text-sm leading-5 text-muted-foreground">
+                              Quem Pode Ver: <AudienceText au={r.au} />
+                            </div>
                           </div>
                         );
                       })}

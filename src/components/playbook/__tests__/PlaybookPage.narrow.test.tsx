@@ -64,6 +64,8 @@ describe("PlaybookPage (celular)", () => {
     expect(screen.queryByText(/Link do mapa/)).toBeNull();
     fireEvent.click(heads[0]);
     expect(screen.getByText(/Link do mapa/)).toBeTruthy();
+    // TODOS os campos levam "Quem Pode Ver:" (inclusive Público).
+    expect(screen.getAllByRole("button", { name: /Explicação: Público/ }).length).toBeGreaterThan(0);
     fireEvent.click(heads[1]);
     expect(screen.queryByText(/Link do mapa/)).toBeNull();
     expect(screen.getByText(/Código do portão/)).toBeTruthy();
