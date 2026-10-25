@@ -3,7 +3,7 @@ import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, BookOpen, Copy, CopyPlus, Eye, EyeOff, Info, KeyRound, Lock, MoreHorizontal, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Copy, CopyPlus, Eye, EyeOff, Info, KeyRound, Lock, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
@@ -19,7 +19,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   addPlaybookRow,
@@ -377,35 +376,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
             }
           />
           <div className="ds-page-heading min-w-0">
-            {narrow ? (
-              <div className="flex min-w-0 items-center justify-between gap-2">
-                <h1 className="ds-page-title !text-lg min-w-0 truncate">Playbook do imóvel</h1>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="Mais ações"
-                      title="Mais ações"
-                      className="-mr-2 grid size-8 flex-none place-items-center rounded-lg border-0 bg-transparent p-0 text-muted-foreground hover:text-foreground print:hidden"
-                    >
-                      <MoreHorizontal className="size-5" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => setRead((v) => !v)}>
-                      <BookOpen className="size-4" />
-                      {read ? "Sair do modo leitura" : "Entrar no modo leitura"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={printNow}>
-                      <Printer className="size-4" />
-                      Imprimir
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ) : (
-              <h1 className="ds-page-title !text-lg truncate">Playbook do imóvel</h1>
-            )}
+            <h1 className="ds-page-title !text-lg truncate">Playbook do imóvel</h1>
             <p className="ds-page-subtitle">{query.data?.propertyName ?? "Carregando…"}</p>
             {owner?.name ? (
               <OwnerLine name={owner.name} phone={owner.phone} country={owner.country} phonePosition="adjacent" size={13} />
@@ -418,7 +389,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           onChange={setQ}
           placeholder="Buscar campo, valor ou observação"
           className="print:hidden"
-          actions={narrow ? undefined : (
+          actions={(
             <>
               <button
                 type="button"
@@ -471,7 +442,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
             </button>
           </div>
         ) : (
-          <div className={narrow ? "-mt-2.5 flex flex-col" : "contents"}>
+          <div className={narrow ? "ds-3d -mt-2.5 flex flex-col overflow-hidden rounded-[14px] border-0 bg-card" : "contents"}>
           {PLAYBOOK_SECTIONS.map((meta, idx) => {
             const sec = sections[idx];
             const all = (sec?.rows ?? []).filter((r) => !isOptionalEmpty(r) || revealed.includes(r.id) || edit?.id === r.id);
@@ -501,14 +472,14 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                         toggleSec();
                       }
                     }}
-                    className={`flex cursor-pointer gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isOpen ? "items-start pb-1.5 pt-[18px]" : "h-16 items-center"}`}
+                    className={`flex cursor-pointer gap-3 px-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isOpen ? "items-start pb-2 pt-3.5" : "h-14 items-center"}`}
                   >
                     <span
-                      className={`w-6 flex-none font-display text-[13px] font-semibold leading-[19px] ${isOpen ? "text-accent" : "text-[var(--faint)]"}`}
+                      className={`grid size-6 flex-none place-items-center rounded-lg bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] font-display text-xs font-bold ${isOpen ? "text-accent" : "text-muted-foreground"}`}
                     >
                       {meta.num}
                     </span>
-                    <div className="min-w-0 flex-1">
+                    <div className={`min-w-0 flex-1 ${isOpen ? "mt-[2.5px]" : ""}`}>
                       <div className="truncate whitespace-nowrap font-display text-[15px] font-semibold leading-[19px] text-foreground">
                         {meta.title}
                       </div>
@@ -518,13 +489,13 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                         </div>
                       ) : null}
                     </div>
-                    <span className="flex-none font-display text-[13px] font-medium leading-[19px] tabular-nums text-muted-foreground">
+                    <span className={`flex-none font-display text-[13px] font-medium leading-[19px] tabular-nums text-muted-foreground ${isOpen ? "mt-[2.5px]" : ""}`}>
                       ({qq ? `${rows.length} de ${all.length}` : all.length})
                     </span>
                   </div>
 
                   {isOpen ? (
-                    <div className="ml-9 pb-1.5 pt-3.5">
+                    <div className="pb-3.5 pl-[50px] pr-3.5 pt-2.5">
                       {rows.map((r, i) => {
                         const open = read || openRows.includes(r.id);
                         const editing = edit?.id === r.id;
@@ -610,7 +581,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                   ) : null}
 
                   {idx < PLAYBOOK_SECTIONS.length - 1 ? (
-                    <div className={`ml-9 h-px bg-[var(--panel-div)] ${isOpen ? "mt-3" : ""}`} />
+                    <div className="ml-[50px] h-px bg-[var(--panel-div)]" />
                   ) : null}
                 </section>
               );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, Expand, Headphones, X } from "lucide-react";
 import { ConversationView } from "@/components/handoff/ConversationView";
 import { ChannelLogo, channelOf } from "@/components/handoff/ChannelLogo";
@@ -27,6 +27,7 @@ export function QuickChatBubbles({
   myUserId,
   onOpenFull,
   onDismiss,
+  onOpenChatChange,
 }: {
   items: QuickChatItem[];
   /** Distância (CSS) do rodapé, já acima do botão flutuante. */
@@ -34,11 +35,18 @@ export function QuickChatBubbles({
   myUserId: string | null;
   onOpenFull: (id: string) => void;
   onDismiss: (id: string | "all") => void;
+  /** Informa qual chamado está aberto no mini-chat (null = nenhum). */
+  onOpenChatChange?: (id: string | null) => void;
 }) {
   const [mode, setMode] = useState<"bubble" | "list" | "chat">("bubble");
   const [chatId, setChatId] = useState<string | null>(null);
   const expanded = mode !== "bubble";
   const panelRef = useManualOverlayLayer<HTMLDivElement>(expanded, () => setMode("bubble"));
+  const openChat = mode === "chat" ? chatId : null;
+  useEffect(() => {
+    onOpenChatChange?.(openChat);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openChat]);
 
   if (items.length === 0) return null;
   const top = items[0];

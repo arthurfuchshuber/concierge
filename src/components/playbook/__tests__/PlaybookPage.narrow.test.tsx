@@ -67,6 +67,7 @@ describe("PlaybookPage (celular)", () => {
     fireEvent.click(heads[1]);
     expect(screen.queryByText("Link do mapa")).toBeNull();
     expect(screen.getByText("Código do portão")).toBeTruthy();
-    expect(screen.getByLabelText("Mais ações")).toBeTruthy();
+    expect(screen.queryByLabelText("Mais ações")).toBeNull();
+    expect(screen.getByLabelText("Entrar no modo leitura")).toBeTruthy();
   });
 });
