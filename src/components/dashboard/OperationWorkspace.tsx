@@ -59,7 +59,7 @@ import {
 } from "@/components/dashboard/ServiceSituationUi";
 import { getServiceExtras } from "@/lib/service-situations.functions";
 import { SYSTEM_SITUATIONS, type ExtraServiceItem } from "@/lib/service-situations";
-import { ManualBlockButton } from "@/components/dashboard/ManualBlockButton";
+import { PeriodQuickFilterButton } from "@/components/dashboard/PeriodQuickFilterButton";
 import { CalendarBlockBar, CalendarBlockDialog } from "@/components/dashboard/CalendarBlockUI";
 import { addDaysISO as blockAddDays, conflictMessage, firstBlockConflict } from "@/lib/manual-block-conflict";
 import { createManualBlockFn, listManualBlocks, removeManualBlockFn, syncBlockAvailabilityFn } from "@/lib/manual-blocks.functions";
@@ -3243,7 +3243,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   <NewServiceButton />
                 </>
               )}
-              {view !== "limpeza" && <ManualBlockButton />}
               {/* Aba Serviços (23/10/2026): saíram da barra o interruptor "últimos/próximos
                   7 dias" e o selo do período. O período mora SÓ dentro do botão Filtros,
                   sempre pré-selecionado em "Últimos 7 dias". */}
@@ -3307,8 +3306,19 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     </DropdownMenu>
                   );
                 })()}
+              {/* O calendário da barra é SÓ o filtro rápido de período (26/10/2026):
+                  abre direto o calendário e escreve no mesmo `periodRange` da página.
+                  "Bloquear datas" saiu daqui — barra de ferramentas é busca e filtros. */}
+              <PeriodQuickFilterButton
+                value={periodRange}
+                onChange={setPeriodRange}
+                min={view === "limpeza" ? cleaningDemandBounds?.min : null}
+                max={view === "limpeza" ? cleaningDemandBounds?.max : null}
+                defaultChip={view === "limpeza" ? "Últimos 7 dias" : undefined}
+              />
               <CalendarFiltersButton
                 compactTrigger
+                hidePeriod
                 periodRange={periodRange}
                 onPeriodRangeChange={setPeriodRange}
                 cityFilters={cityFilters}

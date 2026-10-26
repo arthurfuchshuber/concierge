@@ -16,7 +16,6 @@ import {
   Mic,
   Pencil,
   LayoutGrid,
-  Sparkles,
   SlidersHorizontal,
   Filter,
   StickyNote,
@@ -68,6 +67,7 @@ import {
   FilterScreenHeader,
   FilterToggleRow,
 } from "@/components/dashboard/filter-panel";
+import { PeriodQuickFilterButton } from "@/components/dashboard/PeriodQuickFilterButton";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import type { DateRange } from "react-day-picker";
 
@@ -743,25 +743,14 @@ export function RecordsWorkspace() {
 
   const recordActions = (
     <>
-      {/* PERÍODO À ESQUERDA, FILTROS À DIREITA — idêntico à Limpeza:
-                  com período escolhido, o botão mostra as datas e tocar limpa. */}
-      {period ? (
-        <button
-          type="button"
-          onClick={() => setPeriod(null)}
-          title="Limpar período"
-          aria-label={`Período ${fmtDDMM(period.start)} a ${fmtDDMM(period.end)} — limpar período`}
-          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
-        >
-          <CalendarRange className={ACTION_ICON} />
-          <span className="lg:hidden">{`${fmtDDMM(period.start)} a ${fmtDDMM(period.end)}`}</span>
-        </button>
-      ) : (
-        <span className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`} title="Todo o período">
-          <Sparkles className={ACTION_ICON} />
-          <span className="lg:hidden">Todo o período</span>
-        </span>
-      )}
+      {/* PERÍODO À ESQUERDA, FILTROS À DIREITA: o calendário é só o filtro
+          rápido de período (mesma peça do Kanban e da Limpeza). */}
+      <PeriodQuickFilterButton
+        value={period}
+        onChange={setPeriod}
+        min={q.data?.bounds?.min ?? null}
+        max={q.data?.bounds?.max ?? null}
+      />
       {/* "+ REGISTRO" (04/10/2026): o mesmo "+" da Limpeza, para registrar
                   sem depender de um checkout — ligado só ao imóvel ou a uma reserva. */}
       <NewRecordButton />
@@ -3306,16 +3295,6 @@ function RecordsFiltersButton({
               value={groupLabel}
               active={groupBy !== GROUP_OPTIONS[0].value}
               onClick={() => setScreen("group")}
-            />
-            <FilterMenuRow
-              icon={CalendarRange}
-              label="Período"
-              value={periodLabel}
-              active={period !== null}
-              onClick={() => {
-                setCalendarMonth(isoToDate(todayISOSaoPaulo()));
-                setScreen("period");
-              }}
             />
             <FilterMenuRow
               icon={Users}
