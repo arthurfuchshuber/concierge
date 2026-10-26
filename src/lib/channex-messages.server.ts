@@ -932,6 +932,16 @@ async function runConsolidatedAiReply(admin: any, convId: string, ctx: ReplyCtx 
     .maybeSingle();
   const { isPausedNow } = await import("@/lib/ai/pause");
   if (!(sw0 as any)?.airbnb_ai_enabled || isPausedNow(conv0 as never)) return;
+  // Card de decisão da equipe pendente nesta conversa (ex.: autorizar remarcação):
+  // a IA não fala com o hóspede até a equipe decidir pelo botão.
+  const { data: openDecision } = await admin
+    .from("ai_human_escalations")
+    .select("id")
+    .eq("conversation_id", convId)
+    .eq("status", "pending")
+    .eq("reason", "proactive_decision")
+    .limit(1);
+  if (openDecision?.length) return;
 
   // Bloco do hóspede ainda sem resposta → UMA mensagem para o agente.
   const block = await consolidatedGuestBlock(admin, convId);
