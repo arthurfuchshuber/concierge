@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter,
   AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { Section, SectionGroup, type SectionIcon } from "@/components/editor/Section";
+import { DenseSections, Section, SectionGroup, type SectionIcon } from "@/components/editor/Section";
 import { MoneyInput } from "@/components/ui/money-input";
 import { ElevatorSegment, ParkingSpotsInput } from "@/components/editor/CondominiumInputs";
 import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
@@ -807,14 +807,14 @@ export function BulkEditDialog({
           centralizada no celular e no computador, cresce com o conteúdo até 90% da
           tela; só a área do meio rola, cabeçalho e rodapé ficam fixos. */}
       <DialogContent
-        className="ds-overlay flex max-h-[90dvh] w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden rounded-[14px] p-0 [scrollbar-gutter:stable] sm:max-w-3xl"
+        className="ds-overlay flex max-h-[90dvh] w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden rounded-[14px] border-border/80 bg-card p-0 [scrollbar-gutter:stable] sm:max-w-3xl"
       >
         <>
         {/* Cabeçalho fixo — não rola junto com o conteúdo. */}
-        <div className="shrink-0 px-5 pt-5 sm:px-6 sm:pt-6">
+        <div className="shrink-0 border-b border-border/60 px-5 py-4">
         <DialogHeader className="pr-8">
-          <DialogTitle className="font-display text-base font-semibold tracking-tight">Editar {targetIds.length || ids.length} {(targetIds.length || ids.length) === 1 ? "guia" : "guias"}</DialogTitle>
-          <DialogDescription className="text-xs font-normal leading-relaxed text-muted-foreground">
+          <DialogTitle className="font-display text-[15px] font-bold text-foreground">Editar {targetIds.length || ids.length} {(targetIds.length || ids.length) === 1 ? "guia" : "guias"}</DialogTitle>
+          <DialogDescription className="text-[11.5px] text-muted-foreground">
             {loading
               ? "Carregando dados dos guias selecionados…"
               : "As informações atuais já aparecem preenchidas. Qualquer alteração é salva automaticamente nos guias selecionados."}
@@ -824,24 +824,25 @@ export function BulkEditDialog({
 
         {/* Só essa área central rola — cabeçalho e rodapé ficam sempre
             visíveis, sem precisar descer até o fim do conteúdo. */}
-        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-3 [scrollbar-gutter:stable] sm:px-6">
+        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-4 [scrollbar-gutter:stable]">
         {loading ? (
           <div className="py-10 grid place-items-center text-muted-foreground">
             <Loader2 className="size-5 animate-spin" />
           </div>
         ) : (
+        <DenseSections variant="presence">
         <Tabs value={tab} onValueChange={setTab} className="w-full min-w-0">
           {/* Mesmo padrão usado no resto do sistema (ds-scroll-x): os itens
               mantêm o tamanho natural (flex: none) e a barra inteira rola por
               baixo em telas estreitas, em vez de espremer tudo (flex-1) num
               container de largura fixa (w-max) — isso cortava a última aba
               em celulares mais estreitos. */}
-          <TabsList className="ds-segmented w-full flex-nowrap overflow-x-auto overflow-y-hidden [&>*]:flex-none mb-5 -mx-1 px-1 h-auto gap-0 rounded-[0.3rem] bg-foreground/5 p-0">
+          <TabsList className="ds-segmented mb-4 w-full rounded-[9px] bg-card p-0 shadow-[inset_0_0_0_1px_var(--border)] lg:rounded-[13px]">
             {TEXT_TABS.map((t) => (
               <TabsTrigger
                 key={t.id}
                 value={t.id}
-                className="min-h-[34px] whitespace-nowrap rounded-none px-3 text-xs font-normal shadow-none data-[state=active]:shadow-none data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#7C1AD8] data-[state=active]:to-[#E82DAE] data-[state=active]:text-white"
+                className="relative flex min-h-[40px] items-center justify-center whitespace-nowrap px-3 text-center text-[12.5px] leading-none transition-colors hover:text-foreground data-[state=active]:ds-tab-active data-[state=active]:font-bold data-[state=inactive]:font-semibold data-[state=inactive]:text-muted-foreground"
               >
                 {t.label}
               </TabsTrigger>
@@ -852,7 +853,7 @@ export function BulkEditDialog({
           {TEXT_TABS.map((tab) => (
             <TabsContent key={tab.id} value={tab.id} className="space-y-4 pt-4 min-w-0">
               {tab.groups.length === 0 && (
-                <p className="rounded-[0.3rem] border border-border bg-card/40 p-3 text-xs text-muted-foreground">
+                <p className="rounded-[9px] border border-border/60 bg-muted/20 p-3.5 text-xs text-muted-foreground">
                   As recomendações são específicas de cada residência (endereço, distância e horários) e por isso
                   não podem ser aplicadas em massa. Edite-as no guia individual.
                 </p>
@@ -877,7 +878,7 @@ export function BulkEditDialog({
                   {(group.subgroups ?? []).map((sg) => (
                     <div
                       key={sg.id}
-                      className="rounded-[0.3rem] border border-border bg-card/40 p-3 min-w-0"
+                      className="rounded-[9px] border border-border/60 bg-muted/20 p-3.5 min-w-0"
                     >
                       <div className="mb-2 truncate text-[13px] font-normal">{sg.title}</div>
                       <div className="divide-y divide-border/60">
@@ -891,7 +892,7 @@ export function BulkEditDialog({
                   ))}
 
                   {(group.fields ?? []).length > 0 && (
-                    <div className="rounded-[0.3rem] border border-border bg-card/40 p-3 min-w-0 divide-y divide-border/60">
+                    <div className="rounded-[9px] border border-border/60 bg-muted/20 p-3.5 min-w-0 divide-y divide-border/60">
                       {(group.fields ?? []).filter((f) => isFieldVisible(f.key)).map((f) => (
                         <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
                           {fieldBlock(f, false)}
@@ -917,25 +918,26 @@ export function BulkEditDialog({
             </TabsContent>
           ))}
         </Tabs>
+        </DenseSections>
         )}
         <div className="h-4" aria-hidden />
         </div>
 
         {/* Rodapé fixo — só aparece o botão de salvar quando há algo para
             salvar; "Fechar" fica sempre disponível para sair do popup. */}
-        <div className="shrink-0 border-t border-[var(--panel-border)] bg-[var(--panel)] px-5 py-3 sm:px-6">
-        <DialogFooter className="items-center gap-2 sm:space-x-0">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/60 bg-card px-5 py-3">
+        <DialogFooter className="w-full !flex-row items-center justify-end gap-2 sm:space-x-0">
           <div className="mr-auto flex items-center gap-2">
             <AutosaveIndicator status={saveStatus} errorMessage={saveError} />
             {saveStatus === "idle" && isDirty && (
               <span className="text-[11px] text-muted-foreground">Alterações não salvas</span>
             )}
           </div>
-          <Button variant="outline" onClick={requestClose} disabled={saving} className="h-9 rounded-[9px] lg:rounded-[13px]">
+          <Button variant="outline" onClick={requestClose} disabled={saving} className="h-9 rounded-[9px] px-4 text-[12.5px] font-semibold lg:rounded-[13px]">
             Fechar
           </Button>
           {(isDirty || saving) && (
-            <Button onClick={handleSaveClick} disabled={saving || !isDirty} className="h-9 rounded-[9px] lg:rounded-[13px]">
+            <Button onClick={handleSaveClick} disabled={saving || !isDirty} className="h-9 rounded-[9px] px-4 text-[12.5px] font-semibold lg:rounded-[13px]">
               {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />}
               Salvar alterações
             </Button>

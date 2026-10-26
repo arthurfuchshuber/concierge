@@ -848,20 +848,22 @@ function Dashboard() {
         <div
           role="toolbar"
           aria-label="Ações em lote"
-          className={`${ACTION_BAR} !w-full items-center justify-between`}
+          className="flex h-10 w-full items-center justify-between overflow-hidden rounded-[9px] bg-card shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border),0_8px_14px_-8px_rgb(0_0_0/0.55)] transition-all lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px]"
         >
-          <div className="flex min-w-0 items-center gap-2 px-3 text-[12px] font-bold text-foreground">
+          <div className="flex min-w-0 items-center gap-2 pl-3.5 pr-2">
             <CountPill>{selected.size}</CountPill>
-            <span className="truncate">{selected.size === 1 ? "selecionado" : "selecionados"}</span>
+            <span className="truncate text-[12.5px] font-semibold text-foreground">
+              {selected.size === 1 ? "selecionado" : "selecionados"}
+            </span>
           </div>
 
-          <div className="flex h-full shrink-0 divide-x divide-white/[0.08]">
+          <div className="flex h-full shrink-0 items-center divide-x divide-[color-mix(in_oklab,var(--foreground)_11%,transparent)] border-l border-[color-mix(in_oklab,var(--foreground)_11%,transparent)]">
             <button
               type="button"
               onClick={() => setBulkOpen(true)}
-              className={`${ACTION_SEGMENT} !w-auto !px-3.5 gap-1.5 text-foreground hover:bg-white/[0.04]`}
+              className="flex h-full items-center gap-1.5 px-3.5 text-[12.5px] font-semibold text-foreground transition-colors hover:bg-foreground/[0.04]"
             >
-              <PenSquare className={ACTION_ICON} />
+              <PenSquare className="size-3.5" />
               <span>Editar</span>
             </button>
             <button
@@ -869,9 +871,9 @@ function Dashboard() {
               onClick={clearSelection}
               title="Limpar seleção (Esc)"
               aria-label="Limpar seleção"
-              className={`${ACTION_SEGMENT} !w-9 !px-0 text-muted-foreground hover:bg-white/[0.04] hover:text-foreground`}
+              className="flex h-full w-10 items-center justify-center text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground lg:w-[44px]"
             >
-              <X className={ACTION_ICON} />
+              <X className="size-3.5" />
             </button>
           </div>
         </div>
