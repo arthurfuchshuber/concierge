@@ -806,6 +806,9 @@ dd {
   display: flex;
   flex-direction: column;
   gap: var(--ds-grid-gap);
+  /* Anti-corte (regra permanente): nenhum filho estoura a borda direita. */
+  min-width: 0;
+  max-width: 100%;
 }
 
 @utility ds-page-head {

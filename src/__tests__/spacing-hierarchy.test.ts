@@ -35,4 +35,11 @@ describe("hierarquia única de espaçamento vertical", () => {
     expect(g).not.toContain('className="mb-6 ds-surface');
     expect(read("components/dashboard/OperationWorkspace.tsx")).not.toContain("ds-lead-block");
   });
+
+  it("SectionLabel não carrega padding/margem superior próprios", () => {
+    const chrome = read("components/dashboard/panel-chrome.tsx");
+    const m = chrome.match(/export function SectionLabel[\s\S]*?return \(\s*<div className=\{`([^`]*)`\}/);
+    expect(m).not.toBeNull();
+    expect(m![1]).not.toMatch(/\b(pt|mt|py|my|p|m)-/);
+  });
 });

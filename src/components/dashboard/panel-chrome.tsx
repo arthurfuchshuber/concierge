@@ -91,6 +91,9 @@ export function PanelHeading({
  * Divide a página em vez de começar um bloco: é o que separa os atrasados do
  * resto na Operacional e os imóveis em dia dos que precisam de atenção nos
  * Registros.
+ *
+ * SEM padding/margem próprios (26/10/2026): o vão vem só do `gap` do pai
+ * (10px) — ou dos 24px do `ds-page-head` quando é o 1º elemento da página.
  */
 export function SectionLabel({
   children,
@@ -106,7 +109,7 @@ export function SectionLabel({
   count?: number;
 }) {
   return (
-    <div className={`flex items-center gap-3 pt-1.5 ${className ?? ""}`}>
+    <div className={`flex min-w-0 items-center gap-3 ${className ?? ""}`}>
       <span
         aria-hidden
         className="h-px flex-1 bg-gradient-to-l from-[color-mix(in_oklab,var(--foreground)_14%,transparent)] to-transparent"
