@@ -13,6 +13,12 @@ describe("remarcação: detecção e modalidades", () => {
     expect(g).toContain("PLATAFORMA não permite");
     expect(g).toContain("OBJEÇÕES");
   });
+  it("recusa proíbe repassar objeções à equipe e manda atenuantes ao suporte da plataforma", () => {
+    const d = decideReservationRequest({ kind: "cancel", window: { status: "expired", policy: "Moderada", deadline: "01/10/2026 15:00" } });
+    const g = reservationRequestGuidance(d, true);
+    expect(g).toContain("É PROIBIDO acionar a equipe");
+    expect(g).toContain("circunstâncias atenuantes");
+  });
   it("moderada dentro do prazo vai para a equipe", () => {
     expect(decideReservationRequest({ kind: "change_dates", window: { status: "free", policy: "Moderada", deadline: "05/11/2026 15:00" } }).route).toBe("team");
   });
