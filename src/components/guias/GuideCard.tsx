@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { ownerLabel } from "@/components/dashboard/card-colors";
+import { useLongPress } from "@/hooks/useLongPress";
 
 export type GuideCardVariant = "split" | "grid";
 
@@ -40,6 +41,10 @@ export function GuideCard({
   actions,
   onOpenMenu,
   attention,
+  selected,
+  selectionMode,
+  onToggleSelect,
+  onLongPressSelect,
 }: {
   p: GuideCardData;
   variant: GuideCardVariant;
@@ -56,19 +61,35 @@ export function GuideCard({
    * então todo controle novo já nasce protegido.
    */
   onOpenMenu?: () => void;
+  /** Seleção em lote SEM checkbox: o card selecionado ganha anel de destaque. */
+  selected?: boolean;
+  /** Há algum card selecionado: o toque só alterna a seleção (não abre o menu). */
+  selectionMode?: boolean;
+  onToggleSelect?: () => void;
+  /** Pressionar e segurar (~500ms) entra no modo de seleção com este card. */
+  onLongPressSelect?: () => void;
   /** Guia publicado que precisa de atenção (selo rosado sobre a foto). */
   attention?: boolean;
 }) {
-  const openMenuOnClick = onOpenMenu
-    ? (e: React.MouseEvent<HTMLElement>) => {
-        const el = e.target as HTMLElement | null;
-        const interactive = el?.closest(
-          "button, a, input, select, textarea, label, [role='button'], [role='checkbox'], [role='switch'], [data-radix-popper-content-wrapper]",
-        );
-        if (interactive && interactive !== e.currentTarget) return;
-        onOpenMenu();
-      }
-    : undefined;
+  const { handlers: pressHandlers, consumeClick } = useLongPress(() => onLongPressSelect?.());
+  const onCardClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (consumeClick()) return; // o toque longo já selecionou: não abre o menu
+    const el = e.target as HTMLElement | null;
+    const interactive = el?.closest(
+      "button, a, input, select, textarea, label, [role='button'], [role='checkbox'], [role='switch'], [data-radix-popper-content-wrapper]",
+    );
+    if (interactive && interactive !== e.currentTarget) return;
+    if (selectionMode) onToggleSelect?.();
+    else onOpenMenu?.();
+  };
+  const interactiveCard = !!onOpenMenu || !!onToggleSelect;
+  const cardProps = {
+    onClick: interactiveCard ? onCardClick : undefined,
+    ...(onLongPressSelect ? pressHandlers : {}),
+  };
+  const cardFx = `select-none [-webkit-touch-callout:none] transition-all duration-150 ${
+    selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background bg-primary/[0.04]" : ""
+  } ${interactiveCard ? "cursor-pointer" : ""}`;
   const pub = (withLabel: boolean) => (
     <span
       className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-background/75 py-[2px] pr-0.5 backdrop-blur ${withLabel ? "pl-2" : "pl-0.5"}`}
@@ -156,8 +177,9 @@ export function GuideCard({
   if (variant === "grid") {
     return (
       <div
-        onClick={openMenuOnClick}
-        className={`${PANEL_SHELL} relative flex min-w-0 flex-col ${onOpenMenu ? "cursor-pointer" : ""}`}
+        {...cardProps}
+        aria-selected={selected || undefined}
+        className={`${PANEL_SHELL} relative flex min-w-0 flex-col ${cardFx}`}
       >
         {photo("aspect-[16/9] w-full", true)}
         <div className="flex min-w-0 p-3">{info}</div>
@@ -175,8 +197,9 @@ export function GuideCard({
   const statusLabel = attention ? "Atenção" : p.published ? "Publicado" : "Rascunho";
   return (
     <div
-      onClick={openMenuOnClick}
-      className={`${PANEL_SHELL} relative flex h-[112px] min-w-0 overflow-hidden ${onOpenMenu ? "cursor-pointer" : ""}`}
+      {...cardProps}
+      aria-selected={selected || undefined}
+      className={`${PANEL_SHELL} relative flex h-[112px] min-w-0 overflow-hidden ${cardFx}`}
     >
       <div className="relative w-24 shrink-0 overflow-hidden bg-secondary">
         <CoverImage urls={[p.hero_image_url, ...(p.gallery_images ?? [])]} />

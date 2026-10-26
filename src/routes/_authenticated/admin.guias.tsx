@@ -320,6 +320,24 @@ function Dashboard() {
     }
   }
 
+  function toggleSelect(id: string) {
+    setSelected((cur) => {
+      const n = new Set(cur);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n; // vazio => sai do modo de seleção (selectionMode = size > 0)
+    });
+  }
+  const clearSelection = () => setSelected(new Set());
+  useEffect(() => {
+    if (selected.size === 0) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelected(new Set());
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected.size]);
+
   async function bulkTogglePublished(next: boolean) {
     if (!selected.size) return;
     setBulkPubBusy(true);
@@ -648,42 +666,6 @@ function Dashboard() {
           placeholder="Buscar por título, proprietário, cidade…"
           actions={
             <>
-              {selected.size > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
-                      aria-label="Ações da seleção"
-                      title="Ações da seleção"
-                    >
-                      <PenSquare className={ACTION_ICON} />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem
-                      disabled={bulkPubBusy}
-                      onSelect={() => bulkTogglePublished(true)}
-                      className="text-xs font-normal"
-                    >
-                      <Globe className={ACTION_ICON} /> Publicar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={bulkPubBusy}
-                      onSelect={() => bulkTogglePublished(false)}
-                      className="text-xs font-normal"
-                    >
-                      <Lock className={ACTION_ICON} /> Despublicar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() => setBulkOpen(true)}
-                      className="text-xs font-normal"
-                    >
-                      <PenSquare className={ACTION_ICON} /> Editar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
               {/* Visualização — alterna lista / lado a lado */}
               <button
                 type="button"
@@ -860,6 +842,61 @@ function Dashboard() {
         />
       </div>
 
+      {/* BARRA DE LOTE (long press nos cards, sem checkbox): contador + ações. */}
+      {selected.size > 0 && !readOnly && (
+        <div
+          role="toolbar"
+          aria-label="Ações em lote"
+          className="flex min-w-0 items-center gap-1 rounded-[12px] border border-[var(--panel-border)] bg-[var(--panel)] p-1.5"
+        >
+          <span className="min-w-0 flex-1 truncate px-2 text-[12px] font-bold">
+            {selected.size} {selected.size === 1 ? "selecionado" : "selecionados"}
+          </span>
+          <button
+            type="button"
+            disabled={bulkPubBusy}
+            onClick={() => bulkTogglePublished(true)}
+            title="Publicar"
+            aria-label="Publicar selecionados"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground disabled:opacity-40"
+          >
+            <Globe className="size-3.5" />
+            <span className="max-sm:hidden">Publicar</span>
+          </button>
+          <button
+            type="button"
+            disabled={bulkPubBusy}
+            onClick={() => bulkTogglePublished(false)}
+            title="Despublicar"
+            aria-label="Despublicar selecionados"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground disabled:opacity-40"
+          >
+            <Lock className="size-3.5" />
+            <span className="max-sm:hidden">Despublicar</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setBulkOpen(true)}
+            title="Editar"
+            aria-label="Editar selecionados"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground"
+          >
+            <PenSquare className="size-3.5" />
+            <span className="max-sm:hidden">Editar</span>
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            title="Limpar seleção (Esc)"
+            aria-label="Limpar seleção"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] font-semibold text-accent hover:bg-secondary"
+          >
+            <X className="size-3.5" />
+            <span>Limpar</span>
+          </button>
+        </div>
+      )}
+
       {isLoading ? (
         <LoadingState count={3} />
       ) : !guideRows.length ? (
@@ -1006,6 +1043,17 @@ function Dashboard() {
                           toggling={togglingId === p.id}
                           attention={g.key === "att"}
                           onOpenMenu={() => setMenuGuideId(p.id)}
+                          selected={selected.has(p.id)}
+                          selectionMode={selected.size > 0}
+                          onToggleSelect={!readOnly ? () => toggleSelect(p.id) : undefined}
+                          onLongPressSelect={
+                            !readOnly
+                              ? () => {
+                                  setMenuGuideId(null);
+                                  setSelected((cur) => new Set(cur).add(p.id));
+                                }
+                              : undefined
+                          }
                           onTogglePublished={(v) => togglePublished(p.id, v)}
                           actions={
                             <>
