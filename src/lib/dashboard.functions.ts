@@ -1770,31 +1770,27 @@ export async function runAdvanceArrival(
       const logIds2 = abertos.map((r) => r.log_id).filter((i): i is string => !!i);
       const [resRes2, logRes2] = await Promise.all([
         resIds.length
-          ? supabase.from("property_reservations").select("id, checkout_date").in("id", resIds)
+          ? supabase.from("property_reservations").select("id, checkin_date, checkout_date").in("id", resIds)
           : Promise.resolve({ data: [] as unknown[] }),
         logIds2.length
-          ? supabase.from("guide_access_logs").select("id, checkout_date").in("id", logIds2)
+          ? supabase.from("guide_access_logs").select("id, checkin_date, checkout_date").in("id", logIds2)
           : Promise.resolve({ data: [] as unknown[] }),
       ]);
-      const saidaRes = new Map(
-        ((resRes2.data ?? []) as Array<{ id: string; checkout_date: string | null }>).map((r) => [
-          r.id,
-          r.checkout_date,
-        ]),
-      );
-      const saidaLog = new Map(
-        ((logRes2.data ?? []) as Array<{ id: string; checkout_date: string | null }>).map((l) => [
-          l.id,
-          l.checkout_date,
-        ]),
-      );
+      type Datas = { id: string; checkin_date: string | null; checkout_date: string | null };
+      const saidaRes = new Map(((resRes2.data ?? []) as Datas[]).map((r) => [r.id, r]));
+      const saidaLog = new Map(((logRes2.data ?? []) as Datas[]).map((l) => [l.id, l]));
       others = abertos.filter((row) => {
-        const saida =
+        const d =
           (row.reservation_id ? saidaRes.get(row.reservation_id) : null) ??
           (row.log_id ? saidaLog.get(row.log_id) : null) ??
           null;
         // Sem data conhecida, não trava o imóvel indefinidamente.
-        return !!saida && saida >= today;
+        if (!d?.checkout_date || d.checkout_date < today) return false;
+        // CORREÇÃO (25/10/2026): só estadias que JÁ começaram podem travar.
+        // Uma reserva futura (ex.: novembro) com linha de saída "pending"
+        // gerava falso "check-out pendente" e bloqueava o check-in de hoje.
+        if (!d.checkin_date || d.checkin_date > today) return false;
+        return true;
       });
     }
 
