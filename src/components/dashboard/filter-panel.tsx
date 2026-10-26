@@ -107,6 +107,11 @@ export const FitPopoverContent = forwardRef<
 ) {
   const [node, setNode] = useState<HTMLDivElement | null>(null);
   const [placed, setPlaced] = useState<"bottom" | "top" | "left" | "right">("bottom");
+  // Deslocamento extra (negativo) quando NEM embaixo NEM em cima cabe o painel
+  // inteiro (celular, botão no meio da página): o painel sobe sobre o botão até
+  // caber por completo entre o cabeçalho e a barra inferior — sem clamp, sem
+  // rolagem interna, sem chips Início/Fim cortados.
+  const [shift, setShift] = useState(0);
   const setRefs = useCallback(
     (el: HTMLDivElement | null) => {
       setNode(el);
@@ -140,7 +145,17 @@ export const FitPopoverContent = forwardRef<
               : below >= above
                 ? "bottom"
                 : "top";
-    setPlaced((prev) => (prev === next ? prev : next));
+    const fits = below >= need || above >= need || roomLeft >= width || roomRight >= width;
+    let nextShift = 0;
+    if (!fits) {
+      // Topo desejado do painel: o mais perto possível do botão, mas inteiro
+      // dentro da faixa segura (cabeçalho em cima, barra inferior embaixo).
+      const maxTop = window.innerHeight - pad.bottom - need;
+      const top = Math.max(pad.top, Math.min(r.bottom + offset, maxTop));
+      nextShift = top - (r.bottom + offset);
+    }
+    setPlaced((prev) => (prev === (fits ? next : "bottom") ? prev : fits ? next : "bottom"));
+    setShift((prev) => (Math.abs(prev - nextShift) < 1 ? prev : nextShift));
   }, [node, sideOffset]);
   useLayoutEffect(() => {
     if (!node) return;
@@ -160,9 +175,9 @@ export const FitPopoverContent = forwardRef<
       ref={setRefs}
       side={placed}
       align={lateral ? "start" : align}
-      sideOffset={sideOffset}
+      sideOffset={(typeof sideOffset === "number" ? sideOffset : FILTER_PANEL_OFFSET) + shift}
       collisionPadding={fitPadding()}
-      className={`${className ?? ""} !max-h-[var(--radix-popover-content-available-height)]`}
+      className={`${className ?? ""} !max-h-[90dvh]`}
     />
   );
 });
