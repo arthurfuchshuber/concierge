@@ -1,8 +1,7 @@
 import { CoverImage } from "@/components/ui/cover-image";
 import type { ReactNode } from "react";
-import { Globe, Lock, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { ownerLabel } from "@/components/dashboard/card-colors";
@@ -38,8 +37,6 @@ export function GuideCard({
   barClass,
   toggling,
   onTogglePublished,
-  selected,
-  onSelectChange,
   actions,
   onOpenMenu,
   attention,
@@ -50,9 +47,7 @@ export function GuideCard({
   barClass: string;
   toggling?: boolean;
   onTogglePublished: (next: boolean) => void;
-  selected?: boolean;
-  onSelectChange?: (v: boolean) => void;
-  /** Menu "..." + lixeira. */
+  /** Menu de ações (Popover ancorado ao card inteiro). */
   actions: ReactNode;
   /**
    * Toque em qualquer ponto do card (10/10/2026, pedido explícito) abre o menu
@@ -74,12 +69,6 @@ export function GuideCard({
         onOpenMenu();
       }
     : undefined;
-  const access = (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-background/75 px-2 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.12em] text-foreground/80 backdrop-blur">
-      {p.access_mode === "pin" ? <Lock className="size-2.5" /> : <Globe className="size-2.5" />}
-      {p.access_mode === "pin" ? "PIN" : "Público"}
-    </span>
-  );
   const pub = (withLabel: boolean) => (
     <span
       className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-background/75 py-[2px] pr-0.5 backdrop-blur ${withLabel ? "pl-2" : "pl-0.5"}`}
@@ -123,7 +112,6 @@ export function GuideCard({
         </div>
       ) : (
         <>
-          <div className="absolute bottom-1.5 left-1.5">{access}</div>
           <div className="absolute right-1 top-1">{pub(withLabel)}</div>
         </>
       )}
@@ -143,7 +131,7 @@ export function GuideCard({
               country={p.ownerPhoneCountry}
               size={12}
               alwaysShow
-              className="shrink-0"
+              className="shrink-0 p-0.5"
             />
           </div>
         )}
@@ -156,44 +144,26 @@ export function GuideCard({
           </span>
         )}
       </div>
-      <div
-        className={`flex min-w-0 items-center gap-2 ${variant === "split" && onSelectChange ? "-mr-[18px]" : ""}`}
-      >
+      <div className="flex min-w-0 items-center gap-2">
         <div className="h-[3px] min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/10">
           <div className={`h-full rounded-full ${barClass}`} style={{ width: `${score}%` }} />
         </div>
         <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">{score}%</span>
-        <div
-          className={`flex shrink-0 items-center ${variant === "split" && onSelectChange ? "w-3 justify-center overflow-visible" : ""}`}
-        >
-          {actions}
-        </div>
       </div>
     </div>
   );
 
-  const check = onSelectChange ? (
-    <span
-      className="absolute left-2 top-2 z-10 grid place-items-center rounded-[4px] bg-background/75 p-[3px] backdrop-blur"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <Checkbox
-        className="!size-3 !rounded-[3px]"
-        checked={!!selected}
-        onCheckedChange={(v) => onSelectChange(!!v)}
-        aria-label="Selecionar guia"
-      />
-    </span>
-  ) : null;
   if (variant === "grid") {
     return (
       <div
         onClick={openMenuOnClick}
         className={`${PANEL_SHELL} relative flex min-w-0 flex-col ${onOpenMenu ? "cursor-pointer" : ""}`}
       >
-        {check}
         {photo("aspect-[16/9] w-full", true)}
         <div className="flex min-w-0 p-3">{info}</div>
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          {actions}
+        </div>
       </div>
     );
   }
@@ -208,14 +178,6 @@ export function GuideCard({
       onClick={openMenuOnClick}
       className={`${PANEL_SHELL} relative flex h-[112px] min-w-0 overflow-hidden ${onOpenMenu ? "cursor-pointer" : ""}`}
     >
-      {onSelectChange && (
-        <Checkbox
-          className="absolute right-2.5 top-2.5 z-10 !size-3 !rounded-[3px] opacity-50"
-          checked={!!selected}
-          onCheckedChange={(v) => onSelectChange(!!v)}
-          aria-label="Selecionar guia"
-        />
-      )}
       <div className="relative w-24 shrink-0 overflow-hidden bg-secondary">
         <CoverImage urls={[p.hero_image_url, ...(p.gallery_images ?? [])]} />
         <span
@@ -224,13 +186,9 @@ export function GuideCard({
           <span aria-hidden className="size-1.5 rounded-full bg-current" />
           {statusLabel}
         </span>
-        <span className="absolute bottom-2 left-2 inline-flex h-5 items-center gap-1 rounded-full bg-background/70 px-1.5 text-[9px] font-extrabold uppercase tracking-[0.1em] text-foreground/80 backdrop-blur-sm">
-          {p.access_mode === "pin" ? <Lock className="size-2.5" /> : <Globe className="size-2.5" />}
-          {p.access_mode === "pin" ? "PIN" : "Público"}
-        </span>
       </div>
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 py-3 pl-3.5 pr-2.5">
-        <div className={`grid min-w-0 gap-1.5 ${onSelectChange ? "pr-4" : ""}`}>
+        <div className="grid min-w-0 gap-1.5">
           <span
             className="block truncate text-[14.5px] font-extrabold leading-tight"
             title={p.name}
@@ -244,9 +202,9 @@ export function GuideCard({
             </span>
           )}
         </div>
-        <div className="flex min-w-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           {p.ownerName ? (
-            <span className="flex min-w-0 items-center gap-1.5 text-xs">
+            <span className="flex min-w-0 items-center gap-1 text-xs">
               <span className="shrink-0 text-[11.5px] text-muted-foreground">Proprietário(a):</span>
               <span className="min-w-0 truncate font-semibold text-foreground" title={p.ownerName}>
                 {p.ownerName}
@@ -256,14 +214,17 @@ export function GuideCard({
                 country={p.ownerPhoneCountry}
                 size={13}
                 alwaysShow
-                className="shrink-0"
+                className="shrink-0 p-0.5"
               />
             </span>
           ) : (
             <span />
           )}
-          <div className="flex shrink-0 items-center">{actions}</div>
-        </div>
+                  </div>
+      </div>
+      {/* Âncora do menu de ações: cobre o card inteiro, sem capturar toques. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        {actions}
       </div>
       <div
         className="absolute inset-x-0 bottom-0 h-[3px] bg-foreground/10"

@@ -1786,7 +1786,7 @@ function MoreRecordsBody({
                 country={group.ownerPhoneCountry}
                 size={14}
                 alwaysShow
-                className="shrink-0"
+                className="shrink-0 p-0.5"
               />
             </>
           ) : null}
@@ -1912,7 +1912,7 @@ function PendingPopoverBody({
                 country={first.ownerPhoneCountry}
                 size={14}
                 alwaysShow
-                className="shrink-0"
+                className="shrink-0 p-0.5"
               />
             </>
           ) : null}
@@ -2382,7 +2382,7 @@ function RecordViewerBody({
               country={record.ownerPhoneCountry}
               size={15}
               alwaysShow
-              className="shrink-0"
+              className="shrink-0 p-0.5"
             />
           </span>
         )}

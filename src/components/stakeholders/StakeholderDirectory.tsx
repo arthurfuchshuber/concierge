@@ -642,6 +642,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
                               country={r.phone_country}
                               size={13}
                               alwaysShow
+                              className="p-0.5"
                             />
                           </span>
                         </div>
@@ -812,6 +813,7 @@ function StakeholderCard({
                 country={row.phone_country}
                 size={13}
                 alwaysShow
+                className="p-0.5"
               />
             </div>
             <StakeholderStatusControl
@@ -923,7 +925,7 @@ function StakeholderCard({
             {row.trade_name || row.name}
           </span>
           {newLayout ? (
-            <PhoneActionButton phone={row.phone} country={row.phone_country} size={13} alwaysShow />
+            <PhoneActionButton phone={row.phone} country={row.phone_country} size={13} alwaysShow className="p-0.5" />
           ) : (
             row.phone && (
               <a

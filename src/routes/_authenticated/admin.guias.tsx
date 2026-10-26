@@ -68,7 +68,6 @@ import {
   X,
   Copy,
   Filter,
-  MoreHorizontal,
   Columns2,
   Users,
 } from "lucide-react";
@@ -83,7 +82,7 @@ import {
   FilterRootHeader,
   FilterScreenHeader,
 } from "@/components/dashboard/filter-panel";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1008,34 +1007,15 @@ function Dashboard() {
                           attention={g.key === "att"}
                           onOpenMenu={() => setMenuGuideId(p.id)}
                           onTogglePublished={(v) => togglePublished(p.id, v)}
-                          selected={selected.has(p.id)}
-                          onSelectChange={
-                            !readOnly
-                              ? (v) =>
-                                  setSelected((cur) => {
-                                    const n = new Set(cur);
-                                    if (v) n.add(p.id);
-                                    else n.delete(p.id);
-                                    return n;
-                                  })
-                              : undefined
-                          }
                           actions={
                             <>
                               <Popover
                                 open={menuGuideId === p.id}
                                 onOpenChange={(o) => setMenuGuideId(o ? p.id : null)}
                               >
-                                <PopoverTrigger asChild>
-                                  <button
-                                    type="button"
-                                    title="Mais opções"
-                                    aria-label="Mais opções"
-                                    className="size-7 inline-flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                                  >
-                                    <MoreHorizontal className="size-4" />
-                                  </button>
-                                </PopoverTrigger>
+                                {/* Sem botão "⋯": o toque no card abre este menu (o Popover
+                                    ancora no próprio card, via PopoverAnchor). */}
+                                <PopoverAnchor className="absolute inset-0" />
                                 <PopoverContent align="end" className="w-52 p-1.5">
                                   {!readOnly && view !== "grid" && (
                                     <button
