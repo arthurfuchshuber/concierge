@@ -30,7 +30,7 @@ const CANCEL = /\b(cancelar|cancelamento|cancela(r)? (a )?(minha )?reserva|desis
 const SHORTEN =
   /\b(reduzir (o )?(periodo|estadia|numero de (noites|diarias))|encurtar|diminuir (a )?(estadia|periodo|noites|diarias)|sair (antes|mais cedo) (do que|da data)|(ir|ficar) embora antes|antecipar (a )?(saida|checkout|check-out)|ficar so (ate|\d+)|cortar (uma |duas )?(noite|noites|diaria|diarias))\b/;
 const CHANGE =
-  /\b(mudar|trocar|alterar|remarcar|adiar|antecipar|transferir) (a |o |as |os )?(data|datas|periodo|reserva|estadia|check-?in|chegada)\b/;
+  /\b((mudar|trocar|alterar|adiar|antecipar|transferir|passar) (a |o |as |os |essa |esse |essas |esta |este |minha |meu |minhas |nossa |nosso |nossas |de |da |do )?(data|datas|periodo|reserva|estadia|hospedagem|viagem|check-?in|chegada)|remarc\w*|reagend\w*|outra data|outras datas|nova data|novas datas)\b/;
 
 /** Que tipo de pedido sobre a reserva está nesta mensagem? (a ordem importa) */
 export function detectReservationRequest(message: string): ReservationRequestKind | null {
@@ -192,18 +192,40 @@ export function reservationRequestGuidance(d: ReservationDecision, hasConfirmedR
         "- Acolha em uma frase e oriente o hóspede a abrir os detalhes da reserva na plataforma: lá aparecem a modalidade e as opções de cancelamento ou alteração com os prazos reais. Se ele insistir ou pedir uma pessoa, aí sim acione a equipe (request_human_handoff) com o pedido e o sentimento dele.",
       );
     } else if (d.route === "decline") {
+      const nonRef = w?.policy === "Não reembolsável";
       L.push(
-        `- O prazo sem multa JÁ PASSOU. Informe com gentileza e clareza que, por causa da ${pol}, não temos autorização para seguir com essa solicitação. Se ele insistir, diga que pode tentar o apoio do suporte da plataforma.`,
-        "- Não acione a equipe, não ofereça exceção, não discuta valores nem prometa nada.",
+        nonRef
+          ? "- A reserva foi feita na modalidade NÃO REEMBOLSÁVEL escolhida pelo hóspede na plataforma (tarifa com desconto em troca de regras rígidas). Explique que, nessa modalidade, a PLATAFORMA não permite alteração de datas, remarcação nem cancelamento com reembolso, e por isso precisamos manter as condições contratadas."
+          : `- O prazo sem multa da ${pol} JÁ PASSOU${w?.deadline ? ` (era até ${w.deadline})` : ""}. Explique que, pelas regras da PLATAFORMA para essa modalidade, alteração/cancelamento fora do prazo não é permitido sem multa, e por isso precisamos manter as condições contratadas.`,
+        "- A responsabilidade da regra é da plataforma e da modalidade escolhida na compra, nunca uma decisão pessoal nossa. Tom acolhedor (se houver imprevisto de saúde/família, demonstre empatia real em uma frase).",
+        "- PROIBIDO: perguntar novas datas, sugerir que 'talvez dê', oferecer exceção, dizer que vai consultar alguém, discutir valores ou prometer reembolso.",
+        "- OBJEÇÕES (siga a mesma linha, sempre com gentileza e firmeza): se o hóspede disser que o suporte da plataforma falou que 'é só o anfitrião aceitar', explique que essa é uma orientação padrão do suporte, mas que as condições da modalidade contratada valem igualmente para todas as reservas e não temos autorização para exceções; qualquer análise excepcional (ex.: casos cobertos pela política de circunstâncias atenuantes) é feita pela própria plataforma, pelo canal de suporte dela. Se insistir de novo, reafirme em poucas palavras, sem repetir o texto anterior. Nunca contradiga o que a equipe já disse.",
+        "- Não acione a equipe.",
       );
     } else {
       L.push(
         w?.status === "free"
-          ? "- Ainda está DENTRO do prazo sem multa: não decida nem informe resultado. Acione a equipe (request_human_handoff) informando o pedido, a modalidade, o limite do prazo e o SENTIMENTO do hóspede."
+          ? `- Ainda está DENTRO do prazo sem multa${w.deadline ? ` (até ${w.deadline})` : ""}: não decida nem informe resultado. Acione a equipe (request_human_handoff) informando o pedido, a modalidade, o limite do prazo e o SENTIMENTO do hóspede.`
           : `- Não foi possível confirmar o prazo (${w?.reason ?? "dados insuficientes"}): não decida nem informe resultado. Acione a equipe (request_human_handoff) informando o pedido, o que faltou e o SENTIMENTO do hóspede.`,
-        "- Com o hóspede: acolha em uma frase, sem prometer resultado, prazo ou reembolso.",
+        "- Com o hóspede: acolha em uma frase, sem prometer resultado, prazo ou reembolso, e sem perguntar novas datas antes da decisão da equipe.",
       );
     }
   }
   return L.join("\n");
+}
+
+/**
+ * Quando a equipe humana já falou na conversa, a IA retoma seguindo a MESMA
+ * linha de raciocínio: nunca desdiz, flexibiliza ou reabre o que foi decidido.
+ */
+export function humanLineGuidance(history: Array<{ role: string; content: string }>): string {
+  const recent = history.slice(-12);
+  const human = recent.filter((m) => m.role === "assistant" && m.content.startsWith("[Mensagem da equipe humana do anfitrião]"));
+  if (!human.length) return "";
+  return [
+    "\n\nCONTINUIDADE COM A EQUIPE (obrigatório)",
+    "- A equipe humana já respondeu nesta conversa (mensagens marcadas como da equipe). A posição dela é a posição oficial: siga exatamente a mesma linha de raciocínio.",
+    "- PROIBIDO contradizer, flexibilizar, reabrir opções que a equipe negou ou repetir perguntas que ela já encerrou.",
+    "- Se o hóspede só concordou/agradeceu, responda curto e acolhedor, sem trazer o assunto de volta. Se ele insistir ou contestar, reafirme com gentileza o que a equipe disse, com outras palavras.",
+  ].join("\n");
 }
