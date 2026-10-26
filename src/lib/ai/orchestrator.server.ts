@@ -48,7 +48,7 @@ import { continuityLine } from "./continuity";
 import { acknowledgementReply, humanSupportReply, isOnlyGreeting, stripPromiseSentences } from "./human-support";
 import { buildHandoffDraft, formatDraftForTeam } from "./human-loop/handoff-draft.server";
 import { accessGuidanceText, accessTiming, decideAccess } from "./access-guidance.server";
-import { decideReservationRequest, detectReservationRequest, reservationRequestGuidance } from "./reservation-change";
+import { decideReservationRequest, detectReservationRequest, humanLineGuidance, reservationRequestGuidance } from "./reservation-change";
 import { loadCancellationWindow } from "./reservation-policy.server";
 import { LIST_SPACING_RULES, ANTI_LABEL_ECHO_RULES, PRE_BOOKING_CLOSING_RULES, THIRD_PARTY_BOOKING_RULES } from "./prompt-rules";
 import { applyVoiceRules, humanityMetrics, readGuestVoice, toneLint, rewritePreserves, voiceGuidance } from "./voice";
@@ -749,6 +749,7 @@ export async function runHospitalityAgent(params: {
       : "") +
     (stayAccess.open ? accessGuidance : "") +
     reservationRequestText +
+    humanLineGuidance(params.history ?? []) +
     GUEST_DATA_BOUNDARY +
     (playbook ? playbookText(playbook) : "") +
     propertyPlaybookText(learnedPlaybooks) +

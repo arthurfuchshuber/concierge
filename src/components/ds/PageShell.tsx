@@ -25,7 +25,7 @@ export function PageShell({
     })
     .replace(/^\w/, (c) => c.toUpperCase());
   return (
-    <div className="ds-page-heading">
+    <div className="ds-page-heading ds-page-head">
       <p className="ds-eyebrow ds-data text-[10.5px] tracking-[0.2em]">{hoje}</p>
       <div className="lg:flex lg:items-end lg:justify-between lg:gap-8">
         <div className="ds-page-heading min-w-0 lg:flex-1">

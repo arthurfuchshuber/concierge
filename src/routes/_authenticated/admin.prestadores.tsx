@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/admin/prestadores")({
 
 function PrestadoresPage() {
   return (
-    <div className="ds-blocks w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
+    <div className="ds-page w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
       <PageShell title="Prestadores" subtitle="Limpeza, manutenção e parceiros da operação." />
       <StakeholderDirectory kind="provider" />
     </div>

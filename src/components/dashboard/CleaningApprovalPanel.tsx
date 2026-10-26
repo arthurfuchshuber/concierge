@@ -132,7 +132,7 @@ export function CleaningApprovalPanel({
        que se vê depois dos números, sem ser a mais barulhenta. */
     <section
       aria-label="Limpezas completas para aprovar"
-      /* Sem `mt-1.5`: o respiro vem do `ds-blocks` da aba (regra de
+      /* Sem `mt-1.5`: o respiro vem do `ds-stack` da aba (regra de
          18/09/2026, ver `styles.css`). */
       className={`${PANEL_SHELL} px-1.5 pb-1.5 pt-3`}
     >

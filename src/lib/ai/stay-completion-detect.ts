@@ -18,7 +18,7 @@ const CHECKOUT_PLAN = /\b(vamos|vou|iremos|vamos\s+sair|amanha|que\s+horas|posso
 const AI_CHECKOUT_FAREWELL =
   /(boa\s+viagem|(agradec\w*|obrigad\w*)\s+(\w+\s+){0,4}(pela|por\s+ter\w*)\s+(\w+\s+){0,2}(estadia|hospedagem)|volte\s+sempre)/;
 const CHECKIN_DONE =
-  /\b(entramos|entrei|ja\s+estamos\s+dentro|estamos\s+dentro|estou\s+dentro|ja\s+estou\s+no\s+(apto|apartamento|imovel|studio)|estamos\s+no\s+(apto|apartamento|imovel|studio)|conseguimos\s+entrar|consegui\s+entrar|acessei\s+o\s+(apto|apartamento|imovel|studio)|deu\s+tudo\s+certo|ja\s+estamos\s+(acomodados|instalados))\b/;
+  /\b(entramos|entrei|ja\s+estamos\s+dentro|estamos\s+dentro|estou\s+dentro|ja\s+(estou|estamos|chegamos|cheguei)\s+(no|na)\s+(apto|apartamento|imovel|studio|casa|chale|flat|loft|kitnet|quarto)|(estou|estamos)\s+(no|na)\s+(apto|apartamento|imovel|studio|casa|chale|flat|loft|kitnet|quarto)|conseguimos\s+entrar|consegui\s+entrar|acessei\s+(o|a)\s+(apto|apartamento|imovel|studio|casa|chale|flat|loft)|deu\s+tudo\s+certo|ja\s+estamos\s+(acomodados|instalados))\b/;
 const NEGATION = /\b(nao|ainda\s+nao|sem\s+conseguir)\b/;
 
 export function detectStayCompletion(

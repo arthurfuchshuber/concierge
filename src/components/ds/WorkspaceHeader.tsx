@@ -34,14 +34,14 @@ export function WorkspaceHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("ds-stack ds-page-head", className)}>
       <div>
         <h1 className="ds-page-title truncate">{title}</h1>
-        {subtitle ? <p className="ds-page-subtitle mt-1.5">{subtitle}</p> : null}
+        {subtitle ? <p className="ds-page-subtitle">{subtitle}</p> : null}
       </div>
 
       {tabs && tabs.length > 0 ? (
-        <nav className="mb-5 flex w-full overflow-hidden rounded-[0.3rem] bg-foreground/5">
+        <nav className="flex w-full overflow-hidden rounded-[0.3rem] bg-foreground/5">
           {tabs.map((t) => {
             const active = t.key === activeTab;
             const cls = `flex-1 px-3 py-3.5 text-center text-sm font-semibold leading-none flex items-center justify-center gap-2 min-h-[46px] transition-colors ${

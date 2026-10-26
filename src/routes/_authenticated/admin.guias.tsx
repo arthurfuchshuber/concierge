@@ -589,9 +589,9 @@ function Dashboard() {
     accessFilter === "public" ? "Público" : accessFilter === "pin" ? "PIN" : "Todos";
 
   return (
-    <div className="ds-blocks w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
+    <div className="ds-page w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
       {readOnly && (
-        <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Eye className="size-3.5 text-accent shrink-0" />
           <span className="flex-1 truncate">
             Painel de{" "}
@@ -611,7 +611,7 @@ function Dashboard() {
       )}
 
       {noOwners && !readOnly && (
-        <div className="mb-6 ds-surface border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm flex items-center gap-3">
+        <div className="ds-surface border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm flex items-center gap-3">
           <AlertTriangle className="size-4 text-amber-500 shrink-0" />
           <span className="flex-1">
             Cadastre ao menos um proprietário em{" "}
@@ -640,11 +640,9 @@ function Dashboard() {
         ))}
       </div>
 
-      {/* 10/10/2026 (pedido explícito): entre os cards de número e a barra de
-          busca/filtros vale o MESMO vão da Limpeza — 10px (`--ds-grid-gap`),
-          não os 24px de bloco. -mt-3.5 = 24 − 10. Os blocos seguintes (listas
-          de guias) continuam a 24px. */}
-      <div className="-mt-3.5">
+      {/* Hierarquia única: menu → 1º bloco = 24px (`ds-page-head` do PageShell);
+          cards, busca/filtros e listas = 10px (`ds-page`). Sem margem negativa. */}
+      <div>
         <SearchActionRow
           value={search}
           onChange={setSearch}

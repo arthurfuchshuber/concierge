@@ -800,12 +800,13 @@ export function RecordsWorkspace() {
           Operacional: "veja como você espaçou bem os cards... isso torna o
           visual mais limpo".
 
-          `ds-blocks` (24px, ver `styles.css`) separa os BLOCOS; dentro de
-          cada um, o vão continua curto de propósito — o que é da mesma coisa
+          Hierarquia única (`styles.css`): menu → 1º bloco = 24px (`ds-page-head`
+          do OperationShell); todo o resto = 10px (`ds-page`/`ds-stack`/
+          `ds-card-grid`). Dentro de cada bloco, o vão continua curto — o que é da mesma coisa
           continua junto. Os diálogos ficam FORA deste contêiner: eles não
           desenham nada em linha, e como irmãos de um flex abririam um vão
           fantasma no fim da página. */}
-      <div className="ds-blocks">
+      <div className="ds-page">
         <OperationShell view="registros" title={pageTitle} subtitle={pageSubtitle} />
 
         <div className="ds-card-grid">
@@ -815,7 +816,7 @@ export function RecordsWorkspace() {
               resto da tela. O número é o de pendências ABERTAS; o histórico não
               aparece aqui. Tocar de novo na célula ativa limpa a categoria. A cor
               é só a do status, no ícone. */}
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="ds-card-grid grid-cols-2">
             {STATUS_CELLS.map((c) => (
               <StatusCell
                 key={c.key}
@@ -930,9 +931,9 @@ export function RecordsWorkspace() {
             </p>
           ) : (
             <div
-              className={`ds-blocks ${
+              className={`ds-stack ${
                 attentionGroups.length > 0 && calmGroups.length > 0
-                  ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-2.5 lg:space-y-0"
+                  ? "lg:grid lg:grid-cols-2 lg:items-start lg:gap-[var(--ds-grid-gap)]"
                   : ""
               }`}
             >
@@ -1405,7 +1406,7 @@ function StatusSection({
 }) {
   return (
     <section aria-label={label} className="relative min-w-0">
-      <div className="space-y-2.5">
+      <div className="ds-stack">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5">
           <span
             aria-hidden

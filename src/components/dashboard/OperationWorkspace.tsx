@@ -126,6 +126,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { CleaningApprovalPanel, CLEANING_APPROVALS_KEY } from "@/components/dashboard/CleaningApprovalPanel";
+import { cancelarEtapa, enfileirarEtapa, semPendentes } from "@/lib/offline/stage-outbox";
 import { notifyAction } from "@/components/UndoActionBar";
 import { ReservationRecordsButton, ReservationRecordsDialog } from "@/components/dashboard/ReservationRecords";
 import {
@@ -768,7 +769,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   });
   const checkoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", range, activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } }),
+    queryFn: async () => semPendentes(await listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } })),
     staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
@@ -782,7 +783,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   });
   const tomorrowCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self", "top-card"],
-    queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
+    queryFn: async () => semPendentes(await listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } })),
     staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
@@ -806,7 +807,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   });
   const kanbanCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "all", activeOwnerId ?? "self", "kanban-filtros"],
-    queryFn: () => listFn({ data: { kind: "checkout", range: "all", ownerId: activeOwnerId } }),
+    queryFn: async () => semPendentes(await listFn({ data: { kind: "checkout", range: "all", ownerId: activeOwnerId } })),
     staleTime: 10_000,
     placeholderData: keepPreviousData,
     ...liveSync,
@@ -1340,12 +1341,26 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     } else {
       optimisticMove(row, from);
     }
-    advance.mutate({
-      ...target,
-      from,
-      ...(cleaningType ? { cleaningType } : {}),
-      ...(skipCleaning ? { skipCleaning: true } : {}),
-    });
+    // Finalizar Limpeza: grava no aparelho e a fila entrega com retentativa,
+    // mesmo com 4G oscilando ou app fechado (`stage-outbox.ts`).
+    const viaFila = from === "cleaning" && !skipCleaning;
+    if (viaFila) {
+      setBusyRowId(null);
+      void enfileirarEtapa({
+        rowId: row.logId,
+        ...target,
+        from: "cleaning",
+        ...(cleaningType ? { cleaningType } : {}),
+        rotulo: row.propertyName ?? "Limpeza",
+      });
+    } else {
+      advance.mutate({
+        ...target,
+        from,
+        ...(cleaningType ? { cleaningType } : {}),
+        ...(skipCleaning ? { skipCleaning: true } : {}),
+      });
+    }
     // Feedback padrão do produto: mensagem no topo + "Desfazer" por 5s.
     // Desfazer precisa devolver o card à coluna de ORIGEM. No atalho
     // "Limpeza não será realizada" o check-out é marcado como feito mesmo
@@ -1375,6 +1390,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             ? "Liberado à limpeza."
             : "Limpeza concluída.";
     notifyAction(message, () => {
+      if (viaFila) {
+        void cancelarEtapa(row.logId).then((naFila) => {
+          if (naFila) {
+            refreshDashboard(0);
+            return;
+          }
+          setBusyRowId(row.logId);
+          revert.mutate({ ...target, from: stageAfter });
+        });
+        return;
+      }
       setBusyRowId(row.logId);
       revert.mutate({ ...target, from: stageAfter });
     });
@@ -1761,7 +1787,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const forecastEnabled = !cleaningPeriod || cleaningPeriod.hasFuture;
   const cleaningForecastListQ = useQuery({
     queryKey: ["dash-list", "checkout", "all-forecast", activeOwnerId ?? "self"],
-    queryFn: () => listFn({ data: { kind: "checkout", range: forecastRange, ownerId: activeOwnerId } }),
+    queryFn: async () => semPendentes(await listFn({ data: { kind: "checkout", range: forecastRange, ownerId: activeOwnerId } })),
     staleTime: 10_000,
     placeholderData: keepPreviousData,
     enabled: authed && view === "limpeza",
@@ -3329,7 +3355,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): respiro lateral de
        14px no celular, um pouco mais de ar entre os blocos (10px) e o halo
        roxo bem fraco no topo — o mesmo efeito da landing. */
-    <div ref={pageRef} className="relative w-full max-w-[1440px] space-y-2.5 px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
+    <div ref={pageRef} className="ds-page relative w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
       <div aria-hidden className="ds-page-halo" />
       <OperationShell
         view={view}
@@ -3367,7 +3393,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       />
 
       {view === "resumo" ? (
-        <div className="ds-lead-block mt-6 space-y-2.5">
+        <div className="ds-stack">
           {/* Engajamento do guia — fica no topo, antes de tudo (pedido
               explícito), com destaque. Ver renderEngagementTop acima. */}
           {renderEngagementTop()}
@@ -3391,7 +3417,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               Desktop (lg:grid-cols-4): os 4 cards de pendentes/amanhã numa
               única linha → liberado p/ limpeza (faixa cheia) → calendário →
               em estadia e imóveis livres na linha seguinte. */}
-          <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+          <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
             {/* RÓTULOS DE SEÇÃO — só no celular (mockup aprovado,
                 17/09/2026): "Hoje", "Amanhã" e "Ocupação" separam a lista
                 num fio que some. No computador os quatro cards ficam numa
@@ -3548,7 +3574,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 logo na sequência"). No celular `contents` some com o invólucro
                 e os dois voltam a ser dois itens da grade, meia largura cada,
                 exatamente como eram. */}
-            <div className="contents lg:order-7 lg:col-span-4 lg:col-start-1 lg:grid lg:grid-cols-2 lg:gap-2.5">
+            <div className="contents lg:order-7 lg:col-span-4 lg:col-start-1 lg:grid lg:grid-cols-2 lg:gap-[var(--ds-grid-gap)]">
               <div className="order-10 col-span-1">
                 <KpiCard
                   label="Em Estadia"
@@ -3575,10 +3601,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             </div>
           </div>
 
-          {/* Espaço extra abaixo do último card (mesmo tom de 6px usado entre
-              todos os outros) — sem isso, no mobile os últimos cards ficavam
-              colados na barra de navegação inferior fixa. */}
-          <div className="h-1.5" />
         </div>
       ) : null}
 
@@ -3596,7 +3618,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               implementadas. */}
           {/* O RESPIRO DA REGRA, SÓ NESTA ABA (18/09/2026). A Limpeza tinha o
               mesmo aperto que os Registros: `mt-1.5`/`gap-1.5`, 6px entre
-              tudo. Agora `ds-blocks` (24px) entre blocos e `ds-card-grid`
+              tudo. Agora `ds-page-head` (24px) e `ds-card-grid`
               (10px) entre cartões — ver `styles.css`.
 
               O ENVOLTÓRIO ESTÁ AQUI DENTRO, e não no invólucro da página, de
@@ -3608,8 +3630,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               os cards de limpeza realizada/custo total e o quadrante limpezas
               por dia, o mesmo espaçamento que entre limpezas por dia e custo
               total por dia". Cards e gráficos leem como um grupo só; o que os
-              separa do cabeçalho é o `ds-lead-block` (24px). */}
-          <div className="ds-card-grid ds-lead-block mt-6">
+              separa do cabeçalho é o `ds-page-head` (24px, token --ds-block-gap). */}
+          <div className="ds-card-grid">
             <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
               {(() => {
                 // Os 4 cartões (mockup 23/10/2026): Limpezas Realizadas, Custo
@@ -3744,7 +3766,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             </div>
           </div>
 
-          <div className="h-1.5" />
         </>
       ) : null}
 
@@ -3755,18 +3776,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
               card de um status pro outro fica visual, não escondido atrás de um
               menu. */}
-          {/* `ds-lead-block` (pedido explícito, 25/09/2026: "o topo do card
-              desta visão precisa ser exatamente o mesmo alinhamento que o
-              topo do card da aba Limpeza") — faltava aqui. A REGRA já existia
-              e já valia pra Limpeza (`ds-card-grid ds-lead-block mt-6`, no
-              bloco de stat cards logo acima): o respiro entre a barra de
-              ações/abas e o primeiro bloco de conteúdo é sempre 24px (mockup
-              aprovado, 18/09/2026), nunca o de lista. Esta seção do Kanban
-              não tinha a classe, então o primeiro card ficava colado na
-              barra de ações — 0px em vez dos 24px — e por isso o topo dos
-              cards das duas abas não caía na mesma altura quando comparadas
-              lado a lado. */}
-          <section className="rounded-none bg-transparent p-0 space-y-4 ds-lead-block">
+          {/* Respiro menu → 1º bloco = `ds-page-head` do OperationShell (24px); daqui para baixo, `ds-stack` (10px). Nada de mt/space-y soltos. */}
+          <section className="ds-stack rounded-none bg-transparent p-0">
             <SearchActionRow
               value={opSearch}
               onChange={setOpSearch}
@@ -3784,7 +3795,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 app), não uma cor diferente por aba. Filtros/Pendências ficam
                 numa linha própria ACIMA da barra de abas — mesma posição que
                 já usam na aba Limpeza (irmã desta, no mesmo header). */}
-            <div className="sm:hidden space-y-3">
+            <div className="ds-stack sm:hidden">
               {/* A faixa de abas roláveis (Check-ins/Checkouts/Fila Limpeza/…)
                   que ficava aqui SAIU (pedido explícito, 25/09/2026): a mesma
                   troca de status agora mora no dropdown à esquerda de
@@ -4158,7 +4169,7 @@ export function OperationShell({
        respiro do cabeçalho (ver `styles.css`). Os dois únicos vãos deste
        bloco — data→título e título→subtítulo — saem da mesma variável, então
        não há como um mudar sem o outro. */
-    <div className="ds-page-heading">
+    <div className="ds-page-heading ds-page-head">
       {/* A DATA FICA FORA DA COLUNA DO TÍTULO (pedido explícito, 18/09/2026,
           com print: "essa data em uma subpágina está em linha inteira, e em
           outra não").

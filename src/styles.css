@@ -779,31 +779,53 @@ dd {
  * respiro vindo da variável. Flex e não margem porque margem entre irmãos
  * colapsa — foi exatamente assim que o vão da data virou −6px em 18/09/2026.
  */
-@utility ds-blocks {
+/* Os DOIS tokens vivem na raiz: é o único lugar onde o número é escrito.
+   Trocar aqui muda Operacional, Kanban, Registros, Calendário, Financeiro,
+   Guias e Proprietários de uma vez. */
+:root {
   --ds-block-gap: 24px;
+  --ds-grid-gap: 10px;
+}
+
+/**
+ * HIERARQUIA ÚNICA DE ESPAÇAMENTO VERTICAL (pedido explícito, 26/10/2026).
+ *
+ *   1. Menu/cabeçalho → 1º bloco ........ --ds-block-gap (24px)
+ *   2. Todo o resto (quadrantes, buscas, filtros, banners de alerta/pendência,
+ *      listas de cartões) ............... --ds-grid-gap  (10px)
+ *
+ * Como se aplica — sem `space-y-*`, sem `mt-*`/`mb-*`, sem margem negativa:
+ *   - `ds-page`   o invólucro da página: coluna flex com gap de 10px.
+ *   - `ds-page-head` o cabeçalho (data+título+abas): ganha só a DIFERENÇA
+ *     (24 − 10) embaixo, então o 1º bloco fica a 24px do menu.
+ *   - `ds-stack`  qualquer grupo de blocos dentro da página: coluna flex, 10px.
+ *   - `ds-card-grid` grade de cartões: 10px entre cartões.
+ * Flex + gap porque margem colapsa e margem negativa esconde o número real.
+ */
+@utility ds-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-grid-gap);
+}
+
+@utility ds-page-head {
+  margin-bottom: calc(var(--ds-block-gap) - var(--ds-grid-gap));
+}
+
+@utility ds-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-grid-gap);
+}
+
+/* Legado: 24px entre blocos. Só para quem ainda precisa do respiro grande. */
+@utility ds-blocks {
   display: flex;
   flex-direction: column;
   gap: var(--ds-block-gap);
 }
 
-/**
- * O PRIMEIRO BLOCO DE UMA ABA — o respiro depois do cabeçalho.
- *
- * REGRA (mockup aprovado, 18/09/2026): entre a barra de abas/ações e o
- * primeiro bloco de conteúdo vale o respiro de BLOCO (24px), não o de lista.
- *
- * Por que existe uma utility em vez de um `mt-6` solto: o invólucro da página
- * já dá 0.625rem a todos os filhos (`space-y-2.5`) e ele é COMPARTILHADO com o
- * Operacional, que o cliente pediu para não tocar ("está perfeita"). Esta
- * utility completa a diferença, derivada do mesmo token — se `--ds-block-gap`
- * mudar, isto acompanha sozinho.
- */
-@utility ds-lead-block {
-  margin-top: calc(var(--ds-block-gap, 24px) - 0.625rem);
-}
-
 @utility ds-card-grid {
-  --ds-grid-gap: 10px;
   display: grid;
   gap: var(--ds-grid-gap);
 }
@@ -1083,11 +1105,11 @@ dd {
 @utility ds-surface {
   border-radius: 12px;
 }
-/* Lista densa: 6px entre itens irmãos. */
+/* Lista de cartões: o mesmo vão de grade do sistema (--ds-grid-gap, 10px). */
 @utility ds-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--ds-grid-gap);
 }
 
 .glass,

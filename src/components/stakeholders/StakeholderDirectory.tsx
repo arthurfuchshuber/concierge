@@ -459,9 +459,10 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     </button>
   );
 
-  // Ritmo do sistema (mockup aprovado): 24px entre os blocos da página.
+  // Hierarquia única: o cabeçalho (PageShell) já dá os 24px até a 1ª peça;
+  // daqui para baixo tudo fica a 10px (`ds-stack`, token --ds-grid-gap).
   const pageTabs = newLayout ? (
-    <div className="mb-6">
+    <div>
       <Stepper
         withIcons
         steps={[
@@ -476,7 +477,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
 
   if (newLayout && pageTab === "properties") {
     return (
-      <div>
+      <div className="ds-stack">
         {pageTabs}
         <OwnerPropertiesList
           properties={properties as never}
@@ -488,11 +489,11 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   }
 
   return (
-    <div>
+    <div className="ds-stack">
       {pageTabs}
       {/* Barra de ações — mesmo padrão de Operação/Guias:
           altura 36px, cantos retos, fundo secondary/50, texto 12px. */}
-      <div className={`flex flex-col gap-2 ${newLayout ? "mb-6" : "mb-5"}`}>
+      <div className="flex flex-col gap-[var(--ds-grid-gap)]">
         {newLayout ? (
           /* Mesma peça de Guias/Operação/Registros: busca + ações numa casca só
              no celular, dois objetos na altura da barra de abas no computador.
@@ -559,7 +560,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
         )}
       </div>
       {newLayout && kind === "owner" ? (
-        <div className="mb-6">
+        <div>
           <ConnectedAccountsBar />
         </div>
       ) : null}
@@ -582,7 +583,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           }
         />
       ) : newLayout || view === "list" ? (
-        <div className="ds-list sm:grid sm:gap-1.5 sm:grid-cols-2 xl:grid-cols-3 sm:space-y-0">
+        <div className="ds-list sm:grid sm:gap-[var(--ds-grid-gap)] sm:grid-cols-2 xl:grid-cols-3 sm:space-y-0">
           {filtered.map((r) => (
             <StakeholderCard
               key={r.id}
@@ -604,7 +605,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           const active = kanbanColumns.find((c) => c.key === kanbanTab) ?? kanbanColumns[0];
           const items = filtered.filter(active.test);
           return (
-            <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
+            <div className="ds-card-grid grid-cols-[minmax(0,1fr)]">
               <Stepper
                 steps={(cols.length ? cols : kanbanColumns).map((c) => ({
                   value: c.key,
@@ -659,7 +660,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           );
         })()
       ) : (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="ds-card-grid md:grid-cols-3">
           {kanbanColumns.map((col) => {
             const items = filtered.filter(col.test);
             return (

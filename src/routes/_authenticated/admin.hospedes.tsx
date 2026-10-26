@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/admin/hospedes")({
 
 function HospedesRoutePage() {
   return (
-    <div className="ds-blocks w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
+    <div className="ds-page w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
       <PageShell title="Hóspedes" subtitle="Dados enviados pelos hóspedes ao abrirem o guia." />
       <HospedesPage embedded />
     </div>
