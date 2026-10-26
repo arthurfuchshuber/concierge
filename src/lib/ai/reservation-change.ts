@@ -30,7 +30,7 @@ const CANCEL = /\b(cancelar|cancelamento|cancela(r)? (a )?(minha )?reserva|desis
 const SHORTEN =
   /\b(reduzir (o )?(periodo|estadia|numero de (noites|diarias))|encurtar|diminuir (a )?(estadia|periodo|noites|diarias)|sair (antes|mais cedo) (do que|da data)|(ir|ficar) embora antes|antecipar (a )?(saida|checkout|check-out)|ficar so (ate|\d+)|cortar (uma |duas )?(noite|noites|diaria|diarias))\b/;
 const CHANGE =
-  /\b((mudar|trocar|alterar|adiar|antecipar|transferir|passar) (a |o |as |os |essa |esse |essas |esta |este |minha |meu |minhas |nossa |nosso |nossas |de |da |do )?(data|datas|periodo|reserva|estadia|hospedagem|viagem|check-?in|chegada)|remarc\w*|reagend\w*|outra data|outras datas|nova data|novas datas)\b/;
+  /\b((mudar|trocar|alterar|adiar|antecipar|transferir|passar) (a |o |as |os |essa |esse |essas |esta |este |minha |meu |minhas |nossa |nosso |nossas |de |da |do )?(data|datas|periodo|reserva|estadia|hospedagem|viagem|check-?in|chegada)|remarc\w*|reagend\w*)\b/;
 
 /** Que tipo de pedido sobre a reserva está nesta mensagem? (a ordem importa) */
 export function detectReservationRequest(message: string): ReservationRequestKind | null {
