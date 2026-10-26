@@ -842,36 +842,38 @@ function Dashboard() {
         />
       </div>
 
-      {/* BARRA DE LOTE (toque longo nos cards, sem checkbox): contador à esquerda,
-          "Editar" e o X que limpa a seleção. Vão de 10px até o 1º card vem do `ds-page`. */}
+      {/* BARRA DE LOTE (toque longo nos cards, sem checkbox): mesma casca da busca/filtros
+          (`ACTION_BAR`). Filha direta de `ds-page`: 10px da busca e 10px do 1º card. */}
       {selected.size > 0 && !readOnly && (
         <div
           role="toolbar"
           aria-label="Ações em lote"
-          className="flex h-11 min-w-0 items-center gap-1 rounded-[12px] border border-[var(--panel-border)] bg-[var(--panel)] px-1.5 shadow-[0_6px_16px_-10px_rgba(0,0,0,0.6)]"
+          className={`${ACTION_BAR} !w-full items-center justify-between`}
         >
-          <span className="min-w-0 flex-1 truncate px-2 text-[12px] font-bold">
-            {selected.size} {selected.size === 1 ? "selecionado" : "selecionados"}
-          </span>
-          <button
-            type="button"
-            onClick={() => setBulkOpen(true)}
-            title="Editar"
-            aria-label="Editar selecionados"
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] px-3 text-[12px] font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground"
-          >
-            <PenSquare className="size-3.5" />
-            Editar
-          </button>
-          <button
-            type="button"
-            onClick={clearSelection}
-            title="Limpar seleção (Esc)"
-            aria-label="Limpar seleção"
-            className="grid size-8 shrink-0 place-items-center rounded-[9px] text-muted-foreground hover:bg-secondary hover:text-foreground"
-          >
-            <X className="size-3.5" />
-          </button>
+          <div className="flex min-w-0 items-center gap-2 px-3 text-[12px] font-bold text-foreground">
+            <CountPill>{selected.size}</CountPill>
+            <span className="truncate">{selected.size === 1 ? "selecionado" : "selecionados"}</span>
+          </div>
+
+          <div className="flex h-full shrink-0 divide-x divide-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => setBulkOpen(true)}
+              className={`${ACTION_SEGMENT} !w-auto !px-3.5 gap-1.5 text-foreground hover:bg-white/[0.04]`}
+            >
+              <PenSquare className={ACTION_ICON} />
+              <span>Editar</span>
+            </button>
+            <button
+              type="button"
+              onClick={clearSelection}
+              title="Limpar seleção (Esc)"
+              aria-label="Limpar seleção"
+              className={`${ACTION_SEGMENT} !w-9 !px-0 text-muted-foreground hover:bg-white/[0.04] hover:text-foreground`}
+            >
+              <X className={ACTION_ICON} />
+            </button>
+          </div>
         </div>
       )}
 

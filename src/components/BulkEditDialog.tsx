@@ -807,14 +807,14 @@ export function BulkEditDialog({
           centralizada no celular e no computador, cresce com o conteúdo até 90% da
           tela; só a área do meio rola, cabeçalho e rodapé ficam fixos. */}
       <DialogContent
-        className="flex w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl max-h-[90dvh]"
+        className="ds-overlay flex max-h-[90dvh] w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden rounded-[14px] p-0 [scrollbar-gutter:stable] sm:max-w-3xl"
       >
         <>
         {/* Cabeçalho fixo — não rola junto com o conteúdo. */}
         <div className="shrink-0 px-5 pt-5 sm:px-6 sm:pt-6">
         <DialogHeader className="pr-8">
-          <DialogTitle className="text-[15px] font-semibold tracking-tight">Editar {targetIds.length || ids.length} {(targetIds.length || ids.length) === 1 ? "guia" : "guias"}</DialogTitle>
-          <DialogDescription className="text-xs font-normal leading-relaxed">
+          <DialogTitle className="font-display text-base font-semibold tracking-tight">Editar {targetIds.length || ids.length} {(targetIds.length || ids.length) === 1 ? "guia" : "guias"}</DialogTitle>
+          <DialogDescription className="text-xs font-normal leading-relaxed text-muted-foreground">
             {loading
               ? "Carregando dados dos guias selecionados…"
               : "As informações atuais já aparecem preenchidas. Qualquer alteração é salva automaticamente nos guias selecionados."}
@@ -824,7 +824,7 @@ export function BulkEditDialog({
 
         {/* Só essa área central rola — cabeçalho e rodapé ficam sempre
             visíveis, sem precisar descer até o fim do conteúdo. */}
-        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 [scrollbar-gutter:stable] sm:px-6">
+        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-3 [scrollbar-gutter:stable] sm:px-6">
         {loading ? (
           <div className="py-10 grid place-items-center text-muted-foreground">
             <Loader2 className="size-5 animate-spin" />
@@ -836,7 +836,7 @@ export function BulkEditDialog({
               baixo em telas estreitas, em vez de espremer tudo (flex-1) num
               container de largura fixa (w-max) — isso cortava a última aba
               em celulares mais estreitos. */}
-          <TabsList className="ds-segmented mb-5 -mx-1 px-1 h-auto gap-0 rounded-[0.3rem] bg-foreground/5 p-0">
+          <TabsList className="ds-segmented w-full flex-nowrap overflow-x-auto overflow-y-hidden [&>*]:flex-none mb-5 -mx-1 px-1 h-auto gap-0 rounded-[0.3rem] bg-foreground/5 p-0">
             {TEXT_TABS.map((t) => (
               <TabsTrigger
                 key={t.id}
@@ -923,7 +923,7 @@ export function BulkEditDialog({
 
         {/* Rodapé fixo — só aparece o botão de salvar quando há algo para
             salvar; "Fechar" fica sempre disponível para sair do popup. */}
-        <div className="shrink-0 px-5 pb-5 sm:px-6 sm:pb-6">
+        <div className="shrink-0 border-t border-[var(--panel-border)] bg-[var(--panel)] px-5 py-3 sm:px-6">
         <DialogFooter className="items-center gap-2 sm:space-x-0">
           <div className="mr-auto flex items-center gap-2">
             <AutosaveIndicator status={saveStatus} errorMessage={saveError} />
@@ -931,11 +931,11 @@ export function BulkEditDialog({
               <span className="text-[11px] text-muted-foreground">Alterações não salvas</span>
             )}
           </div>
-          <Button variant="outline" onClick={requestClose} disabled={saving} className="h-9 rounded-[9px]">
+          <Button variant="outline" onClick={requestClose} disabled={saving} className="h-9 rounded-[9px] lg:rounded-[13px]">
             Fechar
           </Button>
           {(isDirty || saving) && (
-            <Button onClick={handleSaveClick} disabled={saving || !isDirty} className="h-9 rounded-[9px]">
+            <Button onClick={handleSaveClick} disabled={saving || !isDirty} className="h-9 rounded-[9px] lg:rounded-[13px]">
               {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />}
               Salvar alterações
             </Button>
