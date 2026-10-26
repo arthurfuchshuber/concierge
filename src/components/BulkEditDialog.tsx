@@ -2,13 +2,13 @@ import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  ResponsiveDialog,
-  ResponsiveDialogContent,
-  ResponsiveDialogHeader,
-  ResponsiveDialogTitle,
-  ResponsiveDialogFooter,
-  ResponsiveDialogDescription,
-} from "@/components/ResponsiveDialog";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -796,33 +796,35 @@ export function BulkEditDialog({
 
 
   return (
-    <ResponsiveDialog
+    <Dialog
       open={open}
       onOpenChange={(v) => {
         if (v) onOpenChange(true);
         else requestClose();
       }}
     >
-      <ResponsiveDialogContent
-        className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[90dvh] overflow-x-hidden"
-        scrollable={false}
+      {/* Janela padrão do projeto (Dialog + casca `ds-overlay`/véu do DialogContent):
+          centralizada no celular e no computador, cresce com o conteúdo até 90% da
+          tela; só a área do meio rola, cabeçalho e rodapé ficam fixos. */}
+      <DialogContent
+        className="flex w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl max-h-[90dvh]"
       >
         <>
         {/* Cabeçalho fixo — não rola junto com o conteúdo. */}
         <div className="shrink-0 px-5 pt-5 sm:px-6 sm:pt-6">
-        <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle className="text-[15px] font-semibold tracking-tight">Editar {targetIds.length || ids.length} {(targetIds.length || ids.length) === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
-          <ResponsiveDialogDescription className="text-xs font-normal leading-relaxed">
+        <DialogHeader className="pr-8">
+          <DialogTitle className="text-[15px] font-semibold tracking-tight">Editar {targetIds.length || ids.length} {(targetIds.length || ids.length) === 1 ? "guia" : "guias"}</DialogTitle>
+          <DialogDescription className="text-xs font-normal leading-relaxed">
             {loading
               ? "Carregando dados dos guias selecionados…"
               : "As informações atuais já aparecem preenchidas. Qualquer alteração é salva automaticamente nos guias selecionados."}
-          </ResponsiveDialogDescription>
-        </ResponsiveDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
         </div>
 
         {/* Só essa área central rola — cabeçalho e rodapé ficam sempre
             visíveis, sem precisar descer até o fim do conteúdo. */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-5 sm:px-6">
+        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 [scrollbar-gutter:stable] sm:px-6">
         {loading ? (
           <div className="py-10 grid place-items-center text-muted-foreground">
             <Loader2 className="size-5 animate-spin" />
@@ -922,23 +924,23 @@ export function BulkEditDialog({
         {/* Rodapé fixo — só aparece o botão de salvar quando há algo para
             salvar; "Fechar" fica sempre disponível para sair do popup. */}
         <div className="shrink-0 px-5 pb-5 sm:px-6 sm:pb-6">
-        <ResponsiveDialogFooter className="items-center">
+        <DialogFooter className="items-center gap-2 sm:space-x-0">
           <div className="mr-auto flex items-center gap-2">
             <AutosaveIndicator status={saveStatus} errorMessage={saveError} />
             {saveStatus === "idle" && isDirty && (
               <span className="text-[11px] text-muted-foreground">Alterações não salvas</span>
             )}
           </div>
-          <Button variant="outline" onClick={requestClose} disabled={saving} className="h-9">
+          <Button variant="outline" onClick={requestClose} disabled={saving} className="h-9 rounded-[9px]">
             Fechar
           </Button>
           {(isDirty || saving) && (
-            <Button onClick={handleSaveClick} disabled={saving || !isDirty} className="h-9">
+            <Button onClick={handleSaveClick} disabled={saving || !isDirty} className="h-9 rounded-[9px]">
               {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />}
               Salvar alterações
             </Button>
           )}
-        </ResponsiveDialogFooter>
+        </DialogFooter>
         </div>
         </>
 
@@ -977,8 +979,8 @@ export function BulkEditDialog({
           </AlertDialogContent>
         </AlertDialog>
 
-      </ResponsiveDialogContent>
-    </ResponsiveDialog>
+      </DialogContent>
+    </Dialog>
   );
 }
 

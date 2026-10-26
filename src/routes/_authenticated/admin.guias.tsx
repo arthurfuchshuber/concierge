@@ -842,57 +842,35 @@ function Dashboard() {
         />
       </div>
 
-      {/* BARRA DE LOTE (long press nos cards, sem checkbox): contador + ações. */}
+      {/* BARRA DE LOTE (toque longo nos cards, sem checkbox): contador à esquerda,
+          "Editar" e o X que limpa a seleção. Vão de 10px até o 1º card vem do `ds-page`. */}
       {selected.size > 0 && !readOnly && (
         <div
           role="toolbar"
           aria-label="Ações em lote"
-          className="flex min-w-0 items-center gap-1 rounded-[12px] border border-[var(--panel-border)] bg-[var(--panel)] p-1.5"
+          className="flex h-11 min-w-0 items-center gap-1 rounded-[12px] border border-[var(--panel-border)] bg-[var(--panel)] px-1.5 shadow-[0_6px_16px_-10px_rgba(0,0,0,0.6)]"
         >
           <span className="min-w-0 flex-1 truncate px-2 text-[12px] font-bold">
             {selected.size} {selected.size === 1 ? "selecionado" : "selecionados"}
           </span>
           <button
             type="button"
-            disabled={bulkPubBusy}
-            onClick={() => bulkTogglePublished(true)}
-            title="Publicar"
-            aria-label="Publicar selecionados"
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground disabled:opacity-40"
-          >
-            <Globe className="size-3.5" />
-            <span className="max-sm:hidden">Publicar</span>
-          </button>
-          <button
-            type="button"
-            disabled={bulkPubBusy}
-            onClick={() => bulkTogglePublished(false)}
-            title="Despublicar"
-            aria-label="Despublicar selecionados"
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground disabled:opacity-40"
-          >
-            <Lock className="size-3.5" />
-            <span className="max-sm:hidden">Despublicar</span>
-          </button>
-          <button
-            type="button"
             onClick={() => setBulkOpen(true)}
             title="Editar"
             aria-label="Editar selecionados"
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] px-3 text-[12px] font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground"
           >
             <PenSquare className="size-3.5" />
-            <span className="max-sm:hidden">Editar</span>
+            Editar
           </button>
           <button
             type="button"
             onClick={clearSelection}
             title="Limpar seleção (Esc)"
             aria-label="Limpar seleção"
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] font-semibold text-accent hover:bg-secondary"
+            className="grid size-8 shrink-0 place-items-center rounded-[9px] text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
             <X className="size-3.5" />
-            <span>Limpar</span>
           </button>
         </div>
       )}
