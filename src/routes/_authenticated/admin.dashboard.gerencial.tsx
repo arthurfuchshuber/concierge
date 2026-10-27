@@ -133,13 +133,6 @@ function Painel() {
           <h1 className="ds-page-title !text-lg">Gerencial</h1>
           <p className="ds-page-subtitle">Caixa, fluxo e ritmo da empresa para a diretoria.</p>
         </div>
-        <div className="mt-5 lg:mt-2.5">
-          <nav className="ds-tabs">
-            <span className="ds-tab-active flex min-h-[44px] flex-1 items-center justify-center px-2 text-center text-[13px] font-bold leading-none">
-              Visão Geral
-            </span>
-          </nav>
-        </div>
       </div>
 
       <div className="ds-card-grid">
@@ -154,11 +147,16 @@ function Painel() {
             })() : null} />
           <StatCard icon={CreditCard} label="Fatura do cartão" value={d?.cartao ? brl(d.cartao.fatura) : "—"} loading={!d}
             note={usoLimite != null ? (
-              <span className="flex w-full items-center gap-1.5 px-1">
-                <span className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-foreground/[0.08]">
+              <span className="relative block h-3.5 w-full px-1">
+                <span className="absolute inset-x-1 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-foreground/[0.08]">
                   <span className="absolute inset-y-0 left-0 rounded-full bg-foreground/45" style={{ width: `${Math.max(2, usoLimite)}%` }} />
                 </span>
-                <span className="shrink-0 font-semibold tabular-nums text-muted-foreground">{usoLimite.toFixed(0)}%</span>
+                <span
+                  className="absolute top-1/2 -translate-y-1/2 rounded bg-card px-1 text-[10px] font-semibold leading-none tabular-nums text-muted-foreground"
+                  style={{ left: `calc(4px + ${Math.min(Math.max(2, usoLimite), 80)}% )` }}
+                >
+                  {usoLimite.toFixed(0)}%
+                </span>
               </span>
             ) : null} />
           <StatCard icon={ArrowDownRight} label="Entradas" value={brl(d?.atual.entradas)} loading={!d}
