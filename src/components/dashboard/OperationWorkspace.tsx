@@ -4889,7 +4889,7 @@ function KpiCard({
                 de texto, sem carnaval. */}
             <div
               className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none tracking-[-0.03em] ${
-                valueSizeClass ?? (shadowTone ? "text-[30px] sm:text-[34px]" : "text-[28px] sm:text-[32px]")
+                valueSizeClass ?? (shadowTone ? "text-[24px] sm:text-[27px]" : "text-[22px] sm:text-[26px]")
               } whitespace-nowrap ${
                 !loading && rows.length > 0 && shadowTone === "sky"
                   ? "text-sky-500 dark:text-sky-400"
@@ -5254,16 +5254,16 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
  *  que o número mais longo da página exigir. */
 export function kpiSizeClass(values: Array<string | number>): string {
   const len = Math.max(0, ...values.map((v) => String(v ?? "").length));
-  if (len <= 3) return "text-[30px] sm:text-[34px]";
-  if (len <= 5) return "text-[24px] sm:text-[28px]";
-  return "text-[19px] sm:text-[22px]";
+  if (len <= 3) return "text-[24px] sm:text-[27px]";
+  if (len <= 5) return "text-[19px] sm:text-[22px]";
+  return "text-[16px] sm:text-[18px]";
 }
 
 export function bigNumberSizeClass(values: Array<string | number>): string {
   const len = Math.max(0, ...values.map((v) => String(v ?? "").length));
-  if (len <= 6) return "text-[26px] sm:text-[30px]";
-  if (len <= 8) return "text-[22px] sm:text-[26px]";
-  if (len <= 10) return "text-[18px] sm:text-[22px]";
+  if (len <= 6) return "text-[21px] sm:text-[24px]";
+  if (len <= 8) return "text-[18px] sm:text-[21px]";
+  if (len <= 10) return "text-[15px] sm:text-[18px]";
   return "text-[15px] sm:text-[18px]";
 }
 
@@ -5284,7 +5284,7 @@ function StatDisplayCard({
   note,
   detailItems,
   extraItems,
-  valueSizeClass = "text-[26px] sm:text-[30px]",
+  valueSizeClass = "text-[21px] sm:text-[24px]",
 }: {
   /** Tamanho do número COMPARTILHADO pelo grupo (ver `bigNumberSizeClass`). */
   valueSizeClass?: string;
