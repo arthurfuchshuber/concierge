@@ -837,7 +837,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           {viewRow && view ? (
             <>
               <div className="min-w-0 shrink-0 pb-4 pl-5 pr-11 pt-5">
-                <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">
+                <div className="mb-0.5 truncate text-xs font-normal leading-[18px] text-warning/80">
                   {PLAYBOOK_SECTIONS[view.idx]?.title}
                 </div>
                 <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">
