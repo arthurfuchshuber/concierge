@@ -65,6 +65,7 @@ import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/events'
 import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.google-calendar.return'
 import { Route as AuthenticatedAdminDashboardIndexRouteImport } from './routes/_authenticated/admin.dashboard.index'
+import { Route as AuthenticatedAdminDashboardBancosRouteImport } from './routes/_authenticated/admin.dashboard.bancos'
 import { Route as AuthenticatedAdminDashboardCalendarioRouteImport } from './routes/_authenticated/admin.dashboard.calendario'
 import { Route as AuthenticatedAdminDashboardFinanceiroRouteImport } from './routes/_authenticated/admin.dashboard.financeiro'
 import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
@@ -79,6 +80,7 @@ import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes
 import { Route as ApiPublicCronEvaluationSuiteRouteImport } from './routes/api/public/cron.evaluation-suite'
 import { Route as ApiPublicCronGuestFollowupRouteImport } from './routes/api/public/cron.guest-followup'
 import { Route as ApiPublicCronLearningLoopRouteImport } from './routes/api/public/cron.learning-loop'
+import { Route as ApiPublicCronMalvoSyncRouteImport } from './routes/api/public/cron.malvo-sync'
 import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cron.ops-push'
 import { Route as ApiPublicCronProactiveConciergeRouteImport } from './routes/api/public/cron.proactive-concierge'
 import { Route as ApiPublicCronPurgeRecordTrashRouteImport } from './routes/api/public/cron.purge-record-trash'
@@ -92,6 +94,7 @@ import { Route as ApiPublicCronSaasAlertsRouteImport } from './routes/api/public
 import { Route as ApiPublicCronStalledRepliesRouteImport } from './routes/api/public/cron.stalled-replies'
 import { Route as ApiPublicCronSyncAirbnbIcalRouteImport } from './routes/api/public/cron.sync-airbnb-ical'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
+import { Route as ApiPublicWebhooksMalvoRouteImport } from './routes/api/public/webhooks.malvo'
 import { Route as ApiPublicWhatsappSinchWebhookRouteImport } from './routes/api/public/whatsapp/sinch-webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
@@ -402,6 +405,12 @@ const AuthenticatedAdminDashboardIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAdminDashboardRoute,
   } as any)
+const AuthenticatedAdminDashboardBancosRoute =
+  AuthenticatedAdminDashboardBancosRouteImport.update({
+    id: '/bancos',
+    path: '/bancos',
+    getParentRoute: () => AuthenticatedAdminDashboardRoute,
+  } as any)
 const AuthenticatedAdminDashboardCalendarioRoute =
   AuthenticatedAdminDashboardCalendarioRouteImport.update({
     id: '/calendario',
@@ -486,6 +495,11 @@ const ApiPublicCronLearningLoopRoute =
     path: '/api/public/cron/learning-loop',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronMalvoSyncRoute = ApiPublicCronMalvoSyncRouteImport.update({
+  id: '/api/public/cron/malvo-sync',
+  path: '/api/public/cron/malvo-sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronOpsPushRoute = ApiPublicCronOpsPushRouteImport.update({
   id: '/api/public/cron/ops-push',
   path: '/api/public/cron/ops-push',
@@ -562,6 +576,11 @@ const ApiPublicPaymentsWebhookRoute =
     path: '/api/public/payments/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicWebhooksMalvoRoute = ApiPublicWebhooksMalvoRouteImport.update({
+  id: '/api/public/webhooks/malvo',
+  path: '/api/public/webhooks/malvo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWhatsappSinchWebhookRoute =
   ApiPublicWhatsappSinchWebhookRouteImport.update({
     id: '/api/public/whatsapp/sinch-webhook',
@@ -640,6 +659,7 @@ export interface FileRoutesByFullPath {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
+  '/admin/dashboard/bancos': typeof AuthenticatedAdminDashboardBancosRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
@@ -653,6 +673,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/guest-followup': typeof ApiPublicCronGuestFollowupRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
+  '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
@@ -666,6 +687,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/stalled-replies': typeof ApiPublicCronStalledRepliesRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -725,6 +747,7 @@ export interface FileRoutesByTo {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
+  '/admin/dashboard/bancos': typeof AuthenticatedAdminDashboardBancosRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
@@ -738,6 +761,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/guest-followup': typeof ApiPublicCronGuestFollowupRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
+  '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
@@ -751,6 +775,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/stalled-replies': typeof ApiPublicCronStalledRepliesRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -815,6 +840,7 @@ export interface FileRoutesById {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
+  '/_authenticated/admin/dashboard/bancos': typeof AuthenticatedAdminDashboardBancosRoute
   '/_authenticated/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/_authenticated/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
   '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
@@ -828,6 +854,7 @@ export interface FileRoutesById {
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/guest-followup': typeof ApiPublicCronGuestFollowupRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
+  '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
@@ -841,6 +868,7 @@ export interface FileRoutesById {
   '/api/public/cron/stalled-replies': typeof ApiPublicCronStalledRepliesRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -905,6 +933,7 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/admin/'
     | '/g/$slug/'
+    | '/admin/dashboard/bancos'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/financeiro'
     | '/admin/dashboard/kanban'
@@ -918,6 +947,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/guest-followup'
     | '/api/public/cron/learning-loop'
+    | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/purge-record-trash'
@@ -931,6 +961,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/stalled-replies'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
+    | '/api/public/webhooks/malvo'
     | '/api/public/whatsapp/sinch-webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -990,6 +1021,7 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/admin'
     | '/g/$slug'
+    | '/admin/dashboard/bancos'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/financeiro'
     | '/admin/dashboard/kanban'
@@ -1003,6 +1035,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/guest-followup'
     | '/api/public/cron/learning-loop'
+    | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/purge-record-trash'
@@ -1016,6 +1049,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/stalled-replies'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
+    | '/api/public/webhooks/malvo'
     | '/api/public/whatsapp/sinch-webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -1079,6 +1113,7 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/_authenticated/admin/'
     | '/g/$slug/'
+    | '/_authenticated/admin/dashboard/bancos'
     | '/_authenticated/admin/dashboard/calendario'
     | '/_authenticated/admin/dashboard/financeiro'
     | '/_authenticated/admin/dashboard/kanban'
@@ -1092,6 +1127,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/guest-followup'
     | '/api/public/cron/learning-loop'
+    | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/purge-record-trash'
@@ -1105,6 +1141,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/stalled-replies'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
+    | '/api/public/webhooks/malvo'
     | '/api/public/whatsapp/sinch-webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -1153,6 +1190,7 @@ export interface RootRouteChildren {
   ApiPublicCronEvaluationSuiteRoute: typeof ApiPublicCronEvaluationSuiteRoute
   ApiPublicCronGuestFollowupRoute: typeof ApiPublicCronGuestFollowupRoute
   ApiPublicCronLearningLoopRoute: typeof ApiPublicCronLearningLoopRoute
+  ApiPublicCronMalvoSyncRoute: typeof ApiPublicCronMalvoSyncRoute
   ApiPublicCronOpsPushRoute: typeof ApiPublicCronOpsPushRoute
   ApiPublicCronProactiveConciergeRoute: typeof ApiPublicCronProactiveConciergeRoute
   ApiPublicCronPurgeRecordTrashRoute: typeof ApiPublicCronPurgeRecordTrashRoute
@@ -1166,6 +1204,7 @@ export interface RootRouteChildren {
   ApiPublicCronStalledRepliesRoute: typeof ApiPublicCronStalledRepliesRoute
   ApiPublicCronSyncAirbnbIcalRoute: typeof ApiPublicCronSyncAirbnbIcalRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
+  ApiPublicWebhooksMalvoRoute: typeof ApiPublicWebhooksMalvoRoute
   ApiPublicWhatsappSinchWebhookRoute: typeof ApiPublicWhatsappSinchWebhookRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
@@ -1566,6 +1605,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardIndexRouteImport
       parentRoute: typeof AuthenticatedAdminDashboardRoute
     }
+    '/_authenticated/admin/dashboard/bancos': {
+      id: '/_authenticated/admin/dashboard/bancos'
+      path: '/bancos'
+      fullPath: '/admin/dashboard/bancos'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardBancosRouteImport
+      parentRoute: typeof AuthenticatedAdminDashboardRoute
+    }
     '/_authenticated/admin/dashboard/calendario': {
       id: '/_authenticated/admin/dashboard/calendario'
       path: '/calendario'
@@ -1664,6 +1710,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronLearningLoopRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/malvo-sync': {
+      id: '/api/public/cron/malvo-sync'
+      path: '/api/public/cron/malvo-sync'
+      fullPath: '/api/public/cron/malvo-sync'
+      preLoaderRoute: typeof ApiPublicCronMalvoSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/ops-push': {
       id: '/api/public/cron/ops-push'
       path: '/api/public/cron/ops-push'
@@ -1755,6 +1808,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/webhooks/malvo': {
+      id: '/api/public/webhooks/malvo'
+      path: '/api/public/webhooks/malvo'
+      fullPath: '/api/public/webhooks/malvo'
+      preLoaderRoute: typeof ApiPublicWebhooksMalvoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/whatsapp/sinch-webhook': {
       id: '/api/public/whatsapp/sinch-webhook'
       path: '/api/public/whatsapp/sinch-webhook'
@@ -1787,6 +1847,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminDashboardRouteChildren {
+  AuthenticatedAdminDashboardBancosRoute: typeof AuthenticatedAdminDashboardBancosRoute
   AuthenticatedAdminDashboardCalendarioRoute: typeof AuthenticatedAdminDashboardCalendarioRoute
   AuthenticatedAdminDashboardFinanceiroRoute: typeof AuthenticatedAdminDashboardFinanceiroRoute
   AuthenticatedAdminDashboardKanbanRoute: typeof AuthenticatedAdminDashboardKanbanRoute
@@ -1796,6 +1857,8 @@ interface AuthenticatedAdminDashboardRouteChildren {
 
 const AuthenticatedAdminDashboardRouteChildren: AuthenticatedAdminDashboardRouteChildren =
   {
+    AuthenticatedAdminDashboardBancosRoute:
+      AuthenticatedAdminDashboardBancosRoute,
     AuthenticatedAdminDashboardCalendarioRoute:
       AuthenticatedAdminDashboardCalendarioRoute,
     AuthenticatedAdminDashboardFinanceiroRoute:
@@ -1937,6 +2000,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronEvaluationSuiteRoute: ApiPublicCronEvaluationSuiteRoute,
   ApiPublicCronGuestFollowupRoute: ApiPublicCronGuestFollowupRoute,
   ApiPublicCronLearningLoopRoute: ApiPublicCronLearningLoopRoute,
+  ApiPublicCronMalvoSyncRoute: ApiPublicCronMalvoSyncRoute,
   ApiPublicCronOpsPushRoute: ApiPublicCronOpsPushRoute,
   ApiPublicCronProactiveConciergeRoute: ApiPublicCronProactiveConciergeRoute,
   ApiPublicCronPurgeRecordTrashRoute: ApiPublicCronPurgeRecordTrashRoute,
@@ -1954,6 +2018,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronStalledRepliesRoute: ApiPublicCronStalledRepliesRoute,
   ApiPublicCronSyncAirbnbIcalRoute: ApiPublicCronSyncAirbnbIcalRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
+  ApiPublicWebhooksMalvoRoute: ApiPublicWebhooksMalvoRoute,
   ApiPublicWhatsappSinchWebhookRoute: ApiPublicWhatsappSinchWebhookRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
