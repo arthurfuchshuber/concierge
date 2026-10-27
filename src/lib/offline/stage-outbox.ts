@@ -95,8 +95,23 @@ export async function enfileirarEtapa(job: Omit<TrabalhoEtapa, "criadoEm" | "ten
   void processarEtapas();
 }
 
-/** Desfazer antes de chegar ao servidor: retorna true se ainda estava na fila. */
+/**
+ * Desfazer: true = nunca chegou ao servidor (só saiu da fila); false = o
+ * servidor já gravou (ou pode ter gravado) e quem chamou deve reverter lá.
+ * Com envio em andamento, espera o resultado antes de decidir — senão o
+ * desfazer "funcionava" na tela e a conclusão chegava ao servidor mesmo assim.
+ */
 export async function cancelarEtapa(rowId: string): Promise<boolean> {
+  const voo = emEnvio.get(rowId);
+  if (voo) {
+    const enviado = await voo;
+    if (enviado) {
+      memoria.delete(rowId);
+      await idbApagar(PREFIXO + rowId).catch(() => undefined);
+      emitir({ tipo: "mudou" });
+      return false;
+    }
+  }
   if (!memoria.has(rowId)) return false;
   memoria.delete(rowId);
   await idbApagar(PREFIXO + rowId).catch(() => undefined);
