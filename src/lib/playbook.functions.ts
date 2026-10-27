@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { COLUMN_FIELDS, ENTRY_FIELDS, LIST_FIELDS, type PlaybookSource } from "@/lib/playbook-build";
+import { PLAYBOOK_FIELDS } from "@/lib/playbook-catalog";
 
 /**
  * PLAYBOOK DO IMÓVEL — leitura e gravação (21/10/2026).
@@ -309,12 +310,19 @@ function coerce(kind: string, value: string): string | number | boolean | null {
 
 export const savePlaybookRow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => RowInput.extend({ value: z.string().max(20000) }).parse(i))
+  .inputValidator((i: unknown) =>
+    RowInput.extend({ value: z.string().max(20000), audience: z.enum(["G", "P", "I"]).optional() }).parse(i),
+  )
   .handler(async ({ data, context }) => {
     const sb = context.supabase as AnySb;
     await assertAccess(sb, context.userId, data.propertyId);
     const [kind, ...rest] = data.rowId.split(":");
     const key = rest.join(":");
+    // Visibilidade escolhida pelo usuário (nunca para campos secretos: códigos ficam só na reserva ativa).
+    if (data.audience && (kind === "f" || kind === "custom")) {
+      const meta = kind === "f" ? PLAYBOOK_FIELDS.find((f) => f.key === key) : null;
+      if (!meta?.secret) await upsertEntry(sb, context.userId, data.propertyId, data.rowId, { custom_audience: data.audience });
+    }
     if (kind === "f" && COLUMN_FIELDS[key]) {
       const { column, kind: type } = COLUMN_FIELDS[key];
       const { error } = await sb

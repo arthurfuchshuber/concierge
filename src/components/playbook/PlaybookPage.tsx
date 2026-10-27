@@ -278,6 +278,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const [openRows, setOpenRows] = useState<string[]>([]);
   const [edit, setEdit] = useState<EditState>(null);
   const [busy, setBusy] = useState(false);
+  const [editAu, setEditAu] = useState<Audience | null>(null);
+  const [doorName, setDoorName] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<PlaybookRow | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [adding, setAdding] = useState<{ section: number; label: string; value: string; note: string; au: Audience } | null>(null);
@@ -839,7 +841,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           {viewRow && view ? (
             <>
               <div className="min-w-0 shrink-0 pb-4 pl-5 pr-11 pt-5">
-                <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">
+                <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">
                   {PLAYBOOK_SECTIONS[view.idx]?.title}
                 </div>
                 <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">
@@ -923,9 +925,13 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
       {(() => {
         const eIdx = edit ? sections.findIndex((sec) => sec.rows.some((x) => x.id === edit.id)) : -1;
         const er = eIdx >= 0 ? sections[eIdx].rows.find((x) => x.id === edit!.id) ?? null : null;
+        const isDoorRow = !!er && (er.id === "f:codigo_da_porta" || er.id === "f:instrucoes_da_porta");
+        const doorRow = sections.flatMap((sec) => sec.rows).find((x) => x.id === "f:ponto_da_porta") ?? null;
         const close = () => {
           if (er) setRevealed((cur) => cur.filter((x) => x !== er.id));
           setEdit(null);
+          setEditAu(null);
+          setDoorName(null);
         };
         return (
           <Dialog open={narrow && !!er} onOpenChange={(v) => !v && close()}>
@@ -933,7 +939,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
               {er && edit ? (
                 <>
                   <div className="min-w-0 pr-6">
-                    <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">{PLAYBOOK_SECTIONS[eIdx]?.title}</div>
+                    <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">{PLAYBOOK_SECTIONS[eIdx]?.title}</div>
                     <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">
                       {er.empty ? "Adicionar campo" : "Editar campo"}
                     </DialogTitle>
@@ -946,9 +952,45 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                     <div className={FIELD_LABEL}>Sua resposta</div>
                     <EditField row={er} draft={edit.draft} onChange={(v) => setEdit({ id: er.id, draft: v })} />
                   </div>
-                  <div className="text-xs leading-4 text-muted-foreground">
-                    Quem pode ver: <AudienceText au={er.au} /> · {AUDIENCE_HELP[er.au]}
-                  </div>
+                  {isDoorRow ? (
+                    <div>
+                      <div className={FIELD_LABEL}>Nome da porta</div>
+                      <AutoGrowField
+                        value={doorName ?? doorRow?.raw ?? ""}
+                        onChange={setDoorName}
+                        placeholder="Ex.: Porta principal, Fechadura, Smart lock"
+                      />
+                    </div>
+                  ) : null}
+                  {er.secret ? (
+                    <div className="text-xs leading-4 text-muted-foreground">
+                      Quem pode ver: <AudienceText au={er.au} /> · {AUDIENCE_HELP[er.au]}
+                    </div>
+                  ) : (
+                    <div>
+                      <div className={FIELD_LABEL}>Quem pode ver</div>
+                      <div className="ds-scroll-x flex gap-1.5">
+                        {NEW_INFO_AUD.map((o) => {
+                          const on = (editAu ?? er.au) === o.au;
+                          return (
+                            <button
+                              key={o.au}
+                              type="button"
+                              aria-pressed={on}
+                              onClick={() => setEditAu(o.au)}
+                              className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[9px] px-3 text-xs font-semibold shadow-[inset_0_0_0_1px_var(--border)] ${
+                                on ? "bg-[color-mix(in_oklab,var(--foreground)_9%,transparent)] text-foreground" : "text-muted-foreground"
+                              }`}
+                            >
+                              <i className={`size-2 rounded-full ${o.dot}`} />
+                              {o.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-1.5 text-xs leading-4 text-muted-foreground">{AUDIENCE_HELP[editAu ?? er.au]}</div>
+                    </div>
+                  )}
                   <div className="flex justify-end gap-2">
                     <button
                       type="button"
@@ -961,8 +1003,19 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                       type="button"
                       disabled={busy || !edit.draft.trim()}
                       onClick={async () => {
-                        const ok = await run(() => saveFn({ data: { propertyId, rowId: er.id, value: edit.draft } }), "Salvo.");
-                        if (ok) setEdit(null);
+                        const ok = await run(async () => {
+                          if (isDoorRow && doorName !== null && doorRow?.edit) {
+                            await saveFn({ data: { propertyId, rowId: doorRow.id, value: doorName } });
+                          }
+                          return saveFn({
+                            data: { propertyId, rowId: er.id, value: edit.draft, audience: editAu && editAu !== er.au ? editAu : undefined },
+                          });
+                        }, "Salvo.");
+                        if (ok) {
+                          setEdit(null);
+                          setEditAu(null);
+                          setDoorName(null);
+                        }
                       }}
                       className="inline-flex h-9 items-center rounded-[9px] bg-foreground px-[18px] text-[13px] font-bold text-background disabled:opacity-50"
                     >
@@ -982,8 +1035,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           {pick !== null ? (
             <>
               <div className="min-w-0 pr-6">
-                <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">{PLAYBOOK_SECTIONS[pick]?.title}</div>
-                <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">Campos Vazios</DialogTitle>
+                <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">{PLAYBOOK_SECTIONS[pick]?.title}</div>
+                <DialogTitle className="sr-only">Campos vazios</DialogTitle>
               </div>
               <div className="sg-elegant-scroll -mx-5 max-h-[70dvh] overflow-y-auto px-5">
                 {groupRows((sections[pick]?.rows ?? []).filter((r) => isOptionalEmpty(r) && !revealed.includes(r.id) && edit?.id !== r.id)).map(([group, rows]) => (
@@ -1030,7 +1083,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
       <Dialog open={narrow && !!locked} onOpenChange={(v) => !v && setLocked(null)}>
         <DialogContent aria-describedby={undefined} className="max-w-lg gap-4 p-5">
           <div className="min-w-0 pr-6">
-            <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">
+            <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">
               {PLAYBOOK_SECTIONS[sections.findIndex((sec) => sec.rows.some((r) => r.id === locked?.id))]?.title ?? "Anúncio da plataforma"}
             </div>
           <div className="flex items-center gap-2.5">
@@ -1060,7 +1113,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           {adding ? (
             <>
               <div className="min-w-0 pr-6">
-                <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">{PLAYBOOK_SECTIONS[adding.section - 1]?.title}</div>
+                <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">{PLAYBOOK_SECTIONS[adding.section - 1]?.title}</div>
                 <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">Nova Info</DialogTitle>
               </div>
               <div>
@@ -1267,10 +1320,29 @@ function EditField({ row, draft, onChange }: { row: PlaybookRow; draft: string; 
   if (row.edit === "int") {
     return <input inputMode="numeric" value={draft} onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))} className={`h-10 ${base}`} />;
   }
-  if (row.edit === "text") {
-    return <input value={draft} onChange={(e) => onChange(e.target.value)} className={`h-10 ${base}`} />;
-  }
-  return <textarea rows={4} value={draft} onChange={(e) => onChange(e.target.value)} className={`block resize-y py-2 ${base}`} />;
+  return <AutoGrowField value={draft} onChange={onChange} />;
+}
+
+/** Caixa de resposta de 1 linha que cresce para baixo conforme o texto (nunca para o lado). */
+function AutoGrowField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+    el.scrollIntoView({ block: "nearest" });
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className={`block min-h-10 w-full resize-none overflow-hidden whitespace-pre-wrap break-words rounded-lg border-0 px-3 py-[10px] text-[13px] font-medium leading-5 text-foreground outline-none placeholder:text-[var(--faint)] ${WELL}`}
+    />
+  );
 }
 
 /** Agrupa linhas pela situação (grupo do catálogo), preservando a ordem. */
