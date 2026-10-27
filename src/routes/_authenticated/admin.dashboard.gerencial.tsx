@@ -152,24 +152,26 @@ function Painel() {
             })() : null} />
           <StatCard icon={CreditCard} label="Fatura do cartão" value={d?.cartao ? brl(d.cartao.fatura) : "—"} loading={!d}
             note={usoLimite != null ? (
-              <span className="relative mt-0.5 block h-4 w-full overflow-hidden rounded-full bg-foreground/[0.08]">
-                <span
-                  className="absolute inset-y-0 left-0 overflow-hidden rounded-full"
-                  style={{ width: `${Math.max(3, usoLimite)}%` }}
-                >
+              <span className="mt-1 flex w-full items-center">
+                <span className="relative block h-1.5 flex-1 rounded-full bg-foreground/[0.08]">
                   <span
-                    className="absolute inset-y-0 left-0"
-                    style={{
-                      width: `${10000 / Math.max(3, usoLimite)}%`,
-                      background: "linear-gradient(90deg, var(--success, oklch(0.72 0.16 150)), oklch(0.8 0.16 85), var(--destructive))",
-                    }}
-                  />
-                </span>
-                <span
-                  className="absolute top-1/2 -translate-y-1/2 pl-1 text-[10px] font-bold leading-none tabular-nums text-foreground"
-                  style={{ left: `${Math.min(Math.max(3, usoLimite), 82)}%` }}
-                >
-                  {usoLimite.toFixed(0)}%
+                    className="absolute inset-y-0 left-0 overflow-hidden rounded-full"
+                    style={{ width: `${Math.max(1, Math.min(100, usoLimite))}%` }}
+                  >
+                    <span
+                      className="absolute inset-y-0 left-0"
+                      style={{
+                        width: `${10000 / Math.max(1, Math.min(100, usoLimite))}%`,
+                        background: "linear-gradient(90deg, var(--success, oklch(0.72 0.16 150)), oklch(0.8 0.16 85), var(--destructive))",
+                      }}
+                    />
+                  </span>
+                  <span
+                    className="absolute top-1/2 -translate-y-1/2 pl-1.5 text-[10px] font-bold leading-none tabular-nums text-foreground"
+                    style={{ left: `${Math.min(Math.max(1, usoLimite), 85)}%` }}
+                  >
+                    {usoLimite.toFixed(0)}%
+                  </span>
                 </span>
               </span>
             ) : null} />
