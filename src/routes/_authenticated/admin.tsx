@@ -75,7 +75,7 @@ const SIDEBAR_GROUPS = [
     children: [
       { to: "/admin/dashboard", label: "Operacional", exact: false, except: ["/admin/dashboard/financeiro", "/admin/dashboard/bancos"] },
       { to: "/admin/dashboard/financeiro", label: "Financeiro", exact: false, except: [] },
-      { to: "/admin/dashboard/bancos", label: "Bancos", exact: false, except: [] },
+      // "Bancos" (integração Malvo) oculto do menu por enquanto; rota e backend seguem ativos.
     ],
   },
   {
