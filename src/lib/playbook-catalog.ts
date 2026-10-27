@@ -119,6 +119,42 @@ export const PLAYBOOK_FIELDS: FieldMeta[] = [
     "obs": "Link que abre a rota até o imóvel. A IA deve enviar quando o hóspede perguntar como chegar, disser que está perdido ou pedir a localização. Enviar sempre junto com o endereço por extenso, nunca sozinho. Se o link não abrir no aparelho do hóspede, reenviar o endereço e o CEP escritos."
   },
   {
+    "key": "link_mapa_garagem",
+    "section": 1,
+    "label": "Link do mapa da garagem",
+    "au": "G",
+    "copy": true,
+    "secret": false,
+    "obs": "Link que leva direto à entrada da garagem, quando ela é diferente da entrada de pedestres. A IA deve enviar a quem tem reserva confirmada e chega de carro, junto com as orientações de como chegar."
+  },
+  {
+    "key": "link_do_anuncio",
+    "section": 1,
+    "label": "Link do anúncio",
+    "au": "P",
+    "copy": true,
+    "secret": false,
+    "obs": "Endereço público do anúncio no Airbnb. A IA pode enviar quando alguém pedir fotos ou quiser ver o anúncio."
+  },
+  {
+    "key": "elevador",
+    "section": 1,
+    "label": "Elevador e escadas",
+    "au": "P",
+    "copy": false,
+    "secret": false,
+    "obs": "Diz se há elevador ou se o acesso é por escadas. A IA deve usar quando perguntarem sobre bagagem, acessibilidade ou cadeira de rodas, respondendo só o que consta."
+  },
+  {
+    "key": "avaliacao_airbnb",
+    "section": 1,
+    "label": "Nota no Airbnb",
+    "au": "I",
+    "copy": false,
+    "secret": false,
+    "obs": "IA não deve usar."
+  },
+  {
     "key": "imovel_em_condominio",
     "section": 1,
     "label": "Imóvel em condomínio",
