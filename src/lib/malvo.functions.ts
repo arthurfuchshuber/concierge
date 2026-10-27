@@ -54,11 +54,16 @@ export const syncBankConnection = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => z.object({ itemId: z.string().min(1).max(100) }).parse(i))
   .handler(async ({ data, context }) => {
     const { malvoFetch, syncMalvoItem } = await import("@/lib/malvo.server");
-    const { data: known } = await context.supabase
+    // Checa o dono real ignorando RLS: item de outra conta é rejeitado mesmo invisível ao chamador.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: known } = await supabaseAdmin
       .from("malvo_items")
       .select("account_owner_id")
       .eq("malvo_item_id", data.itemId)
       .maybeSingle();
+    if (known && (known as { account_owner_id: string }).account_owner_id !== context.userId) {
+      throw new Error("Conexão bancária não encontrada.");
+    }
     if (!known) {
       // Conexão recém-criada: só aceita se o próprio Malvo disser que é deste usuário.
       const item = await malvoFetch(`/items/${encodeURIComponent(data.itemId)}`);
