@@ -48,7 +48,9 @@ const PROPERTY_COLUMNS =
   "id, name, short_description, address, city, state, country, maps_url, in_condominium, apartment_number, apartment_floor, parking_spots, vehicles_max, " +
   "airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_bathroom_count, airbnb_rooms_beds, airbnb_amenities, airbnb_house_rules, airbnb_safety_info, " +
   "access_mode, gate_label, gate_code, gate_instructions, checkin_time, checkin_time_max, checkin_instructions, checkin_note, checkout_time, checkout_instructions, checkout_note, " +
-  "wifi_ssid, wifi_password, house_rules, host_phone, owner_contact_id, airbnb_description_full, airbnb_cancellation_policy, airbnb_cancellation_category, lat, lng";
+  "wifi_ssid, wifi_password, house_rules, host_phone, owner_contact_id, airbnb_description_full, airbnb_cancellation_policy, airbnb_cancellation_category, lat, lng, " +
+  "address_note, garage_maps_url, has_elevator, airbnb_listing_url, airbnb_rating, airbnb_instant_booking, cleaning_price_normal_cents, cleaning_price_full_cents, " +
+  "cleaning_duration_normal_minutes, cleaning_duration_full_minutes, lock_label, lock_instructions, lock_code";
 
 /** Consulta ao Google Places: endereço + cidade + estado + país (sem repetir o que já está no endereço). */
 export function geoQuery(property: Record<string, unknown>): string {
