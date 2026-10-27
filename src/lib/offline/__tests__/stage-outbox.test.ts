@@ -44,3 +44,16 @@ describe("stage-outbox", () => {
     expect(ehRecusaDefinitiva(new Error("Card não encontrado"))).toBe(true);
   });
 });
+
+describe("desfazer durante o envio", () => {
+  it("espera o servidor e pede reversão quando a conclusão já foi gravada", async () => {
+    const mod = await import("@/lib/offline/stage-outbox");
+    let soltar!: () => void;
+    mod.configurarEtapas(() => new Promise<void>((r) => (soltar = r)));
+    await mod.enfileirarEtapa({ rowId: "voo-1", from: "cleaning", rotulo: "x" });
+    const desfez = mod.cancelarEtapa("voo-1");
+    soltar();
+    expect(await desfez).toBe(false);
+    expect(mod.etapasPendentes().has("voo-1")).toBe(false);
+  });
+});

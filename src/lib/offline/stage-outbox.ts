@@ -44,6 +44,8 @@ const memoria = new Map<string, TrabalhoEtapa>();
 const ouvintes = new Set<(e: EventoEtapa) => void>();
 let enviar: Enviar | null = null;
 let rodando: Promise<void> | null = null;
+/** Envio em andamento por card: resolve true se o servidor confirmou. */
+const emEnvio = new Map<string, Promise<boolean>>();
 
 function emitir(e: EventoEtapa) {
   for (const fn of ouvintes) fn(e);
@@ -95,8 +97,23 @@ export async function enfileirarEtapa(job: Omit<TrabalhoEtapa, "criadoEm" | "ten
   void processarEtapas();
 }
 
-/** Desfazer antes de chegar ao servidor: retorna true se ainda estava na fila. */
+/**
+ * Desfazer: true = nunca chegou ao servidor (só saiu da fila); false = o
+ * servidor já gravou (ou pode ter gravado) e quem chamou deve reverter lá.
+ * Com envio em andamento, espera o resultado antes de decidir — senão o
+ * desfazer "funcionava" na tela e a conclusão chegava ao servidor mesmo assim.
+ */
 export async function cancelarEtapa(rowId: string): Promise<boolean> {
+  const voo = emEnvio.get(rowId);
+  if (voo) {
+    const enviado = await voo;
+    if (enviado) {
+      memoria.delete(rowId);
+      await idbApagar(PREFIXO + rowId).catch(() => undefined);
+      emitir({ tipo: "mudou" });
+      return false;
+    }
+  }
   if (!memoria.has(rowId)) return false;
   memoria.delete(rowId);
   await idbApagar(PREFIXO + rowId).catch(() => undefined);
@@ -136,13 +153,25 @@ export function processarEtapas(): Promise<void> {
     if (typeof navigator !== "undefined" && navigator.onLine === false) return;
     for (const job of [...memoria.values()]) {
       if (!memoria.has(job.rowId)) continue;
+      const envio = comPrazo(enviar(job));
+      emEnvio.set(
+        job.rowId,
+        envio.then(
+          () => true,
+          () => false,
+        ),
+      );
       try {
-        await comPrazo(enviar(job));
-        if (!memoria.has(job.rowId)) continue; // desfeito no meio do envio
+        await envio;
+        emEnvio.delete(job.rowId);
+        // Desfeito no meio do envio: `cancelarEtapa` esperou este resultado e
+        // devolveu false, então quem desfez reverte no servidor.
+        if (!memoria.has(job.rowId)) continue;
         memoria.delete(job.rowId);
         await idbApagar(PREFIXO + job.rowId).catch(() => undefined);
         emitir({ tipo: "concluida", job });
       } catch (e) {
+        emEnvio.delete(job.rowId);
         const erro = (e as Error)?.message ?? "erro";
         if (ehRecusaDefinitiva(e)) {
           memoria.delete(job.rowId);
