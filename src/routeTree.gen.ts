@@ -68,6 +68,7 @@ import { Route as AuthenticatedAdminDashboardIndexRouteImport } from './routes/_
 import { Route as AuthenticatedAdminDashboardBancosRouteImport } from './routes/_authenticated/admin.dashboard.bancos'
 import { Route as AuthenticatedAdminDashboardCalendarioRouteImport } from './routes/_authenticated/admin.dashboard.calendario'
 import { Route as AuthenticatedAdminDashboardFinanceiroRouteImport } from './routes/_authenticated/admin.dashboard.financeiro'
+import { Route as AuthenticatedAdminDashboardGerencialRouteImport } from './routes/_authenticated/admin.dashboard.gerencial'
 import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
 import { Route as AuthenticatedAdminDashboardRegistrosRouteImport } from './routes/_authenticated/admin.dashboard.registros'
 import { Route as AuthenticatedAdminPlaybookIdRouteImport } from './routes/_authenticated/admin.playbook.$id'
@@ -423,6 +424,12 @@ const AuthenticatedAdminDashboardFinanceiroRoute =
     path: '/financeiro',
     getParentRoute: () => AuthenticatedAdminDashboardRoute,
   } as any)
+const AuthenticatedAdminDashboardGerencialRoute =
+  AuthenticatedAdminDashboardGerencialRouteImport.update({
+    id: '/gerencial',
+    path: '/gerencial',
+    getParentRoute: () => AuthenticatedAdminDashboardRoute,
+  } as any)
 const AuthenticatedAdminDashboardKanbanRoute =
   AuthenticatedAdminDashboardKanbanRouteImport.update({
     id: '/kanban',
@@ -662,6 +669,7 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard/bancos': typeof AuthenticatedAdminDashboardBancosRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
+  '/admin/dashboard/gerencial': typeof AuthenticatedAdminDashboardGerencialRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
   '/admin/playbook/$id': typeof AuthenticatedAdminPlaybookIdRoute
@@ -750,6 +758,7 @@ export interface FileRoutesByTo {
   '/admin/dashboard/bancos': typeof AuthenticatedAdminDashboardBancosRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
+  '/admin/dashboard/gerencial': typeof AuthenticatedAdminDashboardGerencialRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
   '/admin/playbook/$id': typeof AuthenticatedAdminPlaybookIdRoute
@@ -843,6 +852,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/dashboard/bancos': typeof AuthenticatedAdminDashboardBancosRoute
   '/_authenticated/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/_authenticated/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
+  '/_authenticated/admin/dashboard/gerencial': typeof AuthenticatedAdminDashboardGerencialRoute
   '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/_authenticated/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
   '/_authenticated/admin/playbook/$id': typeof AuthenticatedAdminPlaybookIdRoute
@@ -936,6 +946,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard/bancos'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/financeiro'
+    | '/admin/dashboard/gerencial'
     | '/admin/dashboard/kanban'
     | '/admin/dashboard/registros'
     | '/admin/playbook/$id'
@@ -1024,6 +1035,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard/bancos'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/financeiro'
+    | '/admin/dashboard/gerencial'
     | '/admin/dashboard/kanban'
     | '/admin/dashboard/registros'
     | '/admin/playbook/$id'
@@ -1116,6 +1128,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/dashboard/bancos'
     | '/_authenticated/admin/dashboard/calendario'
     | '/_authenticated/admin/dashboard/financeiro'
+    | '/_authenticated/admin/dashboard/gerencial'
     | '/_authenticated/admin/dashboard/kanban'
     | '/_authenticated/admin/dashboard/registros'
     | '/_authenticated/admin/playbook/$id'
@@ -1626,6 +1639,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardFinanceiroRouteImport
       parentRoute: typeof AuthenticatedAdminDashboardRoute
     }
+    '/_authenticated/admin/dashboard/gerencial': {
+      id: '/_authenticated/admin/dashboard/gerencial'
+      path: '/gerencial'
+      fullPath: '/admin/dashboard/gerencial'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardGerencialRouteImport
+      parentRoute: typeof AuthenticatedAdminDashboardRoute
+    }
     '/_authenticated/admin/dashboard/kanban': {
       id: '/_authenticated/admin/dashboard/kanban'
       path: '/kanban'
@@ -1850,6 +1870,7 @@ interface AuthenticatedAdminDashboardRouteChildren {
   AuthenticatedAdminDashboardBancosRoute: typeof AuthenticatedAdminDashboardBancosRoute
   AuthenticatedAdminDashboardCalendarioRoute: typeof AuthenticatedAdminDashboardCalendarioRoute
   AuthenticatedAdminDashboardFinanceiroRoute: typeof AuthenticatedAdminDashboardFinanceiroRoute
+  AuthenticatedAdminDashboardGerencialRoute: typeof AuthenticatedAdminDashboardGerencialRoute
   AuthenticatedAdminDashboardKanbanRoute: typeof AuthenticatedAdminDashboardKanbanRoute
   AuthenticatedAdminDashboardRegistrosRoute: typeof AuthenticatedAdminDashboardRegistrosRoute
   AuthenticatedAdminDashboardIndexRoute: typeof AuthenticatedAdminDashboardIndexRoute
@@ -1863,6 +1884,8 @@ const AuthenticatedAdminDashboardRouteChildren: AuthenticatedAdminDashboardRoute
       AuthenticatedAdminDashboardCalendarioRoute,
     AuthenticatedAdminDashboardFinanceiroRoute:
       AuthenticatedAdminDashboardFinanceiroRoute,
+    AuthenticatedAdminDashboardGerencialRoute:
+      AuthenticatedAdminDashboardGerencialRoute,
     AuthenticatedAdminDashboardKanbanRoute:
       AuthenticatedAdminDashboardKanbanRoute,
     AuthenticatedAdminDashboardRegistrosRoute:
