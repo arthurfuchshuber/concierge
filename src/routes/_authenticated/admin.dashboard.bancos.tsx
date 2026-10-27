@@ -63,7 +63,6 @@ function BancosPage() {
       await loadWidget();
       window.MalvoConnect!.init({
         connectToken,
-        includeSandbox: true,
         onSuccess: async (d: { item?: { id?: string } }) => {
           const id = d?.item?.id;
           if (!id) return;

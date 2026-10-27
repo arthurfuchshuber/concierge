@@ -65,6 +65,7 @@ import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
 import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/events'
 import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.google-calendar.return'
 import { Route as AuthenticatedAdminDashboardIndexRouteImport } from './routes/_authenticated/admin.dashboard.index'
+import { Route as AuthenticatedAdminDashboardBancosRouteImport } from './routes/_authenticated/admin.dashboard.bancos'
 import { Route as AuthenticatedAdminDashboardCalendarioRouteImport } from './routes/_authenticated/admin.dashboard.calendario'
 import { Route as AuthenticatedAdminDashboardFinanceiroRouteImport } from './routes/_authenticated/admin.dashboard.financeiro'
 import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
@@ -404,6 +405,12 @@ const AuthenticatedAdminDashboardIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAdminDashboardRoute,
   } as any)
+const AuthenticatedAdminDashboardBancosRoute =
+  AuthenticatedAdminDashboardBancosRouteImport.update({
+    id: '/bancos',
+    path: '/bancos',
+    getParentRoute: () => AuthenticatedAdminDashboardRoute,
+  } as any)
 const AuthenticatedAdminDashboardCalendarioRoute =
   AuthenticatedAdminDashboardCalendarioRouteImport.update({
     id: '/calendario',
@@ -652,6 +659,7 @@ export interface FileRoutesByFullPath {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
+  '/admin/dashboard/bancos': typeof AuthenticatedAdminDashboardBancosRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
@@ -739,6 +747,7 @@ export interface FileRoutesByTo {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
+  '/admin/dashboard/bancos': typeof AuthenticatedAdminDashboardBancosRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
@@ -831,6 +840,7 @@ export interface FileRoutesById {
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
+  '/_authenticated/admin/dashboard/bancos': typeof AuthenticatedAdminDashboardBancosRoute
   '/_authenticated/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/_authenticated/admin/dashboard/financeiro': typeof AuthenticatedAdminDashboardFinanceiroRoute
   '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
@@ -923,6 +933,7 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/admin/'
     | '/g/$slug/'
+    | '/admin/dashboard/bancos'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/financeiro'
     | '/admin/dashboard/kanban'
@@ -1010,6 +1021,7 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/admin'
     | '/g/$slug'
+    | '/admin/dashboard/bancos'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/financeiro'
     | '/admin/dashboard/kanban'
@@ -1101,6 +1113,7 @@ export interface FileRouteTypes {
     | '/oauth/google-calendar/return'
     | '/_authenticated/admin/'
     | '/g/$slug/'
+    | '/_authenticated/admin/dashboard/bancos'
     | '/_authenticated/admin/dashboard/calendario'
     | '/_authenticated/admin/dashboard/financeiro'
     | '/_authenticated/admin/dashboard/kanban'
@@ -1592,6 +1605,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardIndexRouteImport
       parentRoute: typeof AuthenticatedAdminDashboardRoute
     }
+    '/_authenticated/admin/dashboard/bancos': {
+      id: '/_authenticated/admin/dashboard/bancos'
+      path: '/bancos'
+      fullPath: '/admin/dashboard/bancos'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardBancosRouteImport
+      parentRoute: typeof AuthenticatedAdminDashboardRoute
+    }
     '/_authenticated/admin/dashboard/calendario': {
       id: '/_authenticated/admin/dashboard/calendario'
       path: '/calendario'
@@ -1827,6 +1847,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminDashboardRouteChildren {
+  AuthenticatedAdminDashboardBancosRoute: typeof AuthenticatedAdminDashboardBancosRoute
   AuthenticatedAdminDashboardCalendarioRoute: typeof AuthenticatedAdminDashboardCalendarioRoute
   AuthenticatedAdminDashboardFinanceiroRoute: typeof AuthenticatedAdminDashboardFinanceiroRoute
   AuthenticatedAdminDashboardKanbanRoute: typeof AuthenticatedAdminDashboardKanbanRoute
@@ -1836,6 +1857,8 @@ interface AuthenticatedAdminDashboardRouteChildren {
 
 const AuthenticatedAdminDashboardRouteChildren: AuthenticatedAdminDashboardRouteChildren =
   {
+    AuthenticatedAdminDashboardBancosRoute:
+      AuthenticatedAdminDashboardBancosRoute,
     AuthenticatedAdminDashboardCalendarioRoute:
       AuthenticatedAdminDashboardCalendarioRoute,
     AuthenticatedAdminDashboardFinanceiroRoute:
