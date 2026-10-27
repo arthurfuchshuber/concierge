@@ -287,7 +287,7 @@ function CompareRow({ t, cur, prev, invert, last }: { t: string; cur: number; pr
         {v == null ? "—" : (
           <>
             {up ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
-            {Math.abs(v).toFixed(0)}%
+            {Math.abs(v) > 999 ? ">999" : Math.abs(v).toFixed(0)}%
           </>
         )}
       </span>
