@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { COLUMN_FIELDS, ENTRY_FIELDS, LIST_FIELDS, type PlaybookSource } from "@/lib/playbook-build";
+import { PLAYBOOK_FIELDS } from "@/lib/playbook-catalog";
 
 /**
  * PLAYBOOK DO IMÓVEL — leitura e gravação (21/10/2026).
