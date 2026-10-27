@@ -837,12 +837,12 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           {viewRow && view ? (
             <>
               <div className="min-w-0 shrink-0 pb-4 pl-5 pr-11 pt-5">
+                <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">
+                  {PLAYBOOK_SECTIONS[view.idx]?.title}
+                </div>
                 <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">
                   {viewRow.label}
                 </DialogTitle>
-                <div className="mt-0.5 truncate text-xs leading-[18px] text-muted-foreground">
-                  Categoria {PLAYBOOK_SECTIONS[view.idx]?.num} · {PLAYBOOK_SECTIONS[view.idx]?.title}
-                </div>
               </div>
               <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-4">
                 {view.tab === "texto" ? (
@@ -867,7 +867,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                 ) : null}
                 <div className="h-px bg-[var(--panel-div)]" />
                 <div className="flex items-center justify-between gap-3 text-[13px] leading-[18px] text-muted-foreground">
-                  <span>
+                  <span className="min-w-0 flex-1">
                     {AUD_NAME[viewRow.au]} · {AUDIENCE_HELP[viewRow.au].charAt(0).toLowerCase() + AUDIENCE_HELP[viewRow.au].slice(1)}
                   </span>
                   {!viewRow.empty && !!viewRow.edit && classifyBulkRow(viewRow.id).ok ? (
