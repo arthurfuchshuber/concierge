@@ -133,6 +133,13 @@ function Painel() {
           <h1 className="ds-page-title !text-lg">Gerencial</h1>
           <p className="ds-page-subtitle">Caixa, fluxo e ritmo da empresa para a diretoria.</p>
         </div>
+        <div className="mt-5 lg:mt-2.5">
+          <nav className="ds-tabs">
+            <span className="ds-tab-active flex min-h-[44px] flex-1 items-center justify-center px-2 text-center text-[13px] font-bold leading-none">
+              Visão Geral
+            </span>
+          </nav>
+        </div>
       </div>
 
       <div className="ds-card-grid">
@@ -140,20 +147,27 @@ function Painel() {
           <StatCard icon={Landmark} label="Saldo em conta" value={brl(d?.saldoDisponivel)} loading={!d}
             note={d ? (() => {
               const comSaldo = d.contas.filter((x: { saldo: number }) => Math.abs(x.saldo) >= 0.01);
-              const txt = comSaldo.length === 1
-                ? `${comSaldo[0].banco} · ${comSaldo[0].numero}`
-                : `${comSaldo.length} ${comSaldo.length === 1 ? "conta" : "contas"}`;
+              const txt = `${comSaldo.length} ${comSaldo.length === 1 ? "conta" : "contas"}`;
               return <span className="font-medium text-muted-foreground">{txt}</span>;
             })() : null} />
           <StatCard icon={CreditCard} label="Fatura do cartão" value={d?.cartao ? brl(d.cartao.fatura) : "—"} loading={!d}
             note={usoLimite != null ? (
-              <span className="relative block h-3.5 w-full px-1">
-                <span className="absolute inset-x-1 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-foreground/[0.08]">
-                  <span className="absolute inset-y-0 left-0 rounded-full bg-foreground/45" style={{ width: `${Math.max(2, usoLimite)}%` }} />
+              <span className="relative mt-0.5 block h-4 w-full overflow-hidden rounded-full bg-foreground/[0.08]">
+                <span
+                  className="absolute inset-y-0 left-0 overflow-hidden rounded-full"
+                  style={{ width: `${Math.max(3, usoLimite)}%` }}
+                >
+                  <span
+                    className="absolute inset-y-0 left-0"
+                    style={{
+                      width: `${10000 / Math.max(3, usoLimite)}%`,
+                      background: "linear-gradient(90deg, var(--success, oklch(0.72 0.16 150)), oklch(0.8 0.16 85), var(--destructive))",
+                    }}
+                  />
                 </span>
                 <span
-                  className="absolute top-1/2 -translate-y-1/2 rounded bg-card px-1 text-[10px] font-semibold leading-none tabular-nums text-muted-foreground"
-                  style={{ left: `calc(4px + ${Math.min(Math.max(2, usoLimite), 80)}% )` }}
+                  className="absolute top-1/2 -translate-y-1/2 pl-1 text-[10px] font-bold leading-none tabular-nums text-foreground"
+                  style={{ left: `${Math.min(Math.max(3, usoLimite), 82)}%` }}
                 >
                   {usoLimite.toFixed(0)}%
                 </span>
