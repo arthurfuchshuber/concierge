@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-/** Drena a fila de avisos do Malvo (a cada 1 min via pg_cron). Nunca faz polling no banco. */
+/** Drena a fila de avisos do Malvo (reserva, 1x/hora via pg_cron). Nunca faz polling no banco. */
 export const Route = createFileRoute("/api/public/cron/malvo-sync")({
   server: {
     handlers: {
