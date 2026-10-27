@@ -131,7 +131,7 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
 
     return {
       saldoDisponivel: bankAccounts.reduce((s: number, a: any) => s + (Number(a.balance) || 0), 0),
-      contas: bankAccounts.map((a: any) => ({
+      contas: bankAccounts.map((a: any): { banco: string; nome: string; numero: string; saldo: number } => ({
         banco: bankOf.get(a.malvo_account_id) ?? "Banco",
         nome: a.name,
         numero: a.number,
