@@ -526,7 +526,9 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           <div className={narrow ? "ds-3d -mt-2.5 flex flex-col overflow-hidden rounded-[14px] border-0 bg-card" : "contents"}>
           {PLAYBOOK_SECTIONS.map((meta, idx) => {
             const sec = sections[idx];
-            const all = (sec?.rows ?? []).filter((r) => !isOptionalEmpty(r) || revealed.includes(r.id) || edit?.id === r.id);
+            const all = (sec?.rows ?? []).filter(
+              (r) => !(narrow && r.empty && edit?.id === r.id) && (!isOptionalEmpty(r) || revealed.includes(r.id) || edit?.id === r.id),
+            );
             const hidden = (sec?.rows ?? []).filter(
               (r) => isOptionalEmpty(r) && isAddable(r) && !revealed.includes(r.id) && edit?.id !== r.id,
             );
@@ -574,7 +576,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                     <div className="pb-[18px] pl-[50px] pr-3.5">
                       {rows.map((r, i) => {
                         const open = read;
-                        const editing = edit?.id === r.id;
+                        const editing = false;
                         return (
                           <div
                             key={r.id}
@@ -840,7 +842,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                 <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">
                   {PLAYBOOK_SECTIONS[view.idx]?.title}
                 </div>
-                <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">
+                <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">
                   {viewRow.label}
                 </DialogTitle>
               </div>
@@ -917,6 +919,63 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
         </DialogContent>
       </Dialog>
 
+      {/* CELULAR — preencher/editar um campo numa janela própria, com contexto claro. */}
+      {(() => {
+        const eIdx = edit ? sections.findIndex((sec) => sec.rows.some((x) => x.id === edit.id)) : -1;
+        const er = eIdx >= 0 ? sections[eIdx].rows.find((x) => x.id === edit!.id) ?? null : null;
+        const close = () => {
+          if (er) setRevealed((cur) => cur.filter((x) => x !== er.id));
+          setEdit(null);
+        };
+        return (
+          <Dialog open={narrow && !!er} onOpenChange={(v) => !v && close()}>
+            <DialogContent aria-describedby={undefined} className="max-w-lg gap-3.5 p-5">
+              {er && edit ? (
+                <>
+                  <div className="min-w-0 pr-6">
+                    <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">{PLAYBOOK_SECTIONS[eIdx]?.title}</div>
+                    <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">
+                      {er.empty ? "Adicionar campo" : "Editar campo"}
+                    </DialogTitle>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold leading-5 text-foreground">{er.label}</div>
+                    {er.obs ? <p className="mt-1 text-xs leading-[18px] text-muted-foreground">{er.obs}</p> : null}
+                  </div>
+                  <div>
+                    <div className={FIELD_LABEL}>Sua resposta</div>
+                    <EditField row={er} draft={edit.draft} onChange={(v) => setEdit({ id: er.id, draft: v })} />
+                  </div>
+                  <div className="text-xs leading-4 text-muted-foreground">
+                    Quem pode ver: <AudienceText au={er.au} /> · {AUDIENCE_HELP[er.au]}
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={close}
+                      className="inline-flex h-9 items-center rounded-[9px] bg-[color-mix(in_oklab,var(--foreground)_4.5%,transparent)] px-4 text-[13px] font-bold text-muted-foreground"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || !edit.draft.trim()}
+                      onClick={async () => {
+                        const ok = await run(() => saveFn({ data: { propertyId, rowId: er.id, value: edit.draft } }), "Salvo.");
+                        if (ok) setEdit(null);
+                      }}
+                      className="inline-flex h-9 items-center rounded-[9px] bg-foreground px-[18px] text-[13px] font-bold text-background disabled:opacity-50"
+                    >
+                      Salvar
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
+
       {/* CELULAR — "+ Campo": todos os campos vazios da categoria (mockup "Campo-Lista"). */}
       <Dialog open={narrow && pick !== null} onOpenChange={(v) => !v && setPick(null)}>
         <DialogContent aria-describedby={undefined} className="max-w-lg gap-3.5 p-5">
@@ -924,7 +983,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
             <>
               <div className="min-w-0 pr-6">
                 <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">{PLAYBOOK_SECTIONS[pick]?.title}</div>
-                <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">Campos Vazios</DialogTitle>
+                <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">Campos Vazios</DialogTitle>
               </div>
               <div className="sg-elegant-scroll -mx-5 max-h-[70dvh] overflow-y-auto px-5">
                 {groupRows((sections[pick]?.rows ?? []).filter((r) => isOptionalEmpty(r) && !revealed.includes(r.id) && edit?.id !== r.id)).map(([group, rows]) => (
@@ -976,7 +1035,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
             </div>
           <div className="flex items-center gap-2.5">
             <Lock className="size-[22px] flex-none text-warning" strokeWidth={1.8} />
-            <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">Edite no Airbnb</DialogTitle>
+            <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">Edite no Airbnb</DialogTitle>
           </div>
           </div>
           <p className="text-sm leading-5 text-foreground">
@@ -1002,7 +1061,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
             <>
               <div className="min-w-0 pr-6">
                 <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">{PLAYBOOK_SECTIONS[adding.section - 1]?.title}</div>
-                <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">Nova Info</DialogTitle>
+                <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">Nova Info</DialogTitle>
               </div>
               <div>
                 <div className={FIELD_LABEL}>
