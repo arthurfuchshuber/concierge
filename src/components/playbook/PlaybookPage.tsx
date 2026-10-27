@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   addPlaybookRow,
@@ -96,7 +97,10 @@ const NEW_INFO_AUD: Array<{ au: Audience; label: string; dot: string }> = [
 ];
 const PILL =
   "flex h-9 flex-1 items-center justify-center rounded-[9px] bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] text-[13px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)] hover:text-foreground";
-const FIELD_LABEL = "mb-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-[var(--faint)]";
+const FIELD_LABEL = "mb-1.5 text-[10.5px] font-bold uppercase leading-tight tracking-[0.08em] text-muted-foreground";
+/** Campo de texto oficial do sistema (mesma casca do Input do tema). */
+const FIELD_BOX =
+  "w-full rounded-[9px] border border-input bg-background px-3 text-[13px] font-medium text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
 
 /**
  * CELULAR (mockup "Proposta 1 e 2" aprovado, 24/10/2026): a audiência deixa de ser uma etiqueta com
@@ -921,12 +925,25 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* CELULAR — preencher/editar um campo numa janela própria, com contexto claro. */}
+      {/* CELULAR — preencher/editar um campo numa janela própria (casca oficial ds-overlay). */}
       {(() => {
         const eIdx = edit ? sections.findIndex((sec) => sec.rows.some((x) => x.id === edit.id)) : -1;
         const er = eIdx >= 0 ? sections[eIdx].rows.find((x) => x.id === edit!.id) ?? null : null;
-        const isDoorRow = !!er && (er.id === "f:codigo_da_porta" || er.id === "f:instrucoes_da_porta");
-        const doorRow = sections.flatMap((sec) => sec.rows).find((x) => x.id === "f:ponto_da_porta") ?? null;
+        // Acessos (como no editor antigo): nome do acesso + código + instruções no mesmo fluxo.
+        const ACCESS: Record<string, { nameId: string; label: string; ph: string }> = {
+          "f:codigo_da_porta": { nameId: "f:ponto_da_porta", label: "Nome da porta", ph: "Ex.: Porta principal, Fechadura, Smart lock" },
+          "f:instrucoes_da_porta": { nameId: "f:ponto_da_porta", label: "Nome da porta", ph: "Ex.: Porta principal, Fechadura, Smart lock" },
+          "f:codigo_do_portao": { nameId: "f:ponto_de_acesso", label: "Nome do portão", ph: "Ex.: Portão social, Portaria, Interfone" },
+          "f:instrucoes_do_portao": { nameId: "f:ponto_de_acesso", label: "Nome do portão", ph: "Ex.: Portão social, Portaria, Interfone" },
+        };
+        const NAME_ROWS: Record<string, { label: string; ph: string }> = {
+          "f:ponto_da_porta": { label: "Nome da porta", ph: "Ex.: Porta principal, Fechadura, Smart lock" },
+          "f:ponto_de_acesso": { label: "Nome do portão", ph: "Ex.: Portão social, Portaria, Interfone" },
+        };
+        const acc = er ? ACCESS[er.id] : undefined;
+        const isDoorRow = !!acc;
+        const doorRow = acc ? sections.flatMap((sec) => sec.rows).find((x) => x.id === acc.nameId) ?? null : null;
+        const selfName = er ? NAME_ROWS[er.id] : undefined;
         const close = () => {
           if (er) setRevealed((cur) => cur.filter((x) => x !== er.id));
           setEdit(null);
@@ -935,72 +952,62 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
         };
         return (
           <Dialog open={narrow && !!er} onOpenChange={(v) => !v && close()}>
-            <DialogContent aria-describedby={undefined} className="max-w-lg gap-3.5 p-5">
+            <DialogContent
+              aria-describedby={undefined}
+              className="ds-overlay flex max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-lg flex-col gap-0 overflow-hidden rounded-[14px] border-border/80 bg-card p-0"
+            >
               {er && edit ? (
                 <>
-                  <div className="min-w-0 pr-6">
+                  <div className="min-w-0 shrink-0 px-5 pb-3 pr-11 pt-5">
                     <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">{PLAYBOOK_SECTIONS[eIdx]?.title}</div>
-                    <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">
-                      {er.empty ? "Adicionar campo" : "Editar campo"}
-                    </DialogTitle>
+                    <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">{er.label}</DialogTitle>
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold leading-5 text-foreground">{er.label}</div>
-                    {er.obs ? <p className="mt-1 text-xs leading-[18px] text-muted-foreground">{er.obs}</p> : null}
-                  </div>
-                  <div>
-                    <div className={FIELD_LABEL}>Sua resposta</div>
-                    <EditField row={er} draft={edit.draft} onChange={(v) => setEdit({ id: er.id, draft: v })} />
-                  </div>
-                  {isDoorRow ? (
-                    <div>
-                      <div className={FIELD_LABEL}>Nome da porta</div>
-                      <AutoGrowField
-                        value={doorName ?? doorRow?.raw ?? ""}
-                        onChange={setDoorName}
-                        placeholder="Ex.: Porta principal, Fechadura, Smart lock"
-                      />
-                    </div>
-                  ) : null}
-                  {er.secret ? (
-                    <div className="text-xs leading-4 text-muted-foreground">
-                      Quem pode ver: <AudienceText au={er.au} /> · {AUDIENCE_HELP[er.au]}
-                    </div>
-                  ) : (
-                    <div>
-                      <div className={FIELD_LABEL}>Quem pode ver</div>
-                      <div className="ds-scroll-x flex gap-1.5">
-                        {NEW_INFO_AUD.map((o) => {
-                          const on = (editAu ?? er.au) === o.au;
-                          return (
-                            <button
-                              key={o.au}
-                              type="button"
-                              aria-pressed={on}
-                              onClick={() => setEditAu(o.au)}
-                              className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[9px] px-3 text-xs font-semibold shadow-[inset_0_0_0_1px_var(--border)] ${
-                                on ? "bg-[color-mix(in_oklab,var(--foreground)_9%,transparent)] text-foreground" : "text-muted-foreground"
-                              }`}
-                            >
-                              <i className={`size-2 rounded-full ${o.dot}`} />
-                              {o.label}
-                            </button>
-                          );
-                        })}
+                  <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col gap-[10px] overflow-y-auto px-5 pb-4">
+                    {isDoorRow && doorRow?.edit ? (
+                      <div>
+                        <div className={FIELD_LABEL}>{acc!.label}</div>
+                        <AutoGrowField value={doorName ?? doorRow.raw ?? ""} onChange={setDoorName} placeholder={acc!.ph} />
                       </div>
-                      <div className="mt-1.5 text-xs leading-4 text-muted-foreground">{AUDIENCE_HELP[editAu ?? er.au]}</div>
+                    ) : null}
+                    <div>
+                      <div className={FIELD_LABEL}>{selfName ? selfName.label : "Sua resposta"}</div>
+                      <EditField row={er} draft={edit.draft} onChange={(v) => setEdit({ id: er.id, draft: v })} placeholder={selfName?.ph} />
                     </div>
-                  )}
-                  <div className="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={close}
-                      className="inline-flex h-9 items-center rounded-[9px] bg-[color-mix(in_oklab,var(--foreground)_4.5%,transparent)] px-4 text-[13px] font-bold text-muted-foreground"
-                    >
+                    {er.secret ? (
+                      <div className="text-xs leading-4 text-muted-foreground">
+                        Quem pode ver: <AudienceText au={er.au} /> · {AUDIENCE_HELP[er.au]}
+                      </div>
+                    ) : (
+                      <div>
+                        <div className={FIELD_LABEL}>Quem pode ver</div>
+                        <div className="ds-scroll-x flex gap-1.5">
+                          {NEW_INFO_AUD.map((o) => {
+                            const on = (editAu ?? er.au) === o.au;
+                            return (
+                              <button
+                                key={o.au}
+                                type="button"
+                                aria-pressed={on}
+                                onClick={() => setEditAu(o.au)}
+                                className={`inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[9px] border px-3 text-[12.5px] font-semibold transition-colors ${
+                                  on ? "border-foreground/30 bg-secondary text-foreground" : "border-border bg-card text-muted-foreground"
+                                }`}
+                              >
+                                <i className={`size-2 rounded-full ${o.dot}`} />
+                                {o.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-1.5 text-[11.5px] leading-4 text-muted-foreground">{AUDIENCE_HELP[editAu ?? er.au]}</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/60 bg-card px-5 py-3">
+                    <Button variant="outline" onClick={close} className="h-9 rounded-[9px] px-4 text-[12.5px] font-semibold lg:rounded-[13px]">
                       Cancelar
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+                    <Button
                       disabled={busy || !edit.draft.trim()}
                       onClick={async () => {
                         const ok = await run(async () => {
@@ -1017,10 +1024,10 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                           setDoorName(null);
                         }
                       }}
-                      className="inline-flex h-9 items-center rounded-[9px] bg-foreground px-[18px] text-[13px] font-bold text-background disabled:opacity-50"
+                      className="h-9 rounded-[9px] px-4 text-[12.5px] font-semibold lg:rounded-[13px]"
                     >
                       Salvar
-                    </button>
+                    </Button>
                   </div>
                 </>
               ) : null}
@@ -1299,8 +1306,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   );
 }
 
-function EditField({ row, draft, onChange }: { row: PlaybookRow; draft: string; onChange: (v: string) => void }) {
-  const base = `w-full rounded-lg border-0 px-3 text-[13px] font-medium text-foreground outline-none ${WELL}`;
+function EditField({ row, draft, onChange, placeholder }: { row: PlaybookRow; draft: string; onChange: (v: string) => void; placeholder?: string }) {
+  const base = FIELD_BOX;
   if (row.edit === "bool") {
     return (
       <select value={draft} onChange={(e) => onChange(e.target.value)} className={`h-10 ${base}`}>
@@ -1320,7 +1327,7 @@ function EditField({ row, draft, onChange }: { row: PlaybookRow; draft: string; 
   if (row.edit === "int") {
     return <input inputMode="numeric" value={draft} onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))} className={`h-10 ${base}`} />;
   }
-  return <AutoGrowField value={draft} onChange={onChange} />;
+  return <AutoGrowField value={draft} onChange={onChange} placeholder={placeholder} />;
 }
 
 /** Caixa de resposta de 1 linha que cresce para baixo conforme o texto (nunca para o lado). */
@@ -1340,7 +1347,7 @@ function AutoGrowField({ value, onChange, placeholder }: { value: string; onChan
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className={`block min-h-10 w-full resize-none overflow-hidden whitespace-pre-wrap break-words rounded-lg border-0 px-3 py-[10px] text-[13px] font-medium leading-5 text-foreground outline-none placeholder:text-[var(--faint)] ${WELL}`}
+      className={`block min-h-10 resize-none overflow-hidden whitespace-pre-wrap break-words py-[9px] leading-5 ${FIELD_BOX}`}
     />
   );
 }
