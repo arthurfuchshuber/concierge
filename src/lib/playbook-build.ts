@@ -327,7 +327,24 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
   const silence = silenceRange(p);
   const petsLine = ruleLine(p, /animais/i);
   const petsMax = petsLine?.match(/at[eé]\s+(\d+)/i)?.[1];
-  const maxGuestsRule = ruleLine(p, /m[aá]ximo de \d+ h[oó]spedes/i)?.match(/(\d+)/)?.[1];
+  const maxGuestsRule = ruleLine(p, /(m[aá]ximo de|at[eé])\s+\d+\s+h[oó]spedes/i)?.match(/(\d+)/)?.[1];
+  const desc = s(p.airbnb_description_full);
+  const amenityNames = amenities(p).filter((a) => a.available).map((a) => a.name);
+  const listingSaysCondo =
+    amenityNames.some((a) => /condom[ií]nio|porteiro|portaria/i.test(a)) || /condom[ií]nio|portaria/i.test(desc);
+  const descCameraLine = desc.split("\n").find((l) => /c[aâ]mera/i.test(l))?.replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu, "").trim() ?? "";
+  const stairsText = [s(p.airbnb_safety_info), desc].join("\n").split("\n").find((l) => /elevador|escada/i.test(l) && l.length > 15)?.replace(/⚠️/g, "").trim() ?? "";
+  const elevatorText =
+    p.has_elevator === true ? "Com elevador" : p.has_elevator === false ? `Sem elevador${stairsText ? ` · ${stairsText}` : ""}` : stairsText;
+  const money = (c: unknown) => (n(c) === null ? "" : `R$ ${(Number(c) / 100).toFixed(2).replace(".", ",")}`);
+  const cleaningText = [
+    money(p.cleaning_price_normal_cents) || n(p.cleaning_duration_normal_minutes) !== null
+      ? `Normal: ${[money(p.cleaning_price_normal_cents), n(p.cleaning_duration_normal_minutes) !== null ? `${p.cleaning_duration_normal_minutes} min` : ""].filter(Boolean).join(" · ")}`
+      : "",
+    money(p.cleaning_price_full_cents) || n(p.cleaning_duration_full_minutes) !== null
+      ? `Completa: ${[money(p.cleaning_price_full_cents), n(p.cleaning_duration_full_minutes) !== null ? `${p.cleaning_duration_full_minutes} min` : ""].filter(Boolean).join(" · ")}`
+      : "",
+  ].filter(Boolean).join("\n");
   const additional = additionalRules(p);
   const safety = s(p.airbnb_safety_info);
   const cameraLine = safety.split("\n").find((l) => /c[aâ]mera/i.test(l))?.trim() ?? "";
@@ -356,7 +373,13 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     cidade: [s(p.city), STATE_NAME[s(p.state).toUpperCase()] ?? s(p.state), s(p.country)].filter(Boolean).join(" · "),
     cep: entryValue("cep") || addr.cep,
     link_do_mapa: s(p.maps_url),
-    imovel_em_condominio: p.in_condominium == null ? "" : condo ? `Sim${s(p.apartment_number) ? ` · apto ${s(p.apartment_number)}` : ""}${s(p.apartment_floor) ? `, andar ${s(p.apartment_floor)}` : ""}` : "Não · casa independente, sem portaria",
+    imovel_em_condominio: p.in_condominium == null
+      ? (listingSaysCondo ? "Sim · conforme o anúncio (condomínio/portaria)" : "")
+      : condo
+        ? `Sim${s(p.apartment_number) ? ` · apto ${s(p.apartment_number)}` : ""}${s(p.apartment_floor) ? `, andar ${s(p.apartment_floor)}` : ""}`
+        : listingSaysCondo
+          ? "Não (cadastro) · atenção: o anúncio cita condomínio/portaria — confirme e ajuste"
+          : "Não · sem condomínio",
     vagas_de_garagem: garage || (parking ? `${parking} vaga(s) cadastrada(s)` : ""),
     maximo_de_veiculos: veh === null ? "" : plural(veh, "veículo", "veículos"),
     hospedes_maximo: guests === null ? "" : `${plural(guests, "hóspede", "hóspedes")} (incluindo crianças)`,
@@ -391,10 +414,11 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     festas_e_eventos: rulesText(p) ? (ruleLine(p, /n[aã]o s[aã]o permitidas festas/i) ? "Não permitidos" : "Permitidos") : "",
     criancas_e_bebes: rulesText(p) ? (/n[aã]o (adequado|permitid\w*)[^\n]*crian/i.test(rulesText(p)) ? "Não permitidos" : "Permitidos") : "",
     fotografia_comercial: rulesText(p) ? (ruleLine(p, /n[aã]o [eé] permitido fotografia/i) ? "Não permitida" : "Permitida") : "",
-    maximo_de_hospedes: maxGuestsRule ?? "",
+    maximo_de_hospedes: maxGuestsRule ? plural(Number(maxGuestsRule), "hóspede", "hóspedes") : "",
     cameras_aviso_ao_hospede:
       src.listingFacts?.find((f) => /c[aâ]mera/i.test(`${f.title} ${f.content}`) && f.key.startsWith("aviso"))?.content.trim() ||
-      cameraLine,
+      cameraLine ||
+      descCameraLine,
     texto_de_seguranca: safety,
     regras_adicionais_da_casa: additional,
     contatos_de_emergencia: src.emergency.map((c) => `${c.label}: ${c.number}`.trim()).join("\n"),
@@ -403,6 +427,20 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     taxa_de_limpeza: priceLine(/^Taxa de limpeza(?! para)/i),
     taxa_hospede_adicional: [priceLine(/^Hóspedes incluídos/i), priceLine(/^Por hóspede adicional/i)].filter(Boolean).join("\n"),
     taxa_pet: priceLine(/^Taxa de pet/i),
+    link_mapa_garagem: s(p.garage_maps_url),
+    link_do_anuncio: s(p.airbnb_listing_url),
+    elevador: elevatorText,
+    avaliacao_airbnb: n(p.airbnb_rating) === null ? "" : `${n(p.airbnb_rating)} de 5`,
+    como_chegar: s(p.address_note),
+    ponto_da_porta: s(p.lock_label),
+    codigo_da_porta: s(p.lock_code),
+    instrucoes_da_porta: s(p.lock_instructions),
+    estadia_e_reserva: [
+      ...factLines("estadia").filter((l) => !/^De \d{4}-/.test(l)),
+      factLines("estadia").some((l) => /^De \d{4}-/.test(l)) ? "Há mínimos diferentes em datas específicas (feriados e temporadas)." : "",
+    ].filter(Boolean).join("\n"),
+    mensagem_de_reserva: factLines("boas_vindas").join("\n"),
+    limpeza_operacional: cleaningText,
   };
   for (const k of ENTRY_FIELDS) values[k] = values[k] || entryValue(k);
 
