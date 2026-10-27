@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { COLUMN_FIELDS, ENTRY_FIELDS, LIST_FIELDS, type PlaybookSource } from "@/lib/playbook-build";
+import { PLAYBOOK_FIELDS } from "@/lib/playbook-catalog";
 
 /**
  * PLAYBOOK DO IMÓVEL — leitura e gravação (21/10/2026).
@@ -48,7 +49,9 @@ const PROPERTY_COLUMNS =
   "id, name, short_description, address, city, state, country, maps_url, in_condominium, apartment_number, apartment_floor, parking_spots, vehicles_max, " +
   "airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_bathroom_count, airbnb_rooms_beds, airbnb_amenities, airbnb_house_rules, airbnb_safety_info, " +
   "access_mode, gate_label, gate_code, gate_instructions, checkin_time, checkin_time_max, checkin_instructions, checkin_note, checkout_time, checkout_instructions, checkout_note, " +
-  "wifi_ssid, wifi_password, house_rules, host_phone, owner_contact_id, airbnb_description_full, airbnb_cancellation_policy, airbnb_cancellation_category, lat, lng";
+  "wifi_ssid, wifi_password, house_rules, host_phone, owner_contact_id, airbnb_description_full, airbnb_cancellation_policy, airbnb_cancellation_category, lat, lng, " +
+  "address_note, garage_maps_url, has_elevator, airbnb_listing_url, airbnb_rating, airbnb_instant_booking, cleaning_price_normal_cents, cleaning_price_full_cents, " +
+  "cleaning_duration_normal_minutes, cleaning_duration_full_minutes, lock_label, lock_instructions, lock_code";
 
 /** Consulta ao Google Places: endereço + cidade + estado + país (sem repetir o que já está no endereço). */
 export function geoQuery(property: Record<string, unknown>): string {
@@ -307,12 +310,19 @@ function coerce(kind: string, value: string): string | number | boolean | null {
 
 export const savePlaybookRow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => RowInput.extend({ value: z.string().max(20000) }).parse(i))
+  .inputValidator((i: unknown) =>
+    RowInput.extend({ value: z.string().max(20000), audience: z.enum(["G", "P", "I"]).optional() }).parse(i),
+  )
   .handler(async ({ data, context }) => {
     const sb = context.supabase as AnySb;
     await assertAccess(sb, context.userId, data.propertyId);
     const [kind, ...rest] = data.rowId.split(":");
     const key = rest.join(":");
+    // Visibilidade escolhida pelo usuário (nunca para campos secretos: códigos ficam só na reserva ativa).
+    if (data.audience && (kind === "f" || kind === "custom")) {
+      const meta = kind === "f" ? PLAYBOOK_FIELDS.find((f) => f.key === key) : null;
+      if (!meta?.secret) await upsertEntry(sb, context.userId, data.propertyId, data.rowId, { custom_audience: data.audience });
+    }
     if (kind === "f" && COLUMN_FIELDS[key]) {
       const { column, kind: type } = COLUMN_FIELDS[key];
       const { error } = await sb

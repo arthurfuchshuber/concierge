@@ -98,7 +98,7 @@ describe("PlaybookPage (celular)", () => {
     fireEvent.click(heads[0]);
     fireEvent.click(screen.getByRole("button", { name: "+ Campo" }));
     const list = await screen.findByRole("dialog");
-    expect(within(list).getByText("Campos Vazios")).toBeTruthy();
+    expect(within(list).getByText("Campos vazios")).toBeTruthy();
     const airbnb = within(list).getAllByText("Só no Airbnb");
     expect(airbnb.length).toBeGreaterThan(0);
     fireEvent.click(airbnb[0].closest("button")!);

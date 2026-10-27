@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   addPlaybookRow,
@@ -28,8 +29,9 @@ import {
   savePlaybookRow,
 } from "@/lib/playbook.functions";
 import { buildPlaybook, matchesQuery, toggleRow, toggleSection, type PlaybookRow } from "@/lib/playbook-build";
-import { AUDIENCE_LABEL, PLAYBOOK_SECTIONS, type Audience, type PlaybookSectionMeta } from "@/lib/playbook-catalog";
+import { AUDIENCE_LABEL, PLAYBOOK_SECTIONS, groupOfRow, type Audience, type PlaybookSectionMeta } from "@/lib/playbook-catalog";
 import { classifyBulkRow } from "@/lib/playbook-bulk";
+import { playbookFieldIcon } from "@/lib/playbook-field-icons";
 import { ReplicateRowDialog } from "@/components/playbook/ReplicateRowDialog";
 
 /**
@@ -96,7 +98,10 @@ const NEW_INFO_AUD: Array<{ au: Audience; label: string; dot: string }> = [
 ];
 const PILL =
   "flex h-9 flex-1 items-center justify-center rounded-[9px] bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] text-[13px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)] hover:text-foreground";
-const FIELD_LABEL = "mb-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-[var(--faint)]";
+const FIELD_LABEL = "mb-1.5 text-[10.5px] font-bold uppercase leading-tight tracking-[0.08em] text-muted-foreground";
+/** Campo de texto oficial do sistema (mesma casca do Input do tema). */
+const FIELD_BOX =
+  "w-full rounded-[9px] border border-input bg-background px-3 text-[13px] font-medium text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
 
 /**
  * CELULAR (mockup "Proposta 1 e 2" aprovado, 24/10/2026): a audiência deixa de ser uma etiqueta com
@@ -278,6 +283,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const [openRows, setOpenRows] = useState<string[]>([]);
   const [edit, setEdit] = useState<EditState>(null);
   const [busy, setBusy] = useState(false);
+  const [editAu, setEditAu] = useState<Audience | null>(null);
+  const [doorName, setDoorName] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<PlaybookRow | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [adding, setAdding] = useState<{ section: number; label: string; value: string; note: string; au: Audience } | null>(null);
@@ -526,7 +533,9 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           <div className={narrow ? "ds-3d -mt-2.5 flex flex-col overflow-hidden rounded-[14px] border-0 bg-card" : "contents"}>
           {PLAYBOOK_SECTIONS.map((meta, idx) => {
             const sec = sections[idx];
-            const all = (sec?.rows ?? []).filter((r) => !isOptionalEmpty(r) || revealed.includes(r.id) || edit?.id === r.id);
+            const all = (sec?.rows ?? []).filter(
+              (r) => !(narrow && r.empty && edit?.id === r.id) && (!isOptionalEmpty(r) || revealed.includes(r.id) || edit?.id === r.id),
+            );
             const hidden = (sec?.rows ?? []).filter(
               (r) => isOptionalEmpty(r) && isAddable(r) && !revealed.includes(r.id) && edit?.id !== r.id,
             );
@@ -574,7 +583,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                     <div className="pb-[18px] pl-[50px] pr-3.5">
                       {rows.map((r, i) => {
                         const open = read;
-                        const editing = edit?.id === r.id;
+                        const editing = false;
                         return (
                           <div
                             key={r.id}
@@ -836,19 +845,32 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
         <DialogContent aria-describedby={undefined} className="flex max-w-lg flex-col gap-0 overflow-hidden p-0">
           {viewRow && view ? (
             <>
-              <div className="min-w-0 shrink-0 pb-4 pl-5 pr-11 pt-5">
-                <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">
-                  {PLAYBOOK_SECTIONS[view.idx]?.title}
-                </div>
-                <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">
-                  {viewRow.label}
-                </DialogTitle>
-              </div>
-              <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-4">
+              {/* CABEÇALHO COM ÍCONE DA CATEGORIA (mockup "Campo · Proposta A", 27/10/2026): quadro de 44px à
+                  esquerda, título e categoria (com o número) ao lado, e um filete separando o valor. */}
+              {(() => {
+                const FieldIcon = playbookFieldIcon(viewRow.id, view.idx);
+                return (
+                  <div className="flex shrink-0 items-center gap-3 pb-0 pl-5 pr-11 pt-[22px]">
+                    <div className="grid size-11 flex-none place-items-center rounded-xl bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+                      <FieldIcon className="size-[22px]" strokeWidth={1.7} aria-hidden />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <DialogTitle className="font-display text-[18px] font-bold leading-6 tracking-[-0.01em] text-foreground">
+                        {viewRow.label}
+                      </DialogTitle>
+                      <div className="truncate text-xs leading-4 text-muted-foreground">
+                        {PLAYBOOK_SECTIONS[view.idx]?.num} · {PLAYBOOK_SECTIONS[view.idx]?.title}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+              <div className="mx-5 mt-[18px] h-px shrink-0 bg-[var(--panel-div)]" />
+              <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pt-4">
                 {view.tab === "texto" ? (
                   <div className={viewRow.empty ? "italic text-[var(--faint)]" : viewRow.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}>
                     {(viewRow.secret && shown.includes(viewRow.id) ? viewRow.raw : viewRow.value).split("\n").map((line, i) => (
-                      <p key={i} data-clip-row className={`break-words text-sm leading-5 ${i > 0 ? "mt-3.5" : ""}`}>
+                      <p key={i} data-clip-row className={`break-words text-[15px] font-medium leading-[22px] ${i > 0 ? "mt-3.5" : ""}`}>
                         {line}
                       </p>
                     ))}
@@ -864,13 +886,15 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                     {viewRow.obs}
                   </div>
                 ) : null}
-                <div className="h-px bg-[var(--panel-div)]" />
-                <div className="flex items-center justify-between gap-3 text-[13px] leading-[18px] text-muted-foreground">
-                  <span className="min-w-0 flex-1">
+                {/* Público como etiqueta colorida com a explicação ao lado (mockup "Campo · Proposta A"). */}
+                <div className="mb-5 mt-3.5 flex items-center gap-2.5">
+                  <span
+                    className={`inline-flex h-[22px] flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-[9px] text-[10.5px] font-bold uppercase leading-none tracking-[0.1em] ${AUD_CHIP[viewRow.au]}`}
+                  >
+                    <i className="inline-block size-1.5 rounded-full bg-current" />
                     {AUD_NAME[viewRow.au]}
-                    <br />
-                    {AUDIENCE_HELP[viewRow.au]}
                   </span>
+                  <span className="min-w-0 flex-1 text-[12.5px] leading-[17px] text-muted-foreground">{AUDIENCE_HELP[viewRow.au]}</span>
                   {!viewRow.empty && !!viewRow.edit && classifyBulkRow(viewRow.id).ok ? (
                     <button
                       type="button"
@@ -878,7 +902,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                         setReplicating(viewRow);
                         setView(null);
                       }}
-                      className="inline-flex flex-none items-center gap-1 font-bold hover:text-foreground print:hidden"
+                      className="inline-flex flex-none items-center gap-1 text-[13px] font-bold leading-[18px] text-muted-foreground hover:text-foreground print:hidden"
                     >
                       <CopyPlus className="size-[13px]" />
                       Replicar
@@ -917,24 +941,131 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
         </DialogContent>
       </Dialog>
 
+      {/* CELULAR — preencher/editar um campo numa janela própria (casca oficial ds-overlay). */}
+      {(() => {
+        const eIdx = edit ? sections.findIndex((sec) => sec.rows.some((x) => x.id === edit.id)) : -1;
+        const er = eIdx >= 0 ? sections[eIdx].rows.find((x) => x.id === edit!.id) ?? null : null;
+        // Acessos (como no editor antigo): nome do acesso + código + instruções no mesmo fluxo.
+        const ACCESS: Record<string, { nameId: string; label: string; ph: string }> = {
+          "f:codigo_da_porta": { nameId: "f:ponto_da_porta", label: "Nome da porta", ph: "Ex.: Porta principal, Fechadura, Smart lock" },
+          "f:instrucoes_da_porta": { nameId: "f:ponto_da_porta", label: "Nome da porta", ph: "Ex.: Porta principal, Fechadura, Smart lock" },
+          "f:codigo_do_portao": { nameId: "f:ponto_de_acesso", label: "Nome do portão", ph: "Ex.: Portão social, Portaria, Interfone" },
+          "f:instrucoes_do_portao": { nameId: "f:ponto_de_acesso", label: "Nome do portão", ph: "Ex.: Portão social, Portaria, Interfone" },
+        };
+        const NAME_ROWS: Record<string, { label: string; ph: string }> = {
+          "f:ponto_da_porta": { label: "Nome da porta", ph: "Ex.: Porta principal, Fechadura, Smart lock" },
+          "f:ponto_de_acesso": { label: "Nome do portão", ph: "Ex.: Portão social, Portaria, Interfone" },
+        };
+        const acc = er ? ACCESS[er.id] : undefined;
+        const isDoorRow = !!acc;
+        const doorRow = acc ? sections.flatMap((sec) => sec.rows).find((x) => x.id === acc.nameId) ?? null : null;
+        const selfName = er ? NAME_ROWS[er.id] : undefined;
+        const close = () => {
+          if (er) setRevealed((cur) => cur.filter((x) => x !== er.id));
+          setEdit(null);
+          setEditAu(null);
+          setDoorName(null);
+        };
+        return (
+          <Dialog open={narrow && !!er} onOpenChange={(v) => !v && close()}>
+            <DialogContent
+              aria-describedby={undefined}
+              className="ds-overlay flex max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-lg flex-col gap-0 overflow-hidden rounded-[14px] border-border/80 bg-card p-0"
+            >
+              {er && edit ? (
+                <>
+                  <div className="min-w-0 shrink-0 px-5 pb-3 pr-11 pt-5">
+                    <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">{PLAYBOOK_SECTIONS[eIdx]?.title}</div>
+                    <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">{er.label}</DialogTitle>
+                  </div>
+                  <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col gap-[10px] overflow-y-auto px-5 pb-4">
+                    {isDoorRow && doorRow?.edit ? (
+                      <div>
+                        <div className={FIELD_LABEL}>{acc!.label}</div>
+                        <AutoGrowField value={doorName ?? doorRow.raw ?? ""} onChange={setDoorName} placeholder={acc!.ph} />
+                      </div>
+                    ) : null}
+                    <div>
+                      <div className={FIELD_LABEL}>{selfName ? selfName.label : "Sua resposta"}</div>
+                      <EditField row={er} draft={edit.draft} onChange={(v) => setEdit({ id: er.id, draft: v })} placeholder={selfName?.ph} />
+                    </div>
+                    {er.secret ? (
+                      <div className="text-xs leading-4 text-muted-foreground">
+                        Quem pode ver: <AudienceText au={er.au} /> · {AUDIENCE_HELP[er.au]}
+                      </div>
+                    ) : (
+                      <div>
+                        <div className={FIELD_LABEL}>Quem pode ver</div>
+                        <div className="ds-scroll-x flex gap-1.5">
+                          {NEW_INFO_AUD.map((o) => {
+                            const on = (editAu ?? er.au) === o.au;
+                            return (
+                              <button
+                                key={o.au}
+                                type="button"
+                                aria-pressed={on}
+                                onClick={() => setEditAu(o.au)}
+                                className={`inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[9px] border px-3 text-[12.5px] font-semibold transition-colors ${
+                                  on ? "border-foreground/30 bg-secondary text-foreground" : "border-border bg-card text-muted-foreground"
+                                }`}
+                              >
+                                <i className={`size-2 rounded-full ${o.dot}`} />
+                                {o.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-1.5 text-[11.5px] leading-4 text-muted-foreground">{AUDIENCE_HELP[editAu ?? er.au]}</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/60 bg-card px-5 py-3">
+                    <Button variant="outline" onClick={close} className="h-9 rounded-[9px] px-4 text-[12.5px] font-semibold lg:rounded-[13px]">
+                      Cancelar
+                    </Button>
+                    <Button
+                      disabled={busy || !edit.draft.trim()}
+                      onClick={async () => {
+                        const ok = await run(async () => {
+                          if (isDoorRow && doorName !== null && doorRow?.edit) {
+                            await saveFn({ data: { propertyId, rowId: doorRow.id, value: doorName } });
+                          }
+                          return saveFn({
+                            data: { propertyId, rowId: er.id, value: edit.draft, audience: editAu && editAu !== er.au ? editAu : undefined },
+                          });
+                        }, "Salvo.");
+                        if (ok) {
+                          setEdit(null);
+                          setEditAu(null);
+                          setDoorName(null);
+                        }
+                      }}
+                      className="h-9 rounded-[9px] px-4 text-[12.5px] font-semibold lg:rounded-[13px]"
+                    >
+                      Salvar
+                    </Button>
+                  </div>
+                </>
+              ) : null}
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
+
       {/* CELULAR — "+ Campo": todos os campos vazios da categoria (mockup "Campo-Lista"). */}
       <Dialog open={narrow && pick !== null} onOpenChange={(v) => !v && setPick(null)}>
         <DialogContent aria-describedby={undefined} className="max-w-lg gap-3.5 p-5">
           {pick !== null ? (
             <>
               <div className="min-w-0 pr-6">
-                <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">Campos Vazios</DialogTitle>
-                <div className="mt-0.5 truncate text-xs leading-[18px] text-muted-foreground">
-                  Categoria {PLAYBOOK_SECTIONS[pick]?.num} · {PLAYBOOK_SECTIONS[pick]?.title}
-                </div>
+                <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">{PLAYBOOK_SECTIONS[pick]?.title}</div>
+                <DialogTitle className="sr-only">Campos vazios</DialogTitle>
               </div>
-              <p className="-mt-1 text-[13px] leading-[18px] text-muted-foreground">
-                Escolha um campo para preencher. Os marcados com cadeado só podem ser editados no anúncio da plataforma.
-              </p>
-              <div>
-                {(sections[pick]?.rows ?? [])
-                  .filter((r) => isOptionalEmpty(r) && !revealed.includes(r.id) && edit?.id !== r.id)
-                  .map((r) => {
+              <div className="sg-elegant-scroll -mx-5 max-h-[70dvh] overflow-y-auto px-5">
+                {groupRows((sections[pick]?.rows ?? []).filter((r) => isOptionalEmpty(r) && !revealed.includes(r.id) && edit?.id !== r.id)).map(([group, rows]) => (
+                  <div key={group} className="mt-3 first:mt-0">
+                    <div className="pb-1.5 text-[10.5px] font-semibold tracking-[0.04em] text-[var(--faint)]">{group}</div>
+                  {rows.map((r) => {
                     const isLocked = !r.edit;
                     return (
                       <button
@@ -963,6 +1094,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                       </button>
                     );
                   })}
+                  </div>
+                ))}
               </div>
             </>
           ) : null}
@@ -972,9 +1105,14 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
       {/* CELULAR — alerta de campo que só se edita no anúncio (mockup "Campo-Alerta"). */}
       <Dialog open={narrow && !!locked} onOpenChange={(v) => !v && setLocked(null)}>
         <DialogContent aria-describedby={undefined} className="max-w-lg gap-4 p-5">
-          <div className="flex items-center gap-2.5 pr-6">
+          <div className="min-w-0 pr-6">
+            <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">
+              {PLAYBOOK_SECTIONS[sections.findIndex((sec) => sec.rows.some((r) => r.id === locked?.id))]?.title ?? "Anúncio da plataforma"}
+            </div>
+          <div className="flex items-center gap-2.5">
             <Lock className="size-[22px] flex-none text-warning" strokeWidth={1.8} />
-            <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">Edite no Airbnb</DialogTitle>
+            <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">Edite no Airbnb</DialogTitle>
+          </div>
           </div>
           <p className="text-sm leading-5 text-foreground">
             O campo <b className="font-semibold">{locked?.label}</b> vem do anúncio na plataforma e só pode ser alterado lá. Depois de
@@ -998,10 +1136,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           {adding ? (
             <>
               <div className="min-w-0 pr-6">
-                <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">Nova Info</DialogTitle>
-                <div className="mt-0.5 truncate text-xs leading-[18px] text-muted-foreground">
-                  Categoria {adding.section} · {PLAYBOOK_SECTIONS[adding.section - 1]?.title}
-                </div>
+                <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">{PLAYBOOK_SECTIONS[adding.section - 1]?.title}</div>
+                <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">Nova Info</DialogTitle>
               </div>
               <div>
                 <div className={FIELD_LABEL}>
@@ -1186,8 +1322,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   );
 }
 
-function EditField({ row, draft, onChange }: { row: PlaybookRow; draft: string; onChange: (v: string) => void }) {
-  const base = `w-full rounded-lg border-0 px-3 text-[13px] font-medium text-foreground outline-none ${WELL}`;
+function EditField({ row, draft, onChange, placeholder }: { row: PlaybookRow; draft: string; onChange: (v: string) => void; placeholder?: string }) {
+  const base = FIELD_BOX;
   if (row.edit === "bool") {
     return (
       <select value={draft} onChange={(e) => onChange(e.target.value)} className={`h-10 ${base}`}>
@@ -1207,8 +1343,37 @@ function EditField({ row, draft, onChange }: { row: PlaybookRow; draft: string; 
   if (row.edit === "int") {
     return <input inputMode="numeric" value={draft} onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))} className={`h-10 ${base}`} />;
   }
-  if (row.edit === "text") {
-    return <input value={draft} onChange={(e) => onChange(e.target.value)} className={`h-10 ${base}`} />;
+  return <AutoGrowField value={draft} onChange={onChange} placeholder={placeholder} />;
+}
+
+/** Caixa de resposta de 1 linha que cresce para baixo conforme o texto (nunca para o lado). */
+function AutoGrowField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+    el.scrollIntoView({ block: "nearest" });
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className={`block min-h-10 resize-none overflow-hidden whitespace-pre-wrap break-words py-[9px] leading-5 ${FIELD_BOX}`}
+    />
+  );
+}
+
+/** Agrupa linhas pela situação (grupo do catálogo), preservando a ordem. */
+function groupRows<T extends { id: string }>(rows: T[]): Array<[string, T[]]> {
+  const out = new Map<string, T[]>();
+  for (const r of rows) {
+    const g = groupOfRow(r.id);
+    out.set(g, [...(out.get(g) ?? []), r]);
   }
-  return <textarea rows={4} value={draft} onChange={(e) => onChange(e.target.value)} className={`block resize-y py-2 ${base}`} />;
+  return [...out.entries()];
 }

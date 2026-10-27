@@ -154,21 +154,46 @@ export function FloatingDock({
             }
             setMenuOpen((v) => !v);
           }}
-          aria-label="Abrir ajuda e atendimento"
+          aria-label={
+            handoffAvailable && pendingCount > 0
+              ? `Abrir ajuda e atendimento, ${pendingCount} aguardando`
+              : "Abrir ajuda e atendimento"
+          }
           title="Atendimento e assistente · arraste para cima ou para baixo"
-          className="fixed right-4 grid size-14 cursor-grab touch-none select-none place-items-center rounded-full bg-accent text-accent-foreground shadow-xl transition-transform hover:scale-105 active:cursor-grabbing lg:right-6"
+          className="fixed right-[19px] grid size-12 cursor-grab touch-none select-none place-items-center rounded-full transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing lg:right-6"
           style={{
             ...anchor,
             transform: dragY === null ? undefined : `translateY(${dragY}px)`,
             transition: dragY === null ? undefined : "none",
           }}
         >
-          <Sparkles className="size-6" />
-          {handoffAvailable && pendingCount > 0 && (
-            <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-              {pendingCount}
-            </span>
-          )}
+          {/* BOTÃO DA IA (mockup "Playbook atual" aprovado, 27/10/2026): esfera de 48px no degradê da marca,
+              com leve flutuação (parada para quem pediu menos movimento) e o total de chamados no selo claro.
+              A flutuação mora na esfera, não no botão, para não brigar com o arrasto vertical. */}
+          <span
+            className="fab-float relative grid size-12 place-items-center rounded-full shadow-[inset_0_1px_1px_rgba(255,255,255,0.45),inset_0_-6px_10px_rgba(60,0,110,0.35),0_8px_24px_rgba(124,26,216,0.55),0_2px_6px_rgba(0,0,0,0.5)]"
+            style={{ background: "radial-gradient(120% 120% at 25% 15%, #b04af0 0%, #7c1ad8 48%, #c2269a 100%)" }}
+          >
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9.5 4l1.8 4.7L16 10.5l-4.7 1.8L9.5 17l-1.8-4.7L3 10.5l4.7-1.8z" />
+              <path d="M18 3v4M16 5h4M18.5 15v3.5M16.7 16.7h3.6" />
+            </svg>
+            {handoffAvailable && pendingCount > 0 && (
+              <span className="absolute -right-[3px] -top-[3px] grid h-4 min-w-4 place-items-center rounded-full bg-foreground px-1 text-[10px] font-extrabold leading-none text-background shadow-[0_0_0_2px_var(--background)]">
+                {pendingCount > 99 ? "99+" : pendingCount}
+              </span>
+            )}
+          </span>
         </button>
       )}
 
@@ -176,8 +201,8 @@ export function FloatingDock({
         <div
           ref={menuRef}
           onPointerDown={(e) => e.stopPropagation()}
-          className="fixed right-4 w-56 overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl lg:right-6"
-          style={{ ...anchor, bottom: dockBottomCss(64) }}
+          className="fixed right-[19px] w-56 overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl lg:right-6"
+          style={{ ...anchor, bottom: dockBottomCss(56) }}
         >
           <button
             onClick={() => {

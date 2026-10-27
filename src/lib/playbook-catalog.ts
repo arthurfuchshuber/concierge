@@ -15,37 +15,37 @@ export const PLAYBOOK_SECTIONS: PlaybookSectionMeta[] = [
   {
     "id": "s1",
     "num": "1",
-    "title": "Identificação & Infraestrutura",
-    "desc": "Quem é o imóvel, onde fica e quanto comporta."
+    "title": "O Imóvel & Localização",
+    "desc": "Onde fica, como é e quanto comporta."
   },
   {
     "id": "s2",
     "num": "2",
-    "title": "Jornada de Acesso & Barreiras",
+    "title": "Chegada, Fechaduras & Saída",
     "desc": "Do portão à porta, com check-in e check-out."
   },
   {
     "id": "s3",
     "num": "3",
-    "title": "Aparelhos, Equipamentos & Manuais",
-    "desc": "O que existe na casa e como usar."
+    "title": "Wi-Fi, Comodidades & Manuais",
+    "desc": "Internet, o que existe na casa e como usar."
   },
   {
     "id": "s4",
     "num": "4",
-    "title": "Regras da Casa & FAQs",
-    "desc": "O que vale durante a estadia e as dúvidas mais comuns."
+    "title": "Regras de Convivência & Políticas",
+    "desc": "Conduta, segurança, políticas do anúncio e dúvidas comuns."
   },
   {
     "id": "s5",
     "num": "5",
-    "title": "Contingências & Utilidades Críticas",
-    "desc": "O que fazer quando algo falha."
+    "title": "Operação, Limpeza & Emergências",
+    "desc": "Limpeza, utilidades da casa e contatos de apoio."
   }
 ];
 
-export type FieldMeta = { key: string; section: number; label: string; au: Audience; copy: boolean; secret: boolean; obs: string };
-export const PLAYBOOK_FIELDS: FieldMeta[] = [
+export type FieldMeta = { key: string; section: number; label: string; au: Audience; copy: boolean; secret: boolean; obs: string; group?: string };
+const BASE_FIELDS: FieldMeta[] = [
   {
     "key": "titulo_publico",
     "section": 1,
@@ -117,6 +117,42 @@ export const PLAYBOOK_FIELDS: FieldMeta[] = [
     "copy": true,
     "secret": false,
     "obs": "Link que abre a rota até o imóvel. A IA deve enviar quando o hóspede perguntar como chegar, disser que está perdido ou pedir a localização. Enviar sempre junto com o endereço por extenso, nunca sozinho. Se o link não abrir no aparelho do hóspede, reenviar o endereço e o CEP escritos."
+  },
+  {
+    "key": "link_mapa_garagem",
+    "section": 1,
+    "label": "Link do mapa da garagem",
+    "au": "G",
+    "copy": true,
+    "secret": false,
+    "obs": "Link que leva direto à entrada da garagem, quando ela é diferente da entrada de pedestres. A IA deve enviar a quem tem reserva confirmada e chega de carro, junto com as orientações de como chegar."
+  },
+  {
+    "key": "link_do_anuncio",
+    "section": 1,
+    "label": "Link do anúncio",
+    "au": "P",
+    "copy": true,
+    "secret": false,
+    "obs": "Endereço público do anúncio no Airbnb. A IA pode enviar quando alguém pedir fotos ou quiser ver o anúncio."
+  },
+  {
+    "key": "elevador",
+    "section": 1,
+    "label": "Elevador e escadas",
+    "au": "P",
+    "copy": false,
+    "secret": false,
+    "obs": "Diz se há elevador ou se o acesso é por escadas. A IA deve usar quando perguntarem sobre bagagem, acessibilidade ou cadeira de rodas, respondendo só o que consta."
+  },
+  {
+    "key": "avaliacao_airbnb",
+    "section": 1,
+    "label": "Nota no Airbnb",
+    "au": "I",
+    "copy": false,
+    "secret": false,
+    "obs": "IA não deve usar."
   },
   {
     "key": "imovel_em_condominio",
@@ -252,6 +288,42 @@ export const PLAYBOOK_FIELDS: FieldMeta[] = [
     "copy": false,
     "secret": false,
     "obs": "Passo a passo oficial para abrir o portão sem ajuda presencial. A IA deve usar quando o hóspede estiver na porta sem conseguir abrir ou pedir ajuda com o acesso. Enviar o texto na ordem, uma linha por vez, sem resumir nem reescrever. Se não funcionar, pedir uma foto do local e acionar a equipe."
+  },
+  {
+    "key": "como_chegar",
+    "section": 2,
+    "label": "Como chegar (observação do endereço)",
+    "au": "G",
+    "copy": false,
+    "secret": false,
+    "obs": "Orientação do anfitrião sobre a chegada (entradas, portões de pedestres e de veículos). A IA deve usar com quem tem reserva confirmada, junto com o endereço e o link do mapa."
+  },
+  {
+    "key": "ponto_da_porta",
+    "section": 2,
+    "label": "Porta / fechadura",
+    "au": "G",
+    "copy": false,
+    "secret": false,
+    "obs": "Nome da porta ou fechadura do imóvel. A IA deve usar exatamente este nome ao explicar a entrada."
+  },
+  {
+    "key": "codigo_da_porta",
+    "section": 2,
+    "label": "Código da porta",
+    "au": "G",
+    "copy": true,
+    "secret": true,
+    "obs": "Senha da porta (mascarada). A IA só deve informar no dia da chegada e apenas a quem consta na reserva."
+  },
+  {
+    "key": "instrucoes_da_porta",
+    "section": 2,
+    "label": "Instruções da porta",
+    "au": "G",
+    "copy": false,
+    "secret": false,
+    "obs": "Passo a passo para abrir a porta. A IA deve enviar na ordem, sem resumir, quando o hóspede estiver na porta."
   },
   {
     "key": "horario_de_check_in",
@@ -551,6 +623,24 @@ export const PLAYBOOK_FIELDS: FieldMeta[] = [
     "obs": "Regras próprias do anfitrião, uma por linha. A IA deve usar em qualquer dúvida de conduta, aplicando junto com as regras do anúncio; em caso de dúvida, vale a mais restritiva."
   },
   {
+    "key": "estadia_e_reserva",
+    "section": 4,
+    "label": "Estadia mínima e reserva",
+    "au": "P",
+    "copy": false,
+    "secret": false,
+    "obs": "Estadia mínima/máxima, antecedência e se a reserva é instantânea, conforme o anúncio. A IA deve usar quando perguntarem quantas noites são exigidas, informando só o que consta; valores por data podem mudar."
+  },
+  {
+    "key": "mensagem_de_reserva",
+    "section": 4,
+    "label": "Mensagem de reserva ao hóspede",
+    "au": "P",
+    "copy": false,
+    "secret": false,
+    "obs": "Mensagem que o Airbnb envia ao hóspede na reserva, com as principais proibições. A IA deve usar como reforço das regras, sem contradizê-la."
+  },
+  {
     "key": "contatos_de_emergencia",
     "section": 5,
     "label": "Contatos de emergência",
@@ -605,6 +695,15 @@ export const PLAYBOOK_FIELDS: FieldMeta[] = [
     "obs": "Passo a passo para queda de energia. Enquanto estiver vazio, a IA deve orientar a conferir o quadro de energia e acionar a equipe."
   },
   {
+    "key": "limpeza_operacional",
+    "section": 5,
+    "label": "Limpeza (valores e duração)",
+    "au": "I",
+    "copy": false,
+    "secret": false,
+    "obs": "IA não deve usar."
+  },
+  {
     "key": "bateria_da_fechadura",
     "section": 5,
     "label": "Bateria da fechadura",
@@ -614,6 +713,69 @@ export const PLAYBOOK_FIELDS: FieldMeta[] = [
     "obs": "IA não deve usar."
   }
 ];
+
+/**
+ * Distribuição oficial: cada categoria tem grupos por situação real, na ordem
+ * exibida. Campos fora daqui mantêm a categoria original no grupo "Outros".
+ */
+export const PLAYBOOK_LAYOUT: Array<Array<[string, string[]]>> = [
+  [
+    ["Identificação", ["titulo_publico", "tipo_de_espaco", "nome_interno", "link_do_anuncio", "avaliacao_airbnb", "descricao_completa_anuncio"]],
+    ["Endereço e rotas", ["endereco_rua_e_numero", "bairro", "cidade", "cep", "link_do_mapa", "link_mapa_garagem", "como_chegar"]],
+    ["Capacidade e cômodos", ["hospedes_maximo", "quartos", "camas", "banheiros", "distribuicao_das_camas"]],
+    ["Prédio, acessibilidade e garagem", ["imovel_em_condominio", "elevador", "vagas_de_garagem", "maximo_de_veiculos"]],
+  ],
+  [
+    ["Portão e acesso externo", ["modo_de_acesso", "ponto_de_acesso", "codigo_do_portao", "instrucoes_do_portao"]],
+    ["Porta e fechadura", ["ponto_da_porta", "codigo_da_porta", "instrucoes_da_porta", "senhas_temporarias_por_reserva", "fechadura_eletronica"]],
+    ["Check-in", ["horario_de_check_in", "instrucoes_de_check_in", "aviso_de_check_in"]],
+    ["Check-out", ["horario_de_check_out", "instrucoes_de_check_out", "checklist_de_saida", "aviso_de_check_out"]],
+  ],
+  [
+    ["Internet", ["nome_da_rede_wi_fi", "senha_do_wi_fi"]],
+    ["Instalações básicas", ["voltagem_das_tomadas", "descarte_de_lixo"]],
+    ["Comodidades do anúncio", ["climatizacao", "cozinha_e_sala_de_jantar", "quarto_e_lavanderia", "banheiro", "entretenimento", "ausentes_no_anuncio"]],
+    ["Manuais da casa", ["manuais_de_equipamentos", "chuveiros_e_aquecedores"]],
+  ],
+  [
+    ["Convivência", ["horario_de_silencio", "maximo_de_hospedes", "animais_de_estimacao", "fumar", "festas_e_eventos", "criancas_e_bebes", "fotografia_comercial", "regras_adicionais_da_casa"]],
+    ["Segurança", ["cameras_aviso_ao_hospede", "texto_de_seguranca"]],
+    ["Políticas e taxas do anúncio", ["politica_de_cancelamento", "estadia_e_reserva", "taxa_hospede_adicional", "taxa_pet", "mensagem_de_reserva"]],
+  ],
+  [
+    ["Limpeza", ["taxa_de_limpeza", "limpeza_operacional"]],
+    ["Manutenção", ["bateria_da_fechadura"]],
+    ["Utilidades da casa", ["localizacao_dos_disjuntores", "procedimento_se_faltar_energia", "registro_de_agua", "chave_do_gas"]],
+    ["Contatos de apoio", ["contatos_de_emergencia", "telefone_do_anfitriao"]],
+  ],
+];
+
+export const PLAYBOOK_FIELDS: FieldMeta[] = (() => {
+  const byKey = new Map(BASE_FIELDS.map((f) => [f.key, f]));
+  const placed = new Set<string>();
+  const out: FieldMeta[] = [];
+  PLAYBOOK_LAYOUT.forEach((groups, i) =>
+    groups.forEach(([group, keys]) =>
+      keys.forEach((k) => {
+        const f = byKey.get(k);
+        if (!f || placed.has(k)) return;
+        placed.add(k);
+        out.push({ ...f, section: i + 1, group });
+      }),
+    ),
+  );
+  for (const f of BASE_FIELDS) if (!placed.has(f.key)) out.push({ ...f, group: "Outros" });
+  return out;
+})();
+
+const GROUP_BY_KEY = new Map(PLAYBOOK_FIELDS.map((f) => [f.key, f.group ?? "Outros"]));
+/** Grupo (situação) de uma linha do dossiê pelo seu id (`f:chave`, `faq:`, `prov:`...). */
+export function groupOfRow(id: string): string {
+  if (id.startsWith("f:")) return GROUP_BY_KEY.get(id.slice(2)) ?? "Outros";
+  if (id.startsWith("faq:")) return "Perguntas frequentes";
+  if (id.startsWith("prov")) return "Contatos de apoio";
+  return "Outros";
+}
 
 /** Observação padrão das perguntas frequentes (uma linha por FAQ cadastrada). */
 export const FAQ_OBS = "Pergunta frequente com resposta oficial da equipe. A IA deve usar quando o hóspede fizer a mesma pergunta ou parecida, respondendo com este texto antes de improvisar. Senhas e códigos só no dia da chegada.";

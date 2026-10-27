@@ -437,8 +437,18 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
     const { getRequest } = await import("@tanstack/react-start/server");
-    if (!allowPublicRate(`guide-reservation-check:${clientIpFrom(getRequest())}`, 30, 60_000)) {
+    if (!allowPublicRate(`guide-reservation-check:${clientIpFrom(getRequest())}`, 10, 60_000)) {
       throw new Error("Muitas tentativas. Aguarde um instante e tente novamente.");
+    }
+    // Só consulta estadias próximas (janela real de uso do guia) e de duração
+    // plausível — impede varrer o calendário de reservas de qualquer imóvel.
+    const DAY = 86_400_000;
+    const ci = Date.parse(`${data.checkin_date}T00:00:00Z`);
+    const co = Date.parse(`${data.checkout_date}T00:00:00Z`);
+    const nights = (co - ci) / DAY;
+    const offset = (ci - Date.now()) / DAY;
+    if (!(nights >= 1 && nights <= 60) || offset < -60 || offset > 30) {
+      return { hasIcal: true as const, matched: false as const };
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const propQuery = supabaseAdmin
@@ -475,18 +485,6 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
     const allowed = isAllowedGuidePeriod(exact as never, data.checkin_date, data.checkout_date);
     if (allowed.matched) {
       return { hasIcal: true as const, matched: true as const, matchType: allowed.type };
-    }
-    // Loose match: same check-in date, any check-out
-    const { data: loose } = await supabaseAdmin
-      .from("property_reservations")
-      .select("checkin_date")
-      .eq("property_id", prop.id)
-      .in("source", ["airbnb", "channex"])
-      .eq("checkin_date", data.checkin_date)
-      .limit(1);
-    if ((loose ?? []).length > 0) {
-      // Não revela a data de saída real de outra reserva.
-      return { hasIcal: true as const, matched: false as const, looseMatch: true as const };
     }
     return { hasIcal: true as const, matched: false as const };
   });

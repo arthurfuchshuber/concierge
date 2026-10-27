@@ -674,11 +674,13 @@ export async function runHospitalityAgent(params: {
       if (entry.content) evidence.push(`[${entry.source}] ${entry.content}`);
     },
     requestHandoff: (reason, urgency) => {
+      // Entregando decisão da equipe: nunca reabrir pergunta/transbordo.
+      if (params.proactiveTrigger === "human_answer") return;
       handoffReason = reason;
       handoffUrgency = urgency;
     },
   };
-  const tools = allowedToolsOf(agent, [
+  const toolsAll = allowedToolsOf(agent, [
     ...buildGuestTools(toolCtx),
     ...buildAgentTools({
       ...toolCtx,
@@ -690,6 +692,12 @@ export async function runHospitalityAgent(params: {
       },
     }),
   ]);
+  // A resposta da equipe é verdade final: ao entregá-la, a IA não pode
+  // perguntar de novo (era o cartão duplicado "[generalist]" no chat/push).
+  const tools =
+    params.proactiveTrigger === "human_answer"
+      ? toolsAll.filter((t) => t.name !== "ask_human_supervisor" && t.name !== "request_human_handoff")
+      : toolsAll;
 
   // Voz do hóspede (registro, emoji, risada) e orientação de acesso por horário.
   const guestVoice = readGuestVoice(params.history ?? [], params.message);

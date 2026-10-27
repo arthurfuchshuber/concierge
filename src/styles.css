@@ -1675,3 +1675,23 @@ html {
   animation: none !important;
   opacity: 0;
 }
+
+/* BOTÃO DA IA (mockup "Playbook atual" aprovado, 27/10/2026): a esfera flutua 4px para cima e para baixo.
+   Quem pede menos movimento no sistema operacional a recebe parada. */
+@keyframes fab-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+.fab-float {
+  animation: fab-float 3.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fab-float {
+    animation: none;
+  }
+}

@@ -639,17 +639,23 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
   const bubbleItems: QuickChatItem[] = state.open
     ? []
     : bubbleIds.flatMap((id) => {
-        const c = (convs as Array<{ id: string; guest_name: string | null; guest_session_id: string | null; handoff_reason?: string | null; properties: { name: string | null } | null }>).find((x) => x.id === id);
+        const c = (convs as Array<{ id: string; guest_name: string | null; guest_session_id: string | null; handoff_reason?: string | null; handoff_at?: string | null; last_message_at?: string | null; properties: { name: string | null } | null }>).find((x) => x.id === id);
         if (!c) {
           const cached = bubbleCacheRef.current.get(id);
           return cached ? [cached] : [];
         }
+        const d = details[id];
         const item: QuickChatItem = {
           id,
-          guestName: c.guest_name?.trim() || "Hóspede",
+          guestName: c.guest_name?.trim() || d?.name?.trim() || "Hóspede",
           propertyName: c.properties?.name ?? "",
           reason: c.handoff_reason ?? null,
           sessionId: c.guest_session_id,
+          checkinDate: d?.checkinDate ?? null,
+          checkoutDate: d?.checkoutDate ?? null,
+          phone: d?.phone ?? null,
+          phoneCountry: d?.phoneCountry ?? null,
+          at: c.handoff_at ?? c.last_message_at ?? null,
         };
         bubbleCacheRef.current.set(id, item);
         return [item];
@@ -660,7 +666,9 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
       {dock}
       <QuickChatBubbles
         items={bubbleItems}
-        bottom={`calc(env(safe-area-inset-bottom,0px) + ${dockBottom + 68}px)`}
+        // Base do botão da IA (mesma conta do FloatingDock): o cartão nasce acima dele e
+        // nunca fica por cima de um rodapé fixo de tela (--page-footer-h).
+        fabBottom={`max(calc(env(safe-area-inset-bottom,0px) + ${dockBottom}px), calc(var(--page-footer-h, 0px) + 12px))`}
         myUserId={myUserId}
         onOpenChatChange={(id) => {
           const prev = openBubbleRef.current;

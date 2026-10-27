@@ -115,4 +115,11 @@ describe("perguntas distintas não são absorvidas por cartões pendentes", () =
     await askHumanSupervisor(input);
     expect(db.inserted).toHaveLength(2);
   });
+  it("mesma mensagem do hóspede com pergunta reescrita vira um cartão só", async () => {
+    const db = database();
+    const input = request(db.client);
+    await askHumanSupervisor(input);
+    await askHumanSupervisor({ ...input, question: "[generalist] Precisa da senha da porta da reserva?" });
+    expect(db.inserted).toHaveLength(1);
+  });
 });
