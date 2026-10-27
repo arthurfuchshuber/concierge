@@ -65,7 +65,7 @@ export function StatCard({
       </div>
       <div
         className={`w-full pt-1.5 text-center font-display font-bold leading-none tracking-[-0.03em] tabular-nums ${
-          size === "sm" ? "text-[22px] sm:text-[26px]" : "text-[26px] sm:text-[30px]"
+          size === "sm" ? "text-[18px] sm:text-[21px]" : "text-[21px] sm:text-[24px]"
         }`}
       >
         {loading ? "—" : value}

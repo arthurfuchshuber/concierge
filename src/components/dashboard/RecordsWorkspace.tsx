@@ -1111,7 +1111,7 @@ function StatusCell({
         </span>
       </div>
       <div
-        className={`w-full pt-1.5 text-center font-display text-[26px] font-bold leading-none tracking-[-0.03em] tabular-nums ${
+        className={`w-full pt-1.5 text-center font-display text-[21px] font-bold leading-none tracking-[-0.03em] tabular-nums ${
           open > 0 || loading ? "" : "text-muted-foreground"
         }`}
         style={
@@ -1192,7 +1192,7 @@ function CategoryCard({
           {label}
         </span>
       </div>
-      <span className="relative w-full pt-2 text-center font-display text-[22px] font-bold leading-none tracking-[-0.03em] tabular-nums">
+      <span className="relative w-full pt-2 text-center font-display text-[18px] font-bold leading-none tracking-[-0.03em] tabular-nums">
         {loading ? "—" : count}
       </span>
     </button>
