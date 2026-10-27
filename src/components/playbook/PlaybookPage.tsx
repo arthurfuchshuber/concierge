@@ -97,7 +97,10 @@ const NEW_INFO_AUD: Array<{ au: Audience; label: string; dot: string }> = [
 ];
 const PILL =
   "flex h-9 flex-1 items-center justify-center rounded-[9px] bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] text-[13px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)] hover:text-foreground";
-const FIELD_LABEL = "mb-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-[var(--faint)]";
+const FIELD_LABEL = "mb-1.5 text-[10.5px] font-bold uppercase leading-tight tracking-[0.08em] text-muted-foreground";
+/** Campo de texto oficial do sistema (mesma casca do Input do tema). */
+const FIELD_BOX =
+  "w-full rounded-[9px] border border-input bg-background px-3 text-[13px] font-medium text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30";
 
 /**
  * CELULAR (mockup "Proposta 1 e 2" aprovado, 24/10/2026): a audiência deixa de ser uma etiqueta com
@@ -1303,8 +1306,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   );
 }
 
-function EditField({ row, draft, onChange }: { row: PlaybookRow; draft: string; onChange: (v: string) => void }) {
-  const base = `w-full rounded-lg border-0 px-3 text-[13px] font-medium text-foreground outline-none ${WELL}`;
+function EditField({ row, draft, onChange, placeholder }: { row: PlaybookRow; draft: string; onChange: (v: string) => void; placeholder?: string }) {
+  const base = FIELD_BOX;
   if (row.edit === "bool") {
     return (
       <select value={draft} onChange={(e) => onChange(e.target.value)} className={`h-10 ${base}`}>
@@ -1324,7 +1327,7 @@ function EditField({ row, draft, onChange }: { row: PlaybookRow; draft: string; 
   if (row.edit === "int") {
     return <input inputMode="numeric" value={draft} onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))} className={`h-10 ${base}`} />;
   }
-  return <AutoGrowField value={draft} onChange={onChange} />;
+  return <AutoGrowField value={draft} onChange={onChange} placeholder={placeholder} />;
 }
 
 /** Caixa de resposta de 1 linha que cresce para baixo conforme o texto (nunca para o lado). */
@@ -1344,7 +1347,7 @@ function AutoGrowField({ value, onChange, placeholder }: { value: string; onChan
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className={`block min-h-10 w-full resize-none overflow-hidden whitespace-pre-wrap break-words rounded-lg border-0 px-3 py-[10px] text-[13px] font-medium leading-5 text-foreground outline-none placeholder:text-[var(--faint)] ${WELL}`}
+      className={`block min-h-10 resize-none overflow-hidden whitespace-pre-wrap break-words py-[9px] leading-5 ${FIELD_BOX}`}
     />
   );
 }
