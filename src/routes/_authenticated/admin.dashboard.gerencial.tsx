@@ -91,7 +91,7 @@ function Painel() {
       ) : (
         <div className="mt-6 flex flex-col gap-2.5">
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi icon={Landmark} label="Saldo em conta" value={brl(d.saldoDisponivel)} hint={`${d.contas.filter((c) => c.saldo > 0).length} conta(s) com saldo`} />
+            <Kpi icon={Landmark} label="Saldo em conta" value={brl(d.saldoDisponivel)} hint={`${d.contas.filter((c: { saldo: number }) => c.saldo > 0).length} conta(s) com saldo`} />
             <Kpi
               icon={CreditCard}
               label="Fatura aberta do cartão"
@@ -162,7 +162,7 @@ function Painel() {
               </dl>
               <h3 className="mt-5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Contas</h3>
               <ul className="mt-2 flex flex-col gap-1.5 text-sm">
-                {d.contas.map((c) => (
+                {d.contas.map((c: { banco: string; numero: string; saldo: number }) => (
                   <li key={`${c.banco}-${c.numero}`} className="flex justify-between gap-3">
                     <span className="min-w-0 truncate">{c.banco} · {c.numero}</span>
                     <span className="shrink-0 tabular-nums">{brl(c.saldo)}</span>
