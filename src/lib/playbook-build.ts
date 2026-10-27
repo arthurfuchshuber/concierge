@@ -467,7 +467,7 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
       secret: meta.secret,
       copy: meta.copy && !empty,
       obs: meta.obs,
-      au: meta.au,
+      au: (!meta.secret && entryByKey.get(`f:${meta.key}`)?.custom_audience) || meta.au,
       note: noteOf(`f:${meta.key}`),
       edit: editable && !editLocked ? kind : null,
       deletable: editable && !editLocked && (isEntry || isList || meta.key === "telefone_do_anfitriao" || meta.key === "regras_adicionais_da_casa"),
