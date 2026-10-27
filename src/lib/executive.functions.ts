@@ -109,7 +109,7 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
     // Ritmo de reservas (mês atual) a partir das reservas oficiais.
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
-    const { data: props } = await db.from("properties").select("id").eq("user_id", COMPANY_OWNER_ID);
+    const { data: props } = await db.from("properties").select("id").eq("owner_id", COMPANY_OWNER_ID).is("archived_at", null);
     let reservas = 0;
     let noites = 0;
     const propIds = (props ?? []).map((p: any) => p.id);
