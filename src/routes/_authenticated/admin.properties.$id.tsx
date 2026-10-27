@@ -2982,7 +2982,7 @@ function PropertyEditor() {
               </Link>
             }
           />
-          <div className="lg:flex lg:items-end lg:justify-between lg:gap-8">
+          <div>
             <div className="ds-page-heading min-w-0 lg:flex-1">
               <h1 className="ds-page-title !text-lg truncate">{form.property.name || "Sem título"}</h1>
               {currentOwner ? (
