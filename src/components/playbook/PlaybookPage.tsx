@@ -845,6 +845,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
         <DialogContent aria-describedby={undefined} className="flex max-w-lg flex-col gap-0 overflow-hidden p-0">
           {viewRow && view ? (
             <>
+<<<<<<< HEAD
               {/* CABEÇALHO COM ÍCONE DA CATEGORIA (mockup "Campo · Proposta A", 27/10/2026): quadro de 44px à
                   esquerda, título e categoria (com o número) ao lado, e um filete separando o valor. */}
               {(() => {
@@ -867,6 +868,17 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
               })()}
               <div className="mx-5 mt-[18px] h-px shrink-0 bg-[var(--panel-div)]" />
               <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pt-4">
+=======
+              <div className="min-w-0 shrink-0 pb-4 pl-5 pr-11 pt-5">
+                <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">
+                  {PLAYBOOK_SECTIONS[view.idx]?.title}
+                </div>
+                <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">
+                  {viewRow.label}
+                </DialogTitle>
+              </div>
+              <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-4">
+>>>>>>> 66ddcf62db15f0a5c849c92591542c8661d26e2c
                 {view.tab === "texto" ? (
                   <div className={viewRow.empty ? "italic text-[var(--faint)]" : viewRow.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}>
                     {(viewRow.secret && shown.includes(viewRow.id) ? viewRow.raw : viewRow.value).split("\n").map((line, i) => (
