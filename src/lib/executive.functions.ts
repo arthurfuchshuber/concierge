@@ -107,7 +107,7 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
 
     // Movimentos entre contas da própria empresa não são receita nem despesa.
     const isInternal = (t: any) =>
-      /aplica[cç][aã]o rdb|resgate rdb|conta remunerada|pagamento de fatura|caixinha|transfer[eê]ncia entre contas|cr[eé]dito na conta corrente|d[eé]bito na conta corrente|rendimento remunera/i.test(t.description ?? "");
+      /aplica[cç][aã]o rdb|resgate rdb|conta remunerada|fatura|caixinha|transfer[eê]ncia entre contas|cr[eé]dito na conta corrente|d[eé]bito na conta corrente|rendimento remunera|nu pagamentos/i.test(t.description ?? "");
 
     type Flow = { day: string; amt: number; out: boolean; payee: string };
     const flows: Flow[] = [];
