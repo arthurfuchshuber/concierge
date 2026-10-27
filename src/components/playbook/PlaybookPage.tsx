@@ -970,9 +970,14 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
       {/* CELULAR — alerta de campo que só se edita no anúncio (mockup "Campo-Alerta"). */}
       <Dialog open={narrow && !!locked} onOpenChange={(v) => !v && setLocked(null)}>
         <DialogContent aria-describedby={undefined} className="max-w-lg gap-4 p-5">
-          <div className="flex items-center gap-2.5 pr-6">
+          <div className="min-w-0 pr-6">
+            <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">
+              {PLAYBOOK_SECTIONS[sections.findIndex((sec) => sec.rows.some((r) => r.id === locked?.id))]?.title ?? "Anúncio da plataforma"}
+            </div>
+          <div className="flex items-center gap-2.5">
             <Lock className="size-[22px] flex-none text-warning" strokeWidth={1.8} />
             <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">Edite no Airbnb</DialogTitle>
+          </div>
           </div>
           <p className="text-sm leading-5 text-foreground">
             O campo <b className="font-semibold">{locked?.label}</b> vem do anúncio na plataforma e só pode ser alterado lá. Depois de
