@@ -1,22 +1,28 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
-import { Lock, Landmark, CreditCard, TrendingUp, TrendingDown, CalendarCheck } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import {
-  Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Line, ReferenceLine,
-  ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from "recharts";
-import { PANEL_SHELL, PanelHeading } from "@/components/dashboard/panel-chrome";
+  ArrowDownRight, ArrowUpRight, CalendarCheck, CreditCard, GitCompareArrows, Landmark, Lock,
+  SlidersHorizontal, Wallet,
+} from "lucide-react";
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
+import { StatCard } from "@/components/ds/StatCard";
+import { PANEL_SHELL, PanelHeading, ACTION_SEGMENT, ACTION_BUTTON_TONE, ACTION_ICON } from "@/components/dashboard/panel-chrome";
+import { PeriodQuickFilterButton, type QuickPeriod } from "@/components/dashboard/PeriodQuickFilterButton";
+import {
+  FILTER_PANEL_CLASS, FILTER_PANEL_OFFSET, FilterHeaderClear, FilterIconBadge, FilterOptionRow, FitPopoverContent,
+} from "@/components/dashboard/filter-panel";
 import { getExecutiveAccess, getExecutiveDashboard } from "@/lib/executive.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard/gerencial")({
   head: () => ({
     meta: [
       { title: "Gerencial — ConciergeIA" },
-      { name: "description", content: "Painel estratégico da diretoria: caixa, fluxo mensal e ritmo do negócio." },
+      { name: "description", content: "Painel estratégico da diretoria: caixa, fluxo do mês e ritmo do negócio." },
       { property: "og:title", content: "Gerencial — ConciergeIA" },
-      { property: "og:description", content: "Painel estratégico da diretoria: caixa, fluxo mensal e ritmo do negócio." },
+      { property: "og:description", content: "Painel estratégico da diretoria: caixa, fluxo do mês e ritmo do negócio." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -24,20 +30,48 @@ export const Route = createFileRoute("/_authenticated/admin/dashboard/gerencial"
   component: GerencialPage,
 });
 
+/* ---------------------------- formatação ---------------------------- */
 const brl = (v: number | null | undefined) =>
-  v == null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  v == null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const brlFull = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const brlShort = (v: number) =>
-  Math.abs(v) >= 1000 ? `R$ ${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} mil` : brl(v);
+  Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil` : String(Math.round(v));
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-const mesLabel = (k: string) => `${MESES[Number(k.slice(5, 7)) - 1]}/${k.slice(2, 4)}`;
+const MESES_LONGO = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+const todaySP = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+const lastDay = (y: number, m: number) => new Date(y, m, 0).getDate();
 
-const PERIODOS = [
-  { v: 3, l: "3 meses" },
-  { v: 6, l: "6 meses" },
-  { v: 12, l: "12 meses" },
-  { v: 24, l: "24 meses" },
-];
+/** Mês atual: do dia 1 até hoje. */
+function currentMonth(): QuickPeriod {
+  const t = todaySP();
+  return { start: `${t.slice(0, 7)}-01`, end: t };
+}
+/** "Outubro de 2026" quando o período é um mês (inteiro ou até hoje); senão "01/09 a 15/10". */
+function periodLabel(p: { start: string; end: string }) {
+  const sameMonth = p.start.slice(0, 7) === p.end.slice(0, 7) && p.start.endsWith("-01");
+  const [y, m] = p.end.split("-").map(Number);
+  const isFull = Number(p.end.slice(8)) === lastDay(y, m) || p.end === todaySP();
+  if (sameMonth && isFull) return `${MESES_LONGO[m - 1].replace(/^\w/, (c) => c.toUpperCase())} de ${y}`;
+  return `${ddmm(p.start)}/${p.start.slice(2, 4)} a ${ddmm(p.end)}/${p.end.slice(2, 4)}`;
+}
+const pct = (cur: number, prev: number) => (prev > 0 ? ((cur - prev) / prev) * 100 : null);
 
+const SAGE = "var(--success)";
+const TOOLTIP_STYLE = {
+  fontSize: 12,
+  borderRadius: 8,
+  border: "1px solid var(--border)",
+  background: "var(--popover)",
+  color: "var(--popover-foreground)",
+} as const;
+
+type Compare = "none" | "prev" | "yoy";
+type Bank = "all" | "btg" | "nubank";
+const COMPARE_LABEL: Record<Compare, string> = { none: "Sem comparação", prev: "Mês anterior", yoy: "Mesmo período do ano anterior" };
+const BANK_LABEL: Record<Bank, string> = { all: "Todas as contas", btg: "Somente BTG", nubank: "Somente Nubank" };
+
+/* ------------------------------ página ------------------------------ */
 function GerencialPage() {
   const accessFn = useServerFn(getExecutiveAccess);
   const access = useQuery({ queryKey: ["executive-access"], queryFn: () => accessFn() });
@@ -55,282 +89,270 @@ function GerencialPage() {
   return <Painel />;
 }
 
-const TOOLTIP_STYLE = {
-  fontSize: 12,
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "var(--popover)",
-  color: "var(--popover-foreground)",
-} as const;
-
-type Mes = { month: string; entradas: number; saidas: number; resultado: number };
-
 function Painel() {
-  const [months, setMonths] = useState(12);
+  const [period, setPeriod] = useState<QuickPeriod | null>(null);
+  const [compare, setCompare] = useState<Compare>("prev");
+  const [bank, setBank] = useState<Bank>("all");
+  const range = period ?? currentMonth();
+
   const fn = useServerFn(getExecutiveDashboard);
-  const q = useQuery({ queryKey: ["executive-dashboard", months], queryFn: () => fn({ data: { months } }) });
+  const q = useQuery({
+    queryKey: ["executive-dashboard", range.start, range.end, compare, bank],
+    queryFn: () => fn({ data: { ...range, compare, bank } }),
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+  });
   const d = q.data;
 
-  const hoje = new Date()
-    .toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "numeric", month: "long" })
-    .replace(/^\w/, (c) => c.toUpperCase());
+  const hoje = new Date().toLocaleDateString("pt-BR", {
+    timeZone: "America/Sao_Paulo", weekday: "long", day: "numeric", month: "long",
+  });
 
-  const intel = useMemo(() => {
-    if (!d) return null;
-    const meses = (d.meses as Mes[]).map((m) => ({
-      ...m,
-      label: mesLabel(m.month),
-      margem: m.entradas > 0 ? Math.round((m.resultado / m.entradas) * 100) : 0,
-    }));
-    // Mês corrente ainda não fechou: as médias usam só meses completos.
-    const fechados = meses.length > 1 ? meses.slice(0, -1) : meses;
-    const n = fechados.length || 1;
-    const mediaEntradas = fechados.reduce((s, m) => s + m.entradas, 0) / n;
-    const mediaSaidas = fechados.reduce((s, m) => s + m.saidas, 0) / n;
-    const totalEntradas = meses.reduce((s, m) => s + m.entradas, 0);
-    const totalResultado = meses.reduce((s, m) => s + m.resultado, 0);
-    const pico = fechados.reduce((a, m) => (m.entradas > a.entradas ? m : a), fechados[0]);
-    const positivos = fechados.filter((m) => m.resultado >= 0).length;
-    const totalSaidasTop = d.topSaidas.reduce((s, p) => s + p.valor, 0);
-    const queimaMensal = mediaSaidas - mediaEntradas;
-    return {
-      meses,
-      mediaEntradas,
-      mediaSaidas,
-      margemPeriodo: totalEntradas > 0 ? (totalResultado / totalEntradas) * 100 : 0,
-      totalResultado,
-      pico,
-      positivos,
-      fechados: fechados.length,
-      totalSaidasTop,
-      // Fôlego: quantos meses o saldo cobre se o mês médio fechar negativo.
-      folego: queimaMensal > 0 ? d.saldoDisponivel / queimaMensal : null,
-    };
-  }, [d]);
-
-  const variacao =
-    d?.mesAnterior && d.mesAnterior.entradas > 0
-      ? ((d.mesAtual.entradas - d.mesAnterior.entradas) / d.mesAnterior.entradas) * 100
-      : null;
-  const usoLimite =
-    d?.cartao?.limite && d.cartao.limite > 0 ? Math.min(100, (d.cartao.fatura / d.cartao.limite) * 100) : null;
+  const c = d?.comparacao ?? null;
+  const vsLabel = compare === "prev" ? "vs. mês anterior" : "vs. ano anterior";
+  const delta = (cur: number, prev: number | undefined, invert = false) => {
+    if (!c || prev == null) return null;
+    const v = pct(cur, prev);
+    if (v == null) return null;
+    const good = invert ? v <= 0 : v >= 0;
+    return (
+      <span className={good ? "ds-ok" : "text-destructive"}>
+        {v >= 0 ? "+" : ""}{v.toFixed(0)}% <span className="font-medium text-muted-foreground">{vsLabel}</span>
+      </span>
+    );
+  };
+  const usoLimite = d?.cartao?.limite ? Math.min(100, (d.cartao.fatura / d.cartao.limite) * 100) : null;
+  const filtersOn = compare !== "prev" || bank !== "all";
 
   return (
     <div className="ds-page mx-auto w-full max-w-7xl px-4 py-6 lg:px-8">
+      {/* Cabeçalho: o mesmo desenho do Financeiro (data, título, subtítulo, aba). */}
       <div className="ds-page-heading ds-page-head">
         <p className="ds-eyebrow ds-data text-[10.5px] tracking-[0.2em]">{hoje}</p>
-        <div>
-          <div className="ds-page-heading min-w-0">
-            <h1 className="ds-page-title !text-lg">Gerencial</h1>
-            <p className="ds-page-subtitle">Caixa, fluxo mensal e ritmo do negócio para a diretoria.</p>
-          </div>
-          <div className="mt-5 lg:mt-2.5">
-            <nav className="ds-tabs">
-              {PERIODOS.map((p) => {
-                const active = months === p.v;
-                return (
-                  <button
-                    key={p.v}
-                    type="button"
-                    onClick={() => setMonths(p.v)}
-                    className={`flex min-h-[44px] flex-1 items-center justify-center px-2 text-center text-[13px] leading-none transition-colors ${
-                      active ? "ds-tab-active font-bold" : "font-semibold text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {p.l}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+        <div className="ds-page-heading min-w-0">
+          <h1 className="ds-page-title !text-lg">Gerencial</h1>
+          <p className="ds-page-subtitle">Caixa, fluxo e ritmo da empresa para a diretoria.</p>
+        </div>
+        <div className="mt-5 lg:mt-2.5">
+          <nav className="ds-tabs">
+            <span className="ds-tab-active flex min-h-[44px] flex-1 items-center justify-center px-2 text-center text-[13px] font-bold leading-none">
+              Visão Geral
+            </span>
+          </nav>
         </div>
       </div>
 
-      {q.isLoading || !d || !intel ? (
-        <div className={`${PANEL_SHELL} p-4 text-sm text-muted-foreground`}>
-          {q.isError ? "Não foi possível carregar o painel." : "Carregando números…"}
+      <div className="ds-card-grid">
+        <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
+          <StatCard icon={Landmark} label="Saldo em conta" value={brl(d?.saldoDisponivel)} loading={!d}
+            note={d ? <span className="font-medium text-muted-foreground">{d.contas.length} {d.contas.length === 1 ? "conta" : "contas"}</span> : null} />
+          <StatCard icon={CreditCard} label="Fatura do cartão" value={d?.cartao ? brl(d.cartao.fatura) : "—"} loading={!d}
+            note={usoLimite != null ? <span className="font-medium text-muted-foreground">{usoLimite.toFixed(0)}% do limite</span> : null} />
+          <StatCard icon={ArrowDownRight} label="Entradas" value={brl(d?.atual.entradas)} loading={!d}
+            note={d ? delta(d.atual.entradas, c?.entradas) : null} />
+          <StatCard icon={Wallet} label="Resultado" value={brl(d?.atual.resultado)} loading={!d}
+            note={d ? <span className="font-medium text-muted-foreground">Saídas {brl(d.atual.saidas)}</span> : null} />
         </div>
-      ) : (
-        <>
-          <div className="ds-card-grid grid-cols-2 xl:grid-cols-4">
-            <Kpi icon={Landmark} label="Saldo em conta" value={brl(d.saldoDisponivel)}
-              hint={intel.folego != null ? `Fôlego de ${intel.folego.toFixed(1).replace(".", ",")} meses no ritmo médio` : "Caixa crescendo no ritmo médio"}
-              tone={intel.folego != null && intel.folego < 3 ? "neg" : undefined} />
-            <Kpi icon={CreditCard} label="Fatura do cartão" value={brl(d.cartao?.fatura)}
-              hint={usoLimite != null ? `${usoLimite.toFixed(0)}% do limite em uso` : undefined}
-              bar={usoLimite ?? undefined} />
-            <Kpi icon={TrendingUp} label="Entradas no mês" value={brl(d.mesAtual.entradas)}
-              hint={variacao == null ? undefined : `${variacao >= 0 ? "+" : ""}${variacao.toFixed(0)}% vs. mês anterior`}
-              tone={variacao != null && variacao < 0 ? "neg" : "pos"} />
-            <Kpi icon={TrendingDown} label="Resultado no mês" value={brl(d.mesAtual.resultado)}
-              hint={`Saídas ${brl(d.mesAtual.saidas)}`}
-              tone={d.mesAtual.resultado >= 0 ? "pos" : "neg"} />
+
+        {/* Linha de ações: período ativo + calendário + filtros (mesma casca da busca do Financeiro). */}
+        <div className="flex min-w-0 items-stretch ds-3d h-10 overflow-hidden rounded-[9px] bg-card lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px]">
+          <div className="flex min-w-0 flex-1 items-center gap-2 px-3.5">
+            <span className="min-w-0 truncate text-[12.5px] font-semibold text-foreground">{periodLabel(range)}</span>
+            {c ? (
+              <span className="min-w-0 truncate text-[11.5px] text-muted-foreground max-sm:hidden">
+                {vsLabel.replace("vs.", "comparado ao")}
+              </span>
+            ) : null}
           </div>
-
-          <section className={`${PANEL_SHELL} p-4`}>
-            <PanelHeading title="Fluxo de caixa e resultado" dotColor="var(--accent)"
-              right={<span className="text-[11px] text-muted-foreground tabular-nums">Margem do período {intel.margemPeriodo.toFixed(0)}%</span>} />
-            <div className="h-64 w-full lg:h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={intel.meses} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                  <YAxis hide />
-                  <ReferenceLine y={0} stroke="var(--border)" />
-                  <ReferenceLine y={intel.mediaEntradas} stroke="var(--accent)" strokeDasharray="4 4" strokeOpacity={0.5} />
-                  <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.3 }} content={<FluxoTooltip />} />
-                  <Bar dataKey="entradas" name="Entradas" fill="var(--accent)" radius={[4, 4, 0, 0]} maxBarSize={22} />
-                  <Bar dataKey="saidas" name="Saídas" fill="var(--muted-foreground)" fillOpacity={0.45} radius={[4, 4, 0, 0]} maxBarSize={22} />
-                  <Line dataKey="resultado" name="Resultado" type="monotone" stroke="var(--success)" strokeWidth={2}
-                    dot={(p: { cx?: number; cy?: number; payload?: Mes; index?: number }) => (
-                      <circle key={p.index} cx={p.cx} cy={p.cy} r={3}
-                        fill={(p.payload?.resultado ?? 0) >= 0 ? "var(--success)" : "var(--destructive)"} stroke="none" />
-                    )} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-              <Legenda cor="var(--accent)" t="Entradas" />
-              <Legenda cor="var(--muted-foreground)" t="Saídas" />
-              <Legenda cor="var(--success)" t="Resultado" linha />
-              <span>Tracejado: média mensal de entradas</span>
-            </div>
-          </section>
-
-          <div className="ds-card-grid grid-cols-2 xl:grid-cols-4">
-            <Mini label="Média de entradas" value={brlShort(intel.mediaEntradas)} hint="por mês fechado" />
-            <Mini label="Média de saídas" value={brlShort(intel.mediaSaidas)} hint="por mês fechado" />
-            <Mini label="Mês de pico" value={intel.pico ? intel.pico.label : "—"} hint={intel.pico ? brlShort(intel.pico.entradas) : undefined} />
-            <Mini label="Meses no azul" value={`${intel.positivos}/${intel.fechados}`} hint="resultado positivo" />
+          <div className="flex shrink-0 divide-x divide-border border-l border-border [&>*]:!w-12 lg:[&>*]:!w-[52px] [&>*]:!px-0">
+            <PeriodQuickFilterButton value={period} onChange={setPeriod} defaultChip="Mês atual" max={todaySP()} />
+            <FiltersButton compare={compare} onCompare={setCompare} bank={bank} onBank={setBank} active={filtersOn} />
           </div>
+        </div>
 
-          <section className={`${PANEL_SHELL} p-4`}>
-            <PanelHeading title="Margem de caixa por mês" dotColor="var(--success)" />
-            <div className="h-40 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={intel.meses} margin={{ top: 16, right: 4, left: 4, bottom: 0 }}>
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                  <YAxis hide />
-                  <ReferenceLine y={0} stroke="var(--border)" />
-                  <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.3 }} contentStyle={TOOLTIP_STYLE}
-                    formatter={(v: number) => [`${v}%`, "Sobra de caixa"]} />
-                  <Bar dataKey="margem" radius={[4, 4, 4, 4]} maxBarSize={22}>
-                    {intel.meses.map((m) => (
-                      <Cell key={m.month} fill={m.margem >= 0 ? "var(--success)" : "var(--destructive)"} />
-                    ))}
-                    <LabelList dataKey="margem" position="top" formatter={(v: number) => `${v}%`}
-                      style={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
+        {q.isError ? (
+          <div className={`${PANEL_SHELL} p-4 text-sm text-muted-foreground`}>Não foi possível carregar o painel.</div>
+        ) : null}
 
-          <div className="ds-card-grid grid-cols-1 lg:grid-cols-3">
-            <section className={`${PANEL_SHELL} p-4 lg:col-span-2`}>
-              <PanelHeading title="Para onde vai o dinheiro" dotColor="var(--accent)"
-                right={<span className="text-[11px] text-muted-foreground tabular-nums">{brlShort(intel.totalSaidasTop)}</span>} />
-              <ul className="flex flex-col gap-2.5">
+        {/* Gráficos: uma cor por gráfico, sem eixos nem legendas sobrando. */}
+        <div className="ds-card-grid grid-cols-1 lg:grid-cols-2">
+          <FlowChart title="Entradas" color={SAGE} dataKey="entradas" data={d} />
+          <FlowChart title="Saídas" color="var(--muted-foreground)" dataKey="saidas" data={d} />
+        </div>
+
+        <div className="ds-card-grid grid-cols-1 lg:grid-cols-2 items-stretch">
+          {c ? (
+            <section className={`${PANEL_SHELL} px-3.5 py-3.5`}>
+              <PanelHeading title="Comparativo" dotColor={SAGE} className="mb-2.5" />
+              <Sub>{`${ddmm(range.start)} a ${ddmm(range.end)} contra ${ddmm(c.start)} a ${ddmm(c.end)}`}</Sub>
+              <ul className="flex flex-col">
+                <CompareRow t="Entradas" cur={d!.atual.entradas} prev={c.entradas} />
+                <CompareRow t="Saídas" cur={d!.atual.saidas} prev={c.saidas} invert />
+                <CompareRow t="Resultado" cur={d!.atual.resultado} prev={c.resultado} last />
+              </ul>
+            </section>
+          ) : (
+            <Ritmo d={d} />
+          )}
+          <section className={`${PANEL_SHELL} px-3.5 py-3.5`}>
+            <PanelHeading title="Maiores saídas" dotColor="var(--muted-foreground)" className="mb-2.5" />
+            <Sub>Para onde foi o dinheiro no período</Sub>
+            {!d ? null : d.topSaidas.length === 0 ? (
+              <p className="py-6 text-center text-[12.5px] text-muted-foreground">Nenhuma saída no período.</p>
+            ) : (
+              <ul className="flex flex-col gap-3">
                 {d.topSaidas.map((p) => {
-                  const pct = intel.totalSaidasTop > 0 ? (p.valor / intel.totalSaidasTop) * 100 : 0;
-                  const max = d.topSaidas[0]?.valor || 1;
+                  const share = d.atual.saidas > 0 ? (p.valor / d.atual.saidas) * 100 : 0;
                   return (
                     <li key={p.nome} className="min-w-0">
-                      <div className="flex items-baseline justify-between gap-3 text-[13px]">
-                        <span className="min-w-0 truncate">{p.nome}</span>
-                        <span className="shrink-0 tabular-nums">
-                          <span className="font-semibold">{brl(p.valor)}</span>
-                          <span className="ml-2 text-[11px] text-muted-foreground">{pct.toFixed(0)}%</span>
-                        </span>
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="min-w-0 truncate text-[12.5px] text-foreground/85">{p.nome}</span>
+                        <span className="shrink-0 text-[12.5px] font-semibold tabular-nums">{brl(p.valor)}</span>
                       </div>
-                      <div className="mt-1 h-1.5 rounded-full bg-secondary">
-                        <div className="h-full rounded-full bg-accent" style={{ width: `${(p.valor / max) * 100}%` }} />
+                      <div className="mt-1.5 h-1 rounded-full bg-foreground/[0.06]">
+                        <div className="h-full rounded-full bg-foreground/30" style={{ width: `${Math.max(2, share)}%` }} />
                       </div>
                     </li>
                   );
                 })}
               </ul>
-            </section>
-            <section className={`${PANEL_SHELL} p-4`}>
-              <PanelHeading title="Ritmo do mês" dotColor="var(--accent)" right={<CalendarCheck className="size-3.5 text-muted-foreground" />} />
-              <dl className="flex flex-col gap-2.5 text-[13px]">
-                <Linha t="Imóveis ativos" v={String(d.operacao.propriedades)} />
-                <Linha t="Reservas com entrada" v={String(d.operacao.reservas)} />
-                <Linha t="Noites reservadas" v={String(d.operacao.noites)} />
-              </dl>
-              <PanelHeading title="Contas" className="mb-2.5 mt-5" />
-              <ul className="flex flex-col gap-2.5 text-[13px]">
-                {d.contas.map((c: { banco: string; numero: string; saldo: number }) => (
-                  <li key={`${c.banco}-${c.numero}`} className="flex justify-between gap-3">
-                    <span className="min-w-0 truncate text-muted-foreground">{c.banco} · {c.numero}</span>
-                    <span className="shrink-0 font-semibold tabular-nums">{brl(c.saldo)}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function FluxoTooltip({ active, payload, label }: { active?: boolean; payload?: { payload: Mes & { margem: number } }[]; label?: string }) {
-  if (!active || !payload?.length) return null;
-  const m = payload[0].payload;
-  return (
-    <div style={TOOLTIP_STYLE} className="px-3 py-2">
-      <div className="mb-1 font-semibold">{label}</div>
-      <div className="flex justify-between gap-4"><span className="text-muted-foreground">Entradas</span><span className="tabular-nums">{brl(m.entradas)}</span></div>
-      <div className="flex justify-between gap-4"><span className="text-muted-foreground">Saídas</span><span className="tabular-nums">{brl(m.saidas)}</span></div>
-      <div className="flex justify-between gap-4 font-semibold"><span>Resultado</span>
-        <span className={`tabular-nums ${m.resultado < 0 ? "text-destructive" : "text-success"}`}>{brl(m.resultado)} · {m.margem}%</span></div>
-    </div>
-  );
-}
-
-function Legenda({ cor, t, linha }: { cor: string; t: string; linha?: boolean }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <span aria-hidden className={linha ? "h-0.5 w-3 rounded-full" : "size-2 rounded-[3px]"} style={{ background: cor }} />
-      {t}
-    </span>
-  );
-}
-
-function Kpi({ icon: Icon, label, value, hint, tone, bar }: { icon: typeof Landmark; label: string; value: string; hint?: string; tone?: "pos" | "neg"; bar?: number }) {
-  return (
-    <div className={`${PANEL_SHELL} min-w-0 p-4`}>
-      <div className="flex items-center gap-2">
-        <Icon className="size-3.5 shrink-0 text-accent" />
-        <span className="ds-eyebrow truncate text-[10px] tracking-[0.2em] text-muted-foreground">{label}</span>
-      </div>
-      <div className={`mt-2 text-lg font-bold tabular-nums lg:text-2xl ${tone === "neg" ? "text-destructive" : ""}`}>{value}</div>
-      {bar != null && (
-        <div className="mt-2 h-1.5 rounded-full bg-secondary">
-          <div className={`h-full rounded-full ${bar > 80 ? "bg-destructive" : "bg-accent"}`} style={{ width: `${bar}%` }} />
+            )}
+          </section>
         </div>
-      )}
-      {hint && <div className={`mt-1 text-[11px] ${tone === "pos" ? "text-success" : tone === "neg" ? "text-destructive" : "text-muted-foreground"}`}>{hint}</div>}
+
+        {c ? <Ritmo d={d} /> : null}
+      </div>
     </div>
   );
 }
 
-function Mini({ label, value, hint }: { label: string; value: string; hint?: string }) {
+/* --------------------------- blocos visuais --------------------------- */
+type Data = Awaited<ReturnType<typeof getExecutiveDashboard>> | undefined;
+
+function Sub({ children }: { children: ReactNode }) {
+  return <p className="-mt-1 mb-3 pl-4 text-[10.5px] font-medium text-muted-foreground">{children}</p>;
+}
+
+function FlowChart({ title, color, dataKey, data }: { title: string; color: string; dataKey: "entradas" | "saidas"; data: Data }) {
+  const byMonth = data?.periodo.granularidade === "mes";
+  const rows = (data?.serie ?? []).map((s) => ({
+    ...s,
+    label: byMonth ? `${MESES[Number(s.key.slice(5, 7)) - 1]}/${s.key.slice(2, 4)}` : s.key.slice(8, 10),
+  }));
+  const total = rows.reduce((s, r) => s + r[dataKey], 0);
+  const showLabels = rows.length <= 12;
   return (
-    <div className={`${PANEL_SHELL} min-w-0 p-4`}>
-      <div className="ds-eyebrow truncate text-[10px] tracking-[0.2em] text-muted-foreground">{label}</div>
-      <div className="mt-1.5 text-base font-bold tabular-nums">{value}</div>
-      {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
-    </div>
+    <section className={`${PANEL_SHELL} w-full px-3.5 py-3.5`}>
+      <PanelHeading title={`${title} · ${byMonth ? "por mês" : "por dia"}`} dotColor={color} className="mb-2.5"
+        right={data ? <span className="text-[11px] font-semibold tabular-nums text-foreground/80">{brl(total)}</span> : null} />
+      <Sub>{data ? periodLabel(data.periodo) : "Carregando…"}</Sub>
+      <div className="h-36 w-full">
+        {data ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={rows} margin={{ top: 14, right: 4, left: 4, bottom: 0 }}>
+              <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false}
+                interval="preserveStartEnd" minTickGap={8} />
+              <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.3 }} contentStyle={TOOLTIP_STYLE}
+                labelFormatter={(l: string) => (byMonth ? l : `Dia ${l}`)}
+                formatter={(v: number) => [brlFull(v), title]} />
+              <Bar dataKey={dataKey} fill={color} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false}>
+                {showLabels ? (
+                  <LabelList dataKey={dataKey} position="top"
+                    formatter={(v: number) => (v ? brlShort(v) : "")}
+                    style={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
+                ) : null}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
-function Linha({ t, v }: { t: string; v: string }) {
+function CompareRow({ t, cur, prev, invert, last }: { t: string; cur: number; prev: number; invert?: boolean; last?: boolean }) {
+  const v = pct(Math.abs(cur), Math.abs(prev));
+  const up = v != null && v >= 0;
+  const good = v == null ? null : invert ? !up : up;
   return (
-    <div className="flex justify-between gap-3">
-      <dt className="text-muted-foreground">{t}</dt>
-      <dd className="font-semibold tabular-nums">{v}</dd>
-    </div>
+    <li className={`flex items-center gap-3 py-2.5 ${last ? "" : "border-b border-border"}`}>
+      <span className="min-w-0 flex-1 text-[12.5px] font-semibold text-foreground">{t}</span>
+      <span className="shrink-0 text-right">
+        <span className="block text-[13px] font-bold tabular-nums">{brl(cur)}</span>
+        <span className="block text-[10.5px] tabular-nums text-muted-foreground">antes {brl(prev)}</span>
+      </span>
+      <span className={`flex w-14 shrink-0 items-center justify-end gap-0.5 text-[11.5px] font-bold tabular-nums ${
+        good == null ? "text-muted-foreground" : good ? "ds-ok" : "text-destructive"}`}>
+        {v == null ? "—" : (
+          <>
+            {up ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+            {Math.abs(v) > 999 ? ">999" : Math.abs(v).toFixed(0)}%
+          </>
+        )}
+      </span>
+    </li>
+  );
+}
+
+function Ritmo({ d }: { d: Data }) {
+  return (
+    <section className={`${PANEL_SHELL} px-3.5 py-3.5`}>
+      <PanelHeading title="Ritmo do período" dotColor={SAGE} className="mb-2.5"
+        right={<CalendarCheck className="size-3.5 text-muted-foreground" />} />
+      <Sub>Reservas com entrada no período e saldo por conta</Sub>
+      {d ? (
+        <ul className="flex flex-col">
+          <Linha t="Imóveis ativos" v={String(d.operacao.propriedades)} />
+          <Linha t="Reservas" v={String(d.operacao.reservas)} />
+          <Linha t="Noites reservadas" v={String(d.operacao.noites)} />
+          {d.contas.map((c: { banco: string; numero: string; saldo: number }, i: number) => (
+            <Linha key={`${c.banco}-${c.numero}`} t={`${c.banco} · ${c.numero}`} v={brl(c.saldo)} last={i === d.contas.length - 1} muted />
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+function Linha({ t, v, last, muted }: { t: string; v: string; last?: boolean; muted?: boolean }) {
+  return (
+    <li className={`flex items-center justify-between gap-3 py-2.5 ${last ? "" : "border-b border-border"}`}>
+      <span className={`min-w-0 truncate text-[12.5px] ${muted ? "text-muted-foreground" : "font-semibold text-foreground"}`}>{t}</span>
+      <span className="shrink-0 text-[13px] font-bold tabular-nums">{v}</span>
+    </li>
+  );
+}
+
+function FiltersButton({ compare, onCompare, bank, onBank, active }: {
+  compare: Compare; onCompare: (c: Compare) => void; bank: Bank; onBank: (b: Bank) => void; active: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" aria-label="Filtros" title="Filtros" className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} relative`}>
+          <SlidersHorizontal className={ACTION_ICON} />
+          {active ? <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-accent" /> : null}
+        </button>
+      </PopoverTrigger>
+      <FitPopoverContent align="end" sideOffset={FILTER_PANEL_OFFSET} className={FILTER_PANEL_CLASS} onOpenAutoFocus={(e) => e.preventDefault()}>
+        <div className="flex items-center gap-[9px] border-b border-border px-3.5 py-[11px]">
+          <FilterIconBadge icon={GitCompareArrows} size="sm" />
+          <span className="ds-card-title min-w-0 flex-1">Comparar com</span>
+          {active ? <FilterHeaderClear onClick={() => { onCompare("prev"); onBank("all"); }} /> : null}
+        </div>
+        {(Object.keys(COMPARE_LABEL) as Compare[]).map((k, i, arr) => (
+          <FilterOptionRow key={k} label={COMPARE_LABEL[k]} selected={compare === k} onClick={() => onCompare(k)} last={i === arr.length - 1} />
+        ))}
+        <div className="flex items-center gap-[9px] border-y border-border px-3.5 py-[11px]">
+          <FilterIconBadge icon={Landmark} size="sm" />
+          <span className="ds-card-title min-w-0 flex-1">Contas</span>
+        </div>
+        {(Object.keys(BANK_LABEL) as Bank[]).map((k, i, arr) => (
+          <FilterOptionRow key={k} label={BANK_LABEL[k]} selected={bank === k} onClick={() => onBank(k)} last={i === arr.length - 1} />
+        ))}
+      </FitPopoverContent>
+    </Popover>
   );
 }
