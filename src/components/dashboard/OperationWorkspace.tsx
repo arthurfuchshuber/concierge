@@ -4199,7 +4199,7 @@ export function OperationShell({
           A data em amarelo fraco (pedido explícito, 18/09/2026) — era o rosa
           da marca, que no topo da página disputava com a aba ativa. */}
       <p className="ds-eyebrow ds-data text-[10.5px] tracking-[0.2em]">{hoje}</p>
-      <div className="lg:flex lg:items-end lg:justify-between lg:gap-8">
+      <div>
         {/* A MESMA `ds-page-heading` do bloco de fora: é isto que faz o vão
             título→subtítulo ser, por construção, o mesmo vão data→título. */}
         <div className="ds-page-heading min-w-0 lg:flex-1">
@@ -4237,7 +4237,7 @@ export function OperationShell({
             (pedido explícito, 18/09/2026, com print: elas estavam coladas). No
             computador o conjunto vive na mesma linha do título, então não há
             margem nenhuma. */}
-        <div className="mt-5 flex flex-col gap-2 lg:mt-0 lg:flex-row lg:items-center lg:gap-2">
+        <div className="mt-5 flex flex-col gap-2 lg:mt-2.5 lg:flex-row lg:items-center lg:gap-2">
           <nav className="ds-tabs order-1 lg:order-2 lg:w-[520px] lg:shrink-0">
             {/* Financeiro tem a SUA página (só a aba dele); as demais telas
                 mostram as abas do Operacional, sem a Limpeza/Financeiro. */}

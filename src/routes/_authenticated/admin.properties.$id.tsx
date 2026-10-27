@@ -2982,7 +2982,7 @@ function PropertyEditor() {
               </Link>
             }
           />
-          <div className="lg:flex lg:items-end lg:justify-between lg:gap-8">
+          <div>
             <div className="ds-page-heading min-w-0 lg:flex-1">
               <h1 className="ds-page-title !text-lg truncate">{form.property.name || "Sem título"}</h1>
               {currentOwner ? (
@@ -3009,7 +3009,7 @@ function PropertyEditor() {
             </div>
 
             {((!houseOnly && !(singleStepMode && !needsRequiredHouseInfo)) || showPreview || showMaps || showPlaybook) && (
-              <div className="mt-5 flex flex-col gap-2 lg:mt-0 lg:flex-row lg:items-center lg:gap-2">
+              <div className="mt-5 flex flex-col gap-2 lg:mt-2.5 lg:flex-row lg:items-center lg:gap-2">
                 {/* Modo "só a casa" (link "Editar" dentro do Proprietário, em
                     Stakeholders): trava em "house" e nunca mostra esta barra —
                     só se fala de informações "da casa" ali. */}
