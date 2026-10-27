@@ -833,10 +833,10 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
       </AlertDialog>
 
       <Dialog open={narrow && !!viewRow} onOpenChange={(v) => !v && setView(null)}>
-        <DialogContent aria-describedby={undefined} className="max-w-lg gap-4 p-5">
+        <DialogContent aria-describedby={undefined} className="flex max-w-lg flex-col gap-0 overflow-hidden p-0">
           {viewRow && view ? (
             <>
-              <div className="min-w-0 pr-6">
+              <div className="min-w-0 shrink-0 pb-4 pl-5 pr-11 pt-5">
                 <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">
                   {viewRow.label}
                 </DialogTitle>
@@ -844,7 +844,50 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                   Categoria {PLAYBOOK_SECTIONS[view.idx]?.num} · {PLAYBOOK_SECTIONS[view.idx]?.title}
                 </div>
               </div>
-              <div role="tablist" className="ds-tabs">
+              <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-4">
+                {view.tab === "texto" ? (
+                  <div className={viewRow.empty ? "italic text-[var(--faint)]" : viewRow.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}>
+                    {(viewRow.secret && shown.includes(viewRow.id) ? viewRow.raw : viewRow.value).split("\n").map((line, i) => (
+                      <p key={i} data-clip-row className={`break-words text-sm leading-5 ${i > 0 ? "mt-3.5" : ""}`}>
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+                {view.tab === "nota" ? renderNote(viewRow, notes[viewRow.id] ?? viewRow.note, "") : null}
+                {view.tab === "ia" ? (
+                  <div className="text-sm leading-5 text-muted-foreground">
+                    <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-[var(--faint)]">
+                      <Lock className="size-[11px]" />
+                      Observação da IA · padrão do sistema
+                    </span>
+                    {viewRow.obs ? <>{viewRow.obs}<br /></> : null}
+                    {AUD_NAME[viewRow.au]}: {AUDIENCE_HELP[viewRow.au].toLowerCase()}
+                  </div>
+                ) : null}
+                <div className="h-px bg-[var(--panel-div)]" />
+                <div className="flex items-center justify-between gap-3 text-[13px] leading-[18px] text-muted-foreground">
+                  <span>
+                    {AUD_NAME[viewRow.au]} · {AUDIENCE_HELP[viewRow.au].charAt(0).toLowerCase() + AUDIENCE_HELP[viewRow.au].slice(1)}
+                  </span>
+                  {!viewRow.empty && !!viewRow.edit && classifyBulkRow(viewRow.id).ok ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReplicating(viewRow);
+                        setView(null);
+                      }}
+                      className="inline-flex flex-none items-center gap-1 font-bold hover:text-foreground print:hidden"
+                    >
+                      <CopyPlus className="size-[13px]" />
+                      Replicar
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              {/* ABAS NO RODAPÉ FIXO (mockup "A · Abas no rodapé", 26/10/2026): o miolo rola e as abas ficam sempre
+                  visíveis na base da janela. */}
+              <div role="tablist" className="flex shrink-0 border-t border-[var(--panel-div)]">
                 {(
                   [
                     ["texto", "Texto"],
@@ -858,50 +901,15 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                     role="tab"
                     aria-selected={view.tab === key}
                     onClick={() => setView({ ...view, tab: key })}
-                    className={`h-[34px] flex-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${view.tab === key ? "ds-tab-active" : "text-muted-foreground"}`}
+                    className={`relative h-11 flex-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${
+                      view.tab === key
+                        ? "text-foreground after:absolute after:inset-x-[13px] after:top-0 after:h-0.5 after:rounded-sm after:bg-[linear-gradient(120deg,#7c1ad8,#e82dae)] after:content-['']"
+                        : "text-muted-foreground"
+                    }`}
                   >
                     {label}
                   </button>
                 ))}
-              </div>
-              {view.tab === "texto" ? (
-                <div className={viewRow.empty ? "italic text-[var(--faint)]" : viewRow.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}>
-                  {(viewRow.secret && shown.includes(viewRow.id) ? viewRow.raw : viewRow.value).split("\n").map((line, i) => (
-                    <p key={i} data-clip-row className={`break-words text-sm leading-5 ${i > 0 ? "mt-3.5" : ""}`}>
-                      {line}
-                    </p>
-                  ))}
-                </div>
-              ) : null}
-              {view.tab === "nota" ? renderNote(viewRow, notes[viewRow.id] ?? viewRow.note, "") : null}
-              {view.tab === "ia" ? (
-                <div className="text-sm leading-5 text-muted-foreground">
-                  <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-[var(--faint)]">
-                    <Lock className="size-[11px]" />
-                    Observação da IA · padrão do sistema
-                  </span>
-                  {viewRow.obs ? <>{viewRow.obs}<br /></> : null}
-                  {AUD_NAME[viewRow.au]}: {AUDIENCE_HELP[viewRow.au].toLowerCase()}
-                </div>
-              ) : null}
-              <div className="h-px bg-[var(--panel-div)]" />
-              <div className="flex items-center justify-between gap-3 text-[13px] leading-[18px] text-muted-foreground">
-                <span>
-                  {AUD_NAME[viewRow.au]} · {AUDIENCE_HELP[viewRow.au].charAt(0).toLowerCase() + AUDIENCE_HELP[viewRow.au].slice(1)}
-                </span>
-                {!viewRow.empty && !!viewRow.edit && classifyBulkRow(viewRow.id).ok ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReplicating(viewRow);
-                      setView(null);
-                    }}
-                    className="inline-flex flex-none items-center gap-1 font-bold hover:text-foreground print:hidden"
-                  >
-                    <CopyPlus className="size-[13px]" />
-                    Replicar
-                  </button>
-                ) : null}
               </div>
             </>
           ) : null}
