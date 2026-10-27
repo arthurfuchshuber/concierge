@@ -556,16 +556,16 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                     className={`flex cursor-pointer gap-3 px-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring h-14 items-center`}
                   >
                     <span
-                      className={`grid size-6 flex-none place-items-center rounded-lg bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] font-display text-xs font-bold ${isOpen ? "text-foreground" : "text-muted-foreground"}`}
+                      className={`grid size-6 flex-none place-items-center rounded-lg bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] font-display text-[14px] font-bold ${isOpen ? "text-foreground" : "text-muted-foreground"}`}
                     >
                       {meta.num}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate whitespace-nowrap font-display text-[15px] font-normal leading-[19px] text-foreground">
+                      <div className="truncate whitespace-nowrap font-display text-[14px] font-normal leading-[19px] text-foreground">
                         {meta.title}
                       </div>
                     </div>
-                    <span className="flex-none font-display text-[13px] font-medium leading-[19px] tabular-nums text-muted-foreground">
+                    <span className="flex-none font-display text-[14px] font-medium leading-[19px] tabular-nums text-muted-foreground">
                       ({qq ? `${rows.length} de ${all.length}` : all.length})
                     </span>
                   </div>
@@ -581,7 +581,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                             onClick={() => !editing && setView({ idx, id: r.id, tab: "texto" })}
                             className={`cursor-pointer ${i > 0 ? "mt-[18px]" : ""}`}
                           >
-                            <div className="text-sm leading-5 text-muted-foreground">
+                            <div className="text-[13px] leading-5 text-muted-foreground">
                               {r.label}
                             </div>
                             <div className="flex items-start gap-2">
@@ -591,7 +591,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                                 <ClampedValue
                                   text={r.secret && shown.includes(r.id) ? r.raw : r.value}
                                   full={open}
-                                  className={`break-words text-sm leading-5 ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
+                                  className={`break-words text-[13px] leading-5 ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
                                 />
                               )}
                               {r.secret && !r.empty && !editing ? (
@@ -609,7 +609,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                                 </button>
                               ) : null}
                             </div>
-                            <div className="text-sm leading-5 text-muted-foreground">
+                            <div className="text-[13px] leading-5 text-muted-foreground">
                               Quem Pode Ver: <AudienceText au={r.au} />
                             </div>
                           </div>
