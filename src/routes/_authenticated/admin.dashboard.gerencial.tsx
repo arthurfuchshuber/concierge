@@ -133,94 +133,40 @@ function Painel() {
           <h1 className="ds-page-title !text-lg">Gerencial</h1>
           <p className="ds-page-subtitle">Caixa, fluxo e ritmo da empresa para a diretoria.</p>
         </div>
-        <div className="mt-5 lg:mt-2.5">
-          <nav className="ds-tabs">
-            <span className="ds-tab-active flex min-h-[44px] flex-1 items-center justify-center px-2 text-center text-[13px] font-bold leading-none">
-              Visão Geral
-            </span>
-          </nav>
-        </div>
       </div>
 
       <div className="ds-card-grid">
         <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
           <StatCard icon={Landmark} label="Saldo em conta" value={brl(d?.saldoDisponivel)} loading={!d}
-            note={d ? <span className="font-medium text-muted-foreground">{d.contas.length} {d.contas.length === 1 ? "conta" : "contas"}</span> : null} />
+            note={d ? (() => {
+              const comSaldo = d.contas.filter((x: { saldo: number }) => Math.abs(x.saldo) >= 0.01);
+              const txt = comSaldo.length === 1
+                ? `${comSaldo[0].banco} · ${comSaldo[0].numero}`
+                : `${comSaldo.length} ${comSaldo.length === 1 ? "conta" : "contas"}`;
+              return <span className="font-medium text-muted-foreground">{txt}</span>;
+            })() : null} />
           <StatCard icon={CreditCard} label="Fatura do cartão" value={d?.cartao ? brl(d.cartao.fatura) : "—"} loading={!d}
-            note={usoLimite != null ? <span className="font-medium text-muted-foreground">{usoLimite.toFixed(0)}% do limite</span> : null} />
+            note={usoLimite != null ? (
+              <span className="relative block h-3.5 w-full px-1">
+                <span className="absolute inset-x-1 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-foreground/[0.08]">
+                  <span className="absolute inset-y-0 left-0 rounded-full bg-foreground/45" style={{ width: `${Math.max(2, usoLimite)}%` }} />
+                </span>
+                <span
+                  className="absolute top-1/2 -translate-y-1/2 rounded bg-card px-1 text-[10px] font-semibold leading-none tabular-nums text-muted-foreground"
+                  style={{ left: `calc(4px + ${Math.min(Math.max(2, usoLimite), 80)}% )` }}
+                >
+                  {usoLimite.toFixed(0)}%
+                </span>
+              </span>
+            ) : null} />
           <StatCard icon={ArrowDownRight} label="Entradas" value={brl(d?.atual.entradas)} loading={!d}
             note={d ? delta(d.atual.entradas, c?.entradas) : null} />
           <StatCard icon={Wallet} label="Resultado" value={brl(d?.atual.resultado)} loading={!d}
             note={d ? <span className="font-medium text-muted-foreground">Saídas {brl(d.atual.saidas)}</span> : null} />
         </div>
-
-        {/* Linha de ações: período ativo + calendário + filtros (mesma casca da busca do Financeiro). */}
-        <div className="flex min-w-0 items-stretch ds-3d h-10 overflow-hidden rounded-[9px] bg-card lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px]">
-          <div className="flex min-w-0 flex-1 items-center gap-2 px-3.5">
-            <span className="min-w-0 truncate text-[12.5px] font-semibold text-foreground">{periodLabel(range)}</span>
-            {c ? (
-              <span className="min-w-0 truncate text-[11.5px] text-muted-foreground max-sm:hidden">
-                {vsLabel.replace("vs.", "comparado ao")}
-              </span>
-            ) : null}
-          </div>
-          <div className="flex shrink-0 divide-x divide-border border-l border-border [&>*]:!w-12 lg:[&>*]:!w-[52px] [&>*]:!px-0">
-            <PeriodQuickFilterButton value={period} onChange={setPeriod} defaultChip="Mês atual" max={todaySP()} />
-            <FiltersButton compare={compare} onCompare={setCompare} bank={bank} onBank={setBank} active={filtersOn} />
-          </div>
-        </div>
-
         {q.isError ? (
           <div className={`${PANEL_SHELL} p-4 text-sm text-muted-foreground`}>Não foi possível carregar o painel.</div>
         ) : null}
-
-        {/* Gráficos: uma cor por gráfico, sem eixos nem legendas sobrando. */}
-        <div className="ds-card-grid grid-cols-1 lg:grid-cols-2">
-          <FlowChart title="Entradas" color={SAGE} dataKey="entradas" data={d} />
-          <FlowChart title="Saídas" color="var(--muted-foreground)" dataKey="saidas" data={d} />
-        </div>
-
-        <div className="ds-card-grid grid-cols-1 lg:grid-cols-2 items-stretch">
-          {c ? (
-            <section className={`${PANEL_SHELL} px-3.5 py-3.5`}>
-              <PanelHeading title="Comparativo" dotColor={SAGE} className="mb-2.5" />
-              <Sub>{`${ddmm(range.start)} a ${ddmm(range.end)} contra ${ddmm(c.start)} a ${ddmm(c.end)}`}</Sub>
-              <ul className="flex flex-col">
-                <CompareRow t="Entradas" cur={d!.atual.entradas} prev={c.entradas} />
-                <CompareRow t="Saídas" cur={d!.atual.saidas} prev={c.saidas} invert />
-                <CompareRow t="Resultado" cur={d!.atual.resultado} prev={c.resultado} last />
-              </ul>
-            </section>
-          ) : (
-            <Ritmo d={d} />
-          )}
-          <section className={`${PANEL_SHELL} px-3.5 py-3.5`}>
-            <PanelHeading title="Maiores saídas" dotColor="var(--muted-foreground)" className="mb-2.5" />
-            <Sub>Para onde foi o dinheiro no período</Sub>
-            {!d ? null : d.topSaidas.length === 0 ? (
-              <p className="py-6 text-center text-[12.5px] text-muted-foreground">Nenhuma saída no período.</p>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {d.topSaidas.map((p) => {
-                  const share = d.atual.saidas > 0 ? (p.valor / d.atual.saidas) * 100 : 0;
-                  return (
-                    <li key={p.nome} className="min-w-0">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <span className="min-w-0 truncate text-[12.5px] text-foreground/85">{p.nome}</span>
-                        <span className="shrink-0 text-[12.5px] font-semibold tabular-nums">{brl(p.valor)}</span>
-                      </div>
-                      <div className="mt-1.5 h-1 rounded-full bg-foreground/[0.06]">
-                        <div className="h-full rounded-full bg-foreground/30" style={{ width: `${Math.max(2, share)}%` }} />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-        </div>
-
-        {c ? <Ritmo d={d} /> : null}
       </div>
     </div>
   );
