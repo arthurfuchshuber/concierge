@@ -861,14 +861,15 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                       <Lock className="size-[11px]" />
                       Observação da IA · padrão do sistema
                     </span>
-                    {viewRow.obs ? <>{viewRow.obs}<br /></> : null}
-                    {AUD_NAME[viewRow.au]}: {AUDIENCE_HELP[viewRow.au].toLowerCase()}
+                    {viewRow.obs}
                   </div>
                 ) : null}
                 <div className="h-px bg-[var(--panel-div)]" />
                 <div className="flex items-center justify-between gap-3 text-[13px] leading-[18px] text-muted-foreground">
                   <span className="min-w-0 flex-1">
-                    {AUD_NAME[viewRow.au]} · {AUDIENCE_HELP[viewRow.au].charAt(0).toLowerCase() + AUDIENCE_HELP[viewRow.au].slice(1)}
+                    {AUD_NAME[viewRow.au]}
+                    <br />
+                    {AUDIENCE_HELP[viewRow.au]}
                   </span>
                   {!viewRow.empty && !!viewRow.edit && classifyBulkRow(viewRow.id).ok ? (
                     <button
