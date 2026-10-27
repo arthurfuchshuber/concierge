@@ -44,6 +44,8 @@ const memoria = new Map<string, TrabalhoEtapa>();
 const ouvintes = new Set<(e: EventoEtapa) => void>();
 let enviar: Enviar | null = null;
 let rodando: Promise<void> | null = null;
+/** Envio em andamento por card: resolve true se o servidor confirmou. */
+const emEnvio = new Map<string, Promise<boolean>>();
 
 function emitir(e: EventoEtapa) {
   for (const fn of ouvintes) fn(e);
@@ -151,9 +153,20 @@ export function processarEtapas(): Promise<void> {
     if (typeof navigator !== "undefined" && navigator.onLine === false) return;
     for (const job of [...memoria.values()]) {
       if (!memoria.has(job.rowId)) continue;
+      const envio = comPrazo(enviar(job));
+      emEnvio.set(
+        job.rowId,
+        envio.then(
+          () => true,
+          () => false,
+        ),
+      );
       try {
-        await comPrazo(enviar(job));
-        if (!memoria.has(job.rowId)) continue; // desfeito no meio do envio
+        await envio;
+        emEnvio.delete(job.rowId);
+        // Desfeito no meio do envio: `cancelarEtapa` esperou este resultado e
+        // devolveu false, então quem desfez reverte no servidor.
+        if (!memoria.has(job.rowId)) continue;
         memoria.delete(job.rowId);
         await idbApagar(PREFIXO + job.rowId).catch(() => undefined);
         emitir({ tipo: "concluida", job });
