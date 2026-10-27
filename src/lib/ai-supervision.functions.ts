@@ -212,6 +212,13 @@ export const answerEscalation = createServerFn({ method: "POST" })
       if (claimErr) console.error("[supervision] assumir conversa falhou", claimErr.message);
     }
     if (conversationId && !silentDecision) {
+      // A decisão da equipe vira a resposta única: cancela resposta automática
+      // agendada em segundo plano para a mesma pergunta (evita resposta dupla).
+      await context.supabase
+        .from("property_chat_conversations")
+        .update({ ai_reply_due_at: null } as never)
+        .eq("id", conversationId)
+        .then(() => undefined, () => undefined);
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { speakWithAgent } = await import("@/lib/ai/outbound/speak.server");
