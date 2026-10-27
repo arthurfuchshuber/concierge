@@ -116,15 +116,15 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
     if (propIds.length) {
       const { data: res } = await db
         .from("property_reservations")
-        .select("check_in, check_out, status")
+        .select("checkin_date, checkout_date, status")
         .in("property_id", propIds)
-        .gte("check_in", monthStart)
-        .lte("check_in", monthEnd)
+        .gte("checkin_date", monthStart)
+        .lte("checkin_date", monthEnd)
         .neq("status", "cancelled");
       for (const r of res ?? []) {
         if (r.status === "blocked") continue;
         reservas++;
-        const n = (new Date(r.check_out).getTime() - new Date(r.check_in).getTime()) / 86400000;
+        const n = (new Date(r.checkout_date).getTime() - new Date(r.checkin_date).getTime()) / 86400000;
         if (n > 0 && n < 120) noites += n;
       }
     }
