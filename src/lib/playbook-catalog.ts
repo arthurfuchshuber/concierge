@@ -290,6 +290,42 @@ export const PLAYBOOK_FIELDS: FieldMeta[] = [
     "obs": "Passo a passo oficial para abrir o portão sem ajuda presencial. A IA deve usar quando o hóspede estiver na porta sem conseguir abrir ou pedir ajuda com o acesso. Enviar o texto na ordem, uma linha por vez, sem resumir nem reescrever. Se não funcionar, pedir uma foto do local e acionar a equipe."
   },
   {
+    "key": "como_chegar",
+    "section": 2,
+    "label": "Como chegar (observação do endereço)",
+    "au": "G",
+    "copy": false,
+    "secret": false,
+    "obs": "Orientação do anfitrião sobre a chegada (entradas, portões de pedestres e de veículos). A IA deve usar com quem tem reserva confirmada, junto com o endereço e o link do mapa."
+  },
+  {
+    "key": "ponto_da_porta",
+    "section": 2,
+    "label": "Porta / fechadura",
+    "au": "G",
+    "copy": false,
+    "secret": false,
+    "obs": "Nome da porta ou fechadura do imóvel. A IA deve usar exatamente este nome ao explicar a entrada."
+  },
+  {
+    "key": "codigo_da_porta",
+    "section": 2,
+    "label": "Código da porta",
+    "au": "G",
+    "copy": true,
+    "secret": true,
+    "obs": "Senha da porta (mascarada). A IA só deve informar no dia da chegada e apenas a quem consta na reserva."
+  },
+  {
+    "key": "instrucoes_da_porta",
+    "section": 2,
+    "label": "Instruções da porta",
+    "au": "G",
+    "copy": false,
+    "secret": false,
+    "obs": "Passo a passo para abrir a porta. A IA deve enviar na ordem, sem resumir, quando o hóspede estiver na porta."
+  },
+  {
     "key": "horario_de_check_in",
     "section": 2,
     "label": "Horário de check-in",
@@ -587,6 +623,24 @@ export const PLAYBOOK_FIELDS: FieldMeta[] = [
     "obs": "Regras próprias do anfitrião, uma por linha. A IA deve usar em qualquer dúvida de conduta, aplicando junto com as regras do anúncio; em caso de dúvida, vale a mais restritiva."
   },
   {
+    "key": "estadia_e_reserva",
+    "section": 4,
+    "label": "Estadia mínima e reserva",
+    "au": "P",
+    "copy": false,
+    "secret": false,
+    "obs": "Estadia mínima/máxima, antecedência e se a reserva é instantânea, conforme o anúncio. A IA deve usar quando perguntarem quantas noites são exigidas, informando só o que consta; valores por data podem mudar."
+  },
+  {
+    "key": "mensagem_de_reserva",
+    "section": 4,
+    "label": "Mensagem de reserva ao hóspede",
+    "au": "P",
+    "copy": false,
+    "secret": false,
+    "obs": "Mensagem que o Airbnb envia ao hóspede na reserva, com as principais proibições. A IA deve usar como reforço das regras, sem contradizê-la."
+  },
+  {
     "key": "contatos_de_emergencia",
     "section": 5,
     "label": "Contatos de emergência",
@@ -639,6 +693,15 @@ export const PLAYBOOK_FIELDS: FieldMeta[] = [
     "copy": false,
     "secret": false,
     "obs": "Passo a passo para queda de energia. Enquanto estiver vazio, a IA deve orientar a conferir o quadro de energia e acionar a equipe."
+  },
+  {
+    "key": "limpeza_operacional",
+    "section": 5,
+    "label": "Limpeza (valores e duração)",
+    "au": "I",
+    "copy": false,
+    "secret": false,
+    "obs": "IA não deve usar."
   },
   {
     "key": "bateria_da_fechadura",

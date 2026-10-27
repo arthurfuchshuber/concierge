@@ -82,6 +82,11 @@ export const EMPTY_TEXT = "não cadastrado";
 /** Colunas do imóvel que o Playbook edita (manual) — chave do campo → coluna. */
 export const COLUMN_FIELDS: Record<string, { column: string; kind: EditKind }> = {
   link_do_mapa: { column: "maps_url", kind: "text" },
+  link_mapa_garagem: { column: "garage_maps_url", kind: "text" },
+  como_chegar: { column: "address_note", kind: "textarea" },
+  ponto_da_porta: { column: "lock_label", kind: "text" },
+  codigo_da_porta: { column: "lock_code", kind: "text" },
+  instrucoes_da_porta: { column: "lock_instructions", kind: "textarea" },
   imovel_em_condominio: { column: "in_condominium", kind: "bool" },
   maximo_de_veiculos: { column: "vehicles_max", kind: "int" },
   modo_de_acesso: { column: "access_mode", kind: "access" },
