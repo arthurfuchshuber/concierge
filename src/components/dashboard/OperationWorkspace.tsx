@@ -5254,8 +5254,8 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
  *  que o número mais longo da página exigir. */
 export function kpiSizeClass(values: Array<string | number>): string {
   const len = Math.max(0, ...values.map((v) => String(v ?? "").length));
-  if (len <= 3) return "text-[30px] sm:text-[34px]";
-  if (len <= 5) return "text-[16px] sm:text-[18px]";
+  if (len <= 3) return "text-[24px] sm:text-[27px]";
+  if (len <= 5) return "text-[19px] sm:text-[22px]";
   return "text-[16px] sm:text-[18px]";
 }
 
