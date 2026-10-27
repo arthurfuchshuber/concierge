@@ -50,6 +50,7 @@ export async function askHumanSupervisor(input: EscalationInput): Promise<string
       normalize((input.guestMessage ?? input.question).slice(0, 1200)),
       input.decisionKind ?? null, !!snapshot.proactive, !!snapshot.host_learning,
     ]);
+    const guestNorm = input.guestMessage ? normalize(input.guestMessage.slice(0, 1200)) : "";
     if (input.conversationId) {
       const { data: pend } = await input.supabase
         .from("ai_human_escalations")
@@ -62,6 +63,21 @@ export async function askHumanSupervisor(input: EscalationInput): Promise<string
         .limit(1);
       const existing = (pend as Array<{ id: string }> | null)?.[0]?.id;
       if (existing) return String(existing);
+      // Mesma mensagem do hóspede, pergunta reescrita pela IA: continua sendo
+      // UMA dúvida — nunca um segundo cartão no chat nem um segundo push.
+      if (guestNorm && !snapshot.proactive && !snapshot.host_learning) {
+        const { data: same } = await input.supabase
+          .from("ai_human_escalations")
+          .select("id")
+          .eq("owner_id", input.ownerId)
+          .eq("conversation_id", input.conversationId)
+          .eq("status", "pending")
+          .eq("context_snapshot->>guest_message_norm", guestNorm)
+          .gte("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+          .limit(1);
+        const twin = (same as Array<{ id: string }> | null)?.[0]?.id;
+        if (twin) return String(twin);
+      }
     }
     const { data, error } = await input.supabase
       .from("ai_human_escalations")
@@ -77,7 +93,7 @@ export async function askHumanSupervisor(input: EscalationInput): Promise<string
         reason: input.reason.slice(0, 800),
         question_to_human: input.question.slice(0, 1200),
         confidence_score: input.confidence ?? null,
-        context_snapshot: { ...snapshot, escalation_key: escalationKey } as never,
+        context_snapshot: { ...snapshot, escalation_key: escalationKey, ...(guestNorm ? { guest_message_norm: guestNorm } : {}) } as never,
         status: "pending",
       })
       .select("id")
