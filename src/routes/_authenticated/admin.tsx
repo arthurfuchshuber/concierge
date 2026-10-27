@@ -73,8 +73,9 @@ const SIDEBAR_GROUPS = [
     // Financeiro (11/10/2026: a antiga aba "Limpeza" foi MOVIDA para cá).
     // "Operacional" casa com /admin/dashboard/*, exceto o que tem página própria.
     children: [
-      { to: "/admin/dashboard", label: "Operacional", exact: false, except: ["/admin/dashboard/financeiro"] },
+      { to: "/admin/dashboard", label: "Operacional", exact: false, except: ["/admin/dashboard/financeiro", "/admin/dashboard/bancos"] },
       { to: "/admin/dashboard/financeiro", label: "Financeiro", exact: false, except: [] },
+      { to: "/admin/dashboard/bancos", label: "Bancos", exact: false, except: [] },
     ],
   },
   {
