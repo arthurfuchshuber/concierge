@@ -3014,7 +3014,7 @@ function PropertyEditor() {
                     Stakeholders): trava em "house" e nunca mostra esta barra —
                     só se fala de informações "da casa" ali. */}
                 {!houseOnly && !(singleStepMode && !needsRequiredHouseInfo) && (
-                  <div className="order-1 min-w-0 lg:order-2 lg:w-[min(680px,52vw)] lg:shrink">
+                  <div className="order-1 min-w-0 lg:order-2 lg:flex-1">
                     <Stepper
                       current={step}
                       onChange={setStep}
