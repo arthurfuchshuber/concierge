@@ -306,7 +306,7 @@ function Ritmo({ d }: { d: Data }) {
           <Linha t="Imóveis ativos" v={String(d.operacao.propriedades)} />
           <Linha t="Reservas" v={String(d.operacao.reservas)} />
           <Linha t="Noites reservadas" v={String(d.operacao.noites)} />
-          {d.contas.map((c, i) => (
+          {d.contas.map((c: { banco: string; numero: string; saldo: number }, i: number) => (
             <Linha key={`${c.banco}-${c.numero}`} t={`${c.banco} · ${c.numero}`} v={brl(c.saldo)} last={i === d.contas.length - 1} muted />
           ))}
         </ul>
