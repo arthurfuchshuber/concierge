@@ -171,6 +171,7 @@ export function processarEtapas(): Promise<void> {
         await idbApagar(PREFIXO + job.rowId).catch(() => undefined);
         emitir({ tipo: "concluida", job });
       } catch (e) {
+        emEnvio.delete(job.rowId);
         const erro = (e as Error)?.message ?? "erro";
         if (ehRecusaDefinitiva(e)) {
           memoria.delete(job.rowId);
