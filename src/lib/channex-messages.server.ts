@@ -377,6 +377,39 @@ export async function sendChannexThreadMessage(threadId: string, text: string): 
  * atendente levada pela IA, ou atendente digitando no ConciergeIA). Higieniza
  * o texto, envia pela Channex, grava com status e reporta falhas.
  */
+/**
+ * Trava atômica "uma resposta da IA por mensagem do hóspede" (27/10/2026).
+ * Webhook, varredura de vácuo e entrega da decisão da equipe podiam gerar e
+ * enviar ao mesmo tempo duas respostas para a mesma pergunta. A chave única
+ * em `ops_push_log` garante que só o primeiro envio sai.
+ */
+export async function claimAiReplySlot(admin: any, conversationId: string, propertyId: string): Promise<boolean> {
+  try {
+    const { data: last } = await admin
+      .from("property_chat_messages")
+      .select("id")
+      .eq("conversation_id", conversationId)
+      .eq("role", "user")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const lastId = (last as { id?: string } | null)?.id;
+    if (!lastId) return true;
+    const { data: prop } = await admin.from("properties").select("owner_id").eq("id", propertyId).maybeSingle();
+    const ownerId = (prop as { owner_id?: string } | null)?.owner_id;
+    if (!ownerId) return true;
+    const { error } = await admin.from("ops_push_log").insert({
+      owner_id: ownerId,
+      kind: "ai-reply-slot",
+      dedupe_key: `ai-reply:${conversationId}:${lastId}`,
+      payload: { conversationId, messageId: lastId },
+    });
+    return !error;
+  } catch {
+    return true;
+  }
+}
+
 export async function deliverToAirbnbThread(
   admin: any,
   p: {
@@ -391,6 +424,10 @@ export async function deliverToAirbnbThread(
 ): Promise<{ ok: boolean; messageId?: string; text: string }> {
   const text = toAirbnbPlainText(p.text);
   if (!text) return { ok: false, text };
+  if (p.senderType === "ai" && !(await claimAiReplySlot(admin, p.conversationId, p.propertyId))) {
+    console.info("[channex-messages] resposta da IA duplicada descartada", p.conversationId);
+    return { ok: true, text };
+  }
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
   try {
@@ -1055,7 +1092,7 @@ async function runConsolidatedAiReply(admin: any, convId: string, ctx: ReplyCtx 
       .from("property_chat_messages")
       .select("id")
       .eq("conversation_id", convId)
-      .in("sender_type", ["human", "system"])
+      .in("sender_type", ["human", "system", "ai"])
       .not("is_internal_note", "is", true)
       .gte("created_at", guestMsgAt)
       .limit(1),
@@ -1077,6 +1114,10 @@ async function runConsolidatedAiReply(admin: any, convId: string, ctx: ReplyCtx 
       console.info("[channex-messages] resposta pré-reserva descartada: reserva confirmada durante a geração", m.threadId);
       return;
     }
+  }
+  if (!(await claimAiReplySlot(admin, convId, listing.property_id))) {
+    console.info("[channex-messages] resposta duplicada descartada (já respondida)", convId);
+    return;
   }
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
