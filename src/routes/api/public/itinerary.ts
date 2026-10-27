@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/public/itinerary")({
         const url = new URL(request.url);
         const slug = url.searchParams.get("slug") ?? "";
         const sessionId = (url.searchParams.get("sessionId") ?? "").trim();
-        if (!/^[a-z0-9-]{1,64}$/.test(slug) || sessionId.length < 8 || sessionId.length > 200) {
+        if (!/^[a-z0-9-]{1,64}$/.test(slug) || sessionId.length < 32 || sessionId.length > 200 || !/^[A-Za-z0-9_-]+$/.test(sessionId)) {
           return new Response(JSON.stringify({ error: "invalid" }), {
             status: 400,
             headers: { "Content-Type": "application/json" },
