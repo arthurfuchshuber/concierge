@@ -28,7 +28,7 @@ import {
   savePlaybookRow,
 } from "@/lib/playbook.functions";
 import { buildPlaybook, matchesQuery, toggleRow, toggleSection, type PlaybookRow } from "@/lib/playbook-build";
-import { AUDIENCE_LABEL, PLAYBOOK_SECTIONS, type Audience, type PlaybookSectionMeta } from "@/lib/playbook-catalog";
+import { AUDIENCE_LABEL, PLAYBOOK_SECTIONS, groupOfRow, type Audience, type PlaybookSectionMeta } from "@/lib/playbook-catalog";
 import { classifyBulkRow } from "@/lib/playbook-bulk";
 import { ReplicateRowDialog } from "@/components/playbook/ReplicateRowDialog";
 
@@ -923,18 +923,14 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           {pick !== null ? (
             <>
               <div className="min-w-0 pr-6">
+                <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">{PLAYBOOK_SECTIONS[pick]?.title}</div>
                 <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">Campos Vazios</DialogTitle>
-                <div className="mt-0.5 truncate text-xs leading-[18px] text-muted-foreground">
-                  Categoria {PLAYBOOK_SECTIONS[pick]?.num} · {PLAYBOOK_SECTIONS[pick]?.title}
-                </div>
               </div>
-              <p className="-mt-1 text-[13px] leading-[18px] text-muted-foreground">
-                Escolha um campo para preencher. Os marcados com cadeado só podem ser editados no anúncio da plataforma.
-              </p>
-              <div>
-                {(sections[pick]?.rows ?? [])
-                  .filter((r) => isOptionalEmpty(r) && !revealed.includes(r.id) && edit?.id !== r.id)
-                  .map((r) => {
+              <div className="sg-elegant-scroll -mx-5 max-h-[70dvh] overflow-y-auto px-5">
+                {groupRows((sections[pick]?.rows ?? []).filter((r) => isOptionalEmpty(r) && !revealed.includes(r.id) && edit?.id !== r.id)).map(([group, rows]) => (
+                  <div key={group} className="mt-3 first:mt-0">
+                    <div className="pb-1.5 text-[10.5px] font-semibold tracking-[0.04em] text-[var(--faint)]">{group}</div>
+                  {rows.map((r) => {
                     const isLocked = !r.edit;
                     return (
                       <button
@@ -963,6 +959,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                       </button>
                     );
                   })}
+                  </div>
+                ))}
               </div>
             </>
           ) : null}
@@ -998,10 +996,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
           {adding ? (
             <>
               <div className="min-w-0 pr-6">
+                <div className="mb-0.5 truncate text-xs font-semibold leading-[18px] text-warning/80">{PLAYBOOK_SECTIONS[adding.section - 1]?.title}</div>
                 <DialogTitle className="font-display text-base font-semibold leading-[22px] text-foreground">Nova Info</DialogTitle>
-                <div className="mt-0.5 truncate text-xs leading-[18px] text-muted-foreground">
-                  Categoria {adding.section} · {PLAYBOOK_SECTIONS[adding.section - 1]?.title}
-                </div>
               </div>
               <div>
                 <div className={FIELD_LABEL}>
@@ -1211,4 +1207,14 @@ function EditField({ row, draft, onChange }: { row: PlaybookRow; draft: string; 
     return <input value={draft} onChange={(e) => onChange(e.target.value)} className={`h-10 ${base}`} />;
   }
   return <textarea rows={4} value={draft} onChange={(e) => onChange(e.target.value)} className={`block resize-y py-2 ${base}`} />;
+}
+
+/** Agrupa linhas pela situação (grupo do catálogo), preservando a ordem. */
+function groupRows<T extends { id: string }>(rows: T[]): Array<[string, T[]]> {
+  const out = new Map<string, T[]>();
+  for (const r of rows) {
+    const g = groupOfRow(r.id);
+    out.set(g, [...(out.get(g) ?? []), r]);
+  }
+  return [...out.entries()];
 }
