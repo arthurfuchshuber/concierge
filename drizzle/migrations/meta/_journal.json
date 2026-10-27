@@ -71,6 +71,13 @@
       "when": 1792647443980,
       "tag": "0009_property_playbook_entries",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793132214251,
+      "tag": "0010_malvo_open_finance",
+      "breakpoints": true
     }
   ]
 }
