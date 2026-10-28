@@ -82,6 +82,12 @@ export async function sweepStalledGuestReplies(limit = 20): Promise<number> {
     }
   }
   done += await sweepUnansweredGuestMessages(admin, limit);
+  try {
+    const { retryPendingHumanAnswers } = await import("./human-loop/deliver-answer.server");
+    done += await retryPendingHumanAnswers(admin);
+  } catch (e) {
+    console.error("[stalled-replies] reenvio de respostas da equipe falhou", e);
+  }
   done += await sweepSilentCloses(admin, limit).catch((e) => {
     console.error("[silent-close] falhou", e);
     return 0;
@@ -468,6 +474,14 @@ async function sweepUnansweredGuestMessages(admin: Admin, limit: number): Promis
   for (const c of (rows ?? []) as Array<any>) {
     if (done >= limit) break;
     if (c.status === "assigned") continue;
+    // Pergunta já aberta para a equipe: a equipe já foi avisada. Reprocessar
+    // gerava uma 2ª consulta e um 2º aviso nos celulares (caso Davi, 28/10).
+    const { count: openEsc } = await admin
+      .from("ai_human_escalations")
+      .select("id", { count: "exact", head: true })
+      .eq("conversation_id", c.id)
+      .eq("status", "pending");
+    if ((openEsc ?? 0) > 0) continue;
     try {
       const { data: last } = await admin
         .from("property_chat_messages")
