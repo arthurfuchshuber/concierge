@@ -95,6 +95,7 @@ import { Route as ApiPublicCronSaasAlertsRouteImport } from './routes/api/public
 import { Route as ApiPublicCronStalledRepliesRouteImport } from './routes/api/public/cron.stalled-replies'
 import { Route as ApiPublicCronSyncAirbnbIcalRouteImport } from './routes/api/public/cron.sync-airbnb-ical'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
+import { Route as ApiPublicWebhooksAsaasRouteImport } from './routes/api/public/webhooks.asaas'
 import { Route as ApiPublicWebhooksMalvoRouteImport } from './routes/api/public/webhooks.malvo'
 import { Route as ApiPublicWhatsappSinchWebhookRouteImport } from './routes/api/public/whatsapp/sinch-webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
@@ -583,6 +584,11 @@ const ApiPublicPaymentsWebhookRoute =
     path: '/api/public/payments/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicWebhooksAsaasRoute = ApiPublicWebhooksAsaasRouteImport.update({
+  id: '/api/public/webhooks/asaas',
+  path: '/api/public/webhooks/asaas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWebhooksMalvoRoute = ApiPublicWebhooksMalvoRouteImport.update({
   id: '/api/public/webhooks/malvo',
   path: '/api/public/webhooks/malvo',
@@ -695,6 +701,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/stalled-replies': typeof ApiPublicCronStalledRepliesRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -784,6 +791,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/stalled-replies': typeof ApiPublicCronStalledRepliesRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -878,6 +886,7 @@ export interface FileRoutesById {
   '/api/public/cron/stalled-replies': typeof ApiPublicCronStalledRepliesRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -972,6 +981,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/stalled-replies'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
+    | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
     | '/api/public/whatsapp/sinch-webhook'
     | '/lovable/email/auth/preview'
@@ -1061,6 +1071,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/stalled-replies'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
+    | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
     | '/api/public/whatsapp/sinch-webhook'
     | '/lovable/email/auth/preview'
@@ -1154,6 +1165,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/stalled-replies'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
+    | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
     | '/api/public/whatsapp/sinch-webhook'
     | '/lovable/email/auth/preview'
@@ -1217,6 +1229,7 @@ export interface RootRouteChildren {
   ApiPublicCronStalledRepliesRoute: typeof ApiPublicCronStalledRepliesRoute
   ApiPublicCronSyncAirbnbIcalRoute: typeof ApiPublicCronSyncAirbnbIcalRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
+  ApiPublicWebhooksAsaasRoute: typeof ApiPublicWebhooksAsaasRoute
   ApiPublicWebhooksMalvoRoute: typeof ApiPublicWebhooksMalvoRoute
   ApiPublicWhatsappSinchWebhookRoute: typeof ApiPublicWhatsappSinchWebhookRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -1828,6 +1841,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/webhooks/asaas': {
+      id: '/api/public/webhooks/asaas'
+      path: '/api/public/webhooks/asaas'
+      fullPath: '/api/public/webhooks/asaas'
+      preLoaderRoute: typeof ApiPublicWebhooksAsaasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/malvo': {
       id: '/api/public/webhooks/malvo'
       path: '/api/public/webhooks/malvo'
@@ -2041,6 +2061,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronStalledRepliesRoute: ApiPublicCronStalledRepliesRoute,
   ApiPublicCronSyncAirbnbIcalRoute: ApiPublicCronSyncAirbnbIcalRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
+  ApiPublicWebhooksAsaasRoute: ApiPublicWebhooksAsaasRoute,
   ApiPublicWebhooksMalvoRoute: ApiPublicWebhooksMalvoRoute,
   ApiPublicWhatsappSinchWebhookRoute: ApiPublicWhatsappSinchWebhookRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
