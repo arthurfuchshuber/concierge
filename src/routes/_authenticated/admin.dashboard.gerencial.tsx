@@ -191,17 +191,24 @@ function Painel() {
             filtros, acima dos cards que ela comanda. Mesma casca da busca. */}
         <div className="flex min-w-0 items-stretch ds-3d ds-3d-hover h-10 overflow-hidden rounded-[9px] bg-card !shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border),0_8px_14px_-8px_rgb(0_0_0/0.55)] lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px]">
           <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 px-3.5 text-center leading-tight">
-            <span className="shrink-0 text-[13px] font-bold text-foreground">{periodLabel(range)}</span>
+            <span className="shrink-0 text-[13px] font-bold text-foreground">{title}</span>
             {(compare !== "none" || bank !== "all") && (
               <span className="truncate text-[10.5px] font-medium text-muted-foreground">
-                {compare === "none" ? "" : compare === "prev" ? "vs. Mês Anterior" : "vs. Ano Anterior"}
+                {vsShort}
                 {bank !== "all" ? `${compare === "none" ? "" : " · "}${BANK_LABEL[bank]}` : ""}
               </span>
             )}
           </div>
           <div className="ds-icon-actions flex shrink-0 divide-x divide-[color-mix(in_oklab,var(--foreground)_11%,transparent)] border-l border-[color-mix(in_oklab,var(--foreground)_11%,transparent)] [&>*]:!w-12 lg:[&>*]:!w-[52px] [&>*]:!flex-none [&>*]:!px-0">
             <PeriodQuickFilterButton value={period} onChange={setPeriod} max={todaySP()} defaultChip="Mês atual" />
-            <FiltersButton compare={compare} onCompare={setCompare} bank={bank} onBank={setBank} active={filtersOn} />
+            <FiltersButton
+              compare={compare} onCompare={setCompare} bank={bank} onBank={setBank}
+              span={span} onSpan={(s) => { setSpan(s); setPeriod(null); }}
+              refPeriod={ref} onRef={(r) => { setRef(r); setPeriod(null); }}
+              unit={viewOf(span).unit}
+              active={filtersOn}
+              onClear={() => { setCompare("prev"); setBank("all"); setSpan(1); setRef(0); setPeriod(null); }}
+            />
           </div>
         </div>
         <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
