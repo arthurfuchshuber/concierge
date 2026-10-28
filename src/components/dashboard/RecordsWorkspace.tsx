@@ -805,6 +805,12 @@ export function RecordsWorkspace() {
               resto da tela. O número é o de pendências ABERTAS; o histórico não
               aparece aqui. Tocar de novo na célula ativa limpa a categoria. A cor
               é só a do status, no ícone. */}
+          <SearchActionRow
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por imóvel, proprietário…"
+            actions={recordActions}
+          />
           <div className="ds-card-grid grid-cols-2">
             {STATUS_CELLS.map((c) => (
               <StatusCell
@@ -825,12 +831,6 @@ export function RecordsWorkspace() {
             ))}
           </div>
 
-          <SearchActionRow
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar por imóvel, proprietário…"
-            actions={recordActions}
-          />
 
           {/* RESUMO DO QUE ESTÁ ABERTO (mockup A1, 03/10/2026): a primeira coisa
               que a pessoa precisa saber — quanto trabalho há — com o atalho para

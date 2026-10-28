@@ -3642,6 +3642,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               total por dia". Cards e gráficos leem como um grupo só; o que os
               separa do cabeçalho é o `ds-page-head` (24px, token --ds-block-gap). */}
           <div className="ds-card-grid">
+            {/* BARRA ACIMA DOS CARTÕES (pedido explícito, 28/10/2026): a barra
+                que muda os números fica acima do que ela comanda. */}
+            <SearchActionRow
+              value={opSearch}
+              onChange={setOpSearch}
+              placeholder="Buscar por imóvel, proprietário, cidade…"
+              actions={opActions}
+            />
             <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
               {(() => {
                 // Os 4 cartões (mockup 23/10/2026): Limpezas Realizadas, Custo
@@ -3710,16 +3718,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               })()}
             </div>
 
-            {/* BUSCA + AÇÕES ABAIXO DOS CARTÕES (pedido explícito, 03/10/2026:
-                "retorne a linha de campo de buscas + filtros para baixo dos
-                cards principais — tanto em limpeza quanto em registros").
-                Desfaz a subida de 02/10/2026. */}
-            <SearchActionRow
-              value={opSearch}
-              onChange={setOpSearch}
-              placeholder="Buscar por imóvel, proprietário, cidade…"
-              actions={opActions}
-            />
 
             {/* Limpeza completa só entra no custo depois de aprovada (pedido
               explícito, 17/09/2026). O bloco só existe quando há pendência. */}
