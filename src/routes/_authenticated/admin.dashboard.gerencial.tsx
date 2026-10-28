@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
 import {
-  ArrowDownRight, ArrowUpRight, CalendarCheck, CreditCard, GitCompareArrows, Landmark, Lock,
+  ArrowDownRight, ArrowUpRight, CalendarCheck, CreditCard, GitCompareArrows, Landmark, Layers, Lock,
   SlidersHorizontal, Wallet,
 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis } from "recharts";
@@ -381,9 +381,6 @@ function FiltersButton({ compare, onCompare, bank, onBank, span, onSpan, refPeri
   active: boolean; onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const u = unit.toLowerCase();
-  const masc = unit === "Mês" || unit === "Bimestre" || unit === "Trimestre" || unit === "Quadrimestre" || unit === "Semestre" || unit === "Ano";
-  const atual = masc ? "atual" : "atual";
   const compareLabel: Record<Compare, string> = {
     none: "Sem comparação",
     prev: `${unit} anterior`,
@@ -403,7 +400,7 @@ function FiltersButton({ compare, onCompare, bank, onBank, span, onSpan, refPeri
           {VIEWS.map((v) => <Chip key={v.span} label={v.label} on={span === v.span} onClick={() => onSpan(v.span)} />)}
         </div>
         <div className="flex flex-wrap gap-1.5 border-t border-border px-3.5 py-2.5">
-          <Chip label={`${unit} ${atual}`} on={refPeriod === 0} onClick={() => onRef(0)} />
+          <Chip label={`${unit} atual`} on={refPeriod === 0} onClick={() => onRef(0)} />
           <Chip label={`${unit} anterior`} on={refPeriod === 1} onClick={() => onRef(1)} />
         </div>
         <Section icon={GitCompareArrows} title="Comparar com" />
@@ -414,7 +411,6 @@ function FiltersButton({ compare, onCompare, bank, onBank, span, onSpan, refPeri
         {(Object.keys(BANK_LABEL) as Bank[]).map((k, i, arr) => (
           <FilterOptionRow key={k} label={BANK_LABEL[k]} selected={bank === k} onClick={() => onBank(k)} last={i === arr.length - 1} />
         ))}
-        <span className="sr-only">{u}</span>
       </FitPopoverContent>
     </Popover>
   );
