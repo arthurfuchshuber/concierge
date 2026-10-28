@@ -214,6 +214,31 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
 
     const bankAccounts = accs.filter((a: any) => a.type === "BANK");
     const card = accs.find((a: any) => a.type === "CREDIT") ?? null;
+    // Fatura aberta: o campo "balance" do banco é parcial/instável; soma as
+    // compras (titular + adicionais) do ciclo atual, que fecha 5 dias antes do vencimento.
+    let faturaAberta: number | null = null;
+    if (card) {
+      const dueRaw = card.credit_data?.balanceDueDate;
+      const dueDay = dueRaw ? new Date(dueRaw).getUTCDate() : 15;
+      const closeDay = Math.max(1, dueDay - 5);
+      const now = new Date();
+      let close = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), closeDay));
+      if (close.getTime() <= now.getTime()) close = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, closeDay));
+      const open = new Date(Date.UTC(close.getUTCFullYear(), close.getUTCMonth() - 1, closeDay));
+      const iso = (d: Date) => d.toISOString().slice(0, 10);
+      const { data: cardTx } = await db
+        .from("malvo_transactions")
+        .select("amount, type")
+        .eq("malvo_account_id", card.malvo_account_id)
+        .is("deleted_at", null)
+        .eq("type", "DEBIT")
+        .gte("date", `${iso(open)}T00:00:00`)
+        .lt("date", `${iso(close)}T00:00:00`);
+      faturaAberta = round((cardTx ?? []).reduce((s: number, t: any) => s + Math.abs(Number(t.amount) || 0), 0));
+    }
+    const usado = card?.credit_data?.creditLimit != null && card?.credit_data?.availableCreditLimit != null
+      ? Number(card.credit_data.creditLimit) - Number(card.credit_data.availableCreditLimit)
+      : null;
 
     return {
       periodo: { start: data.start, end: data.end, granularidade: monthly ? ("mes" as const) : ("dia" as const) },
@@ -228,7 +253,8 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
       })),
       cartao: card
         ? {
-            fatura: Number(card.balance) || 0,
+            fatura: faturaAberta ?? (Number(card.balance) || 0),
+            usado: usado != null ? round(usado) : null,
             limite: Number(card.credit_data?.creditLimit ?? 0) || null,
             disponivel: Number(card.credit_data?.availableCreditLimit ?? 0) || null,
           }
