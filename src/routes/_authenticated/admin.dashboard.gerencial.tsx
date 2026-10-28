@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowDownRight, ArrowUpRight, CalendarCheck, CreditCard, GitCompareArrows, Landmark, Layers, Lock,
   SlidersHorizontal, Wallet,
@@ -319,7 +319,7 @@ function FlowChart({ data }: { data: Data }) {
           <div className="h-60">
             {data ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={rows} margin={{ top: 20, right: 4, left: 4, bottom: 0 }} barGap={4} barCategoryGap="14%"
+                <BarChart data={rows} margin={{ top: 20, right: 4, left: 4, bottom: 0 }} barGap={2} barCategoryGap="12%"
                   onMouseMove={onMove} onClick={onMove} onMouseLeave={() => setTip(undefined)}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 10.5, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} interval={0} />
@@ -330,9 +330,9 @@ function FlowChart({ data }: { data: Data }) {
                     formatter={(v: number, n: string) => [brlFull(v), n === "entradas" ? "Entradas" : "Saídas"]} />
                   {(["entradas", "saidas"] as const).map((k) => (
                     <Bar key={k} dataKey={k} fill={k === "entradas" ? "var(--success)" : "var(--destructive)"} fillOpacity={0.85}
-                      radius={[3, 3, 0, 0]} maxBarSize={40} isAnimationActive={false}>
+                      radius={[3, 3, 0, 0]} maxBarSize={32} isAnimationActive={false}>
                       <LabelList dataKey={k} position="top" formatter={fmt}
-                        style={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
+                        style={{ fontSize: 9, fill: "var(--muted-foreground)" }} />
                     </Bar>
                   ))}
                 </BarChart>
