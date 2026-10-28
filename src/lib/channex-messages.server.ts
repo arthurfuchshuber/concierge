@@ -424,10 +424,8 @@ export async function deliverToAirbnbThread(
 ): Promise<{ ok: boolean; messageId?: string; text: string }> {
   const text = toAirbnbPlainText(p.text);
   if (!text) return { ok: false, text };
-  if (p.senderType === "ai" && !(await claimAiReplySlot(admin, p.conversationId, p.propertyId))) {
-    console.info("[channex-messages] resposta da IA duplicada descartada", p.conversationId);
-    return { ok: true, text };
-  }
+  // Sem trava de slot aqui: respostas da equipe, retificações e follow-ups proativos
+  // não seguem uma nova mensagem do hóspede. A trava fica só no fluxo de auto-resposta.
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
   try {
