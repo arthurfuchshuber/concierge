@@ -153,7 +153,7 @@ function Painel() {
           <StatCard icon={CreditCard} label="Fatura do cartão" value={d?.cartao ? brl(d.cartao.fatura) : "—"} loading={!d}
             note={usoLimite != null ? (
               <span className="mt-1 flex w-full items-center gap-2">
-                <span className="text-[10px] font-bold leading-none tabular-nums text-foreground">
+                <span className="text-[11.5px] font-bold leading-none tabular-nums text-foreground">
                   {usoLimite.toFixed(0)}%
                 </span>
                 <span className="relative block h-1.5 flex-1 overflow-hidden rounded-full bg-foreground/[0.08]">
