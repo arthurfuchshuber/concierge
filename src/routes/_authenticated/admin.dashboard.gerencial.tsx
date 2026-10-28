@@ -12,7 +12,7 @@ import { StatCard } from "@/components/ds/StatCard";
 import { PANEL_SHELL, PanelHeading, ACTION_SEGMENT, ACTION_BUTTON_TONE, ACTION_ICON } from "@/components/dashboard/panel-chrome";
 import { PeriodQuickFilterButton, type QuickPeriod } from "@/components/dashboard/PeriodQuickFilterButton";
 import {
-  FILTER_PANEL_CLASS, FILTER_PANEL_OFFSET, FilterHeaderClear, FilterIconBadge, FilterOptionRow, FitPopoverContent,
+  FILTER_PANEL_CLASS, FILTER_PANEL_OFFSET, FilterMenuRow, FilterOptionRow, FilterRootHeader, FilterScreenHeader, FitPopoverContent,
 } from "@/components/dashboard/filter-panel";
 import { getExecutiveAccess, getExecutiveDashboard } from "@/lib/executive.functions";
 
@@ -124,7 +124,7 @@ function Painel() {
   const [period, setPeriod] = useState<QuickPeriod | null>(null);
   const [compare, setCompare] = useState<Compare>("prev");
   const [bank, setBank] = useState<Bank>("all");
-  const [span, setSpan] = useState<number>(1);
+  const [span, setSpan] = useState<number>(12);
   const [ref, setRef] = useState<Ref>(0);
   // Datas escolhidas no calendário mandam; senão vale a visão (padrão: mês atual).
   const range = period ?? (span === 1 && ref === 0 ? currentMonth() : viewRange(span, ref));
@@ -158,7 +158,11 @@ function Painel() {
     );
   };
   const usoLimite = d?.cartao?.limite ? Math.min(100, (d.cartao.fatura / d.cartao.limite) * 100) : null;
-  const filtersOn = compare !== "prev" || bank !== "all" || span !== 1 || ref !== 0;
+  const filtersOn = compare !== "prev" || bank !== "all" || span !== 12 || ref !== 0;
+  const unitName = viewOf(span).unit;
+  const pageTitle = period
+    ? `Gerencial Entre ${ddmm(range.start)} e ${ddmm(range.end)}`
+    : `Gerencial do ${unitName}${ref === 1 ? " Anterior" : ""}`;
   const title = period ? periodLabel(range) : viewLabel(span, range);
   const vsShort = compare === "none" ? "" : compare === "prev" ? `vs. ${prevName.replace(/^\w/, (x) => x.toUpperCase())}` : "vs. Ano Anterior";
 
@@ -173,7 +177,7 @@ function Painel() {
             (somava 6px a mais que no Financeiro). */}
         <div>
           <div className="ds-page-heading min-w-0 lg:flex-1">
-            <h1 className="ds-page-title !text-lg truncate">Gerencial</h1>
+            <h1 className="ds-page-title !text-lg ">{pageTitle}</h1>
             <p className="ds-page-subtitle truncate">Caixa, fluxo e ritmo da empresa para a diretoria.</p>
           </div>
           <div className="mt-5 flex flex-col gap-2 lg:mt-2.5 lg:flex-row lg:items-center lg:gap-2">
@@ -207,7 +211,7 @@ function Painel() {
               refPeriod={ref} onRef={(r) => { setRef(r); setPeriod(null); }}
               unit={viewOf(span).unit}
               active={filtersOn}
-              onClear={() => { setCompare("prev"); setBank("all"); setSpan(1); setRef(0); setPeriod(null); }}
+              onClear={() => { setCompare("prev"); setBank("all"); setSpan(12); setRef(0); setPeriod(null); }}
             />
           </div>
         </div>
@@ -249,6 +253,7 @@ function Painel() {
             loading={!d}
             note={d ? <span className="font-medium text-muted-foreground">Saídas {brl(d.atual.saidas)}</span> : null} />
         </div>
+        <FlowChart data={d} />
         {q.isError ? (
           <div className={`${PANEL_SHELL} p-4 text-sm text-muted-foreground`}>Não foi possível carregar o painel.</div>
         ) : null}
@@ -264,39 +269,44 @@ function Sub({ children }: { children: ReactNode }) {
   return <p className="-mt-1 mb-3 pl-4 text-[10.5px] font-medium text-muted-foreground">{children}</p>;
 }
 
-function FlowChart({ title, color, dataKey, data }: { title: string; color: string; dataKey: "entradas" | "saidas"; data: Data }) {
+function FlowChart({ data }: { data: Data }) {
   const byMonth = data?.periodo.granularidade === "mes";
   const rows = (data?.serie ?? []).map((s) => ({
     ...s,
-    label: byMonth ? `${MESES[Number(s.key.slice(5, 7)) - 1]}/${s.key.slice(2, 4)}` : s.key.slice(8, 10),
+    label: byMonth ? MESES[Number(s.key.slice(5, 7)) - 1] : String(Number(s.key.slice(8, 10))),
   }));
-  const total = rows.reduce((s, r) => s + r[dataKey], 0);
-  const showLabels = rows.length <= 12;
+  const dense = rows.length > 12;
+  const fmt = (v: number) => (v ? brlShort(v).replace(" mil", "k") : "");
   return (
     <section className={`${PANEL_SHELL} w-full px-3.5 py-3.5`}>
-      <PanelHeading title={`${title} · ${byMonth ? "por mês" : "por dia"}`} dotColor={color} className="mb-2.5"
-        right={data ? <span className="text-[11px] font-semibold tabular-nums text-foreground/80">{brl(total)}</span> : null} />
-      <Sub>{data ? periodLabel(data.periodo) : "Carregando…"}</Sub>
-      <div className="h-36 w-full">
-        {data ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={rows} margin={{ top: 14, right: 4, left: 4, bottom: 0 }}>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false}
-                interval="preserveStartEnd" minTickGap={8} />
-              <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.3 }} contentStyle={TOOLTIP_STYLE}
-                labelFormatter={(l: string) => (byMonth ? l : `Dia ${l}`)}
-                formatter={(v: number) => [brlFull(v), title]} />
-              <Bar dataKey={dataKey} fill={color} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false}>
-                {showLabels ? (
-                  <LabelList dataKey={dataKey} position="top"
-                    formatter={(v: number) => (v ? brlShort(v) : "")}
-                    style={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
-                ) : null}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        ) : null}
+      <PanelHeading title={`Entradas e saídas · ${byMonth ? "por mês" : "por dia"}`} dotColor={SAGE} className="mb-2.5"
+        right={
+          <span className="flex items-center gap-3 text-[10.5px] font-medium text-muted-foreground">
+            <span className="flex items-center gap-1"><span className="size-[7px] rounded-full bg-success" />Entradas</span>
+            <span className="flex items-center gap-1"><span className="size-[7px] rounded-full bg-destructive" />Saídas</span>
+          </span>
+        } />
+      <div className="ds-scroll-x">
+        <div className="h-52" style={{ width: dense ? Math.max(rows.length * 34, 100) : "100%", minWidth: "100%" }}>
+          {data ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={rows} margin={{ top: 18, right: 4, left: 4, bottom: 0 }} barGap={2}>
+                <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} interval={0} />
+                <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.3 }} contentStyle={TOOLTIP_STYLE}
+                  labelFormatter={(l: string) => (byMonth ? l : `Dia ${l}`)}
+                  formatter={(v: number, n: string) => [brlFull(v), n === "entradas" ? "Entradas" : "Saídas"]} />
+                {(["entradas", "saidas"] as const).map((k) => (
+                  <Bar key={k} dataKey={k} fill={k === "entradas" ? "var(--success)" : "var(--destructive)"} fillOpacity={0.85}
+                    radius={[3, 3, 0, 0]} maxBarSize={18} isAnimationActive={false}>
+                    <LabelList dataKey={k} position="top" formatter={fmt}
+                      style={{ fontSize: dense ? 8 : 9.5, fill: "var(--muted-foreground)" }} />
+                  </Bar>
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          ) : null}
+        </div>
       </div>
     </section>
   );
@@ -355,39 +365,22 @@ function Linha({ t, v, last, muted }: { t: string; v: string; last?: boolean; mu
   );
 }
 
-function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick}
-      className={`rounded-full px-[11px] py-[5px] text-[11px] font-semibold transition-colors ${
-        on ? "bg-accent/[0.14] text-accent" : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground"}`}>
-      {label}
-    </button>
-  );
-}
-
-function Section({ icon, title, right, top }: { icon: typeof Landmark; title: string; right?: ReactNode; top?: boolean }) {
-  return (
-    <div className={`flex items-center gap-[9px] ${top ? "border-b" : "border-y"} border-border px-3.5 py-[11px]`}>
-      <FilterIconBadge icon={icon} size="sm" />
-      <span className="ds-card-title min-w-0 flex-1">{title}</span>
-      {right}
-    </div>
-  );
-}
-
 function FiltersButton({ compare, onCompare, bank, onBank, span, onSpan, refPeriod, onRef, unit, active, onClear }: {
   compare: Compare; onCompare: (c: Compare) => void; bank: Bank; onBank: (b: Bank) => void;
   span: number; onSpan: (s: number) => void; refPeriod: Ref; onRef: (r: Ref) => void; unit: string;
   active: boolean; onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [screen, setScreen] = useState<"root" | "view" | "ref" | "compare" | "bank">("root");
   const compareLabel: Record<Compare, string> = {
     none: "Sem comparação",
     prev: `${unit} anterior`,
     yoy: "Mesmo período do ano anterior",
   };
+  const refLabel = (r: Ref) => `${unit} ${r === 0 ? "atual" : "anterior"}`;
+  const pick = (fn: () => void) => { fn(); setScreen("root"); };
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setScreen("root"); }}>
       <PopoverTrigger asChild>
         <button type="button" aria-label="Filtros" title="Filtros" className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} relative`}>
           <SlidersHorizontal className={ACTION_ICON} />
@@ -395,22 +388,43 @@ function FiltersButton({ compare, onCompare, bank, onBank, span, onSpan, refPeri
         </button>
       </PopoverTrigger>
       <FitPopoverContent align="end" sideOffset={FILTER_PANEL_OFFSET} className={FILTER_PANEL_CLASS} onOpenAutoFocus={(e) => e.preventDefault()}>
-        <Section icon={Layers} title="Visão" top right={active ? <FilterHeaderClear onClick={onClear} /> : null} />
-        <div className="flex flex-wrap gap-1.5 px-3.5 py-2.5">
-          {VIEWS.map((v) => <Chip key={v.span} label={v.label} on={span === v.span} onClick={() => onSpan(v.span)} />)}
-        </div>
-        <div className="flex flex-wrap gap-1.5 border-t border-border px-3.5 py-2.5">
-          <Chip label={`${unit} atual`} on={refPeriod === 0} onClick={() => onRef(0)} />
-          <Chip label={`${unit} anterior`} on={refPeriod === 1} onClick={() => onRef(1)} />
-        </div>
-        <Section icon={GitCompareArrows} title="Comparar com" />
-        {(Object.keys(compareLabel) as Compare[]).map((k, i, arr) => (
-          <FilterOptionRow key={k} label={compareLabel[k]} selected={compare === k} onClick={() => onCompare(k)} last={i === arr.length - 1} />
-        ))}
-        <Section icon={Landmark} title="Contas" />
-        {(Object.keys(BANK_LABEL) as Bank[]).map((k, i, arr) => (
-          <FilterOptionRow key={k} label={BANK_LABEL[k]} selected={bank === k} onClick={() => onBank(k)} last={i === arr.length - 1} />
-        ))}
+        {screen === "root" ? (
+          <>
+            <FilterRootHeader canClear={active} onClear={onClear} />
+            <FilterMenuRow icon={Layers} label="Visão" value={viewOf(span).label} active={span !== 12} onClick={() => setScreen("view")} />
+            <FilterMenuRow icon={CalendarCheck} label="Referência" value={refLabel(refPeriod)} active={refPeriod !== 0} onClick={() => setScreen("ref")} />
+            <FilterMenuRow icon={GitCompareArrows} label="Comparar" value={compareLabel[compare]} active={compare !== "prev"} onClick={() => setScreen("compare")} />
+            <FilterMenuRow icon={Landmark} label="Contas" value={BANK_LABEL[bank]} active={bank !== "all"} onClick={() => setScreen("bank")} last />
+          </>
+        ) : screen === "view" ? (
+          <>
+            <FilterScreenHeader title="Visão" />
+            {VIEWS.map((v, i) => (
+              <FilterOptionRow key={v.span} label={v.label} selected={span === v.span} onClick={() => pick(() => onSpan(v.span))} last={i === VIEWS.length - 1} />
+            ))}
+          </>
+        ) : screen === "ref" ? (
+          <>
+            <FilterScreenHeader title="Referência" />
+            {([0, 1] as Ref[]).map((r) => (
+              <FilterOptionRow key={r} label={refLabel(r)} selected={refPeriod === r} onClick={() => pick(() => onRef(r))} last={r === 1} />
+            ))}
+          </>
+        ) : screen === "compare" ? (
+          <>
+            <FilterScreenHeader title="Comparar com" />
+            {(Object.keys(compareLabel) as Compare[]).map((k, i, arr) => (
+              <FilterOptionRow key={k} label={compareLabel[k]} selected={compare === k} onClick={() => pick(() => onCompare(k))} last={i === arr.length - 1} />
+            ))}
+          </>
+        ) : (
+          <>
+            <FilterScreenHeader title="Contas" />
+            {(Object.keys(BANK_LABEL) as Bank[]).map((k, i, arr) => (
+              <FilterOptionRow key={k} label={BANK_LABEL[k]} selected={bank === k} onClick={() => pick(() => onBank(k))} last={i === arr.length - 1} />
+            ))}
+          </>
+        )}
       </FitPopoverContent>
     </Popover>
   );
