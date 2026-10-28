@@ -275,38 +275,55 @@ function FlowChart({ data }: { data: Data }) {
     ...s,
     label: byMonth ? MESES[Number(s.key.slice(5, 7)) - 1] : String(Number(s.key.slice(8, 10))),
   }));
-  const dense = rows.length > 12;
+  const colW = byMonth ? 64 : 44;
+  const years: { y: string; n: number }[] = [];
+  for (const r of rows) {
+    const y = r.key.slice(0, 4);
+    const last = years[years.length - 1];
+    if (last && last.y === y) last.n++;
+    else years.push({ y, n: 1 });
+  }
   const fmt = (v: number) => (v ? brlShort(v).replace(" mil", "k") : "");
   return (
     <section className={`${PANEL_SHELL} w-full px-3.5 py-3.5`}>
-      <PanelHeading title={`Entradas e saídas · ${byMonth ? "por mês" : "por dia"}`} dotColor={SAGE} className="mb-2.5"
-        right={
-          <span className="flex items-center gap-3 text-[10.5px] font-medium text-muted-foreground">
-            <span className="flex items-center gap-1"><span className="size-[7px] rounded-full bg-success" />Entradas</span>
-            <span className="flex items-center gap-1"><span className="size-[7px] rounded-full bg-destructive" />Saídas</span>
-          </span>
-        } />
+      <PanelHeading title={`Entradas e saídas · ${byMonth ? "por mês" : "por dia"}`} dotColor={SAGE} className="mb-2.5" />
       <div className="ds-scroll-x">
-        <div className="h-52" style={{ width: dense ? Math.max(rows.length * 34, 100) : "100%", minWidth: "100%" }}>
-          {data ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={rows} margin={{ top: 18, right: 4, left: 4, bottom: 0 }} barGap={2}>
-                <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} interval={0} />
-                <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.3 }} contentStyle={TOOLTIP_STYLE}
-                  labelFormatter={(l: string) => (byMonth ? l : `Dia ${l}`)}
-                  formatter={(v: number, n: string) => [brlFull(v), n === "entradas" ? "Entradas" : "Saídas"]} />
-                {(["entradas", "saidas"] as const).map((k) => (
-                  <Bar key={k} dataKey={k} fill={k === "entradas" ? "var(--success)" : "var(--destructive)"} fillOpacity={0.85}
-                    radius={[3, 3, 0, 0]} maxBarSize={18} isAnimationActive={false}>
-                    <LabelList dataKey={k} position="top" formatter={fmt}
-                      style={{ fontSize: dense ? 8 : 9.5, fill: "var(--muted-foreground)" }} />
-                  </Bar>
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
+        <div style={{ width: Math.max(rows.length * colW, 100), minWidth: "100%" }}>
+          <div className="h-56">
+            {data ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={rows} margin={{ top: 20, right: 4, left: 4, bottom: 0 }} barGap={3} barCategoryGap="22%">
+                  <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10.5, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} interval={0} />
+                  <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.3 }} contentStyle={TOOLTIP_STYLE}
+                    labelFormatter={(l: string) => (byMonth ? l : `Dia ${l}`)}
+                    formatter={(v: number, n: string) => [brlFull(v), n === "entradas" ? "Entradas" : "Saídas"]} />
+                  {(["entradas", "saidas"] as const).map((k) => (
+                    <Bar key={k} dataKey={k} fill={k === "entradas" ? "var(--success)" : "var(--destructive)"} fillOpacity={0.85}
+                      radius={[3, 3, 0, 0]} maxBarSize={22} isAnimationActive={false}>
+                      <LabelList dataKey={k} position="top" formatter={fmt}
+                        style={{ fontSize: 9.5, fill: "var(--muted-foreground)" }} />
+                    </Bar>
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            ) : null}
+          </div>
+          {data && years.length ? (
+            <div className="mt-1 flex px-1">
+              {years.map((s) => (
+                <div key={s.y} style={{ flexGrow: s.n, flexBasis: 0 }}
+                  className="mx-0.5 border-t border-border pt-1 text-center text-[10.5px] font-semibold tabular-nums text-muted-foreground">
+                  {s.y}
+                </div>
+              ))}
+            </div>
           ) : null}
         </div>
+      </div>
+      <div className="mt-3 flex items-center justify-center gap-4 text-[10.5px] font-medium text-muted-foreground">
+        <span className="flex items-center gap-1"><span className="size-[7px] rounded-full bg-success" />Entradas</span>
+        <span className="flex items-center gap-1"><span className="size-[7px] rounded-full bg-destructive" />Saídas</span>
       </div>
     </section>
   );
