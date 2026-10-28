@@ -105,9 +105,12 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
       }
     }
 
-    // Movimentos entre contas da própria empresa não são receita nem despesa.
+    // Movimentos entre contas da própria empresa não são receita nem despesa
+    // (inclui Pix entre o Nubank PJ e o BTG PJ da própria empresa).
     const isInternal = (t: any) =>
-      /aplica[cç][aã]o rdb|resgate rdb|conta remunerada|fatura|caixinha|transfer[eê]ncia entre contas|cr[eé]dito na conta corrente|d[eé]bito na conta corrente|rendimento remunera|nu pagamentos/i.test(t.description ?? "");
+      /aplica[cç][aã]o rdb|resgate rdb|conta remunerada|fatura|caixinha|transfer[eê]ncia entre contas|cr[eé]dito na conta corrente|d[eé]bito na conta corrente|rendimento remunera|nu pagamentos|fuchshuber this tecnologia/i.test(
+        [t.description, t.merchant?.name, t.payment_data?.receiver?.name, t.payment_data?.payer?.name].filter(Boolean).join(" "),
+      );
 
     type Flow = { day: string; amt: number; out: boolean; payee: string };
     const flows: Flow[] = [];

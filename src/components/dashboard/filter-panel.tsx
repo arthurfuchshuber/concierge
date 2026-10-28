@@ -631,8 +631,8 @@ export function FilterPeriodCalendar({
   /** Atalho "padrão" (ex.: "Últimos 7 dias") que limpa o período; vem primeiro e marcado quando não há período. */
   defaultChip?: { label: string; active: boolean; onSelect: () => void };
   value: DateRange | undefined;
-  /** Recebe cada clique; o pai decide quando propagar (intervalo completo). */
-  onChange: (next: DateRange | undefined) => void;
+  /** Recebe cada clique (com o dia clicado); atalhos vêm sem dia. O pai decide quando propagar. */
+  onChange: (next: DateRange | undefined, clicked?: Date) => void;
   month: Date;
   onMonthChange: (next: Date) => void;
   today: Date;
@@ -742,7 +742,7 @@ export function FilterPeriodCalendar({
           month={month}
           onMonthChange={onMonthChange}
           selected={value}
-          onSelect={onChange}
+          onSelect={(next, clicked) => onChange(next, clicked)}
           disabled={disabled.length ? disabled : undefined}
           today={today}
           formatters={{
