@@ -355,10 +355,40 @@ function Linha({ t, v, last, muted }: { t: string; v: string; last?: boolean; mu
   );
 }
 
-function FiltersButton({ compare, onCompare, bank, onBank, active }: {
-  compare: Compare; onCompare: (c: Compare) => void; bank: Bank; onBank: (b: Bank) => void; active: boolean;
+function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`rounded-full px-[11px] py-[5px] text-[11px] font-semibold transition-colors ${
+        on ? "bg-accent/[0.14] text-accent" : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground"}`}>
+      {label}
+    </button>
+  );
+}
+
+function Section({ icon, title, right, top }: { icon: typeof Landmark; title: string; right?: ReactNode; top?: boolean }) {
+  return (
+    <div className={`flex items-center gap-[9px] ${top ? "border-b" : "border-y"} border-border px-3.5 py-[11px]`}>
+      <FilterIconBadge icon={icon} size="sm" />
+      <span className="ds-card-title min-w-0 flex-1">{title}</span>
+      {right}
+    </div>
+  );
+}
+
+function FiltersButton({ compare, onCompare, bank, onBank, span, onSpan, refPeriod, onRef, unit, active, onClear }: {
+  compare: Compare; onCompare: (c: Compare) => void; bank: Bank; onBank: (b: Bank) => void;
+  span: number; onSpan: (s: number) => void; refPeriod: Ref; onRef: (r: Ref) => void; unit: string;
+  active: boolean; onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const u = unit.toLowerCase();
+  const masc = unit === "Mês" || unit === "Bimestre" || unit === "Trimestre" || unit === "Quadrimestre" || unit === "Semestre" || unit === "Ano";
+  const atual = masc ? "atual" : "atual";
+  const compareLabel: Record<Compare, string> = {
+    none: "Sem comparação",
+    prev: `${unit} anterior`,
+    yoy: "Mesmo período do ano anterior",
+  };
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -368,21 +398,23 @@ function FiltersButton({ compare, onCompare, bank, onBank, active }: {
         </button>
       </PopoverTrigger>
       <FitPopoverContent align="end" sideOffset={FILTER_PANEL_OFFSET} className={FILTER_PANEL_CLASS} onOpenAutoFocus={(e) => e.preventDefault()}>
-        <div className="flex items-center gap-[9px] border-b border-border px-3.5 py-[11px]">
-          <FilterIconBadge icon={GitCompareArrows} size="sm" />
-          <span className="ds-card-title min-w-0 flex-1">Comparar com</span>
-          {active ? <FilterHeaderClear onClick={() => { onCompare("prev"); onBank("all"); }} /> : null}
+        <Section icon={Layers} title="Visão" top right={active ? <FilterHeaderClear onClick={onClear} /> : null} />
+        <div className="flex flex-wrap gap-1.5 px-3.5 py-2.5">
+          {VIEWS.map((v) => <Chip key={v.span} label={v.label} on={span === v.span} onClick={() => onSpan(v.span)} />)}
         </div>
-        {(Object.keys(COMPARE_LABEL) as Compare[]).map((k, i, arr) => (
-          <FilterOptionRow key={k} label={COMPARE_LABEL[k]} selected={compare === k} onClick={() => onCompare(k)} last={i === arr.length - 1} />
+        <div className="flex flex-wrap gap-1.5 border-t border-border px-3.5 py-2.5">
+          <Chip label={`${unit} ${atual}`} on={refPeriod === 0} onClick={() => onRef(0)} />
+          <Chip label={`${unit} anterior`} on={refPeriod === 1} onClick={() => onRef(1)} />
+        </div>
+        <Section icon={GitCompareArrows} title="Comparar com" />
+        {(Object.keys(compareLabel) as Compare[]).map((k, i, arr) => (
+          <FilterOptionRow key={k} label={compareLabel[k]} selected={compare === k} onClick={() => onCompare(k)} last={i === arr.length - 1} />
         ))}
-        <div className="flex items-center gap-[9px] border-y border-border px-3.5 py-[11px]">
-          <FilterIconBadge icon={Landmark} size="sm" />
-          <span className="ds-card-title min-w-0 flex-1">Contas</span>
-        </div>
+        <Section icon={Landmark} title="Contas" />
         {(Object.keys(BANK_LABEL) as Bank[]).map((k, i, arr) => (
           <FilterOptionRow key={k} label={BANK_LABEL[k]} selected={bank === k} onClick={() => onBank(k)} last={i === arr.length - 1} />
         ))}
+        <span className="sr-only">{u}</span>
       </FitPopoverContent>
     </Popover>
   );
