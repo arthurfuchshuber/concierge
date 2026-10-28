@@ -275,6 +275,7 @@ function FlowChart({ data }: { data: Data }) {
     ...s,
     label: byMonth ? MESES[Number(s.key.slice(5, 7)) - 1] : String(Number(s.key.slice(8, 10))),
   }));
+  const scrollRef = useRef<HTMLDivElement>(null);
   // ANTI-CORTE: a largura da coluna divide a tela em colunas inteiras
   // (5 meses no celular, mais no desktop) — nenhuma barra fica cortada na borda.
   const [boxW, setBoxW] = useState(0);
@@ -297,7 +298,6 @@ function FlowChart({ data }: { data: Data }) {
     else years.push({ y, n: 1 });
   }
   const fmt = (v: number) => (v ? brlShort(v).replace(" mil", "k") : "");
-  const scrollRef = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<{ x: number; y: number } | undefined>();
   const TIP_W = 200;
   const onMove = (s: any) => {
@@ -315,7 +315,7 @@ function FlowChart({ data }: { data: Data }) {
     <section className={`${PANEL_SHELL} w-full min-w-0 px-3.5 py-3.5`}>
       <PanelHeading title={`Entradas e saídas · ${byMonth ? "por mês" : "por dia"}`} dotColor={SAGE} className="mb-2.5" />
       <div ref={scrollRef} className="ds-scroll-x">
-        <div style={{ width: Math.max(rows.length * colW, 100), minWidth: "100%" }}>
+        <div style={{ width: rows.length * colW || "100%" }}>
           <div className="h-60">
             {data ? (
               <ResponsiveContainer width="100%" height="100%">
