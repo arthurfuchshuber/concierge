@@ -54,6 +54,8 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
         end: ISO,
         compare: z.enum(["none", "prev", "yoy"]).default("prev"),
         bank: z.enum(["all", "btg", "nubank"]).default("all"),
+        /** Tamanho da visão em meses (1 mês, 2 bimestre, 3 trimestre…): "anterior" recua isso. */
+        span: z.number().int().min(1).max(12).default(1),
       })
       .refine((v) => v.start <= v.end, "Período inválido")
       .parse(i),
@@ -82,8 +84,9 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
     const accIds = accs.map((a: any) => a.malvo_account_id);
     const cardIds = new Set(accs.filter((a: any) => a.type === "CREDIT").map((a: any) => a.malvo_account_id));
 
-    const cmpStart = data.compare === "none" ? null : shiftMonths(data.start, data.compare === "prev" ? -1 : -12);
-    const cmpEnd = data.compare === "none" ? null : shiftMonths(data.end, data.compare === "prev" ? -1 : -12);
+    const back = data.compare === "prev" ? -data.span : -12;
+    const cmpStart = data.compare === "none" ? null : shiftMonths(data.start, back);
+    const cmpEnd = data.compare === "none" ? null : shiftMonths(data.end, back);
     const fetchFrom = cmpStart && cmpStart < data.start ? cmpStart : data.start;
 
     const txs: any[] = [];
