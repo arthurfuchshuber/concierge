@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowDownRight, ArrowUpRight, CalendarCheck, CreditCard, GitCompareArrows, Landmark, Layers, Lock,
   SlidersHorizontal, Wallet,
@@ -275,7 +275,21 @@ function FlowChart({ data }: { data: Data }) {
     ...s,
     label: byMonth ? MESES[Number(s.key.slice(5, 7)) - 1] : String(Number(s.key.slice(8, 10))),
   }));
-  const colW = byMonth ? 104 : 72;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // ANTI-CORTE: a largura da coluna divide a tela em colunas inteiras
+  // (5 meses no celular, mais no desktop) — nenhuma barra fica cortada na borda.
+  const [boxW, setBoxW] = useState(0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setBoxW(el.clientWidth));
+    ro.observe(el);
+    setBoxW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+  const minCol = byMonth ? 64 : 44;
+  const perView = boxW ? Math.max(1, Math.min(rows.length || 1, Math.floor(boxW / minCol))) : 5;
+  const colW = boxW ? boxW / perView : minCol;
   const years: { y: string; n: number }[] = [];
   for (const r of rows) {
     const y = r.key.slice(0, 4);
@@ -284,7 +298,6 @@ function FlowChart({ data }: { data: Data }) {
     else years.push({ y, n: 1 });
   }
   const fmt = (v: number) => (v ? brlShort(v).replace(" mil", "k") : "");
-  const scrollRef = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<{ x: number; y: number } | undefined>();
   const TIP_W = 200;
   const onMove = (s: any) => {
@@ -302,11 +315,11 @@ function FlowChart({ data }: { data: Data }) {
     <section className={`${PANEL_SHELL} w-full min-w-0 px-3.5 py-3.5`}>
       <PanelHeading title={`Entradas e saídas · ${byMonth ? "por mês" : "por dia"}`} dotColor={SAGE} className="mb-2.5" />
       <div ref={scrollRef} className="ds-scroll-x">
-        <div style={{ width: Math.max(rows.length * colW, 100), minWidth: "100%" }}>
+        <div style={{ width: rows.length * colW || "100%" }}>
           <div className="h-60">
             {data ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={rows} margin={{ top: 20, right: 4, left: 4, bottom: 0 }} barGap={4} barCategoryGap="14%"
+                <BarChart data={rows} margin={{ top: 20, right: 4, left: 4, bottom: 0 }} barGap={2} barCategoryGap="12%"
                   onMouseMove={onMove} onClick={onMove} onMouseLeave={() => setTip(undefined)}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 10.5, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} interval={0} />
@@ -317,9 +330,9 @@ function FlowChart({ data }: { data: Data }) {
                     formatter={(v: number, n: string) => [brlFull(v), n === "entradas" ? "Entradas" : "Saídas"]} />
                   {(["entradas", "saidas"] as const).map((k) => (
                     <Bar key={k} dataKey={k} fill={k === "entradas" ? "var(--success)" : "var(--destructive)"} fillOpacity={0.85}
-                      radius={[3, 3, 0, 0]} maxBarSize={40} isAnimationActive={false}>
+                      radius={[3, 3, 0, 0]} maxBarSize={32} isAnimationActive={false}>
                       <LabelList dataKey={k} position="top" formatter={fmt}
-                        style={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
+                        style={{ fontSize: 9, fill: "var(--muted-foreground)" }} />
                     </Bar>
                   ))}
                 </BarChart>
