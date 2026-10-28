@@ -71,7 +71,7 @@ export function StatCard({
         {loading ? "—" : value}
       </div>
       {note && !loading ? (
-        <p className="ds-atencao w-full truncate pt-1 text-center text-[10px] font-bold">{note}</p>
+        <p className="ds-atencao w-full truncate pt-1 text-center text-[11.5px] font-bold">{note}</p>
       ) : null}
     </button>
   );
