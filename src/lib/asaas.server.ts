@@ -97,6 +97,8 @@ export async function syncAsaas(opts: { full?: boolean } = {}) {
           currency_code: "BRL",
           balance_after: t.balance ?? null,
           category: t.type ?? null,
+          // Cobrança paga pela própria empresa = dinheiro mudando de conta (não é receita).
+          category_id: /fuchshuber this tecnologia/i.test(String(t.description ?? "")) ? "04000000" : null,
           provider_id: t.id,
           payload: { source: "asaas", ...t },
           deleted_at: null,
