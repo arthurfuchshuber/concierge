@@ -130,16 +130,21 @@ function Painel() {
       {/* Cabeçalho: o mesmo desenho do Financeiro (data, título, subtítulo, aba). */}
       <div className="ds-page-heading ds-page-head">
         <p className="ds-eyebrow ds-data text-[10.5px] tracking-[0.2em]">{hoje}</p>
-        <div className="ds-page-heading min-w-0">
-          <h1 className="ds-page-title !text-lg">Gerencial</h1>
-          <p className="ds-page-subtitle">Caixa, fluxo e ritmo da empresa para a diretoria.</p>
-        </div>
-        <div className="mt-5 lg:mt-2.5">
-          <nav className="ds-tabs">
-            <span className="ds-tab-active flex min-h-[44px] flex-1 items-center justify-center px-2 text-center text-[13px] font-bold leading-none">
-              Visão Geral
-            </span>
-          </nav>
+        {/* Mesma árvore do OperationShell: título+subtítulo e abas dentro de um
+            <div> próprio, para a aba NÃO herdar o vão do `ds-page-heading`
+            (somava 6px a mais que no Financeiro). */}
+        <div>
+          <div className="ds-page-heading min-w-0 lg:flex-1">
+            <h1 className="ds-page-title !text-lg truncate">Gerencial</h1>
+            <p className="ds-page-subtitle truncate">Caixa, fluxo e ritmo da empresa para a diretoria.</p>
+          </div>
+          <div className="mt-5 flex flex-col gap-2 lg:mt-2.5 lg:flex-row lg:items-center lg:gap-2">
+            <nav className="ds-tabs order-1 lg:order-2 lg:min-w-0 lg:flex-1">
+              <span className="ds-tab-active flex min-h-[44px] flex-1 items-center justify-center px-2 text-center text-[13px] font-bold leading-none">
+                Visão Geral
+              </span>
+            </nav>
+          </div>
         </div>
       </div>
 
