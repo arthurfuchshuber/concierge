@@ -32,3 +32,4 @@
 
 ## Open Finance (Malvo)
 - Bank data is read-only via Malvo (`src/lib/malvo.server.ts`): webhooks (`/api/public/webhooks/malvo`, HMAC `Malvo-Signature` over the raw body) enqueue into `malvo_webhook_events` (dedupe by eventId) and drain it in the same request; the hourly cron `/api/public/cron/malvo-sync` is only a retry backstop; never poll Malvo on a timer. Every Malvo response is stored unfiltered in `malvo_raw_records`; `malvo_items/accounts/transactions` are derived and scoped to the account owner only (`clientUserId` = account owner id).
+- Asaas PJ is synced via its own API (`syncAsaas` in `src/lib/asaas.server.ts`, hourly from the Malvo cron) into the malvo_* tables as item `asaas`, because Asaas is not in Malvo's Open Finance catalog; the Gerencial reads it with no special path.
