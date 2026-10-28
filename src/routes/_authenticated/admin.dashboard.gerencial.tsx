@@ -404,7 +404,9 @@ function FiltersButton({ compare, onCompare, bank, onBank, span, onSpan, refPeri
           {active ? <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-accent" /> : null}
         </button>
       </PopoverTrigger>
-      <FitPopoverContent align="end" sideOffset={FILTER_PANEL_OFFSET} className={FILTER_PANEL_CLASS} onOpenAutoFocus={(e) => e.preventDefault()}>
+      <FitPopoverContent align="end" sideOffset={FILTER_PANEL_OFFSET} className={FILTER_PANEL_CLASS} onOpenAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => { if (screen !== "root") { e.preventDefault(); setScreen("root"); } }}
+        onEscapeKeyDown={(e) => { if (screen !== "root") { e.preventDefault(); setScreen("root"); } }}>
         {screen === "root" ? (
           <>
             <FilterRootHeader canClear={active} onClear={onClear} />
