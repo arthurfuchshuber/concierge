@@ -143,9 +143,9 @@ describe("faixa de imóveis sem sincronização", () => {
 });
 
 describe("lista de contas do alerta", () => {
-  it("só a Anfitrião Sigma está na lista", () => {
+  it("todas as contas recebem o alerta", () => {
     expect(isSyncAlertAccount(SIGMA_ACCOUNT_ID)).toBe(true);
-    expect(isSyncAlertAccount("00000000-0000-4000-8000-000000000000")).toBe(false);
+    expect(isSyncAlertAccount("00000000-0000-4000-8000-000000000000")).toBe(true);
     expect(isSyncAlertAccount(null)).toBe(false);
     expect(isSyncAlertAccount(undefined)).toBe(false);
   });

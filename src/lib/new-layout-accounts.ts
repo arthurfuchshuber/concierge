@@ -15,5 +15,5 @@ export const NEW_LAYOUT_ACCOUNT_IDS: ReadonlySet<string> = new Set([
 ]);
 
 export function isNewLayoutAccount(accountId: string | null | undefined): boolean {
-  return !!accountId && NEW_LAYOUT_ACCOUNT_IDS.has(accountId);
+  return !!accountId; // liberado para todas as contas (28/10/2026)
 }
