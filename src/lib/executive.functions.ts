@@ -130,8 +130,21 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
 
     type Flow = { day: string; amt: number; out: boolean; payee: string };
     const flows: Flow[] = [];
+    // Estornos/reembolsos anulam a saída original (mesma conta, mesmo valor,
+    // até 5 dias): nenhum dos dois é entrada ou saída real.
+    const voided = new Set<any>();
+    const dayMs = (t: any) => new Date(String(t.date).slice(0, 10)).getTime();
     for (const t of txs) {
-      if (isInternal(t)) continue;
+      if (t.type !== "CREDIT" || !/^(estorno|reembolso)/i.test(String(t.description ?? "").trim())) continue;
+      const amt = Math.abs(Number(t.amount) || 0);
+      const match = txs.find((o) => o !== t && !voided.has(o) && o.type === "DEBIT"
+        && o.malvo_account_id === t.malvo_account_id
+        && Math.abs(Math.abs(Number(o.amount) || 0) - amt) < 0.005
+        && Math.abs(dayMs(o) - dayMs(t)) <= 5 * 86400000);
+      if (match) { voided.add(t); voided.add(match); }
+    }
+    for (const t of txs) {
+      if (voided.has(t) || isInternal(t)) continue;
       const amt = Math.abs(Number(t.amount) || 0);
       if (!amt) continue;
       const isCard = cardIds.has(t.malvo_account_id);
