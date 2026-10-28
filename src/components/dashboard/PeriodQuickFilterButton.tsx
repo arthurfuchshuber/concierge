@@ -50,6 +50,7 @@ export function PeriodQuickFilterButton({
   defaultChip?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<Date | null>(null);
   const [draft, setDraft] = useState<DateRange | undefined>(
     value ? { from: toDate(value.start), to: toDate(value.end) } : undefined,
   );
@@ -69,6 +70,7 @@ export function PeriodQuickFilterButton({
       open={open}
       onOpenChange={(next) => {
         if (next) setMonth(toDate(todaySP()));
+        setAnchor(null);
         setOpen(next);
       }}
     >
@@ -111,13 +113,28 @@ export function PeriodQuickFilterButton({
           today={toDate(todaySP())}
           min={min ? toDate(min) : undefined}
           max={max ? toDate(max) : undefined}
-          onChange={(next) => {
-            setDraft(next);
-            // Só propaga com início E fim (o 1º clique sozinho não é período).
-            if (next?.from && next?.to) {
-              onChange({ start: toISO(next.from), end: toISO(next.to) });
-              setOpen(false);
+          onChange={(next, clicked) => {
+            // Atalhos (sem dia clicado) aplicam direto.
+            if (!clicked) {
+              setAnchor(null);
+              setDraft(next);
+              if (next?.from && next?.to) {
+                onChange({ start: toISO(next.from), end: toISO(next.to) });
+                setOpen(false);
+              }
+              return;
             }
+            // 1º clique = início (janela continua aberta); 2º clique = fim.
+            if (!anchor) {
+              setAnchor(clicked);
+              setDraft({ from: clicked, to: undefined });
+              return;
+            }
+            const [a, b] = anchor <= clicked ? [anchor, clicked] : [clicked, anchor];
+            setAnchor(null);
+            setDraft({ from: a, to: b });
+            onChange({ start: toISO(a), end: toISO(b) });
+            setOpen(false);
           }}
         />
       </FitPopoverContent>
