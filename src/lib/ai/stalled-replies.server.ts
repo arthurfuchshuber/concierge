@@ -82,6 +82,12 @@ export async function sweepStalledGuestReplies(limit = 20): Promise<number> {
     }
   }
   done += await sweepUnansweredGuestMessages(admin, limit);
+  try {
+    const { retryPendingHumanAnswers } = await import("./human-loop/deliver-answer.server");
+    done += await retryPendingHumanAnswers(admin);
+  } catch (e) {
+    console.error("[stalled-replies] reenvio de respostas da equipe falhou", e);
+  }
   done += await sweepSilentCloses(admin, limit).catch((e) => {
     console.error("[silent-close] falhou", e);
     return 0;
