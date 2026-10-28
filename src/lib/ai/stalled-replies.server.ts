@@ -474,6 +474,14 @@ async function sweepUnansweredGuestMessages(admin: Admin, limit: number): Promis
   for (const c of (rows ?? []) as Array<any>) {
     if (done >= limit) break;
     if (c.status === "assigned") continue;
+    // Pergunta já aberta para a equipe: a equipe já foi avisada. Reprocessar
+    // gerava uma 2ª consulta e um 2º aviso nos celulares (caso Davi, 28/10).
+    const { count: openEsc } = await admin
+      .from("ai_human_escalations")
+      .select("id", { count: "exact", head: true })
+      .eq("conversation_id", c.id)
+      .eq("status", "pending");
+    if ((openEsc ?? 0) > 0) continue;
     try {
       const { data: last } = await admin
         .from("property_chat_messages")
