@@ -157,7 +157,9 @@ function Painel() {
       </span>
     );
   };
-  const usoLimite = d?.cartao?.limite ? Math.min(100, (d.cartao.fatura / d.cartao.limite) * 100) : null;
+  const usoLimite = d?.cartao?.limite
+    ? Math.min(100, (((d.cartao as { usado?: number | null }).usado ?? d.cartao.fatura) / d.cartao.limite) * 100)
+    : null;
   const filtersOn = compare !== "prev" || bank !== "all" || span !== 12 || ref !== 0;
   const unitName = viewOf(span).unit;
   const pageTitle = period

@@ -253,7 +253,8 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
       })),
       cartao: card
         ? {
-            fatura: Number(card.balance) || 0,
+            fatura: faturaAberta ?? (Number(card.balance) || 0),
+            usado: usado != null ? round(usado) : null,
             limite: Number(card.credit_data?.creditLimit ?? 0) || null,
             disponivel: Number(card.credit_data?.availableCreditLimit ?? 0) || null,
           }
