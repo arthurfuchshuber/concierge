@@ -68,8 +68,39 @@ const TOOLTIP_STYLE = {
 
 type Compare = "none" | "prev" | "yoy";
 type Bank = "all" | "btg" | "nubank";
-const COMPARE_LABEL: Record<Compare, string> = { none: "Sem comparação", prev: "Mês anterior", yoy: "Mesmo período do ano anterior" };
+type Ref = 0 | 1;
 const BANK_LABEL: Record<Bank, string> = { all: "Todas as contas", btg: "Somente BTG", nubank: "Somente Nubank" };
+
+/** Visões de período (em meses) — o período segue o bloco do calendário (jan–mar, abr–jun…). */
+const VIEWS = [
+  { span: 1, label: "Mensal", unit: "Mês" },
+  { span: 2, label: "Bimestral", unit: "Bimestre" },
+  { span: 3, label: "Trimestral", unit: "Trimestre" },
+  { span: 4, label: "Quadrimestral", unit: "Quadrimestre" },
+  { span: 6, label: "Semestral", unit: "Semestre" },
+  { span: 12, label: "Anual", unit: "Ano" },
+] as const;
+const viewOf = (span: number) => VIEWS.find((v) => v.span === span) ?? VIEWS[0];
+
+/** Bloco da visão que contém hoje (ref 0) ou o anterior (ref 1); o atual vai até hoje. */
+function viewRange(span: number, ref: Ref): QuickPeriod {
+  const t = todaySP();
+  const y = Number(t.slice(0, 4));
+  const m0 = Number(t.slice(5, 7)) - 1;
+  const startIdx = Math.floor(m0 / span) * span - ref * span;
+  const s = new Date(Date.UTC(y, startIdx, 1));
+  const e = new Date(Date.UTC(y, startIdx + span, 0));
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  return { start: iso(s), end: ref === 0 ? t : iso(e) };
+}
+
+function viewLabel(span: number, r: QuickPeriod) {
+  const [y, m] = r.start.split("-").map(Number);
+  if (span === 1) return periodLabel(r);
+  if (span === 12) return `Ano de ${y}`;
+  const n = Math.floor((m - 1) / span) + 1;
+  return `${n}º ${viewOf(span).unit} de ${y}`;
+}
 
 /* ------------------------------ página ------------------------------ */
 function GerencialPage() {
@@ -93,12 +124,16 @@ function Painel() {
   const [period, setPeriod] = useState<QuickPeriod | null>(null);
   const [compare, setCompare] = useState<Compare>("prev");
   const [bank, setBank] = useState<Bank>("all");
-  const range = period ?? currentMonth();
+  const [span, setSpan] = useState<number>(1);
+  const [ref, setRef] = useState<Ref>(0);
+  // Datas escolhidas no calendário mandam; senão vale a visão (padrão: mês atual).
+  const range = period ?? (span === 1 && ref === 0 ? currentMonth() : viewRange(span, ref));
+  const effSpan = period ? 1 : span;
 
   const fn = useServerFn(getExecutiveDashboard);
   const q = useQuery({
-    queryKey: ["executive-dashboard", range.start, range.end, compare, bank],
-    queryFn: () => fn({ data: { ...range, compare, bank } }),
+    queryKey: ["executive-dashboard", range.start, range.end, compare, bank, effSpan],
+    queryFn: () => fn({ data: { ...range, compare, bank, span: effSpan } }),
     placeholderData: keepPreviousData,
     staleTime: 60_000,
   });
@@ -109,7 +144,8 @@ function Painel() {
   });
 
   const c = d?.comparacao ?? null;
-  const vsLabel = compare === "prev" ? "vs. mês anterior" : "vs. ano anterior";
+  const prevName = period ? "período anterior" : `${viewOf(span).unit.toLowerCase()} anterior`;
+  const vsLabel = compare === "prev" ? `vs. ${prevName}` : "vs. ano anterior";
   const delta = (cur: number, prev: number | undefined, invert = false) => {
     if (!c || prev == null) return null;
     const v = pct(cur, prev);
@@ -122,7 +158,9 @@ function Painel() {
     );
   };
   const usoLimite = d?.cartao?.limite ? Math.min(100, (d.cartao.fatura / d.cartao.limite) * 100) : null;
-  const filtersOn = compare !== "prev" || bank !== "all";
+  const filtersOn = compare !== "prev" || bank !== "all" || span !== 1 || ref !== 0;
+  const title = period ? periodLabel(range) : viewLabel(span, range);
+  const vsShort = compare === "none" ? "" : compare === "prev" ? `vs. ${prevName.replace(/^\w/, (x) => x.toUpperCase())}` : "vs. Ano Anterior";
 
   return (
     <div className="ds-page relative w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
