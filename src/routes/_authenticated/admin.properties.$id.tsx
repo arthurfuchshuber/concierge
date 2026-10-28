@@ -171,7 +171,7 @@ import { Smartphone, Monitor } from "lucide-react";
 import { isNewLayoutAccount } from "@/lib/new-layout-accounts";
 
 /** Contas com anúncio nativo do Airbnb (piloto): campos importados via API somem do editor. */
-const NATIVE_AIRBNB_OWNERS = new Set(["25239e5b-1a66-46f1-b9a2-829c499cc366"]);
+const NATIVE_AIRBNB_OWNERS = { has: (id: string) => !!id }; // liberado para todas as contas
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   // Imóveis só nascem pela importação da conta conectada (19/10/2026):
