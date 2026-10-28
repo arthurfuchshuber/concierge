@@ -197,7 +197,11 @@ function Painel() {
             ) : null} />
           <StatCard icon={ArrowDownRight} label="Entradas" value={brl(d?.atual.entradas)} loading={!d}
             note={d ? delta(d.atual.entradas, c?.entradas) : null} />
-          <StatCard icon={Wallet} label="Resultado" value={brl(d?.atual.resultado)} loading={!d}
+          <StatCard icon={Wallet}
+            label={!d ? "Resultado" : d.atual.resultado >= 0 ? "Resultado positivo" : "Resultado negativo"}
+            value={d ? <span className={d.atual.resultado >= 0 ? "text-success" : "text-destructive"}>{brl(d.atual.resultado)}</span> : "—"}
+            iconTone={d ? (d.atual.resultado >= 0 ? "var(--success)" : "var(--destructive)") : undefined}
+            loading={!d}
             note={d ? <span className="font-medium text-muted-foreground">Saídas {brl(d.atual.saidas)}</span> : null} />
         </div>
         {q.isError ? (
