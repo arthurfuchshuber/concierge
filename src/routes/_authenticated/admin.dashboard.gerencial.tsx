@@ -125,7 +125,8 @@ function Painel() {
   const filtersOn = compare !== "prev" || bank !== "all";
 
   return (
-    <div className="ds-page mx-auto w-full max-w-7xl px-4 py-6 lg:px-8">
+    <div className="ds-page relative w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
+      <div aria-hidden className="ds-page-halo" />
       {/* Cabeçalho: o mesmo desenho do Financeiro (data, título, subtítulo, aba). */}
       <div className="ds-page-heading ds-page-head">
         <p className="ds-eyebrow ds-data text-[10.5px] tracking-[0.2em]">{hoje}</p>
@@ -146,12 +147,14 @@ function Painel() {
         {/* BARRA DO GERENCIAL (28/10/2026): período por extenso + calendário +
             filtros, acima dos cards que ela comanda. Mesma casca da busca. */}
         <div className="flex min-w-0 items-stretch ds-3d ds-3d-hover h-10 overflow-hidden rounded-[9px] bg-card !shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border),0_8px_14px_-8px_rgb(0_0_0/0.55)] lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px]">
-          <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 leading-tight">
-            <span className="truncate text-[13px] font-bold text-foreground">{periodLabel(range)}</span>
-            <span className="truncate text-[10.5px] font-medium text-muted-foreground">
-              {compare === "none" ? "Sem comparação" : `Comparando com ${COMPARE_LABEL[compare].toLowerCase()}`}
-              {bank !== "all" ? ` · ${BANK_LABEL[bank]}` : ""}
-            </span>
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 px-3.5 text-center leading-tight">
+            <span className="shrink-0 text-[13px] font-bold text-foreground">{periodLabel(range)}</span>
+            {(compare !== "none" || bank !== "all") && (
+              <span className="truncate text-[10.5px] font-medium text-muted-foreground">
+                {compare === "none" ? "" : compare === "prev" ? "vs. Mês Anterior" : "vs. Ano Anterior"}
+                {bank !== "all" ? `${compare === "none" ? "" : " · "}${BANK_LABEL[bank]}` : ""}
+              </span>
+            )}
           </div>
           <div className="ds-icon-actions flex shrink-0 divide-x divide-[color-mix(in_oklab,var(--foreground)_11%,transparent)] border-l border-[color-mix(in_oklab,var(--foreground)_11%,transparent)] [&>*]:!w-12 lg:[&>*]:!w-[52px] [&>*]:!flex-none [&>*]:!px-0">
             <PeriodQuickFilterButton value={period} onChange={setPeriod} max={todaySP()} defaultChip="Mês atual" />
