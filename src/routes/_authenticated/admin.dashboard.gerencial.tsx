@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
 import {
-  ArrowDownRight, ArrowUpRight, CalendarCheck, CreditCard, GitCompareArrows, Landmark, Lock,
+  ArrowDownRight, ArrowUpRight, CalendarCheck, CreditCard, GitCompareArrows, Landmark, Layers, Lock,
   SlidersHorizontal, Wallet,
 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis } from "recharts";
@@ -68,8 +68,39 @@ const TOOLTIP_STYLE = {
 
 type Compare = "none" | "prev" | "yoy";
 type Bank = "all" | "btg" | "nubank";
-const COMPARE_LABEL: Record<Compare, string> = { none: "Sem comparação", prev: "Mês anterior", yoy: "Mesmo período do ano anterior" };
+type Ref = 0 | 1;
 const BANK_LABEL: Record<Bank, string> = { all: "Todas as contas", btg: "Somente BTG", nubank: "Somente Nubank" };
+
+/** Visões de período (em meses) — o período segue o bloco do calendário (jan–mar, abr–jun…). */
+const VIEWS = [
+  { span: 1, label: "Mensal", unit: "Mês" },
+  { span: 2, label: "Bimestral", unit: "Bimestre" },
+  { span: 3, label: "Trimestral", unit: "Trimestre" },
+  { span: 4, label: "Quadrimestral", unit: "Quadrimestre" },
+  { span: 6, label: "Semestral", unit: "Semestre" },
+  { span: 12, label: "Anual", unit: "Ano" },
+] as const;
+const viewOf = (span: number) => VIEWS.find((v) => v.span === span) ?? VIEWS[0];
+
+/** Bloco da visão que contém hoje (ref 0) ou o anterior (ref 1); o atual vai até hoje. */
+function viewRange(span: number, ref: Ref): QuickPeriod {
+  const t = todaySP();
+  const y = Number(t.slice(0, 4));
+  const m0 = Number(t.slice(5, 7)) - 1;
+  const startIdx = Math.floor(m0 / span) * span - ref * span;
+  const s = new Date(Date.UTC(y, startIdx, 1));
+  const e = new Date(Date.UTC(y, startIdx + span, 0));
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  return { start: iso(s), end: ref === 0 ? t : iso(e) };
+}
+
+function viewLabel(span: number, r: QuickPeriod) {
+  const [y, m] = r.start.split("-").map(Number);
+  if (span === 1) return periodLabel(r);
+  if (span === 12) return `Ano de ${y}`;
+  const n = Math.floor((m - 1) / span) + 1;
+  return `${n}º ${viewOf(span).unit} de ${y}`;
+}
 
 /* ------------------------------ página ------------------------------ */
 function GerencialPage() {
@@ -93,12 +124,16 @@ function Painel() {
   const [period, setPeriod] = useState<QuickPeriod | null>(null);
   const [compare, setCompare] = useState<Compare>("prev");
   const [bank, setBank] = useState<Bank>("all");
-  const range = period ?? currentMonth();
+  const [span, setSpan] = useState<number>(1);
+  const [ref, setRef] = useState<Ref>(0);
+  // Datas escolhidas no calendário mandam; senão vale a visão (padrão: mês atual).
+  const range = period ?? (span === 1 && ref === 0 ? currentMonth() : viewRange(span, ref));
+  const effSpan = period ? 1 : span;
 
   const fn = useServerFn(getExecutiveDashboard);
   const q = useQuery({
-    queryKey: ["executive-dashboard", range.start, range.end, compare, bank],
-    queryFn: () => fn({ data: { ...range, compare, bank } }),
+    queryKey: ["executive-dashboard", range.start, range.end, compare, bank, effSpan],
+    queryFn: () => fn({ data: { ...range, compare, bank, span: effSpan } }),
     placeholderData: keepPreviousData,
     staleTime: 60_000,
   });
@@ -109,7 +144,8 @@ function Painel() {
   });
 
   const c = d?.comparacao ?? null;
-  const vsLabel = compare === "prev" ? "vs. mês anterior" : "vs. ano anterior";
+  const prevName = period ? "período anterior" : `${viewOf(span).unit.toLowerCase()} anterior`;
+  const vsLabel = compare === "prev" ? `vs. ${prevName}` : "vs. ano anterior";
   const delta = (cur: number, prev: number | undefined, invert = false) => {
     if (!c || prev == null) return null;
     const v = pct(cur, prev);
@@ -122,7 +158,9 @@ function Painel() {
     );
   };
   const usoLimite = d?.cartao?.limite ? Math.min(100, (d.cartao.fatura / d.cartao.limite) * 100) : null;
-  const filtersOn = compare !== "prev" || bank !== "all";
+  const filtersOn = compare !== "prev" || bank !== "all" || span !== 1 || ref !== 0;
+  const title = period ? periodLabel(range) : viewLabel(span, range);
+  const vsShort = compare === "none" ? "" : compare === "prev" ? `vs. ${prevName.replace(/^\w/, (x) => x.toUpperCase())}` : "vs. Ano Anterior";
 
   return (
     <div className="ds-page relative w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
@@ -153,17 +191,24 @@ function Painel() {
             filtros, acima dos cards que ela comanda. Mesma casca da busca. */}
         <div className="flex min-w-0 items-stretch ds-3d ds-3d-hover h-10 overflow-hidden rounded-[9px] bg-card !shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border),0_8px_14px_-8px_rgb(0_0_0/0.55)] lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px]">
           <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 px-3.5 text-center leading-tight">
-            <span className="shrink-0 text-[13px] font-bold text-foreground">{periodLabel(range)}</span>
+            <span className="shrink-0 text-[13px] font-bold text-foreground">{title}</span>
             {(compare !== "none" || bank !== "all") && (
               <span className="truncate text-[10.5px] font-medium text-muted-foreground">
-                {compare === "none" ? "" : compare === "prev" ? "vs. Mês Anterior" : "vs. Ano Anterior"}
+                {vsShort}
                 {bank !== "all" ? `${compare === "none" ? "" : " · "}${BANK_LABEL[bank]}` : ""}
               </span>
             )}
           </div>
           <div className="ds-icon-actions flex shrink-0 divide-x divide-[color-mix(in_oklab,var(--foreground)_11%,transparent)] border-l border-[color-mix(in_oklab,var(--foreground)_11%,transparent)] [&>*]:!w-12 lg:[&>*]:!w-[52px] [&>*]:!flex-none [&>*]:!px-0">
             <PeriodQuickFilterButton value={period} onChange={setPeriod} max={todaySP()} defaultChip="Mês atual" />
-            <FiltersButton compare={compare} onCompare={setCompare} bank={bank} onBank={setBank} active={filtersOn} />
+            <FiltersButton
+              compare={compare} onCompare={setCompare} bank={bank} onBank={setBank}
+              span={span} onSpan={(s) => { setSpan(s); setPeriod(null); }}
+              refPeriod={ref} onRef={(r) => { setRef(r); setPeriod(null); }}
+              unit={viewOf(span).unit}
+              active={filtersOn}
+              onClear={() => { setCompare("prev"); setBank("all"); setSpan(1); setRef(0); setPeriod(null); }}
+            />
           </div>
         </div>
         <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
@@ -310,10 +355,37 @@ function Linha({ t, v, last, muted }: { t: string; v: string; last?: boolean; mu
   );
 }
 
-function FiltersButton({ compare, onCompare, bank, onBank, active }: {
-  compare: Compare; onCompare: (c: Compare) => void; bank: Bank; onBank: (b: Bank) => void; active: boolean;
+function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`rounded-full px-[11px] py-[5px] text-[11px] font-semibold transition-colors ${
+        on ? "bg-accent/[0.14] text-accent" : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground"}`}>
+      {label}
+    </button>
+  );
+}
+
+function Section({ icon, title, right, top }: { icon: typeof Landmark; title: string; right?: ReactNode; top?: boolean }) {
+  return (
+    <div className={`flex items-center gap-[9px] ${top ? "border-b" : "border-y"} border-border px-3.5 py-[11px]`}>
+      <FilterIconBadge icon={icon} size="sm" />
+      <span className="ds-card-title min-w-0 flex-1">{title}</span>
+      {right}
+    </div>
+  );
+}
+
+function FiltersButton({ compare, onCompare, bank, onBank, span, onSpan, refPeriod, onRef, unit, active, onClear }: {
+  compare: Compare; onCompare: (c: Compare) => void; bank: Bank; onBank: (b: Bank) => void;
+  span: number; onSpan: (s: number) => void; refPeriod: Ref; onRef: (r: Ref) => void; unit: string;
+  active: boolean; onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const compareLabel: Record<Compare, string> = {
+    none: "Sem comparação",
+    prev: `${unit} anterior`,
+    yoy: "Mesmo período do ano anterior",
+  };
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -323,18 +395,19 @@ function FiltersButton({ compare, onCompare, bank, onBank, active }: {
         </button>
       </PopoverTrigger>
       <FitPopoverContent align="end" sideOffset={FILTER_PANEL_OFFSET} className={FILTER_PANEL_CLASS} onOpenAutoFocus={(e) => e.preventDefault()}>
-        <div className="flex items-center gap-[9px] border-b border-border px-3.5 py-[11px]">
-          <FilterIconBadge icon={GitCompareArrows} size="sm" />
-          <span className="ds-card-title min-w-0 flex-1">Comparar com</span>
-          {active ? <FilterHeaderClear onClick={() => { onCompare("prev"); onBank("all"); }} /> : null}
+        <Section icon={Layers} title="Visão" top right={active ? <FilterHeaderClear onClick={onClear} /> : null} />
+        <div className="flex flex-wrap gap-1.5 px-3.5 py-2.5">
+          {VIEWS.map((v) => <Chip key={v.span} label={v.label} on={span === v.span} onClick={() => onSpan(v.span)} />)}
         </div>
-        {(Object.keys(COMPARE_LABEL) as Compare[]).map((k, i, arr) => (
-          <FilterOptionRow key={k} label={COMPARE_LABEL[k]} selected={compare === k} onClick={() => onCompare(k)} last={i === arr.length - 1} />
+        <div className="flex flex-wrap gap-1.5 border-t border-border px-3.5 py-2.5">
+          <Chip label={`${unit} atual`} on={refPeriod === 0} onClick={() => onRef(0)} />
+          <Chip label={`${unit} anterior`} on={refPeriod === 1} onClick={() => onRef(1)} />
+        </div>
+        <Section icon={GitCompareArrows} title="Comparar com" />
+        {(Object.keys(compareLabel) as Compare[]).map((k, i, arr) => (
+          <FilterOptionRow key={k} label={compareLabel[k]} selected={compare === k} onClick={() => onCompare(k)} last={i === arr.length - 1} />
         ))}
-        <div className="flex items-center gap-[9px] border-y border-border px-3.5 py-[11px]">
-          <FilterIconBadge icon={Landmark} size="sm" />
-          <span className="ds-card-title min-w-0 flex-1">Contas</span>
-        </div>
+        <Section icon={Landmark} title="Contas" />
         {(Object.keys(BANK_LABEL) as Bank[]).map((k, i, arr) => (
           <FilterOptionRow key={k} label={BANK_LABEL[k]} selected={bank === k} onClick={() => onBank(k)} last={i === arr.length - 1} />
         ))}

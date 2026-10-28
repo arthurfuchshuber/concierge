@@ -644,10 +644,12 @@ export function FilterPeriodCalendar({
   if (min) disabled.push({ before: min });
   if (max) disabled.push({ after: max });
 
+  const monthChip = !!defaultChip && /m[eê]s/i.test(defaultChip.label);
   const quick: Array<{ key: string; label: string; range: DateRange | undefined }> = [
     { key: "today", label: "Hoje", range: clampRange(today, today, min, max) },
     { key: "7d", label: defaultChip ? "Próximos 7 dias" : "7 dias", range: clampRange(today, addDays(today, 6), min, max) },
-    { key: "month", label: "Este mês", range: clampRange(startOfMonth(today), endOfMonth(today), min, max) },
+    // Sem duplicar: quando o atalho padrão já é o mês atual, "Este mês" some.
+    ...(monthChip ? [] : [{ key: "month", label: "Este mês", range: clampRange(startOfMonth(today), endOfMonth(today), min, max) }]),
   ];
   const sameRange = (a?: DateRange, b?: DateRange) =>
     !!a?.from && !!a?.to && !!b?.from && !!b?.to && isSameDay(a.from, b.from) && isSameDay(a.to, b.to);

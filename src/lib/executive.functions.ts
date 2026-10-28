@@ -54,6 +54,8 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
         end: ISO,
         compare: z.enum(["none", "prev", "yoy"]).default("prev"),
         bank: z.enum(["all", "btg", "nubank"]).default("all"),
+        /** Tamanho da visão em meses (1 mês, 2 bimestre, 3 trimestre…): "anterior" recua isso. */
+        span: z.number().int().min(1).max(12).default(1),
       })
       .refine((v) => v.start <= v.end, "Período inválido")
       .parse(i),
@@ -82,8 +84,9 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
     const accIds = accs.map((a: any) => a.malvo_account_id);
     const cardIds = new Set(accs.filter((a: any) => a.type === "CREDIT").map((a: any) => a.malvo_account_id));
 
-    const cmpStart = data.compare === "none" ? null : shiftMonths(data.start, data.compare === "prev" ? -1 : -12);
-    const cmpEnd = data.compare === "none" ? null : shiftMonths(data.end, data.compare === "prev" ? -1 : -12);
+    const back = data.compare === "prev" ? -data.span : -12;
+    const cmpStart = data.compare === "none" ? null : shiftMonths(data.start, back);
+    const cmpEnd = data.compare === "none" ? null : shiftMonths(data.end, back);
     const fetchFrom = cmpStart && cmpStart < data.start ? cmpStart : data.start;
 
     const txs: any[] = [];
@@ -91,7 +94,7 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
       for (let from = 0; ; from += 1000) {
         const { data: page, error } = await db
           .from("malvo_transactions")
-          .select("malvo_account_id, date, amount, type, description, merchant, payment_data")
+          .select("malvo_account_id, date, amount, type, description, merchant, payment_data, category_id")
           .eq("account_owner_id", COMPANY_OWNER_ID)
           .in("malvo_account_id", accIds)
           .is("deleted_at", null)
@@ -105,12 +108,25 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
       }
     }
 
-    // Movimentos entre contas da própria empresa não são receita nem despesa
-    // (inclui Pix entre o Nubank PJ e o BTG PJ da própria empresa).
-    const isInternal = (t: any) =>
-      /aplica[cç][aã]o rdb|resgate rdb|conta remunerada|fatura|caixinha|transfer[eê]ncia entre contas|cr[eé]dito na conta corrente|d[eé]bito na conta corrente|rendimento remunera|nu pagamentos|fuchshuber this tecnologia/i.test(
-        [t.description, t.merchant?.name, t.payment_data?.receiver?.name, t.payment_data?.payer?.name].filter(Boolean).join(" "),
-      );
+    // Movimentos entre contas da própria empresa não são receita nem despesa.
+    // Pix entre Nubank PJ e BTG PJ: entrada cujo PAGADOR é o CNPJ da empresa,
+    // ou saída cujo RECEBEDOR é o CNPJ da empresa. Pix com sócios conta normal.
+    const COMPANY_CNPJ = "57851613000150";
+    const doc = (v: unknown) => String(v ?? "").replace(/\D/g, "");
+    const isInternal = (t: any) => {
+      if (
+        /aplica[cç][aã]o rdb|resgate rdb|conta remunerada|fatura|caixinha|transfer[eê]ncia entre contas|cr[eé]dito na conta corrente|d[eé]bito na conta corrente|rendimento remunera|nu pagamentos/i.test(
+          String(t.description ?? ""),
+        )
+      )
+        return true;
+      if (t.category_id === "04000000") return true; // mesma titularidade
+      const payer = doc(t.payment_data?.payer?.documentNumber?.value);
+      const receiver = doc(t.payment_data?.receiver?.documentNumber?.value);
+      if (t.type === "CREDIT" && payer === COMPANY_CNPJ) return true;
+      if (t.type === "DEBIT" && receiver === COMPANY_CNPJ) return true;
+      return false;
+    };
 
     type Flow = { day: string; amt: number; out: boolean; payee: string };
     const flows: Flow[] = [];
