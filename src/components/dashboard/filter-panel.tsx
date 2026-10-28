@@ -737,6 +737,7 @@ export function FilterPeriodCalendar({
           </button>
         </div>
         <DayPicker
+          fixedWeeks
           mode="range"
           locale={ptBR}
           showOutsideDays
@@ -923,6 +924,7 @@ export function FilterDateCalendar({
           </button>
         </div>
         <DayPicker
+          fixedWeeks
           mode="single"
           required
           locale={ptBR}
