@@ -275,7 +275,20 @@ function FlowChart({ data }: { data: Data }) {
     ...s,
     label: byMonth ? MESES[Number(s.key.slice(5, 7)) - 1] : String(Number(s.key.slice(8, 10))),
   }));
-  const colW = byMonth ? 104 : 72;
+  // ANTI-CORTE: a largura da coluna divide a tela em colunas inteiras
+  // (5 meses no celular, mais no desktop) — nenhuma barra fica cortada na borda.
+  const [boxW, setBoxW] = useState(0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setBoxW(el.clientWidth));
+    ro.observe(el);
+    setBoxW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+  const minCol = byMonth ? 64 : 44;
+  const perView = boxW ? Math.max(1, Math.min(rows.length || 1, Math.floor(boxW / minCol))) : 5;
+  const colW = boxW ? boxW / perView : minCol;
   const years: { y: string; n: number }[] = [];
   for (const r of rows) {
     const y = r.key.slice(0, 4);
