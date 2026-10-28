@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   ArrowDownRight, ArrowUpRight, CalendarCheck, CreditCard, GitCompareArrows, Landmark, Layers, Lock,
   SlidersHorizontal, Wallet,
@@ -275,7 +275,7 @@ function FlowChart({ data }: { data: Data }) {
     ...s,
     label: byMonth ? MESES[Number(s.key.slice(5, 7)) - 1] : String(Number(s.key.slice(8, 10))),
   }));
-  const colW = byMonth ? 64 : 44;
+  const colW = byMonth ? 104 : 72;
   const years: { y: string; n: number }[] = [];
   for (const r of rows) {
     const y = r.key.slice(0, 4);
@@ -284,32 +284,49 @@ function FlowChart({ data }: { data: Data }) {
     else years.push({ y, n: 1 });
   }
   const fmt = (v: number) => (v ? brlShort(v).replace(" mil", "k") : "");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [tip, setTip] = useState<{ x: number; y: number } | undefined>();
+  const TIP_W = 200;
+  const onMove = (s: any) => {
+    const el = scrollRef.current;
+    const x = s?.chartX;
+    if (!el || x == null) return setTip(undefined);
+    const visRight = el.scrollLeft + el.clientWidth;
+    const visLeft = el.scrollLeft;
+    let tx = x + 12;
+    if (tx + TIP_W > visRight) tx = x - TIP_W - 12;
+    if (tx < visLeft) tx = visLeft + 4;
+    setTip({ x: tx, y: 8 });
+  };
   return (
-    <section className={`${PANEL_SHELL} w-full px-3.5 py-3.5`}>
+    <section className={`${PANEL_SHELL} w-full min-w-0 px-3.5 py-3.5`}>
       <PanelHeading title={`Entradas e saídas · ${byMonth ? "por mês" : "por dia"}`} dotColor={SAGE} className="mb-2.5" />
-      <div className="ds-scroll-x">
+      <div ref={scrollRef} className="ds-scroll-x">
         <div style={{ width: Math.max(rows.length * colW, 100), minWidth: "100%" }}>
-          <div className="h-56">
+          <div className="h-60">
             {data ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={rows} margin={{ top: 20, right: 4, left: 4, bottom: 0 }} barGap={3} barCategoryGap="22%">
+                <BarChart data={rows} margin={{ top: 20, right: 4, left: 4, bottom: 0 }} barGap={4} barCategoryGap="14%"
+                  onMouseMove={onMove} onClick={onMove} onMouseLeave={() => setTip(undefined)}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 10.5, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} interval={0} />
-                  <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.3 }} contentStyle={TOOLTIP_STYLE}
+                  <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                    contentStyle={{ ...TOOLTIP_STYLE, width: TIP_W, whiteSpace: "nowrap" }}
+                    position={tip} allowEscapeViewBox={{ x: true, y: false }}
                     labelFormatter={(l: string) => (byMonth ? l : `Dia ${l}`)}
                     formatter={(v: number, n: string) => [brlFull(v), n === "entradas" ? "Entradas" : "Saídas"]} />
                   {(["entradas", "saidas"] as const).map((k) => (
                     <Bar key={k} dataKey={k} fill={k === "entradas" ? "var(--success)" : "var(--destructive)"} fillOpacity={0.85}
-                      radius={[3, 3, 0, 0]} maxBarSize={22} isAnimationActive={false}>
+                      radius={[3, 3, 0, 0]} maxBarSize={40} isAnimationActive={false}>
                       <LabelList dataKey={k} position="top" formatter={fmt}
-                        style={{ fontSize: 9.5, fill: "var(--muted-foreground)" }} />
+                        style={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
                     </Bar>
                   ))}
                 </BarChart>
               </ResponsiveContainer>
             ) : null}
           </div>
-          {data && years.length ? (
+          {data && years.length > 1 ? (
             <div className="mt-1 flex px-1">
               {years.map((s) => (
                 <div key={s.y} style={{ flexGrow: s.n, flexBasis: 0 }}
@@ -321,6 +338,11 @@ function FlowChart({ data }: { data: Data }) {
           ) : null}
         </div>
       </div>
+      {data && years.length === 1 ? (
+        <div className="mt-1 border-t border-border pt-1 text-center text-[10.5px] font-semibold tabular-nums text-muted-foreground">
+          {years[0].y}
+        </div>
+      ) : null}
       <div className="mt-3 flex items-center justify-center gap-4 text-[10.5px] font-medium text-muted-foreground">
         <span className="flex items-center gap-1"><span className="size-[7px] rounded-full bg-success" />Entradas</span>
         <span className="flex items-center gap-1"><span className="size-[7px] rounded-full bg-destructive" />Saídas</span>
