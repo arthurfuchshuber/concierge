@@ -1392,14 +1392,17 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         opcoes: livres,
         opcoes_periodo_parcial_ou_proximo: parciais,
         observacao:
-          livres.length > 0
+          (livres.length > 0
             ? "Ofereça as opções pelo nome e mande o link quando existir. Nunca cite preço — ele está no anúncio."
             : parciais.length > 0
               ? "Nenhuma unidade livre no período inteiro. Ofereça o trecho livre ou o período mais próximo com o " +
-                "nome do imóvel (ex.: 'temos outra residência de 11 a 13, posso te enviar o link?'). Nunca cite preço."
-              : "Nenhuma unidade livre nem em datas próximas. Diga isso com gentileza e pergunte se há flexibilidade; escale se insistir.",
+                "nome do imóvel. Nunca cite preço."
+              : "Nenhuma unidade livre nem em datas próximas. Diga isso com gentileza e pergunte se há flexibilidade; escale se insistir.") +
+          " ESTRUTURA OBRIGATÓRIA, curta e ordenada: (1) uma frase sobre as datas pedidas no imóvel atual (livre ou já com noites reservadas — nunca diga 'calendário desatualizado' nem exponha incerteza interna); " +
+          "(2) se houver, o período próximo de mesma duração no MESMO imóvel; (3) por último, a alternativa em outro imóvel, cada uma em linha própria com datas e o link logo abaixo. " +
+          "Nunca proponha imóvel alternativo sem link. Termine com UMA pergunta simples de escolha.",
         sem_link: [...livres, ...parciais].some((o) => !o.link_anuncio)
-          ? "Alguma unidade sugerida está sem link de anúncio cadastrado — cite o nome e diga que o anfitrião envia o link."
+          ? "Unidades sem link_anuncio NÃO podem ser oferecidas ao hóspede: omita-as e ofereça só as que têm link."
           : null,
       };
     },

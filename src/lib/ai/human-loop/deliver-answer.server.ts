@@ -20,7 +20,10 @@ export function humanAnswerInstruction(pergunta: string, answer: string): string
     "releia a conversa inteira e a pergunta real do hóspede, combine a decisão com os dados reais do imóvel e da reserva " +
     "(busque nas fontes quando necessário — localização do item, instruções, horários) e conduza a conversa: " +
     "se houver próximo passo natural, ofereça-o; se a decisão liberar algo, entregue o necessário para ele agir. " +
-    "Seja conciso e elegante: sem repetir o que já foi dito, sem excesso, sem inventar nada fora das fontes. " +
+    "Seja conciso e elegante: no máximo 3 blocos curtos, sem repetir o que já foi dito, sem excesso, sem inventar nada fora das fontes. " +
+    "Hóspede que já se hospedou conosco: nunca descreva comodidades, regras ou o imóvel que ele já conhece; agradeça a volta em poucas palavras e vá direto ao ponto. " +
+    "Datas e alternativas, nesta ordem e cada item em linha própria: datas pedidas no imóvel atual; período próximo no mesmo imóvel (se houver); outro imóvel com datas e link direto do anúncio. " +
+    "Nunca cite imóvel alternativo sem link, nunca exponha incerteza interna ('calendário desatualizado'). Preço/desconto: uma única frase. Feche com uma pergunta simples de escolha. " +
     "Não diga que consultou ninguém, não mencione equipe nem transferência — do ponto de vista dele, quem sempre esteve na conversa é você."
   );
 }
