@@ -91,7 +91,7 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
       for (let from = 0; ; from += 1000) {
         const { data: page, error } = await db
           .from("malvo_transactions")
-          .select("malvo_account_id, date, amount, type, description, merchant, payment_data")
+          .select("malvo_account_id, date, amount, type, description, merchant, payment_data, category_id")
           .eq("account_owner_id", COMPANY_OWNER_ID)
           .in("malvo_account_id", accIds)
           .is("deleted_at", null)
@@ -105,12 +105,25 @@ export const getExecutiveDashboard = createServerFn({ method: "GET" })
       }
     }
 
-    // Movimentos entre contas da própria empresa não são receita nem despesa
-    // (inclui Pix entre o Nubank PJ e o BTG PJ da própria empresa).
-    const isInternal = (t: any) =>
-      /aplica[cç][aã]o rdb|resgate rdb|conta remunerada|fatura|caixinha|transfer[eê]ncia entre contas|cr[eé]dito na conta corrente|d[eé]bito na conta corrente|rendimento remunera|nu pagamentos|fuchshuber this tecnologia/i.test(
-        [t.description, t.merchant?.name, t.payment_data?.receiver?.name, t.payment_data?.payer?.name].filter(Boolean).join(" "),
-      );
+    // Movimentos entre contas da própria empresa não são receita nem despesa.
+    // Pix entre Nubank PJ e BTG PJ: entrada cujo PAGADOR é o CNPJ da empresa,
+    // ou saída cujo RECEBEDOR é o CNPJ da empresa. Pix com sócios conta normal.
+    const COMPANY_CNPJ = "57851613000150";
+    const doc = (v: unknown) => String(v ?? "").replace(/\D/g, "");
+    const isInternal = (t: any) => {
+      if (
+        /aplica[cç][aã]o rdb|resgate rdb|conta remunerada|fatura|caixinha|transfer[eê]ncia entre contas|cr[eé]dito na conta corrente|d[eé]bito na conta corrente|rendimento remunera|nu pagamentos/i.test(
+          String(t.description ?? ""),
+        )
+      )
+        return true;
+      if (t.category_id === "04000000") return true; // mesma titularidade
+      const payer = doc(t.payment_data?.payer?.documentNumber?.value);
+      const receiver = doc(t.payment_data?.receiver?.documentNumber?.value);
+      if (t.type === "CREDIT" && payer === COMPANY_CNPJ) return true;
+      if (t.type === "DEBIT" && receiver === COMPANY_CNPJ) return true;
+      return false;
+    };
 
     type Flow = { day: string; amt: number; out: boolean; payee: string };
     const flows: Flow[] = [];
