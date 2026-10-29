@@ -49,14 +49,12 @@ import { GroupList, GroupRow, GroupTitle, StatusTrail, CHIP_BTN } from "./owner-
  *
  * Regra: o que PODEMOS informar no guia do hóspede é PÚBLICO; o que não
  * podemos é CONFIDENCIAL. Cada linha mostra a situação do preenchimento; as
- * linhas abrem a parte correspondente do editor (`focus`) ou, nas Senhas,
+ * linhas abrem o Playbook do imóvel (`/admin/playbook/:id`) ou, nas Senhas,
  * expandem aqui mesmo para nomear e editar cada uma.
  */
 
 const COLS =
-  "id, name, city, state, address, hero_image_url, airbnb_listing_url, airbnb_listing_last_synced_at, airbnb_ical_url, lock_code, lock_label, gate_code, gate_label, wifi_ssid, wifi_password, checkin_time, checkout_time, host_phone, house_rules, cleaning_price_normal_cents, cleaning_duration_normal_minutes";
-
-type Focus = "house" | "airbnb" | "guide" | "checkin" | "faq" | "recs";
+  "id, name, city, state, address, hero_image_url, airbnb_listing_url, airbnb_listing_last_synced_at, lock_code, lock_label, gate_code, gate_label, wifi_ssid, wifi_password, checkin_time, checkout_time, host_phone, house_rules, cleaning_price_normal_cents, cleaning_duration_normal_minutes";
 
 type RowDef = {
   key: string;
@@ -66,7 +64,6 @@ type RowDef = {
   /** undefined = sem como medir (sem selo) */
   ok?: boolean;
   missing?: string;
-  focus?: Focus;
   soon?: boolean;
 };
 
@@ -76,12 +73,10 @@ const SLOT_DEFAULT: Record<Slot, string> = { gate: "Portaria", lock: "Fechadura 
 export function OwnerPropertyWindow({
   propertyId,
   onClose,
-  returnTo,
   owner,
 }: {
   propertyId: string | null;
   onClose: () => void;
-  returnTo: string;
   owner?: { name: string | null; phone: string | null; country: string | null };
 }) {
   const navigate = useNavigate();
@@ -140,7 +135,6 @@ export function OwnerPropertyWindow({
               sub: [p.name, p.city].filter(Boolean).join(" · "),
               ok: has(p.name) && has(p.address),
               missing: "Falta endereço",
-              focus: "house",
             },
             {
               key: "airbnb",
@@ -149,7 +143,6 @@ export function OwnerPropertyWindow({
               sub: p.airbnb_listing_last_synced_at ? "Sincronizado" : "Link do anúncio",
               ok: has(p.airbnb_listing_url),
               missing: "Sem anúncio",
-              focus: "airbnb",
             },
           ],
         },
@@ -172,7 +165,6 @@ export function OwnerPropertyWindow({
               sub: "Rede e senha",
               ok: has(p.wifi_ssid),
               missing: "Falta rede",
-              focus: "house",
             },
             {
               key: "horarios",
@@ -181,7 +173,6 @@ export function OwnerPropertyWindow({
               sub: "Horários e instruções",
               ok: has(p.checkin_time) && has(p.checkout_time),
               missing: "Falta horário",
-              focus: "checkin",
             },
             {
               key: "faq",
@@ -190,7 +181,6 @@ export function OwnerPropertyWindow({
               sub: q.data!.faqs === 1 ? "1 pergunta" : `${q.data!.faqs} perguntas`,
               ok: q.data!.faqs > 0 && has(p.host_phone),
               missing: q.data!.faqs > 0 ? "Falta contato" : "Sem perguntas",
-              focus: "faq",
             },
             {
               key: "regras",
@@ -199,7 +189,6 @@ export function OwnerPropertyWindow({
               sub: "Regras, manual e detalhes",
               ok: has(p.house_rules),
               missing: "Sem regras",
-              focus: "house",
             },
           ],
         },
@@ -220,7 +209,6 @@ export function OwnerPropertyWindow({
               sub: q.data!.providers === 1 ? "1 vinculado" : `${q.data!.providers} vinculados`,
               ok: q.data!.providers > 0,
               missing: "Sem prestador",
-              focus: "house",
             },
             {
               key: "limp",
@@ -230,29 +218,18 @@ export function OwnerPropertyWindow({
               ok:
                 p.cleaning_price_normal_cents != null && p.cleaning_duration_normal_minutes != null,
               missing: "Falta custo",
-              focus: "house",
             },
           ],
         },
         {
           title: "Reserva",
-          count: 3,
+          count: 2,
           rows: [
-            {
-              key: "ical",
-              icon: Calendar,
-              title: "Calendário do Airbnb",
-              sub: "Link iCal",
-              ok: has(p.airbnb_ical_url),
-              missing: "Sem iCal",
-              focus: "house",
-            },
             {
               key: "hosp",
               icon: User,
               title: "Dados do hóspede",
               sub: "Reserva atual",
-              focus: "checkin",
             },
             {
               key: "docs",
@@ -417,9 +394,8 @@ export function OwnerPropertyWindow({
         trailing={rowTrail(r)}
         onClick={() =>
           navigate({
-            to: "/admin/properties/$id",
+            to: "/admin/playbook/$id",
             params: { id: p!.id },
-            search: { focus: r.focus ?? "house", returnTo },
           })
         }
       />
@@ -482,11 +458,10 @@ export function OwnerPropertyWindow({
                 </div>
                 <div className={`${ACTION_BAR} !h-9 !w-auto shrink-0 !rounded-sm`}>
                   <Link
-                    to="/admin/properties/$id"
+                    to="/admin/playbook/$id"
                     params={{ id: p.id }}
-                    search={{ focus: "house", returnTo }}
                     aria-label="Editar imóvel"
-                    title="Editar imóvel"
+                    title="Editar imóvel (Playbook)"
                     className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
                   >
                     <Pencil className={ACTION_ICON} />

@@ -56,7 +56,6 @@ import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingListState } from "@/components/ds/LoadingState";
 import { useImpersonation } from "@/hooks/useImpersonation";
-import { isNewLayoutAccount } from "@/lib/new-layout-accounts";
 import {
   summarizePropertyIntegration,
   type PropertyConnectionRow,
@@ -154,8 +153,8 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const belongsToActiveAccount = !activeAccountId || data?.accountId === activeAccountId;
   const rows: Row[] = belongsToActiveAccount ? (data?.rows ?? []) : [];
   const activities = belongsToActiveAccount ? (data?.activities ?? []) : [];
-  // Novo layout (etapa 1): SÓ a conta do Anfitrião Sigma — ver `new-layout-accounts.ts`.
-  const newLayout = kind === "owner" && isNewLayoutAccount(data?.accountId);
+  // Layout único de Proprietários (todas as contas, desde 28/10/2026); as demais listas seguem o layout de lista.
+  const newLayout = kind === "owner";
   const fullScreen = newLayout && kind === "owner";
   const properties = belongsToActiveAccount ? (data?.properties ?? []) : [];
   const connections = (

@@ -24,9 +24,7 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { ElevatorSegment, ParkingSpotsInput } from "@/components/editor/CondominiumInputs";
 import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
 import {
-  Loader2, Plus, Trash2, MapPinned, ClipboardCheck, BookOpen, UserRound, Shield,
-  DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle,
-  Home, Sparkles, NotebookPen, AlertTriangle,
+  Loader2, Plus, Trash2, HelpCircle, AlertTriangle,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -96,199 +94,18 @@ function groupFields(g: Group): FieldDef[] {
 
 
 /** Mesma organização (abas + quadrantes + ordem dos campos) do editor individual. */
+// Edição em massa alinhada à arquitetura atual (29/10/2026): dados do imóvel
+// (endereço, limpeza, check-in/out, senhas, Wi-Fi, regras, contatos) moram no
+// Playbook ou vêm do Airbnb via Channex e NÃO são mais editados aqui. Ficam só
+// as partes de Guia/Curadoria que fazem sentido aplicar em vários guias.
 const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
   {
-    id: "house", label: "A casa",
+    id: "faq", label: "FAQ",
     groups: [
-      // Mesma ordem de quadrantes da aba "A casa" do editor individual
-      // (admin.properties.$id.tsx) — precisa ser espelho fiel. "Calendário e
-      // reservas (Airbnb)" fica de fora de propósito: cada imóvel tem seu
-      // PRÓPRIO link de iCal, e aplicar o mesmo link em vários guias de uma
-      // vez quebraria a sincronização de reservas de todos eles.
-      {
-        id: "identity", title: "Identificação do Imóvel", icon: Home,
-        desc: "Proprietário e tipo do imóvel.",
-        fields: [
-          { key: "owner_contact_id", label: "Proprietário", kind: "select_owner" },
-          { key: "property_type_id", label: "Tipo do imóvel", kind: "select_property_type" },
-        ],
-      },
-      {
-        id: "cleaning", title: "Custos e Duração da Limpeza", icon: Sparkles,
-        desc: "Valores fixos cobrados e o período estimado de cada tipo de limpeza.",
-        fields: [
-          { key: "cleaning_price_normal_cents", label: "Valor (R$) — Limpeza normal", kind: "money" },
-          { key: "cleaning_duration_normal_minutes", label: "Prazo estimado — Limpeza normal", kind: "duration" },
-          { key: "cleaning_price_full_cents", label: "Valor (R$) — Limpeza completa", kind: "money" },
-          { key: "cleaning_duration_full_minutes", label: "Prazo estimado — Limpeza completa", kind: "duration" },
-        ],
-      },
-      {
-        id: "address", title: "Endereço e localização", icon: MapPinned,
-        desc: "Cole o link do Google Maps — o endereço é preenchido automaticamente.",
-        fields: [
-          { key: "maps_url", label: "Link do Google Maps — Entrada principal", kind: "text" },
-          { key: "garage_maps_url", label: "Link do Google Maps — Garagem (opcional)", kind: "text" },
-          { key: "address", label: "Endereço", kind: "textarea" },
-          { key: "city", label: "Cidade", kind: "text" },
-          { key: "country", label: "País", kind: "text" },
-          { key: "address_note", label: "Observação sobre o endereço", kind: "textarea" },
-          // Grupo "Condomínio?" (01/10/2026): a chave liga/desliga e os demais
-          // só aparecem com ela ligada (ver isFieldVisible). Desligar NÃO apaga
-          // os valores guardados — só o que for editado aqui é gravado.
-          { key: "in_condominium", label: "Condomínio?", kind: "boolean" },
-          { key: "apartment_number", label: "Nº do apartamento", kind: "text", placeholder: "302" },
-          { key: "apartment_floor", label: "Andar", kind: "text", placeholder: "3" },
-          { key: "parking_spots", label: "Vaga de garagem", kind: "spots", placeholder: "14" },
-          { key: "has_elevator", label: "Elevador", kind: "elevator" },
-        ],
-      },
-      {
-        id: "house-rules", title: "Regras do espaço", icon: ClipboardCheck,
-        desc: "Uma regra por linha — cada linha vira um item numerado no guia.",
-        fields: [{ key: "house_rules", label: "Regras (opcional)", kind: "textarea" }],
-      },
-      {
-        id: "manual", title: "Manual da casa", icon: BookOpen,
-        desc: "Instruções de equipamentos e funcionamento.",
-        lists: ["manual"],
-      },
-      {
-        id: "property-details", title: "Detalhamento do Imóvel", icon: NotebookPen,
-        desc: "Base de conhecimento livre: micro detalhes que a IA usa e que não aparecem no guia.",
-        lists: ["property_details"],
-      },
-      {
-        id: "host-house", title: "Contato do anfitrião", icon: UserRound,
-        desc: "Nome e WhatsApp para o hóspede te encontrar.",
-        fields: [
-          { key: "host_name", label: "Nome", kind: "text" },
-          { key: "host_phone", label: "Telefone (WhatsApp)", kind: "text" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "guide", label: "O guia",
-    groups: [
-      {
-        id: "access-mode", title: "Modo de acesso", icon: Shield,
-        desc: "Quem pode visualizar este guia.",
-        fields: [
-          { key: "access_mode", label: "Modo de acesso do Guia", kind: "access_mode" },
-          { key: "pin_code", label: "Código de acesso", kind: "text" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "checkin", label: "Checkin",
-    groups: [
-      {
-        id: "checkin-instr", title: "Instruções de chegada", icon: DoorOpen,
-        desc: "Passo a passo do check-in. Uma etapa por linha.",
-        fields: [{ key: "checkin_instructions", label: "Passo a passo (opcional)", kind: "textarea" }],
-      },
-      {
-        id: "checkin-times", title: "Horários de check-in", icon: Clock,
-        desc: "Janela de chegada.",
-        fields: [
-          { key: "checkin_time", label: "Check-in a partir de", kind: "text", placeholder: "15:00" },
-          { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "22:00" },
-          { key: "checkin_note", label: "Observação do check-in (opcional)", kind: "textarea" },
-        ],
-      },
-      {
-        id: "access-codes", title: "Senhas de Acesso", icon: KeyRound,
-        desc: "Códigos de portão e fechadura, mais o código que libera as senhas no Guia.",
-        subgroups: [
-          {
-            id: "gate", title: "Portão",
-            fields: [
-              { key: "gate_code", label: "Código do portão", kind: "text" },
-              { key: "gate_label", label: "Defina um nome", kind: "text" },
-              { key: "gate_instructions", label: "Passo a passo (opcional)", kind: "textarea" },
-            ],
-          },
-          {
-            id: "lock", title: "Fechadura",
-            fields: [
-              { key: "lock_code", label: "Código da fechadura", kind: "text" },
-              { key: "lock_label", label: "Defina um nome", kind: "text" },
-              { key: "lock_instructions", label: "Passo a passo (opcional)", kind: "textarea" },
-            ],
-          },
-        ],
-        fields: [
-          { key: "access_codes_pin", label: "Senha para liberar códigos e Wi-Fi", kind: "text" },
-        ],
-      },
-
-      {
-        id: "wifi", title: "Wi-Fi", icon: Wifi,
-        desc: "Rede e senha exibidas no card de Wi-Fi do guia público.",
-        fields: [
-          { key: "wifi_ssid", label: "Rede (SSID)", kind: "text" },
-          { key: "wifi_password", label: "Senha", kind: "text" },
-        ],
-      },
-      {
-        id: "guest-data", title: "Dados do hóspede", icon: ClipboardList,
-        desc: "O que é coletado no formulário de primeiro acesso.",
-        fields: [
-          { key: "collect_arrival_time", label: "Horário previsto de chegada", kind: "collect" },
-          { key: "collect_vehicles", label: "Veículo(s)", kind: "collect" },
-          { key: "vehicles_max", label: "Qtd. máxima de veículos", kind: "number" },
-          { key: "collect_document", label: "Documento pessoal", kind: "collect" },
-          { key: "document_scope", label: "Documentos: hóspedes", kind: "docscope" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "checkout", label: "Checkout",
-    groups: [
-      {
-        id: "checkout-instr", title: "Instruções de saída", icon: LogOut,
-        desc: "Passo a passo do check-out. Uma etapa por linha.",
-        fields: [{ key: "checkout_instructions", label: "Passo a passo (opcional)", kind: "textarea" }],
-      },
-      {
-        id: "checkout-times", title: "Horários de check-out", icon: Clock,
-        desc: "Janela de saída.",
-        fields: [
-          { key: "checkout_time_min", label: "Check-out a partir de", kind: "text", placeholder: "08:00" },
-          { key: "checkout_time", label: "Check-out até", kind: "text", placeholder: "11:00" },
-          { key: "checkout_note", label: "Observação do check-out (opcional)", kind: "textarea" },
-        ],
-      },
-      {
-        id: "checkout-list", title: "Checklist de check-out", icon: ClipboardCheck,
-        desc: "O que o hóspede deve fazer antes de sair.",
-        lists: ["checkout"],
-      },
-    ],
-  },
-  {
-    id: "faq", label: "FAQ & Contatos",
-    groups: [
-      {
-        id: "emergency", title: "Emergências", icon: Phone,
-        desc: "Telefones úteis em caso de urgência.",
-        lists: ["emergency"],
-      },
       {
         id: "faqs", title: "Perguntas frequentes", icon: HelpCircle,
         desc: "Antecipe dúvidas comuns dos hóspedes.",
         lists: ["faqs"],
-      },
-      {
-        id: "host-faq", title: "Contato do anfitrião", icon: UserRound,
-        desc: "Nome e WhatsApp para o hóspede te encontrar.",
-        fields: [
-          { key: "host_name", label: "Nome", kind: "text" },
-          { key: "host_phone", label: "Telefone (WhatsApp)", kind: "text" },
-        ],
       },
     ],
   },
@@ -427,7 +244,7 @@ export function BulkEditDialog({
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   // Aba atual controlada: o popup precisa lembrar onde a pessoa parou mesmo
   // que o componente pai re-renderize (refetch, troca de aba do navegador…).
-  const [tab, setTab] = useState<string>(TEXT_TABS[0]?.id ?? "house");
+  const [tab, setTab] = useState<string>(TEXT_TABS[0]?.id ?? "faq");
 
   // `ids` é um array novo a cada render do pai — usar a chave estável evita
   // recarregar (e resetar) o popup sem necessidade.
@@ -498,7 +315,7 @@ export function BulkEditDialog({
     listVersionRef.current = {};
     saveQueueRef.current = Promise.resolve();
     loadedKeyRef.current = null;
-    setTab(TEXT_TABS[0]?.id ?? "house");
+    setTab(TEXT_TABS[0]?.id ?? "faq");
     setIsDirty(false);
     setSaveStatus("idle");
     setSaveError(null);
@@ -987,68 +804,8 @@ export function BulkEditDialog({
 }
 
 function renderList(k: ListKey, state: State, setState: React.Dispatch<React.SetStateAction<State>>, markDirty: () => void) {
-  if (k === "manual") {
-    return (
-      <div className="space-y-2 mt-2">
-        {state.manual.map((m, i) => (
-          <div key={i} className="rounded-lg border border-border p-2 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Input value={m.title} placeholder="Título" className="h-8 text-sm"
-                onChange={(e) => { markDirty(); setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) })); }} />
-              <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, manual: s.manual.filter((_, j) => j !== i) })); }}>
-                <Trash2 className="size-3.5" />
-              </Button>
-            </div>
-            <Input value={m.description} placeholder="Descrição curta (opcional)" className="h-8 text-xs"
-              onChange={(e) => { markDirty(); setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) })); }} />
-            <Textarea value={m.body} placeholder="Instruções detalhadas (opcional)" rows={2} className="text-xs"
-              onChange={(e) => { markDirty(); setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) })); }} />
-          </div>
-        ))}
-        <Button variant="outline" size="sm" onClick={() => { markDirty(); setState((s) => ({ ...s, manual: [...s.manual, { title: "", description: "", body: "" }] })); }}>
-          <Plus className="size-3.5 mr-1" /> Adicionar item
-        </Button>
-      </div>
-    );
-  }
-  if (k === "checkout") {
-    return (
-      <div className="space-y-2 mt-2">
-        {state.checkout.map((c, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <Input value={c.label} placeholder="Ex.: Deixar as chaves na fechadura" className="h-8 text-sm"
-              onChange={(e) => { markDirty(); setState((s) => ({ ...s, checkout: s.checkout.map((x, j) => j === i ? { label: e.target.value } : x) })); }} />
-            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, checkout: s.checkout.filter((_, j) => j !== i) })); }}>
-              <Trash2 className="size-3.5" />
-            </Button>
-          </div>
-        ))}
-        <Button variant="outline" size="sm" onClick={() => { markDirty(); setState((s) => ({ ...s, checkout: [...s.checkout, { label: "" }] })); }}>
-          <Plus className="size-3.5 mr-1" /> Adicionar item
-        </Button>
-      </div>
-    );
-  }
-  if (k === "emergency") {
-    return (
-      <div className="space-y-2 mt-2">
-        {state.emergency.map((c, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <Input value={c.label} placeholder="Ex.: SAMU" className="h-8 text-sm"
-              onChange={(e) => { markDirty(); setState((s) => ({ ...s, emergency: s.emergency.map((x, j) => j === i ? { ...x, label: e.target.value } : x) })); }} />
-            <Input value={c.number} placeholder="Número" className="h-8 text-sm max-w-[160px]"
-              onChange={(e) => { markDirty(); setState((s) => ({ ...s, emergency: s.emergency.map((x, j) => j === i ? { ...x, number: e.target.value } : x) })); }} />
-            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, emergency: s.emergency.filter((_, j) => j !== i) })); }}>
-              <Trash2 className="size-3.5" />
-            </Button>
-          </div>
-        ))}
-        <Button variant="outline" size="sm" onClick={() => { markDirty(); setState((s) => ({ ...s, emergency: [...s.emergency, { label: "", number: "" }] })); }}>
-          <Plus className="size-3.5 mr-1" /> Adicionar contato
-        </Button>
-      </div>
-    );
-  }
+  // Manual da casa, checklist, emergências e detalhamento saíram da edição em
+  // massa (moram no Playbook); só as perguntas frequentes continuam aqui.
   if (k === "faqs") {
     return (
       <div className="space-y-2 mt-2">
@@ -1073,28 +830,7 @@ function renderList(k: ListKey, state: State, setState: React.Dispatch<React.Set
       </div>
     );
   }
-  // property_details: mesma simplificação do Manual da casa — só título +
-  // conteúdo (sem imagens/áudio, que são específicos de cada imóvel).
-  return (
-    <div className="space-y-2 mt-2">
-      {state.property_details.map((d, i) => (
-        <div key={i} className="rounded-lg border border-border p-2 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Input value={d.title} placeholder="Título (opcional)" className="h-8 text-sm"
-              onChange={(e) => { markDirty(); setState((s) => ({ ...s, property_details: s.property_details.map((x, j) => j === i ? { ...x, title: e.target.value } : x) })); }} />
-            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, property_details: s.property_details.filter((_, j) => j !== i) })); }}>
-              <Trash2 className="size-3.5" />
-            </Button>
-          </div>
-          <Textarea value={d.content} placeholder="Conteúdo — micro detalhes que a IA usa" rows={3} className="text-xs"
-            onChange={(e) => { markDirty(); setState((s) => ({ ...s, property_details: s.property_details.map((x, j) => j === i ? { ...x, content: e.target.value } : x) })); }} />
-        </div>
-      ))}
-      <Button variant="outline" size="sm" onClick={() => { markDirty(); setState((s) => ({ ...s, property_details: [...s.property_details, { title: "", content: "" }] })); }}>
-        <Plus className="size-3.5 mr-1" /> Adicionar item
-      </Button>
-    </div>
-  );
+  return null;
 }
 
 function renderField(

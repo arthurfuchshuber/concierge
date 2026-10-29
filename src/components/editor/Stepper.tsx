@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { Lock, Home, FileText, DoorOpen, LogOut, LifeBuoy, Compass } from "lucide-react";
+import { Lock } from "lucide-react";
 import { CountPill } from "@/components/dashboard/panel-chrome";
 import { useAntiClipBar } from "@/hooks/useAntiClipBar";
 export type StepDef = {
@@ -10,21 +10,8 @@ export type StepDef = {
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
 };
 
-/** Abas do editor de guia — mesma ordem em todas as telas do imóvel. */
-export const GUIDE_STEPS: StepDef[] = [
-  { value: "house", label: "A casa", icon: Home },
-  { value: "guide", label: "O guia", icon: FileText },
-  { value: "checkin", label: "Checkin", icon: DoorOpen },
-  { value: "checkout", label: "Checkout", icon: LogOut },
-  { value: "faq", label: "FAQ & Contatos", icon: LifeBuoy },
-  { value: "recs", label: "Recomendações", icon: Compass },
-];
-
-/** Todas as abas exceto "A casa" — usado nas telas que só editam a casa. */
-export const NON_HOUSE_STEPS = GUIDE_STEPS.filter((s) => s.value !== "house").map((s) => s.value);
-
 export function Stepper({
-  steps = GUIDE_STEPS,
+  steps,
   current,
   onChange,
   lockedValues,
@@ -36,7 +23,7 @@ export function Stepper({
   withIcons?: boolean;
   /** Rótulo 12px e vão de 5px (mockups da ficha do proprietário, 13/10/2026): quatro abas cabem no celular. */
   compact?: boolean;
-  steps?: StepDef[];
+  steps: StepDef[];
   current: string;
   onChange: (v: string) => void;
   // Abas visíveis mas ainda não liberadas (ex.: guia com dados obrigatórios

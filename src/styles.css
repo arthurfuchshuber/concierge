@@ -398,14 +398,6 @@
     -webkit-backdrop-filter: saturate(180%) blur(20px);
   }
 
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
   .text-balance {
     text-wrap: balance;
   }
@@ -448,20 +440,6 @@
   }
 
   /* Slow pulse for the wifi icon halo */
-  @keyframes wifi-pulse {
-    0%,
-    100% {
-      opacity: 0.45;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.9;
-      transform: scale(1.08);
-    }
-  }
-  .wifi-pulse {
-    animation: wifi-pulse 3s ease-in-out infinite;
-  }
 }
 
 /* International phone input — premium guide-access styling */
@@ -596,43 +574,6 @@ body::-webkit-scrollbar {
 
 /* Continuous shine sweep for CTA buttons */
 
-@keyframes btn-shine-sweep {
-  0% {
-    transform: translateX(-160%) skewX(-20deg);
-  }
-  60% {
-    transform: translateX(260%) skewX(-20deg);
-  }
-  100% {
-    transform: translateX(260%) skewX(-20deg);
-  }
-}
-.btn-shine {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-.btn-shine::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 45%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.55) 50%,
-    transparent 100%
-  );
-  animation: btn-shine-sweep 3s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 1;
-}
-.btn-shine > * {
-  position: relative;
-  z-index: 2;
-}
 
 /* Regra global: pontuação nunca inicia uma linha (evita órfãos ",", ".", ";", etc). */
 :root {
@@ -678,45 +619,6 @@ dd {
 }
 
 /* Amber mirror sweep — faixa "Liberado Limpeza" */
-@keyframes amber-mirror-sweep {
-  0% {
-    transform: translateX(-140%) skewX(-18deg);
-  }
-  55% {
-    transform: translateX(320%) skewX(-18deg);
-  }
-  100% {
-    transform: translateX(320%) skewX(-18deg);
-  }
-}
-.amber-mirror {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  border-radius: 1rem;
-}
-.amber-mirror::after {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 38%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in oklab, oklch(0.83 0.16 85) 42%, transparent) 50%,
-    transparent 100%
-  );
-  filter: blur(2px);
-  animation: amber-mirror-sweep 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  pointer-events: none;
-  z-index: 3;
-}
-@media (prefers-reduced-motion: reduce) {
-  .amber-mirror::after {
-    animation: none;
-    opacity: 0;
-  }
-}
 
 /* Barra de rolagem sempre visível — sinaliza que há mais conteúdo abaixo. */
 .sg-always-scroll {

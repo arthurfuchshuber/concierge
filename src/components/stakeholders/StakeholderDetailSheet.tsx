@@ -3,7 +3,7 @@ import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -291,7 +291,6 @@ export function StakeholderDetailSheet({
   // Pra onde "Voltar"/"Fechar" leva ao editar a casa de um imóvel a partir
   // daqui — como o editor de imóvel é uma página própria (não um popup),
   // sem isso a pessoa perderia esta ficha do proprietário aberta.
-  const returnToHere = useRouterState({ select: (s) => s.location.href });
   const [transferTargetId, setTransferTargetId] = useState<string>("");
   // Dados pessoais sempre começam recolhidos ao abrir a ficha.
   const [dataOpen, setDataOpen] = useState(false);
@@ -1646,7 +1645,6 @@ export function StakeholderDetailSheet({
         <OwnerPropertyWindow
           propertyId={windowPropertyId}
           onClose={() => setWindowPropertyId(null)}
-          returnTo={returnToHere}
           owner={{ name: row.name, phone: ownerPhone, country: ownerCountry }}
         />
       </div>
@@ -2255,11 +2253,10 @@ export function StakeholderDetailSheet({
                         ) : (
                           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
                             <Link
-                              to="/admin/properties/$id"
+                              to="/admin/playbook/$id"
                               params={{ id: p.id }}
-                              search={{ houseOnly: true, returnTo: returnToHere }}
                               className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-tight text-muted-foreground transition-colors hover:text-foreground"
-                              title='Mesma tela da aba "A casa" do editor completo, sem as demais abas.'
+                              title="Abrir o Playbook (dossiê) do imóvel."
                             >
                               <Pencil className="size-3.5" /> Editar
                             </Link>
@@ -2267,7 +2264,7 @@ export function StakeholderDetailSheet({
                               to="/admin/properties/$id"
                               params={{ id: p.id }}
                               className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-tight text-muted-foreground transition-colors hover:text-foreground"
-                              title="Abrir o editor completo do guia (checkin, checkout, FAQ, recomendações)"
+                              title="Abrir a Curadoria & Dicas locais do imóvel"
                             >
                               <FileText className="size-3.5" /> Guia
                             </Link>

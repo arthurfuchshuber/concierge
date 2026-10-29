@@ -354,6 +354,7 @@ async function createFromListing(
         slug,
         city: l.city,
         published: false,
+        guide_created: true,
         airbnb_listing_url: `https://www.airbnb.com.br/rooms/${l.listingId}`,
       } as never)
       .select("id")

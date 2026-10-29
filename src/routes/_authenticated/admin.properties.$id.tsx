@@ -1,17 +1,13 @@
-import { createFileRoute, useNavigate, Link, useBlocker, redirect } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, redirect } from "@tanstack/react-router";
 import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useGuidePreviewUrl } from "@/hooks/useGuidePreviewUrl";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getMyProperty, upsertProperty, listMyProperties, transferPropertyOwner } from "@/lib/properties.functions";
-import { missingRequiredHouseFields } from "@/lib/property-house-fields";
-
-import { buildDefaultFaqs, mergeDefaultFaqs } from "@/lib/default-faqs";
+import { getMyProperty, upsertProperty, transferPropertyOwner } from "@/lib/properties.functions";
 import {
   enrichFromMapsLink,
   searchPlacesForRec,
-  refreshRecommendationsFromGoogle,
   type PlaceSearchResult,
 } from "@/lib/maps.functions";
 import {
@@ -25,14 +21,9 @@ import {
 import {
   listActivePropertyOwnersForSelect,
   listProvidersForProperty,
-  linkPropertyToProvider,
 } from "@/lib/stakeholders.functions";
-import { MultiLinkPicker } from "@/components/stakeholders/MultiLinkPicker";
-import { AddressAutocomplete } from "@/components/stakeholders/AddressAutocomplete";
-import type { AddressSuggestion } from "@/lib/address-lookup.functions";
 
-import { importFromAirbnb, type AirbnbAmenity, type AirbnbRoomBeds } from "@/lib/airbnb.functions";
-import { syncPropertyAirbnbIcal, listPropertyReservations } from "@/lib/airbnb-ical.functions";
+import { type AirbnbAmenity, type AirbnbRoomBeds } from "@/lib/airbnb.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { LinkGuidesButton } from "@/components/admin/LinkGuidesDialog";
@@ -40,17 +31,9 @@ import { POIMetricsBadge } from "@/components/POIMetricsBadge";
 import { getPropertyPoiCounts, getMarketplaceClicks } from "@/lib/poi-engagement.functions";
 
 import { Input } from "@/components/ui/input";
-import { GuideSlugField } from "@/components/editor/GuideSlugField";
-import { MoneyInput, centsToReaisInput } from "@/components/ui/money-input";
 import { Textarea } from "@/components/ui/textarea";
-import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
-import { slugForTag } from "@/lib/guide-tags";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Section, SectionGroup, DenseSections } from "@/components/editor/Section";
-import { Stepper, GUIDE_STEPS, NON_HOUSE_STEPS } from "@/components/editor/Stepper";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
@@ -61,44 +44,17 @@ import {
   MapPin,
   ArrowLeft,
   FileText,
-  KeyRound,
-  Home,
   Compass,
-  LifeBuoy,
-  Check,
   Eye,
   Image as ImageIcon,
-  ImagePlus,
-  MapPinned,
-  Clock,
-  DoorOpen,
-  Wifi,
-  UserRound,
-  BookOpen,
-  ClipboardCheck,
-  Shield,
-  Power,
-  Phone,
-  HelpCircle,
-  Sun,
-  Moon,
   Lock,
-  LogOut,
   ChevronDown,
   Ticket,
   RefreshCw,
-  Copy,
   Share2,
   X,
   MoveRight,
-  ClipboardList,
-  Car,
-  IdCard,
-  NotebookPen,
-  ArrowLeftRight,
   AlertTriangle,
-  Wrench,
-  Unlink,
 
 } from "lucide-react";
 import {
@@ -109,8 +65,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
-import { EtiquetaSelect } from "@/components/EtiquetaSelect";
+import { type MediaItem } from "@/components/MediaUpload";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -125,8 +80,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { TimePicker } from "@/components/ui/time-picker";
-import { DateTimePicker } from "@/components/ui/date-picker";
 import {
   TagPicker,
   useTaxonomy,
@@ -135,15 +88,11 @@ import {
 import { reorderPoiCategories } from "@/lib/poi-taxonomy.functions";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import {
-  PropertyDetailsEditor,
-  DetailImages,
   usePrefetchPropertyDetails,
 } from "@/components/admin/PropertyDetailsEditor";
-import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
 import { usePresence, useLiveState } from "@/hooks/usePresence";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
-import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 import { Pencil, Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/components/admin/SigmaImportButton";
@@ -151,7 +100,6 @@ import { getMyPropertySigmaState } from "@/lib/sigma-recommendations.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { useAccess } from "@/lib/permissions/useAccess";
-import { PageHeader } from "@/components/ds/PageHeader";
 import {
   PANEL_SHELL,
   PanelHeading,
@@ -163,15 +111,9 @@ import {
 } from "@/components/dashboard/panel-chrome";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { PropertyMapsButton } from "@/components/dashboard/PropertyMapsButton";
-import { ParkingElevatorGrid } from "@/components/editor/CondominiumInputs";
 import { normalizeParkingSpots } from "@/lib/property-location";
-import { AirbnbLockedValue, AirbnbLockReason, ADDRESS_LOCK_REASON } from "@/components/editor/AirbnbLockedField";
 import { SectionTopLineBar, type SectionTopLine } from "@/components/editor/Section";
 import { Smartphone, Monitor } from "lucide-react";
-import { isNewLayoutAccount } from "@/lib/new-layout-accounts";
-
-/** Contas com anúncio nativo do Airbnb (piloto): campos importados via API somem do editor. */
-const NATIVE_AIRBNB_OWNERS = { has: (id: string) => !!id }; // liberado para todas as contas
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   // Imóveis só nascem pela importação da conta conectada (19/10/2026):
@@ -179,18 +121,10 @@ export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   beforeLoad: ({ params }) => {
     if (params.id === "new") throw redirect({ to: "/admin/proprietarios", replace: true });
   },
-  // `houseOnly`: abre direto (e trava) na aba "A casa", sem a barra de abas —
-  // usado pelo botão "Editar" do imóvel dentro do proprietário em
-  // Stakeholders, que precisa espelhar exatamente esta mesma aba, sem
-  // duplicar seus campos em outra tela. `returnTo`: para onde volta o link
-  // "Voltar"/"Fechar" — sem ele, cai no padrão (/admin/guias).
-  validateSearch: (s: Record<string, unknown>): { houseOnly?: boolean; returnTo?: string; ownerId?: string; focus?: string } => ({
-    // `focus`: layout novo — abre SÓ a parte pedida (ex.: "checkin", "faq"),
-    // vinda das janelas Públicas/Confidenciais do imóvel dentro do proprietário.
-    ...(typeof s.focus === "string" && ["house", "airbnb", "guide", "checkin", "faq", "recs"].includes(s.focus)
-      ? { focus: s.focus }
-      : {}),
-    ...(s.houseOnly === true ? { houseOnly: true as const } : {}),
+  // `returnTo`: para onde volta o link "Voltar" — sem ele, cai no padrão
+  // (/admin/guias). Esta rota é SÓ a Curadoria & Dicas locais; os dados do
+  // imóvel moram no Playbook (/admin/playbook/:id).
+  validateSearch: (s: Record<string, unknown>): { returnTo?: string; ownerId?: string } => ({
     ...(typeof s.returnTo === "string" && s.returnTo ? { returnTo: s.returnTo } : {}),
     // Quando "Novo imóvel" é aberto de dentro de um proprietário específico
     // (Stakeholders → Proprietário → "Criar nova residência"), o campo
@@ -448,21 +382,11 @@ function slugify(s: string) {
     .slice(0, 60);
 }
 
-// missingRequiredHouseFields agora vive em "@/lib/property-house-fields" —
-// compartilhada também com o link "Editar" do imóvel dentro do Proprietário
-// em Stakeholders (que abre esta mesma página, em modo `houseOnly`), para as
-// duas entradas nunca mais divergirem sobre quais campos são obrigatórios.
-
 function PropertyEditor() {
   const { id } = Route.useParams();
   const isNew = id === "new";
   const navigate = useNavigate();
   const search = Route.useSearch();
-  // Modo "só a casa": usado quando se chega aqui pelo botão "Editar" de um
-  // imóvel já com guia criado, dentro do Proprietário em Stakeholders — trava
-  // na aba "A casa" e nunca mostra a barra de abas (mesma regra pedida para
-  // "Criar nova residência", que já cai na tela enxuta abaixo).
-  const houseOnly = search.houseOnly === true;
   const backTo = search.returnTo || "/admin/guias";
   // Detalhamento do imóvel já vem carregado em segundo plano: abrir a seção
   // é instantâneo, sem "Carregando…".
@@ -524,23 +448,7 @@ function PropertyEditor() {
   });
   const marketplaceClicks = marketplaceClicksData?.counts ?? {};
   const queryClient = useQueryClient();
-  const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null);
-
-  const importAirbnb = useServerFn(importFromAirbnb);
-  const syncIcal = useServerFn(syncPropertyAirbnbIcal);
-  const listReservations = useServerFn(listPropertyReservations);
-  const [syncingIcal, setSyncingIcal] = useState(false);
-
-  const [pendingIcalClear, setPendingIcalClear] = useState(false);
-  const [showIcal2, setShowIcal2] = useState(false);
-  const reservationsQuery = useQuery({
-    queryKey: ["airbnb-reservations", id],
-    queryFn: () => listReservations({ data: { propertyId: id } }),
-    enabled: !isNew,
-    refetchInterval: 60_000,
-  });
   const { info: sub } = useSubscription();
-  const canAirbnb = sub.features.autoImport;
   const canBrand = sub.features.customBrand;
 
   // Estado do pack ConciergeIA aplicado a este imóvel.
@@ -566,75 +474,18 @@ function PropertyEditor() {
 
   // Prestadores da conta + quais atendem este imóvel (vínculo N:N).
   const listProvidersFn = useServerFn(listProvidersForProperty);
-  const linkProviderFn = useServerFn(linkPropertyToProvider);
-  const [providersPickerOpen, setProvidersPickerOpen] = useState(false);
-  const [providersBusy, setProvidersBusy] = useState(false);
   const { data: providersData } = useQuery({
     queryKey: ["property-providers", id],
     queryFn: () => listProvidersFn({ data: { propertyId: id } }),
     enabled: !isNew,
     staleTime: 30_000,
   });
-  const providerOptions = providersData?.providers ?? [];
-  const linkedProviders = providerOptions.filter((p) => p.linked);
-
-  async function saveProviderLinks(selectedIds: string[]) {
-    setProvidersBusy(true);
-    try {
-      const before = new Set(linkedProviders.map((p) => p.id));
-      const after = new Set(selectedIds);
-      const toLink = selectedIds.filter((pid) => !before.has(pid));
-      const toUnlink = [...before].filter((pid) => !after.has(pid));
-      for (const providerId of [...toLink, ...toUnlink]) {
-        await linkProviderFn({
-          data: { providerId, propertyId: id, link: after.has(providerId) },
-        });
-      }
-      await queryClient.invalidateQueries({ queryKey: ["property-providers", id] });
-      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail" });
-      if (toLink.length || toUnlink.length) toast.success("Prestadores atualizados.");
-    } catch (e) {
-      toast.error(friendlyErrorMessage(e, "Não foi possível atualizar os prestadores."));
-    } finally {
-      setProvidersBusy(false);
-    }
-  }
-
-
-  // Transferência deliberada de proprietário — uma vez vinculado, o campo
-  // "Proprietário" fica travado (não é mais um <Select> livre) e só pode
-  // mudar através deste fluxo dedicado, com confirmação explícita.
-  const transferOwnerFn = useServerFn(transferPropertyOwner);
-  const [transferOpen, setTransferOpen] = useState(false);
-  const [transferTargetId, setTransferTargetId] = useState<string>("");
-  const [transferring, setTransferring] = useState(false);
-  async function handleConfirmTransfer() {
-    if (!transferTargetId || isNew) return;
-    setTransferring(true);
-    try {
-      await transferOwnerFn({ data: { propertyId: id, newOwnerContactId: transferTargetId } });
-      update("owner_contact_id", transferTargetId);
-      await queryClient.invalidateQueries({ queryKey: ["properties"] });
-      toast.success("Proprietário transferido com sucesso.");
-      setTransferOpen(false);
-      setTransferTargetId("");
-    } catch (e) {
-      toast.error(friendlyErrorMessage(e, "Não foi possível transferir o proprietário."));
-    } finally {
-      setTransferring(false);
-    }
-  }
 
   const [form, setForm] = useState<FormState>(() => {
     const base = emptyForm();
     if (isNew && search.ownerId) base.property.owner_contact_id = search.ownerId;
     return base;
   });
-  // Veio de dentro de um proprietário específico ("Criar nova residência") —
-  // o campo Proprietário nasce preenchido e travado, sem opção de trocar
-  // aqui (ver renderOwnerFields()).
-  const ownerLockedFromContext = isNew && !!search.ownerId;
-  const currentOwnerName = propertyOwnerOptions.find((o) => o.id === form.property.owner_contact_id)?.name;
   const formRef = useRef(form);
   formRef.current = form;
 
@@ -660,41 +511,10 @@ function PropertyEditor() {
   // `dirtyRef` acima) porque um ref não dispara re-render — ficaria
   // "grudado" mostrando a barra até algum outro campo mudar por acaso.
   const [savedPropertyKey, setSavedPropertyKey] = useState("");
-  const [step, setStepRaw] = useState<string>(() => {
-    if (typeof window === "undefined") return "house";
-    const raw = window.location.hash.replace("#tab-", "");
-    const valid = ["house", "airbnb", "guide", "checkin", "faq", "recs"];
-    return valid.includes(raw) ? raw : "house";
-  });
-  const setStep = React.useCallback((s: string) => {
-    setStepRaw(s);
-    if (typeof window !== "undefined") {
-      try {
-        window.history.replaceState(null, "", `#tab-${s}`);
-      } catch {}
-    }
-  }, []);
   const [enriching, setEnriching] = useState(false);
   const enrichedUrlRef = useRef<string | null>(null);
   const [generatingCityRecs, setGeneratingCityRecs] = useState(false);
   const [saving, setSaving] = useState(false);
-  // Itens para o picker @mention (FAQs do imóvel; recomendações são carregadas em outro fluxo).
-  const tagItems = React.useMemo<TagMentionItem[]>(() => {
-    const out: TagMentionItem[] = [];
-    const seen = new Set<string>();
-    for (const f of form.faqs) {
-      const q = (f.question ?? "").trim();
-      if (!q) continue;
-      const base = slugForTag(q);
-      if (!base) continue;
-      let s = base;
-      let n = 1;
-      while (seen.has(s)) s = `${base}-${++n}`;
-      seen.add(s);
-      out.push({ key: "faq", param: s, label: q.length > 80 ? q.slice(0, 77) + "…" : q, hint: "FAQ deste guia" });
-    }
-    return out;
-  }, [form.faqs]);
   const [airbnbUrl, setAirbnbUrl] = useState("");
   // Rehidrata o campo do anúncio a partir do que ficou salvo no imóvel.
   useEffect(() => {
@@ -702,18 +522,12 @@ function PropertyEditor() {
     if (saved && !airbnbUrl) setAirbnbUrl(saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.property.airbnb_listing_url]);
-  const [importingAirbnb, setImportingAirbnb] = useState(false);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
   const [genCityModeOpen, setGenCityModeOpen] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
-  // Subaba interna da aba "Check-in & Checkout" — pedido do cliente em
-  // 03/09/2026: separar visualmente o que é de check-in do que é de
-  // checkout dentro dessa aba (antes tudo ficava numa lista só, sem
-  // distinção). Ver JSX da TabsContent "checkin" mais abaixo.
-  const [checkinSubStep, setCheckinSubStep] = useState<"checkin" | "checkout">("checkin");
 
   const { data, isLoading } = useQuery({
     queryKey: ["property", id],
@@ -971,12 +785,6 @@ function PropertyEditor() {
   // com segurança, ou se isso apagaria o que você está digitando agora.
   const dirtyRef = useRef(false);
 
-  function update<K extends keyof FormState["property"]>(key: K, value: FormState["property"][K]) {
-    editVersionRef.current += 1;
-    dirtyRef.current = true;
-    setForm((f) => ({ ...f, property: { ...f.property, [key]: value } }));
-  }
-
   const normalizeRecName = (s: string) =>
     s
       .toLowerCase()
@@ -1032,57 +840,6 @@ function PropertyEditor() {
     }
     return set;
   }, [form.recommendations, cityRefsQuery.data]);
-
-  const [generatingNearbyRecs, setGeneratingNearbyRecs] = useState(false);
-  async function handleGenerateNearby() {
-    if (!form.property.maps_url) {
-      toast.error("Cole o link do Google Maps do imóvel antes de gerar.");
-      return;
-    }
-    setGeneratingNearbyRecs(true);
-    try {
-      const r = await enrich({ data: { mapsUrl: form.property.maps_url, propertyId: id !== "new" ? id : undefined } });
-      if (r.recommendations_skipped) {
-        toast.info(r.skip_reason ?? "Recomendações vinculadas: nada novo foi inserido.");
-        return;
-      }
-      const existing = new Set(form.recommendations.map((x) => x.place_id).filter((x): x is string => !!x));
-      const incoming = r.recommendations
-        .filter((rec) => rec.scope === "nearby")
-        .filter((rec) => (rec.distance_meters ?? 0) <= 2000)
-        .filter((rec) => !rec.place_id || !existing.has(rec.place_id))
-
-        .map((rec) => ({
-          scope: rec.scope,
-          type: rec.type,
-          name: rec.name,
-          category: rec.category,
-          rating: rec.rating,
-          user_ratings_total: rec.user_ratings_total,
-          distance_text: rec.distance_text,
-          distance_meters: rec.distance_meters,
-          drive_minutes: rec.drive_minutes,
-          walk_minutes: rec.walk_minutes,
-          opening_hours: rec.opening_hours,
-          image_url: rec.image_url,
-          maps_url: rec.maps_url,
-          place_id: rec.place_id,
-          note: rec.note,
-        }));
-      if (incoming.length === 0) {
-        toast.info("Nenhum lugar novo encontrado pertinho do imóvel.");
-      } else {
-        setForm((f) => ({ ...f, recommendations: [...f.recommendations, ...incoming] }));
-        toast.success(
-          `Adicionamos ${incoming.length} ${incoming.length === 1 ? "lugar novo" : "lugares novos"} em "Aqui pertinho".`,
-        );
-      }
-    } catch (e) {
-      toast.error(friendlyErrorMessage(e, "Não conseguimos gerar lugares pertinho. Tente novamente."));
-    } finally {
-      setGeneratingNearbyRecs(false);
-    }
-  }
 
   async function handleEnrich() {
     if (!form.property.maps_url) {
@@ -1220,48 +977,6 @@ function PropertyEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.property.maps_url, enriching]);
 
-  // Escolha de uma sugestão no autocomplete de endereço (pedido explícito,
-  // 06/09/2026): preenche endereço/cidade/estado/país/coordenadas na hora —
-  // SEM passar pelo `handleEnrich` (que também gera recomendações "Aqui
-  // pertinho" e dispara a geração de referências da cidade). Isso satisfaz a
-  // mesma necessidade do link do Maps (coordenada preenchida automaticamente)
-  // por um segundo caminho, sem repetir a geração de recomendações.
-  // O link do Maps só é preenchido sozinho se ainda estiver vazio — nunca
-  // sobrescreve um link que a pessoa já colou manualmente. Quando ele É
-  // preenchido aqui, marcamos `enrichedUrlRef` na hora pra o efeito acima
-  // (que dispara o enriquecimento completo ao ver um link novo) não disparar
-  // de novo pra esse mesmo link — a coordenada já veio, não precisa repetir.
-  function handlePickAddress(s: AddressSuggestion) {
-    setForm((f) => {
-      const hasMapsUrl = !!f.property.maps_url.trim();
-      const nextMapsUrl = hasMapsUrl ? f.property.maps_url : (s.maps_url ?? f.property.maps_url);
-      if (!hasMapsUrl && s.maps_url) enrichedUrlRef.current = s.maps_url;
-      return {
-        ...f,
-        property: {
-          ...f.property,
-          address: s.address || f.property.address,
-          // RECOMENDAÇÕES DEPENDEM DO ENDEREÇO, NÃO DO IMPORTAR (pedido
-          // explícito, 01/10/2026: "isso tem que depender do campo endereço
-          // preenchido por completo e não do botão importar"). Por isso o
-          // endereço completo volta a preencher Cidade/Estado/País — é a
-          // cidade que guia "Aqui pertinho"/"Pela cidade". Os dois campos
-          // continuam travados para digitação; o Importar do Airbnb também
-          // os atualiza.
-          city: s.city || f.property.city,
-          state: s.state || f.property.state,
-          country: s.country || f.property.country,
-          lat: s.lat ?? f.property.lat,
-          lng: s.lng ?? f.property.lng,
-          maps_url: nextMapsUrl,
-        },
-      };
-    });
-    toast.success(
-      s.lat != null && s.lng != null ? "Endereço e coordenadas preenchidos." : "Endereço preenchido.",
-    );
-  }
-
   async function handleGenerateCityRecommendations(mode: "replace" | "fill" = "fill") {
     const city = form.property.city.trim();
     if (!city) {
@@ -1325,109 +1040,6 @@ function PropertyEditor() {
     }
   }
 
-  async function handleImportAirbnb() {
-    if (!airbnbUrl.trim()) {
-      toast.error("Cole o link público do anúncio do Airbnb");
-      return;
-    }
-    setImportingAirbnb(true);
-    try {
-      const r = await importAirbnb({ data: { url: airbnbUrl.trim(), propertyId: id } });
-      const importedGallery = r.gallery_images.filter((url) => url.trim()).slice(0, 4);
-      setForm((f) => ({
-        ...f,
-        property: {
-          ...f.property,
-          name: r.name ?? f.property.name,
-          // Nunca troca uma URL que já existe (pode ser a personalizada).
-          slug: f.property.slug || (r.name ? slugify(r.name) : f.property.slug),
-          short_description: r.short_description ?? f.property.short_description,
-          city: r.city ?? f.property.city,
-          country: r.country ?? f.property.country,
-          checkin_time: r.checkin_time ?? f.property.checkin_time,
-          checkin_time_max: r.checkin_time_max ?? f.property.checkin_time_max,
-          checkout_time: r.checkout_time ?? f.property.checkout_time,
-          gallery_images: importedGallery.length ? importedGallery : f.property.gallery_images,
-          hero_image_url: importedGallery[0] ?? r.hero_image_url ?? f.property.hero_image_url,
-          airbnb_listing_url: airbnbUrl.trim(),
-          // Campos "ampliados" (avaliação, hóspedes/quartos/camas/banheiros,
-          // descrição completa, quartos+camas, comodidades e "O que você
-          // deve saber") — faltavam aqui: o import lia esses dados da Firecrawl
-          // mas nunca copiava pro formulário, então a aba Airbnb ficava
-          // sempre vazia nesses campos mesmo com a importação funcionando.
-          // Corrigido em 03/09/2026.
-          airbnb_rating: r.rating ?? f.property.airbnb_rating,
-          airbnb_guest_count: r.guest_count ?? f.property.airbnb_guest_count,
-          airbnb_bedroom_count: r.bedroom_count ?? f.property.airbnb_bedroom_count,
-          airbnb_bed_count: r.bed_count ?? f.property.airbnb_bed_count,
-          airbnb_bathroom_count: r.bathroom_count ?? f.property.airbnb_bathroom_count,
-          airbnb_description_full: r.description_full ?? f.property.airbnb_description_full,
-          airbnb_rooms_beds: r.rooms_beds.length ? r.rooms_beds : f.property.airbnb_rooms_beds,
-          airbnb_amenities: r.amenities.length ? r.amenities : f.property.airbnb_amenities,
-          airbnb_house_rules: r.house_rules ?? f.property.airbnb_house_rules,
-          // "Regras adicionais" do Airbnb → "Regras do espaço" (01/10/2026,
-          // pedido explícito): a importação SUBSTITUI o campo inteiro, uma regra
-          // por linha e sem marcador — igual aos horários. Só acontece ao clicar
-          // em Importar (a leitura diária está desligada desde 27/09/2026).
-          // Se o anúncio não trouxer essa seção, o que está escrito fica.
-          house_rules: r.additional_rules ?? f.property.house_rules,
-          airbnb_cancellation_policy: r.cancellation_policy ?? f.property.airbnb_cancellation_policy,
-          airbnb_safety_info: r.safety_info ?? f.property.airbnb_safety_info,
-        },
-      }));
-      const bits: string[] = [];
-      if (r.name) bits.push("nome");
-      if (r.short_description) bits.push("descrição");
-      if (r.gallery_images.length) bits.push(`${r.gallery_images.length} fotos`);
-      if (r.city) bits.push("localização");
-      if (r.checkin_time || r.checkout_time) bits.push("horários");
-      if (r.description_full) bits.push("descrição completa");
-      if (r.rooms_beds.length) bits.push("quartos e camas");
-      if (r.amenities.length) bits.push(`${r.amenities.length} comodidades`);
-      if (r.house_rules || r.cancellation_policy || r.safety_info) bits.push("O que você deve saber");
-      if (r.additional_rules) bits.push("regras do espaço");
-      toast.success(bits.length ? `Importado: ${bits.join(" · ")}` : "Importado");
-    } catch (e) {
-      toast.error(friendlyErrorMessage(e, "Erro ao importar"));
-    } finally {
-      setImportingAirbnb(false);
-    }
-  }
-
-  async function handleSyncIcal() {
-    if (isNew) {
-      toast.error("Salve o imóvel antes de sincronizar.");
-      return;
-    }
-    const url = form.property.airbnb_ical_url?.trim();
-    if (!url) {
-      toast.error("Cole a URL do calendário Airbnb antes.");
-      return;
-    }
-    if (autoSaving) {
-      toast.info("Aguarde salvar as alterações.");
-      return;
-    }
-    const wasFirstActivation = !form.property.airbnb_ical_last_sync_at;
-    setSyncingIcal(true);
-    try {
-      const r = await syncIcal({
-        data: { propertyId: id, icalUrl: url, icalUrl2: form.property.airbnb_ical_url_2?.trim() || null },
-      });
-      const parts: string[] = [];
-      if (r.imported) parts.push(`${r.imported} nova(s)`);
-      if (r.updated) parts.push(`${r.updated} atualizada(s)`);
-      if (r.removed) parts.push(`${r.removed} removida(s)`);
-      toast.success(parts.length ? `Sincronizado: ${parts.join(" · ")}` : "Sincronizado — nenhuma mudança.");
-      await reservationsQuery.refetch();
-      queryClient.invalidateQueries({ queryKey: ["property", id] });
-    } catch (e) {
-      toast.error(friendlyErrorMessage(e, "Falha ao sincronizar"));
-    } finally {
-      setSyncingIcal(false);
-    }
-  }
-
   async function handleSave(
     overrides?: Partial<FormState["property"]>,
     opts?: { silent?: boolean; snapshot?: FormState; editVersion?: number },
@@ -1470,11 +1082,6 @@ function PropertyEditor() {
         toast.error("Selecione um proprietário para este imóvel.");
         return;
       }
-      const missing = missingRequiredHouseFields(formToSave.property);
-      if (missing.length > 0) {
-        toast.error(`Preencha antes de salvar: ${missing.join(", ")}.`);
-        return;
-      }
     }
     if (silent) setAutoSaving(true);
     else setSaving(true);
@@ -1509,7 +1116,7 @@ function PropertyEditor() {
           // Lugares "Aqui pertinho" preenchidos pelo link do Maps fora da aba
           // Recomendações precisam ser gravados aqui; na própria aba, o
           // salvamento dedicado dela já cuida disso.
-          recommendations: step !== "recs" && prev.r !== currentSections.r,
+          recommendations: false,
         };
         if (!Object.values(sections).some(Boolean)) return;
       }
@@ -1657,7 +1264,7 @@ function PropertyEditor() {
   // alteração enquanto o usuário está na aba "recs". "Pela cidade" já é
   // persistido inline em city_references via mutations próprias.
   useEffect(() => {
-    if (!hydratedRef.current || isNew || step !== "recs" || saving || readOnly) return;
+    if (!hydratedRef.current || isNew || saving || readOnly) return;
     const nearby = form.recommendations.filter((r) => r.scope === "nearby");
     const snapshot = JSON.stringify(nearby);
     if (snapshot === lastSavedRecsRef.current) return;
@@ -1707,7 +1314,7 @@ function PropertyEditor() {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.recommendations, step, isNew]);
+  }, [form.recommendations, isNew]);
 
   // ---- Sincronização instantânea entre quem está nesta tela (estilo Miro) ----
   // Cada seção é transmitida na hora para os outros navegadores; quem recebe
@@ -1799,1025 +1406,19 @@ function PropertyEditor() {
   const previewSlug = savedSlug || form.property.slug;
   const previewUrl = useGuidePreviewUrl(previewOpen ? previewSlug : null);
 
-  // Trava: "sem imóvel [completo, vinculado a um proprietário], sem guia".
-  // Cobre também imóveis já existentes (de antes desta regra) que ficaram sem
-  // proprietário e/ou sem os dados básicos obrigatórios (tipo, endereço
-  // completo, calendário Airbnb) — bloqueia qualquer edição, mesmo de um guia
-  // já publicado, até completar. Só se aplica depois que o guia já foi criado
-  // (`guide_created`): antes disso, é a própria tela enxuta "Novo imóvel" que
-  // já pede e valida esses mesmos campos.
-  const missingOwner = !isNew && !form.property.owner_contact_id;
-  // Anúncio nativo (piloto Sigma): endereço, fotos, descrição, regras, horários
-  // e instruções vêm do Airbnb via API — esses campos somem do editor.
-  const nativeAirbnb = NATIVE_AIRBNB_OWNERS.has(
-    String(((data?.property as Record<string, unknown> | null)?.owner_id as string | undefined) ?? ""),
-  );
-  // Layout novo do editor (mockups aprovados) — só contas habilitadas.
-  const newLayoutEditor = isNewLayoutAccount(
-    String(((data?.property as Record<string, unknown> | null)?.owner_id as string | undefined) ?? ""),
-  );
-  const rawFocus = newLayoutEditor && !isNew && !houseOnly ? (search.focus ?? null) : null;
-  // Anúncio nativo não tem aba Airbnb: evita disputa de abas (loop infinito).
-  const focusStep = nativeAirbnb && rawFocus === "airbnb" ? "guide" : rawFocus;
-  // Só "Curadoria & Dicas locais": as demais partes passam a ser editadas pelo
-  // proprietário (Públicas/Confidenciais) — abertas aqui via `focus`.
-  const singleStepMode = newLayoutEditor && !isNew && !houseOnly;
-  const NATIVE_SKIP = ["Link do Google Maps (entrada principal)", "Endereço", "URL do calendário Airbnb"];
-  const missingHouseFields = (form.property.guide_created ? missingRequiredHouseFields(form.property) : []).filter(
-    (m) => !(nativeAirbnb && NATIVE_SKIP.includes(m)),
-  );
-  useEffect(() => {
-    if (nativeAirbnb && step === "airbnb") setStep("guide");
-  }, [nativeAirbnb, step, setStep]);
-  // "CONDOMÍNIO?" (pedido de 01/10/2026): obrigatório SÓ com a chave ligada, e
-  // com ela ligada e algum campo vazio a pessoa não consegue sair da tela —
-  // como o salvamento é automático, deixar pela metade gravaria um cadastro
-  // incompleto. Vale mesmo antes de o guia ser criado.
-  const condoMissing = !isNew
-    ? missingRequiredHouseFields(form.property).filter((m) => m.startsWith("Condomínio"))
-    : [];
-  const condoBlocked = form.property.in_condominium === true && condoMissing.length > 0;
-  useBlocker({
-    shouldBlockFn: () => {
-      if (!condoBlocked) return false;
-      toast.error(`Preencha antes de sair: ${condoMissing.join(", ")}.`);
-      return true;
-    },
-    enableBeforeUnload: () => condoBlocked,
-    disabled: !condoBlocked,
-  });
-  const allMissingRequiredFields = Array.from(
-    new Set([...(missingOwner ? ["Proprietário"] : []), ...missingHouseFields, ...(form.property.in_condominium ? condoMissing : [])]),
-  );
-  const needsRequiredHouseInfo =
-    !isNew &&
-    ((form.property.guide_created && (missingOwner || missingHouseFields.length > 0)) || condoBlocked);
-
-  // Mesmo motivo do comentário de useGuidePreviewUrl acima: hooks não podem
-  // ser condicionais. Este useEffect ficava depois do early-return de
-  // isLoading logo abaixo e reproduzia o MESMO bug ("Rendered more hooks than
-  // during the previous render") na 1ª abertura de "Editar guia" — só
-  // funcionava depois de "Tentar de novo" porque a 2ª tentativa já reaproveita
-  // os dados em cache e nunca passa pelo estado isLoading=true.
-  useEffect(() => {
-    if ((needsRequiredHouseInfo || houseOnly) && step !== "house") {
-      setStep("house");
-    } else if (singleStepMode && !needsRequiredHouseInfo) {
-      const want = focusStep ?? "recs";
-      if (step !== want) setStep(want);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsRequiredHouseInfo, houseOnly, step, singleStepMode, focusStep]);
-
   if (!isNew && isLoading) {
     return <div className="max-w-4xl mx-auto px-6 py-10 text-sm text-muted-foreground">Carregando…</div>;
   }
 
   const nearbyRecs = form.recommendations.filter((r) => r.scope === "nearby");
 
-  // Extraídos como funções para serem reaproveitados tanto na tela enxuta de
-  // criação do imóvel (isNew) quanto na aba "A casa" do editor completo —
-  // mesmo JSX, duas telas, sem duplicar campos/handlers.
-  // Idem: só o conteúdo, sem <Section> — mesma razão do renderOwnerFields.
-  const renderPropertyTypeFields = () => (
-    <PropertyTypeSelect value={form.property.property_type_id} onChange={(v) => update("property_type_id", v)} />
-  );
-
-  // Quadrante "Identificação do Imóvel": Proprietário + Tipo do imóvel —
-  // antes eram dois cards separados; unificados a pedido num só.
-  // "Pendente" no quadrante que tem campo obrigatório faltando (mockup
-  // aprovado, 01/10/2026). Usa a MESMA lista da trava das abas
-  // (`allMissingRequiredFields`) — nenhuma regra nova, só onde ela aparece.
-  const missingRequired = new Set(allMissingRequiredFields);
-  const pendingBadge = (...fields: string[]) =>
-    fields.some((f) => missingRequired.has(f)) ? <PendingPill /> : undefined;
-
-  // CAMPOS DO AIRBNB SEMPRE TRAVADOS (pedido explícito, 01/10/2026: "é
-  // obrigatório ter anúncio vinculado... todos os campos precisam ficar sempre
-  // travados"). Nome, slug, cidade, país, horários de check-in/check-out,
-  // fotos e regras do espaço só chegam pelo Importar — com ou sem anúncio
-  // conectado ainda, vazios ou não. Tocar num deles mostra o motivo
-  // (`AirbnbLockedValue`). O anúncio é exigido para PUBLICAR
-  // (`publish-requirements.ts`).
-
-  const renderIdentitySection = () => (
-    <Section
-      id="identity"
-      icon={Home}
-      title="Identificação do Imóvel"
-      collapsible
-      badge={pendingBadge("Proprietário", "Tipo do imóvel")}
-    >
-      <PanelHeading title="Proprietário" className="" />
-      {renderOwnerFields()}
-      <PanelHeading title="Imóvel" className="" />
-      {renderPropertyTypeFields()}
-    </Section>
-  );
-
-  // Quadrante "Prestadores de serviço": mesmo vínculo N:N que existe na ficha
-  // do prestador (Stakeholders → Prestadores → Imóveis), visto pelo lado do
-  // imóvel. Seleção múltipla: marca-se vários de uma vez e a diferença
-  // (vincular/desvincular) é aplicada na confirmação.
-  const renderProvidersSection = () => (
-    <Section
-      id="providers"
-      icon={Wrench}
-      title="Prestadores de Serviço"
-      collapsible
-      badge={countBadge(linkedProviders.length)}
-    >
-      <div className="space-y-3">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-          <p className="ds-meta min-w-0">
-            {linkedProviders.length} prestador(es) atendendo este imóvel.
-          </p>
-          <button
-            type="button"
-            onClick={() => setProvidersPickerOpen(true)}
-            className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[0.3rem] border border-border bg-secondary/40 px-3 text-[13px] font-medium transition-colors hover:bg-secondary"
-          >
-            <Plus className="size-4 text-primary" /> Vincular
-          </button>
-        </div>
-
-        {linkedProviders.length === 0 ? (
-          <p className="ds-meta">Nenhum prestador vinculado ainda.</p>
-        ) : (
-          <div className="space-y-2">
-            {linkedProviders.map((p) => (
-              <div
-                key={p.id}
-                className="ds-well grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5"
-              >
-                <p className="min-w-0 break-words text-[13.5px] font-medium text-foreground">{p.name}</p>
-                <button
-                  type="button"
-                  disabled={providersBusy}
-                  onClick={() => saveProviderLinks(linkedProviders.filter((x) => x.id !== p.id).map((x) => x.id))}
-                  className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                  aria-label="Desvincular prestador"
-                  title="Desvincular este prestador do imóvel."
-                >
-                  <Unlink className="size-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <MultiLinkPicker
-        open={providersPickerOpen}
-        onOpenChange={setProvidersPickerOpen}
-        title="Prestadores deste imóvel"
-        description="Marque quantos prestadores quiser — desmarcar remove o vínculo."
-        options={providerOptions.map((p) => ({
-          id: p.id,
-          label: p.name,
-          hint: p.categories.join(", ") || null,
-        }))}
-        initialSelected={linkedProviders.map((p) => p.id)}
-        confirmLabel="Salvar vínculos"
-        emptyText="Nenhum prestador cadastrado ainda."
-        onConfirm={(ids) => saveProviderLinks(ids)}
-      />
-    </Section>
-  );
-
-
-
-  // Quadrante EXCLUSIVO de limpeza: valores fixos (R$, armazenados em
-  // centavos — mesma convenção de dinheiro já usada em prestadores de
-  // serviço via hourly_rate_cents) + período estimado (minutos, múltiplos de
-  // 30). Separado da Identificação do imóvel a pedido. Os helpers de
-  // formatação/parsing agora vivem em <MoneyInput> (components/ui/money-input)
-  // — digitação livre, sem reformatar a cada tecla (ver comentário lá).
-  // 30min, 1h, 1h30 ... até 8h — cobre da limpeza rápida à faxina completa de
-  // uma casa grande, sempre em passos de meia hora.
-  const CLEANING_DURATION_OPTIONS = Array.from({ length: 16 }, (_, i) => {
-    const minutes = (i + 1) * 30;
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    const label = h === 0 ? `${m}min` : m === 0 ? `${h}h` : `${h}h${m}`;
-    return { value: minutes, label };
-  });
-  const renderCleaningSection = () => (
-    <Section
-      id="cleaning"
-      icon={Sparkles}
-      title="Custos e Duração da Limpeza"
-      collapsible
-    >
-      {/* Cada tipo de limpeza (normal / completa) tem seu próprio prazo —
-          uma limpeza completa costuma levar mais tempo que uma normal, então
-          o valor e o prazo de cada tipo ficam agrupados lado a lado. No
-          desktop os 2 grupos ficam um ao lado do outro pra economizar
-          espaço; no mobile cada grupo ocupa sua própria linha. */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div className="rounded-[0.3rem] border border-border/60 bg-background/40 p-3">
-          <p className="mb-2.5 text-xs font-medium text-foreground/70">Limpeza normal</p>
-          {/* items-start (não stretch) + hintClassName nos dois Fields: sem
-              isso, a legenda de 2 linhas de "Valor (R$)" empurrava o campo
-              de valor mais pra baixo que o dropdown de "Prazo estimado"
-              (legenda de 1 linha só) — título alinhava com título, mas o
-              campo preenchível de cada um ficava numa altura diferente. */}
-          <div className="grid grid-cols-2 gap-3 items-start">
-            <div className="min-w-0">
-              <Field
-                label="Valor (R$)"
-                hint="Valor fixo cobrado por uma limpeza normal deste imóvel."
-                hintClassName="min-h-[30px]"
-              >
-                <MoneyInput
-                  cents={form.property.cleaning_price_normal_cents}
-                  onChange={(c) => {
-                    update("cleaning_price_normal_cents", c);
-                    presence.broadcastTyping("cleaning_price_normal_cents", centsToReaisInput(c));
-                  }}
-                  onBlur={() => presence.broadcastFieldBlur("cleaning_price_normal_cents")}
-                />
-              </Field>
-              <FieldTypingBadge typing={presence.typing["cleaning_price_normal_cents"]} />
-            </div>
-            <div className="min-w-0">
-              <Field label="Prazo estimado" hint="Em intervalos de 30 minutos." hintClassName="min-h-[30px]">
-                <Select
-                  value={
-                    form.property.cleaning_duration_normal_minutes != null
-                      ? String(form.property.cleaning_duration_normal_minutes)
-                      : ""
-                  }
-                  onValueChange={(v) => {
-                    update("cleaning_duration_normal_minutes", v ? Number(v) : null);
-                    const opt = CLEANING_DURATION_OPTIONS.find((o) => String(o.value) === v);
-                    presence.broadcastTyping("cleaning_duration_normal_minutes", opt?.label ?? "");
-                  }}
-                  onOpenChange={(open) => !open && presence.broadcastFieldBlur("cleaning_duration_normal_minutes")}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  {/* Grade de 4 colunas em vez de lista longa — as 16 opções
-                      (30min a 8h) cabem inteiras sem rolagem, muito mais rápido
-                      de escanear do que uma lista vertical de 16 linhas. */}
-                  <SelectContent>
-                    <div className="grid grid-cols-4 gap-1 p-1">
-                      {CLEANING_DURATION_OPTIONS.map((o) => (
-                        <SelectItem
-                          key={o.value}
-                          value={String(o.value)}
-                          className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
-                        >
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </div>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <FieldTypingBadge typing={presence.typing["cleaning_duration_normal_minutes"]} />
-            </div>
-          </div>
-        </div>
-        <div className="rounded-[0.3rem] border border-border/60 bg-background/40 p-3">
-          <p className="mb-2.5 text-xs font-medium text-foreground/70">Limpeza completa</p>
-          <div className="grid grid-cols-2 gap-3 items-start">
-            <div className="min-w-0">
-              <Field
-                label="Valor (R$)"
-                hint="Valor fixo cobrado por uma limpeza completa deste imóvel."
-                hintClassName="min-h-[30px]"
-              >
-                <MoneyInput
-                  cents={form.property.cleaning_price_full_cents}
-                  onChange={(c) => {
-                    update("cleaning_price_full_cents", c);
-                    presence.broadcastTyping("cleaning_price_full_cents", centsToReaisInput(c));
-                  }}
-                  onBlur={() => presence.broadcastFieldBlur("cleaning_price_full_cents")}
-                />
-              </Field>
-              <FieldTypingBadge typing={presence.typing["cleaning_price_full_cents"]} />
-            </div>
-            <div className="min-w-0">
-              <Field label="Prazo estimado" hint="Em intervalos de 30 minutos." hintClassName="min-h-[30px]">
-                <Select
-                  value={
-                    form.property.cleaning_duration_full_minutes != null
-                      ? String(form.property.cleaning_duration_full_minutes)
-                      : ""
-                  }
-                  onValueChange={(v) => {
-                    update("cleaning_duration_full_minutes", v ? Number(v) : null);
-                    const opt = CLEANING_DURATION_OPTIONS.find((o) => String(o.value) === v);
-                    presence.broadcastTyping("cleaning_duration_full_minutes", opt?.label ?? "");
-                  }}
-                  onOpenChange={(open) => !open && presence.broadcastFieldBlur("cleaning_duration_full_minutes")}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <div className="grid grid-cols-4 gap-1 p-1">
-                      {CLEANING_DURATION_OPTIONS.map((o) => (
-                        <SelectItem
-                          key={o.value}
-                          value={String(o.value)}
-                          className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
-                        >
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </div>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <FieldTypingBadge typing={presence.typing["cleaning_duration_full_minutes"]} />
-            </div>
-          </div>
-        </div>
-      </div>
-    </Section>
-  );
-
-  const renderAddressSection = () => (
-    <Section
-      id="address"
-      icon={MapPinned}
-      title="Endereço e localização"
-      collapsible
-      badge={pendingBadge(
-        "Link do Google Maps (entrada principal)",
-        "Endereço",
-        "Cidade",
-        "País",
-        "Condomínio — Nº do apartamento",
-        "Condomínio — Andar",
-        "Condomínio — Vaga de garagem",
-        "Condomínio — Elevador",
-      )}
-    >
-      {!nativeAirbnb && (<>
-      <Field label="Link do Google Maps — Entrada principal" required>
-        <Input
-          value={form.property.maps_url}
-          onChange={(e) => update("maps_url", e.target.value)}
-          placeholder="https://maps.app.goo.gl/..."
-        />
-        {enriching && (
-          <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" /> Buscando endereço…
-          </p>
-        )}
-      </Field>
-      <Field
-        label="Link do Google Maps — Garagem (opcional)"
-        hint="Aparece como um segundo botão de localização no guia."
-      >
-        <Input
-          value={form.property.garage_maps_url}
-          onChange={(e) => update("garage_maps_url", e.target.value)}
-          placeholder="https://maps.app.goo.gl/..."
-        />
-      </Field>
-      {/* Autocomplete do Google (pedido explícito, 06/09/2026) — digitar já
-          sugere endereços reais e, ao escolher um, preenche cidade/estado/
-          país/coordenadas junto (mesmo mecanismo usado em Prestadores/
-          Proprietários — ver AddressAutocomplete). Continua editável como
-          texto livre pra casos que o Google não encontre. Renderizado direto
-          (sem o wrapper <Field>) porque o componente já traz seu próprio
-          rótulo, igual ao uso em Prestadores/Proprietários. */}
-      <AddressAutocomplete
-        value={form.property.address}
-        label="Endereço *"
-        onChange={(v) => update("address", v)}
-        onPick={handlePickAddress}
-      />
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Cidade">
-          <AirbnbLockedValue
-            value={form.property.city}
-            label="Cidade"
-            placeholder="Preenchida pelo endereço"
-            eyebrow="Vem do endereço"
-            reason={ADDRESS_LOCK_REASON}
-          />
-        </Field>
-        <Field label="País">
-          <AirbnbLockedValue
-            value={form.property.country}
-            label="País"
-            placeholder="Preenchido pelo endereço"
-            eyebrow="Vem do endereço"
-            reason={ADDRESS_LOCK_REASON}
-          />
-        </Field>
-      </div>
-      </>)}
-      {/* CONDOMÍNIO? (mockup "Local dentro do prédio", aprovado 01/10/2026):
-          a chave liga os quatro campos; desligada eles somem daqui e de todo
-          lugar onde o complemento do endereço aparece, mas o que já foi
-          preenchido fica guardado. */}
-      <div>
-        <PanelHeading
-          title="Condomínio?"
-          right={
-            <Switch
-              checked={form.property.in_condominium}
-              onCheckedChange={(v) => update("in_condominium", v)}
-              aria-label="Condomínio"
-            />
-          }
-        />
-        {form.property.in_condominium && (
-          <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Nº do apartamento" required>
-                <Input
-                  value={form.property.apartment_number}
-                  maxLength={40}
-                  onChange={(e) => update("apartment_number", e.target.value)}
-                />
-              </Field>
-              <Field label="Andar" required>
-                <Input
-                  value={form.property.apartment_floor}
-                  maxLength={40}
-                  onChange={(e) => update("apartment_floor", e.target.value)}
-                />
-              </Field>
-            </div>
-            <ParkingElevatorGrid
-              spots={form.property.parking_spots}
-              onSpots={(next) => update("parking_spots", next)}
-              elevator={form.property.has_elevator}
-              onElevator={(v) => update("has_elevator", v)}
-            />
-          </div>
-        )}
-      </div>
-      <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
-        <Textarea
-          value={form.property.address_note}
-          maxLength={1000}
-          onChange={(e) => update("address_note", e.target.value)}
-        />
-      </Field>
-    </Section>
-  );
-
-  const renderAirbnbCalendarSection = () => (
-    <Section
-      id="airbnb-calendar"
-      icon={RefreshCw}
-      title="Calendário do Airbnb"
-      collapsible
-      badge={pendingBadge("URL do calendário Airbnb")}
-    >
-      {isNew && (
-        <div className="ds-well p-3 text-xs text-muted-foreground flex items-start gap-2">
-          <Clock className="size-3.5 shrink-0 mt-0.5" />
-          <span>
-            Salve o imóvel uma vez (botão "Salvar" abaixo) para liberar a sincronização — não precisa preencher o guia.
-          </span>
-        </div>
-      )}
-
-      <Field
-        label="URL do calendário Airbnb"
-        required
-        hint={
-          form.property.tagline === ETIQUETA_CHECKIN_CHECKOUT
-            ? "Obrigatório para criar o imóvel e para publicar guias do tipo Check-In & Check-Out. No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
-            : "Obrigatório para criar o imóvel. No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
-        }
-      >
-        <div className="flex gap-2">
-          <Input
-            value={form.property.airbnb_ical_url ?? ""}
-            onChange={(e) => {
-              const next = e.target.value.trim() || null;
-              const prev = form.property.airbnb_ical_url;
-              if (!next && prev) {
-                setPendingIcalClear(true);
-                return;
-              }
-              update("airbnb_ical_url", next);
-              presence.broadcastTyping("airbnb_ical_url", e.target.value);
-            }}
-            onBlur={() => presence.broadcastFieldBlur("airbnb_ical_url")}
-            placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
-          />
-          <Button
-            onClick={handleSyncIcal}
-            disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url ?? "").trim()}
-            variant="secondary"
-            className="shrink-0"
-            title={isNew ? "Salve o imóvel antes de sincronizar" : "Sincronizar agora"}
-          >
-            {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-            <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            disabled={!(form.property.airbnb_ical_url ?? "").trim()}
-            onClick={() => setPendingIcalClear(true)}
-            title="Remover calendário"
-            aria-label="Remover calendário"
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
-        <FieldTypingBadge typing={presence.typing["airbnb_ical_url"]} />
-      </Field>
-
-      {showIcal2 || (form.property.airbnb_ical_url_2 ?? "").trim() ? (
-        <Field
-          label="2º calendário (outro anúncio do mesmo imóvel)"
-          hint="Use quando o imóvel tem mais de um anúncio no Airbnb. As reservas dos dois calendários são unificadas."
-        >
-          <div className="flex gap-2">
-            <Input
-              value={form.property.airbnb_ical_url_2 ?? ""}
-              onChange={(e) => update("airbnb_ical_url_2", e.target.value.trim() || null)}
-              placeholder="https://www.airbnb.com/calendar/ical/67890.ics?s=..."
-            />
-            <Button
-              onClick={handleSyncIcal}
-              disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url_2 ?? "").trim()}
-              variant="secondary"
-              className="shrink-0"
-              title={isNew ? "Salve o imóvel antes de sincronizar" : "Sincronizar agora"}
-            >
-              {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-              <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              onClick={() => {
-                update("airbnb_ical_url_2", null);
-                setShowIcal2(false);
-              }}
-              title="Remover 2º calendário"
-              aria-label="Remover 2º calendário"
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          </div>
-        </Field>
-      ) : (
-        <div className="flex justify-end">
-          <Button variant="ghost" size="sm" onClick={() => setShowIcal2(true)}>
-            + Adicionar 2º calendário
-          </Button>
-        </div>
-      )}
-
-      {(form.property.airbnb_ical_last_sync_at || form.property.airbnb_ical_last_error) && (
-        <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
-          {form.property.airbnb_ical_last_sync_at && (
-            <span>
-              Última sincronização: {new Date(form.property.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}
-            </span>
-          )}
-          {form.property.airbnb_ical_last_error && (
-            <span className="text-destructive">Erro: {form.property.airbnb_ical_last_error}</span>
-          )}
-        </div>
-      )}
-
-      {reservationsQuery.data?.reservations && reservationsQuery.data.reservations.length > 0 && (
-        <details className="group ds-well">
-          <summary className="list-none cursor-pointer select-none px-3 py-2.5 flex items-center justify-between text-xs font-semibold">
-            <span>Próximas reservas ({reservationsQuery.data.reservations.length})</span>
-            <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
-          </summary>
-          <ul className="px-3 pb-3 space-y-1.5 max-h-56 overflow-y-auto">
-            {reservationsQuery.data.reservations.map((r) => (
-              <li
-                key={r.id}
-                className="text-xs flex items-center justify-between gap-2 py-1 border-b border-border/50 last:border-0"
-              >
-                <span className="font-medium">
-                  {new Date(`${r.checkin_date}T12:00:00`).toLocaleDateString("pt-BR")} →{" "}
-                  {new Date(`${r.checkout_date}T12:00:00`).toLocaleDateString("pt-BR")}
-                </span>
-                {r.guest_hint && <span className="text-muted-foreground font-mono text-[10px]">{r.guest_hint}</span>}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-    </Section>
-  );
-
-  const renderHostContactSection = () => (
-    <Section
-      id="host-house"
-      icon={UserRound}
-      title="Contato do anfitrião"
-      collapsible
-    >
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Nome">
-          <Input
-            value={form.property.host_name}
-            maxLength={120}
-            onChange={(e) => update("host_name", e.target.value)}
-          />
-        </Field>
-        <Field label="Telefone (WhatsApp)">
-          <Input
-            value={form.property.host_phone}
-            maxLength={40}
-            onChange={(e) => update("host_phone", e.target.value)}
-          />
-        </Field>
-      </div>
-    </Section>
-  );
-
-  // Proprietário (property_owners) — regra: sem imóvel vinculado a um
-  // proprietário cadastrado, sem guia. Compartilhado entre a tela "Novo
-  // imóvel", a trava de informações pendentes e a aba "A casa". Retorna só o
-  // CONTEÚDO (sem <Section> em volta) — quem chama decide como agrupar: nas
-  // telas "Novo imóvel"/trava continua em sua própria seção; na aba "A casa"
-  // entra junto com Tipo do imóvel no quadrante "Identificação e Custos de
-  // Limpeza".
-  const renderOwnerFields = () => {
-    const hasOwner = (!isNew && !!form.property.owner_contact_id) || ownerLockedFromContext;
-    return (
-      <>
-        {hasOwner ? (
-          <Field label="Proprietário">
-            <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
-              <span className="inline-flex items-center gap-2 text-sm min-w-0">
-                <Lock className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate">{currentOwnerName ?? "Proprietário vinculado"}</span>
-              </span>
-              {/* "Transferir" só existe para um imóvel já salvo — em
-                      "Novo imóvel" vindo de dentro do proprietário, o campo
-                      só está travado porque já se sabe o dono; não há o que
-                      transferir ainda. */}
-              {!isNew && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  disabled={readOnly}
-                  onClick={() => {
-                    setTransferTargetId("");
-                    setTransferOpen(true);
-                  }}
-                >
-                  <ArrowLeftRight className="size-3.5 mr-1.5" /> Transferir
-                </Button>
-              )}
-            </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              {isNew
-                ? "Este imóvel está sendo criado a partir do proprietário selecionado."
-                : 'O proprietário só pode ser alterado através do botão "Transferir", com confirmação.'}
-            </p>
-          </Field>
-        ) : (
-          <Field label="Proprietário" required>
-            <Select
-              value={form.property.owner_contact_id ?? ""}
-              onValueChange={(v) => update("owner_contact_id", v || null)}
-              disabled={ownersLoading || propertyOwnerOptions.length === 0}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={ownersLoading ? "Carregando…" : "Selecione um proprietário"} />
-              </SelectTrigger>
-              <SelectContent>
-                {propertyOwnerOptions.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>
-                    {o.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {propertyOwnerOptions.length === 0 && !ownersLoading && (
-              <p className="mt-1.5 text-xs text-amber-500">
-                Nenhum proprietário cadastrado.{" "}
-                <Link
-                  to="/admin/proprietarios"
-                  className="underline underline-offset-2"
-                >
-                  Cadastre um em Proprietários
-                </Link>{" "}
-                antes de continuar.
-              </p>
-            )}
-          </Field>
-        )}
-        <Dialog
-          open={transferOpen}
-          onOpenChange={(o) => {
-            if (!transferring) setTransferOpen(o);
-          }}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Transferir proprietário</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              Escolha o novo proprietário para <strong>{form.property.name || "este imóvel"}</strong>. O proprietário
-              atual ({currentOwnerName ?? "vinculado"}) perde o vínculo com este imóvel.
-            </p>
-            <Select
-              value={transferTargetId}
-              onValueChange={setTransferTargetId}
-              disabled={ownersLoading || transferring}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={ownersLoading ? "Carregando…" : "Selecione o novo proprietário"} />
-              </SelectTrigger>
-              <SelectContent>
-                {propertyOwnerOptions
-                  .filter((o) => o.id !== form.property.owner_contact_id)
-                  .map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" disabled={transferring} onClick={() => setTransferOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="button" disabled={!transferTargetId || transferring} onClick={handleConfirmTransfer}>
-                {transferring ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
-                Confirmar transferência
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </>
-    );
-  };
-
-  const renderHouseRulesSection = () => (
-    <Section
-      id="house-rules"
-      icon={ClipboardCheck}
-      title="Regras do espaço"
-      collapsible
-    >
-      <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
-        {/* Com anúncio conectado, as "Regras adicionais" do Airbnb chegam
-            aqui pelo Importar (01/10/2026) — e o campo trava como os demais
-            importados. */}
-        <AirbnbLockedValue value={form.property.house_rules} label="Regras do espaço" multiline />
-      </Field>
-    </Section>
-  );
-
-  const renderManualSection = () => (
-    <Section
-      id="manual"
-      icon={BookOpen}
-      title="Manual da casa"
-      collapsible
-    >
-      {isNew ? (
-        <EmptyHint text="Salve o imóvel primeiro para adicionar itens do manual (as fotos precisam de um imóvel já salvo)." />
-      ) : (
-        <>
-          {form.manual.length === 0 ? (
-            <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
-          ) : (
-            form.manual.map((m, i) => (
-              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))}>
-                <Input
-                  placeholder="Título (ex: Ar-condicionado)"
-                  value={m.title}
-                  maxLength={120}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      manual: f.manual.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
-                    }))
-                  }
-                />
-                <Input
-                  placeholder="Descrição curta"
-                  value={m.description}
-                  maxLength={300}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      manual: f.manual.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)),
-                    }))
-                  }
-                />
-                <TagMentionTextarea
-                  items={tagItems}
-                  placeholder="Instruções detalhadas"
-                  value={m.body}
-                  maxLength={4000}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      manual: f.manual.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)),
-                    }))
-                  }
-                />
-                <ManualItemImages
-                  images={m.images}
-                  propertyId={id}
-                  onChange={(next) =>
-                    setForm((f) => ({ ...f, manual: f.manual.map((x, j) => (j === i ? { ...x, images: next } : x)) }))
-                  }
-                />
-              </ItemCard>
-            ))
-          )}
-          <div className="pt-1">
-            <AddBtn
-              onClick={() =>
-                setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "", images: [] }] }))
-              }
-            />
-          </div>
-        </>
-      )}
-    </Section>
-  );
-
-  const renderPropertyDetailsSection = () => (
-    <Section
-      id="property-details"
-      icon={NotebookPen}
-      title="Detalhamento do Imóvel"
-      collapsible
-    >
-      {isNew ? (
-        <EmptyHint text="Salve o imóvel primeiro para começar o detalhamento." />
-      ) : (
-        <PropertyDetailsEditor propertyId={id} presence={presence} />
-      )}
-    </Section>
-  );
-
-  // ================= INFORMAÇÕES DO IMÓVEL =================
-  // Antes, um imóvel novo abria direto os 6 steps inteiros do editor de guia
-  // (A casa, O guia, Checkin, Checkout, FAQ & Contatos, Recomendações) — a
-  // maioria deles sem sentido nenhum antes de existir um guia de verdade.
-  //
-  // IMPORTANTE: a condição não é mais só "isNew" (que é temporário — vira
-  // false assim que salva uma vez). Agora depende de `guide_created`, uma
-  // coluna persistida em "properties". Ou seja: mesmo depois de criado e
-  // salvo várias vezes, um imóvel sem guia continua caindo nesta tela enxuta
-  // sempre que for aberto — até o anfitrião clicar em "Criar guia" de
-  // propósito. Os campos aqui (nome, tipo, endereço, calendário, contato) são
-  // os MESMOS da aba "A casa" do editor completo (mesmo form.property, mesmas
-  // funções render*Section) — não existem em duplicidade, então qualquer
-  // alteração feita aqui ou lá é a mesma informação, sempre.
-  // Antes, este bloco tinha um `return` aqui com uma tela separada ("Complete
-  // as informações do imóvel"), com um layout completamente diferente do
-  // editor completo (sem Stepper, sem Acessos/Conversas, sem rodapé de
-  // autosave). Isso fazia "Editar guia" de um imóvel com pendências parecer
-  // outro sistema. Mantemos a MESMA trava (ninguém edita o guia sem antes
-  // completar Proprietário/Tipo/Endereço/Calendário) mas replicando o visual:
-  // a pessoa cai na mesma tela do editor completo, só que travada na aba
-  // "A casa" (as outras 5 abas ficam visíveis porém bloqueadas, com cadeado)
-  // até os campos obrigatórios serem preenchidos. Ver `missingOwner` /
-  // `needsRequiredHouseInfo` e o useEffect que força a aba, calculados mais
-  // acima (antes do early-return de carregamento) — e a prop `lockedValues`
-  // do <Stepper>.
-
-  const showLeanInfoScreen = isNew || !form.property.guide_created;
-
-  if (showLeanInfoScreen) {
-    // Sem exceção nenhuma: "Criar guia" só marca guide_created=true. Nome e
-    // Tipo do guia (tagline) não são pedidos aqui — não fazem parte de "A
-    // casa" e, como qualquer outro dado de "O guia" (fotos, instruções de
-    // check-in/checkout etc.), são requisitos de PUBLICAÇÃO, não de criação
-    // do guia (ver publish-requirements.ts). A pessoa preenche isso depois,
-    // na aba "O guia", quando for publicar.
-    function handleCreateGuide() {
-      void handleSave({ guide_created: true });
-    }
-    // Cancelar/Salvar alterações só fazem sentido enquanto existir uma
-    // edição de verdade ainda não confirmada como salva (comparação contra
-    // `savedPropertyKey`, atualizado a cada save — manual ou autosave). Se a
-    // pessoa desfizer a alteração manualmente antes de salvar, volta a bater
-    // com o snapshot e a barra some sozinha, sem precisar salvar nada.
-    // "Criar guia" é uma ação à parte, sempre disponível — não depende de
-    // haver edição pendente.
-    const isDirty = !isNew && savedPropertyKey !== "" && savedPropertyKey !== JSON.stringify(form.property);
-    return (
-      <div className="ds-dense-fields ds-presence-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
-        <PageDateRow
-          className="mb-1.5"
-          back={
-            <Link to={backTo as "/admin/guias"} className={PAGE_BACK_CLASS}>
-              <ArrowLeft className="size-3.5" /> Voltar
-            </Link>
-          }
-        />
-
-        <header className="mb-3 min-w-0">
-          {/* Sem nome definido ainda (nada em "A casa" pede Nome — ele só
-              existe na aba "O guia"), a linha de título some inteira em vez
-              de mostrar um texto genérico de preenchimento. */}
-          {isNew ? (
-            <h1 className="ds-page-title w-full break-words">Novo imóvel</h1>
-          ) : (
-            form.property.name && <h1 className="ds-page-title w-full break-words">{form.property.name}</h1>
-          )}
-        </header>
-
-        <div className="mb-4 ds-scroll-x items-center gap-2">
-          <PresenceAvatars users={presence.users} />
-          {!isNew && (
-            <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
-              Sem guia criado
-            </span>
-          )}
-        </div>
-
-        <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
-          <DenseSections variant="presence">
-            {/* Sem barra de abas aqui: só se fala de "A casa" nesta tela — "O
-              guia" e as demais abas só existem depois que o guia é criado. */}
-
-            {/* Espelho EXATO da aba "A casa" do editor completo: MESMAS funções
-              renderIdentitySection() / renderCleaningSection() / etc. (nunca
-              uma cópia à parte) — byte a byte igual à de "Editar guia", sem
-              nenhum campo a mais e sem nenhuma exceção (nem Nome, nem Tipo do
-              guia — ambos vivem só na aba "O guia", como requisito de
-              publicação, não de criação). */}
-            <div className={SECTION_LIST}>
-            <SectionGroup>
-              {renderIdentitySection()}
-              {renderCleaningSection()}
-              {renderAddressSection()}
-              {renderAirbnbCalendarSection()}
-              {renderHouseRulesSection()}
-              {renderManualSection()}
-              {renderPropertyDetailsSection()}
-              {renderHostContactSection()}
-              {!isNew && renderProvidersSection()}
-
-            </SectionGroup>
-            </div>
-          </DenseSections>
-
-          {/* Mesmo padrão de rodapé do diálogo "Novo Proprietário"
-              (StakeholderFormDialog): linha comum (sem fixar na base da
-              tela), Cancelar em ghost e ação principal em gradiente com
-              ícone de check. Em "editar propriedade" (!isNew), Cancelar/
-              Salvar alterações só aparecem havendo uma edição pendente de
-              verdade (`isDirty`) — "Criar guia" fica sempre visível. */}
-          <div className="ds-scroll-x justify-end gap-3 pt-3 mt-6 border-t border-border/30">
-            {(isNew || isDirty) && (
-              <Button variant="ghost" className="h-9" onClick={() => navigate({ to: backTo as "/admin/guias" })}>
-                Cancelar
-              </Button>
-            )}
-            {(isNew || isDirty) && (
-              <Button
-                className="h-9 bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white hover:opacity-90"
-                onClick={() => handleSave()}
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Check className="size-4 mr-1.5" />}
-                {isNew ? "Criar imóvel" : "Salvar alterações"}
-              </Button>
-            )}
-            {!isNew && (
-              <Button
-                className="h-9 bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white hover:opacity-90"
-                onClick={handleCreateGuide}
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Check className="size-4 mr-1.5" />}
-                Criar guia
-              </Button>
-            )}
-          </div>
-        </fieldset>
-      </div>
-    );
-  }
-
   const marketplaceNode = (
 <Section
                   id="marketplace"
                   icon={Ticket}
-                  title={newLayoutEditor ? "Compre Online" : "Reservas & marketplace"}
-                  badge={newLayoutEditor && form.property.marketplace_links.length > 0 ? <CountPill>{form.property.marketplace_links.length}</CountPill> : undefined}
-                  topLine={newLayoutEditor ? "brand" : undefined}
+                  title="Compre Online"
+                  badge={form.property.marketplace_links.length > 0 ? <CountPill>{form.property.marketplace_links.length}</CountPill> : undefined}
+                  topLine="brand"
                   collapsible
                   action={
                     sigmaLocked ? null : (
@@ -2946,11 +1547,6 @@ function PropertyEditor() {
                   </fieldset>
                 </Section>
   );
-
-  // Data por extenso do topo — o MESMO molde do Dashboard e do `PageShell`.
-  const hojeExtenso = new Date()
-    .toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "numeric", month: "long" })
-    .replace(/^\w/, (c) => c.toUpperCase());
   const currentOwner = propertyOwnerOptions.find((o) => o.id === form.property.owner_contact_id);
   const showPreview = !!previewSlug;
   const showPlaybook = !isNew && !!id;
@@ -2991,45 +1587,21 @@ function PropertyEditor() {
                   phone={currentOwner.phone}
                   country={currentOwner.phoneCountry}
                   phonePosition="adjacent"
-                  variant={newLayoutEditor ? "neutral" : "brand"}
+                  variant="neutral"
                 />
               ) : null}
               <p className="ds-page-subtitle">
-                {houseOnly
-                  ? "Edite as informações da casa deste imóvel."
-                  : singleStepMode && !needsRequiredHouseInfo && !focusStep
-                    ? "Monte a curadoria de dicas locais deste imóvel."
-                    : "Edite as informações do guia deste imóvel."}
+                Monte a curadoria de dicas locais deste imóvel.
               </p>
-              {!isNew && !houseOnly ? (
+              {!isNew ? (
                 <div className="ds-scroll-x items-center gap-2">
                   <PresenceAvatars users={presence.users} />
                 </div>
               ) : null}
             </div>
 
-            {((!houseOnly && !(singleStepMode && !needsRequiredHouseInfo)) || showPreview || showMaps || showPlaybook) && (
+            {(showPreview || showMaps || showPlaybook) && (
               <div className="mt-5 flex flex-col gap-2 lg:mt-2.5 lg:flex-row lg:items-center lg:gap-2">
-                {/* Modo "só a casa" (link "Editar" dentro do Proprietário, em
-                    Stakeholders): trava em "house" e nunca mostra esta barra —
-                    só se fala de informações "da casa" ali. */}
-                {!houseOnly && !(singleStepMode && !needsRequiredHouseInfo) && (
-                  <div className="order-1 min-w-0 lg:order-2 lg:flex-1">
-                    <Stepper
-                      current={step}
-                      onChange={setStep}
-                      steps={[
-                        { value: "house", label: "A casa", icon: Home },
-                        { value: "airbnb", label: "Airbnb", icon: Sparkles },
-                        { value: "guide", label: "O Guia", icon: FileText },
-                        { value: "checkin", label: "Check-in & Checkout", icon: DoorOpen },
-                        { value: "faq", label: "FAQ", icon: LifeBuoy },
-                        { value: "recs", label: "Recomendações", icon: Compass },
-                      ].filter((s) => !(nativeAirbnb && s.value === "airbnb"))}
-                      lockedValues={needsRequiredHouseInfo ? ["airbnb", "guide", "checkin", "faq", "recs"] : undefined}
-                    />
-                  </div>
-                )}
                 {(showPreview || showMaps || showPlaybook) && (
                   /* UMA PEÇA SÓ, PARTIDA AO MEIO — como Filtros|Pendências no
                      Kanban (pedido explícito, 01/10/2026): à esquerda o olho +
@@ -3093,1295 +1665,13 @@ function PropertyEditor() {
         </div>
 
         <DenseSections variant="presence">
-          <Tabs value={step} onValueChange={setStep}>
-            {/* ================= A CASA ================= */}
-            <TabsContent value="house" className={TAB_CONTENT}>
-              {needsRequiredHouseInfo ? (
-                <EditorNotice tone="amber" icon={AlertTriangle}>
-                  Complete as informações obrigatórias pendentes ({allMissingRequiredFields.join(", ")}) para
-                  desbloquear as demais abas do guia.
-                </EditorNotice>
-              ) : null}
-              <div className={SECTION_LIST}>
-                <SectionGroup>
-                  {renderIdentitySection()}
-
-                  {renderCleaningSection()}
-
-                  {renderAddressSection()}
-
-                  {!nativeAirbnb && renderAirbnbCalendarSection()}
-
-                  {!nativeAirbnb && renderHouseRulesSection()}
-
-                  {renderManualSection()}
-
-                  {!nativeAirbnb && renderPropertyDetailsSection()}
-
-                  {renderHostContactSection()}
-
-                  {!isNew && renderProvidersSection()}
-                </SectionGroup>
-              </div>
-            </TabsContent>
-
-            {/* ================= AIRBNB ================= */}
-            <TabsContent value="airbnb" className={TAB_CONTENT}>
-              <div className={SECTION_LIST}>
-              <SectionGroup>
-                <Section
-                  id="import-airbnb"
-                  icon={Sparkles}
-                  tone="accent"
-                  title="Importar do Airbnb"
-                  collapsible
-                  // Obrigatório para publicar (01/10/2026) — o selo fica até
-                  // o primeiro Importar.
-                  badge={(form.property.airbnb_listing_url ?? "").trim() ? undefined : <PendingPill />}
-                >
-                  {!canAirbnb && (
-                    <EditorNotice tone="amber" icon={Lock}>
-                      <span>
-                        Importação automática é exclusiva dos planos <strong>Pro</strong>, <strong>Business</strong> e{" "}
-                        <strong>Enterprise</strong>. Faça upgrade em{" "}
-                        <Link to="/precos" className="underline font-medium">
-                          Planos
-                        </Link>
-                        .
-                      </span>
-                    </EditorNotice>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Input
-                      value={airbnbUrl}
-                      onChange={(e) => setAirbnbUrl(e.target.value)}
-                      placeholder="https://airbnb.com.br/h/seu-anuncio"
-                      disabled={!canAirbnb}
-                    />
-                    <Button
-                      onClick={handleImportAirbnb}
-                      disabled={importingAirbnb || !canAirbnb}
-                      variant="secondary"
-                      className="shrink-0"
-                    >
-                      {importingAirbnb ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                      <span className="ml-1.5 hidden sm:inline">{importingAirbnb ? "Importando…" : "Importar"}</span>
-                    </Button>
-                  </div>
-
-                  {/* Nota do iCal e o status "checagem automática 1x/dia"
-                      removidos daqui a pedido do cliente em 03/09/2026 —
-                      "remova todo e qualquer subtítulo... da página Airbnb
-                      somente": eram texto explicativo abaixo do título da
-                      seção, mesma categoria do que já tinha sido removido
-                      (prop `desc` das Sections) num pedido anterior.
-                      Mantido abaixo SÓ o caso de erro (não é um "subtítulo"
-                      informativo — é um alerta acionável, e esconder uma
-                      falha de sincronização deixaria o host sem saber por
-                      que os dados pararam de atualizar sozinhos). */}
-                  {!isNew && form.property.airbnb_listing_last_error && (
-                    <EditorNotice tone="rose" icon={Sparkles}>
-                      A checagem automática diária falhou na última tentativa: {form.property.airbnb_listing_last_error}
-                    </EditorNotice>
-                  )}
-
-                  {(form.property.airbnb_rating != null ||
-                    form.property.airbnb_guest_count != null ||
-                    form.property.airbnb_bedroom_count != null ||
-                    form.property.airbnb_bed_count != null ||
-                    form.property.airbnb_bathroom_count != null) && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {form.property.airbnb_rating != null && (
-                        <span className={AIRBNB_STAT_CHIP}>
-                          <span className="ds-atencao font-semibold">★</span>{" "}
-                          {form.property.airbnb_rating.toFixed(2).replace(".", ",")}
-                        </span>
-                      )}
-                      {form.property.airbnb_guest_count != null && (
-                        <span className={AIRBNB_STAT_CHIP}>{form.property.airbnb_guest_count} hóspedes</span>
-                      )}
-                      {form.property.airbnb_bedroom_count != null && (
-                        <span className={AIRBNB_STAT_CHIP}>{form.property.airbnb_bedroom_count} quartos</span>
-                      )}
-                      {form.property.airbnb_bed_count != null && <span className={AIRBNB_STAT_CHIP}>{form.property.airbnb_bed_count} camas</span>}
-                      {form.property.airbnb_bathroom_count != null && (
-                        <span className={AIRBNB_STAT_CHIP}>{form.property.airbnb_bathroom_count} banheiros</span>
-                      )}
-                    </div>
-                  )}
-                </Section>
-
-                <Section id="airbnb-basic-fields" icon={FileText} title="Título do Anúncio" collapsible>
-                  {/* Pedido do cliente em 03/09/2026: esta seção passou a se
-                      chamar "Título do Anúncio" e só existe pra editar o
-                      nome — a "Descrição curta" saiu daqui porque ela já
-                      aparece automaticamente dentro de "Descrição completa"
-                      (não faz sentido duplicar). Também a pedido dele, o
-                      campo abaixo não tem título/legenda própria dentro da
-                      seção (o título da própria Section já basta) — só o
-                      campo. Desde 01/10/2026 o nome vem SÓ do anúncio do
-                      Airbnb (obrigatório para publicar) e fica sempre
-                      travado — tocar mostra o motivo. */}
-                  <AirbnbLockedValue value={form.property.name} label="Título do Anúncio" />
-                </Section>
-
-                <Section
-                  id="gallery"
-                  icon={ImageIcon}
-                  title="Fotos da residência"
-                  collapsible
-                  badge={countBadge(form.property.gallery_images.length)}
-                >
-                  {/* SEMPRE só visualização (01/10/2026): o anúncio do Airbnb é
-                      obrigatório para publicar e é a única fonte das fotos —
-                      o upload manual saiu. Tocar nas fotos mostra o motivo. */}
-                  {form.property.gallery_images.length ? (
-                    <AirbnbLockReason label="Fotos da residência">
-                    <button type="button" aria-label="Fotos da residência — por que não posso editar?" className="grid w-full cursor-help grid-cols-4 gap-2 text-left">
-                      {form.property.gallery_images.map((url, i) => (
-                        <div key={i} className="relative ds-surface overflow-hidden rounded-lg border border-border/60 aspect-square">
-                          <img src={url} alt={`Foto ${i + 1}`} className="size-full object-cover" />
-                          {i === 0 && (
-                            <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-                              Capa
-                            </span>
-                          )}
-                          <Lock className="absolute top-1 right-1 size-3 text-white drop-shadow" />
-                        </div>
-                      ))}
-                    </button>
-                    </AirbnbLockReason>
-                  ) : (
-                    <AirbnbLockedValue value={null} label="Fotos da residência" placeholder="Nenhuma foto importada ainda." />
-                  )}
-                </Section>
-
-
-                <Section id="airbnb-checkin-times" icon={Clock} title="Horários de check-in" collapsible>
-                  {/* Pedido do cliente em 03/09/2026: o horário fica ao lado
-                      DIREITO do rótulo (não abaixo dele) — inclusive o texto
-                      "(opcional)", que virou parte do próprio rótulo em vez
-                      de uma legenda numa linha separada. */}
-                  <div className="space-y-2.5">
-                    <TimeInlineRow label="Check-in a partir de">
-                      <AirbnbLockedValue value={form.property.checkin_time} label="Check-in a partir de" />
-                    </TimeInlineRow>
-                    <TimeInlineRow label="Check-in até" optional>
-                      <AirbnbLockedValue value={form.property.checkin_time_max} label="Check-in até" />
-                    </TimeInlineRow>
-                  </div>
-                  <Field
-                    label="Observação do check-in (opcional)"
-                    hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
-                  >
-                    <TagMentionTextarea
-                      items={tagItems}
-                      value={form.property.checkin_note}
-                      maxLength={1000}
-                      rows={3}
-                      onChange={(e) => update("checkin_note", e.target.value)}
-                      placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência."
-                    />
-                  </Field>
-                </Section>
-
-                <Section id="airbnb-checkout-times" icon={Clock} title="Horários de check-out" collapsible>
-                  {/* Mesmo padrão do check-in acima (horário ao lado direito
-                      do rótulo). O "opcional" de "Check-out a partir de"
-                      ficou só "(opcional)" — a explicação "não vem do
-                      Airbnb, defina à mão" foi removida a pedido do cliente
-                      (mantida só em comentário aqui para quem for mexer
-                      depois entender por que este campo é editável e o
-                      outro não). */}
-                  <div className="space-y-2.5">
-                    {/* "A partir de" NÃO vem do Airbnb (o anúncio só mostra um
-                        horário-limite de saída) — continua editável à mão.
-                        "Até" é o único dos dois que a importação preenche, por
-                        isso só ele fica bloqueado, seguindo a regra desta
-                        aba. */}
-                    <TimeInlineRow label="Check-out a partir de" optional>
-                      <TimePicker
-                        value={form.property.checkout_time_min}
-                        onChange={(v) => update("checkout_time_min", v)}
-                        placeholder="08:00"
-                      />
-                    </TimeInlineRow>
-                    <TimeInlineRow label="Check-out até" optional>
-                      <AirbnbLockedValue value={form.property.checkout_time} label="Check-out até" />
-                    </TimeInlineRow>
-                  </div>
-                  <Field
-                    label="Observação do check-out (opcional)"
-                    hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
-                  >
-                    <TagMentionTextarea
-                      items={tagItems}
-                      value={form.property.checkout_note}
-                      maxLength={1000}
-                      rows={3}
-                      onChange={(e) => update("checkout_note", e.target.value)}
-                      placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião."
-                    />
-                  </Field>
-                </Section>
-
-                <Section id="airbnb-description-full" icon={FileText} title="Descrição completa (Airbnb)" collapsible>
-                  {form.property.airbnb_description_full ? (
-                    <FormattedAirbnbText text={form.property.airbnb_description_full} />
-                  ) : (
-                    <EmptyHint text="Nenhuma descrição completa importada ainda." />
-                  )}
-                </Section>
-
-                <Section id="airbnb-rooms-beds" icon={DoorOpen} title="Quartos e camas (Airbnb)" collapsible>
-                  {form.property.airbnb_rooms_beds.length ? (
-                    <div className="divide-y divide-border/60">
-                      {form.property.airbnb_rooms_beds.map((r, i) => (
-                        <div key={i} className="flex items-center justify-between gap-3 py-2 text-sm">
-                          <span className="font-medium">{r.room || `Quarto ${i + 1}`}</span>
-                          <span className="text-muted-foreground text-xs text-right">{r.beds}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyHint text="Nenhum quarto importado ainda." />
-                  )}
-                </Section>
-
-                <Section
-                  id="airbnb-amenities"
-                  icon={Shield}
-                  title="Comodidades (Airbnb)"
-                  collapsible
-                  badge={countBadge(form.property.airbnb_amenities.length)}
-                >
-                  {form.property.airbnb_amenities.length ? (
-                    <AmenitiesList amenities={form.property.airbnb_amenities} />
-                  ) : (
-                    <EmptyHint text="Nenhuma comodidade importada ainda." />
-                  )}
-                </Section>
-
-                <Section id="airbnb-know" icon={LifeBuoy} title="O que você deve saber (Airbnb)" collapsible>
-                  {!form.property.airbnb_house_rules &&
-                  !form.property.airbnb_cancellation_policy &&
-                  !form.property.airbnb_safety_info ? (
-                    <EmptyHint text="Nada importado ainda." />
-                  ) : (
-                    <div className="space-y-5">
-                      {form.property.airbnb_house_rules && (
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                            Regras da casa
-                          </p>
-                          <FormattedAirbnbText text={form.property.airbnb_house_rules} />
-                        </div>
-                      )}
-                      {form.property.airbnb_cancellation_policy && (
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                            Política de cancelamento
-                          </p>
-                          <FormattedAirbnbText text={form.property.airbnb_cancellation_policy} />
-                        </div>
-                      )}
-                      {form.property.airbnb_safety_info && (
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                            Segurança e propriedade
-                          </p>
-                          <FormattedAirbnbText text={form.property.airbnb_safety_info} />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </Section>
-              </SectionGroup>
-              </div>
-            </TabsContent>
-
-            {/* ================= O GUIA ================= */}
-            <TabsContent value="guide" className={TAB_CONTENT}>
-              <div className={SECTION_LIST}>
-              <SectionGroup>
-                <Section
-                  id="identity"
-                  icon={FileText}
-                  title="Identidade visual"
-                  collapsible
-                >
-                  <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
-                    {/* Editável de novo (05/10/2026): o Importar não troca mais um
-                        slug que já existe, então a URL personalizada fica. */}
-                    <GuideSlugField
-                      value={form.property.slug}
-                      savedSlug={savedSlug}
-                      onChange={(v) => update("slug", v)}
-                    />
-                  </Field>
-                  <Field
-                    label="Tipo do guia"
-                    hint="Aparece abaixo do nome no cabeçalho do guia. Obrigatório só para publicar."
-                  >
-                    <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
-                  </Field>
-                </Section>
-
-                <Section
-                  id="access-mode"
-                  icon={Shield}
-                  title="Modo de acesso"
-                  collapsible
-                >
-                  <Field label="Modo de acesso do Guia">
-                    <Select
-                      value={form.property.access_mode}
-                      onValueChange={(v) => update("access_mode", v as "public" | "pin")}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="public">URL pública (qualquer um com o link vê)</SelectItem>
-                        <SelectItem value="pin">Protegido por código (PIN)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  {form.property.access_mode === "pin" && (
-                    <div className="ds-well grid grid-cols-2 gap-3 p-3">
-                      <Field label="Código de acesso" required>
-                        <Input
-                          value={form.property.pin_code}
-                          maxLength={20}
-                          onChange={(e) => update("pin_code", e.target.value)}
-                          placeholder="ex: 4729"
-                        />
-                      </Field>
-                      <Field label="Expira em" hint="Deixe em branco para nunca expirar">
-                        <DateTimePicker
-                          value={form.property.pin_expires_at}
-                          onChange={(v) => update("pin_expires_at", v)}
-                        />
-                      </Field>
-                    </div>
-                  )}
-
-                  <PanelHeading title="Primeiro acesso" className="" />
-                  {/* Formulário de primeiro acesso: obrigatório em guias de
-                Check-In & Check-Out (bloqueado), editável nos demais tipos. */}
-                  {(() => {
-                    const gateLocked = form.property.tagline === ETIQUETA_CHECKIN_CHECKOUT;
-                    const gateOn = gateLocked || form.property.require_access_gate;
-                    return (
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-[13px] font-semibold leading-tight">Exigir formulário de primeiro acesso</p>
-                          <p className="ds-faint text-[11px] leading-snug mt-0.5">
-                            {gateLocked
-                              ? "Obrigatório para guias do tipo Check-In & Check-Out."
-                              : "O hóspede se identifica antes de ver o guia."}
-                          </p>
-                        </div>
-                        {gateLocked ? (
-                          <span className="inline-flex items-center gap-1 text-[9.5px] uppercase tracking-[0.16em] text-muted-foreground font-bold shrink-0">
-                            <Lock className="size-3" /> obrigatório
-                          </span>
-                        ) : (
-                          <Switch checked={gateOn} onCheckedChange={(v) => update("require_access_gate", v)} />
-                        )}
-                      </div>
-                    );
-                  })()}
-                </Section>
-              </SectionGroup>
-              </div>
-            </TabsContent>
-
-            {/* ================= CHECK-IN & CHECKOUT ================= */}
-            <TabsContent value="checkin" className={TAB_CONTENT}>
-              {/* Subabas "Check-in" / "Checkout" dentro da aba "Check-in &
-                  Checkout" — pedido do cliente em 03/09/2026: separar o que
-                  é logística de chegada do que é logística de saída. Cada
-                  subaba tem sua própria SectionGroup (regra de
-                  expansividade: só uma Section aberta por vez — mas cada
-                  subaba controla isso de forma independente da outra).
-
-                  NÃO usa a classe `ds-segmented` aqui de propósito — são só
-                  2 rótulos curtos e fixos, que cabem em qualquer largura de
-                  tela sem precisar de rolagem/anti-corte. Usar `ds-segmented`
-                  mesmo assim foi o que causou o bug do print 1 (03/09/2026):
-                  o `width:100%` daquela classe brigou com o `max-w-xs` que
-                  tentava limitar a largura do bloco, e o "Checkout" esticou
-                  ocupando o espaço sobrando. `inline-flex` resolve isso de
-                  raiz — o bloco só ocupa o espaço que os 2 botões precisam.
-
-                  Centralizado na página com um wrapper `flex justify-center`
-                  (pedido do cliente em 03/09/2026 — os 2 botões estavam
-                  "colados" à esquerda, sem centralização). `justify-center`
-                  não funcionaria direto no próprio bloco `inline-flex` — ele
-                  só ocupa a largura do conteúdo, então não há "espaço
-                  sobrando" nele mesmo para centralizar; precisa de um pai
-                  block-level de largura total fazendo a centralização. */}
-              {/* SUBABAS SEM CAIXA (pedido explícito, 01/10/2026: "não podem
-                  ter o mesmo quadrado que o menu"): só o rótulo e uma linha de
-                  2px embaixo — o gradiente da marca na selecionada, uma linha
-                  neutra e o texto apagado na outra. Centralizadas, cada uma
-                  com a largura fixa do mockup, sem esticar. */}
-              <nav aria-label="Check-in ou Checkout" className="flex justify-center gap-1">
-                {(
-                  [
-                    { value: "checkin" as const, label: "Check-in", icon: DoorOpen },
-                    { value: "checkout" as const, label: "Checkout", icon: LogOut },
-                  ]
-                ).map((t) => {
-                  const active = checkinSubStep === t.value;
-                  return (
-                    <button
-                      key={t.value}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => setCheckinSubStep(t.value)}
-                      className={`relative flex h-9 w-[118px] items-center justify-center gap-1.5 whitespace-nowrap text-[13px] transition-colors after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:content-[''] ${
-                        active
-                          ? "font-bold text-foreground after:bg-[linear-gradient(120deg,#7c1ad8,#e82dae)]"
-                          : "ds-faint font-semibold after:bg-foreground/10 hover:text-foreground"
-                      }`}
-                    >
-                      <t.icon className="size-3.5" />
-                      {t.label}
-                    </button>
-                  );
-                })}
-              </nav>
-
-              {checkinSubStep === "checkin" && (
-              <div className={SECTION_LIST}>
-              <SectionGroup>
-                <div hidden={nativeAirbnb} className="contents">
-                <Section id="checkin-times" icon={Clock} title="Horário de check-in" collapsible>
-                  {/* Espelha (mesmo estado do form, não é uma cópia separada)
-                      os campos que já existem na aba Airbnb — pedido do
-                      cliente em 03/09/2026: os horários "sumiram" desta aba
-                      na fusão Check-in+Checkout porque só apareciam lá.
-                      Continuam só-leitura aqui pela mesma regra (campo
-                      importado do Airbnb = só visualização) — pra editar o
-                      horário em si, use a aba Airbnb; a observação dá pra
-                      editar direto por aqui também. */}
-                  <div className="space-y-2.5">
-                    <TimeInlineRow label="Check-in a partir de">
-                      <AirbnbLockedValue value={form.property.checkin_time} label="Check-in a partir de" />
-                    </TimeInlineRow>
-                    <TimeInlineRow label="Check-in até" optional>
-                      <AirbnbLockedValue value={form.property.checkin_time_max} label="Check-in até" />
-                    </TimeInlineRow>
-                  </div>
-                  <Field
-                    label="Observação do check-in (opcional)"
-                    hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
-                  >
-                    <TagMentionTextarea
-                      items={tagItems}
-                      value={form.property.checkin_note}
-                      maxLength={1000}
-                      rows={3}
-                      onChange={(e) => update("checkin_note", e.target.value)}
-                      placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência."
-                    />
-                  </Field>
-                </Section>
-                </div>
-
-                <Section
-                  id="checkin-instr"
-                  icon={DoorOpen}
-                  title="Instruções de chegada"
-                  collapsible
-                >
-                  {!nativeAirbnb && (
-                  <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
-                    <TagMentionTextarea
-                      items={tagItems}
-                      value={form.property.checkin_instructions}
-                      maxLength={3000}
-                      rows={6}
-                      onChange={(e) => update("checkin_instructions", e.target.value)}
-                      placeholder={
-                        "Estacione na vaga 12.\nAponte para o portão lateral.\nUse o código de portão e fechadura ao lado."
-                      }
-                    />
-                  </Field>
-                  )}
-                  <Field
-                    label="Fotos e vídeos do check-in"
-                    hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB)."
-                  >
-                    <MediaUpload
-                      value={form.property.checkin_media}
-                      onChange={(next) => update("checkin_media", next)}
-                      folder="checkin"
-                      max={8}
-                    />
-                  </Field>
-                </Section>
-
-                <Section
-                  id="access-codes"
-                  icon={KeyRound}
-                  title="Senhas de Acesso"
-                  collapsible
-                >
-                  {/* Campo inline — Código para visualizar as senhas no Guia */}
-                  <div className="ds-well flex items-center justify-between gap-3 p-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-[13px] font-semibold leading-tight">
-                        Código para visualizar as senhas de acesso no Guia
-                      </p>
-                      <p className="ds-faint text-[11px] leading-snug mt-0.5">
-                        Opcional. Deixe em branco para liberar apenas pela janela de horário.
-                      </p>
-                    </div>
-                    <Input
-                      className="w-24 shrink-0 tabular-nums text-center tracking-[0.06em]"
-                      value={form.property.access_codes_pin}
-                      maxLength={20}
-                      onChange={(e) => update("access_codes_pin", e.target.value)}
-                      placeholder="Ex.: 8421"
-                    />
-                  </div>
-
-                  <PanelHeading
-                    title="Acessos"
-                    className=""
-                    right={
-                      <span className="ds-faint text-[10.5px]">
-                        {(gateOpen ? 1 : 0) + (lockOpen ? 1 : 0)} de 2 {(gateOpen ? 1 : 0) + (lockOpen ? 1 : 0) === 1 ? "ativo" : "ativos"}
-                      </span>
-                    }
-                  />
-                  <div className="space-y-3">
-                    {/* Portão — sempre recolhido por padrão */}
-                    <details className="group ds-well overflow-hidden" open={gateOpen}>
-                      <summary
-                        className="list-none cursor-pointer select-none w-full flex items-center gap-3 p-3"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setGateOpen((v) => !v);
-                        }}
-                      >
-                        <div
-                          className={`size-7 rounded-[8px] grid place-items-center shrink-0 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_6%,transparent)] ${gateOpen ? "bg-foreground/[0.08] text-foreground" : "bg-foreground/[0.05] text-muted-foreground"}`}
-                        >
-                          <KeyRound className="size-3.5" strokeWidth={2} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate text-[13px] font-semibold leading-tight">Portão com código</p>
-                          <p className="ds-faint text-[11px] leading-snug mt-0.5">
-                            {gateOpen
-                              ? "Configure abaixo o código e as instruções."
-                              : "Ative se a entrada tem portão com senha."}
-                          </p>
-                        </div>
-                        <Switch
-                          checked={gateOpen}
-                          onCheckedChange={(v) => {
-                            setGateOpen(v);
-                            if (!v)
-                              setForm((f) => ({
-                                ...f,
-                                property: {
-                                  ...f.property,
-                                  gate_code: "",
-                                  gate_instructions: "",
-                                  gate_video_url: "",
-                                  gate_media: [],
-                                },
-                              }));
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </summary>
-                      {gateOpen && (
-                        <div className="flex flex-col gap-3.5 border-t border-foreground/[0.06] px-3 py-3.5">
-                          <Field label="Código do portão" required>
-                            <Input
-                              value={form.property.gate_code}
-                              maxLength={40}
-                              onChange={(e) => update("gate_code", e.target.value)}
-                              placeholder="Ex.: 1212"
-                            />
-                          </Field>
-                          <Field
-                            label="Defina um nome"
-                            required
-                            hint="Como esse acesso aparece no guia. Ex.: Portão, Garagem, Cancela."
-                          >
-                            <Input
-                              value={form.property.gate_label}
-                              maxLength={40}
-                              onChange={(e) => update("gate_label", e.target.value)}
-                              placeholder="Portão"
-                            />
-                          </Field>
-                          <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
-                            <Textarea
-                              value={form.property.gate_instructions}
-                              maxLength={3000}
-                              rows={5}
-                              onChange={(e) => update("gate_instructions", e.target.value)}
-                              placeholder={"Ex.: 1) Digite o código no teclado do portão e aperte #."}
-                            />
-                          </Field>
-                          <Field label="Link de vídeo tutorial (opcional)">
-                            <Input
-                              value={form.property.gate_video_url}
-                              maxLength={2048}
-                              onChange={(e) => update("gate_video_url", e.target.value)}
-                              placeholder="https://youtu.be/…"
-                            />
-                          </Field>
-                          <Field label="Fotos e vídeos do portão (opcional)">
-                            <MediaUpload
-                              value={form.property.gate_media}
-                              onChange={(next) => update("gate_media", next)}
-                              folder="access"
-                              max={8}
-                            />
-                          </Field>
-                        </div>
-                      )}
-                    </details>
-
-                    {/* Fechadura — sempre recolhido por padrão */}
-                    <details className="group ds-well overflow-hidden" open={lockOpen}>
-                      <summary
-                        className="list-none cursor-pointer select-none w-full flex items-center gap-3 p-3"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setLockOpen((v) => !v);
-                        }}
-                      >
-                        <div
-                          className={`size-7 rounded-[8px] grid place-items-center shrink-0 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_6%,transparent)] ${lockOpen ? "bg-foreground/[0.08] text-foreground" : "bg-foreground/[0.05] text-muted-foreground"}`}
-                        >
-                          <Lock className="size-3.5" strokeWidth={2} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate text-[13px] font-semibold leading-tight">Fechadura com código</p>
-                          <p className="ds-faint text-[11px] leading-snug mt-0.5">
-                            {lockOpen
-                              ? "Configure abaixo o código e as instruções."
-                              : "Ative se a porta tem fechadura eletrônica."}
-                          </p>
-                        </div>
-                        <Switch
-                          checked={lockOpen}
-                          onCheckedChange={(v) => {
-                            setLockOpen(v);
-                            if (!v)
-                              setForm((f) => ({
-                                ...f,
-                                property: {
-                                  ...f.property,
-                                  lock_code: "",
-                                  lock_instructions: "",
-                                  lock_video_url: "",
-                                  lock_media: [],
-                                },
-                              }));
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </summary>
-                      {lockOpen && (
-                        <div className="flex flex-col gap-3.5 border-t border-foreground/[0.06] px-3 py-3.5">
-                          <Field label="Código da fechadura" required>
-                            <Input
-                              value={form.property.lock_code}
-                              maxLength={40}
-                              onChange={(e) => update("lock_code", e.target.value)}
-                              placeholder="Ex.: 3333"
-                            />
-                          </Field>
-                          <Field
-                            label="Defina um nome"
-                            required
-                            hint="Como esse acesso aparece no guia. Ex.: Fechadura, Porta principal, Smart lock."
-                          >
-                            <Input
-                              value={form.property.lock_label}
-                              maxLength={40}
-                              onChange={(e) => update("lock_label", e.target.value)}
-                              placeholder="Fechadura"
-                            />
-                          </Field>
-                          <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
-                            <Textarea
-                              value={form.property.lock_instructions}
-                              maxLength={3000}
-                              rows={5}
-                              onChange={(e) => update("lock_instructions", e.target.value)}
-                              placeholder={"Ex.: 1) Digite o código na fechadura e pressione #."}
-                            />
-                          </Field>
-                          <Field label="Link de vídeo tutorial (opcional)">
-                            <Input
-                              value={form.property.lock_video_url}
-                              maxLength={2048}
-                              onChange={(e) => update("lock_video_url", e.target.value)}
-                              placeholder="https://youtu.be/…"
-                            />
-                          </Field>
-                          <Field label="Fotos e vídeos da fechadura (opcional)">
-                            <MediaUpload
-                              value={form.property.lock_media}
-                              onChange={(next) => update("lock_media", next)}
-                              folder="access"
-                              max={8}
-                            />
-                          </Field>
-                        </div>
-                      )}
-                    </details>
-
-                    {!gateOpen && !lockOpen ? (
-                      <p className="text-[12px] text-muted-foreground rounded-[12px] border border-dashed border-border/60 px-4 py-3">
-                        Ative ao menos um tipo de acesso acima para cadastrar código e instruções.
-                      </p>
-                    ) : null}
-                  </div>
-                </Section>
-
-                <Section
-                  id="wifi"
-                  icon={Wifi}
-                  title="Wi-Fi"
-                  collapsible
-                >
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Rede (SSID)">
-                      <Input
-                        value={form.property.wifi_ssid}
-                        maxLength={64}
-                        onChange={(e) => update("wifi_ssid", e.target.value)}
-                      />
-                    </Field>
-                    <Field label="Senha">
-                      <Input
-                        value={form.property.wifi_password}
-                        maxLength={64}
-                        onChange={(e) => update("wifi_password", e.target.value)}
-                      />
-                    </Field>
-                  </div>
-                </Section>
-
-                <Section
-                  id="guest-data"
-                  icon={ClipboardList}
-                  title="Dados do hóspede"
-                  collapsible
-                >
-                  <div className="space-y-2">
-                    <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Obrigatoriamente coletados
-                    </p>
-                    <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
-                      {[
-                        { label: "Nome cadastrado na plataforma", icon: UserRound },
-                        { label: "Período da viagem (chegada e saída)", icon: Clock },
-                        { label: "Telefone", icon: Phone },
-                      ].map((it) => (
-                        <div
-                          key={it.label}
-                          className="ds-well flex items-center justify-between px-3.5 py-2"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span className="grid place-items-center size-7 rounded-lg bg-accent/10 text-accent">
-                              <it.icon className="size-3.5" />
-                            </span>
-                            <span className="text-sm font-medium">{it.label}</span>
-                          </div>
-                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                            <Lock className="size-3" /> obrigatório
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-3 mt-3 border-t border-border/60">
-                    <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Você também pode solicitar
-                    </p>
-                    <CaptureRow
-                      icon={Clock}
-                      title="Horário previsto de chegada"
-                      desc="Ajuda a preparar o check-in no horário certo."
-                      mode={form.property.collect_arrival_time}
-                      onModeChange={(m) =>
-                        setForm((f) => ({ ...f, property: { ...f.property, collect_arrival_time: m } }))
-                      }
-                    />
-                    <CaptureRow
-                      icon={Car}
-                      title="Veículo(s)"
-                      desc="Quantos veículos e para cada um: placa, modelo, cor."
-                      mode={form.property.collect_vehicles}
-                      onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_vehicles: m } }))}
-                    >
-                      {form.property.collect_vehicles !== "off" && (
-                        <div className="flex items-center justify-between rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
-                          <div className="text-[12.5px] text-muted-foreground">
-                            <span className="font-medium text-foreground">Quantidade máxima permitida</span>
-                            <span className="block text-[11px]">Define o teto que o hóspede pode escolher.</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <button
-                                key={n}
-                                type="button"
-                                onClick={() => setForm((f) => ({ ...f, property: { ...f.property, vehicles_max: n } }))}
-                                className={cn(
-                                  "size-8 rounded-full text-[12px] font-semibold border transition-colors",
-                                  form.property.vehicles_max === n
-                                    ? "bg-accent text-accent-foreground border-accent"
-                                    : "border-border text-muted-foreground hover:text-foreground",
-                                )}
-                              >
-                                {n}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </CaptureRow>
-                    <CaptureRow
-                      icon={IdCard}
-                      title="Documento pessoal"
-                      desc="Nome completo + número (CPF, RG, passaporte…)."
-                      mode={form.property.collect_document}
-                      onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_document: m } }))}
-                    >
-                      {form.property.collect_document !== "off" && (
-                        <div className="rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
-                          <div className="text-[12px] font-medium mb-1.5">De quem coletar?</div>
-                          <div className="flex gap-1.5">
-                            {(
-                              [
-                                { v: "main", label: "Só do hóspede principal" },
-                                { v: "all", label: "De todos os hóspedes" },
-                              ] as const
-                            ).map((o) => (
-                              <button
-                                key={o.v}
-                                type="button"
-                                onClick={() =>
-                                  setForm((f) => ({ ...f, property: { ...f.property, document_scope: o.v } }))
-                                }
-                                className={cn(
-                                  "px-3 py-1.5 rounded-full text-[11.5px] border transition-colors",
-                                  form.property.document_scope === o.v
-                                    ? "bg-accent text-accent-foreground border-accent"
-                                    : "border-border text-muted-foreground hover:text-foreground",
-                                )}
-                              >
-                                {o.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </CaptureRow>
-                  </div>
-                </Section>
-              </SectionGroup>
-              </div>
-              )}
-
-              {checkinSubStep === "checkout" && (
-              <div className={SECTION_LIST}>
-              <SectionGroup>
-                <div hidden={nativeAirbnb} className="contents">
-                <Section id="checkout-times" icon={Clock} title="Horário de check-out" collapsible>
-                  {/* Mesmo espelhamento do "Horário de check-in" acima — ver
-                      comentário lá. "Check-out a partir de" continua
-                      editável aqui (é o único horário que não vem do
-                      Airbnb — a aba Airbnb também deixa editar o mesmo
-                      campo, mesmo estado, sem risco de divergência). */}
-                  <div className="space-y-2.5">
-                    <TimeInlineRow label="Check-out a partir de" optional>
-                      <TimePicker
-                        value={form.property.checkout_time_min}
-                        onChange={(v) => update("checkout_time_min", v)}
-                        placeholder="08:00"
-                      />
-                    </TimeInlineRow>
-                    <TimeInlineRow label="Check-out até" optional>
-                      <AirbnbLockedValue value={form.property.checkout_time} label="Check-out até" />
-                    </TimeInlineRow>
-                  </div>
-                  <Field
-                    label="Observação do check-out (opcional)"
-                    hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
-                  >
-                    <TagMentionTextarea
-                      items={tagItems}
-                      value={form.property.checkout_note}
-                      maxLength={1000}
-                      rows={3}
-                      onChange={(e) => update("checkout_note", e.target.value)}
-                      placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião."
-                    />
-                  </Field>
-                </Section>
-                </div>
-
-                {!nativeAirbnb && (
-                <Section
-                  id="checkout-instr"
-                  icon={LogOut}
-                  title="Instruções de saída"
-                  collapsible
-                >
-                  <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
-                    <TagMentionTextarea
-                      items={tagItems}
-                      value={form.property.checkout_instructions}
-                      maxLength={3000}
-                      rows={6}
-                      onChange={(e) => update("checkout_instructions", e.target.value)}
-                      placeholder={
-                        "Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."
-                      }
-                    />
-                  </Field>
-                </Section>
-                )}
-
-                <Section
-                  id="checkout-list"
-                  icon={ClipboardCheck}
-                  title="Checklist de check-out"
-                  collapsible
-                  badge={countBadge(form.checkout.length)}
-                >
-                  {form.checkout.length > 0 && (
-                    <PanelHeading
-                      title="Itens"
-                      className=""
-                      right={<span className="ds-faint text-[10.5px]">{form.checkout.length} {form.checkout.length === 1 ? "item" : "itens"}</span>}
-                    />
-                  )}
-                  {form.checkout.length === 0 ? (
-                    <EmptyHint text="Ex: trancar a porta, deixar a chave na mesa, fechar janelas." />
-                  ) : (
-                    form.checkout.map((c, i) => (
-                      <ItemCard
-                        row
-                        key={i}
-                        onRemove={() => setForm((f) => ({ ...f, checkout: f.checkout.filter((_, j) => j !== i) }))}
-                      >
-                        <Input
-                          placeholder="ex: Trancar a porta"
-                          value={c.label}
-                          maxLength={200}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              checkout: f.checkout.map((x, j) => (j === i ? { label: e.target.value } : x)),
-                            }))
-                          }
-                        />
-                      </ItemCard>
-                    ))
-                  )}
-                  <div className="pt-1">
-                    <AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />
-                  </div>
-                </Section>
-              </SectionGroup>
-              </div>
-              )}
-            </TabsContent>
-
-            {/* ================= FAQ & CONTATOS ================= */}
-            <TabsContent value="faq" className={TAB_CONTENT}>
-              <div className={SECTION_LIST}>
-              <SectionGroup>
-                <Section
-                  id="emergency"
-                  icon={Phone}
-                  title="Emergências"
-                  collapsible
-                  badge={countBadge(form.emergency.length)}
-                >
-                  {form.emergency.length === 0 ? (
-                    <EmptyHint text="Adicione contatos como polícia, bombeiros, médico de plantão." />
-                  ) : (
-                    form.emergency.map((m, i) => (
-                      <ItemCard
-                        key={i}
-                        onRemove={() => setForm((f) => ({ ...f, emergency: f.emergency.filter((_, j) => j !== i) }))}
-                      >
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input
-                            placeholder="Rótulo"
-                            value={m.label}
-                            maxLength={120}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                emergency: f.emergency.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)),
-                              }))
-                            }
-                          />
-                          <Input
-                            placeholder="Número"
-                            value={m.number}
-                            maxLength={40}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                emergency: f.emergency.map((x, j) => (j === i ? { ...x, number: e.target.value } : x)),
-                              }))
-                            }
-                          />
-                        </div>
-                      </ItemCard>
-                    ))
-                  )}
-                  <div className="pt-1">
-                    <AddBtn
-                      onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))}
-                    />
-                  </div>
-                </Section>
-
-                <Section
-                  id="faqs"
-                  icon={HelpCircle}
-                  title="Perguntas frequentes"
-                  collapsible
-                  badge={countBadge(form.faqs.length)}
-                >
-                  {form.faqs.length > 0 && (
-                    <PanelHeading
-                      title="Perguntas"
-                      className=""
-                      right={<span className="ds-faint text-[10.5px]">{form.faqs.length} {form.faqs.length === 1 ? "pergunta" : "perguntas"}</span>}
-                    />
-                  )}
-                  {form.faqs.length === 0 ? (
-                    <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
-                  ) : (
-                    form.faqs.map((m, i) => {
-                      const FAQ_TAGS: { value: "chegada" | "saida" | "residencia" | "explore"; label: string }[] = [
-                        { value: "chegada", label: "Chegada (Check-In)" },
-                        { value: "saida", label: "Saída (Check-Out)" },
-                        { value: "residencia", label: "Residência" },
-                        { value: "explore", label: "Explore" },
-                      ];
-                      const toggleTag = (tag: "chegada" | "saida" | "residencia" | "explore") => {
-                        setForm((f) => ({
-                          ...f,
-                          faqs: f.faqs.map((x, j) =>
-                            j === i
-                              ? {
-                                  ...x,
-                                  tags: x.tags.includes(tag) ? x.tags.filter((t) => t !== tag) : [...x.tags, tag],
-                                }
-                              : x,
-                          ),
-                        }));
-                      };
-                      const isOpen = openFaqIdx === i;
-                      const isSigma = m.tags.includes("sigma");
-                      return (
-                        <div
-                          key={i}
-                          className={`group ds-well overflow-hidden transition-colors ${isSigma ? "!shadow-[inset_0_0_0_1px_rgba(201,169,98,0.28)]" : ""}`}
-                        >
-                          <div className="flex items-center gap-2 px-3.5 py-3">
-                            <button
-                              type="button"
-                              onClick={() => setOpenFaqIdx(isOpen ? null : i)}
-                              className="flex-1 flex items-center gap-2 min-w-0 text-left"
-                              aria-expanded={isOpen}
-                            >
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-[13px] font-semibold">
-                                  {m.question || <span className="text-muted-foreground italic">Sem pergunta</span>}
-                                </span>
-                                {/* Etiquetas visíveis com a pergunta FECHADA (mockup
-                                    aprovado) — as mesmas que se marcam ao abrir. */}
-                                {!isOpen && m.tags.some((t) => FAQ_TAGS.some((ft) => ft.value === t)) && (
-                                  <span className="mt-1.5 flex gap-1.5 overflow-hidden">
-                                    {FAQ_TAGS.filter((ft) => m.tags.includes(ft.value)).map((ft) => (
-                                      <span
-                                        key={ft.value}
-                                        className="inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded-full bg-foreground/[0.05] px-2 text-[10.5px] font-bold text-muted-foreground"
-                                      >
-                                        {ft.label}
-                                      </span>
-                                    ))}
-                                  </span>
-                                )}
-                              </span>
-                              {/* Pergunta do pacote do ConciergeIA (somente leitura):
-                                  etiqueta pequena "IA" com cadeado, colada à
-                                  esquerda da seta (pedido explícito, 01/10/2026). */}
-                              {isSigma && (
-                                <span
-                                  title="Pergunta do ConciergeIA — somente leitura"
-                                  className="ds-atencao inline-flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-[#c9a962]/[0.08] px-1.5 text-[9px] font-extrabold tracking-[0.06em] shadow-[inset_0_0_0_1px_rgba(201,169,98,0.22)]"
-                                >
-                                  <Lock className="size-2.5" strokeWidth={2.6} />
-                                  IA
-                                </span>
-                              )}
-                              <ChevronDown
-                                className={`size-4 text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`}
-                              />
-                            </button>
-                            {!isSigma && (
-                              <button
-                                onClick={() => {
-                                  setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }));
-                                  if (openFaqIdx === i) setOpenFaqIdx(null);
-                                }}
-                                aria-label="Remover"
-                                className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors opacity-60 group-hover:opacity-100"
-                              >
-                                <Trash2 className="size-3.5" />
-                              </button>
-                            )}
-                          </div>
-                          {isOpen && (
-                            <fieldset
-                              disabled={isSigma}
-                              className={`px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-border/40 m-0 min-w-0 ${isSigma ? "opacity-70" : ""}`}
-                            >
-                              {isSigma && (
-                                <p className="text-[11px] text-amber-300/90 inline-flex items-center gap-1">
-                                  <Lock className="size-3" /> Pergunta do ConciergeIA — leitura somente.
-                                </p>
-                              )}
-                              <Input
-                                placeholder="Pergunta"
-                                value={m.question}
-                                maxLength={200}
-                                onChange={(e) =>
-                                  setForm((f) => ({
-                                    ...f,
-                                    faqs: f.faqs.map((x, j) => (j === i ? { ...x, question: e.target.value } : x)),
-                                  }))
-                                }
-                              />
-                              <TagMentionTextarea
-                                items={tagItems}
-                                placeholder="Resposta"
-                                value={m.answer}
-                                maxLength={2000}
-                                onChange={(e) =>
-                                  setForm((f) => ({
-                                    ...f,
-                                    faqs: f.faqs.map((x, j) => (j === i ? { ...x, answer: e.target.value } : x)),
-                                  }))
-                                }
-                              />
-                              <div className="space-y-1.5">
-                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-                                  Exibir também em
-                                </p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {FAQ_TAGS.map((t) => {
-                                    const active = m.tags.includes(t.value);
-                                    return (
-                                      <button
-                                        key={t.value}
-                                        type="button"
-                                        onClick={() => toggleTag(t.value)}
-                                        className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-accent text-accent-foreground border-accent" : "bg-background border-border text-muted-foreground hover:border-accent/50"}`}
-                                      >
-                                        {t.label}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </fieldset>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                  <div className="ds-scroll-x gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const defaults = buildDefaultFaqs(form.property);
-                        if (defaults.length === 0) {
-                          toast.info("Preencha campos como horários, endereço, Wi-Fi ou contato para gerar perguntas.");
-                          return;
-                        }
-                        setForm((f) => {
-                          const { merged, added } = mergeDefaultFaqs(f.faqs, defaults);
-                          if (added === 0) {
-                            toast.info("Todas as perguntas padrão já estão na sua FAQ.");
-                            return f;
-                          }
-                          toast.success(
-                            `${added} pergunta${added > 1 ? "s" : ""} gerada${added > 1 ? "s" : ""} a partir dos campos.`,
-                          );
-                          return { ...f, faqs: merged };
-                        });
-                      }}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors shrink-0"
-                    >
-                      <Sparkles className="size-3.5" /> Gerar dos campos
-                    </button>
-                    <AddBtn
-                      onClick={() =>
-                        setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))
-                      }
-                    />
-                  </div>
-                </Section>
-
-                <Section
-                  id="host-faq"
-                  icon={UserRound}
-                  title="Contato do anfitrião"
-                  collapsible
-                >
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Nome">
-                      <Input
-                        value={form.property.host_name}
-                        maxLength={120}
-                        onChange={(e) => update("host_name", e.target.value)}
-                      />
-                    </Field>
-                    <Field label="Telefone (WhatsApp)">
-                      <Input
-                        value={form.property.host_phone}
-                        maxLength={40}
-                        onChange={(e) => update("host_phone", e.target.value)}
-                      />
-                    </Field>
-                  </div>
-                </Section>
-              </SectionGroup>
-              </div>
-            </TabsContent>
-
+          <div>
             {/* ================= RECOMENDAÇÕES ================= */}
-            <TabsContent value="recs" className={TAB_CONTENT}>
+            <div className={TAB_CONTENT}>
               {!isNew && <SigmaActiveBanner propertyId={id} />}
               <div className={SECTION_LIST}>
-              <SectionGroup defaultOpenId={newLayoutEditor ? "marketplace" : null}>
-                {newLayoutEditor && marketplaceNode}
+              <SectionGroup defaultOpenId="marketplace">
+                {marketplaceNode}
                 <div className={`${PANEL_SHELL} flex flex-col gap-3 p-3.5`}>
                   <PanelHeading
                     title="Adicionar ponto"
@@ -4480,11 +1770,10 @@ function PropertyEditor() {
                   />
                 )}
 
-                {!newLayoutEditor && marketplaceNode}
               </SectionGroup>
               </div>
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </DenseSections>
 
         <div aria-hidden="true" className="h-36 sm:h-32 lg:h-28" />
@@ -4630,57 +1919,13 @@ function PropertyEditor() {
         )}
 
         {/* RODAPÉ (mockup aprovado, 01/10/2026): Anterior | Próximo como UMA
-            peça partida ao meio — o mesmo desenho de Filtros|Pendências, na
-            altura da barra de abas (44px) — e o aviso do salvamento automático
-            com o ponto verde-sálvia. A ordem e as travas dos botões não mudam. */}
+            peça partida ao meio (removida em 29/10/2026 com as abas antigas);
+            ficou só o aviso do salvamento automático com o ponto verde-sálvia. */}
         <div
           ref={editorFooterRef}
           className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/85 px-4 pt-3 pb-3.5 backdrop-blur-[10px]"
         >
           <div className="mx-auto flex max-w-[420px] flex-col items-center gap-2">
-            <div className={`${ACTION_BAR} !h-11 !rounded-[13px] lg:!w-full ${singleStepMode && !needsRequiredHouseInfo ? "hidden" : ""}`}>
-              {houseOnly ? (
-                <button
-                  type="button"
-                  className={`${ACTION_SEGMENT} !w-auto !flex-1 !gap-2 !px-3 text-[13px] text-foreground`}
-                  onClick={() => navigate({ to: backTo as "/admin/guias" })}
-                >
-                  Fechar
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className={`${ACTION_SEGMENT} !w-auto !flex-1 !gap-2 !px-3 text-[13px] ${ACTION_BUTTON_TONE} disabled:pointer-events-none disabled:text-muted-foreground/35`}
-                    onClick={() => {
-                      // Mesma ordem das abas do Stepper acima (house, airbnb, guide,
-                      // checkin, faq, recs — checkin já inclui checkout, que foi
-                      // mesclado na mesma aba "Check-in & Checkout").
-                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"].filter((s) => !(nativeAirbnb && s === "airbnb"));
-                      const i = order.indexOf(step);
-                      if (i > 0) setStep(order[i - 1]);
-                    }}
-                    disabled={step === "house"}
-                  >
-                    <ArrowLeft className={ACTION_ICON} />
-                    <span className="truncate">Anterior</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`${ACTION_SEGMENT} !w-auto !flex-1 !gap-2 !px-3 text-[13px] text-foreground disabled:pointer-events-none disabled:text-muted-foreground/35`}
-                    onClick={() => {
-                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"].filter((s) => !(nativeAirbnb && s === "airbnb"));
-                      const i = order.indexOf(step);
-                      if (i < order.length - 1) setStep(order[i + 1]);
-                    }}
-                    disabled={step === "recs" || (needsRequiredHouseInfo && step === "house")}
-                  >
-                    <span className="truncate">Próximo</span>
-                    <ArrowLeft className={`${ACTION_ICON} rotate-180`} />
-                  </button>
-                </>
-              )}
-            </div>
             {!readOnly && !isNew && (
               <p
                 className={`text-center text-[11px] inline-flex w-full items-center justify-center gap-1.5 ${
@@ -4710,28 +1955,6 @@ function PropertyEditor() {
           </div>
         </div>
 
-        <AlertDialog open={pendingIcalClear} onOpenChange={(o) => !o && setPendingIcalClear(false)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Remover integração com o Airbnb?</AlertDialogTitle>
-              <AlertDialogDescription>
-                As reservas sincronizadas deixarão de ser atualizadas automaticamente. Você pode reconectar a qualquer
-                momento colando a URL novamente.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  update("airbnb_ical_url", null);
-                  setPendingIcalClear(false);
-                }}
-              >
-                Remover integração
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </fieldset>
     </div>
   );
@@ -4771,10 +1994,6 @@ function editorFooterRef(node: HTMLDivElement | null) {
 const TAB_CONTENT = "mt-6 flex flex-col gap-[var(--ds-block-gap,24px)]";
 const SECTION_LIST = "ds-card-grid grid-cols-[minmax(0,1fr)]";
 
-/** Selo dos números do anúncio (★ nota, hóspedes, quartos…) — pílula neutra. */
-const AIRBNB_STAT_CHIP =
-  "inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-full bg-foreground/[0.04] px-2.5 text-[11.5px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]";
-
 /**
  * AVISO DENTRO DO EDITOR — card normal com o fio de 2px no topo na cor do tom
  * (padrão Presença: "Limpezas completas para aprovar" deixou de ser uma
@@ -4804,53 +2023,6 @@ function EditorNotice({
   );
 }
 
-/** Selo "Pendente" (rosa terroso) — quadrante com campo obrigatório faltando. */
-function PendingPill() {
-  return (
-    <span className="ds-falta flex h-5 shrink-0 items-center rounded-full bg-[#c98c8c]/[0.08] px-2 text-[10px] font-extrabold shadow-[inset_0_0_0_1px_rgba(201,140,140,0.22)]">
-      Pendente
-    </span>
-  );
-}
-
-/** Contagem do quadrante (pílula neutra do Dashboard) — some quando é zero. */
-function countBadge(n: number | null | undefined) {
-  return n ? <CountPill>{n}</CountPill> : undefined;
-}
-
-function Field({
-  label,
-  hint,
-  hintClassName,
-  required,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  // Opcional: reserva uma altura mínima pra legenda (hint), pra quando este
-  // Field fica lado a lado com outro Field cujo hint tem um número
-  // DIFERENTE de linhas — sem isso, o campo com legenda mais curta "subia"
-  // e ficava desalinhado com o campo vizinho (título com título, mas campo
-  // preenchível cada um numa altura diferente). Só é preciso passar isso
-  // quando dois Fields precisam ficar emparelhados lado a lado.
-  hintClassName?: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    // Padrão Presença (01/10/2026): rótulo 12px em semibold, legenda no tom
-    // mais fraco (`ds-faint`) e o campo com a cara do diálogo de formulário
-    // aprovado (36px, raio 8px — ver `.ds-presence-fields` em styles.css).
-    <div className="min-w-0">
-      <Label className="block truncate text-[12px] font-semibold text-foreground/90">
-        {label} {required && <span className="ds-falta">*</span>}
-      </Label>
-      {hint && <p className={cn("ds-faint text-[11px] mt-1 leading-snug", hintClassName)}>{hint}</p>}
-      <div className="mt-1.5">{children}</div>
-    </div>
-  );
-}
-
 function AddBtn({ onClick }: { onClick: () => void }) {
   return (
     <Button size="sm" variant="outline" onClick={onClick} className="shrink-0 rounded-full text-xs">
@@ -4863,182 +2035,6 @@ function EmptyHint({ text }: { text: string }) {
   return (
     <div className="rounded-[12px] border border-dashed border-border/70 px-4 py-5 text-center text-xs text-muted-foreground leading-relaxed">
       {text}
-    </div>
-  );
-}
-
-/* `ReadOnlyValue` (03/09/2026) virou `AirbnbLockedValue`
-   (`components/editor/AirbnbLockedField.tsx`, 01/10/2026): mesmo papel — o
-   campo importado do Airbnb é só leitura — e agora tocar nele mostra o motivo. */
-
-/** Linha "rótulo à esquerda, horário à direita" — pedido do cliente em
- *  03/09/2026: os campos de horário (check-in/check-out) devem ficar ao lado
- *  do rótulo, nunca abaixo dele, e o texto "(opcional)" deve entrar junto do
- *  próprio rótulo em vez de aparecer como legenda numa linha separada. */
-function TimeInlineRow({
-  label,
-  optional,
-  children,
-}: {
-  label: string;
-  optional?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <p className="text-sm text-foreground min-w-0 truncate">
-        {label}
-        {optional && <span className="text-muted-foreground font-normal"> (opcional)</span>}
-      </p>
-      <div className="w-32 shrink-0">{children}</div>
-    </div>
-  );
-}
-
-/** Exibe um texto longo importado do Airbnb (descrição completa, regras da
- *  casa, política de cancelamento, segurança) de forma "organizada, bonita e
- *  estruturada" — pedido do cliente em 03/09/2026. Quebra em parágrafos
- *  (linha em branco = novo parágrafo; se o texto original não tiver nenhuma
- *  linha em branco, cai pra quebra de linha simples) com espaço entre eles.
- *  A versão anterior também justificava o texto (`text-align: justify`) — o
- *  cliente testou e pediu pra tirar ("não ficou muito bom"), então voltou a
- *  ser alinhado à esquerda, mantendo só a quebra em parágrafos com respiro. */
-function FormattedAirbnbText({ text }: { text: string }) {
-  const byBlankLine = text
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-  const blocks =
-    byBlankLine.length > 1
-      ? byBlankLine
-      : text
-          .split(/\n/)
-          .map((p) => p.trim())
-          .filter(Boolean);
-  return (
-    <div className="space-y-3">
-      {blocks.map((block, i) => (
-        <p key={i} className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-          {block}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-/** Lista de comodidades importadas do Airbnb — pedido do cliente em
- *  03/09/2026: quando o anúncio agrupa comodidades por cômodo/seção (no modal
- *  "Mostrar todas as comodidades"), reproduzir essa mesma separação aqui em
- *  vez de uma lista única. Anúncios sem agrupamento (nenhum item com
- *  `category`) continuam mostrando a lista única de antes. */
-function AmenitiesList({ amenities }: { amenities: AirbnbAmenity[] }) {
-  const hasCategories = amenities.some((a) => a.category?.trim());
-  const chip = (a: AirbnbAmenity, key: number) => (
-    <span
-      key={key}
-      className={cn(
-        "text-xs px-2.5 py-1 rounded-full border border-border/60 bg-muted/40",
-        !a.available && "line-through opacity-50",
-      )}
-    >
-      {a.name}
-    </span>
-  );
-
-  if (!hasCategories) {
-    return <div className="flex flex-wrap gap-1.5">{amenities.map((a, i) => chip(a, i))}</div>;
-  }
-
-  const groups: Array<[string, AirbnbAmenity[]]> = [];
-  const indexByCategory = new Map<string, number>();
-  for (const a of amenities) {
-    const cat = a.category?.trim() || "Outras";
-    let idx = indexByCategory.get(cat);
-    if (idx === undefined) {
-      idx = groups.length;
-      indexByCategory.set(cat, idx);
-      groups.push([cat, []]);
-    }
-    groups[idx][1].push(a);
-  }
-
-  return (
-    <div className="space-y-4">
-      {groups.map(([cat, items]) => (
-        <div key={cat}>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">{cat}</p>
-          <div className="flex flex-wrap gap-1.5">{items.map((a, i) => chip(a, i))}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Upload de imagens por item do Manual da casa — guarda caminhos (não URLs
- * assinadas, que expiram) e reaproveita o preview de PropertyDetailsEditor. */
-function ManualItemImages({
-  images,
-  propertyId,
-  onChange,
-}: {
-  images: string[];
-  propertyId: string;
-  onChange: (next: string[]) => void;
-}) {
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  async function handleFiles(files: FileList) {
-    setUploading(true);
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Não autenticado");
-      const added: string[] = [];
-      for (const file of Array.from(files).slice(0, 6 - images.length)) {
-        if (!file.type.startsWith("image/")) continue;
-        if (file.size > 10 * 1024 * 1024) {
-          toast.error(`${file.name}: imagem muito grande (máx 10MB)`);
-          continue;
-        }
-        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const path = `${u.user.id}/manual/${propertyId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-        const { error } = await supabase.storage
-          .from("property-images")
-          .upload(path, file, { cacheControl: "3600", upsert: false, contentType: file.type });
-        if (error) throw error;
-        added.push(path);
-      }
-      onChange([...images, ...added]);
-    } catch (e) {
-      toast.error(friendlyErrorMessage(e, "Erro no upload"));
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  }
-
-  return (
-    <div className="space-y-2 pt-1">
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(e) => e.target.files && handleFiles(e.target.files)}
-      />
-      <DetailImages paths={images} onRemove={(p) => onChange(images.filter((x) => x !== p))} />
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-7 text-xs text-muted-foreground"
-        disabled={uploading || images.length >= 6}
-        onClick={() => fileRef.current?.click()}
-      >
-        {uploading ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <ImagePlus className="size-3 mr-1.5" />}
-        {images.length > 0 ? "Adicionar foto" : "Anexar foto"}
-      </Button>
     </div>
   );
 }
@@ -5330,7 +2326,6 @@ function CityRefsGroup({
 
   // Debounce de updates por id (chave -> timeout).
   const pendingUpdates = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const pendingAdds = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const inflightAdds = React.useRef<Set<string>>(new Set());
   function scheduleUpdate(id: string, patch: Record<string, unknown>) {
     const map = pendingUpdates.current;
@@ -6397,72 +3392,6 @@ function GenerateModeDialog({
 }
 
 type CaptureMode = "off" | "optional" | "required";
-
-function CaptureRow({
-  icon: Icon,
-  title,
-  desc,
-  mode,
-  onModeChange,
-  children,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  desc: string;
-  mode: CaptureMode;
-  onModeChange: (m: CaptureMode) => void;
-  children?: React.ReactNode;
-}) {
-  const options: { value: CaptureMode; label: string }[] = [
-    { value: "off", label: "Não pedir" },
-    { value: "optional", label: "Opcional" },
-    { value: "required", label: "Obrigatório" },
-  ];
-  const active = mode !== "off";
-  return (
-    <div
-      className={cn(
-        "ds-surface border transition-all",
-        active ? "border-accent/40 bg-accent/5" : "border-border/60 bg-card",
-      )}
-    >
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3.5">
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <span
-            className={cn(
-              "grid place-items-center size-9 rounded-lg shrink-0",
-              active ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground",
-            )}
-          >
-            <Icon className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <div className="text-sm font-semibold leading-tight">{title}</div>
-            <div className="text-[11.5px] text-muted-foreground leading-snug">{desc}</div>
-          </div>
-        </div>
-        <div className="inline-flex items-center rounded-full bg-muted p-0.5 self-start sm:self-auto">
-          {options.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => onModeChange(o.value)}
-              className={cn(
-                "px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors",
-                mode === o.value
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      {children && <div className="px-3.5 pb-3.5">{children}</div>}
-    </div>
-  );
-}
 
 /** Conteúdo serializado de cada seção do editor — base da gravação cirúrgica. */
 function sectionSnapshots(f: FormState): Record<string, string> {
