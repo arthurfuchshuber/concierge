@@ -199,3 +199,19 @@ export const TEAM_DECISION_GUIDANCE =
   "\n\nENTREGA DA DECISÃO SOBRE HORÁRIO/ACESSO FORA DO PADRÃO\n" +
   "- Em UMA mensagem: advertência gentil de que o pedido foge do padrão da casa (janela oficial de check-in, silêncio da vizinhança, acesso só de hóspedes da reserva) + a decisão da equipe, aplicada com clareza.\n" +
   "- Se autorizado: conduza a entrada com as instruções oficiais e peça entrada em silêncio. Se mantido o horário oficial: informe com cordialidade o horário em que a entrada é possível.";
+
+/** Ponte de espera determinística (rede de segurança do modo "hold"). */
+export function holdBridgeText(guestName: string | null, alreadyHeld: boolean, seed: number): string {
+  const fn = (guestName ?? "").trim().split(/\s+/)[0] ?? "";
+  const n = fn && !/^h[oó]spede$/i.test(fn) ? `${fn.charAt(0).toUpperCase()}${fn.slice(1).toLowerCase()}` : "";
+  const v = alreadyHeld
+    ? [
+        `${n ? `${n}, s` : "S"}eguimos verificando a possibilidade de check-in nesse horário. Assim que tivermos a resposta, retornamos por aqui. Peço só mais um pouco de paciência.`,
+        `Ainda estamos confirmando esse horário${n ? `, ${n}` : ""}. Retornamos por aqui assim que tivermos a resposta; agradeço a paciência.`,
+      ]
+    : [
+        `${n ? `${n}, e` : "E"}stamos verificando a possibilidade de check-in nesse horário. Assim que tivermos a resposta, retornamos por aqui. Peço que aguarde um instante, por favor.`,
+        `Estamos confirmando a possibilidade de entrada nesse horário${n ? `, ${n}` : ""}. Retornamos por aqui assim que tivermos a resposta; aguarde só um instante, por favor.`,
+      ];
+  return v[seed % v.length]!;
+}

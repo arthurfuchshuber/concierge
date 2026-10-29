@@ -57,6 +57,7 @@ import {
   detectArrivalTime,
   governanceOptions,
   governanceReason,
+  holdBridgeText,
   indicatesPhysicalPresence,
   isAutonomousAccess,
   isGuestPressing,
@@ -1300,6 +1301,14 @@ export async function runHospitalityAgent(params: {
   }
 
   // Contingência registrada no cartão (a equipe vê que a IA agiu sem ela).
+  if (gov.contingency?.mode === "hold") {
+    const pr = property as Record<string, unknown>;
+    const codes = [pr.gate_code, pr.lock_code].filter((c): c is string => typeof c === "string" && c.trim().length >= 3);
+    const leaks = !!reply && codes.some((c) => reply!.includes(c.trim()));
+    if (!reply || reply === SILENCE_TOKEN || leaks || !/aguard|retorn|paci[eê]ncia|instante|momento/i.test(reply)) {
+      reply = holdBridgeText(params.guestName ?? null, !!gov.contingency.snapshot.contingency_hold_at, fullHistory.length);
+    }
+  }
   if (gov.contingency && reply && reply !== SILENCE_TOKEN) {
     const key = gov.contingency.mode === "conduct" ? "contingency_conducted_at" : "contingency_hold_at";
     await supabase
