@@ -29,6 +29,7 @@ import { validateAnswer } from "./validate.server";
 import { suggestQuickReplies } from "./quick-replies.server";
 import { guestKeyOf, loadGuestMemoryWithFallback, reservationCodeFromDossier, updateGuestMemory } from "./memory.server";
 import { logAgentRun } from "./observability.server";
+import { renderPrecedents } from "./memory/precedents";
 import { buildGuestContext } from "./memory/guest-context.server";
 import {
   clearOpenTopic,
