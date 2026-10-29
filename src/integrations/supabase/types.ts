@@ -3751,6 +3751,318 @@ export type Database = {
         }
         Relationships: []
       }
+      malvo_accounts: {
+        Row: {
+          account_owner_id: string
+          balance: number | null
+          balance_payload: Json | null
+          balance_updated_at: string | null
+          bank_data: Json | null
+          created_at: string
+          credit_data: Json | null
+          currency_code: string | null
+          id: string
+          last_synced_at: string | null
+          last_tx_sync_at: string | null
+          malvo_account_id: string
+          malvo_item_id: string
+          marketing_name: string | null
+          name: string | null
+          number: string | null
+          owner_name: string | null
+          payload: Json
+          subtype: string | null
+          tax_number: string | null
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_owner_id: string
+          balance?: number | null
+          balance_payload?: Json | null
+          balance_updated_at?: string | null
+          bank_data?: Json | null
+          created_at?: string
+          credit_data?: Json | null
+          currency_code?: string | null
+          id?: string
+          last_synced_at?: string | null
+          last_tx_sync_at?: string | null
+          malvo_account_id: string
+          malvo_item_id: string
+          marketing_name?: string | null
+          name?: string | null
+          number?: string | null
+          owner_name?: string | null
+          payload?: Json
+          subtype?: string | null
+          tax_number?: string | null
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_owner_id?: string
+          balance?: number | null
+          balance_payload?: Json | null
+          balance_updated_at?: string | null
+          bank_data?: Json | null
+          created_at?: string
+          credit_data?: Json | null
+          currency_code?: string | null
+          id?: string
+          last_synced_at?: string | null
+          last_tx_sync_at?: string | null
+          malvo_account_id?: string
+          malvo_item_id?: string
+          marketing_name?: string | null
+          name?: string | null
+          number?: string | null
+          owner_name?: string | null
+          payload?: Json
+          subtype?: string | null
+          tax_number?: string | null
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      malvo_items: {
+        Row: {
+          account_owner_id: string
+          connector_id: string | null
+          connector_name: string | null
+          consent_expires_at: string | null
+          created_at: string
+          deleted_at: string | null
+          environment: string | null
+          execution_status: string | null
+          id: string
+          identity: Json | null
+          institution_type: string | null
+          last_synced_at: string | null
+          last_updated_at: string | null
+          malvo_item_id: string
+          next_auto_sync_at: string | null
+          payload: Json
+          status: string | null
+          status_detail: Json | null
+          updated_at: string
+        }
+        Insert: {
+          account_owner_id: string
+          connector_id?: string | null
+          connector_name?: string | null
+          consent_expires_at?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          environment?: string | null
+          execution_status?: string | null
+          id?: string
+          identity?: Json | null
+          institution_type?: string | null
+          last_synced_at?: string | null
+          last_updated_at?: string | null
+          malvo_item_id: string
+          next_auto_sync_at?: string | null
+          payload?: Json
+          status?: string | null
+          status_detail?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          account_owner_id?: string
+          connector_id?: string | null
+          connector_name?: string | null
+          consent_expires_at?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          environment?: string | null
+          execution_status?: string | null
+          id?: string
+          identity?: Json | null
+          institution_type?: string | null
+          last_synced_at?: string | null
+          last_updated_at?: string | null
+          malvo_item_id?: string
+          next_auto_sync_at?: string | null
+          payload?: Json
+          status?: string | null
+          status_detail?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      malvo_raw_records: {
+        Row: {
+          account_owner_id: string | null
+          created_at: string
+          entity_type: string
+          id: string
+          last_synced_at: string
+          malvo_id: string
+          malvo_item_id: string | null
+          parent_id: string | null
+          payload: Json
+          source: string
+        }
+        Insert: {
+          account_owner_id?: string | null
+          created_at?: string
+          entity_type: string
+          id?: string
+          last_synced_at?: string
+          malvo_id: string
+          malvo_item_id?: string | null
+          parent_id?: string | null
+          payload: Json
+          source?: string
+        }
+        Update: {
+          account_owner_id?: string | null
+          created_at?: string
+          entity_type?: string
+          id?: string
+          last_synced_at?: string
+          malvo_id?: string
+          malvo_item_id?: string | null
+          parent_id?: string | null
+          payload?: Json
+          source?: string
+        }
+        Relationships: []
+      }
+      malvo_transactions: {
+        Row: {
+          account_owner_id: string
+          amount: number | null
+          balance_after: number | null
+          category: string | null
+          category_id: string | null
+          created_at: string
+          credit_card_metadata: Json | null
+          currency_code: string | null
+          date: string | null
+          deleted_at: string | null
+          description: string | null
+          description_raw: string | null
+          id: string
+          malvo_account_id: string
+          malvo_created_at: string | null
+          malvo_item_id: string | null
+          malvo_transaction_id: string
+          malvo_updated_at: string | null
+          merchant: Json | null
+          payload: Json
+          payment_data: Json | null
+          provider_code: string | null
+          provider_id: string | null
+          status: string | null
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_owner_id: string
+          amount?: number | null
+          balance_after?: number | null
+          category?: string | null
+          category_id?: string | null
+          created_at?: string
+          credit_card_metadata?: Json | null
+          currency_code?: string | null
+          date?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          description_raw?: string | null
+          id?: string
+          malvo_account_id: string
+          malvo_created_at?: string | null
+          malvo_item_id?: string | null
+          malvo_transaction_id: string
+          malvo_updated_at?: string | null
+          merchant?: Json | null
+          payload?: Json
+          payment_data?: Json | null
+          provider_code?: string | null
+          provider_id?: string | null
+          status?: string | null
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_owner_id?: string
+          amount?: number | null
+          balance_after?: number | null
+          category?: string | null
+          category_id?: string | null
+          created_at?: string
+          credit_card_metadata?: Json | null
+          currency_code?: string | null
+          date?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          description_raw?: string | null
+          id?: string
+          malvo_account_id?: string
+          malvo_created_at?: string | null
+          malvo_item_id?: string | null
+          malvo_transaction_id?: string
+          malvo_updated_at?: string | null
+          merchant?: Json | null
+          payload?: Json
+          payment_data?: Json | null
+          provider_code?: string | null
+          provider_id?: string | null
+          status?: string | null
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      malvo_webhook_events: {
+        Row: {
+          attempts: number
+          client_user_id: string | null
+          created_at: string
+          event: string
+          event_id: string
+          id: string
+          last_error: string | null
+          malvo_item_id: string | null
+          next_attempt_at: string
+          payload: Json
+          processed_at: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          client_user_id?: string | null
+          created_at?: string
+          event: string
+          event_id: string
+          id?: string
+          last_error?: string | null
+          malvo_item_id?: string | null
+          next_attempt_at?: string
+          payload: Json
+          processed_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          client_user_id?: string | null
+          created_at?: string
+          event?: string
+          event_id?: string
+          id?: string
+          last_error?: string | null
+          malvo_item_id?: string | null
+          next_attempt_at?: string
+          payload?: Json
+          processed_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       ops_push_log: {
         Row: {
           created_at: string

@@ -631,8 +631,8 @@ export function FilterPeriodCalendar({
   /** Atalho "padrão" (ex.: "Últimos 7 dias") que limpa o período; vem primeiro e marcado quando não há período. */
   defaultChip?: { label: string; active: boolean; onSelect: () => void };
   value: DateRange | undefined;
-  /** Recebe cada clique; o pai decide quando propagar (intervalo completo). */
-  onChange: (next: DateRange | undefined) => void;
+  /** Recebe cada clique (com o dia clicado); atalhos vêm sem dia. O pai decide quando propagar. */
+  onChange: (next: DateRange | undefined, clicked?: Date) => void;
   month: Date;
   onMonthChange: (next: Date) => void;
   today: Date;
@@ -644,10 +644,12 @@ export function FilterPeriodCalendar({
   if (min) disabled.push({ before: min });
   if (max) disabled.push({ after: max });
 
+  const monthChip = !!defaultChip && /m[eê]s/i.test(defaultChip.label);
   const quick: Array<{ key: string; label: string; range: DateRange | undefined }> = [
     { key: "today", label: "Hoje", range: clampRange(today, today, min, max) },
     { key: "7d", label: defaultChip ? "Próximos 7 dias" : "7 dias", range: clampRange(today, addDays(today, 6), min, max) },
-    { key: "month", label: "Este mês", range: clampRange(startOfMonth(today), endOfMonth(today), min, max) },
+    // Sem duplicar: quando o atalho padrão já é o mês atual, "Este mês" some.
+    ...(monthChip ? [] : [{ key: "month", label: "Este mês", range: clampRange(startOfMonth(today), endOfMonth(today), min, max) }]),
   ];
   const sameRange = (a?: DateRange, b?: DateRange) =>
     !!a?.from && !!a?.to && !!b?.from && !!b?.to && isSameDay(a.from, b.from) && isSameDay(a.to, b.to);
@@ -735,6 +737,7 @@ export function FilterPeriodCalendar({
           </button>
         </div>
         <DayPicker
+          fixedWeeks
           mode="range"
           locale={ptBR}
           showOutsideDays
@@ -742,7 +745,7 @@ export function FilterPeriodCalendar({
           month={month}
           onMonthChange={onMonthChange}
           selected={value}
-          onSelect={onChange}
+          onSelect={(next, clicked) => onChange(next, clicked)}
           disabled={disabled.length ? disabled : undefined}
           today={today}
           formatters={{
@@ -921,6 +924,7 @@ export function FilterDateCalendar({
           </button>
         </div>
         <DayPicker
+          fixedWeeks
           mode="single"
           required
           locale={ptBR}

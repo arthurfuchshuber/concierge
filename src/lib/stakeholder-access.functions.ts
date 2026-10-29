@@ -147,6 +147,12 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
         belongsElsewhere =
           (props.count ?? 0) > 0 || (subs.count ?? 0) > 0 || (otherTeams.count ?? 0) > 0 || !!props.error || !!otherTeams.error;
       }
+      // Conta já usada (algum login feito) ou o próprio chamador: nunca troca a
+      // senha — só vincula. Senha provisória apenas para contas nunca acessadas.
+      if (!belongsElsewhere) {
+        const { data: au } = await supabaseAdmin.auth.admin.getUserById(memberUserId);
+        if (!au?.user || au.user.last_sign_in_at || memberUserId === userId) belongsElsewhere = true;
+      }
       if (belongsElsewhere) {
         mode = "linked_existing";
       } else {

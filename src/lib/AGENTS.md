@@ -29,3 +29,10 @@
 - Every active listing's Channex property (and twins) must have the Messages app: `createUnit` installs it on creation and `healMissingMessagesApps` (run by `syncChannexEntities`) installs any missing one, because without it Airbnb messages never reach ConciergeIA.
 - Read-only Channex channel details (`GET /channels/:id`) always go through `getChannelCached` (`channex-channel-cache.server.ts`: DB mirror ≤10 min → memory → API with in-flight dedupe); writes call `refreshChannel` after, because uncached screen reads caused ~28.6k calls/hour and a Channex complaint.
 - The public Airbnb page is parsed purely by `parsePublicListingHtml` (`src/lib/airbnb-public-parse.ts`: capacity, rooms/beds, rules, safety, space type, cover) and applied by `applyListingToProperty` on every sync path plus the daily `refresh-airbnb-listings` cron (re-writes/reindexes only when the parsed listing changed), so the Playbook never depends on manual re-sync.
+
+## Open Finance (Malvo)
+- Bank data is read-only via Malvo (`src/lib/malvo.server.ts`): webhooks (`/api/public/webhooks/malvo`, HMAC `Malvo-Signature` over the raw body) enqueue into `malvo_webhook_events` (dedupe by eventId) and drain it in the same request; the hourly cron `/api/public/cron/malvo-sync` is only a retry backstop; never poll Malvo on a timer. Every Malvo response is stored unfiltered in `malvo_raw_records`; `malvo_items/accounts/transactions` are derived and scoped to the account owner only (`clientUserId` = account owner id).
+- Asaas PJ is synced via its own API (`syncAsaas` in `src/lib/asaas.server.ts`, hourly from the Malvo cron) into the malvo_* tables as item `asaas`, because Asaas is not in Malvo's Open Finance catalog; the Gerencial reads it with no special path.
+
+## Webhooks x busca ativa
+- Integrations with webhooks (Malvo, Asaas, Channex) do a full pull only on activation; afterwards data arrives only via webhook (Asaas: `/api/public/webhooks/asaas`, token `asaas-access-token`, triggers incremental `syncAsaas`), never via cron polling, to avoid redundant fetches.

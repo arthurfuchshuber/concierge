@@ -805,6 +805,12 @@ export function RecordsWorkspace() {
               resto da tela. O número é o de pendências ABERTAS; o histórico não
               aparece aqui. Tocar de novo na célula ativa limpa a categoria. A cor
               é só a do status, no ícone. */}
+          <SearchActionRow
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por imóvel, proprietário…"
+            actions={recordActions}
+          />
           <div className="ds-card-grid grid-cols-2">
             {STATUS_CELLS.map((c) => (
               <StatusCell
@@ -825,12 +831,6 @@ export function RecordsWorkspace() {
             ))}
           </div>
 
-          <SearchActionRow
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar por imóvel, proprietário…"
-            actions={recordActions}
-          />
 
           {/* RESUMO DO QUE ESTÁ ABERTO (mockup A1, 03/10/2026): a primeira coisa
               que a pessoa precisa saber — quanto trabalho há — com o atalho para
@@ -1111,7 +1111,7 @@ function StatusCell({
         </span>
       </div>
       <div
-        className={`w-full pt-1.5 text-center font-display text-[26px] font-bold leading-none tracking-[-0.03em] tabular-nums ${
+        className={`w-full pt-1.5 text-center font-display text-[21px] font-bold leading-none tracking-[-0.03em] tabular-nums ${
           open > 0 || loading ? "" : "text-muted-foreground"
         }`}
         style={
@@ -1192,7 +1192,7 @@ function CategoryCard({
           {label}
         </span>
       </div>
-      <span className="relative w-full pt-2 text-center font-display text-[22px] font-bold leading-none tracking-[-0.03em] tabular-nums">
+      <span className="relative w-full pt-2 text-center font-display text-[18px] font-bold leading-none tracking-[-0.03em] tabular-nums">
         {loading ? "—" : count}
       </span>
     </button>

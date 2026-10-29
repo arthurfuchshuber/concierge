@@ -1,5 +1,5 @@
 /**
- * Conexão de anúncio no Modo Full (só conta piloto Sigma por enquanto).
+ * Conexão de anúncio no Modo Full (todas as contas em Modo Full).
  *
  * Um anúncio só fica "Conectado" no Airbnb quando é mapeado a um rate plan da Channex, e mapear
  * sem diárias faz o Airbnb travar o calendário. Por isso: (1) cria uma unidade PRÓPRIA na Channex
@@ -9,7 +9,6 @@
  * (calendário real aberto antes do vínculo). "Mapeado" é sempre lido ao vivo do canal.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { SIGMA_ACCOUNT_ID } from "@/lib/sync-alert-accounts";
 import { getChannelCached, refreshChannel } from "@/lib/channex-channel-cache.server";
 
 const B = "https://app.channex.io/api/v1";
@@ -25,7 +24,8 @@ async function cx<T = any>(path: string, init?: RequestInit): Promise<T> {
   return (text ? JSON.parse(text) : null) as T;
 }
 
-export const FULL_CONNECT_ACCOUNTS = new Set([SIGMA_ACCOUNT_ID]);
+/** Liberado para todas as contas (28/10/2026); o modo Full da conta continua exigido. */
+export const FULL_CONNECT_ACCOUNTS = { has: (id: string | null | undefined) => !!id };
 
 export type PendingFullConnection = {
   propertyId: string;

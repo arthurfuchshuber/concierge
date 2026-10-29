@@ -3642,6 +3642,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               total por dia". Cards e gráficos leem como um grupo só; o que os
               separa do cabeçalho é o `ds-page-head` (24px, token --ds-block-gap). */}
           <div className="ds-card-grid">
+            {/* BARRA ACIMA DOS CARTÕES (pedido explícito, 28/10/2026): a barra
+                que muda os números fica acima do que ela comanda. */}
+            <SearchActionRow
+              value={opSearch}
+              onChange={setOpSearch}
+              placeholder="Buscar por imóvel, proprietário, cidade…"
+              actions={opActions}
+            />
             <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
               {(() => {
                 // Os 4 cartões (mockup 23/10/2026): Limpezas Realizadas, Custo
@@ -3710,16 +3718,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               })()}
             </div>
 
-            {/* BUSCA + AÇÕES ABAIXO DOS CARTÕES (pedido explícito, 03/10/2026:
-                "retorne a linha de campo de buscas + filtros para baixo dos
-                cards principais — tanto em limpeza quanto em registros").
-                Desfaz a subida de 02/10/2026. */}
-            <SearchActionRow
-              value={opSearch}
-              onChange={setOpSearch}
-              placeholder="Buscar por imóvel, proprietário, cidade…"
-              actions={opActions}
-            />
 
             {/* Limpeza completa só entra no custo depois de aprovada (pedido
               explícito, 17/09/2026). O bloco só existe quando há pendência. */}
@@ -4199,7 +4197,7 @@ export function OperationShell({
           A data em amarelo fraco (pedido explícito, 18/09/2026) — era o rosa
           da marca, que no topo da página disputava com a aba ativa. */}
       <p className="ds-eyebrow ds-data text-[10.5px] tracking-[0.2em]">{hoje}</p>
-      <div className="lg:flex lg:items-end lg:justify-between lg:gap-8">
+      <div>
         {/* A MESMA `ds-page-heading` do bloco de fora: é isto que faz o vão
             título→subtítulo ser, por construção, o mesmo vão data→título. */}
         <div className="ds-page-heading min-w-0 lg:flex-1">
@@ -4237,8 +4235,8 @@ export function OperationShell({
             (pedido explícito, 18/09/2026, com print: elas estavam coladas). No
             computador o conjunto vive na mesma linha do título, então não há
             margem nenhuma. */}
-        <div className="mt-5 flex flex-col gap-2 lg:mt-0 lg:flex-row lg:items-center lg:gap-2">
-          <nav className="ds-tabs order-1 lg:order-2 lg:w-[520px] lg:shrink-0">
+        <div className="mt-5 flex flex-col gap-2 lg:mt-2.5 lg:flex-row lg:items-center lg:gap-2">
+          <nav className="ds-tabs order-1 lg:order-2 lg:min-w-0 lg:flex-1">
             {/* Financeiro tem a SUA página (só a aba dele); as demais telas
                 mostram as abas do Operacional, sem a Limpeza/Financeiro. */}
             {OPERATION_TABS.filter((t) => (view === "limpeza" ? t.view === "limpeza" : t.view !== "limpeza")).map((t) => {
@@ -4889,7 +4887,7 @@ function KpiCard({
                 de texto, sem carnaval. */}
             <div
               className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none tracking-[-0.03em] ${
-                valueSizeClass ?? (shadowTone ? "text-[30px] sm:text-[34px]" : "text-[28px] sm:text-[32px]")
+                valueSizeClass ?? (shadowTone ? "text-[24px] sm:text-[27px]" : "text-[22px] sm:text-[26px]")
               } whitespace-nowrap ${
                 !loading && rows.length > 0 && shadowTone === "sky"
                   ? "text-sky-500 dark:text-sky-400"
@@ -5254,16 +5252,16 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
  *  que o número mais longo da página exigir. */
 export function kpiSizeClass(values: Array<string | number>): string {
   const len = Math.max(0, ...values.map((v) => String(v ?? "").length));
-  if (len <= 3) return "text-[30px] sm:text-[34px]";
-  if (len <= 5) return "text-[24px] sm:text-[28px]";
-  return "text-[19px] sm:text-[22px]";
+  if (len <= 3) return "text-[24px] sm:text-[27px]";
+  if (len <= 5) return "text-[19px] sm:text-[22px]";
+  return "text-[16px] sm:text-[18px]";
 }
 
 export function bigNumberSizeClass(values: Array<string | number>): string {
   const len = Math.max(0, ...values.map((v) => String(v ?? "").length));
-  if (len <= 6) return "text-[26px] sm:text-[30px]";
-  if (len <= 8) return "text-[22px] sm:text-[26px]";
-  if (len <= 10) return "text-[18px] sm:text-[22px]";
+  if (len <= 6) return "text-[21px] sm:text-[24px]";
+  if (len <= 8) return "text-[18px] sm:text-[21px]";
+  if (len <= 10) return "text-[15px] sm:text-[18px]";
   return "text-[15px] sm:text-[18px]";
 }
 
@@ -5284,7 +5282,7 @@ function StatDisplayCard({
   note,
   detailItems,
   extraItems,
-  valueSizeClass = "text-[26px] sm:text-[30px]",
+  valueSizeClass = "text-[21px] sm:text-[24px]",
 }: {
   /** Tamanho do número COMPARTILHADO pelo grupo (ver `bigNumberSizeClass`). */
   valueSizeClass?: string;

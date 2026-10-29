@@ -171,7 +171,7 @@ import { Smartphone, Monitor } from "lucide-react";
 import { isNewLayoutAccount } from "@/lib/new-layout-accounts";
 
 /** Contas com anúncio nativo do Airbnb (piloto): campos importados via API somem do editor. */
-const NATIVE_AIRBNB_OWNERS = new Set(["25239e5b-1a66-46f1-b9a2-829c499cc366"]);
+const NATIVE_AIRBNB_OWNERS = { has: (id: string) => !!id }; // liberado para todas as contas
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   // Imóveis só nascem pela importação da conta conectada (19/10/2026):
@@ -2982,7 +2982,7 @@ function PropertyEditor() {
               </Link>
             }
           />
-          <div className="lg:flex lg:items-end lg:justify-between lg:gap-8">
+          <div>
             <div className="ds-page-heading min-w-0 lg:flex-1">
               <h1 className="ds-page-title !text-lg truncate">{form.property.name || "Sem título"}</h1>
               {currentOwner ? (
@@ -3009,12 +3009,12 @@ function PropertyEditor() {
             </div>
 
             {((!houseOnly && !(singleStepMode && !needsRequiredHouseInfo)) || showPreview || showMaps || showPlaybook) && (
-              <div className="mt-5 flex flex-col gap-2 lg:mt-0 lg:flex-row lg:items-center lg:gap-2">
+              <div className="mt-5 flex flex-col gap-2 lg:mt-2.5 lg:flex-row lg:items-center lg:gap-2">
                 {/* Modo "só a casa" (link "Editar" dentro do Proprietário, em
                     Stakeholders): trava em "house" e nunca mostra esta barra —
                     só se fala de informações "da casa" ali. */}
                 {!houseOnly && !(singleStepMode && !needsRequiredHouseInfo) && (
-                  <div className="order-1 min-w-0 lg:order-2 lg:w-[min(680px,52vw)] lg:shrink">
+                  <div className="order-1 min-w-0 lg:order-2 lg:flex-1">
                     <Stepper
                       current={step}
                       onChange={setStep}

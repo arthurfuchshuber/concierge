@@ -221,31 +221,10 @@ export const answerEscalation = createServerFn({ method: "POST" })
         .then(() => undefined, () => undefined);
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { speakWithAgent } = await import("@/lib/ai/outbound/speak.server");
-        const pergunta =
-          (esc as { question_to_human?: string | null } | null)?.question_to_human ?? "";
-        const r = await speakWithAgent({
-          supabase: supabaseAdmin as never,
-          conversationId,
-          reason: "human_answer",
-          pushTitle: "Resposta sobre o seu pedido",
-          instruction:
-            `A equipe respondeu internamente à sua pergunta "${pergunta}": "${data.answer}". ` +
-            "Trate essa escolha como FATO verdadeiro, não como o texto a enviar. Responda como concierge de alto padrão: " +
-            "releia a conversa inteira e a pergunta real do hóspede, combine a decisão com os dados reais do imóvel e da reserva " +
-            "(busque nas fontes quando necessário — localização do item, instruções, horários) e conduza a conversa: " +
-            "se houver próximo passo natural, ofereça-o; se a decisão liberar algo, entregue o necessário para ele agir. " +
-            "Seja conciso e elegante: sem repetir o que já foi dito, sem excesso, sem inventar nada fora das fontes. " +
-            "Não diga que consultou ninguém, não mencione equipe nem transferência — do ponto de vista dele, quem sempre esteve na conversa é você.",
-        });
+        // Entrega durável: se este clique cair por tempo esgotado, o cron reenvia.
+        const { deliverHumanAnswer } = await import("@/lib/ai/human-loop/deliver-answer.server");
+        const r = await deliverHumanAnswer(supabaseAdmin, data.escalationId);
         entregue = r.sent;
-        if (entregue) {
-          const snap = ((esc as { context_snapshot?: Record<string, unknown> | null } | null)?.context_snapshot ?? {}) as Record<string, unknown>;
-          await context.supabase
-            .from("ai_human_escalations")
-            .update({ applied_to_guest: true, context_snapshot: { ...snap, delivered_message_id: r.messageId ?? null } } as never)
-            .eq("id", data.escalationId);
-        }
       } catch (e) {
         console.error("[supervision] entrega imediata falhou", (e as Error)?.message);
       }

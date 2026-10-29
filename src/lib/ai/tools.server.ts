@@ -1233,9 +1233,8 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
             : null,
         observacao: livre
           ? "Disponibilidade de calendário. Preço e confirmação da reserva são sempre na plataforma do anúncio."
-          : "Ocupado no período pedido. NUNCA responda só 'não': ofereça o trecho livre dentro do período " +
-            "(ex.: 'temos de 12 a 14, podemos seguir?') e/ou o período mais próximo, e chame find_available_stays " +
-            "para outras unidades. Feche com uma pergunta de duas opções.",
+          : "Ocupado no período pedido. NUNCA responda só 'não': PRIMEIRO ofereça o trecho livre ou o período mais próximo neste mesmo imóvel " +
+            "e pergunte se serviria. Só se o hóspede recusar (ou não houver contraproposta), chame find_available_stays para outras unidades próximas. Fale com naturalidade, sem fórmula pronta.",
       };
     },
   });
@@ -1244,9 +1243,9 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     name: "find_available_stays",
     description:
       "Procura OUTROS imóveis do mesmo anfitrião livres em um período, ordenados por proximidade do imóvel atual. " +
-      "Use quando o imóvel do hóspede NÃO estiver livre e ele quiser estender, antecipar ou voltar em outra data — " +
-      "e também quando ele perguntar por outra unidade para acompanhantes. Devolve o link do anúncio quando " +
-      "cadastrado. NUNCA informe preço: mande o link, quem precifica é a plataforma.",
+      "Use quando o imóvel da conversa não estiver livre nas datas citadas E o hóspede já tiver recusado o período próximo oferecido no mesmo imóvel (ou não houver período próximo nele), mesmo que ele não peça outra unidade; " +
+      "e também quando ele perguntar por outra unidade para acompanhantes. Devolve o link oficial do anúncio conectado; sugira as unidades livres mais próximas (pode ser mais de uma, da mais perto à mais longe) com esse link." +
+      " NUNCA informe preço: mande o link, quem precifica é a plataforma.",
     parameters: schema(
       {
         entrada: { type: "string", description: "Primeira noite pretendida (AAAA-MM-DD)." },
@@ -1392,14 +1391,15 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         opcoes: livres,
         opcoes_periodo_parcial_ou_proximo: parciais,
         observacao:
-          livres.length > 0
+          (livres.length > 0
             ? "Ofereça as opções pelo nome e mande o link quando existir. Nunca cite preço — ele está no anúncio."
             : parciais.length > 0
               ? "Nenhuma unidade livre no período inteiro. Ofereça o trecho livre ou o período mais próximo com o " +
-                "nome do imóvel (ex.: 'temos outra residência de 11 a 13, posso te enviar o link?'). Nunca cite preço."
-              : "Nenhuma unidade livre nem em datas próximas. Diga isso com gentileza e pergunte se há flexibilidade; escale se insistir.",
+                "nome do imóvel. Nunca cite preço."
+              : "Nenhuma unidade livre nem em datas próximas. Diga isso com gentileza e pergunte se há flexibilidade; escale se insistir.") +
+          " Fale de forma natural e curta, sem roteiro fixo e sem expor incerteza interna; ao citar outro imóvel, inclua o link_anuncio.",
         sem_link: [...livres, ...parciais].some((o) => !o.link_anuncio)
-          ? "Alguma unidade sugerida está sem link de anúncio cadastrado — cite o nome e diga que o anfitrião envia o link."
+          ? "Alguma unidade veio sem link_anuncio: não a ofereça."
           : null,
       };
     },
