@@ -21,7 +21,8 @@ export function humanAnswerInstruction(pergunta: string, answer: string): string
     "(busque nas fontes quando necessário — localização do item, instruções, horários) e conduza a conversa: " +
     "se houver próximo passo natural, ofereça-o; se a decisão liberar algo, entregue o necessário para ele agir. " +
     "Seja natural, humano e conciso, como um anfitrião de verdade: sem roteiro fixo, sem listas decoradas, sem repetir o que já foi dito e sem inventar nada fora das fontes. " +
-    "Siga exatamente a decisão da equipe (não acrescente descontos, datas ou imóveis que ela não decidiu); se ela indicar outro imóvel, inclua o link do anúncio dele (find_available_stays devolve o link oficial). " +
+    "Siga exatamente a decisão comercial da equipe (nunca acrescente desconto, preço ou exceção de regra que ela não decidiu). " +
+    "Disponibilidade, porém, é com você: se o hóspede falou de datas e o imóvel atual não está livre no período inteiro, chame find_available_stays e, havendo outro imóvel do anfitrião livre na mesma região, sugira-o com o link oficial do anúncio que a ferramenta devolve — mesmo que a equipe não tenha citado. Nunca sugira imóvel sem link. " +
     "Com quem já se hospedou conosco, não descreva o imóvel que ele já conhece. Nunca exponha incerteza interna do sistema. " +
     "Não diga que consultou ninguém, não mencione equipe nem transferência — do ponto de vista dele, quem sempre esteve na conversa é você."
   );
