@@ -19,7 +19,7 @@ Implementa os mockups aprovados do canvas "Bloqueio de Datas".
      bloqueio original é devolvido inteiro).
 4. **Seletor rápido de mês e ano em TODOS os calendários** — `ui/month-year-picker.tsx` + `lib/month-year-options.ts`
    (testes em `__tests__/month-year-options.test.ts`). Tocar em "novembro 2026" abre a lista com **mês à esquerda e ano à
-   direita**. Só aparece o que existe: sem anos/meses passados no bloqueio (de hoje até ~500 dias), só meses do bloqueio
+   direita**. Só aparece o que existe: sem anos/meses passados no bloqueio (de hoje até o fim do prazo do anúncio), só meses do bloqueio
    no Liberar, e `fromYear`/`toYear` viram os limites nos calendários de cadastro. Ligado em `ui/calendar.tsx` (todos os
    calendários que o usam, inclusive os que tinham o seletor nativo) e nos dois calendários de `filter-panel.tsx`
    (Período e Data única).
@@ -30,4 +30,4 @@ Implementa os mockups aprovados do canvas "Bloqueio de Datas".
 
 ## Observações
 - Calendários com `<input type="date">` nativo (navegador) não são janelas do sistema e ficaram como estavam.
-- Horizonte de datas à frente do bloqueio: 500 dias (o mesmo do full sync da Channex). Ajuste em `HORIZON_DAYS`.
+- Prazo do bloqueio = prazo do(s) anúncio(s) do imóvel: primeira data = hoje + antecedência mínima (`booking_lead_time`); última = hoje + janela máxima (`max_days_notice`). Com mais de um anúncio vale o MENOR mínimo e o MAIOR máximo (`mergeBookingWindows`). Sem dado do anúncio: sem antecedência e 270 dias (`DEFAULT_BOOKING_WINDOW_DAYS`), teto de 730. Leitura em `propertyBookingWindows` (manual-blocks.functions.ts), regras em `bookingWindowBounds` (manual-block-conflict.ts).

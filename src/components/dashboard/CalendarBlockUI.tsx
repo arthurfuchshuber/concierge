@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import {
   addDaysISO,
   blockNights,
+  bookingWindowBounds,
   canPickBlockFrom,
   canPickBlockTo,
   canPickReleaseFrom,
@@ -26,6 +27,7 @@ import {
   normalizeBlockRange,
   occupiedNightSet,
   releaseFirstNight,
+  type BookingWindow,
   type StayRange,
 } from "@/lib/manual-block-conflict";
 
@@ -123,8 +125,6 @@ export function CalendarBlockBar({
   );
 }
 
-/** Quantos dias à frente o sistema trabalha com disponibilidade (mesmo horizonte do full sync da Channex). */
-const HORIZON_DAYS = 500;
 const monthStartOf = (iso: string) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, 1);
 
 type Picking = "from" | "to";
@@ -226,6 +226,7 @@ export function CalendarBlockDialog({
   todayISO,
   occupiedStays,
   releaseBlock,
+  bookingWindow,
 }: {
   /** "release" = janela "Liberar datas" (mockup 7): sem motivo, botão "Liberar N noites". */
   mode?: "block" | "release";
@@ -246,6 +247,8 @@ export function CalendarBlockDialog({
   occupiedStays?: readonly StayRange[];
   /** Liberar: o bloqueio MANUAL tocado inteiro — só as noites dele podem ser escolhidas (reserva nunca se libera). */
   releaseBlock?: { from: string; to: string };
+  /** Prazo do(s) anúncio(s) do imóvel (antecedência mínima e janela máxima, em dias). Mais de um anúncio: menor mínimo e maior máximo. */
+  bookingWindow?: BookingWindow | null;
 }) {
   const isMobile = useIsMobile();
   const [note, setNote] = useState("");
@@ -268,6 +271,7 @@ export function CalendarBlockDialog({
     return () => window.clearTimeout(t);
   }, [open]);
   const occupied = useMemo(() => occupiedNightSet(occupiedStays ?? []), [occupiedStays]);
+  const win = bookingWindowBounds(todayISO, bookingWindow);
   const n = blockNights(from, to);
   const HeadIcon = release ? CalendarCheck2 : CalendarX2;
   const nights = `${n} ${n === 1 ? "noite" : "noites"}`;
@@ -277,7 +281,7 @@ export function CalendarBlockDialog({
       if (!releaseBlock) return false;
       return which === "from" ? canPickReleaseFrom(releaseBlock, todayISO, iso) : canPickReleaseTo(releaseBlock, from, iso);
     }
-    return which === "from" ? canPickBlockFrom(occupied, todayISO, iso) : canPickBlockTo(occupied, from, iso);
+    return which === "from" ? canPickBlockFrom(occupied, win.firstNight, iso, win.lastNight) : canPickBlockTo(occupied, from, iso, win.lastTo);
   };
   /** Primeiro e último mês que têm algum dia utilizável — é o que o seletor de mês/ano oferece. */
   const bounds = (which: Picking): { min: Date; max: Date } => {
@@ -287,11 +291,11 @@ export function CalendarBlockDialog({
       lo = which === "from" ? releaseFirstNight(releaseBlock, todayISO) : addDaysISO(from, 1);
       hi = which === "from" ? addDaysISO(releaseBlock.to, -1) : releaseBlock.to;
     } else if (which === "from") {
-      lo = todayISO;
-      hi = addDaysISO(todayISO, HORIZON_DAYS);
+      lo = win.firstNight;
+      hi = win.lastNight;
     } else {
       lo = addDaysISO(from, 1);
-      hi = maxBlockEnd(occupied, from);
+      hi = maxBlockEnd(occupied, from, win.lastTo);
     }
     if (hi < lo) hi = lo;
     return { min: isoToDate(lo), max: isoToDate(hi) };
@@ -301,7 +305,7 @@ export function CalendarBlockDialog({
     if (picking === "from") {
       if (release) onRangeChange(iso, to > iso ? to : addDaysISO(iso, 1));
       else {
-        const r = normalizeBlockRange(occupied, iso, to);
+        const r = normalizeBlockRange(occupied, iso, to, win.lastTo);
         onRangeChange(r.from, r.to);
       }
       setPicking("to");

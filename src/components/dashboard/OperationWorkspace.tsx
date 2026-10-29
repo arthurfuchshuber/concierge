@@ -9829,6 +9829,7 @@ function OccupancyPanel({
               busy={blockBusy}
               initialPicking={blockEditOpen}
               todayISO={todayISO}
+              bookingWindow={blockPermQ.data?.windows?.[baseId(blockSel.propertyId)] ?? null}
               occupiedStays={[
                 ...(byProperty.get(blockSel.propertyId) ?? []),
                 ...(blockPermQ.data?.blocks ?? []).filter((b) => b.propertyId === baseId(blockSel.propertyId)).map((b) => ({ checkin: b.from, checkout: b.to })),

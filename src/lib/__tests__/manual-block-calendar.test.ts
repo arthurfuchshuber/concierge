@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  bookingWindowBounds,
   canPickBlockFrom,
   canPickBlockTo,
   canPickReleaseFrom,
   canPickReleaseTo,
   maxBlockEnd,
+  mergeBookingWindows,
   normalizeBlockRange,
   occupiedNightSet,
   releaseFirstNight,
@@ -73,5 +75,35 @@ describe("calendário do liberar: só bloqueio manual", () => {
       { from: "2026-11-09", to: "2026-11-10" },
       { from: "2026-11-11", to: "2026-11-12" },
     ]);
+  });
+});
+
+describe("prazo do anúncio no calendário do bloqueio", () => {
+  it("usa hoje + antecedência mínima até hoje + janela máxima", () => {
+    const w = bookingWindowBounds(TODAY, { minDays: 2, maxDays: 30 });
+    expect(w.firstNight).toBe("2026-10-31");
+    expect(w.lastNight).toBe("2026-11-28");
+    expect(w.lastTo).toBe("2026-11-29");
+    expect(canPickBlockFrom(new Set<string>(), w.firstNight, "2026-10-30", w.lastNight)).toBe(false);
+    expect(canPickBlockFrom(new Set<string>(), w.firstNight, "2026-10-31", w.lastNight)).toBe(true);
+    expect(canPickBlockFrom(new Set<string>(), w.firstNight, "2026-11-29", w.lastNight)).toBe(false);
+  });
+
+  it("o fim também respeita a janela máxima", () => {
+    const w = bookingWindowBounds(TODAY, { minDays: 0, maxDays: 30 });
+    expect(canPickBlockTo(new Set<string>(), "2026-11-20", "2026-11-29", w.lastTo)).toBe(true);
+    expect(canPickBlockTo(new Set<string>(), "2026-11-20", "2026-11-30", w.lastTo)).toBe(false);
+    expect(normalizeBlockRange(new Set<string>(), "2026-11-20", "2026-12-15", w.lastTo)).toEqual({ from: "2026-11-20", to: "2026-11-29" });
+  });
+
+  it("vários anúncios: menor mínimo e maior máximo", () => {
+    expect(mergeBookingWindows([{ minDays: 2, maxDays: 180 }, { minDays: 0, maxDays: 365 }, null])).toEqual({ minDays: 0, maxDays: 365 });
+    expect(mergeBookingWindows([{ minDays: null, maxDays: null }])).toEqual({ minDays: null, maxDays: null });
+  });
+
+  it("sem dado do anúncio: sem antecedência e janela padrão de 270 dias", () => {
+    const w = bookingWindowBounds(TODAY, null);
+    expect(w.firstNight).toBe(TODAY);
+    expect(w.lastNight).toBe("2027-07-26");
   });
 });

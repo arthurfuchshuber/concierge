@@ -37,12 +37,55 @@ async function isFullMode(sb: any, userId: string, ownerId: string | null | unde
 
 const LIGHT_MSG = "Bloqueio de datas só está disponível no Modo Full. No Modo Leve, bloqueie direto na plataforma de hospedagem.";
 
+/**
+ * PRAZO DE DATAS DO(S) ANÚNCIO(S) de cada imóvel (29/10/2026): o calendário de bloqueio só oferece datas dentro
+ * da regra do anúncio — `minDays` = antecedência mínima, `maxDays` = janela máxima de reservas, ambos em dias a
+ * partir de hoje. Com mais de um anúncio no imóvel (principal + gêmeos) vale o MENOR mínimo e o MAIOR máximo.
+ * Valor desconhecido = `null` (o calendário usa o padrão: sem antecedência e a janela padrão do sistema).
+ */
+async function propertyBookingWindows(sb: any, propertyIds: string[]) {
+  const out: Record<string, { minDays: number | null; maxDays: number | null }> = {};
+  if (!propertyIds.length) return out;
+  try {
+    const num = (v: unknown) => (v != null && v !== "" && Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : null);
+    const [{ data: raws }, { data: twins }] = await Promise.all([
+      sb.from("property_listing_raw_data").select("property_id, raw_settings").in("property_id", propertyIds),
+      sb.from("channex_twin_links").select("property_id, channel_id, twin_listing_id").in("property_id", propertyIds).eq("status", "active"),
+    ]);
+    const mins = new Map<string, number[]>();
+    const maxs = new Map<string, number[]>();
+    const add = (pid: string, mn: number | null, mx: number | null) => {
+      if (mn != null) mins.set(pid, [...(mins.get(pid) ?? []), mn]);
+      if (mx != null) maxs.set(pid, [...(maxs.get(pid) ?? []), mx]);
+    };
+    for (const r of (raws ?? []) as any[]) {
+      const rule = r.raw_settings?.availability_rule ?? {};
+      add(r.property_id, num(rule.booking_lead_time), num(rule.max_days_notice));
+    }
+    const { listingAvailabilityRule } = await import("@/lib/channex-full-connect.server");
+    await Promise.all(
+      ((twins ?? []) as any[]).map(async (t) => {
+        const rule = await listingAvailabilityRule(t.channel_id, t.twin_listing_id).catch(() => null);
+        if (rule) add(t.property_id, rule.minDays, rule.maxDays);
+      }),
+    );
+    for (const pid of propertyIds) {
+      const mn = mins.get(pid);
+      const mx = maxs.get(pid);
+      if (mn?.length || mx?.length) out[pid] = { minDays: mn?.length ? Math.min(...mn) : null, maxDays: mx?.length ? Math.max(...mx) : null };
+    }
+  } catch (e) {
+    console.error("[manual-block] prazo dos anúncios indisponível; usando o padrão", e);
+  }
+  return out;
+}
+
 export const listManualBlocks = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ ownerId: z.string().uuid().nullable().optional() }).parse(i ?? {}))
   .handler(async ({ data, context }) => {
     const ids = await editableProperties(context.supabase, context.userId, data.ownerId);
-    if (!ids.length || !(await isFullMode(context.supabase, context.userId, data.ownerId))) return { canEdit: false, properties: [], blocks: [] };
+    if (!ids.length || !(await isFullMode(context.supabase, context.userId, data.ownerId))) return { canEdit: false, windows: {} as Record<string, { minDays: number | null; maxDays: number | null }>, properties: [], blocks: [] };
     const today = new Date().toISOString().slice(0, 10);
     const [{ data: props }, { data: blocks }] = await Promise.all([
       context.supabase.from("properties").select("id, name").in("id", ids).order("name"),
@@ -55,8 +98,10 @@ export const listManualBlocks = createServerFn({ method: "POST" })
         .gte("checkout_date", today)
         .order("checkin_date"),
     ]);
+    const windows = await propertyBookingWindows(context.supabase, ids);
     return {
       canEdit: true,
+      windows,
       properties: (props ?? []) as Array<{ id: string; name: string }>,
       blocks: ((blocks ?? []) as any[]).map((b) => ({ id: b.id as string, propertyId: b.property_id as string, from: b.checkin_date as string, to: b.checkout_date as string, note: (b.raw_summary as string | null) ?? null })),
     };

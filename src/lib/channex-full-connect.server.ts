@@ -178,6 +178,23 @@ export async function listingWindowDays(channelId: string | null | undefined, li
 }
 
 /**
+ * Regra de datas do anúncio lida ao vivo do canal: antecedência mínima (`booking_lead_time`, em dias) e janela
+ * máxima de reservas (`max_days_notice`, em dias). Usada pelo calendário de bloqueio para os anúncios GÊMEOS,
+ * que não têm linha própria em `property_listing_raw_data`. Qualquer valor ausente vem `null`.
+ */
+export async function listingAvailabilityRule(
+  channelId: string | null | undefined,
+  listingId: string | null | undefined,
+): Promise<{ minDays: number | null; maxDays: number | null }> {
+  if (!channelId || !listingId) return { minDays: null, maxDays: null };
+  const c = await getChannelCached(channelId).catch(() => null);
+  const rp = (c?.data?.attributes?.rate_plans ?? []).find((x: any) => String(x.settings?.listing_id) === String(listingId));
+  const rule = rp?.settings?.availability_rule ?? {};
+  const num = (v: unknown) => (v != null && v !== "" && Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : null);
+  return { minDays: num(rule.booking_lead_time), maxDays: num(rule.max_days_notice) };
+}
+
+/**
  * Carga inicial da unidade ainda NÃO mapeada: espelha o calendário real do Airbnb (fechado = 0,
  * livre = 1 até a janela de reservas do anúncio) e, se a unidade ainda não tem nenhuma diária, uma tarifa base para a
  * ferramenta de preços ter ponto de partida. Seguro: sem mapeamento, nada chega ao Airbnb.

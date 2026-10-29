@@ -128,31 +128,56 @@ export function occupiedNightSet(stays: readonly StayRange[]): Set<string> {
 /**
  * Último "Libera em" possível para um bloqueio que começa em `from`: a primeira noite ocupada
  * a partir dali (o dia de saída pode ser o dia em que a próxima reserva entra — é o "giro"),
- * limitado a 366 noites. Se a própria noite `from` está ocupada, devolve `from` (nenhum fim existe).
+ * limitado a 366 noites e, se informado, ao último dia permitido pelo prazo do anúncio (`lastTo`).
+ * Se a própria noite `from` está ocupada, devolve `from` (nenhum fim existe).
  */
-export function maxBlockEnd(occupied: ReadonlySet<string>, from: string): string {
+export function maxBlockEnd(occupied: ReadonlySet<string>, from: string, lastTo?: string): string {
   let d = from;
   let n = 0;
   while (n < MAX_BLOCK_NIGHTS && !occupied.has(d)) {
     d = addDaysISO(d, 1);
     n++;
   }
-  return d;
+  return lastTo && lastTo > from && lastTo < d ? lastTo : d;
 }
 
-/** "Entrada" pode ser este dia? Hoje em diante e noite livre. */
-export function canPickBlockFrom(occupied: ReadonlySet<string>, todayISO: string, day: string): boolean {
-  return day >= todayISO && !occupied.has(day);
+/**
+ * PRAZO DO ANÚNCIO (29/10/2026): só se escolhe entre "hoje + antecedência mínima" e "hoje + janela máxima de
+ * reservas". Com mais de um anúncio no imóvel vale o MENOR mínimo e o MAIOR máximo. Sem dado, usa o padrão.
+ */
+export const DEFAULT_BOOKING_WINDOW_DAYS = 270;
+const MAX_BOOKING_WINDOW_DAYS = 730;
+
+export type BookingWindow = { minDays: number | null; maxDays: number | null };
+
+export function bookingWindowBounds(todayISO: string, w?: BookingWindow | null): { firstNight: string; lastNight: string; lastTo: string } {
+  const minDays = Math.max(0, Math.floor(w?.minDays ?? 0));
+  const maxRaw = w?.maxDays != null && w.maxDays > 0 ? w.maxDays : DEFAULT_BOOKING_WINDOW_DAYS;
+  const maxDays = Math.max(minDays, Math.min(MAX_BOOKING_WINDOW_DAYS, Math.floor(maxRaw)));
+  const lastNight = addDaysISO(todayISO, maxDays);
+  return { firstNight: addDaysISO(todayISO, minDays), lastNight, lastTo: addDaysISO(lastNight, 1) };
 }
 
-/** "Libera em" pode ser este dia? Depois da entrada e sem atravessar noite ocupada. */
-export function canPickBlockTo(occupied: ReadonlySet<string>, from: string, day: string): boolean {
-  return day > from && day <= maxBlockEnd(occupied, from);
+/** Menor mínimo e maior máximo entre vários anúncios (ignora o que não tem dado). */
+export function mergeBookingWindows(list: readonly (BookingWindow | null | undefined)[]): BookingWindow {
+  const mins = list.map((w) => w?.minDays).filter((v): v is number => typeof v === "number");
+  const maxs = list.map((w) => w?.maxDays).filter((v): v is number => typeof v === "number");
+  return { minDays: mins.length ? Math.min(...mins) : null, maxDays: maxs.length ? Math.max(...maxs) : null };
+}
+
+/** "Entrada" pode ser este dia? Dentro do prazo do anúncio (nunca antes de hoje) e noite livre. */
+export function canPickBlockFrom(occupied: ReadonlySet<string>, firstNight: string, day: string, lastNight?: string): boolean {
+  return day >= firstNight && (!lastNight || day <= lastNight) && !occupied.has(day);
+}
+
+/** "Libera em" pode ser este dia? Depois da entrada, sem atravessar noite ocupada e dentro do prazo (`lastTo`). */
+export function canPickBlockTo(occupied: ReadonlySet<string>, from: string, day: string, lastTo?: string): boolean {
+  return day > from && day <= maxBlockEnd(occupied, from, lastTo);
 }
 
 /** Depois de trocar a entrada: mantém o fim se ainda vale; senão 1 noite depois, ou até onde dá. */
-export function normalizeBlockRange(occupied: ReadonlySet<string>, from: string, to: string): { from: string; to: string } {
-  const max = maxBlockEnd(occupied, from);
+export function normalizeBlockRange(occupied: ReadonlySet<string>, from: string, to: string, lastTo?: string): { from: string; to: string } {
+  const max = maxBlockEnd(occupied, from, lastTo);
   let t = to;
   if (t <= from) t = addDaysISO(from, 1);
   if (t > max) t = max;
