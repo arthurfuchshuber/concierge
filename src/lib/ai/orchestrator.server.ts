@@ -812,6 +812,27 @@ export async function runHospitalityAgent(params: {
   }
   const accessGuidance = stayAccess.open ? accessGuidanceText(accessTimingInfo, conversationalIncident, accessMode) : "";
 
+  // Repertório de precedentes (global → conta → imóvel): condutas que já deram
+  // certo em situações parecidas; a IA age por analogia em vez de regra fixa.
+  const { retrievePrecedents, learnFromPreviousTurn } = await import("./memory/precedents.server");
+  const precedents = params.proactiveTrigger
+    ? []
+    : await retrievePrecedents({ supabase, ownerId, propertyId, query: params.message });
+  for (const p of precedents) {
+    sources.push({ source: "memory", title: `Precedente: ${p.situation.slice(0, 60)}`, confidence: p.confidence });
+  }
+  if (!params.proactiveTrigger) {
+    void learnFromPreviousTurn({
+      supabase,
+      ownerId,
+      propertyId,
+      conversationId: params.conversationId,
+      history: params.history ?? [],
+      currentMessage: params.message,
+      currentSentiment: intent.sentiment,
+    }).catch((e) => console.error("[agent] aprendizado de precedente falhou", e));
+  }
+
   const instructions =
     PROMPTS.agent.text +
     (explorationMode ? PROMPTS.exploration.text : "") +
@@ -852,6 +873,7 @@ export async function runHospitalityAgent(params: {
     GUEST_DATA_BOUNDARY +
     (playbook ? playbookText(playbook) : "") +
     propertyPlaybookText(learnedPlaybooks) +
+    renderPrecedents(precedents) +
     (replyInGuestLanguage ? "" : translatableGuidance()) +
     `\n\nVOZ E ADAPTAÇÃO AO HÓSPEDE (obrigatório)\n${voiceGuidance(guestVoice, voiceNegative)}` +
     `\n\nANTI-REPETIÇÃO (obrigatório)\n- Leia suas mensagens anteriores nesta conversa antes de responder.\n- Nunca repita saudação, abertura, frase de fechamento ou informação já dada; se precisar retomar algo, resuma em poucas palavras.\n- Não cumprimente de novo se já cumprimentou nesta conversa.\n- Varie estrutura e vocabulário; nada de frases-modelo recorrentes.${ANTI_LABEL_ECHO_RULES}` +
