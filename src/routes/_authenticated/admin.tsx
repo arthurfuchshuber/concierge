@@ -1,4 +1,3 @@
-import { getExecutiveAccess } from "@/lib/executive.functions";
 import { SituationOutboxRunner } from "@/components/dashboard/SituationOutboxRunner";
 import { StageOutboxRunner } from "@/components/dashboard/StageOutboxRunner";
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
@@ -74,13 +73,7 @@ const SIDEBAR_GROUPS = [
     // Financeiro (11/10/2026: a antiga aba "Limpeza" foi MOVIDA para cá).
     // "Operacional" casa com /admin/dashboard/*, exceto o que tem página própria.
     children: [
-<<<<<<< HEAD
       { to: "/admin/dashboard", label: "Operacional", exact: false, except: ["/admin/dashboard/financeiro", "/admin/dashboard/bancos"] },
-=======
-      { to: "/admin/dashboard", label: "Operacional", exact: false, except: ["/admin/dashboard/financeiro", "/admin/dashboard/bancos", "/admin/dashboard/gerencial"] },
-      // "Gerencial": painel estratégico, visível só para a diretoria (checado no servidor).
-      { to: "/admin/dashboard/gerencial", label: "Gerencial", exact: false, except: [] },
->>>>>>> de16c1cc7e62eedc146024221d929450407f55de
       { to: "/admin/dashboard/financeiro", label: "Financeiro", exact: false, except: [] },
       // "Bancos" (integração Malvo) oculto do menu por enquanto; rota e backend seguem ativos.
     ],
@@ -125,9 +118,6 @@ function AdminLayout() {
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isAdmin, isLoading: adminLoading } = useIsAdmin();
-  const executiveFn = useServerFn(getExecutiveAccess);
-  const executiveQ = useQuery({ queryKey: ["executive-access"], queryFn: () => executiveFn(), staleTime: 10 * 60_000 });
-  const executiveAllowed = executiveQ.data?.allowed === true;
   const [email, setEmail] = useState<string>("");
   const [open, setOpen] = useState(false);
   // Recolher o menu lateral (só desktop — no mobile o menu já é um overlay
@@ -368,7 +358,6 @@ function AdminLayout() {
           {SIDEBAR_ORDER.map((entry) => {
             const canSee = (to: string) => {
               if (awaitingAccountChoice) return false;
-              if (to === "/admin/dashboard/gerencial") return executiveAllowed;
               const permission = permissionForPath(to);
               return !permission || areaAccess.can(permission);
             };
