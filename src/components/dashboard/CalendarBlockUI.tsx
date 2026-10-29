@@ -1,16 +1,9 @@
-<<<<<<< HEAD
 import { useEffect, useMemo, useState } from "react";
-=======
-import { useEffect, useState } from "react";
->>>>>>> c2a36251c0f43b86faf85f9a1d08793d022059bc
 import { ptBR } from "date-fns/locale";
 import { CalendarCheck2, CalendarX2, Loader2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
-<<<<<<< HEAD
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-=======
->>>>>>> c2a36251c0f43b86faf85f9a1d08793d022059bc
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -21,7 +14,6 @@ import {
 } from "@/components/ResponsiveDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-<<<<<<< HEAD
 import {
   addDaysISO,
   blockNights,
@@ -36,9 +28,6 @@ import {
   releaseFirstNight,
   type StayRange,
 } from "@/lib/manual-block-conflict";
-=======
-import { addDaysISO, blockNights, ddmmISO } from "@/lib/manual-block-conflict";
->>>>>>> c2a36251c0f43b86faf85f9a1d08793d022059bc
 
 const isoToDate = (iso: string) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
 const dateToIso = (d: Date) =>
@@ -234,12 +223,9 @@ export function CalendarBlockDialog({
   mode = "block",
   onRangeChange,
   initialPicking = false,
-<<<<<<< HEAD
   todayISO,
   occupiedStays,
   releaseBlock,
-=======
->>>>>>> c2a36251c0f43b86faf85f9a1d08793d022059bc
 }: {
   /** "release" = janela "Liberar datas" (mockup 7): sem motivo, botão "Liberar N noites". */
   mode?: "block" | "release";
@@ -250,7 +236,6 @@ export function CalendarBlockDialog({
   busy: boolean;
   onClose: () => void;
   onSave: (note: string | null) => void;
-<<<<<<< HEAD
   /** Quando presente, Entrada/Libera em ficam editáveis pelo calendário em janela por cima. */
   onRangeChange?: (from: string, to: string) => void;
   /** Abre já com o calendário da Entrada aberto (tocou nas datas da barra). */
@@ -264,21 +249,6 @@ export function CalendarBlockDialog({
 }) {
   const isMobile = useIsMobile();
   const [note, setNote] = useState("");
-=======
-  /** Quando presente, Entrada/Libera em ficam editáveis por calendário. */
-  onRangeChange?: (from: string, to: string) => void;
-  /** Abre já com o calendário da Entrada aberto (tocou nas datas da barra). */
-  initialPicking?: boolean;
-}) {
-  const isMobile = useIsMobile();
-  const [note, setNote] = useState("");
-  const editable = !!onRangeChange && mode === "block";
-  const [picking, setPicking] = useState<"from" | "to" | null>(null);
-  useEffect(() => {
-    if (open) setPicking(initialPicking && editable ? "from" : null);
-  }, [open, initialPicking, editable]);
-  const n = blockNights(from, to);
->>>>>>> c2a36251c0f43b86faf85f9a1d08793d022059bc
   const release = mode === "release";
   const editable = !!onRangeChange && (!release || !!releaseBlock);
   const [picking, setPicking] = useState<Picking | null>(null);
@@ -301,7 +271,6 @@ export function CalendarBlockDialog({
   const n = blockNights(from, to);
   const HeadIcon = release ? CalendarCheck2 : CalendarX2;
   const nights = `${n} ${n === 1 ? "noite" : "noites"}`;
-<<<<<<< HEAD
 
   const canPick = (iso: string, which: Picking) => {
     if (release) {
@@ -342,8 +311,6 @@ export function CalendarBlockDialog({
     }
   };
 
-=======
->>>>>>> c2a36251c0f43b86faf85f9a1d08793d022059bc
   const tile = (label: string, value: string, active = false) => (
     <div className={cn("rounded-[10px] border bg-muted/20 px-3 py-2.5", active ? "border-accent" : "border-border")}>
       <div className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground">{label}</div>
@@ -389,17 +356,10 @@ export function CalendarBlockDialog({
           <div className="grid grid-cols-3 gap-2">
             {editable ? (
               <>
-<<<<<<< HEAD
                 <button type="button" className="text-left" onClick={() => setPicking(picking === "from" ? null : "from")} aria-haspopup="dialog" aria-expanded={picking === "from"}>
                   {tile("Entrada", ddmmISO(from), picking === "from")}
                 </button>
                 <button type="button" className="text-left" onClick={() => setPicking(picking === "to" ? null : "to")} aria-haspopup="dialog" aria-expanded={picking === "to"}>
-=======
-                <button type="button" className="text-left" onClick={() => setPicking(picking === "from" ? null : "from")} aria-expanded={picking === "from"}>
-                  {tile("Entrada", ddmmISO(from), picking === "from")}
-                </button>
-                <button type="button" className="text-left" onClick={() => setPicking(picking === "to" ? null : "to")} aria-expanded={picking === "to"}>
->>>>>>> c2a36251c0f43b86faf85f9a1d08793d022059bc
                   {tile("Libera em", ddmmISO(to), picking === "to")}
                 </button>
               </>
@@ -411,30 +371,6 @@ export function CalendarBlockDialog({
             )}
             {tile("Noites", String(n))}
           </div>
-          {editable && picking && (
-            <div className="flex justify-center rounded-[14px] border border-border bg-muted/20">
-              <Calendar
-                mode="single"
-                locale={ptBR}
-                selected={isoToDate(picking === "from" ? from : to)}
-                defaultMonth={isoToDate(picking === "from" ? from : to)}
-                disabled={picking === "to" ? { before: isoToDate(addDaysISO(from, 1)) } : undefined}
-                onSelect={(d) => {
-                  if (!d) return;
-                  const iso = dateToIso(d);
-                  if (picking === "from") {
-                    const nextTo = iso >= to ? addDaysISO(iso, 1) : to;
-                    onRangeChange!(iso, nextTo);
-                    setPicking("to");
-                  } else {
-                    onRangeChange!(from, iso);
-                    setPicking(null);
-                  }
-                }}
-                className="p-3 pointer-events-auto"
-              />
-            </div>
-          )}
           {!release && (
           <label className="block space-y-1.5">
             <span className="text-[12px] font-medium text-muted-foreground">Motivo (opcional)</span>

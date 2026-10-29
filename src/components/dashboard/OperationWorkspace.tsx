@@ -9828,14 +9828,11 @@ function OccupancyPanel({
               to={blockRange.to}
               busy={blockBusy}
               initialPicking={blockEditOpen}
-<<<<<<< HEAD
               todayISO={todayISO}
               occupiedStays={[
                 ...(byProperty.get(blockSel.propertyId) ?? []),
                 ...(blockPermQ.data?.blocks ?? []).filter((b) => b.propertyId === baseId(blockSel.propertyId)).map((b) => ({ checkin: b.from, checkout: b.to })),
               ]}
-=======
->>>>>>> c2a36251c0f43b86faf85f9a1d08793d022059bc
               onRangeChange={(f, t) => setBlockSel({ propertyId: blockSel.propertyId, anchor: f, end: blockAddDays(t, -1) })}
               onClose={() => setBlockOpen(false)}
               onSave={saveBlock}
