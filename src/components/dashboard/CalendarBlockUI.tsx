@@ -131,7 +131,7 @@ type Picking = "from" | "to";
 
 /**
  * CALENDÁRIO EM JANELA PRÓPRIA (29/10/2026, mockups aprovados "Calendário em janela por cima").
- * Tocar em Entrada/Libera em NÃO estica mais a janela Bloquear/Liberar: o calendário abre numa janela
+ * Tocar em Início/Fim NÃO estica mais a janela Bloquear/Liberar: o calendário abre numa janela
  * pequena POR CIMA dela (mesmo casco do sistema: `--panel`, fio de luz, "X" de canto), numa cor só, com
  * os campos Início/Fim embaixo para ficar claro o que está sendo escolhido. Dias que não dão para usar
  * (passado, ocupados, fora do bloqueio manual) ficam esmaecidos, sem toque — os ocupados também riscados.
@@ -237,7 +237,7 @@ export function CalendarBlockDialog({
   busy: boolean;
   onClose: () => void;
   onSave: (note: string | null) => void;
-  /** Quando presente, Entrada/Libera em ficam editáveis pelo calendário em janela por cima. */
+  /** Quando presente, Início/Fim ficam editáveis pelo calendário em janela por cima. */
   onRangeChange?: (from: string, to: string) => void;
   /** Abre já com o calendário da Entrada aberto (tocou nas datas da barra). */
   initialPicking?: boolean;
@@ -340,7 +340,6 @@ export function CalendarBlockDialog({
               <ResponsiveDialogTitle className="text-base font-display leading-tight truncate">{release ? "Liberar datas" : "Bloquear datas"}</ResponsiveDialogTitle>
               <ResponsiveDialogDescription className="ds-meta mt-0.5">
                 {ddmmISO(from)} a {ddmmISO(to)} · {n} {n === 1 ? "noite" : "noites"}
-                {release ? " · volta a abrir também nos anúncios conectados" : " · fecha também nos anúncios conectados"}
               </ResponsiveDialogDescription>
             </div>
           </div>
@@ -361,16 +360,16 @@ export function CalendarBlockDialog({
             {editable ? (
               <>
                 <button type="button" className="text-left" onClick={() => setPicking(picking === "from" ? null : "from")} aria-haspopup="dialog" aria-expanded={picking === "from"}>
-                  {tile("Entrada", ddmmISO(from), picking === "from")}
+                  {tile("Início", ddmmISO(from), picking === "from")}
                 </button>
                 <button type="button" className="text-left" onClick={() => setPicking(picking === "to" ? null : "to")} aria-haspopup="dialog" aria-expanded={picking === "to"}>
-                  {tile("Libera em", ddmmISO(to), picking === "to")}
+                  {tile("Fim", ddmmISO(to), picking === "to")}
                 </button>
               </>
             ) : (
               <>
-                {tile("Entrada", ddmmISO(from))}
-                {tile("Libera em", ddmmISO(to))}
+                {tile("Início", ddmmISO(from))}
+                {tile("Fim", ddmmISO(to))}
               </>
             )}
             {tile("Noites", String(n))}

@@ -8230,7 +8230,6 @@ function OccupancyPanel({
   const canBlock = !!blockPermQ.data?.canEdit;
   const [blockSel, setBlockSel] = useState<{ propertyId: string; anchor: string; end: string } | null>(null);
   const [blockOpen, setBlockOpen] = useState(false);
-  const [blockEditOpen, setBlockEditOpen] = useState(false);
   const [blockBusy, setBlockBusy] = useState(false);
   /** Bloqueio manual tocado (mockups 6 e 7): barra "Bloqueado" → janela "Liberar datas". */
   const [blockTap, setBlockTap] = useState<{ id: string; propertyId: string; from: string; to: string; note?: string | null } | null>(null);
@@ -9811,11 +9810,9 @@ function OccupancyPanel({
                 to={blockRange.to}
                 onCancel={() => setBlockSel(null)}
                 onConfirm={() => {
-                  setBlockEditOpen(false);
                   setBlockOpen(true);
                 }}
                 onEditDates={() => {
-                  setBlockEditOpen(true);
                   setBlockOpen(true);
                 }}
               />
@@ -9827,7 +9824,6 @@ function OccupancyPanel({
               from={blockRange.from}
               to={blockRange.to}
               busy={blockBusy}
-              initialPicking={blockEditOpen}
               todayISO={todayISO}
               bookingWindow={blockPermQ.data?.windows?.[baseId(blockSel.propertyId)] ?? null}
               occupiedStays={[
