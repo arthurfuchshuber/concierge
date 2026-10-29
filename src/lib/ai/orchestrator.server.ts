@@ -48,6 +48,24 @@ import { continuityLine } from "./continuity";
 import { acknowledgementReply, humanSupportReply, isOnlyGreeting, stripPromiseSentences } from "./human-support";
 import { buildHandoffDraft, formatDraftForTeam } from "./human-loop/handoff-draft.server";
 import { accessGuidanceText, accessTiming, decideAccess } from "./access-guidance.server";
+import {
+  PREPARATORY_GUIDANCE,
+  TEAM_DECISION_GUIDANCE,
+  consultGuidance,
+  contingencyGuidance,
+  decideContingency,
+  detectArrivalTime,
+  governanceOptions,
+  governanceReason,
+  indicatesPhysicalPresence,
+  isAutonomousAccess,
+  isGuestPressing,
+  isLateArrival,
+  isPreparatoryCredentialQuestion,
+  mentionsThirdPartyArrival,
+  type ContingencyMode,
+  type GovernanceKind,
+} from "./checkin-governance";
 import { decideReservationRequest, detectReservationRequest, humanLineGuidance, reservationRequestGuidance } from "./reservation-change";
 import { loadCancellationWindow } from "./reservation-policy.server";
 import { LIST_SPACING_RULES, ANTI_LABEL_ECHO_RULES, PRE_BOOKING_CLOSING_RULES, THIRD_PARTY_BOOKING_RULES } from "./prompt-rules";
@@ -745,6 +763,8 @@ export async function runHospitalityAgent(params: {
     requestHandoff: (reason, urgency) => {
       // Entregando decisão da equipe: nunca reabrir pergunta/transbordo.
       if (params.proactiveTrigger === "human_answer") return;
+      // Contingência: a consulta sobre o horário já está com a equipe.
+      if (gov.contingency) return;
       handoffReason = reason;
       handoffUrgency = urgency;
     },
@@ -825,6 +845,7 @@ export async function runHospitalityAgent(params: {
       ? `${PRE_BOOKING_CLOSING_RULES}${THIRD_PARTY_BOOKING_RULES}\n\nHÓSPEDE PESQUISANDO / PEDINDO TEMPO (obrigatório)\n- Quando ele disser que está pesquisando, comparando, vendo com alguém, pensando ou "só um momento", PROIBIDO responder apenas "pode pesquisar com calma"/"fique à vontade": isso empurra para a concorrência.\n- Dê espaço com gentileza em poucas palavras e, NA MESMA mensagem, faça uma "truncada leve" persuasiva: os valores e as datas só ficam garantidos com a reserva confirmada (calendário aberto, outra pessoa pode reservar). Tom cordial, nunca agressivo.\n- Varie SEMPRE a redação (não copie exemplos nem repita frases já usadas na conversa). Exemplos de tom: "Claro! Só reforçando que os valores só ficam garantidos após a confirmação da reserva, ok?"; "Fique à vontade! Lembrando que o calendário segue aberto e essas datas podem sair a qualquer momento."; "Sem problemas! Se fizer sentido, vale garantir logo, porque a tarifa só fica travada com a reserva confirmada."\n- Uma única frase de ancoragem; sem insistir de novo se ele não responder.\n\nRETENÇÃO (obrigatório)\n- PROIBIDO sugerir outra hospedagem, outro anúncio que não seja nosso, ou dar dicas de como reservar em outro lugar.\n- Se o hóspede exigir garantia que não podemos dar (ex.: entrada de manhã cedo), ofereça objetivamente a alternativa nossa: reservar também a noite anterior garante a unidade livre na chegada.\n- Se ele decidir não reservar: uma frase curta e sóbria (ex.: "Entendido, Cauane. Boa viagem!"). Sem "estamos sempre à disposição", "portas abertas" ou similares.\n- Nunca repita informação que já enviou nesta conversa.`
       : "") +
     (stayAccess.open ? accessGuidance : "") +
+    gov.text +
     reservationRequestText +
     humanLineGuidance(params.history ?? []) +
     GUEST_DATA_BOUNDARY +
@@ -1219,6 +1240,12 @@ export async function runHospitalityAgent(params: {
 
   // Todo transbordo vira pergunta respondível no cartão "A IA está te
   // perguntando" — sem isso, request_human_handoff só deixava um motivo solto.
+  // Check-in fora do padrão: a consulta à equipe é obrigatória, mesmo que o
+  // modelo não tenha acionado (nunca valida sozinha).
+  if (gov.consultKinds.length && !escalationId) {
+    handoffReason = governanceReason(gov.consultKinds, gov.arrival, (property as Record<string, unknown>).checkin_time_max);
+  }
+  if (gov.contingency) handoffReason = null;
   if (handoffReason && !escalationId && params.conversationId) {
     // Ponto 1: a equipe recebe o caso mastigado (resumo + o que já foi feito + resposta sugerida).
     const { usage: draftUsage, ...draft } = await buildHandoffDraft({
@@ -1239,7 +1266,13 @@ export async function runHospitalityAgent(params: {
       trigger: "unknown_information",
       reason: handoffReason,
       question: formatDraftForTeam(handoffReason, draft),
-      contextSnapshot: { draft },
+      contextSnapshot: gov.consultKinds.length
+        ? {
+            draft,
+            checkin_governance: { kinds: gov.consultKinds, arrival: gov.arrival },
+            decision: { kind: "operational", options: governanceOptions(gov.consultKinds) },
+          }
+        : { draft },
       guestMessage: params.message,
     }).catch(() => null);
   }
