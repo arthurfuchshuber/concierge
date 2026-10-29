@@ -78,6 +78,13 @@
       "when": 1793132214251,
       "tag": "0010_malvo_open_finance",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793302628568,
+      "tag": "0011_guide_created_imported_properties",
+      "breakpoints": true
     }
   ]
 }
