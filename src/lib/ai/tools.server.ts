@@ -1243,8 +1243,8 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     name: "find_available_stays",
     description:
       "Procura OUTROS imóveis do mesmo anfitrião livres em um período, ordenados por proximidade do imóvel atual. " +
-      "Use quando o imóvel do hóspede NÃO estiver livre e ele quiser estender, antecipar ou voltar em outra data — " +
-      "e também quando ele perguntar por outra unidade para acompanhantes. Devolve o link oficial do anúncio conectado." +
+      "Use SEMPRE que o imóvel da conversa não estiver livre (total ou parcialmente) nas datas que o hóspede citou, mesmo que ele não peça outra unidade, " +
+      "e também quando ele perguntar por outra unidade para acompanhantes. Devolve o link oficial do anúncio conectado; sugira proativamente as unidades livres da mesma região com esse link." +
       " NUNCA informe preço: mande o link, quem precifica é a plataforma.",
     parameters: schema(
       {
