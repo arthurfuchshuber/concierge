@@ -4955,7 +4955,10 @@ function KpiCard({
             list.ref(el);
             screenshotRef.current = el;
           }}
-          className="sg-elegant-scroll max-h-[90dvh] overflow-y-auto px-3 pt-3"
+          // A altura calculada termina sempre no fim de um card inteiro;
+          // sem ela a janela (90% da tela) cortava o último card e a barra.
+          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
+          className="sg-elegant-scroll max-h-[80dvh] overflow-y-auto px-3 pt-3"
         >
           {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
