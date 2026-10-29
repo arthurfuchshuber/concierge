@@ -2,16 +2,18 @@
 
 import * as React from "react";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker";
+import { addMonths } from "date-fns";
+import { DayButton, DayPicker, getDefaultClassNames, useDayPicker } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { MonthYearPicker } from "@/components/ui/month-year-picker";
 
 function Calendar({
   className,
   classNames,
   showOutsideDays = true,
-  captionLayout = "label",
+  captionLayout: _captionLayout = "label",
   buttonVariant = "ghost",
   formatters,
   components,
@@ -30,7 +32,7 @@ function Calendar({
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         className,
       )}
-      captionLayout={captionLayout}
+      captionLayout="label"
       formatters={{
         formatMonthDropdown: (date) => date.toLocaleString("default", { month: "short" }),
         ...formatters,
@@ -40,17 +42,17 @@ function Calendar({
         months: cn("relative flex flex-col gap-4 md:flex-row", defaultClassNames.months),
         month: cn("flex w-full flex-col gap-4", defaultClassNames.month),
         nav: cn(
-          "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1",
+          "pointer-events-none absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1",
           defaultClassNames.nav,
         ),
         button_previous: cn(
           buttonVariants({ variant: buttonVariant }),
-          "h-(--cell-size) w-(--cell-size) select-none p-0 aria-disabled:opacity-50",
+          "pointer-events-auto h-(--cell-size) w-(--cell-size) select-none p-0 aria-disabled:opacity-50",
           defaultClassNames.button_previous,
         ),
         button_next: cn(
           buttonVariants({ variant: buttonVariant }),
-          "h-(--cell-size) w-(--cell-size) select-none p-0 aria-disabled:opacity-50",
+          "pointer-events-auto h-(--cell-size) w-(--cell-size) select-none p-0 aria-disabled:opacity-50",
           defaultClassNames.button_next,
         ),
         month_caption: cn(
@@ -68,9 +70,7 @@ function Calendar({
         dropdown: cn("bg-popover absolute inset-0 opacity-0", defaultClassNames.dropdown),
         caption_label: cn(
           "select-none font-medium",
-          captionLayout === "label"
-            ? "text-sm"
-            : "[&>svg]:text-muted-foreground flex h-8 items-center gap-1 rounded-md pl-2 pr-1 text-sm [&>svg]:size-3.5",
+          "text-sm",
           defaultClassNames.caption_label,
         ),
         table: "w-full border-collapse",
@@ -120,6 +120,11 @@ function Calendar({
           return <ChevronDownIcon className={cn("size-4", className)} {...props} />;
         },
         DayButton: CalendarDayButton,
+        // Seletor rápido de mês e ano (29/10/2026, pedido: TODAS as janelas de calendário): tocar no
+        // "mês/ano" do título abre a lista Mês | Ano. Vale também onde antes havia os seletores nativos
+        // (`captionLayout="dropdown"`, datas de nascimento/cadastro): os limites `fromYear`/`toYear` viram
+        // os limites da lista.
+        MonthCaption: CalendarMonthCaption,
         WeekNumber: ({ children, ...props }) => {
           return (
             <td {...props}>
@@ -133,6 +138,29 @@ function Calendar({
       }}
       {...props}
     />
+  );
+}
+
+function CalendarMonthCaption({
+  calendarMonth,
+  displayIndex,
+  className,
+  children: _children,
+  ...props
+}: React.ComponentProps<NonNullable<React.ComponentProps<typeof DayPicker>["components"]>["MonthCaption"] & object>) {
+  const { goToMonth, dayPickerProps: dp } = useDayPicker();
+  // Limites da lista: `startMonth`/`endMonth` e, nos calendários antigos, `fromDate`/`toDate`/`fromYear`/`toYear`.
+  const navStart = dp.startMonth ?? dp.fromDate ?? (dp.fromYear ? new Date(dp.fromYear, 0, 1) : undefined);
+  const navEnd = dp.endMonth ?? dp.toDate ?? (dp.toYear ? new Date(dp.toYear, 11, 31) : undefined);
+  return (
+    <div {...props} className={className}>
+      <MonthYearPicker
+        month={calendarMonth.date}
+        min={navStart}
+        max={navEnd}
+        onMonthChange={(next) => goToMonth(addMonths(next, -displayIndex))}
+      />
+    </div>
   );
 }
 

@@ -49,6 +49,7 @@ import { ptBR } from "date-fns/locale";
 
 import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
 import { PopoverContent } from "@/components/ui/popover";
+import { MonthYearPicker } from "@/components/ui/month-year-picker";
 
 /* ------------------------------------------------------------------------ */
 /* Casca do painel                                                           */
@@ -723,9 +724,13 @@ export function FilterPeriodCalendar({
           >
             <ChevronLeft className="size-3.5" strokeWidth={2.5} />
           </button>
-          <span className="font-display text-[12.5px] font-bold capitalize text-foreground">
-            {format(month, "MMMM yyyy", { locale: ptBR })}
-          </span>
+          <MonthYearPicker
+            month={month}
+            onMonthChange={onMonthChange}
+            min={min}
+            max={max}
+            className="h-6 gap-0.5 px-1.5 font-display text-[12.5px] font-bold capitalize text-foreground"
+          />
           <button
             type="button"
             aria-label="Próximo mês"
@@ -910,9 +915,13 @@ export function FilterDateCalendar({
           >
             <ChevronLeft className="size-3.5" strokeWidth={2.5} />
           </button>
-          <span className="font-display text-[12.5px] font-bold capitalize text-foreground">
-            {format(month, "MMMM yyyy", { locale: ptBR })}
-          </span>
+          <MonthYearPicker
+            month={month}
+            onMonthChange={setMonth}
+            min={min}
+            max={max}
+            className="h-6 gap-0.5 px-1.5 font-display text-[12.5px] font-bold capitalize text-foreground"
+          />
           <button
             type="button"
             aria-label="Próximo mês"

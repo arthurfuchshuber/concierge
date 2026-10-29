@@ -476,12 +476,14 @@ async function sweepUnansweredGuestMessages(admin: Admin, limit: number): Promis
     if (c.status === "assigned") continue;
     // Pergunta já aberta para a equipe: a equipe já foi avisada. Reprocessar
     // gerava uma 2ª consulta e um 2º aviso nos celulares (caso Davi, 28/10).
-    const { count: openEsc } = await admin
+    // Cartões de aprendizado e decisões antigas não contam (caso Rafael, 29/10).
+    const { data: openEsc } = await admin
       .from("ai_human_escalations")
-      .select("id", { count: "exact", head: true })
+      .select("reason, created_at, context_snapshot")
       .eq("conversation_id", c.id)
       .eq("status", "pending");
-    if ((openEsc ?? 0) > 0) continue;
+    const { cardSilencesAi } = await import("./human-loop/silence-gate");
+    if (((openEsc ?? []) as never[]).some((e) => cardSilencesAi(e))) continue;
     try {
       const { data: last } = await admin
         .from("property_chat_messages")

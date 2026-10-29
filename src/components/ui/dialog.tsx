@@ -50,12 +50,14 @@ const DialogContent = React.forwardRef<
      * Janelas pequenas (confirmações, menus, passos) NÃO usam esta prop e mantêm o "X".
      */
     pageLike?: boolean;
+    /** Véu desta janela (ex.: janela pequena POR CIMA de outra, que precisa deixar a de baixo visível). */
+    overlayClassName?: string;
   }
->(({ className, children, hideClose, pageLike, ...props }, ref) => {
+>(({ className, children, hideClose, pageLike, overlayClassName, ...props }, ref) => {
   const [layerRef, layerNodeRef] = useOverlayLayer("window", useAntiClipWindow(ref));
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         ref={layerNodeRef}
         className={cn(

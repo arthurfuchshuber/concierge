@@ -107,3 +107,77 @@ export function validateBlockDates(from: string, to: string, todayISO: string): 
   if (blockNights(from, to) > MAX_BLOCK_NIGHTS) return "O bloqueio pode ter no máximo 366 noites por vez.";
   return null;
 }
+
+/* ───────── Calendário em janela própria (29/10/2026, mockups aprovados) ─────────
+ * Regra do pedido: o calendário de Bloquear/Liberar só deixa escolher o que dá para
+ * FAZER — nada de datas passadas, nada por cima de reserva/bloqueio e, para liberar,
+ * SÓ noites de bloqueio manual (nunca de reserva). O resto aparece esmaecido (e
+ * riscado quando está ocupado) e não aceita toque. */
+
+/** Noites (YYYY-MM-DD) ocupadas por reservas e bloqueios: checkin … checkout-1. Sem saída, vale a noite do check-in. */
+export function occupiedNightSet(stays: readonly StayRange[]): Set<string> {
+  const out = new Set<string>();
+  for (const s of stays) {
+    const end = s.checkout && s.checkout > s.checkin ? s.checkout : addDaysISO(s.checkin, 1);
+    let guard = 0;
+    for (let d = s.checkin; d < end && guard < 800; d = addDaysISO(d, 1), guard++) out.add(d);
+  }
+  return out;
+}
+
+/**
+ * Último "Libera em" possível para um bloqueio que começa em `from`: a primeira noite ocupada
+ * a partir dali (o dia de saída pode ser o dia em que a próxima reserva entra — é o "giro"),
+ * limitado a 366 noites. Se a própria noite `from` está ocupada, devolve `from` (nenhum fim existe).
+ */
+export function maxBlockEnd(occupied: ReadonlySet<string>, from: string): string {
+  let d = from;
+  let n = 0;
+  while (n < MAX_BLOCK_NIGHTS && !occupied.has(d)) {
+    d = addDaysISO(d, 1);
+    n++;
+  }
+  return d;
+}
+
+/** "Entrada" pode ser este dia? Hoje em diante e noite livre. */
+export function canPickBlockFrom(occupied: ReadonlySet<string>, todayISO: string, day: string): boolean {
+  return day >= todayISO && !occupied.has(day);
+}
+
+/** "Libera em" pode ser este dia? Depois da entrada e sem atravessar noite ocupada. */
+export function canPickBlockTo(occupied: ReadonlySet<string>, from: string, day: string): boolean {
+  return day > from && day <= maxBlockEnd(occupied, from);
+}
+
+/** Depois de trocar a entrada: mantém o fim se ainda vale; senão 1 noite depois, ou até onde dá. */
+export function normalizeBlockRange(occupied: ReadonlySet<string>, from: string, to: string): { from: string; to: string } {
+  const max = maxBlockEnd(occupied, from);
+  let t = to;
+  if (t <= from) t = addDaysISO(from, 1);
+  if (t > max) t = max;
+  return { from, to: t };
+}
+
+/** Liberar: primeira noite que dá para liberar = a do bloqueio, mas nunca antes de hoje. */
+export function releaseFirstNight(block: { from: string }, todayISO: string): string {
+  return block.from > todayISO ? block.from : todayISO;
+}
+
+/** Liberar — "Entrada" pode ser este dia? Só noite do bloqueio manual (de hoje em diante). */
+export function canPickReleaseFrom(block: { from: string; to: string }, todayISO: string, day: string): boolean {
+  return day >= releaseFirstNight(block, todayISO) && day < block.to;
+}
+
+/** Liberar — "Libera em" pode ser este dia? Depois da entrada, até o fim do bloqueio. */
+export function canPickReleaseTo(block: { from: string; to: string }, from: string, day: string): boolean {
+  return day > from && day <= block.to;
+}
+
+/** Liberar um pedaço: o que sobra do bloqueio original (0, 1 ou 2 bloqueios) para ser recriado. */
+export function releaseRemainders(block: { from: string; to: string }, from: string, to: string): Array<{ from: string; to: string }> {
+  const out: Array<{ from: string; to: string }> = [];
+  if (from > block.from) out.push({ from: block.from, to: from });
+  if (to < block.to) out.push({ from: to, to: block.to });
+  return out;
+}

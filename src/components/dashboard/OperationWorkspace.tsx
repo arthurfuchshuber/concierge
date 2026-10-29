@@ -61,7 +61,7 @@ import { getServiceExtras } from "@/lib/service-situations.functions";
 import { SYSTEM_SITUATIONS, type ExtraServiceItem } from "@/lib/service-situations";
 import { PeriodQuickFilterButton } from "@/components/dashboard/PeriodQuickFilterButton";
 import { CalendarBlockBar, CalendarBlockDialog } from "@/components/dashboard/CalendarBlockUI";
-import { addDaysISO as blockAddDays, conflictMessage, firstBlockConflict } from "@/lib/manual-block-conflict";
+import { addDaysISO as blockAddDays, conflictMessage, firstBlockConflict, releaseRemainders } from "@/lib/manual-block-conflict";
 import { createManualBlockFn, listManualBlocks, removeManualBlockFn, syncBlockAvailabilityFn } from "@/lib/manual-blocks.functions";
 import { useOperationMode } from "@/components/admin-pages/ChannexModeCard";
 import { ManualCleaningCard } from "@/components/dashboard/ManualCleaningCard";
@@ -4955,7 +4955,10 @@ function KpiCard({
             list.ref(el);
             screenshotRef.current = el;
           }}
-          className="sg-elegant-scroll max-h-[90dvh] overflow-y-auto px-3 pt-3"
+          // A altura calculada termina sempre no fim de um card inteiro;
+          // sem ela a janela (90% da tela) cortava o último card e a barra.
+          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
+          className="sg-elegant-scroll max-h-[80dvh] overflow-y-auto px-3 pt-3"
         >
           {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
@@ -8227,10 +8230,14 @@ function OccupancyPanel({
   const canBlock = !!blockPermQ.data?.canEdit;
   const [blockSel, setBlockSel] = useState<{ propertyId: string; anchor: string; end: string } | null>(null);
   const [blockOpen, setBlockOpen] = useState(false);
+  const [blockEditOpen, setBlockEditOpen] = useState(false);
   const [blockBusy, setBlockBusy] = useState(false);
   /** Bloqueio manual tocado (mockups 6 e 7): barra "Bloqueado" → janela "Liberar datas". */
-  const [blockTap, setBlockTap] = useState<{ id: string; propertyId: string; from: string; to: string } | null>(null);
+  const [blockTap, setBlockTap] = useState<{ id: string; propertyId: string; from: string; to: string; note?: string | null } | null>(null);
   const [releaseOpen, setReleaseOpen] = useState(false);
+  /** Liberar só um pedaço do bloqueio manual (calendário da janela "Liberar datas"); `id` amarra ao bloqueio tocado. */
+  const [releaseSub, setReleaseSub] = useState<{ id: string; from: string; to: string } | null>(null);
+  const releaseRange = blockTap ? (releaseSub && releaseSub.id === blockTap.id ? releaseSub : { id: blockTap.id, from: blockTap.from, to: blockTap.to }) : null;
   /** Célula com foco do teclado (roving tabindex: só UMA noite entra na ordem do Tab). */
   const [kbCell, setKbCell] = useState<{ propertyId: string; day: string } | null>(null);
   // Filtro/busca que esconde o imóvel selecionado: a seleção some junto (nada de barra "fantasma").
@@ -8718,25 +8725,44 @@ function OccupancyPanel({
     }
   }
   async function releaseBlock() {
-    if (!blockTap) return;
+    if (!blockTap || !releaseRange) return;
     setBlockBusy(true);
     try {
       const realId = baseId(blockTap.propertyId);
       const tapped = blockTap;
+      const sub = { from: releaseRange.from, to: releaseRange.to };
+      // Liberar só um pedaço: o que sobra do bloqueio original volta como 1 ou 2 bloqueios (0 = liberou tudo).
+      const remainders = releaseRemainders({ from: tapped.from, to: tapped.to }, sub.from, sub.to);
+      const label = tapped.note?.trim() && tapped.note.trim() !== "Bloqueio manual" ? `Bloqueado: ${tapped.note.trim()}` : "Bloqueado";
       // Tira a barra da tela NA HORA (as demais telas abertas atualizam pelo canal ao vivo).
       qcBlock.setQueriesData({ queryKey: ["dash-occupancy"] }, (old: unknown) => {
         const o = old as { stays?: Array<{ propertyId: string; checkin: string; checkout: string | null; blocked?: boolean }> } | undefined;
         if (!o || !Array.isArray(o.stays)) return old;
         return {
           ...o,
-          stays: o.stays.filter(
-            (st) => !(st.blocked && st.propertyId === realId && st.checkin === tapped.from && (st.checkout ?? st.checkin) === tapped.to),
-          ),
+          stays: [
+            ...o.stays.filter(
+              (st) => !(st.blocked && st.propertyId === realId && st.checkin === tapped.from && (st.checkout ?? st.checkin) === tapped.to),
+            ),
+            ...remainders.map((r) => ({ propertyId: realId, checkin: r.from, checkout: r.to, guest: label, checkinDone: false, checkoutDone: false, blocked: true })),
+          ],
         };
       });
       await removeBlockFn({ data: { ownerId: blockOwnerId, propertyId: realId, id: blockTap.id } });
+      if (remainders.length) {
+        try {
+          for (const r of remainders) {
+            await createBlockFn({ data: { ownerId: blockOwnerId, propertyId: realId, from: r.from, to: r.to, note: tapped.note ?? null } });
+          }
+        } catch (partialErr) {
+          // Não deixa o bloqueio original "sumir" se a recriação do que sobrou falhar: devolve ele inteiro.
+          await createBlockFn({ data: { ownerId: blockOwnerId, propertyId: realId, from: tapped.from, to: tapped.to, note: tapped.note ?? null } }).catch(() => {});
+          throw partialErr;
+        }
+      }
       setReleaseOpen(false);
       setBlockTap(null);
+      setReleaseSub(null);
       // Liberou no ConciergeIA: a tela atualiza JÁ; reabrir nos anúncios segue em seguida, com aviso próprio.
       try {
         await Promise.all([
@@ -8748,6 +8774,8 @@ function OccupancyPanel({
       }
       void syncListings(realId, true);
     } catch (e) {
+      qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }).catch(() => {});
+      qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }).catch(() => {});
       toast.error("Não foi possível liberar", { description: e instanceof Error && e.message ? e.message : "Tente novamente." });
     } finally {
       setBlockBusy(false);
@@ -9782,16 +9810,30 @@ function OccupancyPanel({
                 from={blockRange.from}
                 to={blockRange.to}
                 onCancel={() => setBlockSel(null)}
-                onConfirm={() => setBlockOpen(true)}
+                onConfirm={() => {
+                  setBlockEditOpen(false);
+                  setBlockOpen(true);
+                }}
+                onEditDates={() => {
+                  setBlockEditOpen(true);
+                  setBlockOpen(true);
+                }}
               />
             )}
             <CalendarBlockDialog
-              key={`${blockSel.propertyId}:${blockRange.from}:${blockRange.to}`}
+              key={blockSel.propertyId}
               open={blockOpen}
               ctx={ctx}
               from={blockRange.from}
               to={blockRange.to}
               busy={blockBusy}
+              initialPicking={blockEditOpen}
+              todayISO={todayISO}
+              occupiedStays={[
+                ...(byProperty.get(blockSel.propertyId) ?? []),
+                ...(blockPermQ.data?.blocks ?? []).filter((b) => b.propertyId === baseId(blockSel.propertyId)).map((b) => ({ checkin: b.from, checkout: b.to })),
+              ]}
+              onRangeChange={(f, t) => setBlockSel({ propertyId: blockSel.propertyId, anchor: f, end: blockAddDays(t, -1) })}
               onClose={() => setBlockOpen(false)}
               onSave={saveBlock}
             />
@@ -9825,10 +9867,17 @@ function OccupancyPanel({
               key={`rel:${blockTap.id}`}
               open={releaseOpen}
               ctx={ctx}
-              from={blockTap.from}
-              to={blockTap.to}
+              from={releaseRange?.from ?? blockTap.from}
+              to={releaseRange?.to ?? blockTap.to}
               busy={blockBusy}
-              onClose={() => setReleaseOpen(false)}
+              todayISO={todayISO}
+              occupiedStays={byProperty.get(blockTap.propertyId) ?? []}
+              releaseBlock={{ from: blockTap.from, to: blockTap.to }}
+              onRangeChange={(f, t) => setReleaseSub({ id: blockTap.id, from: f, to: t })}
+              onClose={() => {
+                setReleaseOpen(false);
+                setReleaseSub(null);
+              }}
               onSave={() => void releaseBlock()}
             />
           </>
