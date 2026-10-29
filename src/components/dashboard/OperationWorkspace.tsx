@@ -8230,6 +8230,7 @@ function OccupancyPanel({
   const canBlock = !!blockPermQ.data?.canEdit;
   const [blockSel, setBlockSel] = useState<{ propertyId: string; anchor: string; end: string } | null>(null);
   const [blockOpen, setBlockOpen] = useState(false);
+  const [blockEditOpen, setBlockEditOpen] = useState(false);
   const [blockBusy, setBlockBusy] = useState(false);
   /** Bloqueio manual tocado (mockups 6 e 7): barra "Bloqueado" → janela "Liberar datas". */
   const [blockTap, setBlockTap] = useState<{ id: string; propertyId: string; from: string; to: string } | null>(null);
@@ -9785,16 +9786,25 @@ function OccupancyPanel({
                 from={blockRange.from}
                 to={blockRange.to}
                 onCancel={() => setBlockSel(null)}
-                onConfirm={() => setBlockOpen(true)}
+                onConfirm={() => {
+                  setBlockEditOpen(false);
+                  setBlockOpen(true);
+                }}
+                onEditDates={() => {
+                  setBlockEditOpen(true);
+                  setBlockOpen(true);
+                }}
               />
             )}
             <CalendarBlockDialog
-              key={`${blockSel.propertyId}:${blockRange.from}:${blockRange.to}`}
+              key={blockSel.propertyId}
               open={blockOpen}
               ctx={ctx}
               from={blockRange.from}
               to={blockRange.to}
               busy={blockBusy}
+              initialPicking={blockEditOpen}
+              onRangeChange={(f, t) => setBlockSel({ propertyId: blockSel.propertyId, anchor: f, end: blockAddDays(t, -1) })}
               onClose={() => setBlockOpen(false)}
               onSave={saveBlock}
             />
