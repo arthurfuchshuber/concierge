@@ -834,7 +834,7 @@ export async function runHospitalityAgent(params: {
       ? `\n\nIDIOMA PROVÁVEL DA MENSAGEM: ${guestLanguage} (responda no idioma em que o hóspede escreveu)`
       : `\n\nIDIOMA DE RESPOSTA (obrigatório): responda SEMPRE em português do Brasil, mesmo que o hóspede escreva em outro idioma (${guestLanguage}). Este canal traduz automaticamente para o hóspede.`) +
     (stayAccess.open
-      ? `\n\nESTADIA EM ANDAMENTO — TODOS OS DADOS DO ANÚNCIO LIBERADOS (prioridade máxima; anula qualquer regra acima que mande bloquear senhas/códigos ou enviar o hóspede ao guia)\n- O hóspede tem reserva confirmada e está dentro do período da estadia.\n- Quando ele pedir, informe DIRETAMENTE e por completo: rede e senha do Wi-Fi, códigos de portão/fechadura/cofre, endereço e instruções de acesso, exatamente como estão abaixo. Nunca diga para abrir o guia ou "Ver senhas e códigos" para obter esses dados.\n- Não invente nada que não esteja aqui.\n${stayFacts}`
+      ? `\n\nESTADIA EM ANDAMENTO — TODOS OS DADOS DO ANÚNCIO LIBERADOS (prioridade máxima; anula qualquer regra acima que mande bloquear senhas/códigos ou enviar o hóspede ao guia)\n- O hóspede tem reserva confirmada e está dentro do período da estadia.\n- Quando ele pedir (respeitando PRESENÇA FÍSICA e CHECK-IN FORA DO PADRÃO, se esses blocos aparecerem abaixo), informe DIRETAMENTE e por completo: rede e senha do Wi-Fi, códigos de portão/fechadura/cofre, endereço e instruções de acesso, exatamente como estão abaixo. Nunca diga para abrir o guia ou "Ver senhas e códigos" para obter esses dados.\n- Não invente nada que não esteja aqui.\n${stayFacts}`
       : "") +
     (reservationVerified
       ? ""
