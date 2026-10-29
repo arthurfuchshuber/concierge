@@ -221,12 +221,13 @@ export function reservationRequestGuidance(d: ReservationDecision, hasConfirmedR
  * linha de raciocínio: nunca desdiz, flexibiliza ou reabre o que foi decidido.
  */
 export function humanLineGuidance(history: Array<{ role: string; content: string }>): string {
-  const recent = history.slice(-12);
+  const recent = history.slice(-20);
   const human = recent.filter((m) => m.role === "assistant" && m.content.startsWith("[Mensagem da equipe humana do anfitrião]"));
   if (!human.length) return "";
   return [
     "\n\nCONTINUIDADE COM A EQUIPE (obrigatório)",
     "- A equipe humana já respondeu nesta conversa (mensagens marcadas como da equipe). A posição dela é a posição oficial: siga exatamente a mesma linha de raciocínio.",
+    "- Antes de responder, releia toda a troca desde a intervenção da equipe e continue a conversa de onde ela parou: não se reapresente, não repita o que a equipe já disse e responda só ao que o hóspede trouxe depois.",
     "- PROIBIDO contradizer, flexibilizar, reabrir opções que a equipe negou ou repetir perguntas que ela já encerrou.",
     "- Se o hóspede só concordou/agradeceu, responda curto e acolhedor, sem trazer o assunto de volta. Se ele insistir ou contestar, reafirme com gentileza o que a equipe disse, com outras palavras.",
   ].join("\n");
