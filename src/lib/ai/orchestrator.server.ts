@@ -1299,6 +1299,19 @@ export async function runHospitalityAgent(params: {
       : limpo;
   }
 
+  // Contingência registrada no cartão (a equipe vê que a IA agiu sem ela).
+  if (gov.contingency && reply && reply !== SILENCE_TOKEN) {
+    const key = gov.contingency.mode === "conduct" ? "contingency_conducted_at" : "contingency_hold_at";
+    await supabase
+      .from("ai_human_escalations")
+      .update({ context_snapshot: { ...gov.contingency.snapshot, [key]: new Date().toISOString() } })
+      .eq("id", gov.contingency.id)
+      .then(
+        () => undefined,
+        (e: unknown) => console.error("[agent] marca de contingência falhou", e),
+      );
+  }
+
   // Incidente de acesso (modo conversacional): barra alegação de ação remota.
   if (conversationalIncident && reply && claimsRemoteAction(reply)) {
     reply = safety.reply;
