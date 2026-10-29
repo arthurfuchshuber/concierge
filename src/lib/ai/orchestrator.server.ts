@@ -538,6 +538,75 @@ export async function runHospitalityAgent(params: {
     ? false
     : context.sensitiveLocked || params.credentialsLocked === true || !reservationVerified;
   const stayFacts = stayAccess.open ? stayFactsText(property as Record<string, unknown>) : "";
+
+  // GOVERNANÇA DE CHECK-IN (29/10/2026): ver `checkin-governance.ts`.
+  const gov = await (async () => {
+    const out = {
+      text: "",
+      consultKinds: [] as GovernanceKind[],
+      arrival: null as number | null,
+      contingency: null as null | { id: string; mode: ContingencyMode; snapshot: Record<string, unknown> },
+    };
+    try {
+      const deliveringHuman = params.proactiveTrigger === "human_answer";
+      let pendingGov: { id: string; context_snapshot: Record<string, unknown> | null } | null = null;
+      let answeredGov = false;
+      if (params.conversationId) {
+        const { data: govRows } = await supabase
+          .from("ai_human_escalations")
+          .select("id, status, created_at, context_snapshot")
+          .eq("conversation_id", params.conversationId)
+          .in("status", ["pending", "answered"])
+          .gte("created_at", new Date(Date.now() - 24 * 3_600_000).toISOString())
+          .order("created_at", { ascending: false })
+          .limit(10);
+        const rows = ((govRows ?? []) as Array<{ id: string; status: string; context_snapshot: Record<string, unknown> | null }>).filter(
+          (r) => !!r.context_snapshot?.checkin_governance,
+        );
+        pendingGov = rows.find((r) => r.status === "pending") ?? null;
+        answeredGov = rows.some((r) => r.status === "answered");
+      }
+      if (deliveringHuman) {
+        if (answeredGov) out.text = TEAM_DECISION_GUIDANCE;
+        return out;
+      }
+      if (pendingGov) {
+        if (isGuestPressing(params.message)) {
+          const mode = decideContingency({
+            autonomous: isAutonomousAccess(property as Record<string, unknown>),
+            verified: reservationVerified === true && stayAccess.open === true,
+            hasCredentials: !!stayFacts,
+          });
+          const snap = pendingGov.context_snapshot ?? {};
+          out.contingency = { id: pendingGov.id, mode, snapshot: snap };
+          out.text = contingencyGuidance(mode, !!snap.contingency_hold_at);
+        } else {
+          out.text =
+            "\n\nCONSULTA À EQUIPE EM ANDAMENTO SOBRE HORÁRIO/ACESSO\n- Não autorize nem negue o horário/acesso e não envie credenciais por isso; responda ao restante normalmente, sem acionar a equipe de novo.";
+        }
+        return out;
+      }
+      const teamAuthorized = teamAnswersForAccess.length > 0;
+      const arrival = detectArrivalTime(params.message);
+      out.arrival = arrival;
+      if (!teamAuthorized) {
+        if (isLateArrival({ arrival, checkinMax: (property as Record<string, unknown>).checkin_time_max, staffTime: accessTimingInfo?.staff })) {
+          out.consultKinds.push("late_arrival");
+        }
+        if (mentionsThirdPartyArrival(params.message)) out.consultKinds.push("third_party");
+      }
+      if (out.consultKinds.length) out.text = consultGuidance(out.consultKinds);
+      else if (
+        isPreparatoryCredentialQuestion(params.message) &&
+        ![...fullHistory.filter((m) => m.role === "user").slice(-4).map((m) => m.content), params.message].some(indicatesPhysicalPresence)
+      ) {
+        out.text = PREPARATORY_GUIDANCE;
+      }
+    } catch (e) {
+      console.error("[agent] governança de check-in indisponível", e);
+    }
+    return out;
+  })();
   if (stayFacts) {
     sources.push({ source: "property", title: "Dados da residência (estadia em andamento)", confidence: confidenceOf("property") });
     evidence.push(`[property] Dados oficiais do anúncio liberados durante a estadia:\n${stayFacts}`);
