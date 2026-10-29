@@ -1,3 +1,4 @@
+import { cardSilencesAi } from "./silence-gate";
 /**
  * COPILOTO PROATIVO (19/10/2026, pedido do anfitrião).
  *
@@ -54,11 +55,11 @@ export async function proposeProactiveDecision(
     // Uma pergunta por vez: se já há pendência, não empilha outra.
     const { data: pend } = await admin
       .from("ai_human_escalations")
-      .select("id")
+      .select("reason, created_at, context_snapshot")
       .eq("conversation_id", c.id)
-      .eq("status", "pending")
-      .limit(1);
-    if (pend?.length) return null;
+      .eq("status", "pending");
+    // Cartões de aprendizado ou antigos não bloqueiam uma pergunta nova.
+    if (((pend ?? []) as never[]).some((e) => cardSilencesAi(e))) return null;
 
     const [{ data: prop }, { data: msgs }, arrival] = await Promise.all([
       admin.from("properties").select("owner_id, name, checkin_time, checkout_time").eq("id", c.property_id).maybeSingle(),
@@ -103,11 +104,11 @@ export async function proposeProactiveDecision(
     // criado a pergunta nesse intervalo — nunca duas para a mesma situação.
     const { data: pend2 } = await admin
       .from("ai_human_escalations")
-      .select("id")
+      .select("reason, created_at, context_snapshot")
       .eq("conversation_id", c.id)
-      .eq("status", "pending")
-      .limit(1);
-    if (pend2?.length) return null;
+      .eq("status", "pending");
+    // Cartões de aprendizado ou antigos não bloqueiam uma pergunta nova.
+    if (((pend2 ?? []) as never[]).some((e) => cardSilencesAi(e))) return null;
 
     const { data: ins, error } = await admin
       .from("ai_human_escalations")
