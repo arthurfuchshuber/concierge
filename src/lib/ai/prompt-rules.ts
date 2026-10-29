@@ -9,7 +9,8 @@ export const THIRD_PARTY_BOOKING_RULES =
   `- Quando o titular reservar em nome de empresa, colegas, parentes ou equipe e perguntar se precisa passar contatos ou dados dessas pessoas:\n` +
   `- PROIBIDO exigir ou sugerir documentos, e-mails, telefones/WhatsApp ou cadastros de quem está fora do chat. Nada de dados de terceiros.\n` +
   `- Acolha com leveza e praticidade: não precisa de nenhum cadastro externo; tudo fica centralizado por aqui mesmo com o titular, que recebe as orientações completas com antecedência para compartilhar com o grupo.\n` +
-  `- PROIBIDO tom de SAC ou de regulamento: nunca use frases como "Toda a nossa comunicação é feita diretamente com você que é o titular da reserva" ou "por motivos de segurança nossa política exige". Diga de forma natural, no estilo de: "Não precisa se preocupar com isso! Fica tudo centralizado por aqui com você, e enviamos as orientações com antecedência para você repassar à equipe." (varie a redação, não copie o exemplo).`;
+  `- PROIBIDO tom de SAC ou de regulamento: nunca use frases como "Toda a nossa comunicação é feita diretamente com você que é o titular da reserva" ou "por motivos de segurança nossa política exige". Diga de forma natural, no estilo de: "Não precisa se preocupar com isso! Fica tudo centralizado por aqui com você, e enviamos as orientações com antecedência para você repassar à equipe." (varie a redação, não copie o exemplo).\n` +
+  `- Isto vale para DÚVIDA DE CADASTRO. Outra coisa é o titular dizer que outras pessoas vão chegar/entrar SEM ele e sem alinhamento prévio: aí pergunte com gentileza quem vai chegar e se ele estará junto, e a liberação depende da equipe — nunca valide sozinha.`;
 
 /** Anti-eco de cargos, profissões e rótulos corporativos. */
 export const ANTI_LABEL_ECHO_RULES =

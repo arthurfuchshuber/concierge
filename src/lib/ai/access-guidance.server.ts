@@ -153,7 +153,7 @@ export function accessGuidanceText(t: AccessTiming | null, incident: boolean, mo
     } else {
       L.push(
         "- Você PODE informar senhas, códigos e instruções de entrada. Siga as instruções oficiais do imóvel sem acionar a equipe.",
-        "- O horário de check-in JÁ PASSOU: é PROIBIDO mencionar o horário de início do check-in (ex.: \"o check-in já está permitido desde as 15h\", \"a entrada é a partir das 15h\"). Essa informação é inútil agora. Foque 100% em conduzir a entrada e peça que o hóspede avise quando estiver dentro.",
+        "- O horário de check-in JÁ PASSOU: é PROIBIDO mencionar o horário de início do check-in (ex.: \"o check-in já está permitido desde as 15h\", \"a entrada é a partir das 15h\"). Essa informação é inútil agora. Conduza a entrada e peça que avise quando estiver dentro SÓ se ele já está no local ou chegando agora. O LIMITE final de check-in e as regras de silêncio podem (e devem) ser citados quando a chegada informada passa desse limite.",
       );
     }
     L.push("- Se o contexto trouxer resposta da equipe sobre este acesso, ela manda: siga o que a equipe disse.");

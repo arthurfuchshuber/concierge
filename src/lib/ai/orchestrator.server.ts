@@ -48,6 +48,25 @@ import { continuityLine } from "./continuity";
 import { acknowledgementReply, humanSupportReply, isOnlyGreeting, stripPromiseSentences } from "./human-support";
 import { buildHandoffDraft, formatDraftForTeam } from "./human-loop/handoff-draft.server";
 import { accessGuidanceText, accessTiming, decideAccess } from "./access-guidance.server";
+import {
+  PREPARATORY_GUIDANCE,
+  TEAM_DECISION_GUIDANCE,
+  consultGuidance,
+  contingencyGuidance,
+  decideContingency,
+  detectArrivalTime,
+  governanceOptions,
+  governanceReason,
+  holdBridgeText,
+  indicatesPhysicalPresence,
+  isAutonomousAccess,
+  isGuestPressing,
+  isLateArrival,
+  isPreparatoryCredentialQuestion,
+  mentionsThirdPartyArrival,
+  type ContingencyMode,
+  type GovernanceKind,
+} from "./checkin-governance";
 import { decideReservationRequest, detectReservationRequest, humanLineGuidance, reservationRequestGuidance } from "./reservation-change";
 import { loadCancellationWindow } from "./reservation-policy.server";
 import { LIST_SPACING_RULES, ANTI_LABEL_ECHO_RULES, PRE_BOOKING_CLOSING_RULES, THIRD_PARTY_BOOKING_RULES } from "./prompt-rules";
@@ -538,6 +557,75 @@ export async function runHospitalityAgent(params: {
     ? false
     : context.sensitiveLocked || params.credentialsLocked === true || !reservationVerified;
   const stayFacts = stayAccess.open ? stayFactsText(property as Record<string, unknown>) : "";
+
+  // GOVERNANÇA DE CHECK-IN (29/10/2026): ver `checkin-governance.ts`.
+  const gov = await (async () => {
+    const out = {
+      text: "",
+      consultKinds: [] as GovernanceKind[],
+      arrival: null as number | null,
+      contingency: null as null | { id: string; mode: ContingencyMode; snapshot: Record<string, unknown> },
+    };
+    try {
+      const deliveringHuman = params.proactiveTrigger === "human_answer";
+      let pendingGov: { id: string; context_snapshot: Record<string, unknown> | null } | null = null;
+      let answeredGov = false;
+      if (params.conversationId) {
+        const { data: govRows } = await supabase
+          .from("ai_human_escalations")
+          .select("id, status, created_at, context_snapshot")
+          .eq("conversation_id", params.conversationId)
+          .in("status", ["pending", "answered"])
+          .gte("created_at", new Date(Date.now() - 24 * 3_600_000).toISOString())
+          .order("created_at", { ascending: false })
+          .limit(10);
+        const rows = ((govRows ?? []) as Array<{ id: string; status: string; context_snapshot: Record<string, unknown> | null }>).filter(
+          (r) => !!r.context_snapshot?.checkin_governance,
+        );
+        pendingGov = rows.find((r) => r.status === "pending") ?? null;
+        answeredGov = rows.some((r) => r.status === "answered");
+      }
+      if (deliveringHuman) {
+        if (answeredGov) out.text = TEAM_DECISION_GUIDANCE;
+        return out;
+      }
+      if (pendingGov) {
+        if (isGuestPressing(params.message)) {
+          const mode = decideContingency({
+            autonomous: isAutonomousAccess(property as Record<string, unknown>),
+            verified: reservationVerified === true && stayAccess.open === true,
+            hasCredentials: !!stayFacts,
+          });
+          const snap = pendingGov.context_snapshot ?? {};
+          out.contingency = { id: pendingGov.id, mode, snapshot: snap };
+          out.text = contingencyGuidance(mode, !!snap.contingency_hold_at);
+        } else {
+          out.text =
+            "\n\nCONSULTA À EQUIPE EM ANDAMENTO SOBRE HORÁRIO/ACESSO\n- Não autorize nem negue o horário/acesso e não envie credenciais por isso; responda ao restante normalmente, sem acionar a equipe de novo.";
+        }
+        return out;
+      }
+      const teamAuthorized = teamAnswersForAccess.length > 0;
+      const arrival = detectArrivalTime(params.message);
+      out.arrival = arrival;
+      if (!teamAuthorized) {
+        if (isLateArrival({ arrival, checkinMax: (property as Record<string, unknown>).checkin_time_max, staffTime: accessTimingInfo?.staff })) {
+          out.consultKinds.push("late_arrival");
+        }
+        if (mentionsThirdPartyArrival(params.message)) out.consultKinds.push("third_party");
+      }
+      if (out.consultKinds.length) out.text = consultGuidance(out.consultKinds);
+      else if (
+        isPreparatoryCredentialQuestion(params.message) &&
+        ![...fullHistory.filter((m) => m.role === "user").slice(-4).map((m) => m.content), params.message].some(indicatesPhysicalPresence)
+      ) {
+        out.text = PREPARATORY_GUIDANCE;
+      }
+    } catch (e) {
+      console.error("[agent] governança de check-in indisponível", e);
+    }
+    return out;
+  })();
   if (stayFacts) {
     sources.push({ source: "property", title: "Dados da residência (estadia em andamento)", confidence: confidenceOf("property") });
     evidence.push(`[property] Dados oficiais do anúncio liberados durante a estadia:\n${stayFacts}`);
@@ -676,6 +764,8 @@ export async function runHospitalityAgent(params: {
     requestHandoff: (reason, urgency) => {
       // Entregando decisão da equipe: nunca reabrir pergunta/transbordo.
       if (params.proactiveTrigger === "human_answer") return;
+      // Contingência: a consulta sobre o horário já está com a equipe.
+      if (gov.contingency) return;
       handoffReason = reason;
       handoffUrgency = urgency;
     },
@@ -744,7 +834,7 @@ export async function runHospitalityAgent(params: {
       ? `\n\nIDIOMA PROVÁVEL DA MENSAGEM: ${guestLanguage} (responda no idioma em que o hóspede escreveu)`
       : `\n\nIDIOMA DE RESPOSTA (obrigatório): responda SEMPRE em português do Brasil, mesmo que o hóspede escreva em outro idioma (${guestLanguage}). Este canal traduz automaticamente para o hóspede.`) +
     (stayAccess.open
-      ? `\n\nESTADIA EM ANDAMENTO — TODOS OS DADOS DO ANÚNCIO LIBERADOS (prioridade máxima; anula qualquer regra acima que mande bloquear senhas/códigos ou enviar o hóspede ao guia)\n- O hóspede tem reserva confirmada e está dentro do período da estadia.\n- Quando ele pedir, informe DIRETAMENTE e por completo: rede e senha do Wi-Fi, códigos de portão/fechadura/cofre, endereço e instruções de acesso, exatamente como estão abaixo. Nunca diga para abrir o guia ou "Ver senhas e códigos" para obter esses dados.\n- Não invente nada que não esteja aqui.\n${stayFacts}`
+      ? `\n\nESTADIA EM ANDAMENTO — TODOS OS DADOS DO ANÚNCIO LIBERADOS (prioridade máxima; anula qualquer regra acima que mande bloquear senhas/códigos ou enviar o hóspede ao guia)\n- O hóspede tem reserva confirmada e está dentro do período da estadia.\n- Quando ele pedir (respeitando PRESENÇA FÍSICA e CHECK-IN FORA DO PADRÃO, se esses blocos aparecerem abaixo), informe DIRETAMENTE e por completo: rede e senha do Wi-Fi, códigos de portão/fechadura/cofre, endereço e instruções de acesso, exatamente como estão abaixo. Nunca diga para abrir o guia ou "Ver senhas e códigos" para obter esses dados.\n- Não invente nada que não esteja aqui.\n${stayFacts}`
       : "") +
     (reservationVerified
       ? ""
@@ -756,6 +846,7 @@ export async function runHospitalityAgent(params: {
       ? `${PRE_BOOKING_CLOSING_RULES}${THIRD_PARTY_BOOKING_RULES}\n\nHÓSPEDE PESQUISANDO / PEDINDO TEMPO (obrigatório)\n- Quando ele disser que está pesquisando, comparando, vendo com alguém, pensando ou "só um momento", PROIBIDO responder apenas "pode pesquisar com calma"/"fique à vontade": isso empurra para a concorrência.\n- Dê espaço com gentileza em poucas palavras e, NA MESMA mensagem, faça uma "truncada leve" persuasiva: os valores e as datas só ficam garantidos com a reserva confirmada (calendário aberto, outra pessoa pode reservar). Tom cordial, nunca agressivo.\n- Varie SEMPRE a redação (não copie exemplos nem repita frases já usadas na conversa). Exemplos de tom: "Claro! Só reforçando que os valores só ficam garantidos após a confirmação da reserva, ok?"; "Fique à vontade! Lembrando que o calendário segue aberto e essas datas podem sair a qualquer momento."; "Sem problemas! Se fizer sentido, vale garantir logo, porque a tarifa só fica travada com a reserva confirmada."\n- Uma única frase de ancoragem; sem insistir de novo se ele não responder.\n\nRETENÇÃO (obrigatório)\n- PROIBIDO sugerir outra hospedagem, outro anúncio que não seja nosso, ou dar dicas de como reservar em outro lugar.\n- Se o hóspede exigir garantia que não podemos dar (ex.: entrada de manhã cedo), ofereça objetivamente a alternativa nossa: reservar também a noite anterior garante a unidade livre na chegada.\n- Se ele decidir não reservar: uma frase curta e sóbria (ex.: "Entendido, Cauane. Boa viagem!"). Sem "estamos sempre à disposição", "portas abertas" ou similares.\n- Nunca repita informação que já enviou nesta conversa.`
       : "") +
     (stayAccess.open ? accessGuidance : "") +
+    gov.text +
     reservationRequestText +
     humanLineGuidance(params.history ?? []) +
     GUEST_DATA_BOUNDARY +
@@ -1150,6 +1241,12 @@ export async function runHospitalityAgent(params: {
 
   // Todo transbordo vira pergunta respondível no cartão "A IA está te
   // perguntando" — sem isso, request_human_handoff só deixava um motivo solto.
+  // Check-in fora do padrão: a consulta à equipe é obrigatória, mesmo que o
+  // modelo não tenha acionado (nunca valida sozinha).
+  if (gov.consultKinds.length && !escalationId) {
+    handoffReason = governanceReason(gov.consultKinds, gov.arrival, (property as Record<string, unknown>).checkin_time_max);
+  }
+  if (gov.contingency) handoffReason = null;
   if (handoffReason && !escalationId && params.conversationId) {
     // Ponto 1: a equipe recebe o caso mastigado (resumo + o que já foi feito + resposta sugerida).
     const { usage: draftUsage, ...draft } = await buildHandoffDraft({
@@ -1170,7 +1267,13 @@ export async function runHospitalityAgent(params: {
       trigger: "unknown_information",
       reason: handoffReason,
       question: formatDraftForTeam(handoffReason, draft),
-      contextSnapshot: { draft },
+      contextSnapshot: gov.consultKinds.length
+        ? {
+            draft,
+            checkin_governance: { kinds: gov.consultKinds, arrival: gov.arrival },
+            decision: { kind: "operational", options: governanceOptions(gov.consultKinds) },
+          }
+        : { draft },
       guestMessage: params.message,
     }).catch(() => null);
   }
@@ -1195,6 +1298,27 @@ export async function runHospitalityAgent(params: {
           formal: guestVoice.formal,
         })
       : limpo;
+  }
+
+  // Contingência registrada no cartão (a equipe vê que a IA agiu sem ela).
+  if (gov.contingency?.mode === "hold") {
+    const pr = property as Record<string, unknown>;
+    const codes = [pr.gate_code, pr.lock_code].filter((c): c is string => typeof c === "string" && c.trim().length >= 3);
+    const leaks = !!reply && codes.some((c) => reply!.includes(c.trim()));
+    if (!reply || reply === SILENCE_TOKEN || leaks || !/aguard|retorn|paci[eê]ncia|instante|momento/i.test(reply)) {
+      reply = holdBridgeText(params.guestName ?? null, !!gov.contingency.snapshot.contingency_hold_at, fullHistory.length);
+    }
+  }
+  if (gov.contingency && reply && reply !== SILENCE_TOKEN) {
+    const key = gov.contingency.mode === "conduct" ? "contingency_conducted_at" : "contingency_hold_at";
+    await supabase
+      .from("ai_human_escalations")
+      .update({ context_snapshot: { ...gov.contingency.snapshot, [key]: new Date().toISOString() } })
+      .eq("id", gov.contingency.id)
+      .then(
+        () => undefined,
+        (e: unknown) => console.error("[agent] marca de contingência falhou", e),
+      );
   }
 
   // Incidente de acesso (modo conversacional): barra alegação de ação remota.
