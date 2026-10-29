@@ -1234,8 +1234,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         observacao: livre
           ? "Disponibilidade de calendário. Preço e confirmação da reserva são sempre na plataforma do anúncio."
           : "Ocupado no período pedido. NUNCA responda só 'não': ofereça o trecho livre dentro do período " +
-            "(ex.: 'temos de 12 a 14, podemos seguir?') e/ou o período mais próximo, e chame find_available_stays " +
-            "para outras unidades. Feche com uma pergunta de duas opções.",
+            "e/ou o período mais próximo, e chame find_available_stays para outras unidades. Fale com naturalidade, sem fórmula pronta.",
       };
     },
   });
@@ -1245,8 +1244,8 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     description:
       "Procura OUTROS imóveis do mesmo anfitrião livres em um período, ordenados por proximidade do imóvel atual. " +
       "Use quando o imóvel do hóspede NÃO estiver livre e ele quiser estender, antecipar ou voltar em outra data — " +
-      "e também quando ele perguntar por outra unidade para acompanhantes. Devolve o link do anúncio quando " +
-      "cadastrado. NUNCA informe preço: mande o link, quem precifica é a plataforma.",
+      "e também quando ele perguntar por outra unidade para acompanhantes. Devolve o link oficial do anúncio conectado." +
+      " NUNCA informe preço: mande o link, quem precifica é a plataforma.",
     parameters: schema(
       {
         entrada: { type: "string", description: "Primeira noite pretendida (AAAA-MM-DD)." },
@@ -1398,11 +1397,9 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
               ? "Nenhuma unidade livre no período inteiro. Ofereça o trecho livre ou o período mais próximo com o " +
                 "nome do imóvel. Nunca cite preço."
               : "Nenhuma unidade livre nem em datas próximas. Diga isso com gentileza e pergunte se há flexibilidade; escale se insistir.") +
-          " ESTRUTURA OBRIGATÓRIA, curta e ordenada: (1) uma frase sobre as datas pedidas no imóvel atual (livre ou já com noites reservadas — nunca diga 'calendário desatualizado' nem exponha incerteza interna); " +
-          "(2) se houver, o período próximo de mesma duração no MESMO imóvel; (3) por último, a alternativa em outro imóvel, cada uma em linha própria com datas e o link logo abaixo. " +
-          "Nunca proponha imóvel alternativo sem link. Termine com UMA pergunta simples de escolha.",
+          " Fale de forma natural e curta, sem roteiro fixo e sem expor incerteza interna; ao citar outro imóvel, inclua o link_anuncio.",
         sem_link: [...livres, ...parciais].some((o) => !o.link_anuncio)
-          ? "Unidades sem link_anuncio NÃO podem ser oferecidas ao hóspede: omita-as e ofereça só as que têm link."
+          ? "Alguma unidade veio sem link_anuncio: não a ofereça."
           : null,
       };
     },
