@@ -26,7 +26,7 @@ export type PrecedentMatch = {
 };
 
 /** Similaridade mínima para um precedente ser considerado "a mesma situação". */
-export const MIN_PRECEDENT_SIMILARITY = 0.62;
+export const MIN_PRECEDENT_SIMILARITY = 0.58;
 /** Similaridade a partir da qual um novo caso reforça o precedente existente. */
 export const SAME_PRECEDENT_SIMILARITY = 0.9;
 
