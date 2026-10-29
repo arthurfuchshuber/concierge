@@ -29,4 +29,8 @@
 - Window overlays (dialog, alert-dialog, sheet, drawer bases in `src/components/ui`) carry `data-dialog-overlay`; closing overlays never fade and `html` keeps `scrollbar-gutter: stable` (`src/styles.css`), so opening/switching windows never flashes the page behind. New windows must use these bases.
 - Conversations escalated to a human never auto-open the full Atendimento window: they become `QuickChatBubbles` beside the floating button (stacked when several) that expand into an in-place mini-chat; only an explicit push click opens the full window.
 - Playbook hides empty manually-editable optional rows (only `STANDARD_MANUAL_FIELDS` stay visible) and offers them via "Adicionar campo"; "Replicar" only shows on manually-edited rows, never on listing/scrap data such as house rules.
+<<<<<<< HEAD
 - The Gerencial page/menu item was removed (28/10/2026); `src/lib/executive.functions.ts` (director allowlist) is kept unused and no DB data was touched.
+=======
+- Gerencial page (/admin/dashboard/gerencial) is restricted to an allowlist of director user IDs in `src/lib/executive.functions.ts`, checked server-side and read with the admin client, because directors must see company bank data regardless of account RLS.
+>>>>>>> de16c1cc7e62eedc146024221d929450407f55de
