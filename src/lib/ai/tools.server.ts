@@ -1233,8 +1233,8 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
             : null,
         observacao: livre
           ? "Disponibilidade de calendário. Preço e confirmação da reserva são sempre na plataforma do anúncio."
-          : "Ocupado no período pedido. NUNCA responda só 'não': ofereça o trecho livre dentro do período " +
-            "e/ou o período mais próximo, e chame find_available_stays para outras unidades. Fale com naturalidade, sem fórmula pronta.",
+          : "Ocupado no período pedido. NUNCA responda só 'não': PRIMEIRO ofereça o trecho livre ou o período mais próximo neste mesmo imóvel " +
+            "e pergunte se serviria. Só se o hóspede recusar (ou não houver contraproposta), chame find_available_stays para outras unidades próximas. Fale com naturalidade, sem fórmula pronta.",
       };
     },
   });
@@ -1243,8 +1243,8 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     name: "find_available_stays",
     description:
       "Procura OUTROS imóveis do mesmo anfitrião livres em um período, ordenados por proximidade do imóvel atual. " +
-      "Use SEMPRE que o imóvel da conversa não estiver livre (total ou parcialmente) nas datas que o hóspede citou, mesmo que ele não peça outra unidade, " +
-      "e também quando ele perguntar por outra unidade para acompanhantes. Devolve o link oficial do anúncio conectado; sugira proativamente as unidades livres da mesma região com esse link." +
+      "Use quando o imóvel da conversa não estiver livre nas datas citadas E o hóspede já tiver recusado o período próximo oferecido no mesmo imóvel (ou não houver período próximo nele), mesmo que ele não peça outra unidade; " +
+      "e também quando ele perguntar por outra unidade para acompanhantes. Devolve o link oficial do anúncio conectado; sugira as unidades livres mais próximas (pode ser mais de uma, da mais perto à mais longe) com esse link." +
       " NUNCA informe preço: mande o link, quem precifica é a plataforma.",
     parameters: schema(
       {
