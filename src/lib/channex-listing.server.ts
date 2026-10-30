@@ -466,7 +466,16 @@ export async function scrapePublicListingForProperty(propertyId: string, opts: {
   const meta = row.listing_meta ?? {};
   const settings = row.raw_settings ?? {};
   const changed = !pub || JSON.stringify(row.normalized?.public_listing ?? null) !== JSON.stringify(pub);
-  if (opts.onlyIfChanged && !changed) return { ok: true, changed: false };
+  if (opts.onlyIfChanged && !changed) {
+    // Carimba a checagem (sem mudança) para o gatilho por evento saber que está fresco.
+    await supabaseAdmin
+      .from("property_listing_raw_data" as never)
+      .update({ normalized: { ...(row.normalized ?? {}), public_checked_at: new Date().toISOString() } } as never)
+      .eq("property_id", propertyId);
+    return { ok: true, changed: false };
+  }
+  if (row.normalized) row.normalized = { ...row.normalized, public_checked_at: new Date().toISOString() };
+  else row.normalized = { public_checked_at: new Date().toISOString() };
   if (pub) {
     const facts = [...normalizeListing(meta, settings), ...publicFacts(pub)];
     await supabaseAdmin
@@ -478,4 +487,28 @@ export async function scrapePublicListingForProperty(propertyId: string, opts: {
   const { reindexProperty } = await import("@/lib/ai/indexing.server");
   await reindexProperty(supabaseAdmin as never, propertyId).catch(() => undefined);
   return { ok: Boolean(pub), changed };
+}
+
+/** Releitura por evento: só relê o anúncio público se a última checagem passou de `LISTING_STALE_MS`. Custo zero. */
+export const LISTING_STALE_MS = 2 * 60 * 60_000;
+export function isListingStale(checkedAt: string | null | undefined, now = Date.now()): boolean {
+  const t = checkedAt ? Date.parse(checkedAt) : NaN;
+  return !Number.isFinite(t) || now - t >= LISTING_STALE_MS;
+}
+
+export async function refreshListingsIfStale(channexPropertyId: string): Promise<number> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("property_listing_raw_data" as never)
+    .select("property_id, normalized")
+    .eq("channex_property_id", channexPropertyId)
+    .not("airbnb_listing_id", "is", null)
+    .is("sync_paused_at", null);
+  let n = 0;
+  for (const r of (data ?? []) as Array<{ property_id: string; normalized?: { public_checked_at?: string } | null }>) {
+    if (!isListingStale(r.normalized?.public_checked_at)) continue;
+    await scrapePublicListingForProperty(r.property_id, { onlyIfChanged: true }).catch((e) => console.error("[listing-stale]", e));
+    n++;
+  }
+  return n;
 }
