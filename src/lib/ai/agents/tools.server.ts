@@ -132,7 +132,7 @@ export function buildAgentTools(ctx: AgentToolContext): AgentTool[] {
       "Use em vez de adivinhar. Depois disso, avise o hóspede que está confirmando com a equipe.",
     parameters: schema(
       {
-        pergunta: { type: "string", description: "Pergunta objetiva e decidível para o humano." },
+        pergunta: { type: "string", description: "SÓ a dúvida, direta e decidível (ex.: 'Onde foi comprado o cobertor do quarto?'). Sem introdução, sem sentimento/humor do hóspede, sem contexto narrativo." },
         motivo: { type: "string", description: "Por que você não pode decidir sozinho." },
         gatilho: {
           type: "string",
