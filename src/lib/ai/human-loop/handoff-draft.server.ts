@@ -96,5 +96,5 @@ export function directQuestion(text: string): string {
     .replace(/^[A-ZÀ-Ú][\wÀ-ú]+,\s*(satisfeit[oa]|feliz|tranquil[oa]|irritad[oa]|bem-humorad[oa]|ansios[oa])[^,.]{0,40},\s*/i, "")
     .replace(/^(ol[áa]|oi|equipe|pessoal)[,!.:]?\s*/i, "")
     .trim();
-  return t ? t.charAt(0).toUpperCase() + t.slice(1) : text.trim();
+  return t || text.trim();
 }
