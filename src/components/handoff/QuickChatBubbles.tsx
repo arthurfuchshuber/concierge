@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, Expand, X } from "lucide-react";
 import { ConversationView } from "@/components/handoff/ConversationView";
 import { ChannelLogo, channelOf, type ChatChannel } from "@/components/handoff/ChannelLogo";
@@ -29,6 +29,9 @@ import {
  *    mostra o total.
  *  · "Responder" abre o mini-chat no mesmo lugar (lê e responde sem sair da tela);
  *    "Abrir completo" leva à janela inteira, que segue igual.
+ *  · NUNCA ESCONDIDO (29/10/2026): se o botão foi arrastado para o alto e o cartão (ou o
+ *    mini-chat) não cabe acima dele, tudo abre do LADO OPOSTO — abaixo do botão, com o
+ *    bico e o arco do leque espelhados.
  *  · O "X" é o X de canto padrão das janelas e dispensa o aviso (o chamado continua na
  *    fila e no contador do botão). "Depois" dispensa só o hóspede do cartão e, no leque,
  *    passa ao próximo da fila.
@@ -93,6 +96,12 @@ export function QuickChatBubbles({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openChat]);
 
+  // Posição do botão da IA (sonda invisível no mesmo ponto) e do cartão, para decidir o lado.
+  const probeRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<{ below: boolean; top: number }>({ below: false, top: 0 });
+  const itemCount = items.length;
+
   const ordered = useMemo(
     () =>
       sortByNearestCheckin(
@@ -101,7 +110,32 @@ export function QuickChatBubbles({
     [items],
   );
 
+  useLayoutEffect(() => {
+    if (itemCount === 0) return;
+    const measure = () => {
+      const probe = probeRef.current;
+      const box = cardRef.current ?? panelRef.current;
+      if (!probe || !box) return;
+      const pr = probe.getBoundingClientRect();
+      const gapNow = mode === "chat" || itemCount === 1 ? GAP_SINGLE : GAP_FAN;
+      const need = box.offsetHeight + gapNow + 12;
+      const spaceBelow = window.innerHeight - pr.bottom;
+      const below = pr.top < need && spaceBelow > pr.top;
+      const top = pr.bottom + gapNow;
+      setPlace((cur) => (cur.below === below && Math.abs(cur.top - top) < 0.5 ? cur : { below, top }));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fabBottom, mode, selectedId, chatId, itemCount, items]);
+
   if (ordered.length === 0) return null;
+  const below = place.below;
   const selected = ordered.find((i) => i.id === selectedId) ?? ordered[0];
   const rank = ordered.findIndex((i) => i.id === selected.id);
   const fan = ordered.length > 1;
@@ -111,11 +145,19 @@ export function QuickChatBubbles({
   // ───────────── Mini-chat (Responder) ─────────────
   if (mode === "chat" && chatItem) {
     return (
+      <>
+      {/* Sonda invisível: ocupa o lugar exato do botão da IA para medir de que lado há espaço. */}
+            <div
+              ref={probeRef}
+              aria-hidden
+              className="pointer-events-none invisible fixed right-[19px] lg:right-6"
+              style={{ bottom: fabBottom, width: FAB_SIZE, height: FAB_SIZE }}
+            />
       <div
         ref={panelRef}
         className="fixed right-[10px] w-[min(380px,calc(100vw-20px))] lg:right-4"
         style={{
-          bottom: `calc(${fabBottom} + ${FAB_SIZE + GAP_SINGLE}px)`,
+          ...(below ? { top: place.top } : { bottom: `calc(${fabBottom} + ${FAB_SIZE + GAP_SINGLE}px)` }),
           height: "min(520px, 72dvh)",
           zIndex: 2147483000,
           pointerEvents: "auto",
@@ -153,6 +195,7 @@ export function QuickChatBubbles({
           </div>
         </div>
       </div>
+      </>
     );
   }
 
@@ -168,7 +211,8 @@ export function QuickChatBubbles({
   const extra = ordered.length - FAN_AVATARS;
   const arcAt = (i: number) => {
     const a = (ARC_ANGLES[i] * Math.PI) / 180;
-    return { x: -ARC_R * Math.sin(a), y: -ARC_R * Math.cos(a) };
+    // Espelhado na vertical quando o botão está no alto e o leque abre para baixo.
+    return { x: -ARC_R * Math.sin(a), y: (below ? 1 : -1) * ARC_R * Math.cos(a) };
   };
 
   const openReply = () => {
@@ -184,10 +228,18 @@ export function QuickChatBubbles({
 
   return (
     <>
+      {/* Sonda invisível: ocupa o lugar exato do botão da IA para medir de que lado há espaço. */}
       <div
+        ref={probeRef}
+        aria-hidden
+        className="pointer-events-none invisible fixed right-[19px] lg:right-6"
+        style={{ bottom: fabBottom, width: FAB_SIZE, height: FAB_SIZE }}
+      />
+      <div
+        ref={cardRef}
         className="fixed right-[10px] lg:right-4"
         style={{
-          bottom: `calc(${fabBottom} + ${FAB_SIZE + gap}px)`,
+          ...(below ? { top: place.top } : { bottom: `calc(${fabBottom} + ${FAB_SIZE + gap}px)` }),
           width: fan ? "min(300px, calc(100vw - 20px))" : "min(330px, calc(100vw - 20px))",
           zIndex: 2147483000,
           pointerEvents: "auto",
@@ -198,7 +250,11 @@ export function QuickChatBubbles({
           {/* Bico apontando para o botão da IA (centro do botão: 43px da borda no celular, 48px no computador). */}
           <span
             aria-hidden
-            className="absolute -bottom-[7px] right-[26px] size-3.5 rotate-45 bg-[var(--panel)] shadow-[1px_1px_0_var(--panel-border)] lg:right-[25px]"
+            className={`absolute right-[26px] size-3.5 rotate-45 bg-[var(--panel)] lg:right-[25px] ${
+              below
+                ? "-top-[7px] shadow-[-1px_-1px_0_var(--panel-border)]"
+                : "-bottom-[7px] shadow-[1px_1px_0_var(--panel-border)]"
+            }`}
           />
 
           <button type="button" onClick={() => onDismiss("all")} aria-label="Dispensar aviso" title="Dispensar aviso" className={CLOSE_X}>
@@ -286,7 +342,7 @@ export function QuickChatBubbles({
               const c = FAB_SIZE / 2;
               return (
                 <path
-                  d={`M${c + last.x} ${c + last.y} A${ARC_R} ${ARC_R} 0 0 1 ${c + top.x} ${c + top.y}`}
+                  d={`M${c + last.x} ${c + last.y} A${ARC_R} ${ARC_R} 0 0 ${below ? 0 : 1} ${c + top.x} ${c + top.y}`}
                   fill="none"
                   stroke="var(--panel-border)"
                   strokeWidth={1}

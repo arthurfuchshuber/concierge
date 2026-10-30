@@ -7,6 +7,7 @@ import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useManualOverlayLayer } from "@/lib/global-overlay-store";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -107,6 +108,10 @@ const adminOnlyNav = [
 // Rótulos curtos pro menu inferior mobile — a barra é apertada, então só ali
 // (nunca na sidebar desktop nem na gaveta mobile, que têm espaço de sobra)
 // usa-se uma versão encurtada do nome real da seção.
+/** Páginas que dividem o botão "Stakeholders" da barra inferior mobile. */
+const BOTTOM_NAV_PEOPLE_PATHS: string[] = ["/admin/proprietarios", "/admin/prestadores"];
+const PEOPLE_MENU_WIDTH = 208;
+
 const BOTTOM_NAV_SHORT_LABEL: Record<string, string> = {
   "Guias Digitais": "Guias",
   "Atendimento": "Suporte",
@@ -195,6 +200,30 @@ function AdminLayout() {
   const stableBottomNavRef = useRef<typeof liveBottomNav>([]);
   if (navSettled || stableBottomNavRef.current.length === 0) stableBottomNavRef.current = liveBottomNav;
   const bottomNav = navSettled ? liveBottomNav : stableBottomNavRef.current;
+  /**
+   * PROPRIETÁRIOS + PRESTADORES = UM BOTÃO SÓ (pedido explícito, 29/10/2026): na barra
+   * inferior mobile os dois viram "Stakeholders", que abre um menu pequeno com as duas
+   * páginas. Se a pessoa só tem acesso a uma delas, o botão leva direto a ela.
+   */
+  const bottomEntries = bottomNav.reduce<
+    Array<
+      | { kind: "link"; item: (typeof bottomNav)[number] }
+      | { kind: "people"; items: Array<(typeof bottomNav)[number]> }
+    >
+  >((acc, item) => {
+    if (BOTTOM_NAV_PEOPLE_PATHS.includes(item.to)) {
+      const group = acc.find((e) => e.kind === "people");
+      if (group && group.kind === "people") group.items.push(item);
+      else acc.push({ kind: "people", items: [item] });
+    } else acc.push({ kind: "link", item });
+    return acc;
+  }, []);
+  const [peopleMenu, setPeopleMenu] = useState<{ left: number } | null>(null);
+  const peopleMenuRef = useManualOverlayLayer<HTMLDivElement>(peopleMenu !== null, () => setPeopleMenu(null));
+  // O menu fecha ao trocar de página.
+  useEffect(() => {
+    setPeopleMenu(null);
+  }, [pathname]);
 
 
 
@@ -626,7 +655,71 @@ function AdminLayout() {
             pra não desalinhar do que a pessoa realmente pode acessar. */}
         {!awaitingAccountChoice && bottomNav.length > 0 && (
           <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex items-stretch justify-around gap-1 border-t border-border bg-background/85 backdrop-blur-xl px-3 pt-2 pb-[max(env(safe-area-inset-bottom),8px)]">
-            {bottomNav.map((item) => {
+            {bottomEntries.map((entry) => {
+              if (entry.kind === "people") {
+                const peopleActive = entry.items.some((i) => pathname.startsWith(i.to));
+                const PeopleIcon = Contact;
+                const inner = (
+                  <>
+                    {peopleActive && (
+                      <span
+                        aria-hidden
+                        className="absolute -top-2 h-[3px] w-7 rounded-b-[3px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+                      />
+                    )}
+                    <span
+                      className={`grid h-8 w-11 place-items-center rounded-xl ${
+                        peopleActive ? "bg-accent/15 text-foreground" : "text-muted-foreground"
+                      }`}
+                    >
+                      <PeopleIcon className="size-[18px]" strokeWidth={1.9} />
+                    </span>
+                    <span
+                      className={`max-w-full truncate text-[10.5px] tracking-tight ${
+                        peopleActive ? "font-extrabold text-foreground" : "font-semibold ds-faint"
+                      }`}
+                    >
+                      Stakeholders
+                    </span>
+                  </>
+                );
+                const slot = "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl pt-1";
+                // Só uma das duas páginas liberada: sem menu, vai direto.
+                if (entry.items.length === 1) {
+                  return (
+                    <Link key="people" to={entry.items[0].to} className={slot}>
+                      {inner}
+                    </Link>
+                  );
+                }
+                return (
+                  <button
+                    key="people"
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={peopleMenu !== null}
+                    // Sem isso o toque no próprio botão contaria como "clique fora" e reabriria o menu.
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      if (peopleMenu) {
+                        setPeopleMenu(null);
+                        return;
+                      }
+                      const r = e.currentTarget.getBoundingClientRect();
+                      const margin = 10;
+                      const left = Math.max(
+                        margin,
+                        Math.min(window.innerWidth - PEOPLE_MENU_WIDTH - margin, r.left + r.width / 2 - PEOPLE_MENU_WIDTH / 2),
+                      );
+                      setPeopleMenu({ left });
+                    }}
+                    className={slot}
+                  >
+                    {inner}
+                  </button>
+                );
+              }
+              const item = entry.item;
               const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
               const Icon = item.icon;
               // O número do Atendimento é sempre o atual, mesmo quando a lista é a última conhecida.
@@ -671,6 +764,41 @@ function AdminLayout() {
               );
             })}
           </nav>
+        )}
+        {peopleMenu && (
+          <div
+            ref={peopleMenuRef}
+            role="menu"
+            onPointerDown={(e) => e.stopPropagation()}
+            className="ds-overlay lg:hidden fixed overflow-hidden"
+            style={{
+              left: peopleMenu.left,
+              width: PEOPLE_MENU_WIDTH,
+              // Logo acima da barra inferior (altura da barra ≈ 68px + área segura).
+              bottom: "calc(max(env(safe-area-inset-bottom), 8px) + 76px)",
+              zIndex: 2147483000,
+            }}
+          >
+            {bottomEntries
+              .flatMap((e) => (e.kind === "people" ? e.items : []))
+              .map((i, idx) => {
+                const ItemIcon = i.icon;
+                const on = pathname.startsWith(i.to);
+                return (
+                  <Link
+                    key={i.to}
+                    to={i.to}
+                    role="menuitem"
+                    className={`flex items-center gap-2.5 px-3.5 py-3 text-sm hover:bg-secondary/50 ${
+                      idx > 0 ? "border-t border-border" : ""
+                    } ${on ? "font-bold text-foreground" : "font-medium text-foreground/85"}`}
+                  >
+                    <ItemIcon className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.9} />
+                    <span className="flex-1">{i.label}</span>
+                  </Link>
+                );
+              })}
+          </div>
         )}
 
 

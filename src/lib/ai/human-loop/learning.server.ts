@@ -206,6 +206,25 @@ export async function learnFromHumanAnswer(params: {
     distilled.recommendedScope = params.forcedScope;
   }
 
+  // Repertório de precedentes: a conduta decidida pela equipe vira caso de
+  // referência para situações parecidas (exceções pontuais nunca viram).
+  if (distilled.recommendedScope !== "temporary_exception" && params.escalationId) {
+    try {
+      const { recordPrecedent } = await import("../memory/precedents.server");
+      await recordPrecedent({
+        supabase: params.supabase,
+        ownerId: params.ownerId,
+        propertyId: params.propertyId,
+        guestMessage: params.question,
+        reply: params.humanAnswer,
+        source: "human_answer",
+        sourceRef: params.escalationId,
+      });
+    } catch (e) {
+      console.error("[learning] precedente falhou", e);
+    }
+  }
+
   const candidateId = await queueLearningCandidate({
     supabase: params.supabase,
     ownerId: params.ownerId,

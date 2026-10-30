@@ -1901,7 +1901,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    * realizada (até hoje) e a prevista (de hoje em diante). Cada ponto guarda
    * as duas parcelas separadas — é o que deixa o gráfico pintar cada uma com a
    * sua cor — e o total (`count`/`totalCents`), que é o que os rótulos, o
-   * painel de eficiência e o Top 5 leem. `null` sem período personalizado.
+   * Top 5 lê. `null` sem período personalizado.
    */
   const cleaningPeriodView = useMemo(() => {
     if (!cleaningPeriod) return null;
@@ -1935,7 +1935,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         futureLineCents: date >= cleaningToday ? doneCents + forecastCents : null,
       };
     });
-    // Top 5 / eficiência: soma as duas parcelas por imóvel.
+    // Top 5: soma as duas parcelas por imóvel.
     const byProperty = new Map<string, CleaningTopItem>();
     const addParcel = (item: CleaningBreakdownItem, parcel: "doneCount" | "forecastCount") => {
       const cur = byProperty.get(item.propertyId) ?? {
@@ -2102,8 +2102,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    *
    * `cleaningScreen` continua sendo a fonte da LIMPEZA (realizadas, previstas,
    * período misto). Aqui entram os serviços extras e o filtro de situação:
-   *   · `null` (todas)  → limpezas + extras somados nos gráficos, no Top 5 e
-   *                        na Eficiência; os 4 cartões mostram cada parte;
+   *   · `null` (todas)  → limpezas + extras somados nos gráficos e no Top 5;
+   *                        os 4 cartões mostram cada parte;
    *   · "cleaning"      → só limpeza, com os textos da limpeza de sempre;
    *   · qualquer outra  → só aquela situação: os cartões de limpeza zeram
    *                        (0 / R$ 0) e tudo o mais troca na hora.
@@ -2222,7 +2222,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     });
   }, [cleaningScreen.daily, limpezaOn, extrasSel]);
 
-  /** Top 5 e Eficiência: limpeza + extras, por imóvel. */
+  /** Top 5: limpeza + extras, por imóvel. */
   const servicesBreakdown = useMemo<CleaningTopItem[]>(() => {
     const map = new Map<string, CleaningTopItem>();
     if (limpezaOn) {
@@ -2261,7 +2261,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const periodShort = cleaningPeriodLabel.replace(/^Período /, "");
   const onlyCleaningTexts = sel === "cleaning";
   // Mockups aprovados (Limpeza-Danos / -Taxa / Filtro-Situacao): título da
-  // página = só o nome da situação; gráficos "{Nome} · Qtde/Custo/Eficiência";
+  // página = só o nome da situação; gráficos "{Nome} · Qtde/Custo";
   // linha dourada "Últimos 7 Dias - Visão …" sob cada título.
   const svcName = sel === null ? "Todas as situações" : (selName ?? "");
   const svcWindow = cleaningPeriodView ? periodShort : cleaningWindow === "past" ? "Últimos 7 Dias" : "Próximos 7 Dias";
@@ -2274,9 +2274,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         : `Histórico e custos de ${selName ?? ""}.`,
     barTitle: onlyCleaningTexts ? cleaningScreen.barTitle : `${svcName} · Qtde`,
     areaTitle: onlyCleaningTexts ? cleaningScreen.areaTitle : `${svcName} · Custo`,
-    efficiencyTitle: onlyCleaningTexts ? null : `${svcName} · Eficiência`,
-    barSub: onlyCleaningTexts ? undefined : `${svcWindow} - Visão por Dia`,
-    efficiencySub: onlyCleaningTexts ? undefined : `${svcWindow} - Visão Geral`,
     topSub: onlyCleaningTexts ? undefined : `${svcWindow} - Visão por Imóvel`,
     unit: (onlyCleaningTexts ? "limpeza" : "serviço") as "limpeza" | "serviço",
   };
@@ -2293,7 +2290,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    * o dia que a pessoa escolheu, fica como está.
    *
    * Só os DOIS GRÁFICOS usam esta série cortada; os cards (totais do
-   * período inteiro), o Top 5 e a Eficiência continuam somando o período
+   * período inteiro), o Top 5 continua somando o período
    * completo escolhido — cortar ali mudaria a média por dia, e não foi
    * pedido. Só vale com período personalizado: as janelas fixas de 7 dias já
    * são curtas o bastante para não precisar de corte.
@@ -3731,7 +3728,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="ds-card-grid grid-cols-1 lg:grid-cols-2">
               <CleaningDailyBarChart
                 title={servicesTexts.barTitle}
-                subtitle={servicesTexts.barSub}
                 data={cleaningChartDaily}
                 detail={servicesDetail(cleaningScreen.barDetail)}
                 loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
@@ -3739,7 +3735,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
               <CleaningDailyAreaChart
                 title={servicesTexts.areaTitle}
-                subtitle={servicesTexts.barSub}
                 data={cleaningChartDaily}
                 detail={servicesDetail(cleaningScreen.areaDetail)}
                 loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
@@ -3747,22 +3742,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
             </div>
             {/* Top 5 ocupa a MESMA largura do gráfico da esquerda (pedido
-                explícito, 21/09/2026); o lado direito ganha o painel de
-                eficiência. No celular, o painel vem ANTES do Top 5 — por isso
-                ele está primeiro no DOM e troca de ordem só no desktop. */}
+                explícito, 21/09/2026). O painel de Eficiência foi excluído por
+                inteiro em 29/10/2026. */}
             <div className="ds-card-grid grid-cols-1 lg:grid-cols-2 items-stretch">
-              <div className="lg:order-2">
-                <CleaningEfficiencyPanel
-                  daily={servicesDaily}
-                  items={servicesBreakdown}
-                  loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
-                  forecast={cleaningScreen.forecastOnly}
-                  title={servicesTexts.efficiencyTitle ?? undefined}
-                  subtitle={servicesTexts.efficiencySub}
-                  unit={servicesTexts.unit}
-                />
-              </div>
-              <div className="lg:order-1">
+              <div>
                 <CleaningTopProperties
                   items={servicesBreakdown}
                   loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
@@ -5513,7 +5496,6 @@ function GoldSubtitle({ children }: { children: React.ReactNode }) {
 
 function CleaningChartFrame({
   title,
-  subtitle,
   data,
   loading,
   detail,
@@ -5522,7 +5504,6 @@ function CleaningChartFrame({
   children,
 }: {
   title: string;
-  subtitle?: string;
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
   /** Cor do ponto do cabeçalho — a mesma da série desenhada abaixo. */
@@ -5580,7 +5561,6 @@ function CleaningChartFrame({
         dotColor={tone}
         className="mb-2.5"
       />
-      {subtitle ? <GoldSubtitle>{subtitle}</GoldSubtitle> : null}
       {loading || !data || days === 0 ? (
         <div className="h-32 grid place-items-center text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
@@ -5634,11 +5614,9 @@ function CleaningDailyBarChart({
   data,
   loading,
   title = "Limpezas por dia",
-  subtitle,
   detail,
   series = "done",
 }: {
-  subtitle?: string;
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
   /** A mesma tela serve às duas janelas (últimos 7d / próximos 7d); só o
@@ -5653,7 +5631,6 @@ function CleaningDailyBarChart({
   return (
     <CleaningChartFrame
       title={title}
-      subtitle={subtitle}
       data={data}
       loading={loading}
       detail={detail}
@@ -5734,11 +5711,9 @@ function CleaningDailyAreaChart({
   data,
   loading,
   title = "Custo total por dia",
-  subtitle,
   detail,
   series = "done",
 }: {
-  subtitle?: string;
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
   title?: string;
@@ -5753,7 +5728,6 @@ function CleaningDailyAreaChart({
   return (
     <CleaningChartFrame
       title={title}
-      subtitle={subtitle}
       data={data}
       loading={loading}
       detail={detail}
@@ -5950,90 +5924,6 @@ function CleaningTopProperties({
             </li>
           ))}
         </ul>
-      )}
-    </div>
-  );
-}
-
-/**
- * "Eficiência da limpeza" (pedido explícito, 21/09/2026) — ocupa a metade
- * direita da faixa do Top 5 no desktop e vai ACIMA dele no celular. Tudo é
- * derivado das mesmas séries já carregadas (nenhuma consulta nova): custo
- * médio por limpeza, imóveis atendidos, média por dia e o dia de pico.
- */
-function CleaningEfficiencyPanel({
-  daily,
-  items,
-  loading,
-  forecast,
-  title = "Eficiência da limpeza",
-  unit = "limpeza",
-  subtitle,
-}: {
-  subtitle?: string;
-  daily: CleaningDailyPoint[] | undefined;
-  items: CleaningBreakdownItem[] | undefined;
-  loading: boolean;
-  forecast?: boolean;
-  /** Na aba Serviços: "Eficiência — [Situação]". */
-  title?: string;
-  unit?: "limpeza" | "serviço";
-}) {
-  const series = daily ?? [];
-  const breakdown = items ?? [];
-  const totalCount = series.reduce((s, d) => s + d.count, 0);
-  const totalCents = series.reduce((s, d) => s + d.totalCents, 0);
-  const avgCents = totalCount > 0 ? Math.round(totalCents / totalCount) : 0;
-  const days = series.length || 1;
-  const avgPerDay = totalCount / days;
-  const peak = series.reduce<CleaningDailyPoint | null>((best, d) => (!best || d.count > best.count ? d : best), null);
-
-  const cells: { label: string; value: string; hint: string }[] = [
-    {
-      label: forecast ? "Custo médio estimado" : `Custo médio por ${unit}`,
-      value: centsToBRLShort(avgCents),
-      hint: totalCount > 0 ? `${totalCount} ${unit}${totalCount === 1 ? "" : "s"} no período` : `sem ${unit}s`,
-    },
-    {
-      label: "Imóveis atendidos",
-      value: String(breakdown.length),
-      hint: breakdown.length > 0 ? `${(totalCount / breakdown.length).toFixed(1)} por imóvel` : "sem imóveis",
-    },
-    {
-      label: "Média por dia",
-      value: avgPerDay.toFixed(1),
-      hint: `em ${days} dia${days === 1 ? "" : "s"}`,
-    },
-    {
-      label: "Dia de pico",
-      value: peak && peak.count > 0 ? fmtDateBR(peak.date) : "—",
-      hint: peak && peak.count > 0 ? `${peak.count} ${unit}${peak.count === 1 ? "" : "s"}` : "sem movimento",
-    },
-  ];
-
-  return (
-    <div className={`${PANEL_SHELL} h-full w-full px-3.5 py-3.5`}>
-      <PanelHeading
-        title={title}
-        dotColor={forecast ? CLEANING_FORECAST_COLOR : CLEANING_DONE_COLOR}
-        className="mb-2.5"
-        right={<span className="text-[10px] text-muted-foreground">{forecast ? "previsto" : "no período"}</span>}
-      />
-      {subtitle ? <GoldSubtitle>{subtitle}</GoldSubtitle> : null}
-      {loading ? (
-        <div className="py-6 grid place-items-center text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-2">
-          {cells.map((c) => (
-            <div key={c.label} className="min-w-0 rounded-[0.7rem] border border-border/60 bg-muted/20 px-3 py-2.5">
-              <div className="truncate text-[9.5px] uppercase tracking-wide text-muted-foreground">{c.label}</div>
-              <div className="mt-1 truncate text-[17px] font-semibold tabular-nums text-foreground">{c.value}</div>
-              <div className="truncate text-[10px] text-muted-foreground">{c.hint}</div>
-            </div>
-          ))}
-        </div>
       )}
     </div>
   );
@@ -11022,8 +10912,7 @@ function ArrivalCard({
          do Dashboard/Limpeza", aprovado 24/09/2026) — 10px, no lugar do
          0.3rem (quase reto) de antes, que destoava do raio de 14px do painel
          que passou a envolver o card (`ArrivalGroupPanel`/`PANEL_SHELL`).
-         Fundo quase plano com borda fina (a mesma receita da célula de
-         "Eficiência da limpeza": `border border-border bg-muted/20`), no
+         Fundo quase plano com borda fina (`border border-border bg-muted/20`), no
          lugar do bloco `bg-secondary/70` — que ficava pesado ao lado da
          casca neutra do painel. O acento lateral é a barra de ETAPA: antes só
          existia em "atrasado" e "data futura", agora vale para todas as

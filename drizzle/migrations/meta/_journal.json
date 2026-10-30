@@ -78,6 +78,27 @@
       "when": 1793132214251,
       "tag": "0010_malvo_open_finance",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793302628568,
+      "tag": "0011_guide_created_imported_properties",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793317173446,
+      "tag": "0012_ai_precedents",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793319072903,
+      "tag": "0013_ai_precedents_topic_recency_situation",
+      "breakpoints": true
     }
   ]
 }

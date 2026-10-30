@@ -25,6 +25,12 @@ import { useAnyWindowOpen, useManualOverlayLayer } from "@/lib/global-overlay-st
 
 const POSITION_KEY = "handoff-dock-position-v1";
 
+/** Altura do menu "Atendimento / Assistente" (2 linhas de 44px + divisória) e folga em volta. */
+const MENU_HEIGHT = 90;
+const MENU_GAP = 8;
+const SCREEN_EDGE = 12;
+const FAB = 48;
+
 /** Mesma chave de posição do dock antigo: quem já tinha ajustado não perde. */
 function loadDockBottom(): number {
   if (typeof window === "undefined") return 88;
@@ -139,6 +145,12 @@ export function FloatingDock({
     pointerEvents: "auto",
     bottom: dockBottomCss(0),
   };
+  // O MENU NUNCA FICA ESCONDIDO (pedido explícito, 29/10/2026): por padrão abre ACIMA do
+  // botão; se o botão foi arrastado para o alto e não sobra espaço em cima, abre do lado
+  // oposto (ABAIXO dele). Medido na hora da abertura, com a posição real do botão.
+  const spaceAbove = typeof window === "undefined" ? Infinity : window.innerHeight - dockBottom - FAB;
+  const menuBelow = spaceAbove < MENU_HEIGHT + MENU_GAP + SCREEN_EDGE;
+  const menuOffset = menuBelow ? -(MENU_HEIGHT + MENU_GAP) : FAB + MENU_GAP;
 
   const node = (
     <>
@@ -202,7 +214,7 @@ export function FloatingDock({
           ref={menuRef}
           onPointerDown={(e) => e.stopPropagation()}
           className="fixed right-[19px] w-56 overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl lg:right-6"
-          style={{ ...anchor, bottom: dockBottomCss(56) }}
+          style={{ ...anchor, bottom: dockBottomCss(menuOffset) }}
         >
           <button
             onClick={() => {

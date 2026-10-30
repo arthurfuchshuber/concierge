@@ -1556,6 +1556,98 @@ export type Database = {
           },
         ]
       }
+      ai_precedents: {
+        Row: {
+          conduct: string
+          confidence: number
+          created_at: string
+          embedding: string | null
+          example_guest: string | null
+          example_reply: string | null
+          failure_count: number
+          id: string
+          last_used_at: string | null
+          owner_id: string | null
+          phases: string[]
+          property_id: string | null
+          retired_at: string | null
+          retired_reason: string | null
+          scope: string
+          situation: string
+          source: string
+          source_ref: string | null
+          status: string
+          success_count: number
+          superseded_by: string | null
+          topic: string | null
+          updated_at: string
+          used_count: number
+          why: string | null
+        }
+        Insert: {
+          conduct: string
+          confidence?: number
+          created_at?: string
+          embedding?: string | null
+          example_guest?: string | null
+          example_reply?: string | null
+          failure_count?: number
+          id?: string
+          last_used_at?: string | null
+          owner_id?: string | null
+          phases?: string[]
+          property_id?: string | null
+          retired_at?: string | null
+          retired_reason?: string | null
+          scope?: string
+          situation: string
+          source?: string
+          source_ref?: string | null
+          status?: string
+          success_count?: number
+          superseded_by?: string | null
+          topic?: string | null
+          updated_at?: string
+          used_count?: number
+          why?: string | null
+        }
+        Update: {
+          conduct?: string
+          confidence?: number
+          created_at?: string
+          embedding?: string | null
+          example_guest?: string | null
+          example_reply?: string | null
+          failure_count?: number
+          id?: string
+          last_used_at?: string | null
+          owner_id?: string | null
+          phases?: string[]
+          property_id?: string | null
+          retired_at?: string | null
+          retired_reason?: string | null
+          scope?: string
+          situation?: string
+          source?: string
+          source_ref?: string | null
+          status?: string
+          success_count?: number
+          superseded_by?: string | null
+          topic?: string | null
+          updated_at?: string
+          used_count?: number
+          why?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_precedents_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_proactive_actions: {
         Row: {
           action_payload: Json
@@ -7261,6 +7353,31 @@ export type Database = {
           source: string
           subject_key: string
           title: string
+        }[]
+      }
+      match_ai_precedents: {
+        Args: {
+          _owner_id: string
+          _property_id: string
+          match_count: number
+          query_embedding: string
+        }
+        Returns: {
+          conduct: string
+          confidence: number
+          example_reply: string
+          failure_count: number
+          id: string
+          phases: string[]
+          property_id: string
+          scope: string
+          similarity: number
+          situation: string
+          source: string
+          success_count: number
+          topic: string
+          updated_at: string
+          why: string
         }[]
       }
       match_ai_system_docs: {

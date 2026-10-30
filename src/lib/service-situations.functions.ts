@@ -424,7 +424,7 @@ const CreateServiceInput = z.object({
  * Cria um SERVIÇO já realizado (Manutenção, Danos, Outro ou situação criada
  * pelo usuário): imóvel ou reserva → prestador → data → valor. Mora em `tasks`
  * como pendência concluída, que é exatamente o que a aba Serviços lê para
- * "Serviços Extras" (cartões, gráficos, Eficiência e Top 5): situação =
+ * "Serviços Extras" (cartões, gráficos e Top 5): situação =
  * `situation`, quem resolveu = prestador, dia = `completed_at`, custo =
  * `amount_spent_cents`.
  *
