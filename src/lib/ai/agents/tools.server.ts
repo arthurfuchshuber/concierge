@@ -164,7 +164,7 @@ export function buildAgentTools(ctx: AgentToolContext): AgentTool[] {
         registrado: !!id,
         instrucao:
           "Pergunta enviada à equipe. Continue a conversa normalmente: responda tudo o que já puder do que o hóspede disse, " +
-          "sem deixá-lo no vácuo e sem dizer que vai verificar. NÃO invente a parte pendente e NÃO prometa prazo.",
+          "sem deixá-lo no vácuo. Sobre o ponto pendente, diga com suas palavras, em 1ª pessoa e sem citar equipe, que vai ver isso pra ele. NÃO invente a parte pendente e NÃO prometa prazo.",
       };
     },
   });
