@@ -87,6 +87,11 @@ function PropertyGroups({
         const first = p.items[0];
         return (
           <div key={p.id} className={`py-2.5 ${idx > 0 ? "border-t border-[var(--panel-div)]" : ""}`}>
+            {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
+            <div className="mt-0.5 flex items-center gap-2 text-[12.5px] font-bold leading-tight">
+              <ClampName text={p.name} className="flex-1" />
+              <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-[#c98c8c]">{p.items.length}</span>
+            </div>
             {first.ownerName && (
               <div className="flex min-w-0 items-center gap-1.5 text-[11px] leading-snug" title={ownerText(first.ownerName)}>
                 <span className="shrink-0 text-muted-foreground">Proprietário(a):</span>
@@ -100,11 +105,6 @@ function PropertyGroups({
                 />
               </div>
             )}
-            {/* Regra global (18/10/2026): proprietário + chat acima, título em 1 linha. */}
-            <div className="mt-0.5 flex items-center gap-2 text-[12.5px] font-bold leading-tight">
-              <ClampName text={p.name} className="flex-1" />
-              <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-[#c98c8c]">{p.items.length}</span>
-            </div>
             <ul className="mt-1 space-y-0.5 border-l-2 border-[#c98c8c]/35 pl-2.5">
               {p.items.map((it) => {
                 const Icon = CATEGORY_BY_KEY.get(it.category)?.icon;

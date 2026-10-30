@@ -10,6 +10,7 @@ import {
   newPasswordSeen,
   newSeen,
   registerPasswordEvent,
+  resolveReadInstructions,
   resolveViewedPasswords,
 } from "@/lib/arrival-passwords";
 import { resolveReservationIdentity, RESERVATION_IDENTITY_COLUMNS } from "@/lib/reservation-identity";
@@ -666,6 +667,7 @@ export async function buildArrivalRows(
               if (!messageHasAccessCode(m.content, codeProps.get(conv.property_id) ?? [])) continue;
               if (conv.reservation_id) chatDeliveredReservations.add(conv.reservation_id);
               addSeen(passwordSeen.chat, conv.property_id, conv.guest_name, null);
+              addSeen(readInstructions, conv.property_id, conv.guest_name, null);
             }
           }
         } catch {
@@ -1108,7 +1110,14 @@ export async function buildArrivalRows(
         hasAccessInfo: !!p?.hasAccessInfo,
         openedCheckin: hasSeen(openedCheckin, l.property_id, l.guest_name, l.guest_phone),
         openedGuide: hasSeen(openedGuide, l.property_id, l.guest_name, l.guest_phone),
-        readInstructions: hasSeen(readInstructions, l.property_id, l.guest_name, l.guest_phone),
+        readInstructions: resolveReadInstructions({
+          checkinDone: checkinDoneLogs.has(l.id),
+          seen: readInstructions,
+          propertyId: l.property_id,
+          name: l.guest_name,
+          phone: l.guest_phone,
+          chatSeen: passwordSeen.chat,
+        }),
         viewedPasswords: resolveViewedPasswords({
           checkinDone: checkinDoneLogs.has(l.id),
           accessCodes: p?.accessCodes ?? [],
@@ -1237,7 +1246,15 @@ export async function buildArrivalRows(
         hasAccessInfo: !!p?.hasAccessInfo,
         openedCheckin: matchedLog ? hasSeen(openedCheckin, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
         openedGuide: matchedLog ? hasSeen(openedGuide, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        readInstructions: matchedLog ? hasSeen(readInstructions, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
+        readInstructions: resolveReadInstructions({
+          checkinDone: checkinDoneReservations.has(r.id) || (!!matchedLog && checkinDoneLogs.has(matchedLog.id)),
+          seen: readInstructions,
+          propertyId: r.property_id,
+          name: matchedLog?.guest_name ?? ident.guestName ?? (r as { guest_name?: string | null }).guest_name ?? null,
+          phone: matchedLog?.guest_phone ?? ident.guestPhone ?? (r as { guest_phone?: string | null }).guest_phone ?? null,
+          chatDeliveredToReservation: chatDeliveredReservations.has(r.id),
+          chatSeen: passwordSeen.chat,
+        }),
         // Sem log web, cruza com os dados da PRÓPRIA reserva (nome/telefone);
         // check-in concluído ou credencial entregue no chat = já viu.
         viewedPasswords: resolveViewedPasswords({

@@ -1592,6 +1592,10 @@ function PropertyCard({
         )}
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-3">
           <div className="min-w-0">
+            {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário logo abaixo. */}
+            <span className="ds-card-title block truncate" title={group.label}>
+              {group.label}
+            </span>
             {/* PROPRIETÁRIO COM O ÍCONE DE MENSAGEM PADRÃO — o mesmo botão que
                 Guias usa (regra do projeto: todo nome de imóvel carrega o
                 proprietário). */}
@@ -1615,9 +1619,6 @@ function PropertyCard({
                 />
               </div>
             )}
-            <span className="ds-card-title block truncate" title={group.label}>
-              {group.label}
-            </span>
             {subtitle && (
               <span
                 className={`mt-0.5 block truncate text-[11px] ${

@@ -61,6 +61,7 @@ import { getServiceExtras } from "@/lib/service-situations.functions";
 import { SYSTEM_SITUATIONS, type ExtraServiceItem } from "@/lib/service-situations";
 import { PeriodQuickFilterButton } from "@/components/dashboard/PeriodQuickFilterButton";
 import { CalendarBlockBar, CalendarBlockDialog } from "@/components/dashboard/CalendarBlockUI";
+import { isDawnTime, predictionDayLabel } from "@/lib/prediction-day-label";
 import { addDaysISO as blockAddDays, conflictMessage, firstBlockConflict, releaseRemainders } from "@/lib/manual-block-conflict";
 import { createManualBlockFn, listManualBlocks, removeManualBlockFn, syncBlockAvailabilityFn } from "@/lib/manual-blocks.functions";
 import { useOperationMode } from "@/components/admin-pages/ChannexModeCard";
@@ -301,6 +302,8 @@ function ExtraGuests({
     </Popover>
   );
 }
+
+export { isDawnTime, predictionDayLabel };
 
 function fmtDateBR(iso: string) {
   try {
@@ -3211,6 +3214,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
             checkinBreakdown={engQ.data?.checkinBreakdown}
             codesBreakdown={engQ.data?.codesBreakdown}
+            todayOnly={engRange === "today"}
           />
         </div>
       </div>
@@ -4904,19 +4908,12 @@ function KpiCard({
            fio de luz funcionar sem precisar de `relative` extra aqui. */
         className="sg-vv-center w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
       >
-        <DialogHeader className="px-5 pt-5 pb-0">
-          <div className="flex items-center gap-3">
-            <div
-              className={`grid place-items-center size-10 rounded-xl ${shadowTone === "emerald" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : shadowTone === "amber" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : shadowTone === "sky" ? "bg-sky-400/10 text-sky-600 dark:text-sky-400" : "bg-accent/10 text-accent"}`}
-            >
-              <Icon className="size-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <DialogTitle className="text-base font-display leading-tight truncate">{label}</DialogTitle>
-              <div className="ds-meta mt-0.5">
-                {rangeLabel} · {displayRows.length} {displayRows.length === 1 ? "hóspede" : "hóspedes"}
-              </div>
-            </div>
+        {/* JANELA PADRÃO (29/10/2026): sem ícone no cabeçalho, título 14px
+            negrito e subtítulo 12px em caixa normal, recuo de 16px. */}
+        <DialogHeader className="px-4 pt-3.5 pb-0 pr-14 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-6">{label}</DialogTitle>
+          <div className="text-xs leading-5 text-muted-foreground">
+            {rangeLabel} · {displayRows.length} {displayRows.length === 1 ? "hóspede" : "hóspedes"}
           </div>
           {/* Botão de print (câmera) removido POR ENQUANTO (pedido explícito,
               23/09/2026: "remova o icone da foto por enquanto"). O
@@ -4941,7 +4938,7 @@ function KpiCard({
           // A altura calculada termina sempre no fim de um card inteiro;
           // sem ela a janela (90% da tela) cortava o último card e a barra.
           style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[80dvh] overflow-y-auto px-3 pt-3"
+          className="sg-elegant-scroll max-h-[80dvh] overflow-y-auto px-4 pt-2.5"
         >
           {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
@@ -4950,7 +4947,7 @@ function KpiCard({
           ) : displayRows.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">Nenhum registro no período.</div>
           ) : (
-            <div className="pb-3">
+            <div className="pb-4">
               {/* `restLabel`: quando há atrasados, o segundo grupo se chama
                   como o período do card ("Hoje", "Amanhã") em vez de "No
                   prazo" — é o mesmo texto que já aparece no cabeçalho. */}
@@ -4986,7 +4983,7 @@ function EngagementFlags({
 }) {
   // "Não acessou o guia" foi removido a pedido: mostramos apenas instruções e senhas.
   const flags: Array<{ icon: typeof Eye; label: string }> = [];
-  if (!readInstructions) flags.push({ icon: ListChecks, label: "Não leu as instruções" });
+  if (!readInstructions && !checkinDone) flags.push({ icon: ListChecks, label: "Não leu as instruções" });
   if (hasPasswords && !viewedPasswords && !checkinDone) flags.push({ icon: KeyRound, label: "Não viu as senhas" });
   if (flags.length === 0) return null;
   if (variant === "pills") {
@@ -5130,10 +5127,17 @@ function FreePropertiesCard({
           até o último cartão inteiro. Cada imóvel leva "Proprietário: nome" +
           mensagem e o botão do Maps (regra de todo lugar que cita um anúncio). */}
       <DialogContent className="sg-vv-center flex max-h-[90dvh] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
-        <DialogHeader className="shrink-0 px-5 pt-5 pb-0">
-          <DialogTitle className="text-base font-display">Imóveis livres {dayLabel}</DialogTitle>
+        {/* JANELA PADRÃO (29/10/2026): título 14px negrito com iniciais
+            maiúsculas, subtítulo 12px com singular/plural, recuo de 16px. */}
+        <DialogHeader className="shrink-0 px-4 pt-3.5 pb-0 pr-14 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-6">
+            Imóveis Livres {isToday ? "Hoje" : dayLabel}
+          </DialogTitle>
+          <div className="text-xs leading-5 text-muted-foreground">
+            {isToday ? "Hoje" : dayLabel} · {properties.length} {properties.length === 1 ? "imóvel" : "imóveis"}
+          </div>
         </DialogHeader>
-        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3">
+        <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-2.5">
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
@@ -5141,7 +5145,7 @@ function FreePropertiesCard({
           ) : properties.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">Nenhum imóvel livre {dayLabel}.</div>
           ) : (
-            <ul className="space-y-1.5 pb-3">
+            <ul className="space-y-2.5 pb-4">
               {properties.map((p) => (
                 /* MESMA CASCA DOS CARDS DOS OUTROS TOOLTIPS (pedido explícito,
                    24/09/2026: "o design dos tooltips deve incluir TODOS os
@@ -5152,19 +5156,21 @@ function FreePropertiesCard({
                 <li
                   key={p.id}
                   data-clip-row
-                  className="relative flex items-center gap-2.5 rounded-[var(--win-radius)] border border-border bg-muted/20 py-2.5 pl-3.5 pr-2.5"
+                  className="relative flex items-center gap-2.5 rounded-[12px] border border-border bg-[var(--card-surface)] py-2.5 pl-4 pr-4"
                 >
-                  <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] rounded-l-[var(--win-radius)] bg-emerald-400" />
+                  {/* Faixa lateral = cor oficial do status "imóvel sem uso" (ds-ok, sálvia #7fb79a). */}
+                  <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] rounded-l-[12px] bg-[#7fb79a]" />
                   <div className="min-w-0 flex-1 space-y-0.5">
+                    {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário logo abaixo. */}
+                    <div className="truncate text-[14px] font-bold leading-tight" title={p.name}>
+                      {p.name}
+                    </div>
                     <OwnerLine
                       name={p.ownerName}
                       phone={p.ownerPhone}
                       country={p.ownerPhoneCountry}
                       phonePosition="adjacent"
                     />
-                    <div className="truncate text-[14px] font-bold leading-tight" title={p.name}>
-                      {p.name}
-                    </div>
                   </div>
                   <PropertyMapsButton
                     propertyName={p.name}
@@ -5201,14 +5207,14 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
             return (
               <li key={item.propertyId} className="flex items-center gap-3 rounded-[10px] border border-border bg-muted/20 px-3 py-2.5">
                 <div className="min-w-0 flex-1">
-                  {/* Regra global (18/10/2026): proprietário + chat acima, título em 1 linha. */}
+                  {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
+                  <ClampName text={item.propertyName} className="text-[13px] font-bold leading-snug" />
                   <OwnerLine
                     name={item.ownerName}
                     phone={item.ownerPhone ?? null}
                     country={item.ownerPhoneCountry ?? null}
                     phonePosition="adjacent"
                   />
-                  <ClampName text={item.propertyName} className="text-[13px] font-bold leading-snug" />
                 </div>
                 <p className="shrink-0 text-right text-[13px] font-bold tabular-nums">{centsToBRL(item.totalCents)}</p>
               </li>
@@ -9203,7 +9209,7 @@ function OccupancyPanel({
                       <tr>
                         <th
                           rowSpan={2}
-                          className="sticky left-0 top-0 z-30 relative bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] pb-2 pr-3 text-left align-bottom"
+                          className="sticky left-0 top-0 z-30 relative bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] pb-2 pr-3 text-left align-middle"
                           style={{ width: nameColW, minWidth: nameColW }}
                         >
                           <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
@@ -9397,14 +9403,15 @@ function OccupancyPanel({
                                 onActiveChange={setActivePhotoPeekId}
                               >
                                 <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
+                                  {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário logo abaixo. */}
+                                  <div className="truncate text-[11.5px] font-semibold leading-tight" title={p.name}>
+                                    {p.name}
+                                  </div>
                                   {p.ownerName ? (
                                     <div className="truncate text-[10.5px] text-muted-foreground">
                                       {ownerLabel(p.ownerName)}
                                     </div>
                                   ) : null}
-                                  <div className="truncate text-[11.5px] font-semibold leading-tight" title={p.name}>
-                                    {p.name}
-                                  </div>
                                   {p.city ? (
                                     <div className="truncate text-[10px] leading-tight text-muted-foreground">
                                       {p.city}
@@ -9819,7 +9826,14 @@ function RangeDropdown<T extends string>({
   );
 }
 
-type GuestMark = { name: string; property: string };
+type GuestMark = {
+  name: string;
+  property: string;
+  owner?: string;
+  ownerPhone?: string | null;
+  ownerCountry?: string | null;
+  guestPhone?: string | null;
+};
 type Breakdown = { viewed: GuestMark[]; notViewed: GuestMark[] };
 
 function EngagementBars({
@@ -9828,12 +9842,14 @@ function EngagementBars({
   checkinsWithCodes,
   checkinBreakdown,
   codesBreakdown,
+  todayOnly = false,
 }: {
   loading: boolean;
   checkins: number;
   checkinsWithCodes: number;
   checkinBreakdown?: Breakdown;
   codesBreakdown?: Breakdown;
+  todayOnly?: boolean;
 }) {
   const pctOf = (num: number, total: number) => Math.min(100, Math.round((num / Math.max(total, 1)) * 100));
   if (loading)
@@ -9861,6 +9877,7 @@ function EngagementBars({
           total={checkins}
           pct={pctOf(checkinViewed, checkins)}
           breakdown={checkinBreakdown}
+          todayOnly={todayOnly}
         />
       )}
       {temCheckin && temCodigos && (
@@ -9876,6 +9893,7 @@ function EngagementBars({
           total={checkinsWithCodes}
           pct={pctOf(codesViewed, checkinsWithCodes)}
           breakdown={codesBreakdown}
+          todayOnly={todayOnly}
         />
       )}
     </div>
@@ -9892,25 +9910,34 @@ function EngagementBars({
 function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off" }) {
   const [open, setOpen] = useState(false);
   const [main, ...rest] = group;
-  const initial = (main.name.trim()[0] ?? "?").toUpperCase();
+  /* LINHA DA JANELA "INSTRUÇÕES CHECK-IN / SENHAS DE ACESSO" (mockup aprovado,
+     29/10/2026): faixa lateral com a cor do status (sálvia = viu, rosa
+     terroso = não viu), TÍTULO DO IMÓVEL primeiro, "Proprietário(a):" logo
+     abaixo e "Hóspede:" por último — os dois com o ícone de chat. */
   return (
-    <li data-whole-card className="rounded-lg bg-muted/30 px-2.5 py-2">
-      <div className="flex items-center gap-2.5">
-        <span
-          className={`grid size-7 shrink-0 place-items-center rounded-full text-[11px] font-bold ${
-            tone === "ok"
-              ? "bg-emerald-500/15 text-emerald-600 shadow-[inset_0_0_0_1.5px_rgba(16,185,129,0.4)] dark:text-emerald-400"
-              : "bg-rose-500/15 text-rose-600 shadow-[inset_0_0_0_1.5px_rgba(244,63,94,0.4)] dark:text-rose-400"
-          }`}
-        >
-          {initial}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[12.5px] font-semibold text-foreground/90">{main.name}</span>
+    <li
+      data-whole-card
+      className="relative overflow-hidden rounded-[12px] border border-border bg-[var(--card-surface)] py-2.5 pl-4 pr-4"
+    >
+      <span
+        aria-hidden
+        className={`absolute inset-y-0 left-0 w-[3px] ${tone === "ok" ? "bg-[#7fb79a]" : "bg-[#c98c8c]"}`}
+      />
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1 space-y-0.5">
           {main.property ? (
-            <span className="block truncate text-[10.5px] text-muted-foreground">{main.property}</span>
+            <span className="block truncate text-sm font-bold leading-tight text-foreground" title={main.property}>
+              {main.property}
+            </span>
           ) : null}
-        </span>
+          <OwnerLine name={main.owner ?? null} phone={main.ownerPhone} country={main.ownerCountry} phonePosition="adjacent" />
+          <OwnerLine
+            name={main.name}
+            phone={main.guestPhone}
+            label="Hóspede:"
+            phonePosition="adjacent"
+          />
+        </div>
         {rest.length > 0 && (
           <button
             type="button"
@@ -9924,7 +9951,7 @@ function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off
         )}
       </div>
       {open && rest.length > 0 && (
-        <ul className="ml-9 mt-1.5 space-y-0.5 rounded-lg border border-border/50 bg-background/60 px-2 py-1.5">
+        <ul className="ml-1 mt-1.5 space-y-0.5 rounded-lg border border-border/50 bg-background/60 px-2 py-1.5">
           {rest.map((g, i) => (
             <li key={`${g.name}-${i}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className="size-1 shrink-0 rounded-full bg-muted-foreground/60" />
@@ -9940,7 +9967,7 @@ function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off
 function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off" }) {
   if (items.length === 0)
     return (
-      <div className="rounded-lg bg-muted/20 px-3 py-4 text-center text-[11px] text-muted-foreground">Ninguém</div>
+      <div className="rounded-[12px] border border-border bg-[var(--card-surface)] px-4 py-4 text-center text-xs text-muted-foreground">Ninguém</div>
     );
   const groups: GuestMark[][] = [];
   const index = new Map<string, number>();
@@ -9953,7 +9980,7 @@ function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off"
     } else groups[at].push(it);
   }
   return (
-    <ul className="space-y-1.5">
+    <ul className="space-y-2.5">
       {groups.slice(0, 12).map((g, i) => (
         <GuestMarkGroup key={`${g[0].name}-${i}`} group={g} tone={tone} />
       ))}
@@ -9974,18 +10001,28 @@ function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off"
  * empilhadas — só um grupo por vez, com mais respiro por linha (avatar de
  * iniciais + nome + imóvel), melhor pra quando a lista de hóspedes cresce.
  */
+/** Título da janela (sem a palavra "Viram"; "Senhas" no plural). */
+function engagementWindowTitle(label: string): string {
+  if (/instru/i.test(label)) return "Instruções Check-In";
+  if (/senha/i.test(label)) return "Senhas de Acesso";
+  return label;
+}
+
 function EngagementBreakdownDialog({
   label,
   value,
   total,
   breakdown,
   trigger,
+  todayOnly = false,
 }: {
   label: string;
   value: number;
   total: number;
   breakdown: Breakdown;
   trigger: React.ReactNode;
+  /** Só no período "hoje" aparece a etiqueta "Entradas Pendentes de Hoje!". */
+  todayOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"viewed" | "notViewed">("viewed");
@@ -10006,46 +10043,56 @@ function EngagementBreakdownDialog({
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
-        <DialogHeader className="px-5 pt-5 pb-1 pr-14">
-          {/* pr-14 no header: reserva espaço pro botão "X" de fechar do Dialog
-              (absolute right-4 top-4, size-8), que senão fica por cima do
-              badge de percentual quando o título é curto. */}
+        {/* JANELA PADRÃO (29/10/2026): título 14px negrito com iniciais
+            maiúsculas ("Instruções Check-In" / "Senhas de Acesso" — sem a
+            palavra "Viram"), subtítulo 12px em caixa normal concordando em
+            singular/plural, recuo de 16px nas laterais. */}
+        <DialogHeader className="px-4 pt-3.5 pb-0 pr-14 text-left">
+          {/* pr-14 no header: reserva espaço pro botão "X" de fechar do Dialog. */}
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="min-w-0 truncate text-base font-display leading-tight">{label}</DialogTitle>
+            <DialogTitle className="min-w-0 truncate text-sm font-bold leading-6">{engagementWindowTitle(label)}</DialogTitle>
             <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
               {pct}%
             </span>
           </div>
-          <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
-            {value} de {total} check-ins
+          <div className="text-xs leading-5 text-muted-foreground">
+            {value} de {total} {total === 1 ? "check-in" : "check-ins"}
           </div>
+          {todayOnly && (
+            <span className="mt-2 inline-flex h-[22px] w-fit items-center rounded-full border border-amber-500/30 bg-amber-500/[0.14] px-2.5 text-[11px] font-bold text-amber-600 dark:text-amber-300">
+              Entradas Pendentes de Hoje!
+            </span>
+          )}
         </DialogHeader>
 
-        <div className="mx-5 mt-3.5 flex gap-1 rounded-lg bg-muted/40 p-1">
-          <button
-            type="button"
-            onClick={() => setTab("viewed")}
-            className={`flex-1 rounded-md py-1.5 text-[11.5px] font-semibold transition-colors ${
-              tab === "viewed" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Viram ({breakdown.viewed.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("notViewed")}
-            className={`flex-1 rounded-md py-1.5 text-[11.5px] font-semibold transition-colors ${
-              tab === "notViewed" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Não viram ({breakdown.notViewed.length})
-          </button>
+        {/* BOTÕES SUAVES (regra de janelas, 29/10/2026): alternância dentro de
+            janela não usa a barra de abas de menu. */}
+        <div className="mx-4 mt-2.5 flex gap-2">
+          {(
+            [
+              ["viewed", `Viram (${breakdown.viewed.length})`],
+              ["notViewed", `Não Viram (${breakdown.notViewed.length})`],
+            ] as const
+          ).map(([key, text]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`h-9 flex-1 rounded-[10px] border text-xs transition-colors ${
+                tab === key
+                  ? "border-foreground/[0.12] bg-foreground/10 font-bold text-foreground"
+                  : "border-foreground/5 bg-foreground/[0.04] font-semibold text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {text}
+            </button>
+          ))}
         </div>
 
         <div
           ref={list.ref}
           style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll overflow-y-auto px-5 pb-5 pt-3"
+          className="sg-elegant-scroll overflow-y-auto px-4 pb-4 pt-2.5"
         >
           <GuestMarkList items={activeItems} tone={tab === "viewed" ? "ok" : "off"} />
         </div>
@@ -10067,6 +10114,7 @@ function RingCell({
   total,
   pct,
   breakdown,
+  todayOnly = false,
 }: {
   icon?: React.ElementType;
   label: string;
@@ -10074,6 +10122,7 @@ function RingCell({
   total: number;
   pct: number;
   breakdown?: Breakdown;
+  todayOnly?: boolean;
 }) {
   /* UM QUADRANTE DO ENGAJAMENTO.
   
@@ -10103,6 +10152,7 @@ function RingCell({
           value={value}
           total={total}
           breakdown={breakdown}
+          todayOnly={todayOnly}
           trigger={
             <button
               type="button"
@@ -10697,6 +10747,8 @@ function ArrivalCard({
       (predictionPrimary?.kind === "checkout" ? row.guestCheckout : row.guestCheckin) ||
       row.date,
     todayISO,
+    predictionPrimary?.timeValue,
+    predictionPrimary?.kind,
   );
   /**
    * JANELA DA LIMPEZA (pedido explícito, 09/09/2026) — só na Fila de Limpeza.
@@ -10923,7 +10975,7 @@ function ArrivalCard({
          próprio `rounded-l`. E `isolate` cria o contexto de empilhamento do
          card, para a etiqueta ficar acima do card de cima sem depender da
          ordem em que os cards aparecem no DOM. */
-      className="group relative isolate flex cursor-pointer snap-start flex-col rounded-[10px] border border-border bg-muted/20 p-3 pl-3.5 gap-2 transition-colors hover:bg-muted/35"
+      className="group relative isolate flex cursor-pointer snap-start flex-col rounded-[12px] border border-border bg-[var(--card-surface)] p-3 pl-3.5 gap-2 transition-colors hover:bg-[var(--card-surface-hover)]"
     >
       <CleaningPriceDialog
         open={priceOpen}
@@ -10981,6 +11033,8 @@ function ArrivalCard({
                     const day = predictionDayLabel(
                       side.dateValue || (isOut ? row.guestCheckout : row.guestCheckin) || row.date,
                       todayISO,
+                      side.timeValue,
+                      side.kind,
                     );
                     const SideIcon = isOut ? LogOut : LogIn;
                     return (
@@ -11050,7 +11104,7 @@ function ArrivalCard({
           inteira dá para ver em que fase cada reserva está sem parar em
           nenhuma. Substitui as antigas bordas de "atrasado"/"data futura",
           que só existiam em dois casos e deixavam o resto sem sinal. */}
-      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[10px] ${stageBarClass(stage)}`} />
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[12px] ${stageBarClass(stage)}`} />
 
       {/* PONTO DE ATRASO (pedido explícito, 18/10/2026, mockup A aprovado): no
           lugar das etiquetas "Atrasados"/"No prazo", cada card atrasado ganha
@@ -11086,17 +11140,17 @@ function ArrivalCard({
       <div className="flex items-start gap-3">
         {/* ds-card-lines: o espaçamento padrão entre linhas de card (styles.css). */}
         <div className="min-w-0 flex-1 ds-card-lines">
+          {/* REGRA GLOBAL (29/10/2026): o TÍTULO DO IMÓVEL vem sempre primeiro e a
+              linha "Proprietário(a): nome" logo abaixo dele — nunca acima. */}
+          {/* Título SEMPRE em 1 linha com reticências (18/10/2026); tocar no
+              título cortado mostra o nome completo. */}
+          <ClampName text={row.propertyName ?? "Sem nome"} className="ds-card-title leading-tight" />
           <OwnerLine
             name={row.ownerName}
             phone={row.ownerPhone}
             country={row.ownerPhoneCountry}
             phonePosition="adjacent"
           />
-          {/* O IMÓVEL é o título do card. O proprietário fica acima, menor e
-              no rosa da marca: identifica sem disputar a leitura. */}
-          {/* Título SEMPRE em 1 linha com reticências (18/10/2026); tocar no
-              título cortado mostra o nome completo. */}
-          <ClampName text={row.propertyName ?? "Sem nome"} className="ds-card-title leading-tight" />
 
           {/* PERÍODO SEMPRE VISÍVEL, card aberto ou recolhido (pedido
               explícito, 24/09/2026: "coloque o período abaixo do título do
@@ -11104,18 +11158,6 @@ function ArrivalCard({
               para "Em Estadia" (23/09/2026); agora vale para toda lista —
               Checkouts, Check-ins, Limpeza — não só quando o card está aberto. */}
           {periodoBlock}
-          {/* "CHECK-IN PERMITIDO ENTRE…" logo abaixo do período, em TODOS os
-              status (18/10/2026). Pendentes: cor da etapa (vermelho atrasado /
-              azul no prazo); Concluídos e Não compareceu: cinza neutro. */}
-          {showPrediction && allowedPhrase && (
-            <div className={`flex items-baseline gap-1 text-[9.5px] font-bold uppercase tracking-wide ${periodoColorClass}`}>
-              {!cleaningWindowPhrase && predictionPrimary && (
-                <span>{predictionPrimary.kind === "checkout" ? "Checkout" : "Check-in"}</span>
-              )}
-              <span>Permitido</span>
-              <span className="font-semibold">{allowedPhrase}</span>
-            </div>
-          )}
         </div>
 
         {/* A COLUNA DA PREVISÃO — rótulo, horário, dia. Largura fixa de 78px
@@ -11281,7 +11323,7 @@ function ArrivalCard({
             }
             if (lines.length === 0) return null;
             return (
-              <div className="-mt-0.5 flex flex-col gap-[11px] pb-1.5 pl-[30px] pr-0.5 pt-1">
+              <div className="-mt-0.5 flex flex-col gap-1 pb-1 pl-[30px] pr-0.5 pt-1">
                 {lines.map((l) => (
                   <div key={l.key} className="flex min-w-0 items-baseline gap-[7px] text-[11.5px]">
                     <span className={`shrink-0 ${CARD_MUTED}`}>{l.label}</span>
@@ -11471,13 +11513,27 @@ function ArrivalCard({
           No modo "Lista" (pedido explícito), os 3 botões encolhem ao máximo
           (altura/ícone reduzidos) sem deixar de funcionar — mesmos handlers,
           só o texto do botão principal some (fica só o ícone, com title). */}
+      {/* "CHECK-IN/CHECK-OUT PERMITIDO ENTRE/ATÉ…" (29/10/2026, mockup aprovado):
+          fica ABAIXO das informações expandidas e logo acima dos botões (com o
+          card recolhido, logo abaixo do período). Cor NEUTRA — a mesma
+          (`CARD_MUTED`) do rótulo "Proprietário(a):" —, em todos os status. */}
+      {showPrediction && allowedPhrase && (
+        <div className={`flex items-baseline gap-1 text-[9.5px] font-bold uppercase tracking-wide ${CARD_MUTED}`}>
+          {!cleaningWindowPhrase && predictionPrimary && (
+            <span>{predictionPrimary.kind === "checkout" ? "Checkout" : "Check-in"}</span>
+          )}
+          <span>Permitido</span>
+          <span className="font-semibold">{allowedPhrase}</span>
+        </div>
+      )}
+
       {/* Botões SEMPRE no tamanho/fonte/informação do card "recolhido" (pedido
           explícito, 25/09/2026: "mantenha a mesma altura, tamanho de fontes
           e informação dos botoes com relação a quando o card está
           'recolhido'") — antes cada botão desta fileira crescia quando o
           card era aberto (`compact ? X : Y`); agora essa fileira usa sempre
           o valor de `compact`, independentemente do estado real do card. */}
-      <div className="mt-auto flex flex-nowrap items-center gap-2">
+      <div className="mt-auto flex flex-nowrap items-center gap-1.5">
         {mode === "done" ? (
           <span
             title="Esteira concluída"
@@ -12545,18 +12601,6 @@ function PredictedEditor({
  * seguidos deixa de ser lida. Qualquer outro dia ganha destaque, e um dia que
  * já passou fica vermelho: é exceção, e é o que precisa ser visto.
  */
-function predictionDayLabel(
-  dateISO: string | null,
-  todayISO: string,
-): { label: string; tone: "muted" | "accent" | "late" } {
-  if (!dateISO) return { label: "", tone: "muted" };
-  const day = dateISO.slice(0, 10);
-  if (day === todayISO) return { label: "hoje", tone: "muted" };
-  if (day === addDaysISO(todayISO, 1)) return { label: "amanhã", tone: "accent" };
-  if (day === addDaysISO(todayISO, -1)) return { label: "ontem", tone: "late" };
-  return { label: fmtDateBR(day), tone: day < todayISO ? "late" : "accent" };
-}
-
 /**
  * A JANELA PERMITIDA do imóvel, em frase.
  *

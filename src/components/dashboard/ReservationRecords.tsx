@@ -986,12 +986,14 @@ export function ReservationRecordsDialog({
                 ? row.guestName
                 : "Registros da reserva"}
             </DialogTitle>
-            {/* Regra global (18/10/2026): imóvel sempre com proprietário + chat. */}
+            {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo. */}
+            <div className="ds-meta mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5">
+              <ClampName text={row.propertyName ?? "Imóvel"} className="max-w-full" />
+            </div>
             <div className="mt-0.5">
               <OwnerLine name={row.ownerName} phone={row.ownerPhone} country={row.ownerPhoneCountry} phonePosition="adjacent" />
             </div>
             <div className="ds-meta mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5">
-              <ClampName text={row.propertyName ?? "Imóvel"} className="max-w-full" />
               {records.length > 0 && (
                 <>
                   <span className="opacity-50">·</span>

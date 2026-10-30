@@ -346,14 +346,14 @@ export function CalendarBlockDialog({
         </ResponsiveDialogHeader>
         <div className={cn("space-y-3 pt-3", isMobile ? "pb-1" : "px-5")}>
           <div className="rounded-[14px] border border-border bg-muted/20 px-3.5 py-3">
-            {/* Regra global (18/10/2026): proprietário + chat acima, título em 1 linha. */}
+            {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
+            <ClampName text={ctx.propertyName} className="text-[13px] font-bold leading-snug" />
             <OwnerLine
               name={ctx.ownerName}
               phone={ctx.ownerPhone ?? null}
               country={ctx.ownerPhoneCountry ?? null}
               phonePosition="adjacent"
             />
-            <ClampName text={ctx.propertyName} className="text-[13px] font-bold leading-snug" />
             {ctx.city ? <p className="text-[11.5px] text-muted-foreground">{ctx.city}</p> : null}
           </div>
           <div className="grid grid-cols-3 gap-2">

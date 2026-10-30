@@ -119,6 +119,29 @@ export function resolveViewedPasswords(args: {
   return sawPasswords(args.accessCodes, args.seen, args.propertyId, args.name, args.phone);
 }
 
+/**
+ * Leu as instruções? Falsos alertas de "Não leu as instruções" saíam quando as
+ * instruções/senhas eram entregues no chat ou o check-in já estava feito.
+ * - check-in concluído → true (quem entrou seguiu as instruções);
+ * - entregue por chat à reserva (reservation_id) → true;
+ * - chat cruzado por nome/telefone → true;
+ * - senão, só o evento "checkin-lido" do Guia conta.
+ */
+export function resolveReadInstructions(args: {
+  checkinDone: boolean;
+  seen: SeenSets;
+  propertyId: string;
+  name: string | null;
+  phone: string | null;
+  chatDeliveredToReservation?: boolean;
+  chatSeen?: SeenSets;
+}): boolean {
+  if (args.checkinDone) return true;
+  if (args.chatDeliveredToReservation) return true;
+  if (args.chatSeen && hasSeen(args.chatSeen, args.propertyId, args.name, args.phone)) return true;
+  return hasSeen(args.seen, args.propertyId, args.name, args.phone);
+}
+
 /** A mensagem contém algum dos códigos de acesso do imóvel? (códigos curtos demais são ignorados) */
 export function messageHasAccessCode(content: string | null | undefined, codes: Array<string | null | undefined>): boolean {
   const text = (content || "").toLowerCase();

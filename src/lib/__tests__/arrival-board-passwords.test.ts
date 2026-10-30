@@ -3,7 +3,9 @@ import {
   addSeen,
   messageHasAccessCode,
   newPasswordSeen,
+  newSeen,
   registerPasswordEvent,
+  resolveReadInstructions,
   resolveViewedPasswords,
   sawPasswords,
 } from "@/lib/arrival-passwords";
@@ -106,5 +108,40 @@ describe("messageHasAccessCode", () => {
   });
   it("não diferencia maiúsculas de minúsculas", () => {
     expect(messageHasAccessCode("Código: ABC123", ["abc123"])).toBe(true);
+  });
+});
+
+describe("resolveReadInstructions — falsos 'Não leu as instruções'", () => {
+  const args = { checkinDone: false, propertyId: PID, name: "Maria Silva", phone: "+55 45 99999-1234" };
+
+  it("sem nenhum registro e check-in pendente: mantém o alerta (legítimo)", () => {
+    expect(resolveReadInstructions({ ...args, seen: newSeen() })).toBe(false);
+  });
+
+  it("check-in concluído → leu", () => {
+    expect(resolveReadInstructions({ ...args, checkinDone: true, seen: newSeen() })).toBe(true);
+  });
+
+  it("instruções entregues no chat da reserva → leu", () => {
+    expect(resolveReadInstructions({ ...args, seen: newSeen(), chatDeliveredToReservation: true })).toBe(true);
+  });
+
+  it("entregue no chat, cruzado por nome → leu", () => {
+    const chat = newSeen();
+    addSeen(chat, PID, "Maria Silva", null);
+    expect(resolveReadInstructions({ ...args, seen: newSeen(), chatSeen: chat })).toBe(true);
+  });
+
+  it("chat de outro hóspede / outro imóvel não conta", () => {
+    const chat = newSeen();
+    addSeen(chat, PID, "Outra Pessoa", null);
+    addSeen(chat, "prop-2", "Maria Silva", null);
+    expect(resolveReadInstructions({ ...args, seen: newSeen(), chatSeen: chat })).toBe(false);
+  });
+
+  it("log web com evento 'checkin-lido' → leu", () => {
+    const read = newSeen();
+    addSeen(read, PID, "Maria Silva", "+55 45 99999-1234");
+    expect(resolveReadInstructions({ ...args, seen: read })).toBe(true);
   });
 });

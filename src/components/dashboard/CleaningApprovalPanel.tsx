@@ -185,9 +185,9 @@ function ApprovalRow({
     <div className={`${PANEL_SHELL} flex flex-col gap-2.5 p-3`}>
       <div className="flex justify-between gap-2.5">
         <div className="min-w-0">
-          {/* Regra global (18/10/2026): proprietário + chat acima, título em 1 linha. */}
-          <OwnerLine name={item.ownerName} phone={item.ownerPhone} country={item.ownerPhoneCountry} phonePosition="adjacent" />
+          {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
           <ClampName text={item.propertyName} className="ds-card-title" />
+          <OwnerLine name={item.ownerName} phone={item.ownerPhone} country={item.ownerPhoneCountry} phonePosition="adjacent" />
           {meta && <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{meta}</p>}
         </div>
         <div className="shrink-0 text-right">

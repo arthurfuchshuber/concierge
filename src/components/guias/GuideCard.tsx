@@ -142,6 +142,10 @@ export function GuideCard({
   const info = (
     <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
       <div className="min-w-0">
+        {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário logo abaixo. */}
+        <span className="ds-card-title block truncate" title={p.name}>
+          {p.name}
+        </span>
         {p.ownerName && (
           <div className="flex min-w-0 items-center gap-1">
             <span className="min-w-0 truncate text-[10.5px] text-foreground" title={p.ownerName}>
@@ -156,9 +160,6 @@ export function GuideCard({
             />
           </div>
         )}
-        <span className="ds-card-title block truncate" title={p.name}>
-          {p.name}
-        </span>
         {place && (
           <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/80">
             {place}

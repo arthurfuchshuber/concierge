@@ -705,7 +705,16 @@ export const getEarliestCleaningDate = createServerFn({ method: "GET" })
 // ----- Engagement -----
 
 type EventRow = { property_id: string; guest_name: string | null; guest_phone: string | null };
-type GuestMark = { name: string; property: string; owner?: string; time?: string | null };
+type GuestMark = {
+  name: string;
+  property: string;
+  owner?: string;
+  /** Contatos para o ícone de chat ao lado do nome (proprietário e hóspede). */
+  ownerPhone?: string | null;
+  ownerCountry?: string | null;
+  guestPhone?: string | null;
+  time?: string | null;
+};
 
 const EngagementInput = z.object({
   range: z.enum(["today", "tomorrow", "7d", "30d"]).default("today"),
@@ -1035,18 +1044,26 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       new Set(propRows.map((p) => p.owner_contact_id).filter((v): v is string => !!v)),
     );
     const ownerByProp = new Map<string, string>();
+    const ownerContactByProp = new Map<string, { phone: string | null; country: string | null }>();
     if (ownerIds.length > 0) {
       const { data: owners } = await context.supabase
         .from("property_owners")
-        .select("id, name, trade_name")
+        .select("id, name, trade_name, phone, phone_country")
         .in("id", ownerIds);
-      const label = new Map(
-        (
-          (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>
-        ).map((o) => [o.id, (o.trade_name || o.name || "").trim()]),
-      );
+      const ownerRows = (owners ?? []) as Array<{
+        id: string;
+        name: string | null;
+        trade_name: string | null;
+        phone: string | null;
+        phone_country: string | null;
+      }>;
+      const label = new Map(ownerRows.map((o) => [o.id, (o.trade_name || o.name || "").trim()]));
+      const contact = new Map(ownerRows.map((o) => [o.id, { phone: o.phone, country: o.phone_country }]));
       for (const p of propRows) {
-        if (p.owner_contact_id) ownerByProp.set(p.id, label.get(p.owner_contact_id) ?? "");
+        if (p.owner_contact_id) {
+          ownerByProp.set(p.id, label.get(p.owner_contact_id) ?? "");
+          ownerContactByProp.set(p.id, contact.get(p.owner_contact_id) ?? { phone: null, country: null });
+        }
       }
     }
     const identity = (propertyId: string, name?: string | null, phone?: string | null) =>
@@ -1120,6 +1137,9 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
           name: e.name,
           property: propName.get(e.property_id) || "",
           owner: ownerByProp.get(e.property_id) || "",
+          ownerPhone: ownerContactByProp.get(e.property_id)?.phone ?? null,
+          ownerCountry: ownerContactByProp.get(e.property_id)?.country ?? null,
+          guestPhone: e.phone ?? null,
           time: e.time ?? null,
         };
         const hit =

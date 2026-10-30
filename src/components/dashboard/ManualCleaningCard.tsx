@@ -135,9 +135,9 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          {/* Regra global (18/10/2026): proprietário + chat acima, título em 1 linha. */}
-          <OwnerLine name={row.ownerName} phone={row.ownerPhone} country={row.ownerPhoneCountry} phonePosition="adjacent" />
+          {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
           <ClampName text={row.propertyName ?? "Imóvel"} className={CARD_PROPERTY} />
+          <OwnerLine name={row.ownerName} phone={row.ownerPhone} country={row.ownerPhoneCountry} phonePosition="adjacent" />
         </div>
         {exitDate && (
           <div className="shrink-0 text-right leading-tight">

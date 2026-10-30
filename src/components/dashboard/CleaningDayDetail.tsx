@@ -131,8 +131,8 @@ function PropertyCell({
 }) {
   return (
     <td className={`${TD} pr-2`} style={{ maxWidth: 0, width: "60%" }}>
-      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" />
       <ClampName text={name} className="font-bold" />
+      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" />
     </td>
   );
 }
@@ -161,8 +161,8 @@ function DoneCell({
   const ownerText = ownerPropertyLabel(owner);
   return (
     <td className={`${TD} pr-2`} style={{ maxWidth: 0, width: "100%" }}>
-      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" label={ownerText} />
       <ClampName text={name} className="font-bold" />
+      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" label={ownerText} />
       {action && (
         <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-foreground/80" title={action}>
           {action}
