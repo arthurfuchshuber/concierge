@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { previousTurnSucceeded, renderPrecedents, scrubExample, selectPrecedents, type PrecedentMatch } from "../memory/precedents";
+import { previousTurnSucceeded, renderPrecedents, scrubExample, selectPrecedents, shouldSupersede, type PrecedentMatch } from "../memory/precedents";
 
 const base: PrecedentMatch = {
   id: "p1", scope: "tenant", propertyId: null, situation: "Número de hóspedes diverge da reserva",
@@ -30,5 +30,37 @@ describe("repertório de precedentes", () => {
     const s = scrubExample("Reserva HMJWR89CZ2, tel 5511989222625");
     expect(s).not.toContain("HMJWR89CZ2");
     expect(s).not.toContain("5511989222625");
+  });
+});
+
+describe("recência, camadas e fase da estadia", () => {
+  const older = { ...base, id: "old", topic: "divergencia_numero_hospedes", conduct: "Escalar para a equipe", updatedAt: "2026-10-01T00:00:00Z" };
+  const newer = { ...base, id: "new", topic: "Divergência número hóspedes", conduct: "Orientar ajuste na plataforma", updatedAt: "2026-10-29T00:00:00Z" };
+
+  it("mesmo assunto e camada: só o mais recente chega à IA", () => {
+    const out = selectPrecedents([older, newer]);
+    expect(out.map((p) => p.id)).toEqual(["new"]);
+  });
+
+  it("imóvel vence conta, mesmo sendo mais antigo", () => {
+    const prop = { ...older, id: "prop", scope: "property" as const };
+    expect(selectPrecedents([prop, newer]).map((p) => p.id)).toEqual(["prop"]);
+  });
+
+  it("assuntos diferentes convivem", () => {
+    expect(selectPrecedents([older, { ...newer, topic: "pedido_senha_antecipado" }])).toHaveLength(2);
+  });
+
+  it("precedente de pré-check-in não vale no dia do check-in", () => {
+    const pre = { ...base, phases: ["pre_checkin"] };
+    expect(selectPrecedents([pre], 3, "checkin_day")).toHaveLength(0);
+    expect(selectPrecedents([pre], 3, "pre_checkin")).toHaveLength(1);
+    expect(selectPrecedents([{ ...base, phases: [] }], 3, "checkin_day")).toHaveLength(1);
+  });
+
+  it("conduta diferente no mesmo assunto e camada substitui a vigente", () => {
+    expect(shouldSupersede({ sameTopic: true, sameLayer: true, similarity: 0.7 })).toBe(true);
+    expect(shouldSupersede({ sameTopic: true, sameLayer: true, similarity: 0.95 })).toBe(false);
+    expect(shouldSupersede({ sameTopic: false, sameLayer: true, similarity: 0.7 })).toBe(false);
   });
 });
