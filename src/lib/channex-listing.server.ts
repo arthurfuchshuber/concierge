@@ -488,3 +488,27 @@ export async function scrapePublicListingForProperty(propertyId: string, opts: {
   await reindexProperty(supabaseAdmin as never, propertyId).catch(() => undefined);
   return { ok: Boolean(pub), changed };
 }
+
+/** Releitura por evento: só relê o anúncio público se a última checagem passou de `LISTING_STALE_MS`. Custo zero. */
+export const LISTING_STALE_MS = 2 * 60 * 60_000;
+export function isListingStale(checkedAt: string | null | undefined, now = Date.now()): boolean {
+  const t = checkedAt ? Date.parse(checkedAt) : NaN;
+  return !Number.isFinite(t) || now - t >= LISTING_STALE_MS;
+}
+
+export async function refreshListingsIfStale(channexPropertyId: string): Promise<number> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("property_listing_raw_data" as never)
+    .select("property_id, normalized")
+    .eq("channex_property_id", channexPropertyId)
+    .not("airbnb_listing_id", "is", null)
+    .is("sync_paused_at", null);
+  let n = 0;
+  for (const r of (data ?? []) as Array<{ property_id: string; normalized?: { public_checked_at?: string } | null }>) {
+    if (!isListingStale(r.normalized?.public_checked_at)) continue;
+    await scrapePublicListingForProperty(r.property_id, { onlyIfChanged: true }).catch((e) => console.error("[listing-stale]", e));
+    n++;
+  }
+  return n;
+}
