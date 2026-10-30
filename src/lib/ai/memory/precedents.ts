@@ -10,6 +10,10 @@
 
 export type PrecedentScope = "global" | "tenant" | "property";
 
+/** Camada situacional: fase da estadia em que a conduta vale ("" / vazio = qualquer). */
+export type StayPhase = "no_booking" | "pre_checkin" | "checkin_day" | "in_stay" | "checkout_day" | "post_checkout";
+export const STAY_PHASES: StayPhase[] = ["no_booking", "pre_checkin", "checkin_day", "in_stay", "checkout_day", "post_checkout"];
+
 export type PrecedentMatch = {
   id: string;
   scope: PrecedentScope;
@@ -23,12 +27,47 @@ export type PrecedentMatch = {
   successCount: number;
   failureCount: number;
   similarity: number;
+  /** Assunto canônico (slug); precedentes do mesmo assunto competem e só o vigente vale. */
+  topic?: string | null;
+  /** Fases da estadia em que vale; vazio = todas. */
+  phases?: string[];
+  /** Última atualização (ISO): desempate por recência. */
+  updatedAt?: string | null;
 };
 
 /** Similaridade mínima para um precedente ser considerado "a mesma situação". */
 export const MIN_PRECEDENT_SIMILARITY = 0.58;
 /** Similaridade a partir da qual um novo caso reforça o precedente existente. */
 export const SAME_PRECEDENT_SIMILARITY = 0.9;
+/** Acima disso, dois precedentes sem assunto explícito são tratados como o mesmo assunto. */
+export const SAME_TOPIC_SIMILARITY = 0.8;
+
+const SCOPE_RANK: Record<PrecedentScope, number> = { property: 3, tenant: 2, global: 1 };
+
+/** Normaliza o assunto para comparação (slug minúsculo, sem acento). */
+export function normalizeTopic(topic: string | null | undefined): string | null {
+  if (!topic) return null;
+  const s = topic
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 60);
+  return s || null;
+}
+
+export function normalizePhases(list: unknown): StayPhase[] {
+  if (!Array.isArray(list)) return [];
+  return [...new Set(list.map(String).filter((p): p is StayPhase => (STAY_PHASES as string[]).includes(p)))];
+}
+
+/** Camada situacional: o precedente vale na fase atual? Fase desconhecida só aceita precedente sem fase. */
+export function phaseMatches(p: Pick<PrecedentMatch, "phases">, current: StayPhase | null): boolean {
+  const phases = p.phases ?? [];
+  if (!phases.length) return true;
+  return current ? phases.includes(current) : false;
+}
 
 /** Confiança efetiva: reforços sobem, falhas derrubam. */
 export function effectiveConfidence(p: Pick<PrecedentMatch, "confidence" | "successCount" | "failureCount">): number {
@@ -38,11 +77,48 @@ export function effectiveConfidence(p: Pick<PrecedentMatch, "confidence" | "succ
   return Math.min(1, Number((p.confidence * 0.5 + evidence * 0.5).toFixed(4)));
 }
 
-export function selectPrecedents(rows: PrecedentMatch[], limit = 3): PrecedentMatch[] {
-  return rows
-    .filter((r) => r.similarity >= MIN_PRECEDENT_SIMILARITY && effectiveConfidence(r) >= 0.5)
+function ts(p: PrecedentMatch): number {
+  const t = p.updatedAt ? Date.parse(p.updatedAt) : NaN;
+  return Number.isFinite(t) ? t : 0;
+}
+
+/** Vence o mais específico (imóvel > conta > global); na mesma camada, o mais recente. */
+function wins(a: PrecedentMatch, b: PrecedentMatch): boolean {
+  const ra = SCOPE_RANK[a.scope] ?? 0;
+  const rb = SCOPE_RANK[b.scope] ?? 0;
+  if (ra !== rb) return ra > rb;
+  return ts(a) >= ts(b);
+}
+
+/**
+ * Seleciona precedentes para o prompt. Filtra por parecença, confiança e fase
+ * da estadia; depois deixa UM só por assunto (mais específico, depois mais
+ * recente), para a IA nunca receber duas condutas concorrentes.
+ */
+export function selectPrecedents(rows: PrecedentMatch[], limit = 3, currentPhase: StayPhase | null = null): PrecedentMatch[] {
+  const eligible = rows.filter(
+    (r) => r.similarity >= MIN_PRECEDENT_SIMILARITY && effectiveConfidence(r) >= 0.5 && phaseMatches(r, currentPhase),
+  );
+  const winners: PrecedentMatch[] = [];
+  for (const r of eligible) {
+    const key = normalizeTopic(r.topic);
+    const idx = winners.findIndex((w) => {
+      const wk = normalizeTopic(w.topic);
+      if (key && wk) return key === wk;
+      // Sem assunto explícito: mesma situação se ambos casam quase igual com a mensagem.
+      return Math.abs(w.similarity - r.similarity) < 0.03 && Math.min(w.similarity, r.similarity) >= SAME_TOPIC_SIMILARITY;
+    });
+    if (idx < 0) winners.push(r);
+    else if (wins(r, winners[idx])) winners[idx] = r;
+  }
+  return winners
     .sort((a, b) => b.similarity * effectiveConfidence(b) - a.similarity * effectiveConfidence(a))
     .slice(0, limit);
+}
+
+/** Um novo caso do mesmo assunto e camada substitui o vigente quando a conduta mudou. */
+export function shouldSupersede(input: { sameTopic: boolean; sameLayer: boolean; similarity: number }): boolean {
+  return input.sameTopic && input.sameLayer && input.similarity < SAME_PRECEDENT_SIMILARITY;
 }
 
 const SCOPE_LABEL: Record<PrecedentScope, string> = {
