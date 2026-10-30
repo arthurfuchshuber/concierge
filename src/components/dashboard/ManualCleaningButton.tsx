@@ -446,62 +446,86 @@ function ManualCleaningPanel({
     setBusy(true);
     try {
       const groupId = crypto.randomUUID();
-      const res = await createServiceFn({
-        data: {
-          ownerId,
-          situation: situation.id,
-          propertyId: property.id,
-          reservationId: link === "reserva" ? reservationId : null,
-          providerId: provider.id,
-          date: isoOf(date),
-          cents,
-          title: svcTitle.trim(),
-          description: note.trim() || null,
-          groupId,
-        },
-      });
-      // Mídias: vão pela fila do aparelho (guarda, envia em segundo plano,
-      // retoma sozinha). O registro principal já nasceu no servidor.
-      if (svcItems.length > 0) {
-        if (res.groupId) {
-          const ok = await enfileirarSituacao({
-            groupId: res.groupId,
-            criadoEm: Date.now(),
+      // Teto de espera: a tela nunca fica presa em "Criando…".
+      const TIMEOUT = Symbol("timeout");
+      const res = await Promise.race([
+        createServiceFn({
+          data: {
+            ownerId,
+            situation: situation.id,
             propertyId: property.id,
-            reservationId: link === "reserva" ? (reservationId ?? undefined) : undefined,
-            cardMode: null,
-            category: situation.id === "maintenance" ? "maintenance" : situation.id === "damage" ? "damage" : "other",
+            reservationId: link === "reserva" ? reservationId : null,
+            providerId: provider.id,
+            date: isoOf(date),
+            cents,
             title: svcTitle.trim(),
             description: note.trim() || null,
-            situationId: situation.id,
-            criada: true,
-            taskId: res.id,
-            taskCreated: true,
-            midias: svcItems.map((it) => ({
-              key: it.key,
-              blob: it.blob,
-              kind: it.kind,
-              mime: it.mime,
-              name: it.name,
-              durationMs: it.durationMs,
-            })),
-          });
-          if (ok) toast.message("Serviço criado — enviando as mídias em segundo plano", { position: "top-center" });
-          else toast.error("O serviço foi criado, mas não consegui guardar as mídias no aparelho. Anexe de novo em Registros.");
-        } else {
-          toast.error("O serviço foi criado, mas as mídias não puderam ser anexadas. Anexe de novo em Registros.");
+            groupId,
+          },
+        }),
+        new Promise<typeof TIMEOUT>((r) => setTimeout(() => r(TIMEOUT), 30000)),
+      ]);
+      if (res === TIMEOUT) {
+        for (const k of ["dash-service-extras", "dash-tasks"]) {
+          void qc.invalidateQueries({ predicate: (x) => x.queryKey[0] === k });
         }
+        toast.error(
+          "A resposta demorou demais. Confira em Serviços Extras se o serviço já aparece antes de criar de novo.",
+        );
+        return;
       }
-      toast.success(
-        `Serviço “${situation.name}” criado. Entra em Serviços Extras de ${ddmm(isoOf(date))}.`,
-      );
+      // Fecha a janela já: o serviço está gravado. As mídias seguem pela fila
+      // do aparelho em segundo plano, sem segurar a tela.
+      const items = svcItems;
+      const sit = situation;
+      const prop = property;
+      const resvId = link === "reserva" ? (reservationId ?? undefined) : undefined;
+      const title = svcTitle.trim();
+      const desc = note.trim() || null;
+      toast.success(`Serviço “${sit.name}” criado. Entra em Serviços Extras de ${ddmm(isoOf(date))}.`);
       for (const k of ["dash-service-extras", "dash-tasks", "dash-list", "account-records"]) {
         void qc.invalidateQueries({ predicate: (x) => x.queryKey[0] === k });
       }
       draftReady.current = false;
-      void apagarRascunhoServico(situation.id);
+      void apagarRascunhoServico(sit.id);
       setOpen(false);
       reset();
+      if (items.length > 0) {
+        if (!res.groupId) {
+          toast.error("O serviço foi criado, mas as mídias não puderam ser anexadas. Anexe de novo em Registros.");
+        } else {
+          void Promise.race([
+            enfileirarSituacao({
+              groupId: res.groupId,
+              criadoEm: Date.now(),
+              propertyId: prop.id,
+              reservationId: resvId,
+              cardMode: null,
+              category: sit.id === "maintenance" ? "maintenance" : sit.id === "damage" ? "damage" : "other",
+              title,
+              description: desc,
+              situationId: sit.id,
+              criada: true,
+              taskId: res.id,
+              taskCreated: true,
+              midias: items.map((it) => ({
+                key: it.key,
+                blob: it.blob,
+                kind: it.kind,
+                mime: it.mime,
+                name: it.name,
+                durationMs: it.durationMs,
+              })),
+            }),
+            new Promise<boolean>((r) => setTimeout(() => r(false), 15000)),
+          ])
+            .then((ok) => {
+              if (ok) toast.message("Enviando as mídias em segundo plano", { position: "top-center" });
+              else toast.error("O serviço foi criado, mas não consegui guardar as mídias no aparelho. Anexe de novo em Registros.");
+            })
+            .catch(() => {});
+        }
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível criar o serviço.");
     } finally {
