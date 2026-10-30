@@ -1568,13 +1568,18 @@ export type Database = {
           id: string
           last_used_at: string | null
           owner_id: string | null
+          phases: string[]
           property_id: string | null
+          retired_at: string | null
+          retired_reason: string | null
           scope: string
           situation: string
           source: string
           source_ref: string | null
           status: string
           success_count: number
+          superseded_by: string | null
+          topic: string | null
           updated_at: string
           used_count: number
           why: string | null
@@ -1590,13 +1595,18 @@ export type Database = {
           id?: string
           last_used_at?: string | null
           owner_id?: string | null
+          phases?: string[]
           property_id?: string | null
+          retired_at?: string | null
+          retired_reason?: string | null
           scope?: string
           situation: string
           source?: string
           source_ref?: string | null
           status?: string
           success_count?: number
+          superseded_by?: string | null
+          topic?: string | null
           updated_at?: string
           used_count?: number
           why?: string | null
@@ -1612,13 +1622,18 @@ export type Database = {
           id?: string
           last_used_at?: string | null
           owner_id?: string | null
+          phases?: string[]
           property_id?: string | null
+          retired_at?: string | null
+          retired_reason?: string | null
           scope?: string
           situation?: string
           source?: string
           source_ref?: string | null
           status?: string
           success_count?: number
+          superseded_by?: string | null
+          topic?: string | null
           updated_at?: string
           used_count?: number
           why?: string | null
@@ -7353,12 +7368,15 @@ export type Database = {
           example_reply: string
           failure_count: number
           id: string
+          phases: string[]
           property_id: string
           scope: string
           similarity: number
           situation: string
           source: string
           success_count: number
+          topic: string
+          updated_at: string
           why: string
         }[]
       }
