@@ -54,6 +54,60 @@ export function alreadyAcknowledged(history: Array<{ role: string; content: stri
   return ai.some((m) => ACK_MARK.test(m.content));
 }
 
+/**
+ * O hóspede ficou sem resposta? (2+ falas seguidas dele no fim do histórico,
+ * ou nenhuma resposta da IA depois de uma pergunta anterior).
+ */
+export function guestLeftUnanswered(history: Array<{ role: string; content: string }>): boolean {
+  let streak = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i]!;
+    if (m.role === "assistant" && m.content.trim()) break;
+    if (m.role === "user" && m.content.trim()) streak++;
+  }
+  return streak >= 2;
+}
+
+const BRIDGE_MARK = /vou verificar[^.!?]{0,60}(precisa|certa)|i'll check[^.!?]{0,60}accurate|voy a verificar[^.!?]{0,60}precisa/i;
+
+/**
+ * Ponte em 1ª pessoa para o ponto pendente (regra do anfitrião 30/10/2026):
+ * nunca cita equipe/terceiros; pede desculpa se o hóspede ficou no vácuo;
+ * depois a IA segue com o restante ("Enquanto isso, ...").
+ */
+export function pendingBridge(params: {
+  language: string | null | undefined;
+  apologize: boolean;
+  hasRest: boolean;
+}): string {
+  const lang = (params.language ?? "pt").toLowerCase();
+  if (lang.startsWith("en")) {
+    const a = params.apologize ? "Sorry for leaving your question unanswered. " : "";
+    return `${a}I'll check that to bring you accurate information, okay?${params.hasRest ? " Meanwhile," : ""}`;
+  }
+  if (lang.startsWith("es")) {
+    const a = params.apologize ? "Disculpa por dejar tu pregunta sin respuesta. " : "";
+    return `${a}Voy a verificarlo para traerte una información precisa, ¿de acuerdo?${params.hasRest ? " Mientras tanto," : ""}`;
+  }
+  const a = params.apologize ? "Desculpe ter deixado sua pergunta sem resposta. " : "";
+  return `${a}Vou verificar para te trazer uma informação precisa sobre isso, ok?${params.hasRest ? " Enquanto isso," : ""}`;
+}
+
+/** Junta ponte + restante da resposta, uma vez por assunto. */
+export function withPendingBridge(params: {
+  reply: string;
+  history: Array<{ role: string; content: string }>;
+  language: string | null | undefined;
+}): string {
+  const ai = params.history.filter((m) => m.role === "assistant").slice(-6);
+  if (ai.some((m) => BRIDGE_MARK.test(m.content))) return params.reply;
+  const rest = params.reply.trim();
+  const bridge = pendingBridge({ language: params.language, apologize: guestLeftUnanswered(params.history), hasRest: !!rest });
+  if (!rest) return bridge;
+  const restLower = rest.charAt(0).toLowerCase() + rest.slice(1);
+  return `${bridge} ${restLower}`;
+}
+
 export function acknowledgementReply(params: {
   history: Array<{ role: string; content: string }>;
   guestName: string | null;
