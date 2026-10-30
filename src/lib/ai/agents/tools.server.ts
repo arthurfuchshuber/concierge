@@ -129,7 +129,7 @@ export function buildAgentTools(ctx: AgentToolContext): AgentTool[] {
     description:
       "Pergunta a um humano da equipe quando você NÃO tem a informação, quando é exceção às regras, " +
       "decisão financeira, risco de segurança ou qualquer coisa fora da sua autonomia. " +
-      "Use em vez de adivinhar. Depois disso, avise o hóspede que está confirmando com a equipe.",
+      "Use em vez de adivinhar. Depois disso, continue a conversa com o que já sabe; o sistema avisa o hóspede do retorno da equipe.",
     parameters: schema(
       {
         pergunta: { type: "string", description: "SÓ a dúvida, direta e decidível (ex.: 'Onde foi comprado o cobertor do quarto?'). Sem introdução, sem sentimento/humor do hóspede, sem contexto narrativo." },
@@ -142,7 +142,8 @@ export function buildAgentTools(ctx: AgentToolContext): AgentTool[] {
       ["pergunta", "motivo", "gatilho"],
     ),
     execute: async (args) => {
-      const question = String(args.pergunta ?? "").slice(0, 1200);
+      const { directQuestion } = await import("../human-loop/handoff-draft.server");
+      const question = directQuestion(String(args.pergunta ?? "")).slice(0, 1200);
       const trigger = String(args.gatilho ?? "unknown_information");
       const id = await askHumanSupervisor({
         supabase: ctx.supabase,
@@ -162,8 +163,8 @@ export function buildAgentTools(ctx: AgentToolContext): AgentTool[] {
       return {
         registrado: !!id,
         instrucao:
-          "Pergunta enviada à equipe. Responda ao hóspede com honestidade que está confirmando com o anfitrião. " +
-          "NÃO invente a resposta e NÃO prometa prazo.",
+          "Pergunta enviada à equipe. Continue a conversa normalmente: responda tudo o que já puder do que o hóspede disse, " +
+          "sem deixá-lo no vácuo e sem dizer que vai verificar. NÃO invente a parte pendente e NÃO prometa prazo.",
       };
     },
   });
