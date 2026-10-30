@@ -439,17 +439,17 @@ export const createServiceRecord = createServerFn({ method: "POST" })
     const owner = await accountOwner(context, data.ownerId);
     const db = context.supabase as unknown as AnyClient;
 
-    const { userCanApproveCleaning } = await import("@/lib/cleaning-approval.functions");
-    if (!(await userCanApproveCleaning(context.userId, owner))) {
-      throw new Error("Você não tem permissão para criar serviços com valor.");
-    }
-
-    // Situação: do sistema (exceto Limpeza, que tem a trilha própria) ou da conta.
-    let situationName: string;
-    if (isSystemSituation(data.situation)) {
-      if (data.situation === "cleaning") throw new Error("Limpeza usa a trilha “Nova limpeza”.");
-      situationName = SYSTEM_SITUATIONS.find((s) => s.key === data.situation)?.name ?? "Outras Situações";
-    } else {
+    // Checagens independentes em paralelo (antes eram sequenciais e somavam
+    // vários segundos no celular, deixando o botão em "Criando…").
+    const [{ userCanApproveCleaning }, { accessiblePropertyIds }] = await Promise.all([
+      import("@/lib/cleaning-approval.functions"),
+      import("@/lib/dashboard.functions"),
+    ]);
+    const situationPromise: Promise<string> = (async () => {
+      if (isSystemSituation(data.situation)) {
+        if (data.situation === "cleaning") throw new Error("Limpeza usa a trilha “Nova limpeza”.");
+        return SYSTEM_SITUATIONS.find((s) => s.key === data.situation)?.name ?? "Outras Situações";
+      }
       const { data: row } = await db
         .from("service_situations")
         .select("id, name")
@@ -458,17 +458,18 @@ export const createServiceRecord = createServerFn({ method: "POST" })
         .is("deleted_at", null)
         .maybeSingle();
       if (!row) throw new Error("Situação não encontrada.");
-      situationName = (row as { name: string }).name;
-    }
-
-    const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
-    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
-    if (!propIds.includes(data.propertyId)) throw new Error("Você não tem acesso a este imóvel.");
-
-    const [{ data: prop }, { data: prov }] = await Promise.all([
+      return (row as { name: string }).name;
+    })();
+    const [canApprove, situationName, propIds, { data: prop }, { data: prov }] = await Promise.all([
+      userCanApproveCleaning(context.userId, owner),
+      situationPromise,
+      accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId),
       db.from("properties").select("owner_id, owner_contact_id").eq("id", data.propertyId).maybeSingle(),
       db.from("service_providers").select("account_owner_id").eq("id", data.providerId).maybeSingle(),
     ]);
+    if (!canApprove) throw new Error("Você não tem permissão para criar serviços com valor.");
+    if (!propIds.includes(data.propertyId)) throw new Error("Você não tem acesso a este imóvel.");
+
     const p = prop as { owner_id: string | null; owner_contact_id: string | null } | null;
     const pv = prov as { account_owner_id: string } | null;
     if (!p?.owner_id || !pv || pv.account_owner_id !== p.owner_id) {

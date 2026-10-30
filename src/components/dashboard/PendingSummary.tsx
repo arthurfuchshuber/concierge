@@ -1,6 +1,6 @@
 import { ClampName } from "@/components/ui/clamp-name";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CATEGORY_BY_KEY } from "@/components/dashboard/record-categories";
 import type { PendingItem, RecordCategory } from "@/lib/reservation-records.functions";
@@ -33,9 +33,6 @@ import type { PendingItem, RecordCategory } from "@/lib/reservation-records.func
  */
 
 type Drill = { from: "bucket" | "cat"; bucket: string | null; cat: RecordCategory | null };
-
-/** "Proprietário(a): Nome" — mesmo texto em todo lugar que cita imóvel/anúncio. */
-const ownerText = (name: string) => `Proprietário(a): ${name.trim()}`;
 
 const ORDER: RecordCategory[] = ["maintenance", "damage", "incident", "forgotten"];
 
@@ -71,7 +68,11 @@ function groupByProperty(list: PendingItem[]): PropGroup[] {
   );
 }
 
-/** Imóvel (nome + total), proprietário com mensagem e as pendências tocáveis. */
+/**
+ * Imóvel (título + total), proprietário com mensagem e as pendências tocáveis.
+ * Layout aprovado em 30/10/2026: UM CARD por imóvel (fundo `--card-surface`, raio 12, borda fina, faixa
+ * lateral rosa), título do imóvel primeiro e o proprietário logo abaixo, no mesmo bloco.
+ */
 function PropertyGroups({
   groups,
   tones,
@@ -82,30 +83,28 @@ function PropertyGroups({
   onPick: (it: PendingItem) => void;
 }) {
   return (
-    <div>
-      {groups.map((p, idx) => {
+    <div className="space-y-2.5">
+      {groups.map((p) => {
         const first = p.items[0];
         return (
-          <div key={p.id} className={`py-2.5 ${idx > 0 ? "border-t border-[var(--panel-div)]" : ""}`}>
-            {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
-            <div className="mt-0.5 flex items-center gap-2 text-[12.5px] font-bold leading-tight">
+          <div
+            key={p.id}
+            data-clip-row
+            className="relative overflow-hidden rounded-[12px] border border-border bg-[var(--card-surface)] py-2.5 pl-4 pr-3.5"
+          >
+            <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-[#c98c8c]" />
+            <div className="flex items-center gap-2 text-sm font-bold leading-tight">
               <ClampName text={p.name} className="flex-1" />
-              <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-[#c98c8c]">{p.items.length}</span>
+              <span className="shrink-0 text-[13px] font-extrabold tabular-nums text-[#c98c8c]">{p.items.length}</span>
             </div>
-            {first.ownerName && (
-              <div className="flex min-w-0 items-center gap-1.5 text-[11px] leading-snug" title={ownerText(first.ownerName)}>
-                <span className="shrink-0 text-muted-foreground">Proprietário(a):</span>
-                <span className="min-w-0 truncate font-semibold text-foreground">{first.ownerName.trim()}</span>
-                <PhoneActionButton
-                  phone={first.ownerPhone}
-                  country={first.ownerPhoneCountry}
-                  size={12}
-                  alwaysShow
-                  className="-my-1"
-                />
-              </div>
-            )}
-            <ul className="mt-1 space-y-0.5 border-l-2 border-[#c98c8c]/35 pl-2.5">
+            <OwnerLine
+              name={first.ownerName ?? null}
+              phone={first.ownerPhone}
+              country={first.ownerPhoneCountry}
+              phonePosition="adjacent"
+              className="mt-0.5"
+            />
+            <ul className="mt-2">
               {p.items.map((it) => {
                 const Icon = CATEGORY_BY_KEY.get(it.category)?.icon;
                 return (
@@ -113,11 +112,11 @@ function PropertyGroups({
                     <button
                       type="button"
                       onClick={() => onPick(it)}
-                      className="flex w-full items-center gap-2 rounded-[7px] py-1.5 pr-1 text-left text-[11.5px] transition-colors hover:bg-foreground/[0.06]"
+                      className="flex h-7 w-full items-center gap-2 rounded-[7px] pr-1 text-left text-[12.5px] transition-colors hover:bg-foreground/[0.06]"
                     >
-                      {Icon && <Icon className="size-3 shrink-0" style={{ color: tones[it.category] }} />}
+                      {Icon && <Icon className="size-[15px] shrink-0" style={{ color: tones[it.category] }} />}
                       <span className="min-w-0 flex-1 truncate">{it.title}</span>
-                      <span className="shrink-0 text-[10.5px] tabular-nums text-muted-foreground">
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                         {fmtD(daysAgo(it.createdAt))}
                       </span>
                     </button>
@@ -230,7 +229,7 @@ export function PendingSummary({
           onClick={() => setDrill(null)}
           className="flex min-h-8 w-full items-center gap-1 pr-11 text-left text-[12px] font-bold text-muted-foreground transition-colors hover:text-foreground"
         >
-          <span className="min-w-0 truncate">Resumo das pendências</span>
+          <span className="min-w-0 truncate">Resumo das Pendências</span>
         </button>
         <p className="mt-1 truncate font-display text-[17px] font-extrabold leading-tight">{title}</p>
         <p className="truncate text-[12px] text-muted-foreground">
@@ -281,37 +280,22 @@ export function PendingSummary({
         className="max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] max-w-[min(380px,calc(100vw-32px))] grid-cols-[minmax(0,1fr)] gap-0 overflow-x-hidden rounded-[var(--win-radius)] p-0 sm:p-0"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="min-w-0 px-5 pb-5 pt-4">
+        <div className="min-w-0 px-4 pb-4 pt-3.5">
           {drill ? (
             DrillView()
           ) : (
           <>
-          <div className="flex min-h-8 items-center pr-11">
-            <DialogTitle className="ds-eyebrow flex min-w-0 flex-1 items-center gap-2 text-[10px] font-normal leading-none tracking-[0.18em] text-muted-foreground">
-              <span className="shrink-0">Resumo das pendências</span>
-              <span aria-hidden className="h-px min-w-0 flex-1 bg-foreground/10" />
-            </DialogTitle>
+          {/* JANELA PADRÃO (30/10/2026): título 14 px negrito + subtítulo 12 px ("12 em aberto · 5
+              imóveis"); sem o número gigante e sem a pílula "Mais antiga". */}
+          <div className="min-w-0 pr-11">
+            <DialogTitle className="truncate text-sm font-bold leading-6">Resumo das Pendências</DialogTitle>
+            <p className="truncate text-xs leading-5 text-muted-foreground">
+              <b className="font-bold text-foreground">{data.total}</b> em aberto · {data.properties.length}{" "}
+              {data.properties.length === 1 ? "imóvel" : "imóveis"}
+            </p>
           </div>
 
-          {/* TOPO FIXO */}
-          <div className="mt-2.5 flex items-center gap-2.5">
-            <span className="font-display text-[34px] font-bold leading-none tracking-[-0.03em] tabular-nums">
-              {data.total}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-[12.5px] leading-tight">
-              <b className="font-bold">em aberto</b>
-              <span className="block truncate text-muted-foreground">
-                em {data.properties.length} {data.properties.length === 1 ? "imóvel" : "imóveis"}
-              </span>
-            </span>
-            {data.total > 0 && (
-              <span className="shrink-0 rounded-full border border-[var(--falta,#e0707a)]/30 bg-[var(--falta,#e0707a)]/12 px-2.5 py-1 text-[11px] font-bold text-[var(--falta,#e0707a)]">
-                Mais antiga {data.oldest === 0 ? "hoje" : `${data.oldest} d`}
-              </span>
-            )}
-          </div>
-
-          <div className="mt-3 flex h-2 gap-0.5 overflow-hidden rounded-full" aria-hidden>
+          <div className="mt-3.5 flex h-2 gap-0.5 overflow-hidden rounded-full" aria-hidden>
             {ORDER.filter((k) => (data.byCat.get(k) ?? 0) > 0).map((k) => (
               <i key={k} className="block rounded-[2px]" style={{ flex: data.byCat.get(k), background: tones[k] }} />
             ))}
@@ -336,8 +320,8 @@ export function PendingSummary({
             })}
           </div>
 
-          {/* ABAS — duas, cabem na largura: sem rolagem lateral, nada cortado */}
-          <div role="tablist" className="mb-2.5 mt-3.5 grid grid-cols-2 gap-0.5 rounded-[9px] bg-foreground/[0.05] p-[3px]">
+          {/* BOTÕES SUAVES (regra de janelas, 29/10/2026): alternância dentro de janela não usa a barra de abas. */}
+          <div role="tablist" className="mb-2.5 mt-3.5 flex gap-2">
             {(
               [
                 ["urgency", "Urgência"],
@@ -352,8 +336,10 @@ export function PendingSummary({
                 onClick={() => {
                   setTab(k);
                 }}
-                className={`truncate rounded-[7px] py-1.5 text-[12px] font-bold transition-colors ${
-                  tab === k ? "bg-foreground/[0.1] text-foreground" : "text-muted-foreground hover:text-foreground"
+                className={`h-9 flex-1 truncate rounded-[10px] border text-xs transition-colors ${
+                  tab === k
+                    ? "border-foreground/[0.12] bg-foreground/10 font-bold text-foreground"
+                    : "border-foreground/5 bg-foreground/[0.04] font-semibold text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {label}
@@ -367,7 +353,7 @@ export function PendingSummary({
           <div
             className={
               tab === "properties"
-                ? "max-h-[min(300px,42dvh)] overflow-y-auto overscroll-auto pr-3 sg-elegant-scroll [scrollbar-gutter:stable]"
+                ? "max-h-[min(460px,58dvh)] overflow-y-auto overscroll-auto sg-elegant-scroll"
                 : ""
             }
           >

@@ -78,12 +78,13 @@ const DialogContent = React.forwardRef<
         {hideClose ? null : (
           <DialogPrimitive.Close
             data-window-close
+            // X SÓLIDO (30/10/2026): fundo opaco (sem transparência/desfoque), canto superior direito igual ao da janela.
             // X DE CANTO MAIS DELICADO (pedido explícito, 21/10/2026, mockup aprovado): aba de 32px
             // (era 44px), canto de 12px, fundo e fio de luz mais leves e ícone de 13px com traço 1.8.
             // Mora AQUI para valer em todas as janelas; abaixo de `lg`, em janela "como página"
             // (`pageLike`), ele some e o "Voltar" (`DialogDateRow`) assume.
             className={cn(
-              "absolute right-0 top-0 z-[5] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] text-muted-foreground shadow-[inset_1px_-1px_0_color-mix(in_oklab,var(--foreground)_9%,transparent)] transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_10%,transparent)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
+              "absolute right-0 top-0 z-[5] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_8%)] text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_14%)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
               pageLike && "max-lg:hidden",
             )}
           >

@@ -1,3 +1,4 @@
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { SearchActionRow } from "./SearchActionRow";
 import { SortMenu } from "./SortMenu";
 import { searchScore } from "@/lib/search-score";
@@ -8,7 +9,6 @@ import {
   Camera,
   Check,
   CircleAlert,
-  CircleCheck,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -231,18 +231,6 @@ const latestIso = (rs: { createdAt: string }[]) =>
   rs.reduce((m, r) => (r.createdAt > m ? r.createdAt : m), "");
 const oldestIso = (rs: { createdAt: string }[]) =>
   rs.reduce((m, r) => (m === "" || r.createdAt < m ? r.createdAt : m), "");
-
-/** "há 5 dias" — a idade em palavras, para a linha de pendências. */
-function fmtAgo(iso: string): string {
-  const d = new Date(iso);
-  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const now = new Date();
-  const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diff = Math.max(0, Math.round((t0.getTime() - day.getTime()) / 86_400_000));
-  if (diff === 0) return "hoje";
-  if (diff === 1) return "há 1 dia";
-  return `há ${diff} dias`;
-}
 
 /** "hoje, 09:33" / "ontem, 14:05" / "01/10" — o último registro do imóvel. */
 function fmtLast(iso: string): string {
@@ -818,12 +806,6 @@ export function RecordsWorkspace() {
                 label={c.short}
                 icon={c.icon}
                 open={q.data?.openCounts?.[c.key] ?? 0}
-                note={(() => {
-                  const old = oldestIso(
-                    (q.data?.pendingItems ?? []).filter((i) => i.category === c.key),
-                  );
-                  return old ? `Mais antiga ${fmtAgo(old)}` : null;
-                })()}
                 loading={q.isLoading}
                 active={category === c.key}
                 onClick={() => setCategory(category === c.key ? null : c.key)}
@@ -839,19 +821,21 @@ export function RecordsWorkspace() {
               delas é exatamente o total, e bate com o "em aberto" de cada
               cartão acima. Reaproveita o filtro "só em aberto". */}
           {(pendingOpen > 0 || onlyOpen) && (
-            <div className="ds-3d flex items-center gap-3 rounded-[14px] border border-[#c98c8c]/35 bg-[#c98c8c]/20 px-3.5 py-3">
-              <p className="min-w-0 flex-1 text-[12px] leading-snug">
+            <div className="ds-3d flex min-h-11 items-center gap-2.5 rounded-[12px] border border-[#c98c8c]/35 bg-[#c98c8c]/20 py-2 pl-3.5 pr-2 dark:border-[#d49a9c]/[0.22] dark:bg-[#2d2124]">
+              {/* UMA LINHA (mockup aprovado, 30/10/2026): ícone de alerta + "N pendências em M imóveis"
+                  + botão suave à direita. Saiu o "esperando solução em". */}
+              <CircleAlert className="size-[15px] shrink-0 text-[#c98c8c]" strokeWidth={2} aria-hidden />
+              <p className="min-w-0 flex-1 truncate text-[12.5px] leading-snug">
                 {pendingOpen > 0 ? (
                   <>
                     <b className="font-bold">
                       {pendingOpen} {pendingOpen === 1 ? "pendência" : "pendências"}
                       {category ? ` de ${CATEGORY_BY_KEY.get(category)?.short ?? ""}` : ""}
                     </b>{" "}
-                    esperando solução em{" "}
+                    em{" "}
                     <b className="font-bold">
                       {pendingProperties} {pendingProperties === 1 ? "imóvel" : "imóveis"}
                     </b>
-                    .
                   </>
                 ) : (
                   "Nada em aberto por aqui."
@@ -870,7 +854,7 @@ export function RecordsWorkspace() {
                     }
                   }}
                   aria-pressed
-                  className="shrink-0 rounded-[10px] border border-[#c98c8c]/45 bg-[#c98c8c]/25 px-3 py-2 text-[11.5px] font-bold text-foreground transition-colors hover:bg-[#c98c8c]/35"
+                  className="inline-flex h-7 shrink-0 items-center rounded-[8px] border border-[#c98c8c]/45 bg-[#c98c8c]/25 px-3 text-[11.5px] font-semibold text-foreground transition-colors hover:bg-[#c98c8c]/35 dark:border-transparent dark:bg-[#58424a] dark:hover:bg-[#654b54]"
                 >
                   Ver tudo
                 </button>
@@ -894,7 +878,7 @@ export function RecordsWorkspace() {
                 >
                   <button
                     type="button"
-                    className="shrink-0 rounded-[10px] border border-[#c98c8c]/45 bg-[#c98c8c]/25 px-3 py-2 text-[11.5px] font-bold text-foreground transition-colors hover:bg-[#c98c8c]/35"
+                    className="inline-flex h-7 shrink-0 items-center rounded-[8px] border border-[#c98c8c]/45 bg-[#c98c8c]/25 px-3 text-[11.5px] font-semibold text-foreground transition-colors hover:bg-[#c98c8c]/35 dark:border-transparent dark:bg-[#58424a] dark:hover:bg-[#654b54]"
                   >
                     Ver só elas
                   </button>
@@ -936,7 +920,6 @@ export function RecordsWorkspace() {
                   label="Imóveis que precisam de atenção"
                   title="Precisam de atenção"
                   color="#c98c8c"
-                  Icon={CircleAlert}
                   count={attentionGroups.length}
                   sort={
                     <SortMenu
@@ -956,7 +939,6 @@ export function RecordsWorkspace() {
                   label="Imóveis em dia"
                   title="Em dia"
                   color="#7fb79a"
-                  Icon={CircleCheck}
                   count={calmGroups.length}
                   sort={
                     byProperty ? (
@@ -1060,7 +1042,6 @@ function StatusCell({
   open,
   loading,
   active,
-  note,
   onClick,
 }: {
   label: string;
@@ -1068,7 +1049,6 @@ function StatusCell({
   open: number;
   loading?: boolean;
   active: boolean;
-  note?: string | null;
   onClick: () => void;
 }) {
   return (
@@ -1122,11 +1102,6 @@ function StatusCell({
       >
         {loading ? "—" : open}
       </div>
-      {note && !loading ? (
-        <p className="w-full truncate pt-1 text-center text-[10px] font-bold text-muted-foreground">
-          {note}
-        </p>
-      ) : null}
     </button>
   );
 }
@@ -1380,7 +1355,6 @@ function StatusSection({
   label,
   title,
   color,
-  Icon,
   count,
   sort,
   children,
@@ -1388,7 +1362,6 @@ function StatusSection({
   label: string;
   title: string;
   color: string;
-  Icon: typeof CircleAlert;
   count: number;
   sort?: React.ReactNode;
   children: React.ReactNode;
@@ -1396,21 +1369,11 @@ function StatusSection({
   return (
     <section aria-label={label} className="relative min-w-0">
       <div className="ds-stack">
-        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5">
-          <span
-            aria-hidden
-            className="h-px min-w-0"
-            style={{
-              background: `linear-gradient(to left, color-mix(in oklab, ${color} 70%, transparent), transparent)`,
-            }}
-          />
+        {/* CABEÇALHO DA LISTA (mockup aprovado, 30/10/2026): ponto de status + título + contagem à
+            esquerda e o botão de ordenar à direita. Sem fios em degradê e sem ícone em caixinha. */}
+        <div className="flex min-w-0 items-center justify-between gap-2.5">
           <span className="flex min-w-0 items-center gap-2">
-            <span
-              className="grid size-[22px] shrink-0 place-items-center rounded-md"
-              style={{ background: `color-mix(in oklab, ${color} 12%, transparent)`, color }}
-            >
-              <Icon className="size-[13px]" strokeWidth={2.2} />
-            </span>
+            <span aria-hidden className="size-[7px] shrink-0 rounded-full" style={{ background: color }} />
             <span className="ds-eyebrow min-w-0 truncate text-[10px] tracking-[0.2em] text-muted-foreground">
               {title}
             </span>
@@ -1418,23 +1381,10 @@ function StatusSection({
               <CountPill>{count}</CountPill>
             </span>
           </span>
-          <span className="flex min-w-0 items-center gap-2.5">
-            <span
-              aria-hidden
-              className="h-px min-w-0 flex-1"
-              style={{
-                background: `linear-gradient(to right, color-mix(in oklab, ${color} 70%, transparent), transparent)`,
-              }}
-            />
-            {sort}
-          </span>
+          {sort}
         </div>
-        {/* SEM QUADRANTE DE ROLAGEM (pedido explícito, 04/10/2026: "retirar os
-            quadrantes de rolagem... colocar os status + cards na página
-            oficial, sem barra de rolagem interna"). Os cartões ficam no fluxo
-            da página e rolam com ela; antes um teto de 5 cartões abria uma
-            barra própria dentro de cada status. Saíram junto os recuos
-            negativos que compensavam o respiro dessa barra. */}
+        {/* SEM QUADRANTE DE ROLAGEM (pedido explícito, 04/10/2026): os cartões ficam no fluxo da
+            página e rolam com ela. */}
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3">{children}</div>
       </div>
     </section>
@@ -1559,11 +1509,10 @@ function PropertyCard({
     : `${allRecords.length} ${allRecords.length === 1 ? "registro" : "registros"}`;
   const pendingLabel = `${group.pending.length} ${group.pending.length === 1 ? "pendência" : "pendências"}`;
 
-  // A FRASE DE BAIXO DO TÍTULO diz o dado mais urgente: com pendência, há
-  // quanto tempo a mais antiga espera; sem, quando foi o último registro.
-  const subtitle = hasPending
-    ? `Mais antiga ${fmtAgo(group.pending[0].createdAt)}`
-    : showRest
+  // A FRASE DE BAIXO DO TÍTULO (30/10/2026): com pendência aberta não há frase — a etiqueta "Mais
+  // antiga há…" saiu a pedido; sem pendência, diz quando foi o último registro.
+  const subtitle =
+    !hasPending && showRest
       ? historyOfCategory
         ? `${group.rest.length} ${group.rest.length === 1 ? "resolvido" : "resolvidos"} · Último: ${fmtLast(group.rest[0].createdAt)}`
         : `Último registro: ${fmtLast(group.rest[0].createdAt)}`
@@ -1888,47 +1837,37 @@ function PendingPopoverBody({
   }
   return (
     <div>
-      <div className="relative h-[132px] overflow-hidden bg-secondary/60">
+      {/* CAPA 140 px (mockup 30/10/2026): eyebrow + título + proprietário no MESMO bloco, sobre a foto
+          centralizada; sem pílula "N em aberto". */}
+      <div className="relative h-[140px] overflow-hidden bg-secondary/60">
         <CoverImage urls={covers} empty={false} />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/55 to-[var(--panel)]" />
-        <div className="absolute inset-x-5 bottom-2.5">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/60 to-[var(--panel)]" />
+        <div className="absolute inset-x-4 bottom-2.5 min-w-0">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
             Pendências do imóvel
           </div>
           <DialogTitle
-            className="mt-1 block truncate text-[17px] font-bold leading-tight tracking-tight text-white"
+            className="mt-1 block truncate text-sm font-bold leading-tight text-white"
             title={name}
           >
             {name}
           </DialogTitle>
-        </div>
-      </div>
-      <div className="flex items-center justify-between gap-3 px-5 pb-3.5 pt-2">
-        <div className="flex min-w-0 items-center gap-0 text-[12px] text-muted-foreground">
           {first?.ownerName ? (
-            <>
-              <span className="truncate">{ownerLabel(first.ownerName)}</span>
-              <PhoneActionButton
-                phone={first.ownerPhone}
-                country={first.ownerPhoneCountry}
-                size={14}
-                alwaysShow
-                className="shrink-0 p-0.5"
-              />
-            </>
+            <OwnerLine
+              name={first.ownerName}
+              phone={first.ownerPhone}
+              country={first.ownerPhoneCountry}
+              phonePosition="adjacent"
+              className="mt-0.5 [&>span:first-child]:text-white/70 [&>span:nth-child(2)]:text-white"
+            />
           ) : null}
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-foreground/[0.06] px-3 py-1.5 text-[11.5px] font-semibold text-foreground">
-          <span className="size-1.5 rounded-full bg-[#d29a9a]" />
-          {group.pending.length} em aberto
-        </span>
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-2 px-3.5 pb-4">
-        {sections.map((sec, i) => (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 px-4 pb-4 pt-3">
+        {sections.map((sec) => (
           <div key={sec.key} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
-            <div
-              className={`flex items-center gap-2.5 px-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground ${i ? "pt-2" : ""}`}
-            >
+            {/* Título da categoria FORA do card, contagem ao lado, linha à direita. */}
+            <div className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               <span className="size-[7px] rounded-full bg-[#d29a9a]" />
               {sec.label}
               <em className="not-italic tracking-[0.04em] text-muted-foreground/60">
@@ -1973,7 +1912,7 @@ function PendingCard({
   return (
     <div
       data-clip-row
-      className="flex w-full min-w-0 snap-start items-center gap-3 rounded-[18px] bg-foreground/[0.04] py-2.5 pl-2.5 pr-3.5"
+      className="flex w-full min-w-0 snap-start items-center gap-3 rounded-[12px] border border-border bg-[var(--card-surface)] py-2.5 pl-2.5 pr-3"
     >
       <button
         type="button"
@@ -2025,7 +1964,7 @@ function PendingCard({
             onClick={onResolve}
             aria-label="Marcar como resolvido"
             title="Marcar como resolvido"
-            className="grid size-[24px] place-items-center rounded-[7px] border-[1.5px] border-foreground/25 transition-colors hover:border-emerald-500 hover:bg-emerald-500/15"
+            className="grid size-[18px] place-items-center rounded-[5px] border-[1.5px] border-foreground/25 transition-colors hover:border-emerald-500 hover:bg-emerald-500/15"
           />
         )}
       </div>
@@ -2326,6 +2265,13 @@ function RecordViewerBody({
   const [cheia, setCheia] = useState(false);
   const current = media[Math.min(idx, media.length - 1)];
   const [editing, setEditing] = useState(false);
+  // Cor do status (rosa terroso em aberto, sálvia resolvido, neutro cancelado/sem pendência).
+  const statusColor =
+    record.taskStatus === "pending"
+      ? "#c98c8c"
+      : record.taskStatus === "done"
+        ? "#7fb79a"
+        : "#a39b92";
   // Miolo rolável do quadrante (limite de 75% da tela + anti-corte vertical).
   const bodyRef = useAntiClipRows<HTMLDivElement>([editing, record]);
   /* ROLAR PARA O LADO (pedido explícito, 03/10/2026: "não estamos conseguindo
@@ -2371,21 +2317,18 @@ function RecordViewerBody({
               `text-wrap-style`, que não mexe em quebrar/não quebrar.
           Com o título em uma linha o cabeçalho encolheu; o `pt`/`pb` foram
           junto. */}
-      <DialogHeader className="min-w-0 space-y-0 pb-3.5 pl-6 pr-14 pt-[21px] text-left">
-        <DialogTitle className="block w-full truncate text-[17px] font-bold leading-tight tracking-tight">
+      {/* LAYOUT APROVADO 30/10/2026 (Opção 1): título 14 px negrito e proprietário no MESMO bloco, abaixo dele. */}
+      <DialogHeader className="min-w-0 space-y-0 pb-3 pl-4 pr-12 pt-3.5 text-left">
+        <DialogTitle className="block w-full truncate text-sm font-bold leading-6">
           {record.propertyName}
         </DialogTitle>
         {record.ownerName && (
-          <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[13px] leading-tight text-muted-foreground">
-            <span className="truncate">{ownerLabel(record.ownerName)}</span>
-            <PhoneActionButton
-              phone={record.ownerPhone}
-              country={record.ownerPhoneCountry}
-              size={15}
-              alwaysShow
-              className="shrink-0 p-0.5"
-            />
-          </span>
+          <OwnerLine
+            name={record.ownerName}
+            phone={record.ownerPhone}
+            country={record.ownerPhoneCountry}
+            phonePosition="adjacent"
+          />
         )}
       </DialogHeader>
 
@@ -2417,51 +2360,11 @@ function RecordViewerBody({
                 className="absolute inset-0 z-0 cursor-zoom-in"
               />
             )}
-            <button
-              type="button"
-              onClick={() => setCheia(true)}
-              aria-label="Abrir em tela cheia"
-              className="absolute bottom-2.5 left-2.5 z-10 grid size-[30px] place-items-center rounded-[0.45rem] border border-white/25 bg-black/60 text-white backdrop-blur transition-colors hover:bg-black/80"
-            >
-              <Maximize2 className="size-[15px]" strokeWidth={2} />
-            </button>
           </>
         )}
-        {/* Aqui a etiqueta fica SOBRE a mídia, então ela é sólida (pedido
-            explícito): translúcida, sumia contra uma foto clara. Nos
-            quadrantes da lista ela segue translúcida — lá não há imagem
-            atrás. */}
-        <span
-          className={`absolute left-3 top-3 z-10 inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-[11.5px] font-semibold leading-none shadow-sm ${
-            CATEGORY_SOLID[record.category] ?? CATEGORY_SOLID.other
-          }`}
-        >
-          {meta?.label ?? "Registro"}
-        </span>
-        {/* SITUAÇÃO DA PENDÊNCIA no canto oposto à categoria (pedido
-            explícito, 10/09/2026). Ela vivia lá embaixo, na ficha, empurrando
-            a linha de dados para duas alturas; aqui em cima é lida junto com
-            a categoria e não ocupa altura nenhuma. */}
-        {record.taskId && (
-          <span className="absolute right-3 top-3 z-10 inline-flex h-6 items-center gap-1.5 rounded-full border border-white/15 bg-[rgba(20,17,15,.72)] px-2.5 text-[11.5px] font-semibold leading-none text-[#f4f0ea] backdrop-blur">
-            <span
-              className={`size-1.5 rounded-full ${
-                record.taskStatus === "pending"
-                  ? "bg-[#d29a9a]"
-                  : record.taskStatus === "canceled"
-                    ? "bg-zinc-400"
-                    : "bg-[#8fc0a6]"
-              }`}
-            />
-            {record.taskStatus === "pending"
-              ? "Em aberto"
-              : record.taskStatus === "canceled"
-                ? "Cancelada"
-                : "Resolvida"}
-          </span>
-        )}
+        {/* Sem etiquetas nem botões sobre a mídia (30/10/2026): categoria e situação ficam abaixo, numa etiqueta só. */}
         {media.length > 1 && (
-          <span className="pointer-events-none absolute bottom-3.5 left-14 right-16 z-10 h-[3px] rounded-full bg-white/30">
+          <span className="pointer-events-none absolute bottom-3.5 left-4 right-16 z-10 h-[3px] rounded-full bg-white/30">
             <span
               className="block h-full rounded-full bg-white"
               style={{ width: `${((Math.min(idx, media.length - 1) + 1) / media.length) * 100}%` }}
@@ -2537,7 +2440,7 @@ function RecordViewerBody({
 
       <div
         ref={bodyRef}
-        className="sg-elegant-scroll min-h-0 min-w-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain px-6 pb-1 pt-4"
+        className="sg-elegant-scroll min-h-0 min-w-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain px-4 pb-1 pt-4"
       >
         {editing ? (
           /* EDITAR DEPOIS (decisão do cliente, 10/09/2026): o registro que
@@ -2554,65 +2457,98 @@ function RecordViewerBody({
             }}
           />
         ) : (
-          <div data-clip-row className="flex snap-start items-start gap-2.5">
-            <div className="min-w-0 flex-1">
-              <p
-                className={`truncate text-[17px] font-bold leading-snug tracking-tight ${
-                  hasTitle(record) ? "" : "italic text-muted-foreground"
-                }`}
-                title={title}
-              >
-                {title}
-              </p>
-              {description && (
-                <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-muted-foreground">
-                  {description}
-                </p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              aria-label="Editar título e descrição"
-              title="Editar título e descrição"
-              className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+          <div data-clip-row className="snap-start">
+            {/* Etiqueta da categoria: raio 5 px, SEMPRE na cor do status, texto escuro. */}
+            <span
+              className="inline-flex h-6 items-center rounded-[5px] px-2.5 text-[11.5px] font-bold leading-none text-[#1a1615]"
+              style={{ background: statusColor }}
             >
-              <Pencil className="size-[15px]" />
-            </button>
+              {meta?.label ?? "Registro"}
+            </span>
+            <p
+              className={`mt-2.5 truncate text-sm font-bold leading-snug ${
+                hasTitle(record) ? "" : "italic text-muted-foreground"
+              }`}
+              title={title}
+            >
+              {title}
+            </p>
+            {description && (
+              <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-muted-foreground">
+                {description}
+              </p>
+            )}
           </div>
         )}
-        {/* LISTA DE DADOS (layout "Detalhe B"): rótulo à esquerda, valor à
-            direita, linha fina entre eles. Linhas sem dado somem. */}
-        <dl className="mt-2 text-[13px]">
-          {[
-            ["Hóspede", record.guestName],
-            ["Reserva", reservationValue || (record.guestName ? "" : "Sem reserva vinculada")],
-            ["Registrado por", record.createdByName ?? "Equipe"],
-            [
-              "Origem",
-              [
-                record.cardMode ? MODE_LABEL[record.cardMode] : "Registros",
-                new Date(record.createdAt).toLocaleTimeString("pt-BR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-              ]
-                .filter(Boolean)
-                .join(" · "),
-            ],
-          ]
-            .filter(([, v]) => !!v)
-            .map(([k, v]) => (
-              <div
-                key={k}
-                data-clip-row
-                className="flex snap-start items-center justify-between gap-4 border-b border-foreground/[0.07] py-[11px] last:border-b-0"
-              >
-                <dt className="shrink-0 text-muted-foreground/70">{k}</dt>
-                <dd className="min-w-0 truncate text-right font-semibold">{v}</dd>
-              </div>
-            ))}
-        </dl>
+        {/* BLOCOS (Opção 1): título FORA do card (caixa alta pequena, 16 px acima), uma informação por
+            linha, 21 px entre linhas, sem divisórias; ~16 px entre blocos. */}
+        {!editing &&
+          [
+            {
+              title: "Reserva",
+              rows: [
+                ["Hóspede", record.guestName, true],
+                ["Código da Reserva", record.reservationCode, false],
+                ["Período", stay, false],
+              ] as [string, string | null | undefined, boolean][],
+              empty: record.guestName || record.reservationCode || stay ? null : "Sem reserva vinculada",
+            },
+            {
+              title: "Prestador",
+              rows: [
+                ["Registrado por", record.createdByName ?? "Equipe", false],
+                [
+                  "Origem",
+                  record.cardMode ? MODE_LABEL[record.cardMode] : "Registros",
+                  false,
+                ],
+                [
+                  "Horário",
+                  new Date(record.createdAt).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                  false,
+                ],
+              ] as [string, string | null | undefined, boolean][],
+              empty: null,
+            },
+          ].map((blk) => {
+            const rows = blk.rows.filter(([, v]) => !!v);
+            if (!rows.length && !blk.empty) return null;
+            return (
+              <section key={blk.title} data-clip-row className="mt-4 snap-start">
+                <h4 className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  {blk.title}
+                </h4>
+                <div className="rounded-[12px] border border-foreground/[0.07] bg-[var(--card-surface)] px-3.5 py-3 text-[13px]">
+                  {rows.length ? (
+                    <dl className="grid gap-y-[21px]">
+                      {rows.map(([k, v, chat]) => (
+                        <div key={k} className="flex items-center justify-between gap-4 leading-none">
+                          <dt className="shrink-0 text-muted-foreground/70">{k}</dt>
+                          <dd className="flex min-w-0 items-center gap-1.5 font-semibold">
+                            {chat && (
+                              <PhoneActionButton
+                                phone={null /* telefone do hóspede ainda não vem na consulta de registros */}
+                                country={null}
+                                size={14}
+                                alwaysShow
+                                className="shrink-0 p-0.5"
+                              />
+                            )}
+                            <span className="min-w-0 truncate">{v}</span>
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ) : (
+                    <p className="text-muted-foreground">{blk.empty}</p>
+                  )}
+                </div>
+              </section>
+            );
+          })}
       </div>
 
       {/* BARRA DE AÇÕES: baixar tudo (só ícone), excluir (só ícone) e
@@ -2623,36 +2559,8 @@ function RecordViewerBody({
           (`bg-emerald-600`, texto branco) — antes era um verde-sálvia com texto
           escuro. A lixeira mantém o rosa: é ação de exclusão, como o triângulo
           âmbar dos cards mantém a cor de alerta. */}
-      <div className="shrink-0 px-6 pb-4 pt-3">
+      <div className="shrink-0 px-4 pb-4 pt-3">
         <div className="flex items-center gap-1.5">
-          {media.some((m) => m.url) && (
-            <button
-              type="button"
-              onClick={baixarTodas}
-              disabled={baixando}
-              aria-label="Baixar todas as mídias"
-              title="Baixa todas as mídias deste registro"
-              className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-foreground transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
-            >
-              {baixando ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Download className="size-3.5" />
-              )}
-            </button>
-          )}
-          <button
-            type="button"
-            /* A SITUAÇÃO INTEIRA (04/10/2026): todas as mídias do grupo + a linha
-               principal. Mandar só `record.id` deixava as irmãs vivas e o
-               registro "voltava" depois de excluído. */
-            onClick={() => onDelete(Array.from(new Set([record.id, ...media.map((m) => m.id)])))}
-            aria-label="Excluir"
-            title="Excluir"
-            className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-[#d49a9a] transition-colors hover:bg-primary/[0.08]"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
           {/* "Resolvido" só existe quando há o que resolver. */}
           {record.taskId && record.taskStatus === "pending" && onResolve && (
             <button
@@ -2664,6 +2572,38 @@ function RecordViewerBody({
               <span className="truncate">Resolvido</span>
             </button>
           )}
+          {!(record.taskId && record.taskStatus === "pending" && onResolve) && <span className="flex-1" />}
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            aria-label="Editar título e descrição"
+            title="Editar título e descrição"
+            className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-foreground transition-colors hover:bg-primary/[0.08]"
+          >
+            <Pencil className="size-3.5" />
+          </button>
+          {media.some((m) => m.url) && (
+            <button
+              type="button"
+              onClick={baixarTodas}
+              disabled={baixando}
+              aria-label="Baixar todas as mídias"
+              title="Baixa todas as mídias deste registro"
+              className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-foreground transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
+            >
+              {baixando ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+            </button>
+          )}
+          <button
+            type="button"
+            /* A SITUAÇÃO INTEIRA (04/10/2026): todas as mídias do grupo + a linha principal. */
+            onClick={() => onDelete(Array.from(new Set([record.id, ...media.map((m) => m.id)])))}
+            aria-label="Excluir"
+            title="Excluir"
+            className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-[#d49a9a] transition-colors hover:bg-primary/[0.08]"
+          >
+            <Trash2 className="size-3.5" />
+          </button>
         </div>
       </div>
     </>

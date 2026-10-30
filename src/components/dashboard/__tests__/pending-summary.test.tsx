@@ -48,17 +48,17 @@ function setup(onOpenItem = vi.fn(() => true)) {
 
 
 describe("Tooltip do 'Ver só elas'", () => {
-  it("mostra o total, a mais antiga e a aba Urgência por padrão", async () => {
+  it("mostra o total em aberto (sem pílula 'Mais antiga') e a aba Urgência por padrão", async () => {
     setup();
-    expect(await screen.findByText("Resumo das pendências")).toBeTruthy();
+    expect(await screen.findByText("Resumo das Pendências")).toBeTruthy();
     expect(screen.getByText("4")).toBeTruthy();
-    expect(screen.getByText(/Mais antiga 23 d/)).toBeTruthy();
+    expect(screen.queryByText(/Mais antiga/)).toBeNull();
     expect(screen.getByText("+ 15 dias")).toBeTruthy();
   });
 
   it("sem botões de filtrar nem 'Fechar' no rodapé; só o X do sistema", async () => {
     setup();
-    await screen.findByText("Resumo das pendências");
+    await screen.findByText("Resumo das Pendências");
     expect(screen.queryByText("Filtrar lista")).toBeNull();
     expect(screen.queryByText("Fechar")).toBeNull();
     expect(screen.queryByText(/^Ver só (Casa|Studio|Apê)/)).toBeNull();
@@ -78,7 +78,7 @@ describe("Tooltip do 'Ver só elas'", () => {
     fireEvent.click(await screen.findByText("8 a 14 dias"));
     expect(screen.getByText("Cobre-leito manchado")).toBeTruthy();
     expect(screen.queryByText("Lâmpada queimada")).toBeNull();
-    fireEvent.click(screen.getByText("Resumo das pendências"));
+    fireEvent.click(screen.getByText("Resumo das Pendências"));
     expect(screen.getByText("Urgência")).toBeTruthy();
   });
 
@@ -105,9 +105,9 @@ describe("Tooltip do 'Ver só elas'", () => {
     fireEvent.click(screen.getByText("Lâmpada queimada"));
     expect(onOpenItem).toHaveBeenCalledWith(expect.objectContaining({ title: "Lâmpada queimada" }));
     rerender(ui(true)); // pendência oficial aberta
-    expect(screen.queryByText("Resumo das pendências")).toBeNull();
+    expect(screen.queryByText("Resumo das Pendências")).toBeNull();
     rerender(ui(false)); // fechou
-    expect(await screen.findByText("Resumo das pendências")).toBeTruthy();
+    expect(await screen.findByText("Resumo das Pendências")).toBeTruthy();
     expect(screen.getByText("Lâmpada queimada")).toBeTruthy(); // imóvel continua aberto
   });
 });

@@ -36,3 +36,11 @@ describe("saudação recente", () => {
     expect(ensureGreeting("Mantemos o valor.", h, "Pedro", "pt-BR", new Date(), true)).not.toBe("Mantemos o valor.");
   });
 });
+
+describe("sem gagueira de nome", () => {
+  it("não prefixa saudação quando a resposta já abre com o nome", () => {
+    const h = [{ role: "assistant", content: "Guia enviado.", at: "2026-10-30T11:02:00Z" }];
+    const out = ensureGreeting("Obrigado pelo aviso, Guilherme! Boa estrada.", h, "Guilherme", "pt", new Date("2026-10-30T17:23:00Z"));
+    expect(out).toBe("Obrigado pelo aviso, Guilherme! Boa estrada.");
+  });
+});
