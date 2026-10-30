@@ -148,3 +148,28 @@ describe("rascunho para a equipe", () => {
     expect(formatDraftForTeam(Array(60).fill("palavra").join(" "), d).split(" ").length).toBeLessThanOrEqual(35);
   });
 });
+
+import { withPendingBridge } from "@/lib/ai/human-support";
+describe("ponte da dúvida pendente (1ª pessoa)", () => {
+  const vacuo = [
+    { role: "assistant", content: "Oi!" },
+    { role: "user", content: "Onde comprou o cobertor?" },
+    { role: "user", content: "Tem disponibilidade dia 19 a 21?" },
+  ];
+  it("pede desculpa pelo vácuo, promete verificar e segue com o resto", () => {
+    const r = withPendingBridge({ reply: "Sobre a disponibilidade, temos 19 a 21 livre.", history: vacuo, language: "pt" });
+    expect(r).toMatch(/^Desculpe ter deixado sua pergunta sem resposta\. Vou verificar/);
+    expect(r).toMatch(/Enquanto isso, sobre a disponibilidade/);
+    expect(r).not.toMatch(/equipe|anfitri/i);
+  });
+  it("sem vácuo não pede desculpa", () => {
+    const r = withPendingBridge({ reply: "", history: [{ role: "user", content: "Onde comprou?" }], language: "pt" });
+    expect(r).not.toMatch(/Desculpe/);
+    expect(r).toMatch(/Vou verificar/);
+  });
+  it("não repete a ponte", () => {
+    const first = withPendingBridge({ reply: "", history: vacuo, language: "pt" });
+    const h = [...vacuo, { role: "assistant", content: first }, { role: "user", content: "E o wifi?" }];
+    expect(withPendingBridge({ reply: "A senha está no guia.", history: h, language: "pt" })).toBe("A senha está no guia.");
+  });
+});
