@@ -46,7 +46,7 @@ import { recordOperationalRequest } from "./memory/operational.server";
 import { AI_MODELS } from "./models";
 import { PROMPTS, stampVersions } from "./prompts";
 import { continuityLine } from "./continuity";
-import { acknowledgementReply, humanSupportReply, isOnlyGreeting, stripPromiseSentences } from "./human-support";
+import { acknowledgementReply, humanSupportReply, isOnlyGreeting, stripPromiseSentences, withPendingBridge } from "./human-support";
 import { buildHandoffDraft, formatDraftForTeam } from "./human-loop/handoff-draft.server";
 import { accessGuidanceText, accessTiming, decideAccess } from "./access-guidance.server";
 import {
@@ -1320,7 +1320,13 @@ export async function runHospitalityAgent(params: {
   if (escalationId || handoffReason) {
     const limpo = stripPromiseSentences(reply === SILENCE_TOKEN ? "" : reply ?? "");
     const soSaudacao = !limpo || isOnlyGreeting(limpo);
-    reply = soSaudacao
+    reply = escalationId && ownerId
+      ? withPendingBridge({
+          reply: soSaudacao ? "" : limpo,
+          history: fullHistory,
+          language: replyInGuestLanguage ? intent.language : "pt",
+        })
+      : soSaudacao
       ? acknowledgementReply({
           history: fullHistory,
           guestName: params.guestName ?? null,

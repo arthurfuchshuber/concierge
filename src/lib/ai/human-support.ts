@@ -104,8 +104,10 @@ export function withPendingBridge(params: {
   const rest = params.reply.trim();
   const bridge = pendingBridge({ language: params.language, apologize: guestLeftUnanswered(params.history), hasRest: !!rest });
   if (!rest) return bridge;
-  const restLower = rest.charAt(0).toLowerCase() + rest.slice(1);
-  return `${bridge} ${restLower}`;
+  const first = rest.split(/\s+/)[0]!.replace(/[^\p{L}]/gu, "").toLowerCase();
+  const starter = /^(sobre|temos|tenho|para|a|o|as|os|sim|n[aã]o|nos|no|na|quanto|em|ent[aã]o|h[aá]|tem|about|we|yes|no|for|the|sobre|tenemos|para|s[ií]|el|la)$/.test(first);
+  const body = starter ? rest.charAt(0).toLowerCase() + rest.slice(1) : rest;
+  return `${bridge} ${body}`;
 }
 
 export function acknowledgementReply(params: {
