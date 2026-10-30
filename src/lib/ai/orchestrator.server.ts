@@ -818,7 +818,19 @@ export async function runHospitalityAgent(params: {
   const { retrievePrecedents, learnFromPreviousTurn } = await import("./memory/precedents.server");
   const precedents = params.proactiveTrigger
     ? []
-    : await retrievePrecedents({ supabase, ownerId, propertyId, query: params.message });
+    : await retrievePrecedents({
+        supabase,
+        ownerId,
+        propertyId,
+        query: params.message,
+        // Camada situacional: só condutas válidas na fase atual da estadia.
+        stayPhase:
+          context.stayPhase === "unknown"
+            ? params.reservationVerified || stayAccess.open
+              ? null
+              : "no_booking"
+            : context.stayPhase,
+      });
   for (const p of precedents) {
     sources.push({ source: "memory", title: `Precedente: ${p.situation.slice(0, 60)}`, confidence: p.confidence });
   }
