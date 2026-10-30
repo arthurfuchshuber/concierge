@@ -4,7 +4,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { chatJson, embedOne } from "../gateway.server";
 import {
+  normalizePhases,
+  normalizeTopic,
   SAME_PRECEDENT_SIMILARITY,
+  shouldSupersede,
+  type StayPhase,
   scrubExample,
   selectPrecedents,
   type PrecedentMatch,
@@ -27,6 +31,9 @@ function toMatch(r: Record<string, unknown>): PrecedentMatch {
     successCount: Number(r.success_count ?? 1),
     failureCount: Number(r.failure_count ?? 0),
     similarity: Number(r.similarity ?? 0),
+    topic: (r.topic as string) ?? null,
+    phases: normalizePhases(r.phases),
+    updatedAt: (r.updated_at as string) ?? null,
   };
 }
 
@@ -46,11 +53,19 @@ export async function retrievePrecedents(params: {
   ownerId: string;
   propertyId: string | null;
   query: string;
+  stayPhase?: StayPhase | null;
 }): Promise<PrecedentMatch[]> {
   try {
+    await embedPendingPrecedents(params.supabase, params.ownerId).catch((e) =>
+      console.error("[precedents] embedding pendente falhou", e),
+    );
     const { vector } = await embedOne(params.query.slice(0, 1500));
     if (!vector?.length) return [];
-    const picked = selectPrecedents(await matchRaw(params.supabase, vector, params.ownerId, params.propertyId, 8));
+    const picked = selectPrecedents(
+      await matchRaw(params.supabase, vector, params.ownerId, params.propertyId, 12),
+      3,
+      params.stayPhase ?? null,
+    );
     if (picked.length) {
       const now = new Date().toISOString();
       for (const p of picked) {
@@ -68,7 +83,32 @@ export async function retrievePrecedents(params: {
   }
 }
 
+/**
+ * Precedentes curados entram no banco só com texto; o vetor é gerado aqui na
+ * primeira consulta da conta (sempre dentro da conta ou global).
+ */
+async function embedPendingPrecedents(supabase: Admin, ownerId: string): Promise<void> {
+  const { data } = await supabase
+    .from("ai_precedents" as never)
+    .select("id, situation, conduct")
+    .is("embedding", null)
+    .eq("status", "active")
+    .or(`owner_id.eq.${ownerId},scope.eq.global`)
+    .limit(5);
+  for (const r of (data ?? []) as Array<{ id: string; situation: string; conduct: string }>) {
+    const { vector } = await embedOne(`${r.situation}\n${r.conduct}`);
+    if (!vector?.length) continue;
+    await supabase
+      .from("ai_precedents" as never)
+      .update({ embedding: vector as unknown as string } as never)
+      .eq("id", r.id)
+      .is("embedding", null);
+  }
+}
+
 type Distilled = {
+  topic: string;
+  phases: string[];
   generalizable: boolean;
   scope: "tenant" | "property";
   situation: string;
@@ -77,7 +117,9 @@ type Distilled = {
 };
 
 const DISTILL_PROMPT = `Você transforma um atendimento de hospedagem que DEU CERTO em um PRECEDENTE reutilizável.
-Responda só JSON: {"generalizable":boolean,"scope":"tenant"|"property","situation":string,"conduct":string,"why":string}.
+Responda só JSON: {"generalizable":boolean,"scope":"tenant"|"property","topic":string,"phases":string[],"situation":string,"conduct":string,"why":string}.
+- topic: slug curto e estável do ASSUNTO (ex.: "divergencia_numero_hospedes", "pedido_senha_antecipado", "chegada_fora_do_horario", "acesso_por_terceiros"); o mesmo assunto deve sempre gerar o mesmo slug.
+- phases: fases da estadia em que a conduta vale, entre "no_booking","pre_checkin","checkin_day","in_stay","checkout_day","post_checkout"; [] se vale em qualquer fase.
 - situation: o TIPO de situação, abstrato, sem nomes, códigos, datas, valores ou números específicos do caso (ex.: "Hóspede informa um número de pessoas diferente do registrado na reserva").
 - conduct: o que fazer, passo a passo curto, de forma que valha para outro hóspede (ex.: "Conferir a capacidade do imóvel; se couber, apontar a divergência com gentileza e orientar a solicitar o ajuste de hóspedes nos detalhes da reserva na plataforma, sem acionar a equipe").
 - why: uma frase sobre por que essa conduta funciona.
@@ -108,8 +150,12 @@ export async function recordPrecedent(params: {
   if (!vector?.length) return { id: null, reinforced: false };
 
   const scope: PrecedentScope = data.scope === "property" && params.propertyId ? "property" : "tenant";
-  const similar = (await matchRaw(supabase, vector, params.ownerId, params.propertyId, 3)).find(
-    (m) => m.similarity >= SAME_PRECEDENT_SIMILARITY && m.scope !== "global",
+  const topic = normalizeTopic(data.topic);
+  const phases = normalizePhases(data.phases);
+  const candidates = await matchRaw(supabase, vector, params.ownerId, params.propertyId, 5);
+  // Reforço: mesma conduta, mesma camada (nunca mexe no global a partir de uma conta).
+  const similar = candidates.find(
+    (m) => m.similarity >= SAME_PRECEDENT_SIMILARITY && m.scope === scope && m.scope !== "global",
   );
   if (similar) {
     await supabase
@@ -117,11 +163,19 @@ export async function recordPrecedent(params: {
       .update({
         success_count: similar.successCount + 1,
         confidence: Math.min(0.98, similar.confidence + (params.source === "human_answer" ? 0.05 : 0.02)),
+        topic: similar.topic ?? topic,
         updated_at: new Date().toISOString(),
       } as never)
       .eq("id", similar.id);
     return { id: similar.id, reinforced: true };
   }
+  // Mesmo assunto, mesma camada, conduta diferente → o novo substitui o vigente.
+  const outdated = candidates.filter(
+    (m) =>
+      m.scope === scope &&
+      (scope !== "property" || m.propertyId === params.propertyId) &&
+      shouldSupersede({ sameTopic: !!topic && normalizeTopic(m.topic) === topic, sameLayer: true, similarity: m.similarity }),
+  );
 
   const { data: row, error } = await supabase
     .from("ai_precedents" as never)
@@ -129,6 +183,8 @@ export async function recordPrecedent(params: {
       scope,
       owner_id: params.ownerId,
       property_id: scope === "property" ? params.propertyId : null,
+      topic,
+      phases,
       situation: data.situation.slice(0, 400),
       conduct: data.conduct.slice(0, 900),
       why: data.why?.slice(0, 300) ?? null,
@@ -145,7 +201,21 @@ export async function recordPrecedent(params: {
     if (!/duplicate/i.test(error.message)) console.error("[precedents] gravação falhou", error.message);
     return { id: null, reinforced: false };
   }
-  return { id: (row as { id?: string } | null)?.id ?? null, reinforced: false };
+  const newId = (row as { id?: string } | null)?.id ?? null;
+  if (newId && outdated.length) {
+    // Histórico linear: o antigo fica guardado como aposentado, apontando para o vigente.
+    await supabase
+      .from("ai_precedents" as never)
+      .update({
+        status: "retired",
+        superseded_by: newId,
+        retired_at: new Date().toISOString(),
+        retired_reason: "superseded_by_newer",
+      } as never)
+      .in("id", outdated.map((o) => o.id))
+      .eq("owner_id", params.ownerId);
+  }
+  return { id: newId, reinforced: false };
 }
 
 /**
