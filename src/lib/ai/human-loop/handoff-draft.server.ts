@@ -75,8 +75,26 @@ export async function buildHandoffDraft(params: {
  * `context_snapshot.draft`.
  */
 export function formatDraftForTeam(reason: string, d: Omit<HandoffDraft, "usage">): string {
-  const base = (reason.replace(/^\[[^\]]+\]\s*/, "").trim() || d.summary || "").replace(/\s+/g, " ");
+  const base = directQuestion(reason.replace(/^\[[^\]]+\]\s*/, "").trim() || d.summary || "");
   const words = base.split(" ");
   const short = words.length > 35 ? `${words.slice(0, 35).join(" ")}…` : base;
   return short.slice(0, 400);
+}
+
+/**
+ * Transbordo direto (30/10/2026, regra do anfitrião): só a dúvida, sem
+ * sentimento do hóspede, introdução, causa interna nem confiança.
+ */
+export function directQuestion(text: string): string {
+  let t = text.replace(/\s+/g, " ").trim();
+  // Remove causa interna "a IA ... (confiança 40%). motivo. Pergunta: ..."
+  const q = t.match(/Pergunta:\s*(.+)$/i);
+  if (q && /confian[çc]a|a IA /i.test(t)) t = q[1]!.trim();
+  t = t
+    .replace(/\(confian[çc]a[^)]*\)\.?/gi, "")
+    .replace(/^(o|a)\s+h[óo]spede[^.?!,]{0,60}?(est[áa]|parece|mostrou-se|se mostrou)\s+(satisfeit[oa]|feliz|tranquil[oa]|irritad[oa]|bem-humorad[oa]|ansios[oa])[^.?!]{0,40}[.,]\s*/i, "")
+    .replace(/^[A-ZÀ-Ú][\wÀ-ú]+,\s*(satisfeit[oa]|feliz|tranquil[oa]|irritad[oa]|bem-humorad[oa]|ansios[oa])[^,.]{0,40},\s*/i, "")
+    .replace(/^(ol[áa]|oi|equipe|pessoal)[,!.:]?\s*/i, "")
+    .trim();
+  return t || text.trim();
 }

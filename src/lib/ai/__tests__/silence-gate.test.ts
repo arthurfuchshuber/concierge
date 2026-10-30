@@ -18,3 +18,13 @@ describe("cardSilencesAi", () => {
     expect(cardSilencesAi({ created_at: ago(121 * 60_000), context_snapshot: { decision: { kind: "action" } } }, now)).toBe(false);
   });
 });
+
+import { directQuestion } from "../human-loop/handoff-draft.server";
+describe("directQuestion", () => {
+  it("remove humor do hóspede e vai direto à dúvida", () => {
+    expect(directQuestion("Andressa, satisfeita e bem-humorada, quer saber onde comprou o cobertor?")).toBe("quer saber onde comprou o cobertor?");
+  });
+  it("remove causa interna e confiança", () => {
+    expect(directQuestion("a IA ficou em dúvida (confiança 40%). x. Pergunta: Onde fica a vaga?")).toBe("Onde fica a vaga?");
+  });
+});

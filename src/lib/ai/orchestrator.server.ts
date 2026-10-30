@@ -1313,14 +1313,12 @@ export async function runHospitalityAgent(params: {
     }).catch(() => null);
   }
 
-  // DÚVIDA COM A EQUIPE = SILÊNCIO TOTAL (19/10/2026, regra do anfitrião).
-  // Com pergunta aberta no painel, nada vai ao hóspede (nem "agradeço o aviso",
-  // nem "passei para a equipe"). A resposta única sai quando a equipe decide
-  // (`answerEscalation` → `speakWithAgent`), evitando excesso de mensagens.
-  if (escalationId) {
-    reply = SILENCE_TOKEN;
-  } else if (handoffReason) {
-    const limpo = stripPromiseSentences(reply ?? "");
+  // DÚVIDA COM A EQUIPE ≠ VÁCUO (30/10/2026, regra do anfitrião).
+  // A conversa continua: o que a IA já pode responder vai agora (sem promessa
+  // de retorno); só o ponto pendente aguarda a equipe. Sem nada aproveitável,
+  // um reconhecimento curto — nunca silêncio que pareça "não vi".
+  if (escalationId || handoffReason) {
+    const limpo = stripPromiseSentences(reply === SILENCE_TOKEN ? "" : reply ?? "");
     const soSaudacao = !limpo || isOnlyGreeting(limpo);
     reply = soSaudacao
       ? acknowledgementReply({
@@ -1328,7 +1326,7 @@ export async function runHospitalityAgent(params: {
           guestName: params.guestName ?? null,
           // Airbnb traduz sozinho: a IA sempre escreve em português nesse canal.
           language: replyInGuestLanguage ? intent.language : "pt",
-          ticketCreated: false,
+          ticketCreated: !!escalationId,
           notifiable: !!ownerId,
           formal: guestVoice.formal,
         })
