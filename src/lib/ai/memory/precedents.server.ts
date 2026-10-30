@@ -155,7 +155,7 @@ export async function recordPrecedent(params: {
   const candidates = await matchRaw(supabase, vector, params.ownerId, params.propertyId, 5);
   // Reforço: mesma conduta, mesma camada (nunca mexe no global a partir de uma conta).
   const similar = candidates.find(
-    (m) => m.similarity >= SAME_PRECEDENT_SIMILARITY && m.scope === scope && m.scope !== "global",
+    (m) => m.similarity >= SAME_PRECEDENT_SIMILARITY && m.scope === scope,
   );
   if (similar) {
     await supabase
