@@ -88,6 +88,13 @@ export function ensureGreeting(
   force = false,
 ): string {
   if (!reply.trim() || hasGreeting(reply) || /\[SILENCIO\]/i.test(reply)) return reply;
+  // A resposta já se dirige ao hóspede pelo nome logo de início: prefixar
+  // outro "Oi, Nome!" gera gagueira ("Oi, Guilherme! Obrigado, Guilherme!").
+  const fn = firstName(guestName);
+  if (fn) {
+    const opening = reply.split(/(?<=[.!?])\s+/)[0] ?? "";
+    if (new RegExp(`\\b${fn}\\b`, "i").test(opening)) return reply;
+  }
   const seed = history.length + (guestName?.length ?? 0);
   // Conversa parada há horas: retoma com um "Olá, Nome!" simples.
   const gap = msSinceLastOurs(history, now);
