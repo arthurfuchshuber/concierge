@@ -316,6 +316,14 @@ export async function processarFilaChannex(limite = 20): Promise<{ processados: 
         const { syncChannexEntities } = await import("@/lib/channex-entity-sync.server");
         await syncChannexEntities({ source: `webhook:${evento}` });
       }
+      // Mensagem/reserva/calendário: aproveita o evento para reler o anúncio se estiver antigo (>2h).
+      {
+        const pid = asRecord(item.payload)?.["property_id"];
+        if (typeof pid === "string" && evento !== null && !evento.startsWith("booking_unmapped")) {
+          const { refreshListingsIfStale } = await import("@/lib/channex-listing.server");
+          await refreshListingsIfStale(pid).catch((e) => console.error("[webhook] releitura do anúncio", e));
+        }
+      }
       await supabaseAdmin
         .from("fila_webhooks_channex")
         .update({ processado: true, processado_em: new Date().toISOString(), erro: null })

@@ -466,7 +466,16 @@ export async function scrapePublicListingForProperty(propertyId: string, opts: {
   const meta = row.listing_meta ?? {};
   const settings = row.raw_settings ?? {};
   const changed = !pub || JSON.stringify(row.normalized?.public_listing ?? null) !== JSON.stringify(pub);
-  if (opts.onlyIfChanged && !changed) return { ok: true, changed: false };
+  if (opts.onlyIfChanged && !changed) {
+    // Carimba a checagem (sem mudança) para o gatilho por evento saber que está fresco.
+    await supabaseAdmin
+      .from("property_listing_raw_data" as never)
+      .update({ normalized: { ...(row.normalized ?? {}), public_checked_at: new Date().toISOString() } } as never)
+      .eq("property_id", propertyId);
+    return { ok: true, changed: false };
+  }
+  if (row.normalized) row.normalized = { ...row.normalized, public_checked_at: new Date().toISOString() };
+  else row.normalized = { public_checked_at: new Date().toISOString() };
   if (pub) {
     const facts = [...normalizeListing(meta, settings), ...publicFacts(pub)];
     await supabaseAdmin
