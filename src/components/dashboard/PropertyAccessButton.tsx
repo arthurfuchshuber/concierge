@@ -533,8 +533,8 @@ export function PropertyAccessButton({ row }: { row: Row }) {
             const above = r.top - OVERLAY_COLLISION_PADDING.top;
             setSide(below >= above ? "bottom" : "top");
           }}
-          className={`grid place-items-center rounded-[0.3rem] border border-border/50 size-7 ${
-            open ? "bg-primary/[0.08]" : "bg-[var(--chip-bg)] hover:bg-primary/[0.08]"
+          className={`grid place-items-center rounded-[7px] border-0 size-7 ${
+            open ? "bg-primary/[0.08]" : "bg-[var(--action-sq-bg)] hover:bg-primary/[0.08]"
           }`}
         >
           <KeyRound className="size-3.5" />

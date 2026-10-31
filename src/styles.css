@@ -118,6 +118,7 @@
      No tema claro `bg-background/60` era quase branco sobre card branco e
      "conflitava" (pedido explícito, 09/10/2026): agora um bege quente. */
   --chip-bg: oklch(0.935 0.016 75);
+  --action-sq-bg: var(--chip-bg);
   /* Fundo dos cards do Kanban (29/10/2026): no claro segue o `bg-muted` suave de sempre. */
   --card-surface: color-mix(in oklab, var(--muted) 20%, transparent);
   --card-surface-hover: color-mix(in oklab, var(--muted) 35%, transparent);
@@ -196,6 +197,7 @@
   --panel: #211d1a;
   /* Igual ao que `bg-background/60` sempre foi no escuro — nada muda. */
   --chip-bg: color-mix(in oklab, var(--background) 60%, transparent);
+  --action-sq-bg: #0e0c0b;
   /* Fundo dos cards do Kanban (mockup aprovado 29/10/2026): #1a1615. */
   --card-surface: #1a1615;
   --card-surface-hover: #201b19;

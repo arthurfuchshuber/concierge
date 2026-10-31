@@ -237,30 +237,16 @@ function CheckBox({ checked }: { checked: boolean }) {
 
 /** Topo do menu raiz: "FILTROS" à esquerda, "Limpar" alinhado com "Todos". */
 export function FilterRootHeader({ canClear, onClear }: { canClear: boolean; onClear: () => void }) {
+  /* JANELA PADRÃO (mockup 31/10/2026): título "Filtros" 14 px negrito na margem de 16 px e "Limpar" 12 px
+     à direita, também a 16 px da borda. */
   return (
-    <div className={`relative flex items-center gap-2.5 py-3 px-3.5 ${ROW_DIVIDER}`}>
-      {/*
-       * "Limpar" alinhado com a BORDA ESQUERDA da palavra "Todos" nas linhas
-       * abaixo (pedido explícito, 23/09/2026 — 2ª correção: a 1ª tentativa,
-       * grudado em "Filtros" à esquerda com o resto da linha vazio, também
-       * ficou errada; antes dessa, alinhar pela borda DIREITA da coluna de
-       * valor tinha lido como "à direita"). Medido de verdade num build real
-       * do painel (280px, mesmo CSS compilado do app, fonte Manrope) em vez
-       * de chutar mais uma vez: com o painel/`PopoverContent` já `relative`
-       * (herdado aqui pela própria linha), o "Todos" de uma `FilterMenuRow`
-       * comum começa a 208px da borda do painel — 207px depois de descontar
-       * o `border` de 1px do quadrante, que é a origem do `left` de um filho
-       * `absolute`. Não depende do rótulo da linha (ex.: "Proprietário" vs.
-       * "Cidade"): o valor é sempre encostado à direita, antes da seta, e a
-       * seta/padding são os mesmos em toda linha — só o texto do MEIO
-       * (rótulo) muda de largura, e ele fica à esquerda desse ponto.
-       */}
-      <span className="ds-eyebrow text-muted-foreground">Filtros</span>
+    <div className={`flex items-center gap-2.5 px-4 py-3 ${ROW_DIVIDER}`}>
+      <span className="min-w-0 flex-1 text-sm font-bold leading-6 text-foreground">Filtros</span>
       <button
         type="button"
         disabled={!canClear}
         onClick={onClear}
-        className="absolute left-[207px] text-[11px] font-semibold text-foreground/70 transition-colors hover:text-foreground disabled:pointer-events-none disabled:text-foreground/30"
+        className="shrink-0 text-xs font-medium text-foreground/60 transition-colors hover:text-foreground disabled:pointer-events-none disabled:text-foreground/30"
       >
         Limpar
       </button>
@@ -288,7 +274,7 @@ export function FilterMenuRow({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-2.5 px-3.5 py-[11px] text-left ${ROW_HOVER} ${last ? "" : ROW_DIVIDER}`}
+      className={`flex w-full items-center gap-2.5 px-4 py-[11px] text-left ${ROW_HOVER} ${last ? "" : ROW_DIVIDER}`}
     >
       <FilterIconBadge icon={icon} />
       {/* O rótulo nunca é cortado; quem cede espaço é o valor. */}
@@ -302,7 +288,6 @@ export function FilterMenuRow({
           <span className="min-w-0 truncate text-xs text-muted-foreground">{value}</span>
         )}
       </span>
-      <ChevronRight className="size-[13px] shrink-0 text-foreground/35" strokeWidth={2.5} />
     </button>
   );
 }
@@ -383,8 +368,8 @@ export function FilterScreenHeader({
        Print 5: "remova completamente a linha divisória demarcada
        especificamente no Print 5") — o respiro do próprio padding já separa
        o cabeçalho do corpo da tela, sem precisar de um traço. */
-    <div className="flex items-center gap-[9px] px-3.5 py-[11px]">
-      <span className="ds-card-title min-w-0 flex-1">{title}</span>
+    <div className="flex items-center gap-[9px] px-4 py-3">
+      <span className="min-w-0 flex-1 text-sm font-bold leading-6 text-foreground">{title}</span>
       {right ? <span className="flex shrink-0 items-center self-center leading-none">{right}</span> : null}
     </div>
   );
@@ -397,7 +382,7 @@ export function FilterHeaderClear({ onClick, disabled }: { onClick: () => void; 
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="text-[11px] font-semibold text-foreground/70 transition-colors hover:text-foreground disabled:pointer-events-none disabled:text-foreground/30"
+      className="text-xs font-medium text-foreground/60 transition-colors hover:text-foreground disabled:pointer-events-none disabled:text-foreground/30"
     >
       Limpar
     </button>
@@ -425,7 +410,7 @@ export function FilterOptionRow({
       role="radio"
       aria-checked={selected}
       onClick={onClick}
-      className={`flex w-full items-center gap-[9px] px-3.5 py-2.5 text-left ${ROW_HOVER} ${last ? "" : ROW_DIVIDER}`}
+      className={`flex w-full items-center gap-[9px] px-4 py-2.5 text-left ${ROW_HOVER} ${last ? "" : ROW_DIVIDER}`}
     >
       <Check
         className={`size-3.5 shrink-0 text-accent ${selected ? "opacity-100" : "opacity-0"}`}
@@ -490,7 +475,7 @@ export function FilterMultiSelect({
 
   return (
     <>
-      <label className="mx-3.5 mb-1.5 mt-2.5 flex items-center gap-2 rounded-[9px] border border-border bg-[var(--panel-well)] px-2.5 py-2">
+      <label className="mx-4 mb-2.5 mt-1 flex items-center gap-2 rounded-[9px] border border-border bg-[var(--panel-well)] px-2.5 py-2">
         <Search className="size-3.5 shrink-0 text-foreground/40" strokeWidth={2} />
         <input
           value={query}
@@ -499,26 +484,20 @@ export function FilterMultiSelect({
           className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-foreground/40"
         />
       </label>
-      <div className="flex items-center justify-between px-3.5 pb-2 pt-0.5">
-        <button
-          type="button"
-          onClick={() => onChange(options.map((o) => o.value))}
-          className="text-[10.5px] font-semibold text-foreground/55 transition-colors hover:text-foreground"
-        >
-          Selecionar todos
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange([])}
-          disabled={selected.length === 0}
-          className="text-[10.5px] font-semibold text-foreground/55 transition-colors hover:text-foreground disabled:pointer-events-none disabled:text-foreground/25"
-        >
-          Limpar
-        </button>
-      </div>
+      {/* "Selecionar Todos": linha com caixinha (mockup 31/10/2026); o "Limpar" mora no cabeçalho. */}
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={options.length > 0 && selected.length === options.length}
+        onClick={() => onChange(selected.length === options.length ? [] : options.map((o) => o.value))}
+        className={`flex w-full items-center gap-2.5 border-t border-[var(--panel-div)] px-4 py-2.5 text-left ${ROW_HOVER}`}
+      >
+        <CheckBox checked={options.length > 0 && selected.length === options.length} />
+        <span className="text-[12.5px] font-bold text-foreground">Selecionar Todos</span>
+      </button>
       <div className="border-t border-[var(--panel-div)]">
         {visible.length === 0 ? (
-          <div className="px-3.5 py-6 text-center text-xs text-muted-foreground">{emptyLabel}</div>
+          <div className="px-4 py-6 text-center text-xs text-muted-foreground">{emptyLabel}</div>
         ) : (
           visible.map((o, i) => {
             const checked = selected.includes(o.value);
@@ -529,7 +508,7 @@ export function FilterMultiSelect({
                 role="checkbox"
                 aria-checked={checked}
                 onClick={() => toggle(o.value)}
-                className={`flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors ${
+                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
                   checked ? "bg-accent/[0.14]" : "hover:bg-foreground/[0.03]"
                 } ${i === visible.length - 1 ? "" : ROW_DIVIDER}`}
               >

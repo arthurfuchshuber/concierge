@@ -212,7 +212,7 @@ describe("Playbook · funções de servidor", () => {
     expect(saved).toContainEqual(expect.objectContaining({ field_key: "f:bairro", value: "Centro" }));
   });
 
-  it("telefone do anfitrião vazio usa o do proprietário vinculado", async () => {
+  it("telefone do anfitrião vazio continua vazio (sem fallback do proprietário)", async () => {
     results = {
       properties: { id: PID, name: "Casa X", address: "", host_phone: "", owner_contact_id: "22222222-2222-4222-8222-222222222222" },
       property_owners: { name: "Livia", trade_name: null, phone: "11987654321", phone_country: "BR" },
@@ -220,6 +220,6 @@ describe("Playbook · funções de servidor", () => {
     };
     const { getPlaybook } = await import("@/lib/playbook.functions");
     const out = await getPlaybook({ data: { propertyId: PID } });
-    expect(out.source.property.host_phone).toBe("+55 11 98765 4321");
+    expect(String(out.source.property.host_phone ?? "")).toBe("");
   });
 });

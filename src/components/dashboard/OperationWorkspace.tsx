@@ -100,6 +100,8 @@ import {
   MoreVertical,
   Banknote,
   CalendarRange,
+  MessageCircle,
+  ArrowRight,
   CalendarClock,
   User,
   Users,
@@ -312,6 +314,32 @@ function fmtDateBR(iso: string) {
   } catch {
     return iso;
   }
+}
+
+/** Destaca no texto (sem acento/caixa) os trechos que batem com os termos da busca. */
+function highlightTokens(text: string, tokens: string[]): React.ReactNode {
+  if (!tokens.length) return text;
+  const fold = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const folded = fold(text);
+  if (folded.length !== text.length) return text;
+  const marks = new Array<boolean>(text.length).fill(false);
+  for (const t of tokens) {
+    let i = folded.indexOf(t);
+    while (i >= 0 && t) {
+      for (let k = i; k < i + t.length; k++) marks[k] = true;
+      i = folded.indexOf(t, i + t.length);
+    }
+  }
+  const parts: React.ReactNode[] = [];
+  let k = 0;
+  while (k < text.length) {
+    let j = k;
+    while (j < text.length && marks[j] === marks[k]) j++;
+    const chunk = text.slice(k, j);
+    parts.push(marks[k] ? <mark key={k} className="rounded-[3px] bg-foreground/[0.16] px-px text-foreground">{chunk}</mark> : chunk);
+    k = j;
+  }
+  return <>{parts}</>;
 }
 function todayISOSaoPaulo(): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -5028,7 +5056,7 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
              só o ícone na cor — sem o círculo âmbar por trás. A palavra
              "ALERTA" saiu; o nome acessível e o `title` continuam dizendo o
              que é. */
-          className="grid size-7 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-amber-600 transition-colors hover:bg-primary/[0.08] dark:text-amber-400"
+          className="grid size-7 place-items-center rounded-[7px] border-0 bg-[var(--action-sq-bg)] text-amber-600 transition-colors hover:bg-primary/[0.08] dark:text-amber-400"
           title="Ver alertas"
           aria-label="Ver alertas"
         >
@@ -7205,7 +7233,7 @@ const FILTER_DOT = (
  * (todas as colunas, anti-corte) continua intacta. Mesmo quadrante de fundo
  * da busca e do botão FILTROS.
  */
-function CalendarPeriodButton({ onJump }: { onJump: (startISO: string) => void }) {
+function CalendarPeriodButton({ onJump, bare }: { onJump: (startISO: string) => void; bare?: boolean }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange | undefined>(undefined);
   // O mês abre SEMPRE no de hoje (regra de 23/09/2026).
@@ -7226,7 +7254,11 @@ function CalendarPeriodButton({ onJump }: { onJump: (startISO: string) => void }
           type="button"
           title="Ir para uma data"
           aria-label="Ir para uma data ou período"
-          className="relative grid size-9 shrink-0 place-items-center rounded-[0.3rem] border-0 bg-foreground/[0.07] text-foreground/70 transition-colors hover:text-foreground data-[state=open]:bg-foreground/[0.13] data-[state=open]:text-foreground sm:size-8"
+          className={
+            bare
+              ? "relative grid h-full place-items-center bg-transparent text-foreground/70 transition-colors hover:text-foreground data-[state=open]:text-foreground"
+              : "relative grid size-9 shrink-0 place-items-center rounded-[0.3rem] border-0 bg-foreground/[0.07] text-foreground/70 transition-colors hover:text-foreground data-[state=open]:bg-foreground/[0.13] data-[state=open]:text-foreground sm:size-8"
+          }
         >
           <CalendarRange className="size-[15px] opacity-80" strokeWidth={2} />
         </button>
@@ -7442,6 +7474,7 @@ function CalendarFiltersButton({
   propertyOptions,
   hidePeriod,
   quadrantTrigger,
+  bareTrigger,
   situationOptions,
   situation,
   onSituationChange,
@@ -7488,6 +7521,8 @@ function CalendarFiltersButton({
   /** Gatilho com quadrante de fundo (mesmo tom da busca e do ícone de período);
    * no celular vira só o ícone. */
   quadrantTrigger?: boolean;
+  /** Só o ícone, sem caixinha: dentro da barra única de busca do calendário (mockup 31/10/2026). */
+  bareTrigger?: boolean;
   /** Filtro de Situação (aba Serviços, 23/10/2026). No celular é a PRIMEIRA
    * linha deste menu; no computador o mesmo filtro mora num segmento ao lado
    * do "+", então a linha some (`lg:hidden`). */
@@ -7595,7 +7630,17 @@ function CalendarFiltersButton({
         {/* Pedido explícito: sem "quadrante" (fundo/borda) — igual ao
             tratamento da borracha de limpar filtros, só ícone + texto
             soltos, sem caixinha ao redor, e SEM fundo nem no hover. */}
-        {quadrantTrigger ? (
+        {bareTrigger ? (
+          <button
+            type="button"
+            title={hasCustomFilters ? "Filtros · há filtro ativo" : "Filtros"}
+            aria-label="Filtros"
+            className="relative grid h-full place-items-center bg-transparent text-foreground/70 transition-colors hover:text-foreground data-[state=open]:text-foreground"
+          >
+            <Filter className="size-4" strokeWidth={1.8} />
+            {hasCustomFilters && <span className="absolute right-3 top-2.5 size-[6px] rounded-full bg-accent" />}
+          </button>
+        ) : quadrantTrigger ? (
           <button
             type="button"
             title={hasCustomFilters ? "Filtros · há filtro ativo" : "Filtros"}
@@ -7803,7 +7848,7 @@ function CalendarFiltersButton({
               icon={MapPin}
               title="Cidade"
               onBack={() => setScreen("root")}
-              right={<FilterCountBadge count={cityFilters.length} />}
+              right={<FilterHeaderClear disabled={(cityFilters.length) === 0} onClick={() => onCityFiltersChange([])} />}
             />
             <FilterMultiSelect
               options={cityOptions.map((o) => ({ value: o, label: o }))}
@@ -7820,7 +7865,7 @@ function CalendarFiltersButton({
               icon={Users}
               title="Proprietário"
               onBack={() => setScreen("root")}
-              right={<FilterCountBadge count={ownerFilters.length} />}
+              right={<FilterHeaderClear disabled={(ownerFilters.length) === 0} onClick={() => onOwnerFiltersChange([])} />}
             />
             <FilterMultiSelect
               options={ownerOptions.map((o) => ({
@@ -7841,7 +7886,7 @@ function CalendarFiltersButton({
               icon={HardHat}
               title="Prestador"
               onBack={() => setScreen("root")}
-              right={<FilterCountBadge count={providerFilters.length} />}
+              right={<FilterHeaderClear disabled={(providerFilters.length) === 0} onClick={() => onProviderFiltersChange([])} />}
             />
             <FilterMultiSelect
               options={providerOptions.map((o) => ({
@@ -7863,7 +7908,7 @@ function CalendarFiltersButton({
               icon={PropertyFilterIcon}
               title="Imóveis"
               onBack={() => setScreen("root")}
-              right={<FilterCountBadge count={propertyFilters?.length ?? 0} />}
+              right={<FilterHeaderClear disabled={(propertyFilters?.length ?? 0) === 0} onClick={() => onPropertyFiltersChange([])} />}
             />
             <FilterMultiSelect
               options={propertyOptions}
@@ -8860,6 +8905,55 @@ function OccupancyPanel({
     return { res, rows: shownProperties.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownProperties, byProperty, textTokens]);
+  /* BUSCA ABERTA (mockup 31/10/2026): campo com foco ou texto digitado. "Cancelar"/fundo fecham e limpam. */
+  const [searchFocus, setSearchFocus] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const searchOpen = searchFocus || query.length > 0;
+  const closeSearch = (clear = true) => {
+    setSearchFocus(false);
+    if (clear) setQuery("");
+    searchInputRef.current?.blur();
+  };
+  const searchResults = useMemo(() => {
+    if (!searching) return [] as Array<{
+      key: string;
+      propertyName: string;
+      ownerName: string | null;
+      ownerPhone: string | null;
+      ownerPhoneCountry: string | null;
+      guest: string | null;
+      checkin: string | null;
+      checkout: string | null;
+    }>;
+    const out: Array<{
+      key: string;
+      propertyName: string;
+      ownerName: string | null;
+      ownerPhone: string | null;
+      ownerPhoneCountry: string | null;
+      guest: string | null;
+      checkin: string | null;
+      checkout: string | null;
+    }> = [];
+    for (const p of shownProperties) {
+      const base = {
+        propertyName: p.name,
+        ownerName: p.ownerName ?? null,
+        ownerPhone: p.ownerPhone ?? null,
+        ownerPhoneCountry: p.ownerPhoneCountry ?? null,
+      };
+      const hits = (byProperty.get(p.id) ?? []).filter((st) => matchState(p, st) === "hit");
+      if (hits.length === 0) {
+        out.push({ key: p.id, ...base, guest: null, checkin: null, checkout: null });
+      } else {
+        for (const st of hits)
+          out.push({ key: `${p.id}:${st.checkin}`, ...base, guest: st.guest, checkin: st.checkin, checkout: st.checkout });
+      }
+      if (out.length >= 50) break;
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownProperties, byProperty, textTokens]);
   const list = useWholeCardsMaxHeight(`${shownProperties.length}:${loading}:${dayW}`, 8);
 
   // ROLAGEM EM UM EIXO SÓ (pedido explícito, 17/10/2026: "o calendário não
@@ -9068,37 +9162,6 @@ function OccupancyPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownProperties, dayList, firstVisIdx, visibleDays, byProperty, checkedInPropertyIds, todayISO]);
 
-  const searchField = (cls: string, autoFocus: boolean) => (
-    <label className={`relative ${cls}`}>
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60" />
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        autoFocus={autoFocus}
-        placeholder="Buscar hóspede, imóvel, mês, valor…"
-        aria-label="Buscar no calendário"
-        className={`h-8 w-full rounded-[0.3rem] border-0 bg-foreground/[0.07] pl-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:bg-foreground/[0.1] focus:outline-none ${
-          searching ? "pr-7 sm:pr-[9.5rem]" : query ? "pr-7" : "pr-2"
-        }`}
-      />
-      {searching && (
-        <span className="pointer-events-none absolute right-7 top-1/2 hidden -translate-y-1/2 text-[10.5px] font-semibold text-muted-foreground sm:inline">
-          {searchStats.res} {searchStats.res === 1 ? "reserva" : "reservas"} · {searchStats.rows} {searchStats.rows === 1 ? "imóvel" : "imóveis"}
-        </span>
-      )}
-      {query && (
-        <button
-          type="button"
-          onClick={() => setQuery("")}
-          aria-label="Limpar busca"
-          className="absolute right-1.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center text-muted-foreground hover:text-foreground"
-        >
-          <X className="size-3.5" />
-        </button>
-      )}
-    </label>
-  );
-
   return (
     <section className="ds-3d relative rounded-[14px] border-0 bg-card">
       {/* Pedido explícito: o botão único de filtros (Período/Cidade/
@@ -9108,72 +9171,125 @@ function OccupancyPanel({
             <div> com dois botões independentes (título+ícone / filtros),
             mais a setinha por último. Clicar no título OU na setinha
             expande/recolhe; clicar no botão de filtros não. */}
-      <div className="flex w-full items-center gap-2 py-3.5 pl-4 pr-4 text-left sm:pl-5 sm:pr-5">
-        {mobileSearch ? (
-          <>
-            {searchField("min-w-0 flex-1", true)}
+      {/* CABEÇALHO (mockup 31/10/2026, "Dashboard — Calendário/Busca"): título 14 px negrito centralizado e UMA barra
+          (busca + Período + Filtros, mesmo padrão da tela Registros). Com a busca aberta, a barra encolhe, aparece
+          "Cancelar" e os resultados ficam num painel flutuante sobre o fundo desfocado. */}
+      {searchOpen && (
+        <div
+          aria-hidden
+          onClick={() => closeSearch()}
+          className="fixed inset-0 z-30 bg-background/60 backdrop-blur-sm"
+        />
+      )}
+      <div className={`relative px-4 pb-3.5 pt-3.5 ${searchOpen ? "z-40" : ""}`}>
+        <div className="truncate text-center text-sm font-bold leading-6" title="Calendário de Ocupação">
+          Calendário de Ocupação
+        </div>
+        <div className="mt-3 flex items-center gap-2.5">
+          <SearchActionRow
+            className="min-w-0 flex-1"
+            value={query}
+            onChange={setQuery}
+            placeholder="Buscar hóspede, imóvel, mês, valor…"
+            onInputFocus={() => setSearchFocus(true)}
+            inputRef={searchInputRef}
+            actions={
+              searchOpen ? undefined : (
+                <>
+                  <CalendarPeriodButton bare onJump={(d) => setJump({ date: d, n: Date.now() })} />
+                  <CalendarFiltersButton
+                    hidePeriod
+                    bareTrigger
+                    periodRange={periodRange}
+                    onPeriodRangeChange={onPeriodRangeChange}
+                    cityFilters={cityFilters}
+                    onCityFiltersChange={onCityFiltersChange}
+                    cityOptions={cityOptions}
+                    ownerFilters={ownerFilters}
+                    onOwnerFiltersChange={onOwnerFiltersChange}
+                    ownerOptions={ownerOptions}
+                    ownerSubtitles={ownerSubtitles}
+                    providerFilters={providerFilters}
+                    onProviderFiltersChange={onProviderFiltersChange}
+                    providerOptions={providerOptions}
+                    providerSubtitles={providerSubtitles}
+                    // O pontinho do FILTROS não conta mais o período (ele tem o próprio ícone).
+                    hasCustomFilters={cityFilters.length > 0 || ownerFilters.length > 0 || providerFilters.length > 0}
+                    onClearAll={onClearAllFilters}
+                  />
+                </>
+              )
+            }
+          />
+          {searchOpen && (
             <button
               type="button"
-              aria-label="Fechar busca"
-              onClick={() => {
-                setMobileSearch(false);
-                setQuery("");
-              }}
-              className="grid size-9 shrink-0 place-items-center rounded-[0.3rem] bg-foreground/[0.07] text-muted-foreground hover:text-foreground"
+              onClick={() => closeSearch()}
+              className="shrink-0 text-xs font-bold text-foreground/90 transition-colors hover:text-foreground"
             >
-              <X className="size-3.5" />
+              Cancelar
             </button>
-          </>
-        ) : (
-          <>
-            <div
-              /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): ícone em
-                 caixinha e título em Sora, como nos demais cards. O título fica
-                 numa linha só, com reticências. Não é mais botão: o calendário é
-                 FIXO (16/10/2026). */
-              className="flex min-w-0 flex-1 items-center gap-2 text-left"
-            >
-              <span className="ds-card-title min-w-0 flex-1 text-[14px] !font-medium" title="Calendário de ocupação">
-                Calendário de ocupação
-              </span>
+          )}
+        </div>
+        {searchOpen && searching && (
+          <div className="absolute inset-x-4 top-full -mt-2 overflow-hidden rounded-[14px] border border-border bg-[var(--panel)] shadow-[0_18px_40px_rgba(0,0,0,0.6)]">
+            <p className="py-2.5 text-center text-[11px] font-semibold text-muted-foreground">
+              {searchResults.length === 1 ? "1 busca encontrada..." : `${searchResults.length} buscas encontradas...`}
+            </p>
+            <div className="sg-elegant-scroll max-h-[min(420px,60dvh)] overflow-y-auto">
+              {searchResults.map((r) => (
+                <div
+                  key={r.key}
+                  data-clip-row
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    if (r.checkin) setJump({ date: r.checkin, n: Date.now() });
+                    closeSearch(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && r.checkin) {
+                      setJump({ date: r.checkin, n: Date.now() });
+                      closeSearch(false);
+                    }
+                  }}
+                  className="cursor-pointer space-y-0.5 border-t border-[var(--panel-div)] px-4 py-2.5 transition-colors hover:bg-foreground/[0.03]"
+                >
+                  <div className="truncate text-[12.5px] font-bold leading-snug">{r.propertyName}</div>
+                  {r.ownerName && (
+                    <OwnerLine
+                      name={r.ownerName}
+                      phone={r.ownerPhone}
+                      country={r.ownerPhoneCountry}
+                      phonePosition="adjacent"
+                      className="text-[10.5px]"
+                      size={11}
+                    />
+                  )}
+                  {r.guest && (
+                    <div className="flex min-w-0 items-center gap-1.5 text-[10.5px]">
+                      <span className="shrink-0 text-muted-foreground">Hóspede:</span>
+                      <span className="min-w-0 truncate font-semibold text-foreground">{highlightTokens(r.guest, textTokens)}</span>
+                      <PhoneActionButton phone={null} size={11} alwaysShow className="-my-1 shrink-0 p-1" />
+                    </div>
+                  )}
+                  {r.checkin && (
+                    <div className="flex items-center gap-1.5 text-[10.5px] font-medium text-emerald-400">
+                      <CalendarRange className="size-[11px]" strokeWidth={1.9} />
+                      <span>{fmtDateBR(r.checkin)}</span>
+                      <ArrowRight className="size-[10px]" strokeWidth={2} />
+                      <span>{r.checkout ? fmtDateBR(r.checkout) : "—"}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div className="h-1" />
             </div>
-            {/* Celular: a lupa troca o título pelo campo (mockup B). */}
-            <button
-              type="button"
-              aria-label="Buscar"
-              onClick={() => setMobileSearch(true)}
-              className="grid size-9 shrink-0 place-items-center rounded-[0.3rem] bg-foreground/[0.07] text-foreground/80 hover:text-foreground sm:hidden"
-            >
-              <Search className="size-3.5" />
-            </button>
-            {/* Computador: campo à esquerda de FILTROS. */}
-            {searchField("hidden w-[320px] shrink-0 sm:block", false)}
-            {/* Período: ícone próprio entre a busca e FILTROS (16/10/2026). */}
-            <CalendarPeriodButton onJump={(d) => setJump({ date: d, n: Date.now() })} />
-            <CalendarFiltersButton
-              hidePeriod
-              quadrantTrigger
-              periodRange={periodRange}
-              onPeriodRangeChange={onPeriodRangeChange}
-              cityFilters={cityFilters}
-              onCityFiltersChange={onCityFiltersChange}
-              cityOptions={cityOptions}
-              ownerFilters={ownerFilters}
-              onOwnerFiltersChange={onOwnerFiltersChange}
-              ownerOptions={ownerOptions}
-              ownerSubtitles={ownerSubtitles}
-              providerFilters={providerFilters}
-              onProviderFiltersChange={onProviderFiltersChange}
-              providerOptions={providerOptions}
-              providerSubtitles={providerSubtitles}
-              // O pontinho do FILTROS não conta mais o período (ele tem o próprio ícone).
-              hasCustomFilters={cityFilters.length > 0 || ownerFilters.length > 0 || providerFilters.length > 0}
-              onClearAll={onClearAllFilters}
-            />
-          </>
+          </div>
         )}
       </div>
-      <div className="border-t border-border/50 px-4 sm:px-5 pt-0 pb-5">
+      {/* Quadro de ponta a ponta no card (mockup 31/10/2026): sem recuo lateral, barra de rolagem colada na lateral. */}
+      <div className="border-t border-border/50 px-0 pt-0 pb-4">
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
@@ -9242,12 +9358,11 @@ function OccupancyPanel({
                               {k > 0 && (
                                 <span aria-hidden className="pointer-events-none absolute bottom-0 left-0 top-0 w-px bg-foreground/20" />
                               )}
-                              <div className="sticky flex items-center gap-3 px-3" style={{ left: nameColW, width: visW }}>
-                                <i className="h-px flex-1 bg-gradient-to-r from-transparent to-foreground/15" />
-                                <span className="whitespace-nowrap text-[10.5px] font-semibold uppercase tracking-[0.18em] text-foreground/75">
-                                  {MONTHS_PT[g.month - 1]} <span className="text-muted-foreground">{g.year}</span>
+                              {/* Mockup 31/10/2026: rótulo do mês À ESQUERDA do trecho visível (9,5 px, caixa alta, 0,14em), sem fios laterais. */}
+                              <div className="sticky flex items-center justify-start px-2" style={{ left: nameColW, width: visW }}>
+                                <span className="whitespace-nowrap text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                  {MONTHS_PT[g.month - 1]} {g.year}
                                 </span>
-                                <i className="h-px flex-1 bg-gradient-to-l from-transparent to-foreground/15" />
                               </div>
                             </th>
                           );
@@ -9630,9 +9745,11 @@ function OccupancyPanel({
                                       >
                                         {/* Nome + valor CENTRALIZADOS na barra. Sem valor no dado
                                             (reserva só do iCal, que não traz pagamento): "—". */}
-                                        <span className="truncate">
-                                          <span className="nm font-bold">{labels.get(i)!.name}</span>
-                                          <span className="ml-0.5 font-medium"> {labels.get(i)!.value ?? "—"}</span>
+                                        {/* Mockup 31/10/2026: nome + ícone de chat do hóspede (verde, padrão do sistema) + valor. */}
+                                        <span className="flex min-w-0 items-center gap-1.5">
+                                          <span className="nm min-w-0 truncate font-bold">{labels.get(i)!.name}</span>
+                                          <MessageCircle className="size-[11px] shrink-0 text-[#2fd7a2]" strokeWidth={2} aria-hidden />
+                                          <span className="shrink-0 font-medium">{labels.get(i)!.value ?? "—"}</span>
                                         </span>
                                       </span>
                                     )}
@@ -10980,7 +11097,7 @@ function ArrivalCard({
          próprio `rounded-l`. E `isolate` cria o contexto de empilhamento do
          card, para a etiqueta ficar acima do card de cima sem depender da
          ordem em que os cards aparecem no DOM. */
-      className="group relative isolate flex cursor-pointer snap-start flex-col rounded-[12px] border border-border bg-[var(--card-surface)] p-3 pl-3.5 gap-2 transition-colors hover:bg-[var(--card-surface-hover)]"
+      className="group relative isolate flex cursor-pointer snap-start flex-col rounded-[12px] border border-border bg-[var(--card-surface)] p-3.5 gap-2 transition-colors hover:bg-[var(--card-surface-hover)]"
     >
       <CleaningPriceDialog
         open={priceOpen}
@@ -11617,7 +11734,7 @@ function ArrivalCard({
                           ? "Reabrir (voltar para Pendente)"
                           : "Marcar como Concluído"
             }
-            className={`flex-1 min-w-0 self-center box-border leading-none inline-flex items-center justify-center gap-2 font-semibold tracking-tight rounded-[0.3rem] transition-all active:scale-[0.99] h-7 max-h-7 min-h-7 px-2.5 text-[11px] ${
+            className={`flex-1 min-w-0 self-center box-border leading-none inline-flex items-center justify-center gap-2 font-semibold tracking-tight rounded-[7px] transition-all active:scale-[0.99] h-7 max-h-7 min-h-7 px-2.5 text-[11px] ${
               awaitingCheckout
                 ? "bg-amber-900/20 text-amber-800 dark:text-amber-600 border border-amber-800/40 cursor-not-allowed"
                 : cleaningBlock
@@ -11721,10 +11838,10 @@ function ArrivalCard({
                 type="button"
                 aria-label="Mais opções"
                 title="Nota interna e alertas"
-                className={`grid place-items-center rounded-[0.3rem] border size-7 ${
+                className={`grid place-items-center rounded-[7px] size-7 ${
                   isMutedNow
-                    ? "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400"
-                    : "bg-[var(--chip-bg)] border-border/50 hover:bg-primary/[0.08]"
+                    ? "border bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400"
+                    : "border-0 bg-[var(--action-sq-bg)] hover:bg-primary/[0.08]"
                 }`}
               >
                 <MoreVertical className="size-3.5" />

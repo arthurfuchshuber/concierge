@@ -181,11 +181,11 @@ function ClampedValue({ text, full, className }: { text: string; full: boolean; 
 
   if (full) return <span className={`min-w-0 flex-1 whitespace-pre-line ${className}`}>{text}</span>;
   return (
-    <span ref={box} className={`relative min-w-0 flex-1 ${className}`}>
+    <span ref={box} className={`relative min-w-0 flex-1 whitespace-pre-line ${className}`}>
       <span
         ref={probe}
         aria-hidden
-        className="pointer-events-none invisible absolute left-0 top-0 w-full whitespace-normal break-words text-sm leading-5"
+        className="pointer-events-none invisible absolute left-0 top-0 w-full whitespace-pre-line break-words text-sm leading-5"
       />
       {cut === null ? (
         text

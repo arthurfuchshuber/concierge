@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isPendingCategory } from "@/lib/record-pending";
+import { resolveReservationIdentity } from "@/lib/reservation-identity";
 
 // "Registros da reserva" (pedido explícito, 07/09/2026): uma linha do tempo
 // ÚNICA por reserva — foto, vídeo, áudio, arquivo ou nota de
@@ -1509,6 +1510,8 @@ export type AccountRecord = ReservationRecord & {
    */
   reservationKey: string | null;
   guestName: string | null;
+  guestPhone?: string | null;
+  guestPhoneCountry?: string | null;
   reservationCode: string | null;
   checkinDate: string | null;
   checkoutDate: string | null;
@@ -1778,6 +1781,8 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       code: string | null;
       checkin: string | null;
       checkout: string | null;
+      guestPhone?: string | null;
+      guestPhoneCountry?: string | null;
     };
     const resByLog = new Map<string, ResInfo>();
     const resByRes = new Map<string, ResInfo>();
@@ -1785,11 +1790,13 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     if (logIds.length > 0) {
       const { data: logs } = await supabase
         .from("guide_access_logs")
-        .select("id, guest_name, reservation_code, checkin_date, checkout_date")
+        .select("id, guest_name, guest_phone, guest_phone_country, reservation_code, checkin_date, checkout_date")
         .in("id", logIds);
       for (const l of (logs ?? []) as Array<{
         id: string;
         guest_name: string | null;
+        guest_phone: string | null;
+        guest_phone_country: string | null;
         reservation_code: string | null;
         checkin_date: string | null;
         checkout_date: string | null;
@@ -1799,25 +1806,33 @@ export const listAccountRecords = createServerFn({ method: "GET" })
           code: (l.reservation_code ?? "").trim() || null,
           checkin: iso(l.checkin_date),
           checkout: iso(l.checkout_date),
+          guestPhone: l.guest_phone ?? null,
+          guestPhoneCountry: l.guest_phone_country ?? null,
         });
       }
     }
     if (resIds.length > 0) {
       const { data: res } = await supabase
         .from("property_reservations")
-        .select("id, guest_hint, checkin_date, checkout_date")
+        .select("id, source, guest_hint, guest_contacts, checkin_date, checkout_date")
         .in("id", resIds);
       for (const r of (res ?? []) as Array<{
         id: string;
+        source: string | null;
         guest_hint: string | null;
+        guest_contacts: unknown;
         checkin_date: string | null;
         checkout_date: string | null;
       }>) {
+        // Nome, código e telefone oficiais da API (Channex) quando a reserva vem de anúncio sincronizado.
+        const ident = resolveReservationIdentity(r);
         resByRes.set(r.id, {
-          guestName: (r.guest_hint ?? "").trim() || null,
-          code: null,
+          guestName: ident.guestName ?? ((r.guest_hint ?? "").trim() || null),
+          code: ident.reservationCode ?? null,
           checkin: iso(r.checkin_date),
           checkout: iso(r.checkout_date),
+          guestPhone: ident.guestPhone ?? null,
+          guestPhoneCountry: null,
         });
       }
     }
@@ -1954,6 +1969,8 @@ export const listAccountRecords = createServerFn({ method: "GET" })
         taskTitle: task?.title ?? null,
         reservationKey,
         guestName: res?.guestName ?? null,
+        guestPhone: res?.guestPhone ?? null,
+        guestPhoneCountry: res?.guestPhoneCountry ?? null,
         reservationCode: res?.code ?? null,
         checkinDate: res?.checkin ?? null,
         checkoutDate: res?.checkout ?? null,

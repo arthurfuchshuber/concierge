@@ -95,6 +95,7 @@ import {
   ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { formatIntlPhone } from "@/lib/masks";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { OverlayChip, OverlayHeader } from "@/components/ds/OverlayHeader";
 
@@ -2467,6 +2468,7 @@ function RecordViewerBody({
               title: "Reserva",
               rows: [
                 ["Hóspede", record.guestName, true],
+                ["Telefone", record.guestPhone ? formatIntlPhone(record.guestPhone, record.guestPhoneCountry) || record.guestPhone : null, false],
                 ["Código da Reserva", record.reservationCode, false],
                 ["Período", stay, false],
               ] as [string, string | null | undefined, boolean][],
@@ -2509,8 +2511,8 @@ function RecordViewerBody({
                           <dd className="flex min-w-0 items-center gap-1.5 font-semibold">
                             {chat && (
                               <PhoneActionButton
-                                phone={null /* telefone do hóspede ainda não vem na consulta de registros */}
-                                country={null}
+                                phone={record.guestPhone ?? null}
+                                country={record.guestPhoneCountry ?? null}
                                 size={14}
                                 alwaysShow
                                 className="shrink-0 p-0.5"
@@ -2545,7 +2547,7 @@ function RecordViewerBody({
             <button
               type="button"
               onClick={onResolve}
-              className="box-border inline-flex h-7 min-h-7 min-w-0 flex-1 items-center justify-center gap-2 rounded-[0.3rem] bg-emerald-600 px-2.5 text-[11px] font-semibold leading-none tracking-tight text-white transition-all hover:bg-emerald-700 active:scale-[0.99]"
+              className="box-border inline-flex h-7 min-h-7 min-w-0 flex-1 items-center justify-center gap-2 rounded-[7px] bg-emerald-600 px-2.5 text-[11px] font-semibold leading-none tracking-tight text-white transition-all hover:bg-emerald-700 active:scale-[0.99]"
             >
               <Check className="size-3 shrink-0" />
               <span className="truncate">Resolvido</span>
@@ -2557,7 +2559,7 @@ function RecordViewerBody({
             onClick={() => setEditing(true)}
             aria-label="Editar título e descrição"
             title="Editar título e descrição"
-            className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-foreground transition-colors hover:bg-primary/[0.08]"
+            className="grid size-7 shrink-0 place-items-center rounded-[7px] border-0 bg-[var(--action-sq-bg)] text-foreground transition-colors hover:bg-primary/[0.08]"
           >
             <Pencil className="size-3.5" />
           </button>
@@ -2568,7 +2570,7 @@ function RecordViewerBody({
               disabled={baixando}
               aria-label="Baixar todas as mídias"
               title="Baixa todas as mídias deste registro"
-              className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-foreground transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
+              className="grid size-7 shrink-0 place-items-center rounded-[7px] border-0 bg-[var(--action-sq-bg)] text-foreground transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
             >
               {baixando ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
             </button>
@@ -2579,7 +2581,7 @@ function RecordViewerBody({
             onClick={() => onDelete(Array.from(new Set([record.id, ...media.map((m) => m.id)])))}
             aria-label="Excluir"
             title="Excluir"
-            className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] text-[#d49a9a] transition-colors hover:bg-primary/[0.08]"
+            className="grid size-7 shrink-0 place-items-center rounded-[7px] border-0 bg-[var(--action-sq-bg)] text-[#d49a9a] transition-colors hover:bg-primary/[0.08]"
           >
             <Trash2 className="size-3.5" />
           </button>
@@ -3308,7 +3310,7 @@ function RecordsFiltersButton({
               icon={Users}
               title="Proprietário"
               onBack={() => setScreen("root")}
-              right={<FilterCountBadge count={ownerFilters.length} />}
+              right={<FilterHeaderClear disabled={(ownerFilters.length) === 0} onClick={() => onOwnerFiltersChange([])} />}
             />
             <FilterMultiSelect
               options={ownerOptions.map((o) => {
@@ -3332,7 +3334,7 @@ function RecordsFiltersButton({
               icon={Building2}
               title="Imóvel"
               onBack={() => setScreen("root")}
-              right={<FilterCountBadge count={propertyFilters.length} />}
+              right={<FilterHeaderClear disabled={(propertyFilters.length) === 0} onClick={() => onPropertyFiltersChange([])} />}
             />
             <FilterMultiSelect
               options={propertyOptions.map((p) => ({

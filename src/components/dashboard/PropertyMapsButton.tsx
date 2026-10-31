@@ -106,7 +106,7 @@ export function PropertyMapsButton({
           e.stopPropagation();
           toast.info("Este imóvel ainda não tem endereço nem link do Maps cadastrado.");
         }}
-        className="grid shrink-0 place-items-center rounded-[0.3rem] bg-[var(--chip-bg)] border border-border/50 size-7 text-muted-foreground/40 hover:text-muted-foreground"
+        className="grid shrink-0 place-items-center rounded-[7px] bg-[var(--action-sq-bg)] border-0 size-7 text-muted-foreground/40 hover:text-muted-foreground"
       >
         <MapPin className="size-3.5" />
       </button>
@@ -121,7 +121,7 @@ export function PropertyMapsButton({
             type="button"
             aria-label="Opções do Maps"
             title={garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
-            className="grid shrink-0 place-items-center rounded-[0.3rem] bg-[var(--chip-bg)] border border-border/50 hover:bg-primary/[0.08] size-7"
+            className="grid shrink-0 place-items-center rounded-[7px] bg-[var(--action-sq-bg)] border-0 hover:bg-primary/[0.08] size-7"
           >
             <MapPin className="size-3.5" />
           </button>

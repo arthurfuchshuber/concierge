@@ -206,14 +206,7 @@ export const getPlaybook = createServerFn({ method: "POST" })
       }
     }
 
-    // Telefone do anfitrião vazio no imóvel: usa o do proprietário vinculado (só leitura, não grava no imóvel).
-    if (!String(property.host_phone ?? "").trim() && ownerRes.data) {
-      const ph = (ownerRes.data as { phone: string | null; phone_country: string | null }).phone;
-      if (ph && ph.trim()) {
-        const { formatIntlPhone } = await import("@/lib/masks");
-        property.host_phone = formatIntlPhone(ph, (ownerRes.data as { phone_country: string | null }).phone_country);
-      }
-    }
+    // Telefone do anfitrião: NUNCA preenchido a partir do proprietário. Se o anfitrião não informou no imóvel, fica vazio.
 
     const o = ownerRes.data as { name: string | null; trade_name: string | null; phone: string | null; phone_country: string | null } | null;
     return {

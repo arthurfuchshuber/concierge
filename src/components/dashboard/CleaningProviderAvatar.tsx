@@ -51,18 +51,18 @@ function Face({
       ? "ds-3d ds-3d-hover border border-border/70 bg-card shadow-sm"
       : look === "plain"
         ? ""
-        : "border border-border/50 bg-[var(--chip-bg)]";
+        : "border-0 bg-[var(--action-sq-bg)]";
   return url ? (
     <img src={url} alt={name ?? ""} className="rounded-[0.3rem] object-cover" style={{ width: size, height: size }} />
   ) : (
     <span
       title={name ?? undefined}
-      className={`inline-flex shrink-0 items-center justify-center rounded-[0.3rem] ${box}`}
+      className={`inline-flex shrink-0 items-center justify-center ${look === "default" ? "rounded-[7px]" : "rounded-[0.3rem]"} ${box}`}
       style={{ minWidth: size, height: size, paddingInline: name ? 5 : 0 }}
     >
       {/* Pedido explícito (09/10/2026): SEMPRE as letras do prestador, nunca a
           vassoura. Sem prestador definido ainda, um "?" no mesmo traço. */}
-      <span className={`block text-[16px] font-semibold leading-none tracking-[-0.02em] ${ink} [text-box:trim-both_cap_alphabetic]`}>
+      <span className={`block ${look === "default" ? "text-[12px] font-extrabold" : "text-[16px] font-semibold"} leading-none tracking-[-0.02em] ${ink} [text-box:trim-both_cap_alphabetic]`}>
         {name ? initials(name) : "?"}
       </span>
     </span>

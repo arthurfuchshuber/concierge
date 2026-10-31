@@ -172,7 +172,7 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
 
       <div className="flex min-w-0 items-center gap-1.5">
         {concluded ? (
-          <span className="box-border inline-flex h-7 min-w-0 flex-1 items-center justify-center gap-2 rounded-[0.3rem] bg-emerald-600/15 px-2.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+          <span className="box-border inline-flex h-7 min-w-0 flex-1 items-center justify-center gap-2 rounded-[7px] bg-emerald-600/15 px-2.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
             <CheckCircle2 className="size-3 shrink-0" />
             <span className="truncate">Concluído</span>
           </span>
@@ -183,7 +183,7 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
           disabled={busy}
           aria-label="Concluir limpeza"
           title="Concluir limpeza"
-          className="box-border inline-flex h-7 max-h-7 min-h-7 min-w-0 flex-1 items-center justify-center gap-2 self-center rounded-[0.3rem] bg-emerald-600 px-2.5 text-[11px] font-semibold leading-none tracking-tight text-white transition-all hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-60"
+          className="box-border inline-flex h-7 max-h-7 min-h-7 min-w-0 flex-1 items-center justify-center gap-2 self-center rounded-[7px] bg-emerald-600 px-2.5 text-[11px] font-semibold leading-none tracking-tight text-white transition-all hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-60"
         >
           <Check className="size-3 shrink-0" />
           <span className="truncate">Finalizar Limpeza</span>
@@ -204,7 +204,7 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
                 type="button"
                 aria-label="Mais opções"
                 title="Mais opções"
-                className="grid size-7 place-items-center rounded-[0.3rem] border border-border/50 bg-[var(--chip-bg)] hover:bg-primary/[0.08]"
+                className="grid size-7 place-items-center rounded-[7px] border-0 bg-[var(--action-sq-bg)] hover:bg-primary/[0.08]"
               >
                 <MoreVertical className="size-3.5" />
               </button>
