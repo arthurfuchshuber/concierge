@@ -1806,6 +1806,9 @@ export async function runAdvanceArrival(
           null;
         // Sem data conhecida, não trava o imóvel indefinidamente.
         if (!d?.checkout_date || d.checkout_date < today) return false;
+        // Mesma estadia (registro gêmeo iCal/Channex, mesmas datas) nunca
+        // trava a si mesma.
+        if (checkinDate && d.checkin_date === checkinDate && d.checkout_date === checkoutDate) return false;
         // CORREÇÃO (25/10/2026): só estadias que JÁ começaram podem travar.
         // Uma reserva futura (ex.: novembro) com linha de saída "pending"
         // gerava falso "check-out pendente" e bloqueava o check-in de hoje.
