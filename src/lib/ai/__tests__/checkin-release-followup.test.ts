@@ -52,7 +52,7 @@ describe("orientação de acesso ao modelo", () => {
     expect(g).toMatch(/ATRASO NA LIBERAÇÃO/);
     expect(g).toMatch(/request_human_handoff/);
     expect(g).toMatch(/PODE entregar/);
-    expect(g).toMatch(/SENTIMENTO/);
+    expect(g).not.toMatch(/SENTIMENTO do hóspede neste momento/);
     expect(g).not.toMatch(/NÃO envie senha/);
   });
   it("horário passou e liberado: segue as instruções sem equipe", () => {
@@ -97,14 +97,14 @@ describe("check-out atrasado", () => {
     expect(checkoutLateness({ nowMs: Date.now(), checkoutDate: null, checkoutTime: "11:00", tz }).overdue).toBe(false);
     expect(checkoutLateness({ nowMs: Date.now(), checkoutDate: "2026-10-17", checkoutTime: null, tz }).overdue).toBe(false);
   });
-  it("orientação de check-out atrasado informa hóspede e equipe com sentimento", () => {
+  it("orientação de check-out atrasado informa hóspede e equipe sem sentimento", () => {
     const g = accessGuidanceText(
       { isCheckinDay: false, early: false, allowed: null, staff: null, checkoutOverdue: true, minutesLate: 40, checkoutLimit: "11:00" },
       false,
       "deliver",
     );
     expect(g).toContain("CHECK-OUT ATRASADO");
-    expect(g).toContain("SENTIMENTO");
+    expect(g).not.toContain("SENTIMENTO dele");
     expect(g).toContain("request_human_handoff");
   });
 });

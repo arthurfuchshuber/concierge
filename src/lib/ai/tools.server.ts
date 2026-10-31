@@ -1423,7 +1423,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         reason: {
           type: "string",
           description:
-            "Resumo em 3ª pessoa do que o hóspede precisa (máx 220 caracteres), sempre com o SENTIMENTO dele neste momento (calmo, ansioso, irritado…) e, se houver atraso de check-in/check-out, qual e de quanto.",
+            "SÓ a dúvida ou decisão necessária, clara e objetiva (ex.: 'Check-in antecipado hoje às 12:36 (entrada oficial 15:00). Autoriza?'). PROIBIDO descrever humor/sentimento do hóspede (calmo, ansioso, irritado, etc.) ou criar introduções narrativas em 3ª pessoa.",
         },
         urgency: { type: "string", enum: ["low", "normal", "high"] },
       },

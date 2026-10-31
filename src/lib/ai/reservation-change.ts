@@ -207,8 +207,8 @@ export function reservationRequestGuidance(d: ReservationDecision, hasConfirmedR
     } else {
       L.push(
         w?.status === "free"
-          ? `- Ainda está DENTRO do prazo sem multa${w.deadline ? ` (até ${w.deadline})` : ""}: não decida nem informe resultado. Acione a equipe (request_human_handoff) informando o pedido, a modalidade, o limite do prazo e o SENTIMENTO do hóspede.`
-          : `- Não foi possível confirmar o prazo (${w?.reason ?? "dados insuficientes"}): não decida nem informe resultado. Acione a equipe (request_human_handoff) informando o pedido, o que faltou e o SENTIMENTO do hóspede.`,
+          ? `- Ainda está DENTRO do prazo sem multa${w.deadline ? ` (até ${w.deadline})` : ""}: não decida nem informe resultado. Acione a equipe (request_human_handoff) informando o pedido, a modalidade, o limite do prazo (só dados objetivos, sem humor ou sentimento do hóspede).`
+          : `- Não foi possível confirmar o prazo (${w?.reason ?? "dados insuficientes"}): não decida nem informe resultado. Acione a equipe (request_human_handoff) informando o pedido, o que faltou (só dados objetivos, sem humor ou sentimento do hóspede).`,
         "- Com o hóspede: acolha em uma frase, sem prometer resultado, prazo ou reembolso, e sem perguntar novas datas antes da decisão da equipe.",
       );
     }

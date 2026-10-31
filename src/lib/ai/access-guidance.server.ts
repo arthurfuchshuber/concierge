@@ -118,7 +118,7 @@ export async function accessTiming(params: {
  *  - Horário JÁ PASSOU:
  *      · card liberado → é só seguir (entrega). Sem equipe.
  *      · card NÃO liberado → entrega com transparência sobre o atraso na
- *        liberação e informa a equipe (atraso + sentimento do hóspede).
+ *        liberação e informa a equipe (atraso).
  *  - Credenciais valem no dia do check-in e até 1 h após o horário de check-out (padrão ou o alinhado com a equipe).
  *  - Qualquer resposta humana na conversa vale como a palavra da equipe.
  */
@@ -165,13 +165,13 @@ export function accessGuidanceText(t: AccessTiming | null, incident: boolean, mo
   } else if (mode === "confirm_early") {
     L.push(
       "- Ainda é ANTES do horário de check-in. O imóvel está liberado no sistema, mas isso NÃO significa que a entrada antecipada está autorizada.",
-      "- Você PODE entregar senha, código e instruções de entrada, mas deixe claro, com gentileza, que ainda é antes do horário do anúncio e que a entrada antecipada depende da confirmação da equipe. Em paralelo, chame request_human_handoff perguntando se pode liberar antecipadamente (inclua o SENTIMENTO do hóspede). Não espere a resposta para ajudar.",
+      "- Você PODE entregar senha, código e instruções de entrada, mas deixe claro, com gentileza, que ainda é antes do horário do anúncio e que a entrada antecipada depende da confirmação da equipe. Em paralelo, chame request_human_handoff perguntando, de forma direta, se pode liberar antecipadamente (só os dados objetivos e a decisão; sem humor ou sentimento do hóspede). Não espere a resposta para ajudar.",
     );
   } else {
     L.push(
       "- O horário de check-in JÁ PASSOU, mas o card de check-in do hóspede continua TRAVADO (limpeza ou saída anterior ainda não concluída).",
       "- Você PODE entregar as credenciais e as instruções de entrada, com transparência: explique com sobriedade que o imóvel ainda está em preparo/liberação e que a equipe está sendo avisada. Peça desculpas pelo contratempo sem exagero.",
-      "- Em paralelo, chame request_human_handoff informando à equipe, com gentileza e precisão, o ATRASO NA LIBERAÇÃO do check-in e o SENTIMENTO do hóspede neste momento (calmo, ansioso, irritado…). Continue apoiando o hóspede enquanto a equipe responde. Sem prazo, sem emoji.",
+      "- Em paralelo, chame request_human_handoff informando à equipe, com gentileza e precisão, o ATRASO NA LIBERAÇÃO do check-in, só com dados objetivos e a decisão necessária (sem humor ou sentimento do hóspede). Continue apoiando o hóspede enquanto a equipe responde. Sem prazo, sem emoji.",
     );
   }
   if (t?.checkoutOverdue) {
@@ -179,7 +179,7 @@ export function accessGuidanceText(t: AccessTiming | null, incident: boolean, mo
       `- CHECK-OUT ATRASADO: o horário limite de saída${t.checkoutAgreed ? " alinhado com a equipe" : ""} (${t.checkoutLimit ?? "do anúncio"}) já passou há cerca de ${t.minutesLate} min e a saída ainda não foi concluída.`,
       "- As credenciais só continuam disponíveis até 1 h após esse horário; se o hóspede pedir, informe, ciente da situação.",
       "- Com o hóspede: informe com gentileza e clareza que o horário de check-out já passou, lembre o horário limite do anúncio e pergunte se ele já está saindo ou se precisa de algo; peça que avise quando concluir a saída. Sem acusação, sem bronca, sem emoji.",
-      "- Com a equipe: chame request_human_handoff (urgência normal) informando que o hóspede passou do horário de check-out, há quantos minutos e o SENTIMENTO dele neste momento (tranquilo, apressado, irritado…), para a equipe decidir (ex.: aguardar, autorizar saída tardia). Se a equipe já respondeu sobre isso, siga a resposta dela.",
+      "- Com a equipe: chame request_human_handoff (urgência normal) informando que o hóspede passou do horário de check-out, há quantos minutos, só com dados objetivos e sem humor ou sentimento do hóspede, para a equipe decidir (ex.: aguardar, autorizar saída tardia). Se a equipe já respondeu sobre isso, siga a resposta dela.",
     );
   }
   if (incident) {

@@ -96,5 +96,17 @@ export function directQuestion(text: string): string {
     .replace(/^[A-ZÀ-Ú][\wÀ-ú]+,\s*(satisfeit[oa]|feliz|tranquil[oa]|irritad[oa]|bem-humorad[oa]|ansios[oa])[^,.]{0,40},\s*/i, "")
     .replace(/^(ol[áa]|oi|equipe|pessoal)[,!.:]?\s*/i, "")
     .trim();
+  // Introduções narrativas ("Hóspede (calmo) pergunta sobre…", "O hóspede gostaria de saber…", "Pergunta da IA:", "Dúvida:").
+  const mood = "calm[oa]|ansios[oa]|irritad[oa]|tranquil[oa]|satisfeit[oa]|feliz|apressad[oa]|nervos[oa]|preocupad[oa]|chatead[oa]|bem-humorad[oa]|educad[oa]";
+  const verb = "(?:pergunta|perguntou|pergunt[ao]ndo|quer saber|gostaria de saber|deseja saber|solicita|solicitou|pede|pediu|est[áa] perguntando|est[áa] pedindo|precisa saber|quer)";
+  let prev = "";
+  while (prev !== t) {
+    prev = t;
+    t = t
+      .replace(/^(pergunta da ia|d[úu]vida|pergunta)\s*:\s*/i, "")
+      .replace(new RegExp(`^(?:o\\s+|a\\s+)?h[óo]spede(?:\\s*\\(?\\s*(?:${mood})\\s*\\)?|\\s*,\\s*(?:${mood})\\s*,)?\\s+${verb}\\s+(?:(?:sobre|se|o|a|de|do|da|que)\\s+){0,2}`, "i"), "")
+      .replace(/^[,:;\-–\s]+/, "")
+      .trim();
+  }
   return t || text.trim();
 }
