@@ -771,10 +771,10 @@ export function RecordBlock({
       </Dialog>
 
       <Dialog open={!!maxItem} onOpenChange={(v) => !v && setMaxItem(null)}>
-        <DialogContent className="h-[92vh] w-[calc(100vw-1rem)] max-w-none gap-0 overflow-hidden bg-black p-0 sm:max-w-5xl">
+        <DialogContent className="max-h-[90dvh] w-[calc(100vw-1rem)] max-w-none gap-0 overflow-hidden bg-black p-0 sm:max-w-5xl">
           <DialogTitle className="sr-only">{maxItem?.fileName ?? "Anexo"}</DialogTitle>
           {maxItem?.url && (
-            <img src={maxItem.url} alt={maxItem.fileName ?? "Foto"} className="size-full object-contain" />
+            <img src={maxItem.url} alt={maxItem.fileName ?? "Foto"} className="block max-h-[90dvh] w-full object-contain" />
           )}
         </DialogContent>
       </Dialog>

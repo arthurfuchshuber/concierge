@@ -77,6 +77,7 @@ export function CleaningProviderAvatar({
   reservationId,
   showName,
   nameOnly,
+  rowStyle,
   look,
 }: {
   propertyId: string;
@@ -92,6 +93,8 @@ export function CleaningProviderAvatar({
    * detalhes da limpeza.
    */
   nameOnly?: boolean;
+  /** Linha do cartão do Histórico da Reserva (mockup 31/10/2026): quadrado "EV" de 22 px + nome em 12 px semibold. */
+  rowStyle?: boolean;
   /**
    * Só a janela "Limpezas Realizadas" passa isto (08/10/2026):
    * "raised" = quem pode trocar o prestador (botão com relevo);
@@ -152,14 +155,21 @@ export function CleaningProviderAvatar({
           aria-label={current ? `Responsável: ${current.name}. Trocar` : "Atribuir prestador"}
           title={current ? `Responsável: ${current.name}` : "Atribuir prestador"}
           className={
-            nameOnly
+            rowStyle
+              ? "flex min-w-0 items-center gap-[7px] text-left transition-opacity hover:opacity-80"
+              : nameOnly
               ? "flex min-w-0 items-center gap-1.5 text-left transition-opacity hover:opacity-80"
               : showName
                 ? "inline-flex min-w-0 items-center gap-2 rounded-[0.3rem] py-0.5 pl-0.5 pr-2 transition hover:bg-secondary/60"
                 : "relative shrink-0 rounded-[0.3rem] transition hover:opacity-85"
           }
         >
-          {nameOnly ? (
+          {rowStyle ? (
+            <>
+              <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={22} look="default" />
+              <span className="min-w-0 truncate text-xs font-semibold text-[#f4efea]">{current ? current.name : "Atribuir prestador"}</span>
+            </>
+          ) : nameOnly ? (
             <>
               <span className="min-w-0 truncate text-[13px] font-bold">{current ? current.name : "Atribuir prestador"}</span>
               <Pencil className="size-[13px] shrink-0 text-foreground" />

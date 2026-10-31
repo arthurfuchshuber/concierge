@@ -490,6 +490,8 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   return (
     <div className="ds-stack">
       {pageTabs}
+      {/* Hierarquia (31/10/2026): faixa de contas conectadas ANTES da busca/filtros que filtram a lista. */}
+      {newLayout && kind === "owner" ? <ConnectedAccountsBar /> : null}
       {/* Barra de ações — mesmo padrão de Operação/Guias:
           altura 36px, cantos retos, fundo secondary/50, texto 12px. */}
       <div className="flex flex-col gap-[var(--ds-grid-gap)]">
@@ -558,11 +560,6 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           </p>
         )}
       </div>
-      {newLayout && kind === "owner" ? (
-        <div>
-          <ConnectedAccountsBar />
-        </div>
-      ) : null}
 
       {isLoading ? (
         <LoadingListState count={4} />

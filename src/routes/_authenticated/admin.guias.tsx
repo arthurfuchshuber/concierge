@@ -973,8 +973,8 @@ function Dashboard() {
         <div
           /* Sem os títulos de grupo (13/10/2026) os grupos viram uma lista
              contínua: o espaço entre o último card de um grupo e o primeiro do
-             outro é o MESMO `gap-3` que já existe entre cards. */
-          className={`grid gap-3 ${
+             outro é o MESMO `gap-2.5` (10px) que já existe entre cards. */
+          className={`grid gap-2.5 ${
             view === "split"
               ? `lg:items-start ${groupCount >= 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`
               : groupCount > 1
@@ -1007,7 +1007,7 @@ function Dashboard() {
                       os quadrantes de rolagem... status + cards na página
                       oficial, sem barra de rolagem interna"). Os cartões rolam
                       com a página; o teto de 5 cartões com barra própria saiu. */}
-                  <div className={`grid gap-3 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
+                  <div className={`grid gap-2.5 ${view === "grid" ? "sm:grid-cols-2" : ""}`}>
                     {g.items.map((p) => {
                       const c = guideCompleteness(p as any);
                       return (

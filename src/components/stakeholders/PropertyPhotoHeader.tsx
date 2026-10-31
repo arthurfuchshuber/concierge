@@ -17,7 +17,10 @@ export function PropertyPhotoHeader({
 }) {
   return (
     <div className="relative shrink-0 overflow-hidden rounded-t-[inherit]">
-      <CoverImage urls={urls} empty={false} />
+      {/* Capa levemente desfocada (regra 12, 31/10/2026): blur 1,5 px, 90% de brilho. */}
+      <div className="absolute inset-0 origin-center scale-[1.04] [filter:blur(1.5px)_brightness(.9)]">
+        <CoverImage urls={urls} empty={false} />
+      </div>
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,var(--panel)_0%,color-mix(in_oklab,var(--panel)_82%,transparent)_45%,color-mix(in_oklab,var(--panel)_35%,transparent)_100%),linear-gradient(180deg,transparent_35%,var(--panel)_100%)]"

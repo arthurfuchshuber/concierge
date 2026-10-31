@@ -1700,7 +1700,9 @@ function MoreRecordsBody({
   return (
     <>
       <div className="relative h-[140px] shrink-0 overflow-hidden bg-secondary/60">
-        <CoverImage urls={covers} empty={false} />
+        <div className="absolute inset-0 origin-center scale-[1.04] [filter:blur(1.5px)_brightness(.9)]">
+          <CoverImage urls={covers} empty={false} />
+        </div>
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/60 to-[var(--panel)]" />
         <div className="absolute bottom-2.5 left-4 right-12 min-w-0">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
@@ -1820,7 +1822,9 @@ function PendingPopoverBody({
       {/* CAPA 140 px (mockup 30/10/2026): eyebrow + título + proprietário no MESMO bloco, sobre a foto
           centralizada; sem pílula "N em aberto". */}
       <div className="relative h-[140px] overflow-hidden bg-secondary/60">
-        <CoverImage urls={covers} empty={false} />
+        <div className="absolute inset-0 origin-center scale-[1.04] [filter:blur(1.5px)_brightness(.9)]">
+          <CoverImage urls={covers} empty={false} />
+        </div>
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/60 to-[var(--panel)]" />
         <div className="absolute inset-x-4 bottom-2.5 min-w-0">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">

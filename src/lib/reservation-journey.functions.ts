@@ -67,6 +67,7 @@ export type JourneyStep = {
     | "previsao"
     | "checkin"
     | "no_show"
+    | "cancelada"
     | "estadia"
     | "checkout"
     | "limpeza"
@@ -131,6 +132,8 @@ export type ReservationJourney = {
   payoutCurrency: string | null;
   /** Comissão da plataforma (bruto = repasse + comissão). */
   payoutCommission: number | null;
+  /** Reserva cancelada na plataforma (status da reserva): a jornada para e os valores aparecem riscados. */
+  canceled?: boolean;
 };
 
 type LogRow = {
@@ -152,6 +155,8 @@ type ReservationRow = {
   guest_hint: string | null;
   created_at: string | null;
   source?: string | null;
+  status?: string | null;
+  updated_at?: string | null;
   amount?: number | null;
   currency?: string | null;
   ota_commission?: number | null;
@@ -223,7 +228,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       reservationId
         ? db
             .from("property_reservations")
-            .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at, source, amount, currency, ota_commission")
+            .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at, source, status, updated_at, amount, currency, ota_commission")
             .eq("id", reservationId)
             .maybeSingle()
         : Promise.resolve({ data: null }),
@@ -243,7 +248,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       if (!reservation) {
         const { data: r } = await db
           .from("property_reservations")
-          .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at, source, amount, currency, ota_commission")
+          .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at, source, status, updated_at, amount, currency, ota_commission")
           .eq("property_id", propertyId)
           .eq("checkin_date", checkinDate)
           .limit(10);
@@ -274,7 +279,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
     if (reservation && !(Number(reservation.amount) > 0) && reservation.checkin_date) {
       const { data: twins } = await db
         .from("property_reservations")
-        .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at, source, amount, currency, ota_commission")
+        .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at, source, status, updated_at, amount, currency, ota_commission")
         .eq("property_id", reservation.property_id)
         .eq("checkin_date", reservation.checkin_date)
         .eq("source", "channex")
@@ -623,6 +628,19 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       payoutCurrency: payoutAmount != null ? (payout?.currency ?? "BRL") : null,
       payoutCommission: payoutAmount != null && Number(payout?.ota_commission) > 0 ? Number(payout?.ota_commission) : null,
     };
+
+    if (/cancel/i.test(reservation?.status ?? "")) {
+      // Reserva cancelada na plataforma: a jornada PARA aqui (sem check-in, saída nem limpeza).
+      steps.push({
+        key: "cancelada",
+        label: "Reserva cancelada",
+        state: "done",
+        at: reservation?.updated_at ?? null,
+        detail: "Cancelada na plataforma",
+        actor: SYSTEM,
+      });
+      return { ...base, steps, statusLabel: "Cancelada", canceled: true };
+    }
 
     if (noShow) {
       // A jornada PARA aqui, de propósito: quem não chegou não tem saída nem

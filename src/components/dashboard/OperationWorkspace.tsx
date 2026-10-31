@@ -8908,8 +8908,14 @@ function OccupancyPanel({
   /* BUSCA ABERTA (mockup 31/10/2026): campo com foco ou texto digitado. "Cancelar"/fundo fecham e limpam. */
   const [searchFocus, setSearchFocus] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const searchOpen = searchFocus || query.length > 0;
+  /* RESULTADOS ABERTOS x FILTRO ATIVO (correção 31/10/2026): o painel flutuante e o fundo desfocado dependem de
+     `resultsOpen`, NÃO de haver texto na busca. Tocar num resultado fecha o painel mas mantém o texto (o calendário
+     segue filtrado); só "Cancelar"/fundo limpam. O botão "Cancelar" fica enquanto houver texto ou foco. */
+  const [resultsOpen, setResultsOpen] = useState(false);
+  const searchOpen = resultsOpen;
+  const searchActive = searchFocus || query.length > 0;
   const closeSearch = (clear = true) => {
+    setResultsOpen(false);
     setSearchFocus(false);
     if (clear) setQuery("");
     searchInputRef.current?.blur();
@@ -9189,12 +9195,18 @@ function OccupancyPanel({
           <SearchActionRow
             className="min-w-0 flex-1"
             value={query}
-            onChange={setQuery}
+            onChange={(v) => {
+              setQuery(v);
+              if (v.trim()) setResultsOpen(true);
+            }}
             placeholder="Buscar hóspede, imóvel, mês, valor…"
-            onInputFocus={() => setSearchFocus(true)}
+            onInputFocus={() => {
+              setSearchFocus(true);
+              setResultsOpen(true);
+            }}
             inputRef={searchInputRef}
             actions={
-              searchOpen ? undefined : (
+              searchActive ? undefined : (
                 <>
                   <CalendarPeriodButton bare onJump={(d) => setJump({ date: d, n: Date.now() })} />
                   <CalendarFiltersButton
@@ -9221,7 +9233,7 @@ function OccupancyPanel({
               )
             }
           />
-          {searchOpen && (
+          {searchActive && (
             <button
               type="button"
               onClick={() => closeSearch()}
@@ -11116,14 +11128,10 @@ function ArrivalCard({
           reservationId={journeyReservationId}
           title={mode === "cleaning" || mode === "done" ? "Detalhes da limpeza" : undefined}
           onOpenRecords={() => { setJourneyOpen(false); setRecordsOpen(true); }}
-          guestAside={
-            <>
-              <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
-              <ExtraGuests guests={row.additionalGuests ?? []} />
-            </>
-          }
+          guestChat={<PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />}
+          guestAside={<ExtraGuests guests={row.additionalGuests ?? []} />}
           cleaningEditor={
-            mode === "cleaning" || mode === "done" ? (
+            mode === "cleaning" ? (
               <CleaningInlineEditor
                 row={row}
                 logId={journeyLogId}
@@ -11141,72 +11149,37 @@ function ArrivalCard({
              convivem sem depender de o card estar na lista certa. */
           predictionEditor={
             prediction ? (
-              /* PREVISÃO EM DOIS CARTÕES (mockup "A" aprovado em 05/10/2026,
-                 com o lápis / "+" no canto superior direito, alinhado ao
-                 título): cada lado vira um cartão com ícone, horário grande,
-                 data e quem informou. O editor continua sendo o mesmo — o
-                 cartão inteiro é o gatilho dele. */
-              <div className="grid grid-cols-2 gap-1.5">
+              /* PREVISÃO TOCÁVEL (mockup "Opção C" aprovado, 31/10/2026): na linha de subtítulo do cartão do momento,
+                 em âmbar — "Saída prevista 04/11 · 11:00". O próprio texto abre o mesmo editor de sempre. */
+              <>
                 {[prediction.primary, prediction.secondary]
                   .filter((side): side is PredictionSide => !!side)
+                  .filter((side) => (mode === "stay" ? side.kind === "checkout" : mode === "checkin" ? side.kind === "checkin" : true))
                   .map((side) => {
-                    const hasValue = !!(side.dateValue || side.timeValue);
                     const isOut = side.kind === "checkout";
-                    const day = predictionDayLabel(
-                      side.dateValue || (isOut ? row.guestCheckout : row.guestCheckin) || row.date,
-                      todayISO,
-                      side.timeValue,
-                      side.kind,
-                    );
-                    const SideIcon = isOut ? LogOut : LogIn;
+                    const date = side.dateValue || (isOut ? row.guestCheckout : row.guestCheckin) || row.date;
+                    const hasValue = !!(side.dateValue || side.timeValue);
+                    const ddmm = date ? `${date.slice(8, 10)}/${date.slice(5, 7)}` : "";
                     return (
                       <PredictedEditor
                         key={side.kind}
                         disabled={busy}
                         primary={side}
-                        /* Aqui NÃO existe lado recolhido: o histórico é por
-                           reserva, então os dois já aparecem, cada um com o
-                           seu próprio editor. */
                         trigger={
                           <button
                             type="button"
-                            title={hasValue ? (side.byGuest ? "Informado pelo hóspede" : "Informado pela equipe") : "Toque para informar"}
-                            className="flex h-[52px] min-w-0 items-center gap-2 rounded-[var(--win-radius)] bg-foreground/[0.04] px-2.5 text-left transition-colors hover:bg-foreground/[0.07]"
+                            title={hasValue ? (side.byGuest ? "Informado pelo hóspede · toque para editar" : "Informado pela equipe · toque para editar") : "Toque para informar"}
+                            className="min-w-0 truncate text-left font-semibold underline decoration-dotted decoration-[1px] underline-offset-[3px] transition-opacity hover:opacity-80"
                           >
-                            <span
-                              className={`grid size-[26px] shrink-0 place-items-center rounded-full ${
-                                isOut ? "bg-orange-400/15 text-orange-500 dark:text-orange-300" : "bg-sky-400/15 text-sky-600 dark:text-sky-300"
-                              }`}
-                            >
-                              <SideIcon className="size-[15px]" />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[9px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground">
-                                {side.label}
-                              </span>
-                              <span
-                                className={`block text-[15px] font-extrabold leading-[1.1] tabular-nums ${
-                                  side.timeValue ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground/60"
-                                }`}
-                              >
-                                {side.timeValue ?? "--:--"}
-                                {hasValue && day.label ? (
-                                  <span className="ml-1.5 text-[10.5px] font-medium text-muted-foreground">{day.label}</span>
-                                ) : null}
-                              </span>
-                              <ForecastDiff side={side} />
-                            </span>
-                            {hasValue ? (
-                              <Pencil className="size-[13px] shrink-0 text-foreground" aria-label="Editar" />
-                            ) : (
-                              <Plus className="size-[13px] shrink-0 text-foreground" aria-label="Informar" />
-                            )}
+                            {hasValue && side.timeValue
+                              ? `${isOut ? "Saída" : "Chegada"} prevista ${ddmm} · ${side.timeValue}`
+                              : `Informar ${isOut ? "saída" : "chegada"}`}
                           </button>
                         }
                       />
                     );
                   })}
-              </div>
+              </>
             ) : null
           }
         />

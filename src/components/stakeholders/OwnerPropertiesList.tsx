@@ -461,14 +461,15 @@ export function OwnerPropertiesList({
   );
 
   return (
-    <div className="grid gap-4">
+    <div className="ds-stack">
+      {/* Hierarquia (31/10/2026): faixa informativa → busca/filtros → conteúdo filtrado. */}
+      <ConnectedAccountsBar />
       <SearchActionRow
         value={q}
         onChange={setQ}
         placeholder="Buscar imóvel, proprietário, cidade…"
         actions={<>{filterButton}</>}
       />
-      <ConnectedAccountsBar />
 
       {items.length === 0 ? (
         <EmptyState
@@ -488,7 +489,7 @@ export function OwnerPropertiesList({
           description={q ? `Nenhum resultado para "${q}".` : "Nenhum imóvel com esses filtros."}
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((p) => {
             const place = [p.city, p.state].filter(Boolean).join("/");
             const ownerName = p.owner ? String(p.owner.trade_name || p.owner.name || "") : "";

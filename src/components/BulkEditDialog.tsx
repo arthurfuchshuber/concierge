@@ -654,7 +654,7 @@ export function BulkEditDialog({
               baixo em telas estreitas, em vez de espremer tudo (flex-1) num
               container de largura fixa (w-max) — isso cortava a última aba
               em celulares mais estreitos. */}
-          <TabsList className="ds-segmented mb-4 w-full rounded-[9px] bg-card p-0 shadow-[inset_0_0_0_1px_var(--border)] lg:rounded-[13px]">
+          <TabsList className="ds-segmented mb-2.5 w-full rounded-[9px] bg-card p-0 shadow-[inset_0_0_0_1px_var(--border)] lg:rounded-[13px]">
             {TEXT_TABS.map((t) => (
               <TabsTrigger
                 key={t.id}
@@ -668,7 +668,7 @@ export function BulkEditDialog({
 
 
           {TEXT_TABS.map((tab) => (
-            <TabsContent key={tab.id} value={tab.id} className="space-y-4 pt-4 min-w-0">
+            <TabsContent key={tab.id} value={tab.id} className="space-y-2.5 pt-2.5 min-w-0">
               {tab.groups.length === 0 && (
                 <p className="rounded-[9px] border border-border/60 bg-muted/20 p-3.5 text-xs text-muted-foreground">
                   As recomendações são específicas de cada residência (endereço, distância e horários) e por isso
@@ -677,7 +677,7 @@ export function BulkEditDialog({
               )}
 
               <SectionGroup>
-                <div className="space-y-4">
+                <div className="space-y-2.5">
                 {tab.groups.map((group) => {
                   const gLists = group.lists ?? [];
                   return (
