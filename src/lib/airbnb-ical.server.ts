@@ -376,3 +376,33 @@ export async function syncPropertyIcal(
     return { ok: false, imported: 0, updated: 0, removed: 0, error: msg };
   }
 }
+
+/**
+ * Sincronização Channex confirmada: apaga os links iCal do imóvel e as linhas
+ * iCal sem valor de reserva (bloqueios/canceladas não referenciadas pelo
+ * histórico operacional). Estadias iCal confirmadas ficam como histórico.
+ */
+export async function purgeIcalForProperty(propertyId: string): Promise<number> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await supabaseAdmin
+    .from("properties")
+    .update({ airbnb_ical_url: null, airbnb_ical_url_2: null } as never)
+    .eq("id", propertyId);
+  const { data: rows } = await supabaseAdmin
+    .from("property_reservations")
+    .select("id")
+    .eq("property_id", propertyId)
+    .eq("source", "airbnb")
+    .neq("status", "confirmed");
+  const ids = (rows ?? []).map((r: { id: string }) => r.id);
+  if (!ids.length) return 0;
+  const { data: refs } = await supabaseAdmin
+    .from("guest_arrival_status")
+    .select("reservation_id")
+    .in("reservation_id", ids);
+  const keep = new Set((refs ?? []).map((r: { reservation_id: string | null }) => r.reservation_id));
+  const del = ids.filter((id) => !keep.has(id));
+  if (!del.length) return 0;
+  await supabaseAdmin.from("property_reservations").delete().in("id", del);
+  return del.length;
+}
