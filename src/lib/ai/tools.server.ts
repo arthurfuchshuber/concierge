@@ -56,15 +56,11 @@ export function rankByRelevanceAndDistance<T extends { row: Record<string, unkno
     .sort((a, b) => (a.meters ?? Infinity) - (b.meters ?? Infinity));
 }
 
-function distanceInfo(m: number | null) {
+/** Distância em COMPRIMENTO (linha reta, aproximada) — nunca tempo: tempo só como estimativa se o hóspede aprofundar. */
+export function distanceInfo(m: number | null) {
   if (m == null || !Number.isFinite(m) || m <= 0) return {};
-  const texto = m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1).replace(".", ",")} km`;
-  return {
-    distancia_m: m,
-    distancia_texto: texto,
-    minutos_a_pe: Math.max(1, Math.round(m / 80)),
-    da_para_ir_a_pe: m <= 1200,
-  };
+  const texto = m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} m` : `${(m / 1000).toFixed(1).replace(".", ",")} km`;
+  return { distancia_m: m, distancia_texto: texto, distancia_aproximada: true };
 }
 
 /** Busca a primeira foto real (Google Places) de um lugar pelo nome — mesmo
@@ -568,7 +564,8 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     name: "search_places",
     description:
       "Busca estabelecimentos e atrações REAIS na cidade via Google Maps. Use apenas quando a base própria não " +
-      "cobrir o pedido. Nunca cite lugares que não vierem desta ferramenta ou da base própria.",
+      "cobrir o pedido, ou para medir a distância da casa até qualquer ponto (atração, ponte, fronteira, aeroporto). " +
+      "Retorna distancia_texto (comprimento aproximado a partir da casa). Nunca cite lugares que não vierem desta ferramenta ou da base própria.",
     parameters: schema(
       {
         consulta: { type: "string", description: "Ex.: 'hamburgueria em Foz do Iguaçu'." },
@@ -598,7 +595,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
               Authorization: `Bearer ${key}`,
               "X-Connection-Api-Key": mapsKey,
               "X-Goog-FieldMask":
-                "places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.photos.name",
+                "places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos.name",
             },
             body,
           },
@@ -609,12 +606,18 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
           places?: Array<{
             displayName?: { text?: string };
             formattedAddress?: string;
+            location?: { latitude?: number; longitude?: number };
             rating?: number;
             userRatingCount?: number;
             photos?: Array<{ name?: string }>;
           }>;
         };
+        const home = homeCoords(ctx.property);
         const lugares = (json.places ?? []).map((p) => {
+          const lat = p.location?.latitude;
+          const lng = p.location?.longitude;
+          const meters =
+            home && typeof lat === "number" && typeof lng === "number" ? metersBetween(home, { lat, lng }) : null;
           const photoName = p.photos?.[0]?.name;
           const foto =
             photoName && /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(photoName)
@@ -626,6 +629,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
             nota: p.rating ?? null,
             avaliacoes: p.userRatingCount ?? null,
             foto,
+            ...distanceInfo(meters),
           };
         });
         if (lugares.length)
