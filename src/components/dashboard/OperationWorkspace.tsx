@@ -8912,7 +8912,19 @@ function OccupancyPanel({
      `resultsOpen`, NÃO de haver texto na busca. Tocar num resultado fecha o painel mas mantém o texto (o calendário
      segue filtrado); só "Cancelar"/fundo limpam. O botão "Cancelar" fica enquanto houver texto ou foco. */
   const [resultsOpen, setResultsOpen] = useState(false);
-  const searchOpen = resultsOpen;
+  /* Fundo desfocado só monta com texto digitado e painel aberto — foco sem texto nunca trava a tela. */
+  const searchOpen = resultsOpen && query.trim().length > 0;
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setResultsOpen(false);
+        searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [searchOpen]);
   const searchActive = searchFocus || query.length > 0;
   const closeSearch = (clear = true) => {
     setResultsOpen(false);
