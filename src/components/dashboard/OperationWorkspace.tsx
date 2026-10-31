@@ -9178,10 +9178,10 @@ function OccupancyPanel({
         <div
           aria-hidden
           onClick={() => closeSearch()}
-          className="fixed inset-0 z-30 bg-background/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] bg-background/60 backdrop-blur-sm"
         />
       )}
-      <div className={`relative px-4 pb-3.5 pt-3.5 ${searchOpen ? "z-40" : ""}`}>
+      <div className={`relative px-4 pb-3.5 pt-3.5 ${searchOpen ? "z-[70]" : ""}`}>
         <div className="truncate text-center text-sm font-bold leading-6" title="Calendário de Ocupação">
           Calendário de Ocupação
         </div>
