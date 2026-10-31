@@ -7401,6 +7401,10 @@ export type Database = {
         Args: { _owner_id: string; _user_id: string }
         Returns: boolean
       }
+      merge_duplicate_stay: {
+        Args: { _dup: string; _keep: string }
+        Returns: undefined
+      }
       place_photo_known: { Args: { _name: string }; Returns: boolean }
       property_is_published: {
         Args: { _property_id: string }
