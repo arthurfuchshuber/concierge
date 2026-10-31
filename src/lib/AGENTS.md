@@ -36,3 +36,4 @@
 
 ## Webhooks x busca ativa
 - Integrations with webhooks (Malvo, Asaas, Channex) do a full pull only on activation; afterwards data arrives only via webhook (Asaas: `/api/public/webhooks/asaas`, token `asaas-access-token`, triggers incremental `syncAsaas`), never via cron polling, to avoid redundant fetches.
+- An iCal stay duplicating a Channex booking (same property + check-in + check-out) is merged by the DB trigger `trg_unify_ical_channex_stay` (`merge_duplicate_stay`): team statuses move to the Channex row and the iCal row becomes `cancelled_duplicate`, so one stay never has two cards or blocks its own check-in.
