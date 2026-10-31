@@ -1047,7 +1047,7 @@ export async function buildArrivalRows(
       // manda no dia do card — a data bruta informada pelo hóspede só entra
       // de fallback quando não há previsão registrada.
       const date = s?.arrival_date_override ?? (data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date));
-      const hasIcal = !!p?.airbnb_ical_url;
+      const hasIcal = !!p?.airbnb_ical_url || (resByProp.get(l.property_id)?.length ?? 0) > 0;
       let matched = false;
       let icalCheckin: string | null = null;
       let icalCheckout: string | null = null;
@@ -1318,7 +1318,8 @@ export async function buildArrivalRows(
     const _filtered = reservationRows.filter(reservationInRange);
     for (const r of _filtered) {
       const p = propMap.get(r.property_id);
-      if (!p?.airbnb_ical_url) continue;
+      // Imóveis 100% Channex (sem iCal) também têm reservas oficiais.
+      void p;
       const { primary: matchedLog, extras } = findLogsForReservation(uniqueLogs, r, data.kind);
       if (matchedLog) usedLogIds.add(matchedLog.id);
       for (const e of extras) usedLogIds.add(e.id);
@@ -1331,7 +1332,7 @@ export async function buildArrivalRows(
     for (const l of uniqueLogs) {
       if (usedLogIds.has(l.id)) continue;
       const p = propMap.get(l.property_id);
-      if (p?.airbnb_ical_url) continue;
+      if (p?.airbnb_ical_url || (resByProp.get(l.property_id)?.length ?? 0) > 0) continue;
       const code = normalizeCode(l.reservation_code);
       const key = code
         ? `${l.property_id}|code|${code}`
