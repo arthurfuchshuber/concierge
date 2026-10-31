@@ -56,15 +56,11 @@ export function rankByRelevanceAndDistance<T extends { row: Record<string, unkno
     .sort((a, b) => (a.meters ?? Infinity) - (b.meters ?? Infinity));
 }
 
-function distanceInfo(m: number | null) {
+/** Distância em COMPRIMENTO (linha reta, aproximada) — nunca tempo: tempo só como estimativa se o hóspede aprofundar. */
+export function distanceInfo(m: number | null) {
   if (m == null || !Number.isFinite(m) || m <= 0) return {};
-  const texto = m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1).replace(".", ",")} km`;
-  return {
-    distancia_m: m,
-    distancia_texto: texto,
-    minutos_a_pe: Math.max(1, Math.round(m / 80)),
-    da_para_ir_a_pe: m <= 1200,
-  };
+  const texto = m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} m` : `${(m / 1000).toFixed(1).replace(".", ",")} km`;
+  return { distancia_m: m, distancia_texto: texto, distancia_aproximada: true };
 }
 
 /** Busca a primeira foto real (Google Places) de um lugar pelo nome — mesmo
