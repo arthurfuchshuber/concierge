@@ -26,14 +26,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { Check, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { CoverImage } from "@/components/ui/cover-image";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import {
   getReservationJourney,
   type JourneyActivity,
   type JourneyActor,
   type JourneyStep,
 } from "@/lib/reservation-journey.functions";
-import { ownerLabel } from "@/components/dashboard/card-colors";
 
 /** "04/10 · 15:46" no fuso de São Paulo — hora exata, não "há 1 dia". */
 function fmtWhen(iso: string | null): string | null {
@@ -370,16 +369,13 @@ export function ReservationJourneyDialog({
               {data?.propertyName ?? (isLoading ? "Carregando…" : "Reserva")}
             </DialogTitle>
             {data?.ownerName ? (
-              <div className="mt-[3px] flex min-w-0 items-center gap-0 text-[11.5px] font-medium text-white/90">
-                <span className="truncate">{ownerLabel(data.ownerName)}</span>
-                <PhoneActionButton
-                  phone={data.ownerPhone}
-                  country={data.ownerPhoneCountry}
-                  size={14}
-                  alwaysShow
-                  className="shrink-0"
-                />
-              </div>
+              <OwnerLine
+                name={data.ownerName}
+                phone={data.ownerPhone}
+                country={data.ownerPhoneCountry}
+                phonePosition="adjacent"
+                className="mt-[3px] [&>span:first-child]:text-white/70 [&>span:nth-child(2)]:text-white"
+              />
             ) : null}
           </div>
         </div>

@@ -131,7 +131,7 @@ export function ManualCleaningCard({ row }: { row: ArrivalRow }) {
     <div
       data-whole-card
       data-clip-row
-      className="relative isolate flex snap-start flex-col gap-2 rounded-[10px] border border-border bg-muted/20 p-3 pl-3.5"
+      className="relative isolate flex snap-start flex-col gap-2 rounded-[12px] border border-border bg-[var(--card-surface)] p-3 pl-3.5"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">

@@ -9408,9 +9408,14 @@ function OccupancyPanel({
                                     {p.name}
                                   </div>
                                   {p.ownerName ? (
-                                    <div className="truncate text-[10.5px] text-muted-foreground">
-                                      {ownerLabel(p.ownerName)}
-                                    </div>
+                                    <OwnerLine
+                                      name={p.ownerName}
+                                      phone={p.ownerPhone}
+                                      country={p.ownerPhoneCountry}
+                                      phonePosition="adjacent"
+                                      size={11}
+                                      className="text-[10.5px]"
+                                    />
                                   ) : null}
                                   {p.city ? (
                                     <div className="truncate text-[10px] leading-tight text-muted-foreground">

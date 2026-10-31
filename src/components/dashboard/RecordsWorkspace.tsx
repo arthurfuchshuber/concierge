@@ -94,7 +94,6 @@ import {
   ACTION_BUTTON_TONE,
   ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
-import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { OverlayChip, OverlayHeader } from "@/components/ds/OverlayHeader";
@@ -1549,24 +1548,12 @@ function PropertyCard({
                 Guias usa (regra do projeto: todo nome de imóvel carrega o
                 proprietário). */}
             {group.sublabel && (
-              <div className="flex min-w-0 items-center gap-0">
-                <span
-                  className="min-w-0 truncate text-[10.5px] text-foreground"
-                  title={group.sublabel}
-                >
-                  {ownerLabel(group.sublabel)}
-                </span>
-                {/* Ícone maior (pedido, 05/10/2026: "minúsculo para o usuário
-                    clicar"): 18px de desenho e área de toque de 34px; a
-                    margem negativa impede que a linha cresça. */}
-                <PhoneActionButton
-                  phone={group.ownerPhone}
-                  country={group.ownerPhoneCountry}
-                  size={14}
-                  alwaysShow
-                  className="-my-2 -ml-0.5 shrink-0 !p-2"
-                />
-              </div>
+              <OwnerLine
+                name={group.sublabel}
+                phone={group.ownerPhone}
+                country={group.ownerPhoneCountry}
+                phonePosition="adjacent"
+              />
             )}
             {subtitle && (
               <span
@@ -1711,36 +1698,28 @@ function MoreRecordsBody({
   const bodyRef = useAntiClipRows<HTMLDivElement>([records.length]);
   return (
     <>
-      <div className="relative h-[132px] shrink-0 overflow-hidden bg-secondary/60">
+      <div className="relative h-[140px] shrink-0 overflow-hidden bg-secondary/60">
         <CoverImage urls={covers} empty={false} />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/55 to-[var(--panel)]" />
-        <div className="absolute bottom-2.5 left-5 right-12">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/60 to-[var(--panel)]" />
+        <div className="absolute bottom-2.5 left-4 right-12 min-w-0">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
             Mais registros do imóvel
           </div>
-          <DialogTitle
-            className="mt-1 block truncate text-[17px] font-bold leading-tight tracking-tight text-white"
-            title={group.label}
-          >
+          <DialogTitle className="mt-1 block truncate text-sm font-bold leading-tight text-white" title={group.label}>
             {group.label}
           </DialogTitle>
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center justify-between gap-3 px-5 pb-3.5 pt-2">
-        <div className="flex min-w-0 items-center gap-0 text-[12px] text-muted-foreground">
           {group.sublabel ? (
-            <>
-              <span className="truncate">{ownerLabel(group.sublabel)}</span>
-              <PhoneActionButton
-                phone={group.ownerPhone}
-                country={group.ownerPhoneCountry}
-                size={14}
-                alwaysShow
-                className="shrink-0 p-0.5"
-              />
-            </>
+            <OwnerLine
+              name={group.sublabel}
+              phone={group.ownerPhone}
+              country={group.ownerPhoneCountry}
+              phonePosition="adjacent"
+              className="mt-0.5 [&>span:first-child]:text-white/70 [&>span:nth-child(2)]:text-white"
+            />
           ) : null}
         </div>
+      </div>
+      <div className="flex shrink-0 items-center justify-end gap-3 px-4 pb-3.5 pt-2.5">
         {/* Mesma etiqueta do chip de registros do cartão (câmera + número). */}
         <span className="inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full border border-foreground/25 bg-foreground/[0.11] px-2.5 text-[12px] font-bold tabular-nums text-foreground">
           <Camera className="size-3.5 text-foreground/70" />

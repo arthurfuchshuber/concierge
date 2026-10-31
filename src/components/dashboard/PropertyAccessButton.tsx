@@ -32,7 +32,8 @@ import {
   FilterScreenHeader,
   FilterSection,
 } from "@/components/dashboard/filter-panel";
-import { CARD_OWNER, CARD_PROPERTY, ownerLabel } from "@/components/dashboard/card-colors";
+import { CARD_PROPERTY } from "@/components/dashboard/card-colors";
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { PropertyMapsButton, propertyMapsHref } from "@/components/dashboard/PropertyMapsButton";
 import { useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import {
@@ -87,6 +88,8 @@ type Row = {
   propertyId: string;
   propertyName: string | null;
   ownerName: string | null;
+  ownerPhone?: string | null;
+  ownerPhoneCountry?: string | null;
   propertyAddress: string | null;
   mapsUrl: string | null;
   garageMapsUrl: string | null;
@@ -499,7 +502,6 @@ export function PropertyAccessButton({ row }: { row: Row }) {
     );
   };
 
-  const owner = ownerLabel(row.ownerName);
 
   return (
     <Popover
@@ -566,7 +568,15 @@ export function PropertyAccessButton({ row }: { row: Row }) {
             <div className="flex items-start gap-2.5 border-b border-[var(--panel-div)] px-3.5 py-3">
               <div className="min-w-0 flex-1">
                 <span className={`${CARD_PROPERTY} truncate`}>{row.propertyName ?? "Imóvel"}</span>
-                {owner && <p className={`mt-0.5 truncate text-[11.5px] ${CARD_OWNER}`}>{owner}</p>}
+                {row.ownerName && (
+                  <OwnerLine
+                    name={row.ownerName}
+                    phone={row.ownerPhone}
+                    country={row.ownerPhoneCountry}
+                    phonePosition="adjacent"
+                    className="mt-0.5"
+                  />
+                )}
                 {row.propertyAddress && (
                   <p className="mt-0.5 break-words text-[11px] leading-snug text-muted-foreground">
                     {row.propertyAddress}

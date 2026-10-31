@@ -2,9 +2,9 @@ import { CoverImage } from "@/components/ui/cover-image";
 import type { ReactNode } from "react";
 import { MapPin } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
-import { ownerLabel } from "@/components/dashboard/card-colors";
 import { useLongPress } from "@/hooks/useLongPress";
 
 export type GuideCardVariant = "split" | "grid";
@@ -147,18 +147,12 @@ export function GuideCard({
           {p.name}
         </span>
         {p.ownerName && (
-          <div className="flex min-w-0 items-center gap-1">
-            <span className="min-w-0 truncate text-[10.5px] text-foreground" title={p.ownerName}>
-              {ownerLabel(p.ownerName)}
-            </span>
-            <PhoneActionButton
-              phone={p.ownerPhone}
-              country={p.ownerPhoneCountry}
-              size={12}
-              alwaysShow
-              className="shrink-0 p-0.5"
-            />
-          </div>
+          <OwnerLine
+            name={p.ownerName}
+            phone={p.ownerPhone}
+            country={p.ownerPhoneCountry}
+            phonePosition="adjacent"
+          />
         )}
         {place && (
           <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/80">

@@ -80,11 +80,12 @@ const SheetContent = React.forwardRef<
         onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
       >
         <SheetPrimitive.Close
+          data-window-close
           className={
             closeClassName ??
             // MESMO X DE CANTO DAS JANELAS (pedido explícito, 21/10/2026): aba delicada de 32px
             // colada no canto superior direito. Painéis que passam `closeClassName` seguem com o seu.
-            "absolute right-0 top-0 z-[5] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] text-muted-foreground shadow-[inset_1px_-1px_0_color-mix(in_oklab,var(--foreground)_9%,transparent)] transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_10%,transparent)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+            "absolute right-0 top-0 z-[5] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_8%)] text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_14%)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
           }
         >
           <X className="size-[13px]" strokeWidth={1.8} />
