@@ -5,6 +5,7 @@ import { structuredListing, houseRulesText } from "@/lib/listing-structured";
  * nunca envia ARI. Restrito a uma allowlist de anúncios em validação.
  */
 import { getChannelCached } from "@/lib/channex-channel-cache.server";
+import { untypedTable } from "@/lib/untyped-table";
 const CHANNEX_BASE = "https://app.channex.io/api/v1";
 export const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
 const CLAYTON_CHANNEL_ID = "24c871d9-d6fd-46f5-944d-a38b8a4df189";
@@ -336,7 +337,7 @@ export async function applyListingToProperty(args: {
   if (cleanTitle) {
     const tw = supabaseAdmin.from("channex_twin_links" as never) as any;
     await tw.update({ primary_title: cleanTitle }).eq("primary_listing_id", args.listingId);
-    await (supabaseAdmin.from("channex_twin_links" as never) as any).update({ twin_title: cleanTitle }).eq("twin_listing_id", args.listingId);
+    await untypedTable(supabaseAdmin, "channex_twin_links").update({ twin_title: cleanTitle }).eq("twin_listing_id", args.listingId);
   }
   return { title: cleanTitle };
 }

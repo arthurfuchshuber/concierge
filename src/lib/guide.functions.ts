@@ -288,12 +288,12 @@ export const submitAccessPin = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AccessPinSubmit.parse(i))
   .handler(async ({ data }) => {
     // Sem limite, um PIN numérico curto caía por tentativa e erro (16/09/2026).
-    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { allowPublicRateShared, clientIpFrom } = await import("@/lib/public-rate-limit.server");
     const { getRequest } = await import("@tanstack/react-start/server");
     const ip = clientIpFrom(getRequest());
     if (
-      !allowPublicRate(`access-pin:${ip}`, 10, 10 * 60_000) ||
-      !allowPublicRate(`access-pin-slug:${data.slug}`, 60, 10 * 60_000)
+      !(await allowPublicRateShared(`access-pin:${ip}`, 10, 10 * 60_000)) ||
+      !(await allowPublicRateShared(`access-pin-slug:${data.slug}`, 60, 10 * 60_000))
     ) {
       return { ok: false as const, reason: "rate_limited" };
     }
@@ -367,12 +367,12 @@ const PinSubmit = z.object({
 export const submitPin = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => PinSubmit.parse(i))
   .handler(async ({ data }) => {
-    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { allowPublicRateShared, clientIpFrom } = await import("@/lib/public-rate-limit.server");
     const { getRequest } = await import("@tanstack/react-start/server");
     const ip = clientIpFrom(getRequest());
     if (
-      !allowPublicRate(`guide-pin:${ip}`, 10, 10 * 60_000) ||
-      !allowPublicRate(`guide-pin-slug:${data.slug}`, 60, 10 * 60_000)
+      !(await allowPublicRateShared(`guide-pin:${ip}`, 10, 10 * 60_000)) ||
+      !(await allowPublicRateShared(`guide-pin-slug:${data.slug}`, 60, 10 * 60_000))
     ) {
       return { ok: false as const, reason: "rate_limited" };
     }

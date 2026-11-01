@@ -814,7 +814,7 @@ function renderList(k: ListKey, state: State, setState: React.Dispatch<React.Set
             <div className="flex items-center gap-2">
               <Input value={f.question} placeholder="Pergunta" className="h-8 text-sm"
                 onChange={(e) => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) })); }} />
-              <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.filter((_, j) => j !== i) })); }}>
+              <Button aria-label="Excluir" variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.filter((_, j) => j !== i) })); }}>
                 <Trash2 className="size-3.5" />
               </Button>
             </div>

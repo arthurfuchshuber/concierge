@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { untypedTable } from "@/lib/untyped-table";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { PLANS, planFromProductId, type PlanKey } from "@/lib/payments.functions";
@@ -358,8 +359,7 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
       if (error) throw new Error("Erro ao criar assinatura manual");
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+    await untypedTable(supabaseAdmin, "audit_logs").insert({
       user_id: context.userId,
       user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
       action: "subscription.updated",
@@ -467,8 +467,7 @@ export const adminApplyCustomTrial = createServerFn({ method: "POST" })
       })
       .eq("id", sub.id);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+    await untypedTable(supabaseAdmin, "audit_logs").insert({
       user_id: context.userId,
       user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
       action: "subscription.trial_applied",
@@ -535,8 +534,7 @@ export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
       throw new Error("Não foi possível atualizar os dados do cliente.");
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+    await untypedTable(supabaseAdmin, "audit_logs").insert({
       user_id: context.userId,
       user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
       action: "customer.profile_updated",
@@ -621,8 +619,7 @@ export const adminGrantSaasAdmin = createServerFn({ method: "POST" })
     }
 
     async function audit(action: string, entity_id: string | null, metadata: Record<string, unknown>) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+      await untypedTable(supabaseAdmin, "audit_logs").insert({
         user_id: context.userId,
         user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
         action,
@@ -649,8 +646,7 @@ export const adminGrantSaasAdmin = createServerFn({ method: "POST" })
       console.warn("[admin-invite] inviteUserByEmail failed:", e);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const inviteTable = supabaseAdmin.from("admin_invites" as never) as any;
+    const inviteTable = untypedTable(supabaseAdmin, "admin_invites");
     const { data: inv, error: invErr } = await inviteTable
       .upsert(
         { email: target, invited_by: context.userId, status: "pending" },
@@ -681,8 +677,7 @@ export const adminRevokeSaasAdmin = createServerFn({ method: "POST" })
       .eq("user_id", data.userId)
       .eq("role", "admin");
     if (error) throw new Error("Erro ao revogar admin");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+    await untypedTable(supabaseAdmin, "audit_logs").insert({
       user_id: context.userId,
       user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
       action: "admin.revoked",
@@ -708,8 +703,7 @@ export const adminListInvites = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<{ invites: AdminInviteRow[] }> => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabaseAdmin.from("admin_invites" as never) as any)
+    const { data, error } = await untypedTable(supabaseAdmin, "admin_invites")
       .select("id, email, status, created_at, invited_by")
       .eq("status", "pending")
       .order("created_at", { ascending: false });
@@ -745,8 +739,7 @@ export const adminRevokeInvite = createServerFn({ method: "POST" })
     // Só o administrador que enviou o convite pode cancelá-lo (ou convites
     // antigos sem autor registrado). Antes, qualquer admin derrubava o convite
     // de qualquer outro pelo id (22/09/2026).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: invite } = await (supabaseAdmin.from("admin_invites" as never) as any)
+    const { data: invite } = await untypedTable(supabaseAdmin, "admin_invites")
       .select("id, invited_by, status")
       .eq("id", data.inviteId)
       .maybeSingle();
@@ -755,14 +748,12 @@ export const adminRevokeInvite = createServerFn({ method: "POST" })
     if (row.invited_by && row.invited_by !== context.userId) {
       throw new Error("Apenas quem enviou este convite pode cancelá-lo.");
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabaseAdmin.from("admin_invites" as never) as any)
+    const { error } = await untypedTable(supabaseAdmin, "admin_invites")
       .update({ status: "revoked", updated_at: new Date().toISOString() })
       .eq("id", data.inviteId);
     if (error) throw new Error("Não foi possível cancelar o convite.");
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+    await untypedTable(supabaseAdmin, "audit_logs").insert({
       user_id: context.userId,
       user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
       action: "admin_invite.revoked",
@@ -836,7 +827,7 @@ export const adminListAuditLogs = createServerFn({ method: "POST" })
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let q: any = (supabaseAdmin.from("audit_logs" as never) as any)
+    let q: any = untypedTable(supabaseAdmin, "audit_logs")
       .select("id, user_id, user_email, action, entity_type, entity_id, metadata, created_at")
       .order("created_at", { ascending: false })
       .limit(data.limit ?? 500);
@@ -1020,8 +1011,7 @@ export const adminDeleteCustomer = createServerFn({ method: "POST" })
     } catch (e) {
       console.warn("[adminDeleteCustomer] getUserById falhou:", e);
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+    await untypedTable(supabaseAdmin, "audit_logs").insert({
       user_id: context.userId,
       user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
       action: "customer.deleted",

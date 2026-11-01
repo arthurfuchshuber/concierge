@@ -146,7 +146,7 @@ function LinkGuidesDialog({
                 onBlur={(e) => { if (e.target.value !== currentName) { (group as { name: string }).name = e.target.value; handleRename(); } }}
                 placeholder="Nome do grupo"
               />
-              <Button variant="ghost" size="icon" onClick={handleRename}><Save className="size-3.5" /></Button>
+              <Button aria-label="Salvar" variant="ghost" size="icon" onClick={handleRename}><Save className="size-3.5" /></Button>
             </div>
             <ul className="space-y-1">
               {group.members.map((m) => (
@@ -156,7 +156,7 @@ function LinkGuidesDialog({
                     {m.property_id === propertyId && <Badge variant="outline" className="ml-2 text-[10px]">este</Badge>}
                   </span>
                   {m.property_id !== propertyId && (
-                    <Button variant="ghost" size="icon" onClick={() => handleUnlink(m.property_id)}>
+                    <Button aria-label="Desvincular" variant="ghost" size="icon" onClick={() => handleUnlink(m.property_id)}>
                       <Unlink className="size-3.5" />
                     </Button>
                   )}

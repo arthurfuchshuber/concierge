@@ -445,6 +445,10 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
                   content: finalReply,
                   externalId,
                   deliveryStatus: externalId ? "sent" : null,
+                  // Custo da resposta registrado por mensagem (sem limite de uso).
+                  tokensIn: result.usage.inputTokens,
+                  tokensOut: result.usage.outputTokens,
+                  costUsd: Number(result.usage.costUsd.toFixed(6)),
                 });
               }
             } catch (err) {

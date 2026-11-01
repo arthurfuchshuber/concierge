@@ -206,9 +206,19 @@ async function runGuideChat(
     const mirrorToCore = async (
       senderType: "guest" | "agent" | "human_operator",
       content: string,
+      /** Uso/custo da resposta da IA (registrado por mensagem; sem qualquer limite de uso). */
+      cost?: { tokensIn: number; tokensOut: number; costUsd: number; models?: Record<string, string> } | null,
     ): Promise<void> => {
       if (!coreConv || !content) return;
       await appendCoreMessage({
+        ...(cost
+          ? {
+              tokensIn: cost.tokensIn,
+              tokensOut: cost.tokensOut,
+              costUsd: Number(cost.costUsd.toFixed(6)),
+              metadata: { models: cost.models ?? null },
+            }
+          : {}),
         supabase: supabaseAdmin,
         conversationId: coreConv.id,
         tenantId: coreConv.tenantId,
@@ -512,7 +522,12 @@ async function runGuideChat(
         content: finalReply,
         sender_type: "ai",
       });
-      await mirrorToCore("agent", finalReply);
+      await mirrorToCore("agent", finalReply, {
+        tokensIn: result.usage.inputTokens,
+        tokensOut: result.usage.outputTokens,
+        costUsd: result.usage.costUsd,
+        models: (result as { models?: Record<string, string> }).models,
+      });
     }
 
     await supabaseAdmin

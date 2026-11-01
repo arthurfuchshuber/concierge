@@ -279,6 +279,7 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
                   <Input readOnly value={webhookUrl} className="h-8 font-mono text-[11px]" />
                   <Button
                     type="button"
+                    aria-label="Copiar URL do webhook"
                     size="sm"
                     variant="outline"
                     className="h-8 shrink-0 rounded-full px-2"

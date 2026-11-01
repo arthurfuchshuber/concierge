@@ -1295,7 +1295,7 @@ export function GuideAiChat({
           {uploadErr && (
             <div className="text-[11px] text-red-600 mb-1.5 px-1 flex items-center justify-between">
               <span>{uploadErr}</span>
-              <button onClick={() => setUploadErr(null)} className="ml-2"><X className="size-3" /></button>
+              <button aria-label="Fechar" onClick={() => setUploadErr(null)} className="ml-2"><X className="size-3" /></button>
             </div>
           )}
           <div className="flex items-center gap-1.5">

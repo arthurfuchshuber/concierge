@@ -51,6 +51,28 @@ export function modelFor(task: AiTask): string {
   return AI_MODELS[task];
 }
 
+/**
+ * MODELOS RESERVA (31/10/2026): se o modelo principal estiver fora do ar (5xx, rede, modelo indisponível),
+ * a mesma tarefa é refeita uma vez no reserva. Modelos OpenAI → outro OpenAI (continua com tool calling);
+ * Gemini → versão mais leve. Embeddings não têm reserva (trocar de modelo mudaria o espaço de busca).
+ * 429 (limite) e 402 (créditos) NÃO caem no reserva: trocar de modelo não resolve e mascararia o problema.
+ */
+export const FALLBACK_MODELS: Record<string, string> = {
+  "openai/gpt-6-astra": "openai/gpt-5.6-sol",
+  "google/gemini-3.8-flash": "google/gemini-3.1-flash-lite",
+  "google/gemini-3.1-flash-lite": "google/gemini-3.8-flash",
+};
+
+export function fallbackModel(model: string): string | null {
+  return FALLBACK_MODELS[model] ?? null;
+}
+
+/** Só falhas do lado do provedor justificam trocar de modelo. */
+export function shouldFallback(status: number | undefined): boolean {
+  if (status === undefined) return true; // erro de rede / sem resposta
+  return status >= 500 || status === 404 || status === 400;
+}
+
 /** Modelos OpenAI são servidos pela Responses API do gateway. */
 export function isResponsesModel(model: string): boolean {
   return model.startsWith("openai/");

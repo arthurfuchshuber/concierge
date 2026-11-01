@@ -40,7 +40,13 @@ export const PLAYBOOK_SECTIONS: PlaybookSectionMeta[] = [
     "id": "s5",
     "num": "5",
     "title": "Operação, Limpeza & Emergências",
-    "desc": "Limpeza, utilidades da casa e contatos de apoio."
+    "desc": "Limpeza, utilidades da casa e emergências."
+  },
+  {
+    "id": "s6",
+    "num": "6",
+    "title": "FAQ & Contatos",
+    "desc": "Perguntas frequentes, contatos de emergência e equipe de apoio."
   }
 ];
 
@@ -642,7 +648,7 @@ const BASE_FIELDS: FieldMeta[] = [
   },
   {
     "key": "contatos_de_emergencia",
-    "section": 5,
+    "section": 6,
     "label": "Contatos de emergência",
     "au": "G",
     "copy": false,
@@ -651,7 +657,7 @@ const BASE_FIELDS: FieldMeta[] = [
   },
   {
     "key": "telefone_do_anfitriao",
-    "section": 5,
+    "section": 6,
     "label": "Telefone do anfitrião",
     "au": "G",
     "copy": true,
@@ -746,6 +752,9 @@ export const PLAYBOOK_LAYOUT: Array<Array<[string, string[]]>> = [
     ["Limpeza", ["taxa_de_limpeza", "limpeza_operacional"]],
     ["Manutenção", ["bateria_da_fechadura"]],
     ["Utilidades da casa", ["localizacao_dos_disjuntores", "procedimento_se_faltar_energia", "registro_de_agua", "chave_do_gas"]],
+  ],
+  [
+    // Categoria 6 "FAQ & Contatos": as FAQs ("Perguntas frequentes") e os prestadores ("Contatos de apoio") entram pelas linhas dinâmicas.
     ["Contatos de apoio", ["contatos_de_emergencia", "telefone_do_anfitriao"]],
   ],
 ];

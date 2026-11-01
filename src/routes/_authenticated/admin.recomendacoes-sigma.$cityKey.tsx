@@ -339,7 +339,7 @@ function MarketplaceTab({ cityKey, items, refresh }: { cityKey: string; items: A
                 onBlur={(e) => { if (e.target.value !== m.label) updFn({ data: { id: m.id, patch: { label: e.target.value } } }).then(refresh).catch(() => {}); }}
                 className="flex-1 bg-transparent text-sm font-medium outline-none"
               />
-              <Button size="sm" variant="ghost" className="text-rose-400" onClick={() => delFn({ data: { id: m.id } }).then(refresh).catch(() => {})}>
+              <Button aria-label="Excluir" size="sm" variant="ghost" className="text-rose-400" onClick={() => delFn({ data: { id: m.id } }).then(refresh).catch(() => {})}>
                 <Trash2 className="size-3.5" />
               </Button>
             </div>
@@ -405,7 +405,7 @@ function FaqsTab({ cityKey, items, refresh }: { cityKey: string; items: Awaited<
                 onBlur={(e) => { if (e.target.value !== f.question) updFn({ data: { id: f.id, patch: { question: e.target.value } } }).then(refresh).catch(() => {}); }}
                 className="flex-1 bg-transparent text-sm font-medium outline-none"
               />
-              <Button size="sm" variant="ghost" className="text-rose-400" onClick={() => delFn({ data: { id: f.id } }).then(refresh).catch(() => {})}>
+              <Button aria-label="Excluir" size="sm" variant="ghost" className="text-rose-400" onClick={() => delFn({ data: { id: f.id } }).then(refresh).catch(() => {})}>
                 <Trash2 className="size-3.5" />
               </Button>
             </div>

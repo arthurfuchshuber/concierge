@@ -30,9 +30,9 @@ const src = (over: Partial<PlaybookSource> = {}): PlaybookSource => ({
 const find = (s: ReturnType<typeof buildPlaybook>, id: string) => s.flatMap((x) => x.rows).find((r) => r.id === id)!;
 
 describe("buildPlaybook", () => {
-  it("cria as 5 seções e deriva valores do cadastro", () => {
+  it("cria as 6 seções e deriva valores do cadastro", () => {
     const s = buildPlaybook(src());
-    expect(s).toHaveLength(5);
+    expect(s).toHaveLength(6);
     expect(find(s, "f:cep").raw).toBe("85853-705");
     expect(find(s, "f:bairro").raw).toBe("São Roque");
     expect(find(s, "f:horario_de_check_in").value).toBe("A partir das 15:00 · até as 23:00");
@@ -40,6 +40,18 @@ describe("buildPlaybook", () => {
     expect(find(s, "f:climatizacao").value).toBe("Ar-condicionado split");
     expect(find(s, "f:ausentes_no_anuncio").value).toBe("Detector de fumaça");
     expect(find(s, "f:checklist_de_saida").raw).toBe("1. Desligue as luzes");
+  });
+  it("categoria 6 'FAQ & Contatos' reúne FAQs, contatos de emergência, telefone do anfitrião e prestadores", () => {
+    const s = buildPlaybook(src({ faqs: [{ id: "q1", question: "Aceita pets?", answer: "Sim." }] as never }));
+    const sec6 = s[5]!;
+    const ids = sec6.rows.map((r) => r.id);
+    expect(ids).toContain("faq:q1");
+    expect(ids).toContain("f:contatos_de_emergencia");
+    expect(ids).toContain("f:telefone_do_anfitriao");
+    expect(ids.some((i) => i.startsWith("prov:"))).toBe(true);
+    // e não ficam mais nas seções 4 e 5
+    expect(s[3]!.rows.some((r) => r.id.startsWith("faq:"))).toBe(false);
+    expect(s[4]!.rows.some((r) => r.id === "f:contatos_de_emergencia" || r.id.startsWith("prov:"))).toBe(false);
   });
   it("mascara segredos e marca vazio como 'não cadastrado'", () => {
     const s = buildPlaybook(src());

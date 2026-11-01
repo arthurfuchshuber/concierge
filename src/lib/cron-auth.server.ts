@@ -5,7 +5,7 @@
  * `x-cron-secret` (os agendamentos já criados no banco continuam funcionando). Sem `CRON_SECRET`
  * configurado, NADA passa.
  */
-function safeEqual(provided: string, expected: string): boolean {
+export function safeEqual(provided: string, expected: string): boolean {
   const enc = new TextEncoder();
   const b = enc.encode(expected);
   const a = enc.encode(provided.padEnd(expected.length, "\0").slice(0, expected.length));

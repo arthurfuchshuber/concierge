@@ -993,9 +993,9 @@ async function lookupReservationByCode(
 export const validateGuideReservationCode = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => ReservationCodeInput.parse(i))
   .handler(async ({ data }) => {
-    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { allowPublicRateShared, clientIpFrom } = await import("@/lib/public-rate-limit.server");
     const { getRequest } = await import("@tanstack/react-start/server");
-    if (!allowPublicRate(`guide-res-code:${clientIpFrom(getRequest())}`, 15, 60_000)) {
+    if (!(await allowPublicRateShared(`guide-res-code:${clientIpFrom(getRequest())}`, 15, 60_000))) {
       throw new Error("Muitas tentativas. Aguarde um instante e tente novamente.");
     }
     return await lookupReservationByCode(data.slug, data.property_id, data.code);

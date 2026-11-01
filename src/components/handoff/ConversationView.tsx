@@ -932,7 +932,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
         {errorMsg && (
           <div className="text-[11px] px-2 py-1 rounded bg-destructive/10 text-destructive border border-destructive/30 flex items-center justify-between gap-2">
             <span>{errorMsg}</span>
-            <button onClick={() => setErrorMsg(null)}>
+            <button aria-label="Fechar" onClick={() => setErrorMsg(null)}>
               <X className="size-3" />
             </button>
           </div>

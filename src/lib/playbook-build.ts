@@ -444,7 +444,7 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
   };
   for (const k of ENTRY_FIELDS) values[k] = values[k] || entryValue(k);
 
-  const sections: PlaybookSectionData[] = [1, 2, 3, 4, 5].map((num) => ({ id: `s${num}`, num, rows: [] }));
+  const sections: PlaybookSectionData[] = [1, 2, 3, 4, 5, 6].map((num) => ({ id: `s${num}`, num, rows: [] }));
   const put = (num: number, row: PlaybookRow) => sections[num - 1].rows.push(row);
 
   for (const meta of PLAYBOOK_FIELDS) {
@@ -476,10 +476,10 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     });
   }
 
-  // FAQs (seção 4) — uma linha por pergunta cadastrada.
+  // FAQs (seção 6, "FAQ & Contatos") — uma linha por pergunta cadastrada.
   src.faqs.forEach((f) => {
     const raw = f.answer.trim();
-    put(4, {
+    put(6, {
       id: `faq:${f.id}`,
       label: `FAQ · ${f.question.trim()}`,
       value: raw || EMPTY_TEXT,
@@ -496,11 +496,11 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     });
   });
 
-  // Prestadores de apoio (seção 5) — equipe interna.
+  // Prestadores de apoio (seção 6, "FAQ & Contatos") — equipe interna.
   src.providers.forEach((pv) => {
     const cat = pv.category ? pv.category.charAt(0).toUpperCase() + pv.category.slice(1) : null;
     const raw = [cat, pv.phone, pv.email].filter((x) => x && String(x).trim()).join("\n");
-    put(5, {
+    put(6, {
       id: `prov:${pv.linkId}`,
       label: `Prestador de apoio · ${pv.name}`,
       value: raw || EMPTY_TEXT,
@@ -522,7 +522,7 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     .filter((e) => e.field_key.startsWith("custom:"))
     .forEach((e) => {
       const raw = s(e.value);
-      put(e.section_num && e.section_num >= 1 && e.section_num <= 5 ? e.section_num : 5, {
+      put(e.section_num && e.section_num >= 1 && e.section_num <= 6 ? e.section_num : 5, {
         id: e.field_key,
         label: s(e.custom_label) || "Novo campo",
         value: raw || EMPTY_TEXT,

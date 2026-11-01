@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { isAllowedIcalUrl } from "@/lib/airbnb-ical-url";
 import { cleanLocationText, normalizeParkingSpots } from "@/lib/property-location";
+import { untypedTable } from "@/lib/untyped-table";
 
 const slugRe = /^[a-z0-9](?:[a-z0-9-]{1,60}[a-z0-9])?$/;
 
@@ -613,7 +614,7 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
       if (!before.error && before.data) {
         // audit_logs é escrito apenas via service role (RLS sem policy de INSERT).
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+        await untypedTable(supabaseAdmin, "audit_logs").insert({
           user_id: context.userId,
           action: "properties.bulk_edit.snapshot",
           entity_type: "properties",
@@ -1232,8 +1233,7 @@ export const transferPropertyOwner = createServerFn({ method: "POST" })
     // Auditoria nunca bloqueia a transferência. O construtor do banco não tem
     // `.catch`, então encadear `.catch` quebrava a 1ª tentativa (após salvar).
     try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+    await untypedTable(supabaseAdmin, "audit_logs").insert({
       user_id: context.userId,
       user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
       action: "property.owner_transferred",

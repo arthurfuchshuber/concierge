@@ -123,7 +123,7 @@ export function CategoryPicker({
               placeholder="Nova categoria..."
               onChange={(e) => setNewLabel(e.target.value)}
             />
-            <Button
+            <Button aria-label="Adicionar"
               type="button"
               disabled={busy || newLabel.trim().length < 2}
               onClick={() =>
@@ -151,7 +151,7 @@ export function CategoryPicker({
                       onChange={(e) => setEditing({ id: c.id, label: e.target.value })}
                       className="h-8 flex-1 min-w-0"
                     />
-                    <button
+                    <button aria-label="Confirmar"
                       type="button"
                       disabled={busy}
                       onClick={() =>
@@ -164,7 +164,7 @@ export function CategoryPicker({
                     >
                       <Check className="size-4" />
                     </button>
-                    <button
+                    <button aria-label="Fechar"
                       type="button"
                       onClick={() => setEditing(null)}
                       className="text-muted-foreground"
@@ -175,14 +175,14 @@ export function CategoryPicker({
                 ) : (
                   <>
                     <span className="flex-1 min-w-0 truncate text-sm">{c.label}</span>
-                    <button
+                    <button aria-label="Editar"
                       type="button"
                       onClick={() => setEditing({ id: c.id, label: c.label })}
                       className="text-muted-foreground hover:text-foreground"
                     >
                       <Pencil className="size-3.5" />
                     </button>
-                    <button
+                    <button aria-label="Excluir"
                       type="button"
                       disabled={busy}
                       onClick={() =>

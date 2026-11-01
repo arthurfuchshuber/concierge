@@ -21,6 +21,23 @@ export function allowPublicRate(key: string, max: number, windowMs: number): boo
   return b.count <= max;
 }
 
+/**
+ * Versão COMPARTILHADA entre instâncias (contador no banco, atômico). Use nas rotas sensíveis a força bruta
+ * (PIN, códigos). Se o banco não responder, cai no contador em memória — nunca fica sem proteção.
+ */
+export async function allowPublicRateShared(key: string, max: number, windowMs: number): Promise<boolean> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as unknown as {
+      rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+    }).rpc("public_rate_hit", { p_key: key, p_max: max, p_window_seconds: Math.ceil(windowMs / 1000) });
+    if (error || typeof data !== "boolean") return allowPublicRate(key, max, windowMs);
+    return data;
+  } catch {
+    return allowPublicRate(key, max, windowMs);
+  }
+}
+
 /** IP do cliente a partir dos cabeçalhos de proxy (Cloudflare / padrão). */
 export function clientIpFrom(request: Request): string {
   const h = request.headers;

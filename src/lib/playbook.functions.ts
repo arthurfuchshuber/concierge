@@ -395,7 +395,7 @@ export const addPlaybookRow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
     PropertyIdInput.extend({
-      section: z.number().int().min(1).max(5),
+      section: z.number().int().min(1).max(6),
       label: z.string().trim().min(1).max(120),
       value: z.string().max(20000).default(""),
       audience: z.enum(["G", "P", "I"]),
@@ -432,7 +432,7 @@ const BulkInput = z.object({
     z.object({
       kind: z.literal("new"),
       label: z.string().trim().min(1).max(120),
-      section: z.number().int().min(1).max(5),
+      section: z.number().int().min(1).max(6),
       value: z.string().trim().min(1).max(20000),
     }),
   ]),

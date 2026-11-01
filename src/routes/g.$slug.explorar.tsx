@@ -1662,7 +1662,7 @@ function EmbeddedMapModal({
               <p className="text-[14px] font-medium leading-tight">Recomendações próximas</p>
             </div>
           </div>
-          <button
+          <button aria-label="Fechar"
             type="button"
             onClick={onClose}
             className="inline-flex size-8 items-center justify-center rounded-full bg-muted hover:bg-muted/80 text-muted-foreground transition-colors"

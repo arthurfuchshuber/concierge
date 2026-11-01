@@ -60,7 +60,7 @@ describe("PlaybookPage (celular)", () => {
     expect(await screen.findByText("Pr: Arthur Tenório")).toBeTruthy();
     expect(screen.queryByText("Hóspede Ativo")).toBeNull();
     const heads = screen.getAllByRole("button", { name: /, \d+ campos$/ });
-    expect(heads).toHaveLength(5);
+    expect(heads).toHaveLength(6);
     expect(screen.queryByText(/Link do mapa/)).toBeNull();
     fireEvent.click(heads[0]);
     expect(screen.getByText(/Link do mapa/)).toBeTruthy();

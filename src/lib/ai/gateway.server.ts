@@ -5,7 +5,7 @@
  * round-trip de tool calling e a contabilidade de tokens/custo. Nenhum outro
  * arquivo deve chamar o gateway diretamente.
  */
-import { estimateCostUsd, isResponsesModel, modelFor, type AiTask } from "./models";
+import { estimateCostUsd, fallbackModel, isResponsesModel, modelFor, shouldFallback, type AiTask } from "./models";
 import { cached, cacheKeyOf } from "./cache.server";
 
 const BASE = "https://ai.gateway.lovable.dev/v1";
@@ -82,12 +82,12 @@ async function fetchWithRetry(
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
-export async function chatText(
+async function chatTextOnce(
   task: AiTask,
   messages: ChatMessage[],
-  opts?: { json?: boolean; signal?: AbortSignal },
+  opts?: { json?: boolean; signal?: AbortSignal; modelOverride?: string },
 ): Promise<{ text: string; usage: Usage; model: string }> {
-  const model = modelFor(task);
+  const model = opts?.modelOverride ?? modelFor(task);
 
   // Modelos OpenAI são servidos pela Responses API (streaming obrigatório).
   if (isResponsesModel(model)) {
@@ -112,6 +112,7 @@ export async function chatText(
       tools: [],
       maxSteps: 1,
       signal: opts?.signal,
+      modelOverride: model,
     });
     return { text: run.text, usage: run.usage, model: run.model };
   }
@@ -147,6 +148,23 @@ export async function chatText(
       costUsd: estimateCostUsd(model, inputTokens, outputTokens),
     },
   };
+}
+
+/** Chat com modelo reserva automático (ver `FALLBACK_MODELS`). `model` no retorno diz qual respondeu. */
+export async function chatText(
+  task: AiTask,
+  messages: ChatMessage[],
+  opts?: { json?: boolean; signal?: AbortSignal },
+): Promise<{ text: string; usage: Usage; model: string }> {
+  try {
+    return await chatTextOnce(task, messages, opts);
+  } catch (err) {
+    const status = err instanceof AiGatewayError ? err.status : undefined;
+    const backup = fallbackModel(modelFor(task));
+    if (!backup || opts?.signal?.aborted || !shouldFallback(status)) throw err;
+    console.error("[ai-gateway] modelo principal falhou, usando reserva", modelFor(task), "→", backup);
+    return chatTextOnce(task, messages, { ...opts, modelOverride: backup });
+  }
 }
 
 /** Chat com saída JSON. Retorna `null` quando o modelo devolve algo inválido. */
@@ -346,8 +364,9 @@ export type AgentRun = {
  * O modelo decide quais tools acionar; executamos e devolvemos os resultados
  * até que ele produza a resposta final.
  */
-export async function runAgent(params: {
+async function runAgentOnce(params: {
   task?: AiTask;
+  modelOverride?: string;
   instructions: string;
   input: ResponsesItem[];
   tools: AgentTool[];
@@ -366,7 +385,7 @@ export async function runAgent(params: {
    */
   onTextDelta?: (delta: string, step: number) => void;
 }): Promise<AgentRun> {
-  const model = modelFor(params.task ?? "agent");
+  const model = params.modelOverride ?? modelFor(params.task ?? "agent");
   const maxSteps = params.maxSteps ?? 5;
   /**
    * SEM RELÓGIO CONTRA O RACIOCÍNIO (22/09/2026).
@@ -545,3 +564,24 @@ export async function runAgent(params: {
 }
 
 export { isResponsesModel };
+
+/**
+ * Agente com modelo reserva: se o principal cair ANTES de começar a escrever para o hóspede, refaz uma vez
+ * no reserva (mesma família, mantém tool calling). Se já havia texto em andamento, não troca no meio.
+ */
+export async function runAgent(params: Parameters<typeof runAgentOnce>[0]): Promise<AgentRun> {
+  let streamed = false;
+  const wrapped = params.onTextDelta
+    ? { ...params, onTextDelta: (d: string, step: number) => { streamed = true; params.onTextDelta!(d, step); } }
+    : params;
+  try {
+    return await runAgentOnce(wrapped);
+  } catch (err) {
+    const status = err instanceof AiGatewayError ? err.status : undefined;
+    const primary = params.modelOverride ?? modelFor(params.task ?? "agent");
+    const backup = fallbackModel(primary);
+    if (!backup || streamed || params.signal?.aborted || !shouldFallback(status)) throw err;
+    console.error("[ai-gateway] agente principal falhou, usando reserva", primary, "→", backup);
+    return runAgentOnce({ ...params, modelOverride: backup });
+  }
+}

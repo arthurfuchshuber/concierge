@@ -41,6 +41,35 @@ function splitAtWordBoundary(text: string, maxChars: number, overlap: number): s
   return parts;
 }
 
+/**
+ * Público EFETIVO de uma linha do Dossiê — a mesma regra de `playbook-build.ts`:
+ * campo do catálogo = público padrão, a menos que o usuário tenha escolhido outro (campos não secretos);
+ * linha criada à mão = o que o usuário escolheu, e sem escolha vale "I" (interno); FAQ = o escolhido ou o automático.
+ */
+export function effectiveAudience(params: {
+  fieldKey: string;
+  catalogAu?: string | null;
+  catalogSecret?: boolean;
+  chosen: string | null | undefined;
+  faqQuestion?: string | null;
+}): string {
+  const { fieldKey, catalogAu, catalogSecret, chosen, faqQuestion } = params;
+  if (fieldKey.startsWith("custom:")) return chosen ?? "I";
+  if (fieldKey.startsWith("faq:")) return chosen ?? (faqAutoAudience(faqQuestion ?? ""));
+  if (catalogAu) return (!catalogSecret && chosen) || catalogAu;
+  return chosen ?? "I";
+}
+
+/** Mesmo critério automático do Dossiê para FAQ (nunca "I" por si só). */
+export function faqAutoAudience(question: string): "G" | "P" {
+  return /check|endere[cç]o|senha|c[oó]digo|wi-?fi|port[aã]o|entrada|sa[ií]da|chave/i.test(question) ? "G" : "P";
+}
+
+/** Público do Playbook que a IA pode repassar ao hóspede: G e P. "I" (Equipe Interna) nunca. */
+export function isGuestShareable(audience: string | null | undefined): boolean {
+  return audience !== "I";
+}
+
 function pushChunk(out: Chunk[], chunk: Chunk) {
   const content = normalizeText(chunk.content);
   if (content.length < 8) return;
@@ -249,6 +278,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
   // valores dos campos manuais sem coluna própria (voltagem, lixo, disjuntores…)
   // e as linhas criadas à mão entram na base da IA junto da instrução padrão.
   // Linhas de Equipe Interna levam o aviso para nunca serem repassadas ao hóspede.
+  const blockedFaqIds = new Set<string>();
   try {
     const { PLAYBOOK_FIELDS } = await import("@/lib/playbook-catalog");
     const { data: pbEntries } = await supabase
@@ -268,8 +298,22 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     }>) {
       const meta = metaByKey.get(e.field_key);
       const label = meta?.label ?? e.custom_label ?? faqQuestion.get(e.field_key) ?? "Campo do Playbook";
-      const internal = (meta?.au ?? e.custom_audience) === "I";
-      const guard = internal ? " (uso interno: nunca repassar ao hóspede)" : "";
+      // FILTRO DURO DE PÚBLICO (31/10/2026): linha de Equipe Interna (valor E nota) NUNCA entra na base
+      // que a IA do hóspede consulta — não depende do modelo "obedecer" um aviso. G (Hóspede Ativo) e
+      // P (Público) podem ser informados; a nota do anfitrião herda o público da própria linha.
+      const au = effectiveAudience({
+        fieldKey: e.field_key,
+        catalogAu: meta?.au,
+        catalogSecret: meta?.secret,
+        chosen: e.custom_audience,
+        faqQuestion: faqQuestion.get(e.field_key),
+      });
+      if (!isGuestShareable(au)) {
+        // FAQ marcada como interna no Dossiê: a própria pergunta/resposta também sai da base do hóspede.
+        if (e.field_key.startsWith("faq:")) blockedFaqIds.add(e.field_key.slice(4));
+        continue;
+      }
+      const guard = "";
       const isCustom = e.field_key.startsWith("custom:");
       // Valor próprio do Playbook (sem coluna no cadastro) e linhas criadas à mão.
       if (e.value && (isCustom || meta)) {
@@ -291,6 +335,12 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     }
   } catch (e) {
     console.error("[indexing] playbook entries", e);
+  }
+  if (blockedFaqIds.size) {
+    for (let i = chunks.length - 1; i >= 0; i -= 1) {
+      const c = chunks[i]!;
+      if (c.source === "faq" && c.sourceId && blockedFaqIds.has(c.sourceId)) chunks.splice(i, 1);
+    }
   }
   for (const k of (knowledge.data ?? []) as Array<Record<string, unknown>>) {
     if (k.scope_property_id && k.scope_property_id !== propertyId) continue;
