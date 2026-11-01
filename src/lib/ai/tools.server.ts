@@ -135,6 +135,8 @@ export type ToolContext = {
   checkinDate: string | null;
   checkoutDate: string | null;
   sensitiveLocked: boolean;
+  /** Reserva confirmada e ativa (libera trechos de público "Reserva Ativa" na busca). */
+  activeReservation?: boolean;
   /** Registra as fontes efetivamente consultadas (observabilidade + validação). */
   collectSource: (entry: {
     source: string;
@@ -170,6 +172,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         ownerId: ctx.ownerId,
         propertyId: ctx.propertyId,
         query,
+        activeReservation: ctx.activeReservation === true,
       });
       const safe = (v: unknown) =>
         ctx.sensitiveLocked

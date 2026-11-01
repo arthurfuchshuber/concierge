@@ -4,10 +4,11 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { teachAiFromMessage, listOwnerPropertiesForTeaching } from "@/lib/teach-ai.functions";
 import { Loader2, Sparkles, Check, AlertCircle } from "lucide-react";
+import { AUDIENCE_NAME, suggestAudience } from "@/lib/knowledge-audience";
 
 type Scope = "current" | "global" | "select";
-/** Quem pode receber a informação: G = Hóspede Ativo, I = Equipe Interna (a IA nunca repassa ao hóspede). */
-type Aud = "G" | "I";
+/** Quem pode receber a informação: G = Reserva Ativa · P = Público (qualquer pessoa) · I = Equipe Interna. */
+type Aud = "G" | "P" | "I";
 
 export function TeachAiDialog({
   open,
@@ -26,7 +27,8 @@ export function TeachAiDialog({
 }) {
   const [content, setContent] = useState(initialContent);
   const [scope, setScope] = useState<Scope>("current");
-  const [aud, setAud] = useState<Aud>("G");
+  // Nada vem pré-selecionado: o usuário escolhe (a IA só sugere).
+  const [aud, setAud] = useState<Aud | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [err, setErr] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export function TeachAiDialog({
     if (open) {
       setContent(initialContent);
       setScope("current");
-      setAud("G");
+      setAud(null);
       setSelected(new Set());
       setErr(null);
       setOkMsg(null);
@@ -60,7 +62,7 @@ export function TeachAiDialog({
         propertyId,
         content: content.trim(),
         scope,
-        audience: aud,
+        audience: aud as Aud,
         propertyIds: scope === "select" ? Array.from(selected) : undefined,
         sourceMessageId: sourceMessageId ?? null,
       };
@@ -81,7 +83,10 @@ export function TeachAiDialog({
     });
   }
 
+  const suggestion = useMemo(() => suggestAudience(content), [content]);
+
   const canSave =
+    aud !== null &&
     content.trim().length >= 3 &&
     !save.isPending &&
     (scope !== "select" || selected.size > 0);
@@ -171,16 +176,30 @@ export function TeachAiDialog({
               <ScopeRow
                 active={aud === "G"}
                 onSelect={() => setAud("G")}
-                title="Hóspede Ativo"
-                subtitle="A IA pode informar ao hóspede."
+                title="Reserva Ativa"
+                subtitle="A IA só informa a quem tem reserva ativa."
+                tag={suggestion?.audience === "G" ? "Sugerido" : undefined}
+              />
+              <ScopeRow
+                active={aud === "P"}
+                onSelect={() => setAud("P")}
+                title="Público"
+                subtitle="A IA informa a qualquer pessoa, mesmo sem reserva."
+                tag={suggestion?.audience === "P" ? "Sugerido" : undefined}
               />
               <ScopeRow
                 active={aud === "I"}
                 onSelect={() => setAud("I")}
                 title="Equipe Interna"
-                subtitle="A IA usa só com a equipe e nunca repassa ao hóspede."
+                subtitle="A IA usa só com equipes e usuários internos; nunca repassa ao hóspede."
+                tag={suggestion?.audience === "I" ? "Sugerido" : undefined}
               />
             </div>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              {suggestion
+                ? `Sugestão: ${AUDIENCE_NAME[suggestion.audience]} — ${suggestion.reason}. Escolha uma opção para salvar.`
+                : "Escolha uma opção para salvar."}
+            </p>
           </div>
 
           {err && (
@@ -219,8 +238,8 @@ export function TeachAiDialog({
 }
 
 function ScopeRow({
-  active, onSelect, title, subtitle,
-}: { active: boolean; onSelect: () => void; title: string; subtitle: string }) {
+  active, onSelect, title, subtitle, tag,
+}: { active: boolean; onSelect: () => void; title: string; subtitle: string; tag?: string }) {
   return (
     <button
       type="button"
@@ -229,7 +248,10 @@ function ScopeRow({
         active ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/60"
       }`}
     >
-      <div className="font-medium">{title}</div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium">{title}</span>
+        {tag ? <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">{tag}</span> : null}
+      </div>
       <div className="text-[11px] text-muted-foreground">{subtitle}</div>
     </button>
   );

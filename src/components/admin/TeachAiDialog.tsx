@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { teachAiFromMessage } from "@/lib/chat-feedback.functions";
+import { AUDIENCE_NAME, suggestAudience } from "@/lib/knowledge-audience";
 
 type Props = {
   open: boolean;
@@ -22,22 +23,28 @@ export function TeachAiDialog({ open, onOpenChange, messageId, userQuestion, aiA
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
-  /** G = Hóspede Ativo · I = Equipe Interna (a IA nunca repassa ao hóspede). */
-  const [aud, setAud] = useState<"G" | "I">("G");
+  /** G = Reserva Ativa · P = Público (qualquer pessoa) · I = Equipe Interna. Nada vem pré-selecionado. */
+  const [aud, setAud] = useState<"G" | "P" | "I" | null>(null);
 
   useEffect(() => {
     if (open) {
       const auto = userQuestion.trim().slice(0, 60);
       setTitle(auto ? `Aprendizado: ${auto}` : "Novo aprendizado de comportamento");
       setBody("");
-      setAud("G");
+      setAud(null);
     }
   }, [open, userQuestion]);
+
+  const suggestion = suggestAudience(`${userQuestion} ${body}`);
 
   async function handleSave() {
     if (!messageId) return;
     if (title.trim().length < 3 || body.trim().length < 3) {
       toast.error("Preencha título e instrução.");
+      return;
+    }
+    if (!aud) {
+      toast.error("Escolha quem pode receber esta informação.");
       return;
     }
     setSaving(true);
@@ -98,8 +105,9 @@ export function TeachAiDialog({ open, onOpenChange, messageId, userQuestion, aiA
             <div className="mt-1 space-y-1.5">
               {(
                 [
-                  ["G", "Hóspede Ativo", "A IA pode informar ao hóspede."],
-                  ["I", "Equipe Interna", "A IA usa só com a equipe e nunca repassa ao hóspede."],
+                  ["G", "Reserva Ativa", "A IA só informa a quem tem reserva ativa."],
+                  ["P", "Público", "A IA informa a qualquer pessoa, mesmo sem reserva."],
+                  ["I", "Equipe Interna", "A IA usa só com equipes e usuários internos; nunca repassa ao hóspede."],
                 ] as const
               ).map(([k, t, s]) => (
                 <button
@@ -110,17 +118,27 @@ export function TeachAiDialog({ open, onOpenChange, messageId, userQuestion, aiA
                     aud === k ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/60"
                   }`}
                 >
-                  <div className="font-medium">{t}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{t}</span>
+                    {suggestion?.audience === k ? (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">Sugerido</span>
+                    ) : null}
+                  </div>
                   <div className="text-[11px] text-muted-foreground">{s}</div>
                 </button>
               ))}
             </div>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              {suggestion
+                ? `Sugestão: ${AUDIENCE_NAME[suggestion.audience]} — ${suggestion.reason}. Escolha uma opção para salvar.`
+                : "Escolha uma opção para salvar."}
+            </p>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || !aud}>
             {saving ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Sparkles className="size-4 mr-1.5" />}
             Salvar aprendizado
           </Button>

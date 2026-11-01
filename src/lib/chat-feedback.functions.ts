@@ -13,8 +13,8 @@ const TeachInput = z.object({
   messageId: z.string().uuid(),
   title: z.string().trim().min(3).max(200),
   body: z.string().trim().min(3).max(5000),
-  /** G = Hóspede Ativo (padrão) · I = Equipe Interna (a IA nunca repassa ao hóspede). */
-  audience: z.enum(["G", "I"]).default("G"),
+  /** G = Reserva Ativa · P = Público (qualquer pessoa) · I = Equipe Interna. OBRIGATÓRIO: o usuário escolhe ao salvar. */
+  audience: z.enum(["G", "P", "I"]),
 });
 
 async function loadMessageOwner(supabase: any, messageId: string, userId: string) {
@@ -100,12 +100,21 @@ export const teachAiFromMessage = createServerFn({ method: "POST" })
       .insert({ ...baseRow, audience: data.audience } as never)
       .select("id")
       .single();
-    if (bErr && data.audience === "G") {
-      // Banco ainda sem a coluna `audience` (migração pendente): Hóspede é o padrão antigo, grava igual.
+    if (bErr && data.audience === "P") {
+      // Banco ainda sem a coluna `audience` (migração pendente): Público = comportamento de sempre, grava igual.
       ({ data: behavior, error: bErr } = await supabase.from("host_behavior").insert(baseRow).select("id").single());
     }
     if (bErr || !behavior) {
-      throw new Error(data.audience === "I" ? "Não foi possível salvar como Equipe Interna agora. Tente novamente em instantes." : (bErr?.message ?? "Falha ao salvar aprendizado"));
+      throw new Error(data.audience === "P" ? (bErr?.message ?? "Falha ao salvar aprendizado") : "Não foi possível salvar com esse público agora (atualização do banco pendente). Tente novamente em instantes.");
+    }
+
+    // VALE JÁ (01/11/2026): o comportamento ensinado entra na base do imóvel de origem na hora.
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { reindexProperty } = await import("@/lib/ai/indexing.server");
+      await reindexProperty(supabaseAdmin, info.propertyId).catch((e) => console.error("[teach] reindex", e));
+    } catch (e) {
+      console.error("[teach] reindex falhou", e);
     }
 
     const { error: fErr } = await supabase.from("chat_message_feedback").upsert(

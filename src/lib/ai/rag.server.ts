@@ -37,15 +37,46 @@ export async function withDbDeadline<T>(work: PromiseLike<T>, ms = RAG_DB_DEADLI
   }
 }
 
+/**
+ * PÚBLICO DO TRECHO (01/11/2026): G = Reserva Ativa (só com reserva ativa) · P = Público (qualquer pessoa) ·
+ * I = Equipe Interna (nunca vai ao hóspede). Regra pura, testada.
+ */
+export function audienceAllowed(audience: string | null | undefined, activeReservation: boolean): boolean {
+  if (audience === "I") return false;
+  if (audience === "G") return activeReservation;
+  return true; // P, vazio ou desconhecido = comportamento de sempre
+}
+
+/**
+ * Dos ids encontrados, devolve os que a pessoa pode receber. Se a coluna `audience` ainda não existir no
+ * banco (migração pendente), nada é filtrado — comportamento anterior.
+ */
+export async function allowedChunkIds(supabase: Admin, ids: string[], activeReservation: boolean): Promise<Set<string>> {
+  if (!ids.length) return new Set();
+  try {
+    const { data, error } = await supabase.from("ai_kb_chunks").select("id, audience").in("id", ids);
+    if (error || !Array.isArray(data)) return new Set(ids);
+    const aud = new Map((data as Array<{ id: string; audience?: string | null }>).map((r) => [r.id, r.audience ?? "P"]));
+    return new Set(ids.filter((id) => audienceAllowed(aud.get(id), activeReservation)));
+  } catch {
+    return new Set(ids);
+  }
+}
+
 export async function hybridRetrieve(params: {
   supabase: Admin;
   ownerId: string;
   propertyId: string | null;
   query: string;
   limit?: number;
+  /** O hóspede tem reserva confirmada e ativa? Sem isso, trechos de "Reserva Ativa" não são devolvidos. */
+  activeReservation?: boolean;
 }): Promise<{ passages: Passage[]; usage: Usage; retrievalUsed: string[] }> {
   const { supabase, ownerId, propertyId, query } = params;
   const limit = params.limit ?? MAX_PASSAGES;
+  const activeReservation = params.activeReservation === true;
+  // Busca um pouco a mais: o filtro de público pode descartar trechos.
+  const fetchCount = limit * 2;
   const retrievalUsed: string[] = [];
   let usage = EMPTY_USAGE;
   const byId = new Map<string, Passage>();
@@ -61,7 +92,7 @@ export async function hybridRetrieve(params: {
           query_embedding: vector as unknown as string,
           _owner_id: ownerId,
           _property_id: propertyId,
-          match_count: limit,
+          match_count: fetchCount,
         }),
       );
       if (!res) console.warn("[rag] busca vetorial passou do prazo — seguindo sem ela");
@@ -93,7 +124,7 @@ export async function hybridRetrieve(params: {
         _query: query,
         _owner_id: ownerId,
         _property_id: propertyId,
-        match_count: limit,
+        match_count: fetchCount,
       }),
     );
     if (!res) console.warn("[rag] busca textual passou do prazo — seguindo sem ela");
@@ -126,6 +157,9 @@ export async function hybridRetrieve(params: {
   // prompt com "confiabilidade=97%" e o modelo o tratava como fato do momento
   // (ex.: template de pedido de avaliação puxado por um simples "boa tarde").
   const MIN_SCORE = 0.25;
+  // Público: Equipe Interna nunca; Reserva Ativa só com reserva ativa.
+  const allowed = await allowedChunkIds(supabase, Array.from(byId.keys()), activeReservation);
+  for (const id of Array.from(byId.keys())) if (!allowed.has(id)) byId.delete(id);
   const all = Array.from(byId.values()).sort(
     (a, b) => b.score - a.score || b.confidence - a.confidence,
   );

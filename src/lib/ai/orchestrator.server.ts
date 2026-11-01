@@ -525,7 +525,8 @@ async function runHospitalityAgentInner(params: {
     ts((manRes.data?.[0] as { created_at?: string } | undefined)?.created_at),
     ts((recRes.data?.[0] as { created_at?: string } | undefined)?.created_at),
   );
-  if (!indexedAt || editedAt > indexedAt + 60_000) {
+  const { KB_AUDIENCE_ROLLOUT_AT } = await import("./indexing.server");
+  if (!indexedAt || editedAt > indexedAt + 60_000 || indexedAt < KB_AUDIENCE_ROLLOUT_AT) {
     // Teto de tempo: gerar embeddings pode demorar bastante para um guia grande.
     // Antes, isso bloqueava a primeira mensagem do hóspede sem limite nenhum.
     // Com o teto, se estourar, a resposta desta mensagem segue sem RAG (ainda
@@ -558,6 +559,8 @@ async function runHospitalityAgentInner(params: {
     ? false
     : context.sensitiveLocked || params.credentialsLocked === true || !reservationVerified;
   const stayFacts = stayAccess.open ? stayFactsText(property as Record<string, unknown>) : "";
+  // Comportamento do anfitrião por público: Público sempre; Reserva Ativa só com reserva ativa; Interno nunca.
+  const behaviorText = [context.behavior, reservationVerified === true ? context.behaviorActiveOnly : ""].filter(Boolean).join("\n");
 
   // GOVERNANÇA DE CHECK-IN (29/10/2026): ver `checkin-governance.ts`.
   const gov = await (async () => {
@@ -636,6 +639,7 @@ async function runHospitalityAgentInner(params: {
     ownerId,
     propertyId,
     query: intent.searchQuery || params.message,
+    activeReservation: reservationVerified === true,
   });
   const { usage: ragUsage, retrievalUsed } = retrieved;
   // Com as senhas travadas, nenhuma sequência numérica do guia chega ao
@@ -758,6 +762,7 @@ async function runHospitalityAgentInner(params: {
     checkinDate: params.checkinDate ?? null,
     checkoutDate: params.checkoutDate ?? null,
     sensitiveLocked: credentialsLocked,
+    activeReservation: reservationVerified === true,
     collectSource: (entry) => {
       sources.push({ source: entry.source, title: entry.title, confidence: entry.confidence });
       if (entry.content) evidence.push(`[${entry.source}] ${entry.content}`);
@@ -850,8 +855,8 @@ async function runHospitalityAgentInner(params: {
     PROMPTS.agent.text +
     (explorationMode ? PROMPTS.exploration.text : "") +
     `\n\n=== SEU PAPEL NESTA CONVERSA ===\n${renderAgentBriefing(agent)}` +
-    (context.behavior
-      ? `\n\nCOMPORTAMENTO DEFINIDO PELO ANFITRIÃO (prioridade máxima, siga estritamente)\n${context.behavior}`
+    (behaviorText
+      ? `\n\nCOMPORTAMENTO DEFINIDO PELO ANFITRIÃO (prioridade máxima, siga estritamente)\n${behaviorText}`
       : "") +
     (tenantKnowledgeText
       ? `\n\nCONHECIMENTO DA EMPRESA (políticas/procedimentos internos cadastrados pelo anfitrião — trate como regra oficial, não como sugestão)\n${tenantKnowledgeText}`
@@ -1110,7 +1115,7 @@ async function runHospitalityAgentInner(params: {
         answer: reply,
         evidence: evidenceText,
         language: intent.language,
-        policies: context.behavior || undefined,
+        policies: behaviorText || undefined,
         history: params.history,
         highRisk: highRiskContext,
         skip: respostaSocialSimples,
@@ -1144,7 +1149,7 @@ async function runHospitalityAgentInner(params: {
         answer: reflection.improvedAnswer,
         evidence: evidenceText,
         language: intent.language,
-        policies: context.behavior || undefined,
+        policies: behaviorText || undefined,
         history: params.history,
         highRisk: highRiskContext,
       });
@@ -1262,7 +1267,7 @@ async function runHospitalityAgentInner(params: {
       answer: reply,
       evidence: evidenceText,
       language: intent.language,
-      policies: context.behavior || undefined,
+      policies: behaviorText || undefined,
       history: params.history,
       highRisk: highRiskContext,
     });

@@ -15,6 +15,8 @@ export type AgentContext = {
   keys: string[];
   sensitiveLocked: boolean;
   behavior: string;
+  /** Comportamento de público "Reserva Ativa": só entra no prompt quando há reserva ativa. */
+  behaviorActiveOnly: string;
   stayPhase: "pre_checkin" | "checkin_day" | "in_stay" | "checkout_day" | "post_checkout" | "unknown";
 };
 
@@ -316,13 +318,16 @@ export async function buildAgentContext(params: {
     .select("*")
     .eq("owner_id", p.owner_id as string)
     .eq("enabled", true);
-  const behavior = (behaviorRows ?? [])
-    .filter((b) => !b.scope_property_id || b.scope_property_id === p.id)
-    // Equipe Interna (31/10/2026): instrução interna nunca entra no prompt do atendimento ao hóspede.
-    .filter((b) => (b as { audience?: string | null }).audience !== "I")
-    .map((b) => `### ${b.title}\n${b.body}`)
-    .join("\n");
-  if (behavior) keys.push("host_behavior");
+  // PÚBLICO (01/11/2026): I = nunca no prompt do hóspede · G = só com reserva ativa · P/vazio = sempre.
+  const behaviorFor = (pred: (aud: string) => boolean) =>
+    (behaviorRows ?? [])
+      .filter((b) => !b.scope_property_id || b.scope_property_id === p.id)
+      .filter((b) => pred(String((b as { audience?: string | null }).audience ?? "P")))
+      .map((b) => `### ${b.title}\n${b.body}`)
+      .join("\n");
+  const behavior = behaviorFor((a) => a !== "G" && a !== "I");
+  const behaviorActiveOnly = behaviorFor((a) => a === "G");
+  if (behavior || behaviorActiveOnly) keys.push("host_behavior");
 
-  return { text: lines.join("\n"), keys, sensitiveLocked, behavior, stayPhase };
+  return { text: lines.join("\n"), keys, sensitiveLocked, behavior, behaviorActiveOnly, stayPhase };
 }

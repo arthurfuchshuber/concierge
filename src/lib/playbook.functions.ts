@@ -568,7 +568,7 @@ export const bulkUpdatePlaybookEntries = createServerFn({ method: "POST" })
     const sb = context.supabase as AnySb;
     const targets = Array.from(new Set(data.targetPropertyIds)).filter((id) => id !== data.sourcePropertyId);
     if (targets.length === 0) throw new Error("Escolha ao menos um imóvel de destino diferente do imóvel de origem.");
-    if (data.action !== "content" && !data.audience) throw new Error("Escolha a audiência (Hóspede Ativo, Público ou Equipe Interna).");
+    if (data.action !== "content" && !data.audience) throw new Error("Escolha a audiência (Reserva Ativa, Público ou Equipe Interna).");
 
     // 1) Política de campos: ANTES de qualquer consulta ao banco.
     let cls: Extract<ReturnType<typeof classifyBulkRow>, { ok: true }> | null = null;

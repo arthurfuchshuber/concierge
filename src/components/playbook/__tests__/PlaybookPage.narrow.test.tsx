@@ -58,7 +58,7 @@ describe("PlaybookPage (celular)", () => {
   it("lista plana: (quantidade) ao lado do título, sem legenda, abre uma seção com campos em linhas", async () => {
     mount();
     expect(await screen.findByText("Pr: Arthur Tenório")).toBeTruthy();
-    expect(screen.queryByText("Hóspede Ativo")).toBeNull();
+    expect(screen.queryByText("Hóspede Ativo")).toBeNull(); // nome antigo não volta (o público se chama "Reserva Ativa")
     const heads = screen.getAllByRole("button", { name: /, \d+ campos$/ });
     expect(heads).toHaveLength(6);
     expect(screen.queryByText(/Link do mapa/)).toBeNull();
@@ -69,10 +69,10 @@ describe("PlaybookPage (celular)", () => {
     fireEvent.click(heads[1]);
     expect(screen.queryByText(/Link do mapa/)).toBeNull();
     expect(screen.getByText(/Código do portão/)).toBeTruthy();
-    // Audiência: linha própria abaixo do valor, com o nome novo (sem "Hóspede Ativo").
+    // Audiência: linha própria abaixo do valor, com o nome atual "Reserva Ativa" (o antigo "Hóspede Ativo" não aparece).
     expect(screen.getAllByText(/Quem Pode Ver:/).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: /Explicação: (Reserva Ativa|Equipe Interna)/ }).length).toBeGreaterThan(0);
-    expect(screen.queryByText("Hóspede Ativo")).toBeNull();
+    expect(screen.queryByText("Hóspede Ativo")).toBeNull(); // nome antigo não volta (o público se chama "Reserva Ativa")
     expect(screen.queryByLabelText("Mais ações")).toBeNull();
     expect(screen.queryByLabelText("Entrar no modo leitura")).toBeNull();
     expect(screen.queryByLabelText("Imprimir")).toBeNull();

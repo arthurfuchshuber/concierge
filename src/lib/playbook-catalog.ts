@@ -3,12 +3,12 @@
  *
  * Cada linha do Playbook tem: seção, rótulo, a "Observação da IA" (texto
  * simples dizendo o que o dado é e se/quando a IA o usa — ou "IA não deve
- * usar."), a audiência (G = Hóspede Ativo, P = Público, I = Equipe Interna),
+ * usar."), a audiência (G = Reserva Ativa, P = Público, I = Equipe Interna),
  * se pode ser copiada e se é segredo (mascarado). Os VALORES não moram aqui:
  * saem do cadastro do imóvel (ver `playbook-build.ts`).
  */
 export type Audience = "G" | "P" | "I";
-export const AUDIENCE_LABEL: Record<Audience, string> = { G: "Hóspede Ativo", P: "Público", I: "Equipe Interna" };
+export const AUDIENCE_LABEL: Record<Audience, string> = { G: "Reserva Ativa", P: "Público", I: "Equipe Interna" };
 
 export type PlaybookSectionMeta = { id: string; num: string; title: string; desc: string };
 export const PLAYBOOK_SECTIONS: PlaybookSectionMeta[] = [

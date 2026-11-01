@@ -10,7 +10,7 @@ import { confidenceOf } from "./sources";
 
 type Admin = SupabaseClient;
 
-type Chunk = { source: string; sourceId: string | null; title: string | null; content: string };
+type Chunk = { source: string; sourceId: string | null; title: string | null; content: string; audience?: "G" | "P" };
 
 const MAX_CHARS = 1400;
 
@@ -64,6 +64,12 @@ export function effectiveAudience(params: {
 export function faqAutoAudience(question: string): "G" | "P" {
   return /check|endere[cç]o|senha|c[oó]digo|wi-?fi|port[aã]o|entrada|sa[ií]da|chave/i.test(question) ? "G" : "P";
 }
+
+/**
+ * Base indexada ANTES desta data não tem público por trecho. O orquestrador a reindexa na primeira conversa
+ * do imóvel (e o cron `reindex-knowledge` pode rodar em lote), então o público vale já, sem esperar edição.
+ */
+export const KB_AUDIENCE_ROLLOUT_AT = Date.parse("2026-11-01T03:30:00Z");
 
 /** Público do Playbook que a IA pode repassar ao hóspede: G e P. "I" (Equipe Interna) nunca. */
 export function isGuestShareable(audience: string | null | undefined): boolean {
@@ -279,6 +285,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
   // e as linhas criadas à mão entram na base da IA junto da instrução padrão.
   // Linhas de Equipe Interna levam o aviso para nunca serem repassadas ao hóspede.
   const blockedFaqIds = new Set<string>();
+  const faqChosen = new Map<string, "G" | "P">(); // público escolhido/derivado por FAQ (id → G|P)
   try {
     const { PLAYBOOK_FIELDS } = await import("@/lib/playbook-catalog");
     const { data: pbEntries } = await supabase
@@ -299,7 +306,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
       const meta = metaByKey.get(e.field_key);
       const label = meta?.label ?? e.custom_label ?? faqQuestion.get(e.field_key) ?? "Campo do Playbook";
       // FILTRO DURO DE PÚBLICO (31/10/2026): linha de Equipe Interna (valor E nota) NUNCA entra na base
-      // que a IA do hóspede consulta — não depende do modelo "obedecer" um aviso. G (Hóspede Ativo) e
+      // que a IA do hóspede consulta — não depende do modelo "obedecer" um aviso. G (Reserva Ativa) e
       // P (Público) podem ser informados; a nota do anfitrião herda o público da própria linha.
       const au = effectiveAudience({
         fieldKey: e.field_key,
@@ -313,11 +320,14 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
         if (e.field_key.startsWith("faq:")) blockedFaqIds.add(e.field_key.slice(4));
         continue;
       }
+      if (e.field_key.startsWith("faq:")) faqChosen.set(e.field_key.slice(4), au === "G" ? "G" : "P");
       const guard = "";
       const isCustom = e.field_key.startsWith("custom:");
       // Valor próprio do Playbook (sem coluna no cadastro) e linhas criadas à mão.
+      const chunkAud: "G" | "P" = au === "G" ? "G" : "P";
       if (e.value && (isCustom || meta)) {
         pushChunk(chunks, {
+          audience: chunkAud,
           source: "property_detail",
           sourceId: `playbook:${e.field_key}`,
           title: `${name} — ${label}`,
@@ -326,6 +336,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
       }
       if (e.note) {
         pushChunk(chunks, {
+          audience: chunkAud,
           source: "property_detail",
           sourceId: `playbook-note:${e.field_key}`,
           title: `${name} — Nota do anfitrião: ${label}`,
@@ -342,15 +353,20 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
       if (c.source === "faq" && c.sourceId && blockedFaqIds.has(c.sourceId)) chunks.splice(i, 1);
     }
   }
+  // FAQ: público escolhido no Dossiê; sem escolha, o automático por assunto (check-in, senha, Wi-Fi… = Reserva Ativa).
+  for (const c of chunks) {
+    if (c.source !== "faq") continue;
+    c.audience = (c.sourceId ? faqChosen.get(c.sourceId) : undefined) ?? faqAutoAudience(c.title ?? "");
+  }
   for (const k of (knowledge.data ?? []) as Array<Record<string, unknown>>) {
     if (k.scope_property_id && k.scope_property_id !== propertyId) continue;
     if (!isGuestShareable(k.audience as string | null | undefined)) continue; // Equipe Interna nunca vai para a base do hóspede
-    pushChunk(chunks, { source: "host_knowledge", sourceId: String(k.id), title: String(k.title ?? ""), content: String(k.body ?? "") });
+    pushChunk(chunks, { audience: k.audience === "G" ? "G" : "P", source: "host_knowledge", sourceId: String(k.id), title: String(k.title ?? ""), content: String(k.body ?? "") });
   }
   for (const b of (behavior.data ?? []) as Array<Record<string, unknown>>) {
     if (b.scope_property_id && b.scope_property_id !== propertyId) continue;
     if (!isGuestShareable(b.audience as string | null | undefined)) continue;
-    pushChunk(chunks, { source: "host_behavior", sourceId: String(b.id), title: String(b.title ?? ""), content: String(b.body ?? "") });
+    pushChunk(chunks, { audience: b.audience === "G" ? "G" : "P", source: "host_behavior", sourceId: String(b.id), title: String(b.title ?? ""), content: String(b.body ?? "") });
   }
 
   // Anúncio oficial do Airbnb (fonte canônica primária, sincronizado via Channex).
@@ -427,23 +443,40 @@ export async function reindexProperty(
     title: c.title,
     content: c.content,
     confidence: confidenceOf(c.source),
+    audience: c.audience ?? "P",
     embedding: vectors[i]?.length ? (vectors[i] as unknown as string) : null,
     updated_at: new Date().toISOString(),
   }));
+  // Banco ainda sem a coluna `audience` (migração pendente): grava SÓ o que é Público e tira a coluna —
+  // trecho de Reserva Ativa nunca vira Público por falta da coluna.
+  let useAudience = true;
+  const prep = <T extends { audience: string }>(batch: T[]) =>
+    useAudience ? batch : batch.filter((r) => r.audience === "P").map(({ audience: _a, ...rest }) => rest);
 
   const BATCH = 40;
   const insertedIds: string[] = [];
   try {
     for (let i = 0; i < rows.length; i += BATCH) {
-      const batch = rows.slice(i, i + BATCH);
+      let batch: Array<Record<string, unknown>> = rows.slice(i, i + BATCH);
       let lastError: string | null = null;
       let ok = false;
       for (let attempt = 0; attempt < 3 && !ok; attempt++) {
         if (attempt > 0) await new Promise((r) => setTimeout(r, 400 * attempt));
+        const toInsert = prep(batch as Array<{ audience: string }>);
+        if (!toInsert.length) {
+          ok = true;
+          break;
+        }
         const { data: created, error } = await supabase
           .from("ai_kb_chunks")
-          .insert(batch)
+          .insert(toInsert as never)
           .select("id");
+        if (error && useAudience && /audience/i.test(error.message)) {
+          useAudience = false;
+          console.error("[ai-index] coluna audience ausente — gravando só trechos Públicos até a migração");
+          attempt = -1; // refaz o lote sem a coluna, sem gastar tentativa
+          continue;
+        }
         if (error) {
           lastError = error.message;
           console.error("[ai-index] insert falhou", error.message);

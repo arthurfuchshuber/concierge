@@ -11,8 +11,8 @@ const TeachInput = z.object({
   scope: z.enum(["current", "global", "select"]),
   propertyIds: z.array(z.string().uuid()).max(200).optional(),
   sourceMessageId: z.string().uuid().optional().nullable(),
-  /** Quem pode receber a informação: G = Hóspede Ativo (padrão) · I = Equipe Interna (a IA nunca repassa ao hóspede). */
-  audience: z.enum(["G", "I"]).default("G"),
+  /** Quem pode receber a informação: G = Reserva Ativa · P = Público (qualquer pessoa) · I = Equipe Interna. OBRIGATÓRIO: o usuário escolhe ao salvar. */
+  audience: z.enum(["G", "P", "I"]),
 });
 
 function deriveTitle(content: string) {
@@ -86,12 +86,34 @@ export const teachAiFromMessage = createServerFn({ method: "POST" })
       .from("host_knowledge")
       .insert(rows.map((r) => ({ ...r, audience: data.audience })) as never)
       .select("id");
-    if (insErr && data.audience === "G") {
-      // Banco ainda sem a coluna `audience` (migração pendente): Hóspede é o padrão antigo, grava igual.
+    if (insErr && data.audience === "P") {
+      // Banco ainda sem a coluna `audience` (migração pendente): Público = comportamento de sempre, grava igual.
       ({ data: inserted, error: insErr } = await supabaseAdmin.from("host_knowledge").insert(rows).select("id"));
     }
-    // Equipe Interna NUNCA é gravada sem o público: melhor falhar do que virar conhecimento do hóspede.
-    if (insErr) throw new Error(data.audience === "I" ? "Não foi possível salvar como Equipe Interna agora. Tente novamente em instantes." : insErr.message);
+    // Reserva Ativa e Equipe Interna NUNCA são gravadas sem o público: melhor falhar do que virar conhecimento de todos.
+    if (insErr) {
+      throw new Error(
+        data.audience === "P" ? insErr.message : "Não foi possível salvar com esse público agora (atualização do banco pendente). Tente novamente em instantes.",
+      );
+    }
+
+    // VALE JÁ (01/11/2026): reindexa o imóvel atual na hora; os demais atingidos seguem em segundo plano.
+    try {
+      const { reindexProperty } = await import("@/lib/ai/indexing.server");
+      let ids: string[] = [data.propertyId];
+      if (data.scope === "select") ids = Array.from(new Set([data.propertyId, ...(data.propertyIds ?? [])]));
+      if (data.scope === "global") {
+        const { data: all } = await supabaseAdmin.from("properties").select("id").eq("owner_id", ownerId);
+        ids = Array.from(new Set([data.propertyId, ...((all ?? []) as Array<{ id: string }>).map((r) => r.id)]));
+      }
+      const [first, ...rest] = ids;
+      if (first) await reindexProperty(supabaseAdmin, first).catch((e) => console.error("[teach-ai] reindex", e));
+      void (async () => {
+        for (const id of rest) await reindexProperty(supabaseAdmin, id).catch(() => undefined);
+      })();
+    } catch (e) {
+      console.error("[teach-ai] reindex falhou", e);
+    }
 
     return { ok: true, inserted: inserted?.length ?? 0 };
   });

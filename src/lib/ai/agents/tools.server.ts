@@ -107,7 +107,15 @@ export function buildAgentTools(ctx: AgentToolContext): AgentTool[] {
         _property_id: ctx.propertyId,
         match_count: 5,
       });
-      const rows = (data ?? []) as Array<Record<string, unknown>>;
+      const { allowedChunkIds } = await import("../rag.server");
+      const found = (data ?? []) as Array<Record<string, unknown>>;
+      // Público: Equipe Interna nunca; Reserva Ativa só com reserva ativa.
+      const okIds = await allowedChunkIds(
+        ctx.supabase,
+        found.map((r) => String(r.id)),
+        (ctx as { activeReservation?: boolean }).activeReservation === true,
+      );
+      const rows = found.filter((r) => okIds.has(String(r.id)));
       if (rows.length) {
         ctx.collectSource({
           source: "knowledge_base",
