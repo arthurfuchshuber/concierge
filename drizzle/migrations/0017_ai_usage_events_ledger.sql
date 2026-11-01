@@ -17,8 +17,4 @@ create index if not exists ai_usage_events_created_idx on public.ai_usage_events
 create index if not exists ai_usage_events_property_idx on public.ai_usage_events (property_id, created_at desc);
 create index if not exists ai_usage_events_owner_idx on public.ai_usage_events (owner_id, created_at desc);
 alter table public.ai_usage_events enable row level security;
-<<<<<<< HEAD
 -- Sem políticas: gravação e leitura só pelo servidor (service_role).
-=======
--- Sem políticas: gravação e leitura só pelo servidor (service_role).
->>>>>>> 9508e6622f378186a98b7d37962b0279eeb12a31
