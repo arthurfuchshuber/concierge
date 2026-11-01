@@ -8,4 +8,8 @@ alter table public.host_behavior add constraint host_behavior_audience_check che
 
 alter table public.ai_kb_chunks add column if not exists audience text not null default 'P';
 alter table public.ai_kb_chunks drop constraint if exists ai_kb_chunks_audience_check;
+<<<<<<< HEAD
 alter table public.ai_kb_chunks add constraint ai_kb_chunks_audience_check check (audience in ('G','P','I'));
+=======
+alter table public.ai_kb_chunks add constraint ai_kb_chunks_audience_check check (audience in ('G','P','I'));
+>>>>>>> 9903206eeb00a7cc803b87022897faa8e8cdd75d
