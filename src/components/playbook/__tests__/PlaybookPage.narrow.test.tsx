@@ -33,7 +33,7 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => <a href={to}>{children}</a>,
 }));
 vi.mock("@/components/dashboard/OwnerLine", () => ({
-  OwnerLine: ({ name }: { name: string }) => <div>{`Proprietário(a): ${name}`}</div>,
+  OwnerLine: ({ name }: { name: string }) => <div>{`Pr: ${name}`}</div>,
 }));
 
 import { PlaybookPage } from "@/components/playbook/PlaybookPage";
@@ -57,7 +57,7 @@ beforeAll(() => {
 describe("PlaybookPage (celular)", () => {
   it("lista plana: (quantidade) ao lado do título, sem legenda, abre uma seção com campos em linhas", async () => {
     mount();
-    expect(await screen.findByText("Proprietário(a): Arthur Tenório")).toBeTruthy();
+    expect(await screen.findByText("Pr: Arthur Tenório")).toBeTruthy();
     expect(screen.queryByText("Hóspede Ativo")).toBeNull();
     const heads = screen.getAllByRole("button", { name: /, \d+ campos$/ });
     expect(heads).toHaveLength(5);

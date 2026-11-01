@@ -11,10 +11,8 @@ export const Route = createFileRoute("/api/public/cron/learning-loop")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { isValidCronSecret } = await import("@/lib/cron-auth.server");
-        if (!isValidCronSecret(request)) {
-          return new Response("Unauthorized", { status: 401 });
-        }
+        const { verifyCronSecret, unauthorizedCronResponse } = await import("@/lib/cron-auth.server");
+        if (!verifyCronSecret(request)) return unauthorizedCronResponse();
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { sweepLearningLoop } = await import("@/lib/ai/learning/loop.server");
         const { refreshAgentLearningMetrics } = await import("@/lib/ai/learning/agent-performance.server");

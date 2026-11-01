@@ -2320,7 +2320,15 @@ export const markNoShow = createServerFn({ method: "POST" })
       reservation_id?: string;
       status: string;
       concluded_at: string;
-    } = { property_id: propertyId, kind: "checkin", status: "no_show", concluded_at: nowIso };
+      manual_created_by: string;
+    } = {
+      property_id: propertyId,
+      kind: "checkin",
+      status: "no_show",
+      concluded_at: nowIso,
+      // Quem marcou o "Não compareceu" — o Histórico da Reserva mostra o autor.
+      manual_created_by: context.userId,
+    };
     if (data.logId) body.log_id = data.logId;
     if (data.reservationId) body.reservation_id = data.reservationId;
 
@@ -2377,6 +2385,11 @@ export type OccupancyStay = {
   checkoutDone: boolean;
   // Bloqueio manual do ConciergeIA (fecha o anúncio e os gêmeos via API).
   blocked?: boolean;
+  /** Anúncio (room type / listing da Channex) em que a reserva foi de fato realizada — vem do payload da reserva. */
+  roomTypeId?: string | null;
+  listingId?: string | null;
+  /** Bloqueio que decorre de reserva ativa no anúncio gêmeo (não é manual: não pode ser liberado). */
+  twinBlock?: boolean;
 };
 
 export const getOccupancyBoard = createServerFn({ method: "GET" })
@@ -2424,6 +2437,8 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
           heroImageUrl: string | null;
           providerName: string | null;
           twinOf: string;
+          twinListingId?: string;
+          twinRoomTypeId?: string | null;
         }>,
       };
     }
@@ -2479,7 +2494,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       context.supabase
         .from("property_reservations")
         .select(
-          `id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary, source, guest_contacts, amount, currency`,
+          `id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary, source, guest_contacts, amount, currency, raw_payload`,
         )
         .in("property_id", propIds)
         .in("source", ["airbnb", "channex", "manual"])
@@ -2566,7 +2581,16 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       guest_contacts?: unknown;
       amount?: number | null;
       currency?: string | null;
+      raw_payload?: unknown;
     }>;
+    /** Anúncio em que a reserva foi realizada (payload da Channex: rooms[0].room_type_id / meta.listing_id). */
+    const originOf = (raw: unknown): { roomTypeId: string | null; listingId: string | null } => {
+      const root = (raw && typeof raw === "object" ? raw : {}) as Record<string, any>;
+      const a = (root.attributes && typeof root.attributes === "object" ? root.attributes : root) as Record<string, any>;
+      const rt = a?.rooms?.[0]?.room_type_id ?? a?.room_type_id ?? null;
+      const li = a?.meta?.listing_id ?? a?.ota_listing_id ?? null;
+      return { roomTypeId: rt ? String(rt) : null, listingId: li ? String(li) : null };
+    };
     for (const b of reservationRows) {
       if (b.source !== "manual" || b.status !== "blocked") continue;
       stays.push({
@@ -2610,6 +2634,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         reservationId: r.id,
         amount: r.amount ?? null,
         currency: r.currency ?? null,
+        ...originOf(r.raw_payload),
         propertyId: r.property_id,
         checkin: r.checkin_date,
         checkout: r.checkout_date,
@@ -2779,13 +2804,14 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
     // principal, com as mesmas estadias (os calendários são travados juntos).
     const { data: twinLinks } = await (context.supabase as any)
       .from("channex_twin_links")
-      .select("property_id, twin_listing_id, twin_title")
+      .select("property_id, twin_listing_id, twin_room_type_id, twin_title")
       .eq("status", "active")
       .in("property_id", propIds);
     const twinRows = (
       (twinLinks ?? []) as Array<{
         property_id: string;
         twin_listing_id: string;
+        twin_room_type_id: string | null;
         twin_title: string | null;
       }>
     )
@@ -2797,6 +2823,8 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
           id: `${l.property_id}__twin__${l.twin_listing_id}`,
           name: l.twin_title || `${base.name} (anúncio 2)`,
           twinOf: l.property_id,
+          twinListingId: l.twin_listing_id,
+          twinRoomTypeId: l.twin_room_type_id ?? null,
         };
       })
       .filter((r): r is NonNullable<typeof r> => !!r);

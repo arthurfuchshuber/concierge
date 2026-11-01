@@ -13,8 +13,11 @@ import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/api/public/cron/refresh-city-references")({
   server: {
     handlers: {
-      POST: async () =>
-        Response.json({ ok: false, error: "rotina desativada em 24/09/2026" }, { status: 410 }),
+      POST: async ({ request }) => {
+        const { verifyCronSecret, unauthorizedCronResponse } = await import("@/lib/cron-auth.server");
+        if (!verifyCronSecret(request)) return unauthorizedCronResponse();
+        return Response.json({ ok: false, error: "rotina desativada em 24/09/2026" }, { status: 410 });
+      },
     },
   },
 });

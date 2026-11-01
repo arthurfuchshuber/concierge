@@ -100,7 +100,6 @@ import {
   MoreVertical,
   Banknote,
   CalendarRange,
-  MessageCircle,
   ArrowRight,
   CalendarClock,
   User,
@@ -1042,12 +1041,50 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     if (!twins.length) return calendarProperties;
     return calendarProperties.flatMap((p) => [p, ...twins.filter((t) => t.twinOf === p.id)]);
   }, [calendarProperties, occupancyTwinRows]);
+  /* ANÚNCIOS GÊMEOS (31/10/2026): a reserva real (hóspede, valor, histórico, cores) aparece SÓ no anúncio em que foi
+     realizada (room type / listing do payload da Channex). No outro anúncio o mesmo período vira "Bloqueado" —
+     bloqueio automático da sincronização, sem dados do hóspede e sem permissão de liberar. Sem origem conhecida
+     no payload, a reserva fica no anúncio principal e o gêmeo recebe o bloqueio. */
   const calendarStays = useMemo(() => {
     const base = occupancyQ.data?.stays ?? [];
     const twins = occupancyTwinRows ?? [];
     if (!twins.length) return base;
-    const extra = twins.flatMap((t) => base.filter((s) => s.propertyId === t.twinOf).map((s) => ({ ...s, propertyId: t.id })));
-    return [...base, ...extra];
+    const twinsOf = new Map<string, typeof twins>();
+    for (const t of twins) twinsOf.set(t.twinOf, [...(twinsOf.get(t.twinOf) ?? []), t]);
+    const asTwinBlock = <T extends (typeof base)[number]>(s: T, propertyId: string, originId: string): T => ({
+      ...s,
+      propertyId,
+      reservationId: null,
+      amount: null,
+      currency: null,
+      guest: "Bloqueado",
+      blocked: true,
+      twinBlock: true,
+      twinOriginId: originId,
+      checkinDone: false,
+      checkoutDone: false,
+    });
+    const out: typeof base = [];
+    for (const s of base) {
+      const ts = twinsOf.get(s.propertyId);
+      if (!ts || s.blocked) {
+        out.push(s);
+        continue;
+      }
+      const owner = ts.find(
+        (t) =>
+          (!!s.roomTypeId && s.roomTypeId === t.twinRoomTypeId) || (!!s.listingId && s.listingId === t.twinListingId),
+      );
+      if (owner) {
+        // Realizada no anúncio gêmeo: a barra real vai para a linha dele; o principal e os demais gêmeos ficam bloqueados.
+        out.push(asTwinBlock(s, s.propertyId, owner.id));
+        for (const t of ts) out.push(t.id === owner.id ? { ...s, propertyId: t.id } : asTwinBlock(s, t.id, owner.id));
+      } else {
+        out.push(s);
+        for (const t of ts) out.push(asTwinBlock(s, t.id, s.propertyId));
+      }
+    }
+    return out;
   }, [occupancyQ.data?.stays, occupancyTwinRows]);
   // Filtros movem a página inteira (cards, gráficos, aprovação, ranking),
   // inclusive prestador; lista vazia = nada encontrado (não "todos").
@@ -8364,11 +8401,11 @@ function OccupancyPanel({
   }, [stays]);
   // Bloqueios manuais do ConciergeIA: pintam só as metades livres do dia.
   const blocksByProperty = useMemo(() => {
-    const map = new Map<string, Array<{ from: string; to: string }>>();
+    const map = new Map<string, Array<{ from: string; to: string; twin?: boolean; origin?: string }>>();
     for (const s of stays) {
       if (!(s as { blocked?: boolean }).blocked) continue;
       const arr = map.get(s.propertyId) ?? [];
-      arr.push({ from: s.checkin, to: s.checkout ?? s.checkin });
+      arr.push({ from: s.checkin, to: s.checkout ?? s.checkin, twin: !!(s as { twinBlock?: boolean }).twinBlock, origin: (s as { twinOriginId?: string }).twinOriginId });
       map.set(s.propertyId, arr);
     }
     return map;
@@ -8456,8 +8493,13 @@ function OccupancyPanel({
     document.addEventListener("touchmove", stop, { passive: false });
     return () => document.removeEventListener("touchmove", stop);
   }, []);
+  /** Noite bloqueada pela reserva ativa no anúncio gêmeo (automático da sincronização: não se libera à mão). */
+  function twinBlockAt(propertyId: string, day: string) {
+    return (blocksByProperty.get(propertyId) ?? []).find((b) => b.twin && b.from <= day && day < b.to) ?? null;
+  }
   function blockPointerDown(propertyId: string, day: string, ev: React.PointerEvent) {
     if (!canBlock || ev.button !== 0 || !ev.isPrimary) return;
+    if (twinBlockAt(propertyId, day)) return;
     if (justClearedRef.current) return;
     if (day < todayISO) return;
     if ((blockPermQ.data?.blocks ?? []).some((b) => b.propertyId === baseId(propertyId) && b.from <= day && day < b.to)) return;
@@ -8529,7 +8571,10 @@ function OccupancyPanel({
     // Rolagem automática para o lado quando o dedo/mouse chega perto da borda.
     const tick = () => {
       if (!active) return;
-      if (scroller) {
+      /* O CALENDÁRIO FICA PARADO COM O MOUSE (31/10/2026): a rolagem automática de borda existe só para o DEDO
+         (toque). Com o mouse, mover o ponteiro em direção à coluna de nomes NUNCA desloca o calendário; ele só
+         rola por gesto deliberado (roda/trackpad, barra de rolagem). */
+      if (scroller && touch) {
         const r = scroller.getBoundingClientRect();
         const left = Math.max(r.left, nameCol ? nameCol.getBoundingClientRect().right : r.left);
         const ZONE = 44;
@@ -8596,6 +8641,14 @@ function OccupancyPanel({
   }
   function blockClick(propertyId: string, day: string, target: HTMLElement | null) {
     if (!canBlock) return;
+    const twinHit = twinBlockAt(propertyId, day);
+    if (twinHit) {
+      const originName = properties.find((x) => x.id === twinHit.origin)?.name;
+      toast.info(`Esta data está ocupada por uma reserva no anúncio gêmeo${originName ? ` ${originName}` : ""}`, {
+        description: "O bloqueio é gerido automaticamente pela sincronização e não pode ser liberado aqui.",
+      });
+      return;
+    }
     if (dragSuppressClickRef.current || justClearedRef.current) return;
     // Clique numa reserva abre o histórico dela — não mexe na seleção.
     if (target?.closest('[role="button"]') && target !== target.closest("[data-bc]")) return;
@@ -8840,12 +8893,12 @@ function OccupancyPanel({
 
   /** Bloqueio manual: a palavra "Manualmente" na barra cinza (16/10/2026), mesma regra de posição do nome da reserva. */
   function blockLabels(propertyId: string) {
-    const out = new Map<number, { width: number }>();
+    const out = new Map<number, { width: number; twin: boolean }>();
     for (const b of blocksByProperty.get(propertyId) ?? []) {
       const from = b.from < dayList[0]! ? 0 : (dayIndex.get(b.from) ?? -1) + 1;
       const to = b.to > dayList[dayList.length - 1]! ? dayList.length : (dayIndex.get(b.to) ?? 0);
       if (from < 0 || to - from < 1) continue;
-      out.set(from, { width: (to - from) * dayW });
+      out.set(from, { width: (to - from) * dayW, twin: !!b.twin });
     }
     return out;
   }
@@ -8912,7 +8965,19 @@ function OccupancyPanel({
      `resultsOpen`, NÃO de haver texto na busca. Tocar num resultado fecha o painel mas mantém o texto (o calendário
      segue filtrado); só "Cancelar"/fundo limpam. O botão "Cancelar" fica enquanto houver texto ou foco. */
   const [resultsOpen, setResultsOpen] = useState(false);
-  const searchOpen = resultsOpen;
+  /* Fundo desfocado só monta com texto digitado e painel aberto — foco sem texto nunca trava a tela. */
+  const searchOpen = resultsOpen && query.trim().length > 0;
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setResultsOpen(false);
+        searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [searchOpen]);
   const searchActive = searchFocus || query.length > 0;
   const closeSearch = (clear = true) => {
     setResultsOpen(false);
@@ -8986,18 +9051,13 @@ function OccupancyPanel({
       timer = setTimeout(() => {
         axis = null;
       }, 160);
+      /* ROLAGEM NATURAL (31/10/2026): a intenção vertical NUNCA é cancelada — a página e o quadro rolam com o
+         comportamento nativo do navegador. Só o gesto horizontal (eixo "x") é tratado aqui, e apenas se o quadro
+         realmente transborda na horizontal. */
       if (axis === "x") {
         if (scroller.scrollWidth <= scroller.clientWidth) return;
         e.preventDefault();
         scroller.scrollLeft += dx;
-      } else {
-        e.preventDefault();
-        const max = scroller.scrollHeight - scroller.clientHeight;
-        const before = scroller.scrollTop;
-        const next = Math.max(0, Math.min(max, before + dy));
-        scroller.scrollTop = next;
-        const rest = dy - (next - before);
-        if (rest) window.scrollBy(0, rest);
       }
     };
     scroller.addEventListener("wheel", onWheel, { passive: false });
@@ -9069,11 +9129,9 @@ function OccupancyPanel({
     return g;
   }, [dayList]);
 
-  // "in" = check-in confirmado (verde) · "in-pending" = check-in ainda não
-  // confirmado (azul claro) · "in-late" = data de check-in já passou sem
-  // confirmação (vermelho) — mesma regra do `isOverdue` dos cards do Kanban.
-  // Idem para o checkout: "out-pending"/"out-done"/"out-late".
-  type CellPart = "in" | "in-pending" | "in-late" | "out-pending" | "out-done" | "out-late" | "busy" | "blocked" | "free";
+  // STATUS OFICIAIS (31/10/2026): só Check-in (verde esmeralda), Checkout (laranja), Ocupado, Bloqueado e Livre.
+  // Sem subdivisões "pendente"/"atrasado": cada status usa SEMPRE a sua cor final.
+  type CellPart = "in" | "out" | "busy" | "blocked" | "free";
 
   /**
    * Cada dia é dividido em duas metades (manhã = saída, tarde = entrada),
@@ -9086,27 +9144,13 @@ function OccupancyPanel({
     const inStay = list.find((s) => s.checkin === day);
     const through = list.some((s) => s.checkin < day && (s.checkout ?? s.checkin) > day);
 
-    // "Atrasado" = a data do checkout/check-in já passou e ainda não foi
-    // confirmado — mesma regra do card (`row.date < todayISO && !done`).
-    const first: CellPart = outStay
-      ? day < todayISO && !outStay.checkoutDone
-        ? "out-late"
-        : outStay.checkoutDone
-          ? "out-done"
-          : "out-pending"
-      : through
-        ? "busy"
-        : "free";
+    const first: CellPart = outStay ? "out" : through ? "busy" : "free";
     // Depois que o check-in é marcado como concluído, a metade da tarde passa
     // a ser "ocupado" — a metade da manhã (checkout) permanece como estava.
     const second: CellPart = inStay
       ? day === todayISO && checkedInPropertyIds.has(propertyId)
         ? "busy"
-        : day < todayISO && !inStay.checkinDone
-          ? "in-late"
-          : inStay.checkinDone
-            ? "in"
-            : "in-pending"
+        : "in"
       : through
         ? "busy"
         : "free";
@@ -9121,32 +9165,21 @@ function OccupancyPanel({
     s === "blocked"
       ? "bg-muted-foreground/50"
       : s === "in"
-      ? "bg-emerald-500"
-      : s === "in-pending"
-        ? "bg-sky-400"
-        : s === "in-late"
-          ? "bg-red-500"
-          : s === "out-pending"
-            ? "bg-amber-400"
-            : s === "out-done"
-              ? "bg-orange-600"
-              : s === "out-late"
-                ? "bg-red-500"
-                : s === "busy"
-                  ? "bg-primary/35"
-                  : "bg-transparent";
+        ? "bg-emerald-500"
+        : s === "out"
+          ? "bg-orange-600"
+          : s === "busy"
+            ? "bg-primary/35"
+            : "bg-transparent";
 
   // Legenda: só entram os estados que realmente aparecem no recorte atual do
   // calendário (imóveis + dias filtrados) — pedido explícito pra não poluir
   // a legenda com status que não têm nenhuma ocorrência na tela.
   const LEGEND_ITEMS: Array<{ state: CellPart; label: string }> = [
-    { state: "out-pending", label: "Checkout Pendente" },
-    { state: "out-done", label: "Checkout Confirmado" },
-    { state: "out-late", label: "Checkout Atrasado" },
-    { state: "in-pending", label: "Check-In Pendente" },
-    { state: "in", label: "Check-In Confirmado" },
-    { state: "in-late", label: "Check-In Atrasado" },
+    { state: "in", label: "Check-in" },
+    { state: "out", label: "Checkout" },
     { state: "busy", label: "Ocupado" },
+    { state: "blocked", label: "Bloqueado" },
     { state: "free", label: "Livre" },
   ];
 
@@ -9301,7 +9334,7 @@ function OccupancyPanel({
         )}
       </div>
       {/* Quadro de ponta a ponta no card (mockup 31/10/2026): sem recuo lateral, barra de rolagem colada na lateral. */}
-      <div className="border-t border-border/50 px-0 pt-0 pb-4">
+      <div className="overflow-hidden rounded-b-[14px] border-t border-border/50 px-0 pt-0 pb-4">
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
@@ -9315,8 +9348,7 @@ function OccupancyPanel({
                   ref={list.ref}
                   style={{
                     scrollPaddingLeft: nameColW,
-                    width: viewportW,
-                    maxWidth: "100%",
+                    width: "100%",
                     ...(list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : {}),
                   }}
                   onScroll={(e) => {
@@ -9324,7 +9356,7 @@ function OccupancyPanel({
                 leftDateRef.current = dayList[i] ?? leftDateRef.current;
                 setFirstVisIdx(i);
               }}
-                  className="sg-elegant-scroll overflow-auto snap-x snap-proximity"
+                  className="sg-elegant-scroll overflow-auto snap-x snap-proximity [&::-webkit-scrollbar-track]:m-0"
                 >
                   <table
                     className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
@@ -9557,20 +9589,14 @@ function OccupancyPanel({
                               const b = halves[i * 2 + 1] as CellPart;
                               const labelOf = (s: CellPart) =>
                                 s === "in"
-                                  ? "Check-in confirmado"
-                                  : s === "in-pending"
-                                    ? "Check-in pendente"
-                                    : s === "in-late"
-                                      ? "Check-in atrasado"
-                                      : s === "out-pending"
-                                        ? "Checkout pendente"
-                                        : s === "out-done"
-                                          ? "Checkout confirmado"
-                                          : s === "out-late"
-                                            ? "Checkout atrasado"
-                                            : s === "busy"
-                                              ? "Ocupado"
-                                              : "Livre";
+                                  ? "Check-in"
+                                  : s === "out"
+                                    ? "Checkout"
+                                    : s === "busy"
+                                      ? "Ocupado"
+                                      : s === "blocked"
+                                        ? "Bloqueado"
+                                        : "Livre";
                               // Etiqueta com o PERÍODO (16/10/2026): "Bloqueado manualmente entre
                               // 16 e 18 de outubro." · "Reservado entre 15 e 17 de outubro."
                               const stayList = byProperty.get(p.id) ?? [];
@@ -9757,10 +9783,9 @@ function OccupancyPanel({
                                       >
                                         {/* Nome + valor CENTRALIZADOS na barra. Sem valor no dado
                                             (reserva só do iCal, que não traz pagamento): "—". */}
-                                        {/* Mockup 31/10/2026: nome + ícone de chat do hóspede (verde, padrão do sistema) + valor. */}
+                                        {/* Barra de ocupação: nome + valor, SEM o ícone de chat (31/10/2026; o chat fica nos demais locais). */}
                                         <span className="flex min-w-0 items-center gap-1.5">
                                           <span className="nm min-w-0 truncate font-bold">{labels.get(i)!.name}</span>
-                                          <MessageCircle className="size-[11px] shrink-0 text-[#2fd7a2]" strokeWidth={2} aria-hidden />
                                           <span className="shrink-0 font-medium">{labels.get(i)!.value ?? "—"}</span>
                                         </span>
                                       </span>
@@ -9772,7 +9797,7 @@ function OccupancyPanel({
                                         }`}
                                         style={{ width: blockLbls.get(i)!.width }}
                                       >
-                                        <span className="truncate">Manualmente</span>
+                                        <span className="truncate">{blockLbls.get(i)!.twin ? "Bloqueado" : "Manualmente"}</span>
                                       </span>
                                     )}
                                     {singles.get(i) && (
@@ -9810,7 +9835,7 @@ function OccupancyPanel({
                   <span key={item.state} className="inline-flex items-center gap-1.5">
                     {item.state === "free" ? (
                       <span className="h-px w-4 bg-border" />
-                    ) : item.state === "busy" ? (
+                    ) : item.state === "busy" || item.state === "blocked" ? (
                       <span className={`h-2 w-4 rounded-full ${clsOf(item.state)}`} />
                     ) : (
                       <span className={`h-[3px] w-4 rounded-full ${clsOf(item.state)}`} />
@@ -10046,7 +10071,7 @@ function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off
   const [main, ...rest] = group;
   /* LINHA DA JANELA "INSTRUÇÕES CHECK-IN / SENHAS DE ACESSO" (mockup aprovado,
      29/10/2026): faixa lateral com a cor do status (sálvia = viu, rosa
-     terroso = não viu), TÍTULO DO IMÓVEL primeiro, "Proprietário(a):" logo
+     terroso = não viu), TÍTULO DO IMÓVEL primeiro, "Pr:" logo
      abaixo e "Hóspede:" por último — os dois com o ícone de chat. */
   return (
     <li
@@ -11236,7 +11261,7 @@ function ArrivalCard({
         {/* ds-card-lines: o espaçamento padrão entre linhas de card (styles.css). */}
         <div className="min-w-0 flex-1 ds-card-lines">
           {/* REGRA GLOBAL (29/10/2026): o TÍTULO DO IMÓVEL vem sempre primeiro e a
-              linha "Proprietário(a): nome" logo abaixo dele — nunca acima. */}
+              linha "Pr: nome" logo abaixo dele — nunca acima. */}
           {/* Título SEMPRE em 1 linha com reticências (18/10/2026); tocar no
               título cortado mostra o nome completo. */}
           <ClampName text={row.propertyName ?? "Sem nome"} className="ds-card-title leading-tight" />
@@ -11611,7 +11636,7 @@ function ArrivalCard({
       {/* "CHECK-IN/CHECK-OUT PERMITIDO ENTRE/ATÉ…" (29/10/2026, mockup aprovado):
           fica ABAIXO das informações expandidas e logo acima dos botões (com o
           card recolhido, logo abaixo do período). Cor NEUTRA — a mesma
-          (`CARD_MUTED`) do rótulo "Proprietário(a):" —, em todos os status. */}
+          (`CARD_MUTED`) do rótulo "Pr:" —, em todos os status. */}
       {showPrediction && allowedPhrase && (
         <div className={`flex items-baseline gap-1 text-[9.5px] font-bold uppercase tracking-wide ${CARD_MUTED}`}>
           {!cleaningWindowPhrase && predictionPrimary && (

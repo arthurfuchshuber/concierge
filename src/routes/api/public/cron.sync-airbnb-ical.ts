@@ -1,16 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { isAllowedIcalUrl } from "@/lib/airbnb-ical-url";
 
-function timingSafeEqualStr(a: string, b: string): boolean {
-  const enc = new TextEncoder();
-  const ab = enc.encode(a);
-  const bb = enc.encode(b);
-  let diff = ab.length !== bb.length ? 1 : 0;
-  const len = Math.max(ab.length, bb.length);
-  for (let i = 0; i < len; i++) diff |= (ab[i] ?? 0) ^ (bb[i] ?? 0);
-  return diff === 0;
-}
-
 async function runSync() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { syncPropertyIcal } = await import("@/lib/airbnb-ical.server");
@@ -73,11 +63,8 @@ export const Route = createFileRoute("/api/public/cron/sync-airbnb-ical")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const provided = request.headers.get("x-cron-secret") ?? "";
-        const expected = process.env.CRON_SECRET ?? "";
-        if (!expected || !timingSafeEqualStr(provided, expected)) {
-          return new Response("Unauthorized", { status: 401 });
-        }
+        const { verifyCronSecret, unauthorizedCronResponse } = await import("@/lib/cron-auth.server");
+        if (!verifyCronSecret(request)) return unauthorizedCronResponse();
         try {
           const out = await runSync();
           return Response.json({ success: true, ...out });

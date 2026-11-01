@@ -37,9 +37,16 @@ export function SyncRequiredGate() {
   const [bootGiveUp, setBootGiveUp] = useState(false);
   const [coverDone, setCoverDone] = useState(false);
   const [dialogPainted, setDialogPainted] = useState(false);
+  // Segurança (31/10/2026): passados 3 s a cobertura deixa de capturar toques (continua pintada até liberar),
+  // para nunca travar o painel, mesmo que a consulta demore ou falhe.
+  const [coverPassThrough, setCoverPassThrough] = useState(false);
   useEffect(() => {
     const t = window.setTimeout(() => setBootGiveUp(true), 5000);
-    return () => window.clearTimeout(t);
+    const t2 = window.setTimeout(() => setCoverPassThrough(true), 3000);
+    return () => {
+      window.clearTimeout(t);
+      window.clearTimeout(t2);
+    };
   }, []);
 
   // Fechar no "X" adia o aviso por 1 hora (por conta, neste navegador); depois reabre sozinho.
@@ -132,7 +139,7 @@ export function SyncRequiredGate() {
       {showBootCover ? (
         <div
           aria-hidden
-          className="fixed inset-0 z-[60] grid place-items-center bg-background text-muted-foreground"
+          className={`fixed inset-0 z-[60] grid place-items-center bg-background text-muted-foreground ${coverPassThrough || bootGiveUp || coverDone ? "pointer-events-none" : ""}`}
         >
           <Loader2 className="size-6 animate-spin" />
         </div>
@@ -267,7 +274,7 @@ export function SyncRequiredGate() {
                         {cur.ownerName ? (
                           <>
                             <span className="truncate">
-                              Proprietário(a):{" "}
+                              Pr:{" "}
                               <b className="font-semibold text-foreground">{cur.ownerName}</b>
                             </span>
                             <PhoneActionButton

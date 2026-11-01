@@ -1300,7 +1300,7 @@ function AirbnbAccountFlowInner({
         <ClampName text={syncProp.name} />
         {syncProp.ownerName ? (
           <small className="flex items-center gap-[5px] text-[11px] font-medium text-muted-foreground">
-            Proprietário(a):{" "}
+            Pr:{" "}
             <b className="truncate font-semibold text-foreground">{syncProp.ownerName}</b>
             <PhoneActionButton
               phone={syncProp.ownerPhone}
@@ -1809,7 +1809,7 @@ function AirbnbAccountFlowInner({
                         </span>
                         {locked && l.ownerName ? (
                           <small className="flex items-center gap-[5px] text-[11px] text-muted-foreground">
-                            Proprietário(a):{" "}
+                            Pr:{" "}
                             <b className="truncate font-semibold text-foreground/85">
                               {l.ownerName}
                             </b>
@@ -2167,7 +2167,7 @@ function AirbnbAccountFlowInner({
                   <ClampName as="b" text={syncProp.name} className="text-[12.5px] font-bold" />
                   {syncProp.ownerName ? (
                     <small className="flex items-center gap-[5px] text-[11px] text-muted-foreground">
-                      Proprietário(a):{" "}
+                      Pr:{" "}
                       <b className="truncate font-semibold text-foreground">{syncProp.ownerName}</b>
                       <PhoneActionButton
                         phone={syncProp.ownerPhone}
@@ -2430,7 +2430,7 @@ function AirbnbAccountFlowInner({
                           </div>
                           {p.ownerName ? (
                             <small className="flex min-w-0 items-center gap-[5px] text-[11.5px] text-muted-foreground">
-                              <span className="shrink-0">Proprietário(a):</span>
+                              <span className="shrink-0">Pr:</span>
                               <b className="truncate font-semibold text-foreground">
                                 {p.ownerName}
                               </b>

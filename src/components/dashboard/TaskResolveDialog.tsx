@@ -691,7 +691,7 @@ export function TaskResolveDialog({
             {task?.ownerName && (
               <div className="mt-[3px] flex min-w-0 items-center gap-[5px] text-[11px]">
                 <User className="size-3 shrink-0 text-muted-foreground" />
-                <span className="shrink-0 text-muted-foreground">Proprietário(a):</span>
+                <span className="shrink-0 text-muted-foreground">Pr:</span>
                 <span className="min-w-0 truncate font-semibold text-foreground">{task.ownerName}</span>
                 <PhoneActionButton
                   phone={task.ownerPhone}

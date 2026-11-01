@@ -14,7 +14,8 @@ vi.mock("@tanstack/react-start", () => ({
   useServerFn: (f: unknown) => f,
   createMiddleware: () => ({ server: () => ({}), client: () => ({}) }),
   createServerFn: () => ({
-    middleware: () => ({ inputValidator: () => ({ handler: () => null }) }),
+    // `.middleware().handler()` (sem validador, ex.: listTwinCandidates) e com `.inputValidator()` são válidos no TanStack Start v1.
+    middleware: () => ({ handler: () => null, inputValidator: () => ({ handler: () => null }) }),
   }),
 }));
 vi.mock("@/lib/airbnb-account.functions", () => ({

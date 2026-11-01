@@ -297,7 +297,7 @@ export function FullConnectGate() {
                     />
                     {it.ownerName ? (
                       <small className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <span className="shrink-0">Proprietário(a):</span>
+                        <span className="shrink-0">Pr:</span>
                         <b className="min-w-0 truncate font-semibold text-foreground">
                           {it.ownerName}
                         </b>

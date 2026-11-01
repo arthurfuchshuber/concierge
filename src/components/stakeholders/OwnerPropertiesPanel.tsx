@@ -485,7 +485,7 @@ export function OwnerPropertiesPanel({
                   </span>
                   <span className="flex min-w-0 items-center justify-between gap-2">
                     <span className="flex min-w-0 items-center gap-[5px] text-[11.5px]">
-                      <span className="shrink-0 text-muted-foreground">Proprietário(a):</span>
+                      <span className="shrink-0 text-muted-foreground">Pr:</span>
                       <span className="min-w-0 truncate font-bold text-foreground">
                         {(p.owner_contact_id && ownersById[p.owner_contact_id]?.name) || owner.name}
                       </span>
@@ -844,7 +844,7 @@ function ReimportWindow({
                 <span className={`grid min-w-0 flex-1 gap-[3px] ${locked ? "opacity-60" : ""}`}>
                   <b className="truncate text-[13px] font-bold">{l.title}</b>
                   <small className="flex items-center gap-[5px] truncate text-[11px] text-muted-foreground">
-                    Proprietário(a):{" "}
+                    Pr:{" "}
                     <b className="truncate text-[11px] font-semibold text-foreground">
                       {own?.name ?? "—"}
                     </b>

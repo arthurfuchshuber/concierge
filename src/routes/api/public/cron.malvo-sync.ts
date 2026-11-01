@@ -5,8 +5,8 @@ export const Route = createFileRoute("/api/public/cron/malvo-sync")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { isValidCronSecret } = await import("@/lib/cron-auth.server");
-        if (!isValidCronSecret(request)) return new Response("Unauthorized", { status: 401 });
+        const { verifyCronSecret, unauthorizedCronResponse } = await import("@/lib/cron-auth.server");
+        if (!verifyCronSecret(request)) return unauthorizedCronResponse();
         try {
           const { processMalvoQueue } = await import("@/lib/malvo.server");
           // Asaas chega por webhook (/api/public/webhooks/asaas); sem busca periódica.

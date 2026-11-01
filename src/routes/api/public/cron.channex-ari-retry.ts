@@ -9,8 +9,8 @@ export const Route = createFileRoute("/api/public/cron/channex-ari-retry")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { isValidCronSecret } = await import("@/lib/cron-auth.server");
-        if (!isValidCronSecret(request)) return new Response("Unauthorized", { status: 401 });
+        const { verifyCronSecret, unauthorizedCronResponse } = await import("@/lib/cron-auth.server");
+        if (!verifyCronSecret(request)) return unauthorizedCronResponse();
         // `?only=ai`: batida curta (a cada 15 s) só para as respostas da IA cuja janela fechou.
         if (new URL(request.url).searchParams.get("only") === "ai") {
           try {

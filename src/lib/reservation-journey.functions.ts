@@ -175,6 +175,7 @@ type StatusRow = {
   cleaning_type: string | null;
   cleaning_price_cents: number | null;
   cleaning_approval_status: string | null;
+  manual_created_by?: string | null;
 };
 
 function brl(cents: number | null): string | null {
@@ -331,7 +332,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
     const { data: statusRows } = await db
       .from("guest_arrival_status")
       .select(
-        "kind, status, note, done_at, concluded_at, created_at, updated_at, arrival_time_override, arrival_date_override, cleaning_type, cleaning_price_cents, cleaning_approval_status",
+        "kind, status, note, done_at, concluded_at, created_at, updated_at, arrival_time_override, arrival_date_override, cleaning_type, cleaning_price_cents, cleaning_approval_status, manual_created_by",
       )
       .or(orParts.join(","))
       .order("updated_at", { ascending: true });
@@ -402,6 +403,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       new Set(
         [
           ...events.map((e) => e.actor_id),
+          ...all.map((r) => r.manual_created_by),
           ...taskRows.map((t) => t.created_by),
           ...recRows.map((r) => r.created_by),
         ].filter((x): x is string => !!x),
@@ -653,7 +655,8 @@ export const getReservationJourney = createServerFn({ method: "GET" })
         state: "done",
         at: ev?.created_at ?? ci?.concluded_at ?? ci?.updated_at ?? null,
         detail: ci?.note ?? null,
-        actor: authorFor(ev),
+        // Autor: o evento registrado ou, na falta dele, quem gravou o "Não compareceu" (manual_created_by).
+        actor: authorFor(ev).name ? authorFor(ev) : ci?.manual_created_by ? actorOf(ci.manual_created_by) : authorFor(ev),
       });
       return { ...base, steps, statusLabel: "Não compareceu" };
     }

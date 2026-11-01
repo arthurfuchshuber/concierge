@@ -3,7 +3,7 @@
  * implementado fielmente:
  *
  *   · CAPA fixa de 140 px com a foto do imóvel levemente desfocada (blur 1,5 px, 90% de brilho), etiqueta
- *     "HISTÓRICO DA RESERVA", título 14 px negrito e "Proprietário(a): nome" (chat) no MESMO bloco; X sólido;
+ *     "HISTÓRICO DA RESERVA", título 14 px negrito e "Pr: nome" (chat) no MESMO bloco; X sólido;
  *   · LINHA DE ETAPAS (Reserva · Check-in · Estadia · Check-out · Limpeza) com a etapa atual destacada;
  *   · CARTÃO DO MOMENTO (faixa lateral na cor do status): título + "desde/chegada em" alinhados pelo topo,
  *     subtítulo (previsão em âmbar, tocável para editar) e as linhas Hóspede (chat à esquerda) · Período ·
@@ -42,6 +42,24 @@ function fmtWhen(iso: string | null): string | null {
   }).formatToParts(d);
   const g = (t: string) => p.find((x) => x.type === t)?.value ?? "";
   return `${g("day")}/${g("month")} · ${g("hour")}:${g("minute")}`;
+}
+
+/** "15/10/2026 às 14:32" no fuso de São Paulo. */
+function fmtFull(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const p = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const g = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+  return `${g("day")}/${g("month")}/${g("year")} às ${g("hour")}:${g("minute")}`;
 }
 
 function fmtDateBR(d: string | null): string | null {
@@ -189,15 +207,29 @@ type HistoryRow = {
   id: string;
   title: string;
   at: string | null;
-  detail: string;
+  /** Detalhe do evento (uma linha própria). */
+  detail: string | null;
+  /** Autor, com o verbo da ação ("Registrado por …") — outra linha própria. */
+  who: string | null;
   tag: JourneyActivity["tag"] | null;
   opens: boolean;
 };
 
-function whoText(actor: JourneyActor | null | undefined): string | null {
+/** Autor com o papel, sem aglutinar: "Clayton das Chagas Ferreira (EQUIPE)". */
+function whoName(actor: JourneyActor | null | undefined): string | null {
   if (!actor) return null;
-  if (!actor.name) return "Autor não registrado";
+  if (!actor.name) return null;
   return actor.role ? `${actor.name} (${actor.role.toUpperCase()})` : actor.name;
+}
+
+function verbFor(item: JourneyActivity): string {
+  if (item.tag === "Pendência") {
+    const st = item.sub === "Concluída" || item.sub === "Arquivada" || item.sub === "Aberta" ? item.sub : "Aberta";
+    return `${st} por`;
+  }
+  if (item.tag === "Registro") return "Registrado por";
+  if (item.tag === "Previsão") return "Alterado por";
+  return "Feito por";
 }
 
 function historyRows(timeline: TimelineEntry[]): HistoryRow[] {
@@ -205,21 +237,26 @@ function historyRows(timeline: TimelineEntry[]): HistoryRow[] {
   for (const e of timeline) {
     if (e.kind === "step") {
       if (e.step.state !== "done") continue;
+      const who = e.step.actor ? (whoName(e.step.actor) ?? "Autor não registrado") : null;
       out.push({
         id: e.step.key,
         title: e.step.label,
         at: e.step.at,
-        detail: [e.step.detail, whoText(e.step.actor)].filter(Boolean).join(" · "),
+        detail: e.step.detail,
+        who: who ? `Feito por ${who}` : null,
         tag: null,
         opens: false,
       });
     } else {
       const it = e.item;
+      const who = whoName(it.actor);
+      const stateOnly = it.tag === "Pendência" && (it.sub === "Aberta" || it.sub === "Concluída" || it.sub === "Arquivada");
       out.push({
         id: it.id,
         title: it.title,
         at: it.at,
-        detail: [it.sub, whoText(it.actor)].filter(Boolean).join(" · "),
+        detail: stateOnly ? null : it.sub,
+        who: who ? `${verbFor(it)} ${who}` : "Autor não registrado",
         tag: it.tag,
         opens: !!it.opens,
       });
@@ -298,7 +335,8 @@ export function ReservationJourneyDialog({
       case "Cancelada":
         return { bar: ROSE, title: "Cancelada", since: fmtWhen(stepAt("cancelada")), sub: "Cancelada na plataforma", subCol: ROSE };
       case "Não compareceu":
-        return { bar: ROSE, title: "Não compareceu", since: fmtWhen(stepAt("no_show")), sub: data?.steps.find((x) => x.key === "no_show")?.detail ?? "Hóspede não compareceu", subCol: ROSE };
+        // `sub: null` — o título "Não compareceu" já diz tudo (sem repetir "Hóspede não compareceu").
+        return { bar: ROSE, title: "Não compareceu", since: fmtWhen(stepAt("no_show")), sub: null, subCol: ROSE };
       default:
         return {
           bar: AMBER,
@@ -431,7 +469,7 @@ export function ReservationJourneyDialog({
                 </div>
                 <ol className="relative mt-3">
                   {history.map((h, i) => {
-                    const when = fmtWhen(h.at);
+                    const when = fmtFull(h.at);
                     const tagCol = h.tag ? TAG_COLOR[h.tag] : undefined;
                     const Tag = h.opens && onOpenRecords ? "button" : "div";
                     return (
@@ -446,18 +484,12 @@ export function ReservationJourneyDialog({
                         <span aria-hidden className="absolute left-2 top-[8.5px] z-10 size-[7px] rounded-full bg-[#5f5852]" />
                         <Tag
                           {...(Tag === "button" ? { type: "button" as const, onClick: onOpenRecords } : {})}
-                          className="block min-h-[46px] w-full pl-[30px] text-left"
+                          className="block w-full pb-3 pl-[30px] text-left"
                         >
+                          {/* Cada informação na SUA linha (sem aglutinar data com autor): título · data/hora · detalhe · autor.
+                              A etiqueta lateral acompanha o bloco, na linha do título. */}
                           <span className="flex items-start justify-between gap-3">
                             <span className="min-w-0 truncate text-[13px] font-bold leading-[17px]">{h.title}</span>
-                            {when && (
-                              <span className="mt-[0.5px] shrink-0 whitespace-nowrap text-[11.5px] leading-[15px] text-muted-foreground">
-                                {when}
-                              </span>
-                            )}
-                          </span>
-                          <span className="mt-[3px] flex items-center justify-between gap-3 pb-2.5">
-                            <span className="min-w-0 truncate text-[11.5px] leading-[15px] text-muted-foreground">{h.detail}</span>
                             {tagCol && h.tag && (
                               <span
                                 className="shrink-0 rounded-[5px] px-[7px] py-[2px] text-[9px] font-extrabold uppercase leading-[12px] tracking-[0.06em]"
@@ -467,6 +499,9 @@ export function ReservationJourneyDialog({
                               </span>
                             )}
                           </span>
+                          {when && <span className="mt-[3px] block text-[11.5px] leading-[15px] text-muted-foreground">{when}</span>}
+                          {h.detail && <span className="mt-[1px] block break-words text-[11.5px] leading-[15px] text-muted-foreground">{h.detail}</span>}
+                          {h.who && <span className="mt-[1px] block break-words text-[11.5px] leading-[15px] text-muted-foreground">{h.who}</span>}
                         </Tag>
                       </li>
                     );
