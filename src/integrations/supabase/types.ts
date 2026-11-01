@@ -3610,6 +3610,7 @@ export type Database = {
       }
       host_behavior: {
         Row: {
+          audience: string
           body: string
           created_at: string
           enabled: boolean
@@ -3623,6 +3624,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audience?: string
           body: string
           created_at?: string
           enabled?: boolean
@@ -3636,6 +3638,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audience?: string
           body?: string
           created_at?: string
           enabled?: boolean
@@ -3756,6 +3759,7 @@ export type Database = {
       }
       host_knowledge: {
         Row: {
+          audience: string
           body: string
           created_at: string
           enabled: boolean
@@ -3767,6 +3771,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audience?: string
           body: string
           created_at?: string
           enabled?: boolean
@@ -3778,6 +3783,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audience?: string
           body?: string
           created_at?: string
           enabled?: boolean

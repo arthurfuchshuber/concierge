@@ -13,6 +13,8 @@ const TeachInput = z.object({
   messageId: z.string().uuid(),
   title: z.string().trim().min(3).max(200),
   body: z.string().trim().min(3).max(5000),
+  /** G = Hóspede Ativo (padrão) · I = Equipe Interna (a IA nunca repassa ao hóspede). */
+  audience: z.enum(["G", "I"]).default("G"),
 });
 
 async function loadMessageOwner(supabase: any, messageId: string, userId: string) {
@@ -84,20 +86,27 @@ export const teachAiFromMessage = createServerFn({ method: "POST" })
       .limit(1);
     const nextPos = ((existing?.[0]?.position as number | undefined) ?? -1) + 1;
 
-    const { data: behavior, error: bErr } = await supabase
+    const baseRow = {
+      owner_id: userId,
+      title: data.title,
+      body: data.body,
+      enabled: true,
+      source: "teach",
+      source_property_id: info.propertyId,
+      position: nextPos,
+    };
+    let { data: behavior, error: bErr } = await supabase
       .from("host_behavior")
-      .insert({
-        owner_id: userId,
-        title: data.title,
-        body: data.body,
-        enabled: true,
-        source: "teach",
-        source_property_id: info.propertyId,
-        position: nextPos,
-      })
+      .insert({ ...baseRow, audience: data.audience } as never)
       .select("id")
       .single();
-    if (bErr || !behavior) throw new Error(bErr?.message ?? "Falha ao salvar aprendizado");
+    if (bErr && data.audience === "G") {
+      // Banco ainda sem a coluna `audience` (migração pendente): Hóspede é o padrão antigo, grava igual.
+      ({ data: behavior, error: bErr } = await supabase.from("host_behavior").insert(baseRow).select("id").single());
+    }
+    if (bErr || !behavior) {
+      throw new Error(data.audience === "I" ? "Não foi possível salvar como Equipe Interna agora. Tente novamente em instantes." : (bErr?.message ?? "Falha ao salvar aprendizado"));
+    }
 
     const { error: fErr } = await supabase.from("chat_message_feedback").upsert(
       {

@@ -6,6 +6,8 @@ import { teachAiFromMessage, listOwnerPropertiesForTeaching } from "@/lib/teach-
 import { Loader2, Sparkles, Check, AlertCircle } from "lucide-react";
 
 type Scope = "current" | "global" | "select";
+/** Quem pode receber a informação: G = Hóspede Ativo, I = Equipe Interna (a IA nunca repassa ao hóspede). */
+type Aud = "G" | "I";
 
 export function TeachAiDialog({
   open,
@@ -24,6 +26,7 @@ export function TeachAiDialog({
 }) {
   const [content, setContent] = useState(initialContent);
   const [scope, setScope] = useState<Scope>("current");
+  const [aud, setAud] = useState<Aud>("G");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [err, setErr] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
@@ -32,6 +35,7 @@ export function TeachAiDialog({
     if (open) {
       setContent(initialContent);
       setScope("current");
+      setAud("G");
       setSelected(new Set());
       setErr(null);
       setOkMsg(null);
@@ -56,13 +60,14 @@ export function TeachAiDialog({
         propertyId,
         content: content.trim(),
         scope,
+        audience: aud,
         propertyIds: scope === "select" ? Array.from(selected) : undefined,
         sourceMessageId: sourceMessageId ?? null,
       };
       return teachFn({ data: payload });
     },
     onSuccess: (r) => {
-      setOkMsg(`Aprendizado salvo em ${r.inserted} ${r.inserted === 1 ? "guia" : "guia(s)"}.`);
+      setOkMsg(`Aprendizado salvo em ${r.inserted} ${r.inserted === 1 ? "imóvel" : "imóveis"}.`);
       setTimeout(() => onOpenChange(false), 900);
     },
     onError: (e) => setErr((e as Error).message),
@@ -112,19 +117,19 @@ export function TeachAiDialog({
                 active={scope === "current"}
                 onSelect={() => setScope("current")}
                 title={`Apenas em "${propertyName}"`}
-                subtitle="Conhecimento específico deste guia."
+                subtitle="Conhecimento específico deste imóvel."
               />
               <ScopeRow
                 active={scope === "global"}
                 onSelect={() => setScope("global")}
-                title="Todos os meus guias"
-                subtitle="Vale para todas as propriedades desta conta."
+                title="Todos os meus imóveis"
+                subtitle="Vale para todos os imóveis desta conta."
               />
               <ScopeRow
                 active={scope === "select"}
                 onSelect={() => setScope("select")}
-                title="Selecionar guias específicos"
-                subtitle="Escolha uma lista de guias abaixo."
+                title="Selecionar imóveis específicos"
+                subtitle="Escolha os imóveis na lista abaixo."
               />
             </div>
           </div>
@@ -133,11 +138,11 @@ export function TeachAiDialog({
             <div className="rounded-md border border-border bg-background/60 max-h-56 overflow-y-auto">
               {propsQ.isLoading && (
                 <div className="p-3 text-xs text-muted-foreground inline-flex items-center gap-2">
-                  <Loader2 className="size-3 animate-spin" /> Carregando guias…
+                  <Loader2 className="size-3 animate-spin" /> Carregando imóveis…
                 </div>
               )}
               {!propsQ.isLoading && properties.length === 0 && (
-                <div className="p-3 text-xs text-muted-foreground">Nenhum outro guia encontrado.</div>
+                <div className="p-3 text-xs text-muted-foreground">Nenhum outro imóvel encontrado.</div>
               )}
               {properties.map((p) => {
                 const on = selected.has(p.id);
@@ -159,6 +164,24 @@ export function TeachAiDialog({
               })}
             </div>
           )}
+
+          <div>
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Quem pode receber esta informação</label>
+            <div className="mt-1 space-y-1.5">
+              <ScopeRow
+                active={aud === "G"}
+                onSelect={() => setAud("G")}
+                title="Hóspede Ativo"
+                subtitle="A IA pode informar ao hóspede."
+              />
+              <ScopeRow
+                active={aud === "I"}
+                onSelect={() => setAud("I")}
+                title="Equipe Interna"
+                subtitle="A IA usa só com a equipe e nunca repassa ao hóspede."
+              />
+            </div>
+          </div>
 
           {err && (
             <div className="text-xs px-2 py-1.5 rounded bg-destructive/10 text-destructive border border-destructive/30 inline-flex items-center gap-1">

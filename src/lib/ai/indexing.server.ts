@@ -167,8 +167,8 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     supabase.from("property_checkout_items").select("id, label").eq("property_id", propertyId),
     supabase.from("property_emergency_contacts").select("id, label, number").eq("property_id", propertyId),
     supabase.from("property_details").select("id, title, content").eq("property_id", propertyId),
-    supabase.from("host_knowledge").select("id, title, body, scope_property_id").eq("owner_id", prop.owner_id as string).eq("enabled", true),
-    supabase.from("host_behavior").select("id, title, body, scope_property_id").eq("owner_id", prop.owner_id as string).eq("enabled", true),
+    supabase.from("host_knowledge").select("*").eq("owner_id", prop.owner_id as string).eq("enabled", true),
+    supabase.from("host_behavior").select("*").eq("owner_id", prop.owner_id as string).eq("enabled", true),
     supabase.from("host_faqs").select("id, question, answer, scope_property_id").eq("owner_id", prop.owner_id as string),
     supabase
       .from("ai_tenant_knowledge")
@@ -344,10 +344,12 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
   }
   for (const k of (knowledge.data ?? []) as Array<Record<string, unknown>>) {
     if (k.scope_property_id && k.scope_property_id !== propertyId) continue;
+    if (!isGuestShareable(k.audience as string | null | undefined)) continue; // Equipe Interna nunca vai para a base do hóspede
     pushChunk(chunks, { source: "host_knowledge", sourceId: String(k.id), title: String(k.title ?? ""), content: String(k.body ?? "") });
   }
   for (const b of (behavior.data ?? []) as Array<Record<string, unknown>>) {
     if (b.scope_property_id && b.scope_property_id !== propertyId) continue;
+    if (!isGuestShareable(b.audience as string | null | undefined)) continue;
     pushChunk(chunks, { source: "host_behavior", sourceId: String(b.id), title: String(b.title ?? ""), content: String(b.body ?? "") });
   }
 

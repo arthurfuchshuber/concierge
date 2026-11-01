@@ -74,6 +74,7 @@ import { Route as AuthenticatedAdminPlaybookIdRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminRecomendacoesSigmaIndexRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.index'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
+import { Route as ApiPublicCronAiCostAlertRouteImport } from './routes/api/public/cron.ai-cost-alert'
 import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
 import { Route as ApiPublicCronChannexAriRetryRouteImport } from './routes/api/public/cron.channex-ari-retry'
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
@@ -82,7 +83,6 @@ import { Route as ApiPublicCronGuestFollowupRouteImport } from './routes/api/pub
 import { Route as ApiPublicCronLearningLoopRouteImport } from './routes/api/public/cron.learning-loop'
 import { Route as ApiPublicCronMalvoSyncRouteImport } from './routes/api/public/cron.malvo-sync'
 import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cron.ops-push'
-import { Route as ApiPublicCronAiCostAlertRouteImport } from './routes/api/public/cron.ai-cost-alert'
 import { Route as ApiPublicCronProactiveConciergeRouteImport } from './routes/api/public/cron.proactive-concierge'
 import { Route as ApiPublicCronPurgeRecordTrashRouteImport } from './routes/api/public/cron.purge-record-trash'
 import { Route as ApiPublicCronRefreshAirbnbListingsRouteImport } from './routes/api/public/cron.refresh-airbnb-listings'
@@ -461,6 +461,12 @@ const AuthenticatedAdminRecomendacoesSigmaCityKeyRoute =
     path: '/recomendacoes-sigma/$cityKey',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const ApiPublicCronAiCostAlertRoute =
+  ApiPublicCronAiCostAlertRouteImport.update({
+    id: '/api/public/cron/ai-cost-alert',
+    path: '/api/public/cron/ai-cost-alert',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronAutoCheckoutRoute =
   ApiPublicCronAutoCheckoutRouteImport.update({
     id: '/api/public/cron/auto-checkout',
@@ -505,11 +511,6 @@ const ApiPublicCronMalvoSyncRoute = ApiPublicCronMalvoSyncRouteImport.update({
 const ApiPublicCronOpsPushRoute = ApiPublicCronOpsPushRouteImport.update({
   id: '/api/public/cron/ops-push',
   path: '/api/public/cron/ops-push',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicCronAiCostAlertRoute = ApiPublicCronAiCostAlertRouteImport.update({
-  id: '/api/public/cron/ai-cost-alert',
-  path: '/api/public/cron/ai-cost-alert',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicCronProactiveConciergeRoute =
@@ -679,6 +680,7 @@ export interface FileRoutesByFullPath {
   '/admin/playbook/$id': typeof AuthenticatedAdminPlaybookIdRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/ai-cost-alert': typeof ApiPublicCronAiCostAlertRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
@@ -687,7 +689,6 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
-  '/api/public/cron/ai-cost-alert': typeof ApiPublicCronAiCostAlertRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
@@ -769,6 +770,7 @@ export interface FileRoutesByTo {
   '/admin/playbook/$id': typeof AuthenticatedAdminPlaybookIdRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/ai-cost-alert': typeof ApiPublicCronAiCostAlertRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
@@ -777,7 +779,6 @@ export interface FileRoutesByTo {
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
-  '/api/public/cron/ai-cost-alert': typeof ApiPublicCronAiCostAlertRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
@@ -864,6 +865,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/playbook/$id': typeof AuthenticatedAdminPlaybookIdRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/ai-cost-alert': typeof ApiPublicCronAiCostAlertRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
@@ -872,7 +874,6 @@ export interface FileRoutesById {
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
-  '/api/public/cron/ai-cost-alert': typeof ApiPublicCronAiCostAlertRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
@@ -959,6 +960,7 @@ export interface FileRouteTypes {
     | '/admin/playbook/$id'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/ai-cost-alert'
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
@@ -967,7 +969,6 @@ export interface FileRouteTypes {
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
-    | '/api/public/cron/ai-cost-alert'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/refresh-airbnb-listings'
@@ -1049,6 +1050,7 @@ export interface FileRouteTypes {
     | '/admin/playbook/$id'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/ai-cost-alert'
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
@@ -1057,7 +1059,6 @@ export interface FileRouteTypes {
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
-    | '/api/public/cron/ai-cost-alert'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/refresh-airbnb-listings'
@@ -1143,6 +1144,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/playbook/$id'
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/ai-cost-alert'
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
@@ -1151,7 +1153,6 @@ export interface FileRouteTypes {
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
-    | '/api/public/cron/ai-cost-alert'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/refresh-airbnb-listings'
@@ -1208,6 +1209,7 @@ export interface RootRouteChildren {
   ApiPublicWebhookChannexReservasRoute: typeof ApiPublicWebhookChannexReservasRoute
   LovableEmailEventsRoute: typeof LovableEmailEventsRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
+  ApiPublicCronAiCostAlertRoute: typeof ApiPublicCronAiCostAlertRoute
   ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
   ApiPublicCronChannexAriRetryRoute: typeof ApiPublicCronChannexAriRetryRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
@@ -1216,7 +1218,6 @@ export interface RootRouteChildren {
   ApiPublicCronLearningLoopRoute: typeof ApiPublicCronLearningLoopRoute
   ApiPublicCronMalvoSyncRoute: typeof ApiPublicCronMalvoSyncRoute
   ApiPublicCronOpsPushRoute: typeof ApiPublicCronOpsPushRoute
-  ApiPublicCronAiCostAlertRoute: typeof ApiPublicCronAiCostAlertRoute
   ApiPublicCronProactiveConciergeRoute: typeof ApiPublicCronProactiveConciergeRoute
   ApiPublicCronPurgeRecordTrashRoute: typeof ApiPublicCronPurgeRecordTrashRoute
   ApiPublicCronRefreshAirbnbListingsRoute: typeof ApiPublicCronRefreshAirbnbListingsRoute
@@ -1694,6 +1695,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/api/public/cron/ai-cost-alert': {
+      id: '/api/public/cron/ai-cost-alert'
+      path: '/api/public/cron/ai-cost-alert'
+      fullPath: '/api/public/cron/ai-cost-alert'
+      preLoaderRoute: typeof ApiPublicCronAiCostAlertRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/auto-checkout': {
       id: '/api/public/cron/auto-checkout'
       path: '/api/public/cron/auto-checkout'
@@ -1748,13 +1756,6 @@ declare module '@tanstack/react-router' {
       path: '/api/public/cron/ops-push'
       fullPath: '/api/public/cron/ops-push'
       preLoaderRoute: typeof ApiPublicCronOpsPushRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/cron/ai-cost-alert': {
-      id: '/api/public/cron/ai-cost-alert'
-      path: '/api/public/cron/ai-cost-alert'
-      fullPath: '/api/public/cron/ai-cost-alert'
-      preLoaderRoute: typeof ApiPublicCronAiCostAlertRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cron/proactive-concierge': {
@@ -2033,6 +2034,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWebhookChannexReservasRoute: ApiPublicWebhookChannexReservasRoute,
   LovableEmailEventsRoute: LovableEmailEventsRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
+  ApiPublicCronAiCostAlertRoute: ApiPublicCronAiCostAlertRoute,
   ApiPublicCronAutoCheckoutRoute: ApiPublicCronAutoCheckoutRoute,
   ApiPublicCronChannexAriRetryRoute: ApiPublicCronChannexAriRetryRoute,
   ApiPublicCronConversationRemindersRoute:
@@ -2042,7 +2044,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronLearningLoopRoute: ApiPublicCronLearningLoopRoute,
   ApiPublicCronMalvoSyncRoute: ApiPublicCronMalvoSyncRoute,
   ApiPublicCronOpsPushRoute: ApiPublicCronOpsPushRoute,
-  ApiPublicCronAiCostAlertRoute: ApiPublicCronAiCostAlertRoute,
   ApiPublicCronProactiveConciergeRoute: ApiPublicCronProactiveConciergeRoute,
   ApiPublicCronPurgeRecordTrashRoute: ApiPublicCronPurgeRecordTrashRoute,
   ApiPublicCronRefreshAirbnbListingsRoute:

@@ -313,11 +313,13 @@ export async function buildAgentContext(params: {
   // Comportamento configurado pelo anfitrião — instruções de mais alta prioridade.
   const { data: behaviorRows } = await supabase
     .from("host_behavior")
-    .select("title, body, scope_property_id")
+    .select("*")
     .eq("owner_id", p.owner_id as string)
     .eq("enabled", true);
   const behavior = (behaviorRows ?? [])
     .filter((b) => !b.scope_property_id || b.scope_property_id === p.id)
+    // Equipe Interna (31/10/2026): instrução interna nunca entra no prompt do atendimento ao hóspede.
+    .filter((b) => (b as { audience?: string | null }).audience !== "I")
     .map((b) => `### ${b.title}\n${b.body}`)
     .join("\n");
   if (behavior) keys.push("host_behavior");

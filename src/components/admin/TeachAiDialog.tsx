@@ -22,12 +22,15 @@ export function TeachAiDialog({ open, onOpenChange, messageId, userQuestion, aiA
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
+  /** G = Hóspede Ativo · I = Equipe Interna (a IA nunca repassa ao hóspede). */
+  const [aud, setAud] = useState<"G" | "I">("G");
 
   useEffect(() => {
     if (open) {
       const auto = userQuestion.trim().slice(0, 60);
       setTitle(auto ? `Aprendizado: ${auto}` : "Novo aprendizado de comportamento");
       setBody("");
+      setAud("G");
     }
   }, [open, userQuestion]);
 
@@ -39,7 +42,7 @@ export function TeachAiDialog({ open, onOpenChange, messageId, userQuestion, aiA
     }
     setSaving(true);
     try {
-      await teach({ data: { messageId, title: title.trim(), body: body.trim() } });
+      await teach({ data: { messageId, title: title.trim(), body: body.trim(), audience: aud } });
       toast.success("IA atualizada — esse aprendizado entrou no comportamento.");
       onOpenChange(false);
       onTaught?.();
@@ -55,11 +58,11 @@ export function TeachAiDialog({ open, onOpenChange, messageId, userQuestion, aiA
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="size-4" /> Ensinar a IA
+            <Sparkles className="size-4" /> Ensinar IA
           </DialogTitle>
           <DialogDescription>
             Esse aprendizado vai para a base de <strong>Comportamento da IA</strong> e passará a guiar
-            as respostas em todos os seus guias.
+            as respostas em todos os seus imóveis.
           </DialogDescription>
         </DialogHeader>
 
@@ -89,6 +92,29 @@ export function TeachAiDialog({ open, onOpenChange, messageId, userQuestion, aiA
               placeholder="Ex.: Quando o hóspede perguntar sobre estacionamento, sempre comece confirmando que o prédio tem vaga e oriente o uso do controle entregue no check-in."
               className="mt-1"
             />
+          </div>
+          <div>
+            <label className="text-xs font-medium">Quem pode receber esta informação</label>
+            <div className="mt-1 space-y-1.5">
+              {(
+                [
+                  ["G", "Hóspede Ativo", "A IA pode informar ao hóspede."],
+                  ["I", "Equipe Interna", "A IA usa só com a equipe e nunca repassa ao hóspede."],
+                ] as const
+              ).map(([k, t, s]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setAud(k)}
+                  className={`w-full text-left px-3 py-2 rounded-md border text-sm transition-colors ${
+                    aud === k ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/60"
+                  }`}
+                >
+                  <div className="font-medium">{t}</div>
+                  <div className="text-[11px] text-muted-foreground">{s}</div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

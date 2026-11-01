@@ -11,6 +11,8 @@ const TeachInput = z.object({
   scope: z.enum(["current", "global", "select"]),
   propertyIds: z.array(z.string().uuid()).max(200).optional(),
   sourceMessageId: z.string().uuid().optional().nullable(),
+  /** Quem pode receber a informação: G = Hóspede Ativo (padrão) · I = Equipe Interna (a IA nunca repassa ao hóspede). */
+  audience: z.enum(["G", "I"]).default("G"),
 });
 
 function deriveTitle(content: string) {
@@ -80,11 +82,16 @@ export const teachAiFromMessage = createServerFn({ method: "POST" })
       scope_property_id,
       enabled: true,
     }));
-    const { data: inserted, error: insErr } = await supabaseAdmin
+    let { data: inserted, error: insErr } = await supabaseAdmin
       .from("host_knowledge")
-      .insert(rows)
+      .insert(rows.map((r) => ({ ...r, audience: data.audience })) as never)
       .select("id");
-    if (insErr) throw new Error(insErr.message);
+    if (insErr && data.audience === "G") {
+      // Banco ainda sem a coluna `audience` (migração pendente): Hóspede é o padrão antigo, grava igual.
+      ({ data: inserted, error: insErr } = await supabaseAdmin.from("host_knowledge").insert(rows).select("id"));
+    }
+    // Equipe Interna NUNCA é gravada sem o público: melhor falhar do que virar conhecimento do hóspede.
+    if (insErr) throw new Error(data.audience === "I" ? "Não foi possível salvar como Equipe Interna agora. Tente novamente em instantes." : insErr.message);
 
     return { ok: true, inserted: inserted?.length ?? 0 };
   });

@@ -4,15 +4,28 @@
  * É só REGISTRO: nada aqui limita ou bloqueia uso. Falha ao gravar nunca derruba a resposta ao hóspede
  * (se a tabela ainda não existir, o erro é ignorado).
  */
-import { AsyncLocalStorage } from "node:async_hooks";
+import type { AsyncLocalStorage } from "node:async_hooks";
 import type { Usage } from "./gateway.server";
 
 export type UsageContext = { ownerId?: string | null; propertyId?: string | null; conversationId?: string | null; surface?: string | null };
 
-const store = new AsyncLocalStorage<UsageContext>();
+/**
+ * `node:async_hooks` é carregado SOB DEMANDA (import dinâmico): um import estático quebra o build do navegador
+ * ("AsyncLocalStorage is not exported by __vite-browser-external"). No servidor funciona igual.
+ */
+let storeInst: AsyncLocalStorage<UsageContext> | null = null;
+let storePromise: Promise<AsyncLocalStorage<UsageContext>> | null = null;
+function getStore(): Promise<AsyncLocalStorage<UsageContext>> {
+  storePromise ??= import("node:async_hooks").then((m) => {
+    storeInst = new m.AsyncLocalStorage<UsageContext>();
+    return storeInst;
+  });
+  return storePromise;
+}
 
 /** Tudo que o gateway gastar dentro de `fn` é atribuído a este contexto. */
-export function withUsageContext<T>(ctx: UsageContext, fn: () => Promise<T>): Promise<T> {
+export async function withUsageContext<T>(ctx: UsageContext, fn: () => Promise<T>): Promise<T> {
+  const store = await getStore();
   return store.run({ ...(store.getStore() ?? {}), ...ctx }, fn);
 }
 
@@ -45,7 +58,7 @@ export function buildUsageEvent(task: string, model: string, usage: Usage, ctx: 
 /** Grava sem esperar (fire-and-forget). */
 export function recordUsageEvent(task: string, model: string, usage: Usage): void {
   if (!usage.inputTokens && !usage.outputTokens && !usage.costUsd) return;
-  const row = buildUsageEvent(task, model, usage, store.getStore());
+  const row = buildUsageEvent(task, model, usage, storeInst?.getStore());
   void (async () => {
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
