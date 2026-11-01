@@ -6120,6 +6120,24 @@ export type Database = {
         }
         Relationships: []
       }
+      public_rate_hits: {
+        Row: {
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key: string
+          window_start?: string
+        }
+        Update: {
+          count?: number
+          key?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -7408,6 +7426,10 @@ export type Database = {
       place_photo_known: { Args: { _name: string }; Returns: boolean }
       property_is_published: {
         Args: { _property_id: string }
+        Returns: boolean
+      }
+      public_rate_hit: {
+        Args: { p_key: string; p_max: number; p_window_seconds: number }
         Returns: boolean
       }
       replace_permission_assignment: {
