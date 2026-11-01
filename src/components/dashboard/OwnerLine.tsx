@@ -1,8 +1,8 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 
 /**
- * PADRÃO ÚNICO DO PROPRIETÁRIO (24/10/2026): rótulo "Pr:" suave,
- * NOME INTEIRO em destaque (cor de texto cheia) e ícone verde de chat colado
+ * PADRÃO ÚNICO DO PROPRIETÁRIO (01/11/2026): SEM rótulo,
+ * só o NOME INTEIRO em destaque (cor de texto cheia) e ícone verde de chat colado
  * ao nome. Toda tela que cita o dono de um imóvel usa esta peça.
  */
 export function OwnerLine({
@@ -27,11 +27,11 @@ export function OwnerLine({
 }) {
   const full = name?.trim();
   if (!full) return null;
-  const prefix = (labelOverride ?? "Pr:").replace(/:\s*.*$/, ":");
+  const prefix = labelOverride ? labelOverride.replace(/:\s*.*$/, ":") : null;
 
   return (
     <div className={`flex w-full min-w-0 max-w-full items-center gap-1.5 overflow-hidden text-xs ${className}`}>
-      <span className="shrink-0 text-muted-foreground">{prefix}</span>
+      {prefix && <span className="shrink-0 text-muted-foreground">{prefix}</span>}
       <span
         className={`${phonePosition === "end" ? "flex-1" : "shrink"} min-w-0 truncate font-semibold text-foreground`}
         title={full}

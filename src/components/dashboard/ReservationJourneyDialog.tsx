@@ -3,7 +3,7 @@
  * implementado fielmente:
  *
  *   · CAPA fixa de 140 px com a foto do imóvel levemente desfocada (blur 1,5 px, 90% de brilho), etiqueta
- *     "HISTÓRICO DA RESERVA", título 14 px negrito e "Pr: nome" (chat) no MESMO bloco; X sólido;
+ *     "HISTÓRICO DA RESERVA", título 14 px negrito e o nome do proprietário (chat) no MESMO bloco; X sólido;
  *   · LINHA DE ETAPAS (Reserva · Check-in · Estadia · Check-out · Limpeza) com a etapa atual destacada;
  *   · CARTÃO DO MOMENTO (faixa lateral na cor do status): título + "desde/chegada em" alinhados pelo topo,
  *     subtítulo (previsão em âmbar, tocável para editar) e as linhas Hóspede (chat à esquerda) · Período ·
@@ -377,7 +377,7 @@ export function ReservationJourneyDialog({
                 phone={data.ownerPhone}
                 country={data.ownerPhoneCountry}
                 phonePosition="adjacent"
-                className="mt-0.5 [&>span:first-child]:text-white/70 [&>span:nth-child(2)]:text-white"
+                className="mt-0.5 [&>span:first-child]:text-white"
               />
             ) : null}
           </div>

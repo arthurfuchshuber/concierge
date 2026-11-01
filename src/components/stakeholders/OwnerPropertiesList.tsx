@@ -75,7 +75,7 @@ import type { PropertyConnectionRow } from "@/lib/property-connection";
  * Lista rápida de todos os imóveis da conta no modelo do card de Guias
  * Digitais (foto colada à esquerda, altura cheia), mas com 104px de altura:
  * título (1 linha, com reticências), cidade/UF e, por último,
- * "Pr: nome" + ícone de mensagem padrão. A situação (Ativo /
+ * só o nome + ícone de mensagem padrão. A situação (Ativo /
  * Inativo — definição de `property-connection.ts`) vai sobre a foto.
  *
  * A situação se filtra num botão de seleção múltipla ao lado da busca, que
@@ -562,9 +562,6 @@ export function OwnerPropertiesList({
                   <span className="flex min-w-0 items-center justify-between gap-2">
                     {ownerName ? (
                       <span className="flex min-w-0 items-center gap-1.5 text-xs">
-                        <span className="shrink-0 text-[11.5px] text-muted-foreground">
-                          Pr:
-                        </span>
                         <span className="min-w-0 truncate font-semibold text-foreground">
                           {ownerName}
                         </span>
@@ -578,9 +575,6 @@ export function OwnerPropertiesList({
                       </span>
                     ) : (
                       <span className="flex min-w-0 items-center gap-1.5 text-xs">
-                        <span className="shrink-0 text-[11.5px] text-muted-foreground">
-                          Pr:
-                        </span>
                         <span className="min-w-0 truncate font-semibold ds-atencao">
                           sem proprietário
                         </span>

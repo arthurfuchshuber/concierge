@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -175,5 +175,81 @@ describe("Aba Registros", () => {
     render(<RecordsWorkspace />, { wrapper });
     await waitFor(() => expect(screen.getByText("13 pendências")).toBeTruthy());
     expect(screen.getByText("6 imóveis")).toBeTruthy();
+  });
+
+  /**
+   * 01/11/2026 (mockup aprovado): "remova esses filtros" + "título ao centro, com o efeito do dashboard
+   * operacional". O quadrante "Precisam de atenção" perdeu o botão de ordenar e ganhou o rótulo centralizado.
+   */
+  it("o título 'Precisam de atenção' é um rótulo centralizado, sem botão de ordenar", async () => {
+    listMock.mockResolvedValue({
+      records: [rec()],
+      counts: { forgotten: 0, damage: 1, cleaning_audit: 0, maintenance: 0, other: 0 },
+      openCounts: { forgotten: 0, damage: 1, cleaning_audit: 0, maintenance: 0, other: 0 },
+      total: 1,
+      totalOpen: 1,
+      truncated: false,
+    });
+    optionsMock.mockResolvedValue({ properties: [], owners: [], providers: [] });
+    render(<RecordsWorkspace />, { wrapper });
+    await waitFor(() => expect(screen.getByText("PRECISAM DE ATENÇÃO · 1")).toBeTruthy());
+    expect(screen.queryByRole("button", { name: /ordenar/i })).toBeNull();
+  });
+
+  /**
+   * 01/11/2026 (mockup aprovado): o Detalhe do Registro mostra, ao lado do quadrado da mídia, o TÍTULO e a
+   * DESCRIÇÃO que o usuário cadastrou; a fileira de ações segue o padrão dos cartões (25 px, cantos de 6 px).
+   */
+  it("o detalhe mostra título e descrição do registro, o quadrado da mídia e a fileira de ações padrão", async () => {
+    listMock.mockResolvedValue({
+      records: [rec()],
+      counts: { forgotten: 0, damage: 1, cleaning_audit: 0, maintenance: 0, other: 0 },
+      openCounts: { forgotten: 0, damage: 1, cleaning_audit: 0, maintenance: 0, other: 0 },
+      total: 1,
+      totalOpen: 1,
+      truncated: false,
+    });
+    optionsMock.mockResolvedValue({ properties: [], owners: [], providers: [] });
+    render(<RecordsWorkspace />, { wrapper });
+    // O cartão do imóvel abre a lista de pendências; dela, o registro.
+    fireEvent.click(await screen.findByRole("button", { name: /pendência/i }));
+    fireEvent.click(await screen.findByText("Cobre-leito manchado"));
+    expect(await screen.findByText("Descrição longa")).toBeTruthy();
+    expect(screen.getAllByText("Registro").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Ampliar mídia" })).toBeTruthy();
+    // Dados da reserva no mesmo cartão (sem blocos separados).
+    expect(screen.getByText("Código da Reserva")).toBeTruthy();
+    expect(screen.getByText("Registrado por")).toBeTruthy();
+    expect(screen.queryByText("Prestador")).toBeNull();
+    const resolvido = screen.getByRole("button", { name: /Resolvido/ });
+    expect(resolvido.className).toContain("h-[25px]");
+    expect(resolvido.className).toContain("bg-emerald-600");
+    expect(screen.getByRole("button", { name: "Excluir" }).className).toContain("size-[25px]");
+  });
+
+  it("registro sem mídia não ganha o quadrado", async () => {
+    listMock.mockResolvedValue({
+      records: [
+        rec({
+          kind: "note",
+          url: null,
+          storagePath: null,
+          body: "Travesseiro 2",
+          media: [],
+        }),
+      ],
+      counts: { forgotten: 0, damage: 1, cleaning_audit: 0, maintenance: 0, other: 0 },
+      openCounts: { forgotten: 0, damage: 1, cleaning_audit: 0, maintenance: 0, other: 0 },
+      total: 1,
+      totalOpen: 1,
+      truncated: false,
+    });
+    optionsMock.mockResolvedValue({ properties: [], owners: [], providers: [] });
+    render(<RecordsWorkspace />, { wrapper });
+    fireEvent.click(await screen.findByRole("button", { name: /pendência/i }));
+    fireEvent.click(await screen.findByText("Travesseiro 2"));
+    await screen.findByText("Código da Reserva");
+    expect(screen.queryByRole("button", { name: /Ampliar mídia|mídias/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Baixar todas as mídias" })).toBeNull();
   });
 });

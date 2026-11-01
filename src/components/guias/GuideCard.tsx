@@ -223,7 +223,6 @@ export function GuideCard({
         <div className="flex min-w-0 items-center gap-2">
           {p.ownerName ? (
             <span className="flex min-w-0 items-center gap-1 text-xs">
-              <span className="shrink-0 text-[11.5px] text-muted-foreground">Pr:</span>
               <span className="min-w-0 truncate font-semibold text-foreground" title={p.ownerName}>
                 {p.ownerName}
               </span>

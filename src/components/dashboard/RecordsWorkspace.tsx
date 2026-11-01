@@ -1,6 +1,5 @@
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { SearchActionRow } from "./SearchActionRow";
-import { SortMenu } from "./SortMenu";
 import { searchScore } from "@/lib/search-score";
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,6 +20,7 @@ import {
   StickyNote,
   Video,
   Maximize2,
+  Play,
   Trash2,
   Download,
   Tag,
@@ -29,7 +29,6 @@ import {
   ListChecks,
   CalendarRange,
   Users,
-  ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
@@ -88,7 +87,6 @@ function fmtDDMM(iso: string): string {
 import {
   PANEL_SHELL,
   SectionLabel,
-  CountPill,
   ACTION_BAR,
   ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
@@ -105,6 +103,7 @@ function spDate(iso: string): string {
 }
 import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
 import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
+import { RecordMediaPanel } from "@/components/dashboard/RecordMediaPanel";
 import { DictationField } from "@/components/dashboard/RecordSituationSheet";
 import { CoverImage } from "@/components/ui/cover-image";
 import { NewRecordButton } from "@/components/dashboard/NewRecordButton";
@@ -196,30 +195,14 @@ function fmtShortDate(iso: string): string {
 }
 
 /**
- * ORDEM DOS QUADRANTES (mockup aprovado, 03/10/2026: "um botão dentro do
- * quadrante de cada status para ORDENAR a lista" — e, depois, "não quero a
- * palavra, quero apenas o ícone da seta cima baixo"). Cada quadrante tem a
- * sua ordem. O PADRÃO de cada um é a ordem que a tela já tinha: em "Precisam
- * de atenção", a pendência mais antiga primeiro (antiguidade é atraso); em
- * "Em dia", o imóvel com o registro mais recente primeiro.
+ * ORDEM DOS QUADRANTES. Os botões de ordenar saíram da tela (mockup aprovado,
+ * 01/11/2026: "remova esses filtros"), então cada quadrante fica SEMPRE na
+ * ordem padrão que a tela já tinha: em "Precisam de atenção", a pendência mais
+ * antiga primeiro (antiguidade é atraso); em "Em dia", o imóvel com o registro
+ * mais recente primeiro. A lógica de ordenação abaixo não mudou.
  */
 type AttentionSort = "oldest" | "newest" | "count" | "name" | "owner";
 type CalmSort = "recent" | "oldest" | "count" | "name" | "owner";
-
-const ATTENTION_SORT_OPTIONS: { value: AttentionSort; label: string }[] = [
-  { value: "oldest", label: "Pendência mais antiga primeiro" },
-  { value: "newest", label: "Pendência mais recente primeiro" },
-  { value: "count", label: "Mais pendências primeiro" },
-  { value: "name", label: "Nome do imóvel (A–Z)" },
-  { value: "owner", label: "Proprietário (A–Z)" },
-];
-const CALM_SORT_OPTIONS: { value: CalmSort; label: string }[] = [
-  { value: "recent", label: "Último registro mais recente" },
-  { value: "oldest", label: "Último registro mais antigo" },
-  { value: "count", label: "Mais registros primeiro" },
-  { value: "name", label: "Nome do imóvel (A–Z)" },
-  { value: "owner", label: "Proprietário (A–Z)" },
-];
 
 const byName = (a: { label: string }, b: { label: string }) =>
   a.label.localeCompare(b.label, "pt-BR");
@@ -386,8 +369,8 @@ export function RecordsWorkspace() {
 
   const [category, setCategory] = useState<RecordCategory | null>(null);
   const [onlyOpen, setOnlyOpen] = useState(false);
-  const [attentionSort, setAttentionSort] = useState<AttentionSort>("oldest");
-  const [calmSort, setCalmSort] = useState<CalmSort>("recent");
+  const [attentionSort] = useState<AttentionSort>("oldest");
+  const [calmSort] = useState<CalmSort>("recent");
   const [groupBy, setGroupBy] = useState<GroupBy>("property");
   const [period, setPeriod] = useState<PeriodRange | null>(null);
   /** Nomes (mesma chave do filtro de proprietário das outras telas). */
@@ -919,16 +902,7 @@ export function RecordsWorkspace() {
                 <StatusSection
                   label="Imóveis que precisam de atenção"
                   title="Precisam de atenção"
-                  color="#c98c8c"
                   count={attentionGroups.length}
-                  sort={
-                    <SortMenu
-                      value={attentionSort}
-                      defaultValue="oldest"
-                      options={ATTENTION_SORT_OPTIONS}
-                      onChange={setAttentionSort}
-                    />
-                  }
                 >
                   {attentionGroups.map(renderCard)}
                 </StatusSection>
@@ -938,18 +912,7 @@ export function RecordsWorkspace() {
                 <StatusSection
                   label="Imóveis em dia"
                   title="Em dia"
-                  color="#7fb79a"
                   count={calmGroups.length}
-                  sort={
-                    byProperty ? (
-                      <SortMenu
-                        value={calmSort}
-                        defaultValue="recent"
-                        options={CALM_SORT_OPTIONS}
-                        onChange={setCalmSort}
-                      />
-                    ) : undefined
-                  }
                 >
                   {calmGroups.map(renderCard)}
                 </StatusSection>
@@ -1354,35 +1317,23 @@ function rowSquares(records: AccountRecord[], max: number): RowSquare[] {
 function StatusSection({
   label,
   title,
-  color,
   count,
-  sort,
   children,
 }: {
   label: string;
   title: string;
-  color: string;
   count: number;
-  sort?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section aria-label={label} className="relative min-w-0">
       <div className="ds-stack">
-        {/* CABEÇALHO DA LISTA (mockup aprovado, 30/10/2026): ponto de status + título + contagem à
-            esquerda e o botão de ordenar à direita. Sem fios em degradê e sem ícone em caixinha. */}
-        <div className="flex min-w-0 items-center justify-between gap-2.5">
-          <span className="flex min-w-0 items-center gap-2">
-            <span aria-hidden className="size-[7px] shrink-0 rounded-full" style={{ background: color }} />
-            <span className="ds-eyebrow min-w-0 truncate text-[10px] tracking-[0.2em] text-muted-foreground">
-              {title}
-            </span>
-            <span aria-label={`${count} ${count === 1 ? "imóvel" : "imóveis"}`}>
-              <CountPill>{count}</CountPill>
-            </span>
-          </span>
-          {sort}
-        </div>
+        {/* CABEÇALHO DA LISTA (mockup aprovado, 01/11/2026): o título fica CENTRALIZADO, com o fio que vai
+            sumindo dos dois lados e a contagem colada ("PRECISAM DE ATENÇÃO · 5") — o mesmo rótulo de seção
+            do Dashboard Operacional (`SectionLabel`). Sem botão de ordenar e sem ponto de status. */}
+        <SectionLabel count={count} className="[&>span:nth-child(2)]:text-muted-foreground">
+          {title.toUpperCase()}
+        </SectionLabel>
         {/* SEM QUADRANTE DE ROLAGEM (pedido explícito, 04/10/2026): os cartões ficam no fluxo da
             página e rolam com ela. */}
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3">{children}</div>
@@ -1717,7 +1668,7 @@ function MoreRecordsBody({
               phone={group.ownerPhone}
               country={group.ownerPhoneCountry}
               phonePosition="adjacent"
-              className="mt-0.5 [&>span:first-child]:text-white/70 [&>span:nth-child(2)]:text-white"
+              className="mt-0.5 [&>span:first-child]:text-white"
             />
           ) : null}
         </div>
@@ -1842,7 +1793,7 @@ function PendingPopoverBody({
               phone={first.ownerPhone}
               country={first.ownerPhoneCountry}
               phonePosition="adjacent"
-              className="mt-0.5 [&>span:first-child]:text-white/70 [&>span:nth-child(2)]:text-white"
+              className="mt-0.5 [&>span:first-child]:text-white"
             />
           ) : null}
         </div>
@@ -2019,22 +1970,11 @@ function Thumb({
 }
 
 /**
- * O VISUALIZADOR (mockup aprovado, 10/09/2026).
- *
- * Três decisões moldam esta folha:
- *
- *  1. PALCO DE ALTURA FIXA. Vídeo vertical, vídeo horizontal, foto quadrada,
- *     áudio e nota abrem todos do mesmo tamanho. A folha parava de ser a
- *     mesma coisa a cada registro — pulava de altura e reposicionava os
- *     botões debaixo do dedo.
- *  2. FUNDO FOSCO. A mídia entra INTEIRA (`object-contain`) e o vão que
- *     sobraria como tarja preta recebe uma cópia dela mesma, borrada e
- *     escurecida. Onde a mídia preenche o palco, não há fosco nenhum.
- *  3. TÍTULO E DESCRIÇÃO ABAIXO da mídia, nunca por cima: sobre a imagem o
- *     texto some assim que o vídeo escurece.
+ * O DETALHE DO REGISTRO (mockups aprovados, 30/10 e 01/11/2026). Cabeçalho com a foto do imóvel (modelo do
+ * Histórico da Reserva), UM cartão com barra de status — categoria e data/hora no topo, o quadrado da mídia ao
+ * lado do TÍTULO e da DESCRIÇÃO do registro, dados da reserva e do registro separados por um fio — e a fileira
+ * de ações dos cartões. Tocar no quadrado abre só a mídia (`RecordMediaPanel`); sem mídia, sem quadrado.
  */
-const VIEWER_STAGE = "h-[160px]";
-
 function RecordViewerDialog({
   record,
   onClose,
@@ -2164,6 +2104,96 @@ function RecordTextEditor({
   );
 }
 
+/** "1:48" — duração do vídeo/áudio no selo do quadrado da mídia. */
+function fmtClockMs(ms: number | null | undefined): string | null {
+  if (!ms || ms <= 0) return null;
+  const sec = Math.round(ms / 1000);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+}
+
+/** "18/10 · 12:14" — data e hora do registro, no fuso de São Paulo. */
+function fmtRecordStamp(iso: string): string {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+  const time = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+  return `${day} · ${time}`;
+}
+
+/**
+ * QUADRADO DA MÍDIA (mockup aprovado, 01/11/2026). A mídia do registro vira um quadrado pequeno à
+ * esquerda do título e da descrição; tocar nele abre SÓ a mídia, num painel (`RecordMediaPanel`) —
+ * não a tela inteira. Com mais de uma mídia elas aparecem em CASCATA (quadrados menores e mais
+ * apagados atrás do primeiro) e uma pílula "+N" diz quantas há além da primeira. Registro sem mídia
+ * NÃO ganha quadrado: o texto ocupa a largura toda do cartão.
+ */
+function RecordMediaSquare({
+  media,
+  onOpen,
+}: {
+  media: AccountRecord["media"];
+  onOpen: () => void;
+}) {
+  const first = media[0];
+  const extra = media.length - 1;
+  const clock = fmtClockMs(first.durationMs);
+  const backImage = (m: (typeof media)[number] | undefined) =>
+    m?.kind === "photo" && m.url ? (
+      <img src={m.url} alt="" className="absolute inset-0 size-full object-cover" />
+    ) : null;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={extra > 0 ? `Ver as ${media.length} mídias` : "Ampliar mídia"}
+      className={`relative shrink-0 ${extra > 0 ? "h-[58px] w-[72px]" : "size-[56px]"}`}
+    >
+      {extra >= 2 && (
+        <span className="absolute left-4 top-2 z-[1] h-10 w-12 overflow-hidden rounded-[9px] bg-[#161820] opacity-50 shadow-[inset_0_0_0_1px_rgba(255,255,255,.09),0_2px_8px_rgba(0,0,0,.45)]">
+          {backImage(media[2])}
+        </span>
+      )}
+      {extra >= 1 && (
+        <span className="absolute left-2 top-1 z-[2] h-12 w-[52px] overflow-hidden rounded-[9px] bg-[#161820] opacity-80 shadow-[inset_0_0_0_1px_rgba(255,255,255,.09),0_2px_8px_rgba(0,0,0,.45)]">
+          {backImage(media[1])}
+        </span>
+      )}
+      <span className="absolute left-0 top-0 z-[3] grid size-[56px] place-items-center overflow-hidden rounded-[9px] bg-[#161820] shadow-[inset_0_0_0_1px_rgba(255,255,255,.12),0_4px_12px_rgba(0,0,0,.55)]">
+        {first.kind === "photo" && first.url ? (
+          <img src={first.url} alt="" className="absolute inset-0 size-full object-cover" />
+        ) : first.kind === "video" && first.url ? (
+          <VideoFrame url={first.url} />
+        ) : first.kind === "audio" ? (
+          <Mic className="size-5 text-muted-foreground" />
+        ) : (
+          <FileText className="size-5 text-muted-foreground" />
+        )}
+        <span aria-hidden className="absolute inset-0 bg-gradient-to-b from-transparent from-45% to-black/55" />
+        {first.kind === "video" && (
+          <span className="absolute left-4 top-4 grid size-6 place-items-center rounded-full bg-black/60 text-white">
+            <Play className="size-2.5 fill-current" />
+          </span>
+        )}
+        {clock && (first.kind === "video" || first.kind === "audio") && (
+          <span className="absolute bottom-1 left-1 rounded-[4px] bg-black/60 px-1 text-[9px] font-semibold leading-[14px] text-white">
+            {clock}
+          </span>
+        )}
+        <span
+          aria-hidden
+          className="absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-black/60 text-white"
+        >
+          <Maximize2 className="size-[9px]" />
+        </span>
+      </span>
+      {extra > 0 && (
+        <span className="absolute -bottom-0.5 right-0 z-[4] grid h-4 min-w-4 place-items-center rounded-full bg-foreground px-1.5 text-[9.5px] font-extrabold leading-none text-background">
+          +{extra}
+        </span>
+      )}
+    </button>
+  );
+}
+
 function RecordViewerBody({
   record,
   onDelete,
@@ -2178,9 +2208,6 @@ function RecordViewerBody({
   const meta = CATEGORY_BY_KEY.get(record.category);
   const { title, description } = recordText(record);
   const stay = fmtStayRange(record.checkinDate, record.checkoutDate);
-  // Linha da reserva: hóspede · código · datas, sem os separadores dos
-  // pedaços que não existem.
-  const reservationValue = [record.reservationCode, stay].filter(Boolean).join(" · ");
   const [baixando, setBaixando] = useState(false);
   /* BAIXAR TUDO (04/10/2026): o botão só com o ícone baixa TODAS as mídias do
      registro, não só a que está na tela. Uma a uma, via blob (para o
@@ -2225,9 +2252,8 @@ function RecordViewerBody({
     }
   }
 
-  /* UMA SITUAÇÃO PODE TER VÁRIAS MÍDIAS (10/09/2026). O palco mostra uma de
-     cada vez e a fileira embaixo troca — registro antigo, de uma mídia só,
-     não ganha fileira nenhuma e continua igual. */
+  /* UMA SITUAÇÃO PODE TER VÁRIAS MÍDIAS (10/09/2026). Registro antigo, de uma
+     mídia só, continua igual. */
   const media = record.media?.length
     ? record.media
     : [
@@ -2242,12 +2268,13 @@ function RecordViewerBody({
           createdAt: record.createdAt,
         },
       ];
+  /* Só as mídias que têm arquivo entram no quadrado e no painel; registro só de texto não ganha quadrado. */
+  const playable = media.filter((m) => !!m.url);
   const [idx, setIdx] = useState(0);
-  /* TELA CHEIA (11/09/2026). O palco do registro serve para reconhecer a
-     mídia; para EXAMINAR — um risco na parede, a placa de um carro no vídeo de
-     auditoria — é preciso a tela inteira e zoom. Ver `MediaLightbox`. */
+  const [painel, setPainel] = useState(false);
+  /* TELA CHEIA (11/09/2026), agora chamada de DENTRO do painel da mídia: tocar na foto do painel abre a
+     camada com zoom (`MediaLightbox`) para examinar um detalhe. */
   const [cheia, setCheia] = useState(false);
-  const current = media[Math.min(idx, media.length - 1)];
   const [editing, setEditing] = useState(false);
   // Cor do status (rosa terroso em aberto, sálvia resolvido, neutro cancelado/sem pendência).
   const statusColor =
@@ -2258,116 +2285,188 @@ function RecordViewerBody({
         : "#a39b92";
   // Miolo rolável do quadrante (limite de 75% da tela + anti-corte vertical).
   const bodyRef = useAntiClipRows<HTMLDivElement>([editing, record]);
-  /* ROLAR PARA O LADO (pedido explícito, 03/10/2026: "não estamos conseguindo
-     rolar a foto para o lado quando tem mais de uma"). Antes só dava para
-     trocar tocando na fileira de miniaturas. Agora o arrasto horizontal no
-     palco troca a mídia — com `touch-action: pan-y` para a rolagem vertical
-     da tela continuar valendo. O toque que termina um arrasto NÃO abre a
-     tela cheia (`arrastou`). No vídeo, o arrasto que nasce na faixa dos
-     controles é do player (barra de progresso), não da troca. */
-  const swipe = useRef<{ x: number; y: number; ok: boolean } | null>(null);
-  const arrastou = useRef(false);
-  const last = media.length - 1;
-  const go = (d: number) => setIdx((i) => Math.max(0, Math.min(last, Math.min(i, last) + d)));
-  const onStageDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (media.length < 2) return;
-    arrastou.current = false;
-    const r = e.currentTarget.getBoundingClientRect();
-    const naBarraDoVideo = current.kind === "video" && e.clientY > r.bottom - 56;
-    swipe.current = { x: e.clientX, y: e.clientY, ok: !naBarraDoVideo };
-  };
-  const onStageUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    const st = swipe.current;
-    swipe.current = null;
-    if (!st || !st.ok) return;
-    const dx = e.clientX - st.x;
-    const dy = e.clientY - st.y;
-    if (Math.abs(dx) >= 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      arrastou.current = true;
-      go(dx < 0 ? 1 : -1);
-    }
-  };
+  const covers = [...(record.propertyCoverUrls ?? []), record.propertyCoverUrl];
+  const pending = record.taskId && record.taskStatus === "pending" && onResolve;
+
+  const reservaRows = (
+    [
+      ["Hóspede", record.guestName, true],
+      [
+        "Telefone",
+        record.guestPhone
+          ? formatIntlPhone(record.guestPhone, record.guestPhoneCountry) || record.guestPhone
+          : null,
+        false,
+      ],
+      ["Código da Reserva", record.reservationCode, false],
+      ["Período", stay, false],
+    ] as [string, string | null | undefined, boolean][]
+  ).filter(([, v]) => !!v);
+  const registroRows = (
+    [
+      ["Registrado por", record.createdByName ?? "Equipe", false],
+      ["Origem", record.cardMode ? MODE_LABEL[record.cardMode] : "Registros", false],
+    ] as [string, string | null | undefined, boolean][]
+  ).filter(([, v]) => !!v);
+
+  /* Uma linha de dado: 21 px entre linhas (mockup 01/11/2026), rótulo à esquerda e valor à direita. */
+  const renderRows = (rows: [string, string | null | undefined, boolean][]) => (
+    <dl className="m-0">
+      {rows.map(([k, v, chat]) => (
+        <div key={k} className="flex h-[21px] items-center justify-between gap-4 text-[12px] leading-none">
+          <dt className="shrink-0 text-muted-foreground/70">{k}</dt>
+          <dd className="m-0 flex min-w-0 items-center gap-1.5 font-semibold">
+            {chat && (
+              <PhoneActionButton
+                phone={record.guestPhone ?? null}
+                country={record.guestPhoneCountry ?? null}
+                size={14}
+                alwaysShow
+                className="shrink-0 p-0.5"
+              />
+            )}
+            <span className="min-w-0 truncate">{v}</span>
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
 
   return (
     <>
-      {/* CABEÇALHO EM UMA LINHA CADA (pedido explícito, repetido 3x).
-          Duas coisas seguravam o título em duas linhas:
-            · `text-lg` do `DialogTitle` do Radix, que vencia o `ds-card-title`
-              — resolvido com um `text-[13.5px]` explícito, que o `twMerge`
-              reconhece e usa para descartar o `text-lg`;
-            · a regra global `text-wrap: pretty` dos `h1..h6` em styles.css,
-              que, fora de `@layer`, vencia o `truncate` e reativava a quebra
-              (`text-wrap` é atalho de `text-wrap-mode`). Lá agora é
-              `text-wrap-style`, que não mexe em quebrar/não quebrar.
-          Com o título em uma linha o cabeçalho encolheu; o `pt`/`pb` foram
-          junto. */}
-      {/* LAYOUT APROVADO 30/10/2026 (Opção 1): título 14 px negrito e proprietário no MESMO bloco, abaixo dele. */}
-      <DialogHeader className="min-w-0 space-y-0 pb-3 pl-4 pr-12 pt-3.5 text-left">
-        <DialogTitle className="block w-full truncate text-sm font-bold leading-6">
-          {record.propertyName}
-        </DialogTitle>
-        {record.ownerName && (
-          <OwnerLine
-            name={record.ownerName}
-            phone={record.ownerPhone}
-            country={record.ownerPhoneCountry}
-            phonePosition="adjacent"
-          />
-        )}
-      </DialogHeader>
+      {/* CABEÇALHO NO MODELO DO HISTÓRICO DA RESERVA (mockup aprovado, 01/11/2026): a foto do imóvel,
+          levemente desfocada, de fundo; "REGISTRO", o título do imóvel (14 px negrito, uma linha) e o
+          proprietário no MESMO bloco; X sólido de canto (`dialog.tsx`). */}
+      <div className="relative h-[140px] shrink-0 overflow-hidden bg-secondary/60">
+        <div className="absolute inset-0 origin-center scale-[1.04] [filter:blur(1.5px)_brightness(.9)]">
+          <CoverImage urls={covers} empty={false} />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/60 to-[var(--panel)]" />
+        <div className="absolute inset-x-4 bottom-2.5 min-w-0 pr-8 text-left">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">Registro</div>
+          <DialogTitle
+            className="mt-1 block w-full truncate text-sm font-bold leading-[18px] text-white"
+            title={record.propertyName}
+          >
+            {record.propertyName}
+          </DialogTitle>
+          {record.ownerName ? (
+            <OwnerLine
+              name={record.ownerName}
+              phone={record.ownerPhone}
+              country={record.ownerPhoneCountry}
+              phonePosition="adjacent"
+              className="mt-0.5 [&>span:first-child]:text-white"
+            />
+          ) : null}
+        </div>
+      </div>
 
       <div
-        className={`relative ${VIEWER_STAGE} touch-pan-y overflow-hidden bg-black`}
-        onPointerDown={onStageDown}
-        onPointerUp={onStageUp}
-        onPointerCancel={() => {
-          swipe.current = null;
-        }}
+        ref={bodyRef}
+        className="sg-elegant-scroll min-h-0 min-w-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain px-4 pb-1 pt-4"
       >
-        <ViewerStage record={current} />
-        {/* A mídia inteira abre a tela cheia. Fica ATRÁS das etiquetas e do
-            player de vídeo (z-0), então nem o controle do vídeo nem os
-            selos perdem o clique. */}
-        {(current.kind === "photo" || current.kind === "video") && current.url && (
-          <>
-            {current.kind === "photo" && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (arrastou.current) {
-                    arrastou.current = false;
-                    return;
-                  }
-                  setCheia(true);
+        {/* CARTÃO ÚNICO (mockup 01/11/2026): barra lateral na cor do status; categoria e data/hora no topo;
+            ao lado do quadrante da mídia, o TÍTULO e a DESCRIÇÃO que o usuário cadastrou; depois os dados da
+            reserva e os do registro, separados por um fio. */}
+        <div
+          data-clip-row
+          className="relative snap-start overflow-hidden rounded-[12px] border border-foreground/[0.07] bg-[var(--card-surface)] py-3 pl-4 pr-3.5"
+        >
+          <span aria-hidden className="absolute inset-y-0 left-0 w-[3px]" style={{ background: statusColor }} />
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="min-w-0 truncate text-sm font-bold leading-[18px] text-foreground">
+              {meta?.label ?? "Registro"}
+            </span>
+            <span className="shrink-0 text-[11.5px] leading-[15px] tabular-nums text-muted-foreground">
+              {fmtRecordStamp(record.createdAt)}
+            </span>
+          </div>
+
+          {editing ? (
+            /* EDITAR DEPOIS (decisão do cliente, 10/09/2026): o registro que nasceu sem título — ou com o
+               título errado — se conserta aqui, sem passar pela captura de novo. */
+            <div className="mt-2.5">
+              <RecordTextEditor
+                record={record}
+                initialTitle={hasTitle(record) ? title : ""}
+                initialDescription={description ?? ""}
+                onCancel={() => setEditing(false)}
+                onSaved={() => {
+                  setEditing(false);
+                  onEdited?.();
                 }}
-                aria-label="Abrir em tela cheia"
-                className="absolute inset-0 z-0 cursor-zoom-in"
               />
-            )}
-          </>
-        )}
-        {/* Sem etiquetas nem botões sobre a mídia (30/10/2026): categoria e situação ficam abaixo, numa etiqueta só. */}
-        {media.length > 1 && (
-          <span className="pointer-events-none absolute bottom-3.5 left-4 right-16 z-10 h-[3px] rounded-full bg-white/30">
-            <span
-              className="block h-full rounded-full bg-white"
-              style={{ width: `${((Math.min(idx, media.length - 1) + 1) / media.length) * 100}%` }}
-            />
-          </span>
-        )}
-        {media.length > 1 && (
-          /* O contador desceu para o pé do palco: em cima ele brigava com a
-             situação da pendência. */
-          <span className="absolute bottom-2 right-3 z-10 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-white">
-            {Math.min(idx, media.length - 1) + 1} / {media.length}
-          </span>
-        )}
+            </div>
+          ) : (
+            <div className="mt-2.5 flex items-start gap-3">
+              {playable.length > 0 && (
+                <RecordMediaSquare
+                  media={playable}
+                  onOpen={() => {
+                    setIdx(0);
+                    setPainel(true);
+                  }}
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <p
+                  className={`truncate text-[13.5px] font-bold leading-[18px] ${
+                    hasTitle(record) ? "text-foreground" : "italic text-muted-foreground"
+                  }`}
+                  title={title}
+                >
+                  {title}
+                </p>
+                {description && (
+                  <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-[18px] text-foreground/85">
+                    {description}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!editing && (
+            <>
+              <div aria-hidden className="mb-2.5 mt-3 h-px bg-foreground/[0.07]" />
+              {reservaRows.length ? (
+                renderRows(reservaRows)
+              ) : (
+                <p className="text-[12px] text-muted-foreground">Sem reserva vinculada</p>
+              )}
+              {registroRows.length > 0 && (
+                <>
+                  <div aria-hidden className="my-2.5 h-px bg-foreground/[0.07]" />
+                  {renderRows(registroRows)}
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
+
+      {playable.length > 0 && (
+        <RecordMediaPanel
+          open={painel}
+          onOpenChange={setPainel}
+          media={playable.map((m) => ({ id: m.id, kind: m.kind, url: m.url, durationMs: m.durationMs }))}
+          index={idx}
+          onIndex={setIdx}
+          label={meta?.label ?? "Registro"}
+          onDownloadAll={baixarTodas}
+          downloading={baixando}
+          onZoom={(i) => {
+            setIdx(i);
+            setCheia(true);
+          }}
+        />
+      )}
 
       {cheia && (
         <MediaLightbox
-          media={media.map((m) => ({ id: m.id, kind: m.kind, url: m.url, mime: m.mime }))}
-          startIndex={Math.min(idx, media.length - 1)}
+          media={playable.map((m) => ({ id: m.id, kind: m.kind, url: m.url, mime: m.mime }))}
+          startIndex={Math.min(idx, playable.length - 1)}
           categoryLabel={meta?.label ?? null}
           categoryClass={CATEGORY_SOLID[record.category] ?? CATEGORY_SOLID.other}
           statusLabel={
@@ -2391,192 +2490,42 @@ function RecordViewerBody({
         />
       )}
 
-      {media.length > 1 && (
-        /* FAIXA CINZA LARGA (pedido: "essa faixa abaixo das imagens, não sei do
-            que se trata"). Eram as MINIATURAS: o `ds-scroll-x` põe
-            `min-width: max-content` nos filhos, e o `max-content` da foto é o
-            tamanho ORIGINAL dela — a miniatura de 44px virava uma faixa da
-            largura da tela. Aqui a fileira usa só `flex` + `overflow-x-auto`
-            e a foto fica por cima (`absolute inset-0`), sem tamanho próprio. */
-        <div className="flex gap-1.5 overflow-x-auto px-3.5 pt-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {media.map((m, i) => {
-            const on = i === Math.min(idx, media.length - 1);
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setIdx(i)}
-                aria-label={`Mídia ${i + 1}`}
-                className={`relative grid size-[44px] shrink-0 place-items-center overflow-hidden rounded-[0.25rem] border border-foreground/15 bg-foreground/[0.09] ${
-                  on ? "outline outline-2 -outline-offset-2 outline-[#E82DAE]" : "opacity-70"
-                }`}
-              >
-                {m.kind === "photo" && m.url ? (
-                  <img src={m.url} alt="" className="absolute inset-0 size-full object-cover" />
-                ) : (
-                  <RecordCover record={{ ...record, kind: m.kind }} size="xs" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      <div
-        ref={bodyRef}
-        className="sg-elegant-scroll min-h-0 min-w-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain px-4 pb-1 pt-4"
-      >
-        {editing ? (
-          /* EDITAR DEPOIS (decisão do cliente, 10/09/2026): o registro que
-             nasceu sem título — ou com o título errado — se conserta aqui,
-             sem passar pela captura de novo. */
-          <RecordTextEditor
-            record={record}
-            initialTitle={hasTitle(record) ? title : ""}
-            initialDescription={description ?? ""}
-            onCancel={() => setEditing(false)}
-            onSaved={() => {
-              setEditing(false);
-              onEdited?.();
-            }}
-          />
-        ) : (
-          <div data-clip-row className="snap-start">
-            {/* Etiqueta da categoria: raio 5 px, SEMPRE na cor do status, texto escuro. */}
-            <span
-              className="inline-flex h-6 items-center rounded-[5px] px-2.5 text-[11.5px] font-bold leading-none text-[#1a1615]"
-              style={{ background: statusColor }}
-            >
-              {meta?.label ?? "Registro"}
-            </span>
-            <p
-              className={`mt-2.5 truncate text-sm font-bold leading-snug ${
-                hasTitle(record) ? "" : "italic text-muted-foreground"
-              }`}
-              title={title}
-            >
-              {title}
-            </p>
-            {description && (
-              <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-muted-foreground">
-                {description}
-              </p>
-            )}
-          </div>
-        )}
-        {/* BLOCOS (Opção 1): título FORA do card (caixa alta pequena, 16 px acima), uma informação por
-            linha, 21 px entre linhas, sem divisórias; ~16 px entre blocos. */}
-        {!editing &&
-          [
-            {
-              title: "Reserva",
-              rows: [
-                ["Hóspede", record.guestName, true],
-                ["Telefone", record.guestPhone ? formatIntlPhone(record.guestPhone, record.guestPhoneCountry) || record.guestPhone : null, false],
-                ["Código da Reserva", record.reservationCode, false],
-                ["Período", stay, false],
-              ] as [string, string | null | undefined, boolean][],
-              empty: record.guestName || record.reservationCode || stay ? null : "Sem reserva vinculada",
-            },
-            {
-              title: "Prestador",
-              rows: [
-                ["Registrado por", record.createdByName ?? "Equipe", false],
-                [
-                  "Origem",
-                  record.cardMode ? MODE_LABEL[record.cardMode] : "Registros",
-                  false,
-                ],
-                [
-                  "Horário",
-                  new Date(record.createdAt).toLocaleTimeString("pt-BR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }),
-                  false,
-                ],
-              ] as [string, string | null | undefined, boolean][],
-              empty: null,
-            },
-          ].map((blk) => {
-            const rows = blk.rows.filter(([, v]) => !!v);
-            if (!rows.length && !blk.empty) return null;
-            return (
-              <section key={blk.title} data-clip-row className="mt-4 snap-start">
-                <h4 className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  {blk.title}
-                </h4>
-                <div className="rounded-[12px] border border-foreground/[0.07] bg-[var(--card-surface)] px-3.5 py-3 text-[13px]">
-                  {rows.length ? (
-                    <dl className="grid gap-y-[21px]">
-                      {rows.map(([k, v, chat]) => (
-                        <div key={k} className="flex items-center justify-between gap-4 leading-none">
-                          <dt className="shrink-0 text-muted-foreground/70">{k}</dt>
-                          <dd className="flex min-w-0 items-center gap-1.5 font-semibold">
-                            {chat && (
-                              <PhoneActionButton
-                                phone={record.guestPhone ?? null}
-                                country={record.guestPhoneCountry ?? null}
-                                size={14}
-                                alwaysShow
-                                className="shrink-0 p-0.5"
-                              />
-                            )}
-                            <span className="min-w-0 truncate">{v}</span>
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  ) : (
-                    <p className="text-muted-foreground">{blk.empty}</p>
-                  )}
-                </div>
-              </section>
-            );
-          })}
-      </div>
-
-      {/* BARRA DE AÇÕES: baixar tudo (só ícone), excluir (só ícone) e
-          "Resolvido" ocupando o resto. 
-          PADRÃO DOS BOTÕES DOS CARDS (pedido explícito, 08/10/2026, mockup
-          aprovado): a ORDEM não muda. Os ícones ficam na cor do texto (como a
-          chave e o clipe dos cards) e "Resolvido" usa o verde de ação dos cards
-          (`bg-emerald-600`, texto branco) — antes era um verde-sálvia com texto
-          escuro. A lixeira mantém o rosa: é ação de exclusão, como o triângulo
-          âmbar dos cards mantém a cor de alerta. */}
-      <div className="shrink-0 px-4 pb-4 pt-3">
-        <div className="flex items-center gap-1.5">
-          {/* "Resolvido" só existe quando há o que resolver. */}
-          {record.taskId && record.taskStatus === "pending" && onResolve && (
+      {/* BARRA DE AÇÕES — MESMA fileira dos cartões de reserva (mockup 01/11/2026): botões de 25 px de
+          altura, cantos de 6 px e 5 px entre eles, ícones de 13 px. NADA muda na regra: "Resolvido" só
+          existe quando há o que resolver (verde de ação dos cartões, texto branco); editar, baixar tudo
+          (só com mídia) e excluir seguem na mesma ordem e cores — a lixeira mantém o rosa. */}
+      <div className="shrink-0 px-4 pb-4 pt-4">
+        <div className="flex items-center gap-[5px]">
+          {pending && (
             <button
               type="button"
               onClick={onResolve}
-              className="box-border inline-flex h-7 min-h-7 min-w-0 flex-1 items-center justify-center gap-2 rounded-[7px] bg-emerald-600 px-2.5 text-[11px] font-semibold leading-none tracking-tight text-white transition-all hover:bg-emerald-700 active:scale-[0.99]"
+              className="box-border mr-px inline-flex h-[25px] min-h-[25px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[6px] bg-emerald-600 px-2.5 text-[12.5px] font-semibold leading-none tracking-tight text-white transition-all hover:bg-emerald-700 active:scale-[0.99]"
             >
-              <Check className="size-3 shrink-0" />
+              <Check className="size-[13px] shrink-0" />
               <span className="truncate">Resolvido</span>
             </button>
           )}
-          {!(record.taskId && record.taskStatus === "pending" && onResolve) && <span className="flex-1" />}
+          {!pending && <span className="flex-1" />}
           <button
             type="button"
             onClick={() => setEditing(true)}
             aria-label="Editar título e descrição"
             title="Editar título e descrição"
-            className="grid size-7 shrink-0 place-items-center rounded-[7px] border-0 bg-[var(--action-sq-bg)] text-foreground transition-colors hover:bg-primary/[0.08]"
+            className="grid size-[25px] shrink-0 place-items-center rounded-[6px] border-0 bg-[var(--action-sq-bg)] text-foreground transition-colors hover:bg-primary/[0.08]"
           >
-            <Pencil className="size-3.5" />
+            <Pencil className="size-[13px]" />
           </button>
-          {media.some((m) => m.url) && (
+          {playable.length > 0 && (
             <button
               type="button"
               onClick={baixarTodas}
               disabled={baixando}
               aria-label="Baixar todas as mídias"
               title="Baixa todas as mídias deste registro"
-              className="grid size-7 shrink-0 place-items-center rounded-[7px] border-0 bg-[var(--action-sq-bg)] text-foreground transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
+              className="grid size-[25px] shrink-0 place-items-center rounded-[6px] border-0 bg-[var(--action-sq-bg)] text-foreground transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
             >
-              {baixando ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+              {baixando ? <Loader2 className="size-[13px] animate-spin" /> : <Download className="size-[13px]" />}
             </button>
           )}
           <button
@@ -2585,9 +2534,9 @@ function RecordViewerBody({
             onClick={() => onDelete(Array.from(new Set([record.id, ...media.map((m) => m.id)])))}
             aria-label="Excluir"
             title="Excluir"
-            className="grid size-7 shrink-0 place-items-center rounded-[7px] border-0 bg-[var(--action-sq-bg)] text-[#d49a9a] transition-colors hover:bg-primary/[0.08]"
+            className="grid size-[25px] shrink-0 place-items-center rounded-[6px] border-0 bg-[var(--action-sq-bg)] text-[#d49a9a] transition-colors hover:bg-primary/[0.08]"
           >
-            <Trash2 className="size-3.5" />
+            <Trash2 className="size-[13px]" />
           </button>
         </div>
       </div>
@@ -3014,89 +2963,6 @@ function ResolveDialog({
 }
 
 /** O conteúdo do palco, por tipo. */
-function ViewerStage({
-  record,
-}: {
-  /* Uma MÍDIA (a situação pode ter várias) — a forma casa tanto com
-     `AccountRecord` quanto com `RecordMedia`. */
-  record: {
-    kind: AccountRecord["kind"];
-    url: string | null;
-    durationMs: number | null;
-  };
-}) {
-  if (record.kind === "photo" && record.url) {
-    return (
-      <>
-        <div
-          aria-hidden
-          className="absolute -inset-5 scale-110 bg-cover bg-center blur-2xl brightness-[.55] saturate-125"
-          style={{ backgroundImage: `url(${JSON.stringify(record.url)})` }}
-        />
-        <img src={record.url} alt="" className="relative size-full object-contain" />
-      </>
-    );
-  }
-  if (record.kind === "video" && record.url) {
-    return (
-      <>
-        {/* O fosco é o PRÓPRIO vídeo, parado no primeiro quadro. Só metadados
-            são baixados aqui — o arquivo inteiro é do player da frente. */}
-        <video
-          aria-hidden
-          src={`${record.url}#t=0.1`}
-          preload="metadata"
-          muted
-          playsInline
-          className="pointer-events-none absolute -inset-5 size-[calc(100%+2.5rem)] scale-110 object-cover blur-2xl brightness-[.55] saturate-125"
-        />
-        <video
-          src={record.url}
-          controls
-          playsInline
-          preload="metadata"
-          className="relative size-full object-contain"
-        />
-      </>
-    );
-  }
-  if (record.kind === "audio" && record.url) {
-    return (
-      <div className="grid size-full place-items-center bg-gradient-to-br from-secondary/60 to-secondary/20 px-5">
-        <div className="w-full max-w-[16rem]">
-          <AudioPlayer url={record.url} durationMs={record.durationMs} />
-        </div>
-      </div>
-    );
-  }
-  // NOTA: o palco NÃO repete o texto (pedido explícito, 10/09/2026). Ele
-  // aparecia aqui e de novo logo abaixo, como título e descrição — a mesma
-  // frase duas vezes, e a de cima ainda ficava escondida atrás da etiqueta.
-  //
-  // O QUE MUDA EM 20/09/2026: o palco cinza com um ícone solto era lido como
-  // "o vídeo está borrado / com erro". Não estava: o registro simplesmente não
-  // tem mídia (o envio não chegou e sobrou só o texto). Agora o palco DIZ isso.
-  if (record.kind === "note") {
-    return (
-      <div className="grid size-full place-items-center gap-2 bg-gradient-to-br from-secondary/60 to-secondary/20 px-5 text-center text-muted-foreground">
-        <StickyNote className="size-8" />
-        <span className="text-[11px] leading-snug">Registro sem foto ou vídeo</span>
-      </div>
-    );
-  }
-  const semArquivo = record.kind === "photo" || record.kind === "video" || record.kind === "audio";
-  return (
-    <div className="grid size-full place-items-center gap-2 bg-gradient-to-br from-secondary/60 to-secondary/20 px-5 text-center text-muted-foreground">
-      <FileText className="size-8" />
-      {semArquivo && (
-        <span className="text-[11px] leading-snug">
-          O arquivo não está disponível. Envie de novo pelo registro da reserva.
-        </span>
-      )}
-    </div>
-  );
-}
-
 /** "1,2 MB" — mesmo formato do rodapé da linha do tempo da reserva. */
 function fmtSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;

@@ -274,7 +274,6 @@ export function SyncRequiredGate() {
                         {cur.ownerName ? (
                           <>
                             <span className="truncate">
-                              Pr:{" "}
                               <b className="font-semibold text-foreground">{cur.ownerName}</b>
                             </span>
                             <PhoneActionButton

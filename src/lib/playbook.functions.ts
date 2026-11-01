@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { COLUMN_FIELDS, ENTRY_FIELDS, LIST_FIELDS, type PlaybookSource } from "@/lib/playbook-build";
 import { PLAYBOOK_FIELDS } from "@/lib/playbook-catalog";
+import { partsFor, partsToColumns } from "@/lib/playbook-parts";
 
 /**
  * PLAYBOOK DO IMÓVEL — leitura e gravação (21/10/2026).
@@ -341,6 +342,57 @@ export const savePlaybookRow = createServerFn({ method: "POST" })
     } else {
       throw new Error("Este campo não é editável aqui.");
     }
+    await reindex(data.propertyId);
+    return { ok: true };
+  });
+
+/**
+ * CAMPOS COMPOSTOS (opção B, 01/11/2026): grava de uma vez todas as partes de uma linha do Dossiê
+ * (ex.: limpeza normal/completa com valor e duração) nas mesmas colunas do guia do imóvel.
+ */
+export const savePlaybookParts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    RowInput.extend({
+      parts: z.record(z.string().max(60), z.string().max(60)),
+      audience: z.enum(["G", "P", "I"]).optional(),
+    }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as AnySb;
+    await assertAccess(sb, context.userId, data.propertyId);
+    const [kind, ...rest] = data.rowId.split(":");
+    const key = rest.join(":");
+    if (kind !== "f" || !partsFor(key)) throw new Error("Este campo não é editável aqui.");
+    const columns = partsToColumns(key, data.parts);
+    if (data.audience) await upsertEntry(sb, context.userId, data.propertyId, data.rowId, { custom_audience: data.audience });
+    const { error } = await sb.from("properties").update(columns).eq("id", data.propertyId);
+    if (error) throw new Error(error.message);
+    await reindex(data.propertyId);
+    return { ok: true };
+  });
+
+/**
+ * TROCAR SÓ O PÚBLICO de uma linha do Dossiê (01/11/2026): a etiqueta "Equipe Interna / Reserva Ativa / Público" da
+ * janela do campo é editável sem mexer no valor. Vale para campos do catálogo (menos os secretos — código e senha
+ * ficam só na reserva ativa), linhas criadas à mão e FAQ. Prestadores de apoio são sempre Equipe Interna.
+ */
+export const savePlaybookAudience = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => RowInput.extend({ audience: z.enum(["G", "P", "I"]) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as AnySb;
+    await assertAccess(sb, context.userId, data.propertyId);
+    const [kind, ...rest] = data.rowId.split(":");
+    const key = rest.join(":");
+    if (kind === "f") {
+      const meta = PLAYBOOK_FIELDS.find((f) => f.key === key);
+      if (!meta) throw new Error("Campo desconhecido.");
+      if (meta.secret) throw new Error("O público de códigos e senhas não pode ser alterado.");
+    } else if (kind !== "custom" && kind !== "faq") {
+      throw new Error("O público deste campo é fixo.");
+    }
+    await upsertEntry(sb, context.userId, data.propertyId, data.rowId, { custom_audience: data.audience });
     await reindex(data.propertyId);
     return { ok: true };
   });

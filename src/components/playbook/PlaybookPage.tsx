@@ -25,14 +25,17 @@ import {
   addPlaybookRow,
   deletePlaybookRow,
   getPlaybook,
+  savePlaybookAudience,
   savePlaybookNote,
+  savePlaybookParts,
   savePlaybookRow,
 } from "@/lib/playbook.functions";
 import { buildPlaybook, matchesQuery, toggleRow, toggleSection, type PlaybookRow } from "@/lib/playbook-build";
 import { AUDIENCE_LABEL, PLAYBOOK_SECTIONS, groupOfRow, type Audience, type PlaybookSectionMeta } from "@/lib/playbook-catalog";
 import { classifyBulkRow } from "@/lib/playbook-bulk";
-import { playbookFieldIcon } from "@/lib/playbook-field-icons";
 import { ReplicateRowDialog } from "@/components/playbook/ReplicateRowDialog";
+import { PartsEditor } from "@/components/playbook/PartsEditor";
+import { partsFor } from "@/lib/playbook-parts";
 
 /**
  * PLAYBOOK DO IMÓVEL (mockup P01 aprovado, 21/10/2026).
@@ -255,6 +258,8 @@ type EditState = { id: string; draft: string } | null;
  * Só os campos-padrão abaixo ficam sempre visíveis; os demais entram pelo
  * "Adicionar campo" da seção e somem de novo quando o valor é excluído.
  */
+/** Acessos (nome + código + instruções) seguem no editor próprio. */
+const DOOR_ROW_IDS = new Set(["f:codigo_da_porta", "f:instrucoes_da_porta", "f:ponto_da_porta", "f:codigo_do_portao", "f:instrucoes_do_portao", "f:ponto_de_acesso"]);
 const STANDARD_MANUAL_FIELDS = new Set(["f:modo_de_acesso"]);
 // Vazio = oculto, venha do anúncio ou do cadastro manual: nenhuma linha mostra "não cadastrado".
 const isOptionalEmpty = (r: PlaybookRow) => r.empty && !STANDARD_MANUAL_FIELDS.has(r.id);
@@ -267,6 +272,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const saveFn = useServerFn(savePlaybookRow);
   const deleteFn = useServerFn(deletePlaybookRow);
   const noteFn = useServerFn(savePlaybookNote);
+  const audFn = useServerFn(savePlaybookAudience);
+  const partsFn = useServerFn(savePlaybookParts);
   const addFn = useServerFn(addPlaybookRow);
 
   // Falha de leitura não zera nada: o react-query mantém o último dado bom.
@@ -292,6 +299,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const [pick, setPick] = useState<number | null>(null);
   const [locked, setLocked] = useState<PlaybookRow | null>(null);
   const [audOpen, setAudOpen] = useState(false);
+  /** Janela do campo (celular): o seletor de público (a etiqueta) está aberto? */
+  const [audPick, setAudPick] = useState(false);
   const [replicating, setReplicating] = useState<PlaybookRow | null>(null);
   const [revealed, setRevealed] = useState<string[]>([]);
   const [shown, setShown] = useState<string[]>([]);
@@ -325,6 +334,15 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
   function startEdit(row: PlaybookRow) {
     if (!row.edit) return;
+    // Campos compostos (opção B) têm janela própria: a mesma janela única do campo.
+    if (row.edit === "parts") {
+      const idx = sections.findIndex((sec) => sec.rows.some((x) => x.id === row.id));
+      if (idx >= 0) {
+        setAudPick(false);
+        setView({ idx, id: row.id, tab: "texto" });
+      }
+      return;
+    }
     setOpenRows((cur) => (cur.includes(row.id) ? cur : toggleRow(cur, row.id)));
     let draft = row.raw;
     if (row.edit === "bool") draft = /^Sim/.test(row.value) ? "true" : "false";
@@ -346,6 +364,22 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   /** CELULAR (mockup "Ver tudo B" aprovado, 25/10/2026): janela do campo com abas Texto / Nota / IA. */
   const [view, setView] = useState<{ idx: number; id: string; tab: "texto" | "nota" | "ia" } | null>(null);
   const viewRow = view ? (sections[view.idx]?.rows ?? []).find((x) => x.id === view.id) ?? null : null;
+  /** JANELA ÚNICA DO CAMPO (opção B, 01/11/2026): rascunho de valor/partes/público; Salvar grava tudo de uma vez. */
+  const [vd, setVd] = useState<{ id: string; draft: string; init: string; au: Audience; parts: Record<string, string>; initParts: Record<string, string> } | null>(null);
+  const viewKey = viewRow?.id ?? null;
+  useEffect(() => {
+    if (!viewRow) {
+      setVd(null);
+      return;
+    }
+    let draft = viewRow.raw;
+    if (viewRow.edit === "bool") draft = /^Sim/.test(viewRow.value) ? "true" : "false";
+    if (viewRow.edit === "access") draft = /^Com código/.test(viewRow.value) ? "pin" : "public";
+    if (viewRow.edit === "int") draft = viewRow.raw.replace(/\D/g, "");
+    setVd({ id: viewRow.id, draft, init: draft, au: viewRow.au, parts: { ...(viewRow.parts ?? {}) }, initParts: { ...(viewRow.parts ?? {}) } });
+    // Só reinicia ao abrir OUTRO campo — recarregar os dados não pode apagar o que a pessoa está digitando.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewKey]);
 
   /** Editor de valor (mesmo no computador e no celular). */
   const renderEditor = (r: PlaybookRow) => (
@@ -587,7 +621,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                         return (
                           <div
                             key={r.id}
-                            onClick={() => !editing && setView({ idx, id: r.id, tab: "texto" })}
+                            onClick={() => { if (editing) return; setAudPick(false); setView({ idx, id: r.id, tab: "texto" }); }}
                             className={`cursor-pointer ${i > 0 ? "mt-[18px]" : ""}`}
                           >
                             <div className="text-[13px] leading-5 text-muted-foreground">
@@ -773,6 +807,19 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
                           <div className="flex flex-col items-start gap-2 whitespace-nowrap px-4 py-3">
                             <AudienceChip au={r.au} />
+                            {r.edit === "parts" ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEdit(r);
+                                }}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-foreground hover:text-foreground/80 print:hidden"
+                              >
+                                <PencilLine className="size-[13px]" />
+                                Editar
+                              </button>
+                            ) : null}
                             {!r.empty && !!r.edit && classifyBulkRow(r.id).ok ? (
                               <button
                                 type="button"
@@ -841,103 +888,204 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={narrow && !!viewRow} onOpenChange={(v) => !v && setView(null)}>
-        <DialogContent aria-describedby={undefined} className="flex max-w-lg flex-col gap-0 overflow-hidden p-0">
-          {viewRow && view ? (
-            <>
-              {/* CABEÇALHO COM ÍCONE DA CATEGORIA (mockup "Campo · Proposta A", 27/10/2026): quadro de 44px à
-                  esquerda, título e categoria (com o número) ao lado, e um filete separando o valor. */}
-              {(() => {
-                const FieldIcon = playbookFieldIcon(viewRow.id, view.idx);
-                return (
-                  <div className="flex shrink-0 items-center gap-3 pb-0 pl-5 pr-11 pt-[22px]">
-                    <div className="grid size-11 flex-none place-items-center rounded-xl bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
-                      <FieldIcon className="size-[22px]" strokeWidth={1.7} aria-hidden />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <DialogTitle className="font-display text-[18px] font-bold leading-6 tracking-[-0.01em] text-foreground">
-                        {viewRow.label}
-                      </DialogTitle>
-                      <div className="truncate text-xs leading-4 text-muted-foreground">
-                        {PLAYBOOK_SECTIONS[view.idx]?.num} · {PLAYBOOK_SECTIONS[view.idx]?.title}
-                      </div>
-                    </div>
+      {/* JANELA ÚNICA DO CAMPO (opção B + "janela 3", 01/11/2026): abas Texto / Nota / IA NO TOPO, miolo que rola e
+          rodapé Cancelar / Salvar. Na aba Texto o campo é editado ali mesmo (campos compostos em cartões, um por
+          grupo, como no guia) junto com "Quem pode ver". Códigos, senhas e acessos continuam no editor próprio. */}
+      <Dialog open={!!viewRow && (narrow || viewRow.edit === "parts")} onOpenChange={(v) => { if (!v) { setView(null); setAudPick(false); } }}>
+        <DialogContent aria-describedby={undefined} className="flex max-h-[90dvh] max-w-lg flex-col gap-0 overflow-hidden p-0">
+          {viewRow && view ? (() => {
+            const unified = !!viewRow.edit && !viewRow.secret && !DOOR_ROW_IDS.has(viewRow.id) && vd?.id === viewRow.id;
+            const isParts = viewRow.edit === "parts";
+            const groups = isParts ? partsFor(viewRow.id.slice(2)) : null;
+            const canPickAud = !viewRow.secret && !viewRow.id.startsWith("prov:");
+            const canReplicate = !viewRow.empty && !!viewRow.edit && classifyBulkRow(viewRow.id).ok;
+            const closeView = () => { setView(null); setAudPick(false); };
+            const curAu = unified && vd ? vd.au : viewRow.au;
+            const valueDirty = !!vd && vd.draft !== vd.init;
+            const partsDirty = !!vd && JSON.stringify(vd.parts) !== JSON.stringify(vd.initParts);
+            const auDirty = !!vd && vd.au !== viewRow.au;
+            const noteDirty = notes[viewRow.id] !== undefined && notes[viewRow.id] !== viewRow.note;
+            const save = async () => {
+              if (!vd) return;
+              const ok = await run(async () => {
+                const audience = auDirty && canPickAud ? vd.au : undefined;
+                if (isParts) {
+                  if (partsDirty || audience) await partsFn({ data: { propertyId, rowId: viewRow.id, parts: vd.parts, audience } });
+                } else if (valueDirty) {
+                  await saveFn({ data: { propertyId, rowId: viewRow.id, value: vd.draft, audience } });
+                } else if (audience) {
+                  await audFn({ data: { propertyId, rowId: viewRow.id, audience } });
+                }
+                if (noteDirty) await noteFn({ data: { propertyId, rowId: viewRow.id, note: notes[viewRow.id] ?? "" } });
+              }, "Salvo.");
+              if (ok) {
+                setNotes((p) => { const { [viewRow.id]: _x, ...rest } = p; return rest; });
+                closeView();
+              }
+            };
+            const audRadios = (
+              <div>
+                <div className={FIELD_LABEL}>Quem pode ver</div>
+                <div role="radiogroup" aria-label="Quem pode ver" className="flex gap-1.5">
+                  {NEW_INFO_AUD.map((o) => {
+                    const on = curAu === o.au;
+                    return (
+                      <button
+                        key={o.au}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => vd && setVd({ ...vd, au: o.au })}
+                        className={`inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-[10px] border px-1 text-[11.5px] font-semibold transition-colors ${
+                          on ? "border-foreground/12 bg-foreground/10 text-foreground" : "border-foreground/5 bg-foreground/[0.04] text-muted-foreground"
+                        }`}
+                      >
+                        <i className={`size-1.5 flex-none rounded-full ${o.dot}`} />
+                        <span className="truncate">{o.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-[11.5px] leading-4 text-muted-foreground">{AUDIENCE_HELP[curAu]}</p>
+              </div>
+            );
+            return (
+              <>
+                {/* CABEÇALHO NO PADRÃO DAS JANELAS (regras 5 e 6): sem ícone; título Manrope 14 px negrito com centro
+                    a 24 px do topo, subtítulo 12 px cinza com centro a 44 px, margem de 16 px. */}
+                <div className="min-w-0 shrink-0 pl-4 pr-11 pt-[15px]">
+                  <DialogTitle className="block truncate text-sm font-bold leading-[18px] text-foreground" title={viewRow.label}>
+                    {viewRow.label}
+                  </DialogTitle>
+                  <div className="mt-[3px] truncate text-xs leading-4 text-muted-foreground">
+                    {PLAYBOOK_SECTIONS[view.idx]?.num} · {PLAYBOOK_SECTIONS[view.idx]?.title}
                   </div>
-                );
-              })()}
-              <div className="mx-5 mt-[18px] h-px shrink-0 bg-[var(--panel-div)]" />
-              <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pt-4">
-                {view.tab === "texto" ? (
-                  <div className={viewRow.empty ? "italic text-[var(--faint)]" : viewRow.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}>
-                    {(viewRow.secret && shown.includes(viewRow.id) ? viewRow.raw : viewRow.value).split("\n").map((line, i) => (
-                      <p key={i} data-clip-row className={`break-words text-[15px] font-medium leading-[22px] ${i > 0 ? "mt-3.5" : ""}`}>
-                        {line}
-                      </p>
-                    ))}
-                  </div>
-                ) : null}
-                {view.tab === "nota" ? renderNote(viewRow, notes[viewRow.id] ?? viewRow.note, "") : null}
-                {view.tab === "ia" ? (
-                  <div className="text-sm leading-5 text-muted-foreground">
-                    <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-[var(--faint)]">
-                      <Lock className="size-[11px]" />
-                      Observação da IA · padrão do sistema
-                    </span>
-                    {viewRow.obs}
-                  </div>
-                ) : null}
-                {/* Público como etiqueta colorida com a explicação ao lado (mockup "Campo · Proposta A"). */}
-                <div className="mb-5 mt-3.5 flex items-center gap-2.5">
-                  <span
-                    className={`inline-flex h-[22px] flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-[9px] text-[10.5px] font-bold uppercase leading-none tracking-[0.1em] ${AUD_CHIP[viewRow.au]}`}
-                  >
-                    <i className="inline-block size-1.5 rounded-full bg-current" />
-                    {AUD_NAME[viewRow.au]}
-                  </span>
-                  <span className="min-w-0 flex-1 text-[12.5px] leading-[17px] text-muted-foreground">{AUDIENCE_HELP[viewRow.au]}</span>
-                  {!viewRow.empty && !!viewRow.edit && classifyBulkRow(viewRow.id).ok ? (
+                </div>
+                <div role="tablist" className="mt-2.5 flex h-10 shrink-0 border-b border-[var(--panel-div)]">
+                  {(
+                    [
+                      ["texto", "Texto"],
+                      ["nota", "Nota"],
+                      ["ia", "IA"],
+                    ] as const
+                  ).map(([key, label]) => (
                     <button
+                      key={key}
                       type="button"
-                      onClick={() => {
-                        setReplicating(viewRow);
-                        setView(null);
-                      }}
-                      className="inline-flex flex-none items-center gap-1 text-[13px] font-bold leading-[18px] text-muted-foreground hover:text-foreground print:hidden"
+                      role="tab"
+                      aria-selected={view.tab === key}
+                      onClick={() => setView({ ...view, tab: key })}
+                      className={`relative h-10 flex-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${
+                        view.tab === key
+                          ? "text-foreground after:absolute after:inset-x-[13px] after:bottom-[-1px] after:h-0.5 after:rounded-sm after:bg-[linear-gradient(120deg,#7c1ad8,#e82dae)] after:content-['']"
+                          : "text-muted-foreground"
+                      }`}
                     >
-                      <CopyPlus className="size-[13px]" />
-                      Replicar
+                      {label}
                     </button>
+                  ))}
+                </div>
+                <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-4 pb-4 pt-4">
+                  {view.tab === "texto" && unified && vd ? (
+                    <>
+                      {isParts && groups ? (
+                        <PartsEditor groups={groups} values={vd.parts} onChange={(id, v) => setVd({ ...vd, parts: { ...vd.parts, [id]: v } })} disabled={busy} />
+                      ) : (
+                        <div>
+                          <div className={FIELD_LABEL}>Sua resposta</div>
+                          <EditField row={viewRow} draft={vd.draft} onChange={(v) => setVd({ ...vd, draft: v })} />
+                        </div>
+                      )}
+                      {canPickAud ? (
+                        audRadios
+                      ) : (
+                        <div className="text-xs leading-4 text-muted-foreground">
+                          Quem pode ver: <AudienceText au={viewRow.au} /> · {AUDIENCE_HELP[viewRow.au]}
+                        </div>
+                      )}
+                      {canReplicate ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReplicating(viewRow);
+                            closeView();
+                          }}
+                          className="inline-flex flex-none items-center gap-1 self-start text-[13px] font-bold leading-[18px] text-muted-foreground hover:text-foreground"
+                        >
+                          <CopyPlus className="size-[13px]" />
+                          Replicar
+                        </button>
+                      ) : null}
+                    </>
+                  ) : null}
+                  {view.tab === "texto" && !unified ? (
+                    <>
+                      <div className={viewRow.empty ? "italic text-[var(--faint)]" : viewRow.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}>
+                        {(viewRow.secret && shown.includes(viewRow.id) ? viewRow.raw : viewRow.value).split("\n").map((line, i) => (
+                          <p key={i} data-clip-row className={`break-words text-[15px] font-medium leading-[22px] ${i > 0 ? "mt-3.5" : ""}`}>
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                      <div>
+                        <span className={`inline-flex h-[22px] flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-[9px] text-[10.5px] font-bold uppercase leading-none tracking-[0.1em] ${AUD_CHIP[viewRow.au]}`}>
+                          <i className="inline-block size-1.5 rounded-full bg-current" />
+                          {AUD_NAME[viewRow.au]}
+                        </span>
+                        <p className="mt-1.5 text-[12.5px] leading-[17px] text-muted-foreground">{AUDIENCE_HELP[viewRow.au]}</p>
+                        {viewRow.edit ? (
+                          <div className="mt-3 flex items-center gap-4 print:hidden">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const r = viewRow;
+                                closeView();
+                                startEdit(r);
+                              }}
+                              className="inline-flex flex-none items-center gap-1 text-[13px] font-bold leading-[18px] text-foreground hover:text-foreground/80"
+                            >
+                              <PencilLine className="size-[13px]" />
+                              Editar
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : null}
+                  {view.tab === "nota" ? renderNote(viewRow, notes[viewRow.id] ?? viewRow.note, "") : null}
+                  {view.tab === "ia" ? (
+                    <div className="text-sm leading-5 text-muted-foreground">
+                      <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-[var(--faint)]">
+                        <Lock className="size-[11px]" />
+                        Observação da IA · padrão do sistema
+                      </span>
+                      {viewRow.obs}
+                    </div>
                   ) : null}
                 </div>
-              </div>
-              {/* ABAS NO RODAPÉ FIXO (mockup "A · Abas no rodapé", 26/10/2026): o miolo rola e as abas ficam sempre
-                  visíveis na base da janela. */}
-              <div role="tablist" className="flex shrink-0 border-t border-[var(--panel-div)]">
-                {(
-                  [
-                    ["texto", "Texto"],
-                    ["nota", "Nota"],
-                    ["ia", "IA"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    role="tab"
-                    aria-selected={view.tab === key}
-                    onClick={() => setView({ ...view, tab: key })}
-                    className={`relative h-11 flex-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${
-                      view.tab === key
-                        ? "text-foreground after:absolute after:inset-x-[13px] after:top-0 after:h-0.5 after:rounded-sm after:bg-[linear-gradient(120deg,#7c1ad8,#e82dae)] after:content-['']"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : null}
+                <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/60 bg-card px-4 py-3">
+                  {unified ? (
+                    <>
+                      <Button variant="outline" onClick={closeView} className="h-9 rounded-[9px] px-4 text-[12.5px] font-semibold lg:rounded-[13px]">
+                        Cancelar
+                      </Button>
+                      <Button
+                        disabled={busy || (valueDirty && !vd?.draft.trim())}
+                        onClick={() => void save()}
+                        className="h-9 rounded-[9px] px-4 text-[12.5px] font-semibold lg:rounded-[13px]"
+                      >
+                        Salvar
+                      </Button>
+                    </>
+                  ) : (
+                    <Button variant="outline" onClick={closeView} className="h-9 rounded-[9px] px-4 text-[12.5px] font-semibold lg:rounded-[13px]">
+                      Fechar
+                    </Button>
+                  )}
+                </div>
+              </>
+            );
+          })() : null}
         </DialogContent>
       </Dialog>
 
@@ -974,11 +1122,11 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
             >
               {er && edit ? (
                 <>
-                  <div className="min-w-0 shrink-0 px-5 pb-3 pr-11 pt-5">
-                    <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">{PLAYBOOK_SECTIONS[eIdx]?.title}</div>
-                    <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">{er.label}</DialogTitle>
+                  <div className="min-w-0 shrink-0 pb-3 pl-4 pr-11 pt-[15px]">
+                    <DialogTitle className="block truncate text-sm font-bold leading-[18px] text-foreground">{er.label}</DialogTitle>
+                    <div className="mt-[3px] truncate text-xs leading-4 text-muted-foreground">{PLAYBOOK_SECTIONS[eIdx]?.num} · {PLAYBOOK_SECTIONS[eIdx]?.title}</div>
                   </div>
-                  <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col gap-[10px] overflow-y-auto px-5 pb-4">
+                  <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col gap-[10px] overflow-y-auto px-4 pb-4">
                     {isDoorRow && doorRow?.edit ? (
                       <div>
                         <div className={FIELD_LABEL}>{acc!.label}</div>
@@ -996,21 +1144,22 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                     ) : (
                       <div>
                         <div className={FIELD_LABEL}>Quem pode ver</div>
-                        <div className="ds-scroll-x flex gap-1.5">
+                        <div role="radiogroup" aria-label="Quem pode ver" className="flex gap-1.5">
                           {NEW_INFO_AUD.map((o) => {
                             const on = (editAu ?? er.au) === o.au;
                             return (
                               <button
                                 key={o.au}
                                 type="button"
-                                aria-pressed={on}
+                                role="radio"
+                                aria-checked={on}
                                 onClick={() => setEditAu(o.au)}
-                                className={`inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[9px] border px-3 text-[12.5px] font-semibold transition-colors ${
+                                className={`inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-[9px] border px-1 text-[11.5px] font-semibold transition-colors ${
                                   on ? "border-foreground/30 bg-secondary text-foreground" : "border-border bg-card text-muted-foreground"
                                 }`}
                               >
-                                <i className={`size-2 rounded-full ${o.dot}`} />
-                                {o.label}
+                                <i className={`size-1.5 flex-none rounded-full ${o.dot}`} />
+                                <span className="truncate">{o.label}</span>
                               </button>
                             );
                           })}
@@ -1019,7 +1168,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                       </div>
                     )}
                   </div>
-                  <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/60 bg-card px-5 py-3">
+                  <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/60 bg-card px-4 py-3">
                     <Button variant="outline" onClick={close} className="h-9 rounded-[9px] px-4 text-[12.5px] font-semibold lg:rounded-[13px]">
                       Cancelar
                     </Button>
@@ -1054,14 +1203,14 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
       {/* CELULAR — "+ Campo": todos os campos vazios da categoria (mockup "Campo-Lista"). */}
       <Dialog open={narrow && pick !== null} onOpenChange={(v) => !v && setPick(null)}>
-        <DialogContent aria-describedby={undefined} className="max-w-lg gap-3.5 p-5">
+        <DialogContent aria-describedby={undefined} className="max-w-lg gap-0 p-0">
           {pick !== null ? (
             <>
-              <div className="min-w-0 pr-6">
-                <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">{PLAYBOOK_SECTIONS[pick]?.title}</div>
-                <DialogTitle className="sr-only">Campos vazios</DialogTitle>
-              </div>
-              <div className="sg-elegant-scroll -mx-5 max-h-[70dvh] overflow-y-auto px-5">
+              <div className="min-w-0 shrink-0 pb-3 pl-4 pr-11 pt-[15px]">
+                    <DialogTitle className="block truncate text-sm font-bold leading-[18px] text-foreground">Campos Vazios</DialogTitle>
+                    <div className="mt-[3px] truncate text-xs leading-4 text-muted-foreground">{PLAYBOOK_SECTIONS[pick]?.num} · {PLAYBOOK_SECTIONS[pick]?.title}</div>
+                  </div>
+              <div className="sg-elegant-scroll max-h-[70dvh] overflow-y-auto px-4 pb-4">
                 {groupRows((sections[pick]?.rows ?? []).filter((r) => isOptionalEmpty(r) && !revealed.includes(r.id) && edit?.id !== r.id)).map(([group, rows]) => (
                   <div key={group} className="mt-3 first:mt-0">
                     <div className="pb-1.5 text-[10.5px] font-semibold tracking-[0.04em] text-[var(--faint)]">{group}</div>
@@ -1104,21 +1253,16 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
       {/* CELULAR — alerta de campo que só se edita no anúncio (mockup "Campo-Alerta"). */}
       <Dialog open={narrow && !!locked} onOpenChange={(v) => !v && setLocked(null)}>
-        <DialogContent aria-describedby={undefined} className="max-w-lg gap-4 p-5">
-          <div className="min-w-0 pr-6">
-            <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">
-              {PLAYBOOK_SECTIONS[sections.findIndex((sec) => sec.rows.some((r) => r.id === locked?.id))]?.title ?? "Anúncio da plataforma"}
-            </div>
-          <div className="flex items-center gap-2.5">
-            <Lock className="size-[22px] flex-none text-warning" strokeWidth={1.8} />
-            <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">Edite no Airbnb</DialogTitle>
-          </div>
-          </div>
-          <p className="text-sm leading-5 text-foreground">
+        <DialogContent aria-describedby={undefined} className="max-w-lg gap-0 p-0">
+          <div className="min-w-0 shrink-0 pb-3 pl-4 pr-11 pt-[15px]">
+                    <DialogTitle className="block truncate text-sm font-bold leading-[18px] text-foreground">Edite no Airbnb</DialogTitle>
+                    <div className="mt-[3px] truncate text-xs leading-4 text-muted-foreground">{(() => { const i = sections.findIndex((sec) => sec.rows.some((r) => r.id === locked?.id)); return i >= 0 ? `${PLAYBOOK_SECTIONS[i]?.num} · ${PLAYBOOK_SECTIONS[i]?.title}` : "Anúncio da plataforma"; })()}</div>
+                  </div>
+          <p className="px-4 pb-4 text-sm leading-5 text-foreground">
             O campo <b className="font-semibold">{locked?.label}</b> vem do anúncio na plataforma e só pode ser alterado lá. Depois de
             salvar no Airbnb, a sincronização atualiza o Playbook sozinha.
           </p>
-          <div className="flex justify-end">
+          <div className="flex justify-end px-4 pb-4">
             <button
               type="button"
               onClick={() => setLocked(null)}
@@ -1132,12 +1276,14 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
       {/* CELULAR — "+ Nova Info" (mockups "Nova-Info" e "Nova-Info-Aberto"). */}
       <Dialog open={narrow && !!adding} onOpenChange={(v) => !v && setAdding(null)}>
-        <DialogContent aria-describedby={undefined} className="max-w-lg gap-3.5 p-5">
+        <DialogContent aria-describedby={undefined} className="max-w-lg gap-3.5 p-4">
           {adding ? (
             <>
-              <div className="min-w-0 pr-6">
-                <div className="mb-0.5 truncate text-[10.5px] font-bold uppercase leading-[18px] tracking-[0.08em] text-warning/80">{PLAYBOOK_SECTIONS[adding.section - 1]?.title}</div>
-                <DialogTitle className="font-display text-base font-semibold uppercase leading-[22px] tracking-[0.04em] text-foreground">Nova Info</DialogTitle>
+              <div className="-mx-4 -mt-4 min-w-0 pb-0 pl-4 pr-11 pt-[15px]">
+                <DialogTitle className="block truncate text-sm font-bold leading-[18px] text-foreground">Nova Info</DialogTitle>
+                <div className="mt-[3px] truncate text-xs leading-4 text-muted-foreground">
+                  {PLAYBOOK_SECTIONS[adding.section - 1]?.num} · {PLAYBOOK_SECTIONS[adding.section - 1]?.title}
+                </div>
               </div>
               <div>
                 <div className={FIELD_LABEL}>

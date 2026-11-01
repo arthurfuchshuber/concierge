@@ -6,6 +6,7 @@ import {
   PROVIDER_OBS,
   type Audience,
 } from "@/lib/playbook-catalog";
+import { partsFor, partsFromProperty } from "@/lib/playbook-parts";
 
 /**
  * PLAYBOOK DO IMÓVEL — monta as linhas a partir do cadastro (puro, testável).
@@ -52,7 +53,7 @@ export type PlaybookEntry = {
   section_num: number | null;
 };
 
-export type EditKind = "text" | "textarea" | "int" | "bool" | "access";
+export type EditKind = "text" | "textarea" | "int" | "bool" | "access" | "parts";
 
 export type PlaybookRow = {
   /** Identificador estável da linha: f:<campo> · faq:<id> · prov:<id> · custom:<id> */
@@ -73,6 +74,8 @@ export type PlaybookRow = {
   removesRow: boolean;
   /** Campo que existia no antigo "Editar guia" (coluna/lista real). Só esses entram no "Adicionar campo". */
   guideField?: boolean;
+  /** Campos compostos (opção B): valores atuais de cada parte, como texto. */
+  parts?: Record<string, string>;
 };
 
 export type PlaybookSectionData = { id: string; num: number; rows: PlaybookRow[] };
@@ -453,8 +456,9 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     const isList = LIST_FIELDS.has(meta.key);
     const isEntry = ENTRY_FIELDS.has(meta.key);
     const hasEntryOverride = isEntry && !!entryValue(meta.key);
-    const editable = !!col || isList || isEntry;
-    const kind: EditKind | null = col ? col.kind : isList || isEntry ? "textarea" : null;
+    const isParts = !!partsFor(meta.key);
+    const editable = !!col || isList || isEntry || isParts;
+    const kind: EditKind | null = isParts ? "parts" : col ? col.kind : isList || isEntry ? "textarea" : null;
     const empty = !raw;
     // Manuais: se a lista do guia tem itens, eles mandam — editar aqui só vale para o texto próprio.
     const editLocked = meta.key === "manuais_de_equipamentos" && src.manuals.length > 0 && !hasEntryOverride;
@@ -472,7 +476,8 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
       edit: editable && !editLocked ? kind : null,
       deletable: editable && !editLocked && (isEntry || isList || meta.key === "telefone_do_anfitriao" || meta.key === "regras_adicionais_da_casa"),
       removesRow: false,
-      guideField: !!col || isList,
+      guideField: !!col || isList || isParts,
+      ...(isParts ? { parts: partsFromProperty(meta.key, p) } : {}),
     });
   }
 
@@ -488,7 +493,7 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
       secret: false,
       copy: false,
       obs: FAQ_OBS,
-      au: faqAudience(f.question),
+      au: entryByKey.get(`faq:${f.id}`)?.custom_audience ?? faqAudience(f.question),
       note: noteOf(`faq:${f.id}`),
       edit: "textarea",
       deletable: true,

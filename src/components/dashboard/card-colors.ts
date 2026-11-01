@@ -43,8 +43,8 @@ export const CARD_OWNER = "text-foreground font-semibold";
 export function ownerLabel(name: string | null | undefined): string | null {
   const full = name?.trim();
   if (!full) return null;
-  // Padrão atual (24/10/2026): rótulo "Pr:" + nome inteiro.
-  return `Pr: ${full}`;
+  // Padrão atual (01/11/2026): SÓ o nome inteiro, sem rótulo.
+  return full;
 }
 
 /** Nome do imóvel — tipografia de título do card, cor de texto cheia. */

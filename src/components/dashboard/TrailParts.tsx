@@ -282,7 +282,7 @@ function LineIcon({ icon }: { icon: PickLine["icon"] }) {
  *    Maps de sempre — exceto na RESERVA (`hideMaps`, pedido explícito);
  *  · uma informação por linha, 11,5px: imóvel → cidade; reserva → hóspede
  *    "- 22/10 → 25/10" (período colado ao nome, mesma fonte e cor, sem ícone);
- *  · "Pr: nome" com o ícone verde de chat colado ao nome;
+ *  · só o nome (sem rótulo) com o ícone verde de chat colado ao nome;
  *  · SEM bolinha de seleção: o cartão marcado ganha fundo rosa suave.
  * Cada cartão é uma `data-clip-row` (unidade da regra anticorte da lista).
  */
@@ -399,7 +399,6 @@ function OwnerLine({
 }) {
   return (
     <span className="flex min-w-0 items-center gap-[5px] text-[11.5px] leading-[1.35]">
-      <span className="shrink-0 text-muted-foreground">Pr:</span>
       {name ? (
         <span className="min-w-0 truncate font-semibold text-foreground">{name}</span>
       ) : (

@@ -8005,17 +8005,29 @@ function PropertyPhotoPeek({
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={(next) => onActiveChange(next ? id : null)}>
       <PopoverPrimitive.Trigger asChild>
-        <button
-          type="button"
+        {/* <div role="button"> e NÃO <button> (correção P0, 01/11/2026): dentro do nome do imóvel mora o
+            `PhoneActionButton` (outro botão) e `<button>` dentro de `<button>` é HTML inválido — causava erro de
+            hidratação e engolia o toque no WebKit. Acessível por teclado: Enter/Espaço acionam, como um botão. */}
+        <div
+          role="button"
+          tabIndex={0}
           aria-label={`Ver foto de ${name}`}
           onMouseEnter={() => onActiveChange(id)}
           onMouseLeave={() => onActiveChange(null)}
           onFocus={() => onActiveChange(id)}
           onBlur={() => onActiveChange(null)}
-          className="block w-full min-w-0 text-left"
+          onKeyDown={(e) => {
+            // Só quando o foco está no próprio gatilho (Enter/Espaço no telefone de dentro não conta).
+            if (e.target !== e.currentTarget) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.currentTarget.click();
+            }
+          }}
+          className="block w-full min-w-0 cursor-pointer text-left"
         >
           {children}
-        </button>
+        </div>
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
@@ -8458,8 +8470,9 @@ function OccupancyPanel({
   /** CLIQUE-E-ARRASTA (reescrito em 17/10/2026, pedido explícito: "mais fácil, no desktop e no celular").
    *  · Mouse/caneta: apertar numa noite livre e mover mais de 4px já começa a selecionar; soltar abre a
    *    janela "Bloquear datas". Um clique parado continua sendo clique (toque na 1ª e na última noite).
-   *  · Celular: SEGURAR ~0,35s na noite (vibra de leve) e arrastar. Se o dedo andar antes disso, é só rolar
-   *    o calendário. Durante o arrasto a página não rola (ver o ouvinte de `touchmove` mais abaixo).
+   *  · Celular (correção P0, 01/11/2026): o dedo NUNCA começa um arrasto de seleção — o toque só rola a tela
+   *    nativamente (a página e o calendário). Para bloquear datas no celular: toque na 1ª e na última noite
+   *    (`blockClick`).
    *  · A noite sob o dedo/mouse é lida na altura da LINHA do imóvel, então o ponteiro pode "tremer" para
    *    cima/baixo sem perder a seleção — só o movimento horizontal conta.
    *  · Chegando perto da borda do calendário ele rola sozinho para o lado.
@@ -8485,16 +8498,16 @@ function OccupancyPanel({
         justClearedRef.current = false;
       }, 350);
     };
-    document.addEventListener("pointerdown", onDown, true);
-    return () => document.removeEventListener("pointerdown", onDown, true);
+    /* FASE NORMAL (bubbling), sem captura (correção P0, 01/11/2026): em captura este ouvinte rodava ANTES de
+       qualquer botão da tela e, no Safari/iOS, brigava com o primeiro toque — cards, abas e navegação não
+       abriam. Agora o clique/toque nos botões dispara primeiro e só depois vem a verificação de desmarcação. */
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
   }, [blockSel, blockOpen]);
-  useEffect(() => {
-    const stop = (e: TouchEvent) => {
-      if (dragActiveRef.current && e.cancelable) e.preventDefault();
-    };
-    document.addEventListener("touchmove", stop, { passive: false });
-    return () => document.removeEventListener("touchmove", stop);
-  }, []);
+  /* DESTRAVAMENTO DO MOBILE (correção P0, 01/11/2026): o ouvinte GLOBAL de `touchmove` no `document` saiu — no
+     Safari/iOS ele impedia a página inteira de rolar e os toques de abrirem os cards. O bloqueio de rolagem
+     agora só existe LOCALMENTE, no calendário, e só enquanto um arrasto de mouse/caneta está ativo (ver
+     `begin`/`cleanup` em `blockPointerDown`). */
   /** Noite bloqueada pela reserva ativa no anúncio gêmeo (automático da sincronização: não se libera à mão). */
   function twinBlockAt(propertyId: string, day: string) {
     return (blocksByProperty.get(propertyId) ?? []).find((b) => b.twin && b.from <= day && day < b.to) ?? null;
@@ -8507,7 +8520,8 @@ function OccupancyPanel({
     if ((blockPermQ.data?.blocks ?? []).some((b) => b.propertyId === baseId(propertyId) && b.from <= day && day < b.to)) return;
     const stays = byProperty.get(propertyId) ?? [];
     if (firstBlockConflict(stays, day, blockAddDays(day, 1))) return;
-    const touch = ev.pointerType === "touch";
+    // Toque no celular: nenhum timer, nenhum ouvinte — a rolagem nativa da tela segue livre.
+    if (ev.pointerType === "touch") return;
     const cellEl = (ev.currentTarget as HTMLElement | null) ?? null;
     if (!cellEl) return;
     const rowRect = cellEl.getBoundingClientRect();
@@ -8517,15 +8531,17 @@ function OccupancyPanel({
     while (scroller && !(scroller.scrollWidth > scroller.clientWidth + 1 && /(auto|scroll)/.test(getComputedStyle(scroller).overflowX))) {
       scroller = scroller.parentElement;
     }
-    const nameCol = cellEl.closest("tr")?.firstElementChild as HTMLElement | null;
     const startX = ev.clientX;
     const startY = ev.clientY;
     let px = startX;
     let active = false;
     let last = day;
     let warned = false;
-    let timer = 0;
     let raf = 0;
+    /** Trava de rolagem LOCAL: só no container do calendário e só durante o arrasto ativo. */
+    const lockScroll = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+    };
     const prevSnap = scroller?.style.scrollSnapType ?? "";
 
     const dayUnder = (): string | null => {
@@ -8563,38 +8579,24 @@ function OccupancyPanel({
       active = true;
       dragActiveRef.current = true;
       if (scroller) scroller.style.scrollSnapType = "none";
+      scroller?.addEventListener("touchmove", lockScroll, { passive: false });
       document.body.style.userSelect = "none";
       setBlockTap(null);
       setBlockOpen(false);
       setBlockSel({ propertyId, anchor: day, end: day });
-      if (touch) navigator.vibrate?.(8);
       tick();
     };
-    // Rolagem automática para o lado quando o dedo/mouse chega perto da borda.
+    // Laço do arrasto: mantém a seleção atualizada enquanto ativo. (A rolagem automática de borda era só
+    // para o DEDO e saiu junto com o arrasto por toque; com o mouse o calendário fica parado — 31/10/2026.)
     const tick = () => {
       if (!active) return;
-      /* O CALENDÁRIO FICA PARADO COM O MOUSE (31/10/2026): a rolagem automática de borda existe só para o DEDO
-         (toque). Com o mouse, mover o ponteiro em direção à coluna de nomes NUNCA desloca o calendário; ele só
-         rola por gesto deliberado (roda/trackpad, barra de rolagem). */
-      if (scroller && touch) {
-        const r = scroller.getBoundingClientRect();
-        const left = Math.max(r.left, nameCol ? nameCol.getBoundingClientRect().right : r.left);
-        const ZONE = 44;
-        let dx = 0;
-        if (px > r.right - ZONE) dx = Math.min(18, ((px - (r.right - ZONE)) / ZONE) * 18);
-        else if (px < left + ZONE) dx = -Math.min(18, ((left + ZONE - px) / ZONE) * 18);
-        if (dx) {
-          scroller.scrollLeft += dx;
-          update();
-        }
-      }
       raf = requestAnimationFrame(tick);
     };
     const onMove = (e: PointerEvent) => {
       if (!e.isPrimary) return;
       // Mouse sem botão apertado = o "soltar" se perdeu (fora da janela, menu, etc.): ENCERRA o arrasto.
       // Sem isso o calendário seguia o mouse sozinho, só de passar por cima (pedido explícito, 17/10/2026).
-      if (!touch && e.buttons === 0) {
+      if (e.buttons === 0) {
         cleanup(active);
         return;
       }
@@ -8602,18 +8604,14 @@ function OccupancyPanel({
       if (!active) {
         const dx = Math.abs(e.clientX - startX);
         const dy = Math.abs(e.clientY - startY);
-        if (touch) {
-          if (dx > 8 || dy > 8) cleanup(false); // era para rolar a tela
-        } else if (dx > 4 || dy > 4) {
-          begin();
-        }
+        if (dx > 4 || dy > 4) begin();
         return;
       }
       update();
     };
     const cleanup = (finish: boolean) => {
-      window.clearTimeout(timer);
       cancelAnimationFrame(raf);
+      scroller?.removeEventListener("touchmove", lockScroll);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onCancel);
@@ -8639,7 +8637,6 @@ function OccupancyPanel({
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onCancel);
     window.addEventListener("blur", onCancel);
-    if (touch) timer = window.setTimeout(begin, 350);
   }
   function blockClick(propertyId: string, day: string, target: HTMLElement | null) {
     if (!canBlock) return;
@@ -10165,7 +10162,7 @@ function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off
   const [main, ...rest] = group;
   /* LINHA DA JANELA "INSTRUÇÕES CHECK-IN / SENHAS DE ACESSO" (mockup aprovado,
      29/10/2026): faixa lateral com a cor do status (sálvia = viu, rosa
-     terroso = não viu), TÍTULO DO IMÓVEL primeiro, "Pr:" logo
+     terroso = não viu), TÍTULO DO IMÓVEL primeiro, o nome do proprietário logo
      abaixo e "Hóspede:" por último — os dois com o ícone de chat. */
   return (
     <li
@@ -11355,7 +11352,7 @@ function ArrivalCard({
         {/* ds-card-lines: o espaçamento padrão entre linhas de card (styles.css). */}
         <div className="min-w-0 flex-1 ds-card-lines">
           {/* REGRA GLOBAL (29/10/2026): o TÍTULO DO IMÓVEL vem sempre primeiro e a
-              linha "Pr: nome" logo abaixo dele — nunca acima. */}
+              linha com o nome do proprietário logo abaixo dele — nunca acima. */}
           {/* Título SEMPRE em 1 linha com reticências (18/10/2026); tocar no
               título cortado mostra o nome completo. */}
           <ClampName text={row.propertyName ?? "Sem nome"} className="ds-card-title leading-tight" />
@@ -11730,7 +11727,7 @@ function ArrivalCard({
       {/* "CHECK-IN/CHECK-OUT PERMITIDO ENTRE/ATÉ…" (29/10/2026, mockup aprovado):
           fica ABAIXO das informações expandidas e logo acima dos botões (com o
           card recolhido, logo abaixo do período). Cor NEUTRA — a mesma
-          (`CARD_MUTED`) do rótulo "Pr:" —, em todos os status. */}
+          (`CARD_MUTED`) do nome do proprietário —, em todos os status. */}
       {showPrediction && allowedPhrase && (
         <div className={`flex items-baseline gap-1 text-[9.5px] font-bold uppercase tracking-wide ${CARD_MUTED}`}>
           {!cleaningWindowPhrase && predictionPrimary && (

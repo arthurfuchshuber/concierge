@@ -40,9 +40,10 @@ describe("SearchActionRow", () => {
 });
 
 describe("OwnerLine", () => {
-  it("mostra 'Pr:' e o nome inteiro; sem nome não renderiza nada", () => {
+  it("mostra SÓ o nome inteiro, sem rótulo; sem nome não renderiza nada", () => {
     const { container, rerender } = render(<OwnerLine name="Marina Souza Albuquerque" />);
-    expect(screen.getByText("Pr:")).toBeTruthy();
+    expect(screen.queryByText(/^Pr\b/)).toBeNull();
+    expect(screen.queryByText(/Propriet/)).toBeNull();
     expect(screen.getByText("Marina Souza Albuquerque")).toBeTruthy();
     rerender(<OwnerLine name="  " />);
     expect(container.innerHTML).toBe("");

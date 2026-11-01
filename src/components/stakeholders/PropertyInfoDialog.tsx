@@ -163,7 +163,6 @@ export function PropertyInfoDialog({
                 </div>
                 {ownerName ? (
                   <div className="mt-0.5 flex min-w-0 items-center text-[11.5px]">
-                    <span className="shrink-0 text-muted-foreground">Pr:</span>
                     <span className="ml-1.5 min-w-0 truncate font-semibold">{ownerName}</span>
                     <PhoneActionButton
                       phone={ownerPhone}
