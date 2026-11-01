@@ -2074,6 +2074,48 @@ export type Database = {
           },
         ]
       }
+      ai_usage_events: {
+        Row: {
+          conversation_id: string | null
+          cost_usd: number
+          created_at: string
+          id: string
+          model: string
+          owner_id: string | null
+          property_id: string | null
+          surface: string | null
+          task: string
+          tokens_in: number
+          tokens_out: number
+        }
+        Insert: {
+          conversation_id?: string | null
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          model: string
+          owner_id?: string | null
+          property_id?: string | null
+          surface?: string | null
+          task: string
+          tokens_in?: number
+          tokens_out?: number
+        }
+        Update: {
+          conversation_id?: string | null
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          model?: string
+          owner_id?: string | null
+          property_id?: string | null
+          surface?: string | null
+          task?: string
+          tokens_in?: number
+          tokens_out?: number
+        }
+        Relationships: []
+      }
       airbnb_accounts: {
         Row: {
           channex_channel_id: string
@@ -5220,6 +5262,10 @@ export type Database = {
       }
       property_chat_messages: {
         Row: {
+          ai_cost_usd: number | null
+          ai_models: Json | null
+          ai_tokens_in: number | null
+          ai_tokens_out: number | null
           attachment_duration_ms: number | null
           attachment_mime: string | null
           attachment_name: string | null
@@ -5242,6 +5288,10 @@ export type Database = {
           sent_via_number: string | null
         }
         Insert: {
+          ai_cost_usd?: number | null
+          ai_models?: Json | null
+          ai_tokens_in?: number | null
+          ai_tokens_out?: number | null
           attachment_duration_ms?: number | null
           attachment_mime?: string | null
           attachment_name?: string | null
@@ -5264,6 +5314,10 @@ export type Database = {
           sent_via_number?: string | null
         }
         Update: {
+          ai_cost_usd?: number | null
+          ai_models?: Json | null
+          ai_tokens_in?: number | null
+          ai_tokens_out?: number | null
           attachment_duration_ms?: number | null
           attachment_mime?: string | null
           attachment_name?: string | null

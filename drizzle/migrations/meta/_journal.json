@@ -113,6 +113,20 @@
       "when": 1793497030049,
       "tag": "0015_20261031190000_public_rate_limit_shared",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793497915232,
+      "tag": "0016_property_chat_messages_ai_usage_cost",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793497977261,
+      "tag": "0017_ai_usage_events_ledger",
+      "breakpoints": true
     }
   ]
 }
