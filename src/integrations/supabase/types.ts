@@ -5220,6 +5220,10 @@ export type Database = {
       }
       property_chat_messages: {
         Row: {
+          ai_cost_usd: number | null
+          ai_models: Json | null
+          ai_tokens_in: number | null
+          ai_tokens_out: number | null
           attachment_duration_ms: number | null
           attachment_mime: string | null
           attachment_name: string | null
@@ -5242,6 +5246,10 @@ export type Database = {
           sent_via_number: string | null
         }
         Insert: {
+          ai_cost_usd?: number | null
+          ai_models?: Json | null
+          ai_tokens_in?: number | null
+          ai_tokens_out?: number | null
           attachment_duration_ms?: number | null
           attachment_mime?: string | null
           attachment_name?: string | null
@@ -5264,6 +5272,10 @@ export type Database = {
           sent_via_number?: string | null
         }
         Update: {
+          ai_cost_usd?: number | null
+          ai_models?: Json | null
+          ai_tokens_in?: number | null
+          ai_tokens_out?: number | null
           attachment_duration_ms?: number | null
           attachment_mime?: string | null
           attachment_name?: string | null
