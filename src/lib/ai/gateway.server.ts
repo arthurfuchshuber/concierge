@@ -7,6 +7,7 @@
  */
 import { estimateCostUsd, fallbackModel, isResponsesModel, modelFor, shouldFallback, type AiTask } from "./models";
 import { cached, cacheKeyOf } from "./cache.server";
+import { recordUsageEvent } from "./usage-ledger.server";
 
 const BASE = "https://ai.gateway.lovable.dev/v1";
 
@@ -139,6 +140,7 @@ async function chatTextOnce(
   };
   const inputTokens = json.usage?.prompt_tokens ?? 0;
   const outputTokens = json.usage?.completion_tokens ?? 0;
+  recordUsageEvent(task, model, { inputTokens, outputTokens, costUsd: estimateCostUsd(model, inputTokens, outputTokens) });
   return {
     text: (json.choices?.[0]?.message?.content ?? "").trim(),
     model,
@@ -226,6 +228,7 @@ export async function embedTexts(texts: string[]): Promise<{ vectors: number[][]
     await Promise.all(slice);
   }
 
+  recordUsageEvent("embeddings", model, usage);
   return { vectors, usage };
 }
 
@@ -441,6 +444,7 @@ async function runAgentOnce(params: {
       outputTokens,
       costUsd: estimateCostUsd(model, inputTokens, outputTokens),
     });
+    recordUsageEvent(params.task ?? "agent", model, { inputTokens, outputTokens, costUsd: estimateCostUsd(model, inputTokens, outputTokens) });
 
     const output = payload.output ?? [];
     const functionCalls = output.filter((item) => item.type === "function_call");
@@ -545,6 +549,7 @@ async function runAgentOnce(params: {
         outputTokens: outT,
         costUsd: estimateCostUsd(model, inT, outT),
       });
+      recordUsageEvent(params.task ?? "agent", model, { inputTokens: inT, outputTokens: outT, costUsd: estimateCostUsd(model, inT, outT) });
       text =
         (payload.output ?? [])
           .filter((item) => item.type === "message")

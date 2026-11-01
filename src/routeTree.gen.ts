@@ -82,6 +82,7 @@ import { Route as ApiPublicCronGuestFollowupRouteImport } from './routes/api/pub
 import { Route as ApiPublicCronLearningLoopRouteImport } from './routes/api/public/cron.learning-loop'
 import { Route as ApiPublicCronMalvoSyncRouteImport } from './routes/api/public/cron.malvo-sync'
 import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cron.ops-push'
+import { Route as ApiPublicCronAiCostAlertRouteImport } from './routes/api/public/cron.ai-cost-alert'
 import { Route as ApiPublicCronProactiveConciergeRouteImport } from './routes/api/public/cron.proactive-concierge'
 import { Route as ApiPublicCronPurgeRecordTrashRouteImport } from './routes/api/public/cron.purge-record-trash'
 import { Route as ApiPublicCronRefreshAirbnbListingsRouteImport } from './routes/api/public/cron.refresh-airbnb-listings'
@@ -506,6 +507,11 @@ const ApiPublicCronOpsPushRoute = ApiPublicCronOpsPushRouteImport.update({
   path: '/api/public/cron/ops-push',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronAiCostAlertRoute = ApiPublicCronAiCostAlertRouteImport.update({
+  id: '/api/public/cron/ai-cost-alert',
+  path: '/api/public/cron/ai-cost-alert',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronProactiveConciergeRoute =
   ApiPublicCronProactiveConciergeRouteImport.update({
     id: '/api/public/cron/proactive-concierge',
@@ -681,6 +687,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
+  '/api/public/cron/ai-cost-alert': typeof ApiPublicCronAiCostAlertRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
@@ -770,6 +777,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
+  '/api/public/cron/ai-cost-alert': typeof ApiPublicCronAiCostAlertRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
@@ -864,6 +872,7 @@ export interface FileRoutesById {
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
+  '/api/public/cron/ai-cost-alert': typeof ApiPublicCronAiCostAlertRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
@@ -958,6 +967,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
+    | '/api/public/cron/ai-cost-alert'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/refresh-airbnb-listings'
@@ -1047,6 +1057,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
+    | '/api/public/cron/ai-cost-alert'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/refresh-airbnb-listings'
@@ -1140,6 +1151,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
+    | '/api/public/cron/ai-cost-alert'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/refresh-airbnb-listings'
@@ -1204,6 +1216,7 @@ export interface RootRouteChildren {
   ApiPublicCronLearningLoopRoute: typeof ApiPublicCronLearningLoopRoute
   ApiPublicCronMalvoSyncRoute: typeof ApiPublicCronMalvoSyncRoute
   ApiPublicCronOpsPushRoute: typeof ApiPublicCronOpsPushRoute
+  ApiPublicCronAiCostAlertRoute: typeof ApiPublicCronAiCostAlertRoute
   ApiPublicCronProactiveConciergeRoute: typeof ApiPublicCronProactiveConciergeRoute
   ApiPublicCronPurgeRecordTrashRoute: typeof ApiPublicCronPurgeRecordTrashRoute
   ApiPublicCronRefreshAirbnbListingsRoute: typeof ApiPublicCronRefreshAirbnbListingsRoute
@@ -1737,6 +1750,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronOpsPushRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/ai-cost-alert': {
+      id: '/api/public/cron/ai-cost-alert'
+      path: '/api/public/cron/ai-cost-alert'
+      fullPath: '/api/public/cron/ai-cost-alert'
+      preLoaderRoute: typeof ApiPublicCronAiCostAlertRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/proactive-concierge': {
       id: '/api/public/cron/proactive-concierge'
       path: '/api/public/cron/proactive-concierge'
@@ -2022,6 +2042,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronLearningLoopRoute: ApiPublicCronLearningLoopRoute,
   ApiPublicCronMalvoSyncRoute: ApiPublicCronMalvoSyncRoute,
   ApiPublicCronOpsPushRoute: ApiPublicCronOpsPushRoute,
+  ApiPublicCronAiCostAlertRoute: ApiPublicCronAiCostAlertRoute,
   ApiPublicCronProactiveConciergeRoute: ApiPublicCronProactiveConciergeRoute,
   ApiPublicCronPurgeRecordTrashRoute: ApiPublicCronPurgeRecordTrashRoute,
   ApiPublicCronRefreshAirbnbListingsRoute:

@@ -12,6 +12,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { formatIntlPhone, titleCaseName } from "@/lib/masks";
@@ -60,6 +61,7 @@ import {
 import { getServiceExtras } from "@/lib/service-situations.functions";
 import { SYSTEM_SITUATIONS, type ExtraServiceItem } from "@/lib/service-situations";
 import { PeriodQuickFilterButton } from "@/components/dashboard/PeriodQuickFilterButton";
+import { barLabelGeometry } from "@/components/dashboard/calendar-bar-geometry";
 import { CalendarBlockBar, CalendarBlockDialog } from "@/components/dashboard/CalendarBlockUI";
 import { isDawnTime, predictionDayLabel } from "@/lib/prediction-day-label";
 import { addDaysISO as blockAddDays, conflictMessage, firstBlockConflict, releaseRemainders } from "@/lib/manual-block-conflict";
@@ -1890,17 +1892,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }
     return max;
   }, [cleaningForecastListQ.data?.rows, matchesKanbanOwnerCity]);
+  // SEM TETO NO FUTURO (31/10/2026, pedido explícito): o calendário de período da Limpeza só limita o PASSADO
+  // (a demanda mais antiga); datas futuras ficam sempre livres para planejar custos e limpezas.
   const cleaningDemandBounds = useMemo(() => {
     const min = earliestCleaningQ.data?.date ?? null;
-    const max = cleaningDemandMaxDate;
-    if (!min && !max) return null;
-    // Sem uma das pontas, usa HOJE como limite — nunca colapsa para um único dia.
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const lo = min ?? (max! < today ? max! : today);
-    const hi = max ?? (min! > today ? min! : today);
-    return { min: lo, max: hi };
-  }, [earliestCleaningQ.data?.date, cleaningDemandMaxDate]);
+    if (!min) return null;
+    return { min, max: null as string | null };
+  }, [earliestCleaningQ.data?.date]);
   const cleaningForecast = useMemo(() => {
     const today = forecastStart;
     const span = forecastEnabled
@@ -3379,7 +3377,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 value={periodRange}
                 onChange={setPeriodRange}
                 min={view === "limpeza" ? cleaningDemandBounds?.min : null}
-                max={view === "limpeza" ? cleaningDemandBounds?.max : null}
+                max={null}
                 defaultChip={view === "limpeza" ? "Últimos 7 dias" : undefined}
               />
               <CalendarFiltersButton
@@ -3420,7 +3418,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 // explícito, 23/09/2026) — no Kanban este mesmo botão continua
                 // com o calendário livre, sem os limites de demanda.
                 demandMin={view === "limpeza" ? (cleaningDemandBounds?.min ?? null) : null}
-                demandMax={view === "limpeza" ? (cleaningDemandBounds?.max ?? null) : null}
+                demandMax={null}
               />
             </>
           );
@@ -8217,6 +8215,8 @@ function OccupancyPanel({
   const releaseRange = blockTap ? (releaseSub && releaseSub.id === blockTap.id ? releaseSub : { id: blockTap.id, from: blockTap.from, to: blockTap.to }) : null;
   /** Célula com foco do teclado (roving tabindex: só UMA noite entra na ordem do Tab). */
   const [kbCell, setKbCell] = useState<{ propertyId: string; day: string } | null>(null);
+  /** Balão resumido ao passar o mouse na barra da reserva/bloqueio (31/10/2026). Um só, flutuante, para a grade ficar leve. */
+  const [barTip, setBarTip] = useState<{ x: number; y: number; below: boolean; title: string; lines: Array<[string, string]> } | null>(null);
   // Filtro/busca que esconde o imóvel selecionado: a seleção some junto (nada de barra "fantasma").
   useEffect(() => {
     if (blockSel && !properties.some((x) => x.id === blockSel.propertyId)) {
@@ -8380,12 +8380,14 @@ function OccupancyPanel({
         guest: string | null;
         checkinDone: boolean;
         checkoutDone: boolean;
+        channel: string | null;
       }>
     >();
     for (const s of stays) {
       if ((s as { blocked?: boolean }).blocked) continue;
       const arr = map.get(s.propertyId) ?? [];
       arr.push({
+        channel: (s as { channel?: string | null }).channel ?? null,
         reservationId: s.reservationId ?? null,
         amount: s.amount ?? null,
         currency: s.currency ?? null,
@@ -8401,11 +8403,11 @@ function OccupancyPanel({
   }, [stays]);
   // Bloqueios manuais do ConciergeIA: pintam só as metades livres do dia.
   const blocksByProperty = useMemo(() => {
-    const map = new Map<string, Array<{ from: string; to: string; twin?: boolean; origin?: string }>>();
+    const map = new Map<string, Array<{ from: string; to: string; twin?: boolean; origin?: string; note?: string | null }>>();
     for (const s of stays) {
       if (!(s as { blocked?: boolean }).blocked) continue;
       const arr = map.get(s.propertyId) ?? [];
-      arr.push({ from: s.checkin, to: s.checkout ?? s.checkin, twin: !!(s as { twinBlock?: boolean }).twinBlock, origin: (s as { twinOriginId?: string }).twinOriginId });
+      arr.push({ from: s.checkin, to: s.checkout ?? s.checkin, twin: !!(s as { twinBlock?: boolean }).twinBlock, origin: (s as { twinOriginId?: string }).twinOriginId, note: (s as { note?: string | null }).note ?? null });
       map.set(s.propertyId, arr);
     }
     return map;
@@ -8862,16 +8864,31 @@ function OccupancyPanel({
     const through = list.find((s) => s.checkin < day && (s.checkout ?? s.checkin) > day);
     return (half === 0 ? list.find((s) => s.checkout === day) : list.find((s) => s.checkin === day)) ?? through;
   }
-  /** O texto da barra: um por reserva, na 1ª coluna visível dela (o dia seguinte ao check-in), com a largura da barra. */
+  /**
+   * O texto da barra: um por reserva, com a LARGURA INTEIRA da barra (31/10/2026). A barra visual vai do meio do dia
+   * de check-in ao meio do dia de checkout = `noites × dayW`; antes a conta tirava 1 dia inteiro (uma reserva de 2
+   * noites ganhava 1 dia de espaço e a de 1 noite sumia). Agora a etiqueta nasce na célula do check-in, deslocada
+   * meio dia (`left`), e cobre toda a extensão visível (recortada quando começa/termina fora da tela).
+   */
   function barLabels(propertyId: string) {
-    const out = new Map<number, { width: number; name: string; value: string | null; stay: (typeof stays)[number] }>();
+    const out = new Map<number, { left: number; width: number; name: string; value: string | null; stay: (typeof stays)[number] }>();
+    const first = dayList[0]!;
+    const last = dayList[dayList.length - 1]!;
     for (const st of byProperty.get(propertyId) ?? []) {
       const end = st.checkout ?? st.checkin;
-      const from = st.checkin < dayList[0]! ? 0 : (dayIndex.get(st.checkin) ?? -1) + 1;
-      const to = end > dayList[dayList.length - 1]! ? dayList.length : (dayIndex.get(end) ?? 0);
-      if (from < 0 || to - from < 1) continue;
-      out.set(from, {
-        width: (to - from) * dayW,
+      if (end <= st.checkin) continue; // sem noites
+      const ci = dayIndex.get(st.checkin);
+      const co = dayIndex.get(end);
+      if (st.checkin > last || end < first) continue; // fora da tela
+      const startsBefore = st.checkin < first;
+      const endsAfter = end > last;
+      const { cell, left, width } = barLabelGeometry({ checkinIndex: ci, checkoutIndex: co, startsBefore, endsAfter, dayCount: dayList.length, dayW });
+      if (width < 8) continue;
+      // 1 noite SEM valor: continua com o 1º nome dentro da barra (`singleLabels`), sem etiqueta duplicada.
+      if (!brl(st.amount, st.currency) && width <= dayW + 1) continue;
+      out.set(cell, {
+        left,
+        width,
         name: st.guest?.trim() || "Reserva",
         value: brl(st.amount, st.currency),
         stay: st as unknown as (typeof stays)[number],
@@ -8886,6 +8903,7 @@ function OccupancyPanel({
       if (!st.checkout || st.checkout === st.checkin) continue;
       const i = dayIndex.get(st.checkin);
       if (i === undefined || dayIndex.get(st.checkout) !== i + 1) continue;
+      if (brl(st.amount, st.currency)) continue; // 1 noite COM valor: a etiqueta da barra mostra nome/valor
       out.set(i, { name: (st.guest?.trim() || "Reserva").split(/\s+/)[0] ?? "Reserva", stay: st as unknown as (typeof stays)[number] });
     }
     return out;
@@ -8901,6 +8919,38 @@ function OccupancyPanel({
       out.set(from, { width: (to - from) * dayW, twin: !!b.twin });
     }
     return out;
+  }
+
+  /** Conteúdo do balão de uma metade de dia ocupada: reserva (hóspede, imóvel, datas, valor, canal) ou bloqueio. */
+  function tipFor(propertyId: string, propertyName: string, day: string, half: 0 | 1, part: string): { title: string; lines: Array<[string, string]> } | null {
+    const WD = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const dow = (iso: string) => WD[new Date(`${iso}T12:00:00`).getDay()] ?? "";
+    const nights = (a: string, b: string) => Math.max(0, Math.round((Date.parse(`${b}T12:00:00`) - Date.parse(`${a}T12:00:00`)) / 86_400_000));
+    const plural = (n: number) => `${n} ${n === 1 ? "noite" : "noites"}`;
+    const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+    if (part === "blocked") {
+      const bl = (blocksByProperty.get(propertyId) ?? []).find((x) => (half === 0 ? x.from < day && x.to >= day : x.from <= day && x.to > day));
+      if (!bl) return null;
+      const lines: Array<[string, string]> = [
+        ["Período", `De ${dm(bl.from)} a ${dm(bl.to)} · ${plural(nights(bl.from, bl.to))}`],
+        ["Tipo", bl.twin ? "Anúncio gêmeo" : "Bloqueio manual"],
+      ];
+      const note = bl.note?.trim();
+      if (note) lines.push(["Observação", note.replace(/^Bloqueado:\s*/i, "")]);
+      return { title: bl.twin ? "Bloqueado" : "Bloqueado manualmente", lines };
+    }
+    const st = stayAt(propertyId, day, half);
+    if (!st) return null;
+    const co = st.checkout ?? st.checkin;
+    return {
+      title: st.guest?.trim() || "Reserva",
+      lines: [
+        ["Imóvel", propertyName],
+        ["Estadia", `${fmtDateBR(st.checkin)} (${dow(st.checkin)}) → ${fmtDateBR(co)} (${dow(co)}) · ${plural(nights(st.checkin, co))}`],
+        ["Valor total", brl(st.amount, st.currency) ?? "—"],
+        ["Canal", st.channel?.trim() || "—"],
+      ],
+    };
   }
 
   /* ── BUSCA (16/10/2026) ──────────────────────────────────────────────────
@@ -9647,7 +9697,6 @@ function OccupancyPanel({
                                   key={d}
                                   style={{ width: dayW, minWidth: dayW }}
                                   className={`relative px-0 py-1 snap-start ${rowDivider}`}
-                                  title={title}
                                 >
                                   {/* Fio vertical do dia — `<span>` absoluto (ver
                                       comentário completo no <th> do cabeçalho de
@@ -9670,7 +9719,9 @@ function OccupancyPanel({
                                   <div
                                     className={`relative flex h-6 w-full items-center ${
                                       canBlock
-                                        ? "cursor-pointer select-none [-webkit-touch-callout:none] rounded-[4px] hover:bg-foreground/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                                        ? `cursor-pointer select-none [-webkit-touch-callout:none] rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+                                            a === "free" && b === "free" ? "hover:bg-foreground/[0.06]" : ""
+                                          }`
                                         : ""
                                     }`}
                                     {...(canBlock
@@ -9749,6 +9800,16 @@ function OccupancyPanel({
                                                 },
                                               }
                                             : {})}
+                                          onPointerEnter={(ev: React.PointerEvent<HTMLDivElement>) => {
+                                            if (ev.pointerType !== "mouse") return;
+                                            const tip = tipFor(p.id, p.name, d, half, part);
+                                            if (!tip) return;
+                                            const r = ev.currentTarget.getBoundingClientRect();
+                                            const x = Math.min(Math.max(r.left + r.width / 2, 176), window.innerWidth - 176);
+                                            const below = r.top < 170;
+                                            setBarTip({ x, y: below ? r.bottom + 8 : r.top - 8, below, ...tip });
+                                          }}
+                                          onPointerLeave={() => setBarTip(null)}
                                           style={{
                                             ...(junction ? { width: "calc(50% - 2px)", ...(half === 1 ? { marginLeft: 4 } : {}) } : {}),
                                             ...(isHit
@@ -9774,20 +9835,32 @@ function OccupancyPanel({
                                         </div>
                                       );
                                     })}
+                                    {/* DIVISÓRIA DA NOITE sobre o BLOQUEIO (31/10/2026): a barra cinza tapava o fio da grade; agora o
+                                        fio aparece por cima, no mesmo padrão das reservas. O corte da junção (reserva↔bloqueio) continua. */}
+                                    {showVLine && b === "blocked" && (
+                                      <span aria-hidden className="pointer-events-none absolute right-0 top-0 z-[4] h-full w-px bg-[var(--grid-line-v)]" />
+                                    )}
                                     {labels.get(i) && (
                                       <span
-                                        className={`pointer-events-none absolute left-0 top-0 z-[5] flex h-full items-center justify-center overflow-hidden whitespace-nowrap px-2 text-center text-[11px] leading-none text-white ${
+                                        className={`pointer-events-none absolute top-0 z-[5] flex h-full items-center overflow-hidden whitespace-nowrap text-[11px] leading-none text-white ${
+                                          labels.get(i)!.width < 96 ? "justify-center px-1" : "justify-between gap-2 px-2"
+                                        } ${
                                           searching ? (matchState(p, labels.get(i)!.stay) === "dim" ? "opacity-25" : matchState(p, labels.get(i)!.stay) === "hit" ? "[&_.nm]:font-extrabold" : "") : ""
                                         }`}
-                                        style={{ width: labels.get(i)!.width }}
+                                        style={{ left: labels.get(i)!.left, width: labels.get(i)!.width }}
                                       >
-                                        {/* Nome + valor CENTRALIZADOS na barra. Sem valor no dado
-                                            (reserva só do iCal, que não traz pagamento): "—". */}
-                                        {/* Barra de ocupação: nome + valor, SEM o ícone de chat (31/10/2026; o chat fica nos demais locais). */}
-                                        <span className="flex min-w-0 items-center gap-1.5">
-                                          <span className="nm min-w-0 truncate font-bold">{labels.get(i)!.name}</span>
-                                          <span className="shrink-0 font-medium">{labels.get(i)!.value ?? "—"}</span>
-                                        </span>
+                                        {/* NOME À ESQUERDA, VALOR À DIREITA, na largura TOTAL da barra (31/10/2026).
+                                            O nome encurta com reticências; o valor NUNCA é cortado. Barra de 1 noite
+                                            (estreita): só o valor, limpo e legível — o nome vai no balão. Sem valor no
+                                            dado (reserva só do iCal): "—". Sem ícone de chat. */}
+                                        {labels.get(i)!.width < 96 ? (
+                                          <span className="shrink-0 whitespace-nowrap font-semibold">{labels.get(i)!.value ?? "—"}</span>
+                                        ) : (
+                                          <>
+                                            <span className="nm min-w-0 flex-1 truncate text-left font-bold">{labels.get(i)!.name}</span>
+                                            <span className="shrink-0 whitespace-nowrap font-medium">{labels.get(i)!.value ?? "—"}</span>
+                                          </>
+                                        )}
                                       </span>
                                     )}
                                     {blockLbls.get(i) && (
@@ -9821,6 +9894,27 @@ function OccupancyPanel({
                   </table>
                 </div>
               </div>
+
+              {barTip && typeof document !== "undefined"
+                ? createPortal(
+                    <div
+                      role="tooltip"
+                      className="ds-overlay-compact pointer-events-none fixed z-[60] w-max max-w-[min(20rem,calc(100vw-32px))] px-3 py-2 text-xs leading-snug"
+                      style={{ left: barTip.x, top: barTip.y, transform: barTip.below ? "translateX(-50%)" : "translate(-50%, -100%)" }}
+                    >
+                      <div className="mb-1 text-[12.5px] font-bold">{barTip.title}</div>
+                      <dl className="grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-0.5">
+                        {barTip.lines.map(([k, v]) => (
+                          <div key={k} className="contents">
+                            <dt className="text-muted-foreground">{k}</dt>
+                            <dd className="min-w-0 break-words font-medium">{v}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>,
+                    document.body,
+                  )
+                : null}
 
               {searching && shownProperties.length === 0 && (
                 <div className="py-6 text-center text-sm text-muted-foreground">

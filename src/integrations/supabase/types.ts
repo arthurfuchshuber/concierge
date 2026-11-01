@@ -2074,6 +2074,48 @@ export type Database = {
           },
         ]
       }
+      ai_usage_events: {
+        Row: {
+          conversation_id: string | null
+          cost_usd: number
+          created_at: string
+          id: string
+          model: string
+          owner_id: string | null
+          property_id: string | null
+          surface: string | null
+          task: string
+          tokens_in: number
+          tokens_out: number
+        }
+        Insert: {
+          conversation_id?: string | null
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          model: string
+          owner_id?: string | null
+          property_id?: string | null
+          surface?: string | null
+          task: string
+          tokens_in?: number
+          tokens_out?: number
+        }
+        Update: {
+          conversation_id?: string | null
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          model?: string
+          owner_id?: string | null
+          property_id?: string | null
+          surface?: string | null
+          task?: string
+          tokens_in?: number
+          tokens_out?: number
+        }
+        Relationships: []
+      }
       airbnb_accounts: {
         Row: {
           channex_channel_id: string
@@ -5220,6 +5262,10 @@ export type Database = {
       }
       property_chat_messages: {
         Row: {
+          ai_cost_usd: number | null
+          ai_models: Json | null
+          ai_tokens_in: number | null
+          ai_tokens_out: number | null
           attachment_duration_ms: number | null
           attachment_mime: string | null
           attachment_name: string | null
@@ -5242,6 +5288,10 @@ export type Database = {
           sent_via_number: string | null
         }
         Insert: {
+          ai_cost_usd?: number | null
+          ai_models?: Json | null
+          ai_tokens_in?: number | null
+          ai_tokens_out?: number | null
           attachment_duration_ms?: number | null
           attachment_mime?: string | null
           attachment_name?: string | null
@@ -5264,6 +5314,10 @@ export type Database = {
           sent_via_number?: string | null
         }
         Update: {
+          ai_cost_usd?: number | null
+          ai_models?: Json | null
+          ai_tokens_in?: number | null
+          ai_tokens_out?: number | null
           attachment_duration_ms?: number | null
           attachment_mime?: string | null
           attachment_name?: string | null
@@ -6117,6 +6171,24 @@ export type Database = {
           id?: string
           label?: string
           slug?: string
+        }
+        Relationships: []
+      }
+      public_rate_hits: {
+        Row: {
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key: string
+          window_start?: string
+        }
+        Update: {
+          count?: number
+          key?: string
+          window_start?: string
         }
         Relationships: []
       }
@@ -7408,6 +7480,10 @@ export type Database = {
       place_photo_known: { Args: { _name: string }; Returns: boolean }
       property_is_published: {
         Args: { _property_id: string }
+        Returns: boolean
+      }
+      public_rate_hit: {
+        Args: { p_key: string; p_max: number; p_window_seconds: number }
         Returns: boolean
       }
       replace_permission_assignment: {

@@ -164,7 +164,7 @@ export type OrchestratorResult = {
 export const EXPLICIT_HUMAN_REQUEST =
   /\b(?:falar|conversar|conversa)\s+com\s+(?:o|a|os|as|um|uma)?\s*(?:algu[eé]m|pessoa|humano|atendente|anfitri[ãa]o|propriet[áa]ri[oa]|respons[áa]vel|gerente|suporte)|quero\s+(?:um\s+|uma\s+|o\s+|a\s+)?(?:humano|atendente|anfitri[ãa]o|respons[áa]vel)|chama(?:r)?\s+(?:o\s+|a\s+)?(?:anfitri[ãa]o|respons[áa]vel|algu[eé]m)|me\s+transfere|atendimento\s+humano/i;
 
-export async function runHospitalityAgent(params: {
+async function runHospitalityAgentInner(params: {
   supabase: Admin;
   property: Record<string, unknown>;
   conversationId: string;
@@ -1774,4 +1774,22 @@ export async function runHospitalityAgent(params: {
     sourcesUsed: [...new Set(sources.map((s) => s.source))],
     quickReplies,
   };
+}
+
+/**
+ * Ponto de entrada da IA do hóspede. Tudo que o gateway gastar durante esta execução é registrado em
+ * `ai_usage_events` já ligado à conta, ao imóvel e à conversa (só registro; sem limite de uso).
+ */
+export async function runHospitalityAgent(params: Parameters<typeof runHospitalityAgentInner>[0]) {
+  const { withUsageContext } = await import("./usage-ledger.server");
+  const prop = params.property as { id?: string; owner_id?: string };
+  return withUsageContext(
+    {
+      ownerId: prop.owner_id ?? null,
+      propertyId: prop.id ?? null,
+      conversationId: params.conversationId,
+      surface: params.surface ?? null,
+    },
+    () => runHospitalityAgentInner(params),
+  );
 }

@@ -1131,15 +1131,28 @@ async function runConsolidatedAiReply(admin: any, convId: string, ctx: ReplyCtx 
       detail: /prohibited_content/.test(msg) ? "conteúdo proibido pela plataforma" : msg.slice(0, 120),
     });
   }
-  await admin.from("property_chat_messages").insert({
+  const base = {
     conversation_id: convId,
     role: "assistant",
     content: reply,
-    sender_type: "ai",
+    sender_type: "ai" as const,
     channel: "airbnb" as never,
     external_id: externalId,
     delivery_status: status,
+  };
+  // CUSTO POR RESPOSTA (31/10/2026): só registro (sem limite). Se as colunas ainda não existirem no banco,
+  // grava a mensagem sem custo — nunca perde a mensagem por causa do registro de custo.
+  const { error: costErr } = await admin.from("property_chat_messages").insert({
+    ...base,
+    ai_tokens_in: result.usage.inputTokens,
+    ai_tokens_out: result.usage.outputTokens,
+    ai_cost_usd: Number(result.usage.costUsd.toFixed(6)),
+    ai_models: ((result as { models?: Record<string, string> }).models ?? null) as never,
   });
+  if (costErr) {
+    console.error("[channex-messages] registro de custo falhou, gravando sem custo", costErr.message);
+    await admin.from("property_chat_messages").insert(base);
+  }
 }
 
 /**

@@ -2390,6 +2390,10 @@ export type OccupancyStay = {
   listingId?: string | null;
   /** Bloqueio que decorre de reserva ativa no anúncio gêmeo (não é manual: não pode ser liberado). */
   twinBlock?: boolean;
+  /** Canal/origem da reserva para o balão do calendário ("Airbnb", "Channex", "Direta"). */
+  channel?: string | null;
+  /** Observação do bloqueio manual (motivo), quando houver. */
+  note?: string | null;
 };
 
 export const getOccupancyBoard = createServerFn({ method: "GET" })
@@ -2601,6 +2605,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         checkinDone: false,
         checkoutDone: false,
         blocked: true,
+        note: b.raw_summary?.trim() || null,
       });
     }
     const { dedupeStays } = await import("@/lib/arrival-board.server");
@@ -2635,6 +2640,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         amount: r.amount ?? null,
         currency: r.currency ?? null,
         ...originOf(r.raw_payload),
+        channel: resolveReservationIdentity(r).channel ?? (r.source === "airbnb" ? "Airbnb" : r.source === "channex" ? "Channex" : r.source === "manual" ? "Direta" : null),
         propertyId: r.property_id,
         checkin: r.checkin_date,
         checkout: r.checkout_date,
