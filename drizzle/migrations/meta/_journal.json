@@ -127,6 +127,13 @@
       "when": 1793497977261,
       "tag": "0017_ai_usage_events_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793506171997,
+      "tag": "0018_20261101000000_host_knowledge_behavior_audience",
+      "breakpoints": true
     }
   ]
 }
