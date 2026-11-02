@@ -257,7 +257,13 @@ export async function syncStaleIcals(supabase: AnyClient, propIds: string[]): Pr
  */
 export async function buildArrivalRows(
   supabase: AnyClient,
-  opts: { kind: "checkin" | "checkout"; range: "today" | "tomorrow" | "7d" | "all"; propIds: string[] },
+  opts: {
+    kind: "checkin" | "checkout";
+    range: "today" | "tomorrow" | "7d" | "all";
+    propIds: string[];
+    /** Lote do painel já reconciliou as estadias uma vez antes das listas. */
+    skipReconcile?: boolean;
+  },
 ): Promise<{ rows: ArrivalRow[] }> {
   const data = { kind: opts.kind, range: opts.range };
   const propIds = opts.propIds;
@@ -297,7 +303,7 @@ export async function buildArrivalRows(
     // Uma nova estadia já iniciada torna impossível manter a anterior como
     // checkout/limpeza operacional. Reconcilia antes das consultas para que
     // estados antigos não reapareçam no mesmo carregamento do painel.
-    try {
+    if (!opts.skipReconcile) try {
       const { reconcileSupersededStays } = await import("@/lib/stay-reconciliation.server");
       await reconcileSupersededStays(supabase, propIds, today);
     } catch (error) {
@@ -305,7 +311,7 @@ export async function buildArrivalRows(
     }
     // Saída adiada pelo calendário com previsão de data já velha: devolve o
     // card para "Em estadia" antes de qualquer consulta (ver o comentário da função).
-    try {
+    if (!opts.skipReconcile) try {
       const { reconcilePostponedCheckouts } = await import("@/lib/stay-reconciliation.server");
       await reconcilePostponedCheckouts(supabase, propIds, today);
     } catch (error) {
