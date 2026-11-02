@@ -703,15 +703,33 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           byOwner.set(k, [...(byOwner.get(k) ?? []), item]);
         }
         for (const [owner, items] of byOwner) {
-          batchListRef
-            .current({
-              data: {
-                ownerId: owner || null,
-                requests: items.map((i) => ({ kind: i.req.kind, range: i.req.range })),
-              },
-            })
-            .then((res) => items.forEach((i, idx) => i.resolve(res.results[idx] ?? { rows: [] })))
-            .catch((e) => items.forEach((i) => i.reject(e)));
+          // MESMA LISTA PEDIDA VÁRIAS VEZES (bug de produção, 02/11/2026): a
+          // mesma lista (ex.: check-in de hoje) entrava repetida no lote — 10
+          // pedidos, e às vezes mais de 12, o teto do servidor; aí o lote INTEIRO
+          // falhava e as colunas ficavam sem carregar. Cada lista única vai uma
+          // vez só (e em pedaços de até 12); todos que pediram recebem a resposta.
+          const uniq = new Map<string, { kind: ListReq["kind"]; range: ListReq["range"]; waiters: typeof items }>();
+          for (const i of items) {
+            const k = `${i.req.kind}|${i.req.range}`;
+            const u = uniq.get(k);
+            if (u) u.waiters.push(i);
+            else uniq.set(k, { kind: i.req.kind, range: i.req.range, waiters: [i] });
+          }
+          const all = [...uniq.values()];
+          for (let at = 0; at < all.length; at += 12) {
+            const chunk = all.slice(at, at + 12);
+            batchListRef
+              .current({
+                data: {
+                  ownerId: owner || null,
+                  requests: chunk.map((u) => ({ kind: u.kind, range: u.range })),
+                },
+              })
+              .then((res) =>
+                chunk.forEach((u, idx) => u.waiters.forEach((w) => w.resolve(res.results[idx] ?? { rows: [] }))),
+              )
+              .catch((e) => chunk.forEach((u) => u.waiters.forEach((w) => w.reject(e))));
+          }
         }
       }, 15);
     });
