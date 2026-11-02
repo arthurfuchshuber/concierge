@@ -263,11 +263,20 @@ export async function buildArrivalRows(
     propIds: string[];
     /** Lote do painel já reconciliou as estadias uma vez antes das listas. */
     skipReconcile?: boolean;
+    /** Cache compartilhado entre as listas do mesmo lote (consultas idênticas rodam 1x). */
+    shared?: Map<string, Promise<any>>;
   },
 ): Promise<{ rows: ArrivalRow[] }> {
   const data = { kind: opts.kind, range: opts.range };
   const propIds = opts.propIds;
   const context = { supabase } as { supabase: any };
+  const memo = <T,>(key: string, fn: () => PromiseLike<T>): Promise<T> => {
+    const m = opts.shared;
+    if (!m) return Promise.resolve(fn());
+    let p = m.get(key);
+    if (!p) { p = Promise.resolve(fn()); m.set(key, p); }
+    return p as Promise<T>;
+  };
     if (propIds.length === 0) return { rows: [] };
 
     const dateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
@@ -419,21 +428,20 @@ export async function buildArrivalRows(
     }
 
     const [{ data: props }, { data: statuses }, { data: reservations }, sectionEvents] = await Promise.all([
-      context.supabase
+      memo<any>("props", () => context.supabase
         .from("properties")
         .select(
           "id, name, address, owner_contact_id, maps_url, garage_maps_url, lat, lng, wifi_ssid, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url, cleaning_price_normal_cents, cleaning_price_full_cents",
         )
-
-        .in("id", propIds),
-      context.supabase
+        .in("id", propIds)),
+      memo<any>("statuses", () => context.supabase
         .from("guest_arrival_status")
         .select("log_id, reservation_id, kind, status, note, arrival_time_override, arrival_date_override, arrival_date_base, arrival_time_source, muted_until, done_at, concluded_at")
         .in("property_id", propIds)
-        .limit(5000),
+        .limit(5000)),
       reservationsQuery.order(data.kind === "checkin" ? "checkin_date" : "checkout_date", { ascending: true }).limit(10000),
       uniqueLogs.length > 0
-        ? import("@/lib/engagement-events.server").then(({ fetchEngagementSectionEvents }) =>
+        ? memo<any>("sections", () => import("@/lib/engagement-events.server").then(({ fetchEngagementSectionEvents }) =>
             fetchEngagementSectionEvents(context.supabase, propIds, [
               "home",
               "checkin",
@@ -447,7 +455,7 @@ export async function buildArrivalRows(
               "faq",
               "explorar",
             ]),
-          )
+          ))
         : Promise.resolve([]),
     ]);
 
@@ -517,10 +525,10 @@ export async function buildArrivalRows(
     const ownerNameById = new Map<string, string>();
     const ownerPhoneById = new Map<string, { phone: string | null; country: string | null }>();
     if (ownerIdsForProps.length > 0) {
-      const { data: owners } = await context.supabase
+      const { data: owners } = await memo<any>("owners", () => context.supabase
         .from("property_owners")
         .select("id, name, trade_name, phone, phone_country")
-        .in("id", ownerIdsForProps);
+        .in("id", ownerIdsForProps));
       for (const o of (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null; phone: string | null; phone_country: string | null }>) {
         const label = (o.trade_name || o.name || "").trim();
         if (label) ownerNameById.set(o.id, label);
@@ -646,26 +654,28 @@ export async function buildArrivalRows(
           const convs: Array<{ id: string; property_id: string; reservation_id: string | null; guest_name: string | null }> = [];
           const pids = Array.from(codeProps.keys());
           for (let i = 0; i < pids.length; i += 100) {
-            const { data: cs } = await context.supabase
+            const chunk = pids.slice(i, i + 100);
+            const { data: cs } = await memo<any>("convs:" + chunk.join(","), () => context.supabase
               .from("property_chat_conversations")
               .select("id, property_id, reservation_id, guest_name")
-              .in("property_id", pids.slice(i, i + 100))
+              .in("property_id", chunk)
               .order("last_message_at", { ascending: false })
-              .limit(2000);
+              .limit(2000));
             convs.push(...((cs ?? []) as typeof convs));
           }
           const convById = new Map(convs.map((c) => [c.id, c]));
           const convIds = Array.from(convById.keys());
           const since = new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString();
           for (let i = 0; i < convIds.length; i += 100) {
-            const { data: ms } = await context.supabase
+            const chunk = convIds.slice(i, i + 100);
+            const { data: ms } = await memo<any>("msgs:" + chunk.join(","), () => context.supabase
               .from("property_chat_messages")
               .select("conversation_id, content")
-              .in("conversation_id", convIds.slice(i, i + 100))
+              .in("conversation_id", chunk)
               .in("sender_type", ["ai", "human"])
               .eq("is_internal_note", false)
               .gte("created_at", since)
-              .limit(5000);
+              .limit(5000));
             for (const m of (ms ?? []) as Array<{ conversation_id: string; content: string | null }>) {
               const conv = convById.get(m.conversation_id);
               if (!conv) continue;
