@@ -37,20 +37,36 @@ describe("fatos da reserva (estados reais do banco)", () => {
     const f = deriveReservationFacts(res, [row({ kind: "checkin", status: "pending", concluded_at: "2026-11-09T00:00:00Z" })]);
     expect(f.checkoutConfirmed).toBe(false);
   });
-  it("late checkout: só previsão da EQUIPE ('staff') vale; hóspede e IA antiga não autorizam", () => {
-    expect(deriveReservationFacts(res, [row({ kind: "checkout", arrival_time_source: "staff", arrival_time_override: "14:00" })]).authorizedLateCheckout).toEqual({ date: "2026-11-12", time: "14:00" });
-    expect(deriveReservationFacts(res, [row({ kind: "checkout", arrival_time_source: "guest", arrival_time_override: "18:00" })]).authorizedLateCheckout).toBeNull();
-    expect(deriveReservationFacts(res, [row({ kind: "checkout", arrival_time_source: "ai", arrival_time_override: "18:00" })]).authorizedLateCheckout).toBeNull();
-    expect(deriveReservationFacts(res, [row({ kind: "checkout", arrival_time_source: "staff", arrival_time_override: "lixo" })]).authorizedLateCheckout).toBeNull();
+  it("R6 · DEFEITO REPRODUZIDO: previsão com origem 'staff' (inclusive horário vindo do hóspede) NÃO é autorização", () => {
+    // equipe mudou só a data; o horário 18:00 tinha sido sugerido pelo hóspede; a origem virou 'staff'
+    const defeito = row({ kind: "checkout", arrival_time_source: "staff", arrival_time_override: "18:00", arrival_date_override: "2026-11-12" });
+    expect(deriveReservationFacts(res, [defeito]).authorizedLateCheckout).toBeNull();
+    for (const source of ["staff", "guest", "ai", null]) {
+      expect(deriveReservationFacts(res, [row({ kind: "checkout", arrival_time_source: source, arrival_time_override: "14:00" })]).authorizedLateCheckout).toBeNull();
+    }
+  });
+  it("R6 · só a autorização FORMAL completa (horário + momento + autor) vale, na data de checkout da reserva", () => {
+    const formal = { late_checkout_time: "15:00", late_checkout_approved_at: "2026-11-11T10:00:00Z", late_checkout_by: "u-1" };
+    expect(deriveReservationFacts(res, [row({ kind: "checkout", ...formal })]).authorizedLateCheckout).toEqual({ date: "2026-11-12", time: "15:00" });
+    // a data prevista do cartão não muda a data da autorização
+    expect(deriveReservationFacts(res, [row({ kind: "checkout", arrival_date_override: "2026-11-20", ...formal })]).authorizedLateCheckout).toEqual({ date: "2026-11-12", time: "15:00" });
+    // incompleta / revogada / inválida / em cartão de check-in ⇒ nada
+    expect(deriveReservationFacts(res, [row({ kind: "checkout", ...formal, late_checkout_by: null })]).authorizedLateCheckout).toBeNull();
+    expect(deriveReservationFacts(res, [row({ kind: "checkout", ...formal, late_checkout_approved_at: null })]).authorizedLateCheckout).toBeNull();
+    expect(deriveReservationFacts(res, [row({ kind: "checkout", late_checkout_time: null, late_checkout_approved_at: null, late_checkout_by: null })]).authorizedLateCheckout).toBeNull();
+    expect(deriveReservationFacts(res, [row({ kind: "checkout", ...formal, late_checkout_time: "25:99" })]).authorizedLateCheckout).toBeNull();
+    expect(deriveReservationFacts(res, [row({ kind: "checkin", ...formal })]).authorizedLateCheckout).toBeNull();
   });
   it("liberação manual (D13) só com registro credentials_released_at no cartão de CHECK-IN; nunca presumida", () => {
     expect(deriveReservationFacts(res, [row({ status: "done", arrival_time_source: "staff" })]).checkinCard?.released).toBe(false);
-    expect(deriveReservationFacts(res, [row({ credentials_released_at: "2026-11-05T10:00:00Z" })]).checkinCard?.released).toBe(true);
+    expect(deriveReservationFacts(res, [row({ credentials_released_at: "2026-11-05T10:00:00Z", credentials_released_by: "u-1" })]).checkinCard?.released).toBe(true);
+    // sem autor registrado (ex.: usuário apagado) a liberação não é comprovada
+    expect(deriveReservationFacts(res, [row({ credentials_released_at: "2026-11-05T10:00:00Z", credentials_released_by: null })]).checkinCard?.released).toBe(false);
     expect(deriveReservationFacts(res, [row({ credentials_released_at: "" })]).checkinCard?.released).toBe(false);
     // registro em cartão de SAÍDA não é liberação de check-in
     expect(deriveReservationFacts(res, [row({ kind: "checkout", credentials_released_at: "2026-11-05T10:00:00Z" })]).checkinCard).toBeNull();
     expect(
-      deriveReservationFacts(res, [row({ kind: "checkin" }), row({ kind: "checkout", credentials_released_at: "2026-11-05T10:00:00Z" })]).checkinCard,
+      deriveReservationFacts(res, [row({ kind: "checkin" }), row({ kind: "checkout", credentials_released_at: "2026-11-05T10:00:00Z", credentials_released_by: "u-1" })]).checkinCard,
     ).toEqual({ released: false, noShow: false });
     expect(deriveReservationFacts(res, []).manualReleaseSource).toBe("guest_arrival_status.credentials_released_at");
   });

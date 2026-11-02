@@ -27,9 +27,9 @@ Ordem obrigatória, a primeira que bate encerra:
 2. VETO 2: no-show (reserva OU cartão de check-in) → deny. Absoluto: nada o supera.
 3. VETO 3: checkout confirmado (`guest_arrival_status` kind=checkout com done/no_show, `done_at` ou `concluded_at`) → deny imediato. `concluded_at` de cartão de CHECK-IN não conta.
 4. Dados de tempo não comprovados (fuso, check-in, checkout, `now`) → deny.
-5. VETO 4: agora > corte de checkout → deny. Late checkout só com previsão da EQUIPE (`arrival_time_source='staff'`), e só estende.
+5. VETO 4: agora > corte de checkout → deny. Corte = `late checkout autorizado ?? checkout oficial` (R6). Late checkout só vale com autorização FORMAL no cartão de checkout (`late_checkout_time` + `late_checkout_approved_at` + `late_checkout_by`, os três preenchidos, gravados pelo trigger `guard_stay_authorizations`); `arrival_time_source='staff'` NUNCA é prova de autorização. O banco só aceita late posterior ao checkout oficial.
 6. REGRA: agora ≥ check-in oficial − 24 h → allow (exatamente 24 h = allow; 1 s antes = deny).
-7. EXCEÇÃO: cartão liberado manualmente pela equipe → allow. Registro confiável (D13): `guest_arrival_status.credentials_released_at` (+ `credentials_released_by`) no cartão de CHECK-IN da estadia; limpar a coluna revoga. Nada no sistema grava essa coluna ainda (não há botão no painel): até existir, a exceção não dispara.
+7. EXCEÇÃO: cartão liberado manualmente pela equipe → allow. Registro confiável (D13): `guest_arrival_status.credentials_released_at` E `credentials_released_by` preenchidos no cartão de CHECK-IN da estadia (sem autor = não liberado). Quem grava autor e momento é o trigger `guard_stay_authorizations` (autor = `auth.uid()`, momento = `now()`), só para dono/admin/membro com `operation_edit` (`can_manage_stay_authorizations`); INSERT nunca concede; revogar limpa os dois. Caminho interno: `internal_set_checkin_credentials_release` / `internal_set_late_checkout` (só service_role). Histórico em `audit_logs` (`guest_arrival_status.credentials.*` / `.late_checkout.*`). Ainda não há botão no painel.
 8. Senão → deny.
 
 Ordem de execução no builder: validar escopo → estado → D9 → se negado, NENHUMA consulta de credenciais → se permitido, REAVALIAR com estado atualizado → emitir `CredentialGrant` (30 s, mesma reserva/imóvel/conversa) → `fetchSensitiveCredentials(grant)` → montar contexto. Qualquer falha = `credentials: null`.
@@ -54,5 +54,7 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 
 ## Restrições de F0/F1
 - Proibido: chamadas a LLM de qualquer fornecedor, gateway multimodelo, embeddings, RAG vetorial, Conversational Core, resposta automática, envio de mensagens, ativação de canal, agentes Operations/Owner.
-- Banco: não reutilizar nem tocar nas 29 tabelas da IA antiga; nenhuma migração aplicada; nenhum DROP/TRUNCATE/DELETE. Estruturas novas (`ai_guest_cases`, `ai_turn_traces`, registro de liberação manual) só como proposta, com autorização.
+- Banco: não reutilizar nem tocar nas 29 tabelas da IA antiga; só as migrations `20261102200000` (D13, colunas) e `20261102230000` (guardas D13/R6) foram aplicadas em produção; nenhuma outra sem autorização; nenhum DROP/TRUNCATE/DELETE. Estruturas novas (`ai_guest_cases`, `ai_turn_traces`, registro de liberação manual) só como proposta, com autorização.
 - Não reativar o cron iCal 682.
+- Título público do imóvel (`data/public-title.ts`): o prefixo de código interno (`AP014 - `) é removido só na representação para o hóspede (listing, dossiê, builder); `properties.name` nunca é alterado. Sem separação comprovada, o nome sai inteiro.
+- O módulo é somente leitura: nenhum `.insert/.update/.upsert/.delete/.rpc` e nenhuma chamada às funções internas de autorização (teste estático em `data-boundary.test.ts`). A IA nunca altera autorizações.

@@ -25,6 +25,7 @@ import {
 } from "./projections";
 import { projectDossier, type DossierRowLike } from "./dossier-projection";
 import { pickNormalized } from "./listing.server";
+import { publicPropertyTitle } from "./public-title";
 
 type Row = Record<string, unknown>;
 
@@ -70,15 +71,18 @@ export async function fetchDossierKnowledge(
   for (const r of [prop, faqs, checkout, emergency, manuals, entries, listing]) {
     if (r.error) throw new Error("dossier_lookup_failed");
   }
-  const property = (prop.data as Row | null) ?? null;
-  if (!property) return { items: [], manuals: [], withheldByPolicy: 0 };
+  const raw = (prop.data as Row | null) ?? null;
+  if (!raw) return { items: [], manuals: [], withheldByPolicy: 0 };
+  // O Dossiê do hóspede recebe o TÍTULO PÚBLICO (sem o código interno "AP014 - "); o banco não muda.
+  const publicName = publicPropertyTitle(typeof raw["name"] === "string" ? raw["name"] : null);
+  const property: Row = { ...raw, name: publicName };
 
   const manualRows = ((manuals.data ?? []) as Row[]).map((m) => ({
     id: String(m["id"]),
     title: String(m["title"] ?? ""),
     body: String(m["body"] ?? ""),
   }));
-  const normalized = pickNormalized(((listing.data ?? []) as Row[])[0]?.["normalized"], typeof property["name"] === "string" ? property["name"] : null);
+  const normalized = pickNormalized(((listing.data ?? []) as Row[])[0]?.["normalized"], publicName);
 
   const build: BuildPlaybookFn = deps?.buildPlaybook ?? (await loadBuildPlaybook());
   const sections = build({

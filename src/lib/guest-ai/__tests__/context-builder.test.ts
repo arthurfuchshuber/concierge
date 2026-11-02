@@ -55,6 +55,7 @@ function deps(db: FakeDb, now: string, extra: Partial<BuilderDeps> = {}): Builde
     ...extra,
   };
 }
+const STAFF = "99999999-9999-4999-8999-999999999999";
 const statusRow = (o: Record<string, unknown>) => ({
   kind: "checkin",
   status: "pending",
@@ -67,6 +68,10 @@ const statusRow = (o: Record<string, unknown>) => ({
   log_id: null,
   property_id: IDS.prop1,
   credentials_released_at: null,
+  credentials_released_by: null,
+  late_checkout_time: null,
+  late_checkout_approved_at: null,
+  late_checkout_by: null,
   ...o,
 });
 const credentialQueries = (db: FakeDb) => SENSITIVE_PROPERTY_COLUMNS.reduce((n, c) => n + db.touched("properties", c), 0);
@@ -128,6 +133,47 @@ describe("F1 · GuestContextBuilder — cenários", () => {
     expect(ctx.property.name).toBe("Casa Teste");
     expect(ctx.property.dossierKnowledge?.items.map((i) => i.id)).toEqual(["f:titulo_publico"]);
     expect(ctx.credentials).toBeNull();
+  });
+
+  it("Dossiê: título público sem o código interno em todo o contexto; properties.name intacto", async () => {
+    const db = makeDb();
+    const prop = db.tables["properties"]!.find((r) => r["id"] === IDS.prop1)!;
+    prop["name"] = "AP014 - Flat ao lado da Santa Casa";
+    const ctx = await buildGuestContext(ab, deps(db, T.beforeWindow));
+    expect(ctx.property.name).toBe("Flat ao lado da Santa Casa");
+    expect(ctx.property.listingFacts?.name).toBe("Flat ao lado da Santa Casa");
+    const json = JSON.stringify(ctx);
+    expect(json).not.toContain("AP014");
+    expect(json).toContain("Flat ao lado da Santa Casa");
+    expect(prop["name"]).toBe("AP014 - Flat ao lado da Santa Casa");
+  });
+
+  it("Dossiê: com nome codificado, o prefixo privado do título do anúncio continua isolado (listing e dossiê)", async () => {
+    const db = makeDb({
+      property_listing_raw_data: [
+        {
+          property_id: IDS.prop1,
+          synced_at: "2026-11-01T00:00:00Z",
+          normalized: { facts: [{ key: "identificacao", title: "Identificação", content: "Título do anúncio: 45999730002 Patrícia Regina · Flat ao lado da Santa Casa\nCidade: Londrina" }] },
+        },
+      ],
+    });
+    db.tables["properties"]!.find((r) => r["id"] === IDS.prop1)!["name"] = "AP014 - Flat ao lado da Santa Casa";
+    const seen: Array<{ name: unknown; facts: unknown }> = [];
+    const spyBuild: BuildPlaybookFn = (src) => {
+      seen.push({ name: (src.property as Record<string, unknown>)["name"], facts: src.listingFacts });
+      return fakeBuild(src);
+    };
+    const ctx = await buildGuestContext(guide, deps(db, T.inStay, { fetchDossierKnowledge: (turn, aud, d) => fetchDossierKnowledge(turn, aud, { ...d, buildPlaybook: spyBuild }) }));
+    const ident = ctx.property.listingFacts?.normalized?.facts.find((f) => f.key === "identificacao");
+    expect(ident?.content).toBe("Título do anúncio: Flat ao lado da Santa Casa\nCidade: Londrina");
+    // o construtor do Dossiê recebe o nome público e a identificação já sem o prefixo privado
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.name).toBe("Flat ao lado da Santa Casa");
+    expect(JSON.stringify(seen[0]!.facts)).toContain("Título do anúncio: Flat ao lado da Santa Casa");
+    for (const leak of ["45999730002", "Patrícia Regina", "AP014"]) expect(JSON.stringify(seen)).not.toContain(leak);
+    const json = JSON.stringify(ctx);
+    for (const leak of ["45999730002", "Patrícia Regina", "AP014"]) expect(json).not.toContain(leak);
   });
 
   it("NÃO vincula por proximidade: outra reserva do mesmo imóvel não entra numa conversa sem vínculo", async () => {
@@ -244,18 +290,18 @@ describe("F1 · GuestContextBuilder — cenários", () => {
   });
 
   it("D13: cartão liberado manualmente pela equipe antes da janela ⇒ manual_release e credenciais", async () => {
-    const db = makeDb({ guest_arrival_status: [statusRow({ credentials_released_at: "2026-11-05T10:00:00Z" })] });
+    const db = makeDb({ guest_arrival_status: [statusRow({ credentials_released_at: "2026-11-05T10:00:00Z", credentials_released_by: STAFF })] });
     const ctx = await buildGuestContext(guide, deps(db, T.beforeWindow));
     expect(ctx.access.policyResult).toMatchObject({ allowed: true, reason: "manual_release" });
     expect(ctx.credentials?.lockCode).toBe(SECRETS.lock);
   });
 
   it("D13: liberação manual NÃO supera no-show nem checkout confirmado", async () => {
-    const a = makeDb({ guest_arrival_status: [statusRow({ status: "no_show", credentials_released_at: "2026-11-05T10:00:00Z" })] });
+    const a = makeDb({ guest_arrival_status: [statusRow({ status: "no_show", credentials_released_at: "2026-11-05T10:00:00Z", credentials_released_by: STAFF })] });
     expect((await buildGuestContext(guide, deps(a, T.beforeWindow))).access.policyResult.reason).toBe("no_show");
     const b = makeDb({
       guest_arrival_status: [
-        statusRow({ credentials_released_at: "2026-11-05T10:00:00Z" }),
+        statusRow({ credentials_released_at: "2026-11-05T10:00:00Z", credentials_released_by: STAFF }),
         statusRow({ kind: "checkout", status: "done", done_at: "2026-11-05T11:00:00Z" }),
       ],
     });
@@ -266,7 +312,7 @@ describe("F1 · GuestContextBuilder — cenários", () => {
   });
 
   it("D13: revogação da liberação entre a avaliação e a entrega ⇒ deny", async () => {
-    const db = makeDb({ guest_arrival_status: [statusRow({ credentials_released_at: "2026-11-05T10:00:00Z" })] });
+    const db = makeDb({ guest_arrival_status: [statusRow({ credentials_released_at: "2026-11-05T10:00:00Z", credentials_released_by: STAFF })] });
     let calls = 0;
     const ctx = await buildGuestContext(
       guide,
@@ -288,6 +334,47 @@ describe("F1 · GuestContextBuilder — cenários", () => {
     const ctx = await buildGuestContext(guide, deps(db, T.afterCheckout));
     expect(ctx.phase).toBe("post_checkout");
     expect(ctx.audiences).toEqual(["P"]);
+    expect(ctx.credentials).toBeNull();
+  });
+
+  it("R6: late checkout FORMAL estende o prazo das credenciais; previsão 'staff' com horário não estende", async () => {
+    const formal = makeDb({
+      guest_arrival_status: [statusRow({ kind: "checkout", late_checkout_time: "14:00", late_checkout_approved_at: "2026-11-11T10:00:00Z", late_checkout_by: STAFF })],
+    });
+    const ok = await buildGuestContext(guide, deps(formal, T.afterCheckout));
+    expect(ok.access.policyResult.allowed).toBe(true);
+    expect(ok.credentials?.lockCode).toBe(SECRETS.lock);
+    const staff = makeDb({ guest_arrival_status: [statusRow({ kind: "checkout", arrival_time_source: "staff", arrival_time_override: "18:00" })] });
+    const no = await buildGuestContext(guide, deps(staff, T.afterCheckout));
+    expect(no.access.policyResult.allowed).toBe(false);
+    expect(no.credentials).toBeNull();
+    expect(credentialQueries(staff)).toBe(0);
+  });
+
+  it("R6: revogação do late checkout entre a avaliação e a entrega ⇒ deny", async () => {
+    const db = makeDb({
+      guest_arrival_status: [statusRow({ kind: "checkout", late_checkout_time: "14:00", late_checkout_approved_at: "2026-11-11T10:00:00Z", late_checkout_by: STAFF })],
+    });
+    let calls = 0;
+    const ctx = await buildGuestContext(
+      guide,
+      deps(db, T.afterCheckout, {
+        fetchReservationState: async (turn, d) => {
+          calls += 1;
+          if (calls === 2) Object.assign(db.tables["guest_arrival_status"]![0]!, { late_checkout_time: null, late_checkout_approved_at: null, late_checkout_by: null });
+          return fetchReservationState(turn, d);
+        },
+      }),
+    );
+    expect(ctx.access.policyResult.allowed).toBe(false);
+    expect(ctx.credentials).toBeNull();
+    expect(credentialQueries(db)).toBe(0);
+  });
+
+  it("D13: liberação sem autor registrado não vale como liberação manual", async () => {
+    const db = makeDb({ guest_arrival_status: [statusRow({ credentials_released_at: "2026-11-05T10:00:00Z", credentials_released_by: null })] });
+    const ctx = await buildGuestContext(guide, deps(db, T.beforeWindow));
+    expect(ctx.access.policyResult.reason).toBe("outside_release_window");
     expect(ctx.credentials).toBeNull();
   });
 

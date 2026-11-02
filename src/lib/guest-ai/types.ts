@@ -103,7 +103,10 @@ export interface CredentialPolicyInput {
   };
   /** Cartão operacional de check-in. `released` = liberado MANUALMENTE pela equipe (registro confiável). */
   checkinCard: { released: boolean; noShow: boolean } | null;
-  /** Late checkout autorizado e registrado pela equipe. Só estende o prazo, nunca o encurta. */
+  /**
+   * R6: autorização FORMAL de late checkout (guest_arrival_status.late_checkout_time/_approved_at/_by,
+   * gravada só pelo gatilho do banco). Prazo efetivo = esta ?? checkout oficial. Nunca supera vetos.
+   */
   authorizedLateCheckout?: { date: string; time: string } | null;
   /** Instante atual (ISO 8601 com Z ou offset). Nunca lido do relógio dentro da política. */
   now: string;

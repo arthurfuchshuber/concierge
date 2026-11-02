@@ -104,6 +104,10 @@ export const ARRIVAL_STATUS_COLUMNS = [
   "reservation_id",
   "log_id",
   "credentials_released_at",
+  "credentials_released_by",
+  "late_checkout_time",
+  "late_checkout_approved_at",
+  "late_checkout_by",
 ] as const;
 export const ACCESS_LOG_COLUMNS = ["id", "property_id", "checkin_date"] as const;
 export const LISTING_COLUMNS = ["property_id", "normalized", "synced_at"] as const;

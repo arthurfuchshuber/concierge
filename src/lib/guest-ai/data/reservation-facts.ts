@@ -10,10 +10,13 @@
  *  - checkout confirmado: `guest_arrival_status` kind='checkout' com status done/no_show,
  *    `done_at` ou `concluded_at`. `concluded_at` em cartão de CHECK-IN NÃO conta: lá ele só
  *    esconde o cartão (57 cartões de check-in pendentes já têm `concluded_at`).
- *  - late checkout: kind='checkout' com `arrival_time_source='staff'` e `arrival_time_override`
- *    válido (previsão gravada pela equipe). Fonte 'guest' ou 'ai' NÃO é autorização.
+ *  - late checkout (R6, 02/11/2026): SÓ a autorização formal do cartão de saída —
+ *    `late_checkout_time` + `late_checkout_approved_at` + `late_checkout_by` (os três gravados pelo
+ *    gatilho guard_stay_authorizations). Vale na data de checkout da reserva. `arrival_time_source`
+ *    e `arrival_time_override` (previsões do hóspede ou da equipe) NUNCA estendem o prazo.
  *  - liberação manual do cartão de check-in (D13, migração de 02/11/2026): cartão de CHECK-IN da
- *    mesma estadia com `credentials_released_at` preenchido. Revogar = limpar a coluna. A liberação
+ *    mesma estadia com `credentials_released_at` E `credentials_released_by` preenchidos (autor apagado
+ *    = liberação não comprovada). Revogar = limpar as colunas. A liberação
  *    nunca supera os vetos da D9 (no-show, checkout, prazo), que são avaliados antes dela.
  */
 import { isCheckoutConfirmedStatus, isNoShowStatus, normalizeReservationStatus } from "@/lib/guest-ai/policy/status";
@@ -40,6 +43,14 @@ export interface ArrivalStatusRow {
   log_id: string | null;
   /** D13: quando a equipe liberou manualmente as credenciais neste cartão (null = não liberado). */
   credentials_released_at?: string | null;
+  /** D13: quem liberou (gravado pelo banco). */
+  credentials_released_by?: string | null;
+  /** R6: horário HH:MM do late checkout formalmente aprovado. */
+  late_checkout_time?: string | null;
+  /** R6: momento da aprovação (banco). */
+  late_checkout_approved_at?: string | null;
+  /** R6: quem aprovou (banco). */
+  late_checkout_by?: string | null;
 }
 
 export interface ReservationState {
@@ -90,7 +101,8 @@ export function deriveReservationFacts(res: ReservationRow | null, statusRows: A
 
   const noShow = checkinRows.some((r) => isNoShowStatus(r.status));
   // D13: liberação manual = registro da equipe no cartão de CHECK-IN desta estadia.
-  const released = checkinRows.some((r) => typeof r.credentials_released_at === "string" && r.credentials_released_at.length > 0);
+  const filled = (v: unknown) => typeof v === "string" && v.length > 0;
+  const released = checkinRows.some((r) => filled(r.credentials_released_at) && filled(r.credentials_released_by));
 
   const confirmedRows = checkoutRows.filter(
     (r) => isCheckoutConfirmedStatus(r.status) || !!r.done_at || !!r.concluded_at,
@@ -98,15 +110,13 @@ export function deriveReservationFacts(res: ReservationRow | null, statusRows: A
   const checkoutConfirmed = confirmedRows.length > 0;
   const confirmedCheckoutAt = earliest(confirmedRows.flatMap((r) => [r.done_at, r.concluded_at]));
 
-  // Late checkout: previsão da EQUIPE, ainda pendente, com horário válido. Vale o mais tarde.
+  // R6: só a autorização FORMAL (horário + momento + autor), na data de checkout da reserva.
   let late: { date: string; time: string } | null = null;
   for (const r of checkoutRows) {
-    if (r.arrival_time_source !== "staff" || confirmedRows.includes(r)) continue;
-    if (!parseHm(r.arrival_time_override)) continue;
-    const date = r.arrival_date_override ?? res.checkout_date;
-    if (!parseIsoDate(date)) continue;
-    const cand = { date: String(date), time: String(r.arrival_time_override).slice(0, 5) };
-    if (!late || `${cand.date}T${cand.time}` > `${late.date}T${late.time}`) late = cand;
+    if (!filled(r.late_checkout_time) || !filled(r.late_checkout_approved_at) || !filled(r.late_checkout_by)) continue;
+    if (!parseHm(r.late_checkout_time) || !parseIsoDate(res.checkout_date)) continue;
+    const cand = { date: String(res.checkout_date), time: String(r.late_checkout_time).slice(0, 5) };
+    if (!late || cand.time > late.time) late = cand;
   }
 
   return {

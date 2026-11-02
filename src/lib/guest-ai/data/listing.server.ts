@@ -7,6 +7,7 @@ import { assertIssued } from "@/lib/guest-ai/trust";
 import { getGuestAiDb, type GuestAiDb } from "./client.server";
 import { LISTING_COLUMNS, PROPERTY_OPERATIONAL_COLUMNS, PROPERTY_PUBLIC_COLUMNS, cols } from "./projections";
 import { pickNormalized } from "./listing-normalized";
+import { publicPropertyTitle } from "./public-title";
 
 export { pickNormalized };
 
@@ -47,13 +48,14 @@ export async function fetchListingFacts(
   return {
     multipleListingRows: rows.length > 1,
     facts: {
-      name: s(p["name"]),
+      // Título PÚBLICO (código interno de gestão separado; properties.name intacto no banco).
+      name: publicPropertyTitle(s(p["name"])),
       city: s(p["city"]),
       state: s(p["state"]),
       country: s(p["country"]),
       shortDescription: s(p["short_description"]),
       address: opts.includeAddress ? s(p["address"]) : null,
-      normalized: first ? pickNormalized(first["normalized"], s(p["name"])) : null,
+      normalized: first ? pickNormalized(first["normalized"], publicPropertyTitle(s(p["name"]))) : null,
       syncedAt: first ? s(first["synced_at"]) : null,
     },
   };

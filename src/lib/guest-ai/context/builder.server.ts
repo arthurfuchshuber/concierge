@@ -37,6 +37,7 @@ import { emptyReservationState, type ReservationState } from "@/lib/guest-ai/dat
 import { fetchSensitiveCredentials } from "@/lib/guest-ai/data/credentials.server";
 import { PROPERTY_SCOPE_COLUMNS, cols } from "@/lib/guest-ai/data/projections";
 import { propertyTimeZoneOrNull } from "@/lib/property-timezone";
+import { publicPropertyTitle } from "@/lib/guest-ai/data/public-title";
 
 type PropertyScopeRow = {
   name: string | null;
@@ -201,7 +202,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
     property: {
       id: turn.propertyId,
       tenantId: turn.tenantId,
-      name: prop?.name ?? listing.facts.name,
+      name: publicPropertyTitle(prop?.name) ?? listing.facts.name,
       timezone,
       listingFacts: listing.facts,
       dossierKnowledge: dossier,

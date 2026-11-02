@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import * as P from "@/lib/guest-ai/data/projections";
-import { REAL_COLUMNS } from "./helpers/real-columns";
+import { PENDING_MIGRATION_COLUMNS, REAL_COLUMNS } from "./helpers/real-columns";
 
 const ROOT = path.resolve(__dirname, "..");
 
@@ -23,6 +23,13 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
   const files = sources();
 
   it("há arquivos a varrer", () => expect(files.length).toBeGreaterThan(10));
+
+  it("D13/R6 · o módulo guest-ai é somente leitura: nenhuma escrita, RPC ou função interna de autorização", () => {
+    const write = /\.(insert|update|upsert|delete|rpc)\s*\(/;
+    const internal = /internal_set_checkin_credentials_release|internal_set_late_checkout|conciergeia\.internal_actor/;
+    expect(files.filter((f) => write.test(code(f))).map(rel)).toEqual([]);
+    expect(files.filter((f) => internal.test(code(f))).map(rel)).toEqual([]);
+  });
 
   it("só data/client.server.ts importa o cliente administrativo", () => {
     const offenders = files.filter((f) => /supabaseAdmin|integrations\/supabase\/client\.server/.test(code(f)));
@@ -107,9 +114,13 @@ describe("F0 · projeções explícitas", () => {
       ["property_playbook_entries", P.ENTRY_COLUMNS],
     ];
     for (const [table, list] of map) {
-      const real = new Set(REAL_COLUMNS[table]);
+      const real = new Set([...(REAL_COLUMNS[table] ?? []), ...(PENDING_MIGRATION_COLUMNS[table] ?? [])]);
       expect(list.filter((c) => !real.has(c)), table).toEqual([]);
     }
+  });
+  it("nenhuma coluna pendente de migration: as do R6 já estão no snapshot de produção", () => {
+    expect(PENDING_MIGRATION_COLUMNS).toEqual({});
+    for (const c of ["late_checkout_time", "late_checkout_approved_at", "late_checkout_by"]) expect(REAL_COLUMNS["guest_arrival_status"]).toContain(c);
   });
   it("a projeção de reservas não traz contatos (PII) nem valores financeiros", () => {
     expect(P.RESERVATION_COLUMNS).not.toContain("guest_contacts");

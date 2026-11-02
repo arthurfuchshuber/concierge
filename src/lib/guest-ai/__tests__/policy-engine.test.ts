@@ -85,8 +85,17 @@ describe("D9 · estadia em andamento e teto de checkout", () => {
       expect(run(input({ now: plus(CLOSE, 60), late })).reason).toBe("checkout_expired");
     }
   });
-  it("late checkout mais CEDO que o oficial nunca encurta o prazo", () => {
-    expect(run(input({ now: plus(CLOSE, -60), late: { date: "2026-11-12", time: "08:00" } })).allowed).toBe(true);
+  it("prazo efetivo = autorização formal ?? oficial (R6): se a autorização vier mais cedo, vale ela (o banco nem aceita aprovar antes do oficial)", () => {
+    expect(run(input({ now: plus(CLOSE, -60), late: { date: "2026-11-12", time: "08:00" } })).reason).toBe("checkout_expired");
+    expect(run(input({ now: "2026-11-12T10:59:00Z", late: { date: "2026-11-12", time: "08:00" } })).allowed).toBe(true);
+  });
+  it("late checkout formal não supera no-show, checkout confirmado nem reserva cancelada", () => {
+    const late = { date: "2026-11-12", time: "15:00" };
+    const now = "2026-11-12T16:00:00Z";
+    expect(run(input({ now, late, reservation: { noShow: true } })).reason).toBe("no_show");
+    expect(run(input({ now, late, reservation: { checkoutConfirmed: true } })).reason).toBe("checkout_confirmed");
+    expect(run(input({ now, late, reservation: { status: "cancelled" } })).reason).toBe("reservation_cancelled");
+    expect(run(input({ now, late, property: { timezone: null } })).reason).toBe("missing_timezone");
   });
   it("sem late checkout informado pelo hóspede: o frontend não amplia (a função só aceita o registro)", () => {
     expect(run(input({ now: plus(CLOSE, 60) })).reason).toBe("checkout_expired");

@@ -10,7 +10,7 @@
  *   VETO 2  no-show (reserva OU cartão de check-in)           → deny (absoluto)
  *   VETO 3  checkout confirmado                               → deny (imediato)
  *   (dados)  fuso / check-in / checkout / `now` não comprovados → deny
- *   VETO 4  agora > corte de checkout (ou late checkout)      → deny
+ *   VETO 4  agora > prazo efetivo (late checkout formal ?? oficial) → deny
  *   REGRA   agora ≥ check-in oficial − 24 h                   → allow
  *   EXCEÇÃO cartão liberado manualmente pela equipe           → allow
  *   senão                                                     → deny
@@ -92,12 +92,14 @@ export function canReleaseCredentials(input: CredentialPolicyInput): AccessPolic
   const officialClose = wallClockToInstant(reservation.checkOutDate, property.officialCheckOutTime, tz, "earlier");
   if (!officialClose) return deny("invalid_operational_state");
 
-  // Late checkout: só vale com registro confiável e válido, e só ESTENDE o prazo.
+  // R6 (02/11/2026): prazo efetivo = autorização FORMAL de late checkout ?? checkout oficial.
+  // A autorização chega já validada pela camada de dados (horário + momento + autor registrados pelo
+  // gatilho do banco). Horário inválido não é autorização: vale o oficial. `arrival_time_source` não entra.
   let closeAt = officialClose;
   const late = input.authorizedLateCheckout;
   if (late) {
     const lateAt = wallClockToInstant(late.date, late.time, tz, "earlier");
-    if (lateAt && lateAt.getTime() > officialClose.getTime()) closeAt = lateAt;
+    if (lateAt) closeAt = lateAt;
   }
 
   const releaseAt = new Date(checkInAt.getTime() - RELEASE_WINDOW_HOURS * HOUR_MS);
