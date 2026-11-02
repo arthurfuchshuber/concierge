@@ -98,24 +98,27 @@ export interface LlmSuccess {
   telemetry: LlmTelemetry;
 }
 
-export type LlmErrorCode =
-  | "invalid_request" // contrato violado (modelo fora do registro, limites, esforço não suportado…)
-  | "sensitive_content_blocked" // valor proibido detectado nas mensagens; nada saiu para a rede
-  | "config_missing" // chave do provedor ausente
-  | "timeout" // prazo de 15 s estourado
-  | "aborted" // cancelado pelo chamador
-  | "rate_limited" // 429
-  | "billing" // 402
-  | "auth" // 401/403
-  | "model_unavailable" // 404
-  | "bad_request" // 400/422 do provedor
-  | "provider_unavailable" // 5xx
-  | "network" // falha de rede sem resposta HTTP
-  | "invalid_response" // corpo ilegível, JSON pedido e não entregue, formato inesperado
-  | "empty_response" // resposta sem texto
-  | "truncated_response" // cortada por limite de tokens ou fluxo interrompido
-  | "content_filtered" // bloqueada pelo filtro do provedor
-  | "internal_error"; // falha inesperada no próprio gateway (capturada; nunca propaga exceção)
+/** Os 17 códigos de erro do Gateway (lista em tempo de execução: permite verificar compatibilidade exaustiva). */
+export const LLM_ERROR_CODES = [
+  "invalid_request", // contrato violado (modelo fora do registro, limites, esforço não suportado…)
+  "sensitive_content_blocked", // valor proibido detectado nas mensagens; nada saiu para a rede
+  "config_missing", // chave do provedor ausente
+  "timeout", // prazo de 15 s estourado
+  "aborted", // cancelado pelo chamador
+  "rate_limited", // 429
+  "billing", // 402
+  "auth", // 401/403
+  "model_unavailable", // 404
+  "bad_request", // 400/422 do provedor
+  "provider_unavailable", // 5xx
+  "network", // falha de rede sem resposta HTTP
+  "invalid_response", // corpo ilegível, JSON pedido e não entregue, formato inesperado
+  "empty_response", // resposta sem texto
+  "truncated_response", // cortada por limite de tokens ou fluxo interrompido
+  "content_filtered", // bloqueada pelo filtro do provedor
+  "internal_error", // falha inesperada no próprio gateway (capturada; nunca propaga exceção)
+] as const;
+export type LlmErrorCode = (typeof LLM_ERROR_CODES)[number];
 
 export interface LlmFailure {
   ok: false;

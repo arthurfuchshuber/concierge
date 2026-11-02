@@ -29,7 +29,7 @@ import { deriveStayPhase } from "@/lib/guest-ai/policy/phase";
 import { parseInstant, wallClockToInstant, isValidIanaTimezone } from "@/lib/guest-ai/policy/wall-clock";
 import { validateTurnScope, GuestAiScopeError, type TurnInput } from "@/lib/guest-ai/data/scope.server";
 import type { GuestAiDb } from "@/lib/guest-ai/data/client.server";
-import { getGuestAiDb } from "@/lib/guest-ai/data/client.server";
+import { abortableDb, getGuestAiDb, throwIfAborted } from "@/lib/guest-ai/data/client.server";
 import { fetchListingFacts, detectListingConflicts } from "@/lib/guest-ai/data/listing.server";
 import { fetchDossierKnowledge } from "@/lib/guest-ai/data/dossier.server";
 import { fetchReservationState, type ReservationLookup } from "@/lib/guest-ai/data/reservation.server";
@@ -63,6 +63,11 @@ export interface BuilderDeps {
    * Padrão `"fetch"` preserva o comportamento F1.
    */
   credentials?: "fetch" | "skip";
+  /**
+   * F2-B: cancelamento do turno. Propagado a TODAS as consultas (via `abortableDb`) e conferido
+   * entre as etapas: depois do cancelamento nenhuma consulta nova é aberta.
+   */
+  signal?: AbortSignal;
 }
 
 async function defaultLoadPropertyScope(turn: ValidatedTurn, db: GuestAiDb): Promise<PropertyScopeRow | null> {
@@ -105,7 +110,12 @@ function openCasesOf(turn: ValidatedTurn): OpenCase[] {
 }
 
 export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}): Promise<GuestContext> {
-  const db = deps.db ?? (await getGuestAiDb());
+  const signal = deps.signal;
+  // Pontos de checagem do cancelamento: S0 início · S1 após o escopo · S2 após o imóvel · S3 após a
+  // reserva (antes da D9 e do conhecimento) · S4 após anúncio/Dossiê (não devolve contexto cancelado).
+  // Entre eles, `abortableDb` impede qualquer consulta nova e aborta as em andamento.
+  throwIfAborted(signal); // S0
+  const db = abortableDb(deps.db ?? (await getGuestAiDb()), signal);
   const clock = deps.now ?? (() => new Date());
   const scope = deps.validateTurnScope ?? validateTurnScope;
   const getReservation = deps.fetchReservationState ?? fetchReservationState;
@@ -121,7 +131,9 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
   const turn = await scope(input, { db });
 
   // 2) estado operacional + imóvel
+  throwIfAborted(signal); // S1
   const prop = await loadProp(turn, db);
+  throwIfAborted(signal); // S2
   let lookup: ReservationLookup;
   try {
     lookup = await getReservation(turn, { db });
@@ -129,6 +141,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
     lookup = { kind: "state", state: emptyReservationState() };
     uncertainties.push("reservation_state_unavailable");
   }
+  throwIfAborted(signal); // S3: cancelamento não vira "estado indisponível" — interrompe o turno
   let state: ReservationState = emptyReservationState();
   if (lookup.kind === "state") state = lookup.state;
   else if (lookup.kind === "conflict") conflicts.push(lookup.code);
@@ -189,6 +202,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
     getListing(turn, { includeAddress }, { db }),
     getDossier(turn, audienceSet, { db }),
   ]);
+  throwIfAborted(signal); // S4
   if (listing.multipleListingRows) uncertainties.push("multiple_listing_rows");
   conflicts.push(
     ...detectListingConflicts(listing.facts.normalized, {

@@ -329,7 +329,7 @@ describe("F1 · GuestContextBuilder — cenários", () => {
     expect(cc.history).toEqual({ status: "unavailable", reason: "not_loaded" });
     expect(cc.hostGuidance).toEqual({ status: "unavailable", reason: "no_governed_store" });
     expect(cc.precedents).toEqual({ status: "unavailable", reason: "no_governed_store" });
-    expect(cc.humanOwnership.openCase).toBe(false);
+    expect(cc.humanOwnership).toEqual({ openCaseCount: 0, cases: [] });
     expect(credentialQueries(db)).toBe(0);
     noSecrets(cc);
   });

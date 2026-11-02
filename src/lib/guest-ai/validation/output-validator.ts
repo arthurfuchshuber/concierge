@@ -12,6 +12,7 @@
  */
 import { CREDENTIAL_MARKER, type ModelDecision, type ValidationBlock, type ValidationReport } from "@/lib/guest-ai/orchestrator/contracts";
 import type { CaseOwnership } from "@/lib/guest-ai/orchestrator/case-ownership";
+import { DECISION_LIMITS } from "@/lib/guest-ai/orchestrator/decision";
 
 export interface ValidationInput {
   decision: ModelDecision;
@@ -21,7 +22,8 @@ export interface ValidationInput {
   sourceIds: ReadonlySet<string> | null;
 }
 
-export const REPLY_MAX_CHARS = 4_000;
+/** Mesmo limite do parser (fonte única). */
+export const REPLY_MAX_CHARS = DECISION_LIMITS.replyMaxChars;
 
 /**
  * Padrões ESTRUTURAIS de código de acesso fabricado (não de estilo):

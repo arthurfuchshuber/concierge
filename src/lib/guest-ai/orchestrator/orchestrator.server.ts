@@ -209,7 +209,7 @@ export async function runGuestTurn(req: TurnRequest, deps: OrchestratorDeps = {}
 
     // 1) Contexto autorizado (sem credenciais)
     stage = "context";
-    const loadContext = deps.loadContext ?? ((r: TurnRequest) => loadConversationContext(r));
+    const loadContext = deps.loadContext ?? ((r: TurnRequest, s: AbortSignal) => loadConversationContext(r, {}, s));
     let ctx: ConversationContext;
     try {
       ctx = await dl.race(loadContext(req, dl.controller.signal));

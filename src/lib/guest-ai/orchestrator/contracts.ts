@@ -86,7 +86,14 @@ export interface ConversationContext {
   guest: GuestContext;
   credentialPolicy: { decision: "allow" | "deny"; reason: AccessPolicyReason };
   history: Unavailable<"not_loaded"> | { status: "available"; messages: HistoryMessage[]; omittedOlder: number };
-  humanOwnership: { openCase: boolean; status: string | null; handoffReason: string | null; handoffAt: string | null };
+  /**
+   * TODOS os chamados abertos da conversa (não só o primeiro). Hoje a fonte é o status da conversa,
+   * então há no máximo 1; o contrato já suporta N. Motivo/horário do encaminhamento chegam na B2.
+   */
+  humanOwnership: {
+    openCaseCount: number;
+    cases: Array<{ caseId: string; status: string; handoffReason: string | null; handoffAt: string | null }>;
+  };
   hostGuidance: Unavailable<"no_governed_store">;
   precedents: Unavailable<"no_governed_store">;
 }

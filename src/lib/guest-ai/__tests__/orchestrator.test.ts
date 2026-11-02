@@ -56,7 +56,10 @@ function ctx(over: Partial<GuestContext> = {}, policy: "allow" | "deny" = "allow
     guest: guestContext(over),
     credentialPolicy: { decision: policy, reason: policy === "allow" ? "within_release_window" : "outside_release_window" },
     history: { status: "unavailable", reason: "not_loaded" },
-    humanOwnership: { openCase: (over.openCases?.length ?? 0) > 0, status: null, handoffReason: null, handoffAt: null },
+    humanOwnership: {
+      openCaseCount: over.openCases?.length ?? 0,
+      cases: (over.openCases ?? []).map((c) => ({ caseId: c.id, status: c.status, handoffReason: null, handoffAt: null })),
+    },
     hostGuidance: { status: "unavailable", reason: "no_governed_store" },
     precedents: { status: "unavailable", reason: "no_governed_store" },
   };
@@ -365,5 +368,51 @@ describe("B1 · Orchestrator — prazo total ≤ 15 s", () => {
     const r = await runGuestTurn(REQ, h.deps);
     expect(r).toMatchObject({ kind: "fallback", fallback: "deadline_exceeded", validation: { verdict: "pass" } });
     expect(r.telemetry.stage).toBe("validation");
+  });
+});
+
+describe("Fechamento B1 · item 3 — Orchestrator com 2 chamados abertos", () => {
+  const TWO = [
+    { id: "case-a", source: "conversation_status" as const, topic: null, status: "needs_human" },
+    { id: "case-b", source: "conversation_status" as const, topic: null, status: "assigned" },
+  ];
+  it("assunto independente de ambos ⇒ rascunho normal; relacionado com compromisso ⇒ bloqueado", async () => {
+    const h = harness({ loadContext: async () => ctx({ openCases: TWO }), generate: async () => llmOk(validDecision({ caseRelation: "independent" })) });
+    expect((await runGuestTurn(REQ, h.deps)).kind).toBe("draft");
+    const h2 = harness({ loadContext: async () => ctx({ openCases: TWO }), generate: async () => llmOk(validDecision({ caseRelation: "related", commitments: ["resolvo"] })) });
+    expect(await runGuestTurn(REQ, h2.deps)).toMatchObject({ fallback: "validator_block", validation: { blocks: ["human_owned_topic_commitment"] } });
+    const h3 = harness({ loadContext: async () => ctx({ openCases: TWO }), generate: async () => llmOk(validDecision({ caseRelation: "ambiguous", strategy: "clarify", reply: "É sobre qual dos dois assuntos?" })) });
+    expect((await runGuestTurn(REQ, h3.deps)).kind).toBe("draft");
+  });
+  it("o loader de contexto expõe TODOS os chamados abertos (não só o primeiro)", async () => {
+    const { humanOwnershipOf } = await import("@/lib/guest-ai/context/conversation-context.server");
+    expect(humanOwnershipOf([])).toEqual({ openCaseCount: 0, cases: [] });
+    expect(humanOwnershipOf(TWO)).toEqual({
+      openCaseCount: 2,
+      cases: [
+        { caseId: "case-a", status: "needs_human", handoffReason: null, handoffAt: null },
+        { caseId: "case-b", status: "assigned", handoffReason: null, handoffAt: null },
+      ],
+    });
+  });
+});
+
+describe("Fechamento B1 · item 5 — compatibilidade Gateway F2-A × Orchestrator", () => {
+  it("os 17 códigos do Gateway ⇔ chaves de LLM_FALLBACK (nos dois sentidos), todos com fallback válido", async () => {
+    const { LLM_ERROR_CODES } = await import("@/lib/guest-ai/llm/contracts");
+    expect(LLM_ERROR_CODES).toHaveLength(17);
+    expect(new Set(LLM_ERROR_CODES).size).toBe(17);
+    expect(Object.keys(LLM_FALLBACK).sort()).toEqual([...LLM_ERROR_CODES].sort());
+    for (const c of LLM_ERROR_CODES) expect(FALLBACK_KINDS).toContain(LLM_FALLBACK[c]);
+  });
+  it("todo código que o Gateway/transporte consegue produzir está na lista (status HTTP e falhas internas)", async () => {
+    const { LLM_ERROR_CODES } = await import("@/lib/guest-ai/llm/contracts");
+    const { classifyHttpStatus, failure } = await import("@/lib/guest-ai/llm/errors");
+    for (let status = 100; status < 600; status += 1) expect(LLM_ERROR_CODES).toContain(classifyHttpStatus(status).code);
+    for (const c of LLM_ERROR_CODES) expect(failure(c).code).toBe(c);
+  });
+  it("timeout e cancelamento do Gateway viram os mesmos fallbacks que o prazo do próprio turno", () => {
+    expect(LLM_FALLBACK.timeout).toBe("deadline_exceeded");
+    expect(LLM_FALLBACK.aborted).toBe("aborted");
   });
 });

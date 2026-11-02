@@ -6,8 +6,8 @@
  * limites de tamanho. Qualquer divergência ⇒ `null` (o Orchestrator cai no fallback
  * `invalid_decision`). O parse não interpreta intenção nem corrige o modelo.
  */
-import { isCapabilityId } from "./capabilities";
-import { CASE_RELATIONS, HANDOFF_URGENCIES, STRATEGIES, type ModelDecision } from "./contracts";
+import { CAPABILITY_IDS, isCapabilityId } from "./capabilities";
+import { CASE_RELATIONS, CREDENTIAL_MARKER, HANDOFF_URGENCIES, STRATEGIES, type ModelDecision } from "./contracts";
 
 export const DECISION_LIMITS = {
   replyMaxChars: 4_000,
@@ -90,14 +90,19 @@ export function parseModelDecision(raw: unknown): ModelDecision | null {
   };
 }
 
-/** Descrição do formato, para o prompt (B2 compõe; B1 garante que o texto e o parser concordam). */
-export const DECISION_FORMAT_SPEC = `Responda APENAS com um objeto JSON com exatamente estas chaves:
-{"strategy": "answer"|"clarify"|"guide"|"suggest_alternatives"|"handoff"|"answer_and_handoff",
- "reply": string (mensagem ao hóspede, no idioma dele; vazia só em "handoff"),
- "handoff": {"needed": boolean, "question": string|null (pergunta objetiva à equipe), "urgency": "low"|"normal"|"high"|null},
- "caseRelation": "related"|"independent"|"ambiguous"|"new"|"no_open_case",
- "groundedOn": [ids das fontes do contexto usadas],
+/**
+ * Descrição do formato, para o prompt (B2 compõe). Gerada a partir das MESMAS constantes do parser
+ * (estratégias, relações, urgências, capacidades, marcador, limites): texto e parser não divergem.
+ */
+const q = (xs: readonly string[]) => xs.map((x) => `"${x}"`).join("|");
+export const DECISION_FORMAT_SPEC = `Responda APENAS com um objeto JSON com exatamente estas chaves (nenhuma a mais, nenhuma a menos):
+{"strategy": ${q(STRATEGIES)},
+ "reply": string (mensagem ao hóspede, no idioma do hóspede, até ${DECISION_LIMITS.replyMaxChars} caracteres; vazia só em "handoff"),
+ "handoff": {"needed": boolean, "question": string|null (pergunta objetiva à equipe), "urgency": ${q(HANDOFF_URGENCIES)}|null},
+ "caseRelation": ${q(CASE_RELATIONS)},
+ "groundedOn": [ids das fontes do contexto usadas, exatamente como aparecem no contexto],
  "missingInformation": [string],
- "capabilityNeeds": [{"capability": string, "reason": string}],
- "credentialIntent": "none"|"would_deliver",
- "commitments": [string]}`;
+ "capabilityNeeds": [{"capability": ${q(CAPABILITY_IDS)}, "reason": string}],
+ "credentialIntent": "none"|"would_deliver" (com "would_deliver", escreva ${CREDENTIAL_MARKER} uma única vez no ponto da resposta; nunca escreva códigos ou senhas),
+ "commitments": [string]}
+Listas com no máximo ${DECISION_LIMITS.listMaxItems} itens.`;
