@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -52,9 +53,47 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     expect(offenders).toEqual(["data/credentials.server.ts", "data/projections.ts"]);
   });
 
-  it("F0/F1 (fora de llm/) não têm LLM, embeddings, rede nem gateway", () => {
+  it("F0/F1 (data, context, policy, slot, trust, types) não têm LLM, embeddings, rede nem gateway", () => {
     const re = /lib\/llm|guest-ai\/llm|ai\.gateway|openai|anthropic|generativelanguage|embedTexts|embedOne|runAgent|chatText|chatJson|\bfetch\(/i;
-    expect(files.filter((f) => !rel(f).startsWith("llm/") && re.test(code(f))).map(rel)).toEqual([]);
+    const f2b = /^(llm|orchestrator|validation|shadow)\//;
+    expect(files.filter((f) => !f2b.test(rel(f)) && re.test(code(f))).map(rel)).toEqual([]);
+  });
+
+  it("F2-B · B1: só o orchestrator chama o Gateway; demais módulos novos usam apenas tipos/registro de llm/", () => {
+    const runtime = files.filter((f) => /guest-ai\/llm\/gateway\.server|generateGuestLlm/.test(code(f)) && !rel(f).startsWith("llm/"));
+    expect(runtime.map(rel)).toEqual(["orchestrator/orchestrator.server.ts"]);
+    // fora de llm/, nada de rede direta nem de outro provedor
+    expect(files.filter((f) => !rel(f).startsWith("llm/") && /\bfetch\(|ai\.gateway|openai\.com|anthropic\.com/.test(code(f))).map(rel)).toEqual([]);
+  });
+
+  it("F2-B · B1: orchestrator/validation/shadow não acessam banco, credenciais, canais de envio nem tabelas legadas", () => {
+    const LEGACY = /\b(ai_agent_evaluations|ai_agent_learning_metrics|ai_agent_logs|ai_agent_metrics|ai_channel_connections|ai_conversation_channels|ai_conversation_summaries|ai_conversations|ai_messages|ai_global_intelligence|ai_guest_memory|ai_host_corrections|ai_human_escalations|ai_kb_chunks|ai_knowledge_gaps|ai_learning_candidates|ai_learning_impact_logs|ai_memories|ai_operational_memory|ai_precedents|ai_proactive_actions|ai_prompt_change_candidates|ai_property_playbooks|ai_tenant_knowledge|ai_usage_events|chat_message_feedback|host_behavior|host_faqs|host_knowledge)\b/;
+    const scoped = files.filter((f) => /^(orchestrator|validation|shadow)\//.test(rel(f)));
+    expect(scoped.length).toBeGreaterThanOrEqual(8);
+    for (const f of scoped) {
+      const c = code(f);
+      expect(c, rel(f)).not.toMatch(/supabase|getGuestAiDb|client\.server|\.from\(\s*["'`]/);
+      expect(c, rel(f)).not.toMatch(/fetchSensitiveCredentials|credentials\.server|issueCredentialGrant|PROPERTY_CREDENTIAL_COLUMNS|SENSITIVE_PROPERTY_COLUMNS/);
+      expect(c, rel(f)).not.toMatch(/deliverToAirbnbThread|sinch|property_chat_messages|sendHandoffPush|sendGuestReplyPush|handoff\.server/i);
+      expect(c, rel(f)).not.toMatch(LEGACY);
+      expect(c, rel(f)).not.toMatch(/\btools\s*:|tool_choice|function_call/);
+    }
+    // a única porta para o banco no caminho do turno é o Context Engine F1 (via loader de contexto)
+    const ctxLoader = code(path.join(ROOT, "context/conversation-context.server.ts"));
+    expect(ctxLoader).toMatch(/credentials: "skip"/);
+    expect(ctxLoader).not.toMatch(LEGACY);
+  });
+
+  it("F2-B · B1: o registro shadow não tem nenhum campo de texto livre (sem rascunho/resposta/prompt)", () => {
+    const c = code(path.join(ROOT, "shadow/contracts.ts"));
+    // nenhuma CHAVE de texto livre (resposta, rascunho, prompt, mensagem, pergunta, compromissos, lacunas)
+    expect(c).not.toMatch(/\b(draft\w*|reply\w*|prompt|promptText|content|messageText|text|question|commitments|missingInformation|handoffQuestion)\s*\??\s*:/i);
+    expect(c).toMatch(/isShadow: true/);
+  });
+
+  it("F2-B · B1: slot.server.ts byte a byte igual ao da main (homologada)", () => {
+    const hash = createHash("sha256").update(readFileSync(path.join(ROOT, "slot.server.ts"))).digest("hex");
+    expect(hash).toBe("39228fefe061fa64fa46e19242e2dc21b3078ab668ac5e354a27413f8b212917");
   });
 
   it("F2-A · gateway isolado: rede só no transporte do Lovable; sem src/lib/llm; sem banco, contexto ou credenciais", () => {
@@ -64,6 +103,7 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
       "llm/errors.ts",
       "llm/gateway.server.ts",
       "llm/models.ts",
+      "llm/probe.server.ts",
       "llm/providers/lovable-gateway.server.ts",
       "llm/providers/types.ts",
       "llm/telemetry.ts",

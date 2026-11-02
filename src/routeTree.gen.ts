@@ -82,6 +82,7 @@ import { Route as ApiPublicCronRefreshAirbnbListingsRouteImport } from './routes
 import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
 import { Route as ApiPublicCronReindexSystemKnowledgeRouteImport } from './routes/api/public/cron.reindex-system-knowledge'
+import { Route as ApiPublicGuestAiLlmProbeRouteImport } from './routes/api/public/guest-ai.llm-probe'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicWebhooksAsaasRouteImport } from './routes/api/public/webhooks.asaas'
 import { Route as ApiPublicWebhooksMalvoRouteImport } from './routes/api/public/webhooks.malvo'
@@ -496,6 +497,12 @@ const ApiPublicCronReindexSystemKnowledgeRoute =
     path: '/api/public/cron/reindex-system-knowledge',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicGuestAiLlmProbeRoute =
+  ApiPublicGuestAiLlmProbeRouteImport.update({
+    id: '/api/public/guest-ai/llm-probe',
+    path: '/api/public/guest-ai/llm-probe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -606,6 +613,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
+  '/api/public/guest-ai/llm-probe': typeof ApiPublicGuestAiLlmProbeRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
@@ -684,6 +692,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
+  '/api/public/guest-ai/llm-probe': typeof ApiPublicGuestAiLlmProbeRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
@@ -767,6 +776,7 @@ export interface FileRoutesById {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
+  '/api/public/guest-ai/llm-probe': typeof ApiPublicGuestAiLlmProbeRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
@@ -850,6 +860,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/cron/reindex-system-knowledge'
+    | '/api/public/guest-ai/llm-probe'
     | '/api/public/payments/webhook'
     | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
@@ -928,6 +939,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/cron/reindex-system-knowledge'
+    | '/api/public/guest-ai/llm-probe'
     | '/api/public/payments/webhook'
     | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
@@ -1010,6 +1022,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/cron/reindex-system-knowledge'
+    | '/api/public/guest-ai/llm-probe'
     | '/api/public/payments/webhook'
     | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
@@ -1064,6 +1077,7 @@ export interface RootRouteChildren {
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
   ApiPublicCronReindexSystemKnowledgeRoute: typeof ApiPublicCronReindexSystemKnowledgeRoute
+  ApiPublicGuestAiLlmProbeRoute: typeof ApiPublicGuestAiLlmProbeRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicWebhooksAsaasRoute: typeof ApiPublicWebhooksAsaasRoute
   ApiPublicWebhooksMalvoRoute: typeof ApiPublicWebhooksMalvoRoute
@@ -1586,6 +1600,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronReindexSystemKnowledgeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/guest-ai/llm-probe': {
+      id: '/api/public/guest-ai/llm-probe'
+      path: '/api/public/guest-ai/llm-probe'
+      fullPath: '/api/public/guest-ai/llm-probe'
+      preLoaderRoute: typeof ApiPublicGuestAiLlmProbeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -1796,6 +1817,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicCronRefreshRecommendationsRoute,
   ApiPublicCronReindexSystemKnowledgeRoute:
     ApiPublicCronReindexSystemKnowledgeRoute,
+  ApiPublicGuestAiLlmProbeRoute: ApiPublicGuestAiLlmProbeRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicWebhooksAsaasRoute: ApiPublicWebhooksAsaasRoute,
   ApiPublicWebhooksMalvoRoute: ApiPublicWebhooksMalvoRoute,

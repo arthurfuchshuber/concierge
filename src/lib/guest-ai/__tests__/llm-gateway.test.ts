@@ -366,7 +366,7 @@ describe("F2-A · logs estruturados sem conteúdo nem segredo", () => {
 });
 
 describe("F2-A · isolamento no repositório", () => {
-  it("nenhum arquivo fora de guest-ai/llm importa o gateway do Guest AI (ainda sem consumidor)", () => {
+  it("fora de guest-ai/llm, só o orchestrator, os contratos shadow (tipos) e a rota da sonda importam guest-ai/llm", () => {
     const SRC = path.resolve(__dirname, "../../..");
     const walk = (d: string): string[] =>
       readdirSync(d).flatMap((n) => {
@@ -377,7 +377,8 @@ describe("F2-A · isolamento no repositório", () => {
     const offenders = walk(SRC)
       .filter((f) => !f.includes(`${path.sep}guest-ai${path.sep}llm${path.sep}`))
       .filter((f) => /guest-ai\/llm/.test(readFileSync(f, "utf8")));
-    expect(offenders).toEqual([]);
+    const allowed = [/guest-ai[\\/]orchestrator[\\/]/, /guest-ai[\\/]shadow[\\/]contracts\.ts$/, /routes[\\/]api[\\/]public[\\/]guest-ai\.llm-probe\.ts$/, /[\\/]routeTree\.gen\.ts$/];
+    expect(offenders.filter((f) => !allowed.some((re) => re.test(f))).map((f) => path.relative(SRC, f))).toEqual([]);
   });
   it("o gateway convencional do SaaS (src/lib/llm) não importa o do Guest AI", () => {
     const g = readFileSync(path.resolve(__dirname, "../../llm/gateway.server.ts"), "utf8");

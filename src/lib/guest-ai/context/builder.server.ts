@@ -57,6 +57,12 @@ export interface BuilderDeps {
   fetchDossierKnowledge?: typeof fetchDossierKnowledge;
   fetchSensitiveCredentials?: (grant: CredentialGrant) => Promise<GuestCredentials | null>;
   loadPropertyScope?: (turn: ValidatedTurn, db: GuestAiDb) => Promise<PropertyScopeRow | null>;
+  /**
+   * F2-B: `"skip"` = avalia a D9 (decisão e motivo) mas NUNCA busca credenciais — nem revalida
+   * para entrega, nem emite grant. Usado pelo Orchestrator (o modelo nunca recebe credenciais).
+   * Padrão `"fetch"` preserva o comportamento F1.
+   */
+  credentials?: "fetch" | "skip";
 }
 
 async function defaultLoadPropertyScope(turn: ValidatedTurn, db: GuestAiDb): Promise<PropertyScopeRow | null> {
@@ -155,7 +161,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
   // 4–6) credenciais: só se permitido, e só após REAVALIAR com estado atualizado
   let policy: AccessPolicyResult = first;
   let credentials: GuestCredentials | null = null;
-  if (first.allowed && state.reservationId) {
+  if (deps.credentials !== "skip" && first.allowed && state.reservationId) {
     try {
       const second = await getReservation(turn, { db });
       const t1 = clock();

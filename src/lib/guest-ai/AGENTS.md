@@ -52,7 +52,7 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - Nenhuma credencial em log, trace, métrica, mensagem de erro ou `uncertainties`. Os erros deste módulo são códigos fixos.
 - `AccessPolicyResult` só carrega decisão, motivo e instantes de diagnóstico; nunca valores.
 
-## F2-A — LLM Gateway (`llm/`, homologação pendente)
+## F2-A — LLM Gateway (`llm/`, commit local `b48205b`)
 - `llm/gateway.server.ts` → `generateGuestLlm(request)` é o ÚNICO caminho do Guest AI até um modelo. Nunca lança: falha = `{ ok: false, error: { code } }` e o chamador segue o fallback humano.
 - Transporte: Lovable AI Gateway (`https://ai.gateway.lovable.dev/v1`, cabeçalho `Lovable-API-Key` com `LOVABLE_API_KEY`), só em `llm/providers/lovable-gateway.server.ts`. Google → `/chat/completions` (`reasoning_effort`); OpenAI → `/responses` em streaming (`reasoning.effort`), resultado do evento terminal.
 - Só modelos de `llm/models.ts` (registro próprio, com preço por 1M tokens). Nunca importar `src/lib/llm/` (gateway convencional do SaaS) nem ser importado por ele.
@@ -60,10 +60,24 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - Truncada (`length`/fluxo sem evento terminal), filtrada, vazia, término desconhecido ou JSON inválido = falha. Nada parcial sai do gateway.
 - `forbiddenValues`: se algum aparecer em qualquer mensagem, recusa antes da rede (`sensitive_content_blocked`). O gateway não conhece credenciais nem importa `data/`, `context/`, `policy/`.
 - Log: um evento `guest_ai.llm.call` por chamada, por lista branca (números, códigos, ids opacos). Nunca conteúdo, chave, corpo de erro do provedor nem valores proibidos. O corpo de respostas de erro HTTP não é lido.
-- Sem consumidor ainda: o `slot.server.ts` continua devolvendo `null` (fallback humano) e não importa `llm/`. Sem tool calling, sem envio a canais (testes estáticos em `data-boundary.test.ts` e `llm-gateway.test.ts`).
+- Único consumidor: o Orchestrator (F2-B). O `slot.server.ts` continua devolvendo `null` (fallback humano), não importa `llm/` e é verificado byte a byte contra a main. Sem tool calling, sem envio a canais.
+- `contextWindowTokens` no registro é um piso CONSERVADOR provisório (128 mil) até a sonda D14 confirmar os limites reais.
+- Sonda D14 (`llm/probe.server.ts`, rota `/api/public/guest-ai/llm-probe`): DESLIGADA por padrão. Só roda com `GUEST_AI_LLM_PROBE=on` E segredo de cron; com a chave desligada responde 404 sem chamar nada. Prompts sintéticos; devolve só telemetria (nunca o texto). Executar só com autorização expressa.
 
-## Restrições vigentes (F0/F1 + F2-A)
-- Proibido: Orchestrator, resposta automática, ativar o slot, executar/registrar ferramentas, entregar credenciais ao LLM, embeddings, RAG vetorial, envio de mensagens, ativação de canal, agentes Operations/Owner, deploy. Chamadas a LLM só via `llm/gateway.server.ts`.
+## F2-B · B1 — Conversational Orchestrator (`orchestrator/`, `validation/`, `shadow/contracts.ts`)
+- `runGuestTurn(TurnRequest)` coordena: contexto autorizado → compositor de prompt (B2) → Gateway → decisão JSON (parse estrito, `decision.ts`) → validação → resultado. Nunca lança; prazo total ≤ 15 s (corrida contra etapas lentas; o Gateway recebe o prazo restante). `mode` é literal `"shadow"`.
+- Fallbacks tipados (`FALLBACK_KINDS`); os 17 códigos do Gateway mapeados em `LLM_FALLBACK` (exaustivo, verificado pelo compilador).
+- Contexto: `context/conversation-context.server.ts` usa `buildGuestContext` com `credentials: "skip"` (a D9 é avaliada, credenciais NUNCA são buscadas). O Orchestrator recusa contexto com credenciais (`credentials_present`). Histórico, orientações e precedentes: `unavailable` (`not_loaded` / `no_governed_store`). Proibido ler as 29 tabelas legadas.
+- Credenciais: o modelo nunca as vê. Ele só declara `credentialIntent` e usa o marcador `[[CREDENCIAIS]]`, que na F2-B nunca é substituído. O Validator bloqueia intenção contra a D9 e código de acesso fabricado (padrão estrutural, não filtro de estilo).
+- Validator (`validation/output-validator.ts`): só segurança e integridade (estrutura, credenciais, fundamento, posse humana). Sem censura de estilo, desculpas, emojis, humor ou idioma (a IA segue o idioma do hóspede em todos os canais).
+- Posse humana por assunto (`case-ownership.ts` + `evaluateCaseGate` F1): `related` impede compromissos sobre o assunto; `ambiguous` exige esclarecer; nunca bloqueio global.
+- Capacidades F2-C (`capabilities.ts`): só contratos, todas `enabled: false`; o modelo apenas declara `capabilityNeeds`.
+- Sem compositor de prompt instalado (B2), todo turno cai em `prompt_unavailable`.
+- Shadow (`shadow/contracts.ts`): só tipos. Registro com metadados técnicos apenas — nenhum campo de texto (sem rascunho, resposta, prompt, mensagem). Gatilho operacional (coletor + worker por cron) é da B3; nunca o job legado de 15 s.
+- Log `guest_ai.turn` por lista branca (sem texto).
+
+## Restrições vigentes (F0/F1 + F2-A + F2-B/B1)
+- Proibido: resposta automática ou envio real, ativar o slot, persistir texto de resposta, ler colunas de senha para mascarar texto (sanitização só por padrões estruturais), executar/registrar ferramentas, entregar credenciais ao LLM, embeddings, RAG vetorial, envio de mensagens, ativação de canal, agentes Operations/Owner, deploy. Chamadas a LLM só via `llm/gateway.server.ts`.
 - Banco: não reutilizar nem tocar nas 29 tabelas da IA antiga; só as migrations `20261102200000` (D13, colunas) e `20261102230000` (guardas D13/R6) foram aplicadas em produção; nenhuma outra sem autorização; nenhum DROP/TRUNCATE/DELETE. Estruturas novas (`ai_guest_cases`, `ai_turn_traces`, registro de liberação manual) só como proposta, com autorização.
 - Não reativar o cron iCal 682.
 - Título público do imóvel (`data/public-title.ts`): o prefixo de código interno (`AP014 - `) é removido só na representação para o hóspede (listing, dossiê, builder); `properties.name` nunca é alterado. Sem separação comprovada, o nome sai inteiro.

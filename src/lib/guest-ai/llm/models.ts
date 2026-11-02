@@ -25,8 +25,17 @@ export interface ModelSpec {
   supportsJson: boolean;
   /** Teto de saída do modelo neste gateway (o menor entre isto e `LIMITS.maxOutputTokens` vale). */
   maxOutputTokens: number;
+  /**
+   * Janela de contexto (entrada + saída) usada no ORÇAMENTO de contexto do Guest AI.
+   * Valor CONSERVADOR PROVISÓRIO (piso comum aos modelos cadastrados), não o máximo anunciado
+   * pelo fornecedor: a sonda D14 confirma os limites reais antes de qualquer ajuste para cima.
+   */
+  contextWindowTokens: number;
   pricePerMTok: { input: number; output: number };
 }
+
+/** Piso conservador provisório da janela de contexto (ver `contextWindowTokens`). */
+export const CONSERVATIVE_CONTEXT_WINDOW = 128_000;
 
 const SPECS: readonly ModelSpec[] = [
   {
@@ -38,6 +47,7 @@ const SPECS: readonly ModelSpec[] = [
     supportsTemperature: true,
     supportsJson: true,
     maxOutputTokens: 8_192,
+    contextWindowTokens: CONSERVATIVE_CONTEXT_WINDOW,
     pricePerMTok: { input: 0.3, output: 2.5 },
   },
   {
@@ -49,6 +59,7 @@ const SPECS: readonly ModelSpec[] = [
     supportsTemperature: true,
     supportsJson: true,
     maxOutputTokens: 8_192,
+    contextWindowTokens: CONSERVATIVE_CONTEXT_WINDOW,
     pricePerMTok: { input: 0.1, output: 0.4 },
   },
   {
@@ -61,6 +72,7 @@ const SPECS: readonly ModelSpec[] = [
     supportsTemperature: false,
     supportsJson: true,
     maxOutputTokens: 8_192,
+    contextWindowTokens: CONSERVATIVE_CONTEXT_WINDOW,
     pricePerMTok: { input: 1.25, output: 10 },
   },
   {
@@ -72,6 +84,7 @@ const SPECS: readonly ModelSpec[] = [
     supportsTemperature: false,
     supportsJson: true,
     maxOutputTokens: 8_192,
+    contextWindowTokens: CONSERVATIVE_CONTEXT_WINDOW,
     pricePerMTok: { input: 1.25, output: 10 },
   },
 ];
