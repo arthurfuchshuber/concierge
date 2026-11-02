@@ -738,6 +738,18 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const toggleCleaningFn = useServerFn(toggleCleaningCompletion);
 
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
+  // Monta o calendário (a parte mais pesada) só depois que o resto do painel
+  // já apareceu e o navegador ficou livre — a tela responde na hora.
+  const [calendarReady, setCalendarReady] = useState(false);
+  useEffect(() => {
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(() => startTransition(() => setCalendarReady(true)), { timeout: 800 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const t = window.setTimeout(() => startTransition(() => setCalendarReady(true)), 300);
+    return () => window.clearTimeout(t);
+  }, []);
   // Qual coluna do Kanban está ativa no mobile (lá o quadro vira abas — não
   // cabem as 5 colunas lado a lado). No desktop não é usado; as 5 colunas
   // aparecem todas ao mesmo tempo.
