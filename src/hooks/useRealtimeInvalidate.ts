@@ -65,7 +65,14 @@ export function useRealtimeInvalidate(
       // Token no socket ANTES de assinar (sem ele a RLS descarta os eventos).
       await ensureRealtimeAuth();
       if (cancelado) return;
-      if (current) supabase.removeChannel(current);
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = null;
+      // Remover o canal antigo dispara "CLOSED" NELE; sem a checagem de
+      // identidade abaixo isso virava um laço de reconexões (bug de 02/11/2026,
+      // ver LiveSync.tsx).
+      const antigo = current;
+      current = null;
+      if (antigo) supabase.removeChannel(antigo);
       let channel = supabase.channel(`${channelName}-${Date.now()}-${tentativa}`);
       for (const w of watches) {
         channel = channel.on(
@@ -80,8 +87,9 @@ export function useRealtimeInvalidate(
         );
       }
       current = channel;
+      const meu = channel;
       channel.subscribe((status) => {
-        if (cancelado) return;
+        if (cancelado || current !== meu) return;
         if (status === "SUBSCRIBED") {
           // Reconectou: busca o que mudou enquanto a conexão esteve fora.
           if (tentativa > 0) invalidate();

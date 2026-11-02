@@ -1618,7 +1618,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       // Token no socket ANTES de assinar (sem ele a RLS descarta os eventos).
       await ensureRealtimeAuth();
       if (cancelado) return;
-      if (ch) supabase.removeChannel(ch);
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = null;
+      // Remover o canal antigo dispara "CLOSED" NELE; sem a checagem de
+      // identidade abaixo isso virava um laço de reconexões (bug de 02/11/2026,
+      // ver LiveSync.tsx).
+      const antigo = ch;
+      ch = null;
+      if (antigo) supabase.removeChannel(antigo);
       // Nome único por tentativa: reaproveitar o mesmo nome depois de um erro
       // faz o cliente recusar novos listeners.
       let canal = supabase.channel(`dash-live-${Date.now()}-${tentativa}`);
@@ -1626,8 +1633,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         canal = canal.on("postgres_changes", { event: "*", schema: "public", table }, invalidate);
       }
       ch = canal;
+      const meu = canal;
       canal.subscribe((status) => {
-        if (cancelado) return;
+        if (cancelado || ch !== meu) return;
         if (status === "SUBSCRIBED") {
           tentativa = 0;
           // Reconectou: busca o que aconteceu enquanto estávamos fora.

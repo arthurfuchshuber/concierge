@@ -126,14 +126,26 @@ export function LiveSync() {
       // Token no socket ANTES de assinar: sem ele a RLS descarta os eventos.
       await ensureRealtimeAuth();
       if (stopped) return;
-      if (channel) supabase.removeChannel(channel);
+      if (retry) clearTimeout(retry);
+      retry = null;
+      // LAÇO DE RECONEXÃO (bug real, 02/11/2026): remover o canal antigo dispara
+      // "CLOSED" NO PRÓPRIO canal antigo. Tratado como queda, isso agendava outra
+      // conexão, que removia o canal atual, e assim por diante — a cada ~2 s o
+      // painel relia TODAS as consultas (~23 mil chamadas por hora de uma só
+      // pessoa, e a trilha de auditoria crescia ~550 mil linhas por dia). Agora
+      // o canal antigo sai de cena ANTES de ser removido e só o callback do
+      // canal atual decide alguma coisa.
+      const old = channel;
+      channel = null;
+      if (old) supabase.removeChannel(old);
       let ch = supabase.channel(`live-sync-${Date.now()}-${attempt}`);
       for (const table of TABLES) {
         ch = ch.on("postgres_changes", { event: "*", schema: "public", table }, onChange);
       }
       channel = ch;
+      const mine = ch;
       ch.subscribe((status) => {
-        if (stopped) return;
+        if (stopped || channel !== mine) return;
         if (status === "SUBSCRIBED") {
           setHealthy(true);
           if (attempt > 0) refreshAll();

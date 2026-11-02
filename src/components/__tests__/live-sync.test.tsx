@@ -16,6 +16,8 @@ const h = vi.hoisted(() => ({
   statusCb: null as null | ((s: string) => void),
   changeCb: null as null | (() => void),
   authCb: null as null | ((event: string, session: unknown) => void),
+  /** Como o cliente real: remover um canal dispara o callback dele com "CLOSED". */
+  closeOnRemove: false,
 }));
 
 vi.mock("@/integrations/supabase/client", () => {
@@ -25,6 +27,7 @@ vi.mock("@/integrations/supabase/client", () => {
       subscribe: (cb: (s: string) => void) => {
         h.subscribes += 1;
         h.statusCb = cb;
+        ch.cb = cb;
         return ch;
       },
     };
@@ -33,7 +36,9 @@ vi.mock("@/integrations/supabase/client", () => {
   return {
     supabase: {
       channel,
-      removeChannel: () => {},
+      removeChannel: (ch: any) => {
+        if (h.closeOnRemove) ch?.cb?.("CLOSED");
+      },
       realtime: { setAuth: () => {} },
       auth: {
         onAuthStateChange: (cb: (event: string, session: unknown) => void) => {
@@ -80,6 +85,7 @@ describe("LiveSync", () => {
     h.statusCb = null;
     h.changeCb = null;
     h.authCb = null;
+    h.closeOnRemove = false;
   });
 
   it("evento ao vivo recarrega a operação, mas não a casca", async () => {
@@ -129,5 +135,30 @@ describe("LiveSync", () => {
     act(() => h.authCb!("SIGNED_IN", { access_token: "t2", user: { id: "u2" } }));
     await flush();
     expect(h.subscribes).toBe(before + 1);
+  });
+
+  it("o CLOSED do canal antigo (removido ao reconectar) não vira um laço de reconexões", async () => {
+    // Bug real (02/11/2026): remover o canal antigo dispara "CLOSED" nele; tratado como queda, agendava
+    // outra conexão, que removia o canal atual, e assim por diante — a cada ~2 s o painel relia TODAS as
+    // consultas (~23 mil chamadas por hora de uma só pessoa).
+    h.closeOnRemove = true;
+    const { spy } = setup();
+    await flush();
+    act(() => h.statusCb!("SUBSCRIBED"));
+    act(() => h.authCb!("SIGNED_IN", { access_token: "t", user: { id: "u1" } }));
+    await flush();
+    act(() => h.statusCb!("SUBSCRIBED"));
+    const before = h.subscribes;
+    spy.mockClear();
+    for (let i = 0; i < 20; i++) {
+      await act(async () => {
+        vi.advanceTimersByTime(1_000);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      h.statusCb?.("SUBSCRIBED");
+    }
+    expect(h.subscribes).toBe(before);
+    expect(spy).not.toHaveBeenCalled();
   });
 });
