@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyAccessDecisions } from "@/lib/permissions/permission.access.functions";
 import type { AccessLevelInput } from "@/lib/permissions/permissionClient";
+import { batchedAccess } from "@/lib/permissions/accessBatcher";
 import { useAccessEnv } from "@/lib/permissions/useAccessEnv";
 
 /**
@@ -49,8 +50,7 @@ export function useAreaAccess(namespaces: string[], required: AccessLevelInput =
     queryKey: ["area-access", accountOwnerId ?? "self", required, list.join("|")],
     queryFn: () =>
       withTimeout(
-        fetcher({
-          data: {
+        batchedAccess<Awaited<ReturnType<typeof fetcher>>>(fetcher as never, {
             permissions: list,
             required,
             accountOwnerId,
