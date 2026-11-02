@@ -28,3 +28,4 @@
 - Conversations escalated to a human never auto-open the full Atendimento window: they become `QuickChatBubbles` beside the floating button (stacked when several) that expand into an in-place mini-chat; only an explicit push click opens the full window.
 - Playbook hides empty manually-editable optional rows (only `STANDARD_MANUAL_FIELDS` stay visible) and offers them via "Adicionar campo"; "Replicar" only shows on manually-edited rows, never on listing/scrap data such as house rules.
 - The Gerencial page/menu item was removed (28/10/2026); `src/lib/executive.functions.ts` (director allowlist) is kept unused and no DB data was touched.
+- Dashboard arrival lists requested together are merged client-side into one `listDashboardArrivalsBatch` call (permissions + stay reconciliation run once per batch); this keeps per-list query keys/optimistic updates while cutting mobile round-trips.
