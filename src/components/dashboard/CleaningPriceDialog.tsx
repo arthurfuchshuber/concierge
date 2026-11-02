@@ -183,10 +183,10 @@ export function CleaningInlineEditor({
   const standard = type === "completa" ? row.cleaningPriceFullCents : row.cleaningPriceNormalCents;
   const value = info?.currentCents ?? standard;
   /* NO PADRÃO DO HISTÓRICO "OPÇÃO C" (mockup aprovado, 31/10/2026): entra DENTRO do cartão do momento, com as
-     mesmas linhas de 21 px (rótulo cinza à esquerda, valor em destaque à direita, sem divisórias) — Tipo, Valor
+     mesmas linhas de no mínimo 21 px (rótulo cinza à esquerda, valor em destaque à direita, sem divisórias) — Tipo, Valor
      (toque edita) e Prestador (quadrado "EV" + nome, toque troca) — e a fileira de ações padrão: botão verde
      "Finalizar Limpeza" primeiro + quadrados de 28 px (lápis = ajustar valor; proibido = não será realizada). */
-  const rowCls = "flex h-[21px] items-center justify-between gap-4 text-xs leading-none";
+  const rowCls = "flex min-h-[21px] items-center justify-between gap-4 text-xs leading-[15px]";
   const sqCls =
     "grid size-7 shrink-0 place-items-center rounded-[7px] border-0 bg-[var(--action-sq-bg)] text-foreground transition-colors hover:bg-primary/[0.08]";
   return (

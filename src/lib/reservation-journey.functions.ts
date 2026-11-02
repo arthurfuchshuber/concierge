@@ -176,6 +176,8 @@ type StatusRow = {
   cleaning_price_cents: number | null;
   cleaning_approval_status: string | null;
   manual_created_by?: string | null;
+  cleaning_done_by?: string | null;
+  arrival_time_source?: string | null;
 };
 
 function brl(cents: number | null): string | null {
@@ -332,7 +334,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
     const { data: statusRows } = await db
       .from("guest_arrival_status")
       .select(
-        "kind, status, note, done_at, concluded_at, created_at, updated_at, arrival_time_override, arrival_date_override, cleaning_type, cleaning_price_cents, cleaning_approval_status, manual_created_by",
+        "kind, status, note, done_at, concluded_at, created_at, updated_at, arrival_time_override, arrival_date_override, cleaning_type, cleaning_price_cents, cleaning_approval_status, manual_created_by, cleaning_done_by, arrival_time_source",
       )
       .or(orParts.join(","))
       .order("updated_at", { ascending: true });
@@ -404,6 +406,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
         [
           ...events.map((e) => e.actor_id),
           ...all.map((r) => r.manual_created_by),
+          ...all.map((r) => r.cleaning_done_by),
           ...taskRows.map((t) => t.created_by),
           ...recRows.map((r) => r.created_by),
         ].filter((x): x is string => !!x),
@@ -458,14 +461,33 @@ export const getReservationJourney = createServerFn({ method: "GET" })
     /** Passo feito: autor do evento, ou "não registrado" para dado antigo. */
     const authorFor = (ev: EventRow | null): JourneyActor =>
       ev ? actorOf(ev.actor_id) : { name: null, role: null };
-    /** Check-in/check-out concluído: autor da equipe quando registrado; sem ele, e
-     *  sem marca de "feito pela equipe", quem confirmou foi o hóspede pelo Guia Digital. */
+    /** Ação da equipe (02/11/2026): nunca "Autor não registrado". O nome de quem
+     *  gravou (`manual_created_by`/`cleaning_done_by`); sem ele, ou sem perfil, "Equipe". */
+    const TEAM: JourneyActor = { name: "Equipe", role: "Equipe" };
+    const staffActor = (id: string | null | undefined): JourneyActor => {
+      if (!id) return TEAM;
+      const found = actorOf(id);
+      return found.name ? found : TEAM;
+    };
+    /** Check-in/check-out concluído: o evento, se houver; senão a nota do carimbo diz a
+     *  origem — equipe (com o nome de quem confirmou), sistema ou o hóspede pelo Guia Digital.
+     *  A nota vem antes de `manual_created_by` porque a mesma linha também guarda o autor
+     *  da previsão, que não é quem confirmou quando a confirmação veio do hóspede. */
     const stepAuthor = (ev: EventRow | null, row: StatusRow | null): JourneyActor => {
-      const staff = authorFor(ev);
-      if (staff.name) return staff;
-      if (/pela equipe/i.test(row?.note ?? "")) return staff;
-      if (/automaticamente/i.test(row?.note ?? "")) return SYSTEM;
+      const evActor = authorFor(ev);
+      if (evActor.name) return evActor;
+      const note = row?.note ?? "";
+      if (/pela equipe/i.test(note)) return staffActor(row?.manual_created_by);
+      if (/automaticamente/i.test(note)) return SYSTEM;
       return GUEST;
+    };
+    /** Limpeza concluída: quem concluiu (`cleaning_done_by`); conclusão automática → sistema. */
+    const cleaningAuthor = (ev: EventRow | null, row: StatusRow | null): JourneyActor => {
+      const evActor = authorFor(ev);
+      if (evActor.name) return evActor;
+      if (row?.cleaning_done_by) return staffActor(row.cleaning_done_by);
+      if (/automaticamente/i.test(row?.note ?? "")) return SYSTEM;
+      return TEAM;
     };
 
     // ---- 5. A jornada ----
@@ -518,11 +540,19 @@ export const getReservationJourney = createServerFn({ method: "GET" })
           [previsaoData ? fmtDateBR(previsaoData) : null, previsaoHora?.slice(0, 5)]
             .filter(Boolean)
             .join(" · ") || null,
-        actor: evPrevisao
-          ? authorFor(evPrevisao)
-          : log?.guest_arrival_time && !ci?.arrival_time_override
-            ? GUEST
-            : authorFor(null),
+        actor: (() => {
+          if (evPrevisao) return authorFor(evPrevisao);
+          // Linha que guarda a previsão: a origem (`arrival_time_source`) diz se
+          // foi o hóspede pelo guia ou a equipe pelo painel (com o nome).
+          const pr =
+            ci?.arrival_time_override || ci?.arrival_date_override
+              ? ci
+              : co?.arrival_time_override || co?.arrival_date_override
+                ? co
+                : null;
+          if (pr) return pr.arrival_time_source === "guest" ? GUEST : staffActor(pr.manual_created_by);
+          return log?.guest_arrival_time ? GUEST : SYSTEM;
+        })(),
       });
     }
 
@@ -656,7 +686,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
         at: ev?.created_at ?? ci?.concluded_at ?? ci?.updated_at ?? null,
         detail: ci?.note ?? null,
         // Autor: o evento registrado ou, na falta dele, quem gravou o "Não compareceu" (manual_created_by).
-        actor: authorFor(ev).name ? authorFor(ev) : ci?.manual_created_by ? actorOf(ci.manual_created_by) : authorFor(ev),
+        actor: authorFor(ev).name ? authorFor(ev) : staffActor(ci?.manual_created_by),
       });
       return { ...base, steps, statusLabel: "Não compareceu" };
     }
@@ -717,7 +747,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
         : checkoutDone
           ? "Liberada — aguardando conclusão"
           : "Aguardando o checkout",
-      actor: concluded ? authorFor(evConcluded) : null,
+      actor: concluded ? cleaningAuthor(evConcluded, co) : null,
     });
     steps.push({
       key: "concluido",
@@ -725,7 +755,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       state: concluded ? "done" : "pending",
       at: co?.concluded_at ?? null,
       detail: concluded ? null : "Aguardando a limpeza",
-      actor: concluded ? authorFor(evConcluded) : null,
+      actor: concluded ? cleaningAuthor(evConcluded, co) : null,
     });
 
     const statusLabel = concluded

@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-02T15:15:49.453Z";
+export const GENERATED_AT = "2026-11-02T15:35:12.390Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -3276,10 +3276,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:Sb",
     "kind": "rule",
     "title": "Regra — Sb",
-    "content": "AS LIMPEZAS MANUAIS NO QUADRO (02/10/2026).\n\nA esteira (`arrival-board.server.ts`) monta os cards a partir de reservas e\nformulários; uma limpeza criada à mão não tem nem um nem outro. Em vez de\nensinar aquelas 1.300 linhas a lidar com um card sem estadia, as manuais são\nmontadas AQUI e somadas à lista de saídas só na consulta do painel\n(`listDashboardArrivals`). Assim o assistente, os avisos por push e o\ncheck-out automático — que também usam a esteira — continuam enxergando\napenas estadias de verdade.\n\nO card sai com `status: \"done\"`, que é o que a tela chama de \"Fila de\nLimpeza\", e com `logId = \"manual:<id>\"` (mesma ideia do `ical:<id>` das\nreservas sem formulário). `reservationId` fica SEMPRE nulo, mesmo quando a\nlimpeza aponta para uma reserva: nenhuma ação do card pode cair, por engano,\nna limpeza da saída daquela reserva.\n\n\"Aparece na fila só naquele dia\" (resposta do cliente): entra a partir de\n`manual_date` e fica até ser finalizada — atrasada continua visível, como\nqualquer outra limpeza.",
+    "content": "AS LIMPEZAS MANUAIS NO QUADRO (02/10/2026).\n\nA esteira (`arrival-board.server.ts`) monta os cards a partir de reservas e\nformulários; uma limpeza criada à mão não tem nem um nem outro. Em vez de\nensinar aquelas 1.300 linhas a lidar com um card sem estadia, as manuais são\nmontadas AQUI e somadas à lista de saídas só na consulta do painel\n(`listDashboardArrivalsBatch`). Assim o assistente, os avisos por push e o\ncheck-out automático — que também usam a esteira — continuam enxergando\napenas estadias de verdade.\n\nO card sai com `status: \"done\"`, que é o que a tela chama de \"Fila de\nLimpeza\", e com `logId = \"manual:<id>\"` (mesma ideia do `ical:<id>` das\nreservas sem formulário). `reservationId` fica SEMPRE nulo, mesmo quando a\nlimpeza aponta para uma reserva: nenhuma ação do card pode cair, por engano,\nna limpeza da saída daquela reserva.\n\n\"Aparece na fila só naquele dia\" (resposta do cliente): entra a partir de\n`manual_date` e fica até ser finalizada — atrasada continua visível, como\nqualquer outra limpeza.",
     "source_path": "src/lib/manual-cleaning.server.ts",
     "audience": [],
-    "content_hash": "c11dadc8297b1374c64780dad11f291c"
+    "content_hash": "d8a3283c49eebf84c22f5aff9f5dd5be"
   },
   {
     "doc_key": "rule:ScopeInput",
@@ -4821,7 +4821,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c5d7c67ab36429e4ef7882a69012e930"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:66922",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:66326",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "CORREÇÃO (16/09/2026): a trava não tinha recorte de data. Uma estadia\nantiga que ficou sem conclusão na esteira (ninguém arrastou o card até\n\"Concluído\") travava PARA SEMPRE todo check-in futuro do imóvel, sem\nforma de limpar pela tela. A regra só vale enquanto a estadia anterior\nainda está em curso: se a saída dela já passou, o imóvel está livre.",
@@ -4830,7 +4830,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f0dc32f8e039acbdce5c3d639d01aec7"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:70201",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:69605",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "\"Não Compareceu\" NÃO libera o imóvel (pedido explícito, 15/09/2026).\nA estadia continua ocupando o imóvel até que a reserva seja de fato\ncancelada no sistema — só então a próxima chegada é liberada. Como\nmarkNoShow grava concluded_at, essas linhas não aparecem na consulta\nacima; por isso olhamos para elas separadamente.\n\nCORREÇÃO (15/09/2026): a trava não tinha recorte de data. Um \"Não\nCompareceu\" do mês passado, cuja reserva importada por iCal continua\n\"confirmed\" para sempre, travava TODA chegada futura daquele imóvel,\nsem nenhuma forma de limpar. A regra só faz sentido enquanto a estadia\ndo no-show ainda está em curso: se a data de saída dela já passou, o\nimóvel está livre, independentemente do status da reserva.",
@@ -4839,7 +4839,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "edc55a43f4b31fbebe1f8cc20b92ca0d"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:88547",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:87951",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "Completa o identificador que faltou (pedido explícito, 08/09/2026: o\ncard marcado como \"não compareceu\" continuava espelhado na Fila de\nLimpeza).\n\nO card de chegada e o de saída da MESMA estadia nem sempre carregam o\nmesmo identificador — o casamento formulário↔reserva é mais exigente\ndo lado da chegada (ver `findLogsForReservation`). Gravando só o que o\ncard clicado tinha, o outro lado ficava sem chave em comum e escapava\ndo filtro. Aqui procuramos o par pela estadia e gravamos os DOIS, de\nmodo que qualquer consumidor — não só o quadro — reconheça o\nnão comparecimento por qualquer um dos lados.",
@@ -5526,10 +5526,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:stepAuthor",
     "kind": "rule",
     "title": "Regra — stepAuthor",
-    "content": "Check-in/check-out concluído: autor da equipe quando registrado; sem ele, e\n sem marca de \"feito pela equipe\", quem confirmou foi o hóspede pelo Guia Digital.",
+    "content": "Check-in/check-out concluído: o evento, se houver; senão a nota do carimbo diz a\n origem — equipe (com o nome de quem confirmou), sistema ou o hóspede pelo Guia Digital.\n A nota vem antes de `manual_created_by` porque a mesma linha também guarda o autor\n da previsão, que não é quem confirmou quando a confirmação veio do hóspede.",
     "source_path": "src/lib/reservation-journey.functions.ts",
     "audience": [],
-    "content_hash": "2ac7490fffbc9f1e05705a63cb199bb6"
+    "content_hash": "a60e887694920da7aaff4875a9848b02"
   },
   {
     "doc_key": "rule:StepText",
@@ -5701,6 +5701,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "4f58358fdfda86f9671072a193dad782"
+  },
+  {
+    "doc_key": "rule:TEAM",
+    "kind": "rule",
+    "title": "Regra — TEAM",
+    "content": "Ação da equipe (02/11/2026): nunca \"Autor não registrado\". O nome de quem\n gravou (`manual_created_by`/`cleaning_done_by`); sem ele, ou sem perfil, \"Equipe\".",
+    "source_path": "src/lib/reservation-journey.functions.ts",
+    "audience": [],
+    "content_hash": "6a51ac0ea4aff905f371434f2a8b9faf"
   },
   {
     "doc_key": "rule:ThemeToggle",

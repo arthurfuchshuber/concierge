@@ -7,7 +7,7 @@ import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
  * formulários; uma limpeza criada à mão não tem nem um nem outro. Em vez de
  * ensinar aquelas 1.300 linhas a lidar com um card sem estadia, as manuais são
  * montadas AQUI e somadas à lista de saídas só na consulta do painel
- * (`listDashboardArrivals`). Assim o assistente, os avisos por push e o
+ * (`listDashboardArrivalsBatch`). Assim o assistente, os avisos por push e o
  * check-out automático — que também usam a esteira — continuam enxergando
  * apenas estadias de verdade.
  *

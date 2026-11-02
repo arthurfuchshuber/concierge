@@ -1004,45 +1004,12 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
 
 // ----- Arrivals list -----
 
-const ListInput = z.object({
-  kind: z.enum(["checkin", "checkout"]).default("checkin"),
-  range: z.enum(["today", "tomorrow", "7d", "all"]).default("today"),
-  ownerId: z.string().uuid().nullable().optional(),
-});
-
 export type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 
-export const listDashboardArrivals = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => ListInput.parse(i))
-  .handler(async ({ data, context }): Promise<{ rows: ArrivalRow[] }> => {
-    const propIds = await accessiblePropertyIds(
-      context.supabase as never,
-      data.ownerId ?? null,
-      context.userId,
-    );
-    if (propIds.length === 0) return { rows: [] };
-    const { buildArrivalRows } = await import("@/lib/arrival-board.server");
-    const built = await buildArrivalRows(context.supabase as never, {
-      kind: data.kind,
-      range: data.range,
-      propIds,
-    });
-    // LIMPEZAS CRIADAS MANUALMENTE (02/10/2026): somadas só aqui, na lista do
-    // painel — ver `manual-cleaning.server.ts`. Ficam fora da lista de
-    // "amanhã": a tela trata uma saída de amanhã já liberada como check-out
-    // antecipado e a puxaria para a fila de hoje, e a manual só pode aparecer
-    // a partir do dia marcado.
-    if (data.kind !== "checkout" || data.range === "tomorrow") return built;
-    const { buildManualCleaningRows } = await import("@/lib/manual-cleaning.server");
-    const manual = await buildManualCleaningRows(context.supabase, propIds, todayISO());
-    return manual.length > 0 ? { rows: [...built.rows, ...manual] } : built;
-  });
-
 /**
- * LOTE DO PAINEL (02/11/2026): as listas pedidas ao mesmo tempo pela tela
- * viajam numa única chamada — permissões e reconciliação de estadias rodam
+ * LOTE DO PAINEL (02/11/2026): única consulta das listas do painel. As listas
+ * pedidas ao mesmo tempo pela tela viajam numa única chamada — permissões e reconciliação de estadias rodam
  * UMA vez, e as listas são montadas em paralelo, só lendo o banco interno.
  */
 const BatchInput = z.object({
@@ -1083,6 +1050,11 @@ export const listDashboardArrivalsBatch = createServerFn({ method: "POST" })
         buildArrivalRows(context.supabase as never, { kind: r.kind, range: r.range, propIds, skipReconcile: true, shared }),
       ),
     ]);
+    // LIMPEZAS CRIADAS MANUALMENTE (02/10/2026): somadas só aqui, na lista do
+    // painel — ver `manual-cleaning.server.ts`. Ficam fora da lista de
+    // "amanhã": a tela trata uma saída de amanhã já liberada como check-out
+    // antecipado e a puxaria para a fila de hoje, e a manual só pode aparecer
+    // a partir do dia marcado.
     const results = built.map((b, i) => {
       const r = data.requests[i];
       if (r.kind !== "checkout" || r.range === "tomorrow" || manual.length === 0) return b;
@@ -1203,6 +1175,7 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
       arrival_date_base?: string | null;
       arrival_time_source?: "staff";
       muted_until?: string | null;
+      manual_created_by?: string;
     } = {
       property_id: propertyId,
       kind: data.kind,
@@ -1238,6 +1211,9 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
       typeof data.arrivalDateOverride !== "undefined"
     ) {
       patch.arrival_time_source = "staff";
+      // Autor da previsão para o Histórico da reserva (02/11/2026): sem isto a
+      // etapa "Previsão informada" saía como "Autor não registrado".
+      patch.manual_created_by = context.userId;
     }
     if (typeof data.mutedUntil !== "undefined") patch.muted_until = data.mutedUntil;
 
@@ -1459,6 +1435,7 @@ export async function runAdvanceArrival(
       cleaning_done_by?: string | null;
       cleaning_price_original_cents?: number | null;
       note?: string | null;
+      manual_created_by?: string;
     } = { property_id: propertyId!, kind, ...patch };
     // Origem do "feito": o histórico da reserva usa isto para mostrar o autor
     // (Hóspede x Equipe) — não há mais tabela de eventos com o autor.
@@ -1469,6 +1446,10 @@ export async function runAdvanceArrival(
           : opts.origin === "system"
             ? "Confirmado automaticamente"
             : "Confirmado pela equipe";
+      // Quem da equipe confirmou (02/11/2026): o Histórico da reserva mostra o
+      // nome em vez de "Autor não registrado". Só para a equipe — hóspede e
+      // sistema já são identificados pela nota.
+      if (opts.origin === "staff" && opts.byUserId) body.manual_created_by = opts.byUserId;
     }
     if (data.logId) body.log_id = data.logId;
     if (data.reservationId) body.reservation_id = data.reservationId;

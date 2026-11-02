@@ -84,4 +84,37 @@ describe("Histórico da Reserva — opção C", () => {
     const val = screen.getByText("R$ 2.253,31");
     expect(val.className).toContain("line-through");
   });
+
+  it("cartão do momento em fluxo de bloco: linhas com altura livre e Histórico separado (bug 02/11/2026)", async () => {
+    show({
+      ...base,
+      statusLabel: "Em estadia",
+      steps: [step("reserva", "Reserva registrada", "done", "2026-10-07T06:07:00Z")],
+    });
+    const hospede = await screen.findByText("Hóspede");
+    const row = hospede.parentElement!;
+    expect(row.className).toContain("min-h-[21px]");
+    expect(row.className).not.toMatch(/(^|\s)h-\[21px\]/);
+    const card = row.parentElement!.closest("[data-clip-row]") as HTMLElement;
+    // A área que rola NÃO pode ser grid: numa grid com altura limitada o cartão (overflow-hidden) encolhia.
+    const scroller = card.parentElement!;
+    expect(scroller.className).toContain("overflow-y-auto");
+    expect(scroller.className.split(/\s+/)).not.toContain("grid");
+    expect(screen.getByText("Histórico").className).toContain("mt-6");
+  });
+
+  it("autor da equipe aparece pelo nome ou como 'Equipe' — nunca 'Autor não registrado'", async () => {
+    show({
+      ...base,
+      statusLabel: "Em limpeza",
+      steps: [
+        step("reserva", "Reserva registrada", "done", "2026-10-07T06:07:00Z"),
+        { ...step("previsao", "Previsão informada", "done", "2026-10-08T10:00:00Z"), actor: { name: "Equipe", role: "Equipe" } },
+        { ...step("checkout", "Checkout", "done", "2026-11-04T14:00:00Z"), actor: { name: "Clayton", role: "Equipe" } },
+      ],
+    });
+    expect(await screen.findByText("Feito por Clayton (EQUIPE)")).toBeTruthy();
+    expect(screen.getByText("Feito por Equipe")).toBeTruthy();
+    expect(screen.queryByText(/Autor não registrado/)).toBeNull();
+  });
 });

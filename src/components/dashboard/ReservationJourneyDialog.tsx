@@ -7,7 +7,7 @@
  *   · LINHA DE ETAPAS (Reserva · Check-in · Estadia · Check-out · Limpeza) com a etapa atual destacada;
  *   · CARTÃO DO MOMENTO (faixa lateral na cor do status): título + "desde/chegada em" alinhados pelo topo,
  *     subtítulo (previsão em âmbar, tocável para editar) e as linhas Hóspede (chat à esquerda) · Período ·
- *     Recebido · Comissão — 21 px entre linhas, sem divisórias. Em limpeza traz Tipo/Valor/Prestador e a
+ *     Recebido · Comissão — linhas de no mínimo 21 px, 6 px entre elas, sem divisórias. Em limpeza traz Tipo/Valor/Prestador e a
  *     fileira de ações padrão (Finalizar Limpeza + quadrados 28 px). Cancelada: valores apagados e riscados;
  *   · HISTÓRICO enxuto, do mais recente para o mais antigo (data alinhada ao topo do título), etiquetas
  *     REGISTRO / PENDÊNCIA / PREVISÃO / LIMPEZA; registros e pendências abrem ao tocar;
@@ -183,7 +183,7 @@ function Stepper({ status }: { status: string }) {
 /** Linha do cartão: rótulo cinza à esquerda, valor em destaque à direita (21 px de passo, sem divisórias). */
 function Row({ label, children, struck }: { label: string; children: React.ReactNode; struck?: boolean }) {
   return (
-    <div className="flex h-[21px] items-center justify-between gap-4 text-xs leading-none">
+    <div className="flex min-h-[21px] items-center justify-between gap-4 text-xs leading-[15px]">
       <span className="shrink-0 text-[#8f8781]">{label}</span>
       <span
         className={`flex min-w-0 items-center gap-1.5 truncate text-right ${
@@ -219,7 +219,8 @@ type HistoryRow = {
 function whoName(actor: JourneyActor | null | undefined): string | null {
   if (!actor) return null;
   if (!actor.name) return null;
-  return actor.role ? `${actor.name} (${actor.role.toUpperCase()})` : actor.name;
+  // Autor genérico ("Equipe"): sem repetir o papel ("Equipe (EQUIPE)").
+  return actor.role && actor.role !== actor.name ? `${actor.name} (${actor.role.toUpperCase()})` : actor.name;
 }
 
 function verbFor(item: JourneyActivity): string {
@@ -396,8 +397,11 @@ export function ReservationJourneyDialog({
           </div>
         ) : (
           /* Só a CAPA é fixa; etapas, cartão do momento e histórico rolam juntos (anticorte global: cada bloco/linha
-             é uma unidade `data-clip-row`). 16 px de recuo nos dois lados e 16 px de base. */
-          <div className="sg-elegant-scroll grid min-h-0 min-w-0 flex-1 snap-y snap-proximity grid-cols-[minmax(0,1fr)] content-start overflow-y-auto overscroll-contain px-4 pb-4 pt-[18px]">
+             é uma unidade `data-clip-row`). 16 px de recuo nos dois lados e 16 px de base.
+             FLUXO EM BLOCO, não grid (bug de 02/11/2026): numa grid com altura limitada, a linha de um item com
+             `overflow-hidden` (o cartão do momento) tem mínimo 0 e encolhia até a linha do Hóspede quando o conteúdo
+             passava da tela — o Histórico subia colado ao corte. Em bloco, cada parte tem sempre a altura natural. */
+          <div className="sg-elegant-scroll block min-h-0 min-w-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain px-4 pb-4 pt-[18px]">
             <div data-clip-row className="snap-start">
               <Stepper status={status} />
             </div>
@@ -405,7 +409,7 @@ export function ReservationJourneyDialog({
             {/* CARTÃO DO MOMENTO */}
             <div
               data-clip-row
-              className="relative mt-[18px] snap-start overflow-hidden rounded-[12px] border border-foreground/[0.07] bg-[var(--card-surface)] py-3 pl-4 pr-3.5"
+              className="relative mt-[18px] h-auto snap-start overflow-hidden rounded-[12px] border border-foreground/[0.07] bg-[var(--card-surface)] py-3 pl-4 pr-3.5"
             >
               <span aria-hidden className="absolute inset-y-0 left-0 w-[3px]" style={{ background: now.bar }} />
               <div className="flex items-start justify-between gap-3">
@@ -426,7 +430,7 @@ export function ReservationJourneyDialog({
                 </p>
               ) : null}
 
-              <div className="mt-3.5 grid">
+              <div className="mt-3.5 flex flex-col gap-1.5">
                 {data.guestName && (
                   <Row label="Hóspede">
                     {guestChat}
@@ -464,7 +468,7 @@ export function ReservationJourneyDialog({
             {/* HISTÓRICO — mais recente primeiro */}
             {history.length > 0 && (
               <>
-                <div data-clip-row className="mt-4 snap-start text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#b4aca6]">
+                <div data-clip-row className="mt-6 snap-start text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#b4aca6]">
                   Histórico
                 </div>
                 <ol className="relative mt-3">
