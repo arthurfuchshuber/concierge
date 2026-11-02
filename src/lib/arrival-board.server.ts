@@ -262,7 +262,6 @@ export async function buildArrivalRows(
   const data = { kind: opts.kind, range: opts.range };
   const propIds = opts.propIds;
   const context = { supabase } as { supabase: any };
-  const __t=Date.now();void import("node:fs").then(f=>f.appendFileSync("/tmp/timing.log",`enter ${opts.kind} ${opts.range}\n`));const __l=(x:string)=>{const m=`${opts.kind} ${opts.range} ${x} ${Date.now()-__t}\n`;void import("node:fs").then(f=>f.appendFileSync("/tmp/timing.log",m)).catch(()=>{});};
     if (propIds.length === 0) return { rows: [] };
 
     const dateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
@@ -288,7 +287,6 @@ export async function buildArrivalRows(
     // seria usado — e, combinado com ordenação ascendente + LIMIT, podia
     // empurrar os check-ins/checkouts de HOJE para fora da página de 500/
     // 10000 linhas em contas com muito histórico.
-    __l("start");
     if (data.range === "today") {
       from = addDaysISO(today, -OVERDUE_WINDOW_DAYS);
     }
@@ -305,7 +303,6 @@ export async function buildArrivalRows(
     } catch (error) {
       console.error("[arrival-board] falha ao reconciliar estadias consecutivas", error);
     }
-    __l("superseded");
     // Saída adiada pelo calendário com previsão de data já velha: devolve o
     // card para "Em estadia" antes de qualquer consulta (ver o comentário da função).
     try {
@@ -415,7 +412,6 @@ export async function buildArrivalRows(
       if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte("checkout_date", reservationWindowEnd);
     }
 
-    __l("pre-batch");
     const [{ data: props }, { data: statuses }, { data: reservations }, sectionEvents] = await Promise.all([
       context.supabase
         .from("properties")
@@ -1455,6 +1451,5 @@ export async function buildArrivalRows(
     // saída; sem previsão, o horário limite/inicial do imóvel — só para ordenar).
     rows.sort((a, b) => compareArrivalRowsServer(a, b, data.kind, today));
 
-    __l("end");
     return { rows };
 }
