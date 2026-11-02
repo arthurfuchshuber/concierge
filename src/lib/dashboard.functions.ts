@@ -2189,10 +2189,8 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       };
     }
 
-    // Mesma fonte da verdade do Kanban: garante que alterações de reserva no
-    // iCal (ex.: checkout adiado) apareçam também no calendário de ocupação.
-    const { syncStaleIcals } = await import("@/lib/arrival-board.server");
-    await syncStaleIcals(context.supabase as never, propIds);
+    // iCal não é baixado na abertura: o cron `sync-airbnb-ical-30min` cuida disso,
+    // e o calendário responde direto do banco.
 
     // CALENDÁRIO COMPLETO (pedido explícito, 15–16/10/2026: "o usuário precisa
     // ver TODO o calendário, passado também, da primeira reserva à última").
