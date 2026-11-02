@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyAccessDecisions } from "@/lib/permissions/permission.access.functions";
+import { batchedAccess } from "@/lib/permissions/accessBatcher";
 import { useAccessEnv } from "@/lib/permissions/useAccessEnv";
 import {
   accessQueryKey,
@@ -39,16 +40,14 @@ export function usePermission(
     // A falha SOBE (não vira "decisão vazia" guardada em cache): `toAccessState`
     // já trata erro como "sem acesso" no momento, e a próxima tentativa corrige.
     queryFn: () =>
-      fetcher({
-        data: {
+      batchedAccess<Awaited<ReturnType<typeof fetcher>>>(fetcher as never, {
           permissions: [permission],
           required,
           accountOwnerId,
           propertyId: scope.propertyId ?? null,
           clientId: scope.clientId ?? null,
           recordId: scope.recordId ?? null,
-        },
-      }),
+        }),
     enabled: enabled && !!permission && sessionReady,
     staleTime: 60_000,
     retry: 3,
