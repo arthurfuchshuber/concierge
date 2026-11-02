@@ -1040,6 +1040,56 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
     return manual.length > 0 ? { rows: [...built.rows, ...manual] } : built;
   });
 
+/**
+ * LOTE DO PAINEL (02/11/2026): as listas pedidas ao mesmo tempo pela tela
+ * viajam numa única chamada — permissões e reconciliação de estadias rodam
+ * UMA vez, e as listas são montadas em paralelo, só lendo o banco interno.
+ */
+const BatchInput = z.object({
+  ownerId: z.string().uuid().nullable().optional(),
+  requests: z
+    .array(z.object({ kind: z.enum(["checkin", "checkout"]), range: z.enum(["today", "tomorrow", "7d", "all"]) }))
+    .min(1)
+    .max(12),
+});
+
+export const listDashboardArrivalsBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => BatchInput.parse(i))
+  .handler(async ({ data, context }): Promise<{ results: Array<{ rows: ArrivalRow[] }> }> => {
+    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
+    if (propIds.length === 0) return { results: data.requests.map(() => ({ rows: [] })) };
+    const today = todayISO();
+    const recon = await import("@/lib/stay-reconciliation.server");
+    try {
+      await recon.reconcileSupersededStays(context.supabase as never, propIds, today);
+    } catch (e) {
+      console.error("[arrivals-batch] falha ao reconciliar estadias consecutivas", e);
+    }
+    try {
+      await recon.reconcilePostponedCheckouts(context.supabase as never, propIds, today);
+    } catch (e) {
+      console.error("[arrivals-batch] falha ao reconciliar saídas adiadas", e);
+    }
+    const { buildArrivalRows } = await import("@/lib/arrival-board.server");
+    const needsManual = data.requests.some((r) => r.kind === "checkout" && r.range !== "tomorrow");
+    const manualP = needsManual
+      ? import("@/lib/manual-cleaning.server").then((m) => m.buildManualCleaningRows(context.supabase, propIds, today))
+      : Promise.resolve([] as ArrivalRow[]);
+    const [manual, ...built] = await Promise.all([
+      manualP,
+      ...data.requests.map((r) =>
+        buildArrivalRows(context.supabase as never, { kind: r.kind, range: r.range, propIds, skipReconcile: true }),
+      ),
+    ]);
+    const results = built.map((b, i) => {
+      const r = data.requests[i];
+      if (r.kind !== "checkout" || r.range === "tomorrow" || manual.length === 0) return b;
+      return { rows: [...b.rows, ...manual] };
+    });
+    return { results };
+  });
+
 // ----- Mutations -----
 
 const UpsertInput = z
