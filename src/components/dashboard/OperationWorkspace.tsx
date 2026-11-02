@@ -674,6 +674,9 @@ function ScreenshotButton(props: ScreenshotTarget) {
 // agora só redireciona pra lá; não existe mais uma tela própria pra ela.
 export type OperationView = "resumo" | "kanban" | "limpeza" | "registros";
 
+/** Dias extras desenhados de cada lado do visor do calendário (virtualização). */
+const CAL_OVERSCAN = 40;
+
 export function OperationWorkspace({ view }: { view: OperationView }) {
   const engFn = useServerFn(getGuideEngagement);
   const batchListFn = useServerFn(listDashboardArrivalsBatch);
@@ -7291,6 +7294,20 @@ function OccupancyPanel({
      calendário rola; só deixa de competir com o arraste. A posição "à
      esquerda" (`leftDateRef`) segue sendo gravada na hora, sem render. */
   const firstVisTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /* VIRTUALIZAÇÃO DE COLUNAS (02/11/2026): o calendário completo (centenas de
+     dias) gerava ~40 mil elementos e congelava o navegador. O trilho continua
+     com a largura de TODOS os dias, mas só os dias perto do visor (com folga de
+     CAL_OVERSCAN de cada lado) são desenhados; os dados já estão em memória,
+     então a rolagem segue instantânea. */
+  const [winStart, setWinStart] = useState(0);
+  const winStartRef = useRef(0);
+  const updateWindow = useCallback((i: number) => {
+    const desired = Math.max(0, i - CAL_OVERSCAN);
+    if (Math.abs(desired - winStartRef.current) > CAL_OVERSCAN / 3) {
+      winStartRef.current = desired;
+      setWinStart(desired);
+    }
+  }, []);
   const scheduleFirstVisIdx = useCallback((i: number) => {
     if (firstVisTimer.current) clearTimeout(firstVisTimer.current);
     firstVisTimer.current = setTimeout(() => {
@@ -8215,17 +8232,21 @@ function OccupancyPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jump]);
 
+  const vs = Math.min(winStart, Math.max(0, dayList.length - 1));
+  const ve = Math.min(dayList.length, vs + visibleDays + CAL_OVERSCAN * 2 + 2);
+  const winDays = useMemo(() => dayList.slice(vs, ve), [dayList, vs, ve]);
+  const rowStart = useRef(0);
   /** Meses do cabeçalho: um rótulo por mês, centrado na parte VISÍVEL dele. */
   const monthGroups = useMemo(() => {
     const g: Array<{ key: string; month: number; year: string; n: number }> = [];
-    for (const d of dayList) {
+    for (const d of winDays) {
       const key = d.slice(0, 7);
       const last = g[g.length - 1];
       if (last && last.key === key) last.n++;
       else g.push({ key, month: Number(d.slice(5, 7)), year: d.slice(0, 4), n: 1 });
     }
     return g;
-  }, [dayList]);
+  }, [winDays]);
 
   // STATUS OFICIAIS (31/10/2026): só Check-in (verde esmeralda), Checkout (laranja), Ocupado, Bloqueado e Livre.
   // Sem subdivisões "pendente"/"atrasado": cada status usa SEMPRE a sua cor final.
@@ -8452,9 +8473,10 @@ function OccupancyPanel({
                   onScroll={(e) => {
                 const i = Math.max(0, Math.floor(e.currentTarget.scrollLeft / dayW));
                 leftDateRef.current = dayList[i] ?? leftDateRef.current;
+                updateWindow(i);
                 scheduleFirstVisIdx(i);
               }}
-                  className="sg-elegant-scroll overflow-auto snap-x snap-proximity [&::-webkit-scrollbar-track]:m-0"
+                  className="sg-elegant-scroll overflow-auto [&::-webkit-scrollbar-track]:m-0"
                 >
                   <table
                     className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
@@ -8489,6 +8511,7 @@ function OccupancyPanel({
                             caixa interna é `sticky` com a largura do que cabe no
                             visor), fio de cada lado e uma linha vertical na
                             virada de mês. */}
+                        {vs > 0 && <th colSpan={vs} aria-hidden style={{ width: vs * dayW }} className="sticky top-0 z-20 bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))]" />}
                         {monthGroups.map((g, k) => {
                           const visW = Math.max(0, Math.min(g.n * dayW, visibleDays * dayW));
                           return (
@@ -8511,7 +8534,9 @@ function OccupancyPanel({
                         })}
                       </tr>
                       <tr>
-                        {dayList.map((d, i) => {
+                        {vs > 0 && <th colSpan={vs} aria-hidden style={{ width: vs * dayW }} className="sticky top-[34px] z-20 bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))]" />}
+                        {winDays.map((d, j) => {
+                          const i = vs + j;
                           const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
                             weekday: "short",
                             timeZone: "UTC",
@@ -8558,7 +8583,7 @@ function OccupancyPanel({
                             <th
                               key={d}
                               style={{ width: dayW, minWidth: dayW }}
-                              className="sticky top-[34px] z-20 relative snap-start bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-2 font-medium tabular-nums"
+                              className="sticky top-[34px] z-20 relative bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-2 font-medium tabular-nums"
                             >
                               {i < dayList.length - 1 && (
                                 <span
@@ -8621,6 +8646,7 @@ function OccupancyPanel({
                             </th>
                           );
                         })}
+                        {ve < dayList.length && <th colSpan={dayList.length - ve} aria-hidden style={{ width: (dayList.length - ve) * dayW }} />}
                       </tr>
                     </thead>
                     <tbody>
@@ -8682,7 +8708,17 @@ function OccupancyPanel({
                                 </div>
                               </PropertyPhotoPeek>
                             </td>
-                            {dayList.map((d, i) => {
+                            {(() => {
+                              // Barra que começou antes da janela e ainda entra nela: desenha desde o início dela.
+                              let rs = vs;
+                              for (const [k, l] of labels) if (k < rs && k * dayW + l.left + l.width > vs * dayW) rs = k;
+                              for (const [k, l] of blockLbls) if (k < rs && (k + 1) * dayW + l.width > vs * dayW) rs = k;
+                              for (const [k] of singles) if (k === vs - 1 && k < rs) rs = k;
+                              rowStart.current = rs;
+                              return rs > 0 ? <td colSpan={rs} aria-hidden className={rowDivider} /> : null;
+                            })()}
+                            {dayList.slice(rowStart.current, ve).map((d, j) => {
+                              const i = rowStart.current + j;
                               const a = halves[i * 2] as CellPart;
                               const b = halves[i * 2 + 1] as CellPart;
                               const labelOf = (s: CellPart) =>
@@ -8744,7 +8780,7 @@ function OccupancyPanel({
                                 <td
                                   key={d}
                                   style={{ width: dayW, minWidth: dayW }}
-                                  className={`relative px-0 py-1 snap-start ${rowDivider}`}
+                                  className={`relative px-0 py-1 ${rowDivider}`}
                                 >
                                   {/* Fio vertical do dia — `<span>` absoluto (ver
                                       comentário completo no <th> do cabeçalho de
@@ -8935,6 +8971,7 @@ function OccupancyPanel({
                                 </td>
                               );
                             })}
+                            {ve < dayList.length && <td colSpan={dayList.length - ve} aria-hidden className={rowDivider} />}
                           </tr>
                         );
                       })}
