@@ -262,7 +262,7 @@ export async function buildArrivalRows(
   const data = { kind: opts.kind, range: opts.range };
   const propIds = opts.propIds;
   const context = { supabase } as { supabase: any };
-  const __t=Date.now();const __l=(x:string)=>{const m=`${opts.kind} ${opts.range} ${x} ${Date.now()-__t}\n`;void import("node:fs").then(f=>f.appendFileSync("/tmp/timing.log",m)).catch(()=>{});};
+  const __t=Date.now();void import("node:fs").then(f=>f.appendFileSync("/tmp/timing.log",`enter ${opts.kind} ${opts.range}\n`));const __l=(x:string)=>{const m=`${opts.kind} ${opts.range} ${x} ${Date.now()-__t}\n`;void import("node:fs").then(f=>f.appendFileSync("/tmp/timing.log",m)).catch(()=>{});};
     if (propIds.length === 0) return { rows: [] };
 
     const dateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
@@ -1455,5 +1455,6 @@ export async function buildArrivalRows(
     // saída; sem previsão, o horário limite/inicial do imóvel — só para ordenar).
     rows.sort((a, b) => compareArrivalRowsServer(a, b, data.kind, today));
 
+    __l("end");
     return { rows };
 }
