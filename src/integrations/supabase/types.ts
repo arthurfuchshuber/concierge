@@ -1006,6 +1006,7 @@ export type Database = {
       }
       ai_kb_chunks: {
         Row: {
+          audience: string
           confidence: number
           content: string
           content_hash: string | null
@@ -1022,6 +1023,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audience?: string
           confidence?: number
           content: string
           content_hash?: string | null
@@ -1038,6 +1040,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audience?: string
           confidence?: number
           content?: string
           content_hash?: string | null
@@ -3610,6 +3613,7 @@ export type Database = {
       }
       host_behavior: {
         Row: {
+          audience: string
           body: string
           created_at: string
           enabled: boolean
@@ -3623,6 +3627,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audience?: string
           body: string
           created_at?: string
           enabled?: boolean
@@ -3636,6 +3641,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audience?: string
           body?: string
           created_at?: string
           enabled?: boolean
@@ -3756,6 +3762,7 @@ export type Database = {
       }
       host_knowledge: {
         Row: {
+          audience: string
           body: string
           created_at: string
           enabled: boolean
@@ -3767,6 +3774,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audience?: string
           body: string
           created_at?: string
           enabled?: boolean
@@ -3778,6 +3786,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audience?: string
           body?: string
           created_at?: string
           enabled?: boolean
