@@ -11,7 +11,7 @@ import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -261,6 +261,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { useHasSession } from "@/hooks/useHasSession";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { ConfirmActionDialog } from "@/components/permissions/ConfirmActionDialog";
+import { computePropertyCells, type CellPart, type PropertyCells } from "@/lib/occupancy-cells";
 
 function PhoneLink({ phone, country }: { phone: string | null; country: string | null }) {
   return <PhoneActionButton phone={phone} country={country} size={12} className="p-0.5" />;
@@ -676,6 +677,8 @@ export type OperationView = "resumo" | "kanban" | "limpeza" | "registros";
 
 /** Dias extras desenhados de cada lado do visor do calendário (virtualização). */
 const CAL_OVERSCAN = 40;
+const EMPTY_CELLS = { halves: [] as CellPart[], stays: [] as never[], junction: [] as boolean[], occ: [] as boolean[] };
+const EMPTY_LABELS = { bars: new Map(), singles: new Map(), blocks: new Map() } as const;
 
 export function OperationWorkspace({ view }: { view: OperationView }) {
   const engFn = useServerFn(getGuideEngagement);
@@ -7138,6 +7141,49 @@ function periodoExtenso(from: string, to: string): string {
   return `${a.d} e ${b.d} de ${MESES_PT[a.m]}`;
 }
 
+type BarTip = { x: number; y: number; below: boolean; title: string; lines: Array<[string, string]> };
+function createBarTipStore() {
+  let value: BarTip | null = null;
+  const subs = new Set<() => void>();
+  return {
+    get: () => value,
+    set: (v: BarTip | null) => {
+      if (v === value) return;
+      value = v;
+      subs.forEach((f) => f());
+    },
+    subscribe: (f: () => void) => {
+      subs.add(f);
+      return () => {
+        subs.delete(f);
+      };
+    },
+  };
+}
+/** O balão único das barras do calendário (o mesmo de antes), com estado próprio. */
+function BarTipLayer({ store }: { store: ReturnType<typeof createBarTipStore> }) {
+  const barTip = useSyncExternalStore(store.subscribe, store.get, () => null);
+  if (!barTip || typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      role="tooltip"
+      className="ds-overlay-compact pointer-events-none fixed z-[60] w-max max-w-[min(20rem,calc(100vw-32px))] px-3 py-2 text-xs leading-snug"
+      style={{ left: barTip.x, top: barTip.y, transform: barTip.below ? "translateX(-50%)" : "translate(-50%, -100%)" }}
+    >
+      <div className="mb-1 text-[12.5px] font-bold">{barTip.title}</div>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-0.5">
+        {barTip.lines.map(([k, v]) => (
+          <div key={k} className="contents">
+            <dt className="text-muted-foreground">{k}</dt>
+            <dd className="min-w-0 break-words font-medium">{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>,
+    document.body,
+  );
+}
+
 function OccupancyPanel({
   loading,
   start,
@@ -7299,7 +7345,12 @@ function OccupancyPanel({
   /** Célula com foco do teclado (roving tabindex: só UMA noite entra na ordem do Tab). */
   const [kbCell, setKbCell] = useState<{ propertyId: string; day: string } | null>(null);
   /** Balão resumido ao passar o mouse na barra da reserva/bloqueio (31/10/2026). Um só, flutuante, para a grade ficar leve. */
-  const [barTip, setBarTip] = useState<{ x: number; y: number; below: boolean; title: string; lines: Array<[string, string]> } | null>(null);
+  /* BALÃO FORA DO ESTADO DO QUADRO (02/11/2026, desempenho): cada passada do mouse
+     numa barra fazia `setState` aqui e re-renderizava o calendário INTEIRO (todas as
+     linhas × dias do visor) duas vezes — entrar e sair. Agora o balão vive num
+     armazém próprio e só <BarTipLayer> redesenha. Mesmo balão, mesma posição. */
+  const barTipStore = useMemo(() => createBarTipStore(), []);
+  const setBarTip = barTipStore.set;
   // Filtro/busca que esconde o imóvel selecionado: a seleção some junto (nada de barra "fantasma").
   useEffect(() => {
     if (blockSel && !properties.some((x) => x.id === blockSel.propertyId)) {
@@ -8288,35 +8339,31 @@ function OccupancyPanel({
 
   // STATUS OFICIAIS (31/10/2026): só Check-in (verde esmeralda), Checkout (laranja), Ocupado, Bloqueado e Livre.
   // Sem subdivisões "pendente"/"atrasado": cada status usa SEMPRE a sua cor final.
-  type CellPart = "in" | "out" | "busy" | "blocked" | "free";
 
   /**
-   * Cada dia é dividido em duas metades (manhã = saída, tarde = entrada),
-   * que é a ordem natural do dia. Quando as duas metades são iguais o
-   * desenho é renderizado inteiro.
+   * Cada dia é dividido em duas metades (manhã = saída, tarde = entrada), que é a
+   * ordem natural do dia. PRÉ-CALCULADO por imóvel (02/11/2026, desempenho): antes
+   * cada render refazia, para cada imóvel e TODOS os dias, buscas lineares nas
+   * reservas — a regra está em `computePropertyCells` (o teste compara com a antiga).
    */
-  function cellHalves(propertyId: string, day: string): [CellPart, CellPart] {
-    const list = byProperty.get(propertyId) ?? [];
-    const outStay = list.find((s) => s.checkout === day);
-    const inStay = list.find((s) => s.checkin === day);
-    const through = list.some((s) => s.checkin < day && (s.checkout ?? s.checkin) > day);
-
-    const first: CellPart = outStay ? "out" : through ? "busy" : "free";
-    // Depois que o check-in é marcado como concluído, a metade da tarde passa
-    // a ser "ocupado" — a metade da manhã (checkout) permanece como estava.
-    const second: CellPart = inStay
-      ? day === todayISO && checkedInPropertyIds.has(propertyId)
-        ? "busy"
-        : "in"
-      : through
-        ? "busy"
-        : "free";
-    const blocks = blocksByProperty.get(propertyId) ?? [];
-    // Manhã: noite anterior bloqueada · Tarde: noite deste dia bloqueada.
-    const amBlocked = blocks.some((b) => b.from < day && b.to >= day);
-    const pmBlocked = blocks.some((b) => b.from <= day && b.to > day);
-    return [first === "free" && amBlocked ? "blocked" : first, second === "free" && pmBlocked ? "blocked" : second];
-  }
+  const rowCells = useMemo(() => {
+    const map = new Map<string, PropertyCells<NonNullable<ReturnType<typeof byProperty.get>>[number]> & { occ: boolean[] }>();
+    for (const p of visibleProperties) {
+      const c = computePropertyCells(byProperty.get(p.id) ?? [], blocksByProperty.get(p.id) ?? [], dayList, {
+        todayISO,
+        checkedInToday: checkedInPropertyIds.has(p.id),
+      });
+      map.set(p.id, { ...c, occ: c.halves.map((h) => h !== "free") });
+    }
+    return map;
+  }, [visibleProperties, byProperty, blocksByProperty, dayList, todayISO, checkedInPropertyIds]);
+  /** Etiquetas das barras (nome/valor, 1 noite, "Manualmente") — uma vez por mudança de dados/largura. */
+  const rowLabels = useMemo(() => {
+    const map = new Map<string, { bars: ReturnType<typeof barLabels>; singles: ReturnType<typeof singleLabels>; blocks: ReturnType<typeof blockLabels> }>();
+    for (const p of visibleProperties) map.set(p.id, { bars: barLabels(p.id), singles: singleLabels(p.id), blocks: blockLabels(p.id) });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleProperties, byProperty, blocksByProperty, dayList, dayIndex, dayW]);
 
   const clsOf = (s: CellPart) =>
     s === "blocked"
@@ -8349,14 +8396,16 @@ function OccupancyPanel({
     const windowDays = dayList.slice(firstVisIdx, firstVisIdx + visibleDays + 1);
     for (const p of shownProperties) {
       for (const d of windowDays) {
-        const [a, b] = cellHalves(p.id, d);
-        set.add(a);
-        set.add(b);
+        const h = rowCells.get(p.id)?.halves;
+        const i = dayIndex.get(d);
+        if (!h || i === undefined) continue;
+        set.add(h[i * 2]!);
+        set.add(h[i * 2 + 1]!);
       }
     }
     return set;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shownProperties, dayList, firstVisIdx, visibleDays, byProperty, checkedInPropertyIds, todayISO]);
+  }, [shownProperties, dayList, firstVisIdx, visibleDays, rowCells, dayIndex]);
 
   return (
     <section className="ds-3d relative rounded-[14px] border-0 bg-card">
@@ -8689,11 +8738,11 @@ function OccupancyPanel({
                     </thead>
                     <tbody>
                       {shownProperties.map((p, pIdx) => {
-                        const halves = dayList.flatMap((d) => cellHalves(p.id, d));
-                        const occ = halves.map((h) => h !== "free");
-                        const labels = barLabels(p.id);
-                        const singles = singleLabels(p.id);
-                        const blockLbls = blockLabels(p.id);
+                        // Tudo pré-calculado por imóvel (`rowCells`/`rowLabels`): o render só lê posições.
+                        const cells = rowCells.get(p.id) ?? EMPTY_CELLS;
+                        const halves = cells.halves;
+                        const occ = cells.occ;
+                        const { bars: labels, singles, blocks: blockLbls } = rowLabels.get(p.id) ?? EMPTY_LABELS;
                         // Linha horizontal do grid (ver comentário no cabeçalho) —
                         // um fio ainda mais discreto que o vertical, separando
                         // cada imóvel. Sem linha depois do último, mesma lógica
@@ -8759,38 +8808,6 @@ function OccupancyPanel({
                               const i = rowStart.current + j;
                               const a = halves[i * 2] as CellPart;
                               const b = halves[i * 2 + 1] as CellPart;
-                              const labelOf = (s: CellPart) =>
-                                s === "in"
-                                  ? "Check-in"
-                                  : s === "out"
-                                    ? "Checkout"
-                                    : s === "busy"
-                                      ? "Ocupado"
-                                      : s === "blocked"
-                                        ? "Bloqueado"
-                                        : "Livre";
-                              // Etiqueta com o PERÍODO (16/10/2026): "Bloqueado manualmente entre
-                              // 16 e 18 de outubro." · "Reservado entre 15 e 17 de outubro."
-                              const stayList = byProperty.get(p.id) ?? [];
-                              const blockList = blocksByProperty.get(p.id) ?? [];
-                              const textOf = (s: CellPart, half: 0 | 1) => {
-                                if (s === "free") return "Livre";
-                                if (s === "blocked") {
-                                  const bl = blockList.find((x) => (half === 0 ? x.from < d && x.to >= d : x.from <= d && x.to > d));
-                                  return bl ? `Bloqueado manualmente entre ${periodoExtenso(bl.from, bl.to)}.` : "Bloqueado manualmente.";
-                                }
-                                const st = stayList.find((x) =>
-                                  half === 0
-                                    ? x.checkin < d && (x.checkout ?? x.checkin) >= d
-                                    : x.checkin <= d && (x.checkout ?? x.checkin) > d,
-                                );
-                                const per = st ? `Reservado entre ${periodoExtenso(st.checkin, st.checkout ?? st.checkin)}.` : "Reservado.";
-                                return s === "busy" ? per : `${labelOf(s)} · ${per}`;
-                              };
-                              const title =
-                                a === b
-                                  ? `${textOf(a, 0)} · ${fmtDateBR(d)}`
-                                  : `${textOf(a, 0)} → ${textOf(b, 1)} · ${fmtDateBR(d)}`;
                               const idxA = i * 2;
                               const idxB = i * 2 + 1;
                               /* CORTE ENTRE RESERVAS NO MESMO DIA (16/10/2026, mockup
@@ -8799,13 +8816,10 @@ function OccupancyPanel({
                                  ganha 4px de margem — um corte limpo mostra que
                                  são reservas diferentes. Só as pontas externas
                                  de cada reserva levam a curvatura leve (4px). */
-                              const dayStays = byProperty.get(p.id) ?? [];
-                              const outS = dayStays.find((x) => x.checkout === d);
-                              const inS = dayStays.find((x) => x.checkin === d);
                               // Bloqueio manual também ganha o corte (16/10/2026): a divisória
-                              // vale entre reserva↔reserva, reserva↔bloqueio e bloqueio↔reserva.
-                              const junction =
-                                (!!outS && !!inS) || (!!outS && b === "blocked") || (a === "blocked" && !!inS);
+                              // vale entre reserva↔reserva, reserva↔bloqueio e bloqueio↔reserva
+                              // (pré-calculada em `computePropertyCells`).
+                              const junction = cells.junction[i]!;
                               // Pedido explícito (25/09/2026, revisão do que tinha
                               // sido pedido antes): a linha vertical do dia agora é
                               // SEMPRE desenhada ("de fora a fora"), inclusive por
@@ -8896,7 +8910,7 @@ function OccupancyPanel({
                                       const part = half === 0 ? a : b;
                                       if (part === "free") return <div key={half} className="h-full w-1/2" />;
                                       const idx = half === 0 ? idxA : idxB;
-                                      const st = stayAt(p.id, d, half);
+                                      const st = cells.stays[idx];
                                       const id = st?.reservationId ?? null;
                                       const occL = junction && half === 1 ? false : !!occ[idx - 1];
                                       const occR = junction && half === 0 ? false : !!occ[idx + 1];
@@ -9018,26 +9032,7 @@ function OccupancyPanel({
                 </div>
               </div>
 
-              {barTip && typeof document !== "undefined"
-                ? createPortal(
-                    <div
-                      role="tooltip"
-                      className="ds-overlay-compact pointer-events-none fixed z-[60] w-max max-w-[min(20rem,calc(100vw-32px))] px-3 py-2 text-xs leading-snug"
-                      style={{ left: barTip.x, top: barTip.y, transform: barTip.below ? "translateX(-50%)" : "translate(-50%, -100%)" }}
-                    >
-                      <div className="mb-1 text-[12.5px] font-bold">{barTip.title}</div>
-                      <dl className="grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-0.5">
-                        {barTip.lines.map(([k, v]) => (
-                          <div key={k} className="contents">
-                            <dt className="text-muted-foreground">{k}</dt>
-                            <dd className="min-w-0 break-words font-medium">{v}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </div>,
-                    document.body,
-                  )
-                : null}
+              <BarTipLayer store={barTipStore} />
 
               {searching && shownProperties.length === 0 && (
                 <div className="py-6 text-center text-sm text-muted-foreground">
