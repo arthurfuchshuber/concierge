@@ -1171,7 +1171,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           providerNames: providerFilters.length > 0 ? providerFilters : undefined,
         },
       }),
-    enabled: authed && cleaningStatsEnabled,
+    // Só a aba Serviços mostra estes números: não pesa a abertura do Operacional.
+    enabled: authed && view === "limpeza" && cleaningStatsEnabled,
   }));
   // Um único observador e estado de carregamento para cards e gráficos.
   const cleaningTrendQ = cleaningStatsQ;

@@ -291,9 +291,8 @@ export async function buildArrivalRows(
       from = addDaysISO(today, -OVERDUE_WINDOW_DAYS);
     }
 
-    if (data.kind === "checkin" && data.range === "today") {
-      await syncStaleIcals(supabase, propIds);
-    }
+    // iCal NÃO é baixado aqui: o painel lê só o banco (resposta imediata);
+    // o cron `sync-airbnb-ical-30min` mantém os calendários em dia.
 
     // Uma nova estadia já iniciada torna impossível manter a anterior como
     // checkout/limpeza operacional. Reconcilia antes das consultas para que
