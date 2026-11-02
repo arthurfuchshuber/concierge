@@ -214,7 +214,7 @@ import {
 
 import {
   getGuideEngagement,
-  listDashboardArrivals,
+  listDashboardArrivalsBatch,
   upsertArrivalStatus,
   updateGuestStayDates,
   updateGuestArrivalTime,
@@ -676,7 +676,43 @@ export type OperationView = "resumo" | "kanban" | "limpeza" | "registros";
 
 export function OperationWorkspace({ view }: { view: OperationView }) {
   const engFn = useServerFn(getGuideEngagement);
-  const listFn = useServerFn(listDashboardArrivals);
+  const batchListFn = useServerFn(listDashboardArrivalsBatch);
+  // Listas pedidas no mesmo instante (abertura da tela, realtime, foco) viajam
+  // numa ÚNICA chamada ao servidor: permissões e reconciliação rodam uma vez.
+  type ListReq = { kind: "checkin" | "checkout"; range: "today" | "tomorrow" | "7d" | "all"; ownerId: string | null };
+  const listQueueRef = useRef<
+    Array<{ req: ListReq; resolve: (v: { rows: ArrivalRow[] }) => void; reject: (e: unknown) => void }>
+  >([]);
+  const listTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const batchListRef = useRef(batchListFn);
+  batchListRef.current = batchListFn;
+  const listFn = useCallback(({ data }: { data: ListReq }) => {
+    return new Promise<{ rows: ArrivalRow[] }>((resolve, reject) => {
+      listQueueRef.current.push({ req: data, resolve, reject });
+      if (listTimerRef.current) return;
+      listTimerRef.current = setTimeout(() => {
+        listTimerRef.current = null;
+        const queue = listQueueRef.current;
+        listQueueRef.current = [];
+        const byOwner = new Map<string, typeof queue>();
+        for (const item of queue) {
+          const k = item.req.ownerId ?? "";
+          byOwner.set(k, [...(byOwner.get(k) ?? []), item]);
+        }
+        for (const [owner, items] of byOwner) {
+          batchListRef
+            .current({
+              data: {
+                ownerId: owner || null,
+                requests: items.map((i) => ({ kind: i.req.kind, range: i.req.range })),
+              },
+            })
+            .then((res) => items.forEach((i, idx) => i.resolve(res.results[idx] ?? { rows: [] })))
+            .catch((e) => items.forEach((i) => i.reject(e)));
+        }
+      }, 15);
+    });
+  }, []);
   const upsertFn = useServerFn(upsertArrivalStatus);
   const advanceFn = useServerFn(advanceArrival);
   const updateDatesFn = useServerFn(updateGuestStayDates);
