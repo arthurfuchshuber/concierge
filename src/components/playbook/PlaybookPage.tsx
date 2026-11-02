@@ -486,8 +486,8 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
     <div className="ds-dense-fields w-full max-w-[1440px] px-2.5 py-5 sm:px-5 lg:px-8 lg:py-8">
       <div className="flex flex-col gap-6">
         {/* CABEÇALHO NO MOLDE DO DASHBOARD: data, título numa linha, imóvel e
-            "Proprietário(a): nome" + ícone de mensagem (regra de todo lugar
-            que cita um imóvel). O botão de tema fica no cabeçalho do sistema. */}
+            o nome do proprietário (sem rótulo) + ícone de mensagem, logo abaixo
+            do título (regra de 01/11/2026). O botão de tema fica no cabeçalho do sistema. */}
         <div className="ds-page-heading">
           <PageDateRow
             back={

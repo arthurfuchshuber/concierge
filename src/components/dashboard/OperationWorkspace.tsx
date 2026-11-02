@@ -11,7 +11,7 @@ import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -1223,7 +1223,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             const k = q.queryKey[0];
             return (
               k === "dash-list" ||
-              k === "dash-kpis" ||
               k === "dash-eng" ||
               k === "dash-occupancy" ||
               k === "dash-cleaning-stats" ||
@@ -1529,11 +1528,22 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   //  · quando a conexão ao vivo caía (celular bloqueado, rede oscilando,
   //    token renovado), ninguém reconectava nem buscava o que passou.
   useEffect(() => {
+    /* UMA JANELA DE COALESCÊNCIA (120 ms, a mesma do `refreshDashboard` e do
+       LiveSync), no lugar de invalidar a cada evento: uma sincronização que
+       grava 30 reservas disparava 30 eventos e, por evento, `dash-eng` e
+       `dash-occupancy` eram invalidados NA HORA (e de novo pelo
+       `refreshDashboard`, que já os inclui) — cada invalidação cancelava a
+       busca em andamento e começava outra (peso desnecessário no celular). Agora
+       o primeiro evento agenda UMA recarga e os seguintes entram nela; o
+       conjunto de queries recarregadas é exatamente o mesmo de antes. */
+    let janela: ReturnType<typeof setTimeout> | null = null;
     const invalidate = () => {
-      refreshDashboard();
-      qc.invalidateQueries({ queryKey: ["dash-eng"] });
-      qc.invalidateQueries({ queryKey: ["dash-occupancy"] });
-      qc.invalidateQueries({ queryKey: ["dash-tasks"], refetchType: "active" });
+      if (janela) return;
+      janela = setTimeout(() => {
+        janela = null;
+        refreshDashboard(0);
+        qc.invalidateQueries({ queryKey: ["dash-tasks"], refetchType: "active" });
+      }, 120);
     };
 
     const TABELAS = [
@@ -1586,6 +1596,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     return () => {
       cancelado = true;
       if (retryTimer) clearTimeout(retryTimer);
+      if (janela) clearTimeout(janela);
       if (ch) supabase.removeChannel(ch);
     };
   }, [refreshDashboard, qc]);
@@ -2509,10 +2520,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // que já existiam: concluir na lista de Pendências ("status") e marcar no
   // checklist do card de Limpeza ("cleaning", que fecha só a ocorrência).
   type ResolvePromptState = { kind: "status"; task: TaskRow } | { kind: "cleaning"; task: TaskRow; row: ArrivalRow };
-  /* SÓ O GATILHO DA LIMPEZA mora aqui agora (18/09/2026). O outro — concluir
-     pela lista de Pendências — foi junto com o botão para os Registros, em
-     `pendencias.tsx`. Dois caminhos para a MESMA tela de conclusão, cada um
-     na tela que tem os dados dele; nunca abrem ao mesmo tempo. */
+  /* Dois gatilhos para a MESMA tela de conclusão (18/09/2026): marcar no
+     checklist do card de Limpeza ("cleaning") e concluir a pendência pelo
+     seu status ("status"). Cada um na tela que tem os dados dele; nunca
+     abrem ao mesmo tempo. */
   const [resolvePrompt, setResolvePrompt] = useState<ResolvePromptState | null>(null);
   const taskLinkOptionsQ = useQuery({
     queryKey: ["dash-task-link-options", activeOwnerId ?? "self"],
@@ -3312,10 +3323,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   sempre pré-selecionado em "Últimos 7 dias". */}
               {/* O BOTÃO "PENDÊNCIAS" MUDOU DE ABA (pedido explícito,
                   18/09/2026): saiu do Kanban e passou a morar nos REGISTROS,
-                  que é onde as pendências já aparecem ("Precisam de atenção").
-                  Ver `PendenciasButton` em `pendencias.tsx`. O painel em si
-                  (`TasksDialog`) continua morando NESTE arquivo e é importado
-                  de lá — mover mil linhas não valia o risco. */}
+                  que é onde as pendências já aparecem ("Precisam de atenção"). */}
               {view === "kanban" &&
                 (() => {
                   const current = KANBAN_STATUS_TABS.find((t) => t.key === mobileTab) ?? KANBAN_STATUS_TABS[0];
@@ -3341,8 +3349,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                         >
                           <CurrentIcon className={ACTION_ICON} />
                           <span className="whitespace-nowrap">{current.label}</span>
-                          {/* Selo SEMPRE dourado, igual ao de "Pendências"
-                              (`pendencias.tsx`) — pedido explícito,
+                          {/* Selo SEMPRE dourado, igual ao de "Pendências" —
+                              pedido explícito,
                               25/09/2026: "sempre dourado, igual Pendências",
                               não herda a cor do status acima. Mesmas medidas e
                               cores exatas do selo original. */}
@@ -7238,6 +7246,27 @@ function OccupancyPanel({
   const [mobileSearch, setMobileSearch] = useState(false);
   /** Primeiro dia que aparece no visor (muda ao rolar): a legenda só mostra o que existe nos dias VISÍVEIS. */
   const [firstVisIdx, setFirstVisIdx] = useState(0);
+  /* O índice só alimenta a LEGENDA, mas cada mudança re-renderizava o quadro
+     inteiro (todas as linhas × todos os dias) e refazia `presentStates`: ao
+     arrastar o calendário isso acontecia a CADA coluna cruzada — principal
+     suspeita do travamento no iPhone. Agora a atualização espera o dedo dar uma pausa (120 ms) e vai
+     como transição (interrompível). A legenda continua mudando conforme o
+     calendário rola; só deixa de competir com o arraste. A posição "à
+     esquerda" (`leftDateRef`) segue sendo gravada na hora, sem render. */
+  const firstVisTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleFirstVisIdx = useCallback((i: number) => {
+    if (firstVisTimer.current) clearTimeout(firstVisTimer.current);
+    firstVisTimer.current = setTimeout(() => {
+      firstVisTimer.current = null;
+      startTransition(() => setFirstVisIdx(i));
+    }, 120);
+  }, []);
+  useEffect(
+    () => () => {
+      if (firstVisTimer.current) clearTimeout(firstVisTimer.current);
+    },
+    [],
+  );
   // largura exata do "visor": nome + N colunas inteiras (sem sobra de coluna cortada)
   const viewportW = nameColW + visibleDays * dayW;
 
@@ -8386,7 +8415,7 @@ function OccupancyPanel({
                   onScroll={(e) => {
                 const i = Math.max(0, Math.floor(e.currentTarget.scrollLeft / dayW));
                 leftDateRef.current = dayList[i] ?? leftDateRef.current;
-                setFirstVisIdx(i);
+                scheduleFirstVisIdx(i);
               }}
                   className="sg-elegant-scroll overflow-auto snap-x snap-proximity [&::-webkit-scrollbar-track]:m-0"
                 >

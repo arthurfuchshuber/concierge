@@ -20,7 +20,6 @@ vi.mock("@/lib/reservation-records.functions", () => ({
   listAccountRecords: "listAccountRecords",
   deleteReservationRecord: "del",
   restoreReservationRecord: "restore",
-  purgeRecordFile: "purge",
   undoRecordSituation: "undoSituation",
   updateRecordText: "update",
   createRecordSituation: "create",

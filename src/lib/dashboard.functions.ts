@@ -19,16 +19,6 @@ function todayISO(): string {
   const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
-function nowHHMMSaoPaulo(): string {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "America/Sao_Paulo",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(new Date());
-  const pick = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
-  return `${pick("hour")}:${pick("minute")}`;
-}
 function addDaysISO(iso: string, n: number): string {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
@@ -147,189 +137,6 @@ export async function accessiblePropertyIds(
   }
   return await excludeCanceledOwnerProperties(supabase, rows, ids);
 }
-
-// ----- KPIs -----
-
-export const getDashboardKpis = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => ScopeInput.parse(i) ?? {})
-  .handler(async ({ data, context }) => {
-    const propIds = await accessiblePropertyIds(
-      context.supabase as never,
-      data.ownerId ?? null,
-      context.userId,
-    );
-    if (propIds.length === 0) {
-      return { checkinsToday: 0, checkinsTomorrow: 0, checkoutsToday: 0, checkoutsTomorrow: 0 };
-    }
-    const today = todayISO();
-    const tomorrow = addDaysISO(today, 1);
-    // "Hoje" = tudo que ainda está pendente até hoje (inclui atrasados dos últimos 30 dias).
-    const overdueFrom = "1970-01-01";
-
-    const [{ data: props }, { data: logs }, { data: reservations }, { data: statuses }] =
-      await Promise.all([
-        context.supabase.from("properties").select("id, airbnb_ical_url").in("id", propIds),
-        context.supabase
-          .from("guide_access_logs")
-          .select(
-            "id, property_id, guest_name, guest_phone, checkin_date, checkout_date, reservation_code, created_at",
-          )
-          .in("property_id", propIds)
-          .or(
-            `and(checkin_date.gte.${overdueFrom},checkin_date.lte.${tomorrow}),and(checkout_date.gte.${overdueFrom},checkout_date.lte.${tomorrow})`,
-          )
-          .limit(2000),
-        context.supabase
-          .from("property_reservations")
-          .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint, source")
-          .in("property_id", propIds)
-          .in("source", ["airbnb", "channex"])
-          .or(
-            `and(checkin_date.gte.${overdueFrom},checkin_date.lte.${tomorrow}),and(checkout_date.gte.${overdueFrom},checkout_date.lte.${tomorrow})`,
-          )
-          .limit(5000),
-        context.supabase
-          .from("guest_arrival_status")
-          .select("log_id, reservation_id, kind, status, arrival_date_override, concluded_at")
-          .in("property_id", propIds)
-          .limit(5000),
-      ]);
-
-    type LogRow = {
-      id: string;
-      property_id: string;
-      guest_name: string;
-      guest_phone: string | null;
-      checkin_date: string;
-      checkout_date: string | null;
-      reservation_code: string | null;
-      created_at: string;
-    };
-    type ResRow = {
-      id: string;
-      property_id: string;
-      checkin_date: string;
-      checkout_date: string;
-      status: string | null;
-      raw_summary: string | null;
-      guest_hint: string | null;
-    };
-    type StatusRow = {
-      log_id: string | null;
-      reservation_id: string | null;
-      kind: "checkin" | "checkout";
-      status: "pending" | "done" | "no_show";
-      arrival_date_override: string | null;
-      concluded_at: string | null;
-    };
-    const icalProps = new Set(
-      ((props ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>)
-        .filter((p) => !!p.airbnb_ical_url?.trim())
-        .map((p) => p.id),
-    );
-    const logRows = (logs ?? []) as LogRow[];
-    const doneLog = new Set<string>();
-    const doneRes = new Set<string>();
-    const touchedLog = new Set<string>();
-    const touchedRes = new Set<string>();
-    // Previsão informada pelo anfitrião manda no dia contado — mesma regra que
-    // o Kanban usa (arrival_date_override em arrival-board.server.ts), senão o
-    // número do card diverge da lista.
-    const overrideLog = new Map<string, string>();
-    const overrideRes = new Map<string, string>();
-    for (const s of (statuses ?? []) as StatusRow[]) {
-      if (s.log_id) touchedLog.add(`${s.kind}|${s.log_id}`);
-      if (s.reservation_id) touchedRes.add(`${s.kind}|${s.reservation_id}`);
-      if (s.arrival_date_override) {
-        if (s.log_id) overrideLog.set(`${s.kind}|${s.log_id}`, s.arrival_date_override);
-        if (s.reservation_id)
-          overrideRes.set(`${s.kind}|${s.reservation_id}`, s.arrival_date_override);
-      }
-      // Concluído/Não compareceu saem da esteira, como no Kanban.
-      if (s.status !== "done" && s.status !== "no_show" && !s.concluded_at) continue;
-      if (s.log_id) doneLog.add(`${s.kind}|${s.log_id}`);
-      if (s.reservation_id) doneRes.add(`${s.kind}|${s.reservation_id}`);
-    }
-
-    // Mesma estadia em duas fontes (iCal antigo + Channex) conta uma vez só.
-    const { dedupeStays } = await import("@/lib/arrival-board.server");
-    const resRows = dedupeStays(
-      (reservations ?? []) as ResRow[],
-      (id) => touchedRes.has(`checkin|${id}`) || touchedRes.has(`checkout|${id}`),
-    );
-    // Casamento reserva→hóspede (mesma lógica do Kanban): quando o hóspede
-    // preenche o formulário, a previsão é gravada no LOG (guest_arrival_status
-    // com log_id), nunca na reserva. Sem consultar o log casado, o contador
-    // usaria a data bruta da reserva e divergiria da lista.
-    const { dedupeFormLogs, findLogsForReservation } = await import("@/lib/arrival-board.server");
-    const uniqueKpiLogs = dedupeFormLogs(logRows.filter((l) => !isPlaceholderGuest(l.guest_name)));
-    const matchedLogByRes = new Map<string, Map<string, LogRow | null>>();
-    function matchedLogFor(r: ResRow, kind: "checkin" | "checkout"): LogRow | null {
-      let byKind = matchedLogByRes.get(kind);
-      if (!byKind) {
-        byKind = new Map();
-        matchedLogByRes.set(kind, byKind);
-      }
-      if (byKind.has(r.id)) return byKind.get(r.id) ?? null;
-      const primary =
-        r.checkin_date && r.checkout_date
-          ? findLogsForReservation(
-              uniqueKpiLogs,
-              {
-                property_id: r.property_id,
-                checkin_date: r.checkin_date,
-                checkout_date: r.checkout_date,
-                guest_hint: r.guest_hint,
-              },
-              kind,
-            ).primary
-          : null;
-      byKind.set(r.id, primary ?? null);
-      return primary ?? null;
-    }
-
-    function countFor(col: "checkin_date" | "checkout_date", from: string, to: string) {
-      const kind: "checkin" | "checkout" = col === "checkin_date" ? "checkin" : "checkout";
-      const seen = new Set<string>();
-      const usedLogIds = new Set<string>();
-      for (const r of resRows) {
-        if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
-        const matched = matchedLogFor(r, kind);
-        if (matched) usedLogIds.add(matched.id);
-        const date =
-          overrideRes.get(`${kind}|${r.id}`) ??
-          (matched ? overrideLog.get(`${kind}|${matched.id}`) : undefined) ??
-          r[col];
-        if (date < from || date > to) continue;
-        if (doneRes.has(`${kind}|${r.id}`) || (matched && doneLog.has(`${kind}|${matched.id}`)))
-          continue;
-        // Datas passadas só contam se já houve interação registrada.
-        const touched =
-          touchedRes.has(`${kind}|${r.id}`) ||
-          (matched ? touchedLog.has(`${kind}|${matched.id}`) : false);
-        if (date < today && !touched) continue;
-        seen.add(`ical|${r.id}`);
-      }
-      for (const row of logRows) {
-        const v = overrideLog.get(`${kind}|${row.id}`) ?? row[col];
-        if (!v || v < from || v > to) continue;
-        if (icalProps.has(row.property_id) || isPlaceholderGuest(row.guest_name)) continue;
-        if (usedLogIds.has(row.id)) continue;
-        if (doneLog.has(`${kind}|${row.id}`)) continue;
-        if (v < today && !touchedLog.has(`${kind}|${row.id}`)) continue;
-        seen.add(`log|${row.property_id}|${(row.guest_name || "").trim().toLowerCase()}|${v}`);
-      }
-      return seen.size;
-    }
-
-    return {
-      checkinsToday: countFor("checkin_date", overdueFrom, today),
-      checkinsTomorrow: countFor("checkin_date", tomorrow, tomorrow),
-      checkoutsToday: countFor("checkout_date", overdueFrom, today),
-      checkoutsTomorrow: countFor("checkout_date", tomorrow, tomorrow),
-    };
-  });
 
 /** Imóvel livre no dia aberto, com o que a janela "Imóveis livres" mostra. */
 export type FreeProperty = {
@@ -1485,71 +1292,6 @@ export const updateGuestArrivalTime = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// ----- Mark a pending iCal reservation as done (no guest form yet) -----
-
-const MarkPendingInput = z.object({
-  reservationId: z.string().uuid().optional(),
-  propertyId: z.string().uuid(),
-  kind: z.enum(["checkin", "checkout"]),
-  checkinDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  checkoutDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .optional(),
-  status: z.enum(["pending", "done"]).default("done"),
-});
-
-export const markPendingReservationStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => MarkPendingInput.parse(i))
-  .handler(async ({ data, context }) => {
-    // Confirm the caller can access this property (RLS on properties).
-    const { data: prop, error: propErr } = await context.supabase
-      .from("properties")
-      .select("id")
-      .eq("id", data.propertyId)
-      .maybeSingle();
-    if (propErr || !prop) throw new Error("Propriedade não encontrada.");
-
-    let reservationId = data.reservationId ?? null;
-    if (!reservationId) {
-      const query = context.supabase
-        .from("property_reservations")
-        .select("id")
-        .eq("property_id", data.propertyId)
-        .eq("checkin_date", data.checkinDate)
-        .in("source", ["airbnb", "channex"])
-        .limit(1);
-      const { data: matches } = data.checkoutDate
-        ? await query.eq("checkout_date", data.checkoutDate)
-        : await query;
-      reservationId = (matches?.[0] as { id: string } | undefined)?.id ?? null;
-    }
-    if (!reservationId) throw new Error("Reserva não encontrada.");
-
-    const { data: existing } = await context.supabase
-      .from("guest_arrival_status")
-      .select("id")
-      .eq("reservation_id", reservationId)
-      .eq("kind", data.kind)
-      .limit(1);
-    const existingId = (existing?.[0] as { id: string } | undefined)?.id;
-
-    const patch = {
-      reservation_id: reservationId,
-      property_id: data.propertyId,
-      kind: data.kind,
-      status: data.status,
-      done_at: data.status === "done" ? new Date().toISOString() : null,
-    };
-    const { error: upErr } = existingId
-      ? await context.supabase.from("guest_arrival_status").update(patch).eq("id", existingId)
-      : await context.supabase.from("guest_arrival_status").insert(patch);
-    if (upErr) throw new Error(upErr.message);
-    return { ok: true, reservationId };
-  });
-
 // ----- Advance an arrival card through the funnel -----
 // Funnel: Checkin -> Em Estadia -> Checkout -> Em Limpeza -> Concluído
 // Given the bucket the card is currently in and its stay dates, the server
@@ -2514,7 +2256,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         .limit(5000),
       // Status de check-in (pendente/confirmado) — usado só pra colorir a
       // agenda (azul claro = pendente, verde = confirmado), mesma lógica do
-      // Kanban/getDashboardKpis.
+      // Kanban.
       context.supabase
         .from("guest_arrival_status")
         .select("log_id, reservation_id, status")

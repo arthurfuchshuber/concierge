@@ -16,7 +16,9 @@
 --   SET conciergeia.remocao_ia = 'confirmo-producao';
 --
 -- O QUE FAZ (tudo numa transação; se qualquer passo falhar, nada é aplicado):
---   1. Desagenda os 6 jobs do pg_cron exclusivos da IA antiga.
+--   1. Desagenda os 7 jobs do pg_cron cujas rotas deixaram de existir: os 6 exclusivos da
+--      IA antiga + `refresh-city-references-weekly` (rota removida no lote 2 da limpeza
+--      global; o job já estava desligado desde 24/09/2026 e só dispararia 404).
 --   2. Apaga as linhas exclusivas da IA em tabelas compartilhadas
 --      (ai_system_events, ops_push_log, ai_alerts).
 --   3. Derruba políticas, funções e as 29 tabelas exclusivas (+3 condicionais),
@@ -79,7 +81,8 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
     FOR r IN SELECT jobid, jobname FROM cron.job
              WHERE jobname IN ('proactive-concierge-hourly','guest-followup-hourly','learning-loop-daily',
-                               'ai-evaluation-suite-weekly','channex-ai-reply-due','ai-cost-alert-hourly') LOOP
+                               'ai-evaluation-suite-weekly','channex-ai-reply-due','ai-cost-alert-hourly',
+                               'refresh-city-references-weekly') LOOP
       PERFORM cron.unschedule(r.jobid);
       n := n + 1;
       RAISE NOTICE 'job desagendado: % (%)', r.jobname, r.jobid;
@@ -151,7 +154,7 @@ BEGIN
   IF n <> 0 THEN RAISE EXCEPTION 'Sobraram % colunas da IA antiga — revertendo.', n; END IF;
 
   IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
-    EXECUTE $q$SELECT count(*) FROM cron.job WHERE jobname IN ('proactive-concierge-hourly','guest-followup-hourly','learning-loop-daily','ai-evaluation-suite-weekly','channex-ai-reply-due','ai-cost-alert-hourly')$q$ INTO n;
+    EXECUTE $q$SELECT count(*) FROM cron.job WHERE jobname IN ('proactive-concierge-hourly','guest-followup-hourly','learning-loop-daily','ai-evaluation-suite-weekly','channex-ai-reply-due','ai-cost-alert-hourly','refresh-city-references-weekly')$q$ INTO n;
     IF n <> 0 THEN RAISE EXCEPTION 'Sobraram % jobs da IA antiga — revertendo.', n; END IF;
   END IF;
 

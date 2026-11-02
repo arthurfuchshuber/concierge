@@ -30,7 +30,7 @@ export function StageOutboxRunner() {
     );
     const pos = { position: "top-center" as const };
     const refrescar = () => {
-      for (const k of ["dash-list", "dash-kpis", "cleaning-stats", "occupancy-board"]) {
+      for (const k of ["dash-list", "cleaning-stats", "occupancy-board"]) {
         void qc.invalidateQueries({ queryKey: [k] });
       }
     };

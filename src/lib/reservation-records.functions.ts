@@ -438,126 +438,6 @@ async function createLinkedTask(
   return (inserted as { id: string }).id;
 }
 
-/**
- * Registra um anexo (foto/vídeo/áudio/arquivo) já enviado pelo cliente
- * direto pro storage — mesmo fluxo de attachStaffMessage (chat-
- * attachments.functions.ts): o navegador sobe o arquivo pro bucket
- * primeiro (RLS de storage.objects garante que só quem acessa o imóvel
- * escreve ali), e esta função só grava a linha com os metadados.
- */
-export const attachReservationRecord = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        propertyId: z.string().uuid(),
-        logId: z.string().uuid().optional(),
-        reservationId: z.string().uuid().optional(),
-        cardMode: CardMode,
-        category: CategoryEnum,
-        path: z.string().min(3).max(500),
-        kind: z.enum(["photo", "video", "audio", "file"]),
-        mime: z.string().min(1).max(150),
-        sizeBytes: z.number().int().nonnegative(),
-        durationMs: z.number().int().nonnegative().optional().nullable(),
-        fileName: z.string().max(200).optional().nullable(),
-        caption: z.string().max(2000).optional().nullable(),
-      })
-      .refine((v) => !!v.logId || !!v.reservationId, {
-        message: "Informe a reserva ou o registro do hóspede.",
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const supabase = context.supabase as unknown as AnyClient;
-
-    // Caminho precisa começar com <property_id>/ — mesma checagem de
-    // attachStaffMessage, evita gravar metadados apontando pra um objeto
-    // fora do imóvel esperado.
-    if (!data.path.startsWith(`${data.propertyId}/`)) {
-      throw new Error("Caminho de anexo inválido.");
-    }
-
-    const who = await resolveAuthorName(supabase, context.userId);
-    const taskId = await createLinkedTask(supabase, context.userId, {
-      category: data.category,
-      propertyId: data.propertyId,
-      logId: data.logId,
-      reservationId: data.reservationId,
-      body: data.caption ?? null,
-      cardMode: data.cardMode,
-    });
-
-    const { error } = await supabase.from("reservation_records").insert({
-      property_id: data.propertyId,
-      log_id: data.logId ?? null,
-      reservation_id: data.reservationId ?? null,
-      kind: data.kind,
-      category: data.category,
-      storage_path: data.path,
-      mime: data.mime,
-      size_bytes: data.sizeBytes,
-      duration_ms: data.durationMs ?? null,
-      file_name: await nextRecordName(supabase, data.propertyId),
-      body: data.caption ?? null,
-      card_mode: data.cardMode,
-      created_by: context.userId,
-      created_by_name: who,
-      task_id: taskId,
-    });
-    if (error) throw new Error(error.message);
-    return { ok: true, taskCreated: !!taskId };
-  });
-
-/**
- * Registra uma nota só de texto (situação, problema, auditoria) — sem
- * anexo.
- */
-export const createReservationRecordNote = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        propertyId: z.string().uuid(),
-        logId: z.string().uuid().optional(),
-        reservationId: z.string().uuid().optional(),
-        cardMode: CardMode,
-        category: CategoryEnum,
-        body: z.string().trim().min(1).max(2000),
-      })
-      .refine((v) => !!v.logId || !!v.reservationId, {
-        message: "Informe a reserva ou o registro do hóspede.",
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const supabase = context.supabase as unknown as AnyClient;
-    const who = await resolveAuthorName(supabase, context.userId);
-    const taskId = await createLinkedTask(supabase, context.userId, {
-      category: data.category,
-      propertyId: data.propertyId,
-      logId: data.logId,
-      reservationId: data.reservationId,
-      body: data.body,
-      cardMode: data.cardMode,
-    });
-
-    const { error } = await supabase.from("reservation_records").insert({
-      property_id: data.propertyId,
-      log_id: data.logId ?? null,
-      reservation_id: data.reservationId ?? null,
-      kind: "note",
-      category: data.category,
-      body: data.body,
-      card_mode: data.cardMode,
-      created_by: context.userId,
-      created_by_name: who,
-      task_id: taskId,
-    });
-    if (error) throw new Error(error.message);
-    return { ok: true, taskCreated: !!taskId };
-  });
-
 /* -----------------------------------------------------------------------
  * A SITUAÇÃO — um registro com título, descrição e VÁRIAS mídias
  *
@@ -1060,67 +940,6 @@ export const attachTaskRecord = createServerFn({ method: "POST" })
     return { ok: true, id: (inserted as { id: string }).id };
   });
 
-/** Anexos de uma pendência — os da abertura e os da comprovação. */
-export const listTaskRecords = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ taskId: z.string().uuid() }).parse(i))
-  .handler(async ({ data, context }) => {
-    const supabase = context.supabase as unknown as AnyClient;
-    const { data: rows, error } = await supabase
-      .from("reservation_records")
-      .select(
-        "id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, created_by_name, created_at, is_resolution",
-      )
-      .eq("task_id", data.taskId)
-      .order("created_at", { ascending: true })
-      .limit(200);
-    if (error) throw new Error(error.message);
-
-    const list = (rows ?? []) as Array<{
-      id: string;
-      group_id: string | null;
-      kind: ReservationRecord["kind"];
-      category: RecordCategory;
-      storage_path: string | null;
-      mime: string | null;
-      size_bytes: number | null;
-      duration_ms: number | null;
-      file_name: string | null;
-      body: string | null;
-      created_by_name: string | null;
-      created_at: string;
-      is_resolution: boolean;
-    }>;
-
-    const paths = list.filter((r) => r.storage_path).map((r) => r.storage_path as string);
-    const urlByPath = new Map<string, string>();
-    if (paths.length > 0) {
-      const { data: signed } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrls(paths, SIGN_TTL_SECONDS);
-      for (const s of (signed ?? []) as Array<{ path: string | null; signedUrl: string | null }>) {
-        if (s.path && s.signedUrl) urlByPath.set(s.path, s.signedUrl);
-      }
-    }
-
-    return {
-      records: list.map((r) => ({
-        id: r.id,
-        kind: r.kind,
-        category: r.category,
-        url: r.storage_path ? (urlByPath.get(r.storage_path) ?? null) : null,
-        mime: r.mime,
-        sizeBytes: r.size_bytes,
-        durationMs: r.duration_ms,
-        fileName: r.file_name,
-        body: r.body,
-        createdByName: r.created_by_name,
-        createdAt: r.created_at,
-        isResolution: r.is_resolution,
-      })),
-    };
-  });
-
 /**
  * Remove um registro (e o arquivo do storage, se houver). A pendência
  * gerada NÃO é apagada junto: ela pode já estar em andamento com outra
@@ -1128,8 +947,9 @@ export const listTaskRecords = createServerFn({ method: "GET" })
  *
  * DESFAZER (17/09/2026): com `keepFile`, o arquivo fica no storage durante
  * os 5s do botão "Desfazer" e a linha apagada volta para o cliente. Se a
- * pessoa desfizer, `restoreReservationRecord` recoloca a linha; se não,
- * `purgeRecordFile` apaga o arquivo quando a janela fecha.
+ * pessoa desfizer, `restoreReservationRecord` recoloca a linha; se não, o
+ * registro segue para a lixeira de 30 dias e o cron `purge-record-trash`
+ * apaga o arquivo de vez.
  */
 const RECORD_RESTORE_COLUMNS =
   "id, property_id, log_id, reservation_id, kind, storage_path, mime, size_bytes, duration_ms, file_name, body, card_mode, created_by, created_by_name, created_at, category, task_id, is_resolution, group_id";
@@ -1418,37 +1238,6 @@ export const restoreReservationRecord = createServerFn({ method: "POST" })
         .eq("property_id", data.removed[0].property_id);
     }
     return { ok: true };
-  });
-
-/**
- * Fim da janela do "Desfazer": apaga o arquivo que ficou guardado. Só apaga
- * se nenhum registro aponta mais para ele e se o imóvel do caminho é um que
- * a pessoa enxerga — um caminho qualquer vindo do navegador não apaga nada.
- */
-export const purgeRecordFile = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ storagePath: z.string().min(3).max(500) }).parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const supabase = context.supabase as unknown as AnyClient;
-    const propertyId = data.storagePath.split("/")[0] ?? "";
-    if (!/^[0-9a-f-]{36}$/i.test(propertyId)) return { ok: true, removed: false };
-    const [{ data: prop }, { data: refs }] = await Promise.all([
-      supabase.from("properties").select("id").eq("id", propertyId).maybeSingle(),
-      supabase
-        .from("reservation_records")
-        .select("id")
-        .eq("storage_path", data.storagePath)
-        .limit(1),
-    ]);
-    if (!prop || (refs ?? []).length > 0) return { ok: true, removed: false };
-    try {
-      await supabase.storage.from(BUCKET).remove([data.storagePath]);
-    } catch {
-      // ignore
-    }
-    return { ok: true, removed: true };
   });
 
 /* ---------------------------------------------------------------------- *
@@ -2016,67 +1805,6 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       truncated: all.length >= ACCOUNT_RECORDS_SCAN_LIMIT,
       bounds,
     };
-  });
-
-/**
- * LIMPEZAS SEM REGISTRO — limpezas concluídas (saídas com limpeza marcada)
- * no recorte pedido que não têm nenhum registro de LIMPEZA ligado à mesma
- * estadia (mesmo log do hóspede ou mesma reserva). Alimenta o cartão da aba
- * Registros.
- */
-export const countCleaningsWithoutRecords = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (i: unknown) =>
-      z
-        .object({
-          ownerId: z.string().uuid().nullable().optional(),
-          days: z.number().int().positive().max(3650).nullable().optional(),
-          propertyIds: z.array(z.string().uuid()).max(500).nullable().optional(),
-        })
-        .optional()
-        .parse(i) ?? {},
-  )
-  .handler(async ({ data, context }): Promise<{ count: number }> => {
-    const supabase = context.supabase as unknown as AnyClient;
-    const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
-    const accessible = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
-    const requested = data.propertyIds ?? null;
-    const propIds =
-      requested && requested.length > 0 ? accessible.filter((id) => requested.includes(id)) : accessible;
-    if (propIds.length === 0) return { count: 0 };
-
-    let q = supabase
-      .from("guest_arrival_status")
-      .select("id, log_id, reservation_id")
-      .eq("kind", "checkout")
-      .not("cleaning_type", "is", null)
-      .not("concluded_at", "is", null)
-      .in("property_id", propIds)
-      .limit(5000);
-    if (data.days) q = q.gte("concluded_at", new Date(Date.now() - data.days * 86_400_000).toISOString());
-    const { data: rows, error } = await q;
-    if (error) throw new Error("Não foi possível contar as limpezas sem registro. Tente de novo.");
-    const cleanings = (rows ?? []) as { id: string; log_id: string | null; reservation_id: string | null }[];
-    if (cleanings.length === 0) return { count: 0 };
-
-    const { data: recs, error: e2 } = await supabase
-      .from("reservation_records")
-      .select("log_id, reservation_id")
-      .eq("category", "cleaning_audit")
-      .in("property_id", propIds)
-      .limit(20000);
-    if (e2) throw new Error("Não foi possível contar as limpezas sem registro. Tente de novo.");
-    const logs = new Set<string>();
-    const resv = new Set<string>();
-    for (const r of (recs ?? []) as { log_id: string | null; reservation_id: string | null }[]) {
-      if (r.log_id) logs.add(r.log_id);
-      if (r.reservation_id) resv.add(r.reservation_id);
-    }
-    const count = cleanings.filter(
-      (c) => !(c.log_id && logs.has(c.log_id)) && !(c.reservation_id && resv.has(c.reservation_id)),
-    ).length;
-    return { count };
   });
 
 /* ───────────────────────── "+ REGISTRO" (05/10/2026) ─────────────────────────

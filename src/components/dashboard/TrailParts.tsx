@@ -416,7 +416,7 @@ function OwnerLine({
 /**
  * RESPOSTA ESTRUTURADA de "Qual imóvel?" / "Qual reserva?" (mockup 0m): em vez de
  * uma frase única que quebra, uma informação por linha — nome do imóvel (+ Maps,
- * só no imóvel), hóspede "- período" (reserva) e Proprietário(a) com chat.
+ * só no imóvel), hóspede "- período" (reserva) e o proprietário (só o nome) com chat.
  */
 export function PropertySummary({
   name,
