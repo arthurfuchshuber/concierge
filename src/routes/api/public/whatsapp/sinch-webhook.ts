@@ -209,15 +209,19 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
           convId = newConv.id as string;
         }
 
-        await supabaseAdmin.from("property_chat_messages").insert({
-          conversation_id: convId,
-          role: "user",
-          content: inbound,
-          sender_type: "guest",
-          channel: "whatsapp",
-          external_id: messageId ?? null,
-          delivery_status: "delivered",
-        });
+        const { data: guestMsg } = await supabaseAdmin
+          .from("property_chat_messages")
+          .insert({
+            conversation_id: convId,
+            role: "user",
+            content: inbound,
+            sender_type: "guest",
+            channel: "whatsapp",
+            external_id: messageId ?? null,
+            delivery_status: "delivered",
+          })
+          .select("id")
+          .single();
 
         await supabaseAdmin
           .from("property_chat_conversations")
@@ -263,14 +267,11 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
         try {
           const { requestGuestAiReply, NO_AI_HANDOFF_REASON } = await import("@/lib/guest-ai/slot.server");
           const ai = await requestGuestAiReply({
-            supabase: supabaseAdmin,
             surface: "whatsapp",
-            propertyId: String(log.property_id),
-            ownerId,
             conversationId: convId,
-            guestName: (log.guest_name as string | null) ?? null,
-            message: inbound,
-            reservationCode: log.reservation_code,
+            messageId: guestMsg?.id ?? "",
+            // Dono provado pela assinatura HMAC do webhook (segredo por conta).
+            expectedOwnerId: ownerId,
           });
 
           const handoffTriggered = ai ? ai.handoff : true;

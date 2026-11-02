@@ -211,13 +211,18 @@ async function runGuideChat(
         .eq("id", conversationId);
     }
 
-    // Persiste a mensagem do hóspede em qualquer caso.
-    await supabaseAdmin.from("property_chat_messages").insert({
-      conversation_id: conversationId,
-      role: "user",
-      content: body.message,
-      sender_type: "guest",
-    });
+    // Persiste a mensagem do hóspede em qualquer caso. O id vai para o slot da IA,
+    // que revalida conversa + mensagem no backend (F0: o slot só recebe identificadores).
+    const { data: guestMsg } = await supabaseAdmin
+      .from("property_chat_messages")
+      .insert({
+        conversation_id: conversationId,
+        role: "user",
+        content: body.message,
+        sender_type: "guest",
+      })
+      .select("id")
+      .single();
     await supabaseAdmin
       .from("property_chat_conversations")
       .update({
@@ -258,14 +263,10 @@ async function runGuideChat(
     emitStage({ step: "route", label: "Encaminhando ao anfitrião" });
     const { requestGuestAiReply, NO_AI_HANDOFF_REASON } = await import("@/lib/guest-ai/slot.server");
     const ai = await requestGuestAiReply({
-      supabase: supabaseAdmin as SupabaseClient,
       surface: "guide_chat",
-      propertyId: String(prop.id),
-      ownerId: prop.owner_id ? String(prop.owner_id) : null,
       conversationId,
-      guestName: body.guestName ?? null,
-      message: body.message,
-      reservationCode: body.reservationCode ?? null,
+      messageId: guestMsg?.id ?? "",
+      expectedOwnerId: prop.owner_id ? String(prop.owner_id) : null,
     });
 
     // FALLBACK: sem IA, a conversa vai para a fila humana e a equipe é avisada.

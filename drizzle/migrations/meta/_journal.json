@@ -134,6 +134,20 @@
       "when": 1793506171997,
       "tag": "0018_20261101000000_host_knowledge_behavior_audience",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793648562833,
+      "tag": "0019_20261102200000_guest_arrival_credentials_release",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793650803341,
+      "tag": "0020_20261102230000_guest_arrival_authorization_guards",
+      "breakpoints": true
     }
   ]
 }
