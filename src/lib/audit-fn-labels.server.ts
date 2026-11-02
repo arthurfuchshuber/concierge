@@ -144,7 +144,7 @@ export function sanitizeArgs(data: unknown, depth = 0): unknown {
 }
 
 /** Frase curta com os dados-chave da chamada ("hóspede X · imóvel Y"). */
-export function describeArgs(data: unknown): string {
+function describeArgs(data: unknown): string {
   const src = (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as Record<string, unknown>;
   const parts: string[] = [];
   for (const key of KEY_FIELDS) {

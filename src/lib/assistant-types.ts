@@ -37,7 +37,7 @@
 import type { TaskCategory, TaskPriority } from "@/lib/tasks-types";
 
 /** Um par rótulo/valor do cartão de confirmação. */
-export type ActionPreviewRow = { label: string; value: string };
+type ActionPreviewRow = { label: string; value: string };
 
 export type AssistantAction =
   | {

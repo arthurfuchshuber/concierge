@@ -6,8 +6,8 @@
  * Re-sincronizar é idempotente (upsert pelo id `ftn_...`).
  */
 const BASE = "https://api.asaas.com";
-export const ASAAS_ITEM_ID = "asaas";
-export const ASAAS_ACCOUNT_ID = "asaas-pj";
+const ASAAS_ITEM_ID = "asaas";
+const ASAAS_ACCOUNT_ID = "asaas-pj";
 const COMPANY_OWNER_ID = "25239e5b-1a66-46f1-b9a2-829c499cc366";
 
 async function asaas(path: string): Promise<any> {

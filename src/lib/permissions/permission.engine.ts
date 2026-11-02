@@ -29,19 +29,19 @@ const SCOPE_SPECIFICITY: Record<ScopeType, number> = {
   RECORD: 4,
 };
 
-export function meetsLevel(effective: AccessLevel, required: AccessLevel): boolean {
+function meetsLevel(effective: AccessLevel, required: AccessLevel): boolean {
   return ACCESS_LEVEL_WEIGHT[effective] >= ACCESS_LEVEL_WEIGHT[required];
 }
 
-export function highestLevel(a: AccessLevel, b: AccessLevel): AccessLevel {
+function highestLevel(a: AccessLevel, b: AccessLevel): AccessLevel {
   return ACCESS_LEVEL_WEIGHT[a] >= ACCESS_LEVEL_WEIGHT[b] ? a : b;
 }
 
-export function capLevel(level: AccessLevel, cap: AccessLevel): AccessLevel {
+function capLevel(level: AccessLevel, cap: AccessLevel): AccessLevel {
   return ACCESS_LEVEL_WEIGHT[level] <= ACCESS_LEVEL_WEIGHT[cap] ? level : cap;
 }
 
-export function hasSystemRole(subject: PermissionSubject, role: SystemRole): boolean {
+function hasSystemRole(subject: PermissionSubject, role: SystemRole): boolean {
   return (subject.systemRoles ?? []).includes(role);
 }
 
@@ -49,12 +49,12 @@ export function hasSystemRole(subject: PermissionSubject, role: SystemRole): boo
  * REGRA DO OWNER: acesso total ao que estiver disponível para o tenant e
  * permissões nunca editáveis. Documentada e centralizada aqui.
  */
-export function isOwner(subject: PermissionSubject): boolean {
+function isOwner(subject: PermissionSubject): boolean {
   return hasSystemRole(subject, "OWNER") || subject.userId === subject.tenantId;
 }
 
 /** Assignments do OWNER nunca podem ser gravados/alterados. */
-export function assignmentsAreImmutable(subject: PermissionSubject): boolean {
+function assignmentsAreImmutable(subject: PermissionSubject): boolean {
   return isOwner(subject);
 }
 

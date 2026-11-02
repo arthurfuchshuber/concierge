@@ -91,7 +91,7 @@ export async function loadTaxonomyCached(): Promise<Taxonomy> {
   return _cache.taxonomy;
 }
 
-export function invalidateTaxonomyCache() {
+function invalidateTaxonomyCache() {
   _cache = null;
 }
 

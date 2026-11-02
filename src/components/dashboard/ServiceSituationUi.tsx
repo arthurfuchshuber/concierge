@@ -85,7 +85,7 @@ const SITUATION_ICON: Record<string, LucideIcon> = {
 /* Janela "Sobre o que é a situação?"                                        */
 /* ------------------------------------------------------------------------ */
 
-export function SituationPickerDialog({
+function SituationPickerDialog({
   open,
   onOpenChange,
   situations,

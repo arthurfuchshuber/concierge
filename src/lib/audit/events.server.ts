@@ -9,7 +9,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type ActorType =
+type ActorType =
   | "USER"
   | "ADMIN"
   | "OWNER"
@@ -18,18 +18,6 @@ export type ActorType =
   | "SYSTEM"
   | "INTEGRATION"
   | "CRON_JOB";
-
-export const ACTOR_TYPES: ActorType[] = [
-  "USER",
-  "ADMIN",
-  "OWNER",
-  "GUEST",
-  "AI_AGENT",
-  "SYSTEM",
-  "INTEGRATION",
-  "CRON_JOB",
-];
-
 export type EventCategory =
   | "AUTHENTICATION"
   | "PERMISSIONS"
@@ -43,79 +31,6 @@ export type EventCategory =
   | "ACTIVITY"
   | "SERVER_CALL"
   | "ERROR";
-
-export const EVENT_CATEGORIES: Record<EventCategory, { label: string; events: string[] }> = {
-  AUTHENTICATION: {
-    label: "Autenticação",
-    events: ["login_success", "login_failed", "logout", "password_changed", "oauth_connected"],
-  },
-  PERMISSIONS: {
-    label: "Permissões",
-    events: ["permission_created", "permission_changed", "permission_removed", "access_denied"],
-  },
-  USER_MANAGEMENT: {
-    label: "Usuários",
-    events: ["user_created", "user_updated", "user_deleted", "role_changed"],
-  },
-  CONVERSATION: {
-    label: "Conversas",
-    events: ["conversation_created", "message_received", "message_sent", "conversation_closed"],
-  },
-  AI_DECISION: {
-    label: "Decisão da IA",
-    events: [
-      "agent_selected",
-      "tool_called",
-      "memory_retrieved",
-      "source_used",
-      "confidence_generated",
-      "reflection_completed",
-    ],
-  },
-  MEMORY: {
-    label: "Memória",
-    events: ["memory_created", "memory_updated", "memory_used", "memory_archived"],
-  },
-  LEARNING: {
-    label: "Aprendizado",
-    events: ["learning_candidate_created", "learning_approved", "learning_rejected", "knowledge_promoted"],
-  },
-  INTEGRATIONS: {
-    label: "Integrações",
-    events: ["integration_connected", "integration_disconnected", "webhook_received", "api_error"],
-  },
-  SECURITY: {
-    label: "Segurança",
-    events: ["tenant_access_attempt", "permission_violation", "suspicious_activity"],
-  },
-  ACTIVITY: {
-    label: "Atividade",
-    events: [
-      "page_view",
-      "click",
-      "form_submit",
-      "field_changed",
-      "search",
-      "copy",
-      "download",
-      "media_play",
-      "scroll_depth",
-      "session_start",
-      "session_end",
-      "tab_hidden",
-      "tab_visible",
-    ],
-  },
-  SERVER_CALL: {
-    label: "Chamadas do servidor",
-    events: ["server_fn_called", "server_fn_failed"],
-  },
-  ERROR: {
-    label: "Erros",
-    events: ["client_error", "unhandled_rejection", "server_error"],
-  },
-};
-
 export type Severity = "info" | "notice" | "warning" | "error" | "critical";
 
 export type SystemEventInput = {
@@ -240,7 +155,7 @@ export type EventFilters = {
   offset?: number;
 };
 
-export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 export type SystemEventRow = { [key: string]: Json };
 
 /** Consulta paginada com todos os filtros do Log Viewer. */

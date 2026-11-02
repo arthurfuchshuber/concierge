@@ -12,7 +12,7 @@ import {
 import type { PlanFeatures } from "@/lib/payments.shared";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
-export type SubscriptionInfo = {
+type SubscriptionInfo = {
   plan: PlanKey | null;
   status: string | null;
   cancelAtPeriodEnd: boolean;

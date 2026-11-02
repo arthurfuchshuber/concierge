@@ -118,7 +118,7 @@ export const PLANS = {
 export type PlanKey = keyof typeof PLANS;
 
 /** Human-friendly label for a feature — used in comparison tables and locked-feature dialogs. */
-export const FEATURE_LABELS: Record<keyof PlanFeatures, string> = {
+const FEATURE_LABELS: Record<keyof PlanFeatures, string> = {
   guestChat: "Chat com IA para hóspedes",
   autoImport: "Importação automática (Airbnb + Maps)",
   advancedIntake: "Formulário de captação + validação de documentos por IA",

@@ -126,7 +126,7 @@ async function detectLinkedRecommendations(propertyId: string): Promise<string |
 // Ordem é PRIORIDADE: categorias mais específicas/preferidas primeiro.
 // Atrações vêm ANTES de parques porque "national_park" / "tourist_attraction"
 // devem ser classificados como Atração (ex.: Iguaçu/Iguazú).
-export let TYPE_MAP: {
+let TYPE_MAP: {
   type: PlaceItem["type"];
   placesTypes: string[];
   acceptedPrimaryTypes: string[];
@@ -1582,7 +1582,7 @@ export async function generateCityReferencesFromMaps(input: {
 
 // Geocoder público — usado para validar/centralizar uma cidade quando admin
 // cadastra manualmente. Reaproveita o geocode existente.
-export async function resolveCityCenter(
+async function resolveCityCenter(
   city_label: string,
   state: string | null,
   country: string,

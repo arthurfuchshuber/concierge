@@ -2,7 +2,7 @@
 // Descobre a qual proprietário/prestador pertence um e-mail, documento ou nome
 // vindo do Google Agenda ou do ClickSign — e aprende com os vínculos manuais.
 
-export type StakeholderKind = "owner" | "provider";
+type StakeholderKind = "owner" | "provider";
 
 export type StakeholderRef = {
   type: StakeholderKind;
@@ -28,7 +28,7 @@ export type AliasRow = {
   stakeholder_id: string;
 };
 
-export function norm(s: unknown): string {
+function norm(s: unknown): string {
   return String(s ?? "")
     .toLowerCase()
     .normalize("NFD")
@@ -38,7 +38,7 @@ export function norm(s: unknown): string {
     .trim();
 }
 
-export function digits(s: unknown): string {
+function digits(s: unknown): string {
   return String(s ?? "").replace(/\D/g, "");
 }
 

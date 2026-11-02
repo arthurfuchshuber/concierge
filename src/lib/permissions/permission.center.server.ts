@@ -23,7 +23,7 @@ import { SCOPE_TYPES, type AccessLevel, type ScopeType } from "./permission.type
 
 export type CenterDenial = { allowed: false; reason: string };
 
-export type CenterUser = {
+type CenterUser = {
   userId: string;
   name: string;
   email: string | null;
@@ -46,7 +46,7 @@ export type CenterOverview = {
   invites: CenterInvite[];
 };
 
-export type CenterInvite = {
+type CenterInvite = {
   id: string;
   email: string;
   role: string;
@@ -138,7 +138,7 @@ const SCOPE_DESCRIPTION: Record<ScopeType, string> = {
  * Validação obrigatória — SEMPRE antes de qualquer leitura sensível.
  * Delegada integralmente ao Authorization Runtime existente.
  */
-export async function assertCenterAccess(
+async function assertCenterAccess(
   userId: string,
   required: AccessLevel = "READ",
   tenantId?: string,

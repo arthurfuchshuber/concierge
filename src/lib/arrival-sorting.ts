@@ -8,7 +8,7 @@ import { compareLateRows, compareLateThenDay, compareTimesNullLast, hasExplicitF
  */
 
 /** Distância em metros entre duas coordenadas (fórmula de haversine). */
-export function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const toRad = (d: number) => (d * Math.PI) / 180;
   const R = 6371000;
   const dLat = toRad(b.lat - a.lat);
@@ -25,7 +25,7 @@ export function haversineMeters(a: { lat: number; lng: number }, b: { lat: numbe
  * um checkout "cruza" com uma chegada no mesmo imóvel no mesmo dia (giro).
  * Quando há mais de um check-in no mesmo imóvel/dia (raro), fica o mais cedo.
  */
-export function buildSameDayCheckinLookup(checkinRowSources: ArrivalRow[][]): Map<string, string | null> {
+function buildSameDayCheckinLookup(checkinRowSources: ArrivalRow[][]): Map<string, string | null> {
   const map = new Map<string, string | null>();
   for (const rows of checkinRowSources) {
     for (const r of rows) {
@@ -55,7 +55,7 @@ export function buildSameDayCheckinLookup(checkinRowSources: ArrivalRow[][]): Ma
  * próximo escolhido). Imóveis sem coordenada cadastrada não competem nesse
  * critério; ficam ao final do grupo, na ordem que já tinham.
  */
-export function clusterByProximity(group: ArrivalRow[], anchor?: ArrivalRow | null): ArrivalRow[] {
+function clusterByProximity(group: ArrivalRow[], anchor?: ArrivalRow | null): ArrivalRow[] {
   const hasAnchor = !!anchor && anchor.lat != null && anchor.lng != null;
   if (group.length <= 1 || (group.length === 2 && !hasAnchor)) return group;
   const withCoords = group.filter((r) => r.lat != null && r.lng != null);

@@ -8,7 +8,7 @@
  */
 import { featureAccess, type FeatureDefinition } from "./feature.access";
 
-export const PERMISSION_FEATURES: FeatureDefinition[] = [
+const PERMISSION_FEATURES: FeatureDefinition[] = [
   {
     key: "guestChat",
     name: "Chat com IA para hóspedes",

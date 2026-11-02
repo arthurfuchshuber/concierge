@@ -27,7 +27,7 @@ const AirbnbInput = z.object({
 export type AirbnbAmenity = { name: string; available: boolean; category: string | null };
 export type AirbnbRoomBeds = { room: string; beds: string };
 
-export type AirbnbImportResult = {
+type AirbnbImportResult = {
   name: string | null;
   /** Descrição curta em texto livre. Grava em `properties.short_description`
    * — NUNCA em `properties.tagline`, que é um seletor fixo de "Tipo do

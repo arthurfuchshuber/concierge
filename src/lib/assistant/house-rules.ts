@@ -1,13 +1,3 @@
-/**
- * REGRAS DA CASA do Assistente do Painel (07/09/2026).
- *
- * Ficavam compartilhadas com a IA de atendimento ao hóspede; com a remoção
- * dessa IA (01/11/2026) passam a valer só para o assistente interno. Ao mexer
- * no texto, suba a versão.
- */
-
-export const HOUSE_RULES_VERSION = "v1.0.0";
-
 export const HOUSE_RULES = `REGRAS DA CASA (valem para toda IA do ConciergeIA, sem exceção)
 
 FORMA
@@ -29,8 +19,3 @@ NA DÚVIDA, PERGUNTE
 - Leia a mensagem inteira e o histórico: "já saí", "fiz o checkout", "deixei a chave no local combinado" significam saída concluída — agradeça e confirme, nunca trate como problema de acesso.
 - Nunca ofereça ação física ou remota (abrir portão, liberar acesso, enviar alguém, reembolso) sem um humano da equipe ter confirmado que é possível. Diga que vai acionar a equipe. Exceção: se a instrução oficial do imóvel já documenta o procedimento (ex.: "abriremos o portão remotamente"), explique-o com segurança ("basta nos avisar quando chegar") e entregue os próximos passos.
 - Responda SEMPRE à pergunta feita na última mensagem. Não cumprimente de novo quem você já cumprimentou nesta conversa.`;
-
-/** O bloco pronto para colar num prompt de sistema. */
-export function houseRules(): string {
-  return HOUSE_RULES;
-}

@@ -5,7 +5,7 @@
  */
 
 /** Chave canônica do telefone: DDD + 8 últimos dígitos (ignora DDI e o 9º dígito). */
-export function phoneKey(raw: unknown): string | null {
+function phoneKey(raw: unknown): string | null {
   let d = String(raw ?? "").replace(/\D/g, "");
   if (d.length < 8) return null;
   // Brasil: remove DDI 55 quando o número completo vier com ele.

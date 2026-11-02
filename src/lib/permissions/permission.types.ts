@@ -8,31 +8,8 @@
 
 /** Tipo de nó na árvore de permissões. */
 export type PermissionNodeType = "PAGE" | "SUBPAGE" | "TAB" | "SECTION" | "RESOURCE" | "FIELD";
-
-export const PERMISSION_NODE_TYPES: PermissionNodeType[] = [
-  "PAGE",
-  "SUBPAGE",
-  "TAB",
-  "SECTION",
-  "RESOURCE",
-  "FIELD",
-];
-
-/** Ordem hierárquica esperada (do mais amplo para o mais específico). */
-export const PERMISSION_NODE_DEPTH: Record<PermissionNodeType, number> = {
-  PAGE: 0,
-  SUBPAGE: 1,
-  TAB: 2,
-  SECTION: 3,
-  RESOURCE: 4,
-  FIELD: 5,
-};
-
 /** Níveis de acesso padrão. Ordenados do menor para o maior. */
 export type AccessLevel = "NONE" | "READ" | "WRITE";
-
-export const ACCESS_LEVELS: AccessLevel[] = ["NONE", "READ", "WRITE"];
-
 /** Peso numérico usado para comparação/herança de níveis. */
 export const ACCESS_LEVEL_WEIGHT: Record<AccessLevel, number> = {
   NONE: 0,
@@ -55,9 +32,6 @@ export const SCOPE_TYPES: ScopeType[] = ["GLOBAL", "TENANT", "CLIENT", "PROPERTY
  *    pelo Permission Service nas fases seguintes.
  */
 export type SystemRole = "OWNER" | "SYSTEM" | "ADMIN_SAAS" | "CRON" | "INTEGRATION";
-
-export const SYSTEM_ROLES: SystemRole[] = ["OWNER", "SYSTEM", "ADMIN_SAAS", "CRON", "INTEGRATION"];
-
 /** Papéis que ignoram checagem granular (bypass estrutural). */
 export const BYPASS_SYSTEM_ROLES: SystemRole[] = ["OWNER", "SYSTEM", "ADMIN_SAAS", "CRON"];
 
@@ -84,7 +58,7 @@ export type PermissionNode = {
 };
 
 /** Origem de um nó dentro do catálogo (usada pelo Guardian/auditoria). */
-export type PermissionNodeSource = "catalog" | "scanner" | "auto-parent" | "manual";
+type PermissionNodeSource = "catalog" | "scanner" | "auto-parent" | "manual";
 
 /** Definição declarativa usada pelo Registry antes de existir no banco. */
 export type PermissionNodeDefinition = {

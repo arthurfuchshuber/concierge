@@ -69,7 +69,7 @@ export const importarAnunciosAirbnb = createServerFn({ method: "POST" })
     }
   });
 
-export type ConnectedListing = {
+type ConnectedListing = {
   listingId: string;
   name: string;
   kind: "primary" | "twin";

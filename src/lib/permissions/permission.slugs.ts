@@ -19,7 +19,7 @@ export type PermissionNamespace = typeof TENANT_NAMESPACE | typeof SAAS_NAMESPAC
 export const ROOT_SLUGS: PermissionNamespace[] = [TENANT_NAMESPACE, SAAS_NAMESPACE];
 
 /** Namespace ao qual um slug canônico pertence. */
-export function namespaceOf(slug: string): PermissionNamespace {
+function namespaceOf(slug: string): PermissionNamespace {
   return slug === SAAS_NAMESPACE || slug.startsWith(`${SAAS_NAMESPACE}.`)
     ? SAAS_NAMESPACE
     : TENANT_NAMESPACE;
@@ -29,12 +29,8 @@ export function isSaasSlug(slug: string): boolean {
   return namespaceOf(slug) === SAAS_NAMESPACE;
 }
 
-export function isTenantSlug(slug: string): boolean {
-  return namespaceOf(slug) === TENANT_NAMESPACE;
-}
-
 /** True quando o slug já está namespaced. */
-export function isNamespaced(slug: string): boolean {
+function isNamespaced(slug: string): boolean {
   return ROOT_SLUGS.some((ns) => slug === ns || slug.startsWith(`${ns}.`));
 }
 
@@ -42,7 +38,7 @@ export function isNamespaced(slug: string): boolean {
  * Converte qualquer slug em seu formato canônico.
  * Slugs legados (`dashboard`, `administrativo.equipe`) recebem `tenant.`.
  */
-export function canonicalSlug(slug: string): string {
+function canonicalSlug(slug: string): string {
   const clean = slug
     .trim()
     .toLowerCase()
@@ -61,7 +57,7 @@ export function canonicalSlug(slug: string): string {
  * `administrativo.equipe` (nó do catálogo). O vencedor é
  * `tenant.administrativo.equipe`.
  */
-export const SLUG_ALIASES: Record<string, string> = {
+const SLUG_ALIASES: Record<string, string> = {
   // Slugs derivados da URL do painel (o prefixo /admin é apenas a rota).
   "admin.dashboard": "tenant.dashboard",
   "admin.guias": "tenant.guias",
@@ -94,15 +90,6 @@ export function resolveSlug(slug: string): string {
   return SLUG_ALIASES[canonical] ?? canonical;
 }
 
-/** Pares (antigo → novo) para persistir no histórico. */
-export function slugHistoryPairs(): Array<{ old_slug: string; new_slug: string; reason: string }> {
-  return Object.entries(SLUG_ALIASES).map(([oldSlug, newSlug]) => ({
-    old_slug: oldSlug,
-    new_slug: newSlug,
-    reason: "Normalização de namespaces (Fase 3.5)",
-  }));
-}
-
 /* ------------------------------------------------------------------ rotas */
 
 /**
@@ -110,10 +97,10 @@ export function slugHistoryPairs(): Array<{ old_slug: string; new_slug: string; 
  * Todo o resto (marketing, autenticação, legal, landing, guia público de
  * leitura, APIs) é catalogado como NÃO permissionável.
  */
-export const PERMISSIONABLE_ROUTE_PREFIXES = ["/admin", "/painel"];
+const PERMISSIONABLE_ROUTE_PREFIXES = ["/admin", "/painel"];
 
 /** Rotas que nunca são permissionáveis (públicas, legais, técnicas, auth). */
-export const NON_PERMISSIONABLE_ROUTES = new Set([
+const NON_PERMISSIONABLE_ROUTES = new Set([
   "/",
   "/auth",
   "/precos",
@@ -137,7 +124,7 @@ const NON_PERMISSIONABLE_PATTERNS = [
 ];
 
 /** Rotas do Admin do SaaS (namespace `admin.*`). */
-export const SAAS_ROUTES = new Set([
+const SAAS_ROUTES = new Set([
   "/admin/admins",
   "/admin/engajamento",
   "/admin/clientes",

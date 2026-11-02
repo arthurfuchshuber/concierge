@@ -32,7 +32,7 @@ async function db() {
 
 /* ---------------------------------------------------------------- guarda */
 
-export type CenterWriteContext = {
+type CenterWriteContext = {
   actorId: string;
   actorName: string | null;
   tenantId: string;
@@ -43,7 +43,7 @@ export type CenterWriteContext = {
  * Diferente da leitura, aqui a decisão é aplicada de forma estrita: mesmo em
  * modo progressivo, uma negação do guard bloqueia a operação.
  */
-export async function assertCenterWrite(
+async function assertCenterWrite(
   actorId: string,
   scope: { scopeType?: ScopeType; scopeId?: string | null } = {},
 ): Promise<CenterWriteContext> {
@@ -497,24 +497,4 @@ export async function setCenterPropertyScope(
     ok: true,
     message: input.assigned ? "Residência vinculada ao usuário." : "Vínculo com a residência removido.",
   };
-}
-
-export const permissionCenterMutations = {
-  assertCenterWrite,
-  createCenterUser,
-  updateCenterUserRole,
-  removeCenterUserRole,
-  setCenterUserStatus,
-  removeCenterUser,
-  grantCenterPermission,
-  revokeCenterPermission,
-  setCenterPropertyScope,
-  setCenterAllProperties,
-};
-
-export const ACCOUNT_ROLE_OPTIONS = ACCOUNT_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r]! }));
-
-/** Utilitário interno usado nos testes de escopo. */
-export async function tenantOf(userId: string) {
-  return resolveTenantOf(userId);
 }

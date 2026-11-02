@@ -3,12 +3,12 @@
  * sem Firecrawl e sem IA — custo zero. Cada imóvel guarda SOMENTE essa foto
  * (`hero_image_url` e `gallery_images = [capa]`).
  */
-export function listingIdFromUrl(url: string | null | undefined): string | null {
+function listingIdFromUrl(url: string | null | undefined): string | null {
   const m = String(url ?? "").match(/\/rooms\/(?:plus\/)?(\d{5,})/);
   return m ? m[1]! : null;
 }
 
-export function extractCoverFromHtml(html: string): string | null {
+function extractCoverFromHtml(html: string): string | null {
   const m =
     html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
     html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);

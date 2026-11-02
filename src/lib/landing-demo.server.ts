@@ -12,11 +12,11 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const LANDING_SOURCE_SLUG = "charmosa";
-export const LANDING_COPY_SLUG = "vitrine-casa-charmosa";
+const LANDING_SOURCE_SLUG = "charmosa";
+const LANDING_COPY_SLUG = "vitrine-casa-charmosa";
 const DEMO_OWNER_EMAIL = "vitrine-landing@conciergeia.app";
 
-export const DEMO_SECRETS = {
+const DEMO_SECRETS = {
   wifi_ssid: "ConciergeIA_Hospede",
   wifi_password: "demo-2026",
   lock_code: "2468",

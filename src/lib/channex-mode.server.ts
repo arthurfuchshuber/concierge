@@ -7,7 +7,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export type OperationMode = "light" | "full";
+type OperationMode = "light" | "full";
 
 const CHANNEX_BASE = "https://app.channex.io/api/v1";
 

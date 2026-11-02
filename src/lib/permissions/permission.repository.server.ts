@@ -22,7 +22,7 @@ async function admin() {
 
 /* ------------------------------------------------------------------ nodes */
 
-export async function listNodes(): Promise<PermissionNode[]> {
+async function listNodes(): Promise<PermissionNode[]> {
   const db = await admin();
   const { data, error } = await db
     .from("permission_nodes")
@@ -32,7 +32,7 @@ export async function listNodes(): Promise<PermissionNode[]> {
   return (data ?? []) as unknown as PermissionNode[];
 }
 
-export async function getNodeBySlug(slug: string): Promise<PermissionNode | null> {
+async function getNodeBySlug(slug: string): Promise<PermissionNode | null> {
   const db = await admin();
   const { data, error } = await db
     .from("permission_nodes")
@@ -49,11 +49,11 @@ export async function getNodeBySlug(slug: string): Promise<PermissionNode | null
 let nodeMapCache: { at: number; map: Record<string, string> } | null = null;
 const NODE_MAP_TTL = 60_000;
 
-export function invalidateNodeMapCache(): void {
+function invalidateNodeMapCache(): void {
   nodeMapCache = null;
 }
 
-export async function nodeIdBySlug(): Promise<Record<string, string>> {
+async function nodeIdBySlug(): Promise<Record<string, string>> {
   if (nodeMapCache && Date.now() - nodeMapCache.at < NODE_MAP_TTL) return nodeMapCache.map;
   const nodes = await listNodes();
   const map: Record<string, string> = {};
@@ -69,7 +69,7 @@ export async function nodeIdBySlug(): Promise<Record<string, string>> {
  * O upsert é feito em ondas por profundidade do slug para que o `parent_id`
  * dos filhos sempre encontre o pai já persistido (herança garantida).
  */
-export async function upsertNodes(defs: PermissionNodeDefinition[]): Promise<number> {
+async function upsertNodes(defs: PermissionNodeDefinition[]): Promise<number> {
   if (!defs.length) return 0;
   const db = await admin();
 
@@ -112,7 +112,7 @@ export async function upsertNodes(defs: PermissionNodeDefinition[]): Promise<num
 
 /* ------------------------------------------------------ permission assignments */
 
-export async function listAssignments(
+async function listAssignments(
   tenantId: string,
   userId?: string,
 ): Promise<PermissionAssignment[]> {
@@ -134,7 +134,7 @@ export type UpsertAssignmentInput = {
   createdBy?: string | null;
 };
 
-export async function upsertAssignment(
+async function upsertAssignment(
   input: UpsertAssignmentInput,
 ): Promise<PermissionAssignment> {
   const db = await admin();
@@ -157,7 +157,7 @@ export async function upsertAssignment(
   return data as unknown as PermissionAssignment;
 }
 
-export async function deleteAssignment(tenantId: string, assignmentId: string): Promise<void> {
+async function deleteAssignment(tenantId: string, assignmentId: string): Promise<void> {
   const db = await admin();
   const { error } = await db
     .from("permission_assignments")
@@ -169,7 +169,7 @@ export async function deleteAssignment(tenantId: string, assignmentId: string): 
 
 /* -------------------------------------------------------- property assignments */
 
-export async function listPropertyAssignments(
+async function listPropertyAssignments(
   tenantId: string,
   userId?: string,
 ): Promise<PropertyAssignment[]> {
@@ -181,7 +181,7 @@ export async function listPropertyAssignments(
   return (data ?? []) as unknown as PropertyAssignment[];
 }
 
-export async function upsertPropertyAssignment(input: {
+async function upsertPropertyAssignment(input: {
   tenantId: string;
   propertyId: string;
   userId: string;
@@ -208,7 +208,7 @@ export async function upsertPropertyAssignment(input: {
 }
 
 /** Remove o vínculo de um imóvel com um usuário (escopo PROPERTY). */
-export async function deletePropertyAssignment(
+async function deletePropertyAssignment(
   tenantId: string,
   propertyId: string,
   userId: string,
@@ -261,7 +261,7 @@ export async function recordAudit(input: AuditInput): Promise<void> {
   }
 }
 
-export async function listAudit(tenantId: string, limit = 100): Promise<PermissionAuditEntry[]> {
+async function listAudit(tenantId: string, limit = 100): Promise<PermissionAuditEntry[]> {
   const db = await admin();
   const { data, error } = await db
     .from("permission_audit")

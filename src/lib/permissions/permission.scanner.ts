@@ -31,7 +31,7 @@ function isTechnicalRoute(file: string): boolean {
 }
 
 /** Converte o caminho de arquivo de rota em URL do TanStack Router. */
-export function fileToRoutePath(file: string): string {
+function fileToRoutePath(file: string): string {
   let rel = file.replace(/^.*\/src\/routes\//, "").replace(/\.tsx?$/, "");
   rel = rel.replace(/\[\.\]/g, ".");
   const segments = rel
@@ -44,11 +44,6 @@ export function fileToRoutePath(file: string): string {
   return "/" + segments.join("/");
 }
 
-/** Slug canônico derivado de uma rota (`/admin/dashboard` → `tenant.dashboard`). */
-export function routeToSlug(route: string): string {
-  return slugForRoute(route);
-}
-
 function humanize(value: string): string {
   return value
     .replace(/[-_.]/g, " ")
@@ -57,7 +52,7 @@ function humanize(value: string): string {
 }
 
 /** Lista todos os arquivos de rota da aplicação (sem importá-los). */
-export function listRouteFiles(): string[] {
+function listRouteFiles(): string[] {
   const modules = import.meta.glob("/src/routes/**/*.tsx", { eager: false });
   return Object.keys(modules).sort();
 }
@@ -90,7 +85,7 @@ export function discoverRoutes(): DiscoveredRoute[] {
 }
 
 /** Rotas descobertas que a allowlist considera permissionáveis. */
-export function permissionableRoutes(): DiscoveredRoute[] {
+function permissionableRoutes(): DiscoveredRoute[] {
   return discoverRoutes().filter((r) => r.permissionable);
 }
 

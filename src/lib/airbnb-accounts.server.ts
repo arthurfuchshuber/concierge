@@ -317,7 +317,7 @@ async function airbnbUserId(channelId: string): Promise<string | null> {
  * Nome da CONTA do Airbnb (perfil do usuário autorizado, "Nome de preferência"),
  * lido ao vivo com o token do canal — nunca dos títulos dos anúncios. Token não é gravado.
  */
-export async function airbnbProfile(
+async function airbnbProfile(
   channelId: string,
 ): Promise<{ userId: string | null; name: string | null } | null> {
   const ch = await cx<{
@@ -483,7 +483,7 @@ export async function reactivate(admin: Admin, accountId: string, channelId: str
  * `null` = sem restrição (só a conta fundadora, que já operava com todos os canais antes do
  * cadastro por conta existir).
  */
-export const UNSCOPED_CHANNEL_OWNERS = new Set<string>(["25239e5b-1a66-46f1-b9a2-829c499cc366"]);
+const UNSCOPED_CHANNEL_OWNERS = new Set<string>(["25239e5b-1a66-46f1-b9a2-829c499cc366"]);
 export async function accountChannelScope(accountId: string): Promise<Set<string> | null> {
   if (UNSCOPED_CHANNEL_OWNERS.has(accountId)) return null;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

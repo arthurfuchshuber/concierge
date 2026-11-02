@@ -21,7 +21,7 @@ const num = (v: unknown) => (v == null || v === "" || !Number.isFinite(Number(v)
 const bool = (v: unknown) => (typeof v === "boolean" ? v : undefined);
 
 /** Uma entrada de ARI (webhook ou GET) vira uma linha; só entram os campos que vieram. */
-export function rowFromAri(entry: Any, ctx: { channexPropertyId?: string | null; ratePlanId?: string; roomTypeId?: string; date?: string }): CalendarRow | null {
+function rowFromAri(entry: Any, ctx: { channexPropertyId?: string | null; ratePlanId?: string; roomTypeId?: string; date?: string }): CalendarRow | null {
   const ratePlan = String(entry.rate_plan_id ?? ctx.ratePlanId ?? "");
   const date = String(entry.date ?? ctx.date ?? "").slice(0, 10);
   if (!ratePlan || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;

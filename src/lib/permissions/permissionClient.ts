@@ -24,11 +24,11 @@ export type AccessState = {
   scope: { type: string; id: string | null };
 };
 
-export const LOADING_REASON = "Verificando permissões…";
-export const DENIED_REASON = "Você não tem permissão para acessar este recurso.";
+const LOADING_REASON = "Verificando permissões…";
+const DENIED_REASON = "Você não tem permissão para acessar este recurso.";
 
 /** Estado seguro: enquanto carrega ou em erro, nada é liberado. */
-export function safeState(loading: boolean, reason = loading ? LOADING_REASON : DENIED_REASON): AccessState {
+function safeState(loading: boolean, reason = loading ? LOADING_REASON : DENIED_REASON): AccessState {
   return { allowed: false, loading, reason, scope: { type: "TENANT", id: null } };
 }
 
@@ -81,7 +81,7 @@ export function accessQueryKey(
 
 /* ------------------------------------------------- PERMISSION_DENIED global */
 
-export type PermissionDeniedInfo = {
+type PermissionDeniedInfo = {
   code: "PERMISSION_DENIED";
   permission: string;
   reason: string;
@@ -89,7 +89,7 @@ export type PermissionDeniedInfo = {
 };
 
 /** Reconhece o erro padronizado emitido pela camada de enforcement. */
-export function permissionDeniedFrom(error: unknown): PermissionDeniedInfo | null {
+function permissionDeniedFrom(error: unknown): PermissionDeniedInfo | null {
   if (!error) return null;
   const anyErr = error as Record<string, unknown>;
   const nested = (anyErr["body"] ?? anyErr["data"] ?? anyErr["error"]) as
@@ -125,7 +125,7 @@ export function isPermissionDenied(error: unknown): boolean {
 }
 
 /** Mensagem amigável, sem termos técnicos. */
-export function friendlyDeniedMessage(info: PermissionDeniedInfo): string {
+function friendlyDeniedMessage(info: PermissionDeniedInfo): string {
   return info.reason && !/permission|scope|node/i.test(info.reason)
     ? info.reason
     : "Você não tem permissão para realizar esta ação. Fale com o responsável pela conta.";
@@ -135,7 +135,7 @@ export function friendlyDeniedMessage(info: PermissionDeniedInfo): string {
  * Tratamento global: nunca quebra a aplicação, avisa o usuário em português
  * e registra o diagnóstico no console para suporte.
  */
-export function handlePermissionDenied(error: unknown, context?: { operation?: string }): boolean {
+function handlePermissionDenied(error: unknown, context?: { operation?: string }): boolean {
   const info = permissionDeniedFrom(error);
   if (!info) return false;
   console.warn(
@@ -155,14 +155,3 @@ export function installPermissionDeniedHandler(): () => void {
   window.addEventListener("unhandledrejection", onRejection);
   return () => window.removeEventListener("unhandledrejection", onRejection);
 }
-
-export const permissionClient = {
-  accessQueryKey,
-  requiredLevelFor,
-  toAccessState,
-  safeState,
-  isPermissionDenied,
-  permissionDeniedFrom,
-  handlePermissionDenied,
-  installPermissionDeniedHandler,
-};

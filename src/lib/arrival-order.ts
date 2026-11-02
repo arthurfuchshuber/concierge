@@ -66,7 +66,7 @@ export function compareLateRows(a: ArrivalRow, b: ArrivalRow, kind: "checkin" | 
  * Sem isto, uma lista que cobre vários dias misturava "ontem" e "hoje" só pela
  * hora do relógio.
  */
-export function isLateRow(r: Pick<ArrivalRow, "status" | "date">, today: string): boolean {
+function isLateRow(r: Pick<ArrivalRow, "status" | "date">, today: string): boolean {
   return r.status !== "done" && r.date < today;
 }
 export function compareLateThenDay(a: Pick<ArrivalRow, "status" | "date">, b: Pick<ArrivalRow, "status" | "date">, today: string): number {

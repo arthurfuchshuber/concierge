@@ -20,7 +20,7 @@ async function assertAdmin(ctx: { supabase: ReturnType<typeof createClient<Datab
 }
 
 // ---------- types ----------
-export type SigmaPack = {
+type SigmaPack = {
   id: string;
   city_key: string;
   city_label: string;
@@ -32,7 +32,7 @@ export type SigmaPack = {
   updated_at: string;
 };
 
-export type SigmaRec = {
+type SigmaRec = {
   id: string;
   city_key: string;
   type: string;
@@ -51,7 +51,7 @@ export type SigmaRec = {
   position: number;
 };
 
-export type SigmaMarketplace = {
+type SigmaMarketplace = {
   id: string;
   city_key: string;
   label: string;
@@ -60,7 +60,7 @@ export type SigmaMarketplace = {
   position: number;
 };
 
-export type SigmaFaq = {
+type SigmaFaq = {
   id: string;
   city_key: string;
   question: string;
@@ -69,7 +69,7 @@ export type SigmaFaq = {
   position: number;
 };
 
-export type AdminSigmaConciergeRow = {
+type AdminSigmaConciergeRow = {
   id: string;
   name: string;
   slug: string | null;

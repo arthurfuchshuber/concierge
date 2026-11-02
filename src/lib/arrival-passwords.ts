@@ -12,10 +12,10 @@
 
 export type SeenSets = { strict: Set<string>; loose: Set<string>; phones: Set<string> };
 
-export const eventKey = (pid: string, name: string | null, phone: string | null) =>
+const eventKey = (pid: string, name: string | null, phone: string | null) =>
   `${pid}|${(name || "").trim().toLowerCase()}|${(phone || "").replace(/\D/g, "")}`;
-export const looseKey = (pid: string, name: string | null) => `${pid}|${(name || "").trim().toLowerCase()}`;
-export const phoneKey = (pid: string, phone: string | null) => {
+const looseKey = (pid: string, name: string | null) => `${pid}|${(name || "").trim().toLowerCase()}`;
+const phoneKey = (pid: string, phone: string | null) => {
   const d = (phone || "").replace(/\D/g, "");
   return d.length >= 8 ? `${pid}|${d.slice(-8)}` : null;
 };

@@ -46,7 +46,7 @@ export async function checkPermission(args: {
 }
 
 /** Nível efetivo do subject em um nó, sem exigir um mínimo. */
-export async function resolveAccessLevel(
+async function resolveAccessLevel(
   subject: PermissionSubject,
   nodeSlug: string,
   scope?: PermissionScope,
@@ -58,7 +58,7 @@ export async function resolveAccessLevel(
 /**
  * Grava uma permissão. Permissões do OWNER são imutáveis por regra estrutural.
  */
-export async function assignPermission(
+async function assignPermission(
   input: UpsertAssignmentInput & { actorId?: string | null; actorName?: string | null },
 ) {
   const target: PermissionSubject = { userId: input.userId, tenantId: input.tenantId };
@@ -103,7 +103,7 @@ export async function assignPermission(
  * Sincroniza o Registry (catálogo + auto discovery) com a tabela de nós.
  * Delegado ao sync OFICIAL da Fase 3.5 (com log de execução e soft delete).
  */
-export async function syncRegistryToDatabase(
+async function syncRegistryToDatabase(
   triggeredBy?: string | null,
 ): Promise<{ synced: number; errors: string[] }> {
   const { syncPermissionRegistry } = await import("./permission.sync.server");
@@ -180,15 +180,3 @@ export function inspectGuardian() {
   bootstrapPermissionRegistry();
   return lovableGuardian.inspect();
 }
-
-export const permissionService = {
-  checkPermission,
-  resolveAccessLevel,
-  assignPermission,
-  syncRegistryToDatabase,
-  assignUserToProperty,
-  removeUserFromProperty,
-  listUserProperties,
-  inspectRegistryConsistency,
-  inspectGuardian,
-};

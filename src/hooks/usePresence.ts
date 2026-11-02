@@ -219,26 +219,6 @@ export function usePresence(roomKey: string | null) {
 }
 
 /**
- * Aplica na hora, no campo local, o que outra pessoa está digitando no mesmo
- * campo (via broadcastTyping já existente) — estilo Miro. O salvamento no
- * banco continua sendo feito por quem digitou; quem recebe só exibe.
- */
-export function useLiveField(
-  presence: Pick<Presence, "subscribe"> | null | undefined,
-  fieldId: string,
-  apply: (value: string) => void,
-) {
-  const applyRef = useRef(apply);
-  applyRef.current = apply;
-  useEffect(() => {
-    if (!presence) return;
-    return presence.subscribe((ev) => {
-      if (ev.kind === "typing" && ev.fieldId === fieldId && typeof ev.value === "string") applyRef.current(ev.value);
-    });
-  }, [presence?.subscribe, fieldId]);
-}
-
-/**
  * Sincroniza um pedaço de estado (objeto/lista) entre todos com a tela aberta:
  * alterações locais são transmitidas na hora; alterações remotas são
  * aplicadas localmente sem serem re-transmitidas (evita eco).

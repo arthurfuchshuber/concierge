@@ -43,9 +43,6 @@ export const SITE_ORIGIN = normalizar(
   doAmbiente("SITE_URL") ?? doAmbiente("PUBLIC_SITE_URL") ?? doAmbiente("VITE_APP_URL") ?? PADRAO,
 );
 
-/** Só o host, para textos e assinaturas de e-mail: "conciergeia.app". */
-export const SITE_HOST = SITE_ORIGIN.replace(/^https?:\/\//, "");
-
 /** URL absoluta de um caminho interno. `siteUrl("/precos")`. */
 export function siteUrl(path = "/"): string {
   if (!path || path === "/") return SITE_ORIGIN;
@@ -75,7 +72,7 @@ export function guideUrl(slug: string, path = ""): string {
  * Pode ser ampliado sem tocar no código pela variável `LEGACY_HOSTS`
  * (separada por vírgula).
  */
-export const LEGACY_HOSTS: string[] = [
+const LEGACY_HOSTS: string[] = [
   "guia.anfitriaosigma.com.br",
   "www.guia.anfitriaosigma.com.br",
   // www → raiz, para o caso de o DNS do domínio novo também publicar o www.

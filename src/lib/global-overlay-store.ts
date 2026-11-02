@@ -41,7 +41,7 @@ export function pushGlobalOverlay(kind: Kind = "float"): { id: number; release: 
   };
 }
 
-export function layerZ(id: number): number {
+function layerZ(id: number): number {
   return stack.find((l) => l.id === id)?.z ?? 60;
 }
 
@@ -53,7 +53,7 @@ export function useTopOverlayZ(): number {
   );
 }
 
-export function isTopOverlay(id: number | null): boolean {
+function isTopOverlay(id: number | null): boolean {
   if (id == null) return true;
   return stack.length === 0 || stack[stack.length - 1].id === id;
 }

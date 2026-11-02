@@ -107,7 +107,7 @@ export function TagPicker({ value, onChange, className }: Props) {
 /* ============================================================
    Reusable taxonomy tree: accordion + inline rename + bulk ops
    ============================================================ */
-export function TaxonomyTree({
+function TaxonomyTree({
   categories,
   tags,
   selectedSlug,
@@ -565,7 +565,7 @@ function InlineRename({ initial, onCommit, onCancel }: {
 /* ============================================================
    New tag — supports preset category + multiple labels at once
    ============================================================ */
-export function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }: {
+function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }: {
   categories: PoiCategory[];
   presetCategoryId: string | null;
   onClose: () => void;
@@ -668,7 +668,7 @@ export function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }:
   );
 }
 
-export function NewCategoryDialog({ onClose, onSaved }: {
+function NewCategoryDialog({ onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {

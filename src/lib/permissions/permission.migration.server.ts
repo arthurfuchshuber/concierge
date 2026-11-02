@@ -26,7 +26,7 @@ export type TenantMigrationStatus = {
   updatedAt: string | null;
 };
 
-export const DEFAULT_MODE: TenantPermissionMode = "legacy";
+const DEFAULT_MODE: TenantPermissionMode = "legacy";
 
 /** Tradução do modo do tenant para o comportamento do enforcement. */
 export function enforcementModeFor(mode: TenantPermissionMode): EnforcementMode {
@@ -34,7 +34,7 @@ export function enforcementModeFor(mode: TenantPermissionMode): EnforcementMode 
 }
 
 /** O tenant já decide exclusivamente pelo novo motor? */
-export function isNewEngineAuthoritative(mode: TenantPermissionMode): boolean {
+function isNewEngineAuthoritative(mode: TenantPermissionMode): boolean {
   return mode === "enforced" || mode === "completed";
 }
 
@@ -48,7 +48,7 @@ export function shouldRecordDivergence(mode: TenantPermissionMode): boolean {
 const TTL_MS = 30_000;
 const cache = new Map<string, { value: TenantMigrationStatus; at: number }>();
 
-export function invalidateTenantModeCache(tenantId?: string): void {
+function invalidateTenantModeCache(tenantId?: string): void {
   if (tenantId) cache.delete(tenantId);
   else cache.clear();
 }
@@ -117,7 +117,7 @@ export async function getTenantPermissionMode(tenantId: string): Promise<TenantM
 }
 
 /** Lista completa de status registrados. */
-export async function listTenantModes(): Promise<TenantMigrationStatus[]> {
+async function listTenantModes(): Promise<TenantMigrationStatus[]> {
   const db = await admin();
   const { data, error } = await db
     .from("permission_migration_status")
@@ -162,7 +162,7 @@ const ALLOWED: Record<TenantPermissionMode, TenantPermissionMode[]> = {
   completed: ["enforced"],
 };
 
-export function canTransition(from: TenantPermissionMode, to: TenantPermissionMode): boolean {
+function canTransition(from: TenantPermissionMode, to: TenantPermissionMode): boolean {
   if (from === to) return true;
   return (ALLOWED[from] ?? []).includes(to);
 }
@@ -263,22 +263,6 @@ export function readDivergences(limit = 50): DivergenceEntry[] {
   return divergences.slice(-limit).reverse();
 }
 
-export function clearDivergences(): void {
+function clearDivergences(): void {
   divergences.length = 0;
 }
-
-export const permissionMigration = {
-  getTenantPermissionMode,
-  listTenantModes,
-  enableMonitoringMode,
-  enableEnforcedMode,
-  completeMigration,
-  rollbackMigration,
-  canTransition,
-  enforcementModeFor,
-  isNewEngineAuthoritative,
-  recordDivergence,
-  readDivergences,
-  clearDivergences,
-  invalidateTenantModeCache,
-};

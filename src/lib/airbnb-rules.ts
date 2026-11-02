@@ -17,7 +17,7 @@
  */
 
 /** Tamanho máximo do campo "Regras do espaço" (ver `maxLength` do editor). */
-export const HOUSE_RULES_MAX = 3000;
+const HOUSE_RULES_MAX = 3000;
 
 // Marcadores que o Airbnb/Firecrawl deixam no começo de uma linha: hífens de
 // vários tipos (inclusive o "\-" escapado do markdown), bolinhas, asteriscos,

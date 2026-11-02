@@ -22,7 +22,7 @@ import { defaultShowInCleaning, type TaskCategory, type TaskPriority } from "@/l
 
 type AnyClient = { from: (t: string) => any };
 
-export type AssistantAttachment = {
+type AssistantAttachment = {
   name: string;
   mime: string;
   sizeBytes: number;

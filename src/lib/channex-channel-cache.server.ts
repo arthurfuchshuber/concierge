@@ -10,7 +10,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const B = "https://app.channex.io/api/v1";
-export const CHANNEL_CACHE_MAX_AGE_MS = 10 * 60_000;
+const CHANNEL_CACHE_MAX_AGE_MS = 10 * 60_000;
 
 const mem = new Map<string, { at: number; data: any }>();
 const inflight = new Map<string, Promise<any>>();

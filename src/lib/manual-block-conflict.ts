@@ -145,7 +145,7 @@ export function maxBlockEnd(occupied: ReadonlySet<string>, from: string, lastTo?
  * PRAZO DO ANÚNCIO (29/10/2026): só se escolhe entre "hoje + antecedência mínima" e "hoje + janela máxima de
  * reservas". Com mais de um anúncio no imóvel vale o MENOR mínimo e o MAIOR máximo. Sem dado, usa o padrão.
  */
-export const DEFAULT_BOOKING_WINDOW_DAYS = 270;
+const DEFAULT_BOOKING_WINDOW_DAYS = 270;
 const MAX_BOOKING_WINDOW_DAYS = 730;
 
 export type BookingWindow = { minDays: number | null; maxDays: number | null };

@@ -36,16 +36,6 @@ const dateToIso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { ClampName } from "@/components/ui/clamp-name";
-
-/**
- * BLOQUEIO POR SELEÇÃO NO CALENDÁRIO (17/10/2026, mockups "Calendário" e
- * "Janela"). As duas peças usam SÓ o que já existe no sistema: `Button`
- * (36px, raio do tema), a casca de janela do Dashboard (`--win-radius`,
- * `--panel`, fio de luz) e `ownerLabel` ("Proprietário: Arthur").
- */
-
-export type BlockSelection = { propertyId: string; from: string; to: string };
-
 type Ctx = {
   propertyName: string;
   ownerName: string | null;

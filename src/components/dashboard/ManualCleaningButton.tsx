@@ -162,13 +162,6 @@ function useManualCleaningAccess(ownerId: string | null) {
   });
 }
 
-export function ManualCleaningButton() {
-  const ownerId = useImpersonation().impersonation?.userId ?? null;
-  const access = useManualCleaningAccess(ownerId);
-  if (!access.data?.canCreate) return null;
-  return <ManualCleaningPanel ownerId={ownerId} />;
-}
-
 /**
  * A mesma trilha, sem o "+" próprio, aberta de fora (aba Serviços). Se a
  * pessoa não pode criar limpeza, não desenha nada.

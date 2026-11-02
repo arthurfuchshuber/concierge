@@ -90,7 +90,7 @@ export type AirbnbFlowRequest =
   | null;
 
 /** Imóvel já existente (sem integração) que vai ser ligado a um anúncio do Airbnb. */
-export type SyncPropertyInfo = {
+type SyncPropertyInfo = {
   id: string;
   name: string;
   city?: string | null;

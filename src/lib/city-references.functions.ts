@@ -252,7 +252,7 @@ export const generateCityReferences = createServerFn({ method: "POST" })
 // cidade", sem dono, usado pela rotina semanal e pela página "Na Cidade" —
 // saiu na limpeza de 24/09/2026; o registro em `city_reference_jobs` também
 // (só aquela página o lia).
-export async function runCityGeneration(input: {
+async function runCityGeneration(input: {
   city_label: string;
   state?: string | null;
   country: string;

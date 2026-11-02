@@ -32,14 +32,6 @@ export function defaultShowInCleaning(category: TaskCategory): boolean {
  * ANFITRIÃO (a conta/empresa cadastrada — na tela aparece pelo nome fantasia).
  */
 export type TaskParty = "company" | "owner" | "provider" | "guest";
-
-export const TASK_PARTY_LABEL: Record<TaskParty, string> = {
-  company: "Anfitrião",
-  owner: "Proprietário",
-  provider: "Prestador",
-  guest: "Hóspede",
-};
-
 export type TaskRow = {
   id: string;
   title: string;

@@ -89,7 +89,7 @@ function CopyableCode({ children, ...props }: React.ComponentProps<"code">) {
 }
 
 /** Modo de teste do anfitrião (?preview=1): identidade sempre fictícia. */
-export function isPreviewMode(): boolean {
+function isPreviewMode(): boolean {
   if (typeof window === "undefined") return false;
   try {
     return new URLSearchParams(window.location.search).get("preview") === "1";

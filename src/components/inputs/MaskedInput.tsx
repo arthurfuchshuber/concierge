@@ -15,7 +15,7 @@ interface MaskedInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEleme
   endAdornment?: React.ReactNode;
 }
 
-export function applyMask(raw: string, mask: string): string {
+function applyMask(raw: string, mask: string): string {
   let result = "";
   let i = 0;
   for (let m = 0; m < mask.length && i < raw.length; m++) {

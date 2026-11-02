@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-export type StakeholderFeedEvent = {
+type StakeholderFeedEvent = {
   id: string;
   source: "calendar";
   title: string;
@@ -15,7 +15,7 @@ export type StakeholderFeedEvent = {
   via: string;
 };
 
-export type StakeholderFeedDocument = {
+type StakeholderFeedDocument = {
   id: string;
   source: "clicksign";
   name: string;

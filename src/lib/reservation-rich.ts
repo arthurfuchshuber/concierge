@@ -34,7 +34,7 @@ const num = (v: unknown) => {
 };
 
 /** `raw_message` chega como objeto ou como TEXTO JSON (visto no banco). */
-export function reservationOf(booking: unknown): Record<string, unknown> {
+function reservationOf(booking: unknown): Record<string, unknown> {
   const b = (booking ?? {}) as Record<string, unknown>;
   let rm: unknown = b["raw_message"];
   if (typeof rm === "string") {
@@ -49,7 +49,7 @@ export function reservationOf(booking: unknown): Record<string, unknown> {
 }
 
 /** "Chave: valor" linha a linha. "N/A" vira null. */
-export function parseNotes(notes: unknown): Record<string, number | null> {
+function parseNotes(notes: unknown): Record<string, number | null> {
   const out: Record<string, number | null> = {};
   if (typeof notes !== "string") return out;
   for (const line of notes.split(/\r?\n/)) {
@@ -99,15 +99,3 @@ export const POLICY_LABEL: Record<string, string> = {
   strict: "Rígida",
   tiered_pricing_non_refundable: "Não reembolsável",
 };
-
-/**
- * Valor que o HÓSPEDE vê: o total BRUTO da reserva. O `amount` do Airbnb já vem líquido da comissão
- * do anfitrião; somando a comissão de volta obtém-se o bruto. Sem a comissão não dá para afirmar o
- * bruto, então devolve null (a IA não cita valor).
- */
-export function guestVisibleTotal(amount: unknown, hostFee: unknown): number | null {
-  const a = num(amount);
-  const f = num(hostFee);
-  if (a == null || a <= 0 || f == null || f < 0) return null;
-  return Math.round((a + f) * 100) / 100;
-}

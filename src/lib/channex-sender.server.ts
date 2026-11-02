@@ -65,7 +65,7 @@ async function ownerGroups(db: any, ownerId: string) {
   return groups;
 }
 
-export type SenderOption = { channelId: string; title: string; hasAccess: boolean };
+type SenderOption = { channelId: string; title: string; hasAccess: boolean };
 export type ListingSender = { listingId: string; currentChannelId: string | null; options: SenderOption[] };
 
 /** Remetente atual e contas possíveis (com acesso a TODOS os anúncios do grupo) por anúncio. */

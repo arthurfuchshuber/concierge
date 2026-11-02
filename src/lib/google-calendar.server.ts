@@ -19,7 +19,7 @@ export const GCAL_SCOPES = [
   "https://www.googleapis.com/auth/drive.readonly",
 ];
 
-export async function gcal(userId: string, path: string) {
+async function gcal(userId: string, path: string) {
   const { getConnectionKeyForUser } = await import("@/lib/app-user-connections.server");
   const connectionAPIKey = await getConnectionKeyForUser(userId, CONNECTOR_ID);
   if (!connectionAPIKey) throw new Error("Google Agenda não está conectado para este usuário.");
@@ -57,7 +57,7 @@ function classifyAttachment(title: string, mimeType: string): GcalAttachment["ki
 }
 
 /** Índice de vínculo (cadastros + apelidos aprendidos) da conta. */
-export async function loadMatchIndex(
+async function loadMatchIndex(
   supabase: SupabaseClient,
   accountOwnerId: string,
 ): Promise<MatchIndex> {

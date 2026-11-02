@@ -4,7 +4,7 @@
 
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 
-export type DefaultFaqTag = "chegada" | "saida" | "residencia" | "explore";
+type DefaultFaqTag = "chegada" | "saida" | "residencia" | "explore";
 
 export type DefaultFaqInput = {
   checkin_time?: string | null;
@@ -184,17 +184,3 @@ export function buildDefaultFaqs(p: DefaultFaqInput): DefaultFaqItem[] {
 }
 
 // Merge new defaults into an existing FAQ list, skipping duplicates by question.
-export function mergeDefaultFaqs<T extends { question: string; answer: string; tags: string[] }>(
-  existing: T[],
-  defaults: DefaultFaqItem[],
-): { merged: T[]; added: number } {
-  const seen = new Set(existing.map((f) => f.question.trim().toLowerCase()));
-  const additions: T[] = [];
-  for (const d of defaults) {
-    const key = d.question.trim().toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    additions.push(d as unknown as T);
-  }
-  return { merged: [...existing, ...additions], added: additions.length };
-}

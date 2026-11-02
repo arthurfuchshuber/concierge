@@ -68,7 +68,7 @@ async function signPathsCached(supabase: AnyClient, paths: string[]): Promise<Ma
  * Categorias na ORDEM definida pelo cliente (07/09/2026) — a mesma ordem em
  * que aparecem no seletor que abre ANTES da câmera/gravação.
  */
-export const RECORD_CATEGORIES = [
+const RECORD_CATEGORIES = [
   "forgotten",
   "damage",
   "incident",
@@ -1155,7 +1155,7 @@ const RemovedRecordSchema = z.object({
   is_resolution: z.boolean(),
   group_id: z.string().uuid().nullable(),
 });
-export type RemovedRecord = z.infer<typeof RemovedRecordSchema>;
+type RemovedRecord = z.infer<typeof RemovedRecordSchema>;
 
 /**
  * A PENDÊNCIA MORRE COM O REGISTRO (19/09/2026, pedido do cliente com print:
@@ -1198,7 +1198,7 @@ const TASK_COLUMNS = [
   "updated_at",
 ] as const;
 
-export type RemovedTask = Record<string, string | number | boolean | null>;
+type RemovedTask = Record<string, string | number | boolean | null>;
 
 /**
  * EXCLUIR = LIXEIRA OCULTA DE 30 DIAS (pedido explícito, 04/10/2026).
@@ -2090,7 +2090,7 @@ export const countCleaningsWithoutRecords = createServerFn({ method: "GET" })
  * aparece na própria lista de Registros. Nada de regra de aprovação aqui
  * (diferente da limpeza avulsa, que mexe em dinheiro).
  */
-export type NewRecordProperty = {
+type NewRecordProperty = {
   id: string;
   name: string;
   ownerName: string | null;
@@ -2102,7 +2102,7 @@ export type NewRecordProperty = {
   mapsUrl?: string | null;
   garageMapsUrl?: string | null;
 };
-export type NewRecordReservation = {
+type NewRecordReservation = {
   id: string;
   propertyId: string;
   label: string;

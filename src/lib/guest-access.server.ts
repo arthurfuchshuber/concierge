@@ -99,7 +99,7 @@ export async function isStayMarkedNoShow(
 }
 
 /** Origens de reserva oficiais aceitas pelo guia (iCal Airbnb + API Channex). */
-export const RESERVATION_SOURCES = ["airbnb", "channex"];
+const RESERVATION_SOURCES = ["airbnb", "channex"];
 
 /**
  * O imóvel tem de onde conferir reservas? iCal configurado OU reservas

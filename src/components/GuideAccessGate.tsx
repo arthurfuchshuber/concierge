@@ -147,7 +147,7 @@ export function clearAccessRecord(slug: string) {
   }
 }
 
-export type CollectionConfig = {
+type CollectionConfig = {
   arrivalTime: "off" | "optional" | "required";
   vehicles: "off" | "optional" | "required";
   vehiclesMax: number;

@@ -8,7 +8,7 @@
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Eventos do iCal do Airbnb: datas [from, to) e se é reserva de hóspede ("Reserved") ou bloqueio. */
-export function parseIcalEvents(raw: string) {
+function parseIcalEvents(raw: string) {
   const text = raw.replace(/\r?\n[ \t]/g, "");
   const f = (x: string) => `${x.slice(0, 4)}-${x.slice(4, 6)}-${x.slice(6, 8)}`;
   const out: { from: string; to: string; reserved: boolean }[] = [];
@@ -22,7 +22,7 @@ export function parseIcalEvents(raw: string) {
   return out;
 }
 
-export function isAirbnbIcsLink(url: string) {
+function isAirbnbIcsLink(url: string) {
   try {
     return /\.ics$/i.test(new URL(url).pathname);
   } catch {

@@ -120,30 +120,3 @@ export function selectCounterpartSigner(
   if (external.length === 1) return external[0]!;
   return null;
 }
-
-export type StakeholderRow = {
-  id: string;
-  name: string | null;
-  trade_name: string | null;
-  email: string | null;
-  doc: string | null;
-};
-
-export function matchStakeholder(signer: Signer | null, rows: StakeholderRow[]): string | null {
-  if (!signer || !rows.length) return null;
-  const sDoc = signerDoc(signer);
-  const sEmail = normalize(signer?.["email"]);
-  const sName = normalize(signer?.["name"]);
-  for (const r of rows) {
-    if (sDoc && onlyDigits(r.doc) === sDoc) return r.id;
-  }
-  for (const r of rows) {
-    if (sEmail && r.email && normalize(r.email) === sEmail) return r.id;
-  }
-  for (const r of rows) {
-    if (sName && sName.split(" ").length >= 2) {
-      if ([r.name, r.trade_name].filter(Boolean).map(normalize).includes(sName)) return r.id;
-    }
-  }
-  return null;
-}

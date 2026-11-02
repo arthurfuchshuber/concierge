@@ -12,9 +12,9 @@ import { discoveredRouteNodes } from "./permission.scanner";
 import type { PermissionNodeDefinition } from "./permission.types";
 
 /** Decisões possíveis diante de um recurso novo. */
-export type GuardianDecision = "auto-register" | "review" | "internal";
+type GuardianDecision = "auto-register" | "review" | "internal";
 
-export type GuardianFinding = {
+type GuardianFinding = {
   slug: string;
   label: string;
   type: PermissionNodeDefinition["type"];
@@ -24,7 +24,7 @@ export type GuardianFinding = {
   definition: PermissionNodeDefinition;
 };
 
-export type GuardianReport = {
+type GuardianReport = {
   generatedAt: string;
   hasNewResources: boolean;
   message: string;
@@ -43,7 +43,7 @@ const GUARDIAN_OPTIONS: GuardianReport["options"] = [
 ];
 
 /** Detecta recursos de experiência do usuário ainda ausentes do Registry. */
-export function inspect(): GuardianReport {
+function inspect(): GuardianReport {
   const known = new Set(permissionRegistry.list().map((n) => n.slug));
   const knownRoutes = new Set(
     permissionRegistry
@@ -77,7 +77,7 @@ export function inspect(): GuardianReport {
  * Aplica uma decisão de governança a um conjunto de achados.
  * `review` não altera nada — apenas devolve os itens para revisão manual.
  */
-export function applyDecision(
+function applyDecision(
   findings: GuardianFinding[],
   decision: GuardianDecision,
 ): PermissionNodeDefinition[] {
@@ -96,7 +96,7 @@ export function applyDecision(
 }
 
 /** Total de rotas de experiência do usuário observadas pelo Guardian. */
-export function observedRouteCount(): number {
+function observedRouteCount(): number {
   return discoverRoutes().filter((r) => r.permissionable).length;
 }
 

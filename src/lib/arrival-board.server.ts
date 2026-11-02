@@ -152,7 +152,7 @@ export function dedupeFormLogs<T extends ArrivalLogRow>(logs: T[]): T[] {
   return Array.from(dedupMap.values());
 }
 
-export function normalizeReservationCode(s: string | null | undefined): string | null {
+function normalizeReservationCode(s: string | null | undefined): string | null {
   if (!s) return null;
   const m = String(s).match(/HM[A-Z0-9]{6,}/i);
   return m ? m[0].toUpperCase() : null;

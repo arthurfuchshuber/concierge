@@ -8,7 +8,7 @@ import { z } from "zod";
  * sem ele, o responsável é o prestador vinculado ao imóvel.
  */
 
-export type CleaningProvider = { id: string; name: string; avatarUrl: string | null };
+type CleaningProvider = { id: string; name: string; avatarUrl: string | null };
 
 export const getCleaningProviderBoard = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

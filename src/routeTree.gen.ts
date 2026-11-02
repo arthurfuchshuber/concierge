@@ -80,7 +80,6 @@ import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cr
 import { Route as ApiPublicCronPurgeRecordTrashRouteImport } from './routes/api/public/cron.purge-record-trash'
 import { Route as ApiPublicCronRefreshAirbnbListingsRouteImport } from './routes/api/public/cron.refresh-airbnb-listings'
 import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
-import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
 import { Route as ApiPublicCronReindexSystemKnowledgeRouteImport } from './routes/api/public/cron.reindex-system-knowledge'
 import { Route as ApiPublicCronSyncAirbnbIcalRouteImport } from './routes/api/public/cron.sync-airbnb-ical'
@@ -486,12 +485,6 @@ const ApiPublicCronRefreshCityNewsRoute =
     path: '/api/public/cron/refresh-city-news',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCronRefreshCityReferencesRoute =
-  ApiPublicCronRefreshCityReferencesRouteImport.update({
-    id: '/api/public/cron/refresh-city-references',
-    path: '/api/public/cron/refresh-city-references',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicCronRefreshRecommendationsRoute =
   ApiPublicCronRefreshRecommendationsRouteImport.update({
     id: '/api/public/cron/refresh-recommendations',
@@ -618,7 +611,6 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
-  '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
@@ -698,7 +690,6 @@ export interface FileRoutesByTo {
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
-  '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
@@ -783,7 +774,6 @@ export interface FileRoutesById {
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
-  '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
@@ -868,7 +858,6 @@ export interface FileRouteTypes {
     | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/refresh-airbnb-listings'
     | '/api/public/cron/refresh-city-news'
-    | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/cron/reindex-system-knowledge'
     | '/api/public/cron/sync-airbnb-ical'
@@ -948,7 +937,6 @@ export interface FileRouteTypes {
     | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/refresh-airbnb-listings'
     | '/api/public/cron/refresh-city-news'
-    | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/cron/reindex-system-knowledge'
     | '/api/public/cron/sync-airbnb-ical'
@@ -1032,7 +1020,6 @@ export interface FileRouteTypes {
     | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/refresh-airbnb-listings'
     | '/api/public/cron/refresh-city-news'
-    | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/cron/reindex-system-knowledge'
     | '/api/public/cron/sync-airbnb-ical'
@@ -1088,7 +1075,6 @@ export interface RootRouteChildren {
   ApiPublicCronPurgeRecordTrashRoute: typeof ApiPublicCronPurgeRecordTrashRoute
   ApiPublicCronRefreshAirbnbListingsRoute: typeof ApiPublicCronRefreshAirbnbListingsRoute
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
-  ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
   ApiPublicCronReindexSystemKnowledgeRoute: typeof ApiPublicCronReindexSystemKnowledgeRoute
   ApiPublicCronSyncAirbnbIcalRoute: typeof ApiPublicCronSyncAirbnbIcalRoute
@@ -1600,13 +1586,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronRefreshCityNewsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/cron/refresh-city-references': {
-      id: '/api/public/cron/refresh-city-references'
-      path: '/api/public/cron/refresh-city-references'
-      fullPath: '/api/public/cron/refresh-city-references'
-      preLoaderRoute: typeof ApiPublicCronRefreshCityReferencesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/cron/refresh-recommendations': {
       id: '/api/public/cron/refresh-recommendations'
       path: '/api/public/cron/refresh-recommendations'
@@ -1834,8 +1813,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronRefreshAirbnbListingsRoute:
     ApiPublicCronRefreshAirbnbListingsRoute,
   ApiPublicCronRefreshCityNewsRoute: ApiPublicCronRefreshCityNewsRoute,
-  ApiPublicCronRefreshCityReferencesRoute:
-    ApiPublicCronRefreshCityReferencesRoute,
   ApiPublicCronRefreshRecommendationsRoute:
     ApiPublicCronRefreshRecommendationsRoute,
   ApiPublicCronReindexSystemKnowledgeRoute:

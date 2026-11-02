@@ -129,26 +129,3 @@ describe("Permission Center", () => {
     );
   });
 });
-
-describe("ScopeViewer", () => {
-  it("exibe os escopos e imóveis autorizados corretamente", async () => {
-    const { ScopeViewer } = await import("@/components/permissions/ScopeViewer");
-    render(
-      <ScopeViewer
-        scopes={[
-          { type: "TENANT", description: "Conta", count: 2 },
-          { type: "PROPERTY", description: "Residências", count: 1 },
-        ]}
-        properties={[
-          { id: "p1", name: "Casa Azul", assigned: true },
-          { id: "p2", name: "Casa Verde", assigned: false },
-        ]}
-      />,
-      { wrapper },
-    );
-    expect(screen.getByText("TENANT")).toBeTruthy();
-    expect(screen.getByText("PROPERTY")).toBeTruthy();
-    expect(screen.getByText("Casa Azul")).toBeTruthy();
-    expect(screen.queryByText("Casa Verde")).toBeNull();
-  });
-});

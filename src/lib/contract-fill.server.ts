@@ -3,7 +3,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const FIELD_LABELS: Record<string, string> = {
+const FIELD_LABELS: Record<string, string> = {
   birth_date: "data de nascimento",
   phone: "telefone",
   cep: "CEP",

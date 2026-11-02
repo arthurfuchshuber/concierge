@@ -23,14 +23,6 @@ export function savePass(scope: string, pass: string) {
   }
 }
 
-export function clearPass(scope: string) {
-  try {
-    window.localStorage.removeItem(KEY(scope));
-  } catch {
-    /* ignora */
-  }
-}
-
 function passIsVerified(pass: string): boolean {
   try {
     const body = pass.split(".")[0].replace(/-/g, "+").replace(/_/g, "/");

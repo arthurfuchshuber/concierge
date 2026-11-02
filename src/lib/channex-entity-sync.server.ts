@@ -50,7 +50,7 @@ export const listingTitle = (raw: unknown) => {
 };
 
 /** Nome interno do anúncio (prefixo antes de " · "), ou "" se não houver. */
-export const internalName = (raw: unknown) => {
+const internalName = (raw: unknown) => {
   const s = String(raw ?? "").trim();
   const i = s.lastIndexOf(" · ");
   return i >= 0 ? s.slice(0, i).trim() : "";
@@ -74,7 +74,7 @@ export const namingFor = (raw: unknown, exclusive: boolean) => {
   return { property: null as string | null, room: roomTypeName(raw) };
 };
 
-export const normTitle = (s: unknown) => String(s ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+const normTitle = (s: unknown) => String(s ?? "").trim().replace(/\s+/g, " ").toLowerCase();
 
 export type EntitySyncResult = {
   skipped?: boolean;

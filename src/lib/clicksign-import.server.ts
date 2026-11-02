@@ -10,7 +10,7 @@ import {
   signerDoc,
 } from "@/lib/clicksign.server";
 
-export type SignerCandidate = {
+type SignerCandidate = {
   /** Chave estável do candidato (doc, e-mail ou nome). */
   key: string;
   name: string;

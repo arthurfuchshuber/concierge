@@ -7,7 +7,7 @@ import { permissionRegistry } from "./permission.registry";
 import { discoverRoutes, type DiscoveredRoute } from "./permission.scanner";
 import type { PermissionNodeDefinition } from "./permission.types";
 
-export type ConsistencyIssue = {
+type ConsistencyIssue = {
   code:
     | "ROUTE_WITHOUT_NODE"
     | "NODE_WITHOUT_ROUTE"

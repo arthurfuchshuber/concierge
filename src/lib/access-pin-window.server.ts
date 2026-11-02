@@ -36,7 +36,7 @@ function localMoment(dateIso: string, tz: string, time: unknown, fallbackH: numb
 }
 
 /** 24h antes do horário previsto de check-in (fuso do imóvel), em UTC. */
-export function pinReleaseAt(checkinDate: string, tz: string, checkinTime: unknown): Date {
+function pinReleaseAt(checkinDate: string, tz: string, checkinTime: unknown): Date {
   return new Date(localMoment(checkinDate, tz, checkinTime, 15).getTime() - 86_400_000);
 }
 

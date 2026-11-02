@@ -2366,9 +2366,9 @@ export const markNoShow = createServerFn({ method: "POST" })
 // ----- Agenda macro de ocupação (visão de todos os imóveis) -----
 
 /** Teto de dias do calendário de ocupação (3 anos) — só trava dado absurdo. */
-export const OCCUPANCY_MAX_DAYS = 1095;
+const OCCUPANCY_MAX_DAYS = 1095;
 
-export type OccupancyStay = {
+type OccupancyStay = {
   /** Id da reserva (iCal/Channex): abre o histórico ao clicar na barra. Logs sem reserva não têm. */
   reservationId?: string | null;
   /** Valor final de pagamento (repasse ao anfitrião, "Payout Amount" da Channex — `property_reservations.amount`) e a moeda dele. */

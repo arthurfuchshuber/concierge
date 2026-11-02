@@ -85,11 +85,6 @@ export function formatBRPhone(v: string | null | undefined): string {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7, 11)}`;
 }
 
-export function isValidBRMobile(v: string | null | undefined): boolean {
-  const d = onlyDigits(v);
-  return d.length === 10 || d.length === 11;
-}
-
 // International phone helpers — powered by libphonenumber-js.
 // Aceitam telefones de qualquer país.
 import {

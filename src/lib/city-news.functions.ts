@@ -29,9 +29,9 @@ export type NewsItem = {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Janela editorial: 7 dias (hoje + 6). A busca roda toda quarta às 8h. */
-export const NEWS_WINDOW_DAYS = 6;
+const NEWS_WINDOW_DAYS = 6;
 
-export function addDays(iso: string, days: number): string {
+function addDays(iso: string, days: number): string {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + days);
@@ -45,7 +45,7 @@ export function addDays(iso: string, days: number): string {
  * - Um evento é válido enquanto (endDate ?? startDate) >= hoje e começa até hoje+8.
  * - Itens perenes (restaurante, passeio, natureza…) não têm data e seguem válidos.
  */
-export function filterUpcoming(items: NewsItem[], today: string): NewsItem[] {
+function filterUpcoming(items: NewsItem[], today: string): NewsItem[] {
   const horizon = addDays(today, NEWS_WINDOW_DAYS);
   return items.filter((it) => {
     const isEvent = (it.category ?? "").toLowerCase() === "evento";

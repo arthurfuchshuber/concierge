@@ -82,7 +82,7 @@ export const getManualCleaningAccess = createServerFn({ method: "POST" })
     return { canCreate: allowed };
   });
 
-export type ManualCleaningProperty = {
+type ManualCleaningProperty = {
   id: string;
   name: string;
   ownerName: string | null;
@@ -99,13 +99,13 @@ export type ManualCleaningProperty = {
   fullCents: number | null;
   defaultProviderId: string | null;
 };
-export type ManualCleaningProvider = {
+type ManualCleaningProvider = {
   id: string;
   name: string;
   /** Atividade principal ("Limpeza", "Manutenção"…): aparece como "Nome · Atividade". */
   activity: string | null;
 };
-export type ManualCleaningReservation = {
+type ManualCleaningReservation = {
   id: string;
   propertyId: string;
   /** Nome do hóspede (do formulário do guia) ou, na falta, o que a reserva trouxe. */

@@ -9,7 +9,7 @@ export type HandoffGuestDetail = {
   reservationCode: string | null;
 };
 
-export type HandoffOwnerInfo = {
+type HandoffOwnerInfo = {
   name: string | null;
   phone: string | null;
   phoneCountry: string | null;

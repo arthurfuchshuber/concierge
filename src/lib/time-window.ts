@@ -12,7 +12,7 @@
  * na regra de janela feito ali precisa ser espelhado aqui também.
  */
 
-export function timeToMinutes(s: string | null | undefined): number | null {
+function timeToMinutes(s: string | null | undefined): number | null {
   if (!s) return null;
   const m = String(s).match(/^(\d{1,2}):(\d{2})/);
   if (!m) return null;
@@ -53,7 +53,7 @@ export function isTimeWithin(t: string, min: string, max: string | null): boolea
 }
 
 /** As 24 horas cheias do dia — grade usada no seletor de horário do hóspede. */
-export const HOUR_SLOTS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
+const HOUR_SLOTS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
 
 /**
  * Cada horário cheio do dia, marcado com se cai dentro da janela permitida

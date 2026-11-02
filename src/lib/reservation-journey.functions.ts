@@ -82,7 +82,7 @@ export type JourneyStep = {
   actor: JourneyActor | null;
 };
 
-export type JourneyTask = {
+type JourneyTask = {
   id: string;
   title: string;
   status: "pending" | "done" | "canceled";

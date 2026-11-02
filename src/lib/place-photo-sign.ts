@@ -21,7 +21,7 @@ function b64url(bytes: Uint8Array): string {
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-export function placePhotoSig(name: string): string | null {
+function placePhotoSig(name: string): string | null {
   const k = secret();
   if (!k) return null;
   const enc = new TextEncoder();

@@ -22,7 +22,7 @@ export function isPushSupported(): boolean {
   return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
 
-export async function registerPushServiceWorker(): Promise<ServiceWorkerRegistration> {
+async function registerPushServiceWorker(): Promise<ServiceWorkerRegistration> {
   if (!isPushSupported()) throw new Error("Push não suportado neste navegador");
   // Só depois que o registro do cache terminar — senão os dois podem se
   // cruzar e o escopo acabar com o script errado. Ver `sw-register.ts`.

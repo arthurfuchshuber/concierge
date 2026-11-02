@@ -8,7 +8,7 @@ export type PublishCandidate = Record<string, unknown>;
 // Etiqueta (tagline) de guia cujo horário de chegada/saída depende de uma
 // reserva real — único tipo para o qual o calendário do Airbnb é exigido
 // para publicar (ver regra de "airbnb_ical_url" abaixo). Fonte única do
-// valor, reaproveitada por EtiquetaSelect.tsx e pelo editor do imóvel para
+// valor, reaproveitada pelo editor do imóvel para
 // não duplicar a string em vários lugares.
 export const ETIQUETA_CHECKIN_CHECKOUT = "Check-In & Check-Out";
 

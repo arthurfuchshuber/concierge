@@ -5,7 +5,7 @@
  * regra atual de plano (`plan-guard.server.ts` continua sendo a fonte em uso).
  */
 
-export type PlanKey = string;
+type PlanKey = string;
 
 /** Uma funcionalidade comercializável do SaaS. */
 export type FeatureDefinition = {
@@ -16,7 +16,7 @@ export type FeatureDefinition = {
   plans: PlanKey[];
 };
 
-export type FeatureDecision = {
+type FeatureDecision = {
   allowed: boolean;
   reason: string;
   feature: string;
@@ -97,5 +97,3 @@ class FeatureAccessRegistry {
 }
 
 export const featureAccess = new FeatureAccessRegistry();
-
-export type { FeatureAccessRegistry };

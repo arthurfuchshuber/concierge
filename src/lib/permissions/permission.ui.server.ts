@@ -299,7 +299,7 @@ export async function runRegistrySync(ctx: Ctx) {
   return syncPermissionRegistry({ triggeredBy: ctx.userId });
 }
 
-export type SyncRunDTO = {
+type SyncRunDTO = {
   id: string;
   status: string;
   startedAt: string;

@@ -19,7 +19,7 @@ export type LocalNow = {
   minutes: number;
 };
 
-export function localNow(now = new Date()): LocalNow {
+function localNow(now = new Date()): LocalNow {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: TZ,
     year: "numeric",
@@ -38,13 +38,6 @@ export function localNow(now = new Date()): LocalNow {
     minute,
     minutes: hour * 60 + minute,
   };
-}
-
-export function addDays(dateISO: string, days: number): string {
-  const [y, m, d] = dateISO.split("-").map(Number);
-  const dt = new Date(Date.UTC(y!, (m ?? 1) - 1, d ?? 1));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  return dt.toISOString().slice(0, 10);
 }
 
 /** "15:00" | "15:00:00" -> minutos. Retorna fallback se inválido. */
@@ -68,7 +61,7 @@ const DEFAULT_CHECKIN = 15 * 60; // 15:00
 const DEFAULT_CHECKOUT = 11 * 60; // 11:00
 
 /** Usuários que devem receber avisos operacionais de uma conta (owner + membros ativos owner/agent). */
-export async function getAccountNotifiableUsers(admin: Admin, ownerId: string): Promise<string[]> {
+async function getAccountNotifiableUsers(admin: Admin, ownerId: string): Promise<string[]> {
   const { data: members } = await admin
     .from("account_members")
     .select("member_user_id, role, status")
@@ -87,7 +80,7 @@ export async function getAccountNotifiableUsers(admin: Admin, ownerId: string): 
  * direto ao imóvel (`property_assignments` ativos: co-anfitrião, prestador…).
  * Usado em check-in, check-out e limpeza concluídos.
  */
-export async function getPropertyLinkedUsers(admin: Admin, ownerId: string, propertyId: string): Promise<string[]> {
+async function getPropertyLinkedUsers(admin: Admin, ownerId: string, propertyId: string): Promise<string[]> {
   const ids = new Set<string>([ownerId]);
   const { data: members } = await admin
     .from("account_members")
@@ -118,7 +111,7 @@ export async function getPropertyLinkedUsers(admin: Admin, ownerId: string, prop
  * Envia um push operacional a uma conta, garantindo unicidade via `dedupe_key`.
  * Se a chave já existir no log, nada é enviado.
  */
-export async function sendOpsPush(
+async function sendOpsPush(
   admin: Admin,
   opts: {
     ownerId: string;

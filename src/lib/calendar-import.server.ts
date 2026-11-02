@@ -72,22 +72,3 @@ export async function importCalendarWindow(propertyId: string, days = 500): Prom
   ].map((r) => ({ ...r, property_id: propertyId }));
   return save(rows, "api");
 }
-
-/**
- * Rede de segurança (o webhook `ari` é o caminho principal e instantâneo): reimporta UM imóvel por
- * batida do cron se nada chegou nas últimas 24 h, ou se ele nunca foi importado.
- */
-export async function importStaleCalendar(maxAgeMin = 1440): Promise<string | null> {
-  const sb = await admin();
-  const { data: props } = await sb.from("property_listing_raw_data").select("property_id").not("channex_property_id", "is", null);
-  const ids = ((props ?? []) as Array<{ property_id: string }>).map((p) => p.property_id);
-  if (!ids.length) return null;
-  const { data: last } = await sb.from("channex_calendar_import").select("property_id, synced_at").in("property_id", ids).order("synced_at", { ascending: false }).limit(5000);
-  const latest = new Map<string, number>();
-  for (const r of (last ?? []) as Array<{ property_id: string; synced_at: string }>) if (!latest.has(r.property_id)) latest.set(r.property_id, Date.parse(r.synced_at));
-  const cutoff = Date.now() - maxAgeMin * 60_000;
-  const stale = ids.filter((id) => (latest.get(id) ?? 0) < cutoff).sort((a, b) => (latest.get(a) ?? 0) - (latest.get(b) ?? 0))[0];
-  if (!stale) return null;
-  await importCalendarWindow(stale);
-  return stale;
-}

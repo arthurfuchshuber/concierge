@@ -58,7 +58,7 @@ const TENTATIVAS = 3;
 /** Espera entre tentativas. */
 const ESPERA_MS = [1_000, 3_000];
 
-export type MotivoFalha = "sessao" | "permissao" | "rede" | "tempo" | "cancelado" | "servidor";
+type MotivoFalha = "sessao" | "permissao" | "rede" | "tempo" | "cancelado" | "servidor";
 
 export type EnvioResultado = { ok: true } | { ok: false; motivo: MotivoFalha; mensagem: string };
 
@@ -105,8 +105,8 @@ export function comPrazo<T>(promessa: Promise<T>, ms: number, signal?: AbortSign
 }
 
 /** Quanto esperar a sessão e as chamadas ao servidor. Generoso, mas finito. */
-export const PRAZO_AUTH_MS = 12_000;
-export const PRAZO_SERVIDOR_MS = 60_000;
+const PRAZO_AUTH_MS = 12_000;
+const PRAZO_SERVIDOR_MS = 60_000;
 
 /** Falha de REDE do navegador (aba em segundo plano, 4G oscilando, DNS). */
 export function ehFalhaDeRede(e: unknown): boolean {

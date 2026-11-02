@@ -16,7 +16,7 @@ import { CalendarDays, Hash, Moon, Users } from "lucide-react";
 import { CopyButton } from "@/components/CopyButton";
 import type { HandoffGuestDetail, HandoffReservationMatch } from "@/lib/handoff.schemas";
 
-export type StayTone = "sky" | "emerald" | "orange" | "cream" | "red" | "none";
+type StayTone = "sky" | "emerald" | "orange" | "cream" | "red" | "none";
 
 export type StayView = {
   kind: "reservation" | "consulta" | "cancelled";
@@ -39,7 +39,7 @@ function todaySaoPaulo(): string {
 const dayNum = (iso: string) => Math.round(Date.parse(`${iso}T00:00:00Z`) / DAY);
 
 /** "2026-10-18" → "18/10" */
-export function fmtDM(iso: string | null | undefined): string | null {
+function fmtDM(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   return m ? `${m[3]}/${m[2]}` : null;

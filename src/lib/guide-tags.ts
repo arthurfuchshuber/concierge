@@ -58,12 +58,8 @@ const TAG_BY_KEY: Record<string, GuideTag> = Object.fromEntries(
   GUIDE_TAGS.map((t) => [t.key, t]),
 );
 
-export function isGuideTagKey(k: string): k is GuideTagKey {
+function isGuideTagKey(k: string): k is GuideTagKey {
   return Object.prototype.hasOwnProperty.call(TAG_BY_KEY, k);
-}
-
-export function getGuideTag(k: string): GuideTag | null {
-  return TAG_BY_KEY[k] ?? null;
 }
 
 /** Slugifica texto para uso em parâmetro de tag (FAQ, recomendação). */
@@ -79,7 +75,7 @@ export function slugForTag(input: string): string {
 }
 
 /** Constrói a URL absoluta do deep-link, com sub-âncora quando houver param. */
-export function buildTagUrl(
+function buildTagUrl(
   origin: string,
   slug: string,
   key: GuideTagKey,
@@ -132,31 +128,6 @@ export function expandTagsAsMarkdown(
     const url = buildTagUrl(origin, ctx.slug, key as GuideTagKey, rawParam ?? null);
     return `[${label}](${url})`;
   });
-}
-
-/** Token separando trechos de texto e tags — para renderização inline. */
-export type TagToken =
-  | { kind: "text"; value: string }
-  | { kind: "tag"; key: GuideTagKey; label: string; param: string | null };
-
-export function tokenizeTags(text: string): TagToken[] {
-  const out: TagToken[] = [];
-  let last = 0;
-  const src = text ?? "";
-  for (const m of src.matchAll(TAG_RE)) {
-    const idx = m.index ?? 0;
-    if (idx > last) out.push({ kind: "text", value: src.slice(last, idx) });
-    const key = m[1].toLowerCase();
-    const param = (m[2] ?? "").toLowerCase() || null;
-    if (isGuideTagKey(key)) {
-      const tag = TAG_BY_KEY[key];
-      const label = (m[3] ?? tag.label).trim() || tag.label;
-      out.push({ kind: "tag", key: key as GuideTagKey, label, param });
-    }
-    last = idx + m[0].length;
-  }
-  if (last < src.length) out.push({ kind: "text", value: src.slice(last) });
-  return out;
 }
 
 // =====================================================================
@@ -220,7 +191,7 @@ const INFO_BY_KEY: Record<string, GuideInfoDef> = Object.fromEntries(
   GUIDE_INFOS.map((i) => [i.key, i]),
 );
 
-export function isGuideInfoKey(k: string): k is GuideInfoKey {
+function isGuideInfoKey(k: string): k is GuideInfoKey {
   return Object.prototype.hasOwnProperty.call(INFO_BY_KEY, k);
 }
 
@@ -251,7 +222,7 @@ function normalizeInfoLabel(s: string): string {
 }
 
 /** Acha o link do marketplace pelo slug/rótulo do parâmetro da tag. */
-export function findMarketplaceLink(
+function findMarketplaceLink(
   p: GuideInfoSnapshot | null | undefined,
   param: string | null,
 ): { label: string; url: string } | null {
@@ -316,7 +287,7 @@ export function resolveInfoValue(
 const INFO_RE = /\[\[info:([a-z0-9-]+)(?::([^\]|]+))?(?:\|([^\]]+))?\]\]/gi;
 
 /** Chaves cujo valor é sensível — deve ser mascarado antes do check-in ou sem PIN. */
-export const PROTECTED_INFO_KEYS: ReadonlySet<GuideInfoKey> = new Set<GuideInfoKey>([
+const PROTECTED_INFO_KEYS: ReadonlySet<GuideInfoKey> = new Set<GuideInfoKey>([
   "wifi",
   "wifi-password",
   "gate-code",

@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/com
 import { Button } from "@/components/ui/button";
 import { SlidersHorizontal, X } from "lucide-react";
 
-export type SortKey = "distance" | "rating" | "alpha";
+type SortKey = "distance" | "rating" | "alpha";
 
 export type FilterSheetProps = {
   // estado

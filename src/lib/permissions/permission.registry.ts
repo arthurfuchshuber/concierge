@@ -223,9 +223,6 @@ class PermissionRegistry {
 
 /** Instância única compartilhada por toda a aplicação. */
 export const permissionRegistry = new PermissionRegistry();
-
-export type { PermissionRegistry };
-
 /**
  * AUTO DISCOVERY (FASE 1: somente estrutura, nenhuma automação ativa).
  *
@@ -241,7 +238,7 @@ export function registerDiscoverySource(source: () => PermissionNodeDefinition[]
 }
 
 /** Executa todas as fontes e devolve os nós encontrados (sem registrar). */
-export function collectDiscoveredNodes(): PermissionNodeDefinition[] {
+function collectDiscoveredNodes(): PermissionNodeDefinition[] {
   return discoverySources.flatMap((source) => {
     try {
       return source();

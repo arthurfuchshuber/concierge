@@ -212,7 +212,7 @@ export async function readSubjectPermissions(args: {
 }
 
 /** Descendentes diretos e indiretos de um slug, segundo o Registry. */
-export function descendantSlugs(slug: string): string[] {
+function descendantSlugs(slug: string): string[] {
   bootstrapPermissionRegistry();
   const prefix = `${slug}.`;
   return permissionRegistry

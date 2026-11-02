@@ -70,7 +70,7 @@ function setHealthy(v: boolean) {
   healthy = v;
   listeners.forEach((l) => l());
 }
-export function useLiveSyncHealthy() {
+function useLiveSyncHealthy() {
   return useSyncExternalStore(
     (l) => { listeners.add(l); return () => listeners.delete(l); },
     () => healthy,

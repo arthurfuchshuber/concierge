@@ -17,7 +17,7 @@
  */
 
 /** O identificador da sessão do hóspede neste guia. Igual ao do chat. */
-export function isPreviewMode(): boolean {
+function isPreviewMode(): boolean {
   if (typeof window === "undefined") return false;
   try {
     return new URLSearchParams(window.location.search).get("preview") === "1";
@@ -56,7 +56,7 @@ export function isStandalone(): boolean {
 }
 
 /** O navegador tem as peças necessárias para push? */
-export function guestPushSupported(): boolean {
+function guestPushSupported(): boolean {
   if (typeof window === "undefined") return false;
   return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }

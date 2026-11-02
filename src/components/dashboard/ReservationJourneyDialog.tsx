@@ -80,7 +80,7 @@ type TimelineEntry =
  * mesma hora mantêm a ordem em que o servidor as mandou, invertida para
  * cronológica (o servidor manda a mais recente primeiro).
  */
-export function mergeTimeline(steps: JourneyStep[], activity: JourneyActivity[]): TimelineEntry[] {
+function mergeTimeline(steps: JourneyStep[], activity: JourneyActivity[]): TimelineEntry[] {
   const ts = (iso: string | null) => (iso ? new Date(iso).getTime() : NaN);
   const acts = [...activity].reverse().sort((a, b) => ts(a.at) - ts(b.at) || 0);
   const out: TimelineEntry[] = [];

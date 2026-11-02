@@ -26,7 +26,7 @@ type Sb = {
   from: (t: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
-export const MANUAL_LOG_PREFIX = "manual:";
+const MANUAL_LOG_PREFIX = "manual:";
 
 export async function buildManualCleaningRows(
   supabase: unknown,

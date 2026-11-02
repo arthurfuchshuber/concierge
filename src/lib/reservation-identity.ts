@@ -31,7 +31,7 @@ function num(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
-export function looksLikeReservationCode(v: string | null | undefined): boolean {
+function looksLikeReservationCode(v: string | null | undefined): boolean {
   return !!v && CODE_RE.test(v.trim().toUpperCase()) && /\d/.test(v);
 }
 

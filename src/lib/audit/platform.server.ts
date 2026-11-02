@@ -46,11 +46,6 @@ function base(args: BaseArgs) {
   };
 }
 
-/** Autenticação e sessão (login, logout, troca de senha, OAuth). */
-export function auditAuth(eventType: string, args: BaseArgs) {
-  return write({ ...base(args), actorType: "USER", eventType, eventCategory: "AUTHENTICATION", source: "app" });
-}
-
 /** Integrações externas (Google Agenda, ClickSign, WhatsApp, Airbnb, Paddle). */
 export function auditIntegration(eventType: string, args: BaseArgs & { integration: string }) {
   return write({

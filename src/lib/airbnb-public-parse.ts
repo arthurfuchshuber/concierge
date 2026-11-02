@@ -4,7 +4,7 @@
  * Nada aqui faz rede; quem chama baixa o HTML.
  */
 
-export type PublicRoom = { room: string; beds: string };
+type PublicRoom = { room: string; beds: string };
 
 export type PublicListing = {
   descriptions: string[];

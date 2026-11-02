@@ -26,9 +26,6 @@ export function verifyCronSecret(request: Request): boolean {
   return okBearer || okLegacy;
 }
 
-/** Nome histórico — mantido para as rotas que já o importam. */
-export const isValidCronSecret = verifyCronSecret;
-
 /** Resposta padrão para quem chama sem credencial válida. */
 export function unauthorizedCronResponse(): Response {
   return Response.json({ error: "Unauthorized cron caller" }, { status: 401 });

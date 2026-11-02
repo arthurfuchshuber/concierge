@@ -501,7 +501,7 @@ function RecordEditDialog({
 }
 
 
-export function RecordBlock({
+function RecordBlock({
   group,
   onDelete,
   propertyId = null,

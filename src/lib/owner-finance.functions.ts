@@ -162,7 +162,7 @@ export const deleteOwnerLedgerEntry = createServerFn({ method: "POST" })
 
 // ------------------------- documentos avulsos -------------------------
 
-export type LooseDoc = { id: string; name: string; size_bytes: number | null; created_at: string };
+type LooseDoc = { id: string; name: string; size_bytes: number | null; created_at: string };
 
 const BUCKET = "owner-documents";
 const MAX_BYTES = 15 * 1024 * 1024;

@@ -22,7 +22,7 @@ export type ProtectedOperation = {
     | "financeiro";
 };
 
-export const PROTECTED_OPERATIONS = {
+const PROTECTED_OPERATIONS = {
   /* ------------------------------------------------------------- imóveis */
   "imoveis.read": { permission: "tenant.guias", required: "READ", domain: "imoveis" },
   "imoveis.editor.read": { permission: "tenant.guias.editor", required: "READ", domain: "imoveis" },

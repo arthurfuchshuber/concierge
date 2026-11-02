@@ -32,7 +32,7 @@ import { accessiblePropertyIds } from "@/lib/dashboard.functions";
  * outro caminho.
  */
 
-export const APPROVE_CLEANING_PERMISSION = "tenant.dashboard.chegadas.aprovar-limpeza";
+const APPROVE_CLEANING_PERMISSION = "tenant.dashboard.chegadas.aprovar-limpeza";
 
 async function resolveTenantId(
   supabase: unknown,

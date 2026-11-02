@@ -136,57 +136,6 @@ function appendAttachment(
   onChange([...files, { key: crypto.randomUUID(), blob, name, mime, durationMs, kind: inferKind(mime) }]);
 }
 
-/**
- * Só o microfone, separado do resto — pedido explícito (07/09/2026): na
- * conclusão de pendência ele fica junto do campo "Como foi resolvido", pra
- * quem prefere explicar falando em vez de digitar. Grava assim que é tocado
- * (autoStart), sem exigir um segundo clique.
- */
-export function AudioAttachButton({
-  files,
-  onChange,
-  disabled,
-}: {
-  files: PendingAttachment[];
-  onChange: (next: PendingAttachment[]) => void;
-  disabled?: boolean;
-}) {
-  const [recording, setRecording] = useState(false);
-  if (recording) {
-    return (
-      <AudioRecorderButton
-        autoStart
-        maxSeconds={120}
-        compact
-        onCancel={() => setRecording(false)}
-        onRecorded={(a) => {
-          setRecording(false);
-          appendAttachment(
-            files,
-            onChange,
-            a.blob,
-            `audio-${Date.now()}.${a.mime.includes("mp4") ? "m4a" : "webm"}`,
-            a.mime,
-            a.durationMs,
-          );
-        }}
-      />
-    );
-  }
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => setRecording(true)}
-      aria-label="Gravar áudio"
-      title="Gravar áudio"
-      className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] border border-border bg-background text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-    >
-      <Mic className="size-3.5" />
-    </button>
-  );
-}
-
 export function AttachmentPicker({
   files,
   onChange,

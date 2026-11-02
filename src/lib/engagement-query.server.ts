@@ -9,7 +9,7 @@
 
 type QueryResult<T> = { data: T[] | null; error?: { code?: string; message?: string } | null };
 
-export class EngagementTimeoutError extends Error {
+class EngagementTimeoutError extends Error {
   constructor() {
     super("O relatório demorou demais para carregar. Reduza o período ou filtre por imóvel e tente de novo.");
     this.name = "EngagementTimeoutError";

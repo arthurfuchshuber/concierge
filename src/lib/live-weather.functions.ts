@@ -19,7 +19,7 @@ const Input = z.object({
     }),
 });
 
-export type ForecastDay = {
+type ForecastDay = {
   date: string; // YYYY-MM-DD
   tempMin: number;
   tempMax: number;

@@ -236,7 +236,7 @@ export function effectivePermissionsFromSnapshot(
 }
 
 /** Atalho: usuário + contexto → permissões efetivas. */
-export async function resolveEffectivePermissions(
+async function resolveEffectivePermissions(
   userId: string,
   ctx: ResolveContext & { scope?: PermissionScope } = {},
 ): Promise<{ snapshot: SubjectSnapshot; permissions: Record<string, AccessLevel> }> {
@@ -248,11 +248,3 @@ export async function resolveEffectivePermissions(
 export function normalizePermission(permission: string): string {
   return resolveSlug(permission);
 }
-
-export const permissionResolver = {
-  resolveTenantOf,
-  resolveSubjectSnapshot,
-  effectivePermissionsFromSnapshot,
-  resolveEffectivePermissions,
-  normalizePermission,
-};

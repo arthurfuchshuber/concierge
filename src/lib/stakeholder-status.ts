@@ -5,7 +5,7 @@
  * Estados intermediários (data futura): documentation, contract, signature (rumo a "Ativo")
  * e canceling (cancelamento agendado, que só vira "Cancelado" após confirmação humana).
  */
-export const STAKEHOLDER_STATUSES = [
+const STAKEHOLDER_STATUSES = [
   "active",
   "documentation",
   "contract",
@@ -15,10 +15,7 @@ export const STAKEHOLDER_STATUSES = [
   "canceled",
   "inactive",
 ] as const;
-
-export type StakeholderStatus = (typeof STAKEHOLDER_STATUSES)[number];
-
-export const STATUS_LABEL: Record<string, string> = {
+const STATUS_LABEL: Record<string, string> = {
   active: "Ativo",
   documentation: "Documentação",
   contract: "Contrato",
@@ -28,20 +25,8 @@ export const STATUS_LABEL: Record<string, string> = {
   canceled: "Cancelado",
   inactive: "Inativo",
 };
-
-export const STATUS_HINT: Record<string, string> = {
-  active: "Contrato vigente",
-  documentation: "Cliente pendente de documentação",
-  contract: "Contrato pendente de envio",
-  signature: "Contrato já enviado, aguardando assinatura",
-  paused: "Pausado por tempo determinado",
-  canceling: "Cancelamento agendado, aguardando confirmação",
-  canceled: "Cancelado definitivamente",
-  inactive: "Inativo",
-};
-
 /** Classe do badge (borda + fundo + texto). */
-export const STATUS_STYLE: Record<string, string> = {
+const STATUS_STYLE: Record<string, string> = {
   active: "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
   documentation: "border-amber-500/30 bg-amber-500/10 text-amber-500",
   contract: "border-amber-500/30 bg-amber-500/10 text-amber-500",
@@ -53,7 +38,7 @@ export const STATUS_STYLE: Record<string, string> = {
 };
 
 /** Versão compacta usada nos cards da listagem. */
-export const STATUS_CHIP: Record<string, string> = {
+const STATUS_CHIP: Record<string, string> = {
   active: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
   documentation: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   contract: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
@@ -92,7 +77,7 @@ export function statusChip(status: string | null | undefined): string {
 }
 
 /** Ponto de cor sólido — usado no card compacto da listagem. */
-export const STATUS_DOT: Record<string, string> = {
+const STATUS_DOT: Record<string, string> = {
   active: "bg-emerald-500",
   documentation: "bg-amber-500",
   contract: "bg-amber-500",
@@ -144,7 +129,7 @@ export function statusDateLabel(iso: string): string {
 }
 
 /** Apenas a cor do texto — usada em metadados que acompanham o status (ex.: vigência). */
-export const STATUS_TEXT: Record<string, string> = {
+const STATUS_TEXT: Record<string, string> = {
   active: "text-emerald-600 dark:text-emerald-400",
   documentation: "text-amber-600 dark:text-amber-400",
   contract: "text-amber-600 dark:text-amber-400",

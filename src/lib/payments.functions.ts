@@ -323,7 +323,7 @@ export const changePlan = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export type GuideRow = {
+type GuideRow = {
   id: string;
   name: string;
   slug: string;

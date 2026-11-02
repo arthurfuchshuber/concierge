@@ -43,7 +43,7 @@ export function detectLanguage(input: string): string | null {
   return best[0];
 }
 
-export function normalizeLang(tag: string | null | undefined): string {
+function normalizeLang(tag: string | null | undefined): string {
   return (tag || "pt").toLowerCase().split(/[-_]/)[0];
 }
 

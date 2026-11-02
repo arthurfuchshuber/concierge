@@ -7,7 +7,7 @@ import { structuredListing, houseRulesText } from "@/lib/listing-structured";
 import { getChannelCached } from "@/lib/channex-channel-cache.server";
 import { untypedTable } from "@/lib/untyped-table";
 const CHANNEX_BASE = "https://app.channex.io/api/v1";
-export const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
+const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
 const CLAYTON_CHANNEL_ID = "24c871d9-d6fd-46f5-944d-a38b8a4df189";
 
 type PilotListing = { slug: string; channelId: string; roomTypeId?: string; channexPropertyId?: string };
@@ -216,7 +216,7 @@ export type { PublicListing } from "@/lib/airbnb-public-parse";
 import { parsePublicListingHtml, type PublicListing } from "@/lib/airbnb-public-parse";
 
 /** Lê a página pública do anúncio (descrição, comodidades, capacidade, cômodos, regras, segurança, capa). Somente leitura. */
-export async function fetchPublicListing(listingId: string): Promise<PublicListing | null> {
+async function fetchPublicListing(listingId: string): Promise<PublicListing | null> {
   // Leitura nativa (custo zero): até 2 tentativas com timeout, para o scrap não falhar à toa.
   let html: string | null = null;
   for (let i = 0; i < 2 && !html; i++) {
@@ -485,7 +485,7 @@ export async function scrapePublicListingForProperty(propertyId: string, opts: {
 }
 
 /** Releitura por evento: só relê o anúncio público se a última checagem passou de `LISTING_STALE_MS`. Custo zero. */
-export const LISTING_STALE_MS = 2 * 60 * 60_000;
+const LISTING_STALE_MS = 2 * 60 * 60_000;
 export function isListingStale(checkedAt: string | null | undefined, now = Date.now()): boolean {
   const t = checkedAt ? Date.parse(checkedAt) : NaN;
   return !Number.isFinite(t) || now - t >= LISTING_STALE_MS;

@@ -329,8 +329,3 @@ export const CATALOG_ROUTE_MAP: Record<string, string> = PERMISSION_CATALOG.redu
   },
   {} as Record<string, string>,
 );
-
-/** Slugs das categorias (páginas do menu) por contexto. */
-export const CATALOG_PAGES = PERMISSION_CATALOG.filter(
-  (n) => n.type === "PAGE" && n.slug !== TENANT_NAMESPACE && n.slug !== SAAS_NAMESPACE,
-);

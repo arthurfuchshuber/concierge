@@ -54,7 +54,7 @@ export function GroupList({ children, className }: { children: ReactNode; classN
   return <div className={cn(PANEL_SHELL, className)}>{children}</div>;
 }
 
-export function IconBox({
+function IconBox({
   icon: I,
   round,
   active,

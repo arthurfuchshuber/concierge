@@ -31,7 +31,7 @@ function normaliza(s: string): string {
   return s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
 
-export function ownerIsFeminine(name: string | null | undefined): boolean {
+function ownerIsFeminine(name: string | null | undefined): boolean {
   const first = (name ?? "").trim().split(/\s+/)[0] ?? "";
   if (!first) return false;
   const n = normaliza(first);

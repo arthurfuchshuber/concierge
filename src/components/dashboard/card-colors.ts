@@ -52,10 +52,6 @@ export const CARD_PROPERTY = "ds-card-title";
 
 /** Hóspede e demais linhas de apoio. */
 export const CARD_MUTED = "text-muted-foreground";
-
-/** Hóspede ainda não identificado (reserva sem formulário preenchido). */
-export const CARD_PENDING_GUEST = "text-orange-500 font-medium";
-
 /**
  * Cor do PERÍODO/data conforme o estado da estadia.
  *

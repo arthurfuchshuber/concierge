@@ -17,7 +17,7 @@ const STOP = new Set([
   "proprietaria", "dono", "dona", "tarefa", "tarefas", "studio", "estudio", "flat",
 ]);
 
-export function tokens(s: string): string[] {
+function tokens(s: string): string[] {
   return normText(s)
     .split(" ")
     .filter((t) => t && !STOP.has(t));

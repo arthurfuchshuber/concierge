@@ -7,7 +7,7 @@ import { classifyCalendarPeriod } from "@/lib/reservations.server";
 import { isAllowedIcalUrl } from "@/lib/airbnb-ical-url";
 import { SITE_ORIGIN } from "@/lib/site-url";
 
-export type ParsedEvent = {
+type ParsedEvent = {
   uid: string;
   checkin: string; // YYYY-MM-DD
   checkout: string; // YYYY-MM-DD
@@ -42,7 +42,7 @@ function unescape(v: string): string {
   return v.replace(/\\n/g, "\n").replace(/\\,/g, ",").replace(/\\;/g, ";").replace(/\\\\/g, "\\");
 }
 
-export function parseIcs(ics: string): ParsedEvent[] {
+function parseIcs(ics: string): ParsedEvent[] {
   const lines = unfold(ics);
   const events: ParsedEvent[] = [];
   let current: Partial<ParsedEvent> | null = null;
@@ -105,7 +105,7 @@ export function parseIcs(ics: string): ParsedEvent[] {
   return events;
 }
 
-export function extractGuestHint(ev: ParsedEvent): string | null {
+function extractGuestHint(ev: ParsedEvent): string | null {
   // Airbnb confirmation codes look like "HM" + 6+ uppercase alphanumerics.
   // Host iCal feeds usually omit them entirely (SUMMARY="Reserved", no URL/DESCRIPTION);
   // only the guest's trip iCal exposes the code. Scan every field defensively and
@@ -172,7 +172,7 @@ export async function ensurePropertyIcalFresh(
 }
 
 /** Sincroniza o 2º calendário do imóvel (quando o anfitrião cadastrou dois anúncios). */
-export async function syncSecondaryIcal(propertyId: string): Promise<SyncOutcome | null> {
+async function syncSecondaryIcal(propertyId: string): Promise<SyncOutcome | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin
     .from("properties")
@@ -382,7 +382,7 @@ export async function syncPropertyIcal(
  * iCal sem valor de reserva (bloqueios/canceladas não referenciadas pelo
  * histórico operacional). Estadias iCal confirmadas ficam como histórico.
  */
-export async function purgeIcalForProperty(propertyId: string): Promise<number> {
+async function purgeIcalForProperty(propertyId: string): Promise<number> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   await supabaseAdmin
     .from("properties")

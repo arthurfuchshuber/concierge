@@ -29,7 +29,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Download, Loader2, X } from "lucide-react";
 
-export type LightboxMedia = {
+type LightboxMedia = {
   id: string;
   kind: "photo" | "video" | "audio" | "file" | "note";
   url: string | null;

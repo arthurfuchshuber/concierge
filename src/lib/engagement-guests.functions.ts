@@ -29,7 +29,7 @@ function daysFor(period: "7d" | "30d" | "90d" | "all"): number {
   return period === "7d" ? 7 : period === "30d" ? 30 : period === "90d" ? 90 : 365;
 }
 
-export function normalizePhone(raw: string | null | undefined): string {
+function normalizePhone(raw: string | null | undefined): string {
   if (!raw) return "";
   return String(raw).replace(/\D+/g, "").replace(/^0+/, "");
 }
@@ -428,7 +428,7 @@ export const getEngagementGuests = createServerFn({ method: "POST" })
     };
   });
 
-export type EngagementGuestsPayload = Awaited<ReturnType<typeof getEngagementGuests>>;
+type EngagementGuestsPayload = Awaited<ReturnType<typeof getEngagementGuests>>;
 export type GuestListItem = EngagementGuestsPayload["guests"][number];
 export type ConversationRow = EngagementGuestsPayload["conversations"][number];
 

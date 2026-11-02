@@ -12,7 +12,7 @@ export type PaddleEnv = "sandbox" | "live";
 
 const GATEWAY_BASE_URL = "https://connector-gateway.lovable.dev/paddle";
 
-export function getConnectionApiKey(env: PaddleEnv): string {
+function getConnectionApiKey(env: PaddleEnv): string {
   return env === "sandbox"
     ? getEnv("PADDLE_SANDBOX_API_KEY")
     : getEnv("PADDLE_LIVE_API_KEY");
@@ -49,7 +49,7 @@ export async function gatewayFetch(
   });
 }
 
-export function getWebhookSecret(env: PaddleEnv): string {
+function getWebhookSecret(env: PaddleEnv): string {
   return env === "sandbox"
     ? getEnv("PAYMENTS_SANDBOX_WEBHOOK_SECRET")
     : getEnv("PAYMENTS_LIVE_WEBHOOK_SECRET");

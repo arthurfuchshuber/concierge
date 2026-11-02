@@ -17,7 +17,7 @@ const WithChannel = Base.extend({
   live: z.boolean().optional(),
 });
 
-export type AirbnbAccountListing = {
+type AirbnbAccountListing = {
   listingId: string;
   title: string;
   city: string | null;
