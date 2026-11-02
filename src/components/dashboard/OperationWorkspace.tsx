@@ -262,6 +262,7 @@ import { useHasSession } from "@/hooks/useHasSession";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { ConfirmActionDialog } from "@/components/permissions/ConfirmActionDialog";
 import { computePropertyCells, type CellPart, type PropertyCells } from "@/lib/occupancy-cells";
+import { barBox, computeBarSegments, edgeBox, type BarSegment } from "@/lib/occupancy-bars";
 
 function PhoneLink({ phone, country }: { phone: string | null; country: string | null }) {
   return <PhoneActionButton phone={phone} country={country} size={12} className="p-0.5" />;
@@ -677,7 +678,7 @@ export type OperationView = "resumo" | "kanban" | "limpeza" | "registros";
 
 /** Dias extras desenhados de cada lado do visor do calendário (virtualização). */
 const CAL_OVERSCAN = 40;
-const EMPTY_CELLS = { halves: [] as CellPart[], stays: [] as never[], junction: [] as boolean[], occ: [] as boolean[] };
+const EMPTY_CELLS = { halves: [] as CellPart[], stays: [] as never[], junction: [] as boolean[], occ: [] as boolean[], segs: [] as never[] };
 const EMPTY_LABELS = { bars: new Map(), singles: new Map(), blocks: new Map() } as const;
 
 export function OperationWorkspace({ view }: { view: OperationView }) {
@@ -7184,6 +7185,28 @@ function BarTipLayer({ store }: { store: ReturnType<typeof createBarTipStore> })
   );
 }
 
+/** Esqueleto leve do calendário (02/11/2026): a casca do Dashboard pinta no primeiro quadro e o calendário pesado
+ * hidrata depois, sem tela vazia. Só divs estáticas — nada de cálculo. */
+function OccupancySkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Carregando o calendário" className="px-0 py-3">
+      <div className="mb-3 flex gap-1 pl-[200px]">
+        {Array.from({ length: 7 }, (_, i) => (
+          <div key={i} className="h-7 w-7 shrink-0 rounded-[6px] bg-foreground/[0.05]" />
+        ))}
+      </div>
+      {Array.from({ length: 4 }, (_, i) => (
+        <div key={i} className="mb-1 flex items-center">
+          <div className="w-[200px] shrink-0 pr-3">
+            <div className="h-9 rounded-[6px] bg-foreground/[0.05]" />
+          </div>
+          <div className="h-6 flex-1 rounded-[4px] bg-foreground/[0.03]" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function OccupancyPanel({
   loading,
   start,
@@ -7701,10 +7724,15 @@ function OccupancyPanel({
     };
     const prevSnap = scroller?.style.scrollSnapType ?? "";
 
+    // A noite sob o ponteiro sai da GEOMETRIA da faixa do imóvel (as barras são irmãs das noites, não filhas).
+    const laneEl = cellEl.parentElement;
     const dayUnder = (): string | null => {
-      const el = document.elementFromPoint(px, rowY)?.closest<HTMLElement>("[data-bc]");
-      const [pid, d] = (el?.dataset.bc ?? "").split("|");
-      return el && pid === propertyId && d ? d : null;
+      if (!laneEl) return null;
+      // A coluna fixa do nome cobre o começo da faixa: não conta como área de dias.
+      const minX = (scroller?.getBoundingClientRect().left ?? 0) + nameColW;
+      if (px < minX) return null;
+      const r = laneEl.getBoundingClientRect();
+      return dayList[Math.floor((px - r.left) / dayW)] ?? null;
     };
     const update = () => {
       if (!active) return;
@@ -7794,6 +7822,12 @@ function OccupancyPanel({
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onCancel);
     window.addEventListener("blur", onCancel);
+  }
+  /** Dia sob o ponteiro numa faixa de imóvel (`lane`): as barras contínuas não têm uma célula por dia. */
+  function dayAtX(lane: Element | null, clientX: number): string | null {
+    if (!lane) return null;
+    const i = Math.floor((clientX - lane.getBoundingClientRect().left) / dayW);
+    return dayList[Math.min(dayList.length - 1, Math.max(0, i))] ?? null;
   }
   function blockClick(propertyId: string, day: string, target: HTMLElement | null) {
     if (!canBlock) return;
@@ -8324,18 +8358,17 @@ function OccupancyPanel({
   const vs = Math.min(winStart, Math.max(0, dayList.length - 1));
   const ve = Math.min(dayList.length, vs + visibleDays + CAL_OVERSCAN * 2 + 2);
   const winDays = useMemo(() => dayList.slice(vs, ve), [dayList, vs, ve]);
-  const rowStart = useRef(0);
   /** Meses do cabeçalho: um rótulo por mês, centrado na parte VISÍVEL dele. */
   const monthGroups = useMemo(() => {
-    const g: Array<{ key: string; month: number; year: string; n: number }> = [];
-    for (const d of winDays) {
+    const g: Array<{ key: string; month: number; year: string; n: number; start: number; firstDay: string }> = [];
+    winDays.forEach((d, j) => {
       const key = d.slice(0, 7);
       const last = g[g.length - 1];
       if (last && last.key === key) last.n++;
-      else g.push({ key, month: Number(d.slice(5, 7)), year: d.slice(0, 4), n: 1 });
-    }
+      else g.push({ key, month: Number(d.slice(5, 7)), year: d.slice(0, 4), n: 1, start: vs + j, firstDay: d });
+    });
     return g;
-  }, [winDays]);
+  }, [winDays, vs]);
 
   // STATUS OFICIAIS (31/10/2026): só Check-in (verde esmeralda), Checkout (laranja), Ocupado, Bloqueado e Livre.
   // Sem subdivisões "pendente"/"atrasado": cada status usa SEMPRE a sua cor final.
@@ -8347,13 +8380,14 @@ function OccupancyPanel({
    * reservas — a regra está em `computePropertyCells` (o teste compara com a antiga).
    */
   const rowCells = useMemo(() => {
-    const map = new Map<string, PropertyCells<NonNullable<ReturnType<typeof byProperty.get>>[number]> & { occ: boolean[] }>();
+    type RowStay = NonNullable<ReturnType<typeof byProperty.get>>[number];
+    const map = new Map<string, PropertyCells<RowStay> & { occ: boolean[]; segs: BarSegment<RowStay>[] }>();
     for (const p of visibleProperties) {
       const c = computePropertyCells(byProperty.get(p.id) ?? [], blocksByProperty.get(p.id) ?? [], dayList, {
         todayISO,
         checkedInToday: checkedInPropertyIds.has(p.id),
       });
-      map.set(p.id, { ...c, occ: c.halves.map((h) => h !== "free") });
+      map.set(p.id, { ...c, occ: c.halves.map((h) => h !== "free"), segs: computeBarSegments(c) });
     }
     return map;
   }, [visibleProperties, byProperty, blocksByProperty, dayList, todayISO, checkedInPropertyIds]);
@@ -8542,392 +8576,333 @@ function OccupancyPanel({
       {/* Quadro de ponta a ponta no card (mockup 31/10/2026): sem recuo lateral, barra de rolagem colada na lateral. */}
       <div className="overflow-hidden rounded-b-[14px] border-t border-border/50 px-0 pt-0 pb-4">
           {loading ? (
-            <div className="py-10 grid place-items-center text-muted-foreground">
-              <Loader2 className="size-5 animate-spin" />
-            </div>
+            <OccupancySkeleton />
           ) : properties.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">Nenhum imóvel para exibir.</div>
           ) : (
             <>
               <div ref={outerRef} className="w-full">
+                {/* QUADRO EM LINHAS CONTÍNUAS (02/11/2026, pedido explícito — engasgo do iPhone): não é mais uma
+                    `<table>` fatiada por dia. A <table> mudava `colSpan` durante a rolagem e o WebKit refazia o layout
+                    do quadro inteiro a cada pixel, estourava os 16 ms por quadro e descartava a pintura (a grade
+                    "sumia" até terminar o cálculo). Agora cada imóvel é uma linha com a coluna do nome fixa à esquerda
+                    e um trilho de largura fixa (`dias × dayW`); cada estadia/bloqueio é UMA barra posicionada por
+                    `left`/`width` (ver `occupancy-bars.ts`), a grade vertical é UM fundo repetido (zero nós) e só os
+                    dias perto do visor têm cabeçalho/célula de toque. Nada muda no desenho: mesmas cores, mesmo corte
+                    de 4 px na junção, mesmo rótulo, mesmo balão, mesmo clique/arrasto para bloquear. */}
                 <div
                   ref={list.ref}
                   style={{
                     scrollPaddingLeft: nameColW,
                     width: "100%",
+                    transform: "translateZ(0)",
+                    WebkitOverflowScrolling: "touch",
                     ...(list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : {}),
                   }}
                   onScroll={(e) => {
-                const i = Math.max(0, Math.floor(e.currentTarget.scrollLeft / dayW));
-                leftDateRef.current = dayList[i] ?? leftDateRef.current;
-                updateWindow(i);
-                scheduleFirstVisIdx(i);
-              }}
+                    const i = Math.max(0, Math.floor(e.currentTarget.scrollLeft / dayW));
+                    leftDateRef.current = dayList[i] ?? leftDateRef.current;
+                    updateWindow(i);
+                    scheduleFirstVisIdx(i);
+                  }}
                   className="sg-elegant-scroll overflow-auto [&::-webkit-scrollbar-track]:m-0"
                 >
-                  <table
-                    className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
-                    style={{
-                      width: nameColW + dayList.length * dayW,
-                      minWidth: nameColW + dayList.length * dayW,
-                    }}
-                  >
-                    <thead>
-                      <tr>
-                        <th
-                          rowSpan={2}
-                          className="sticky left-0 top-0 z-30 relative bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] pb-2 pr-3 text-left align-middle"
-                          style={{ width: nameColW, minWidth: nameColW }}
-                        >
-                          <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
-                          {/* Linha vertical da coluna fixa (nome) — ver comentário
-                              completo abaixo, no <th> de cada dia: em vez de
-                              `border-r` (que "para" na borda da célula e deixa um
-                              vão nas junções entre linhas, por causa do
-                              `border-spacing-y-1` da tabela), um fio absoluto que
-                              estica 4px além do próprio rodapé pra "encostar" sem
-                              vão na linha de baixo (25/09/2026, pedido explícito:
-                              "preciso que a linha encoste na faixa de status"). */}
-                          <span
-                            aria-hidden
-                            className="pointer-events-none absolute -bottom-1 right-0 top-0 w-px bg-[var(--grid-line-v)]"
-                          />
-                        </th>
-                        {/* LINHA DO MÊS (16/10/2026, mockup aprovado): "OUTUBRO 2026"
-                            em caixa alta, centrado na parte VISÍVEL do mês (a
-                            caixa interna é `sticky` com a largura do que cabe no
-                            visor), fio de cada lado e uma linha vertical na
-                            virada de mês. */}
-                        {vs > 0 && <th colSpan={vs} aria-hidden style={{ width: vs * dayW }} className="sticky top-0 z-20 bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))]" />}
-                        {monthGroups.map((g, k) => {
-                          const visW = Math.max(0, Math.min(g.n * dayW, visibleDays * dayW));
-                          return (
-                            <th
-                              key={g.key}
-                              colSpan={g.n}
-                              className="sticky top-0 z-20 relative h-[30px] bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-2 pt-2.5 text-center shadow-[0_4px_0_0_color-mix(in_oklab,var(--foreground)_1.5%,var(--card))]"
-                            >
-                              {k > 0 && (
-                                <span aria-hidden className="pointer-events-none absolute bottom-0 left-0 top-0 w-px bg-foreground/20" />
-                              )}
-                              {/* Mockup 31/10/2026: rótulo do mês À ESQUERDA do trecho visível (9,5 px, caixa alta, 0,14em), sem fios laterais. */}
-                              <div className="sticky flex items-center justify-start px-2" style={{ left: nameColW, width: visW }}>
-                                <span className="whitespace-nowrap text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                                  {MONTHS_PT[g.month - 1]} {g.year}
-                                </span>
-                              </div>
-                            </th>
-                          );
-                        })}
-                      </tr>
-                      <tr>
-                        {vs > 0 && <th colSpan={vs} aria-hidden style={{ width: vs * dayW }} className="sticky top-[34px] z-20 bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))]" />}
-                        {winDays.map((d, j) => {
-                          const i = vs + j;
-                          const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
-                            weekday: "short",
-                            timeZone: "UTC",
-                          });
-                          const isToday = d === todayISO;
-                          /* GRADE DO CALENDÁRIO (pedido explícito, 25/09/2026,
-                             mockup aprovado — "opção A", com vários ajustes depois
-                             de ver no real: (1) cor branca — não o `--border` do
-                             resto do app, que aqui saía fraco/escuro demais — e
-                             sim tokens próprios `--grid-line-v`/`--grid-line-h`
-                             (ver `styles.css`); (2) a linha vertical do dia é
-                             SEMPRE desenhada, "de fora a fora" (inclusive por
-                             baixo das reservas) — pedido explícito, 25/09/2026:
-                             "quero que a linha vertical fique por completo, porém
-                             a faixa de status precisa estar acima dela". Ela não
-                             aparece "cortando" a faixa por cima porque o `<div>`
-                             da barra de status (mais abaixo, no corpo da tabela)
-                             também é `relative` e vem DEPOIS do `<span>` da linha
-                             no DOM — como os dois são elementos posicionados sem
-                             `z-index` explícito, quem vem depois pinta por cima:
-                             a barra (opaca, exceto "Ocupado" que é 35%
-                             translúcido) cobre a linha onde existe reserva, e a
-                             linha só fica visível nos trechos sem cor (isso já
-                             tinha sido tentado ao contrário — só desenhar a linha
-                             onde está livre — mas deixava a grade "furada" nas
-                             junções entre imóveis; agora a linha existe sempre,
-                             e quem decide se ela aparece é a pintura por cima,
-                             não a lógica de onde desenhar); (3) a linha precisa
-                             "encostar" nas junções entre imóveis, sem deixar vão
-                             (pedido explícito, 25/09/2026) — por isso NÃO é
-                             `border-r` do `<th>`/`<td>` (que para exatamente na
-                             borda da célula): a tabela usa `border-spacing-y-1`
-                             (4px) entre linhas, e um `border-r` comum deixa esse
-                             vão de 4px sem nenhum traço, parecendo um segmento
-                             "flutuando" e desconectado da linha de baixo. Cada
-                             célula é `relative` e ganha um `<span>` absoluto que
-                             vai do topo até 4px ABAIXO do próprio rodapé
-                             (`-bottom-1` = -0.25rem = -4px, o mesmo valor de
-                             `border-spacing-y-1`), cobrindo esse vão e permitindo
-                             que o traço da célula de cima se funda com o da célula
-                             de baixo sem interrupção visual. Sem linha depois do
-                             último dia. */
-                          return (
-                            <th
-                              key={d}
-                              style={{ width: dayW, minWidth: dayW }}
-                              className="sticky top-[34px] z-20 relative bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] px-0 pb-2 font-medium tabular-nums"
-                            >
-                              {i < dayList.length - 1 && (
-                                <span
-                                  aria-hidden
-                                  className="pointer-events-none absolute -bottom-1 right-0 top-0 w-px bg-[var(--grid-line-v)]"
-                                />
-                              )}
-                              <div
-                                /* "QUASE UM QUADRADO" (mockup aprovado,
-                                   25/09/2026, revisto no mesmo dia: "o fundo
-                                   que demarca o dia vigente continua redondo..
-                                   preciso que ele seja QUADRADO, com uma leve
-                                   curvatura nas pontas - e que consuma apenas
-                                   a informação e não o quadrante inteiro").
-                                   Antes era `w-full`: ocupava a coluna INTEIRA
-                                   do dia, encostando nas duas linhas verticais
-                                   da grade (Adendo 3/4 do v20); a 1ª correção
-                                   trocou só a LARGURA por `w-7` e deixou a
-                                   ALTURA solta (`flex-col` sem `h-*`), o que
-                                   ainda lia como redondo/pílula por não ser
-                                   um quadrado de verdade. Agora `h-7`
-                                   ao lado de `w-7` — quadrado 28×28 de fato —
-                                   com `justify-center` pra centralizar as
-                                   duas linhas (dia da semana + número) dentro
-                                   dessa altura fixa, e o raio reduzido pra
-                                   `rounded-[6px]` (curvatura leve, não mais
-                                   "quase círculo"). */
-                                role="button"
-                                tabIndex={0}
-                                title="Ir para este dia"
-                                aria-label={`Ir para o dia ${d.slice(8, 10)}/${d.slice(5, 7)}`}
-                                onClick={() => setJump({ date: d, n: Date.now() })}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    setJump({ date: d, n: Date.now() });
-                                  }
-                                }}
-                                className={`relative mx-auto flex h-7 w-7 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[6px] transition-colors hover:bg-foreground/[0.07] hover:text-foreground ${
-                                  isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"
-                                }`}
-                              >
-                                {/* "Dia vigente" (hoje): efeito de espelho ESTÁTICO — vidro
-                                    parado, sem sweep/transição (pedido explícito, 23/09/2026:
-                                    "espelho sem movimento"). Mesmo tratamento do anel de "hoje"
-                                    no calendário de Período (`filter-panel.tsx`). */}
-                                {isToday && (
-                                  <span
-                                    aria-hidden
-                                    className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/15 via-white/[0.03] to-transparent"
-                                  />
-                                )}
-                                <span className="relative text-[9px] uppercase tracking-wide opacity-70">
-                                  {wd.replace(".", "")}
-                                </span>
-                                <span className="relative text-[11px] font-semibold leading-tight">
-                                  {d.slice(8, 10)}
-                                </span>
-                              </div>
-                            </th>
-                          );
-                        })}
-                        {ve < dayList.length && <th colSpan={dayList.length - ve} aria-hidden style={{ width: (dayList.length - ve) * dayW }} />}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {shownProperties.map((p, pIdx) => {
-                        // Tudo pré-calculado por imóvel (`rowCells`/`rowLabels`): o render só lê posições.
-                        const cells = rowCells.get(p.id) ?? EMPTY_CELLS;
-                        const halves = cells.halves;
-                        const occ = cells.occ;
-                        const { bars: labels, singles, blocks: blockLbls } = rowLabels.get(p.id) ?? EMPTY_LABELS;
-                        // Linha horizontal do grid (ver comentário no cabeçalho) —
-                        // um fio ainda mais discreto que o vertical, separando
-                        // cada imóvel. Sem linha depois do último, mesma lógica
-                        // das colunas.
-                        const isLastRow = pIdx === shownProperties.length - 1;
-                        const rowDivider = isLastRow ? "" : "border-b border-[var(--grid-line-h)]";
-                        // Ver comentário completo no <th> de cada dia: o fio
-                        // vertical agora é um <span> absoluto (não `border-r`)
-                        // que estica além do próprio rodapé pra "encostar" sem
-                        // vão na célula de baixo, através do gap de
-                        // `border-spacing-y-1`.
-                        const vLineBottomCls = isLastRow ? "bottom-0" : "-bottom-1";
-                        return (
-                          <tr key={p.id} data-whole-card className="group">
-                            <td
-                              className={`sticky left-0 z-10 relative bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] py-1 pr-3 align-middle ${rowDivider}`}
-                              style={{ width: nameColW, minWidth: nameColW }}
-                            >
-                              <span
-                                aria-hidden
-                                className={`pointer-events-none absolute right-0 top-0 w-px bg-[var(--grid-line-v)] ${vLineBottomCls}`}
-                              />
-                              <PropertyPhotoPeek
-                                id={p.id}
-                                name={p.name}
-                                photo={p.heroImageUrl ?? null}
-                                activeId={activePhotoPeekId}
-                                onActiveChange={setActivePhotoPeekId}
-                              >
-                                <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
-                                  {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário logo abaixo. */}
-                                  <div className="truncate text-[11.5px] font-semibold leading-tight" title={p.name}>
-                                    {p.name}
-                                  </div>
-                                  {p.ownerName ? (
-                                    <OwnerLine
-                                      name={p.ownerName}
-                                      phone={p.ownerPhone}
-                                      country={p.ownerPhoneCountry}
-                                      phonePosition="adjacent"
-                                      size={11}
-                                      className="text-[10.5px]"
-                                    />
-                                  ) : null}
-                                  {p.city ? (
-                                    <div className="truncate text-[10px] leading-tight text-muted-foreground">
-                                      {p.city}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </PropertyPhotoPeek>
-                            </td>
-                            {(() => {
-                              // Barra que começou antes da janela e ainda entra nela: desenha desde o início dela.
-                              let rs = vs;
-                              for (const [k, l] of labels) if (k < rs && k * dayW + l.left + l.width > vs * dayW) rs = k;
-                              for (const [k, l] of blockLbls) if (k < rs && (k + 1) * dayW + l.width > vs * dayW) rs = k;
-                              for (const [k] of singles) if (k === vs - 1 && k < rs) rs = k;
-                              rowStart.current = rs;
-                              return rs > 0 ? <td colSpan={rs} aria-hidden className={rowDivider} /> : null;
-                            })()}
-                            {dayList.slice(rowStart.current, ve).map((d, j) => {
-                              const i = rowStart.current + j;
-                              const a = halves[i * 2] as CellPart;
-                              const b = halves[i * 2 + 1] as CellPart;
-                              const idxA = i * 2;
-                              const idxB = i * 2 + 1;
-                              /* CORTE ENTRE RESERVAS NO MESMO DIA (16/10/2026, mockup
-                                 aprovado): quando o dia tem um checkout E um
-                                 check-in, cada metade encolhe 2px e a da tarde
-                                 ganha 4px de margem — um corte limpo mostra que
-                                 são reservas diferentes. Só as pontas externas
-                                 de cada reserva levam a curvatura leve (4px). */
-                              // Bloqueio manual também ganha o corte (16/10/2026): a divisória
-                              // vale entre reserva↔reserva, reserva↔bloqueio e bloqueio↔reserva
-                              // (pré-calculada em `computePropertyCells`).
-                              const junction = cells.junction[i]!;
-                              // Pedido explícito (25/09/2026, revisão do que tinha
-                              // sido pedido antes): a linha vertical do dia agora é
-                              // SEMPRE desenhada ("de fora a fora"), inclusive por
-                              // baixo de uma reserva contínua — ver comentário
-                              // completo no <th> de cada dia sobre por que ela não
-                              // aparece cortando por cima (a barra de status pinta
-                              // depois dela no DOM, então cobre a linha).
-                              const showVLine = i < dayList.length - 1;
+                  {(() => {
+                    const trackW = dayList.length * dayW;
+                    const totalW = nameColW + trackW;
+                    const hdrBg = "bg-[color-mix(in_oklab,var(--foreground)_1.5%,var(--card))]";
+                    const vLineGradient = "linear-gradient(to right, transparent calc(100% - 1px), var(--grid-line-v) calc(100% - 1px))";
+                    return (
+                      <div className="relative text-xs" style={{ width: totalW, minWidth: totalW }}>
+                        {/* CABEÇALHO fixo no topo: coluna "Imóvel" + régua (mês e dias). */}
+                        <div className={`sticky top-0 z-30 flex h-[70px] ${hdrBg}`}>
+                          <div
+                            className={`sticky left-0 z-10 flex shrink-0 items-center pb-2 pr-3 ${hdrBg}`}
+                            style={{ width: nameColW, minWidth: nameColW }}
+                          >
+                            <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
+                            {/* Fio da coluna fixa: estica 4 px além do rodapé para encostar na linha de baixo. */}
+                            <span aria-hidden className="pointer-events-none absolute -bottom-1 right-0 top-0 w-px bg-[var(--grid-line-v)]" />
+                          </div>
+                          <div className="relative shrink-0" style={{ width: trackW }}>
+                            {/* LINHA DO MÊS (16/10/2026, mockup aprovado): rótulo à ESQUERDA do trecho visível
+                                (9,5 px, caixa alta, 0,14em), com um fio na virada de mês. */}
+                            {monthGroups.map((g) => {
+                              const visW = Math.max(0, Math.min(g.n * dayW, visibleDays * dayW));
                               return (
-                                <td
-                                  key={d}
-                                  style={{ width: dayW, minWidth: dayW }}
-                                  className={`relative px-0 py-1 ${rowDivider}`}
+                                <div
+                                  key={g.key}
+                                  className={`absolute top-0 h-[30px] px-0 pb-2 pt-2.5 text-center shadow-[0_4px_0_0_color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] ${hdrBg}`}
+                                  style={{ left: g.start * dayW, width: g.n * dayW }}
                                 >
-                                  {/* Fio vertical do dia — `<span>` absoluto (ver
-                                      comentário completo no <th> do cabeçalho de
-                                      cada dia) em vez de `border-r`, pra "encostar"
-                                      sem vão na célula de baixo através do gap de
-                                      `border-spacing-y-1`. */}
-                                  {showVLine && (
+                                  {g.start > 0 && g.firstDay.endsWith("-01") && (
+                                    <span aria-hidden className="pointer-events-none absolute bottom-0 left-0 top-0 w-px bg-foreground/20" />
+                                  )}
+                                  <div className="sticky flex items-center justify-start px-2" style={{ left: nameColW, width: visW }}>
+                                    <span className="whitespace-nowrap text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                      {MONTHS_PT[g.month - 1]} {g.year}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {winDays.map((d, j) => {
+                              const i = vs + j;
+                              const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
+                                weekday: "short",
+                                timeZone: "UTC",
+                              });
+                              const isToday = d === todayISO;
+                              /* DIA: "quase um quadrado" 28×28 (mockup 25/09/2026) com o fio vertical do dia no lado
+                                 direito (sem fio depois do último dia). */
+                              return (
+                                <div
+                                  key={d}
+                                  style={{ left: i * dayW, width: dayW }}
+                                  className="absolute top-[34px] h-9 px-0 pb-2 font-medium tabular-nums"
+                                >
+                                  {i < dayList.length - 1 && (
                                     <span
                                       aria-hidden
-                                      className={`pointer-events-none absolute right-0 top-0 w-px bg-[var(--grid-line-v)] ${vLineBottomCls}`}
+                                      className="pointer-events-none absolute -bottom-1 right-0 top-0 w-px bg-[var(--grid-line-v)]"
                                     />
                                   )}
-                                  {/* Sem z-index explícito aqui: como os cabeçalhos
-                                      "sticky" (topo/nome) usam z positivo, ficam
-                                      sempre acima por padrão — antes as bolinhas
-                                      coloridas tinham o MESMO z-10 dos cabeçalhos,
-                                      e ao rolar a tela (empate de z-index resolvido
-                                      pela ordem no DOM) elas passavam por cima dos
-                                      dias fixos no topo. */}
                                   <div
-                                    className={`relative flex h-6 w-full items-center ${
-                                      canBlock
-                                        ? `cursor-pointer select-none [-webkit-touch-callout:none] rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
-                                            a === "free" && b === "free" ? "hover:bg-foreground/[0.06]" : ""
-                                          }`
-                                        : ""
+                                    role="button"
+                                    tabIndex={0}
+                                    title="Ir para este dia"
+                                    aria-label={`Ir para o dia ${d.slice(8, 10)}/${d.slice(5, 7)}`}
+                                    onClick={() => setJump({ date: d, n: Date.now() })}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        setJump({ date: d, n: Date.now() });
+                                      }
+                                    }}
+                                    className={`relative mx-auto flex h-7 w-7 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[6px] transition-colors hover:bg-foreground/[0.07] hover:text-foreground ${
+                                      isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"
                                     }`}
-                                    {...(canBlock
-                                      ? {
-                                          "data-bc": `${p.id}|${d}`,
-                                          tabIndex:
-                                            (kbCell ? kbCell.propertyId === p.id && kbCell.day === d : p.id === properties[0]?.id && d === todayISO) ? 0 : -1,
-                                          "aria-label": `Noite de ${d.slice(8, 10)}/${d.slice(5, 7)} · ${p.name}`,
-                                          onFocus: () => setKbCell({ propertyId: p.id, day: d }),
-                                          onPointerDown: (ev: React.PointerEvent) => blockPointerDown(p.id, d, ev),
-                                          // Clique do mouse NÃO foca a noite: o foco fazia o navegador "puxar" a tela para
-                                          // cima ao abrir a barra inferior (pedido explícito, 17/10/2026). Teclado segue igual.
-                                          onMouseDown: (ev: React.MouseEvent) => ev.preventDefault(),
-                                          // Segurar no celular abre o menu do sistema e cancela o arrasto.
-                                          onContextMenu: (ev: React.MouseEvent) => ev.preventDefault(),
-                                          onClick: (ev: React.MouseEvent) => blockClick(p.id, d, ev.target as HTMLElement),
-                                          onKeyDown: (e: React.KeyboardEvent) => {
-                                            if (e.target !== e.currentTarget) return;
-                                            if (e.key === "Enter" || e.key === " ") {
-                                              e.preventDefault();
-                                              blockClick(p.id, d, null);
-                                            } else if (e.key.startsWith("Arrow")) {
-                                              e.preventDefault();
-                                              if (e.shiftKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && kbExtend(p.id, d, e.key)) return;
-                                              kbMove(p.id, d, e.key);
-                                            }
-                                          },
-                                        }
-                                      : {})}
                                   >
-                                    {(() => {
-                                      if (!blockSel || !blockRange || blockSel.propertyId !== p.id) return null;
-                                      const left = d > blockRange.from && d <= blockRange.to;
-                                      const right = d >= blockRange.from && d < blockRange.to;
-                                      if (!left && !right) return null;
-                                      const side = left && right ? "inset-x-0" : left ? "left-0 w-1/2" : "right-0 w-1/2";
-                                      const cap = !left ? "border-l-[1.5px] rounded-l-[4px]" : !right ? "border-r-[1.5px] rounded-r-[4px]" : "";
-                                      return (
-                                        <span
-                                          aria-hidden
-                                          className={`pointer-events-none absolute top-0 z-[4] h-full border-y-[1.5px] border-accent/75 bg-accent/20 ${side} ${cap}`}
+                                    {/* "Dia vigente" (hoje): espelho ESTÁTICO, sem movimento (23/09/2026). */}
+                                    {isToday && (
+                                      <span
+                                        aria-hidden
+                                        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/15 via-white/[0.03] to-transparent"
+                                      />
+                                    )}
+                                    <span className="relative text-[9px] uppercase tracking-wide opacity-70">
+                                      {wd.replace(".", "")}
+                                    </span>
+                                    <span className="relative text-[11px] font-semibold leading-tight">
+                                      {d.slice(8, 10)}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="relative py-1">
+                          {/* GRADE VERTICAL: UM fundo repetido (1 px à direita de cada dia, sem fio depois do último),
+                              de fora a fora e POR BAIXO das barras — quem decide se aparece é a pintura por cima
+                              (pedido 25/09/2026). Zero elementos por dia. */}
+                          <div
+                            aria-hidden
+                            className="pointer-events-none absolute bottom-1 top-0"
+                            style={{
+                              left: nameColW,
+                              width: Math.max(0, trackW - 1),
+                              backgroundImage: vLineGradient,
+                              backgroundSize: `${dayW}px 100%`,
+                              backgroundRepeat: "repeat-x",
+                            }}
+                          />
+                          {shownProperties.map((p, pIdx) => {
+                            // Tudo pré-calculado por imóvel (`rowCells`/`rowLabels`): o render só lê posições.
+                            const cells = rowCells.get(p.id) ?? EMPTY_CELLS;
+                            const halves = cells.halves;
+                            const { bars: labels, singles, blocks: blockLbls } = rowLabels.get(p.id) ?? EMPTY_LABELS;
+                            const isLastRow = pIdx === shownProperties.length - 1;
+                            // Fio horizontal discreto separando cada imóvel (sem linha depois do último).
+                            const rowDivider = isLastRow ? "" : "border-b border-[var(--grid-line-h)]";
+                            const vLineBottomCls = isLastRow ? "bottom-0" : "-bottom-1";
+                            const winLeftPx = vs * dayW;
+                            const winRightPx = ve * dayW;
+                            const textNodes: React.ReactNode[] = [];
+                            labels.forEach((l, k) => {
+                              const left = k * dayW + l.left;
+                              if (left + l.width <= winLeftPx || left >= winRightPx) return;
+                              textNodes.push(
+                                <span
+                                  key={`l${k}`}
+                                  className={`pointer-events-none absolute top-0 z-[5] flex h-full items-center overflow-hidden whitespace-nowrap text-[11px] leading-none text-white ${
+                                    l.width < 96 ? "justify-center px-1" : "justify-between gap-2 px-2"
+                                  } ${
+                                    searching ? (matchState(p, l.stay) === "dim" ? "opacity-25" : matchState(p, l.stay) === "hit" ? "[&_.nm]:font-extrabold" : "") : ""
+                                  }`}
+                                  style={{ left, width: l.width }}
+                                >
+                                  {/* NOME À ESQUERDA, VALOR À DIREITA, na largura TOTAL da barra (31/10/2026). O nome encurta com
+                                      reticências; o valor NUNCA é cortado. Barra de 1 noite: só o valor (o nome vai no balão). */}
+                                  {l.width < 96 ? (
+                                    <span className="shrink-0 whitespace-nowrap font-semibold">{l.value ?? "—"}</span>
+                                  ) : (
+                                    <>
+                                      <span className="nm min-w-0 flex-1 truncate text-left font-bold">{l.name}</span>
+                                      <span className="shrink-0 whitespace-nowrap font-medium">{l.value ?? "—"}</span>
+                                    </>
+                                  )}
+                                </span>,
+                              );
+                            });
+                            blockLbls.forEach((l, k) => {
+                              const left = k * dayW;
+                              if (left + l.width <= winLeftPx || left >= winRightPx) return;
+                              textNodes.push(
+                                <span
+                                  key={`b${k}`}
+                                  className={`pointer-events-none absolute top-0 z-[5] flex h-full items-center justify-center overflow-hidden whitespace-nowrap px-2 text-center text-[11px] font-medium leading-none text-white/90 ${
+                                    searching ? "opacity-25" : ""
+                                  }`}
+                                  style={{ left, width: l.width }}
+                                >
+                                  <span className="truncate">{l.twin ? "Bloqueado" : "Manualmente"}</span>
+                                </span>,
+                              );
+                            });
+                            singles.forEach((l, k) => {
+                              if (k < vs - 1 || k >= ve) return;
+                              textNodes.push(
+                                <span
+                                  key={`s${k}`}
+                                  className={`pointer-events-none absolute top-0 z-[5] flex h-full items-center justify-center overflow-hidden whitespace-nowrap px-1 text-center text-[10.5px] font-bold leading-none text-white ${
+                                    searching ? (matchState(p, l.stay) === "dim" ? "opacity-25" : matchState(p, l.stay) === "hit" ? "font-extrabold" : "") : ""
+                                  }`}
+                                  style={{ left: k * dayW + dayW / 2, width: dayW }}
+                                >
+                                  <span className="truncate">{l.name}</span>
+                                </span>,
+                              );
+                            });
+                            return (
+                              <div key={p.id} data-whole-card className={`group flex ${pIdx > 0 ? "mt-1" : ""}`} style={{ width: totalW }}>
+                                <div
+                                  className={`sticky left-0 z-10 flex shrink-0 flex-col justify-center py-1 pr-3 ${hdrBg} ${rowDivider}`}
+                                  style={{ width: nameColW, minWidth: nameColW }}
+                                >
+                                  <span
+                                    aria-hidden
+                                    className={`pointer-events-none absolute right-0 top-0 w-px bg-[var(--grid-line-v)] ${vLineBottomCls}`}
+                                  />
+                                  <PropertyPhotoPeek
+                                    id={p.id}
+                                    name={p.name}
+                                    photo={p.heroImageUrl ?? null}
+                                    activeId={activePhotoPeekId}
+                                    onActiveChange={setActivePhotoPeekId}
+                                  >
+                                    <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
+                                      {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário logo abaixo. */}
+                                      <div className="truncate text-[11.5px] font-semibold leading-tight" title={p.name}>
+                                        {p.name}
+                                      </div>
+                                      {p.ownerName ? (
+                                        <OwnerLine
+                                          name={p.ownerName}
+                                          phone={p.ownerPhone}
+                                          country={p.ownerPhoneCountry}
+                                          phonePosition="adjacent"
+                                          size={11}
+                                          className="text-[10.5px]"
                                         />
-                                      );
-                                    })()}
-                                    {/* SEM LINHA NO MEIO (17/10/2026, pedido explícito): as ÚNICAS
-                                        linhas horizontais do calendário são as divisórias de cima e
-                                        de baixo de cada imóvel. O fio central que existia nas metades
-                                        "Livres" foi removido — nunca cruza o meio da linha. */}
-                                    {([0, 1] as const).map((half) => {
-                                      const part = half === 0 ? a : b;
-                                      if (part === "free") return <div key={half} className="h-full w-1/2" />;
-                                      const idx = half === 0 ? idxA : idxB;
-                                      const st = cells.stays[idx];
+                                      ) : null}
+                                      {p.city ? (
+                                        <div className="truncate text-[10px] leading-tight text-muted-foreground">
+                                          {p.city}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  </PropertyPhotoPeek>
+                                </div>
+                                <div
+                                  className={`relative shrink-0 [contain:layout_paint] ${rowDivider}`}
+                                  style={{ width: trackW, minHeight: isLastRow ? 32 : 33 }}
+                                >
+                                  {/* FAIXA do imóvel (24 px, centrada na linha): noites tocáveis, barras e rótulos. */}
+                                  <div className="absolute left-0 w-full" style={{ top: "calc(50% - 12px)", height: 24 }}>
+                                    {/* NOITES (só quem pode editar): alvo de toque/clique/teclado de cada dia do visor. */}
+                                    {canBlock &&
+                                      winDays.map((d, j) => {
+                                        const i = vs + j;
+                                        const a = halves[i * 2] as CellPart;
+                                        const b = halves[i * 2 + 1] as CellPart;
+                                        return (
+                                          <div
+                                            key={d}
+                                            className={`absolute top-0 h-6 cursor-pointer select-none [-webkit-touch-callout:none] rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+                                              a === "free" && b === "free" ? "hover:bg-foreground/[0.06]" : ""
+                                            }`}
+                                            style={{ left: i * dayW, width: dayW }}
+                                            data-bc={`${p.id}|${d}`}
+                                            tabIndex={
+                                              (kbCell ? kbCell.propertyId === p.id && kbCell.day === d : p.id === properties[0]?.id && d === todayISO) ? 0 : -1
+                                            }
+                                            aria-label={`Noite de ${d.slice(8, 10)}/${d.slice(5, 7)} · ${p.name}`}
+                                            onFocus={() => setKbCell({ propertyId: p.id, day: d })}
+                                            onPointerDown={(ev) => blockPointerDown(p.id, d, ev)}
+                                            // Clique do mouse NÃO foca a noite: o foco fazia o navegador "puxar" a tela para
+                                            // cima ao abrir a barra inferior (pedido explícito, 17/10/2026). Teclado segue igual.
+                                            onMouseDown={(ev) => ev.preventDefault()}
+                                            // Segurar no celular abre o menu do sistema e cancela o arrasto.
+                                            onContextMenu={(ev) => ev.preventDefault()}
+                                            onClick={(ev) => blockClick(p.id, d, ev.target as HTMLElement)}
+                                            onKeyDown={(e) => {
+                                              if (e.target !== e.currentTarget) return;
+                                              if (e.key === "Enter" || e.key === " ") {
+                                                e.preventDefault();
+                                                blockClick(p.id, d, null);
+                                              } else if (e.key.startsWith("Arrow")) {
+                                                e.preventDefault();
+                                                if (e.shiftKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && kbExtend(p.id, d, e.key)) return;
+                                                kbMove(p.id, d, e.key);
+                                              }
+                                            }}
+                                          >
+                                            {(() => {
+                                              if (!blockSel || !blockRange || blockSel.propertyId !== p.id) return null;
+                                              const left = d > blockRange.from && d <= blockRange.to;
+                                              const right = d >= blockRange.from && d < blockRange.to;
+                                              if (!left && !right) return null;
+                                              const side = left && right ? "inset-x-0" : left ? "left-0 w-1/2" : "right-0 w-1/2";
+                                              const cap = !left ? "border-l-[1.5px] rounded-l-[4px]" : !right ? "border-r-[1.5px] rounded-r-[4px]" : "";
+                                              return (
+                                                <span
+                                                  aria-hidden
+                                                  className={`pointer-events-none absolute top-0 z-[4] h-full border-y-[1.5px] border-accent/75 bg-accent/20 ${side} ${cap}`}
+                                                />
+                                              );
+                                            })()}
+                                          </div>
+                                        );
+                                      })}
+                                    {/* BARRAS CONTÍNUAS: uma por estadia/bloqueio, do MEIO do check-in ao MEIO do checkout. */}
+                                    {cells.segs.map((sg) => {
+                                      if (sg.h1 < vs * 2 || sg.h0 >= ve * 2) return null;
+                                      const box = barBox(sg, dayW);
+                                      const st = sg.stay;
                                       const id = st?.reservationId ?? null;
-                                      const occL = junction && half === 1 ? false : !!occ[idx - 1];
-                                      const occR = junction && half === 0 ? false : !!occ[idx + 1];
                                       const ms = st ? matchState(p, st) : "none";
                                       const isHit = ms === "hit";
-                                      const base =
-                                        part === "blocked" ? "bg-muted-foreground/50" : isHit ? "bg-primary/55" : "bg-primary/35";
-                                      const isEdge = part !== "busy" && part !== "blocked";
+                                      const base = sg.blocked ? "bg-muted-foreground/50" : isHit ? "bg-primary/55" : "bg-primary/35";
                                       return (
                                         <div
-                                          key={half}
+                                          key={sg.h0}
                                           {...(id
                                             ? {
                                                 role: "button" as const,
                                                 tabIndex: 0,
                                                 "aria-label": `Abrir a reserva de ${st?.guest ?? "hóspede"}`,
-                                                onClick: () => setJourneyReservationId(id),
                                                 onKeyDown: (e: React.KeyboardEvent) => {
                                                   if (e.key === "Enter" || e.key === " ") {
                                                     e.preventDefault();
@@ -8936,18 +8911,43 @@ function OccupancyPanel({
                                                 },
                                               }
                                             : {})}
+                                          onClick={(ev) => {
+                                            if (id) {
+                                              setJourneyReservationId(id);
+                                              return;
+                                            }
+                                            // Bloqueio manual / barra sem reserva: o toque vale como toque na noite sob o dedo.
+                                            const d = dayAtX(ev.currentTarget.parentElement, ev.clientX);
+                                            if (d) blockClick(p.id, d, null);
+                                          }}
+                                          {...(canBlock
+                                            ? {
+                                                onPointerDown: (ev: React.PointerEvent<HTMLDivElement>) => {
+                                                  const d = dayAtX(ev.currentTarget.parentElement, ev.clientX);
+                                                  if (d) blockPointerDown(p.id, d, ev);
+                                                },
+                                                onMouseDown: (ev: React.MouseEvent) => ev.preventDefault(),
+                                                onContextMenu: (ev: React.MouseEvent) => ev.preventDefault(),
+                                              }
+                                            : {})}
                                           onPointerEnter={(ev: React.PointerEvent<HTMLDivElement>) => {
                                             if (ev.pointerType !== "mouse") return;
-                                            const tip = tipFor(p.id, p.name, d, half, part);
-                                            if (!tip) return;
+                                            const hw = dayW / 2;
                                             const r = ev.currentTarget.getBoundingClientRect();
-                                            const x = Math.min(Math.max(r.left + r.width / 2, 176), window.innerWidth - 176);
+                                            const cut = sg.startCut ? 2 : 0;
+                                            const rel = Math.max(0, Math.min(sg.h1 - sg.h0, Math.floor((ev.clientX - r.left + cut) / hw)));
+                                            const h = sg.h0 + rel;
+                                            const tip = tipFor(p.id, p.name, dayList[h >> 1]!, (h & 1) as 0 | 1, halves[h] as CellPart);
+                                            if (!tip) return;
+                                            const cx = r.left - cut + rel * hw + hw / 2;
+                                            const x = Math.min(Math.max(cx, 176), window.innerWidth - 176);
                                             const below = r.top < 170;
                                             setBarTip({ x, y: below ? r.bottom + 8 : r.top - 8, below, ...tip });
                                           }}
                                           onPointerLeave={() => setBarTip(null)}
                                           style={{
-                                            ...(junction ? { width: "calc(50% - 2px)", ...(half === 1 ? { marginLeft: 4 } : {}) } : {}),
+                                            left: box.left,
+                                            width: box.width,
                                             ...(isHit
                                               ? {
                                                   filter: "drop-shadow(0 0 6px color-mix(in oklab, var(--primary) 40%, transparent))",
@@ -8955,80 +8955,48 @@ function OccupancyPanel({
                                                 }
                                               : {}),
                                           }}
-                                          className={`relative h-full w-1/2 overflow-hidden ${base} ${!occL ? "rounded-l-[4px]" : ""} ${
-                                            !occR ? "rounded-r-[4px]" : ""
-                                          } ${ms === "dim" ? "opacity-[0.18]" : ""} ${id ? "cursor-pointer" : ""}`}
+                                          className={`absolute top-0 h-6 overflow-hidden ${base} ${sg.roundL ? "rounded-l-[4px]" : ""} ${
+                                            sg.roundR ? "rounded-r-[4px]" : ""
+                                          } ${ms === "dim" ? "opacity-[0.18]" : ""} ${id || canBlock ? "cursor-pointer" : ""}`}
                                         >
-                                          {/* STATUS = fio de 3px × 12px rente à ponta da barra,
-                                              seguindo a curva: check-in na esquerda, checkout
-                                              na direita (cores em `clsOf`). */}
-                                          {isEdge && (
+                                          {/* STATUS = fio de 3 px × 12 px rente à ponta da barra: check-in na esquerda, checkout na direita. */}
+                                          {sg.edges.map((e) => {
+                                            const eb = edgeBox(sg, e, dayW);
+                                            return (
+                                              <span
+                                                key={e.h}
+                                                aria-hidden
+                                                className={`absolute bottom-0 h-[3px] ${clsOf(e.part)}`}
+                                                style={{ left: eb.left, width: eb.width }}
+                                              />
+                                            );
+                                          })}
+                                          {/* DIVISÓRIA DA NOITE sobre o BLOQUEIO (31/10/2026): o fio da grade aparece por cima da barra cinza. */}
+                                          {sg.blocked && (
                                             <span
                                               aria-hidden
-                                              className={`absolute bottom-0 h-[3px] w-3 ${clsOf(part)} ${half === 0 ? "right-0" : "left-0"}`}
+                                              className="pointer-events-none absolute inset-0"
+                                              style={{
+                                                backgroundImage: vLineGradient,
+                                                backgroundSize: `${dayW}px 100%`,
+                                                backgroundPosition: `${-(box.left % dayW)}px 0`,
+                                                backgroundRepeat: "repeat-x",
+                                              }}
                                             />
                                           )}
                                         </div>
                                       );
                                     })}
-                                    {/* DIVISÓRIA DA NOITE sobre o BLOQUEIO (31/10/2026): a barra cinza tapava o fio da grade; agora o
-                                        fio aparece por cima, no mesmo padrão das reservas. O corte da junção (reserva↔bloqueio) continua. */}
-                                    {showVLine && b === "blocked" && (
-                                      <span aria-hidden className="pointer-events-none absolute right-0 top-0 z-[4] h-full w-px bg-[var(--grid-line-v)]" />
-                                    )}
-                                    {labels.get(i) && (
-                                      <span
-                                        className={`pointer-events-none absolute top-0 z-[5] flex h-full items-center overflow-hidden whitespace-nowrap text-[11px] leading-none text-white ${
-                                          labels.get(i)!.width < 96 ? "justify-center px-1" : "justify-between gap-2 px-2"
-                                        } ${
-                                          searching ? (matchState(p, labels.get(i)!.stay) === "dim" ? "opacity-25" : matchState(p, labels.get(i)!.stay) === "hit" ? "[&_.nm]:font-extrabold" : "") : ""
-                                        }`}
-                                        style={{ left: labels.get(i)!.left, width: labels.get(i)!.width }}
-                                      >
-                                        {/* NOME À ESQUERDA, VALOR À DIREITA, na largura TOTAL da barra (31/10/2026).
-                                            O nome encurta com reticências; o valor NUNCA é cortado. Barra de 1 noite
-                                            (estreita): só o valor, limpo e legível — o nome vai no balão. Sem valor no
-                                            dado (reserva do histórico sem valor): "—". Sem ícone de chat. */}
-                                        {labels.get(i)!.width < 96 ? (
-                                          <span className="shrink-0 whitespace-nowrap font-semibold">{labels.get(i)!.value ?? "—"}</span>
-                                        ) : (
-                                          <>
-                                            <span className="nm min-w-0 flex-1 truncate text-left font-bold">{labels.get(i)!.name}</span>
-                                            <span className="shrink-0 whitespace-nowrap font-medium">{labels.get(i)!.value ?? "—"}</span>
-                                          </>
-                                        )}
-                                      </span>
-                                    )}
-                                    {blockLbls.get(i) && (
-                                      <span
-                                        className={`pointer-events-none absolute left-0 top-0 z-[5] flex h-full items-center justify-center overflow-hidden whitespace-nowrap px-2 text-center text-[11px] font-medium leading-none text-white/90 ${
-                                          searching ? "opacity-25" : ""
-                                        }`}
-                                        style={{ width: blockLbls.get(i)!.width }}
-                                      >
-                                        <span className="truncate">{blockLbls.get(i)!.twin ? "Bloqueado" : "Manualmente"}</span>
-                                      </span>
-                                    )}
-                                    {singles.get(i) && (
-                                      <span
-                                        className={`pointer-events-none absolute top-0 z-[5] flex h-full items-center justify-center overflow-hidden whitespace-nowrap px-1 text-center text-[10.5px] font-bold leading-none text-white ${
-                                          searching ? (matchState(p, singles.get(i)!.stay) === "dim" ? "opacity-25" : matchState(p, singles.get(i)!.stay) === "hit" ? "font-extrabold" : "") : ""
-                                        }`}
-                                        style={{ left: dayW / 2, width: dayW }}
-                                      >
-                                        <span className="truncate">{singles.get(i)!.name}</span>
-                                      </span>
-                                    )}
+                                    {textNodes}
                                   </div>
-                                </td>
-                              );
-                            })}
-                            {ve < dayList.length && <td colSpan={dayList.length - ve} aria-hidden className={rowDivider} />}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
