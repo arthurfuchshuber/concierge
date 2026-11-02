@@ -510,16 +510,20 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     propertyId: listing.property_id,
     conversationId: convId,
   });
-  await admin.from("property_chat_messages").insert({
-    conversation_id: convId,
-    role: "user",
-    content,
-    sender_type: "guest",
-    channel: "airbnb" as never,
-    external_id: m.messageId,
-    delivery_status: "delivered",
-    ...attachmentFields,
-  });
+  const { data: guestMsg } = await admin
+    .from("property_chat_messages")
+    .insert({
+      conversation_id: convId,
+      role: "user",
+      content,
+      sender_type: "guest",
+      channel: "airbnb" as never,
+      external_id: m.messageId,
+      delivery_status: "delivered",
+      ...attachmentFields,
+    })
+    .select("id")
+    .single();
 
   await admin
     .from("property_chat_conversations")
@@ -527,11 +531,9 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     .eq("id", convId);
 
   // Código da reserva liga a conversa à reserva oficial, mesmo com a IA pausada.
-  let reservationCode: string | null = null;
   try {
     const link = await import("@/lib/chat/conversation-link.server");
     const res = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => null);
-    reservationCode = res?.code ?? null;
     if (res?.code) await link.linkConversationByCode(admin, { conversationId: convId, propertyId: listing.property_id, code: res.code });
   } catch (e) {
     console.error("[channex-messages] vínculo falhou", e);
@@ -565,14 +567,11 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   // Sem IA, a conversa vai para a fila humana e a equipe é avisada por push.
   const { requestGuestAiReply, NO_AI_HANDOFF_REASON } = await import("@/lib/guest-ai/slot.server");
   const ai = await requestGuestAiReply({
-    supabase: admin,
     surface: "airbnb",
-    propertyId: listing.property_id,
-    ownerId: listing.owner_id,
     conversationId: convId,
-    guestName: m.guestName,
-    message: content,
-    reservationCode,
+    messageId: (guestMsg as { id?: string } | null)?.id ?? "",
+    // Dono do anúncio resolvido com certeza por `resolveListing`.
+    expectedOwnerId: listing.owner_id,
   });
   const handoffTriggered = ai ? ai.handoff : true;
   if (handoffTriggered) {

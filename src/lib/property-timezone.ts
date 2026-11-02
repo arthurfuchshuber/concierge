@@ -82,6 +82,27 @@ export function propertyTimeZone(
   return DEFAULT_TZ;
 }
 
+/**
+ * Igual a `propertyTimeZone`, mas SEM fuso padrão: devolve `null` quando nem a
+ * cidade nem o país casam com as tabelas acima. Usado onde um fuso presumido
+ * seria perigoso (ex.: liberação de credenciais do ConciergeIA Guest, que
+ * nega quando o fuso do imóvel não pode ser comprovado). `propertyTimeZone`
+ * continua igual para todo o resto do sistema.
+ */
+export function propertyTimeZoneOrNull(
+  city?: string | null,
+  country?: string | null,
+): string | null {
+  const c = norm(city);
+  if (c) {
+    const key = Object.keys(CITY_TZ).find((k) => c === k || c.startsWith(`${k} `));
+    if (key) return CITY_TZ[key] ?? null;
+  }
+  const co = norm(country);
+  if (co && COUNTRY_TZ[co]) return COUNTRY_TZ[co] ?? null;
+  return null;
+}
+
 type Parts = { y: number; mo: number; d: number; h: number; mi: number; s: number };
 
 /** Componentes de data/hora de um instante, no fuso informado. */

@@ -1,34 +1,34 @@
 /**
- * PONTO DE EXTENSÃO DA IA DE ATENDIMENTO AO HÓSPEDE (01/11/2026).
+ * PONTO DE EXTENSÃO DA IA DE ATENDIMENTO AO HÓSPEDE.
  *
- * A implementação antiga de IA foi removida por completo. Os canais de entrada
- * (chat do guia, WhatsApp/Sinch, Airbnb/Channex) continuam funcionando e
- * chamam este ponto único quando a IA está LIGADA para a conversa (chave do
- * anúncio, pausa humana expirada etc.).
+ * Os canais de entrada (chat do guia, WhatsApp/Sinch, Airbnb/Channex) chamam este
+ * ponto único quando a IA está LIGADA para a conversa (chave do anúncio, pausa
+ * humana expirada etc.).
  *
- * Enquanto não existe uma nova implementação, `requestGuestAiReply` devolve
- * `null`, e cada canal segue o caminho de FALLBACK já existente: a mensagem é
- * persistida, a conversa vai para a fila humana (`needs_human`) e a equipe é
- * avisada por push. Nenhum hóspede fica sem atendimento.
+ * F0 (fronteira de dados): o slot NÃO recebe mais nenhum cliente de banco. Ele
+ * recebe só identificadores — superfície, conversa e mensagem (+ o dono esperado,
+ * quando o canal já o provou) — e tudo o mais (imóvel, conta, reserva, hóspede) é
+ * RE-DERIVADO e validado no backend por `guest-ai/data/scope.server.ts`. Nenhum
+ * identificador vindo do cliente é aceito sem essa validação.
  *
- * A nova arquitetura (LLM-first) deve ser plugada aqui, sem reaproveitar a
- * arquitetura antiga. Este arquivo NÃO contém prompts, modelos, memória ou
- * qualquer lógica de IA.
+ * F0/F1 NÃO ligam nada: sem LLM, sem resposta automática. `requestGuestAiReply`
+ * continua devolvendo `null` e cada canal segue o FALLBACK existente (conversa vai
+ * para `needs_human` + push à equipe). O Context Engine (`context/builder.server.ts`)
+ * e o Policy Engine (`policy/`) já existem e são testados, mas ainda NÃO são
+ * chamados daqui: isso será decidido na fase seguinte, para não somar consultas ao
+ * caminho de cada mensagem sem que haja um consumidor.
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { GuestSurface } from "@/lib/guest-ai/types";
 
-export type GuestAiSurface = "guide_chat" | "whatsapp" | "airbnb";
+export type GuestAiSurface = GuestSurface;
 
 export type GuestAiRequest = {
-  supabase: SupabaseClient;
   surface: GuestAiSurface;
-  propertyId: string;
-  ownerId: string | null;
   conversationId: string;
-  guestName: string | null;
-  message: string;
-  /** Código da reserva ligada à conversa, quando conhecido. */
-  reservationCode?: string | null;
+  /** Mensagem do HÓSPEDE que disparou o turno (já gravada pelo canal). */
+  messageId: string;
+  /** Dono (conta) que o canal já provou; se vier, o backend confere com o dono real do imóvel. */
+  expectedOwnerId?: string | null;
 };
 
 export type GuestAiReply = {
