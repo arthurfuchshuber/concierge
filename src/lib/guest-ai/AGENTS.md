@@ -52,8 +52,18 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - Nenhuma credencial em log, trace, métrica, mensagem de erro ou `uncertainties`. Os erros deste módulo são códigos fixos.
 - `AccessPolicyResult` só carrega decisão, motivo e instantes de diagnóstico; nunca valores.
 
-## Restrições de F0/F1
-- Proibido: chamadas a LLM de qualquer fornecedor, gateway multimodelo, embeddings, RAG vetorial, Conversational Core, resposta automática, envio de mensagens, ativação de canal, agentes Operations/Owner.
+## F2-A — LLM Gateway (`llm/`, homologação pendente)
+- `llm/gateway.server.ts` → `generateGuestLlm(request)` é o ÚNICO caminho do Guest AI até um modelo. Nunca lança: falha = `{ ok: false, error: { code } }` e o chamador segue o fallback humano.
+- Transporte: Lovable AI Gateway (`https://ai.gateway.lovable.dev/v1`, cabeçalho `Lovable-API-Key` com `LOVABLE_API_KEY`), só em `llm/providers/lovable-gateway.server.ts`. Google → `/chat/completions` (`reasoning_effort`); OpenAI → `/responses` em streaming (`reasoning.effort`), resultado do evento terminal.
+- Só modelos de `llm/models.ts` (registro próprio, com preço por 1M tokens). Nunca importar `src/lib/llm/` (gateway convencional do SaaS) nem ser importado por ele.
+- Prazo total máximo de 15 s (AbortSignal + corrida contra provedor que ignore o sinal). Nova tentativa só para 5xx/rede, uma vez, e só com ≥ 3 s de prazo restante. 429/402/4xx/timeout nunca repetem.
+- Truncada (`length`/fluxo sem evento terminal), filtrada, vazia, término desconhecido ou JSON inválido = falha. Nada parcial sai do gateway.
+- `forbiddenValues`: se algum aparecer em qualquer mensagem, recusa antes da rede (`sensitive_content_blocked`). O gateway não conhece credenciais nem importa `data/`, `context/`, `policy/`.
+- Log: um evento `guest_ai.llm.call` por chamada, por lista branca (números, códigos, ids opacos). Nunca conteúdo, chave, corpo de erro do provedor nem valores proibidos. O corpo de respostas de erro HTTP não é lido.
+- Sem consumidor ainda: o `slot.server.ts` continua devolvendo `null` (fallback humano) e não importa `llm/`. Sem tool calling, sem envio a canais (testes estáticos em `data-boundary.test.ts` e `llm-gateway.test.ts`).
+
+## Restrições vigentes (F0/F1 + F2-A)
+- Proibido: Orchestrator, resposta automática, ativar o slot, executar/registrar ferramentas, entregar credenciais ao LLM, embeddings, RAG vetorial, envio de mensagens, ativação de canal, agentes Operations/Owner, deploy. Chamadas a LLM só via `llm/gateway.server.ts`.
 - Banco: não reutilizar nem tocar nas 29 tabelas da IA antiga; só as migrations `20261102200000` (D13, colunas) e `20261102230000` (guardas D13/R6) foram aplicadas em produção; nenhuma outra sem autorização; nenhum DROP/TRUNCATE/DELETE. Estruturas novas (`ai_guest_cases`, `ai_turn_traces`, registro de liberação manual) só como proposta, com autorização.
 - Não reativar o cron iCal 682.
 - Título público do imóvel (`data/public-title.ts`): o prefixo de código interno (`AP014 - `) é removido só na representação para o hóspede (listing, dossiê, builder); `properties.name` nunca é alterado. Sem separação comprovada, o nome sai inteiro.

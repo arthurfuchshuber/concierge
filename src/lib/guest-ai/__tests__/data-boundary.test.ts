@@ -52,9 +52,36 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     expect(offenders).toEqual(["data/credentials.server.ts", "data/projections.ts"]);
   });
 
-  it("F0/F1 não têm LLM, embeddings, rede nem gateway", () => {
-    const re = /lib\/llm|ai\.gateway|openai|anthropic|generativelanguage|embedTexts|embedOne|runAgent|chatText|chatJson|\bfetch\(/i;
-    expect(files.filter((f) => re.test(code(f))).map(rel)).toEqual([]);
+  it("F0/F1 (fora de llm/) não têm LLM, embeddings, rede nem gateway", () => {
+    const re = /lib\/llm|guest-ai\/llm|ai\.gateway|openai|anthropic|generativelanguage|embedTexts|embedOne|runAgent|chatText|chatJson|\bfetch\(/i;
+    expect(files.filter((f) => !rel(f).startsWith("llm/") && re.test(code(f))).map(rel)).toEqual([]);
+  });
+
+  it("F2-A · gateway isolado: rede só no transporte do Lovable; sem src/lib/llm; sem banco, contexto ou credenciais", () => {
+    const llm = files.filter((f) => rel(f).startsWith("llm/"));
+    expect(llm.map(rel).sort()).toEqual([
+      "llm/contracts.ts",
+      "llm/errors.ts",
+      "llm/gateway.server.ts",
+      "llm/models.ts",
+      "llm/providers/lovable-gateway.server.ts",
+      "llm/providers/types.ts",
+      "llm/telemetry.ts",
+    ]);
+    expect(llm.filter((f) => /\bfetch\(|ai\.gateway/.test(code(f))).map(rel)).toEqual(["llm/providers/lovable-gateway.server.ts"]);
+    for (const f of llm) {
+      const c = code(f);
+      expect(c, rel(f)).not.toMatch(/@\/lib\/llm|lib\/llm\/|guest-ai\/(data|context|policy)|credentials|CredentialGrant|supabase|slot\.server|\.\.\/(data|context|policy)\//);
+      // F2-A não executa nem registra ferramentas (tool calling) nem envia a canais.
+      expect(c, rel(f)).not.toMatch(/\btools\s*:|tool_choice|function_call|sinch|whatsapp|channex|airbnb/i);
+    }
+  });
+
+  it("F2-A · o slot continua desligado: não importa o gateway e devolve fallback humano (null)", async () => {
+    const slot = code(path.join(ROOT, "slot.server.ts"));
+    expect(slot).not.toMatch(/llm|generateGuestLlm|buildGuestContext/);
+    const { requestGuestAiReply } = await import("@/lib/guest-ai/slot.server");
+    await expect(requestGuestAiReply({ surface: "guide_chat" as never, conversationId: "c", messageId: "m" })).resolves.toBeNull();
   });
 
   it("o slot não importa nem expõe cliente de banco", () => {
