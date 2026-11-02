@@ -20,7 +20,7 @@
  *  · Falhar em silêncio. Transcrição é enriquecimento: se a IA estiver fora do
  *    ar, o áudio tem que continuar sendo enviado. Fica sem transcrição e a
  *    conversa segue.
- *  · A MESMA transcrição das duas IAs (src/lib/ai/transcribe.server.ts), pelo
+ *  · A MESMA transcrição das duas IAs (src/lib/llm/transcribe.server.ts), pelo
  *    motivo de sempre: falar tem que valer o mesmo que digitar.
  */
 
@@ -58,7 +58,7 @@ export async function transcribeChatAttachment(
     const bytes = new Uint8Array(await (blob as Blob).arrayBuffer());
     if (!bytes.byteLength || bytes.byteLength > MAX_BYTES) return null;
 
-    const { transcribeAudio } = await import("@/lib/ai/transcribe.server");
+    const { transcribeAudio } = await import("@/lib/llm/transcribe.server");
     const text = (await transcribeAudio(bytes, params.mime || "audio/webm")).trim();
     if (!text) return null;
 

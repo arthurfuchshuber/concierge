@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { AI_MODELS } from "@/lib/ai/models";
+import { AI_MODELS } from "@/lib/llm/models";
 
 // Upload de documento pessoal pelo hóspede durante o formulário de primeiro acesso.
 // A IA (Gemini vision) faz a checagem de legibilidade e retorna feedback.

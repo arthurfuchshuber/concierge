@@ -4,6 +4,10 @@ import { createFileRoute } from "@tanstack/react-router";
  * Retentativa automática da outbox ARI da Channex (a cada 1 min via pg_cron).
  * Só processa itens `pending` com `next_attempt_at` vencido; nunca faz full
  * sync nem reenvia itens já enviados. O limitador 20/min continua valendo.
+ *
+ * O parâmetro `?only=ai` (batida de 15 s das respostas da IA antiga) deixou de
+ * existir em 01/11/2026 com a remoção da implementação antiga; chamadas com
+ * ele respondem `ok` sem fazer nada, para o job agendado não gerar erro.
  */
 export const Route = createFileRoute("/api/public/cron/channex-ari-retry")({
   server: {
@@ -11,29 +15,14 @@ export const Route = createFileRoute("/api/public/cron/channex-ari-retry")({
       POST: async ({ request }) => {
         const { verifyCronSecret, unauthorizedCronResponse } = await import("@/lib/cron-auth.server");
         if (!verifyCronSecret(request)) return unauthorizedCronResponse();
-        // `?only=ai`: batida curta (a cada 15 s) só para as respostas da IA cuja janela fechou.
         if (new URL(request.url).searchParams.get("only") === "ai") {
-          try {
-            const { processDueAiReplies } = await import("@/lib/channex-messages.server");
-            return Response.json({ ok: true, replies: await processDueAiReplies() });
-          } catch (err) {
-            console.error("[cron:ai-reply-due]", err);
-            return Response.json({ ok: false }, { status: 500 });
-          }
+          return Response.json({ ok: true, replies: 0, retired: true });
         }
-        // Hóspede sem resposta roda PRIMEIRO, em paralelo: lentidão da Channex nunca o atrasa.
-        const stalled = import("@/lib/ai/stalled-replies.server")
-          .then((m) => m.sweepStalledGuestReplies())
-          .catch((e) => console.error("[cron:stalled-replies]", e));
         const { flushAriOutbox } = await import("@/lib/channex-ari.server");
         try {
           const ari = await flushAriOutbox();
           // Sem polling periódico na Channex (pedido do suporte Channex): entidades e calendário
           // chegam só por webhooks e por ações do usuário.
-          // Respostas da IA cuja janela de consolidação já fechou (rede de segurança do webhook).
-          const { processDueAiReplies } = await import("@/lib/channex-messages.server");
-          await processDueAiReplies().catch((e) => console.error("[cron:ai-reply-due]", e));
-          await stalled;
           return Response.json({ ok: true, batches: ari.batches.length });
         } catch (err) {
           console.error("[cron:channex-ari-retry]", err);

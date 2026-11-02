@@ -56,16 +56,15 @@ const Body = z.object({
   conversationId: z.string().uuid().optional(),
   guestName: z.string().trim().min(1).max(80).optional(),
   message: z.string().trim().min(1).max(2000),
-  forceAi: z.boolean().optional(),
-  /** Quando true, a resposta vem como SSE com o progresso do agente em tempo real. */
+  /** Quando true, a resposta vem como SSE (mesmo protocolo do widget do guia). */
   stream: z.boolean().optional(),
   /**
    * Código da reserva salvo pelo guia no aparelho do hóspede (o widget já
-   * enviava; o servidor ignorava). Nos guias com código, é a prova que libera
-   * as senhas do imóvel para a IA nesta conversa (16/09/2026).
+   * enviava; o servidor ignorava). Nos guias com código, liga a conversa à
+   * reserva oficial (16/09/2026).
    */
   reservationCode: z.string().trim().max(40).optional(),
-  /** Vitrine da landing: a IA responde com dados sensíveis FICTÍCIOS e ninguém é notificado. */
+  /** Vitrine da landing: ninguém é notificado. */
   demo: z.boolean().optional(),
 });
 
@@ -74,17 +73,8 @@ type StageEvent = { step: string; label: string };
 async function runGuideChat(
   body: z.infer<typeof Body>,
   emitStage: (stage: StageEvent) => void,
-  emitDraft?: (text: string) => void,
 ): Promise<Response> {
   {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "IA não configurada." }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: prop } = await supabaseAdmin
@@ -117,7 +107,7 @@ async function runGuideChat(
       }
     }
 
-    // Gate: guest AI chat is available from the Pro plan onwards.
+    // Gate: guest chat is available from the Pro plan onwards.
     const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
     const landing = await import("@/lib/landing-demo.server");
     const planOwnerId = landing.isLandingCopy(body.slug)
@@ -126,7 +116,7 @@ async function runGuideChat(
     const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as SupabaseClient, planOwnerId);
     if (!ownerPlan.features.guestChat) {
       return new Response(
-        JSON.stringify({ error: "A assistente IA não está disponível neste guia." }),
+        JSON.stringify({ error: "O chat não está disponível neste guia." }),
         { status: 403, headers: { "Content-Type": "application/json" } },
       );
     }
@@ -144,7 +134,7 @@ async function runGuideChat(
       }
     }
     // Reaproveita a conversa recente da mesma sessão (evita conversas duplicadas,
-    // que perdiam o histórico e faziam a IA cumprimentar de novo).
+    // que perdiam o histórico).
     if (!conversationId) {
       const since = new Date(Date.now() - 12 * 3600_000).toISOString();
       const { data: recent } = await supabaseAdmin
@@ -176,7 +166,7 @@ async function runGuideChat(
       }
       conversationId = created.id;
 
-      // Avisa o anfitrião que um hóspede iniciou uma conversa com a IA.
+      // Avisa o anfitrião que um hóspede iniciou uma conversa.
       if (!body.demo) try {
         const { sendConversationStartedPush } = await import("@/lib/ops-push.server");
         await sendConversationStartedPush(supabaseAdmin, {
@@ -191,44 +181,6 @@ async function runGuideChat(
       }
     }
 
-    // ── Omnichannel Conversation Core (espelho unificado, nunca bloqueante)
-    const { resolveCoreConversation, appendCoreMessage } =
-      await import("@/lib/ai/conversation/core.server");
-    const coreConv = await resolveCoreConversation({
-      supabase: supabaseAdmin,
-      tenantId: String(prop.owner_id),
-      propertyId: String(prop.id),
-      legacyConversationId: conversationId,
-      channel: "platform_chat",
-      guestName: body.guestName ?? null,
-      guestPhone: null,
-    });
-    const mirrorToCore = async (
-      senderType: "guest" | "agent" | "human_operator",
-      content: string,
-      /** Uso/custo da resposta da IA (registrado por mensagem; sem qualquer limite de uso). */
-      cost?: { tokensIn: number; tokensOut: number; costUsd: number; models?: Record<string, string> } | null,
-    ): Promise<void> => {
-      if (!coreConv || !content) return;
-      await appendCoreMessage({
-        ...(cost
-          ? {
-              tokensIn: cost.tokensIn,
-              tokensOut: cost.tokensOut,
-              costUsd: Number(cost.costUsd.toFixed(6)),
-              metadata: { models: cost.models ?? null },
-            }
-          : {}),
-        supabase: supabaseAdmin,
-        conversationId: coreConv.id,
-        tenantId: coreConv.tenantId,
-        propertyId: String(prop.id),
-        senderType,
-        channel: "platform_chat",
-        content,
-      });
-    };
-
     // If the conversation is currently handled by a human (ai_paused), just
     // persist the guest message and let the agent reply — the guide chat
     // will surface new agent messages via polling / realtime.
@@ -238,29 +190,20 @@ async function runGuideChat(
       .eq("id", conversationId)
       .maybeSingle();
 
-    /* A PAUSA EXPIRA SOZINHA (11/09/2026).
-     *
-     * `ai_paused` não tinha prazo: quem clicava em "Assumir" calava a IA para
-     * sempre, e ninguém lembrava de devolver. Agora falar direto pausa por 30
-     * minutos e a expiração é lida AQUI, no momento do uso — se já passou, a
-     * conversa volta para a IA neste mesmo instante. Ver `lib/ai/pause.ts`. */
-    // Código da reserva é soberano: liga a conversa e dá baixa de check-in/out mesmo com a IA pausada.
+    /* A PAUSA EXPIRA SOZINHA (11/09/2026). Ver `lib/chat/pause.ts`. */
+    // Código da reserva é soberano: liga a conversa à reserva oficial mesmo com a IA pausada.
     if (!body.demo && body.reservationCode && !landing.isLandingCopy(body.slug)) {
       try {
-        const link = await import("@/lib/ai/conversation-link.server");
+        const link = await import("@/lib/chat/conversation-link.server");
         await link.linkConversationByCode(supabaseAdmin as SupabaseClient, { conversationId, propertyId: String(prop.id), code: body.reservationCode });
-        await link.applyStayCompletionOnIngest(supabaseAdmin as SupabaseClient, { conversationId, propertyId: String(prop.id), message: body.message });
-        await link
-          .applyStayForecastOnIngest(supabaseAdmin as SupabaseClient, { conversationId, propertyId: String(prop.id), message: body.message })
-          .catch((e: unknown) => console.error("guide-chat previsão no ingest falhou", e));
       } catch (e) {
-        console.error("guide-chat vínculo/baixa falhou", e);
+        console.error("guide-chat vínculo falhou", e);
       }
     }
-    const { resolvePause, resumePatch } = await import("@/lib/ai/pause");
+    const { resolvePause, resumePatch } = await import("@/lib/chat/pause");
     const humanoNoComando = await resolvePause(supabaseAdmin, conversationId, convState);
 
-    // Se a conversa está "resolvida" e o hóspede envia nova mensagem, reabrir com a IA.
+    // Se a conversa está "resolvida" e o hóspede envia nova mensagem, reabrir.
     if (convState?.status === "resolved") {
       await supabaseAdmin
         .from("property_chat_conversations")
@@ -268,31 +211,26 @@ async function runGuideChat(
         .eq("id", conversationId);
     }
 
-    // Se um humano assumiu a conversa (ai_paused), NUNCA devolvemos para a IA
-    // — mesmo que o hóspede clique em uma dica com forceAi. A mensagem é
-    // apenas persistida para o atendente responder.
+    // Persiste a mensagem do hóspede em qualquer caso.
+    await supabaseAdmin.from("property_chat_messages").insert({
+      conversation_id: conversationId,
+      role: "user",
+      content: body.message,
+      sender_type: "guest",
+    });
+    await supabaseAdmin
+      .from("property_chat_conversations")
+      .update({
+        last_message_at: new Date().toISOString(),
+        guest_name: body.guestName ?? undefined,
+      })
+      .eq("id", conversationId);
+
+    // Se um humano assumiu a conversa (ai_paused), a mensagem é apenas
+    // persistida para o atendente responder. Push pra CADA mensagem do hóspede
+    // numa conversa já assumida: se há um responsável específico, só ele
+    // recebe; sem isso, cai pra todo o time notificável da propriedade.
     if (humanoNoComando) {
-      await supabaseAdmin.from("property_chat_messages").insert({
-        conversation_id: conversationId,
-        role: "user",
-        content: body.message,
-        sender_type: "guest",
-      });
-      await mirrorToCore("guest", body.message);
-
-      await supabaseAdmin
-        .from("property_chat_conversations")
-        .update({
-          last_message_at: new Date().toISOString(),
-          guest_name: body.guestName ?? undefined,
-        })
-        .eq("id", conversationId);
-
-      // Push pra CADA mensagem do hóspede numa conversa já assumida — antes
-      // só a mensagem que DISPARAVA o handoff gerava push; qualquer
-      // mensagem seguinte na mesma conversa (já com um humano) não
-      // avisava ninguém. Se há um responsável específico, só ele recebe;
-      // sem isso, cai pra todo o time notificável da propriedade.
       if (!body.demo) try {
         const { getPropertyNotifiableUsers, sendGuestReplyPush } =
           await import("@/lib/handoff.server");
@@ -316,165 +254,29 @@ async function runGuideChat(
       );
     }
 
-    /* O HISTÓRICO INCLUI O QUE FOI FALADO (11/09/2026).
-       Mensagem de áudio grava `content` vazio; lendo só `content`, a IA via um
-       buraco exatamente onde estava o combinado (ver a negociação por áudio da
-       Izabela, 10/09). Agora a transcrição entra no lugar, marcada como fala —
-       transcrição vem torta e a IA precisa saber disso antes de interpretar. */
-    const { loadAgentHistory } = await import("@/lib/chat-audio.server");
-    const ownHistory = await loadAgentHistory(supabaseAdmin, conversationId, 20);
-    /* CONTINUIDADE ENTRE CANAIS: com o código da reserva (já ligado acima), a IA também lê
-       o que o hóspede conversou nos últimos 7 dias em outros canais da MESMA reserva
-       (Airbnb, WhatsApp, outro aparelho). Sem isso o Guia atendia como primeiro contato. */
-    let prior = ownHistory;
-    if (!body.demo && body.reservationCode && !landing.isLandingCopy(body.slug)) {
-      try {
-        const link = await import("@/lib/ai/conversation-link.server");
-        const others = await link.loadReservationSiblingHistory(supabaseAdmin as SupabaseClient, { conversationId });
-        prior = link.mergeCrossChannelHistory(ownHistory, others, 30);
-      } catch (e) {
-        console.error("guide-chat histórico entre canais falhou", e);
-      }
-    }
-
-    await supabaseAdmin.from("property_chat_messages").insert({
-      conversation_id: conversationId,
-      role: "user",
-      content: body.message,
-      sender_type: "guest",
+    // ─── IA de atendimento: ponto de extensão (sem implementação instalada) ───
+    emitStage({ step: "route", label: "Encaminhando ao anfitrião" });
+    const { requestGuestAiReply, NO_AI_HANDOFF_REASON } = await import("@/lib/guest-ai/slot.server");
+    const ai = await requestGuestAiReply({
+      supabase: supabaseAdmin as SupabaseClient,
+      surface: "guide_chat",
+      propertyId: String(prop.id),
+      ownerId: prop.owner_id ? String(prop.owner_id) : null,
+      conversationId,
+      guestName: body.guestName ?? null,
+      message: body.message,
+      reservationCode: body.reservationCode ?? null,
     });
-    await mirrorToCore("guest", body.message);
 
-    // Nota: quando ai_paused=true, já retornamos acima. Aqui ai_paused é
-    // false, então não há handoff ativo para limpar.
-
-    // Sticky exploration mode: se qualquer resposta anterior da IA já foi no
-    // formato de exploração de dica, mantemos o mesmo comportamento nos
-    // turnos seguintes (sem handoff automático, tom de amigo local).
-    const explorationSignature = /Destaques|Melhor horário|Como chegar|Dica de quem conhece/i;
-    const inExplorationFlow =
-      body.forceAi ||
-      prior.some((m) => m.role === "assistant" && explorationSignature.test(m.content ?? ""));
-
-    // ─── Agente de Hospitalidade (nova arquitetura) ───
-    /* SENHAS NA IA SÓ COM RESERVA COMPROVADA (16/09/2026).
-     *
-     * Nos guias com código de reserva, a IA só recebe Wi-Fi/portão/fechadura
-     * quando esta conversa traz um código ATIVO no iCal. Sem isso (link
-     * compartilhado, vitrine da landing, alguém que achou o guia no sitemap),
-     * a conversa roda com as senhas travadas — a IA orienta a abrir o guia. */
-    let credentialsLocked = false;
-    let reservationVerified: boolean | undefined;
-    if (guestAccess.isReservationGated(prop as never)) {
-      const code = (body.reservationCode ?? "").trim();
-      const proof = code
-        ? await guestAccess.lookupReservationByCode(body.slug, prop.id, code)
-        : null;
-      credentialsLocked = !proof?.ok;
-      reservationVerified = !!proof?.ok;
-    }
-
-    /* VITRINE DA LANDING: o lead conversa com a IA real, mas tudo que dá
-       acesso ou identifica o imóvel é trocado por valores fictícios. */
-    let agentProperty = prop as unknown as Record<string, unknown>;
-    if (body.demo && !landing.isLandingCopy(body.slug)) {
-      agentProperty = {
-        ...agentProperty,
-        wifi_ssid: "Rede da casa",
-        wifi_password: "demo-2026",
-        lock_code: "0000",
-        gate_code: "0000",
-        access_codes_pin: null,
-        host_phone: "+55 (00) 00000-0000",
-        address: "Endereço enviado ao hóspede no dia da chegada",
-        address_note: null,
-        in_condominium: false,
-        maps_url: null,
-        garage_maps_url: null,
-        lat: null,
-        lng: null,
-        airbnb_ical_url: null,
-      };
-      credentialsLocked = false;
-      reservationVerified = true; // dados já trocados por fictícios
-    }
-    if (landing.isLandingCopy(body.slug)) {
-      credentialsLocked = false;
-      reservationVerified = true;
-    }
-
-    const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
-    const { AiGatewayError } = await import("@/lib/ai/gateway.server");
-    const { loadReservationDossier } = await import("@/lib/ai/reservation-dossier.server");
-    const dossier =
-      body.reservationCode && !landing.isLandingCopy(body.slug)
-        ? await loadReservationDossier(supabaseAdmin as SupabaseClient, {
-            propertyId: String(agentProperty.id),
-            code: body.reservationCode,
-          }).catch(() => null)
-        : null;
-
-    let result: Awaited<ReturnType<typeof runHospitalityAgent>>;
-    try {
-      result = await runHospitalityAgent({
-        onStage: emitStage,
-        onDraft: emitDraft,
-        supabase: supabaseAdmin as SupabaseClient,
-        property: agentProperty,
-        conversationId,
-        sessionId: body.sessionId,
-        guestName: body.guestName ?? null,
-        message: body.message,
-        history: prior.map((m) => ({ role: m.role as string, content: m.content ?? "" })),
-        explorationMode: inExplorationFlow,
-        surface: "guide_chat",
-        credentialsLocked,
-        reservationVerified,
-        checkinDate: dossier?.checkin ?? null,
-        checkoutDate: dossier?.checkout ?? null,
-        reservationDossier: dossier?.text ?? null,
-        reservationCode: reservationVerified ? (body.reservationCode ?? null) : null,
-      });
-    } catch (err) {
-      const status = err instanceof AiGatewayError ? err.status : 502;
-      // O hóspede nunca deve ler jargão de plataforma ("Créditos de IA
-      // esgotados"): isso é problema do anfitrião, não dele. Ele recebe uma
-      // frase honesta que o orienta a falar com o anfitrião; a causa real
-      // continua nos logs do servidor para a equipe agir.
-      const message =
-        status === 402
-          ? "No momento não consigo responder por aqui. Fale diretamente com o anfitrião — ele consegue te ajudar agora."
-          : err instanceof AiGatewayError
-            ? err.message
-            : "Não consegui responder agora. Tente de novo.";
-      if (status === 402) console.error("guide-chat sem créditos de IA", err);
-      else if (!(err instanceof AiGatewayError)) console.error("guide-chat agent error", err);
-      return new Response(JSON.stringify({ error: message, conversationId }), {
-        status: status === 429 || status === 402 ? status : 502,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-
-    const handoffTriggered = result.handoff;
-    const partialReply = result.reply.trim();
+    // FALLBACK: sem IA, a conversa vai para a fila humana e a equipe é avisada.
+    const handoffTriggered = ai ? ai.handoff : true;
+    const reason = ai?.handoffReason ?? NO_AI_HANDOFF_REASON;
+    const urgency = ai?.handoffUrgency ?? null;
     if (handoffTriggered) {
-      const reason = result.handoffReason ?? "Hóspede pediu atendimento humano.";
-      const urgency = result.handoffUrgency;
       await supabaseAdmin
         .from("property_chat_conversations")
         .update({
           status: "needs_human",
-          /* ESCALAR NÃO CALA A IA (11/09/2026).
-           *
-           * Aqui era `ai_paused: !partialReply` — a IA se auto-silenciava
-           * sempre que o texto saía vazio, SEM nenhum humano ter tocado na
-           * conversa. E como a pausa não expirava, uma escalação automática às
-           * 3h da manhã deixava o hóspede falando sozinho até alguém abrir o
-           * painel. Duas coisas mudaram: o orquestrador não devolve mais texto
-           * vazio (ver `continuity.ts`), e a regra do produto é que só uma
-           * fala direta de gente silencia a IA. Escalar é sobre quem DECIDE,
-           * não sobre quem fala. */
           ai_paused: false,
           handoff_reason: reason,
           handoff_urgency: urgency,
@@ -511,10 +313,7 @@ async function runGuideChat(
       }
     }
 
-    // A IA sempre entrega o que sabe. No handoff, a mensagem parcial já
-    // sinaliza a consulta interna — sem anunciar transferência.
-    const finalReply = partialReply;
-
+    const finalReply = (ai?.reply ?? "").trim();
     if (finalReply) {
       await supabaseAdmin.from("property_chat_messages").insert({
         conversation_id: conversationId,
@@ -522,21 +321,11 @@ async function runGuideChat(
         content: finalReply,
         sender_type: "ai",
       });
-      await mirrorToCore("agent", finalReply, {
-        tokensIn: result.usage.inputTokens,
-        tokensOut: result.usage.outputTokens,
-        costUsd: result.usage.costUsd,
-        models: (result as { models?: Record<string, string> }).models,
-      });
+      await supabaseAdmin
+        .from("property_chat_conversations")
+        .update({ last_message_at: new Date().toISOString() })
+        .eq("id", conversationId);
     }
-
-    await supabaseAdmin
-      .from("property_chat_conversations")
-      .update({
-        last_message_at: new Date().toISOString(),
-        guest_name: body.guestName ?? undefined,
-      })
-      .eq("id", conversationId);
 
     return new Response(
       JSON.stringify({ conversationId, reply: finalReply, handoff: handoffTriggered }),
@@ -559,7 +348,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           });
         }
 
-        // PASSE DE IDENTIFICAÇÃO (25/09/2026): a IA só responde a hóspede
+        // PASSE DE IDENTIFICAÇÃO (25/09/2026): o chat só aceita hóspede
         // identificado no guia — o passe é assinado pelo servidor.
         {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -571,11 +360,11 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             .maybeSingle();
           const { verifyGuestPassInfo } = await import("@/lib/guest-pass.server");
           const info = passProp ? verifyGuestPassInfo(request.headers.get("x-guest-pass"), `guide:${passProp.id}`) : null;
-          // IA paga só com reserva conferida por código (25/09/2026).
+          // Chat só com reserva conferida por código (25/09/2026).
           if (!info || !info.verified) {
             return new Response(
               JSON.stringify({
-                error: "Para conversar com a IA, informe o código da sua reserva na identificação do guia.",
+                error: "Para conversar pelo chat, informe o código da sua reserva na identificação do guia.",
                 needsPass: true,
               }),
               { status: 401, headers: { "Content-Type": "application/json" } },
@@ -599,11 +388,10 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           );
         }
 
-        /* TETO DE CUSTO DO DIA (23/09/2026).
+        /* TETO DO DIA (23/09/2026).
            O chat do hóspede é aberto por natureza (ninguém faz login para ler
-           o guia) e cada resposta custa crédito de IA. O limite por minuto
-           segura rajada; este teto impede que uma única pessoa, um único
-           imóvel ou um dia ruim consumam o crédito do mês. */
+           o guia). O limite por minuto segura rajada; este teto impede que uma
+           única pessoa ou um único imóvel inundem a fila de atendimento. */
         if (
           !allowDailyBudget(`guide-chat:ip:${clientIp}`, 200) ||
           !allowPaidGuestUse({
@@ -627,9 +415,8 @@ export const Route = createFileRoute("/api/public/guide-chat")({
 
         if (!body.stream) return runGuideChat(body, () => {});
 
-        // ── Modo streaming (SSE): o progresso real do agente chega ao hóspede
-        // enquanto o pipeline roda; a resposta final é revelada em pedaços,
-        // depois de validada (nunca enviamos texto não verificado).
+        // ── Modo streaming (SSE): mesmo protocolo do widget do guia (etapas,
+        // resposta em pedaços e evento final "done").
         const encoder = new TextEncoder();
         const stream = new ReadableStream<Uint8Array>({
           async start(controller) {
@@ -644,17 +431,9 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             };
             send({ type: "stage", step: "start", label: "Recebi sua mensagem" });
             try {
-              let drafted = false;
               const res = await runGuideChat(
                 body,
                 (stage) => send({ type: "stage", step: stage.step, label: stage.label }),
-                // Resposta aparecendo enquanto é escrita (30/09/2026). O
-                // rascunho só sai quando as senhas não estão travadas; o texto
-                // validado chega em "done" e substitui o rascunho.
-                (text) => {
-                  drafted = true;
-                  send({ type: "draft", text });
-                },
               );
               const payload = (await res.json().catch(() => ({}))) as {
                 reply?: string;
@@ -671,7 +450,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
                 });
               } else {
                 const reply = payload.reply ?? "";
-                if (reply && !drafted) {
+                if (reply) {
                   send({ type: "reply_start", conversationId: payload.conversationId ?? null });
                   /**
                    * A revelação em pedaços é ENFEITE, e enfeite não pode cobrar

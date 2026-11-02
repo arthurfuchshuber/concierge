@@ -164,7 +164,7 @@ async function runAnalytics(
     .select("id").in("property_id", filteredIds).limit(20000);
   const convIds = rows("conversation-ids", convIdsQ).map((c) => (c as { id: string }).id);
 
-  const [logsQ, prevLogsQ, convsQ, msgsQ, feedbackQ, sectionsQ, poiQ, recsQ] = await Promise.all([
+  const [logsQ, prevLogsQ, convsQ, msgsQ, sectionsQ, poiQ, recsQ] = await Promise.all([
     supabase.from("guide_access_logs")
       .select("id, property_id, guest_name, user_agent, created_at")
       .in("property_id", filteredIds).gte("created_at", since.toISOString())
@@ -182,9 +182,6 @@ async function runAnalytics(
           .select("id, conversation_id, role, created_at")
           .in("conversation_id", convIds)
           .gte("created_at", since.toISOString()).limit(20000),
-    supabase.from("chat_message_feedback")
-      .select("message_id, conversation_id, property_id, reason, resolved, created_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(5000),
     (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
       .select("property_id, section, guest_session_id, created_at")
       .in("property_id", filteredIds).gte("created_at", since.toISOString())
@@ -199,7 +196,6 @@ async function runAnalytics(
   const prevLogs = rows("prev-logs", prevLogsQ);
   const convs = rows("conversations", convsQ);
   const msgs = rows("messages", msgsQ);
-  const feedback = rows("feedback", feedbackQ);
   const sectionsRaw = rows("section-events", sectionsQ) as SectionEvt[];
   const poiEvents = rows("poi-events", poiQ);
   const recs = rows("recommendations", recsQ);
@@ -220,7 +216,6 @@ async function runAnalytics(
   const totalAccesses = logsF.length;
   const uniqueSessions = sessions.length;
   const totalChats = convs.length;
-  const openFeedback = feedback.filter((f) => !f.resolved).length;
   const chatRate = totalAccesses > 0 ? Math.round((totalChats / totalAccesses) * 100) : 0;
   const autoResolveRate = totalAccesses > 0
     ? Math.round(((totalAccesses - totalChats) / totalAccesses) * 100) : 0;
@@ -322,18 +317,10 @@ async function runAnalytics(
   // ---- funil ----------------------------------------------------------
   const engagedSessionIds = new Set(sessions.filter((s) => new Set(s.sections).size >= 2).map((s) => s.sid));
   const chatSessionIds = new Set(sessions.filter((s) => sessionsWithChat.has(s.sid)).map((s) => s.sid));
-  const badConversations = new Set<string>();
-  for (const f of feedback) if (!f.resolved) badConversations.add(f.conversation_id as string);
-  const usefulChatSessionIds = new Set<string>();
-  for (const c of convs) {
-    if (!c.guest_session_id) continue;
-    if (!badConversations.has(c.id as string)) usefulChatSessionIds.add(c.guest_session_id);
-  }
   const funnel = [
     { key: "sessions", label: "Sessões", value: uniqueSessions },
     { key: "engaged", label: "Explorou ≥ 2 seções", value: engagedSessionIds.size },
     { key: "chat", label: "Iniciou conversa", value: chatSessionIds.size },
-    { key: "resolved", label: "Recebeu resposta útil", value: usefulChatSessionIds.size },
   ];
 
   // ---- por imóvel (agora inclui avgSessionSeconds) --------------------
@@ -361,18 +348,6 @@ async function runAnalytics(
       };
     });
 
-  // ---- feedback pendente ---------------------------------------------
-  const openFeedbackList = feedback
-    .filter((f) => !f.resolved)
-    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
-    .slice(0, 20)
-    .map((f) => ({
-      message_id: f.message_id as string,
-      conversation_id: f.conversation_id as string,
-      property_id: f.property_id as string,
-      reason: f.reason as string | null,
-      created_at: f.created_at as string,
-    }));
 
   // ---- POIs com nome real (mapeia poi_key por id OU place_id) ----------
   const recNameById = new Map<string, string>();
@@ -454,7 +429,7 @@ async function runAnalytics(
     properties,
     kpis: {
       totalAccesses, uniqueSessions, totalChats,
-      chatRate, autoResolveRate, openFeedback,
+      chatRate, autoResolveRate,
       accessesDelta: pct(totalAccesses, prevLogs.length),
       avgSessionSeconds, p90SessionSeconds,
       depthAvg, depthEngagedRate,
@@ -466,7 +441,6 @@ async function runAnalytics(
     silentSections,
     funnel,
     perProperty,
-    openFeedbackList,
     topPois,
     coldPois,
   };
@@ -478,7 +452,7 @@ function emptyPayload(properties: Array<{ id: string; name: string; slug: string
     properties,
     kpis: {
       totalAccesses: 0, uniqueSessions: 0, totalChats: 0, chatRate: 0,
-      autoResolveRate: 0, openFeedback: 0, accessesDelta: null as number | null,
+      autoResolveRate: 0, accessesDelta: null as number | null,
       avgSessionSeconds: 0, p90SessionSeconds: 0, depthAvg: 0, depthEngagedRate: 0,
     },
     timeseries: [] as Array<{ date: string; accesses: number; sessions: number; chats: number; avgDurSec: number }>,
@@ -488,7 +462,6 @@ function emptyPayload(properties: Array<{ id: string; name: string; slug: string
     silentSections: [] as string[],
     funnel: [] as Array<{ key: string; label: string; value: number }>,
     perProperty: [] as Array<{ id: string; name: string; slug: string; published: boolean; completeness: number; accesses: number; chats: number; sessions: number; chatRate: number; sectionsPerSession: number; avgSessionSeconds: number }>,
-    openFeedbackList: [] as Array<{ message_id: string; conversation_id: string; property_id: string; reason: string | null; created_at: string }>,
     topPois: [] as Array<{ key: string; displayName: string; views: number; likes: number; dislikes: number }>,
     coldPois: [] as Array<{ key: string; displayName: string; views: number; likes: number; dislikes: number }>,
   };

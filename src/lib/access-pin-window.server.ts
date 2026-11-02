@@ -2,12 +2,11 @@
  * Janela de liberação do código de acesso (Wi-Fi/portão/fechadura) protegido
  * por `access_codes_pin`.
  *
- * Regra de negócio já existente e correta no agente de IA
- * (`src/lib/ai/context.server.ts`, `pinReleaseAt`): o código só deve ficar
+ * Regra de negócio do guia (`pinReleaseAt`): o código só deve ficar
  * disponível a partir de 24h antes do horário de check-in até o horário de
  * check-out da reserva vigente. Este módulo replica exatamente a mesma
- * fórmula (mesmo cálculo de 24h antes do check-in, mesmo horário de
- * check-out como fechamento) para aplicá-la também no caminho que
+ * fórmula (24h antes do check-in, horário de check-out como fechamento)
+ * no caminho que
  * efetivamente libera os dados para o hóspede (`getPublicGuide` /
  * `submitAccessPin`, em `src/lib/guide.functions.ts`) — hoje esse caminho só
  * confere se o PIN digitado bate com o cadastrado, sem nenhuma checagem de

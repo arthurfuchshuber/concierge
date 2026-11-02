@@ -1,4 +1,4 @@
-import { normText } from "@/lib/ai/fuzzy-match";
+import { normText } from "@/lib/fuzzy-match";
 
 /** Busca tolerante (mesma regra da página Guias): ignora acentos/maiúsculas,
  * casa prefixo de palavra e aceita 1 erro de digitação em termos com 5+ letras.

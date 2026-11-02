@@ -73,7 +73,7 @@ export async function parseContratante(block: string): Promise<ContractParty> {
   const key = process.env["LOVABLE_API_KEY"];
   if (!key || !block.trim()) return { ...EMPTY };
 
-  const { chatText } = await import("@/lib/ai/gateway.server");
+  const { chatText } = await import("@/lib/llm/gateway.server");
   const { text: raw } = await chatText(
     "contracts",
     [

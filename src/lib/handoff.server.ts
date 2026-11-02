@@ -66,13 +66,10 @@ export async function sendHandoffPush(
       // ignore
     }
   }
-  // Preferimos o `reason` (resumo gerado pela IA em 3ª pessoa: "Hóspede está
-  // perguntando sobre X…") — é mais útil para o anfitrião do que a mensagem
-  // crua do hóspede. Cai para a mensagem original se o resumo não veio.
-  // Só a dúvida/decisão, limpa e imediata: sem introdução narrativa nem sentimento (directQuestion).
-  const { directQuestion } = await import("@/lib/ai/human-loop/handoff-draft.server");
-  const rawBody = opts.reason?.trim() || opts.guestMessage?.trim() || `${guest} precisa de suporte.`;
-  const bodyText = directQuestion(rawBody).slice(0, 220);
+  // Corpo do push: a mensagem do hóspede (o que a equipe precisa ler); cai
+  // para o motivo do encaminhamento quando não há mensagem.
+  const rawBody = opts.guestMessage?.trim() || opts.reason?.trim() || `${guest} precisa de suporte.`;
+  const bodyText = rawBody.replace(/\s+/g, " ").slice(0, 220);
   const payload: PushPayload = {
     title: `${guest}${checkinLabel}`,
     body: bodyText,

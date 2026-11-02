@@ -11,8 +11,6 @@ import { Button } from "@/components/ui/button";
 import { getEngagementAnalytics } from "@/lib/engagement-analytics.functions";
 import { getEngagementGuests } from "@/lib/engagement-guests.functions";
 import { checkIsAdmin } from "@/lib/admin-subs.functions";
-import { useSubscription } from "@/hooks/useSubscription";
-import { AiPlanLock } from "@/components/admin/AiPlanLock";
 import { PageHeader } from "@/components/ds/PageHeader";
 
 import { FiltersIconButton, type EngagementFilters } from "@/components/engagement/GlobalFilters";
@@ -23,7 +21,6 @@ import { PropertiesDotPlot } from "@/components/engagement/PropertiesDotPlot";
 import { Funnel } from "@/components/engagement/Funnel";
 import { SectionsBar } from "@/components/engagement/SectionsBar";
 import { ContentImpactMatrix } from "@/components/engagement/ContentImpactMatrix";
-import { FeedbackList } from "@/components/engagement/FeedbackList";
 import { PoiInsights } from "@/components/engagement/PoiInsights";
 import { DetailSheet, type DetailTarget } from "@/components/engagement/DetailSheet";
 import { DurationBuckets, DepthCurve } from "@/components/engagement/EngagementBars";
@@ -83,8 +80,6 @@ type SearchShape = z.infer<typeof searchSchema>;
 function EngagementPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
-  const { info: sub } = useSubscription();
-  const aiLocked = !sub.features.ai;
 
   const filters: EngagementFilters = {
     period: normalizePeriod(search.period),
@@ -216,9 +211,6 @@ function EngagementPage() {
 
               <TabsContent value="conteudo" className="space-y-5 mt-5">
                 <ContentImpactMatrix rows={data.sections} />
-                <AiPlanLock locked={aiLocked}>
-                  <FeedbackList items={data.openFeedbackList} properties={data.properties} />
-                </AiPlanLock>
                 <PoiInsights top={data.topPois} cold={data.coldPois} />
               </TabsContent>
 

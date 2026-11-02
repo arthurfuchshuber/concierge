@@ -119,7 +119,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // alguma vez nas últimas 24h (maxAge do cookie) — não que "agora" ainda
     // está dentro da janela de liberação do código (24h antes do check-in
     // até o check-out), que é a mesma regra já aplicada no agente de IA
-    // (pinReleaseAt em src/lib/ai/context.server.ts). Revalidamos aqui contra
+    // (pinReleaseAt em src/lib/access-pin-window.server.ts). Revalidamos aqui contra
     // os dados reais de reserva do imóvel para fechar esse mesmo código fora
     // da janela mesmo com cookie válido (ex.: pouco antes do check-out).
     if (hasAccessPin && !isPreview && accessUnlocked) {

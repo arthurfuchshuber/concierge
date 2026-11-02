@@ -4450,7 +4450,7 @@ function PostAccessOnboarding({
   function openDifficultyChat() {
     window.dispatchEvent(
       new CustomEvent("open-guide-chat", {
-        detail: { prompt: "Estou com dificuldade no check-in.", forceAi: true },
+        detail: { prompt: "Estou com dificuldade no check-in." },
       }),
     );
     onDone();

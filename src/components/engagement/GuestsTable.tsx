@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  AlertCircle, Phone, MessageSquare, Clock, Layers, Search, Calendar, CalendarCheck,
+  Phone, MessageSquare, Clock, Layers, Search, Calendar, CalendarCheck,
   MousePointerClick, Timer, Award, Star, ArrowUp, ArrowDown, ChevronsUpDown, Building2, Hash,
 } from "lucide-react";
 import type { GuestListItem } from "@/lib/engagement-guests.functions";
@@ -245,7 +245,6 @@ export function GuestsTable({
                   </td>
                   <td className="px-3 py-3 text-left tabular-nums">
                     <div className="flex items-center gap-1.5">
-                      {g.hasUnresolvedFeedback && <AlertCircle className="size-3 text-rose-500" />}
                       {g.messagesCount > 0
                         ? <Badge variant="secondary" className="text-[10px]">{g.messagesCount} msg</Badge>
                         : <span className="text-muted-foreground">—</span>}

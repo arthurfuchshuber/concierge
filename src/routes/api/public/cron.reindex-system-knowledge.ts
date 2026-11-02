@@ -19,7 +19,7 @@ export const Route = createFileRoute("/api/public/cron/reindex-system-knowledge"
         const { verifyCronSecret, unauthorizedCronResponse } = await import("@/lib/cron-auth.server");
         if (!verifyCronSecret(request)) return unauthorizedCronResponse();
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { reindexSystemKnowledge } = await import("@/lib/ai/system-knowledge.server");
+        const { reindexSystemKnowledge } = await import("@/lib/assistant/system-knowledge.server");
         try {
           const result = await reindexSystemKnowledge(supabaseAdmin);
           return Response.json({ ok: true, ...result });

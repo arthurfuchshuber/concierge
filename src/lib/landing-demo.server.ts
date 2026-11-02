@@ -113,7 +113,6 @@ async function sync(admin: SupabaseClient) {
     airbnb_listing_url: null,
     portaria_email: null,
     owner_contact_id: null,
-    ai_evaluation_target: false,
     wifi_ssid: DEMO_SECRETS.wifi_ssid,
     wifi_password: DEMO_SECRETS.wifi_password,
     lock_code: DEMO_SECRETS.lock_code,

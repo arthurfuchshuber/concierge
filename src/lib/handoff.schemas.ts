@@ -152,11 +152,6 @@ const HandoffTransferInput = z.object({
 });
 
 /** Descarte de uma pergunta que a IA fez ao humano e não faz mais sentido. */
-const DismissEscalationInput = z.object({
-  escalationId: z.string().uuid(),
-  reason: z.string().trim().max(400).nullish(),
-});
-
 const HandoffSendInput = z.object({
   conversationId: z.string().uuid(),
   content: z.string().trim().min(1).max(4000),
@@ -171,9 +166,6 @@ export function parseHandoffConversationInput(input: unknown) {
   return HandoffConversationInput.parse(input);
 }
 
-export function parseDismissEscalationInput(input: unknown) {
-  return DismissEscalationInput.parse(input);
-}
 
 export function parseHandoffTransferInput(input: unknown) {
   return HandoffTransferInput.parse(input);

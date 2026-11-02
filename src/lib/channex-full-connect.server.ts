@@ -112,7 +112,7 @@ async function createUnit(d: any, r: any): Promise<string> {
   const title = String(naming.property ? naming.room : listingTitle(raw) || fallback).slice(0, 200);
   const prop = await cx<{ data: { id: string } }>("/properties", {
     method: "POST",
-    body: JSON.stringify({ property: { title: name, currency: "BRL", country: "BR", timezone: "America/Sao_Paulo", property_type: "guest_house" } }),
+    body: JSON.stringify({ property: { title: name, currency: "BRL", country: "BR", timezone: "America/Sao_Paulo", property_type: "apartment" } }),
   });
   const rt = await cx<{ data: { id: string } }>("/room_types", {
     method: "POST",

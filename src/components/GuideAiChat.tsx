@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { GUIDE_LIVE_EVENT } from "@/lib/guide-live";
 import { createPortal } from "react-dom";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
-import { MessageCircleMore, Send, X, Loader2, Paperclip, Copy, Check, CalendarDays, ArrowLeft } from "lucide-react";
-import { AiMarkdown } from "@/components/ai/AiMarkdown";
+import { MessageCircleMore, Send, X, Loader2, Paperclip, Copy, Check } from "lucide-react";
+import { ChatMarkdown } from "@/components/chat/ChatMarkdown";
 import { GuestNotificationsPrompt } from "@/components/GuestNotificationsPrompt";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
@@ -21,9 +21,6 @@ type Msg = {
   createdAt?: string;
   senderType?: string;
   attachment?: AttachmentInfo | null;
-  /** Opções curtas de resposta rápida (botões) sugeridas pela IA — só faz
-   * sentido mostrar na última mensagem do assistente da conversa. */
-  quickReplies?: string[];
 };
 
 /** Chave estável da tradução (mensagens recém-geradas ainda não têm id). */
@@ -224,11 +221,6 @@ export function GuideAiChat({
   const [sessionId, setSessionId] = useState<string>("");
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [showItinerary, setShowItinerary] = useState(false);
-  const [itineraryDays, setItineraryDays] = useState<
-    Array<{ date: string; items: Array<{ id: string; time: string | null; title: string; note: string | null }> }>
-  >([]);
-  const [itineraryLoading, setItineraryLoading] = useState(false);
   // Mensagens do atendente sempre no idioma do hóspede.
   const [autoTranslated, setAutoTranslated] = useState<Record<string, string>>({});
   const [showOriginal, setShowOriginal] = useState<Record<string, boolean>>({});
@@ -322,7 +314,6 @@ export function GuideAiChat({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const forceAiNextRef = useRef(false);
   const openRef = useRef(open);
   useEffect(() => { openRef.current = open; }, [open]);
   const { greeting, question, hint, cta } = getGuestContext(checkinDate, checkoutDate);
@@ -469,9 +460,8 @@ export function GuideAiChat({
   // Permite abrir o chat via evento global disparado da home (bolha do concierge, sugestões).
   useEffect(() => {
     function onOpen(e: Event) {
-      const detail = (e as CustomEvent<{ prompt?: string; forceAi?: boolean }>).detail;
+      const detail = (e as CustomEvent<{ prompt?: string }>).detail;
       if (detail?.prompt) setInput(detail.prompt);
-      forceAiNextRef.current = !!detail?.forceAi;
       // Não forçamos setHumanMode(false): se um humano assumiu a conversa,
       // o servidor mantém o modo humano e responderá com humanMode:true.
 
@@ -622,24 +612,6 @@ export function GuideAiChat({
   }
 
 
-  async function openItinerary() {
-    setShowItinerary(true);
-    if (!sessionId) {
-      setItineraryDays([]);
-      return;
-    }
-    setItineraryLoading(true);
-    try {
-      const res = await fetch(`/api/public/itinerary?slug=${encodeURIComponent(slug)}&sessionId=${encodeURIComponent(sessionId)}`);
-      const data = (await res.json().catch(() => ({}))) as { days?: typeof itineraryDays };
-      setItineraryDays(Array.isArray(data.days) ? data.days : []);
-    } catch {
-      setItineraryDays([]);
-    } finally {
-      setItineraryLoading(false);
-    }
-  }
-
   /* VÁRIAS MENSAGENS = UMA RESPOSTA (30/09/2026).
    * Cada mensagem aparece na hora, mas a IA espera ~2,5s de silêncio antes
    * de responder e junta tudo o que chegou nesse intervalo. Se o hóspede
@@ -681,8 +653,6 @@ export function GuideAiChat({
 
   async function runTurn(text: string) {
     const next = messagesRef.current;
-    const forceAi = forceAiNextRef.current;
-    forceAiNextRef.current = false;
     loadingRef.current = true;
     setLoading(true);
     setStageLabel("Recebi sua mensagem");
@@ -714,7 +684,6 @@ export function GuideAiChat({
           conversationId,
           message: text,
           guestName: effectiveGuestName,
-          forceAi: forceAi || undefined,
           stream: true,
           checkinDate: readAccessRecord(slug)?.checkinDate ?? undefined,
           checkoutDate: readAccessRecord(slug)?.checkoutDate ?? undefined,
@@ -727,10 +696,10 @@ export function GuideAiChat({
       const ctype = res.headers.get("Content-Type") ?? "";
       if (!res.ok || !res.body || !ctype.includes("text/event-stream")) {
         // Fallback: resposta JSON (erro de rate limit, validação, etc.)
-        const data = (await res.json().catch(() => ({}))) as { conversationId?: string; reply?: string; error?: string; handoff?: boolean; humanMode?: boolean; quickReplies?: string[] };
+        const data = (await res.json().catch(() => ({}))) as { conversationId?: string; reply?: string; error?: string; handoff?: boolean; humanMode?: boolean };
         if (data.conversationId) setConversationId(data.conversationId);
         const content = data.error || data.reply || "Não consegui responder agora.";
-        finishWith([...next, { role: "assistant" as const, content, quickReplies: data.quickReplies }], data.conversationId);
+        finishWith([...next, { role: "assistant" as const, content }], data.conversationId);
         lastFetchedAtRef.current = new Date().toISOString();
         return;
       }
@@ -743,7 +712,6 @@ export function GuideAiChat({
       let done = false;
       let humanModeEvent = false;
       let errorMsg: string | null = null;
-      let quickReplies: string[] = [];
 
       while (!done) {
         const chunk = await reader.read();
@@ -781,7 +749,6 @@ export function GuideAiChat({
             if (evt.conversationId) convId = String(evt.conversationId);
             humanModeEvent = !!evt.humanMode;
             acc = String(evt.reply ?? acc);
-            quickReplies = Array.isArray(evt.quickReplies) ? evt.quickReplies.map(String) : [];
             done = true;
           }
         }
@@ -806,11 +773,11 @@ export function GuideAiChat({
          * um aviso: o polling traz a próxima mensagem e a conversa segue. */
         setHumanMode(true);
         finishWith(
-          acc.trim() ? [...next, { role: "assistant" as const, content: acc, quickReplies }] : next,
+          acc.trim() ? [...next, { role: "assistant" as const, content: acc }] : next,
           convId,
         );
       } else {
-        finishWith([...next, { role: "assistant" as const, content: acc, quickReplies }], convId);
+        finishWith([...next, { role: "assistant" as const, content: acc }], convId);
         if (!openRef.current && acc.trim()) setPendingPreview(acc);
       }
 
@@ -849,7 +816,6 @@ export function GuideAiChat({
             content: string;
             senderType?: string;
             createdAt: string;
-            quickReplies?: string[];
             attachment?: AttachmentInfo | null;
           }[];
         };
@@ -880,7 +846,6 @@ export function GuideAiChat({
                 id: m.id,
                 createdAt: m.createdAt,
                 senderType: m.senderType,
-                quickReplies: m.quickReplies,
                 attachment: m.attachment ?? null,
               }));
             if (!additions.length) return prev;
@@ -956,7 +921,7 @@ export function GuideAiChat({
             </button>
             <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.18em] mb-1.5 flex items-center gap-1.5">
               <span className="inline-block size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Concierge IA respondeu
+              Nova resposta do anfitrião
             </p>
             <p className="text-[12.5px] leading-relaxed text-zinc-800 line-clamp-4">
               {pendingPreview}
@@ -1014,8 +979,8 @@ export function GuideAiChat({
           metaPixelTrackCustom("ChatClick", { location: "guide" });
           setOpen(true);
         }}
-        aria-label="Abrir assistente do guia (arraste para reposicionar)"
-        title="Peça dicas à IA · arraste para mover"
+        aria-label="Abrir o chat do guia (arraste para reposicionar)"
+        title="Fale com o anfitrião · arraste para mover"
         className="group relative inline-flex items-center justify-center size-14 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_0_0_8px_rgba(232,45,174,0.18),0_16px_38px_-14px_rgba(124,26,216,0.7)] hover:shadow-[0_0_0_10px_rgba(232,45,174,0.22),0_20px_46px_-16px_rgba(124,26,216,0.85)] active:scale-95 transition-all pointer-events-auto cursor-grab active:cursor-grabbing touch-none select-none"
       >
         {loading && (
@@ -1069,15 +1034,6 @@ export function GuideAiChat({
           <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
-              onClick={() => (showItinerary ? setShowItinerary(false) : openItinerary())}
-              aria-label={showItinerary ? "Voltar ao chat" : "Ver meu roteiro"}
-              title="Meu roteiro"
-              className="grid size-7 place-items-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900"
-            >
-              {showItinerary ? <ArrowLeft className="size-3.5" /> : <CalendarDays className="size-3.5" />}
-            </button>
-            <button
-              type="button"
               onClick={() => setOpen(false)}
               aria-label="Fechar"
               className="grid size-7 place-items-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900"
@@ -1087,47 +1043,6 @@ export function GuideAiChat({
           </div>
         </div>
 
-        {showItinerary ? (
-          <div className="flex-1 overflow-y-auto px-4 py-5">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-emerald-700/80 font-semibold mb-3">Meu roteiro</p>
-            {itineraryLoading ? (
-              <div className="flex items-center gap-2 text-zinc-500 text-[12.5px] py-6 justify-center">
-                <Loader2 className="size-3.5 animate-spin" /> carregando…
-              </div>
-            ) : itineraryDays.length === 0 ? (
-              <div className="text-center py-10">
-                <CalendarDays className="size-8 mx-auto text-zinc-300 mb-2" strokeWidth={1.5} />
-                <p className="text-[13px] text-zinc-500 max-w-[26ch] mx-auto leading-relaxed">
-                  Ainda não há nada marcado. Conversa comigo sobre passeios e vou anotando aqui conforme você for decidindo.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {itineraryDays.map((day) => (
-                  <div key={day.date}>
-                    <p className="text-[12px] font-semibold text-zinc-900 mb-2">
-                      {new Date(`${day.date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}
-                    </p>
-                    <div className="space-y-1.5">
-                      {day.items.map((item) => (
-                        <div key={item.id} className="flex items-start gap-2.5 rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5">
-                          {item.time && (
-                            <span className="text-[11px] font-semibold text-emerald-700 shrink-0 mt-0.5 tabular-nums">{item.time}</span>
-                          )}
-                          <div className="min-w-0">
-                            <p className="text-[13px] text-zinc-900 leading-snug">{item.title}</p>
-                            {item.note && <p className="text-[11.5px] text-zinc-500 mt-0.5 leading-snug">{item.note}</p>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-        <>
         {/* Messages */}
         <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
           {messages.length === 0 && (
@@ -1158,10 +1073,6 @@ export function GuideAiChat({
           )}
           {(() => {
             const visible = messages.filter((m) => (m.content ?? "").trim().length > 0 || m.attachment);
-            const lastAssistantIdx = visible.reduce(
-              (acc, m, idx) => (m.role === "assistant" ? idx : acc),
-              -1,
-            );
             return visible.map((m, i) => (
             <div key={m.id ?? i} className={`flex ${m.role === "user" ? "justify-end" : m.role === "system" ? "justify-center" : "justify-start"}`}>
               {m.role === "user" ? (
@@ -1199,7 +1110,7 @@ export function GuideAiChat({
                        negrito, lista e link do mesmo jeito. As duas exceções do
                        guia — código copiável e foto que some quando expira —
                        continuam aqui, porque só fazem sentido para o hóspede. */
-                    <AiMarkdown
+                    <ChatMarkdown
                       extraComponents={{
                         code: ({ node, children, ...props }: any) => (
                           <CopyableCode {...props}>{children}</CopyableCode>
@@ -1219,7 +1130,7 @@ export function GuideAiChat({
                       }}
                     >
                       {(!showOriginal[trKey(m)] && autoTranslated[trKey(m)]) || m.content}
-                    </AiMarkdown>
+                    </ChatMarkdown>
                   )}
                   {autoTranslated[trKey(m)] && (
                     <button
@@ -1232,25 +1143,6 @@ export function GuideAiChat({
                   )}
 
                 </div>
-                {/* Botões de resposta rápida — só na última mensagem do
-                    assistente, e só enquanto não há nada em andamento (senão
-                    o hóspede podia clicar num botão de uma pergunta antiga
-                    enquanto uma resposta nova já está chegando). O campo de
-                    digitar continua sempre disponível ao lado. */}
-                {!!m.quickReplies?.length && i === lastAssistantIdx && !loading && !streamingText && (
-                  <div className="flex flex-wrap gap-1.5 mt-0.5">
-                    {m.quickReplies.map((opt, oi) => (
-                      <button
-                        key={oi}
-                        type="button"
-                        onClick={() => send(opt)}
-                        className="px-3 py-1.5 rounded-full border border-emerald-600/30 bg-emerald-50 text-emerald-800 text-[12.5px] font-medium hover:bg-emerald-100 active:scale-[0.97] transition-all"
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                )}
                 </div>
               )}
             </div>
@@ -1267,13 +1159,11 @@ export function GuideAiChat({
           {loading && !streamingText && (
             <div className="flex items-center gap-2 text-zinc-500 text-[12.5px]">
               <Loader2 className="size-3.5 animate-spin" />
-              <span className="animate-pulse">{stageLabel ? `${stageLabel}…` : "pensando…"}</span>
+              <span className="animate-pulse">{stageLabel ? `${stageLabel}…` : "enviando…"}</span>
             </div>
           )}
 
         </div>
-        </>
-        )}
 
         <GuestNotificationsPrompt
           slug={slug}
@@ -1364,7 +1254,7 @@ export function GuideAiChat({
           </div>
 
           <p className="text-[10px] text-zinc-500 text-center mt-2 px-2">
-            A IA usa as informações do guia. Confirme detalhes críticos com o anfitrião.
+            Suas mensagens vão para a equipe do anfitrião. Confirme detalhes críticos com ele.
           </p>
         </div>
       </div>

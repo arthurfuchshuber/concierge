@@ -1,7 +1,7 @@
 import { placePhotoUrl } from "@/lib/place-photo-sign";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { AI_MODELS } from "@/lib/ai/models";
+import { AI_MODELS } from "@/lib/llm/models";
 
 const Input = z.object({
   cityKey: z.string().min(1).max(80),

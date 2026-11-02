@@ -16,9 +16,7 @@ vi.mock("@tanstack/react-start", () => {
   return { createServerFn: () => make() };
 });
 vi.mock("@/integrations/supabase/auth-middleware", () => ({ requireSupabaseAuth: {} }));
-const reindex = vi.fn(async () => ({ indexed: 0 }));
 vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {} }));
-vi.mock("@/lib/ai/indexing.server", () => ({ reindexProperty: reindex }));
 const geocode = vi.fn();
 vi.mock("@/lib/maps.functions", () => ({ searchAddressCandidatesGoogle: geocode }));
 
@@ -55,7 +53,6 @@ beforeEach(() => {
   ops = [];
   results = {};
   allowed = true;
-  reindex.mockClear();
   geocode.mockReset();
 });
 
@@ -67,13 +64,12 @@ describe("Playbook · funções de servidor", () => {
     expect(ops).toHaveLength(0);
   });
 
-  it("campo manual grava na MESMA coluna do imóvel (guia e IA leem dali) e reindexa", async () => {
+  it("campo manual grava na MESMA coluna do imóvel (o guia lê dali)", async () => {
     const { savePlaybookRow } = await import("@/lib/playbook.functions");
     await savePlaybookRow({ data: { propertyId: PID, rowId: "f:nome_da_rede_wi_fi", value: "  MinhaRede " } });
     const u = lastOps("properties", "update")[0];
     expect(u.args[0]).toEqual({ wifi_ssid: "MinhaRede" });
     expect(u.filters).toContainEqual(["id", PID]);
-    expect(reindex).toHaveBeenCalledWith(expect.anything(), PID);
   });
 
   it("converte número e sim/não e recusa valores inválidos", async () => {
@@ -150,7 +146,7 @@ describe("Playbook · funções de servidor", () => {
     expect(ops.some((o) => o.table === "service_providers")).toBe(false);
   });
 
-  it("nota e nova linha: guarda, valida e reindexa", async () => {
+  it("nota e nova linha: guarda e valida", async () => {
     const { savePlaybookNote, addPlaybookRow } = await import("@/lib/playbook.functions");
     await savePlaybookNote({ data: { propertyId: PID, rowId: "f:bairro", note: "  Perto do mercado " } });
     expect(lastOps("property_playbook_entries", "upsert")[0].args[0]).toMatchObject({ field_key: "f:bairro", note: "Perto do mercado" });
@@ -159,7 +155,6 @@ describe("Playbook · funções de servidor", () => {
     expect(lastOps("property_playbook_entries", "upsert")[1].args[0]).toMatchObject({ custom_label: "Coleta de lixo", custom_audience: "G", section_num: 2 });
     await expect(addPlaybookRow({ data: { propertyId: PID, section: 9, label: "x", value: "", audience: "G" } })).rejects.toThrow();
     await expect(addPlaybookRow({ data: { propertyId: PID, section: 1, label: "  ", value: "", audience: "G" } })).rejects.toThrow();
-    expect(reindex).toHaveBeenCalledTimes(2);
   });
 
   it("leitura: guarda bairro/CEP do Google uma única vez e usa o título bruto da Channex", async () => {

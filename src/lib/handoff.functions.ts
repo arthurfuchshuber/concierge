@@ -1,12 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireMemberPermission } from "@/lib/member-permissions.server";
-import { pausePatch, resumePatch } from "@/lib/ai/pause";
+import { pausePatch, resumePatch } from "@/lib/chat/pause";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   emptyHandoffListResult,
   normalizeHandoffConversationRows,
-  parseDismissEscalationInput,
   parseHandoffConversationInput,
   parseHandoffListInput,
   parseHandoffSendInput,
@@ -1191,35 +1190,6 @@ export const resolveHandoffConversation = createServerFn({ method: "POST" })
      * encerrá-la. Encerrar é uma ação de atendimento como as outras. */
     await requireChatRespondForConversation(supabase, userId, data.conversationId);
 
-    /* NÃO SE FECHA UMA CONVERSA COM PERGUNTA PENDENTE (11/09/2026).
-     *
-     * `ai_human_escalations` guarda o que a IA perguntou a um humano. Resolver
-     * a conversa não olhava essa fila: a pergunta ficava `pending` para
-     * sempre, e como `pendingHumanAnswers` só lê as `answered`, ela nunca mais
-     * voltava ao raciocínio da IA nem aparecia em lugar nenhum. O hóspede
-     * ficava sem a resposta que ele pediu, e ninguém ficava sabendo.
-     *
-     * Agora o encerramento é bloqueado com uma mensagem que diz o que fazer.
-     * Não é uma trava burocrática: é a diferença entre "resolvido" e
-     * "esquecido". */
-    const { data: pendentes } = await supabase
-      .from("ai_human_escalations")
-      .select("id, question_to_human")
-      .eq("conversation_id", data.conversationId)
-      .eq("status", "pending")
-      .limit(3);
-
-    const fila = (pendentes ?? []) as Array<{ question_to_human: string | null }>;
-    if (fila.length > 0) {
-      const primeira = (fila[0].question_to_human ?? "").trim();
-      const resumo = primeira.length > 120 ? `${primeira.slice(0, 117)}…` : primeira;
-      throw new Error(
-        fila.length === 1
-          ? `A IA está esperando uma resposta sua nesta conversa: "${resumo}". Responda antes de encerrar — ou descarte a pergunta, se ela não fizer mais sentido.`
-          : `A IA está esperando ${fila.length} respostas suas nesta conversa. Responda ou descarte antes de encerrar.`,
-      );
-    }
-
     const { error } = await supabase
       .from("property_chat_conversations")
       .update({
@@ -1230,45 +1200,6 @@ export const resolveHandoffConversation = createServerFn({ method: "POST" })
         claim_requested_at: null,
       })
       .eq("id", data.conversationId);
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
-
-/**
- * Descartar uma pergunta que a IA fez e que não faz mais sentido responder.
- *
- * Existe porque a trava acima precisa de uma saída honesta: sem ela, uma
- * pergunta obsoleta ("o hóspede ainda quer o late checkout?" depois de ele já
- * ter ido embora) prenderia a conversa para sempre. Descartar é registrado
- * como tal — não some, vira `dismissed` com quem descartou.
- */
-export const dismissEscalation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(parseDismissEscalationInput)
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-
-    const { data: esc } = await supabase
-      .from("ai_human_escalations")
-      .select("id, conversation_id")
-      .eq("id", data.escalationId)
-      .maybeSingle();
-    const linha = esc as { conversation_id: string | null } | null;
-    if (!linha) throw new Error("Pergunta não encontrada.");
-    if (linha.conversation_id) {
-      await requireChatRespondForConversation(supabase, userId, linha.conversation_id);
-    }
-
-    const { error } = await supabase
-      .from("ai_human_escalations")
-      .update({
-        status: "dismissed",
-        human_response: data.reason?.trim() || null,
-        human_user_id: userId,
-        resolved_at: new Date().toISOString(),
-      })
-      .eq("id", data.escalationId)
-      .eq("status", "pending");
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -1331,54 +1262,6 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
       );
     }
 
-    // Fecha o ciclo do escalonamento "oficial" (tool ask_human_supervisor): quando a IA pergunta algo
-    // pontual e específico, ela cria uma linha em ai_human_escalations com status "pending" — mas nada
-    // nunca marcava essa linha como respondida, então pendingHumanAnswers() nunca devolvia nada e a
-    // decisão do humano jamais voltava para o raciocínio da IA nas próximas mensagens. Em vez de criar
-    // uma tela dedicada só para isso, aproveitamos o mesmo lugar onde o humano já responde de verdade
-    // hoje (esta função): se houver pergunta(s) pendente(s) nesta conversa, a resposta enviada aqui
-    // também as resolve. Fire-and-forget: não faz sentido nenhum atrasar o envio da mensagem por causa
-    // disto.
-    if (!data.internalNote) {
-      void (async () => {
-        try {
-          const { error } = await supabase
-            .from("ai_human_escalations")
-            .update({
-              status: "answered",
-              human_response: data.content,
-              human_user_id: userId,
-              resolved_at: new Date().toISOString(),
-            })
-            .eq("conversation_id", data.conversationId)
-            .eq("status", "pending");
-          if (error) throw error;
-        } catch (e) {
-          console.error("[handoff] falha ao resolver escalonamento pendente", e);
-        }
-      })();
-    }
-    // Copiloto também lê o que a equipe escreve pelo painel (ações e aprendizado contínuo).
-    if (!data.internalNote) {
-      void (async () => {
-        try {
-          await new Promise((r) => setTimeout(r, 1500));
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { proposeProactiveDecision } = await import("@/lib/ai/human-loop/proactive-decisions.server");
-          if (cur?.property_id) {
-            const { applyAgreedTimeFromStaffMessage } = await import("@/lib/ai/stay-intent-resolver.server");
-            await applyAgreedTimeFromStaffMessage(supabaseAdmin as never, {
-              propertyId: String(cur.property_id),
-              conversationId: data.conversationId,
-              message: data.content,
-            }).catch(() => null);
-          }
-          await proposeProactiveDecision(supabaseAdmin as never, { conversationId: data.conversationId, trigger: "staff" });
-        } catch (e) {
-          console.error("[handoff] copiloto falhou", (e as Error)?.message);
-        }
-      })();
-    }
     // Expande [[info:...]] com valores da propriedade e [[tag:...]] em links do guia.
     let content = data.content;
     try {
@@ -1415,56 +1298,19 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
       });
       if (error) throw new Error(error.message);
     }
-    if (!data.internalNote) {
-      const { completeStayFromHumanMessage } = await import("@/lib/ai/human-closing.server");
-      await completeStayFromHumanMessage(data.conversationId, content);
-    }
     // Ensure conversation status stays assigned + ai paused when agent replies
     if (!data.internalNote) {
       await supabase
         .from("property_chat_conversations")
         .update({
           // FALAR DIRETO é o que silencia a IA — e agora com prazo: 10 minutos,
-          // renovados a cada nova mensagem do atendente. Ver `lib/ai/pause.ts`.
+          // renovados a cada nova mensagem do atendente. Ver `lib/chat/pause.ts`.
           ...pausePatch(),
           status: "assigned",
           assigned_to: userId,
           last_message_at: new Date().toISOString(),
         })
         .eq("id", data.conversationId);
-
-      // Continuous Learning: TODA resposta humana ao hóspede (não só a primeira após uma
-      // escalada) vira candidata a conhecimento reutilizável. Dedupe por conteúdo destilado
-      // evita ruído na fila. Aprovação humana continua obrigatória antes de entrar na memória.
-      void (async () => {
-        try {
-          const { data: lastGuestMsg } = await supabase
-            .from("property_chat_messages")
-            .select("content")
-            .eq("conversation_id", data.conversationId)
-            .eq("role", "user")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          const learnQuestion = (lastGuestMsg?.content as string | undefined) ?? null;
-          if (!learnQuestion || !ownerId) return;
-          // Mensagens muito curtas ("ok", "obrigado") não carregam conhecimento.
-          if (learnQuestion.trim().length < 8 || content.trim().length < 15) return;
-          const { learnFromHumanAnswer } = await import("@/lib/ai/human-loop/learning.server");
-          await learnFromHumanAnswer({
-            supabase,
-            ownerId,
-            propertyId: cur?.property_id ?? null,
-            propertyName: (propRow?.name as string | undefined) ?? null,
-            conversationId: data.conversationId,
-            agent: cur?.handoff_reason ? "handoff_resolution" : "human_reply",
-            question: learnQuestion,
-            humanAnswer: content,
-          });
-        } catch (e) {
-          console.error("[learning] falha ao destilar resposta humana de handoff", e);
-        }
-      })();
 
       // Dispara push para o hóspede (se ele tiver ativado notificações).
       // Fire-and-forget: isto inclui uma consulta extra e uma chamada de rede
@@ -1546,21 +1392,6 @@ export const editHandoffMessage = createServerFn({ method: "POST" })
       // mantém o texto original
     }
 
-    if (msg.sender_type === "ai") {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { recordHostCorrection } = await import("@/lib/ai/learning/property-playbooks.server");
-        await recordHostCorrection({
-          supabase: supabaseAdmin,
-          conversationId: data.conversationId,
-          messageId: data.messageId,
-          kind: "edited",
-          replacement: content,
-        });
-      } catch (e) {
-        console.error("[playbooks] registro de edição falhou", e);
-      }
-    }
     const { error } = await supabase
       .from("property_chat_messages")
       .update({ content, edited_at: new Date().toISOString() })
@@ -1588,22 +1419,6 @@ export const deleteHandoffMessage = createServerFn({ method: "POST" })
     if (!msg || msg.conversation_id !== data.conversationId)
       return { ok: true, alreadyDeleted: true };
     if (msg.sender_type === "guest") throw new Error("Não é possível apagar mensagens do hóspede.");
-    // Cérebro contínuo: apagar uma resposta da IA é um sinal de aprendizado.
-    // Registra ANTES de apagar (depois o texto some). Nunca bloqueia a ação.
-    if (msg.sender_type === "ai") {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { recordHostCorrection } = await import("@/lib/ai/learning/property-playbooks.server");
-        await recordHostCorrection({
-          supabase: supabaseAdmin,
-          conversationId: data.conversationId,
-          messageId: data.messageId,
-          kind: "deleted",
-        });
-      } catch (e) {
-        console.error("[playbooks] registro de exclusão falhou", e);
-      }
-    }
     const { error } = await supabase
       .from("property_chat_messages")
       .delete()

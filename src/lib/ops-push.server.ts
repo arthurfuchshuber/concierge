@@ -781,13 +781,8 @@ export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyI
     );
     let n = 0;
     if (beforeOfficial) {
-      await askEarlyCheckinApproval(admin, {
-        ownerId: String(prop.owner_id),
-        propertyId: opts.propertyId,
-        conversations: mine,
-        checkinHour,
-        propertyName: (prop as { name?: string | null }).name ?? null,
-      });
+      // Antes do horário oficial de check-in, a liberação antecipada é decisão
+      // da equipe (feita pelo painel); o hóspede não é avisado automaticamente.
       await admin.from("ops_push_log").delete().eq("dedupe_key", dedupeKey);
       continue;
     }
@@ -803,67 +798,6 @@ export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyI
     sent += n;
   }
   return { sent };
-}
-
-/** Limpeza pronta + hóspede pediu antecipação → pergunta à equipe por botões. */
-async function askEarlyCheckinApproval(
-  admin: Admin,
-  opts: {
-    ownerId: string;
-    propertyId: string;
-    conversations: Array<{ id: string; guest_name: string | null }>;
-    checkinHour: number;
-    propertyName?: string | null;
-  },
-) {
-  const { guestWantsEarlyCheckin, EARLY_CHECKIN_OPTIONS } = await import("@/lib/ai/human-loop/decision-options");
-  const { detectStayForecast } = await import("@/lib/ai/stay-intent-resolver.server");
-  const { askHumanSupervisor } = await import("@/lib/ai/human-loop/escalations.server");
-  for (const c of opts.conversations) {
-    const { data: msgs } = await admin
-      .from("property_chat_messages")
-      .select("content")
-      .eq("conversation_id", c.id)
-      .eq("sender_type", "guest")
-      .order("created_at", { ascending: false })
-      .limit(30);
-    const texts = ((msgs ?? []) as Array<{ content: string | null }>).map((m) => m.content ?? "");
-    if (!guestWantsEarlyCheckin(texts, opts.checkinHour)) continue;
-    let wished: string | null = null;
-    for (const t of texts) {
-      const f = detectStayForecast(t);
-      if (f?.kind === "checkin") {
-        wished = f.time;
-        break;
-      }
-    }
-    const { data: open } = await admin
-      .from("ai_human_escalations")
-      .select("id")
-      .eq("conversation_id", c.id)
-      .eq("trigger", "policy_exception")
-      .eq("status", "pending")
-      .limit(1);
-    if (open?.length) continue;
-    await askHumanSupervisor({
-      supabase: admin as never,
-      ownerId: opts.ownerId,
-      propertyId: opts.propertyId,
-      conversationId: c.id,
-      guestName: c.guest_name,
-      agent: "reservation",
-      trigger: "policy_exception",
-      reason: "early_checkin_approval",
-      question:
-        `A limpeza${opts.propertyName ? ` de ${opts.propertyName}` : ""} foi concluída e ${c.guest_name ?? "o hóspede"} ` +
-        `havia pedido para entrar antes das ${String(opts.checkinHour).padStart(2, "0")}h` +
-        `${wished ? ` (previsão informada: ${wished})` : ""}. Posso avisar que o imóvel já está liberado?`,
-      contextSnapshot: {
-        decision: { kind: "operational", options: [...EARLY_CHECKIN_OPTIONS] },
-        early_release: { requested_time: wished },
-      },
-    });
-  }
 }
 
 /**

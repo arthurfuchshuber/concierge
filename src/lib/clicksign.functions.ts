@@ -151,7 +151,7 @@ export const saveMyClicksignConfig = createServerFn({ method: "POST" })
       { onConflict: "owner_id,provider" },
     );
     if (error) throw new Error(error.message);
-    const { auditIntegration } = await import("@/lib/ai/audit/platform.server");
+    const { auditIntegration } = await import("@/lib/audit/platform.server");
     await auditIntegration("integration_connected", {
       userId: context.userId,
       integration: "clicksign",
@@ -213,7 +213,7 @@ export const disconnectMyClicksign = createServerFn({ method: "POST" })
       .delete()
       .eq("owner_id", userId)
       .eq("provider", "clicksign");
-    const { auditIntegration } = await import("@/lib/ai/audit/platform.server");
+    const { auditIntegration } = await import("@/lib/audit/platform.server");
     await auditIntegration("integration_disconnected", {
       userId,
       integration: "clicksign",

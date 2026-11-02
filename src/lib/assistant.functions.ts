@@ -215,7 +215,7 @@ export const transcribeAssistantAudio = createServerFn({ method: "POST" })
       .parse(i),
   )
   .handler(async ({ data }): Promise<{ text: string }> => {
-    const { transcribeAudioBase64 } = await import("@/lib/ai/transcribe.server");
+    const { transcribeAudioBase64 } = await import("@/lib/llm/transcribe.server");
     return { text: await transcribeAudioBase64(data.audioBase64, data.mimeType) };
   });
 

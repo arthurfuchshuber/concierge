@@ -10,7 +10,7 @@ async function admin(): Promise<any> {
   return supabaseAdmin as any;
 }
 
-const LINK_TABLES = ["reservation_records", "tasks", "task_completions", "ai_conversations", "ai_proactive_actions"] as const;
+const LINK_TABLES = ["reservation_records", "tasks", "task_completions"] as const;
 
 export type DedupResult = { pairs: number; retired: number; movedCards: number; droppedCards: number; moved: Record<string, number> };
 

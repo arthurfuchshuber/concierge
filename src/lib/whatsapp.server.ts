@@ -87,3 +87,33 @@ export function verifySinchSignature(rawBody: string, signature: string | null, 
 export function normalizePhone(raw: string): string {
   return raw.replace(/[^\d]/g, "");
 }
+
+/**
+ * Envia texto pelo WhatsApp conectado da conta (`host_whatsapp_config`).
+ * Usado pelo webhook (pedido de código da reserva) e por envios da equipe.
+ * Retorna o id externo da mensagem.
+ */
+export async function sendTenantWhatsappText(params: {
+  tenantId: string;
+  toPhone: string;
+  text: string;
+}): Promise<{ messageId: string }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: cfg } = await supabaseAdmin
+    .from("host_whatsapp_config")
+    .select("sender_number, service_plan_id, app_id, api_token_encrypted")
+    .eq("owner_id", params.tenantId)
+    .maybeSingle();
+  if (!cfg?.api_token_encrypted || !cfg.service_plan_id || !cfg.app_id || !cfg.sender_number) {
+    throw new Error("WhatsApp não conectado para esta conta");
+  }
+  return sinchSendText(
+    {
+      projectId: cfg.service_plan_id as string,
+      appId: cfg.app_id as string,
+      token: decryptToken(cfg.api_token_encrypted as string),
+      senderNumber: cfg.sender_number as string,
+    },
+    { toE164: normalizePhone(params.toPhone), text: params.text },
+  );
+}

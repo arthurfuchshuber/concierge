@@ -43,7 +43,6 @@ import { Route as AuthenticatedAdminEquipeRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdminGuiasRouteImport } from './routes/_authenticated/admin.guias'
 import { Route as AuthenticatedAdminHospedesRouteImport } from './routes/_authenticated/admin.hospedes'
 import { Route as AuthenticatedAdminIntegracoesRouteImport } from './routes/_authenticated/admin.integracoes'
-import { Route as AuthenticatedAdminInteligenciaRouteImport } from './routes/_authenticated/admin.inteligencia'
 import { Route as AuthenticatedAdminPrestadoresRouteImport } from './routes/_authenticated/admin.prestadores'
 import { Route as AuthenticatedAdminProprietariosRouteImport } from './routes/_authenticated/admin.proprietarios'
 import { Route as AuthenticatedAdminStakeholdersRouteImport } from './routes/_authenticated/admin.stakeholders'
@@ -55,7 +54,6 @@ import { Route as ApiPublicGuestPushRouteImport } from './routes/api/public/gues
 import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guide-chat'
 import { Route as ApiPublicGuideChatUploadRouteImport } from './routes/api/public/guide-chat-upload'
 import { Route as ApiPublicGuideTranscribeRouteImport } from './routes/api/public/guide-transcribe'
-import { Route as ApiPublicItineraryRouteImport } from './routes/api/public/itinerary'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicVersionRouteImport } from './routes/api/public/version'
 import { Route as ApiPublicWebhookChannexReservasRouteImport } from './routes/api/public/webhook-channex-reservas'
@@ -74,25 +72,17 @@ import { Route as AuthenticatedAdminPlaybookIdRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminRecomendacoesSigmaIndexRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.index'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
-import { Route as ApiPublicCronAiCostAlertRouteImport } from './routes/api/public/cron.ai-cost-alert'
 import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
 import { Route as ApiPublicCronChannexAriRetryRouteImport } from './routes/api/public/cron.channex-ari-retry'
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
-import { Route as ApiPublicCronEvaluationSuiteRouteImport } from './routes/api/public/cron.evaluation-suite'
-import { Route as ApiPublicCronGuestFollowupRouteImport } from './routes/api/public/cron.guest-followup'
-import { Route as ApiPublicCronLearningLoopRouteImport } from './routes/api/public/cron.learning-loop'
 import { Route as ApiPublicCronMalvoSyncRouteImport } from './routes/api/public/cron.malvo-sync'
 import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cron.ops-push'
-import { Route as ApiPublicCronProactiveConciergeRouteImport } from './routes/api/public/cron.proactive-concierge'
 import { Route as ApiPublicCronPurgeRecordTrashRouteImport } from './routes/api/public/cron.purge-record-trash'
 import { Route as ApiPublicCronRefreshAirbnbListingsRouteImport } from './routes/api/public/cron.refresh-airbnb-listings'
 import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
 import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
-import { Route as ApiPublicCronReindexKnowledgeRouteImport } from './routes/api/public/cron.reindex-knowledge'
 import { Route as ApiPublicCronReindexSystemKnowledgeRouteImport } from './routes/api/public/cron.reindex-system-knowledge'
-import { Route as ApiPublicCronSaasAlertsRouteImport } from './routes/api/public/cron.saas-alerts'
-import { Route as ApiPublicCronStalledRepliesRouteImport } from './routes/api/public/cron.stalled-replies'
 import { Route as ApiPublicCronSyncAirbnbIcalRouteImport } from './routes/api/public/cron.sync-airbnb-ical'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicWebhooksAsaasRouteImport } from './routes/api/public/webhooks.asaas'
@@ -285,12 +275,6 @@ const AuthenticatedAdminIntegracoesRoute =
     path: '/integracoes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminInteligenciaRoute =
-  AuthenticatedAdminInteligenciaRouteImport.update({
-    id: '/inteligencia',
-    path: '/inteligencia',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
 const AuthenticatedAdminPrestadoresRoute =
   AuthenticatedAdminPrestadoresRouteImport.update({
     id: '/prestadores',
@@ -354,11 +338,6 @@ const ApiPublicGuideTranscribeRoute =
     path: '/api/public/guide-transcribe',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicItineraryRoute = ApiPublicItineraryRouteImport.update({
-  id: '/api/public/itinerary',
-  path: '/api/public/itinerary',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
   id: '/api/public/place-photo',
   path: '/api/public/place-photo',
@@ -461,12 +440,6 @@ const AuthenticatedAdminRecomendacoesSigmaCityKeyRoute =
     path: '/recomendacoes-sigma/$cityKey',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const ApiPublicCronAiCostAlertRoute =
-  ApiPublicCronAiCostAlertRouteImport.update({
-    id: '/api/public/cron/ai-cost-alert',
-    path: '/api/public/cron/ai-cost-alert',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicCronAutoCheckoutRoute =
   ApiPublicCronAutoCheckoutRouteImport.update({
     id: '/api/public/cron/auto-checkout',
@@ -485,24 +458,6 @@ const ApiPublicCronConversationRemindersRoute =
     path: '/api/public/cron/conversation-reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCronEvaluationSuiteRoute =
-  ApiPublicCronEvaluationSuiteRouteImport.update({
-    id: '/api/public/cron/evaluation-suite',
-    path: '/api/public/cron/evaluation-suite',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicCronGuestFollowupRoute =
-  ApiPublicCronGuestFollowupRouteImport.update({
-    id: '/api/public/cron/guest-followup',
-    path: '/api/public/cron/guest-followup',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicCronLearningLoopRoute =
-  ApiPublicCronLearningLoopRouteImport.update({
-    id: '/api/public/cron/learning-loop',
-    path: '/api/public/cron/learning-loop',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicCronMalvoSyncRoute = ApiPublicCronMalvoSyncRouteImport.update({
   id: '/api/public/cron/malvo-sync',
   path: '/api/public/cron/malvo-sync',
@@ -513,12 +468,6 @@ const ApiPublicCronOpsPushRoute = ApiPublicCronOpsPushRouteImport.update({
   path: '/api/public/cron/ops-push',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicCronProactiveConciergeRoute =
-  ApiPublicCronProactiveConciergeRouteImport.update({
-    id: '/api/public/cron/proactive-concierge',
-    path: '/api/public/cron/proactive-concierge',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicCronPurgeRecordTrashRoute =
   ApiPublicCronPurgeRecordTrashRouteImport.update({
     id: '/api/public/cron/purge-record-trash',
@@ -549,27 +498,10 @@ const ApiPublicCronRefreshRecommendationsRoute =
     path: '/api/public/cron/refresh-recommendations',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCronReindexKnowledgeRoute =
-  ApiPublicCronReindexKnowledgeRouteImport.update({
-    id: '/api/public/cron/reindex-knowledge',
-    path: '/api/public/cron/reindex-knowledge',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicCronReindexSystemKnowledgeRoute =
   ApiPublicCronReindexSystemKnowledgeRouteImport.update({
     id: '/api/public/cron/reindex-system-knowledge',
     path: '/api/public/cron/reindex-system-knowledge',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicCronSaasAlertsRoute = ApiPublicCronSaasAlertsRouteImport.update({
-  id: '/api/public/cron/saas-alerts',
-  path: '/api/public/cron/saas-alerts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicCronStalledRepliesRoute =
-  ApiPublicCronStalledRepliesRouteImport.update({
-    id: '/api/public/cron/stalled-replies',
-    path: '/api/public/cron/stalled-replies',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicCronSyncAirbnbIcalRoute =
@@ -650,7 +582,6 @@ export interface FileRoutesByFullPath {
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
-  '/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
   '/admin/prestadores': typeof AuthenticatedAdminPrestadoresRoute
   '/admin/proprietarios': typeof AuthenticatedAdminProprietariosRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
@@ -662,7 +593,6 @@ export interface FileRoutesByFullPath {
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
   '/api/public/guide-transcribe': typeof ApiPublicGuideTranscribeRoute
-  '/api/public/itinerary': typeof ApiPublicItineraryRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
   '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
@@ -680,25 +610,17 @@ export interface FileRoutesByFullPath {
   '/admin/playbook/$id': typeof AuthenticatedAdminPlaybookIdRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
-  '/api/public/cron/ai-cost-alert': typeof ApiPublicCronAiCostAlertRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
-  '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
-  '/api/public/cron/guest-followup': typeof ApiPublicCronGuestFollowupRoute
-  '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
-  '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
-  '/api/public/cron/reindex-knowledge': typeof ApiPublicCronReindexKnowledgeRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
-  '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
-  '/api/public/cron/stalled-replies': typeof ApiPublicCronStalledRepliesRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
@@ -740,7 +662,6 @@ export interface FileRoutesByTo {
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
-  '/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
   '/admin/prestadores': typeof AuthenticatedAdminPrestadoresRoute
   '/admin/proprietarios': typeof AuthenticatedAdminProprietariosRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
@@ -752,7 +673,6 @@ export interface FileRoutesByTo {
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
   '/api/public/guide-transcribe': typeof ApiPublicGuideTranscribeRoute
-  '/api/public/itinerary': typeof ApiPublicItineraryRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
   '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
@@ -770,25 +690,17 @@ export interface FileRoutesByTo {
   '/admin/playbook/$id': typeof AuthenticatedAdminPlaybookIdRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
-  '/api/public/cron/ai-cost-alert': typeof ApiPublicCronAiCostAlertRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
-  '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
-  '/api/public/cron/guest-followup': typeof ApiPublicCronGuestFollowupRoute
-  '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
-  '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
-  '/api/public/cron/reindex-knowledge': typeof ApiPublicCronReindexKnowledgeRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
-  '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
-  '/api/public/cron/stalled-replies': typeof ApiPublicCronStalledRepliesRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
@@ -835,7 +747,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/_authenticated/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/_authenticated/admin/integracoes': typeof AuthenticatedAdminIntegracoesRoute
-  '/_authenticated/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
   '/_authenticated/admin/prestadores': typeof AuthenticatedAdminPrestadoresRoute
   '/_authenticated/admin/proprietarios': typeof AuthenticatedAdminProprietariosRoute
   '/_authenticated/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
@@ -847,7 +758,6 @@ export interface FileRoutesById {
   '/api/public/guide-chat': typeof ApiPublicGuideChatRoute
   '/api/public/guide-chat-upload': typeof ApiPublicGuideChatUploadRoute
   '/api/public/guide-transcribe': typeof ApiPublicGuideTranscribeRoute
-  '/api/public/itinerary': typeof ApiPublicItineraryRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
   '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
@@ -865,25 +775,17 @@ export interface FileRoutesById {
   '/_authenticated/admin/playbook/$id': typeof AuthenticatedAdminPlaybookIdRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
-  '/api/public/cron/ai-cost-alert': typeof ApiPublicCronAiCostAlertRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
-  '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
-  '/api/public/cron/guest-followup': typeof ApiPublicCronGuestFollowupRoute
-  '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
-  '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
-  '/api/public/cron/reindex-knowledge': typeof ApiPublicCronReindexKnowledgeRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
-  '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
-  '/api/public/cron/stalled-replies': typeof ApiPublicCronStalledRepliesRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
@@ -930,7 +832,6 @@ export interface FileRouteTypes {
     | '/admin/guias'
     | '/admin/hospedes'
     | '/admin/integracoes'
-    | '/admin/inteligencia'
     | '/admin/prestadores'
     | '/admin/proprietarios'
     | '/admin/stakeholders'
@@ -942,7 +843,6 @@ export interface FileRouteTypes {
     | '/api/public/guide-chat'
     | '/api/public/guide-chat-upload'
     | '/api/public/guide-transcribe'
-    | '/api/public/itinerary'
     | '/api/public/place-photo'
     | '/api/public/version'
     | '/api/public/webhook-channex-reservas'
@@ -960,25 +860,17 @@ export interface FileRouteTypes {
     | '/admin/playbook/$id'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
-    | '/api/public/cron/ai-cost-alert'
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
-    | '/api/public/cron/evaluation-suite'
-    | '/api/public/cron/guest-followup'
-    | '/api/public/cron/learning-loop'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
-    | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/refresh-airbnb-listings'
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
-    | '/api/public/cron/reindex-knowledge'
     | '/api/public/cron/reindex-system-knowledge'
-    | '/api/public/cron/saas-alerts'
-    | '/api/public/cron/stalled-replies'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/api/public/webhooks/asaas'
@@ -1020,7 +912,6 @@ export interface FileRouteTypes {
     | '/admin/guias'
     | '/admin/hospedes'
     | '/admin/integracoes'
-    | '/admin/inteligencia'
     | '/admin/prestadores'
     | '/admin/proprietarios'
     | '/admin/stakeholders'
@@ -1032,7 +923,6 @@ export interface FileRouteTypes {
     | '/api/public/guide-chat'
     | '/api/public/guide-chat-upload'
     | '/api/public/guide-transcribe'
-    | '/api/public/itinerary'
     | '/api/public/place-photo'
     | '/api/public/version'
     | '/api/public/webhook-channex-reservas'
@@ -1050,25 +940,17 @@ export interface FileRouteTypes {
     | '/admin/playbook/$id'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
-    | '/api/public/cron/ai-cost-alert'
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
-    | '/api/public/cron/evaluation-suite'
-    | '/api/public/cron/guest-followup'
-    | '/api/public/cron/learning-loop'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
-    | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/refresh-airbnb-listings'
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
-    | '/api/public/cron/reindex-knowledge'
     | '/api/public/cron/reindex-system-knowledge'
-    | '/api/public/cron/saas-alerts'
-    | '/api/public/cron/stalled-replies'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/api/public/webhooks/asaas'
@@ -1114,7 +996,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/guias'
     | '/_authenticated/admin/hospedes'
     | '/_authenticated/admin/integracoes'
-    | '/_authenticated/admin/inteligencia'
     | '/_authenticated/admin/prestadores'
     | '/_authenticated/admin/proprietarios'
     | '/_authenticated/admin/stakeholders'
@@ -1126,7 +1007,6 @@ export interface FileRouteTypes {
     | '/api/public/guide-chat'
     | '/api/public/guide-chat-upload'
     | '/api/public/guide-transcribe'
-    | '/api/public/itinerary'
     | '/api/public/place-photo'
     | '/api/public/version'
     | '/api/public/webhook-channex-reservas'
@@ -1144,25 +1024,17 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/playbook/$id'
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
-    | '/api/public/cron/ai-cost-alert'
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
-    | '/api/public/cron/evaluation-suite'
-    | '/api/public/cron/guest-followup'
-    | '/api/public/cron/learning-loop'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
-    | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/purge-record-trash'
     | '/api/public/cron/refresh-airbnb-listings'
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
-    | '/api/public/cron/reindex-knowledge'
     | '/api/public/cron/reindex-system-knowledge'
-    | '/api/public/cron/saas-alerts'
-    | '/api/public/cron/stalled-replies'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
     | '/api/public/webhooks/asaas'
@@ -1203,31 +1075,22 @@ export interface RootRouteChildren {
   ApiPublicGuideChatRoute: typeof ApiPublicGuideChatRoute
   ApiPublicGuideChatUploadRoute: typeof ApiPublicGuideChatUploadRoute
   ApiPublicGuideTranscribeRoute: typeof ApiPublicGuideTranscribeRoute
-  ApiPublicItineraryRoute: typeof ApiPublicItineraryRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   ApiPublicVersionRoute: typeof ApiPublicVersionRoute
   ApiPublicWebhookChannexReservasRoute: typeof ApiPublicWebhookChannexReservasRoute
   LovableEmailEventsRoute: typeof LovableEmailEventsRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
-  ApiPublicCronAiCostAlertRoute: typeof ApiPublicCronAiCostAlertRoute
   ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
   ApiPublicCronChannexAriRetryRoute: typeof ApiPublicCronChannexAriRetryRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
-  ApiPublicCronEvaluationSuiteRoute: typeof ApiPublicCronEvaluationSuiteRoute
-  ApiPublicCronGuestFollowupRoute: typeof ApiPublicCronGuestFollowupRoute
-  ApiPublicCronLearningLoopRoute: typeof ApiPublicCronLearningLoopRoute
   ApiPublicCronMalvoSyncRoute: typeof ApiPublicCronMalvoSyncRoute
   ApiPublicCronOpsPushRoute: typeof ApiPublicCronOpsPushRoute
-  ApiPublicCronProactiveConciergeRoute: typeof ApiPublicCronProactiveConciergeRoute
   ApiPublicCronPurgeRecordTrashRoute: typeof ApiPublicCronPurgeRecordTrashRoute
   ApiPublicCronRefreshAirbnbListingsRoute: typeof ApiPublicCronRefreshAirbnbListingsRoute
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
-  ApiPublicCronReindexKnowledgeRoute: typeof ApiPublicCronReindexKnowledgeRoute
   ApiPublicCronReindexSystemKnowledgeRoute: typeof ApiPublicCronReindexSystemKnowledgeRoute
-  ApiPublicCronSaasAlertsRoute: typeof ApiPublicCronSaasAlertsRoute
-  ApiPublicCronStalledRepliesRoute: typeof ApiPublicCronStalledRepliesRoute
   ApiPublicCronSyncAirbnbIcalRoute: typeof ApiPublicCronSyncAirbnbIcalRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicWebhooksAsaasRoute: typeof ApiPublicWebhooksAsaasRoute
@@ -1478,13 +1341,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIntegracoesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/inteligencia': {
-      id: '/_authenticated/admin/inteligencia'
-      path: '/inteligencia'
-      fullPath: '/admin/inteligencia'
-      preLoaderRoute: typeof AuthenticatedAdminInteligenciaRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
     '/_authenticated/admin/prestadores': {
       id: '/_authenticated/admin/prestadores'
       path: '/prestadores'
@@ -1560,13 +1416,6 @@ declare module '@tanstack/react-router' {
       path: '/api/public/guide-transcribe'
       fullPath: '/api/public/guide-transcribe'
       preLoaderRoute: typeof ApiPublicGuideTranscribeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/itinerary': {
-      id: '/api/public/itinerary'
-      path: '/api/public/itinerary'
-      fullPath: '/api/public/itinerary'
-      preLoaderRoute: typeof ApiPublicItineraryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/place-photo': {
@@ -1695,13 +1544,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/api/public/cron/ai-cost-alert': {
-      id: '/api/public/cron/ai-cost-alert'
-      path: '/api/public/cron/ai-cost-alert'
-      fullPath: '/api/public/cron/ai-cost-alert'
-      preLoaderRoute: typeof ApiPublicCronAiCostAlertRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/cron/auto-checkout': {
       id: '/api/public/cron/auto-checkout'
       path: '/api/public/cron/auto-checkout'
@@ -1723,27 +1565,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronConversationRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/cron/evaluation-suite': {
-      id: '/api/public/cron/evaluation-suite'
-      path: '/api/public/cron/evaluation-suite'
-      fullPath: '/api/public/cron/evaluation-suite'
-      preLoaderRoute: typeof ApiPublicCronEvaluationSuiteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/cron/guest-followup': {
-      id: '/api/public/cron/guest-followup'
-      path: '/api/public/cron/guest-followup'
-      fullPath: '/api/public/cron/guest-followup'
-      preLoaderRoute: typeof ApiPublicCronGuestFollowupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/cron/learning-loop': {
-      id: '/api/public/cron/learning-loop'
-      path: '/api/public/cron/learning-loop'
-      fullPath: '/api/public/cron/learning-loop'
-      preLoaderRoute: typeof ApiPublicCronLearningLoopRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/cron/malvo-sync': {
       id: '/api/public/cron/malvo-sync'
       path: '/api/public/cron/malvo-sync'
@@ -1756,13 +1577,6 @@ declare module '@tanstack/react-router' {
       path: '/api/public/cron/ops-push'
       fullPath: '/api/public/cron/ops-push'
       preLoaderRoute: typeof ApiPublicCronOpsPushRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/cron/proactive-concierge': {
-      id: '/api/public/cron/proactive-concierge'
-      path: '/api/public/cron/proactive-concierge'
-      fullPath: '/api/public/cron/proactive-concierge'
-      preLoaderRoute: typeof ApiPublicCronProactiveConciergeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cron/purge-record-trash': {
@@ -1800,32 +1614,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronRefreshRecommendationsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/cron/reindex-knowledge': {
-      id: '/api/public/cron/reindex-knowledge'
-      path: '/api/public/cron/reindex-knowledge'
-      fullPath: '/api/public/cron/reindex-knowledge'
-      preLoaderRoute: typeof ApiPublicCronReindexKnowledgeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/cron/reindex-system-knowledge': {
       id: '/api/public/cron/reindex-system-knowledge'
       path: '/api/public/cron/reindex-system-knowledge'
       fullPath: '/api/public/cron/reindex-system-knowledge'
       preLoaderRoute: typeof ApiPublicCronReindexSystemKnowledgeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/cron/saas-alerts': {
-      id: '/api/public/cron/saas-alerts'
-      path: '/api/public/cron/saas-alerts'
-      fullPath: '/api/public/cron/saas-alerts'
-      preLoaderRoute: typeof ApiPublicCronSaasAlertsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/cron/stalled-replies': {
-      id: '/api/public/cron/stalled-replies'
-      path: '/api/public/cron/stalled-replies'
-      fullPath: '/api/public/cron/stalled-replies'
-      preLoaderRoute: typeof ApiPublicCronStalledRepliesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cron/sync-airbnb-ical': {
@@ -1929,7 +1722,6 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminGuiasRoute: typeof AuthenticatedAdminGuiasRoute
   AuthenticatedAdminHospedesRoute: typeof AuthenticatedAdminHospedesRoute
   AuthenticatedAdminIntegracoesRoute: typeof AuthenticatedAdminIntegracoesRoute
-  AuthenticatedAdminInteligenciaRoute: typeof AuthenticatedAdminInteligenciaRoute
   AuthenticatedAdminPrestadoresRoute: typeof AuthenticatedAdminPrestadoresRoute
   AuthenticatedAdminProprietariosRoute: typeof AuthenticatedAdminProprietariosRoute
   AuthenticatedAdminStakeholdersRoute: typeof AuthenticatedAdminStakeholdersRoute
@@ -1954,7 +1746,6 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminGuiasRoute: AuthenticatedAdminGuiasRoute,
   AuthenticatedAdminHospedesRoute: AuthenticatedAdminHospedesRoute,
   AuthenticatedAdminIntegracoesRoute: AuthenticatedAdminIntegracoesRoute,
-  AuthenticatedAdminInteligenciaRoute: AuthenticatedAdminInteligenciaRoute,
   AuthenticatedAdminPrestadoresRoute: AuthenticatedAdminPrestadoresRoute,
   AuthenticatedAdminProprietariosRoute: AuthenticatedAdminProprietariosRoute,
   AuthenticatedAdminStakeholdersRoute: AuthenticatedAdminStakeholdersRoute,
@@ -2028,23 +1819,17 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicGuideChatRoute: ApiPublicGuideChatRoute,
   ApiPublicGuideChatUploadRoute: ApiPublicGuideChatUploadRoute,
   ApiPublicGuideTranscribeRoute: ApiPublicGuideTranscribeRoute,
-  ApiPublicItineraryRoute: ApiPublicItineraryRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   ApiPublicVersionRoute: ApiPublicVersionRoute,
   ApiPublicWebhookChannexReservasRoute: ApiPublicWebhookChannexReservasRoute,
   LovableEmailEventsRoute: LovableEmailEventsRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
-  ApiPublicCronAiCostAlertRoute: ApiPublicCronAiCostAlertRoute,
   ApiPublicCronAutoCheckoutRoute: ApiPublicCronAutoCheckoutRoute,
   ApiPublicCronChannexAriRetryRoute: ApiPublicCronChannexAriRetryRoute,
   ApiPublicCronConversationRemindersRoute:
     ApiPublicCronConversationRemindersRoute,
-  ApiPublicCronEvaluationSuiteRoute: ApiPublicCronEvaluationSuiteRoute,
-  ApiPublicCronGuestFollowupRoute: ApiPublicCronGuestFollowupRoute,
-  ApiPublicCronLearningLoopRoute: ApiPublicCronLearningLoopRoute,
   ApiPublicCronMalvoSyncRoute: ApiPublicCronMalvoSyncRoute,
   ApiPublicCronOpsPushRoute: ApiPublicCronOpsPushRoute,
-  ApiPublicCronProactiveConciergeRoute: ApiPublicCronProactiveConciergeRoute,
   ApiPublicCronPurgeRecordTrashRoute: ApiPublicCronPurgeRecordTrashRoute,
   ApiPublicCronRefreshAirbnbListingsRoute:
     ApiPublicCronRefreshAirbnbListingsRoute,
@@ -2053,11 +1838,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicCronRefreshCityReferencesRoute,
   ApiPublicCronRefreshRecommendationsRoute:
     ApiPublicCronRefreshRecommendationsRoute,
-  ApiPublicCronReindexKnowledgeRoute: ApiPublicCronReindexKnowledgeRoute,
   ApiPublicCronReindexSystemKnowledgeRoute:
     ApiPublicCronReindexSystemKnowledgeRoute,
-  ApiPublicCronSaasAlertsRoute: ApiPublicCronSaasAlertsRoute,
-  ApiPublicCronStalledRepliesRoute: ApiPublicCronStalledRepliesRoute,
   ApiPublicCronSyncAirbnbIcalRoute: ApiPublicCronSyncAirbnbIcalRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicWebhooksAsaasRoute: ApiPublicWebhooksAsaasRoute,

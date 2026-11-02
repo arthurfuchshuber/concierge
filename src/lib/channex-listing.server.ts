@@ -207,8 +207,6 @@ export async function syncPilotListings(): Promise<Array<{ listingId: string; pr
     );
     if (error) throw new Error(error.message);
 
-    const { reindexProperty } = await import("@/lib/ai/indexing.server");
-    await reindexProperty(supabaseAdmin as never, prop.id as string).catch(() => undefined);
     out.push({ listingId, propertyId: prop.id as string, facts: facts.length });
   }
   return out;
@@ -437,8 +435,6 @@ export async function syncAccountListing(args: {
     settings: rp.settings,
     pub,
   });
-  const { reindexProperty } = await import("@/lib/ai/indexing.server");
-  await reindexProperty(supabaseAdmin as never, args.propertyId).catch(() => undefined);
   // Conta/anúncio novo: já puxa o calendário da plataforma (somente importação).
   try {
     const { importCalendarWindow } = await import("@/lib/calendar-import.server");
@@ -485,8 +481,6 @@ export async function scrapePublicListingForProperty(propertyId: string, opts: {
       .eq("property_id", propertyId);
   }
   await applyListingToProperty({ propertyId, listingId: lid, meta: meta as Record<string, unknown>, settings, pub });
-  const { reindexProperty } = await import("@/lib/ai/indexing.server");
-  await reindexProperty(supabaseAdmin as never, propertyId).catch(() => undefined);
   return { ok: Boolean(pub), changed };
 }
 

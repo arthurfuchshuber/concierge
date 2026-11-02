@@ -104,14 +104,6 @@ export const savePropertyDetail = createServerFn({ method: "POST" })
       id = created.id as string;
     }
 
-    // Reindexa a base para a IA aprender o novo detalhe imediatamente.
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { reindexProperty } = await import("@/lib/ai/indexing.server");
-      await reindexProperty(supabaseAdmin, data.propertyId);
-    } catch (e) {
-      console.error("[property-details] reindex falhou", e);
-    }
 
     return { ok: true, id };
   });
@@ -123,13 +115,6 @@ export const deletePropertyDetail = createServerFn({ method: "POST" })
     await assertAccess(context.supabase, context.userId, data.propertyId);
     const { error } = await context.supabase.from("property_details").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { reindexProperty } = await import("@/lib/ai/indexing.server");
-      await reindexProperty(supabaseAdmin, data.propertyId);
-    } catch (e) {
-      console.error("[property-details] reindex falhou", e);
-    }
     return { ok: true };
   });
 
@@ -147,7 +132,7 @@ export const transcribeDetailAudio = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAccess(context.supabase, context.userId, data.propertyId);
-    // Mesma transcrição das duas IAs (ver src/lib/ai/transcribe.server.ts).
-    const { transcribeAudioBase64 } = await import("@/lib/ai/transcribe.server");
+    // Mesma transcrição das duas IAs (ver src/lib/llm/transcribe.server.ts).
+    const { transcribeAudioBase64 } = await import("@/lib/llm/transcribe.server");
     return { text: await transcribeAudioBase64(data.audioBase64, data.mimeType) };
   });

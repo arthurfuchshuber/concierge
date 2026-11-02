@@ -48,7 +48,7 @@ async function runSync() {
     results.push({ id: p.id, ok: out.ok, error: out.error });
   }
   const summary = { total: list.length, ok, fail, skipped, imported, updated, removed };
-  const { auditCron } = await import("@/lib/ai/audit/platform.server");
+  const { auditCron } = await import("@/lib/audit/platform.server");
   await auditCron("cron_completed", {
     job: "sync-airbnb-ical",
     description: `Sincronização iCal: ${ok} ok, ${fail} falha(s), ${skipped} ignorada(s).`,

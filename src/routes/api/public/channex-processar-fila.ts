@@ -22,9 +22,7 @@ export const Route = createFileRoute("/api/public/channex-processar-fila")({
         const { flushAriOutbox } = await import("@/lib/channex-ari.server");
         const webhooks = await processarFilaChannex(50);
         const ari = await flushAriOutbox();
-        const { processDueAiReplies } = await import("@/lib/channex-messages.server");
-        const aiReplies = await processDueAiReplies().catch(() => 0);
-        return Response.json({ webhooks, ari, aiReplies });
+        return Response.json({ webhooks, ari });
       },
     },
   },

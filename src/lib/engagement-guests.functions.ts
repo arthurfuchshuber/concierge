@@ -10,7 +10,6 @@ import { z } from "zod";
  *  - guide_access_logs (identidade + reserva)
  *  - guide_section_events (sessões / navegação, tempo)
  *  - property_chat_conversations + messages (chat com IA)
- *  - chat_message_feedback (marcadores de "não útil")
  */
 
 const InputSchema = z.object({
@@ -139,7 +138,7 @@ async function loadCommon(
   const filteredIds = req && req.length > 0 && !req.includes("all") ? req.filter((id) => allIds.includes(id)) : allIds;
 
   if (filteredIds.length === 0) {
-    return { filteredIds, nameById, cityById, ownerByPropId, accountNameById, ownerIds, since, logs: [], events: [], convs: [], msgs: [], feedback: [] };
+    return { filteredIds, nameById, cityById, ownerByPropId, accountNameById, ownerIds, since, logs: [], events: [], convs: [], msgs: [] };
   }
 
   const { rows } = await import("@/lib/engagement-query.server");
@@ -147,7 +146,7 @@ async function loadCommon(
     .select("id").in("property_id", filteredIds).limit(20000);
   const convIds = rows("conversation-ids", convIdsQ).map((c) => (c as { id: string }).id);
 
-  const [logsQ, eventsQ, convsQ, msgsQ, feedbackQ] = await Promise.all([
+  const [logsQ, eventsQ, convsQ, msgsQ] = await Promise.all([
     supabase.from("guide_access_logs")
       .select("id, property_id, guest_name, reservation_code, checkin_date, guest_phone, guest_phone_country, user_agent, created_at")
       .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(20000),
@@ -164,9 +163,6 @@ async function loadCommon(
           .select("id, conversation_id, role, content, created_at, sender_type, sender_user_id")
           .in("conversation_id", convIds)
           .gte("created_at", since.toISOString()).order("created_at", { ascending: true }).limit(30000),
-    supabase.from("chat_message_feedback")
-      .select("message_id, conversation_id, property_id, reason, resolved, created_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(5000),
   ]);
   return {
     filteredIds, nameById, cityById, ownerByPropId, accountNameById, ownerIds, since,
@@ -174,7 +170,6 @@ async function loadCommon(
     events: rows("section-events", eventsQ) as Evt[],
     convs: rows("conversations", convsQ) as Array<{ id: string; property_id: string; guest_session_id: string; guest_name: string | null; created_at: string; last_message_at: string }>,
     msgs: rows("messages", msgsQ) as Array<{ id: string; conversation_id: string; role: string; content: string | null; created_at: string; sender_type?: string | null; sender_user_id?: string | null }>,
-    feedback: rows("feedback", feedbackQ) as unknown as Array<{ message_id: string; conversation_id: string; resolved: boolean }>,
   };
 }
 
@@ -189,7 +184,6 @@ type GuestAgg = {
   sectionsCount: number;
   messagesCount: number;
   conversationsCount: number;
-  hasUnresolvedFeedback: boolean;
   accessesCount: number;
   avgSessionSeconds: number;
   maxSessionSeconds: number;
@@ -201,7 +195,7 @@ const SECTION_GAP_MS = 20 * 60 * 1000;
 const SECTION_MIN_MS = 5 * 1000;
 
 function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
-  const { logs, events, convs, msgs, feedback, nameById, cityById, ownerByPropId, accountNameById } = data;
+  const { logs, events, convs, msgs, nameById, cityById, ownerByPropId, accountNameById } = data;
 
   const sessions = sessionize(events);
   const sessionByPhoneName = new Map<string, Session[]>();
@@ -222,8 +216,6 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
     const arr = msgsByConv.get(m.conversation_id) ?? [];
     arr.push(m); msgsByConv.set(m.conversation_id, arr);
   }
-  const unresolvedByConv = new Set<string>();
-  for (const f of feedback) if (!f.resolved) unresolvedByConv.add(f.conversation_id);
 
   const guests = new Map<string, GuestAgg>();
   for (const l of logs) {
@@ -256,7 +248,6 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
         firstAccess: l.created_at, lastActivity: l.created_at,
         totalSeconds: 0, sessionsCount: 0, sectionsCount: 0,
         messagesCount: 0, conversationsCount: 0,
-        hasUnresolvedFeedback: false,
         accessesCount: 1,
         avgSessionSeconds: 0, maxSessionSeconds: 0,
         topSection: null, topSectionSeconds: 0,
@@ -357,7 +348,6 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
     const g = resolveGuestForConv(c);
     if (!g) continue;
     convGuestKey.set(c.id, g.key);
-    if (unresolvedByConv.has(c.id)) g.hasUnresolvedFeedback = true;
     if (c.last_message_at > g.lastActivity) g.lastActivity = c.last_message_at;
   }
 
@@ -383,7 +373,7 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
     for (const id of ids ?? []) g.messagesCount += (msgsByConv.get(id) ?? []).length;
   }
 
-  return { guests, sessions, convs, msgs, msgsByConv, unresolvedByConv, sessionByPhoneName, convBySid, convGuestKey, convIdsByGuest };
+  return { guests, sessions, convs, msgs, msgsByConv, sessionByPhoneName, convBySid, convGuestKey, convIdsByGuest };
 }
 
 
@@ -424,7 +414,6 @@ export const getEngagementGuests = createServerFn({ method: "POST" })
           guestKey: matchedGuest?.key ?? null,
           firstMessage: (firstUser?.content ?? "").slice(0, 140),
           messagesCount: msgs.length,
-          hasUnresolvedFeedback: built.unresolvedByConv.has(c.id),
           startedAt: c.created_at,
           lastMessageAt: c.last_message_at,
         };
@@ -466,7 +455,7 @@ export const getGuestDetail = createServerFn({ method: "POST" })
     }));
     const conversations: Array<{
       id: string; startedAt: string; lastMessageAt: string;
-      messages: Array<{ id: string; role: string; content: string; createdAt: string; senderName?: string | null; feedback?: { reason: string | null; resolved: boolean } | null }>;
+      messages: Array<{ id: string; role: string; content: string; createdAt: string; senderName?: string | null }>;
     }> = [];
 
     // Nomes dos atendentes humanos que participaram das conversas deste hóspede.

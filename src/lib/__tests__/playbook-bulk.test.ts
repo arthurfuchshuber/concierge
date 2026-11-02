@@ -13,8 +13,6 @@ vi.mock("@tanstack/react-start", () => {
 });
 vi.mock("@/integrations/supabase/auth-middleware", () => ({ requireSupabaseAuth: {} }));
 vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {} }));
-const reindex = vi.fn(async () => ({ indexed: 0 }));
-vi.mock("@/lib/ai/indexing.server", () => ({ reindexProperty: reindex }));
 const audit = vi.fn(async () => undefined);
 vi.mock("@/lib/permissions/permission.repository.server", () => ({ recordAudit: audit }));
 vi.mock("@/lib/db-errors.server", () => ({
@@ -71,7 +69,6 @@ const writes = () => ops.filter((o) => ["update", "insert", "upsert", "delete"].
 beforeEach(() => {
   ops = [];
   denied = new Set();
-  reindex.mockClear();
   audit.mockClear();
   tables = {
     properties: [
@@ -156,7 +153,6 @@ describe("bulkUpdatePlaybookEntries — campos PERMITIDOS", () => {
     const ups = writes().filter((o) => o.table === "properties" && o.op === "update");
     expect(ups.map((o) => o.filters[0])).toEqual([["id", T1], ["id", T2]]);
     expect(ups.every((o) => o.args[0].checkin_instructions === "Silêncio após as 22h.")).toBe(true);
-    expect(reindex).toHaveBeenCalledTimes(2);
     expect(audit).toHaveBeenCalledOnce();
     const auditCalls = audit.mock.calls as unknown as Array<[Record<string, unknown>]>;
     expect(auditCalls[0]?.[0]).toMatchObject({ action: "playbook_bulk_update", actorId: "u1", tenantId: "owner-1" });

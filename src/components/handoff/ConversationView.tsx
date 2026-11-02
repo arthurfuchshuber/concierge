@@ -23,11 +23,7 @@ import {
 } from "@/lib/handoff.functions";
 import { MessageText } from "@/components/handoff/MessageText";
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
-import { listConversationEscalations, answerEscalation, reopenEscalationDecision } from "@/lib/ai-supervision.functions";
-import { notifyAction } from "@/components/UndoActionBar";
-import { dismissEscalation } from "@/lib/handoff.functions";
-import { readDecisionSpec, canBecomeKnowledge, isTakeoverOption } from "@/lib/ai/human-loop/decision-options";
-import { isPausedNow, minutesLeft } from "@/lib/ai/pause";
+import { isPausedNow, minutesLeft } from "@/lib/chat/pause";
 import {
   Send,
   UserCheck,
@@ -40,7 +36,6 @@ import {
   UserPlus2,
   ArrowRightLeft,
   X,
-  Sparkles,
   Paperclip,
   MessageCircle,
   MessageSquare,
@@ -68,11 +63,7 @@ import { translateMessage } from "@/lib/translate.functions";
 import { detectLanguage, userLanguage, LANG_NAMES } from "@/lib/lang-detect";
 import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
 import { getTagItemsForConversation } from "@/lib/guide-tag-items.functions";
-import { KnowledgeFillDialog } from "@/components/handoff/KnowledgeFillDialog";
-import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
-import { transcribeAssistantAudio } from "@/lib/assistant.functions";
-import { Mic, ChevronDown, ChevronUp } from "lucide-react";
 import {
   COMPOSER_FIELD,
   COMPOSER_INPUT,
@@ -180,112 +171,6 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
     refetchOnWindowFocus: true,
   });
 
-  /* A FILA DE PERGUNTAS DA IA (11/09/2026).
-   *
-   * Até aqui, `ai_human_escalations` existia no banco e não tinha um único
-   * consumidor de tela: a IA perguntava e ninguém via. O atendente lia o
-   * `handoff_reason` — que é o motivo de ROTEAMENTO, escrito para máquina — e
-   * respondia ao hóspede por fora. "O humano é consultor interno da IA" não
-   * tinha por onde acontecer. */
-  const escalationsFn = useServerFn(listConversationEscalations);
-  const answerFn = useServerFn(answerEscalation);
-  const dismissFn = useServerFn(dismissEscalation);
-  const escQ = useQuery({
-    queryKey: ["conv-escalations", conversationId],
-    queryFn: () => escalationsFn({ data: { conversationId } }),
-    refetchInterval: 8000,
-  });
-  const escalations = useMemo(
-    () =>
-      (escQ.data ?? []) as Array<{
-        id: string;
-        question_to_human: string | null;
-        human_response: string | null;
-        status: string | null;
-        created_at: string | null;
-        resolved_at: string | null;
-        context_snapshot?: unknown;
-      }>,
-    [escQ.data],
-  );
-  const respondidas = useMemo(
-    () => escalations.filter((e) => e.status === "answered" || e.status === "dismissed"),
-    [escalations],
-  );
-  /* Várias perguntas no mesmo chat (19/10/2026): todas pendentes ficam na
-     base, em cascata. Com só uma, ela já vem aberta; com mais, ficam
-     recolhidas e a equipe expande a que quiser responder. */
-  const pendingAsks = useMemo(
-    () => escalations.filter((e) => e.status === "pending"),
-    [escalations],
-  );
-  const [openAskId, setOpenAskId] = useState<string | null>(null);
-  const pendingAsk = useMemo(
-    () =>
-      pendingAsks.length === 1
-        ? pendingAsks[0]
-        : (pendingAsks.find((e) => e.id === openAskId) ?? null),
-    [pendingAsks, openAskId],
-  );
-  const hasPendingAsk = pendingAsks.length > 0;
-  const [askText, setAskText] = useState("");
-  const [askRecording, setAskRecording] = useState(false);
-  const [askTranscribing, setAskTranscribing] = useState(false);
-  const transcribeAskFn = useServerFn(transcribeAssistantAudio);
-  async function onAskRecorded(a: RecordedAudio) {
-    setAskRecording(false);
-    setAskTranscribing(true);
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
-        r.onerror = () => reject(new Error("Não consegui ler o áudio."));
-        r.readAsDataURL(a.blob);
-      });
-      const mimeType = (a.mime || "audio/webm").split(";")[0];
-      const attempt = () =>
-        Promise.race([
-          transcribeAskFn({ data: { audioBase64: base64, mimeType } }),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("timeout")), 30000),
-          ),
-        ]);
-      let res: { text: string };
-      try {
-        res = await attempt();
-      } catch {
-        // Redes móveis (Safari/iOS "Load failed") costumam falhar só na 1ª tentativa.
-        res = await attempt();
-      }
-      const text = (res.text ?? "").trim();
-      if (!text) throw new Error("empty");
-      setAskText((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
-      setErrorMsg(null);
-    } catch {
-      setErrorMsg(
-        "Não consegui transcrever o áudio (falha de conexão). Grave de novo ou digite sua resposta.",
-      );
-    } finally {
-      setAskTranscribing(false);
-    }
-  }
-  // Sem pré-marcação: a equipe escolhe explicitamente (18/10/2026).
-  const [saveKnowledge, setSaveKnowledge] = useState<boolean | null>(null);
-  const [chosenOption, setChosenOption] = useState<string | null>(null);
-  const [knowledgeScope, setKnowledgeScope] = useState<"property" | "global" | null>(null);
-  const reopenDecisionFn = useServerFn(reopenEscalationDecision);
-  const askSpec = useMemo(() => readDecisionSpec(pendingAsk?.context_snapshot), [pendingAsk]);
-  const askNeedsKnowledge =
-    (!askSpec || canBecomeKnowledge(askSpec.kind)) && !(askSpec && chosenOption && isTakeoverOption(chosenOption));
-  const askHostLearning = !!(pendingAsk?.context_snapshot as { host_learning?: boolean } | null)?.host_learning;
-  useEffect(() => {
-    setChosenOption(null);
-    setSaveKnowledge(null);
-    // Resposta dada direto no Airbnb: chega mapeada e editável.
-    const draft = (pendingAsk?.context_snapshot as { host_learning?: boolean; draft?: string } | null);
-    if (draft?.host_learning && typeof draft.draft === "string") setAskText(draft.draft);
-  }, [pendingAsk?.id]);
-
   const tagItemsFn = useServerFn(getTagItemsForConversation);
   const { data: tagItemsData } = useQuery({
     queryKey: ["tag-items", "conv", conversationId],
@@ -324,11 +209,8 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
     }
   };
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [fillOpen, setFillOpen] = useState(false);
   const [reasonOpen, setReasonOpen] = useState(false);
 
-  const [teachOpen, setTeachOpen] = useState(false);
-  const [teachSource, setTeachSource] = useState<{ id: string; content: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const editFn = useServerFn(editHandoffMessage);
@@ -421,8 +303,6 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
   }, [conversationId, qc]);
 
   const invalidateAll = () => {
-    qc.invalidateQueries({ queryKey: ["conv-escalations", conversationId] });
-    qc.invalidateQueries({ queryKey: ["ai-escalation-queue"] });
     qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
     qc.invalidateQueries({ queryKey: ["handoff-list"] });
     qc.invalidateQueries({ queryKey: ["handoff-pending-count"] });
@@ -439,62 +319,6 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
     },
     onError: (e) => setErrorMsg((e as Error).message),
   });
-  /* Responder À IA: o atendente escreve uma linha e ela leva ao hóspede na
-   * própria voz. A entrega é imediata (`speakWithAgent`), não fica esperando o
-   * hóspede escrever de novo — foi assim que a hóspede do Studio 103 ficou sem
-   * resposta desde 08/09. */
-  const answer = useMutation({
-    mutationFn: async () => {
-      if (!pendingAsk) throw new Error("Nenhuma pergunta pendente.");
-      return answerFn({
-        data: {
-          escalationId: pendingAsk.id,
-          answer: (askSpec ? chosenOption : askText.trim()) ?? "",
-          saveAsKnowledge: askNeedsKnowledge && saveKnowledge === true,
-          knowledgeScope: knowledgeScope ?? "property",
-        },
-      });
-    },
-    onSuccess: (r) => {
-      const escId = pendingAsk?.id;
-      setAskText("");
-      setChosenOption(null);
-      setSaveKnowledge(null);
-      setKnowledgeScope(null);
-      const ex = (r as { executed?: { action: string; reservationId: string; previouslyDone: boolean } | null }).executed ?? null;
-      const msg =
-        ex?.action === "checkin_done" ? "Check-in registrado." : ex?.action === "checkout_done" ? "Check-out registrado." : "Decisão enviada.";
-      // Desfazer de 5s: só quando nada foi dito ao hóspede (decisão interna).
-      const silent = !!(r as { silent?: boolean }).silent;
-      notifyAction(
-        msg,
-        escId && silent
-          ? () => {
-              void reopenDecisionFn({ data: { escalationId: escId, revert: ex } })
-                .then(invalidateAll)
-                .catch((e) => setErrorMsg(friendlyErrorMessage(e, "Não foi possível desfazer.")));
-            }
-          : undefined,
-      );
-      if (r && !silent && (r as { entregue?: boolean }).entregue === false) {
-        setErrorMsg(
-          "Resposta salva, mas não consegui entregar ao hóspede agora. Vou tentar de novo.",
-        );
-      }
-      invalidateAll();
-    },
-    onError: (e) => setErrorMsg((e as Error).message),
-  });
-
-  const dismiss = useMutation({
-    mutationFn: async () => {
-      if (!pendingAsk) return null;
-      return dismissFn({ data: { escalationId: pendingAsk.id, reason: null } });
-    },
-    onSuccess: invalidateAll,
-    onError: (e) => setErrorMsg((e as Error).message),
-  });
-
   const reopen = useMutation({
     mutationFn: async (ch: "chat" | "whatsapp") => {
       await reopenFn({ data: { conversationId } });
@@ -948,7 +772,6 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
         {msgs.map((m, i) => {
           const isGuest = m.sender_type === "guest";
           const isNote = m.is_internal_note;
-          const canTeach = !isNote && typeof m.content === "string" && m.content.trim().length > 2;
           const detected = isGuest && m.content ? detectLanguage(m.content) : null;
           const canTranslate = Boolean(detected && detected !== myLang);
           const tr = translations[m.id];
@@ -963,20 +786,6 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                 transcript: m.attachment_transcript ?? null,
               }
             : null;
-          /* CONSULTAS INTERNAS NO HISTÓRICO (11/09/2026).
-             Decisão do produto: a pergunta da IA aparece nos DOIS lugares —
-             cartão ativo acima do campo enquanto pendente, e aqui, discreta,
-             depois de respondida, para quem lê a conversa depois entender por
-             que a IA respondeu aquilo. Fica entre a mensagem atual e a
-             próxima, pelo horário em que foi resolvida. */
-          const consultas = respondidas.filter((e) => {
-            const quando = new Date(e.resolved_at ?? e.created_at ?? 0).getTime();
-            const agora = new Date(m.created_at ?? 0).getTime();
-            const proxima = msgs[i + 1]
-              ? new Date(msgs[i + 1].created_at ?? 0).getTime()
-              : Infinity;
-            return quando >= agora && quando < proxima;
-          });
           return (
             <Fragment key={m.id}>
               <div className={`flex flex-col ${isGuest ? "items-start" : "items-end"}`}>
@@ -1101,66 +910,12 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                       {tr?.showing ? "Ver original" : "Traduzir"}
                     </button>
                   )}
-                  {canTeach && conv?.property_id && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTeachSource({ id: m.id, content: m.content ?? "" });
-                        setTeachOpen(true);
-                      }}
-                      className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                      title="Adicionar este conteúdo à base de conhecimento da IA"
-                    >
-                      <Sparkles className="size-3" /> Ensinar IA
-                    </button>
-                  )}
                 </div>
               </div>
-              {consultas.map((e) => (
-                <div
-                  key={e.id}
-                  className="mx-auto w-full max-w-[92%] rounded-lg border border-violet-500/30 bg-violet-500/[0.05] px-2.5 py-1.5 text-[11px] leading-snug"
-                >
-                  <div className="mb-0.5 inline-flex items-center gap-1 text-[9.5px] font-bold uppercase tracking-[0.13em] text-violet-600 dark:text-violet-300">
-                    <Sparkles className="size-2.5" /> consulta interna
-                  </div>
-                  <p className="text-muted-foreground">{e.question_to_human}</p>
-                  <p className="mt-0.5 font-medium">
-                    {e.status === "dismissed" ? "Descartada." : e.human_response}
-                  </p>
-                  {canChat && e.status === "answered" && !pendingAsk && readDecisionSpec(e.context_snapshot) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void reopenDecisionFn({ data: { escalationId: e.id, revert: null } })
-                          .then(invalidateAll)
-                          .catch((err) => setErrorMsg(friendlyErrorMessage(err, "Não foi possível refazer.")));
-                      }}
-                      className="mt-1 inline-flex items-center gap-1 text-[10.5px] font-semibold text-violet-700 hover:underline"
-                    >
-                      Refazer decisão
-                    </button>
-                  )}
-                </div>
-              ))}
             </Fragment>
           );
         })}
       </div>
-
-      {conv?.property_id && teachSource && (
-        <TeachAiDialog
-          open={teachOpen}
-          onOpenChange={(v) => {
-            setTeachOpen(v);
-            if (!v) setTeachSource(null);
-          }}
-          propertyId={conv.property_id as string}
-          propertyName={propertyName}
-          initialContent={teachSource.content}
-          sourceMessageId={teachSource.id}
-        />
-      )}
 
       {/* Ações da mensagem (segurar para abrir, como no WhatsApp) */}
       <Dialog
@@ -1243,37 +998,17 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
         </DialogContent>
       </Dialog>
 
-      <KnowledgeFillDialog
-        conversationId={conversationId}
-        open={fillOpen}
-        onOpenChange={setFillOpen}
-        onApplied={() => {
-          qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
-          qc.invalidateQueries({ queryKey: ["handoff-list"] });
-        }}
-      />
-
       {/* Motivo do escalonamento + ações sugeridas */}
       <Dialog open={reasonOpen} onOpenChange={setReasonOpen}>
         <DialogContent className="max-w-md z-[2147483600]">
           <DialogHeader>
-            <DialogTitle className="text-base">Por que a IA escalou</DialogTitle>
+            <DialogTitle className="text-base">Motivo do encaminhamento</DialogTitle>
           </DialogHeader>
           <div className="max-h-60 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap rounded-lg border border-amber-500/30 bg-amber-500/10 text-foreground p-3">
             {conv?.handoff_reason}
           </div>
           <p className="text-[11px] text-muted-foreground mt-2">O que você quer fazer?</p>
           <div className="flex flex-col gap-2 mt-1">
-            <button
-              type="button"
-              onClick={() => {
-                setReasonOpen(false);
-                setFillOpen(true);
-              }}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 text-sm"
-            >
-              <Sparkles className="size-4" /> Completar informação e responder
-            </button>
             {!isMine && status !== "resolved" && (
               <button
                 type="button"
@@ -1307,7 +1042,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                 }}
                 className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border hover:bg-secondary text-sm disabled:opacity-50"
               >
-                <Sparkles className="size-4" /> Devolver para a IA
+                <RotateCcw className="size-4" /> Devolver para a IA
               </button>
             )}
             {status !== "resolved" && (
@@ -1336,190 +1071,6 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
           </span>
         </div>
       )}
-      {/* ------------------------------------------------------------------
-          A PERGUNTA DA IA (11/09/2026)
-
-          Toma o lugar que era do botão "Assumir": quando a IA perguntou algo,
-          a ação principal da tela é RESPONDER A ELA, não assumir a conversa.
-          Aparece para qualquer pessoa com permissão de chat — consultar não é
-          tomar posse. Some sozinho quando respondido.
-          ------------------------------------------------------------------ */}
-      {status !== "resolved" && canChat && hasPendingAsk && (
-        <div className="shrink-0 max-h-[60vh] overflow-y-auto border-t border-zinc-200 bg-white px-3 pb-2 pt-2.5">
-          {pendingAsks.length > 1 && (
-            <div className="mb-1.5 space-y-1.5">
-              {pendingAsks
-                .filter((e) => e.id !== pendingAsk?.id)
-                .map((e) => (
-                  <button
-                    key={e.id}
-                    type="button"
-                    onClick={() => setOpenAskId(e.id)}
-                    aria-expanded={false}
-                    className="flex w-full min-w-0 items-center gap-2 rounded-xl border border-violet-300 bg-violet-50 px-3 py-2 text-left text-zinc-900 hover:bg-violet-100"
-                  >
-                    <Sparkles className="size-3.5 shrink-0 text-violet-700" />
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold">
-                      {e.question_to_human || "A IA precisa de uma decisão sua."}
-                    </span>
-                    <ChevronDown className="size-4 shrink-0 text-violet-700" />
-                  </button>
-                ))}
-            </div>
-          )}
-          {pendingAsk && (
-          <div className="rounded-xl border border-violet-300 bg-violet-50 p-3 text-zinc-900">
-            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-violet-700">
-              <Sparkles className="size-3" /> <span className="flex-1">{askHostLearning ? "a IA quer aprender sua resposta" : "a IA está te perguntando"}</span>
-              {pendingAsks.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setOpenAskId(null)}
-                  aria-label="Recolher pergunta"
-                  aria-expanded
-                  className="grid size-6 place-items-center rounded-full hover:bg-violet-100"
-                >
-                  <ChevronUp className="size-4" />
-                </button>
-              )}
-            </div>
-            <p className="text-[13px] font-semibold leading-snug text-zinc-900">
-              {pendingAsk.question_to_human || "A IA precisa de uma decisão sua."}
-            </p>
-            {askSpec ? (
-              <div className="mt-2.5 space-y-2.5">
-                <div role="radiogroup" aria-label="Resposta" className="flex flex-wrap gap-1.5">
-                  {askSpec.options.map((o) => (
-                    <button
-                      key={o}
-                      type="button"
-                      role="radio"
-                      aria-checked={chosenOption === o}
-                      onClick={() => setChosenOption(o)}
-                      className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                        chosenOption === o
-                          ? "border-violet-600 bg-violet-600 text-white"
-                          : "border-violet-300 bg-white text-violet-800 hover:bg-violet-100"
-                      }`}
-                    >
-                      {o}
-                    </button>
-                  ))}
-                </div>
-                {askNeedsKnowledge && chosenOption && (
-                  <KnowledgeChoice value={saveKnowledge} onChange={setSaveKnowledge} scope={knowledgeScope} onScope={setKnowledgeScope} />
-                )}
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => answer.mutate()}
-                    disabled={
-                      answer.isPending ||
-                      !chosenOption ||
-                      (askNeedsKnowledge && saveKnowledge === null) ||
-                      (askNeedsKnowledge && saveKnowledge === true && knowledgeScope === null)
-                    }
-                    className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-45"
-                  >
-                    {answer.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
-                    Enviar decisão
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-            <form
-              className="mt-2.5 rounded-xl border border-zinc-300 bg-white p-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!askText.trim() || answer.isPending) return;
-                answer.mutate();
-              }}
-            >
-              <textarea
-                id="resposta-a-ia"
-                value={askText}
-                onChange={(e) => {
-                  setAskText(e.target.value);
-                  e.target.style.height = "auto";
-                  e.target.style.height = `${Math.min(e.target.scrollHeight, 240)}px`;
-                }}
-                ref={(el) => {
-                  if (el) {
-                    el.style.height = "auto";
-                    el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
-                  }
-                }}
-                disabled={askTranscribing}
-                rows={2}
-                placeholder={
-                  askTranscribing
-                    ? "Transcrevendo seu áudio…"
-                    : askHostLearning
-                      ? "Ajuste a resposta que a IA vai aprender…"
-                      : "Responda à IA — ela leva ao hóspede na voz dela…"
-                }
-                className="block w-full min-w-0 resize-none whitespace-pre-wrap break-words bg-transparent px-1 text-[13px] leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-500"
-              />
-              <div className="mt-1.5 flex items-center justify-end gap-2">
-                {askTranscribing ? (
-                  <span className="grid size-8 shrink-0 place-items-center text-zinc-500">
-                    <Loader2 className="size-4 animate-spin" />
-                  </span>
-                ) : askRecording ? (
-                  <AudioRecorderButton
-                    autoStart
-                    compact
-                    maxSeconds={120}
-                    onRecorded={onAskRecorded}
-                    onCancel={() => setAskRecording(false)}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setAskRecording(true)}
-                    aria-label="Responder por áudio"
-                    title="Responder por áudio"
-                    className="grid size-8 shrink-0 place-items-center rounded-full border border-violet-300 text-violet-700 hover:bg-violet-100"
-                  >
-                    <Mic className="size-4" />
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  disabled={answer.isPending || !askText.trim() || askTranscribing || saveKnowledge === null || (saveKnowledge === true && knowledgeScope === null)}
-                  aria-label="Enviar resposta"
-                  className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-600 text-white disabled:opacity-45"
-                >
-                  {answer.isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Send className="size-4" />
-                  )}
-                </button>
-              </div>
-            </form>
-                <div className="mt-2">
-                  <KnowledgeChoice value={saveKnowledge} onChange={setSaveKnowledge} scope={knowledgeScope} onScope={setKnowledgeScope} />
-                </div>
-              </>
-            )}
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-<span />
-              <button
-                type="button"
-                onClick={() => dismiss.mutate()}
-                disabled={dismiss.isPending}
-                className="text-[10.5px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
-              >
-                Descartar pergunta
-              </button>
-            </div>
-          </div>
-          )}
-        </div>
-      )}
-
       {status !== "resolved" &&
         canChat &&
         (!canCompose ? (
@@ -1539,10 +1090,6 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                   <strong>{assignedProfile?.displayName ?? "o atendente responsável"}</strong> pode
                   responder — você acompanha em tempo real.
                 </>
-              ) : pendingAsk ? (
-                // Com pergunta da IA na tela, falar direto é a SEGUNDA opção —
-                // o texto e o peso do botão mudam para dizer isso.
-                "Prefere falar você mesmo?"
               ) : (
                 "Assuma a conversa para poder responder ao hóspede."
               )}
@@ -1550,13 +1097,9 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
             <button
               onClick={handleClaim}
               disabled={claim.isPending}
-              className={
-                pendingAsk
-                  ? "ml-1 inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-foreground/80 hover:bg-secondary"
-                  : "ml-1 inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] text-primary-foreground"
-              }
+              className="ml-1 inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] text-primary-foreground"
             >
-              <UserCheck className="size-3" /> {pendingAsk ? "Falar direto" : "Assumir"}
+              <UserCheck className="size-3" /> Assumir
             </button>
           </div>
         ) : (
@@ -1819,52 +1362,3 @@ export function useMyUserId() {
   return id;
 }
 
-/** Pergunta explícita, sem opção pré-marcada: vira conhecimento? E onde vale? */
-function KnowledgeChoice({
-  value,
-  onChange,
-  scope,
-  onScope,
-}: {
-  value: boolean | null;
-  onChange: (v: boolean) => void;
-  scope: "property" | "global" | null;
-  onScope: (v: "property" | "global") => void;
-}) {
-  const pill = (active: boolean, label: string, onClick: () => void) => (
-    <button
-      key={label}
-      type="button"
-      role="radio"
-      aria-checked={active}
-      onClick={onClick}
-      className={`rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
-        active
-          ? "border-zinc-900 bg-zinc-900 text-white"
-          : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-100"
-      }`}
-    >
-      {label}
-    </button>
-  );
-  return (
-    <div className="space-y-2 rounded-lg border border-zinc-200 bg-white p-2">
-      <div>
-        <p className="text-[11.5px] font-semibold text-zinc-900">Salvar esta resposta como conhecimento da IA?</p>
-        <div role="radiogroup" className="mt-1.5 flex flex-wrap gap-1.5">
-          {pill(value === true, "Sim, salvar", () => onChange(true))}
-          {pill(value === false, "Não, só desta vez", () => onChange(false))}
-        </div>
-      </div>
-      {value === true && (
-        <div>
-          <p className="text-[11.5px] font-semibold text-zinc-900">Onde esse conhecimento vale?</p>
-          <div role="radiogroup" className="mt-1.5 flex flex-wrap gap-1.5">
-            {pill(scope === "property", "Apenas deste imóvel", () => onScope("property"))}
-            {pill(scope === "global", "Global (todos os imóveis)", () => onScope("global"))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}

@@ -2305,7 +2305,7 @@ export const markNoShow = createServerFn({ method: "POST" })
     const nowIso = new Date().toISOString();
     // IMPORTANTE: NÃO gravar done_at aqui. Vários lugares do sistema tratam
     // "done_at preenchido" como sinônimo de "check-in de verdade aconteceu"
-    // (ex.: src/lib/ai/context.server.ts e a checagem que o próprio hóspede
+    // (ex.: src/lib/access-pin-window.server.ts e a checagem que o próprio hóspede
     // usa no guia, em guide-access.functions.ts — ambos fazem
     // `status === "done" || !!done_at`). Se gravássemos done_at aqui, um
     // hóspede que nunca chegou passaria a aparecer como "check-in

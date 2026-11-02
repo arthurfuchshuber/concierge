@@ -12,7 +12,7 @@ type Lang = "pt" | "en" | "es" | "fr";
 
 function openChat(prompt: string) {
   window.dispatchEvent(
-    new CustomEvent("open-guide-chat", { detail: { prompt, source: "city_news", forceAi: true } }),
+    new CustomEvent("open-guide-chat", { detail: { prompt, source: "city_news" } }),
   );
 }
 

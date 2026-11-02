@@ -72,7 +72,7 @@ export const completeGoogleCalendarConnection = createServerFn({ method: "POST" 
     if (connectorId !== CONNECTOR_ID) throw new Error("O OAuth retornou um conector inesperado.");
     const { saveConnectionKeyForUser } = await import("@/lib/app-user-connections.server");
     await saveConnectionKeyForUser(context.userId, connectorId, connectionAPIKey);
-    const { auditIntegration } = await import("@/lib/ai/audit/platform.server");
+    const { auditIntegration } = await import("@/lib/audit/platform.server");
     await auditIntegration("integration_connected", {
       userId: context.userId,
       integration: "google_calendar",
@@ -101,7 +101,7 @@ export const disconnectMyGoogleCalendar = createServerFn({ method: "POST" })
       }
     }
     await deleteConnectionForUser(context.userId, CONNECTOR_ID);
-    const { auditIntegration } = await import("@/lib/ai/audit/platform.server");
+    const { auditIntegration } = await import("@/lib/audit/platform.server");
     await auditIntegration("integration_disconnected", {
       userId: context.userId,
       integration: "google_calendar",

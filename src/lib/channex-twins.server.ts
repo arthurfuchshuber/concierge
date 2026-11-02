@@ -124,7 +124,7 @@ export async function linkTwinListing(input: { channelId: string; primaryListing
         property: {
           title: `${String(ba.title ?? "").trim()} - ${twinTitle}`.slice(0, 250),
           currency: ba.currency ?? "BRL", country: ba.country ?? "BR", city: ba.city, address: ba.address,
-          zip_code: ba.zip_code, timezone: ba.timezone ?? "America/Sao_Paulo", property_type: ba.property_type ?? "guest_house",
+          zip_code: ba.zip_code, timezone: ba.timezone ?? "America/Sao_Paulo", property_type: "apartment",
           latitude: ba.latitude, longitude: ba.longitude, ...(groupId ? { group_id: groupId } : {}),
         },
       }),

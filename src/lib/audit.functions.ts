@@ -52,7 +52,7 @@ export const listSystemEvents = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const tenantId = await resolveScope(context as never, data.tenantId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { queryEvents } = await import("@/lib/ai/audit/events.server");
+    const { queryEvents } = await import("@/lib/audit/events.server");
     return queryEvents(supabaseAdmin, { ...data, tenantId });
   });
 
@@ -62,7 +62,7 @@ export const getSystemEventTimeline = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const tenantId = await resolveScope(context as never, data.tenantId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { eventTimeline } = await import("@/lib/ai/audit/events.server");
+    const { eventTimeline } = await import("@/lib/audit/events.server");
     return eventTimeline(supabaseAdmin, { eventId: data.eventId, tenantId });
   });
 
@@ -72,7 +72,7 @@ export const getAuditAnalytics = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const tenantId = await resolveScope(context as never, data.tenantId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { auditAnalytics } = await import("@/lib/ai/audit/events.server");
+    const { auditAnalytics } = await import("@/lib/audit/events.server");
     return auditAnalytics(supabaseAdmin, { tenantId, days: data.days ?? 30 });
   });
 
@@ -119,7 +119,7 @@ export const recordClientEvent = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { logSystemEvent } = await import("@/lib/ai/audit/events.server");
+    const { logSystemEvent } = await import("@/lib/audit/events.server");
     const admin = await isPlatformAdmin(context as never);
     await logSystemEvent(supabaseAdmin, {
       tenantId: context.userId,

@@ -1152,29 +1152,7 @@ export const upsertProperty = createServerFn({ method: "POST" })
     if (want("faqs")) await replaceChild("property_faqs", data.faqs as unknown as Record<string, unknown>[]);
     if (want("checkout")) await replaceChild("property_checkout_items", data.checkout as unknown as Record<string, unknown>[]);
 
-    // Só reindexa a IA quando mudou algo que ela usa — não a cada tecla em
-    // campos que não entram na base de conhecimento.
-    const needsReindex = !sec || Object.values(sec).some(Boolean);
-    if (!needsReindex) return { id, airbnb: airbnbSync };
-
-    /* REINDEXAÇÃO AGUARDADA (25/09/2026).
-     * Era "fire-and-forget" (`void (async…)`). No servidor da nuvem o trabalho
-     * que sobra depois da resposta é encerrado — a reindexação nunca terminava.
-     * Resultado medido: guias dos Studios com conhecimento de 18/08 e 13 guias
-     * publicados SEM conhecimento algum; a IA do hóspede lia instruções velhas,
-     * brigava com os dados atuais e chamava humano. O autosave é silencioso,
-     * então esperar aqui não trava a tela. Além disso o orquestrador reindexa
-     * sozinho quando detecta base mais velha que o guia. */
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { reindexProperty } = await import("@/lib/ai/indexing.server");
-      await reindexProperty(supabaseAdmin, id);
-    } catch (e) {
-      console.error("[properties] reindex pós-salvamento do guia falhou", e);
-    }
-
     return { id, airbnb: airbnbSync };
-
   });
 
 

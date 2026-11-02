@@ -13,7 +13,6 @@ export function KpiStrip({ kpis, timeseries }: {
     depthEngagedRate: number;
     chatRate: number;
     autoResolveRate: number;
-    openFeedback: number;
   };
   timeseries: Point[];
 }) {
@@ -44,7 +43,7 @@ export function KpiStrip({ kpis, timeseries }: {
       icon: MessageCircle,
       label: "Atrito no chat",
       value: `${kpis.chatRate}%`,
-      hint: `auto-resolução ${kpis.autoResolveRate}% · ${kpis.openFeedback} feedback aberto`,
+      hint: `auto-resolução ${kpis.autoResolveRate}%`,
       series: timeseries.map((p) => p.chats),
     },
   ];

@@ -110,7 +110,7 @@ export const ingestTrail = createServerFn({ method: "POST" })
 
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { logSystemEvents } = await import("@/lib/ai/audit/events.server");
+    const { logSystemEvents } = await import("@/lib/audit/events.server");
 
     // Autor: nome do perfil > nome do formulário de acesso > e-mail > visitante.
     let profileName: string | null = null;

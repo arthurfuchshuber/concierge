@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { crossBorderCategory } from "@/lib/poi-country";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { AI_MODELS } from "@/lib/ai/models";
+import { AI_MODELS } from "@/lib/llm/models";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/google_maps";
 

@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { pausePatch } from "@/lib/ai/pause";
+import { pausePatch } from "@/lib/chat/pause";
 
 const AttachmentType = z.enum(["image", "audio", "video", "document"]);
 

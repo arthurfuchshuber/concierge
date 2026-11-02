@@ -18,8 +18,8 @@
  */
 import type { AssistantAsk, AssistantSource, PendingAction } from "@/lib/assistant-types";
 import type { AssistantAskData, AssistantEvent } from "@/lib/assistant-run.shared";
-import { HOUSE_RULES } from "@/lib/ai/house-rules";
-import { looksLikeAction, maxStepsFor, reasoningFor } from "@/lib/ai/reasoning";
+import { HOUSE_RULES } from "@/lib/assistant/house-rules";
+import { looksLikeAction, maxStepsFor, reasoningFor } from "@/lib/assistant/reasoning";
 
 type AnyClient = { from: (t: string) => any };
 
@@ -147,10 +147,10 @@ export async function runAssistantTurn(params: {
 
   const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
   const { retrieveSystemKnowledge, renderSystemDocs } = await import(
-    "@/lib/ai/system-knowledge.server"
+    "@/lib/assistant/system-knowledge.server"
   );
-  const { buildAssistantTools } = await import("@/lib/ai/assistant-tools.server");
-  const { runAgent } = await import("@/lib/ai/gateway.server");
+  const { buildAssistantTools } = await import("@/lib/assistant/tools.server");
+  const { runAgent } = await import("@/lib/llm/gateway.server");
 
   // Thread: reaproveita a informada, senão abre uma nova. Uma por conversa;
   // o painel sempre continua a última.

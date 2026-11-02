@@ -99,7 +99,7 @@ export const Route = createFileRoute("/api/public/guide-transcribe")({
 
 
         try {
-          const { transcribeAudioBase64 } = await import("@/lib/ai/transcribe.server");
+          const { transcribeAudioBase64 } = await import("@/lib/llm/transcribe.server");
           const text = await transcribeAudioBase64(body.audioBase64, body.mimeType);
           return json({ text });
         } catch (err) {

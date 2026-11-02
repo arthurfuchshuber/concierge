@@ -56,7 +56,7 @@ describe("persistência da foto do Airbnb no storage", () => {
     expect(extFromMime("image/svg+xml")).toBe("svg");
   });
 
-  it("webhook: baixa com a chave, a IA descreve e o buffer vai para chat-attachments com todas as colunas", async () => {
+  it("webhook: baixa com a chave e o buffer vai para chat-attachments com todas as colunas", async () => {
     const calls = stubFetch();
     const admin = fakeAdmin(() => ({ error: null }));
     const r = await buildGuestPhotoMessage(admin, { text: "", urls: [URL_], haveAttachment: true, propertyId: PROP, conversationId: CONV });
@@ -76,21 +76,23 @@ describe("persistência da foto do Airbnb no storage", () => {
       attachment_type: "image",
       attachment_mime: "image/jpeg",
       attachment_size_bytes: BYTES.byteLength,
-      attachment_transcript: "Painel do ar-condicionado com erro E4.",
     });
+    expect(r.attachmentFields["attachment_transcript"]).toBeUndefined();
     expect(String(r.attachmentFields["attachment_name"])).toMatch(/\.jpeg$/);
-    // a IA continua enxergando
-    expect(r.content).toContain("Foto enviada pelo hóspede — conteúdo: Painel do ar-condicionado com erro E4.");
+    // sem descrição por IA (implementação antiga removida): só a marcação da foto
+    expect(r.content).toBe("[Foto enviada pelo hóspede]");
+    // nenhuma chamada ao gateway de IA
+    expect(calls.some((c) => String(c.url).includes("ai.gateway.lovable.dev"))).toBe(false);
   });
 
-  it("falha no upload: não lança, mantém texto e transcrição, sem attachment_path", async () => {
+  it("falha no upload: não lança, mantém texto, sem attachment_path", async () => {
     stubFetch();
     const admin = fakeAdmin(() => ({ error: { message: "timeout" } }));
     const r = await buildGuestPhotoMessage(admin, { text: "olha isso", urls: [URL_], haveAttachment: true, propertyId: PROP, conversationId: CONV });
     expect(r.attachmentFields["attachment_path"]).toBeUndefined();
-    expect(r.attachmentFields).toMatchObject({ attachment_type: "image", attachment_transcript: "Painel do ar-condicionado com erro E4." });
+    expect(r.attachmentFields).toMatchObject({ attachment_type: "image" });
     expect(r.content).toContain("olha isso");
-    expect(r.content).toContain("conteúdo: Painel do ar-condicionado");
+    expect(r.content).toContain("[Foto enviada pelo hóspede]");
   });
 
   it("storage que lança exceção também não derruba nada", async () => {

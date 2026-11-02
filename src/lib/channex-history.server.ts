@@ -246,8 +246,6 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
     const normalized = { ...(((row as any)?.normalized ?? {}) as Record<string, unknown>), reviews: list };
     await admin.from("property_listing_raw_data").update({ normalized } as never).eq("property_id", propertyId);
     result.reviews += list.length;
-    const { reindexProperty } = await import("@/lib/ai/indexing.server");
-    await reindexProperty(admin as never, propertyId).catch(() => null);
   }
 
   return result;

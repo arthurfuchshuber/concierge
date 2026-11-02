@@ -21,15 +21,6 @@ export function labelFor(section: string): string {
 export function computeInsights(a: EngagementAnalytics): Insight[] {
   const out: Insight[] = [];
 
-  // Backlog crítico de IA
-  if (a.kpis.openFeedback >= 3) {
-    out.push({
-      severity: "critical",
-      title: `${a.kpis.openFeedback} respostas da IA marcadas como não úteis`,
-      detail: "Ensine a IA a partir dessas conversas para reduzir insatisfação futura.",
-    });
-  }
-
   // Atrito alto no chat
   if (a.kpis.totalAccesses >= 20 && a.kpis.chatRate >= 50) {
     out.push({

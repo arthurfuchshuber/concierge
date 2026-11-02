@@ -36,16 +36,6 @@ async function dbq<T = unknown>(
   return (await retryDbResult(op as never)) as never;
 }
 
-async function reindex(propertyId: string) {
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { reindexProperty } = await import("@/lib/ai/indexing.server");
-    await reindexProperty(supabaseAdmin, propertyId);
-  } catch (e) {
-    console.error("[playbook] reindex falhou", e);
-  }
-}
-
 const PROPERTY_COLUMNS =
   "id, name, short_description, address, city, state, country, maps_url, in_condominium, apartment_number, apartment_floor, parking_spots, vehicles_max, " +
   "airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_bathroom_count, airbnb_rooms_beds, airbnb_amenities, airbnb_house_rules, airbnb_safety_info, " +
@@ -342,7 +332,6 @@ export const savePlaybookRow = createServerFn({ method: "POST" })
     } else {
       throw new Error("Este campo não é editável aqui.");
     }
-    await reindex(data.propertyId);
     return { ok: true };
   });
 
@@ -368,7 +357,6 @@ export const savePlaybookParts = createServerFn({ method: "POST" })
     if (data.audience) await upsertEntry(sb, context.userId, data.propertyId, data.rowId, { custom_audience: data.audience });
     const { error } = await sb.from("properties").update(columns).eq("id", data.propertyId);
     if (error) throw new Error(error.message);
-    await reindex(data.propertyId);
     return { ok: true };
   });
 
@@ -393,7 +381,6 @@ export const savePlaybookAudience = createServerFn({ method: "POST" })
       throw new Error("O público deste campo é fixo.");
     }
     await upsertEntry(sb, context.userId, data.propertyId, data.rowId, { custom_audience: data.audience });
-    await reindex(data.propertyId);
     return { ok: true };
   });
 
@@ -428,7 +415,6 @@ export const deletePlaybookRow = createServerFn({ method: "POST" })
     } else {
       throw new Error("Este campo não pode ser excluído.");
     }
-    await reindex(data.propertyId);
     return { ok: true };
   });
 
@@ -439,7 +425,6 @@ export const savePlaybookNote = createServerFn({ method: "POST" })
     const sb = context.supabase as AnySb;
     await assertAccess(sb, context.userId, data.propertyId);
     await upsertEntry(sb, context.userId, data.propertyId, data.rowId, { note: data.note.trim() || null });
-    await reindex(data.propertyId);
     return { ok: true };
   });
 
@@ -463,7 +448,6 @@ export const addPlaybookRow = createServerFn({ method: "POST" })
       custom_audience: data.audience,
       section_num: data.section,
     });
-    await reindex(data.propertyId);
     return { ok: true, rowId: key };
   });
 
@@ -472,7 +456,7 @@ export const addPlaybookRow = createServerFn({ method: "POST" })
  * A política de campos vive em `playbook-bulk.ts` (lista branca, recusa no backend).
  * Passo a passo: 1) recusa campo proibido ANTES de tocar no banco; 2) confere acesso ao imóvel
  * de origem e a TODOS os destinos — se um falhar, nada é gravado; 3) aplica imóvel por imóvel,
- * sem derrubar os demais se um falhar; 4) reindexa e registra a trilha de auditoria.
+ * sem derrubar os demais se um falhar; 4) registra a trilha de auditoria.
  */
 const BulkInput = z.object({
   sourcePropertyId: z.string().uuid(),
@@ -678,7 +662,6 @@ export const bulkUpdatePlaybookEntries = createServerFn({ method: "POST" })
       try {
         const out = await applyBulkToProperty(sb, context.userId, propertyId, src, data.action, data.audience);
         applied.push(out);
-        if (out.result !== "skipped") await reindex(propertyId);
       } catch (e) {
         failed.push({ propertyId, error: e instanceof Error ? e.message : "Falha ao aplicar." });
       }

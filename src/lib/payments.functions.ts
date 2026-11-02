@@ -312,7 +312,7 @@ export const changePlan = createServerFn({ method: "POST" })
       items: [{ priceId: paddlePriceId, quantity: 1 }],
       prorationBillingMode: "prorated_immediately",
     });
-    const { auditBilling } = await import("@/lib/ai/audit/platform.server");
+    const { auditBilling } = await import("@/lib/audit/platform.server");
     await auditBilling("plan_changed", {
       userId: ownerId,
       entityId: sub.paddle_subscription_id,
@@ -367,7 +367,7 @@ export const deleteGuides = createServerFn({ method: "POST" })
       .in("id", data.ids)
       .eq("owner_id", context.userId);
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-    const { auditData } = await import("@/lib/ai/audit/platform.server");
+    const { auditData } = await import("@/lib/audit/platform.server");
     await auditData("guides_deleted", {
       userId: context.userId,
       entityType: "property",

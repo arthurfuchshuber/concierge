@@ -242,18 +242,6 @@ const SAAS_RECOMENDACOES: Def[] = [
   act("admin.taxonomia.mesclar", "Mesclar categorias", 30, { parentSlug: "admin.taxonomia" }),
 ];
 
-const SAAS_INTELIGENCIA: Def[] = [
-  page("admin.inteligencia", "Inteligência", "/admin/inteligencia", "Sparkles", 40,
-    "Observabilidade da IA, auditoria e analytics do SaaS."),
-  tab("admin.inteligencia.global", "Global Intelligence", 10),
-  tab("admin.inteligencia.pipeline", "Pipeline de Aprendizado", 20),
-  tab("admin.inteligencia.agentes", "Evolução dos Agentes", 30),
-  tab("admin.inteligencia.prompts", "Evolução dos Prompts", 40),
-  tab("admin.inteligencia.eventos", "Eventos", 50),
-  act("admin.inteligencia.eventos.exportar", "Exportar eventos", 10),
-  tab("admin.inteligencia.analytics", "Analytics de Logs", 60),
-];
-
 const SAAS_ADMINS: Def[] = [
   page("admin.admins", "Administradores", "/admin/admins", "ShieldCheck", 50,
     "Administração interna da plataforma."),
@@ -296,7 +284,6 @@ const RAW_CATALOG: Def[] = [
   ...SAAS_ENGAJAMENTO,
   ...SAAS_CLIENTES,
   ...SAAS_RECOMENDACOES,
-  ...SAAS_INTELIGENCIA,
   ...SAAS_ADMINS,
 ];
 

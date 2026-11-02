@@ -42,7 +42,7 @@ import { extFor, inferKind } from "@/components/dashboard/record-draft";
 import { enviarMidia } from "@/lib/media-upload";
 import type { AssistantAsk, AssistantMessage, PendingAction } from "@/lib/assistant-types";
 import { supabase } from "@/integrations/supabase/client";
-import { AiMarkdown } from "@/components/ai/AiMarkdown";
+import { ChatMarkdown } from "@/components/chat/ChatMarkdown";
 import {
   CHAT_HEADER,
   CHAT_HEADER_BTN,
@@ -715,7 +715,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             </div>
             {streamed && (
               <div className="min-w-0 text-[13px] leading-relaxed">
-                <AiMarkdown>{streamed}</AiMarkdown>
+                <ChatMarkdown>{streamed}</ChatMarkdown>
               </div>
             )}
           </div>
@@ -879,7 +879,7 @@ function MessageBubble({ message }: { message: AssistantMessage }) {
       >
         {/* O que a pessoa digitou é texto puro — se ela escrever asteriscos,
             deve ver asteriscos. Só a resposta da IA passa pelo Markdown. */}
-        {mine ? message.content : <AiMarkdown>{message.content}</AiMarkdown>}
+        {mine ? message.content : <ChatMarkdown>{message.content}</ChatMarkdown>}
       </div>
       {/* Só as fontes. O "abrir tela" saiu daqui em 07/09/2026: quando a IA
           aponta um lugar do sistema, ela escreve o nome da tela como link

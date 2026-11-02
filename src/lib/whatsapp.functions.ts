@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { SITE_ORIGIN } from "@/lib/site-url";
-import { pausePatch } from "@/lib/ai/pause";
+import { pausePatch } from "@/lib/chat/pause";
 
 // Public shape (safe to expose to client): no token.
 export type WhatsappConfigPublic = {
@@ -249,11 +249,6 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
       sent_via_number: cfg.sender_number as string,
     });
     if (error) throw new Error(error.message);
-    {
-      const { completeStayFromHumanMessage } = await import("@/lib/ai/human-closing.server");
-      await completeStayFromHumanMessage(data.conversationId, finalText);
-    }
-
     await supabase
       .from("property_chat_conversations")
       .update({

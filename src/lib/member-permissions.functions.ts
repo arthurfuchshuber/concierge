@@ -294,7 +294,7 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
     // Audit Trail: quem alterou, qual permissão, quem foi afetado, antes/depois.
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { logSystemEvent } = await import("@/lib/ai/audit/events.server");
+      const { logSystemEvent } = await import("@/lib/audit/events.server");
       await logSystemEvent(supabaseAdmin, {
         tenantId: ownerId,
         userId,

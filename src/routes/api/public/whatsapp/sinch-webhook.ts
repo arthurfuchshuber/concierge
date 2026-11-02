@@ -155,8 +155,8 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
         if (!picked) {
           // Não descarta: pede o código da reserva (sem pedir nome).
           try {
-            const { sendWhatsappText } = await import("@/lib/ai/channels/whatsapp/provider.server");
-            await sendWhatsappText({ supabase: supabaseAdmin, tenantId: ownerId, toPhone: phoneDigits, text: askCodeText() });
+            const { sendTenantWhatsappText } = await import("@/lib/whatsapp.server");
+            await sendTenantWhatsappText({ tenantId: ownerId, toPhone: phoneDigits, text: askCodeText() });
           } catch (e) {
             console.error("[sinch-webhook] pedido de código falhou", e);
           }
@@ -190,7 +190,7 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
               .update({ reservation_id: log.reservation_id })
               .eq("id", convId);
           }
-          const { resolvePause } = await import("@/lib/ai/pause");
+          const { resolvePause } = await import("@/lib/chat/pause");
           aiPaused = await resolvePause(supabaseAdmin, String(existingConv.id), existingConv);
         } else {
           const { data: newConv, error: convErr } = await supabaseAdmin
@@ -219,59 +219,23 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
           delivery_status: "delivered",
         });
 
-        try {
-          const { applyStayCompletionOnIngest, applyStayForecastOnIngest } = await import("@/lib/ai/conversation-link.server");
-          await applyStayCompletionOnIngest(supabaseAdmin as never, { conversationId: convId, propertyId: log.property_id as string, message: inbound });
-          // Previsão de horário gravada no painel mesmo com atendimento humano.
-          await applyStayForecastOnIngest(supabaseAdmin as never, { conversationId: convId, propertyId: log.property_id as string, message: inbound }).catch((e: unknown) =>
-            console.error("[sinch] previsão de estadia falhou", e),
-          );
-        } catch (e) {
-          console.error("[sinch] baixa de estadia falhou", e);
-        }
-
-        // Espelho no Conversation Core: mesma entidade de conversa do chat web.
-        try {
-          const { resolveCoreConversation, appendCoreMessage } =
-            await import("@/lib/ai/conversation/core.server");
-          const { markChannelSeen } = await import("@/lib/ai/channels/whatsapp/provider.server");
-          const coreConv = await resolveCoreConversation({
-            supabase: supabaseAdmin,
-            tenantId: ownerId,
-            propertyId: log.property_id as string,
-            legacyConversationId: convId,
-            channel: "whatsapp",
-            guestName: (log.guest_name as string | null) ?? null,
-            guestPhone: phoneDigits,
-          });
-          if (coreConv) {
-            await appendCoreMessage({
-              supabase: supabaseAdmin,
-              conversationId: coreConv.id,
-              tenantId: coreConv.tenantId,
-              propertyId: log.property_id as string,
-              senderType: "guest",
-              channel: "whatsapp",
-              content: inbound,
-              externalId: messageId ?? null,
-              deliveryStatus: "delivered",
-            });
-          }
-          await markChannelSeen(supabaseAdmin, ownerId, "whatsapp");
-        } catch (err) {
-          console.error("[sinch-webhook] espelho core falhou", err);
-        }
-
         await supabaseAdmin
           .from("property_chat_conversations")
           .update({ last_message_at: new Date().toISOString() })
           .eq("id", convId);
 
+        const { data: propRow } = await supabaseAdmin
+          .from("properties")
+          .select("name")
+          .eq("id", log.property_id)
+          .maybeSingle();
+        const propertyName = (propRow as { name?: string | null } | null)?.name ?? null;
+
         // Se um humano já assumiu esta conversa (ai_paused), a mensagem fica
-        // apenas registrada para o atendente ver no dock — a IA não responde.
-        // Antes disto, nenhuma mensagem seguinte do hóspede (depois da que
-        // disparou o handoff) avisava o atendente — mesmo mensagens novas
-        // por WhatsApp, silenciosamente sem push nenhum.
+        // apenas registrada para o atendente ver no dock. Antes disto, nenhuma
+        // mensagem seguinte do hóspede (depois da que disparou o handoff)
+        // avisava o atendente — mesmo mensagens novas por WhatsApp,
+        // silenciosamente sem push nenhum.
         if (aiPaused) {
           try {
             const { getPropertyNotifiableUsers, sendGuestReplyPush } =
@@ -281,15 +245,10 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
             const userIds = assignedTo
               ? [assignedTo]
               : await getPropertyNotifiableUsers(supabaseAdmin, log.property_id as string);
-            const { data: propRow } = await supabaseAdmin
-              .from("properties")
-              .select("name")
-              .eq("id", log.property_id)
-              .maybeSingle();
             await sendGuestReplyPush(supabaseAdmin, {
               userIds,
               conversationId: convId as string,
-              propertyName: propRow?.name ?? null,
+              propertyName,
               guestName: (log.guest_name as string | null) ?? null,
               guestMessage: inbound,
             });
@@ -299,66 +258,34 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
           return new Response("ok");
         }
 
-        // ─── Agente de Hospitalidade — mesma pipeline do chat do guia,
-        // incluindo o guardrail determinístico de segurança (guest-safety.server).
-        // Antes desta correção, o webhook só gravava a mensagem e nunca chamava
-        // o orquestrador: o hóspede no WhatsApp nunca recebia resposta nenhuma.
+        // ─── IA de atendimento: ponto de extensão (sem implementação instalada).
+        // Sem IA, a conversa vai para a fila humana e a equipe é avisada.
         try {
-          const apiKey = process.env.LOVABLE_API_KEY;
-          if (!apiKey) {
-            console.error("[sinch-webhook] LOVABLE_API_KEY ausente — IA não configurada");
-            return new Response("ok");
-          }
-
-          const { data: prop } = await supabaseAdmin
-            .from("properties")
-            .select("*")
-            .eq("id", log.property_id)
-            .maybeSingle();
-          if (!prop) return new Response("ok");
-
-          // Histórico COM as transcrições de áudio. Antes este caminho lia só
-          // `content` — e mensagem de áudio grava `content` vazio, então todo
-          // áudio do WhatsApp era um buraco no contexto da IA, mesmo depois de
-          // a transcrição existir. Ver `loadAgentHistory`.
-          const { loadAgentHistory } = await import("@/lib/chat-audio.server");
-          const prior = await loadAgentHistory(supabaseAdmin, convId, 20);
-
-          const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
-          const { loadReservationDossier } = await import("@/lib/ai/reservation-dossier.server");
-          const dossier = await loadReservationDossier(supabaseAdmin, {
-            propertyId: String(log.property_id),
-            code: log.reservation_code,
-          }).catch(() => null);
-          const result = await runHospitalityAgent({
+          const { requestGuestAiReply, NO_AI_HANDOFF_REASON } = await import("@/lib/guest-ai/slot.server");
+          const ai = await requestGuestAiReply({
             supabase: supabaseAdmin,
-            property: prop as unknown as Record<string, unknown>,
+            surface: "whatsapp",
+            propertyId: String(log.property_id),
+            ownerId,
             conversationId: convId,
-            sessionId: guestSessionId,
             guestName: (log.guest_name as string | null) ?? null,
             message: inbound,
-            history: prior,
-            surface: "whatsapp",
-            channel: "whatsapp",
-            channelReference: phoneDigits,
-            checkinDate: dossier?.checkin ?? null,
-            checkoutDate: dossier?.checkout ?? null,
-            reservationDossier: dossier?.text ?? null,
+            reservationCode: log.reservation_code,
           });
 
-          const handoffTriggered = result.handoff;
-          const finalReply = result.reply.trim();
+          const handoffTriggered = ai ? ai.handoff : true;
+          const reason = ai?.handoffReason ?? NO_AI_HANDOFF_REASON;
+          const urgency = ai?.handoffUrgency ?? null;
+          const finalReply = (ai?.reply ?? "").trim();
 
           if (handoffTriggered) {
             await supabaseAdmin
               .from("property_chat_conversations")
               .update({
                 status: "needs_human",
-                // Escalar não cala a IA — ver o comentário longo no
-                // equivalente em `guide-chat.ts`.
                 ai_paused: false,
-                handoff_reason: result.handoffReason ?? "Hóspede pediu atendimento humano.",
-                handoff_urgency: result.handoffUrgency,
+                handoff_reason: reason,
+                handoff_urgency: urgency,
                 handoff_at: new Date().toISOString(),
               })
               .eq("id", convId);
@@ -372,12 +299,12 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
               await sendHandoffPush(supabaseAdmin, {
                 userIds,
                 conversationId: convId,
-                propertyName: (prop as { name?: string }).name ?? "",
+                propertyName: propertyName ?? "",
                 guestName: (log.guest_name as string | null) ?? null,
                 guestMessage: inbound,
                 checkinDate: (log.checkin_date as string | null) ?? null,
-                reason: result.handoffReason ?? "Hóspede pediu atendimento humano.",
-                urgency: result.handoffUrgency,
+                reason,
+                urgency,
               });
             } catch (e) {
               console.error("[sinch-webhook] push de handoff falhou", e);
@@ -385,18 +312,10 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
           }
 
           if (finalReply) {
-            // Entrega de verdade pro WhatsApp do hóspede — antes desta correção,
-            // sendWhatsappText existia mas nunca era chamada em lugar nenhum.
             let externalId: string | null = null;
             try {
-              const { sendWhatsappText } =
-                await import("@/lib/ai/channels/whatsapp/provider.server");
-              const sent = await sendWhatsappText({
-                supabase: supabaseAdmin,
-                tenantId: ownerId,
-                toPhone: phoneDigits,
-                text: finalReply,
-              });
+              const { sendTenantWhatsappText } = await import("@/lib/whatsapp.server");
+              const sent = await sendTenantWhatsappText({ tenantId: ownerId, toPhone: phoneDigits, text: finalReply });
               externalId = sent.messageId ?? null;
             } catch (e) {
               console.error("[sinch-webhook] envio ao WhatsApp falhou", e);
@@ -405,13 +324,12 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
                 conversationId: convId,
                 propertyId: log.property_id as string,
                 channel: "whatsapp",
-                propertyName: (prop as { name?: string }).name ?? null,
+                propertyName,
                 guestName: (log.guest_name as string | null) ?? null,
                 guestMessage: inbound,
                 detail: (e instanceof Error ? e.message : String(e)).slice(0, 120),
               });
             }
-
             await supabaseAdmin.from("property_chat_messages").insert({
               conversation_id: convId,
               role: "assistant",
@@ -421,42 +339,9 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
               external_id: externalId,
               delivery_status: externalId ? "sent" : null,
             });
-
-            try {
-              const { resolveCoreConversation, appendCoreMessage } =
-                await import("@/lib/ai/conversation/core.server");
-              const coreConv = await resolveCoreConversation({
-                supabase: supabaseAdmin,
-                tenantId: ownerId,
-                propertyId: log.property_id as string,
-                legacyConversationId: convId,
-                channel: "whatsapp",
-                guestName: (log.guest_name as string | null) ?? null,
-                guestPhone: phoneDigits,
-              });
-              if (coreConv) {
-                await appendCoreMessage({
-                  supabase: supabaseAdmin,
-                  conversationId: coreConv.id,
-                  tenantId: coreConv.tenantId,
-                  propertyId: log.property_id as string,
-                  senderType: "agent",
-                  channel: "whatsapp",
-                  content: finalReply,
-                  externalId,
-                  deliveryStatus: externalId ? "sent" : null,
-                  // Custo da resposta registrado por mensagem (sem limite de uso).
-                  tokensIn: result.usage.inputTokens,
-                  tokensOut: result.usage.outputTokens,
-                  costUsd: Number(result.usage.costUsd.toFixed(6)),
-                });
-              }
-            } catch (err) {
-              console.error("[sinch-webhook] espelho core (resposta) falhou", err);
-            }
           }
         } catch (err) {
-          console.error("[sinch-webhook] pipeline de IA falhou", err);
+          console.error("[sinch-webhook] encaminhamento falhou", err);
         }
 
         return new Response("ok");

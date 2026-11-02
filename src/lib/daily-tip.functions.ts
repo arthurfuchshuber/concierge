@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { AI_MODELS } from "@/lib/ai/models";
+import { AI_MODELS } from "@/lib/llm/models";
 
 const Input = z.object({
   propertyId: z.string().uuid(),

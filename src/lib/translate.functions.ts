@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { AI_MODELS } from "@/lib/ai/models";
+import { AI_MODELS } from "@/lib/llm/models";
 
 // Idiomas suportados pela UI. Restringir o alvo evita que o endpoint seja
 // usado como proxy genérico de LLM com instruções arbitrárias.

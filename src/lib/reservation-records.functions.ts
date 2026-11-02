@@ -969,7 +969,7 @@ export const updateRecordText = createServerFn({ method: "POST" })
 /**
  * DITADO nos campos de título e descrição — o prestador fala, vira texto.
  *
- * Usa a MESMA transcrição das duas IAs (src/lib/ai/transcribe.server.ts), pelo
+ * Usa a MESMA transcrição das duas IAs (src/lib/llm/transcribe.server.ts), pelo
  * mesmo motivo de sempre: falar tem que valer o mesmo que digitar. O áudio do
  * ditado é usado e descartado; áudio que a pessoa queira GUARDAR entra como
  * mídia da situação, pelo botão "+".
@@ -990,7 +990,7 @@ export const transcribeRecordAudio = createServerFn({ method: "POST" })
     const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
     const allowed = await accessiblePropertyIds(context.supabase as never, null, context.userId);
     if (!allowed.includes(data.propertyId)) throw new Error("Sem acesso a este imóvel.");
-    const { transcribeAudioBase64 } = await import("@/lib/ai/transcribe.server");
+    const { transcribeAudioBase64 } = await import("@/lib/llm/transcribe.server");
     return { text: await transcribeAudioBase64(data.audioBase64, data.mimeType) };
   });
 

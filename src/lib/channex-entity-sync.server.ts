@@ -262,8 +262,6 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
     } catch (e) {
       console.error("[channex-entity-sync] substituição integral", propertyId, e);
     }
-    const { reindexProperty } = await import("@/lib/ai/indexing.server");
-    await reindexProperty(admin as never, propertyId).catch(() => undefined);
     listingsUpdated += 1;
   }
 

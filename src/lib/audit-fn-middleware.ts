@@ -61,7 +61,7 @@ async function record(
       ip = null;
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { logSystemEvent } = await import("@/lib/ai/audit/events.server");
+    const { logSystemEvent } = await import("@/lib/audit/events.server");
     const { describeServerCall, sanitizeArgs } = await import("@/lib/audit-fn-labels.server");
     let actorLabel: string | null = actor.email;
     if (actor.id) {
