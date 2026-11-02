@@ -29,3 +29,6 @@
 - Playbook hides empty manually-editable optional rows (only `STANDARD_MANUAL_FIELDS` stay visible) and offers them via "Adicionar campo"; "Replicar" only shows on manually-edited rows, never on listing/scrap data such as house rules.
 - The Gerencial page/menu item was removed (28/10/2026); `src/lib/executive.functions.ts` (director allowlist) is kept unused and no DB data was touched.
 - Dashboard arrival lists requested together are merged client-side into one `listDashboardArrivalsBatch` call (permissions + stay reconciliation run once per batch); this keeps per-list query keys/optimistic updates while cutting mobile round-trips.
+
+- Client access checks (`useAreaAccess`/`usePermission`) go through `accessBatcher.ts`, merging every check fired in the same 10ms per scope into one `getMyAccessDecisions` call, so a screen never pays the access lookup several times.
+- The legacy iCal cron (`sync-airbnb-ical-30min`) is paused: every listing is API-connected and bookings arrive by Channex webhook.
