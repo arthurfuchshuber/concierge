@@ -239,12 +239,14 @@ function historyRows(timeline: TimelineEntry[]): HistoryRow[] {
     if (e.kind === "step") {
       if (e.step.state !== "done") continue;
       const who = e.step.actor ? (whoName(e.step.actor) ?? "Autor não registrado") : null;
+      // Sem papel (ex.: "Registro anterior a 14/10"): o texto vai sozinho, sem "Feito por".
+      const plain = !!e.step.actor?.name && !e.step.actor.role;
       out.push({
         id: e.step.key,
         title: e.step.label,
         at: e.step.at,
         detail: e.step.detail,
-        who: who ? `Feito por ${who}` : null,
+        who: who ? (plain ? who : `Feito por ${who}`) : null,
         tag: null,
         opens: false,
       });

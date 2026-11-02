@@ -117,4 +117,17 @@ describe("Histórico da Reserva — opção C", () => {
     expect(screen.getByText("Feito por Equipe")).toBeTruthy();
     expect(screen.queryByText(/Autor não registrado/)).toBeNull();
   });
+
+  it("confirmação antiga sem origem: texto sozinho, sem 'Feito por'", async () => {
+    show({
+      ...base,
+      statusLabel: "Em estadia",
+      steps: [
+        step("reserva", "Reserva registrada", "done", "2026-09-07T06:07:00Z"),
+        { ...step("checkin", "Check-in", "done", "2026-09-10T15:00:00Z"), actor: { name: "Registro anterior a 14/10", role: null } },
+      ],
+    });
+    expect(await screen.findByText("Registro anterior a 14/10")).toBeTruthy();
+    expect(screen.queryByText(/Feito por Registro/)).toBeNull();
+  });
 });

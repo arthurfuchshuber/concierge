@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-02T15:52:15.305Z";
+export const GENERATED_AT = "2026-11-02T16:04:04.550Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -2922,6 +2922,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "7165923d3017b91ea79fb6a16843344d"
   },
   {
+    "doc_key": "rule:READ_NAME",
+    "kind": "rule",
+    "title": "Regra — READ_NAME",
+    "content": "Leitura pelo NOME da função (o método HTTP não serve: há leituras em POST e\nao menos uma gravação em GET, `backfillPropertyCoords`). Efeitos automáticos\ndentro de leituras (semear categorias padrão, encerrar conversas paradas,\ncache) não são ações de alguém e não entram.",
+    "source_path": "src/lib/audit-fn-middleware.ts",
+    "audience": [],
+    "content_hash": "65ab4c04a2f2aa81981089932643064d"
+  },
+  {
     "doc_key": "rule:ReasoningEffort",
     "kind": "rule",
     "title": "Regra — ReasoningEffort",
@@ -4671,10 +4680,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:src/lib/audit-fn-middleware.ts:0",
     "kind": "rule",
     "title": "Regra em audit-fn-middleware.ts",
-    "content": "Middleware global de auditoria de chamadas de servidor.\n\nToda chamada a um server function é registrada: quem chamou, qual função,\no que foi enviado, duração, resultado e erro (quando houver). Auditoria\nnunca derruba a operação — falhas de log são engolidas.",
+    "content": "Middleware global de auditoria de chamadas de servidor.\n\nO QUE ENTRA NA TRILHA (02/11/2026, autorizado pelo cliente):\n · AÇÕES (salvar, confirmar, excluir, enviar…): SEMPRE, e a gravação é\n AGUARDADA antes da resposta. Antes ela rodava \"solta\" depois da\n resposta e o servidor encerrava antes de terminar — só 1 de 9\n confirmações de check-in/checkout de uma semana ficou registrada.\n · LEITURAS (list…, get…, count…, check…): só quando FALHAM. Eram 98% da\n trilha (~550 mil linhas/dia, 6,5 GB) e não dizem quem fez o quê.\n\nRegistra quem chamou, qual função, o que foi enviado, duração, resultado e\nerro. Auditoria nunca derruba a operação — falhas de log são engolidas.",
     "source_path": "src/lib/audit-fn-middleware.ts",
     "audience": [],
-    "content_hash": "fce7a2b3d9ddfaa599f282005fa3bef2"
+    "content_hash": "8e27e387a6e45178620420adc5247d25"
   },
   {
     "doc_key": "rule:src/lib/audit/events.server.ts:0",

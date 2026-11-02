@@ -1,14 +1,33 @@
 /**
  * Middleware global de auditoria de chamadas de servidor.
  *
- * Toda chamada a um server function é registrada: quem chamou, qual função,
- * o que foi enviado, duração, resultado e erro (quando houver). Auditoria
- * nunca derruba a operação — falhas de log são engolidas.
+ * O QUE ENTRA NA TRILHA (02/11/2026, autorizado pelo cliente):
+ *   · AÇÕES (salvar, confirmar, excluir, enviar…): SEMPRE, e a gravação é
+ *     AGUARDADA antes da resposta. Antes ela rodava "solta" depois da
+ *     resposta e o servidor encerrava antes de terminar — só 1 de 9
+ *     confirmações de check-in/checkout de uma semana ficou registrada.
+ *   · LEITURAS (list…, get…, count…, check…): só quando FALHAM. Eram 98% da
+ *     trilha (~550 mil linhas/dia, 6,5 GB) e não dizem quem fez o quê.
+ *
+ * Registra quem chamou, qual função, o que foi enviado, duração, resultado e
+ * erro. Auditoria nunca derruba a operação — falhas de log são engolidas.
  */
 import { createMiddleware } from "@tanstack/react-start";
 
 /** Funções que não podem ser auditadas (evita recursão infinita de logs). */
 const SKIP = new Set(["ingestTrail", "recordClientEvent", "listSystemEvents", "getSystemEventTimeline", "getAuditAnalytics", "listAuditTenants"]);
+
+/**
+ * Leitura pelo NOME da função (o método HTTP não serve: há leituras em POST e
+ * ao menos uma gravação em GET, `backfillPropertyCoords`). Efeitos automáticos
+ * dentro de leituras (semear categorias padrão, encerrar conversas paradas,
+ * cache) não são ações de alguém e não entram.
+ */
+const READ_NAME =
+  /^(list|get|count|check|fetch|search|load|read|lookup|preview|validate|verify|is|has)[A-Z]|^admin(List|Get)[A-Z]|^compare[A-Z]/;
+export function isReadCall(name: string): boolean {
+  return READ_NAME.test(name);
+}
 
 function subFromToken(token: string | null): { id: string | null; email: string | null } {
   if (!token) return { id: null, email: null };
@@ -32,16 +51,19 @@ export const auditServerCalls = createMiddleware({ type: "function" }).server(
 
     const payload = (opts as unknown as { data?: unknown }).data;
     const startedAt = Date.now();
+    const read = isReadCall(name);
     try {
       const result = await next();
-      void record(name, method, startedAt, null, payload, serverFnMeta?.filename);
+      if (!read) await record(name, method, startedAt, null, payload, serverFnMeta?.filename);
       return result;
     } catch (error) {
-      void record(name, method, startedAt, error, payload, serverFnMeta?.filename);
+      await record(name, method, startedAt, error, payload, serverFnMeta?.filename);
       throw error;
     }
   },
 );
+
+const nameCache = new Map<string, { name: string | null; until: number }>();
 
 async function record(
   name: string,
@@ -65,12 +87,21 @@ async function record(
     const { describeServerCall, sanitizeArgs } = await import("@/lib/audit-fn-labels.server");
     let actorLabel: string | null = actor.email;
     if (actor.id) {
-      const { data: prof } = await supabaseAdmin
-        .from("profiles")
-        .select("full_name")
-        .eq("id", actor.id)
-        .maybeSingle();
-      actorLabel = ((prof as { full_name?: string } | null)?.full_name ?? "").trim() || actor.email;
+      // Nome em cache por instância (10 min): agora a gravação é aguardada, então
+      // a consulta do perfil não deve se repetir a cada ação da mesma pessoa.
+      const hit = nameCache.get(actor.id);
+      if (hit && hit.until > Date.now()) {
+        actorLabel = hit.name ?? actor.email;
+      } else {
+        const { data: prof } = await supabaseAdmin
+          .from("profiles")
+          .select("full_name")
+          .eq("id", actor.id)
+          .maybeSingle();
+        const name = ((prof as { full_name?: string } | null)?.full_name ?? "").trim() || null;
+        nameCache.set(actor.id, { name, until: Date.now() + 10 * 60_000 });
+        actorLabel = name ?? actor.email;
+      }
     }
     await logSystemEvent(supabaseAdmin, {
       tenantId: actor.id,

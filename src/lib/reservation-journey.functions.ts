@@ -180,6 +180,9 @@ type StatusRow = {
   arrival_time_source?: string | null;
 };
 
+/** Primeira marca de origem ("Confirmado pela equipe/pelo hóspede/automaticamente") em produção. */
+const ORIGIN_MARK_SINCE = "2026-10-14T00:00:00";
+
 function brl(cents: number | null): string | null {
   if (cents == null) return null;
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -464,6 +467,9 @@ export const getReservationJourney = createServerFn({ method: "GET" })
     /** Ação da equipe (02/11/2026): nunca "Autor não registrado". O nome de quem
      *  gravou (`manual_created_by`/`cleaning_done_by`); sem ele, ou sem perfil, "Equipe". */
     const TEAM: JourneyActor = { name: "Equipe", role: "Equipe" };
+    /** Sem papel: a interface mostra o texto sozinho, sem "Feito por". */
+    const LEGACY: JourneyActor = { name: "Registro anterior a 14/10", role: null };
+    const UNKNOWN_ORIGIN: JourneyActor = { name: "Origem da confirmação não registrada", role: null };
     const staffActor = (id: string | null | undefined): JourneyActor => {
       if (!id) return TEAM;
       const found = actorOf(id);
@@ -479,7 +485,12 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       const note = row?.note ?? "";
       if (/pela equipe/i.test(note)) return staffActor(row?.manual_created_by);
       if (/automaticamente/i.test(note)) return SYSTEM;
-      return GUEST;
+      if (/pelo h[óo]spede/i.test(note)) return GUEST;
+      // Sem marca de origem: antes de 14/10/2026 o sistema não gravava quem confirmou
+      // (decisão do cliente, 02/11/2026: dizer isso, em vez de atribuir ao hóspede).
+      // Depois disso, a marca só some quando a observação do card foi reescrita.
+      const at = row?.done_at ?? row?.updated_at ?? null;
+      return at && at < ORIGIN_MARK_SINCE ? LEGACY : UNKNOWN_ORIGIN;
     };
     /** Limpeza concluída: quem concluiu (`cleaning_done_by`); conclusão automática → sistema;
      *  conclusão junto com o checkout → quem confirmou. */
