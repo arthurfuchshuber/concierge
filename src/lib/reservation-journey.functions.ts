@@ -481,12 +481,16 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       if (/automaticamente/i.test(note)) return SYSTEM;
       return GUEST;
     };
-    /** Limpeza concluída: quem concluiu (`cleaning_done_by`); conclusão automática → sistema. */
+    /** Limpeza concluída: quem concluiu (`cleaning_done_by`); conclusão automática → sistema;
+     *  conclusão junto com o checkout → quem confirmou. */
     const cleaningAuthor = (ev: EventRow | null, row: StatusRow | null): JourneyActor => {
       const evActor = authorFor(ev);
       if (evActor.name) return evActor;
       if (row?.cleaning_done_by) return staffActor(row.cleaning_done_by);
+      // "Limpeza não será realizada" e limpeza vencida concluem junto com o checkout:
+      // o autor é quem confirmou (gravado em `manual_created_by`).
       if (/automaticamente/i.test(row?.note ?? "")) return SYSTEM;
+      if (row?.manual_created_by) return staffActor(row.manual_created_by);
       return TEAM;
     };
 
