@@ -1017,11 +1017,13 @@ export const listDashboardArrivals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ListInput.parse(i))
   .handler(async ({ data, context }): Promise<{ rows: ArrivalRow[] }> => {
+    const __t0=Date.now();void import("node:fs").then(f=>f.appendFileSync("/tmp/timing.log",`HANDLER ${data.kind} ${data.range} ${Date.now()}\n`));
     const propIds = await accessiblePropertyIds(
       context.supabase as never,
       data.ownerId ?? null,
       context.userId,
     );
+    void import("node:fs").then(f=>f.appendFileSync("/tmp/timing.log",`PROPIDS ${data.kind} ${data.range} ${Date.now()-__t0}\n`));
     if (propIds.length === 0) return { rows: [] };
     const { buildArrivalRows } = await import("@/lib/arrival-board.server");
     const built = await buildArrivalRows(context.supabase as never, {
