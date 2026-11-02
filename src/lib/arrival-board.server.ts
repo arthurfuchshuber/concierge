@@ -262,6 +262,7 @@ export async function buildArrivalRows(
   const data = { kind: opts.kind, range: opts.range };
   const propIds = opts.propIds;
   const context = { supabase } as { supabase: any };
+  const __t=Date.now();const __l=(x:string)=>console.log("[TIMING]",opts.kind,opts.range,x,Date.now()-__t);
     if (propIds.length === 0) return { rows: [] };
 
     const dateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
@@ -303,6 +304,7 @@ export async function buildArrivalRows(
     } catch (error) {
       console.error("[arrival-board] falha ao reconciliar estadias consecutivas", error);
     }
+    __l("superseded");
     // Saída adiada pelo calendário com previsão de data já velha: devolve o
     // card para "Em estadia" antes de qualquer consulta (ver o comentário da função).
     try {
@@ -412,6 +414,7 @@ export async function buildArrivalRows(
       if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte("checkout_date", reservationWindowEnd);
     }
 
+    __l("pre-batch");
     const [{ data: props }, { data: statuses }, { data: reservations }, sectionEvents] = await Promise.all([
       context.supabase
         .from("properties")
