@@ -1076,10 +1076,11 @@ export const listDashboardArrivalsBatch = createServerFn({ method: "POST" })
     const manualP = needsManual
       ? import("@/lib/manual-cleaning.server").then((m) => m.buildManualCleaningRows(context.supabase, propIds, today))
       : Promise.resolve([] as ArrivalRow[]);
+    const shared = new Map<string, Promise<any>>();
     const [manual, ...built] = await Promise.all([
       manualP,
       ...data.requests.map((r) =>
-        buildArrivalRows(context.supabase as never, { kind: r.kind, range: r.range, propIds, skipReconcile: true }),
+        buildArrivalRows(context.supabase as never, { kind: r.kind, range: r.range, propIds, skipReconcile: true, shared }),
       ),
     ]);
     const results = built.map((b, i) => {
