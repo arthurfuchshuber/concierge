@@ -83,6 +83,25 @@ function scrubber(secrets: string[]) {
   };
 }
 
+/** JSON com chaves em ordem fixa: compara linhas sem depender da ordem das colunas. */
+function stable(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stable).join(",")}]`;
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    return `{${Object.keys(o)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stable(o[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(v ?? null);
+}
+
+/* SÓ GRAVA O QUE MUDOU (02/11/2026, auditoria de lentidão): a cópia era
+   apagada e reinserida inteira a cada 2 min de visita à vitrine — ~10 tabelas,
+   milhares de exclusões/inserções por dia (dicas do dia, FAQ, checkout,
+   detalhes) e, a cada uma, eventos ao vivo para os painéis abertos. Agora a
+   cópia continua idêntica à origem, mas cada tabela só é regravada quando o
+   conteúdo de fato mudou. */
 async function sync(admin: SupabaseClient) {
   const { data: src } = await admin.from("properties").select("*").eq("slug", LANDING_SOURCE_SLUG).maybeSingle();
   if (!src) return;
@@ -126,11 +145,15 @@ async function sync(admin: SupabaseClient) {
     garage_maps_url: null,
   });
 
-  const { data: existing } = await admin.from("properties").select("id").eq("slug", LANDING_COPY_SLUG).maybeSingle();
-  let copyId = existing?.id as string | undefined;
+  const { data: existing } = await admin.from("properties").select("*").eq("slug", LANDING_COPY_SLUG).maybeSingle();
+  let copyId = (existing as Record<string, unknown> | null)?.id as string | undefined;
   if (copyId) {
-    const { error } = await admin.from("properties").update(row as never).eq("id", copyId);
-    if (error) throw error;
+    const cur = existing as Record<string, unknown>;
+    const changed = Object.keys(row).some((k) => stable(cur[k]) !== stable(row[k]));
+    if (changed) {
+      const { error } = await admin.from("properties").update(row as never).eq("id", copyId);
+      if (error) throw error;
+    }
   } else {
     const { data: ins, error } = await admin.from("properties").insert(row as never).select("id").single();
     if (error) throw error;
@@ -140,7 +163,6 @@ async function sync(admin: SupabaseClient) {
   for (const table of CHILD_TABLES) {
     const { data: rows, error } = await admin.from(table as never).select("*").eq("property_id", s.id as string);
     if (error) continue; // tabela sem property_id ou indisponível: não trava a vitrine
-    await admin.from(table as never).delete().eq("property_id", copyId);
     const copies = (rows ?? []).map((r) => {
       const out: Record<string, unknown> = { property_id: copyId };
       for (const [k, v] of Object.entries(r as Record<string, unknown>)) {
@@ -152,6 +174,19 @@ async function sync(admin: SupabaseClient) {
       if (table === "property_emergency_contacts" && out.phone) out.phone = DEMO_SECRETS.phone;
       return out;
     });
+    const { data: current, error: curErr } = await admin.from(table as never).select("*").eq("property_id", copyId);
+    if (!curErr) {
+      const want = copies.map((c) => stable(c)).sort();
+      const have = ((current ?? []) as Record<string, unknown>[])
+        .map((r) => {
+          const out: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(r)) if (!STRIP.has(k) || k === "property_id") out[k] = v;
+          return stable(out);
+        })
+        .sort();
+      if (want.length === have.length && want.every((w, i) => w === have[i])) continue;
+    }
+    await admin.from(table as never).delete().eq("property_id", copyId);
     if (copies.length) {
       const { error: insErr } = await admin.from(table as never).insert(copies as never);
       if (insErr) console.error(`[vitrine] falha ao copiar ${table}`, insErr.message);

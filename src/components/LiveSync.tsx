@@ -58,6 +58,17 @@ const TABLES = [
   "provider_categories",
 ];
 
+/**
+ * CONSULTAS DE "CASCA" FORA DA RECARGA POR EVENTO (02/11/2026, auditoria de
+ * lentidão): estas leem tabelas que NÃO estão na publicação ao vivo
+ * (`user_roles`, `subscriptions`, `profiles`, usuários do login), então um
+ * evento das tabelas acima nunca muda o resultado delas. Antes, cada evento
+ * recarregava todas — `adminListCustomers` (lista TODOS os usuários do login)
+ * rodava ~7 mil vezes por dia. Elas continuam recarregando ao voltar para a
+ * aba, ao reconectar e quando a própria tela pede.
+ */
+const NOT_LIVE = new Set<string>(["is-admin", "my-subscription", "my-profile", "admin-customers", "admin-customers-engajamento"]);
+
 /** Pulso de segurança: de quantos em quantos ms perguntar "algo mudou?". */
 const PULSE_MS = 8_000;
 
@@ -88,12 +99,22 @@ export function LiveSync() {
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const refresh = () => {
+    // `todas`: voltar para a aba / reconectar relê tudo, inclusive a casca.
+    let todas = false;
+    const refresh = (all = false) => {
+      todas = todas || all;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        void qc.invalidateQueries({ refetchType: "active" });
+        const incluirCasca = todas;
+        todas = false;
+        void qc.invalidateQueries({
+          refetchType: "active",
+          predicate: (q) => incluirCasca || !NOT_LIVE.has(String(q.queryKey[0])),
+        });
       }, 120);
     };
+    const refreshAll = () => refresh(true);
+    const onChange = () => refresh();
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let retry: ReturnType<typeof setTimeout> | null = null;
@@ -108,14 +129,14 @@ export function LiveSync() {
       if (channel) supabase.removeChannel(channel);
       let ch = supabase.channel(`live-sync-${Date.now()}-${attempt}`);
       for (const table of TABLES) {
-        ch = ch.on("postgres_changes", { event: "*", schema: "public", table }, refresh);
+        ch = ch.on("postgres_changes", { event: "*", schema: "public", table }, onChange);
       }
       channel = ch;
       ch.subscribe((status) => {
         if (stopped) return;
         if (status === "SUBSCRIBED") {
           setHealthy(true);
-          if (attempt > 0) refresh();
+          if (attempt > 0) refreshAll();
           attempt = 0;
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
           setHealthy(false);
@@ -127,17 +148,27 @@ export function LiveSync() {
       });
     };
     void connect();
+    /* O cliente do login emite SIGNED_IN de novo a cada retomada da sessão
+       (voltar para a aba, renovar o token). Refazer o canal nesses casos
+       re-assinava as 38 tabelas a cada foco — no banco, ~1,8 milhão de
+       consultas de assinatura em 3,6 dias. O token novo já vai pelo
+       `setAuth`; o canal só é refeito se mudou a pessoa ou se ele caiu. */
+    let connectedUser: string | null = null;
     const { data: authSub } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.access_token) supabase.realtime.setAuth(session.access_token);
-      if (event === "SIGNED_IN") void connect();
+      if (event !== "SIGNED_IN") return;
+      const uid = session?.user?.id ?? null;
+      if (healthy && uid && uid === connectedUser) return;
+      connectedUser = uid;
+      void connect();
     });
 
     const onVisible = () => {
-      if (document.visibilityState === "visible") refresh();
+      if (document.visibilityState === "visible") refreshAll();
     };
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("online", refresh);
-    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refreshAll);
+    window.addEventListener("focus", refreshAll);
 
     // PULSO DE SEGURANÇA: mesmo com o canal "saudável", um evento pode se
     // perder sem aviso. A cada PULSE_MS (só com a aba visível e online),
@@ -179,8 +210,8 @@ export function LiveSync() {
       if (retry) clearTimeout(retry);
       if (channel) supabase.removeChannel(channel);
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("online", refresh);
-      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refreshAll);
+      window.removeEventListener("focus", refreshAll);
     };
   }, [qc, pulseFn]);
 
