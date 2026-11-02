@@ -32,3 +32,4 @@
 
 - Client access checks (`useAreaAccess`/`usePermission`) go through `accessBatcher.ts`, merging every check fired in the same 10ms per scope into one `getMyAccessDecisions` call, so a screen never pays the access lookup several times.
 - The legacy iCal cron (`sync-airbnb-ical-30min`) is paused: every listing is API-connected and bookings arrive by Channex webhook.
+- The dashboard occupancy calendar keeps the full date range but renders only day columns near the viewport (column virtualization in `OccupancyPanel`, spacer cells keep the full scroll width) and uses no CSS scroll snap; rendering every day froze browsers (~40k elements).
