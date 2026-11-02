@@ -262,7 +262,7 @@ export async function buildArrivalRows(
   const data = { kind: opts.kind, range: opts.range };
   const propIds = opts.propIds;
   const context = { supabase } as { supabase: any };
-  const __t=Date.now();const __l=(x:string)=>console.log("[TIMING]",opts.kind,opts.range,x,Date.now()-__t);
+  const __t=Date.now();const __l=(x:string)=>{const m=`${opts.kind} ${opts.range} ${x} ${Date.now()-__t}\n`;void import("node:fs").then(f=>f.appendFileSync("/tmp/timing.log",m)).catch(()=>{});};
     if (propIds.length === 0) return { rows: [] };
 
     const dateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
@@ -288,6 +288,7 @@ export async function buildArrivalRows(
     // seria usado — e, combinado com ordenação ascendente + LIMIT, podia
     // empurrar os check-ins/checkouts de HOJE para fora da página de 500/
     // 10000 linhas em contas com muito histórico.
+    __l("start");
     if (data.range === "today") {
       from = addDaysISO(today, -OVERDUE_WINDOW_DAYS);
     }
