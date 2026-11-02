@@ -3658,7 +3658,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <SectionLabel className="col-span-2 order-8 lg:hidden">Ocupação</SectionLabel>
             <div className="order-9 col-span-2 lg:order-6 lg:col-span-4 lg:col-start-1">
               <OccupancyPanel
-                loading={occupancyQ.isLoading}
+                loading={occupancyQ.isLoading || !calendarReady}
                 start={occupancyQ.data?.start ?? occStart}
                 days={occupancyQ.data?.days ?? occDays}
                 properties={calendarRows}
