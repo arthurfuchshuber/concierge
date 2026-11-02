@@ -1267,7 +1267,7 @@ export function ConversationList({
   reservations?: Record<
     string,
     {
-      status: "confirmed" | "loose" | "missing" | "no_ical" | "cancelled";
+      status: "confirmed" | "loose" | "missing" | "no_reservations" | "cancelled";
       checkin: string | null;
       checkout: string | null;
       guests?: number | null;

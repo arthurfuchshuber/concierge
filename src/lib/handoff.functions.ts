@@ -395,7 +395,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       console.warn("assigned names lookup failed", e);
     }
 
-    // Cruzamento com reservas Airbnb (iCal) — status por conversa.
+    // Cruzamento com as reservas oficiais do Airbnb — status por conversa.
     const reservations: Record<string, import("@/lib/handoff.schemas").HandoffReservationMatch> =
       {};
     try {
@@ -411,8 +411,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
               .filter((s) => s.length > 0),
           ),
         );
-        const [propsR, resR, threadR] = await Promise.all([
-          supabaseAdmin.from("properties").select("id, airbnb_ical_url").in("id", propIds),
+        const [resR, threadR] = await Promise.all([
           supabaseAdmin
             .from("property_reservations")
             .select("property_id, checkin_date, checkout_date, source, status, external_uid, guest_hint, guest_contacts, occupancy")
@@ -480,13 +479,6 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         };
         const findChannex = (conv: (typeof deduped)[number]): ResRow | null => findIn(channexConfirmed, conv, true);
         const findCancelled = (conv: (typeof deduped)[number]): ResRow | null => findIn(channexCancelled, conv, false);
-        const hasIcal = new Set<string>();
-        for (const p of (propsR.data ?? []) as Array<{
-          id: string;
-          airbnb_ical_url: string | null;
-        }>) {
-          if (p.airbnb_ical_url && p.airbnb_ical_url.trim()) hasIcal.add(p.id);
-        }
         const byProp = new Map<string, Array<{ checkin: string; checkout: string }>>();
         for (const r of (resR.data ?? []) as ResRow[]) {
           const list = byProp.get(r.property_id) ?? [];
@@ -515,8 +507,9 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             };
             continue;
           }
-          if (!pid || !hasIcal.has(pid)) {
-            reservations[conv.id] = { status: "no_ical", checkin: null, checkout: null };
+          // Imóvel sem nenhuma reserva oficial: não há contra o que conferir.
+          if (!pid || !byProp.has(pid)) {
+            reservations[conv.id] = { status: "no_reservations", checkin: null, checkout: null };
             continue;
           }
           const det = mergeDetails[conv.id];

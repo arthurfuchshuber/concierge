@@ -638,7 +638,7 @@ function Guide({ data }: { data: GuideOk }) {
     const check = async () => {
       try {
         const r = await revalidateCode({ data: { slug, property_id: p.id, code: codeValue } });
-        // active === null ⇒ estado desconhecido (sem iCal, imóvel indisponível
+        // active === null ⇒ estado desconhecido (sem reserva oficial, imóvel indisponível
         // no momento, rate-limit): nunca derruba o hóspede.
         if (cancelled || r.active !== false) return;
         clearAccessRecord(slug);
@@ -680,7 +680,7 @@ function Guide({ data }: { data: GuideOk }) {
   const revealCodes = useServerFn(revealGuideAccessCodes);
   const codesNeedReservation = !!(baseProp as { codesNeedReservation?: boolean })
     .codesNeedReservation;
-  // Tentativa manual: se a liberação falhar (rede/limite/iCal), o hóspede
+  // Tentativa manual: se a liberação falhar (rede/limite/reserva), o hóspede
   // toca no olho e tentamos de novo — nunca fica um campo vazio e mudo.
   const [revealAttempt, setRevealAttempt] = useState(0);
   useEffect(() => {

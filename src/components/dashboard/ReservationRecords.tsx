@@ -77,7 +77,7 @@ const FALLBACK_CATEGORY: RecordCategory = "other";
 
 /** Mesmo critério de statusTarget/resolveTarget (advanceArrival, markNoShow,
  * auto-checkout): `logId` só é um UUID real quando não é o placeholder
- * "ical:<reservation_id>" usado por reservas só-iCal. */
+ * "ical:<reservation_id>" (nome histórico) usado por reservas sem formulário. */
 function resolveReservationTarget(row: { logId: string; reservationId: string | null }): {
   logId?: string;
   reservationId?: string;

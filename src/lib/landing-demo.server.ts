@@ -115,6 +115,9 @@ async function sync(admin: SupabaseClient) {
   const row: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(s)) if (!STRIP.has(k)) row[k] = v;
   for (const f of textFields) row[f] = scrub(row[f]);
+  // Colunas antigas do calendário privado (iCal), enquanto existirem no banco:
+  // a cópia pública nunca leva o link do anfitrião.
+  for (const k of Object.keys(row)) if (k.startsWith("airbnb_ical")) row[k] = null;
   const lat = typeof s.lat === "number" ? Math.round(s.lat * 100) / 100 : null;
   const lng = typeof s.lng === "number" ? Math.round(s.lng * 100) / 100 : null;
   const city = [s.city, s.state].filter(Boolean).join(" - ");
@@ -127,8 +130,6 @@ async function sync(admin: SupabaseClient) {
     pin_expires_at: null,
     access_codes_pin: null,
     require_access_gate: false,
-    airbnb_ical_url: null,
-    airbnb_ical_url_2: null,
     airbnb_listing_url: null,
     portaria_email: null,
     owner_contact_id: null,

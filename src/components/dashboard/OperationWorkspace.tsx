@@ -1573,7 +1573,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   // Realtime — sincroniza kanban, pendências e KPIs sem precisar recarregar a
   // página quando alguém da equipe dá um "check", muda horário, conclui uma
-  // pendência, cria um registro ou uma reserva entra pelo iCal.
+  // pendência, cria um registro ou uma reserva chega do Airbnb.
   //
   // Duas coisas que faltavam e faziam o "às vezes reflete, às vezes não":
   //  · pendências/conclusões/registros/imóveis não eram escutados aqui;
@@ -1902,7 +1902,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    * (`getCleaningStats`, baseado em `concluded_at`), aqui a base são os
    * CHECKOUTS AGENDADOS (ainda pendentes) pros próximos 7 dias: cada
    * checkout previsto vira uma limpeza esperada naquele dia. Reaproveita a
-   * mesma lista/lógica de "Checkouts" (iCal, gating etc.) via `listFn`, só
+   * mesma lista/lógica de "Checkouts" (reservas, gating etc.) via `listFn`, só
    * que com `range: "7d"` (hoje → hoje+6).
    * Custo: como o tipo de limpeza (normal/completa) só é escolhido na hora
    * de concluir, o valor aqui é uma ESTIMATIVA usando o preço da limpeza
@@ -3179,14 +3179,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               });
             }
           : undefined,
-      onSyncIcal: (row: ArrivalRow) => {
+      onAlignTime: (row: ArrivalRow) => {
         const t = colKind === "checkin" ? "15:00" : "11:00";
         const prev = row.arrivalTimeOverride ?? null;
         setBusyRowId(row.logId);
         pinRow(row.logId);
 
         upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalTimeOverride: t });
-        notifyAction(`Horário alinhado ao iCal (${t}).`, () => {
+        notifyAction(`Horário alinhado ao padrão (${t}).`, () => {
           setBusyRowId(row.logId);
           upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalTimeOverride: prev });
         });
@@ -8948,7 +8948,7 @@ function OccupancyPanel({
                                         {/* NOME À ESQUERDA, VALOR À DIREITA, na largura TOTAL da barra (31/10/2026).
                                             O nome encurta com reticências; o valor NUNCA é cortado. Barra de 1 noite
                                             (estreita): só o valor, limpo e legível — o nome vai no balão. Sem valor no
-                                            dado (reserva só do iCal): "—". Sem ícone de chat. */}
+                                            dado (reserva do histórico sem valor): "—". Sem ícone de chat. */}
                                         {labels.get(i)!.width < 96 ? (
                                           <span className="shrink-0 whitespace-nowrap font-semibold">{labels.get(i)!.value ?? "—"}</span>
                                         ) : (
@@ -9574,7 +9574,7 @@ function ArrivalGroup({
   onRevert,
   onNoShow,
   onSkipCleaning,
-  onSyncIcal,
+  onAlignTime,
   onNote,
   onEditDates,
   onEditTime,
@@ -9602,7 +9602,7 @@ function ArrivalGroup({
   onNoShow?: (r: ArrivalRow) => void;
   /** "Limpeza não será realizada" — conclui a estadia sem contabilizar valor. */
   onSkipCleaning?: (r: ArrivalRow) => void;
-  onSyncIcal: (r: ArrivalRow) => void;
+  onAlignTime: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
@@ -9683,7 +9683,7 @@ function ArrivalGroup({
       onRevert={onRevert}
       onNoShow={onNoShow}
       onSkipCleaning={onSkipCleaning}
-      onSyncIcal={onSyncIcal}
+      onAlignTime={onAlignTime}
       onNote={onNote}
       onEditDates={onEditDates}
       onEditTime={onEditTime}
@@ -9727,7 +9727,7 @@ function ArrivalCard({
   onRevert,
   onNoShow,
   onSkipCleaning,
-  onSyncIcal,
+  onAlignTime,
   onNote,
   onEditDates,
   onEditTime,
@@ -9753,7 +9753,7 @@ function ArrivalCard({
   onNoShow?: (r: ArrivalRow) => void;
   /** "Limpeza não será realizada" — conclui sem contabilizar o valor. */
   onSkipCleaning?: (r: ArrivalRow) => void;
-  onSyncIcal: (r: ArrivalRow) => void;
+  onAlignTime: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
@@ -9768,7 +9768,7 @@ function ArrivalCard({
   cleaningBlocked?: "checkout" | "cleaning" | null;
   /** Modo "Lista" (pedido explícito): mostra só proprietário, imóvel e os
       botões de ação (bem menores) — some com nome do hóspede, código,
-      período, previsto e alertas de iCal. Reaproveita o mesmo card e os
+      período, previsto e alertas de reserva. Reaproveita o mesmo card e os
       mesmos handlers; só a apresentação muda. */
   compact?: boolean;
   /** Checklist de pendências (só no modo "cleaning" — ver mais abaixo). */
@@ -9999,7 +9999,7 @@ function ArrivalCard({
    *
    * São as duas listas de ARQUIVO do quadro. Ali ninguém está operando nada:
    * está procurando um card específico para desfazer ou conferir. Período,
-   * previsão, nota e alertas de iCal só alongam a linha e atrasam a busca —
+   * previsão, nota e alertas de reserva só alongam a linha e atrasam a busca —
    * o histórico completo continua a um clique (ver o popup de histórico).
    *
    * A etiqueta ALERTA é a exceção deliberada, por pedido explícito no mesmo
@@ -10665,7 +10665,7 @@ function ArrivalCard({
           explícito, mesma data: "remova o icone ao lado esquerdo... e
           alinhe a frase à esquerda do nome do hospede"). `-mt-1` mantém o
           mesmo respiro de 4px das outras linhas (o card usa gap-2). */}
-      {/* Alertas de conferência com o Airbnb (iCal) — divergência de datas,
+      {/* Alertas de conferência com a reserva do Airbnb — divergência de datas,
           reserva não encontrada e horário fora da janela padrão, com correção
           em um clique. Some no modo "Lista" (pedido explícito). */}
       {!compact &&
@@ -10692,7 +10692,7 @@ function ArrivalCard({
               {noMatch ? (
                 <div className="flex items-center gap-1.5 rounded-none border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-[11px] text-red-700 dark:text-red-400">
                   <AlertTriangle className="size-3 shrink-0" />
-                  <span className="min-w-0">Sem reserva correspondente no iCal</span>
+                  <span className="min-w-0">Sem reserva correspondente no Airbnb</span>
                 </div>
               ) : dateMismatch ? (
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-none border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
@@ -10730,7 +10730,7 @@ function ArrivalCard({
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => onSyncIcal(row)}
+                    onClick={() => onAlignTime(row)}
                     className="ml-auto rounded-md border border-amber-500/40 px-2 py-0.5 font-semibold hover:bg-amber-500/20 disabled:opacity-50"
                   >
                     Alinhar

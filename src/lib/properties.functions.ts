@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { isAllowedIcalUrl } from "@/lib/airbnb-ical-url";
 import { cleanLocationText, normalizeParkingSpots } from "@/lib/property-location";
 import { untypedTable } from "@/lib/untyped-table";
 
@@ -142,30 +141,6 @@ const PropertyInput = z.object({
   vehicles_max: z.number().int().min(0).max(10).default(2),
   collect_document: z.enum(["off", "optional", "required"]).default("off"),
   document_scope: z.enum(["main", "all"]).default("main"),
-  airbnb_ical_url: z.preprocess(
-    normalizeHttpsInput,
-    z
-      .string()
-      .trim()
-      .url()
-      .max(2048)
-      .refine(isHttpsUrl, "Use um link HTTPS válido")
-      .refine(isAllowedIcalUrl, "Use um link iCal oficial do Airbnb")
-      .optional()
-      .nullable(),
-  ),
-  airbnb_ical_url_2: z.preprocess(
-    normalizeHttpsInput,
-    z
-      .string()
-      .trim()
-      .url()
-      .max(2048)
-      .refine(isHttpsUrl, "Use um link HTTPS válido")
-      .refine(isAllowedIcalUrl, "Use um link iCal oficial do Airbnb")
-      .optional()
-      .nullable(),
-  ),
   airbnb_listing_url: HttpsUrl,
   property_type_id: z.string().uuid().optional().nullable(),
   guide_created: z.boolean().default(false),

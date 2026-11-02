@@ -10,7 +10,7 @@
  * variações diferentes que já tinham se desencontrado entre si:
  *
  *   · guia.anfitriaosigma.com.br      (o endereço real, na maioria dos lugares)
- *   · sigmaconcierge.lovable.app      (WhatsApp e iCal)
+ *   · sigmaconcierge.lovable.app      (WhatsApp)
  *   · sigmaguide.lovable.app          (prévia de e-mail)
  *   · project--c6a0…lovable.app       (envio proativo)
  *

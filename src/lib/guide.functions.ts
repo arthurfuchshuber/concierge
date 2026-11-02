@@ -44,7 +44,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // First fetch only access-control + display fields (no credentials, no pin_code).
     let baseQuery = supabaseAdmin
       .from("properties")
-      .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,state,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,in_condominium,apartment_number,apartment_floor,parking_spots,has_elevator,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_label,gate_instructions,gate_media,gate_video_url,lock_label,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,collect_arrival_time,collect_vehicles,vehicles_max,collect_document,document_scope,published,created_at,updated_at,airbnb_ical_url")
+      .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,state,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,in_condominium,apartment_number,apartment_floor,parking_spots,has_elevator,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_label,gate_instructions,gate_media,gate_video_url,lock_label,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,collect_arrival_time,collect_vehicles,vehicles_max,collect_document,document_scope,published,created_at,updated_at")
       .eq("slug", data.slug);
     if (!isPreview) baseQuery = baseQuery.eq("published", true);
     const { data: prop, error } = await baseQuery.maybeSingle();
@@ -172,13 +172,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     };
 
     // owner_id é uso interno (plano/dono) e nunca deve chegar ao hóspede.
-    // `airbnb_ical_url` só serve para decidir a regra acima: é o feed privado
-    // do calendário do anfitrião e nunca vai ao navegador.
-    const {
-      owner_id: _ownerId,
-      airbnb_ical_url: _ical,
-      ...propPublic
-    } = prop as Record<string, unknown>;
+    const { owner_id: _ownerId, ...propPublic } = prop as Record<string, unknown>;
     const safeProp = {
       ...propPublic,
       ...credsPublic,
@@ -300,7 +294,7 @@ export const submitAccessPin = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop, error } = await supabaseAdmin
       .from("properties")
-      .select("id, access_codes_pin, wifi_password, lock_code, gate_code, city, country, checkin_time, checkout_time, tagline, airbnb_ical_url")
+      .select("id, access_codes_pin, wifi_password, lock_code, gate_code, city, country, checkin_time, checkout_time, tagline")
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();
@@ -422,7 +416,7 @@ const RevealCodesInput = z.object({
  * Entrega Wi-Fi / portão / fechadura ao hóspede que PROVOU a reserva
  * (16/09/2026). É o par de `getPublicGuide`, que deixou de mandar esses campos
  * nos guias com código de reserva. Mesma prova do formulário de acesso: o
- * código precisa estar ativo no iCal do imóvel, e o acesso cai sozinho quando
+ * código precisa estar ativo nas reservas oficiais do imóvel, e o acesso cai sozinho quando
  * a reserva termina ou é cancelada.
  */
 export const revealGuideAccessCodes = createServerFn({ method: "POST" })
@@ -436,7 +430,7 @@ export const revealGuideAccessCodes = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin
       .from("properties")
-      .select("id, tagline, airbnb_ical_url, access_codes_pin, wifi_password, lock_code, gate_code")
+      .select("id, tagline, access_codes_pin, wifi_password, lock_code, gate_code")
       .eq("slug", data.slug)
       .eq("published", true);
     if (data.property_id) q = q.eq("id", data.property_id);

@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-02T14:51:01.376Z";
+export const GENERATED_AT = "2026-11-02T15:15:49.453Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1170,10 +1170,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:dedupeStays",
     "kind": "rule",
     "title": "Regra — dedupeStays",
-    "content": "Uma estadia (imóvel + entrada + saída) gera um único card.\n\nA CHANNEX MANDA (pedido explícito, 16/10/2026): quando a mesma estadia\nexiste no iCal (`source = \"airbnb\"`) e na Channex (`source = \"channex\"`),\nTODOS os dados vêm da linha da Channex — valor, comissão, hóspede, canal,\nstatus da reserva. O iCal só continua valendo para imóveis sem Channex.\n\nUma única exceção, só de IDENTIDADE: o status gravado pela equipe\n(`guest_arrival_status.reservation_id`) está preso ao id da linha em que foi\ngravado. Se foi na do iCal, a linha resultante leva o id dela (senão o card\nvoltaria a \"pendente\"), mas com o conteúdo da Channex.\n\nSem `source` nas linhas (chamadores antigos) vale a regra anterior: fica a\nlinha que já tem status e, entre iguais, a mais recente.",
+    "content": "Uma estadia (imóvel + entrada + saída) gera um único card.\n\nA CHANNEX MANDA (pedido explícito, 16/10/2026): quando a mesma estadia\nexiste no histórico importado do Airbnb (`source = \"airbnb\"`, antigo iCal)\ne na Channex (`source = \"channex\"`), TODOS os dados vêm da linha da Channex\n— valor, comissão, hóspede, canal, status da reserva.\n\nUma única exceção, só de IDENTIDADE: o status gravado pela equipe\n(`guest_arrival_status.reservation_id`) está preso ao id da linha em que foi\ngravado. Se foi na do histórico, a linha resultante leva o id dela (senão o card\nvoltaria a \"pendente\"), mas com o conteúdo da Channex.\n\nSem `source` nas linhas (chamadores antigos) vale a regra anterior: fica a\nlinha que já tem status e, entre iguais, a mais recente.",
     "source_path": "src/lib/arrival-board.server.ts",
     "audience": [],
-    "content_hash": "67374ebf22f5319976895025d84b1317"
+    "content_hash": "d61cef6ccf89b3dbf1379c51b5662b66"
   },
   {
     "doc_key": "rule:DEFAULT_BOOKING_WINDOW_DAYS",
@@ -1539,10 +1539,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:findLogsForReservation",
     "kind": "rule",
     "title": "Regra — findLogsForReservation",
-    "content": "Retorna todos os logs que representam hóspedes da MESMA reserva iCal\n(primário + acompanhantes). Ordenados por prioridade (código HM bate mais\nforte que datas), o primeiro vira o hóspede exibido; os demais ficam como\nacompanhantes. Usada tanto pelo Kanban (buildArrivalRows) quanto pelo\nagregado de engajamento do Dashboard (getGuideEngagement) — é o que\ngarante que os dois concordem sobre QUAL hóspede pertence a qual reserva\n(antes, o Dashboard usava um casamento mais simples e podia atribuir a\nreserva a um hóspede diferente do que aparece no card do Kanban).",
+    "content": "Retorna todos os logs que representam hóspedes da MESMA reserva\n(primário + acompanhantes). Ordenados por prioridade (código HM bate mais\nforte que datas), o primeiro vira o hóspede exibido; os demais ficam como\nacompanhantes. Usada tanto pelo Kanban (buildArrivalRows) quanto pelo\nagregado de engajamento do Dashboard (getGuideEngagement) — é o que\ngarante que os dois concordem sobre QUAL hóspede pertence a qual reserva\n(antes, o Dashboard usava um casamento mais simples e podia atribuir a\nreserva a um hóspede diferente do que aparece no card do Kanban).",
     "source_path": "src/lib/arrival-board.server.ts",
     "audience": [],
-    "content_hash": "b7f8fd330b0648e76c671e618b20c820"
+    "content_hash": "415be17614616d764183723dd3d1f934"
   },
   {
     "doc_key": "rule:findReservationCleaning",
@@ -1878,15 +1878,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "3b513921145323bc5e21f0bb6cf88cb2"
   },
   {
-    "doc_key": "rule:isMappedOnChannel",
-    "kind": "rule",
-    "title": "Regra — isMappedOnChannel",
-    "content": "O anúncio já está mapeado no canal (manda reservas pela API)? `false` só quando a conta é Full e a\nChannex confirma que o anúncio NÃO está mapeado; qualquer dúvida ou conta Light => `null`.",
-    "source_path": "src/lib/channex-full-connect.server.ts",
-    "audience": [],
-    "content_hash": "65ec1e77eb448a8da8774937c5f26d1e"
-  },
-  {
     "doc_key": "rule:isoDateSaoPaulo",
     "kind": "rule",
     "title": "Regra — isoDateSaoPaulo",
@@ -1903,15 +1894,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/chat/pause.ts",
     "audience": [],
     "content_hash": "b73b36b1b77a574b8225211e7a1857ee"
-  },
-  {
-    "doc_key": "rule:isReservationGated",
-    "kind": "rule",
-    "title": "Regra — isReservationGated",
-    "content": "Guia cujo acesso depende do código de reserva validado no iCal. É a MESMA\ncondição usada em `recordGuideAccess` para exigir o código — sem iCal não\nhá contra o que validar, e o guia segue a regra antiga (acesso pelo link).",
-    "source_path": "src/lib/guest-access.server.ts",
-    "audience": [],
-    "content_hash": "f21b3ebb2c857139b312e17925d78c1a"
   },
   {
     "doc_key": "rule:isStayMarkedNoShow",
@@ -2115,10 +2097,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:lookupReservationByCode",
     "kind": "rule",
     "title": "Regra — lookupReservationByCode",
-    "content": "Consulta a reserva pelo código (HM…) no espelho do iCal do imóvel. Movida de\n`guide-access.functions.ts` sem mudança de regra, para ser usada também pelo\nguia (liberação das senhas) e pelo chat do hóspede.",
+    "content": "Consulta a reserva pelo código (HM…) nas reservas oficiais do imóvel. Movida de\n`guide-access.functions.ts` sem mudança de regra, para ser usada também pelo\nguia (liberação das senhas) e pelo chat do hóspede.",
     "source_path": "src/lib/guest-access.server.ts",
     "audience": [],
-    "content_hash": "f378de1180c0ae07259f847154cc185a"
+    "content_hash": "5001979538445ecb40a0362be0ecdae4"
   },
   {
     "doc_key": "rule:MARGIN_S",
@@ -2814,15 +2796,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2dfeed33a7b4f6e611a6439e6d8aff56"
   },
   {
-    "doc_key": "rule:propertyHasReservationFeed",
-    "kind": "rule",
-    "title": "Regra — propertyHasReservationFeed",
-    "content": "O imóvel tem de onde conferir reservas? iCal configurado OU reservas\noficiais recebidas pela API Channex (imóveis integrados não usam iCal).",
-    "source_path": "src/lib/guest-access.server.ts",
-    "audience": [],
-    "content_hash": "b2695de725f9b47adb88d0a7f006bc07"
-  },
-  {
     "doc_key": "rule:PropertyIdInput",
     "kind": "rule",
     "title": "Regra — PropertyIdInput",
@@ -2875,15 +2848,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/friendly-error.ts",
     "audience": [],
     "content_hash": "ac0786c2a7dfcea30bc189576f4a95ae"
-  },
-  {
-    "doc_key": "rule:purgeIcalForProperty",
-    "kind": "rule",
-    "title": "Regra — purgeIcalForProperty",
-    "content": "Sincronização Channex confirmada: apaga os links iCal do imóvel e as linhas\niCal sem valor de reserva (bloqueios/canceladas não referenciadas pelo\nhistórico operacional). Estadias iCal confirmadas ficam como histórico.",
-    "source_path": "src/lib/airbnb-ical.server.ts",
-    "audience": [],
-    "content_hash": "0e11f094fd8934326321f4c2cc5f0d97"
   },
   {
     "doc_key": "rule:pushCalendar",
@@ -3177,19 +3141,19 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:resolveReservationTarget",
     "kind": "rule",
     "title": "Regra — resolveReservationTarget",
-    "content": "Mesmo critério de statusTarget/resolveTarget (advanceArrival, markNoShow,\nauto-checkout): `logId` só é um UUID real quando não é o placeholder\n\"ical:<reservation_id>\" usado por reservas só-iCal.",
+    "content": "Mesmo critério de statusTarget/resolveTarget (advanceArrival, markNoShow,\nauto-checkout): `logId` só é um UUID real quando não é o placeholder\n\"ical:<reservation_id>\" (nome histórico) usado por reservas sem formulário.",
     "source_path": "src/components/dashboard/ReservationRecords.tsx",
     "audience": [],
-    "content_hash": "3b9d584bced33dc8cbc4df70c9c8b03d"
+    "content_hash": "54ee3dab86d99cb1234bed81fb226c2b"
   },
   {
     "doc_key": "rule:resolveTarget",
     "kind": "rule",
     "title": "Regra — resolveTarget",
-    "content": "Resolve `logId`/`reservationId` pro formato que `runAdvanceArrival` espera\na partir de um `ArrivalRow`. Mesmo critério de `statusTarget` (em\n`OperationWorkspace.tsx`): `logId` só é aceito quando é um UUID real de\n`guide_access_logs` — uma reserva só-iCal (sem log/formulário do hóspede)\nusa o prefixo sintético \"ical:<reservation_id>\" no lugar de um log de\nverdade, e nesse caso é o `reservation_id` embutido que deve ser usado.",
+    "content": "Resolve `logId`/`reservationId` pro formato que `runAdvanceArrival` espera\na partir de um `ArrivalRow`. Mesmo critério de `statusTarget` (em\n`OperationWorkspace.tsx`): `logId` só é aceito quando é um UUID real de\n`guide_access_logs` — uma reserva sem formulário do hóspede usa a chave\nsintética \"ical:<reservation_id>\" (nome histórico) no lugar de um log de\nverdade, e nesse caso é o `reservation_id` embutido que deve ser usado.",
     "source_path": "src/lib/auto-checkout.server.ts",
     "audience": [],
-    "content_hash": "fe2e5ad544b27a3d48da06b869ebd467"
+    "content_hash": "6b742559b31ab598f53c3d2db2e74eb1"
   },
   {
     "doc_key": "rule:restoreFromAirbnb",
@@ -3204,10 +3168,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:revealGuideAccessCodes",
     "kind": "rule",
     "title": "Regra — revealGuideAccessCodes",
-    "content": "Entrega Wi-Fi / portão / fechadura ao hóspede que PROVOU a reserva\n(16/09/2026). É o par de `getPublicGuide`, que deixou de mandar esses campos\nnos guias com código de reserva. Mesma prova do formulário de acesso: o\ncódigo precisa estar ativo no iCal do imóvel, e o acesso cai sozinho quando\na reserva termina ou é cancelada.",
+    "content": "Entrega Wi-Fi / portão / fechadura ao hóspede que PROVOU a reserva\n(16/09/2026). É o par de `getPublicGuide`, que deixou de mandar esses campos\nnos guias com código de reserva. Mesma prova do formulário de acesso: o\ncódigo precisa estar ativo nas reservas oficiais do imóvel, e o acesso cai sozinho quando\na reserva termina ou é cancelada.",
     "source_path": "src/lib/guide.functions.ts",
     "audience": [],
-    "content_hash": "d17d28e4046881a62efb98bdcbf647d2"
+    "content_hash": "7f497c4a66891b45e74f513e9a76f3f1"
   },
   {
     "doc_key": "rule:RichReservation",
@@ -3402,19 +3366,19 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:seedIfUnmapped",
     "kind": "rule",
     "title": "Regra — seedIfUnmapped",
-    "content": "Blindagem para qualquer vínculo (De → Para, importação, troca de imóvel): se a unidade própria\nainda NÃO está mapeada no Airbnb, garante a carga inicial (calendário real + tarifa base se não\nhouver diárias), para a ferramenta de preços nunca encontrar a unidade zerada. Mapeada → nada.",
+    "content": "Blindagem para qualquer vínculo (De → Para, importação, troca de imóvel): se a unidade própria\nainda NÃO está mapeada no Airbnb, garante a carga inicial (reservas e bloqueios + tarifa base se não\nhouver diárias), para a ferramenta de preços nunca encontrar a unidade zerada. Mapeada → nada.",
     "source_path": "src/lib/channex-full-connect.server.ts",
     "audience": [],
-    "content_hash": "baf516c682795f9341b312d6bf9ced20"
+    "content_hash": "7cdc7d86009efbd78c38e95c2eeffe34"
   },
   {
     "doc_key": "rule:seedUnitCalendar",
     "kind": "rule",
     "title": "Regra — seedUnitCalendar",
-    "content": "Carga inicial da unidade ainda NÃO mapeada: espelha o calendário real do Airbnb (fechado = 0,\nlivre = 1 até a janela de reservas do anúncio) e, se a unidade ainda não tem nenhuma diária, uma tarifa base para a\nferramenta de preços ter ponto de partida. Seguro: sem mapeamento, nada chega ao Airbnb.",
+    "content": "Carga inicial da unidade ainda NÃO mapeada: fecha as noites já ocupadas no ConciergeIA (fechado = 0,\nlivre = 1 até a janela de reservas do anúncio) e, se a unidade ainda não tem nenhuma diária, uma tarifa base para a\nferramenta de preços ter ponto de partida. Seguro: sem mapeamento, nada chega ao Airbnb.",
     "source_path": "src/lib/channex-full-connect.server.ts",
     "audience": [],
-    "content_hash": "b1bb31a1f2aad44f5068d30c7b12f66d"
+    "content_hash": "a03f80899a841bb598f95fad5ccb3cdf"
   },
   {
     "doc_key": "rule:SeenSets",
@@ -3777,7 +3741,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "59823a76849d5b7930747f34a9a3cc3b"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:104129",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:104133",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "SÓ MOSTRAR ATÉ ONDE HÁ DEMANDA DE VERDADE (pedido explícito, 23/09/2026:\n\"limitar a visão de dias dos gráficos para mostrar somente até o dia que\nrealmente tenha demanda\").\n\nUm período personalizado pode ser bem maior que o movimento real dele —\n\"01/09 a 30/09\" com a última limpeza prevista em 06/09 não precisa de um\ngráfico com 24 dias vazios pela frente. Corta a série na última barra\nCOM ALGUMA COISA (realizada ou prevista), sem tocar no INÍCIO — esse é\no dia que a pessoa escolheu, fica como está.\n\nSó os DOIS GRÁFICOS usam esta série cortada; os cards (totais do\nperíodo inteiro), o Top 5 continua somando o período\ncompleto escolhido — cortar ali mudaria a média por dia, e não foi\npedido. Só vale com período personalizado: as janelas fixas de 7 dias já\nsão curtas o bastante para não precisar de corte.",
@@ -3786,7 +3750,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "74fe58e6f203d1ec5e3d28b40c529ade"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:192677",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:192684",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A Limpeza tem DUAS janelas na MESMA tela (últimos 7d / próximos 7d) e o\ntítulo precisa dizer qual está no ar (pedido explícito). Só o texto muda;\no resto da página é idêntico.",
@@ -3795,7 +3759,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "df381f0b82c9a345baeae12ba649c01f"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:192911",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:192918",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "AS AÇÕES DA TELA MORAM AQUI (mockup aprovado, 09/09/2026).\n\nAs três telas gastavam uma faixa horizontal inteira só com dois ou três\nbotões, e essa faixa empurrava o conteúdo para baixo justamente onde a\ntela é mais estreita. Encostadas à direita do bloco título+subtítulo elas\nnão custam altura nenhuma — e, de quebra, passam a estar SEMPRE no mesmo\ncanto nas três telas, que é o que faz a mão aprender um lugar só.\n\n`items-center`: alinhadas ao centro do bloco de duas linhas, não ao topo.\nAlinhado ao topo, o botão encosta no título e a dupla fica torta quando o\nsubtítulo quebra.",
@@ -3804,7 +3768,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "9fe3ad8ae446109e5ae90b0e1d1fb01d"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:218964",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:218971",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Destaque visual opt-in (só usado hoje por \"Fila de Limpeza\"): borda +\ngradiente âmbar + acento lateral + ícone em caixinha, sem negrito.\nNão afeta nenhum outro uso do KpiCard (compact ou não).",
@@ -3813,7 +3777,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ec0f34c7bfc0754666d9cc96f2f2a568"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:219199",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:219206",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards que devem continuar visíveis no popup mesmo que já não pertençam\nmais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados.",
@@ -3822,7 +3786,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4b33a44930f947dea6060da94f816439"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:219391",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:219398",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao\ncard do Kanban — em vez de manter uma segunda implementação (que já\ndivergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup\nagora renderiza o MESMO <ArrivalGroup>/<ArrivalCard> do Kanban, com os\nMESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma\nfunção que já alimenta as colunas do Kanban.",
@@ -3831,7 +3795,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dfd7cbf815d96bcf7c9214257a5e2387"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:246541",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:246548",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "FONTE DOS BIG NUMBERS SINCRONIZADA (pedido explícito, 10/10/2026): se um\nvalor ficar longo demais para o card, a fonte encolhe — e TODOS os cards\nirmãos do grupo adotam o mesmo tamanho, para manter a simetria.",
@@ -3840,7 +3804,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1804255060906762133d8593d4e32bfa"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:248577",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:248584",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Linha de aviso embaixo do número (ex.: \"+2 aguardando aprovação\"). No\nperíodo misto (23/09/2026) vem com as PARCELAS coloridas — verde\nrealizado, laranja fraco previsto — então aceita nó React, não só\ntexto puro.",
@@ -3849,7 +3813,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f8fd62250f3451a100ad8fa9969fb024"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:257191",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:257198",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Moldura comum dos dois gráficos de previsão (pedido explícito, 08/09/2026).\n\nDuas decisões moram aqui:\n\n · NÃO existe mais eixo vertical. A grandeza é lida no rótulo em cima de\n cada marca e no tooltip — a \"legenda vertical\" saiu a pedido, e sair\n sem colocar nada no lugar deixaria o gráfico ilegível.\n\n · TODO dia do filtro aparece rotulado (`interval={0}`), nunca \"um sim,\n outro não\". Quando os dias não cabem, quem cede é a largura da vista,\n não o rótulo: a faixa passa a rolar para a direita e a janela visível\n encolhe até o último dia INTEIRO (regra anti-corte, ver\n useAntiClipColumns). Sem degradê nas bordas — proibido pelo cliente.",
@@ -3858,7 +3822,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c23d9dc332db9651f5914a38d8521d62"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:274493",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:274500",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A janela \"Concluir pendência\" (com a prestação de contas da despesa) mora em\n`TaskResolveDialog.tsx` desde 23/10/2026 (mockups 0i/0j/0k). O nome continua\nexportado DAQUI para que os gatilhos existentes (Pendências e o checklist\nda limpeza) não precisem mudar de import.",
@@ -3867,7 +3831,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "28f13b2bb753def38161fcc1a18ec461"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:274862",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:274869",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Rótulo de seção do formulário de pendência — dá hierarquia ao que antes\nera uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026).",
@@ -3876,7 +3840,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "56b708e624e12bb9a26b2593234ea4c6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:294959",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:294966",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Limite do calendário de \"Período\" (pedido explícito, 23/09/2026: só\ndeixar escolher datas que tenham demanda real de limpeza por trás).\nOpcionais e de uso pontual — quando não informados (todos os outros\nusos deste botão, fora a aba Limpeza) o calendário continua livre,\nexatamente como sempre foi.",
@@ -3885,7 +3849,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "921d4fd959b37a8bef68c9e16fe9519b"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:295968",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:295975",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Filtro de Situação (aba Serviços, 23/10/2026). No celular é a PRIMEIRA\nlinha deste menu; no computador o mesmo filtro mora num segmento ao lado\ndo \"+\", então a linha some (`lg:hidden`).",
@@ -3894,7 +3858,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d3d7ba5624f3b9e67b9e2687ab30b2f6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:312417",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:312424",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Agenda macro: ocupação de todos os imóveis nos próximos dias.\n\nOs filtros de Período/Proprietário/Cidade não vivem mais aqui como\nbotões separados — viraram um botão único (`CalendarFiltersButton`, ao\nlado do título) dentro do cabeçalho deste painel. O ESTADO continua\nvivendo no OperationWorkspace (o pai), porque também precisa afetar os\ncards \"Limpezas Realizadas\"/\"Custo Total Limpeza\" (que são irmãos deste\npainel, na aba \"Limpeza\") — por isso os valores/opções e os callbacks de\nmudança chegam tudo via props. `properties` já chega FILTRADA.",
@@ -3903,7 +3867,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8d33ed005e451cb14ae1e9daf6895ef8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:313867",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:313874",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Id da linha cuja prévia está aberta agora — vive no painel pai\n(`OccupancyPanel`), não aqui, para garantir que só uma exista por vez\n(ver comentário no `useState` do painel).",
@@ -3912,7 +3876,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "6833c0512f776ac8ab40e1e426b0d068"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:318611",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:318618",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os filtros (Período/Cidade/Proprietário) que antes\nficavam numa linha própria acima deste card viraram um botão único\n(`CalendarFiltersButton`) dentro do cabeçalho, ao lado do título — por\nisso o estado/opções continuam vindo do pai (`OperationWorkspace`),\nque é quem também usa esses mesmos filtros pros cards de limpeza.",
@@ -3921,7 +3885,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "67345afec21e651284020dbb8b2f7803"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:319357",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:319364",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Filtro de Prestador (pedido explícito, 23/09/2026) — também no\ncalendário de ocupação, por vínculo do imóvel (ver `calendarProperties`\nno pai).",
@@ -3930,7 +3894,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1c84a2b6c06fa53c4fb989dd109f449d"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:319744",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:319751",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Mobile: exatamente 5 dias inteiros no visor.\nDesktop: o máximo de dias inteiros que couber na largura do quadrante,\nsem nunca cortar a bolinha do último dia.",
@@ -3939,7 +3903,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "bc5ec68f4eb684360832917721f34380"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:320878",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:320885",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "FIXO (pedido explícito, 16/10/2026: \"FIXO é para que não seja mais\npossível RECOLHER ou EXPANDIR\"): o calendário está sempre aberto, no\ncomputador e no celular — sem estado, sem setinha.",
@@ -3948,7 +3912,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "bc52028762b8e4ef22421f5a7d3540d6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:434920",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:434939",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original\npra poder ser reaproveitado também pelo EngagementCard (cards separados do\ndesktop), sem duplicar esse JSX nos dois lugares.",
@@ -3957,7 +3921,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "191a73d470b9e71e3339a0db344ffb5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:435136",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:435155",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Redesign aprovado (Opção C): abas \"Viram\"/\"Não viram\" em vez das 2 listas\nempilhadas — só um grupo por vez, com mais respiro por linha (avatar de\niniciais + nome + imóvel), melhor pra quando a lista de hóspedes cresce.",
@@ -3966,7 +3930,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c550415d35f53c1c826967eef111ae42"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:445400",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:445421",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Controlado de fora (pela coluna do Kanban) quando presente — permite\nrecolher os \"Detalhes da operação\" ao rolar a coluna. Sem isso, cai de\nvolta pro estado local de sempre.",
@@ -3975,7 +3939,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1420a71a82d71664b9b9257192bc6178"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:450802",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:450826",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Marca este card (Check-ins) como \"Não Compareceu\" — pedido explícito,\n05/09/2026: opção no menu \"⋮\", só nos cards de check-in ainda pendentes.",
@@ -3984,25 +3948,25 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b858b5d3155e42847ae34a889b4053e2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:451802",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:451827",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
-    "content": "Modo \"Lista\" (pedido explícito): mostra só proprietário, imóvel e os\n botões de ação (bem menores) — some com nome do hóspede, código,\n período, previsto e alertas de iCal. Reaproveita o mesmo card e os\n mesmos handlers; só a apresentação muda.",
+    "content": "Modo \"Lista\" (pedido explícito): mostra só proprietário, imóvel e os\n botões de ação (bem menores) — some com nome do hóspede, código,\n período, previsto e alertas de reserva. Reaproveita o mesmo card e os\n mesmos handlers; só a apresentação muda.",
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
-    "content_hash": "943bbf38018e813c04eeb6799825fda6"
+    "content_hash": "1d6c6050f20d5a028bf2a73ac79c87ba"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:464111",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:464139",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
-    "content": "Lista + Concluídos/Não Compareceu = card mínimo (pedido explícito,\n08/09/2026): \"não deve ser apresentada qualquer info que não seja o nome\ndo proprietário, título do anúncio e botões\".\n\nSão as duas listas de ARQUIVO do quadro. Ali ninguém está operando nada:\nestá procurando um card específico para desfazer ou conferir. Período,\nprevisão, nota e alertas de iCal só alongam a linha e atrasam a busca —\no histórico completo continua a um clique (ver o popup de histórico).\n\nA etiqueta ALERTA é a exceção deliberada, por pedido explícito no mesmo\ndia: ela aparece em todo e qualquer card, inclusive aqui.",
+    "content": "Lista + Concluídos/Não Compareceu = card mínimo (pedido explícito,\n08/09/2026): \"não deve ser apresentada qualquer info que não seja o nome\ndo proprietário, título do anúncio e botões\".\n\nSão as duas listas de ARQUIVO do quadro. Ali ninguém está operando nada:\nestá procurando um card específico para desfazer ou conferir. Período,\nprevisão, nota e alertas de reserva só alongam a linha e atrasam a busca —\no histórico completo continua a um clique (ver o popup de histórico).\n\nA etiqueta ALERTA é a exceção deliberada, por pedido explícito no mesmo\ndia: ela aparece em todo e qualquer card, inclusive aqui.",
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
-    "content_hash": "1b25cf359cf9c187087b403bc46fefe6"
+    "content_hash": "a7746aeeb81e8c14f77af57b08c454f2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:464780",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:464811",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "CARD SEMPRE COMPACTO, QUE ABRE NO TOQUE (pedido explícito, 09/09/2026,\nmockup aprovado).\n\nO botão de trocar visualização saiu do sistema. No lugar de uma escolha\nglobal entre \"Completo\" e \"Lista\" — que obrigava a pessoa a decidir de\nantemão, para TODOS os cards, quanta informação queria ver —, cada card\nnasce compacto e abre sozinho quando você toca nele. A escolha deixa de\nser uma configuração e passa a ser um gesto, card a card.\n\n`compact` continua sendo a mesma variável de antes e continua governando o\nmesmo conjunto de detalhes; o que mudou é quem a define. A prop recebida\n(`compactProp`) segue valendo como PADRÃO, e o estado local só a sobrepõe\nquando a pessoa abre aquele card.\n\nO estado NÃO é lembrado entre aberturas da tela: tudo volta compacto.\nLembrar significaria reabrir o quadro com metade dos cards expandidos, o\nque desfaz exatamente o ganho de espaço que motivou a mudança.\n\nSÓ 1 CARD ABERTO POR VEZ (pedido explícito, 25/09/2026: \"a expansividade\npode ser apenas 1 de cada vez, e nao mais de 1 card expandido\nsimultaneamente\") — antes cada card guardava seu `openFull` sozinho, sem\nnenhum dos dois saber do outro, e vários abriam ao mesmo tempo na mesma\nlista. As props `expanded`/`onToggleExpanded` já existiam prontas (vêm\nde `ArrivalGroup`, que já tinha o \"só 1 por coluna\" implementado para\noutro uso e nunca tinha sido ligado aqui) — o card passa a obedecer o pai\nquando ele controla, com o estado local como única saída de reserva para\nquando não há pai controlando.",
@@ -4011,7 +3975,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4994a052e01d25afc8e1c8ede0e52559"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:467702",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:467733",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A PREVISÃO que este card mostra e edita — a do que vem A SEGUIR, não a da\nlista de origem (pedido explícito, 08/09/2026).\n\nA diferença aparece em \"Em Estadia\": o card vem da lista de CHEGADAS, mas\na chegada já aconteceu. Editar ali a previsão de check-in de quem já fez\ncheck-in não serve para nada — e o caso mais comum da operação é\nexatamente o oposto: o hóspede está dentro do imóvel e avisa a que horas\nvai sair. Por isso Em Estadia, Checkouts e Fila de Limpeza mostram a\nprevisão de SAÍDA, e só Chegadas mostra a de chegada.\n\nConcluído e Não Compareceu não têm previsão a exibir: não há próxima ação\npara prever.",
@@ -4020,7 +3984,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ff40685cfe573d82481eb7ac39c54e77"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:471367",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:471398",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "HISTÓRICO DA RESERVA (pedido explícito, 08/09/2026).\n\nNa visão Lista, o clique no próprio card abre a jornada completa — é o\ngesto natural quando o card mostra pouca coisa. No modo Completo o card\nestá cheio de controles e um clique global roubaria o clique de todos\neles, então ali o caminho é o item do menu \"⋮\". Os dois abrem exatamente\na mesma tela.\n\nSó identificador real: a chave sintética \"ical:<id>\" não é um uuid de\nlog — nesses cards a reserva é quem identifica a estadia.",
@@ -4038,7 +4002,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dbd77003e82cc32fac6076e0787b7170"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:527201",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:527239",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Restringe de verdade os horários selecionáveis (inclusive) ao horário\n configurado do imóvel — pedido explícito do cliente (04/09/2026): antes\n só existia um aviso visual (âmbar) depois de já ter escolhido um\n horário fora da janela; agora o horário nem aparece como opção. `null`/\n omitido = sem limite (imóvel sem esse horário configurado).",
@@ -4047,7 +4011,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8ebe1ab97a0756cd4e0279b3025812c8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:531810",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:531848",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Data e horário previstos são dois campos SEPARADOS de novo (pedido\nexplícito, 05/09/2026: \"quero que fiquem separados como antes, porém\nambos no layout padrão dos tooltips\") — cada botão abre seu próprio\ntooltip (só calendário / só horário, cada um com o mesmo visual dos\ntooltips padrão do sistema), não mais um painel único com os dois juntos.\n\nMas por baixo dos panos continua sendo UMA ÚNICA sessão de edição\n(`open`/pendingDate/pendingTime compartilhados): os dois botões só trocam\nQUAL conteúdo aparece dentro do mesmo Popover (ver `openField`), sem abrir\ne fechar de verdade um popover por vez. Isso é o que preserva o ajuste\nanterior (pedido explícito, mesma data): \"não é mover depois de fechar o\ncalendário, é mover depois de fechar o TOOLTIP inteiro\" — se cada campo\ntivesse seu próprio Popover independente, fechar o de Data já confirmaria\ne moveria o card antes do usuário conseguir abrir o de Horário, voltando\nao bug original. Nada é gravado (nem o card se move) enquanto QUALQUER um\ndos dois estiver \"aberto\" — só quando o usuário clica fora dos dois\nbotões (ou aperta \"Concluir\"/Esc) é que a data e o horário pendentes são\nconfirmados juntos, numa única leva.\n\nO piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não\nconfirmada) — mesma regra de \"dia mudou → sem piso/teto\" do card, só que\ncalculada aqui em cima do valor pendente, senão a lista de horários\nficaria com a janela do dia errado enquanto o usuário ainda decide.",
@@ -4056,7 +4020,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2b5d3cc828947c9353140290107ef27c"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:555512",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:555550",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "O DIA da previsão, em palavra quando dá — \"hoje\", \"amanhã\", \"ontem\" — e na\ndata cheia quando não dá.\n\nExiste porque um horário sozinho é ambíguo: \"20:00\" de que dia? A previsão\ntem data própria (`arrival_date_override`), separada do horário, e ela pode\ncair num dia diferente do da reserva — o hóspede avisa que só chega amanhã,\na saída é antecipada. Sem esta linha, o card mostraria um horário sem dizer\nde quando ele é.\n\nPedido explícito (08/09/2026): quando é HOJE — o caso da maioria dos cards —\na palavra fica apagada, porque uma informação que se repete em quinze cards\nseguidos deixa de ser lida. Qualquer outro dia ganha destaque, e um dia que\njá passou fica vermelho: é exceção, e é o que precisa ser visto.",
@@ -4065,7 +4029,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "56203b557168af116ea5761629c41dc5"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:557362",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:557400",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "MESMA virada de noite do seletor de horário logo abaixo (corrigido\n24/09/2026): no checkout, `min` (horário de abertura, ex.: 23:00) pode\nser MAIOR que `max` (horário limite, ex.: 15:00) em minutos-desde-meia-\nnoite. Sem tratar a virada, `a > b` fazia esta função devolver `false`\npara QUALQUER horário informado pelo hóspede — todo checkout com janela\nvirada acendia o aviso \"Horário divergente do padrão\" mesmo quando o\nhorário estava certinho dentro da janela.",
@@ -4086,13 +4050,13 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:79671",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
-    "content": "\"Limpeza Prevista 7d\" (pedido explícito) — diferente do histórico\n(`getCleaningStats`, baseado em `concluded_at`), aqui a base são os\nCHECKOUTS AGENDADOS (ainda pendentes) pros próximos 7 dias: cada\ncheckout previsto vira uma limpeza esperada naquele dia. Reaproveita a\nmesma lista/lógica de \"Checkouts\" (iCal, gating etc.) via `listFn`, só\nque com `range: \"7d\"` (hoje → hoje+6).\nCusto: como o tipo de limpeza (normal/completa) só é escolhido na hora\nde concluir, o valor aqui é uma ESTIMATIVA usando o preço da limpeza\nnormal de cada imóvel (pedido explícito) — nunca um valor fechado.",
+    "content": "\"Limpeza Prevista 7d\" (pedido explícito) — diferente do histórico\n(`getCleaningStats`, baseado em `concluded_at`), aqui a base são os\nCHECKOUTS AGENDADOS (ainda pendentes) pros próximos 7 dias: cada\ncheckout previsto vira uma limpeza esperada naquele dia. Reaproveita a\nmesma lista/lógica de \"Checkouts\" (reservas, gating etc.) via `listFn`, só\nque com `range: \"7d\"` (hoje → hoje+6).\nCusto: como o tipo de limpeza (normal/completa) só é escolhido na hora\nde concluir, o valor aqui é uma ESTIMATIVA usando o preço da limpeza\nnormal de cada imóvel (pedido explícito) — nunca um valor fechado.",
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
-    "content_hash": "1a6d487bfb64816890d2e542b2a67012"
+    "content_hash": "abb4cdec314fac4640b74e6375f10714"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:90706",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:90710",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A tela de Limpeza tem DUAS janelas, e é a MESMA tela nas duas (pedido\nexplícito, 09/09/2026: \"não quero que abra um tooltip ao clicar em\ntendência; quero que a tela seja a mesma da visão oficial, mas que os\ndados sejam mudados para os próximos 7 dias\").\n\nAntes a previsão vivia num popup com layout próprio — outra moldura, outra\ndensidade, outro jeito de ler os mesmos gráficos. Agora só a FONTE dos\ndados muda; cards, gráficos e ranking são os mesmos componentes.",
@@ -4326,7 +4290,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2dc2f5a02f7f41d617d3a1bc59dba09e"
   },
   {
-    "doc_key": "rule:src/components/GuideAccessGate.tsx:39372",
+    "doc_key": "rule:src/components/GuideAccessGate.tsx:39262",
     "kind": "rule",
     "title": "Regra em GuideAccessGate.tsx",
     "content": "Datas confirmadas da reserva (yyyy-MM-dd) — limites da previsão de\nchegada/saída: chegada nunca antes de `checkinISO`; saída nunca depois\nde `checkoutISO`.",
@@ -4650,7 +4614,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "9c54ba184914d9ed95a4942cbf0b7ef5"
   },
   {
-    "doc_key": "rule:src/lib/assistant/tools.server.ts:23541",
+    "doc_key": "rule:src/lib/assistant/tools.server.ts:23543",
     "kind": "rule",
     "title": "Regra em tools.server.ts",
     "content": "PENDÊNCIA PARECIDA JÁ EXISTENTE — pedido explícito (08/09/2026):\n\"se tiver uma pendência parecida com essa que está sendo solicitada,\nvocê não tem que gravar uma nova. Você precisa perguntar para o\nusuário se ele quer gravar mesmo assim\".\n\n\"Parecida\" é comparação do TÍTULO normalizado (sem acento, sem\ncaixa, sem espaço sobrando) entre as pendências ABERTAS do imóvel:\né o que a pessoa reconhece como \"essa já existe\". Comparar por\nsemelhança semântica seria mais esperto e menos previsível — e aqui\nprevisibilidade vale mais, porque o custo do erro é duplicar\nsilenciosamente uma rotina em dezenas de imóveis.",
@@ -4659,7 +4623,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d7e8271f1483a7e715f8a2143417b9a9"
   },
   {
-    "doc_key": "rule:src/lib/assistant/tools.server.ts:27554",
+    "doc_key": "rule:src/lib/assistant/tools.server.ts:27556",
     "kind": "rule",
     "title": "Regra em tools.server.ts",
     "content": "VÁRIAS pendências, UM cartão — arquivar, reabrir ou EXCLUIR de vez.\n\nPedido explícito (09/09/2026): \"remova todas as pendências que você\ncriou agora, de todos os imóveis\" e, na sequência, \"exclua\ndefinitivamente, não quero arquivar\". A IA respondeu que não conseguia\n— e estava certa: não havia ferramenta. Mesma lição da criação em\nlote: o que limita a autonomia quase nunca é o cartão de confirmação,\né a COBERTURA. Sem ação em lote, desfazer uma criação em quinze\nimóveis eram quinze cartões; sem exclusão, \"desfazer\" deixava quinze\nlinhas mortas atrás de um filtro.\n\nA busca é por TÍTULO normalizado (sem acento, sem caixa) porque é\nassim que a pessoa se refere a elas — \"as de limpeza dos filtros\" — e\nporque foi assim que o lote as criou. Sem busca, pega todas as abertas\ndo escopo visível.",
@@ -4668,7 +4632,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "275bc9421587f07589065ec4739ecb06"
   },
   {
-    "doc_key": "rule:src/lib/assistant/tools.server.ts:45141",
+    "doc_key": "rule:src/lib/assistant/tools.server.ts:45143",
     "kind": "rule",
     "title": "Regra em tools.server.ts",
     "content": "A ÚNICA ferramenta que grava na hora, sem cartão — e por um motivo\nlógico, não por exceção: ela É o cartão. Pedir confirmação para\ndesligar a confirmação seria uma piada.\n\nPedido explícito (09/09/2026): \"se o usuário pedir 'dispense a\nconfirmação', então ela tem que acatar e manter isso memorizado para\naquele usuário específico\".\n\nO que ela NÃO faz: ampliar permissão. Com a chave ligada, cada\ngravação continua passando pela MESMA server function da tela e pelo\nMESMO RLS — quem não pode arquivar uma pendência continua não podendo,\ne a falha aparece igual. O que sai é o clique, não a checagem.\n\nEscreve em `profiles` com o cliente do PRÓPRIO usuário: o RLS\n(\"profiles update own\") garante sozinho que ninguém mude a preferência\nde outra pessoa, sem nenhuma checagem extra aqui.",
@@ -4677,7 +4641,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0f2d472a66793ca3a4c802d1f2fd9e81"
   },
   {
-    "doc_key": "rule:src/lib/assistant/tools.server.ts:47630",
+    "doc_key": "rule:src/lib/assistant/tools.server.ts:47632",
     "kind": "rule",
     "title": "Regra em tools.server.ts",
     "content": "A agenda só enxerga 7 dias. Um vídeo de limpeza quase sempre chega\ndepois — \"a limpeza de ontem\", \"a saída da semana passada\" — e sem\nesta consulta o assistente não teria como achar a estadia certa.\nLeitura pelo cliente do usuário: o RLS decide o que aparece.",
@@ -4686,7 +4650,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0164e682b20cbb38190c9aadfae87e9f"
   },
   {
-    "doc_key": "rule:src/lib/assistant/tools.server.ts:50373",
+    "doc_key": "rule:src/lib/assistant/tools.server.ts:50375",
     "kind": "rule",
     "title": "Regra em tools.server.ts",
     "content": "ANEXAR O ARQUIVO DA CONVERSA A UMA ESTADIA (21/09/2026).\n\nPedido explícito: a IA interna precisa conseguir executar qualquer\nação que não seja alteração direta em reserva sincronizada — \"se um\nusuário interno mandar um vídeo pedindo para anexar a alguma reserva\nou alguma limpeza feita, ela tem que conseguir\".\n\nComo todas as outras, esta ferramenta NÃO grava e NÃO sobe nada: ela\nconfere o imóvel contra a permissão, escolhe a categoria e monta o\ncartão. O envio do arquivo e o `createRecordSituation` acontecem na\nconfirmação, pelo mesmo caminho da tela de registros — mesmo RLS,\nmesma numeração, mesma regra de pendência por categoria.",
@@ -4839,7 +4803,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "cb02c1d074b4576f0be8291692385a9e"
   },
   {
-    "doc_key": "rule:src/lib/dashboard-arrival-types.ts:3947",
+    "doc_key": "rule:src/lib/dashboard-arrival-types.ts:4047",
     "kind": "rule",
     "title": "Regra em dashboard-arrival-types.ts",
     "content": "LIMPEZA CRIADA MANUALMENTE (02/10/2026) — presente só nesses cards, que\nnão têm estadia por trás (`logId = \"manual:<id>\"`, `reservationId` nulo).\nTipo e valor já vêm definidos da criação; `reservationLinked` diz se ela\naponta para uma reserva (o hóspede vem em `guestName`). Ver\n`manual-cleaning.server.ts`.",
@@ -4857,7 +4821,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c5d7c67ab36429e4ef7882a69012e930"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:66811",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:66922",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "CORREÇÃO (16/09/2026): a trava não tinha recorte de data. Uma estadia\nantiga que ficou sem conclusão na esteira (ninguém arrastou o card até\n\"Concluído\") travava PARA SEMPRE todo check-in futuro do imóvel, sem\nforma de limpar pela tela. A regra só vale enquanto a estadia anterior\nainda está em curso: se a saída dela já passou, o imóvel está livre.",
@@ -4866,7 +4830,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f0dc32f8e039acbdce5c3d639d01aec7"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:70090",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:70201",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "\"Não Compareceu\" NÃO libera o imóvel (pedido explícito, 15/09/2026).\nA estadia continua ocupando o imóvel até que a reserva seja de fato\ncancelada no sistema — só então a próxima chegada é liberada. Como\nmarkNoShow grava concluded_at, essas linhas não aparecem na consulta\nacima; por isso olhamos para elas separadamente.\n\nCORREÇÃO (15/09/2026): a trava não tinha recorte de data. Um \"Não\nCompareceu\" do mês passado, cuja reserva importada por iCal continua\n\"confirmed\" para sempre, travava TODA chegada futura daquele imóvel,\nsem nenhuma forma de limpar. A regra só faz sentido enquanto a estadia\ndo no-show ainda está em curso: se a data de saída dela já passou, o\nimóvel está livre, independentemente do status da reserva.",
@@ -4875,7 +4839,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "edc55a43f4b31fbebe1f8cc20b92ca0d"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:88436",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:88547",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "Completa o identificador que faltou (pedido explícito, 08/09/2026: o\ncard marcado como \"não compareceu\" continuava espelhado na Fila de\nLimpeza).\n\nO card de chegada e o de saída da MESMA estadia nem sempre carregam o\nmesmo identificador — o casamento formulário↔reserva é mais exigente\ndo lado da chegada (ver `findLogsForReservation`). Gravando só o que o\ncard clicado tinha, o outro lado ficava sem chave em comum e escapava\ndo filtro. Aqui procuramos o par pela estadia e gravamos os DOIS, de\nmodo que qualquer consumidor — não só o quadro — reconheça o\nnão comparecimento por qualquer um dos lados.",
@@ -4905,10 +4869,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:src/lib/guest-access.server.ts:0",
     "kind": "rule",
     "title": "Regra em guest-access.server.ts",
-    "content": "PROVA DE ACESSO DO HÓSPEDE — tudo que decide se um visitante anônimo pode\nver senhas/códigos do imóvel mora aqui (auditoria de segurança, 16/09/2026).\n\nO problema que isto fecha:\n\n 1. Nos guias \"Check-In & Check-Out\" o formulário exige o código da reserva\n do Airbnb — mas essa exigência existia SÓ na tela. `getPublicGuide`\n devolvia Wi-Fi, código do portão e da fechadura para qualquer chamada\n direta à função, e o `sitemap.xml` publica o endereço de todo guia\n público. Quem soubesse o link tinha a senha da porta, sem reserva.\n 2. A IA do guia entregava os mesmos códigos pela ferramenta\n `get_property_facts` para qualquer pessoa que abrisse o chat — inclusive\n na vitrine da landing, que mostra um guia real.\n 3. Os cookies de PIN (`sg-pin-<id>` / `sg-accesscodes-<id>`) tinham o valor\n fixo \"ok\": bastava criar o cookie no navegador para \"acertar\" o PIN.\n\nA regra agora: dado sensível só sai do servidor com prova verificável —\ncódigo de reserva ATIVO no iCal (guias com código), ou cookie ASSINADO\nemitido depois de o PIN ser conferido no servidor.",
+    "content": "PROVA DE ACESSO DO HÓSPEDE — tudo que decide se um visitante anônimo pode\nver senhas/códigos do imóvel mora aqui (auditoria de segurança, 16/09/2026).\n\nO problema que isto fecha:\n\n 1. Nos guias \"Check-In & Check-Out\" o formulário exige o código da reserva\n do Airbnb — mas essa exigência existia SÓ na tela. `getPublicGuide`\n devolvia Wi-Fi, código do portão e da fechadura para qualquer chamada\n direta à função, e o `sitemap.xml` publica o endereço de todo guia\n público. Quem soubesse o link tinha a senha da porta, sem reserva.\n 2. A IA do guia entregava os mesmos códigos pela ferramenta\n `get_property_facts` para qualquer pessoa que abrisse o chat — inclusive\n na vitrine da landing, que mostra um guia real.\n 3. Os cookies de PIN (`sg-pin-<id>` / `sg-accesscodes-<id>`) tinham o valor\n fixo \"ok\": bastava criar o cookie no navegador para \"acertar\" o PIN.\n\nA regra agora: dado sensível só sai do servidor com prova verificável —\ncódigo de reserva ATIVO numa reserva oficial do imóvel, ou cookie ASSINADO\nemitido depois de o PIN ser conferido no servidor.",
     "source_path": "src/lib/guest-access.server.ts",
     "audience": [],
-    "content_hash": "dfadc73aa6511b19eecd62a5b9388cf1"
+    "content_hash": "2e2c4d8adcf0eadafe03b37de31e0050"
   },
   {
     "doc_key": "rule:src/lib/guest-ai/slot.server.ts:0",
@@ -4936,15 +4900,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-push-client.ts",
     "audience": [],
     "content_hash": "818be8a9a49897740c22ab2a7f7809ab"
-  },
-  {
-    "doc_key": "rule:src/lib/ical-blocks.server.ts:0",
-    "kind": "rule",
-    "title": "Regra em ical-blocks.server.ts",
-    "content": "\"Importar bloqueios manuais\" da janela \"Finalize a ativação\": lê o iCal do anúncio e grava cada\nbloqueio (não as reservas, que chegam pela API) como bloqueio manual do imóvel — gêmeos inclusos,\npois compartilham o imóvel — e guarda o link para a carga inicial da unidade ainda não mapeada.",
-    "source_path": "src/lib/ical-blocks.server.ts",
-    "audience": [],
-    "content_hash": "ec058cac913865a09fce1f4479d96bf5"
   },
   {
     "doc_key": "rule:src/lib/landing-demo.server.ts:0",
@@ -5409,10 +5364,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:src/lib/site-url.ts:0",
     "kind": "rule",
     "title": "Regra em site-url.ts",
-    "content": "O ENDEREÇO DO SISTEMA — um lugar só (11/09/2026).\n\nPedido: \"comprei conciergeia.app e quero alterar no sistema inteiro (...) é\npossível corrigirmos em massa sem precisar alterar um a um?\".\n\nEra possível porque o link do guia nunca foi gravado em lugar nenhum: ele é\nmontado na hora, a partir do slug do imóvel. O problema é que o PEDAÇO DA\nFRENTE — o domínio — estava escrito à mão em 36 pontos do código, em quatro\nvariações diferentes que já tinham se desencontrado entre si:\n\n · guia.anfitriaosigma.com.br (o endereço real, na maioria dos lugares)\n · sigmaconcierge.lovable.app (WhatsApp e iCal)\n · sigmaguide.lovable.app (prévia de e-mail)\n · project--c6a0…lovable.app (envio proativo)\n\nQuatro respostas para uma pergunta só é como um sistema passa a mandar links\ndiferentes para o mesmo hóspede. Agora existe UMA resposta, aqui, e trocar\nde domínio de novo é editar uma linha — ou nem isso, bastando definir\n`SITE_URL` nas variáveis de ambiente do projeto.\n\nNada de `VITE_*` para isto: o valor é o mesmo para todo mundo e não é\nsegredo, mas a regra da casa vale — o que o navegador precisa saber, ele\ndescobre por `window.location`.",
+    "content": "O ENDEREÇO DO SISTEMA — um lugar só (11/09/2026).\n\nPedido: \"comprei conciergeia.app e quero alterar no sistema inteiro (...) é\npossível corrigirmos em massa sem precisar alterar um a um?\".\n\nEra possível porque o link do guia nunca foi gravado em lugar nenhum: ele é\nmontado na hora, a partir do slug do imóvel. O problema é que o PEDAÇO DA\nFRENTE — o domínio — estava escrito à mão em 36 pontos do código, em quatro\nvariações diferentes que já tinham se desencontrado entre si:\n\n · guia.anfitriaosigma.com.br (o endereço real, na maioria dos lugares)\n · sigmaconcierge.lovable.app (WhatsApp)\n · sigmaguide.lovable.app (prévia de e-mail)\n · project--c6a0…lovable.app (envio proativo)\n\nQuatro respostas para uma pergunta só é como um sistema passa a mandar links\ndiferentes para o mesmo hóspede. Agora existe UMA resposta, aqui, e trocar\nde domínio de novo é editar uma linha — ou nem isso, bastando definir\n`SITE_URL` nas variáveis de ambiente do projeto.\n\nNada de `VITE_*` para isto: o valor é o mesmo para todo mundo e não é\nsegredo, mas a regra da casa vale — o que o navegador precisa saber, ele\ndescobre por `window.location`.",
     "source_path": "src/lib/site-url.ts",
     "audience": [],
-    "content_hash": "132659b2da4d0e0ed5ba9a5fe818acdd"
+    "content_hash": "105fc8f8178cee434d0bfb44a18236aa"
   },
   {
     "doc_key": "rule:src/lib/tasks-types.ts:1805",
@@ -5656,15 +5611,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/stakeholders/SyncRequiredGate.tsx",
     "audience": [],
     "content_hash": "9ce02e506e9664eeeea59420c584ebff"
-  },
-  {
-    "doc_key": "rule:syncStaleIcals",
-    "kind": "rule",
-    "title": "Regra — syncStaleIcals",
-    "content": "Ressincroniza iCals desatualizados (>10min) para que qualquer superfície\n(Kanban, KPIs, calendário de ocupação) leia sempre a reserva mais recente.",
-    "source_path": "src/lib/arrival-board.server.ts",
-    "audience": [],
-    "content_hash": "cf9c8a225beeec84d35fd30b9001091c"
   },
   {
     "doc_key": "rule:SystemRole",
@@ -5958,10 +5904,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:UUID_RE",
     "kind": "rule",
     "title": "Regra — UUID_RE",
-    "content": "Convenção da esteira: nem todo card tem log de verdade. Reserva vinda do\niCal sem formulário preenchido carrega um `logId` sintético (\"ical:<id>\"),\nque só serve como chave de tela. Mandar isso para `markNoShow` — que valida\nuuid — daria erro de validação; o identificador utilizável nesse caso é o\n`reservationId`. Estas duas funções são o filtro.",
+    "content": "Convenção da esteira: nem todo card tem log de verdade. Reserva sem\nformulário preenchido carrega um `logId` sintético (\"ical:<id>\", nome histórico),\nque só serve como chave de tela. Mandar isso para `markNoShow` — que valida\nuuid — daria erro de validação; o identificador utilizável nesse caso é o\n`reservationId`. Estas duas funções são o filtro.",
     "source_path": "src/lib/assistant/tools.server.ts",
     "audience": [],
-    "content_hash": "620175e88a29e2339d97f8d56ac3e92f"
+    "content_hash": "3d1f15e37e8e62b4ccf7078f3c235c90"
   },
   {
     "doc_key": "rule:validatePricing",

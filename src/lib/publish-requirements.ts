@@ -6,10 +6,8 @@
 export type PublishCandidate = Record<string, unknown>;
 
 // Etiqueta (tagline) de guia cujo horário de chegada/saída depende de uma
-// reserva real — único tipo para o qual o calendário do Airbnb é exigido
-// para publicar (ver regra de "airbnb_ical_url" abaixo). Fonte única do
-// valor, reaproveitada pelo editor do imóvel para
-// não duplicar a string em vários lugares.
+// reserva real. Fonte única do valor, reaproveitada pelo editor do imóvel
+// para não duplicar a string em vários lugares.
 export const ETIQUETA_CHECKIN_CHECKOUT = "Check-In & Check-Out";
 
 export const PUBLISH_REQUIRED_COLUMNS = [
@@ -18,7 +16,6 @@ export const PUBLISH_REQUIRED_COLUMNS = [
   "maps_url",
   "city",
   "country",
-  "airbnb_ical_url",
   "name",
   "slug",
   "tagline",
@@ -55,14 +52,6 @@ const RULES: Array<{ key: string; label: string; check: (p: PublishCandidate) =>
   },
   { key: "city", label: "Endereço — Cidade", check: (p) => !!str(p.city) },
   { key: "country", label: "Endereço — País", check: (p) => !!str(p.country) },
-  {
-    key: "airbnb_ical_url",
-    label: "URL do calendário Airbnb",
-    // Disponível para qualquer plano (ver admin.properties.$id.tsx), mas só
-    // é obrigatório para publicar guias do tipo "Check-In & Check-Out" —
-    // nos demais tipos de guia, o calendário é opcional.
-    check: (p) => !!str(p.airbnb_ical_url),
-  },
   { key: "name", label: "Identidade visual — Nome do imóvel", check: (p) => !!str(p.name) },
   { key: "slug", label: "Identidade visual — URL pública", check: (p) => !!str(p.slug) },
   { key: "tagline", label: "Identidade visual — Tipo do guia", check: (p) => !!str(p.tagline) },

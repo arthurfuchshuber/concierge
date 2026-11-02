@@ -79,8 +79,8 @@ function todayISO(tz = "America/Sao_Paulo"): string {
 }
 
 /**
- * Convenção da esteira: nem todo card tem log de verdade. Reserva vinda do
- * iCal sem formulário preenchido carrega um `logId` sintético ("ical:<id>"),
+ * Convenção da esteira: nem todo card tem log de verdade. Reserva sem
+ * formulário preenchido carrega um `logId` sintético ("ical:<id>", nome histórico),
  * que só serve como chave de tela. Mandar isso para `markNoShow` — que valida
  * uuid — daria erro de validação; o identificador utilizável nesse caso é o
  * `reservationId`. Estas duas funções são o filtro.

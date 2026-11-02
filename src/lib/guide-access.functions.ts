@@ -119,7 +119,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     const propQuery = supabaseAdmin
       .from("properties")
       .select(
-        "id, checkin_time, checkin_time_max, checkout_time, checkout_time_min, tagline, airbnb_ical_url, airbnb_ical_last_sync_at",
+        "id, checkin_time, checkin_time_max, checkout_time, checkout_time_min, tagline",
       )
       .eq("slug", data.slug)
       .eq("published", true);
@@ -130,70 +130,22 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       throw (await import("@/lib/db-errors.server")).safeDbError("guide_access_logs", propErr);
     if (!prop) return { ok: false as const, reason: "not_found" };
 
-    const hasIcal = !!((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
-    let icalReservationCode: string | null = null;
-
-    // REGRA (25/09/2026): TODO guia exige código de reserva ATIVO, validado
-    // ao vivo contra o iCal do Airbnb. Sem calendário não há como conferir —
-    // o guia fica fechado para hóspedes.
+    // REGRA (25/09/2026): TODO guia exige código de reserva ATIVO, conferido
+    // nas reservas oficiais do imóvel. Sem reserva oficial não há como
+    // conferir — o guia fica fechado para hóspedes. "Não compareceu" também
+    // trava o acesso (dentro de `lookupReservationByCode`).
     {
       const { propertyHasReservationFeed } = await import("@/lib/guest-access.server");
-      if (!(await propertyHasReservationFeed(prop.id as string, (prop as { airbnb_ical_url?: string | null }).airbnb_ical_url)))
-        return { ok: false as const, reason: "no_ical" };
+      if (!(await propertyHasReservationFeed(prop.id as string)))
+        return { ok: false as const, reason: "no_reservations" };
     }
-    const requiresCode = true as boolean;
-    if (requiresCode) {
-      const codeRaw = (data.reservation_code ?? "").trim();
-      if (!codeRaw) return { ok: false as const, reason: "code_required" };
-      const found = await lookupReservationByCode(data.slug, data.property_id, codeRaw);
-      if (!found.ok) return { ok: false as const, reason: found.reason };
-      icalReservationCode = codeRaw.toUpperCase();
-      data.checkin_date = found.checkin_date;
-      data.checkout_date = found.checkout_date;
-    }
-
-    if (hasIcal && !requiresCode) {
-      const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
-      await ensurePropertyIcalFresh(
-        prop.id,
-        (prop as { airbnb_ical_url?: string | null }).airbnb_ical_url,
-        (prop as { airbnb_ical_last_sync_at?: string | null }).airbnb_ical_last_sync_at,
-      );
-      const { isAllowedGuidePeriod, isRealReservation } = await import("@/lib/reservations.server");
-      // Sem data de saída informada, a validação usa apenas a data de entrada:
-      // o hóspede nunca pode registrar um dia que não é chegada real do iCal.
-      let query = supabaseAdmin
-        .from("property_reservations")
-        .select("checkin_date, checkout_date, raw_summary, status, guest_hint")
-        .eq("property_id", prop.id)
-        .in("source", ["airbnb", "channex"])
-        .eq("checkin_date", data.checkin_date);
-      if (data.checkout_date) query = query.eq("checkout_date", data.checkout_date);
-      const { data: periods } = await query.limit(50);
-      const matched = data.checkout_date
-        ? isAllowedGuidePeriod(periods as never, data.checkin_date, data.checkout_date).matched
-        : ((periods ?? []) as never[]).some((r) => isRealReservation(r));
-      if (!matched) return { ok: false as const, reason: "no_match" };
-
-      // Captura o código HM… do iCal quando o par (imóvel, entrada, saída) é
-      // único — assim o dashboard mapeia o log ao card certo mesmo quando o
-      // formulário público não expõe o campo de código.
-      const rows = ((periods ?? []) as Array<{ guest_hint: string | null }>).filter(
-        (r) => !!r.guest_hint,
-      );
-      const codes = Array.from(new Set(rows.map((r) => (r.guest_hint ?? "").toUpperCase())));
-      if (codes.length === 1) icalReservationCode = codes[0];
-    }
-
-    // "Não compareceu" trava o guia (pedido explícito, 24/09/2026). Nos guias
-    // com código a trava já veio de `lookupReservationByCode`; aqui cobre os
-    // guias sem código (acesso pelas datas).
-    if (!requiresCode) {
-      const { isStayMarkedNoShow } = await import("@/lib/guest-access.server");
-      if (await isStayMarkedNoShow(prop.id as string, data.checkin_date)) {
-        return { ok: false as const, reason: "no_show" };
-      }
-    }
+    const codeRaw = (data.reservation_code ?? "").trim();
+    if (!codeRaw) return { ok: false as const, reason: "code_required" };
+    const found = await lookupReservationByCode(data.slug, data.property_id, codeRaw);
+    if (!found.ok) return { ok: false as const, reason: found.reason };
+    const reservationCode = codeRaw.toUpperCase();
+    data.checkin_date = found.checkin_date;
+    data.checkout_date = found.checkout_date;
 
     const userAgent = getRequestHeader("user-agent")?.slice(0, 500) ?? null;
     const { data: insertedLog, error } = await supabaseAdmin
@@ -201,7 +153,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       .insert({
         property_id: prop.id,
         guest_name: data.guest_name,
-        reservation_code: data.reservation_code?.trim() || icalReservationCode || null,
+        reservation_code: data.reservation_code?.trim() || reservationCode || null,
         checkin_date: data.checkin_date,
         checkout_date: data.checkout_date ?? null,
         guest_phone: data.guest_phone?.trim() || null,
@@ -371,7 +323,7 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
       await import("@/lib/reservations.server");
     const propQuery = supabaseAdmin
       .from("properties")
-      .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
+      .select("id")
       .eq("slug", data.slug)
       .eq("published", true);
     const { data: prop } = data.property_id
@@ -379,24 +331,15 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
       : await propQuery.maybeSingle();
     if (!prop)
       return {
-        hasIcal: false as const,
+        hasFeed: false as const,
         periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }>,
       };
-    const hasIcal = !!((prop.airbnb_ical_url as string | null) ?? "").trim();
     const { propertyHasReservationFeed } = await import("@/lib/guest-access.server");
-    if (!(await propertyHasReservationFeed(prop.id as string, prop.airbnb_ical_url as string | null)))
+    if (!(await propertyHasReservationFeed(prop.id as string)))
       return {
-        hasIcal: false as const,
+        hasFeed: false as const,
         periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }>,
       };
-    if (hasIcal) {
-      const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
-      await ensurePropertyIcalFresh(
-        prop.id,
-        prop.airbnb_ical_url as string | null,
-        (prop as { airbnb_ical_last_sync_at?: string | null }).airbnb_ical_last_sync_at,
-      );
-    }
 
     const today = operationalTodayISO();
     const { data: rows } = await supabaseAdmin
@@ -425,7 +368,7 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
         periods.push({ checkin: row.checkin_date, checkout: row.checkout_date, type });
     }
 
-    return { hasIcal: true as const, periods };
+    return { hasFeed: true as const, periods };
   });
 
 /**
@@ -448,30 +391,21 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
     const nights = (co - ci) / DAY;
     const offset = (ci - Date.now()) / DAY;
     if (!(nights >= 1 && nights <= 60) || offset < -60 || offset > 30) {
-      return { hasIcal: true as const, matched: false as const };
+      return { hasFeed: true as const, matched: false as const };
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const propQuery = supabaseAdmin
       .from("properties")
-      .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
+      .select("id")
       .eq("slug", data.slug)
       .eq("published", true);
     const { data: prop } = data.property_id
       ? await propQuery.eq("id", data.property_id).maybeSingle()
       : await propQuery.maybeSingle();
-    if (!prop) return { hasIcal: false as const, matched: false as const };
-    const hasIcal = !!((prop.airbnb_ical_url as string | null) ?? "").trim();
+    if (!prop) return { hasFeed: false as const, matched: false as const };
     const { propertyHasReservationFeed } = await import("@/lib/guest-access.server");
-    if (!(await propertyHasReservationFeed(prop.id as string, prop.airbnb_ical_url as string | null)))
-      return { hasIcal: false as const, matched: false as const };
-    if (hasIcal) {
-      const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
-      await ensurePropertyIcalFresh(
-        prop.id,
-        prop.airbnb_ical_url as string | null,
-        (prop as { airbnb_ical_last_sync_at?: string | null }).airbnb_ical_last_sync_at,
-      );
-    }
+    if (!(await propertyHasReservationFeed(prop.id as string)))
+      return { hasFeed: false as const, matched: false as const };
 
     const { isAllowedGuidePeriod } = await import("@/lib/reservations.server");
     const { data: exact } = await supabaseAdmin
@@ -484,9 +418,9 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
       .limit(50);
     const allowed = isAllowedGuidePeriod(exact as never, data.checkin_date, data.checkout_date);
     if (allowed.matched) {
-      return { hasIcal: true as const, matched: true as const, matchType: allowed.type };
+      return { hasFeed: true as const, matched: true as const, matchType: allowed.type };
     }
-    return { hasIcal: true as const, matched: false as const };
+    return { hasFeed: true as const, matched: false as const };
   });
 
 const StayStatusInput = z.object({
@@ -724,7 +658,7 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const propQuery = supabaseAdmin
       .from("properties")
-      .select("id, tagline, airbnb_ical_url")
+      .select("id, tagline")
       .eq("slug", data.slug)
       .eq("published", true);
     const { data: prop } = data.property_id
@@ -743,7 +677,7 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
     if (!guestNameRaw) return { ok: false as const };
     const { isReservationGated, lookupReservationByCode: lookup } =
       await import("@/lib/guest-access.server");
-    if (isReservationGated(prop as { tagline?: string | null; airbnb_ical_url?: string | null })) {
+    if (isReservationGated(prop as { tagline?: string | null })) {
       const code = (data.reservation_code ?? "").trim();
       if (!code) return { ok: false as const };
       const res = await lookup(data.slug, prop.id as string, code);
@@ -779,7 +713,7 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
      *
      * Antes esta função gravava SÓ pela chave do formulário (`log_id`). O
      * quadro, porém, lê primeiro a linha da RESERVA (`reservation_id`) — então
-     * num card do iCal que já tinha linha própria (ex.: depois de o anfitrião
+     * num card de reserva que já tinha linha própria (ex.: depois de o anfitrião
      * informar uma previsão) o toque do hóspede nunca movia o card. E pulava
      * os efeitos do avanço normal (fechar a estadia no check-out, aviso de
      * limpeza). Agora o avanço é EXATAMENTE o mesmo do botão do painel
@@ -964,8 +898,8 @@ export const undoGuideStayStep = createServerFn({ method: "POST" })
 /* ------------------------------------------------------------------ *
  * Validação do código da reserva (Airbnb) — guias "Check-In & Check-Out"
  *
- * O hóspede digita o código (HMxxxxxxx) e o sistema consulta o iCal do
- * imóvel na hora: se a reserva estiver ativa, devolvemos as datas para
+ * O hóspede digita o código (HMxxxxxxx) e o sistema consulta as reservas
+ * oficiais do imóvel na hora: se a reserva estiver ativa, devolvemos as datas para
  * preencher o período automaticamente; se sumir/cancelar depois, o mesmo
  * endpoint passa a responder "inativa" e o guia derruba o acesso.
  * ------------------------------------------------------------------ */
@@ -1016,7 +950,7 @@ export const getReservationLiveStatus = createServerFn({ method: "POST" })
     }
     const res = await lookupReservationByCode(data.slug, data.property_id, data.code);
     if (res.ok) return { active: true as boolean | null, checkout_date: res.checkout_date };
-    if (res.reason === "no_ical" || res.reason === "not_found")
+    if (res.reason === "no_reservations" || res.reason === "not_found")
       return { active: null as boolean | null };
     return { active: false as boolean | null, reason: res.reason };
   });
@@ -1064,7 +998,7 @@ export const submitPredictedTime = createServerFn({ method: "POST" })
     const propQuery = supabaseAdmin
       .from("properties")
       .select(
-        "id, tagline, airbnb_ical_url, checkin_time, checkin_time_max, checkout_time, checkout_time_min",
+        "id, tagline, checkin_time, checkin_time_max, checkout_time, checkout_time_min",
       )
       .eq("slug", data.slug)
       .eq("published", true);
@@ -1080,7 +1014,7 @@ export const submitPredictedTime = createServerFn({ method: "POST" })
     if (!guestNameRaw) return { ok: false as const };
     const { isReservationGated, lookupReservationByCode: lookup } =
       await import("@/lib/guest-access.server");
-    if (isReservationGated(prop as { tagline?: string | null; airbnb_ical_url?: string | null })) {
+    if (isReservationGated(prop as { tagline?: string | null })) {
       const code = (data.reservation_code ?? "").trim();
       if (!code) return { ok: false as const };
       const res = await lookup(data.slug, prop.id as string, code);
@@ -1115,7 +1049,7 @@ export const submitPredictedTime = createServerFn({ method: "POST" })
     });
     if (!match) return { ok: false as const };
 
-    // Mesma reserva real (iCal) que o "já acessei/já saí" casa — quando
+    // Mesma reserva oficial que o "já acessei/já saí" casa — quando
     // existe, a previsão grava nos dois identificadores (ver upsert abaixo).
     const { isRealReservation } = await import("@/lib/reservations.server");
     const { data: resRows } = await supabaseAdmin

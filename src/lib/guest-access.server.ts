@@ -16,31 +16,30 @@
  *     fixo "ok": bastava criar o cookie no navegador para "acertar" o PIN.
  *
  * A regra agora: dado sensível só sai do servidor com prova verificável —
- * código de reserva ATIVO no iCal (guias com código), ou cookie ASSINADO
+ * código de reserva ATIVO numa reserva oficial do imóvel, ou cookie ASSINADO
  * emitido depois de o PIN ser conferido no servidor.
  */
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 
 type PropLike = {
   tagline?: string | null;
-  airbnb_ical_url?: string | null;
 };
 
 /**
- * Guia cujo acesso depende do código de reserva validado no iCal. É a MESMA
- * condição usada em `recordGuideAccess` para exigir o código — sem iCal não
- * há contra o que validar, e o guia segue a regra antiga (acesso pelo link).
+ * Guia cujo acesso depende do código de reserva validado nas reservas
+ * oficiais do imóvel. É a MESMA condição usada em `recordGuideAccess`.
  */
 export function isReservationGated(prop: PropLike | null | undefined): boolean {
   // REGRA (25/09/2026): todo guia real exige código de reserva ativo. Sem
-  // iCal a conferência falha ("no_ical") e nada sensível é liberado.
+  // reserva oficial a conferência falha ("no_reservations") e nada sensível
+  // é liberado.
   void ETIQUETA_CHECKIN_CHECKOUT;
   return !!prop;
 }
 
 export type ReservationLookup =
   | { ok: true; checkin_date: string; checkout_date: string }
-  | { ok: false; reason: "not_found" | "no_ical" | "inactive" | "expired" | "no_show" };
+  | { ok: false; reason: "not_found" | "no_reservations" | "inactive" | "expired" | "no_show" };
 
 /**
  * "NÃO COMPARECEU" TRAVA O GUIA (pedido explícito, 24/09/2026: "se um card
@@ -98,30 +97,27 @@ export async function isStayMarkedNoShow(
   );
 }
 
-/** Origens de reserva oficiais aceitas pelo guia (iCal Airbnb + API Channex). */
+/**
+ * Origens de reserva oficiais aceitas pelo guia: a API (`channex`) e o
+ * histórico importado do Airbnb antes da conexão (`airbnb`), que continua
+ * valendo para as estadias já registradas.
+ */
 const RESERVATION_SOURCES = ["airbnb", "channex"];
 
-/**
- * O imóvel tem de onde conferir reservas? iCal configurado OU reservas
- * oficiais recebidas pela API Channex (imóveis integrados não usam iCal).
- */
-export async function propertyHasReservationFeed(
-  propertyId: string,
-  icalUrl: string | null | undefined,
-): Promise<boolean> {
-  if ((icalUrl ?? "").trim()) return true;
+/** O imóvel tem reservas oficiais contra as quais conferir o código? */
+export async function propertyHasReservationFeed(propertyId: string): Promise<boolean> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin
     .from("property_reservations")
     .select("id")
     .eq("property_id", propertyId)
-    .eq("source", "channex")
+    .in("source", RESERVATION_SOURCES)
     .limit(1);
   return ((data ?? []) as unknown[]).length > 0;
 }
 
 /**
- * Consulta a reserva pelo código (HM…) no espelho do iCal do imóvel. Movida de
+ * Consulta a reserva pelo código (HM…) nas reservas oficiais do imóvel. Movida de
  * `guide-access.functions.ts` sem mudança de regra, para ser usada também pelo
  * guia (liberação das senhas) e pelo chat do hóspede.
  */
@@ -133,33 +129,23 @@ export async function lookupReservationByCode(
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const propQuery = supabaseAdmin
     .from("properties")
-    .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
+    .select("id")
     .eq("slug", slug)
     .eq("published", true);
   const { data: prop } = propertyId
     ? await propQuery.eq("id", propertyId).maybeSingle()
     : await propQuery.maybeSingle();
   if (!prop) return { ok: false, reason: "not_found" };
-  const icalUrl = ((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
-  if (!(await propertyHasReservationFeed(prop.id as string, icalUrl))) {
-    return { ok: false, reason: "no_ical" };
+  if (!(await propertyHasReservationFeed(prop.id as string))) {
+    return { ok: false, reason: "no_reservations" };
   }
 
   const code = rawCode.trim().toUpperCase();
   // Só letras/números: nada de curingas ou sintaxe de filtro chegando ao banco.
   if (code.length < 4 || !/^[A-Z0-9]+$/.test(code)) return { ok: false, reason: "inactive" };
 
-  if (icalUrl) {
-    const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
-    await ensurePropertyIcalFresh(
-      prop.id,
-      icalUrl,
-      (prop as { airbnb_ical_last_sync_at?: string | null }).airbnb_ical_last_sync_at,
-    );
-  }
-
-  // Reservas oficiais: espelho do iCal (`airbnb`, código em guest_hint) e API
-  // Channex (`channex`, código em guest_contacts.code). Reservas de anúncios
+  // Reservas oficiais: histórico do Airbnb (`airbnb`, código em guest_hint) e
+  // API (`channex`, código em guest_contacts.code). Reservas de anúncios
   // gêmeos já são gravadas no imóvel principal, então caem no mesmo guia.
   const { data: rows } = await supabaseAdmin
     .from("property_reservations")

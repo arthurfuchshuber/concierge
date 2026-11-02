@@ -71,13 +71,13 @@ function isRealReservation(row: { status?: string | null; raw_summary?: string |
  * Uma estadia (imóvel + entrada + saída) gera um único card.
  *
  * A CHANNEX MANDA (pedido explícito, 16/10/2026): quando a mesma estadia
- * existe no iCal (`source = "airbnb"`) e na Channex (`source = "channex"`),
- * TODOS os dados vêm da linha da Channex — valor, comissão, hóspede, canal,
- * status da reserva. O iCal só continua valendo para imóveis sem Channex.
+ * existe no histórico importado do Airbnb (`source = "airbnb"`, antigo iCal)
+ * e na Channex (`source = "channex"`), TODOS os dados vêm da linha da Channex
+ * — valor, comissão, hóspede, canal, status da reserva.
  *
  * Uma única exceção, só de IDENTIDADE: o status gravado pela equipe
  * (`guest_arrival_status.reservation_id`) está preso ao id da linha em que foi
- * gravado. Se foi na do iCal, a linha resultante leva o id dela (senão o card
+ * gravado. Se foi na do histórico, a linha resultante leva o id dela (senão o card
  * voltaria a "pendente"), mas com o conteúdo da Channex.
  *
  * Sem `source` nas linhas (chamadores antigos) vale a regra anterior: fica a
@@ -159,7 +159,7 @@ function normalizeReservationCode(s: string | null | undefined): string | null {
 }
 
 /**
- * Retorna todos os logs que representam hóspedes da MESMA reserva iCal
+ * Retorna todos os logs que representam hóspedes da MESMA reserva
  * (primário + acompanhantes). Ordenados por prioridade (código HM bate mais
  * forte que datas), o primeiro vira o hóspede exibido; os demais ficam como
  * acompanhantes. Usada tanto pelo Kanban (buildArrivalRows) quanto pelo
@@ -220,38 +220,6 @@ export function findLogsForReservation<T extends ArrivalLogRow>(
 }
 
 /**
- * Ressincroniza iCals desatualizados (>10min) para que qualquer superfície
- * (Kanban, KPIs, calendário de ocupação) leia sempre a reserva mais recente.
- */
-export async function syncStaleIcals(supabase: AnyClient, propIds: string[]): Promise<void> {
-  if (propIds.length === 0) return;
-  const { data: syncProps } = await (supabase as any)
-    .from("properties")
-    .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
-    .in("id", propIds)
-    .not("airbnb_ical_url", "is", null);
-  const stale = (
-    (syncProps ?? []) as Array<{ id: string; airbnb_ical_url: string | null; airbnb_ical_last_sync_at: string | null }>
-  )
-    .filter((p) => {
-      const url = p.airbnb_ical_url?.trim();
-      if (!url) return false;
-      if (!p.airbnb_ical_last_sync_at) return true;
-      return Date.now() - new Date(p.airbnb_ical_last_sync_at).getTime() > 10 * 60 * 1000;
-    })
-    .slice(0, 8);
-  if (stale.length === 0) return;
-  const { isAllowedIcalUrl } = await import("@/lib/airbnb-ical-url");
-  const { syncPropertyIcal } = await import("@/lib/airbnb-ical.server");
-  await Promise.allSettled(
-    stale.map((p) => {
-      const url = p.airbnb_ical_url?.trim();
-      return url && isAllowedIcalUrl(url) ? syncPropertyIcal(p.id, url) : Promise.resolve(null);
-    }),
-  );
-}
-
-/**
  * Monta exatamente as mesmas linhas exibidas no Kanban do dashboard.
  * `supabase` pode ser o client do usuário (RLS) ou o admin (cron).
  */
@@ -305,9 +273,6 @@ export async function buildArrivalRows(
     if (data.range === "today") {
       from = addDaysISO(today, -OVERDUE_WINDOW_DAYS);
     }
-
-    // iCal NÃO é baixado aqui: o painel lê só o banco (resposta imediata);
-    // o cron `sync-airbnb-ical-30min` mantém os calendários em dia.
 
     // Uma nova estadia já iniciada torna impossível manter a anterior como
     // checkout/limpeza operacional. Reconcilia antes das consultas para que
@@ -431,7 +396,7 @@ export async function buildArrivalRows(
       memo<any>("props", () => context.supabase
         .from("properties")
         .select(
-          "id, name, address, owner_contact_id, maps_url, garage_maps_url, lat, lng, wifi_ssid, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url, cleaning_price_normal_cents, cleaning_price_full_cents",
+          "id, name, address, owner_contact_id, maps_url, garage_maps_url, lat, lng, wifi_ssid, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, cleaning_price_normal_cents, cleaning_price_full_cents",
         )
         .in("id", propIds)),
       memo<any>("statuses", () => context.supabase
@@ -557,7 +522,6 @@ export async function buildArrivalRows(
         checkin_time_max: string | null;
         checkout_time: string | null;
         checkout_time_min: string | null;
-        airbnb_ical_url: string | null;
         cleaning_price_normal_cents: number | null;
         cleaning_price_full_cents: number | null;
       }
@@ -579,7 +543,6 @@ export async function buildArrivalRows(
       checkin_time_max: string | null;
       checkout_time: string | null;
       checkout_time_min: string | null;
-      airbnb_ical_url: string | null;
       cleaning_price_normal_cents: number | null;
       cleaning_price_full_cents: number | null;
     }>) {
@@ -607,7 +570,6 @@ export async function buildArrivalRows(
         checkin_time_max: p.checkin_time_max,
         checkout_time: p.checkout_time,
         checkout_time_min: p.checkout_time_min,
-        airbnb_ical_url: p.airbnb_ical_url,
         cleaning_price_normal_cents: p.cleaning_price_normal_cents,
         cleaning_price_full_cents: p.cleaning_price_full_cents,
       });
@@ -1062,13 +1024,16 @@ export async function buildArrivalRows(
       // manda no dia do card — a data bruta informada pelo hóspede só entra
       // de fallback quando não há previsão registrada.
       const date = s?.arrival_date_override ?? (data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date));
-      const hasIcal = !!p?.airbnb_ical_url || (resByProp.get(l.property_id)?.length ?? 0) > 0;
+      // Imóvel com reserva oficial: o formulário do hóspede é conferido contra
+      // ela (campo `ical` do card: nome mantido porque o cache do app fica salvo
+      // no aparelho; o conteúdo vem só das reservas oficiais).
+      const hasFeed = (resByProp.get(l.property_id)?.length ?? 0) > 0;
       let matched = false;
       let icalCheckin: string | null = null;
       let icalCheckout: string | null = null;
-      if (hasIcal) {
+      if (hasFeed) {
         const list = resByProp.get(l.property_id) ?? [];
-        // Always anchor the iCal match on the log's CHECK-IN date — guests are
+        // Always anchor the reservation match on the log's CHECK-IN date — guests are
         // reliable about arrival, but often mistype checkout. Trying to match
         // by checkout can snap to the previous/next reservation when the guest
         // typed the wrong departure day.
@@ -1173,7 +1138,7 @@ export async function buildArrivalRows(
         arrivalTimeSource: (s as { arrival_time_source?: string | null } | undefined)?.arrival_time_source ?? null,
         doneAt: s?.done_at ?? null,
         pendingFill: false,
-        ical: forceIcal ?? { hasIcal, matched, icalCheckin, icalCheckout },
+        ical: forceIcal ?? { hasIcal: hasFeed, matched, icalCheckin, icalCheckout },
         additionalGuests: extras.map((e) => ({
           logId: e.id,
           name: e.guest_name,
@@ -1207,7 +1172,7 @@ export async function buildArrivalRows(
         resDate,
       );
       const date = liveOverride ?? resDate;
-      // IMPORTANTE: nunca usar `synced_at` aqui — ele é reescrito a cada sync do iCal,
+      // IMPORTANTE: nunca usar `synced_at` aqui — ele era reescrito a cada sincronização,
       // o que promoveria toda estadia em curso automaticamente. Só a data real de
       // criação do registro (integração nova) pode disparar a auto-distribuição.
       const virtualStay = autoStayDone(r.checkin_date, r.checkout_date, matchedLog?.created_at ?? r.created_at ?? null);
@@ -1332,22 +1297,18 @@ export async function buildArrivalRows(
 
     const _filtered = reservationRows.filter(reservationInRange);
     for (const r of _filtered) {
-      const p = propMap.get(r.property_id);
-      // Imóveis 100% Channex (sem iCal) também têm reservas oficiais.
-      void p;
       const { primary: matchedLog, extras } = findLogsForReservation(uniqueLogs, r, data.kind);
       if (matchedLog) usedLogIds.add(matchedLog.id);
       for (const e of extras) usedLogIds.add(e.id);
       const row = rowFromReservation(r, matchedLog, extras);
       if (row) rows.push(row);
     }
-    // Não-iCal: agrupa logs manuais do mesmo grupo (mesmo imóvel + período +
-    // código) num único card, com os demais como acompanhantes.
+    // Imóvel sem reserva oficial: agrupa logs manuais do mesmo grupo (mesmo
+    // imóvel + período + código) num único card, com os demais como acompanhantes.
     const nonIcalGroups = new Map<string, (typeof uniqueLogs)[number][]>();
     for (const l of uniqueLogs) {
       if (usedLogIds.has(l.id)) continue;
-      const p = propMap.get(l.property_id);
-      if (p?.airbnb_ical_url || (resByProp.get(l.property_id)?.length ?? 0) > 0) continue;
+      if ((resByProp.get(l.property_id)?.length ?? 0) > 0) continue;
       const code = normalizeCode(l.reservation_code);
       const key = code
         ? `${l.property_id}|code|${code}`
@@ -1387,7 +1348,7 @@ export async function buildArrivalRows(
             // "Não Compareceu" nunca vira card de Checkout/Limpeza — sai da
             // esteira ANTES de qualquer outra regra (inclusive "tomorrow" e
             // estadia em curso, abaixo), independente de como o card chegou
-            // (log manual ou reserva do iCal).
+            // (log manual ou reserva oficial).
             const noShow =
               !!(r.logId && !r.logId.startsWith("ical:") && checkinNoShowLogs.has(r.logId)) ||
               !!(r.reservationId && checkinNoShowReservations.has(r.reservationId)) ||
@@ -1433,7 +1394,7 @@ export async function buildArrivalRows(
       if (data.kind !== "checkout") return [...input];
       // Deduplica apenas a MESMA reserva quando ela chegou por caminhos
       // diferentes (status por log legado + status por reservation_id). Não
-      // deduplicamos por imóvel+data: back-to-back e correções do iCal precisam
+      // deduplicamos por imóvel+data: back-to-back e correções de datas precisam
       // continuar fiéis à identidade da reserva HM….
       const byPropertyAndCheckout = new Map<string, ArrivalRow>();
       for (const row of input) {

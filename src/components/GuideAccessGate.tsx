@@ -259,12 +259,12 @@ export function GuideAccessGate({
     | { state: "idle" }
     | { state: "checking" }
     | { state: "matched"; matchType?: "reservation" | "block" }
-    | { state: "no-ical" }
+    | { state: "no-feed" }
     | { state: "no-match"; suggestedCheckout?: string }
   >({ state: "idle" });
   const [calendarAvailability, setCalendarAvailability] = useState<
     | { state: "loading" }
-    | { state: "ready"; hasIcal: boolean; periods: CalendarPeriod[] }
+    | { state: "ready"; hasFeed: boolean; periods: CalendarPeriod[] }
     | { state: "unavailable" }
   >({ state: "loading" });
 
@@ -311,7 +311,7 @@ export function GuideAccessGate({
     loadAvailability({ data: { slug, property_id: propertyId } })
       .then((r) => {
         if (cancelled) return;
-        setCalendarAvailability({ state: "ready", hasIcal: r.hasIcal, periods: r.periods });
+        setCalendarAvailability({ state: "ready", hasFeed: r.hasFeed, periods: r.periods });
       })
       .catch(() => {
         if (!cancelled) setCalendarAvailability({ state: "unavailable" });
@@ -325,9 +325,9 @@ export function GuideAccessGate({
   // é a chave de entrada — o período deixa de ser selecionável e passa a ser
   // preenchido pela própria reserva validada no Airbnb.
   const codeGateActive =
-    reservationCodeGate && calendarAvailability.state === "ready" && calendarAvailability.hasIcal;
+    reservationCodeGate && calendarAvailability.state === "ready" && calendarAvailability.hasFeed;
 
-  // Valida o código digitado (debounce) direto contra o iCal.
+  // Valida o código digitado (debounce) direto nas reservas oficiais.
   useEffect(() => {
     if (!codeGateActive) return;
     const raw = code.trim().toUpperCase();
@@ -364,10 +364,10 @@ export function GuideAccessGate({
 
   // Map every real reservation check-in date → its check-out date. Blocks,
   // checkout dates and intermediate dates are ignored on purpose: the guest
-  // chooses only the arrival day, and the iCal pair fills the departure.
+  // chooses only the arrival day, and the reservation pair fills the departure.
   const reservationMap = useMemo(() => {
     const map = new Map<string, string>();
-    if (calendarAvailability.state !== "ready" || !calendarAvailability.hasIcal) return map;
+    if (calendarAvailability.state !== "ready" || !calendarAvailability.hasFeed) return map;
     for (const p of calendarAvailability.periods) {
       if (p.type !== "reservation") continue;
       if (p.checkout <= p.checkin) continue;
@@ -380,7 +380,7 @@ export function GuideAccessGate({
   // check-out is filled automatically by handleRangeSelect, so exposing
   // check-out days here would let guests pick a day that isn't a real arrival.
   const selectableDateSet = useMemo(() => {
-    if (calendarAvailability.state !== "ready" || !calendarAvailability.hasIcal) return null;
+    if (calendarAvailability.state !== "ready" || !calendarAvailability.hasFeed) return null;
     // Sem chegadas próximas na janela pública: seleção livre, validada depois.
     if (reservationMap.size === 0) return null;
     const set = new Set<string>();
@@ -431,7 +431,7 @@ export function GuideAccessGate({
     setCheckinPopoverOpen(false);
   };
 
-  // Cross-check with Airbnb iCal reservations (soft warning)
+  // Cross-check with the official Airbnb reservations (soft warning)
   useEffect(() => {
     if (!range?.from || !range?.to) {
       setResCheck({ state: "idle" });
@@ -447,7 +447,7 @@ export function GuideAccessGate({
       })
         .then((r) => {
           if (cancelled) return;
-          if (!r.hasIcal) return setResCheck({ state: "no-ical" });
+          if (!r.hasFeed) return setResCheck({ state: "no-feed" });
           if (r.matched)
             return setResCheck({
               state: "matched",
@@ -652,11 +652,9 @@ export function GuideAccessGate({
       }
       if (!res.ok) {
         toast.error(
-          "reason" in res && res.reason === "no_match"
-            ? "As datas não correspondem ao calendário do anfitrião."
-            : "reason" in res && res.reason === "no_show"
-              ? NO_SHOW_MESSAGE
-              : "Não foi possível registrar seu acesso.",
+          "reason" in res && res.reason === "no_show"
+            ? NO_SHOW_MESSAGE
+            : "Não foi possível registrar seu acesso.",
         );
         return;
       }

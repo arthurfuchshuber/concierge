@@ -29,7 +29,7 @@ const PROPERTY_SAFE_COLUMNS =
   "lock_label,lock_instructions,lock_media,lock_video_url," +
   "wifi_ssid,host_name,host_phone,portaria_email,house_rules," +
   "access_mode,pin_expires_at,require_access_gate,collect_arrival_time,collect_vehicles,vehicles_max,collect_document,document_scope," +
-  "airbnb_ical_url,airbnb_ical_url_2,airbnb_ical_last_sync_at,airbnb_ical_last_error,airbnb_listing_url," +
+  "airbnb_listing_url," +
   "default_language,guide_theme,guide_created,property_type_id,published," +
   "sigma_pack_city_key,sigma_pack_activated_at,sigma_pack_snapshot,created_at,updated_at";
 

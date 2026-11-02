@@ -25,14 +25,9 @@ afterAll(() => {
 });
 
 describe("isReservationGated", () => {
-  it("todo guia exige código de reserva, com ou sem calendário", () => {
-    expect(
-      isReservationGated({ tagline: ETIQUETA_CHECKIN_CHECKOUT, airbnb_ical_url: "https://x" }),
-    ).toBe(true);
-    expect(isReservationGated({ tagline: ETIQUETA_CHECKIN_CHECKOUT, airbnb_ical_url: "" })).toBe(
-      true,
-    );
-    expect(isReservationGated({ tagline: "Outra", airbnb_ical_url: "https://x" })).toBe(true);
+  it("todo guia exige código de reserva, qualquer que seja o tipo", () => {
+    expect(isReservationGated({ tagline: ETIQUETA_CHECKIN_CHECKOUT })).toBe(true);
+    expect(isReservationGated({ tagline: "Outra" })).toBe(true);
     expect(isReservationGated(null)).toBe(false);
   });
 });

@@ -101,7 +101,6 @@ const DASHBOARD: Def[] = [
   act("tenant.dashboard.chegadas.horario", "Editar horário previsto", 50),
   act("tenant.dashboard.chegadas.notas", "Notas da reserva", 60),
   act("tenant.dashboard.chegadas.reverter", "Reverter status", 70),
-  act("tenant.dashboard.chegadas.ical", "Sincronizar iCal", 80),
 ];
 
 /** Guias — /admin/guias */
@@ -116,7 +115,6 @@ const GUIAS: Def[] = [
   act("tenant.guias.imoveis.excluir", "Excluir guia", 40),
   act("tenant.guias.imoveis.edicao-massa", "Edição em massa", 50),
   act("tenant.guias.imoveis.link", "Link público do guia", 60),
-  act("tenant.guias.imoveis.ical", "Sincronização iCal", 70),
   act("tenant.guias.imoveis.acessos", "Acessos do guia", 80),
   act("tenant.guias.imoveis.conversas", "Conversas do imóvel", 90),
 

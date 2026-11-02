@@ -34,7 +34,7 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 // compactos com expansividade única (apenas um aberto por vez), badges de
 // status e ordenação Ativas → Não conectadas → Em breve. Só listamos
 // integrações que o anfitrião conecta — módulos internos da plataforma
-// (mapas, pagamentos, IA, e-mail, iCal do Airbnb) não aparecem aqui.
+// (mapas, pagamentos, IA, e-mail) não aparecem aqui.
 // ---------------------------------------------------------------------------
 
 type StatusKey = "ativa" | "inativa" | "em_breve";

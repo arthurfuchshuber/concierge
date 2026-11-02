@@ -5,7 +5,7 @@
  * cliente Supabase ou com o formato da tabela. Auditoria nunca derruba a
  * operação principal — todos os helpers engolem erros.
  */
-import type { EventCategory, Severity, SystemEventInput } from "./events.server";
+import type { Severity, SystemEventInput } from "./events.server";
 
 async function write(event: SystemEventInput): Promise<void> {
   try {
@@ -80,24 +80,6 @@ export function auditData(eventType: string, args: BaseArgs) {
     eventType,
     eventCategory: "USER_MANAGEMENT",
     source: "app",
-  });
-}
-
-/** Rotinas automáticas (crons, sincronizações, varreduras). */
-export function auditCron(
-  eventType: string,
-  args: BaseArgs & { job: string; category?: EventCategory },
-) {
-  return write({
-    ...base(args),
-    actorType: "CRON_JOB",
-    actorName: args.job,
-    eventType,
-    eventCategory: args.category ?? "INTEGRATIONS",
-    source: "cron",
-    entityType: args.entityType ?? "cron_job",
-    entityId: args.entityId ?? args.job,
-    metadata: { job: args.job, ...(args.metadata ?? {}) },
   });
 }
 

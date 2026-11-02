@@ -11,8 +11,8 @@ type Admin = SupabaseClient<Database>;
  * Resolve `logId`/`reservationId` pro formato que `runAdvanceArrival` espera
  * a partir de um `ArrivalRow`. Mesmo critério de `statusTarget` (em
  * `OperationWorkspace.tsx`): `logId` só é aceito quando é um UUID real de
- * `guide_access_logs` — uma reserva só-iCal (sem log/formulário do hóspede)
- * usa o prefixo sintético "ical:<reservation_id>" no lugar de um log de
+ * `guide_access_logs` — uma reserva sem formulário do hóspede usa a chave
+ * sintética "ical:<reservation_id>" (nome histórico) no lugar de um log de
  * verdade, e nesse caso é o `reservation_id` embutido que deve ser usado.
  */
 function resolveTarget(row: { logId: string; reservationId: string | null }): {
@@ -159,27 +159,8 @@ export async function runAutoCheckoutScan(admin: Admin, now: Date = new Date()) 
     return due;
   };
 
-  let due = dueNow(pending);
+  const due = dueNow(pending);
   if (due.length === 0) return { checked: pending.length, confirmed: 0, failed: 0 };
-
-  // CONFERE O CALENDÁRIO ANTES DE CONFIRMAR (05/10/2026, caso LF001): este
-  // cron roda a cada 5 minutos, mas o calendário do Airbnb só era relido
-  // quando alguém abria o painel. Uma reserva prorrogada continuava com a
-  // saída "de hoje" aqui dentro e a saída era confirmada por engano. Antes de
-  // agir, relê o calendário dos imóveis envolvidos (só relê quem está com
-  // mais de 10 min) e refaz a conta com as datas atualizadas.
-  try {
-    const dueProps = Array.from(new Set(due.map((r) => r.propertyId)));
-    const { syncStaleIcals } = await import("@/lib/arrival-board.server");
-    await syncStaleIcals(admin as never, dueProps);
-    const fresh = await buildArrivalRows(admin as never, { kind: "checkout", range: "today", propIds: dueProps });
-    due = dueNow(fresh.rows);
-  } catch (err) {
-    // Sem conseguir conferir o calendário, NÃO confirma nada às cegas: a
-    // próxima rodada (5 min) tenta de novo.
-    console.error("[auto-checkout] falha ao reler o calendário antes de confirmar:", err);
-    return { checked: pending.length, confirmed: 0, failed: 0 };
-  }
 
   for (const r of due) {
     const target = resolveTarget(r);

@@ -577,7 +577,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         context.supabase
           .from("properties")
           .select(
-            "id, name, airbnb_ical_url, lock_code, gate_code, owner_contact_id, guide_created, checkin_instructions",
+            "id, name, lock_code, gate_code, owner_contact_id, guide_created, checkin_instructions",
           )
           .in("id", propIds),
         context.supabase
@@ -655,10 +655,10 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       return true;
     }
 
-    const icalProps = new Set(
-      ((props ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>)
-        .filter((p) => !!p.airbnb_ical_url?.trim())
-        .map((p) => p.id),
+    // Imóveis com reserva oficial no recorte: o check-in pendente vem da
+    // reserva (mesma regra do Kanban); os demais caem no formulário do hóspede.
+    const feedProps = new Set(
+      ((reservations ?? []) as Array<{ property_id: string }>).map((r) => r.property_id),
     );
 
     // Sem guia criado, não existe "instruções" nem "senhas" pra ninguém ver —
@@ -701,7 +701,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     type Entry = { property_id: string; name: string; phone: string | null; time: string | null };
     const entries: Entry[] = [];
 
-    // Mesma estadia em duas fontes (iCal + Channex) = UMA reserva, igual ao KPI.
+    // Mesma estadia em duas fontes (histórico do Airbnb + API) = UMA reserva, igual ao KPI.
     const { dedupeStays: dedupeEngStays } = await import("@/lib/arrival-board.server");
     type EngRes = {
       id: string;
@@ -717,7 +717,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       (id) => touchedReservations.has(id),
     );
     for (const r of engReservations) {
-      if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
+      if (!feedProps.has(r.property_id) || !isRealReservation(r)) continue;
       const matched: LogRow | null =
         r.checkin_date && r.checkout_date
           ? findLogsForReservation(
@@ -750,10 +750,10 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       });
     }
 
-    // Check-ins sem iCal (apenas logs de acesso), deduplicados.
+    // Check-ins de imóveis sem reserva oficial no recorte (apenas formulários), deduplicados.
     const seenFallback = new Set<string>();
     for (const l of allLogs) {
-      if (icalProps.has(l.property_id)) continue;
+      if (feedProps.has(l.property_id)) continue;
       if (doneLogs.has(l.id) || checkoutDoneLogs.has(l.id)) continue;
       if (l.checkout_date && l.checkout_date <= today) continue;
       const logDate = overrideLog.get(l.id) ?? l.checkin_date;
@@ -2239,9 +2239,6 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         }>,
       };
     }
-
-    // iCal não é baixado na abertura: o cron `sync-airbnb-ical-30min` cuida disso,
-    // e o calendário responde direto do banco.
 
     // CALENDÁRIO COMPLETO (pedido explícito, 15–16/10/2026: "o usuário precisa
     // ver TODO o calendário, passado também, da primeira reserva à última").

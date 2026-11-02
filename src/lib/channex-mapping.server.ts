@@ -286,7 +286,7 @@ async function activeBookingNights(t: SafeMapTarget, windowEnd?: string, cache?:
   const nights = new Set<string>();
   const units = [{ channexPropertyId: t.channexPropertyId, roomTypeId: t.roomTypeId }, ...(t.sibling ? [t.sibling] : [])];
   for (const set of await Promise.all(units.map((u) => unitNights(u, cache)))) for (const n of set) nights.add(n);
-  // Bloqueios do anfitrião / Airbnb (iCal) e reservas registradas no ConciergeIA também fecham a data.
+  // Bloqueios manuais e reservas registradas no ConciergeIA também fecham a data.
   if (t.propertyId) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const today = todayLocalIso();
@@ -299,9 +299,9 @@ async function activeBookingNights(t: SafeMapTarget, windowEnd?: string, cache?:
       const status = String(r.status ?? "").toLowerCase();
       if (status.includes("cancel")) continue;
       if (!r.checkin_date || !r.checkout_date) continue;
-      // iCal (source 'airbnb'): "Not available" (blocked) nunca conta — espelha o calendário
-      // controlado pela Channex e travaria em loop. Mas RESERVAS confirmadas de hóspede continuam
-      // fechando a data: protegem a janela entre o mapeamento e a chegada das reservas pela API.
+      // Histórico do Airbnb (source 'airbnb', antigo iCal): "Not available" (blocked) nunca conta —
+      // espelhava o calendário controlado pela Channex. RESERVAS confirmadas de hóspede continuam
+      // fechando a data: são estadias reais já registradas.
       if (String(r.source) === "airbnb" && status !== "confirmed") continue;
       if (status === "blocked" && windowEnd && r.checkout_date > windowEnd) continue;
       for (let d = new Date(`${r.checkin_date}T00:00:00Z`); iso(d) < r.checkout_date; d = new Date(d.getTime() + 86_400_000)) nights.add(iso(d));
@@ -322,17 +322,6 @@ export async function syncRealAvailability(t: SafeMapTarget, userId: string | nu
   const windowDays = Number.isFinite(notice) && notice > 0 ? notice : fallbackWindow;
   const windowEnd = iso(new Date(Date.now() + windowDays * 86_400_000));
   const nights = await activeBookingNights(t, windowEnd, cache);
-  // Anúncio ainda NÃO mapeado (aguardando "Já conectei"): a Channex não tem as reservas pela API,
-  // então o iCal real do Airbnb continua valendo para nunca reabrir noites reservadas/bloqueadas.
-  if (!rp && t.propertyId) {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: prop } = await supabaseAdmin.from("properties").select("airbnb_ical_url").eq("id", t.propertyId).maybeSingle();
-    const { airbnbClosedNights } = await import("@/lib/channex-full-connect.server");
-    // Sem link de iCal: valem as reservas + bloqueios manuais já no ConciergeIA (unidade não mapeada
-    // não chega ao Airbnb). Link existente mas ilegível lança erro e cancela, para não reabrir datas.
-    const closed = await airbnbClosedNights((prop as any)?.airbnb_ical_url);
-    for (const n of closed ?? []) nights.add(n);
-  }
 
   const from = new Date(`${todayLocalIso()}T00:00:00Z`);
   const merged: Parameters<typeof applyCalendarChanges>[0] = [];

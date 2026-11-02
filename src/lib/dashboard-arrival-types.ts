@@ -84,8 +84,9 @@ export type ArrivalRow = {
   /** ISO: até quando os alertas de atraso deste card estão silenciados */
   mutedUntil: string | null;
   doneAt: string | null;
-  pendingFill: boolean; // true = reserva iCal sem formulário preenchido
+  pendingFill: boolean; // true = reserva sem formulário preenchido
   concludedAt?: string | null;
+  /** Conferência com a reserva oficial (nome `ical` mantido: o cache do app fica salvo no aparelho). */
   ical: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null };
   /**
    * LIMPEZA CRIADA MANUALMENTE (02/10/2026) — presente só nesses cards, que

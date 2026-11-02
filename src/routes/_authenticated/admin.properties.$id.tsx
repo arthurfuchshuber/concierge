@@ -225,10 +225,6 @@ type FormState = {
     vehicles_max: number;
     collect_document: "off" | "optional" | "required";
     document_scope: "main" | "all";
-    airbnb_ical_url: string | null;
-    airbnb_ical_url_2: string | null;
-    airbnb_ical_last_sync_at: string | null;
-    airbnb_ical_last_error: string | null;
     airbnb_listing_url: string | null;
     /** Sincronização automática diária (Firecrawl, via pg_cron) — só leitura
      * na tela, nunca editada pelo usuário. */
@@ -334,10 +330,6 @@ function emptyForm(): FormState {
       vehicles_max: 2,
       collect_document: "off",
       document_scope: "main",
-      airbnb_ical_url: null,
-      airbnb_ical_url_2: null,
-      airbnb_ical_last_sync_at: null,
-      airbnb_ical_last_error: null,
       airbnb_listing_url: null,
       airbnb_listing_last_synced_at: null,
       airbnb_listing_last_error: null,
@@ -695,10 +687,6 @@ function PropertyEditor() {
       vehicles_max: (p.vehicles_max as number) ?? 2,
       collect_document: (p.collect_document as "off" | "optional" | "required") ?? "off",
       document_scope: (p.document_scope as "main" | "all") ?? "main",
-      airbnb_ical_url: (p.airbnb_ical_url as string | null) ?? null,
-      airbnb_ical_url_2: ((p as Record<string, unknown>).airbnb_ical_url_2 as string | null) ?? null,
-      airbnb_ical_last_sync_at: (p.airbnb_ical_last_sync_at as string | null) ?? null,
-      airbnb_ical_last_error: (p.airbnb_ical_last_error as string | null) ?? null,
       airbnb_listing_url: ((p as Record<string, unknown>).airbnb_listing_url as string | null) ?? null,
       airbnb_listing_last_synced_at:
         ((p as Record<string, unknown>).airbnb_listing_last_synced_at as string | null) ?? null,

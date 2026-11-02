@@ -40,7 +40,7 @@ export type HandoffConversationSummary = {
 };
 
 export type HandoffReservationMatch = {
-  status: "confirmed" | "loose" | "missing" | "no_ical" | "cancelled";
+  status: "confirmed" | "loose" | "missing" | "no_reservations" | "cancelled";
   checkin: string | null;
   checkout: string | null;
   /** Hóspedes da reserva (adultos + crianças), quando a Channex informa. */

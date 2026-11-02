@@ -22,7 +22,7 @@ export const issueGuestPass = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop } = await supabaseAdmin
       .from("properties")
-      .select("id, airbnb_ical_url")
+      .select("id")
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();
@@ -35,7 +35,8 @@ export const issueGuestPass = createServerFn({ method: "POST" })
       const { signGuestPass } = await import("@/lib/guest-pass.server");
       return { pass: signGuestPass(`guide:${prop.id}`, data.guestName, 30, false) };
     }
-    if (!(prop.airbnb_ical_url ?? "").trim()) {
+    const { propertyHasReservationFeed } = await import("@/lib/guest-access.server");
+    if (!(await propertyHasReservationFeed(prop.id as string))) {
       throw new Error("Este guia ainda não está liberado. Fale com o anfitrião.");
     }
     {
@@ -43,7 +44,7 @@ export const issueGuestPass = createServerFn({ method: "POST" })
       if (!code) throw new Error("Informe o código da reserva para continuar.");
       const { lookupReservationByCode } = await import("@/lib/guest-access.server");
       const res = await lookupReservationByCode(data.slug, prop.id, code);
-      if (!res.ok && res.reason !== "no_ical") {
+      if (!res.ok && res.reason !== "no_reservations") {
         throw new Error("O código da reserva não confere. Confira o código e tente de novo.");
       }
       verified = res.ok;
