@@ -68,8 +68,9 @@ describe("B2.1 · composer — pré-condições (nada compõe sem as proteções
     expect(composeTurnPrompt({ context: ctx, history: basicHistory() }, { guard: TEST_GUARD })).toEqual({ kind: "unavailable", reason: "surface_invalid" });
   });
   it("guard que lança ou devolve não-texto ⇒ guard_failed (nada vaza sem passar pelo guard)", () => {
-    expect(compose({}, basicHistory(), { id: "g", version: "1", apply: () => { throw new Error("boom"); } })).toEqual({ kind: "unavailable", reason: "guard_failed" });
-    expect(compose({}, basicHistory(), { id: "g", version: "1", apply: () => 42 as never })).toEqual({ kind: "unavailable", reason: "guard_failed" });
+    // contrato do guard atualizado na B2.2 (`scan` no lugar de `apply`); a asserção é a mesma da B2.1
+    expect(compose({}, basicHistory(), { id: "g", version: "1", scan: () => { throw new Error("boom"); } })).toEqual({ kind: "unavailable", reason: "guard_failed" });
+    expect(compose({}, basicHistory(), { id: "g", version: "1", scan: () => ({ status: "safe", text: 42, findings: [] }) as never })).toEqual({ kind: "unavailable", reason: "guard_failed" });
   });
 });
 

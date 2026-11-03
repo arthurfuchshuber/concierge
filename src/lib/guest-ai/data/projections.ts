@@ -117,6 +117,31 @@ export const EMERGENCY_COLUMNS = ["id", "label", "number"] as const;
 export const MANUAL_COLUMNS = ["id", "title", "body"] as const;
 export const ENTRY_COLUMNS = ["id", "field_key", "value", "note", "custom_label", "custom_audience", "section_num"] as const;
 
+// ─────────────── B2.2 — Dossiê multipropriedade ───────────────
+
+/** Identidade e posse do imóvel (autorização por imóvel: dono = tenant, não arquivado). */
+export const PROPERTY_ACCESS_COLUMNS = ["id", "owner_id", "archived_at"] as const;
+/** Manuais COM descrição e referências de imagem (faltavam na projeção F1, que segue intacta). */
+export const MANUAL_DOSSIER_COLUMNS = ["id", "title", "description", "body", "images"] as const;
+/**
+ * Recomendações do entorno. FORA de propósito: `walk_minutes`, `drive_minutes` e `distance_text`
+ * (minutos derivados de velocidade presumida — decisão D5) e `image_url`/`maps_url`/`last_synced_at`.
+ * `distance_meters` = linha reta.
+ */
+export const RECOMMENDATION_PUBLIC_COLUMNS = [
+  "id",
+  "property_id",
+  "name",
+  "category",
+  "type",
+  "rating",
+  "user_ratings_total",
+  "distance_meters",
+  "opening_hours",
+  "note",
+  "position",
+] as const;
+
 /** Junta as colunas na forma aceita por `.select()`. Recusa "*" e lista vazia. */
 export function cols(list: readonly string[]): string {
   if (list.length === 0 || list.includes("*")) throw new Error("projeção inválida");

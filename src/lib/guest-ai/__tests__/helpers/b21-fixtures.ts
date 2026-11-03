@@ -71,11 +71,18 @@ export function row(over: Partial<HistoryRow> = {}): HistoryRow {
   };
 }
 
-/** Guard de TESTE: troca uma sequência marcada por um marcador. Não é o secret-scrub (B2.2). */
+/**
+ * Guard de TESTE: troca uma sequência marcada por um marcador. Não é o secret-scrub real.
+ * B2.2: contrato do guard passou a ser `scan` (status + texto + achados); mesmo comportamento.
+ */
 export const TEST_GUARD: FreeTextGuard = {
   id: "test-guard",
   version: "0",
-  apply: (t: string) => t.replace(/SEGREDO-\d+/g, "[removido]"),
+  scan: (t: string) => {
+    // B2.2: também remove o canário de eficácia exigido pelo composer (`GUARD_CANARY`)
+    const text = t.replace(/SEGREDO-\d+/g, "[removido]").replace(/\d{4}-CANARIO/g, "[removido]");
+    return { status: text === t ? "safe" : "sanitized", text, findings: text === t ? [] : [{ category: "test", detector: "test" }] };
+  },
 };
 
 /** Decisão v2 válida (B2.1): v1 + os cinco campos novos. Sem texto padrão de resposta. */
