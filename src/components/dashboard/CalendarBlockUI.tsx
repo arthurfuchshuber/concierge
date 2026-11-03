@@ -52,6 +52,10 @@ const BTN_CANCEL =
 const BTN_PRIMARY =
   "ds-surface inline-flex h-9 items-center justify-center gap-2 px-4 text-[13px] font-semibold bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white transition-opacity hover:opacity-90 disabled:opacity-60";
 
+/** Ação secundária/destrutiva ("Liberar datas" na edição): mesmo casco dos outros botões, texto de alerta. */
+const BTN_RELEASE =
+  "ds-surface inline-flex h-9 items-center justify-center px-3 text-[13px] font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-60";
+
 /** Barra flutuante: aparece quando há intervalo escolhido. */
 export function CalendarBlockBar({
   ctx,
@@ -67,7 +71,7 @@ export function CalendarBlockBar({
   to: string;
   onCancel: () => void;
   onConfirm: () => void;
-  /** Tocar nas datas abre a janela com o calendário para escolher início e fim. */
+  /** Tocar no período abre a janela para escolher início e fim (no modo "release": ALTERAR o bloqueio existente). */
   onEditDates?: () => void;
   /** "release" = tocou num bloqueio existente (mockup 6): "Bloqueado · dd/mm a dd/mm" + Fechar / Liberar datas. */
   mode?: "block" | "release";
@@ -93,8 +97,13 @@ export function CalendarBlockBar({
          selecionada). Celular: acima da navegação inferior (104px + área segura). */
       className="fixed inset-x-4 bottom-[calc(104px+env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-[460px] items-center gap-2 rounded-full border border-white/10 bg-[var(--panel)]/95 py-1.5 pl-5 pr-1.5 shadow-[0_8px_28px_rgba(0,0,0,0.45)] backdrop-blur-md sm:bottom-8"
     >
-      {onEditDates && !release ? (
-        <button type="button" aria-label="Editar datas" onClick={onEditDates} className="min-w-0 flex-1 truncate text-left text-[14px] font-bold underline decoration-dotted underline-offset-4">
+      {onEditDates ? (
+        <button
+          type="button"
+          aria-label={release ? "Alterar período do bloqueio" : "Editar datas"}
+          onClick={onEditDates}
+          className="min-w-0 flex-1 truncate text-left text-[14px] font-bold underline decoration-dotted underline-offset-4"
+        >
           {label}
         </button>
       ) : (
@@ -217,9 +226,13 @@ export function CalendarBlockDialog({
   occupiedStays,
   releaseBlock,
   bookingWindow,
+  initialNote = null,
+  onRelease,
 }: {
-  /** "release" = janela "Liberar datas" (mockup 7): sem motivo, botão "Liberar N noites". */
-  mode?: "block" | "release";
+  /** "release" = janela "Liberar datas" (mockup 7): sem motivo, botão "Liberar N noites".
+   *  "edit" = ALTERAR um bloqueio existente (03/11/2026): início, fim e motivo editáveis; rodapé Cancelar /
+   *  Liberar datas (tira o bloqueio inteiro) / Salvar alteração. */
+  mode?: "block" | "release" | "edit";
   open: boolean;
   ctx: Ctx;
   from: string;
@@ -239,10 +252,20 @@ export function CalendarBlockDialog({
   releaseBlock?: { from: string; to: string };
   /** Prazo do(s) anúncio(s) do imóvel (antecedência mínima e janela máxima, em dias). Mais de um anúncio: menor mínimo e maior máximo. */
   bookingWindow?: BookingWindow | null;
+  /** Edição: motivo atual do bloqueio (vem preenchido e pode ser trocado). */
+  initialNote?: string | null;
+  /** Edição: botão "Liberar datas" (remove o bloqueio). */
+  onRelease?: () => void;
 }) {
   const isMobile = useIsMobile();
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(initialNote ?? "");
   const release = mode === "release";
+  const edit = mode === "edit";
+  useEffect(() => {
+    if (open && edit) setNote(initialNote ?? "");
+    // só ao abrir: digitar o motivo não pode ser sobrescrito pelo valor antigo
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, edit]);
   const editable = !!onRangeChange && (!release || !!releaseBlock);
   const [picking, setPicking] = useState<Picking | null>(null);
   useEffect(() => {
@@ -281,7 +304,7 @@ export function CalendarBlockDialog({
       lo = which === "from" ? releaseFirstNight(releaseBlock, todayISO) : addDaysISO(from, 1);
       hi = which === "from" ? addDaysISO(releaseBlock.to, -1) : releaseBlock.to;
     } else if (which === "from") {
-      lo = win.firstNight;
+      lo = edit && from < win.firstNight ? from : win.firstNight;
       hi = win.lastNight;
     } else {
       lo = addDaysISO(from, 1);
@@ -327,7 +350,7 @@ export function CalendarBlockDialog({
               <HeadIcon className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <ResponsiveDialogTitle className="text-base font-display leading-tight truncate">{release ? "Liberar datas" : "Bloquear datas"}</ResponsiveDialogTitle>
+              <ResponsiveDialogTitle className="text-base font-display leading-tight truncate">{release ? "Liberar datas" : edit ? "Alterar bloqueio" : "Bloquear datas"}</ResponsiveDialogTitle>
               <ResponsiveDialogDescription className="ds-meta mt-0.5">
                 {ddmmISO(from)} a {ddmmISO(to)} · {n} {n === 1 ? "noite" : "noites"}
               </ResponsiveDialogDescription>
@@ -386,10 +409,22 @@ export function CalendarBlockDialog({
           <button type="button" className={cn(BTN_CANCEL, isMobile && "w-full")} disabled={busy} onClick={onClose}>
             Cancelar
           </button>
-          <button type="button" className={cn(BTN_PRIMARY, isMobile && "w-full")} disabled={busy} onClick={() => onSave(release ? null : note.trim() || null)}>
-            {busy && <Loader2 className="size-3.5 animate-spin" />}
-            {release ? "Liberar" : "Bloquear"} {nights}
-          </button>
+          {edit ? (
+            <>
+              <button type="button" className={cn(BTN_RELEASE, isMobile && "w-full")} disabled={busy || !onRelease} onClick={onRelease}>
+                Liberar datas
+              </button>
+              <button type="button" className={cn(BTN_PRIMARY, isMobile && "w-full")} disabled={busy} onClick={() => onSave(note.trim() || null)}>
+                {busy && <Loader2 className="size-3.5 animate-spin" />}
+                Salvar alteração
+              </button>
+            </>
+          ) : (
+            <button type="button" className={cn(BTN_PRIMARY, isMobile && "w-full")} disabled={busy} onClick={() => onSave(release ? null : note.trim() || null)}>
+              {busy && <Loader2 className="size-3.5 animate-spin" />}
+              {release ? "Liberar" : "Bloquear"} {nights}
+            </button>
+          )}
         </ResponsiveDialogFooter>
       </ResponsiveDialogContent>
     </ResponsiveDialog>

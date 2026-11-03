@@ -65,7 +65,7 @@ import { barLabelGeometry } from "@/components/dashboard/calendar-bar-geometry";
 import { CalendarBlockBar, CalendarBlockDialog } from "@/components/dashboard/CalendarBlockUI";
 import { isDawnTime, predictionDayLabel } from "@/lib/prediction-day-label";
 import { addDaysISO as blockAddDays, conflictMessage, firstBlockConflict, releaseRemainders } from "@/lib/manual-block-conflict";
-import { createManualBlockFn, listManualBlocks, removeManualBlockFn, syncBlockAvailabilityFn } from "@/lib/manual-blocks.functions";
+import { createManualBlockFn, listManualBlocks, removeManualBlockFn, syncBlockAvailabilityFn, updateManualBlockFn } from "@/lib/manual-blocks.functions";
 import { useOperationMode } from "@/components/admin-pages/ChannexModeCard";
 import { ManualCleaningCard } from "@/components/dashboard/ManualCleaningCard";
 import {
@@ -1142,7 +1142,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     const out: typeof base = [];
     for (const s of base) {
       const ts = twinsOf.get(s.propertyId);
-      if (!ts || s.blocked) {
+      if (s.blocked) {
+        // BLOQUEIO MANUAL (03/11/2026): vale para o imóvel inteiro — aparece na hora em TODAS as linhas de anúncio
+        // (principal e gêmeos), seja qual for a linha em que foi criado (o servidor grava no imóvel real).
+        // É uma cópia comum (não `twinBlock`): continua sendo bloqueio manual e se libera/altera de qualquer linha.
+        // Bloqueio que já é espelho de reserva do gêmeo (`twinBlock`) nunca é espelhado de novo.
+        out.push(s);
+        if (ts && !(s as { twinBlock?: boolean }).twinBlock) for (const t of ts) out.push({ ...s, propertyId: t.id });
+        continue;
+      }
+      if (!ts) {
         out.push(s);
         continue;
       }
@@ -7348,6 +7357,7 @@ function OccupancyPanel({
   const listBlocksFn = useServerFn(listManualBlocks);
   const createBlockFn = useServerFn(createManualBlockFn);
   const removeBlockFn = useServerFn(removeManualBlockFn);
+  const updateBlockFn = useServerFn(updateManualBlockFn);
   const syncBlockFn = useServerFn(syncBlockAvailabilityFn);
   const qcBlock = useQueryClient();
   const blockPermQ = useQuery({
@@ -7365,6 +7375,10 @@ function OccupancyPanel({
   /** Liberar só um pedaço do bloqueio manual (calendário da janela "Liberar datas"); `id` amarra ao bloqueio tocado. */
   const [releaseSub, setReleaseSub] = useState<{ id: string; from: string; to: string } | null>(null);
   const releaseRange = blockTap ? (releaseSub && releaseSub.id === blockTap.id ? releaseSub : { id: blockTap.id, from: blockTap.from, to: blockTap.to }) : null;
+  /** ALTERAR o período/motivo do bloqueio tocado (03/11/2026): toque no período da barra "Bloqueado". */
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSub, setEditSub] = useState<{ id: string; from: string; to: string } | null>(null);
+  const editRange = blockTap ? (editSub && editSub.id === blockTap.id ? editSub : { id: blockTap.id, from: blockTap.from, to: blockTap.to }) : null;
   /** Célula com foco do teclado (roving tabindex: só UMA noite entra na ordem do Tab). */
   const [kbCell, setKbCell] = useState<{ propertyId: string; day: string } | null>(null);
   /** Balão resumido ao passar o mouse na barra da reserva/bloqueio (31/10/2026). Um só, flutuante, para a grade ficar leve. */
@@ -7383,6 +7397,7 @@ function OccupancyPanel({
     if (blockTap && !properties.some((x) => x.id === blockTap.propertyId)) {
       setBlockTap(null);
       setReleaseOpen(false);
+      setEditOpen(false);
     }
   }, [blockSel, blockTap, properties]);
   useEffect(() => {
@@ -7390,11 +7405,11 @@ function OccupancyPanel({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (blockSel && !blockOpen) setBlockSel(null);
-      if (blockTap && !releaseOpen) setBlockTap(null);
+      if (blockTap && !releaseOpen && !editOpen) setBlockTap(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [blockSel, blockOpen, blockTap, releaseOpen]);
+  }, [blockSel, blockOpen, blockTap, releaseOpen, editOpen]);
   const [mobileSearch, setMobileSearch] = useState(false);
   /** Primeiro dia que aparece no visor (muda ao rolar): a legenda só mostra o que existe nos dias VISÍVEIS. */
   const [firstVisIdx, setFirstVisIdx] = useState(0);
@@ -7688,6 +7703,21 @@ function OccupancyPanel({
      Safari/iOS ele impedia a página inteira de rolar e os toques de abrirem os cards. O bloqueio de rolagem
      agora só existe LOCALMENTE, no calendário, e só enquanto um arrasto de mouse/caneta está ativo (ver
      `begin`/`cleanup` em `blockPointerDown`). */
+  /** Reservas que ocupam noites desta linha: as dela + as do anúncio irmão (espelhadas como bloqueio automático).
+   *  Reserva confirmada NUNCA pode ser bloqueada, alterada ou liberada por cima (03/11/2026). */
+  function reservationStays(propertyId: string) {
+    const twinNights = (blocksByProperty.get(propertyId) ?? []).filter((b) => b.twin).map((b) => ({ checkin: b.from, checkout: b.to }));
+    return twinNights.length ? [...(byProperty.get(propertyId) ?? []), ...twinNights] : (byProperty.get(propertyId) ?? []);
+  }
+  /** Noites ocupadas para o seletor de datas: reservas (inclusive as do gêmeo) + os OUTROS bloqueios manuais do imóvel. */
+  function occupiedFor(propertyId: string, exceptBlockId?: string) {
+    return [
+      ...reservationStays(propertyId),
+      ...(blockPermQ.data?.blocks ?? [])
+        .filter((b) => b.propertyId === baseId(propertyId) && b.id !== exceptBlockId)
+        .map((b) => ({ checkin: b.from, checkout: b.to })),
+    ];
+  }
   /** Noite bloqueada pela reserva ativa no anúncio gêmeo (automático da sincronização: não se libera à mão). */
   function twinBlockAt(propertyId: string, day: string) {
     return (blocksByProperty.get(propertyId) ?? []).find((b) => b.twin && b.from <= day && day < b.to) ?? null;
@@ -7698,7 +7728,7 @@ function OccupancyPanel({
     if (justClearedRef.current) return;
     if (day < todayISO) return;
     if ((blockPermQ.data?.blocks ?? []).some((b) => b.propertyId === baseId(propertyId) && b.from <= day && day < b.to)) return;
-    const stays = byProperty.get(propertyId) ?? [];
+    const stays = reservationStays(propertyId);
     if (firstBlockConflict(stays, day, blockAddDays(day, 1))) return;
     // Toque no celular: nenhum timer, nenhum ouvinte — a rolagem nativa da tela segue livre.
     if (ev.pointerType === "touch") return;
@@ -7855,7 +7885,7 @@ function OccupancyPanel({
       toast.error("Não é possível bloquear", { description: "Escolha uma data a partir de hoje." });
       return;
     }
-    const stays = byProperty.get(propertyId) ?? [];
+    const stays = reservationStays(propertyId);
     const next = blockSel && blockSel.propertyId === propertyId && blockSel.anchor === blockSel.end ? blockSel : null;
     const a = next ? next.anchor : day;
     const lo = a <= day ? a : day;
@@ -7875,8 +7905,8 @@ function OccupancyPanel({
   }
   /** Depois de gravar/liberar: fecha (ou reabre) as datas em TODOS os anúncios do imóvel — o principal e o
    *  gêmeo, nos dois sentidos — pela Channex. Roda fora do pedido de gravar para a tela nunca ficar presa. */
-  async function syncListings(realPropertyId: string, release: boolean) {
-    const tid = toast.loading(release ? "Reabrindo as datas nos anúncios…" : "Fechando as datas nos anúncios…");
+  async function syncListings(realPropertyId: string, release: boolean, updated = false) {
+    const tid = toast.loading(updated ? "Atualizando as datas nos anúncios…" : release ? "Reabrindo as datas nos anúncios…" : "Fechando as datas nos anúncios…");
     try {
       const call = () => syncBlockFn({ data: { ownerId: blockOwnerId, propertyId: realPropertyId } });
       // Uma nova tentativa silenciosa antes de avisar: oscilações curtas de conexão não viram alerta.
@@ -7887,33 +7917,38 @@ function OccupancyPanel({
       }
       if (r.connected && !r.ok) {
         toast.warning(
-          release
-            ? "Datas liberadas aqui, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos."
-            : "Bloqueio salvo aqui, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.",
+          updated
+            ? "Bloqueio alterado aqui, mas não consegui atualizar as datas nos anúncios. Tente de novo em alguns minutos."
+            : release
+              ? "Datas liberadas aqui, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos."
+              : "Bloqueio salvo aqui, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.",
           { id: tid },
         );
       } else if (r.connected) {
-        toast.success(release ? "Datas liberadas em todos os anúncios." : "Datas bloqueadas em todos os anúncios.", { id: tid });
+        toast.success(updated ? "Bloqueio atualizado em todos os anúncios." : release ? "Datas liberadas em todos os anúncios." : "Datas bloqueadas em todos os anúncios.", { id: tid });
       } else {
-        toast.success(release ? "Datas liberadas." : "Bloqueio salvo.", { id: tid });
+        toast.success(updated ? "Bloqueio alterado." : release ? "Datas liberadas." : "Bloqueio salvo.", { id: tid });
       }
     } catch (e) {
       console.error("[manual-block] envio aos anúncios falhou", e);
       toast.warning(
-        release
-          ? "Datas liberadas aqui, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos."
-          : "Bloqueio salvo aqui, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.",
+        updated
+          ? "Bloqueio alterado aqui, mas não consegui atualizar as datas nos anúncios. Tente de novo em alguns minutos."
+          : release
+            ? "Datas liberadas aqui, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos."
+            : "Bloqueio salvo aqui, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.",
         { id: tid },
       );
     }
   }
-  async function releaseBlock() {
-    if (!blockTap || !releaseRange) return;
+  async function releaseBlock(whole = false) {
+    const range = whole && blockTap ? { from: blockTap.from, to: blockTap.to } : releaseRange;
+    if (!blockTap || !range) return;
     setBlockBusy(true);
     try {
       const realId = baseId(blockTap.propertyId);
       const tapped = blockTap;
-      const sub = { from: releaseRange.from, to: releaseRange.to };
+      const sub = { from: range.from, to: range.to };
       // Liberar só um pedaço: o que sobra do bloqueio original volta como 1 ou 2 bloqueios (0 = liberou tudo).
       const remainders = releaseRemainders({ from: tapped.from, to: tapped.to }, sub.from, sub.to);
       const label = tapped.note?.trim() && tapped.note.trim() !== "Bloqueio manual" ? `Bloqueado: ${tapped.note.trim()}` : "Bloqueado";
@@ -7944,6 +7979,8 @@ function OccupancyPanel({
         }
       }
       setReleaseOpen(false);
+      setEditOpen(false);
+      setEditSub(null);
       setBlockTap(null);
       setReleaseSub(null);
       // Liberou no ConciergeIA: a tela atualiza JÁ; reabrir nos anúncios segue em seguida, com aviso próprio.
@@ -7972,7 +8009,7 @@ function OccupancyPanel({
     if (!nd || nd < todayISO) return true;
     const lo = blockSel.anchor <= nd ? blockSel.anchor : nd;
     const hi = blockSel.anchor <= nd ? nd : blockSel.anchor;
-    const hit = firstBlockConflict(byProperty.get(propertyId) ?? [], lo, blockAddDays(hi, 1));
+    const hit = firstBlockConflict(reservationStays(propertyId), lo, blockAddDays(hi, 1));
     if (hit) {
       toast.error("Não é possível bloquear", { description: conflictMessage(hit, lo) });
       return true;
@@ -7997,6 +8034,57 @@ function OccupancyPanel({
     el?.focus();
     el?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
+  /** ALTERAR período e/ou motivo do bloqueio manual tocado (03/11/2026). O servidor revalida conflito com reserva
+   *  (banco + Channex) e só mexe em bloqueio manual; a tela troca a barra NA HORA em todas as linhas (principal e gêmeos)
+   *  e depois o envio aos anúncios fecha as noites novas e reabre as que saíram. */
+  async function updateBlock(note: string | null) {
+    if (!blockTap || !editRange) return;
+    const tapped = blockTap;
+    const range = { from: editRange.from, to: editRange.to };
+    const noteOf = (v: string | null | undefined) => (v?.trim() && v.trim() !== "Bloqueio manual" ? v.trim() : "");
+    if (range.from === tapped.from && range.to === tapped.to && (note?.trim() ?? "") === noteOf(tapped.note)) {
+      setEditOpen(false);
+      setEditSub(null);
+      setBlockTap(null);
+      return;
+    }
+    setBlockBusy(true);
+    try {
+      const realId = baseId(tapped.propertyId);
+      const label = note?.trim() ? `Bloqueado: ${note.trim()}` : "Bloqueado";
+      await updateBlockFn({ data: { ownerId: blockOwnerId, propertyId: realId, id: tapped.id, from: range.from, to: range.to, note } });
+      qcBlock.setQueriesData({ queryKey: ["dash-occupancy"] }, (old: unknown) => {
+        const o = old as { stays?: Array<{ propertyId: string; checkin: string; checkout: string | null; blocked?: boolean }> } | undefined;
+        if (!o || !Array.isArray(o.stays)) return old;
+        return {
+          ...o,
+          stays: [
+            ...o.stays.filter((st) => !(st.blocked && st.propertyId === realId && st.checkin === tapped.from && (st.checkout ?? st.checkin) === tapped.to)),
+            { propertyId: realId, checkin: range.from, checkout: range.to, guest: label, checkinDone: false, checkoutDone: false, blocked: true, note: note?.trim() || null },
+          ],
+        };
+      });
+      qcBlock.setQueriesData({ queryKey: ["manual-blocks"] }, (old: unknown) => {
+        const o = old as { blocks?: Array<{ id: string }> } | undefined;
+        if (!o || !Array.isArray(o.blocks)) return old;
+        return { ...o, blocks: o.blocks.map((b) => (b.id === tapped.id ? { ...b, from: range.from, to: range.to, note: note?.trim() || null } : b)) };
+      });
+      setEditOpen(false);
+      setEditSub(null);
+      setBlockTap(null);
+      void syncListings(realId, false, true).finally(() => {
+        qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }).catch(() => {});
+        qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }).catch(() => {});
+      });
+    } catch (e) {
+      console.error("[manual-block] erro ao alterar o bloqueio", e);
+      qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }).catch(() => {});
+      qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }).catch(() => {});
+      toast.error("Não foi possível alterar o bloqueio", { description: (e instanceof Error ? e.message : "").replace(/^Não é possível bloquear — /, "") || "Tente novamente." });
+    } finally {
+      setBlockBusy(false);
+    }
+  }
   async function saveBlock(note: string | null) {
     if (!blockSel || !blockRange) return;
     setBlockBusy(true);
@@ -8015,7 +8103,7 @@ function OccupancyPanel({
           ...o,
           stays: [
             ...o.stays,
-            { propertyId: realId, checkin: range.from, checkout: range.to, guest: label, checkinDone: false, checkoutDone: false, blocked: true },
+            { propertyId: realId, checkin: range.from, checkout: range.to, guest: label, checkinDone: false, checkoutDone: false, blocked: true, note: note?.trim() || null },
           ],
         };
       });
@@ -9062,10 +9150,7 @@ function OccupancyPanel({
               busy={blockBusy}
               todayISO={todayISO}
               bookingWindow={blockPermQ.data?.windows?.[baseId(blockSel.propertyId)] ?? null}
-              occupiedStays={[
-                ...(byProperty.get(blockSel.propertyId) ?? []),
-                ...(blockPermQ.data?.blocks ?? []).filter((b) => b.propertyId === baseId(blockSel.propertyId)).map((b) => ({ checkin: b.from, checkout: b.to })),
-              ]}
+              occupiedStays={occupiedFor(blockSel.propertyId)}
               onRangeChange={(f, t) => setBlockSel({ propertyId: blockSel.propertyId, anchor: f, end: blockAddDays(t, -1) })}
               onClose={() => setBlockOpen(false)}
               onSave={saveBlock}
@@ -9085,7 +9170,7 @@ function OccupancyPanel({
         };
         return (
           <>
-            {!releaseOpen && (
+            {!releaseOpen && !editOpen && (
               <CalendarBlockBar
                 mode="release"
                 ctx={ctx}
@@ -9093,8 +9178,32 @@ function OccupancyPanel({
                 to={blockTap.to}
                 onCancel={() => setBlockTap(null)}
                 onConfirm={() => setReleaseOpen(true)}
+                onEditDates={() => {
+                  setEditSub(null);
+                  setEditOpen(true);
+                }}
               />
             )}
+            <CalendarBlockDialog
+              mode="edit"
+              key={`edit:${blockTap.id}`}
+              open={editOpen}
+              ctx={ctx}
+              from={editRange?.from ?? blockTap.from}
+              to={editRange?.to ?? blockTap.to}
+              busy={blockBusy}
+              todayISO={todayISO}
+              bookingWindow={blockPermQ.data?.windows?.[baseId(blockTap.propertyId)] ?? null}
+              occupiedStays={occupiedFor(blockTap.propertyId, blockTap.id)}
+              initialNote={blockTap.note?.trim() && blockTap.note.trim() !== "Bloqueio manual" ? blockTap.note.trim() : ""}
+              onRangeChange={(f, t) => setEditSub({ id: blockTap.id, from: f, to: t })}
+              onClose={() => {
+                setEditOpen(false);
+                setEditSub(null);
+              }}
+              onSave={(note) => void updateBlock(note)}
+              onRelease={() => void releaseBlock(true)}
+            />
             <CalendarBlockDialog
               mode="release"
               key={`rel:${blockTap.id}`}

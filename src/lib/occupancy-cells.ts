@@ -12,7 +12,11 @@
  *     senão livre — e, livre, vira "blocked" se a noite anterior está bloqueada;
  *   · tarde: quem entra no dia ("in"; vira "busy" quando hoje e o check-in já foi
  *     feito), senão quem atravessa ("busy"), senão livre/"blocked" pela noite do dia;
- *   · havendo mais de uma candidata, vale a PRIMEIRA da lista (como `find`).
+ *   · havendo mais de uma candidata, vale a PRIMEIRA da lista (como `find`);
+ *   · junção (corte de 4 px) no dia `d` quando duas peças DISTINTAS se encontram nele: reserva que sai ↔ reserva que
+ *     entra, reserva ↔ bloqueio (nos dois sentidos) e, desde 03/11/2026, bloqueio que termina em `d` ↔ outro
+ *     bloqueio que começa em `d` (ex.: o anúncio gêmeo, onde duas reservas do giro viram dois bloqueios cinza).
+ *     Um mesmo bloqueio que só atravessa o dia NÃO cria junção.
  */
 export type CellPart = "in" | "out" | "busy" | "blocked" | "free";
 
@@ -63,6 +67,9 @@ export function computePropertyCells<S extends OccStay>(
   const throughFirst: Array<S | undefined> = new Array(n);
   const amBlocked = new Array<boolean>(n).fill(false);
   const pmBlocked = new Array<boolean>(n).fill(false);
+  /** Há um bloqueio que TERMINA / que COMEÇA exatamente neste dia (para detectar bloqueio↔bloqueio). */
+  const blockEndsOn = new Array<boolean>(n).fill(false);
+  const blockStartsOn = new Array<boolean>(n).fill(false);
   const index = new Map<string, number>();
   dayList.forEach((d, i) => index.set(d, i));
 
@@ -80,6 +87,11 @@ export function computePropertyCells<S extends OccStay>(
     }
   }
   for (const b of blocks) {
+    if (!(b.to > b.from)) continue; // sem noites: não pinta nada nem cria junção
+    const ie = index.get(b.to);
+    if (ie !== undefined) blockEndsOn[ie] = true;
+    const is = index.get(b.from);
+    if (is !== undefined) blockStartsOn[is] = true;
     // Manhã: from < dia <= to (a noite anterior está bloqueada).
     for (let i = upper(dayList, b.from), stop = upper(dayList, b.to); i < stop; i++) amBlocked[i] = true;
     // Tarde: from <= dia < to (a noite do dia está bloqueada).
@@ -102,7 +114,11 @@ export function computePropertyCells<S extends OccStay>(
     halves[i * 2 + 1] = b;
     stayOf[i * 2] = outS ?? thr;
     stayOf[i * 2 + 1] = inS ?? thr;
-    junction[i] = (!!outS && !!inS) || (!!outS && b === "blocked") || (a === "blocked" && !!inS);
+    junction[i] =
+      (!!outS && !!inS) ||
+      (!!outS && b === "blocked") ||
+      (a === "blocked" && !!inS) ||
+      (blockEndsOn[i]! && blockStartsOn[i]!);
   }
   return { halves, stays: stayOf, junction };
 }

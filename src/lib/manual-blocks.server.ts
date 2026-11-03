@@ -123,6 +123,109 @@ export async function createManualBlock(input: { propertyId: string; from: strin
   return { id: newId, merged: plan.absorbIds.length > 0, ...(push ? await safePush(input.propertyId, input.userId) : {}) };
 }
 
+/**
+ * ALTERAR O PERÍODO (e o motivo) DE UM BLOQUEIO MANUAL EXISTENTE (03/11/2026).
+ *
+ * Mesmas travas de `createManualBlock`: o novo [from, to) é revalidado contra reserva ativa no banco E na
+ * Channex (gêmeos inclusos) antes de gravar e de novo depois — se uma reserva entrou no meio-tempo, o bloqueio
+ * volta EXATAMENTE como estava e a chamada falha. Só mexe em linha `source='manual'` + `status='blocked'`:
+ * reserva de hóspede nunca é alterada por aqui. Bloqueios vizinhos/sobrepostos viram um só (como na criação).
+ * `push: false` = grava e devolve na hora; a tela chama `syncBlockAvailability` em seguida (fecha as noites novas
+ * e REABRE as que saíram do bloqueio, pois a disponibilidade é recalculada do banco).
+ */
+export async function updateManualBlock(input: { id: string; propertyId: string; from: string; to: string; note?: string | null; userId: string | null; push?: boolean }) {
+  const push = input.push !== false;
+  const { validateBlockDates, planBlockMerge } = await import("@/lib/manual-block-conflict");
+  const db = await admin();
+  const { data: curRows, error: curErr } = await db
+    .from("property_reservations")
+    .select("id, checkin_date, checkout_date, raw_summary")
+    .eq("id", input.id)
+    .eq("property_id", input.propertyId)
+    .eq("source", "manual")
+    .eq("status", "blocked");
+  if (curErr) throw new Error(curErr.message);
+  const cur = ((curRows ?? []) as any[])[0];
+  if (!cur) throw new Error("Este bloqueio não existe mais ou já foi liberado. Atualize a página.");
+  // Início que não mudou pode estar no passado (bloqueio em andamento): só vale a regra "a partir de hoje" para início novo.
+  const keepsStart = input.from === cur.checkin_date;
+  const invalid = validateBlockDates(input.from, input.to, keepsStart ? input.from : todayUTC());
+  if (invalid) throw new Error(invalid);
+
+  const clash = await findActiveConflict(db, input.propertyId, input.from, input.to);
+  if (clash) throw new Error(clash);
+
+  // Outros bloqueios manuais que tocam o novo período (o próprio fica de fora).
+  const { data: others, error: exErr } = await db
+    .from("property_reservations")
+    .select("id, checkin_date, checkout_date")
+    .eq("property_id", input.propertyId)
+    .eq("source", "manual")
+    .eq("status", "blocked")
+    .lte("checkin_date", input.to)
+    .gte("checkout_date", input.from);
+  if (exErr) throw new Error(exErr.message);
+  const plan = planBlockMerge(
+    ((others ?? []) as any[])
+      .filter((r) => r.id !== input.id)
+      .map((r) => ({ id: r.id as string, from: r.checkin_date as string, to: r.checkout_date as string })),
+    input.from,
+    input.to,
+  );
+  const now = () => new Date().toISOString();
+  if (plan.coveringId) {
+    // O novo período cabe inteiro dentro de OUTRO bloqueio: este vira redundante e sai.
+    const { error } = await db
+      .from("property_reservations")
+      .update({ status: "cancelled", updated_at: now() })
+      .eq("id", input.id)
+      .eq("property_id", input.propertyId)
+      .eq("source", "manual")
+      .eq("status", "blocked");
+    if (error) throw new Error(error.message);
+    return { id: plan.coveringId, merged: true, ...(push ? await safePush(input.propertyId, input.userId) : {}) };
+  }
+
+  const prev = { checkin_date: cur.checkin_date as string, checkout_date: cur.checkout_date as string, raw_summary: (cur.raw_summary as string | null) ?? null };
+  const { data: updated, error } = await db
+    .from("property_reservations")
+    .update({
+      checkin_date: plan.from,
+      checkout_date: plan.to,
+      raw_summary: input.note?.trim() || "Bloqueio manual",
+      synced_at: now(),
+      updated_at: now(),
+    })
+    .eq("id", input.id)
+    .eq("property_id", input.propertyId)
+    .eq("source", "manual")
+    .eq("status", "blocked")
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (!((updated ?? []) as any[]).length) throw new Error("Este bloqueio não existe mais ou já foi liberado. Atualize a página.");
+
+  // Reconferência depois de gravar (duas pessoas ao mesmo tempo): se entrou reserva, devolve o bloqueio como estava.
+  const late = await findActiveConflict(db, input.propertyId, plan.from, plan.to, push).catch(() => null);
+  if (late) {
+    await db
+      .from("property_reservations")
+      .update({ ...prev, updated_at: now() })
+      .eq("id", input.id)
+      .eq("property_id", input.propertyId)
+      .eq("source", "manual");
+    throw new Error(late);
+  }
+  if (plan.absorbIds.length) {
+    await db
+      .from("property_reservations")
+      .update({ status: "cancelled", updated_at: now() })
+      .in("id", plan.absorbIds)
+      .eq("property_id", input.propertyId)
+      .eq("source", "manual");
+  }
+  return { id: input.id, merged: plan.absorbIds.length > 0, ...(push ? await safePush(input.propertyId, input.userId) : {}) };
+}
+
 /** O bloqueio já está salvo: falha ao avisar os anúncios vira `ok: false` (a tela avisa), nunca erro. */
 export async function safePush(propertyId: string, userId: string | null) {
   try {
