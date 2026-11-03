@@ -114,7 +114,8 @@ describe("B2.3 · semântico — compromissos só com autorização real do sist
   it("a tabela de autorização cobre todos os tipos e nunca autoriza tipos sem fonte", () => {
     expect(Object.keys(COMMITMENT_AUTHORIZATION).sort()).toEqual([...COMMITMENT_KINDS].sort());
     const a = deriveTurnAuthorizations(ctx(), null);
-    expect(a).toMatchObject({ earlyCheckin: "no_authorization_source", lateCheckout: "no_authorization_source", reservationChange: "no_authorization_source", actionsExecuted: "none", availabilityConfirmedRefs: [] });
+    // B2.4: entrada antecipada/saída tardia vêm da verificação formal; sem ela, nada é autorizado.
+    expect(a).toMatchObject({ earlyCheckin: { status: "not_authorized" }, lateCheckout: { status: "not_authorized" }, reservationChange: "no_authorization_source", actionsExecuted: "none", availabilityConfirmedRefs: [] });
   });
 });
 

@@ -18,6 +18,9 @@
  *  - emergência: nunca sem encaminhamento urgente;
  *  - saída sensível: TODO texto da decisão passa pelo FreeTextGuard; qualquer achado (ou guard
  *    ausente/falho) ⇒ recusa. Isto não é censura de estilo: o guard procura segredos, não palavras.
+ *  - B2.4: entrada antecipada/saída tardia usam a verificação FORMAL (`policy/stay-authorizations.ts`);
+ *    com o estado do atendimento humano, nenhum encaminhamento paralelo no assunto da equipe (salvo
+ *    emergência/urgência maior) e nenhum compromisso em assunto ambíguo — por assunto, nunca global.
  *
  * NÃO é censura lexical: nenhuma regra aqui lê o `reply` procurando palavras proibidas. A
  * classificação (intenções, tipos de compromisso) é SEMÂNTICA e feita pelo modelo; o sistema só
@@ -36,6 +39,8 @@ import {
 } from "@/lib/guest-ai/orchestrator/contracts";
 import type { CaseOwnership } from "@/lib/guest-ai/orchestrator/case-ownership";
 import type { StayPhase } from "@/lib/guest-ai/types";
+import type { HumanOwnershipSnapshot } from "@/lib/guest-ai/orchestrator/case-ownership";
+import { unavailableStayAuthorizations, type StayAuthorization, type StayAuthorizations } from "@/lib/guest-ai/policy/stay-authorizations";
 
 /**
  * Contrato mínimo do guard usado na SAÍDA (estruturalmente igual ao `FreeTextGuard` do composer;
@@ -48,7 +53,7 @@ export interface OutputScanner {
 /** Estados de disponibilidade (espelho de `AvailabilityState["status"]`; conferido no `turn-chain.ts`). */
 export type AvailabilityStatus = "not_consulted" | "confirmed_available" | "confirmed_unavailable";
 
-export const SEMANTIC_VALIDATOR_VERSION = "semantic.2026-11-03.1";
+export const SEMANTIC_VALIDATOR_VERSION = "semantic.2026-11-03.2";
 
 export const SEMANTIC_BLOCKS = [
   "commitment_kinds_undeclared",
@@ -62,6 +67,9 @@ export const SEMANTIC_BLOCKS = [
   "emergency_without_escalation",
   "output_sensitive_content",
   "output_guard_failed",
+  // B2.4 — não interferência em assunto sob responsabilidade humana
+  "protected_topic_second_action",
+  "ambiguous_topic_commitment",
 ] as const;
 export type SemanticBlock = (typeof SEMANTIC_BLOCKS)[number];
 
@@ -92,6 +100,10 @@ export interface SemanticInput {
   priorMilestones: PriorMilestones;
   /** Mesmo guard da composição. Ausente ⇒ `output_guard_failed`. */
   guard: OutputScanner | null;
+  /** B2.4: autorizações de horário verificadas deterministicamente. Ausente ⇒ nada autorizado. */
+  stayAuthorizations?: StayAuthorizations | null;
+  /** B2.4: estado do atendimento humano por assunto. Ausente ⇒ só a regra B1 de `caseRelation`. */
+  humanOwnership?: HumanOwnershipSnapshot | null;
 }
 
 /** Autorizações que o SISTEMA concede no turno (nunca vindas do modelo). */
@@ -99,21 +111,27 @@ export interface TurnAuthorizations {
   credentialRelease: "allow" | "deny";
   /** Refs de dossiê com disponibilidade CONFIRMADA (hoje sempre vazio: não há fonte de calendário). */
   availabilityConfirmedRefs: string[];
-  /** Fontes inexistentes nesta fase (B2.4+): o tipo literal impede tratá-las como concedidas. */
-  earlyCheckin: "no_authorization_source";
-  lateCheckout: "no_authorization_source";
+  /** B2.4: resultado da verificação formal (`policy/stay-authorizations.ts`), nunca do modelo. */
+  earlyCheckin: StayAuthorization;
+  lateCheckout: StayAuthorization;
+  /** Fontes inexistentes nesta fase: o tipo literal impede tratá-las como concedidas. */
   reservationChange: "no_authorization_source";
   serviceOrBenefit: "no_authorization_source";
   actionsExecuted: "none";
   resolution: "no_authorization_source";
 }
 
-export function deriveTurnAuthorizations(ctx: ConversationContext, dossiers: readonly SemanticDossierView[] | null): TurnAuthorizations {
+export function deriveTurnAuthorizations(
+  ctx: ConversationContext,
+  dossiers: readonly SemanticDossierView[] | null,
+  stay: StayAuthorizations | null = null,
+): TurnAuthorizations {
+  const verified = stay ?? unavailableStayAuthorizations();
   return {
     credentialRelease: ctx.credentialPolicy.decision === "allow" ? "allow" : "deny",
     availabilityConfirmedRefs: (dossiers ?? []).filter((d) => d.availability === "confirmed_available").map((d) => d.ref),
-    earlyCheckin: "no_authorization_source",
-    lateCheckout: "no_authorization_source",
+    earlyCheckin: verified.earlyCheckin,
+    lateCheckout: verified.lateCheckout,
     reservationChange: "no_authorization_source",
     serviceOrBenefit: "no_authorization_source",
     actionsExecuted: "none",
@@ -133,10 +151,11 @@ export const COMMITMENT_AUTHORIZATION: Readonly<Record<CommitmentKind, (d: Model
   credential_release: (d, a) => a.credentialRelease === "allow" && d.credentialIntent === "would_deliver",
   // Disponibilidade: só confirmada para o imóvel citado.
   availability: (d, a) => a.availabilityConfirmedRefs.some((ref) => d.groundedOn.some((id) => id.startsWith(`dos:${ref}:`))),
+  // Exceções de horário: só com autorização FORMAL verificada (entrada antecipada não tem fonte).
+  early_checkin: (_d, a) => a.earlyCheckin.status === "authorized",
+  late_checkout: (_d, a) => a.lateCheckout.status === "authorized",
   // Sem fonte de autorização nesta fase.
   reservation_change: () => false,
-  early_checkin: () => false,
-  late_checkout: () => false,
   service_or_benefit: () => false,
   action_completed: () => false,
   resolution: () => false,
@@ -184,7 +203,7 @@ export function validateSemantics(input: SemanticInput): SemanticReport {
     if (!blocks.includes(b)) blocks.push(b);
   };
   const sig = decisionSignals(d);
-  const auth = deriveTurnAuthorizations(ctx, dossiers);
+  const auth = deriveTurnAuthorizations(ctx, dossiers, input.stayAuthorizations ?? null);
   const unauthorizedKinds: CommitmentKind[] = [];
 
   // 1) Compromissos: tipo declarado e autorizado pelo sistema.
@@ -224,7 +243,18 @@ export function validateSemantics(input: SemanticInput): SemanticReport {
   // 5) Emergência: nunca sem encaminhamento urgente.
   if (sig.intents.includes("emergency") && (!d.handoff.needed || d.handoff.urgency !== "high")) add("emergency_without_escalation");
 
-  // 6) Saída sensível: todo texto da decisão pelo guard (fail-closed).
+  // 6) B2.4 — não interferência por ASSUNTO (nunca bloqueio da conversa inteira).
+  const own = input.humanOwnership;
+  if (own && own.active) {
+    // Mesmo assunto sob responsabilidade humana: nada de segunda ação paralela (novo encaminhamento),
+    // salvo emergência ou mudança relevante de prioridade (urgência alta acima da registrada).
+    const escalation = sig.intents.includes("emergency") || (d.handoff.urgency === "high" && own.urgency !== "high");
+    if (d.caseRelation === "related" && d.handoff.needed && !escalation) add("protected_topic_second_action");
+    // Assunto ambíguo: não assumir que é independente — nenhum compromisso até esclarecer.
+    if (d.caseRelation === "ambiguous" && d.commitments.length > 0) add("ambiguous_topic_commitment");
+  }
+
+  // 7) Saída sensível: todo texto da decisão pelo guard (fail-closed).
   const sensitive = scanOutput(input.guard, decisionTexts(d));
   if (sensitive === null) add("output_guard_failed");
   else if (sensitive) add("output_sensitive_content");

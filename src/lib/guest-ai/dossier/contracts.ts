@@ -11,6 +11,8 @@
  * (`bindAvailability`). Nesta etapa (B2.2) nenhuma fonte de calendário existe: só o contrato.
  */
 
+import type { ResolvedFact } from "./authority";
+
 export type PropertyRole = "primary" | "candidate";
 export type DossierAudience = "P" | "G";
 export type DossierPurpose = "reservation_context" | "guest_alternative_consultation";
@@ -128,6 +130,12 @@ export interface PropertyDossier {
   unknown: string[];
   completeness: DossierCompleteness;
   availability: AvailabilityState;
+  /**
+   * B2.4: fatos resolvidos por AUTORIDADE DE DOMÍNIO (`dossier/authority.ts`): horários padrão,
+   * capacidade e regras da casa, com proveniência, divergências preservadas e estado
+   * (`confirmed | unknown | conflict | stale | not_applicable`). Nunca promove fonte sem autoridade.
+   */
+  resolved: ResolvedFact[];
 }
 
 export class DossierError extends Error {

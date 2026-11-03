@@ -19,6 +19,7 @@ import { pickNormalized } from "@/lib/guest-ai/data/listing-normalized";
 import { detectListingConflicts } from "@/lib/guest-ai/data/listing.server";
 import { publicPropertyTitle } from "@/lib/guest-ai/data/public-title";
 import type { BuildPlaybookFn } from "@/lib/guest-ai/data/dossier.server";
+import { resolveDomain, type FactClaim, type FactDomain, type ResolvedFact } from "./authority";
 import {
   DOSSIER_SOURCES,
   DossierError,
@@ -192,6 +193,8 @@ export function normalizePropertyDossier(input: NormalizeInput): PropertyDossier
   const conflicts: string[] = [
     ...detectListingConflicts(listing, { checkInTime: str(p["checkin_time"]), checkOutTime: str(p["checkout_time"]) }),
   ];
+  // B2.4: resolução por autoridade de domínio (horários padrão, capacidade, regras da casa).
+  const resolved = resolveDossierFacts(target.propertyId, p, listing, pub, retrievedAt);
   const unknown: string[] = [];
   for (const [k, v] of Object.entries(capacity) as Array<[keyof CapacityFacts, Known<number>]>) {
     if (v.status === "unknown") unknown.push(`capacity.${k}`);
@@ -262,5 +265,41 @@ export function normalizePropertyDossier(input: NormalizeInput): PropertyDossier
       withheldByPolicy: withheld,
     },
     availability: { status: "not_consulted" },
+    resolved,
   };
+}
+
+/** Horário HH:MM normalizado (o banco guarda `HH:MM:SS`). */
+const hm = (v: unknown): string | null => {
+  const t = str(v);
+  return t && /^\d{2}:\d{2}/.test(t) ? t.slice(0, 5) : null;
+};
+
+/**
+ * Afirmações por domínio a partir das fontes já carregadas (nenhuma leitura nova) e resolução
+ * por autoridade. Fontes ausentes simplesmente não geram afirmação.
+ */
+function resolveDossierFacts(
+  propertyId: string,
+  p: Row,
+  listing: ReturnType<typeof pickNormalized>,
+  pub: Row | null,
+  now: string,
+): ResolvedFact[] {
+  const claims: FactClaim[] = [];
+  const add = (domain: FactDomain, value: string | number | null, source: FactClaim["source"], sourceRef: string) => {
+    if (value === null || value === "") return;
+    claims.push({ domain, propertyId, value, source, sourceRef, observedAt: null, validUntil: null, temporal: "current" });
+  };
+  add("checkin_time_standard", hm(p["checkin_time"]), "official_property_record", "properties.checkin_time");
+  add("checkin_time_standard", hm(listing?.checkinWindow?.start), "listing_public", "listing.checkin_window.start");
+  add("checkout_time_standard", hm(p["checkout_time"]), "official_property_record", "properties.checkout_time");
+  add("checkout_time_standard", hm(listing?.checkoutTime), "listing_public", "listing.checkout_time");
+  add("max_guests", num(p["airbnb_guest_count"]), "listing_sync_copy", "properties.airbnb_guest_count");
+  add("max_guests", num(pub?.["guests"]), "listing_public", "listing.public.guests");
+  add("house_rules", str(p["house_rules"]), "official_property_record", "properties.house_rules");
+  add("house_rules", str(p["airbnb_house_rules"]), "listing_sync_copy", "properties.airbnb_house_rules");
+  add("house_rules", str(pub?.["houseRules"]), "listing_public", "listing.public.house_rules");
+  const domains: FactDomain[] = ["checkin_time_standard", "checkout_time_standard", "max_guests", "house_rules"];
+  return domains.map((d) => resolveDomain(d, propertyId, claims, now));
 }

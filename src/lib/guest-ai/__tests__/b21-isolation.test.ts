@@ -66,7 +66,8 @@ describe("B2.1 · nada de produção ativa a composição", () => {
     // B2.3: `turn-chain.ts` é a cadeia fail-closed ISOLADA (não ligada a nada); ela própria é
     // proibida em qualquer código de produção pelo `b23-isolation.test.ts`.
     const importers = prod
-      .filter((f) => path.relative(ROOT, f) !== "turn-chain.ts")
+      // B2.4: harness passivo do shadow (isolado; proibido em produção pelo b24-isolation.test.ts)
+      .filter((f) => !["turn-chain.ts", "shadow/harness.ts"].includes(path.relative(ROOT, f)))
       .filter((f) => /guest-ai\/(composer|render)["']/.test(readFileSync(f, "utf8")))
       .map((f) => path.relative(ROOT, f));
     expect(importers).toEqual([]);
@@ -114,7 +115,7 @@ describe("B2.1 · compositor injetado SÓ em teste (compatibilidade com o contra
     if (r.kind === "draft") {
       expect(r.validation.verdict).toBe("pass");
       expect(r.telemetry.mode).toBe("shadow");
-      expect(r.telemetry.promptVersion).toMatch(/^b2\.3\//); // versão do prompt avança a cada gate (B2.3)
+      expect(r.telemetry.promptVersion).toMatch(/^b2\.4\//); // versão do prompt avança a cada gate (B2.4)
     }
   });
   it("sem guard (estado real até a B2.2): composição indisponível ⇒ prompt_unavailable, sem chamada", async () => {

@@ -48,7 +48,8 @@ describe("B2.3 · nenhum segredo em auditoria, recusa ou erro", () => {
     await runTurnChain({ turn: turn(), traceId: "sec-2" }, h.deps);
     const a = h.calls.logs[0]!;
     expect(Object.keys(a).sort()).toEqual(
-      ["category", "chainVersion", "code", "composerVersion", "contractVersion", "decisionVersion", "durationMs", "event", "guard", "outcome", "parserVersion", "semanticBlocks", "semanticValidatorVersion", "stage", "stagesCompleted", "structuralBlocks", "structuralValidatorVersion", "traceId"].sort(),
+      // B2.4: + timings, interruption, decision (resumo só com enums/contagens) e checks (códigos/contagens)
+      ["category", "chainVersion", "checks", "code", "composerVersion", "contractVersion", "decision", "decisionVersion", "durationMs", "event", "guard", "interruption", "outcome", "parserVersion", "semanticBlocks", "semanticValidatorVersion", "stage", "stagesCompleted", "structuralBlocks", "structuralValidatorVersion", "timings", "traceId"].sort(),
     );
     expect(JSON.stringify(a)).not.toContain("check-in");
   });
@@ -94,7 +95,8 @@ describe("B2.3 · isolamento estático", () => {
     const importers = prod
       .filter((f) => /guest-ai\/(turn-chain|validation\/semantic-validator)["']/.test(readFileSync(f, "utf8")))
       .map((f) => path.relative(ROOT, f));
-    expect(importers).toEqual(["turn-chain.ts"]);
+    // B2.4: o harness passivo do shadow reutiliza a cadeia (sem segunda cadeia); ele próprio é proibido em produção.
+    expect(importers.sort()).toEqual(["shadow/harness.ts", "shadow/telemetry.ts", "turn-chain.ts"]);
   });
   it("Orchestrator e slot seguem sem a cadeia; NO_COMPOSER continua o padrão", () => {
     for (const f of ["orchestrator/orchestrator.server.ts", "slot.server.ts", "context/conversation-context.server.ts"]) {

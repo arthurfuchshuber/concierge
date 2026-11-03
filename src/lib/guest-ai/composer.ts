@@ -39,9 +39,12 @@ import { CONTEXT_TAG, DOSSIER_TAG, HISTORY_TAG, SYSTEM_PROMPT_VERSION, buildSyst
 import { defaultBudgetConfig, evaluateBudget, type BudgetConfig, type BudgetMetrics, type BudgetOverReason } from "./budget";
 import { assertAvailabilityFor, type PropertyDossier } from "./dossier/contracts";
 import { isIssuedPropertyDossier } from "./dossier/registry";
+import type { ResolvedFact } from "./dossier/authority";
+import type { StayAuthorizations } from "./policy/stay-authorizations";
+import type { HumanOwnershipSnapshot } from "./orchestrator/case-ownership";
 
-export const COMPOSER_VERSION = "composer.2026-11-03.3";
-export const PROMPT_VERSION = `b2.3/${COMPOSER_VERSION}/${SYSTEM_PROMPT_VERSION}/${PERSONA_VERSION}`;
+export const COMPOSER_VERSION = "composer.2026-11-03.4";
+export const PROMPT_VERSION = `b2.4/${COMPOSER_VERSION}/${SYSTEM_PROMPT_VERSION}/${PERSONA_VERSION}`;
 /** Teto de dossiês alternativos num mesmo turno (cada um é carregado sob demanda e autorizado). */
 export const MAX_CANDIDATE_DOSSIERS = 5;
 
@@ -70,6 +73,12 @@ export interface ComposeInput {
   history: HistoryResult;
   /** B2.2: dossiê do imóvel principal e, opcionalmente, de candidatos alternativos (mesmo tenant). */
   dossiers?: { primary: PropertyDossier; candidates?: readonly PropertyDossier[] } | null;
+  /**
+   * B2.4: estado operacional VERIFICADO pelo sistema (nunca pelo modelo): autorizações formais de
+   * horário (`policy/stay-authorizations.ts`) e atendimento humano por assunto (`case-ownership.ts`).
+   * Ausente ⇒ o prompt declara `nao_informado`, como antes.
+   */
+  operational?: { stayAuthorizations?: StayAuthorizations | null; humanOwnership?: HumanOwnershipSnapshot | null } | null;
 }
 
 /**
@@ -216,7 +225,26 @@ function isUsableGuard(g: unknown): g is FreeTextGuard {
 
 type Fact = { id: string; valor: unknown; origem: string };
 
-function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailable: ReadonlyArray<{ secao: string; motivo: string }>) {
+type Operational = NonNullable<ComposeInput["operational"]>;
+
+/** Autorização de horário como fato para o modelo: só o que o sistema verificou. */
+function stayFact(kind: "early" | "late", op: Operational | null): Record<string, unknown> {
+  const s = op?.stayAuthorizations;
+  if (!s) return { status: "nao_informado", tratamento: "sem_autorizacao_para_prometer" };
+  if (kind === "early") {
+    return {
+      status: "nao_autorizada",
+      motivo: s.earlyCheckin.reason,
+      tratamento: "sem_autorizacao_para_prometer",
+      ...(s.credentialManualRelease === "released" ? { observacao: "credenciais_liberadas_nao_autorizam_horario_de_entrada" } : {}),
+    };
+  }
+  const l = s.lateCheckout;
+  if (l.status === "authorized") return { status: "autorizada_formalmente", data: l.date, horario: l.time, fonte: "registro_formal_da_equipe" };
+  return { status: "nao_autorizada", motivo: l.reason, tratamento: "sem_autorizacao_para_prometer" };
+}
+
+function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailable: ReadonlyArray<{ secao: string; motivo: string }>, op: Operational | null = null) {
   const g = ctx.guest;
   const facts: Fact[] = [
     { id: "ctx:canal", valor: g.interlocutor.surface, origem: "backend" },
@@ -239,16 +267,26 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
       valor: { decisao: ctx.credentialPolicy.decision, motivo: ctx.credentialPolicy.reason },
       origem: "politica_d9",
     },
-    { id: "ctx:entrada_antecipada", valor: { status: "nao_informado", tratamento: "sem_autorizacao_para_prometer" }, origem: "backend" },
-    { id: "ctx:saida_tardia", valor: { status: "nao_informado", tratamento: "sem_autorizacao_para_prometer" }, origem: "backend" },
+    { id: "ctx:entrada_antecipada", valor: stayFact("early", op), origem: op?.stayAuthorizations ? "verificacao_formal" : "backend" },
+    { id: "ctx:saida_tardia", valor: stayFact("late", op), origem: op?.stayAuthorizations ? "verificacao_formal" : "backend" },
     // Interlocutor ≠ titular (diretriz B2.1 §8): nada aqui comprova identidade de quem escreve.
     { id: "ctx:interlocutor", valor: { identidade: "nao_verificada", papel: "participante_da_conversa" }, origem: "backend" },
     { id: "ctx:titular_da_reserva", valor: { status: "nao_informado" }, origem: "backend" },
   );
 
+  const own = op?.humanOwnership ?? null;
   const cases = ctx.humanOwnership.cases.map((c, i) => {
     const out: Record<string, unknown> = { id: `case:c${i + 1}`, status: c.status };
     if (c.handoffAt) out["desde"] = c.handoffAt;
+    // B2.4: assunto protegido e estado do atendimento (o responsável nunca é identificado).
+    if (own && own.active) {
+      out["estado"] = own.state;
+      out["responsavel_atribuido"] = own.assigned;
+      if (own.urgency) out["urgencia"] = own.urgency;
+      if (own.since && !out["desde"]) out["desde"] = own.since;
+      out["assunto"] = own.topic.status === "known" ? guarded(own.topic.text, "context.case_topic") : { status: "desconhecido" };
+      out["escopo"] = "somente_este_assunto";
+    }
     return out;
   });
 
@@ -307,6 +345,14 @@ function validDossiers(ctx: ConversationContext, d: NonNullable<ComposeInput["do
   return true;
 }
 
+const RESOLUTION_LABEL: Readonly<Record<ResolvedFact["status"], string>> = Object.freeze({
+  confirmed: "confirmado",
+  unknown: "desconhecido",
+  conflict: "conflito",
+  stale: "desatualizado",
+  not_applicable: "nao_aplicavel",
+});
+
 function dossierItem(d: PropertyDossier, ref: string, guarded: Guarded, ids: Set<string>): Record<string, unknown> {
   const source = `dossier.${ref}`;
   const g = (t: string | null) => (t === null ? null : guarded(t, source));
@@ -352,6 +398,19 @@ function dossierItem(d: PropertyDossier, ref: string, guarded: Guarded, ids: Set
     })),
     referencias_visuais: d.mediaRefs.length + d.manuals.reduce((n, m) => n + m.imageRefs.length, 0),
     conflitos_entre_fontes: d.conflicts.map((c) => guarded(c, source)),
+    // B2.4: fatos resolvidos por autoridade de domínio (divergências preservadas, nunca promovidas).
+    fatos_resolvidos: (d.resolved ?? []).map((r) => {
+      const v = (x: string | number) => (typeof x === "string" ? guarded(x, source) : x);
+      const out: Record<string, unknown> = { id: id(`resolved:${r.domain}`), dominio: r.domain, estado: RESOLUTION_LABEL[r.status] };
+      if (r.status === "confirmed" && r.value !== undefined && r.authority) {
+        out["valor"] = v(r.value);
+        out["autoridade"] = r.authority.source;
+      }
+      if (r.conflicting) out["valores_em_conflito"] = r.conflicting.map((c) => ({ valor: v(c.value), fonte: c.source }));
+      if (r.divergent.length) out["fontes_divergentes_sem_autoridade"] = r.divergent.map((c) => ({ valor: v(c.value), fonte: c.source }));
+      if (r.uncertainty) out["incerteza"] = r.uncertainty;
+      return out;
+    }),
     desconhecidos: [...d.unknown],
     fontes_presentes: [...d.completeness.sourcesPresent],
     fontes_ausentes: [...d.completeness.sourcesMissing],
@@ -422,7 +481,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   let historyJson: string;
   let dossierJson: string | null = null;
   try {
-    contextData = buildContextData(ctx, guarded, unavailable);
+    contextData = buildContextData(ctx, guarded, unavailable, input.operational ?? null);
     contextJson = encodeDataBlock(contextData);
     historyJson = encodeDataBlock(history.entries.map((e, i) => historyItem(e, guarded, i > 0 ? history.entries[i - 1]!.text : null)));
     if (dossiers) {

@@ -90,6 +90,11 @@ export const PROPERTY_CREDENTIAL_COLUMNS = [
 ] as const;
 
 export const CONVERSATION_COLUMNS = ["id", "property_id", "guest_session_id", "status", "reservation_id"] as const;
+/**
+ * B2.4 — estado do atendimento humano da conversa (só leitura; preparado para integração, sem
+ * loader instalado). `handoff_reason` é texto da equipe: passa pelo FreeTextGuard antes do prompt.
+ */
+export const CONVERSATION_OWNERSHIP_COLUMNS = ["id", "status", "assigned_to", "handoff_reason", "handoff_urgency", "handoff_at", "resolved_at", "ai_paused", "paused_until"] as const;
 export const MESSAGE_COLUMNS = ["id", "conversation_id", "role", "sender_type", "channel", "is_internal_note", "created_at"] as const;
 /** Sem `guest_contacts` (telefone/PII) nem valores financeiros. */
 export const RESERVATION_COLUMNS = ["id", "property_id", "status", "source", "checkin_date", "checkout_date"] as const;

@@ -51,10 +51,17 @@ import { COMPOSER_VERSION, composeTurnPrompt, type ComposeUnavailableReason, typ
 import type { HistoryResult } from "@/lib/guest-ai/history";
 import type { AvailabilityState, PropertyDossier } from "@/lib/guest-ai/dossier/contracts";
 import { isIssued } from "@/lib/guest-ai/trust";
+import { deriveHumanOwnership, type ConversationOwnershipRow, type HumanOwnershipSnapshot } from "@/lib/guest-ai/orchestrator/case-ownership";
+import {
+  evaluateStayAuthorizations,
+  unavailableStayAuthorizations,
+  type StayAuthorizationInput,
+  type StayAuthorizations,
+} from "@/lib/guest-ai/policy/stay-authorizations";
 import { GUEST_SURFACES, type StayPhase, type ValidatedTurn } from "@/lib/guest-ai/types";
 import type { BudgetConfig } from "@/lib/guest-ai/budget";
 
-export const TURN_CHAIN_VERSION = "chain.2026-11-03.1";
+export const TURN_CHAIN_VERSION = "chain.2026-11-03.2";
 /** Versão do validador estrutural (o arquivo B1/B2.1/B2.3 `output-validator.ts`). */
 export const STRUCTURAL_VALIDATOR_VERSION = "structural.2026-11-03.3";
 /** Prazo padrão de cada etapa assíncrona (leitura e modelo). O turno inteiro respeita o teto de 15 s (`TURN_MAX_DEADLINE_MS`). */
@@ -98,6 +105,9 @@ export type ChainRefusalCode =
   | "internal_audience"
   | "context_inconsistent"
   | "credential_policy_inconsistent"
+  // B2.4 — atendimento humano: pausa EXPLÍCITA da IA pela equipe; estado de atendimento ilegível
+  | "ai_paused_by_team"
+  | "human_ownership_inconsistent"
   // dossiê
   | "dossier_out_of_scope"
   | "dossier_internal_audience"
@@ -138,7 +148,7 @@ export interface ChainStageSpec {
 /** Especificação declarativa da cadeia (fonte única para documentação e testes). */
 export const CHAIN_STAGES: readonly ChainStageSpec[] = Object.freeze(([
   { order: 1, id: "turn", critical: true, preconditions: ["ValidatedTurn emitido por validateTurnScope (registro trust.ts)", "traceId opaco válido"], result: "turno confiável (conversa, mensagem, imóvel, tenant, reserva declarada)", refusals: ["turn_not_validated", "trace_invalid"] },
-  { order: 2, id: "context", critical: true, preconditions: ["turno validado", "leitura concluída no prazo"], result: "ConversationContext íntegro e do mesmo escopo do turno", refusals: ["context_incomplete", "tenant_unknown", "property_tenant_mismatch", "property_identity_mismatch", "conversation_identity_mismatch", "reservation_conversation_mismatch", "credentials_present", "internal_audience", "context_inconsistent", "credential_policy_inconsistent", "stage_timeout", "stage_failed"] },
+  { order: 2, id: "context", critical: true, preconditions: ["turno validado", "leitura concluída no prazo"], result: "ConversationContext íntegro e do mesmo escopo do turno; atendimento humano por assunto e autorizações formais de horário verificados (B2.4)", refusals: ["context_incomplete", "tenant_unknown", "property_tenant_mismatch", "property_identity_mismatch", "conversation_identity_mismatch", "reservation_conversation_mismatch", "credentials_present", "internal_audience", "context_inconsistent", "credential_policy_inconsistent", "human_ownership_inconsistent", "ai_paused_by_team", "stage_timeout", "stage_failed"] },
   { order: 3, id: "dossier", critical: true, preconditions: ["contexto íntegro", "dossiês emitidos pelo loader (opcional)"], result: "dossiê principal + candidatos do mesmo tenant, só públicos", refusals: ["dossier_out_of_scope", "dossier_internal_audience", "stage_timeout", "stage_failed"] },
   { order: 4, id: "history", critical: true, preconditions: ["contexto íntegro"], result: "histórico integral da mesma conversa até a mensagem atual", refusals: ["history_unavailable", "history_scope_mismatch", "stage_timeout", "stage_failed"] },
   { order: 5, id: "guard", critical: true, preconditions: ["guard com scan", "canário removido", "cada texto safe, ou sanitized com re-varredura confirmatória"], result: "todo texto livre saneado", refusals: ["guard_missing", "guard_failed", "guard_ambiguous", "guard_blocked"] },
@@ -181,6 +191,39 @@ export interface ChainAudit {
   semanticBlocks: SemanticBlock[];
   durationMs: number;
   stagesCompleted: ChainStageId[];
+  /** B2.4 — duração por etapa (ms). `guard` = tempo acumulado do FreeTextGuard (entrada e saída). */
+  timings: Partial<Record<ChainTimingId, number>>;
+  interruption: "none" | "timeout" | "aborted";
+  /** B2.4 — resumo da decisão (só enums, contagens e booleanos). `null` antes do parser. */
+  decision: ChainDecisionSummary | null;
+  /** B2.4 — resultado das verificações de segurança (só códigos e contagens). */
+  checks: ChainSecurityChecks;
+}
+
+export const CHAIN_TIMING_IDS = ["context", "dossier", "history", "scope_check", "stay_authorizations", "human_ownership", "guard", "compose", "model_output", "parse", "structural_validation", "semantic_validation", "final_decision"] as const;
+export type ChainTimingId = (typeof CHAIN_TIMING_IDS)[number];
+
+export interface ChainDecisionSummary {
+  shouldReply: boolean;
+  strategy: Strategy;
+  intents: IntentCategory[];
+  commitmentKinds: string[] | null;
+  unauthorizedKinds: string[];
+  handoff: { needed: boolean; urgency: HandoffUrgency | null };
+  caseRelation: ModelCaseRelation;
+  credentialIntent: "none" | "would_deliver";
+  milestone: string | null;
+}
+
+export interface ChainSecurityChecks {
+  context: "ok" | ChainRefusalCode | "not_run";
+  dossierScope: "ok" | "not_provided" | ChainRefusalCode | "not_run";
+  guard: { safe: number; sanitized: number; ambiguous: number; blocked: number } | null;
+  credentialPolicy: "allow" | "deny" | null;
+  stayAuthorizations: { earlyCheckin: string; lateCheckout: string } | null;
+  humanOwnership: string | null;
+  sourceConflicts: number;
+  unknownFacts: number;
 }
 
 interface NotSent {
@@ -210,6 +253,14 @@ export interface ChainDeps {
   generate: (prompt: ComposedPrompt, signal: AbortSignal) => Promise<unknown>;
   guard: FreeTextGuard | null;
   priorMilestones?: PriorMilestones;
+  /**
+   * B2.4 — fonte das autorizações de horário (R6; entrada antecipada sem fonte). A identidade
+   * (imóvel, reserva) e o instante vêm SEMPRE do turno/cadeia, nunca desta fonte. Ausente ou falha
+   * ⇒ nada autorizado (não recusa o turno: só impede promessas).
+   */
+  loadStayAuthorizationSource?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<Omit<StayAuthorizationInput, "turn" | "now" | "lookup">>;
+  /** B2.4 — estado do atendimento humano da conversa. Falha ⇒ erro técnico (fail-closed). */
+  loadConversationOwnership?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<ConversationOwnershipRow | null>;
   budget?: BudgetConfig;
   stageTimeoutMs?: number;
   now?: () => number;
@@ -343,6 +394,32 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
   let decisionVersion: DecisionContractVersion | null = null;
   let structuralBlocks: ValidationBlock[] = [];
   let semanticBlocks: SemanticBlock[] = [];
+  const timings: Partial<Record<ChainTimingId, number>> = {};
+  let interruption: ChainAudit["interruption"] = "none";
+  let summary: ChainDecisionSummary | null = null;
+  const checks: ChainSecurityChecks = { context: "not_run", dossierScope: "not_run", guard: null, credentialPolicy: null, stayAuthorizations: null, humanOwnership: null, sourceConflicts: 0, unknownFacts: 0 };
+  const timeIt = <T>(id: ChainTimingId, fn: () => T): T => {
+    const t0 = now();
+    try {
+      return fn();
+    } finally {
+      timings[id] = (timings[id] ?? 0) + Math.max(0, Math.round(now() - t0));
+    }
+  };
+  const timeAsync = async <T>(id: ChainTimingId, fn: () => Promise<T>): Promise<T> => {
+    const t0 = now();
+    try {
+      return await fn();
+    } finally {
+      timings[id] = (timings[id] ?? 0) + Math.max(0, Math.round(now() - t0));
+    }
+  };
+  // FreeTextGuard cronometrado (mesma instância; só mede, não altera resultado).
+  const rawGuard = deps?.guard ?? null;
+  const timedGuard: FreeTextGuard | null =
+    rawGuard && typeof rawGuard.scan === "function"
+      ? { id: rawGuard.id, version: rawGuard.version, scan: (t, h) => timeIt("guard", () => rawGuard.scan(t, h)) }
+      : null;
   const guardInfo = deps?.guard && typeof deps.guard.id === "string" && typeof deps.guard.version === "string" ? { id: deps.guard.id, version: deps.guard.version } : null;
 
   const audit = (kind: ChainOutcome["kind"], stage: ChainStageId, code: string | null): ChainAudit => ({
@@ -364,6 +441,10 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     semanticBlocks: [...semanticBlocks],
     durationMs: Math.max(0, Math.round(now() - started)),
     stagesCompleted: [...completed],
+    timings: { ...timings },
+    interruption,
+    decision: summary ? { ...summary, intents: [...summary.intents], unauthorizedKinds: [...summary.unauthorizedKinds], commitmentKinds: summary.commitmentKinds ? [...summary.commitmentKinds] : null, handoff: { ...summary.handoff } } : null,
+    checks: { ...checks, guard: checks.guard ? { ...checks.guard } : null, stayAuthorizations: checks.stayAuthorizations ? { ...checks.stayAuthorizations } : null },
   });
   const emit = <T extends ChainOutcome>(o: T): T => {
     try {
@@ -404,8 +485,11 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
       cancel();
     }
   };
-  const failure = (stage: ChainStageId, e: unknown) =>
-    technical(stage, e instanceof StageTimeout ? "stage_timeout" : e instanceof StageAborted ? "stage_aborted" : stage === "model_output" ? "model_call_failed" : "stage_failed");
+  const failure = (stage: ChainStageId, e: unknown) => {
+    if (e instanceof StageTimeout) interruption = "timeout";
+    else if (e instanceof StageAborted) interruption = "aborted";
+    return technical(stage, e instanceof StageTimeout ? "stage_timeout" : e instanceof StageAborted ? "stage_aborted" : stage === "model_output" ? "model_call_failed" : "stage_failed");
+  };
 
   try {
     // 1) Turno validado
@@ -417,31 +501,73 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     // 2) Contexto
     let ctx: ConversationContext;
     try {
-      ctx = await step((s) => deps.loadContext(turn, s));
+      ctx = await timeAsync("context", () => step((s) => deps.loadContext(turn, s)));
     } catch (e) {
       return failure("context", e);
     }
-    const ctxProblem = checkContextIntegrity(turn, ctx);
+    const ctxProblem = timeIt("scope_check", () => checkContextIntegrity(turn, ctx));
+    checks.context = ctxProblem ?? "ok";
     if (ctxProblem) return refuse("context", ctxProblem);
+    checks.credentialPolicy = ctx.credentialPolicy.decision;
+
+    // B2.4 — atendimento humano por assunto (quando a fonte é fornecida; falha ⇒ fail-closed).
+    let humanOwnership: HumanOwnershipSnapshot | null = null;
+    if (deps.loadConversationOwnership) {
+      let row: ConversationOwnershipRow | null;
+      try {
+        row = await timeAsync("human_ownership", () => step((s) => deps.loadConversationOwnership!(turn, s)));
+      } catch (e) {
+        return failure("context", e);
+      }
+      humanOwnership = deriveHumanOwnership(row && row.id === turn.conversationId ? row : null, new Date(now()).toISOString());
+      checks.humanOwnership = humanOwnership.state;
+      if (humanOwnership.state === "unknown" || humanOwnership.active !== ctx.humanOwnership.openCaseCount > 0) return refuse("context", "human_ownership_inconsistent");
+      // Pausa explícita da equipe é decisão humana (não inferida de chamado aberto): respeitada.
+      if (humanOwnership.aiPausedByTeam) return refuse("context", "ai_paused_by_team");
+    }
+
+    // B2.4 — autorizações formais de horário (fonte indisponível ⇒ nada autorizado).
+    let stayAuthorizations: StayAuthorizations | null = null;
+    if (deps.loadStayAuthorizationSource) {
+      try {
+        const src = await timeAsync("stay_authorizations", () => step((s) => deps.loadStayAuthorizationSource!(turn, s)));
+        stayAuthorizations = evaluateStayAuthorizations({ ...src, lookup: "ok", turn: { propertyId: turn.propertyId, reservationId: turn.reservationId }, now: new Date(now()).toISOString() });
+      } catch (e) {
+        if (e instanceof StageTimeout) return failure("context", e);
+        stayAuthorizations = unavailableStayAuthorizations();
+      }
+      checks.stayAuthorizations = {
+        earlyCheckin: stayAuthorizations.earlyCheckin.reason,
+        lateCheckout: stayAuthorizations.lateCheckout.status === "authorized" ? "authorized" : stayAuthorizations.lateCheckout.reason,
+      };
+    }
     completed.push("context");
 
     // 3) Dossiê (opcional; quando há, é crítico)
     let dossiers: ChainDossiers | null = null;
     if (deps.loadDossiers) {
       try {
-        dossiers = await step((s) => deps.loadDossiers!(turn, s));
+        dossiers = await timeAsync("dossier", () => step((s) => deps.loadDossiers!(turn, s)));
       } catch (e) {
         return failure("dossier", e);
       }
-      const dProblem = checkDossierScope(turn, dossiers ?? null);
+      const dProblem = timeIt("scope_check", () => checkDossierScope(turn, dossiers ?? null));
+      checks.dossierScope = dProblem ?? (dossiers ? "ok" : "not_provided");
       if (dProblem) return refuse("dossier", dProblem);
+      for (const d of dossiers ? [dossiers.primary, ...(dossiers.candidates ?? [])] : []) {
+        const resolved = Array.isArray(d.resolved) ? d.resolved : [];
+        checks.sourceConflicts += resolved.filter((r) => r.status === "conflict").length + (Array.isArray(d.conflicts) ? d.conflicts.length : 0);
+        checks.unknownFacts += resolved.filter((r) => r.status === "unknown" || r.status === "stale").length + (Array.isArray(d.unknown) ? d.unknown.length : 0);
+      }
+    } else {
+      checks.dossierScope = "not_provided";
     }
     completed.push("dossier");
 
     // 4) Histórico
     let history: HistoryResult;
     try {
-      history = await step((s) => deps.loadHistory(turn, s));
+      history = await timeAsync("history", () => step((s) => deps.loadHistory(turn, s)));
     } catch (e) {
       return failure("history", e);
     }
@@ -450,8 +576,18 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     completed.push("history");
 
     // 5 + 6) Guard e composição (o composer aplica a política §6.1 a cada texto livre)
-    if (!deps.guard || typeof deps.guard.scan !== "function") return refuse("guard", "guard_missing");
-    const composed = composeTurnPrompt({ context: ctx, history, dossiers }, { guard: deps.guard, budget: deps.budget });
+    if (!timedGuard) return refuse("guard", "guard_missing");
+    const composeStart = now();
+    const guardBefore = timings.guard ?? 0;
+    const composed = composeTurnPrompt(
+      { context: ctx, history, dossiers, operational: { stayAuthorizations, humanOwnership } },
+      { guard: timedGuard, budget: deps.budget },
+    );
+    timings.compose = Math.max(0, Math.round(now() - composeStart) - ((timings.guard ?? 0) - guardBefore));
+    if (composed.kind === "prompt") {
+      const b = composed.guardMetrics.byStatus;
+      checks.guard = { safe: b.safe, sanitized: b.sanitized, ambiguous: b.ambiguous, blocked: b.blocked };
+    }
     if (composed.kind === "unavailable") {
       const m = COMPOSE_REASON[composed.reason] ?? { stage: "compose" as const, code: "compose_unavailable" as const };
       return refuse(m.stage, m.code);
@@ -465,17 +601,29 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     // 7) Saída do modelo (gerador injetado; nunca o Gateway nesta fase)
     let raw: unknown;
     try {
-      raw = await step((s) => deps.generate(prompt, s));
+      raw = await timeAsync("model_output", () => step((s) => deps.generate(prompt, s)));
     } catch (e) {
       return failure("model_output", e);
     }
     completed.push("model_output");
 
     // 8) Parser (contrato exigido = o que o prompt pediu)
-    const parsed = parseDecisionText(raw, { expectVersion: CURRENT_DECISION_VERSION });
+    const parsed = timeIt("parse", () => parseDecisionText(raw, { expectVersion: CURRENT_DECISION_VERSION }));
     if (!parsed.ok) return refuse("parse", `parse_${parsed.error.code}`);
     decisionVersion = parsed.version;
     const decision = parsed.decision;
+    const sig0 = decisionSignals(decision);
+    summary = {
+      shouldReply: sig0.shouldReply,
+      strategy: decision.strategy,
+      intents: [...sig0.intents],
+      commitmentKinds: decision.commitmentKinds ? [...decision.commitmentKinds] : null,
+      unauthorizedKinds: [],
+      handoff: { needed: decision.handoff.needed, urgency: decision.handoff.urgency },
+      caseRelation: decision.caseRelation,
+      credentialIntent: decision.credentialIntent,
+      milestone: sig0.hospitalityMilestone ? sig0.hospitalityMilestone.kind : null,
+    };
     completed.push("parse");
 
     // 9) Validador estrutural
@@ -483,7 +631,9 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     const situation = situationOf(decision, ownership);
     let structural: unknown;
     try {
-      structural = (deps.validators?.structural ?? validateDecision)({ decision, credentialPolicy: ctx.credentialPolicy.decision, ownership, sourceIds: prompt.sourceIds });
+      structural = timeIt("structural_validation", () =>
+        (deps.validators?.structural ?? validateDecision)({ decision, credentialPolicy: ctx.credentialPolicy.decision, ownership, sourceIds: prompt.sourceIds }),
+      );
     } catch {
       return technical("structural_validation", "validator_exception");
     }
@@ -499,24 +649,30 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     });
     let semantic: unknown;
     try {
-      semantic = (deps.validators?.semantic ?? validateSemantics)({
-        decision,
-        context: ctx,
-        ownership,
-        dossiers: views,
-        priorMilestones: deps.priorMilestones ?? { status: "unknown" },
-        guard: deps.guard,
-      });
+      semantic = timeIt("semantic_validation", () =>
+        (deps.validators?.semantic ?? validateSemantics)({
+          decision,
+          context: ctx,
+          ownership,
+          dossiers: views,
+          priorMilestones: deps.priorMilestones ?? { status: "unknown" },
+          guard: timedGuard,
+          stayAuthorizations,
+          humanOwnership,
+        }),
+      );
     } catch {
       return technical("semantic_validation", "validator_exception");
     }
     if (!isSemanticReport(semantic)) return refuse("semantic_validation", "semantic_validator_invalid", situation);
     semanticBlocks = [...semantic.blocks];
+    summary.unauthorizedKinds = [...semantic.unauthorizedKinds];
     if (semantic.verdict !== "pass") return refuse("semantic_validation", "semantic_block", situation);
     completed.push("semantic_validation");
 
     // 11) Decisão final — silêncio é resultado legítimo e NUNCA vira texto.
     completed.push("final_decision");
+    timings.final_decision = 0;
     const sig = decisionSignals(decision);
     if (!sig.shouldReply) {
       if (decision.reply !== "" || decision.strategy !== "silence") return refuse("final_decision", "final_inconsistent", situation);
