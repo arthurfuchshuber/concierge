@@ -58,9 +58,15 @@ export const v3 = (over: Record<string, unknown> = {}) =>
     ...over,
   });
 
-/** Silêncio v3 válido. */
+/**
+ * B2.5: decisão v4 (= v3 + `promisedTimes`), a versão que o prompt atual pede e a cadeia exige.
+ * Testes que exercitam a cadeia usam `v4`; testes do parser/validador que afirmam v3 seguem com `v3`.
+ */
+export const v4 = (over: Record<string, unknown> = {}) => v3({ promisedTimes: [], ...over });
+
+/** Silêncio v4 válido. */
 export const silence = (over: Record<string, unknown> = {}) =>
-  v3({ strategy: "silence", reply: "", shouldReply: false, intents: ["acknowledgment"], groundedOn: [], ...over });
+  v4({ strategy: "silence", reply: "", shouldReply: false, intents: ["acknowledgment"], groundedOn: [], ...over });
 
 export interface ChainHarness {
   deps: ChainDeps;

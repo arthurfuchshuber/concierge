@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { CHAIN_STAGES, CHAIN_STAGE_IDS, checkContextIntegrity, checkDossierScope, checkHistoryScope, runTurnChain, type ChainOutcome } from "@/lib/guest-ai/turn-chain";
 import { GUARD_POLICY, type FreeTextGuard } from "@/lib/guest-ai/composer";
 import { SECRET_MARKER, SECRET_SCRUBBER } from "@/lib/guest-ai/secret-scrub";
-import { CONV, MSG, TURN_FIELDS, ctx, harness, history, turn, v3 } from "./helpers/b23-chain";
+import { CONV, MSG, TURN_FIELDS, ctx, harness, history, turn, v4 } from "./helpers/b23-chain";
 import { OTHER_CONV } from "./helpers/b21-fixtures";
 import { v2 } from "./helpers/b21-fixtures";
 import { normalizeHistory } from "@/lib/guest-ai/history";
@@ -36,9 +36,10 @@ describe("B2.3 · cadeia declarada", () => {
     }
   });
   it("caminho feliz: reply aprovado, não enviado, auditoria com versões e etapas", async () => {
-    const { r, h } = await run(v3());
+    const { r, h } = await run(v4());
     expect(r.kind).toBe("reply");
-    expect(r.audit).toMatchObject({ outcome: "reply", contractVersion: 3, decisionVersion: 3, stage: "final_decision", code: null, guard: { id: "secret-scrub" } });
+    // B2.5: contrato da decisão avançou para v4 (v3 + promisedTimes)
+    expect(r.audit).toMatchObject({ outcome: "reply", contractVersion: 4, decisionVersion: 4, stage: "final_decision", code: null, guard: { id: "secret-scrub" } });
     expect(r.audit.stagesCompleted).toEqual([...CHAIN_STAGE_IDS]);
     expect(h.calls.generate).toBe(1);
   });
@@ -49,17 +50,17 @@ describe("B2.3 · política do FreeTextGuard (§6.1)", () => {
     expect(GUARD_POLICY).toMatchObject({ safe: "proceed", sanitized: "proceed_with_sanitized_text_after_rescan", ambiguous: "refuse", blocked: "refuse", missing: "refuse", exception: "refuse", invalid_result: "refuse", canary_failed: "refuse", rescan_failed: "refuse" });
   });
   it("safe ⇒ segue", async () => {
-    expect((await run(v3())).r.kind).toBe("reply");
+    expect((await run(v4())).r.kind).toBe("reply");
   });
   it("sanitized ⇒ segue SÓ com o texto saneado (o modelo nunca recebe o original)", async () => {
-    const { r, h } = await run(v3(), { loadHistory: async () => history("Qual o horário?", [{ content: "A senha da porta é 4821." }]) });
+    const { r, h } = await run(v4(), { loadHistory: async () => history("Qual o horário?", [{ content: "A senha da porta é 4821." }]) });
     expect(r.kind).toBe("reply");
     const sent = JSON.stringify(h.calls.prompts);
     expect(sent).not.toContain("4821");
     expect(sent).toContain(SECRET_MARKER);
   });
   it("ambiguous ⇒ recusa da composição; o modelo não é chamado", async () => {
-    const { r, h } = await run(v3(), { loadHistory: async () => history("ok", [{ content: "A senha do cofre é" }, { content: "7351" }]) });
+    const { r, h } = await run(v4(), { loadHistory: async () => history("ok", [{ content: "A senha do cofre é" }, { content: "7351" }]) });
     refusedAt(r, "guard", "guard_ambiguous");
     expect(h.calls.generate).toBe(0);
     expect(JSON.stringify(r)).not.toContain("7351");
@@ -67,7 +68,7 @@ describe("B2.3 · política do FreeTextGuard (§6.1)", () => {
   it("blocked ⇒ recusa da composição (sem tag de contenção no lugar)", async () => {
     const key = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAsynthetic\n-----END RSA PRIVATE KEY-----";
     expect(SECRET_SCRUBBER.scan(key).status).toBe("blocked");
-    const { r, h } = await run(v3(), { loadHistory: async () => history("segue a chave", [{ content: key }]) });
+    const { r, h } = await run(v4(), { loadHistory: async () => history("segue a chave", [{ content: key }]) });
     refusedAt(r, "guard", "guard_blocked");
     expect(h.calls.generate).toBe(0);
   });
@@ -84,7 +85,7 @@ describe("B2.3 · política do FreeTextGuard (§6.1)", () => {
     ["sanitized sem alterar o texto", { id: "x", version: "1", scan: (t) => (t.includes("CANARIO") ? SECRET_SCRUBBER.scan(t) : { status: "sanitized", text: t, findings: [{ category: "x", detector: "x" }] }) }, "guard_failed"],
   ])("%s ⇒ recusa (%s)", async (_n, guard, code) => {
     // histórico com um segredo: exercita a re-varredura do texto saneado
-    const { r, h } = await run(v3(), { guard, loadHistory: async () => history("Qual o horário?", [{ content: "A senha da porta é 4821." }]) });
+    const { r, h } = await run(v4(), { guard, loadHistory: async () => history("Qual o horário?", [{ content: "A senha da porta é 4821." }]) });
     refusedAt(r, "guard", code);
     expect(h.calls.generate).toBe(0);
   });
@@ -93,13 +94,13 @@ describe("B2.3 · política do FreeTextGuard (§6.1)", () => {
 describe("B2.3 · falhas de turno e contexto", () => {
   it("turno não emitido pelo escopo (forjado ou copiado) ⇒ turn_not_validated; nada é lido", async () => {
     let loads = 0;
-    const { r, h } = await run(v3(), { loadContext: async () => { loads++; return ctx(); } }, { ...TURN_FIELDS } as never);
+    const { r, h } = await run(v4(), { loadContext: async () => { loads++; return ctx(); } }, { ...TURN_FIELDS } as never);
     refusedAt(r, "turn", "turn_not_validated");
     expect(loads).toBe(0);
     expect(h.calls.generate).toBe(0);
   });
   it("traceId inválido ⇒ trace_invalid", async () => {
-    refusedAt((await run(v3(), {}, turn(), "com espaço")).r, "turn", "trace_invalid");
+    refusedAt((await run(v4(), {}, turn(), "com espaço")).r, "turn", "trace_invalid");
   });
   it.each<[string, () => unknown, string]>([
     ["tenant desconhecido", () => ctx({ property: { ...ctx().guest.property, tenantId: "" } }), "tenant_unknown"],
@@ -115,7 +116,7 @@ describe("B2.3 · falhas de turno e contexto", () => {
     ["dados divergentes (fase da estadia ≠ fase)", () => ctx({ stay: { ...ctx().guest.stay!, phase: "in_stay" } }), "context_inconsistent"],
     ["política de credenciais incoerente com a fase", () => ({ ...ctx({ phase: "inquiry", stay: null }), credentialPolicy: { decision: "allow", reason: "manual_release" } }), "credential_policy_inconsistent"],
   ])("%s ⇒ %s; o modelo não é chamado", async (_n, make, code) => {
-    const { r, h } = await run(v3(), { loadContext: async () => make() as never });
+    const { r, h } = await run(v4(), { loadContext: async () => make() as never });
     refusedAt(r, "context", code);
     expect(h.calls.generate).toBe(0);
   });
@@ -126,10 +127,10 @@ describe("B2.3 · falhas de turno e contexto", () => {
     expect(checkContextIntegrity(turn(), ctx({ phase: "inquiry", stay: null, audiences: ["P"] }))).toBeNull();
   });
   it("falha de leitura ⇒ erro técnico (stage_failed); timeout ⇒ stage_timeout com sinal abortado", async () => {
-    const failed = await run(v3(), { loadContext: async () => { throw new Error("db"); } });
+    const failed = await run(v4(), { loadContext: async () => { throw new Error("db"); } });
     expect(failed.r).toMatchObject({ kind: "technical_error", stage: "context", code: "stage_failed", delivery: "not_sent" });
     let aborted = false;
-    const slow = await run(v3(), {
+    const slow = await run(v4(), {
       stageTimeoutMs: 20,
       loadHistory: (_t, s) => new Promise(() => { s.addEventListener("abort", () => { aborted = true; }); }),
     });
@@ -140,7 +141,7 @@ describe("B2.3 · falhas de turno e contexto", () => {
   it("teto TOTAL do turno (15 s): etapa que começa sem prazo restante nem é chamada", async () => {
     let t = 0;
     let historyCalls = 0;
-    const { r, h } = await run(v3(), {
+    const { r, h } = await run(v4(), {
       now: () => t,
       loadContext: async () => { t += 15_001; return ctx(); },
       loadHistory: async () => { historyCalls++; return history(); },
@@ -152,7 +153,7 @@ describe("B2.3 · falhas de turno e contexto", () => {
   it("prazo da etapa limitado ao restante do turno", async () => {
     let t = 0;
     const scheduled: number[] = [];
-    await run(v3(), {
+    await run(v4(), {
       now: () => t,
       schedule: (fn, ms) => { scheduled.push(ms); const x = setTimeout(fn, 1_000_000); return () => clearTimeout(x); },
       loadContext: async () => { t += 12_000; return ctx(); },
@@ -161,9 +162,9 @@ describe("B2.3 · falhas de turno e contexto", () => {
     expect(scheduled.slice(1).every((ms) => ms <= 3_000)).toBe(true);
   });
   it("histórico indisponível ou de outra conversa ⇒ recusa", async () => {
-    refusedAt((await run(v3(), { loadHistory: async () => ({ status: "unavailable", reason: "over_limit" }) as never })).r, "history", "history_unavailable");
+    refusedAt((await run(v4(), { loadHistory: async () => ({ status: "unavailable", reason: "over_limit" }) as never })).r, "history", "history_unavailable");
     const other = normalizeHistory([row({ id: MSG, conversation_id: OTHER_CONV })], { conversationId: OTHER_CONV, currentMessageId: MSG });
-    refusedAt((await run(v3(), { loadHistory: async () => other })).r, "history", "history_scope_mismatch");
+    refusedAt((await run(v4(), { loadHistory: async () => other })).r, "history", "history_scope_mismatch");
     void CONV;
   });
 });
@@ -171,19 +172,19 @@ describe("B2.3 · falhas de turno e contexto", () => {
 describe("B2.3 · dossiês fora do escopo", () => {
   const forged = (over: Record<string, unknown>) => ({ primary: { propertyId: "p1", tenantId: "t1", role: "primary", audiences: ["P", "G"], availability: { status: "not_consulted" }, ...over } }) as never;
   it("audiência interna ⇒ dossier_internal_audience", async () => {
-    refusedAt((await run(v3(), { loadDossiers: async () => forged({ audiences: ["P", "I"] }) })).r, "dossier", "dossier_internal_audience");
+    refusedAt((await run(v4(), { loadDossiers: async () => forged({ audiences: ["P", "I"] }) })).r, "dossier", "dossier_internal_audience");
   });
   it("tenant divergente ⇒ dossier_out_of_scope", async () => {
-    refusedAt((await run(v3(), { loadDossiers: async () => forged({ tenantId: "t2" }) })).r, "dossier", "dossier_out_of_scope");
+    refusedAt((await run(v4(), { loadDossiers: async () => forged({ tenantId: "t2" }) })).r, "dossier", "dossier_out_of_scope");
   });
   it("dossiê não emitido pelo loader (mesmo com escopo certo) ⇒ recusado na composição", async () => {
-    refusedAt((await run(v3(), { loadDossiers: async () => forged({}) })).r, "dossier", "dossier_out_of_scope");
+    refusedAt((await run(v4(), { loadDossiers: async () => forged({}) })).r, "dossier", "dossier_out_of_scope");
   });
 });
 
 describe("B2.3 · falhas de saída, parser e validadores", () => {
   it("gerador que lança ⇒ erro técnico model_call_failed", async () => {
-    const { r } = await run(v3(), { generate: async () => { throw new Error("x"); } });
+    const { r } = await run(v4(), { generate: async () => { throw new Error("x"); } });
     expect(r).toMatchObject({ kind: "technical_error", stage: "model_output", code: "model_call_failed" });
   });
   it.each<[string, unknown, string]>([
@@ -191,52 +192,54 @@ describe("B2.3 · falhas de saída, parser e validadores", () => {
     ["JSON truncado", '{"strategy":"answer","reply":"O ch', "parse_truncated_json"],
     ["saída vazia", "", "parse_empty_output"],
     ["contrato antigo (v2)", JSON.stringify(v2({ groundedOn: ["ctx:fase"] })), "parse_version_mismatch"],
-    ["tentativa de alterar o imóvel", JSON.stringify({ ...v3(), propertyId: "p2" }), "parse_scope_field_forbidden"],
-    ["campo extra", JSON.stringify({ ...v3(), approved: true }), "parse_unexpected_field"],
+    ["tentativa de alterar o imóvel", JSON.stringify({ ...v4(), propertyId: "p2" }), "parse_scope_field_forbidden"],
+    ["campo extra", JSON.stringify({ ...v4(), approved: true }), "parse_unexpected_field"],
   ])("%s ⇒ %s", async (_n, out, code) => {
     refusedAt((await run(out)).r, "parse", code);
   });
   it("validador estrutural que devolve lixo ⇒ recusa; que lança ⇒ erro técnico", async () => {
-    refusedAt((await run(v3(), { validators: { structural: () => ({ verdict: "pass", blocks: ["x"] }) as never } })).r, "structural_validation", "structural_validator_invalid");
-    refusedAt((await run(v3(), { validators: { structural: () => null as never } })).r, "structural_validation", "structural_validator_invalid");
-    expect((await run(v3(), { validators: { structural: () => { throw new Error("x"); } } })).r).toMatchObject({ kind: "technical_error", stage: "structural_validation", code: "validator_exception" });
+    refusedAt((await run(v4(), { validators: { structural: () => ({ verdict: "pass", blocks: ["x"] }) as never } })).r, "structural_validation", "structural_validator_invalid");
+    refusedAt((await run(v4(), { validators: { structural: () => null as never } })).r, "structural_validation", "structural_validator_invalid");
+    expect((await run(v4(), { validators: { structural: () => { throw new Error("x"); } } })).r).toMatchObject({ kind: "technical_error", stage: "structural_validation", code: "validator_exception" });
   });
   it("validador semântico que devolve lixo ⇒ recusa", async () => {
-    refusedAt((await run(v3(), { validators: { semantic: () => ({ verdict: "pass", blocks: [] }) as never } })).r, "semantic_validation", "semantic_validator_invalid");
+    refusedAt((await run(v4(), { validators: { semantic: () => ({ verdict: "pass", blocks: [] }) as never } })).r, "semantic_validation", "semantic_validator_invalid");
   });
   it("compromisso não autorizado (entrada antecipada) ⇒ semantic_block com o tipo na auditoria", async () => {
-    const { r } = await run(v3({ reply: "Pode chegar às 10h, sem problema!", commitments: ["entrada às 10h"], commitmentKinds: ["early_checkin"] }));
+    const { r } = await run(v4({ reply: "Pode chegar às 10h, sem problema!", commitments: ["entrada às 10h"], commitmentKinds: ["early_checkin"] }));
     refusedAt(r, "semantic_validation", "semantic_block");
-    expect(r.audit.semanticBlocks).toEqual(["unauthorized_commitment"]);
+    // B2.5: além do tipo não autorizado, o texto ("pode chegar às 10h") e a falta de promisedTimes também recusam
+    expect(r.audit.semanticBlocks).toContain("unauthorized_commitment");
+    expect(r.audit.decision?.unauthorizedKinds).toEqual(["early_checkin"]);
   });
   it("credencial inventada ⇒ bloqueio estrutural (antes da camada semântica)", async () => {
-    const { r } = await run(v3({ reply: "A senha do portão é 2468." }));
+    const { r } = await run(v4({ reply: "A senha do portão é 2468." }));
     refusedAt(r, "structural_validation", "structural_block");
     expect(r.audit.structuralBlocks).toContain("possible_fabricated_credential");
   });
   it("fundamento fora do contexto composto ⇒ bloqueio estrutural", async () => {
-    refusedAt((await run(v3({ groundedOn: ["dos:alt1:qualquer"] }))).r, "structural_validation", "structural_block");
+    refusedAt((await run(v4({ groundedOn: ["dos:alt1:qualquer"] }))).r, "structural_validation", "structural_block");
   });
 });
 
 describe("B2.3 · separação: recusa ≠ erro técnico ≠ ação humana ≠ chamado existente", () => {
   it("só encaminhamento ⇒ human_action (sem texto ao hóspede)", async () => {
-    const { r } = await run(v3({ strategy: "handoff", reply: "", groundedOn: [], handoff: { needed: true, question: "Hóspede pede falar com alguém", urgency: "normal" } }));
+    const { r } = await run(v4({ strategy: "handoff", reply: "", groundedOn: [], handoff: { needed: true, question: "Hóspede pede falar com alguém", urgency: "normal" } }));
     expect(r.kind).toBe("human_action");
     expect("text" in r).toBe(false);
   });
   it("chamado aberto não bloqueia a conversa: assunto independente é atendido; assunto da equipe sem compromisso", async () => {
     const cases = [{ caseId: "c1", status: "needs_human", handoffReason: null, handoffAt: null }];
     const withCase = () => ctx({ openCases: [{ caseId: "c1", source: "conversation_status", topic: null, status: "needs_human" } as never] }, cases);
-    const indep = await run(v3({ caseRelation: "independent" }), { loadContext: async () => withCase() });
+    const indep = await run(v4({ caseRelation: "independent" }), { loadContext: async () => withCase() });
     expect(indep.r.kind).toBe("reply");
     if (indep.r.kind === "reply") expect(indep.r.situation.existingCase).toBe("independent");
-    const related = await run(v3({ caseRelation: "related", strategy: "answer_and_handoff", handoff: { needed: true, question: "q", urgency: "low" }, commitments: ["repassar"], commitmentKinds: ["team_relay"] }), { loadContext: async () => withCase() });
+    const related = await run(v4({ caseRelation: "related", strategy: "answer_and_handoff", handoff: { needed: true, question: "q", urgency: "low" }, commitments: ["repassar"], commitmentKinds: ["team_relay"] }), { loadContext: async () => withCase() });
     refusedAt(related.r, "structural_validation", "structural_block");
     expect(related.r.audit.structuralBlocks).toContain("human_owned_topic_commitment");
   });
   it("recusa e erro técnico nunca carregam decisão nem texto (não autorizam outra ação)", async () => {
-    const outs = [(await run("lixo")).r, (await run(v3(), { generate: async () => { throw new Error(); } })).r];
+    const outs = [(await run("lixo")).r, (await run(v4(), { generate: async () => { throw new Error(); } })).r];
     for (const o of outs) {
       expect(["refused", "technical_error"]).toContain(o.kind);
       expect("decision" in o).toBe(false);
@@ -280,9 +283,9 @@ describe("B2.3 · defesa em profundidade: verificações próprias da cadeia (in
       // canário passa pelo scrubber real; 1ª varredura (com hint) incoerente; re-varredura (sem hint) "safe"
       scan: (t, hint) => (t.includes("CANARIO") ? SECRET_SCRUBBER.scan(t) : hint === undefined ? { status: "safe", text: t, findings: [] } : { ...first(t), findings: [] }),
     });
-    const lazy = await run(v3(), { guard: viaHint((t) => ({ status: "sanitized", text: t })) });
+    const lazy = await run(v4(), { guard: viaHint((t) => ({ status: "sanitized", text: t })) });
     refusedAt(lazy.r, "guard", "guard_failed");
-    const silentEdit = await run(v3(), { guard: viaHint((t) => ({ status: "safe", text: `${t} ` })) });
+    const silentEdit = await run(v4(), { guard: viaHint((t) => ({ status: "safe", text: `${t} ` })) });
     refusedAt(silentEdit.r, "guard", "guard_failed");
   });
 });

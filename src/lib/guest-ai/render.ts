@@ -78,7 +78,7 @@ export interface RenderedDraft extends NotSent {
   kind: "draft";
   verdict: "pass" | "block";
   blocks: ValidationBlock[];
-  decisionVersion: 1 | 2 | 3;
+  decisionVersion: 1 | 2 | 3 | 4;
   strategy: Strategy;
   /** Texto ao hóspede. `null` quando bloqueado ou quando só há encaminhamento. */
   conversational: { text: string; containsCredentialMarker: boolean } | null;

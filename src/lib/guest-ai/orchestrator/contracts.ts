@@ -86,6 +86,31 @@ export interface ModelDecision {
    * Vazio ⇔ `commitments` vazio. Ausente (v1/v2) ⇒ compromissos não verificáveis.
    */
   commitmentKinds?: CommitmentKind[];
+  // ── B2.5 (decisão v4 = v3 + `promisedTimes`). Aditivo: v1–v3 seguem válidas.
+  //    `caseAssessments` (avaliação por chamado) NÃO foi implementado: exige aprovação específica
+  //    (complemento da diretriz B2.5, §8). Mensagem com vários assuntos segue a regra conservadora.
+  /**
+   * Horários que o `reply` promete, um por compromisso temporal (hoje: saída tardia; entrada
+   * antecipada nunca é autorizada). Data ISO, hora HH:MM e fuso IANA do imóvel — sem formato livre.
+   * O sistema compara com a autorização formal (R6) e recusa qualquer divergência.
+   */
+  promisedTimes?: PromisedTime[];
+}
+
+// ─────────────────────────── B2.5 — horário prometido (decisão v4) ───────────────────────────
+
+/** Domínios de compromisso TEMPORAL (cada um com a sua própria política de autorização). */
+export const TEMPORAL_COMMITMENT_KINDS = ["late_checkout", "early_checkin"] as const;
+export type TemporalCommitmentKind = (typeof TEMPORAL_COMMITMENT_KINDS)[number];
+
+export interface PromisedTime {
+  kind: TemporalCommitmentKind;
+  /** YYYY-MM-DD (dia a que o horário se refere, no fuso do imóvel). */
+  date: string;
+  /** HH:MM (24 h). */
+  time: string;
+  /** Fuso IANA do imóvel (precisa ser igual ao do contexto validado). */
+  timezone: string;
 }
 
 // ─────────────────────────── B2.3 — tipos de compromisso (decisão v3) ───────────────────────────
@@ -144,17 +169,17 @@ export interface DecisionSignals {
 }
 
 /** Versões do contrato da decisão aceitas pelo parser (compatibilidade preservada). */
-export const DECISION_CONTRACT_VERSIONS = [1, 2, 3] as const;
+export const DECISION_CONTRACT_VERSIONS = [1, 2, 3, 4] as const;
 export type DecisionContractVersion = (typeof DECISION_CONTRACT_VERSIONS)[number];
-/** Versão que o prompt atual (B2.3) pede ao modelo e que a cadeia fail-closed exige. */
-export const CURRENT_DECISION_VERSION: DecisionContractVersion = 3;
+/** Versão que o prompt atual (B2.5) pede ao modelo e que a cadeia fail-closed exige. */
+export const CURRENT_DECISION_VERSION: DecisionContractVersion = 4;
 
 export function decisionSignals(d: ModelDecision): DecisionSignals {
   if (d.shouldReply === undefined) {
     return { version: 1, shouldReply: true, intents: ["other"], formalChangeRequests: [], hospitalityMilestone: null, speakerName: null };
   }
   return {
-    version: d.commitmentKinds === undefined ? 2 : 3,
+    version: d.promisedTimes !== undefined ? 4 : d.commitmentKinds === undefined ? 2 : 3,
     shouldReply: d.shouldReply,
     intents: [...(d.intents ?? [])],
     formalChangeRequests: [...(d.formalChangeRequests ?? [])],
@@ -233,7 +258,9 @@ export type ValidationBlock =
   | "milestone_without_current_guest_evidence"
   // B2.3 (estruturais)
   | "handoff_fields_without_need"
-  | "commitment_kinds_inconsistent";
+  | "commitment_kinds_inconsistent"
+  // B2.5 (estruturais, v4)
+  | "promised_time_kind_undeclared";
 
 export interface ValidationReport {
   verdict: "pass" | "block";

@@ -52,6 +52,8 @@ import type { HistoryResult } from "@/lib/guest-ai/history";
 import type { AvailabilityState, PropertyDossier } from "@/lib/guest-ai/dossier/contracts";
 import { isIssued } from "@/lib/guest-ai/trust";
 import { deriveHumanOwnership, type ConversationOwnershipRow, type HumanOwnershipSnapshot } from "@/lib/guest-ai/orchestrator/case-ownership";
+import { isIssuedBatch, type GuestMessageBatch } from "@/lib/guest-ai/batch/message-batch";
+import { resolveSenderIdentity, type SenderIdentity, type SenderIdentitySource } from "@/lib/guest-ai/policy/sender-identity";
 import {
   evaluateStayAuthorizations,
   unavailableStayAuthorizations,
@@ -61,7 +63,7 @@ import {
 import { GUEST_SURFACES, type StayPhase, type ValidatedTurn } from "@/lib/guest-ai/types";
 import type { BudgetConfig } from "@/lib/guest-ai/budget";
 
-export const TURN_CHAIN_VERSION = "chain.2026-11-03.2";
+export const TURN_CHAIN_VERSION = "chain.2026-11-03.3";
 /** Versão do validador estrutural (o arquivo B1/B2.1/B2.3 `output-validator.ts`). */
 export const STRUCTURAL_VALIDATOR_VERSION = "structural.2026-11-03.3";
 /** Prazo padrão de cada etapa assíncrona (leitura e modelo). O turno inteiro respeita o teto de 15 s (`TURN_MAX_DEADLINE_MS`). */
@@ -108,6 +110,13 @@ export type ChainRefusalCode =
   // B2.4 — atendimento humano: pausa EXPLÍCITA da IA pela equipe; estado de atendimento ilegível
   | "ai_paused_by_team"
   | "human_ownership_inconsistent"
+  // B2.5 — lote de mensagens e pausa
+  | "batch_not_validated"
+  | "batch_scope_mismatch"
+  | "batch_turn_mismatch"
+  | "batch_history_mismatch"
+  | "reply_during_pause"
+  | "paused_decision_invalid"
   // dossiê
   | "dossier_out_of_scope"
   | "dossier_internal_audience"
@@ -179,7 +188,7 @@ export interface ChainAudit {
   outcome: ChainOutcome["kind"];
   stage: ChainStageId;
   code: string | null;
-  category: "reply" | "silence" | "human_action" | "refusal" | "technical_error";
+  category: "reply" | "silence" | "human_action" | "paused" | "urgent_internal_alert" | "refusal" | "technical_error";
   contractVersion: DecisionContractVersion;
   decisionVersion: DecisionContractVersion | null;
   parserVersion: string;
@@ -200,7 +209,7 @@ export interface ChainAudit {
   checks: ChainSecurityChecks;
 }
 
-export const CHAIN_TIMING_IDS = ["context", "dossier", "history", "scope_check", "stay_authorizations", "human_ownership", "guard", "compose", "model_output", "parse", "structural_validation", "semantic_validation", "final_decision"] as const;
+export const CHAIN_TIMING_IDS = ["context", "dossier", "history", "scope_check", "stay_authorizations", "human_ownership", "sender_identity", "guard", "compose", "model_output", "parse", "structural_validation", "semantic_validation", "final_decision"] as const;
 export type ChainTimingId = (typeof CHAIN_TIMING_IDS)[number];
 
 export interface ChainDecisionSummary {
@@ -224,6 +233,13 @@ export interface ChainSecurityChecks {
   humanOwnership: string | null;
   sourceConflicts: number;
   unknownFacts: number;
+  /** B2.5 — lote (id técnico e tamanho), identidade de envio, horários prometidos, texto e pausa. */
+  batch: { batchId: string; size: number } | null;
+  senderIdentity: { status: SenderIdentity["status"]; source: SenderIdentity["source"]; reason: SenderIdentity["reason"] } | null;
+  promisedTimes: Array<{ kind: string; result: "valid" | "invalid_commitment_time"; authorizationSource: string | null }>;
+  text: { language: string; detectedKinds: string[]; undeclaredKinds: string[] } | null;
+  pause: "not_evaluated" | "active" | "inactive";
+  alert: "none" | "raised" | "insufficient_evidence";
 }
 
 interface NotSent {
@@ -231,8 +247,32 @@ interface NotSent {
   effectsExecuted: false;
 }
 
+/** B2.5 — preparação de despacho: identidade de envio resolvida/validada ≠ autorização ≠ envio. */
+export interface DispatchPreparation {
+  senderIdentity: SenderIdentity | null;
+  /** Nunca concedida na B2.5 (porta de efeito explícita só na B3). */
+  sendAuthorization: "not_granted";
+  state: "blocked_sender_identity" | "awaiting_send_authorization";
+}
+
+/** B2.5 — intenção estruturada de alerta interno urgente (emergência com IA pausada). Nada é notificado. */
+export interface UrgentInternalAlert {
+  kind: "urgent_internal_alert";
+  priority: "critical";
+  conversationId: string;
+  propertyId: string;
+  tenantId: string;
+  /** Mensagens do hóspede que sustentam a classificação (ids citáveis do histórico). */
+  evidenceRefs: string[];
+  notified: false;
+  delivery: "not_sent";
+  effectsExecuted: false;
+}
+
 export type ChainOutcome =
-  | ({ kind: "reply"; text: string; strategy: Strategy; decision: ModelDecision; situation: ChainSituation; audit: ChainAudit } & NotSent)
+  | ({ kind: "reply"; text: string; strategy: Strategy; decision: ModelDecision; situation: ChainSituation; dispatch: DispatchPreparation; audit: ChainAudit } & NotSent)
+  | ({ kind: "paused"; situation: ChainSituation; audit: ChainAudit } & NotSent)
+  | ({ kind: "urgent_internal_alert"; alert: UrgentInternalAlert; situation: ChainSituation; audit: ChainAudit } & NotSent)
   | ({ kind: "silence"; situation: ChainSituation; audit: ChainAudit } & NotSent)
   | ({ kind: "human_action"; question: string; situation: ChainSituation; audit: ChainAudit } & NotSent)
   | ({ kind: "refused"; stage: ChainStageId; code: ChainRefusalCode; situation: ChainSituation | null; audit: ChainAudit } & NotSent)
@@ -259,10 +299,14 @@ export interface ChainDeps {
    * ⇒ nada autorizado (não recusa o turno: só impede promessas).
    */
   loadStayAuthorizationSource?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<Omit<StayAuthorizationInput, "turn" | "now" | "lookup">>;
+  /** B2.5 — fontes da identidade de envio (preferência, gêmeos, contas). Falha ⇒ não resolvida. */
+  loadSenderIdentitySource?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<SenderIdentitySource>;
   /** B2.4 — estado do atendimento humano da conversa. Falha ⇒ erro técnico (fail-closed). */
   loadConversationOwnership?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<ConversationOwnershipRow | null>;
   budget?: BudgetConfig;
   stageTimeoutMs?: number;
+  /** B2.5 — cancelamento externo: aborta a etapa em curso e encerra em `stage_aborted` (sem texto). */
+  signal?: AbortSignal;
   now?: () => number;
   schedule?: (fn: () => void, ms: number) => () => void;
   log?: (audit: ChainAudit) => void;
@@ -276,6 +320,8 @@ export interface ChainDeps {
 export interface ChainInput {
   turn: ValidatedTurn;
   traceId: string;
+  /** B2.5 — lote fechado de mensagens consecutivas do hóspede (emitido por `buildGuestMessageBatch`). */
+  batch?: GuestMessageBatch | null;
 }
 
 const TRACE = /^[\w.:-]{1,80}$/;
@@ -375,6 +421,76 @@ function situationOf(d: ModelDecision, ownership: CaseOwnership): ChainSituation
   };
 }
 
+/**
+ * B2.5 — o lote precisa ser o fim do histórico: todas as mensagens do lote presentes, do hóspede,
+ * em ordem, e nenhuma mensagem de outro falante entre elas ou depois delas (nada já respondido).
+ */
+export function batchMatchesHistory(batch: GuestMessageBatch, history: HistoryResult): boolean {
+  if (!history || history.status !== "available") return false;
+  const entries = history.entries;
+  const tail = entries.slice(entries.length - batch.size);
+  if (tail.length !== batch.size) return false;
+  return tail.every((e, i) => e.speaker === "guest" && e.messageId === batch.messages[i]!.id);
+}
+
+/** Horários oficiais LOCAIS (HH:MM, fuso IANA do imóvel) a partir da estadia validada. */
+export function officialLocalTimes(ctx: ConversationContext): { officialCheckin: string | null; officialCheckout: string | null } {
+  const tz = ctx.guest.property.timezone ?? ctx.guest.stay?.timezone ?? null;
+  const local = (iso: string | null | undefined) => {
+    if (!iso || !tz) return null;
+    const ms = Date.parse(iso);
+    if (!Number.isFinite(ms)) return null;
+    try {
+      const parts = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(ms));
+      const h = parts.find((p) => p.type === "hour")?.value;
+      const m = parts.find((p) => p.type === "minute")?.value;
+      return h && m ? `${h}:${m}` : null;
+    } catch {
+      return null;
+    }
+  };
+  return { officialCheckin: local(ctx.guest.stay?.checkInAt), officialCheckout: local(ctx.guest.stay?.checkOutAt) };
+}
+
+export type PausedEvaluation =
+  | { kind: "alert"; evidenceRefs: string[] }
+  | { kind: "paused"; insufficientEvidence: boolean }
+  | { kind: "refused"; code: "reply_during_pause" | "paused_decision_invalid" };
+
+/**
+ * B2.5 — decisão com a IA PAUSADA pela equipe (pura). A pausa é veto absoluto à resposta:
+ *  - qualquer texto ao hóspede ⇒ `reply_during_pause` (recusa; nenhuma resposta);
+ *  - emergência só vira alerta interno com encaminhamento URGENTE e evidência em mensagem do
+ *    hóspede deste turno (ids `hist:guest:hN` do lote ou a mensagem atual); sem evidência ⇒ pausa;
+ *  - reclamação/desconforto sem emergência ⇒ pausa (não é emergência);
+ *  - a pergunta interna à equipe passa pelo guard (nenhum segredo).
+ */
+export function evaluatePausedDecision(
+  d: ModelDecision,
+  sourceIds: ReadonlySet<string> | null,
+  batch: GuestMessageBatch | null,
+  guard: Pick<FreeTextGuard, "scan"> | null,
+): PausedEvaluation {
+  if (d.reply.trim() !== "" || decisionSignals(d).shouldReply) return { kind: "refused", code: "reply_during_pause" };
+  if (d.strategy !== "silence" && d.strategy !== "handoff") return { kind: "refused", code: "paused_decision_invalid" };
+  if ((d.commitments ?? []).length > 0 || d.credentialIntent !== "none") return { kind: "refused", code: "paused_decision_invalid" };
+  const emergency = decisionSignals(d).intents.includes("emergency");
+  if (!emergency) return { kind: "paused", insufficientEvidence: false };
+  if (!d.handoff.needed || d.handoff.urgency !== "high" || !d.handoff.question) return { kind: "paused", insufficientEvidence: true };
+  try {
+    const r = guard?.scan(d.handoff.question);
+    if (!r || r.status !== "safe" || r.text !== d.handoff.question) return { kind: "refused", code: "paused_decision_invalid" };
+  } catch {
+    return { kind: "refused", code: "paused_decision_invalid" };
+  }
+  // Evidência: mensagens do hóspede deste turno (lote) citadas e existentes no prompt.
+  const guestRefs = [...(sourceIds ?? [])].filter((id) => /^hist:guest:h\d+$/.test(id)).sort((a, b) => Number(a.split("h").pop()) - Number(b.split("h").pop()));
+  const turnRefs = guestRefs.slice(guestRefs.length - (batch ? batch.size : 1));
+  const evidence = d.groundedOn.filter((id) => turnRefs.includes(id));
+  if (evidence.length === 0) return { kind: "paused", insufficientEvidence: true };
+  return { kind: "alert", evidenceRefs: evidence };
+}
+
 /** Executa a cadeia. Nunca lança: toda falha vira `refused` ou `technical_error` (sem texto). */
 export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<ChainOutcome> {
   const rawNow = deps?.now ?? (() => Date.now());
@@ -397,7 +513,22 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
   const timings: Partial<Record<ChainTimingId, number>> = {};
   let interruption: ChainAudit["interruption"] = "none";
   let summary: ChainDecisionSummary | null = null;
-  const checks: ChainSecurityChecks = { context: "not_run", dossierScope: "not_run", guard: null, credentialPolicy: null, stayAuthorizations: null, humanOwnership: null, sourceConflicts: 0, unknownFacts: 0 };
+  const checks: ChainSecurityChecks = {
+    context: "not_run",
+    dossierScope: "not_run",
+    guard: null,
+    credentialPolicy: null,
+    stayAuthorizations: null,
+    humanOwnership: null,
+    sourceConflicts: 0,
+    unknownFacts: 0,
+    batch: null,
+    senderIdentity: null,
+    promisedTimes: [],
+    text: null,
+    pause: "not_evaluated",
+    alert: "none",
+  };
   const timeIt = <T>(id: ChainTimingId, fn: () => T): T => {
     const t0 = now();
     try {
@@ -444,7 +575,15 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     timings: { ...timings },
     interruption,
     decision: summary ? { ...summary, intents: [...summary.intents], unauthorizedKinds: [...summary.unauthorizedKinds], commitmentKinds: summary.commitmentKinds ? [...summary.commitmentKinds] : null, handoff: { ...summary.handoff } } : null,
-    checks: { ...checks, guard: checks.guard ? { ...checks.guard } : null, stayAuthorizations: checks.stayAuthorizations ? { ...checks.stayAuthorizations } : null },
+    checks: {
+      ...checks,
+      guard: checks.guard ? { ...checks.guard } : null,
+      stayAuthorizations: checks.stayAuthorizations ? { ...checks.stayAuthorizations } : null,
+      batch: checks.batch ? { ...checks.batch } : null,
+      senderIdentity: checks.senderIdentity ? { ...checks.senderIdentity } : null,
+      promisedTimes: checks.promisedTimes.map((p) => ({ ...p })),
+      text: checks.text ? { ...checks.text, detectedKinds: [...checks.text.detectedKinds], undeclaredKinds: [...checks.text.undeclaredKinds] } : null,
+    },
   });
   const emit = <T extends ChainOutcome>(o: T): T => {
     try {
@@ -460,9 +599,10 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
   const technical = (stage: ChainStageId, code: ChainTechnicalCode) => emit({ kind: "technical_error", stage, code, audit: audit("technical_error", stage, code), ...NOT_SENT });
 
   const controller = new AbortController();
+  const external = deps?.signal;
   /** Corrida contra o prazo da etapa; o sinal é abortado no estouro (a etapa deve parar). */
   const step = async <T>(fn: (signal: AbortSignal) => Promise<T>): Promise<T> => {
-    if (controller.signal.aborted) throw new StageAborted();
+    if (controller.signal.aborted || external?.aborted) throw new StageAborted();
     // Prazo da etapa limitado ao que resta do teto TOTAL do turno (15 s).
     const remaining = Math.floor(TURN_MAX_DEADLINE_MS - (now() - started));
     if (remaining <= 0) {
@@ -471,9 +611,18 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     }
     const limit = Math.min(stageTimeout, remaining);
     let cancel: () => void = () => {};
+    let onAbort: (() => void) | null = null;
     try {
       return await Promise.race([
         Promise.resolve().then(() => fn(controller.signal)),
+        new Promise<never>((_, reject) => {
+          if (!external) return;
+          onAbort = () => {
+            controller.abort("cancelled");
+            reject(new StageAborted());
+          };
+          external.addEventListener("abort", onAbort, { once: true });
+        }),
         new Promise<never>((_, reject) => {
           cancel = schedule(() => {
             controller.abort("stage_timeout");
@@ -483,6 +632,7 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
       ]);
     } finally {
       cancel();
+      if (onAbort) external?.removeEventListener("abort", onAbort);
     }
   };
   const failure = (stage: ChainStageId, e: unknown) => {
@@ -496,6 +646,15 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     const turn = input?.turn;
     if (!isIssued("turn", turn)) return refuse("turn", "turn_not_validated");
     if (!traceId) return refuse("turn", "trace_invalid");
+    // B2.5 — lote: emitido, do mesmo escopo do turno, e o turno é a mensagem MAIS RECENTE do lote
+    // (mensagens do mesmo lote nunca geram decisões independentes).
+    const batch = input.batch ?? null;
+    if (batch !== null) {
+      if (!isIssuedBatch(batch)) return refuse("turn", "batch_not_validated");
+      if (batch.conversationId !== turn.conversationId || batch.propertyId !== turn.propertyId || batch.tenantId !== turn.tenantId) return refuse("turn", "batch_scope_mismatch");
+      if (batch.latestMessageId !== turn.messageId) return refuse("turn", "batch_turn_mismatch");
+      checks.batch = { batchId: batch.batchId, size: batch.size };
+    }
     completed.push("turn");
 
     // 2) Contexto
@@ -522,9 +681,11 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
       humanOwnership = deriveHumanOwnership(row && row.id === turn.conversationId ? row : null, new Date(now()).toISOString());
       checks.humanOwnership = humanOwnership.state;
       if (humanOwnership.state === "unknown" || humanOwnership.active !== ctx.humanOwnership.openCaseCount > 0) return refuse("context", "human_ownership_inconsistent");
-      // Pausa explícita da equipe é decisão humana (não inferida de chamado aberto): respeitada.
-      if (humanOwnership.aiPausedByTeam) return refuse("context", "ai_paused_by_team");
+      // B2.5 — pausa explícita da equipe: VETO ABSOLUTO à resposta ao hóspede. A cadeia segue só
+      // para CLASSIFICAR uma possível emergência (alerta interno estruturado); nunca responde no chat.
+      checks.pause = humanOwnership.aiPausedByTeam ? "active" : "inactive";
     }
+    const paused = humanOwnership?.aiPausedByTeam === true;
 
     // B2.4 — autorizações formais de horário (fonte indisponível ⇒ nada autorizado).
     let stayAuthorizations: StayAuthorizations | null = null;
@@ -540,6 +701,19 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
         earlyCheckin: stayAuthorizations.earlyCheckin.reason,
         lateCheckout: stayAuthorizations.lateCheckout.status === "authorized" ? "authorized" : stayAuthorizations.lateCheckout.reason,
       };
+    }
+    // B2.5 — identidade de envio (determinística; nunca escolhida pelo modelo). Só leitura.
+    let senderIdentity: SenderIdentity | null = null;
+    if (deps.loadSenderIdentitySource) {
+      let src: SenderIdentitySource;
+      try {
+        src = await timeAsync("sender_identity", () => step((s) => deps.loadSenderIdentitySource!(turn, s)));
+      } catch (e) {
+        if (e instanceof StageTimeout) return failure("context", e);
+        src = { lookup: "failed", conversationListingId: null, reservationListingId: null, listings: [], twins: [], prefs: [], accounts: [] };
+      }
+      senderIdentity = resolveSenderIdentity({ tenantId: turn.tenantId, propertyId: turn.propertyId, surface: turn.surface, source: src, now: new Date(now()).toISOString() });
+      checks.senderIdentity = { status: senderIdentity.status, source: senderIdentity.source, reason: senderIdentity.reason };
     }
     completed.push("context");
 
@@ -573,6 +747,7 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     }
     const hProblem = checkHistoryScope(turn, history);
     if (hProblem) return refuse("history", hProblem);
+    if (batch && !batchMatchesHistory(batch, history)) return refuse("history", "batch_history_mismatch");
     completed.push("history");
 
     // 5 + 6) Guard e composição (o composer aplica a política §6.1 a cada texto livre)
@@ -580,7 +755,7 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     const composeStart = now();
     const guardBefore = timings.guard ?? 0;
     const composed = composeTurnPrompt(
-      { context: ctx, history, dossiers, operational: { stayAuthorizations, humanOwnership } },
+      { context: ctx, history, dossiers, batch, operational: { stayAuthorizations, humanOwnership, aiPausedByTeam: paused } },
       { guard: timedGuard, budget: deps.budget },
     );
     timings.compose = Math.max(0, Math.round(now() - composeStart) - ((timings.guard ?? 0) - guardBefore));
@@ -626,9 +801,34 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     };
     completed.push("parse");
 
-    // 9) Validador estrutural
     const ownership = resolveCaseOwnership(ctx.guest.openCases, decision.caseRelation);
     const situation = situationOf(decision, ownership);
+
+    // B2.5 — IA pausada pela equipe: só `paused` ou `urgent_internal_alert`; NUNCA resposta ao hóspede.
+    if (paused) {
+      completed.push("final_decision");
+      const p = evaluatePausedDecision(decision, prompt.sourceIds, batch, timedGuard);
+      if (p.kind === "refused") return refuse("final_decision", p.code, situation);
+      if (p.kind === "alert") {
+        checks.alert = "raised";
+        const alert: UrgentInternalAlert = Object.freeze({
+          kind: "urgent_internal_alert",
+          priority: "critical",
+          conversationId: turn.conversationId,
+          propertyId: turn.propertyId,
+          tenantId: turn.tenantId,
+          evidenceRefs: [...p.evidenceRefs],
+          notified: false,
+          delivery: "not_sent",
+          effectsExecuted: false,
+        });
+        return emit({ kind: "urgent_internal_alert", alert, situation, audit: audit("urgent_internal_alert", "final_decision", null), ...NOT_SENT });
+      }
+      if (p.insufficientEvidence) checks.alert = "insufficient_evidence";
+      return emit({ kind: "paused", situation, audit: audit("paused", "final_decision", null), ...NOT_SENT });
+    }
+
+    // 9) Validador estrutural
     let structural: unknown;
     try {
       structural = timeIt("structural_validation", () =>
@@ -659,6 +859,7 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
           guard: timedGuard,
           stayAuthorizations,
           humanOwnership,
+          officialTimes: officialLocalTimes(ctx),
         }),
       );
     } catch {
@@ -667,6 +868,12 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     if (!isSemanticReport(semantic)) return refuse("semantic_validation", "semantic_validator_invalid", situation);
     semanticBlocks = [...semantic.blocks];
     summary.unauthorizedKinds = [...semantic.unauthorizedKinds];
+    checks.text = semantic.text ? { language: semantic.text.language, detectedKinds: [...semantic.text.detectedKinds], undeclaredKinds: [...semantic.text.undeclaredKinds] } : null;
+    checks.promisedTimes = (decision.promisedTimes ?? []).map((pt) => {
+      const a = pt.kind === "late_checkout" ? stayAuthorizations?.lateCheckout : stayAuthorizations?.earlyCheckin;
+      const ok = !!a && a.status === "authorized" && a.date === pt.date && a.time === pt.time && pt.timezone === ctx.guest.property.timezone;
+      return { kind: pt.kind, result: ok ? "valid" : "invalid_commitment_time", authorizationSource: a && a.status === "authorized" ? a.source : null };
+    });
     if (semantic.verdict !== "pass") return refuse("semantic_validation", "semantic_block", situation);
     completed.push("semantic_validation");
 
@@ -683,7 +890,12 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
       return emit({ kind: "human_action", question: decision.handoff.question, situation, audit: audit("human_action", "final_decision", null), ...NOT_SENT });
     }
     if (!decision.reply) return refuse("final_decision", "final_inconsistent", situation);
-    return emit({ kind: "reply", text: decision.reply, strategy: decision.strategy, decision, situation, audit: audit("reply", "final_decision", null), ...NOT_SENT });
+    const dispatch: DispatchPreparation = {
+      senderIdentity,
+      sendAuthorization: "not_granted",
+      state: senderIdentity && senderIdentity.status === "resolved" ? "awaiting_send_authorization" : "blocked_sender_identity",
+    };
+    return emit({ kind: "reply", text: decision.reply, strategy: decision.strategy, decision, situation, dispatch, audit: audit("reply", "final_decision", null), ...NOT_SENT });
   } catch {
     const stage = CHAIN_STAGE_IDS[Math.min(completed.length, CHAIN_STAGE_IDS.length - 1)]!;
     return technical(stage, "stage_failed");

@@ -15,6 +15,8 @@ import { CAPABILITY_IDS, isCapabilityId } from "./capabilities";
 import {
   CASE_RELATIONS,
   COMMITMENT_KINDS,
+  TEMPORAL_COMMITMENT_KINDS,
+  type PromisedTime,
   CREDENTIAL_MARKER,
   FORMAL_CHANGE_KINDS,
   HANDOFF_URGENCIES,
@@ -45,13 +47,20 @@ const TOP_KEYS = ["strategy", "reply", "handoff", "caseRelation", "groundedOn", 
 const V2_KEYS = ["shouldReply", "intents", "formalChangeRequests", "hospitalityMilestone", "speakerName"] as const;
 /** B2.3 (decisão v3): exige TODAS as chaves v2 + estas. */
 const V3_KEYS = ["commitmentKinds"] as const;
-const KNOWN_KEYS: readonly string[] = [...TOP_KEYS, ...V2_KEYS, ...V3_KEYS];
+/** B2.5 (decisão v4): exige TODAS as chaves v3 + esta. */
+const V4_KEYS = ["promisedTimes"] as const;
+const KNOWN_KEYS: readonly string[] = [...TOP_KEYS, ...V2_KEYS, ...V3_KEYS, ...V4_KEYS];
+const PROMISED_TIME_KEYS = ["kind", "date", "time", "timezone"] as const;
+const DATE_ISO = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+const TIME_HM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const TZ_IANA = /^[A-Za-z]+(?:\/[A-Za-z0-9_+\-]+){1,2}$/;
+
 const MILESTONE_KEYS = ["kind", "evidence"] as const;
 const HANDOFF_KEYS = ["needed", "question", "urgency"] as const;
 const NEED_KEYS = ["capability", "reason"] as const;
 
 /** Versão do parser (registrada na auditoria da cadeia). */
-export const DECISION_PARSER_VERSION = "decision-parser.2026-11-03.3";
+export const DECISION_PARSER_VERSION = "decision-parser.2026-11-03.4";
 /** Teto do texto bruto aceito em `parseDecisionText` (a saída do turno tem teto de 1.024 tokens). */
 export const DECISION_TEXT_MAX_CHARS = 32_000;
 
@@ -64,6 +73,8 @@ const SCOPE_KEYS: readonly string[] = [
   "tenantid", "tenant", "ownerid", "accountid", "propertyid", "property", "reservationid", "reservation", "bookingid",
   "conversationid", "messageid", "userid", "guestid", "sessionid", "audience", "audiences", "scope", "authorization",
   "authorized", "permissions", "permission", "grant", "grants", "role",
+  // B2.5 — identidade de envio: conta/canal remetente e anúncio nunca vêm do modelo
+  "senderchannelid", "senderchannel", "channelid", "senderid", "sender", "senderidentity", "listingid", "listing",
 ];
 const isScopeKey = (k: string) => SCOPE_KEYS.includes(k.toLowerCase().replace(/[_\-\s]/g, ""));
 
@@ -89,11 +100,12 @@ export const DECISION_PARSE_ERRORS = [
   "invalid_capability",
   "invalid_signals",
   "invalid_commitment_kinds",
+  "invalid_promised_times",
 ] as const;
 export type DecisionParseErrorCode = (typeof DECISION_PARSE_ERRORS)[number];
 
 /** Campos do contrato (nome fixo, nunca vindo da saída). */
-export type DecisionField = (typeof TOP_KEYS)[number] | (typeof V2_KEYS)[number] | (typeof V3_KEYS)[number] | null;
+export type DecisionField = (typeof TOP_KEYS)[number] | (typeof V2_KEYS)[number] | (typeof V3_KEYS)[number] | (typeof V4_KEYS)[number] | null;
 
 export interface DecisionParseError {
   code: DecisionParseErrorCode;
@@ -166,6 +178,22 @@ function parseV2(raw: Obj): Pick<Required<ModelDecision>, (typeof V2_KEYS)[numbe
   };
 }
 
+/** B2.5: horários prometidos — formato estrito (data ISO, HH:MM 24 h, fuso IANA), sem repetir domínio. */
+function parsePromisedTimes(v: unknown): PromisedTime[] | null {
+  if (!Array.isArray(v) || v.length > TEMPORAL_COMMITMENT_KINDS.length) return null;
+  const out: PromisedTime[] = [];
+  for (const p of v) {
+    if (!isObj(p) || !exactKeys(p, PROMISED_TIME_KEYS)) return null;
+    if (!inEnum(p["kind"], TEMPORAL_COMMITMENT_KINDS)) return null;
+    if (typeof p["date"] !== "string" || !DATE_ISO.test(p["date"])) return null;
+    if (typeof p["time"] !== "string" || !TIME_HM.test(p["time"])) return null;
+    if (typeof p["timezone"] !== "string" || !TZ_IANA.test(p["timezone"])) return null;
+    if (out.some((x) => x.kind === p["kind"])) return null;
+    out.push({ kind: p["kind"], date: p["date"], time: p["time"], timezone: p["timezone"] });
+  }
+  return out;
+}
+
 /** Procura chave de escopo em qualquer objeto da decisão (topo e aninhados). */
 function findScopeKey(v: unknown, depth = 0): boolean {
   if (depth > 4 || !v || typeof v !== "object") return false;
@@ -197,10 +225,15 @@ export function parseDecision(raw: unknown, options: DecisionParseOptions = {}):
   if (missingTop) return fail("missing_field", missingTop);
   const v2Present = V2_KEYS.filter((k) => has(raw, k)).length;
   const v3Present = V3_KEYS.filter((k) => has(raw, k)).length;
-  if ((v2Present > 0 && v2Present < V2_KEYS.length) || (v3Present > 0 && v2Present !== V2_KEYS.length)) {
-    return fail("mixed_version", V2_KEYS.find((k) => !has(raw, k)) ?? null);
+  const v4Present = V4_KEYS.filter((k) => has(raw, k)).length;
+  if (
+    (v2Present > 0 && v2Present < V2_KEYS.length) ||
+    (v3Present > 0 && v2Present !== V2_KEYS.length) ||
+    (v4Present > 0 && (v4Present !== V4_KEYS.length || v3Present !== V3_KEYS.length || v2Present !== V2_KEYS.length))
+  ) {
+    return fail("mixed_version", V2_KEYS.find((k) => !has(raw, k)) ?? V3_KEYS.find((k) => !has(raw, k)) ?? V4_KEYS.find((k) => !has(raw, k)) ?? null);
   }
-  const version: DecisionContractVersion = v3Present ? 3 : v2Present ? 2 : 1;
+  const version: DecisionContractVersion = v4Present ? 4 : v3Present ? 3 : v2Present ? 2 : 1;
   if (options.expectVersion !== undefined && options.expectVersion !== version) return fail("version_mismatch");
 
   // Coerência (ex.: `silence` numa v1, que sempre significa responder) é do Validator, não do parser.
@@ -236,10 +269,15 @@ export function parseDecision(raw: unknown, options: DecisionParseOptions = {}):
   const v2 = version >= 2 ? parseV2(raw) : null;
   if (version >= 2 && !v2) return fail("invalid_signals");
   let commitmentKinds: CommitmentKind[] | undefined;
-  if (version === 3) {
+  if (version >= 3) {
     const kinds = uniqueEnumList<CommitmentKind>(raw["commitmentKinds"], COMMITMENT_KINDS, 0, COMMITMENT_KINDS.length);
     if (!kinds) return fail("invalid_commitment_kinds", "commitmentKinds");
     commitmentKinds = kinds;
+  }
+  let promisedTimes: PromisedTime[] | undefined;
+  if (version === 4) {
+    promisedTimes = parsePromisedTimes(raw["promisedTimes"]) ?? undefined;
+    if (!promisedTimes) return fail("invalid_promised_times", "promisedTimes");
   }
 
   const decision: ModelDecision = {
@@ -258,6 +296,7 @@ export function parseDecision(raw: unknown, options: DecisionParseOptions = {}):
     commitments,
     ...(v2 ?? {}),
     ...(commitmentKinds ? { commitmentKinds } : {}),
+    ...(promisedTimes ? { promisedTimes } : {}),
   };
   return { ok: true, decision, version };
 }
@@ -328,5 +367,6 @@ export const DECISION_FORMAT_SPEC = `Responda APENAS com um objeto JSON com exat
  "formalChangeRequests": [${q(FORMAL_CHANGE_KINDS)}] (alterações pedidas que dependem da reserva ou de autorização formal; vazio se nenhuma),
  "hospitalityMilestone": null | {"kind": ${q(HOSPITALITY_MILESTONES)}, "evidence": [ids das mensagens do hóspede que confirmam o marco, incluindo a mensagem atual]},
  "speakerName": string|null (nome que o interlocutor declarou nesta conversa, até ${DECISION_LIMITS.speakerNameMaxChars} caracteres; não é prova de identidade),
- "commitmentKinds": [${q(COMMITMENT_KINDS)}] (os tipos dos compromissos listados em commitments, sem repetir; vazio se e somente se commitments estiver vazio)}
+ "commitmentKinds": [${q(COMMITMENT_KINDS)}] (os tipos dos compromissos listados em commitments, sem repetir; vazio se e somente se commitments estiver vazio),
+ "promisedTimes": [{"kind": ${q(TEMPORAL_COMMITMENT_KINDS)}, "date": "AAAA-MM-DD", "time": "HH:MM", "timezone": fuso IANA do imóvel}] (todo horário que a resposta prometer para um compromisso temporal; vazio se nenhum)}
 Listas com no máximo ${DECISION_LIMITS.listMaxItems} itens.`;

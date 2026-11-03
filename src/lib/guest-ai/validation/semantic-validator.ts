@@ -41,6 +41,7 @@ import type { CaseOwnership } from "@/lib/guest-ai/orchestrator/case-ownership";
 import type { StayPhase } from "@/lib/guest-ai/types";
 import type { HumanOwnershipSnapshot } from "@/lib/guest-ai/orchestrator/case-ownership";
 import { unavailableStayAuthorizations, type StayAuthorization, type StayAuthorizations } from "@/lib/guest-ai/policy/stay-authorizations";
+import { TEXT_BLOCKS, checkReplyAgainstDecision, type TextCheck, type TextContext } from "./commitment-text";
 
 /**
  * Contrato mínimo do guard usado na SAÍDA (estruturalmente igual ao `FreeTextGuard` do composer;
@@ -53,7 +54,7 @@ export interface OutputScanner {
 /** Estados de disponibilidade (espelho de `AvailabilityState["status"]`; conferido no `turn-chain.ts`). */
 export type AvailabilityStatus = "not_consulted" | "confirmed_available" | "confirmed_unavailable";
 
-export const SEMANTIC_VALIDATOR_VERSION = "semantic.2026-11-03.2";
+export const SEMANTIC_VALIDATOR_VERSION = "semantic.2026-11-03.3";
 
 export const SEMANTIC_BLOCKS = [
   "commitment_kinds_undeclared",
@@ -70,6 +71,11 @@ export const SEMANTIC_BLOCKS = [
   // B2.4 — não interferência em assunto sob responsabilidade humana
   "protected_topic_second_action",
   "ambiguous_topic_commitment",
+  // B2.5 — horário prometido (v4) contra a autorização formal
+  "invalid_commitment_time",
+  "promised_time_missing",
+  // B2.5 — texto da resposta confrontado com a estrutura (`commitment-text.ts`)
+  ...TEXT_BLOCKS,
 ] as const;
 export type SemanticBlock = (typeof SEMANTIC_BLOCKS)[number];
 
@@ -80,6 +86,8 @@ export interface SemanticReport {
   unauthorizedKinds: CommitmentKind[];
   /** O sistema não sabe se o marco já foi reconhecido (sem estado durável nesta fase). */
   milestoneIdempotency: "not_applicable" | "verified_new" | "unverified";
+  /** B2.5 — resultado da leitura do texto (só tipos e idioma, nunca o texto). */
+  text: Pick<TextCheck, "detectedKinds" | "undeclaredKinds" | "language"> | null;
 }
 
 /** Dossiê como o validador o enxerga: ref do prompt, papel e estado de disponibilidade. */
@@ -104,6 +112,8 @@ export interface SemanticInput {
   stayAuthorizations?: StayAuthorizations | null;
   /** B2.4: estado do atendimento humano por assunto. Ausente ⇒ só a regra B1 de `caseRelation`. */
   humanOwnership?: HumanOwnershipSnapshot | null;
+  /** B2.5: horários oficiais LOCAIS (HH:MM) para interpretar permissões com horário no texto. */
+  officialTimes?: TextContext | null;
 }
 
 /** Autorizações que o SISTEMA concede no turno (nunca vindas do modelo). */
@@ -244,6 +254,9 @@ export function validateSemantics(input: SemanticInput): SemanticReport {
   if (sig.intents.includes("emergency") && (!d.handoff.needed || d.handoff.urgency !== "high")) add("emergency_without_escalation");
 
   // 6) B2.4 — não interferência por ASSUNTO (nunca bloqueio da conversa inteira).
+  //    Mensagem com vários assuntos: regra CONSERVADORA (uma relação por turno; `caseAssessments`
+  //    depende de aprovação específica) — compromisso com relação `related` é barrado mesmo que
+  //    se refira a outro assunto; o atendimento informativo independente continua.
   const own = input.humanOwnership;
   if (own && own.active) {
     // Mesmo assunto sob responsabilidade humana: nada de segunda ação paralela (novo encaminhamento),
@@ -254,10 +267,39 @@ export function validateSemantics(input: SemanticInput): SemanticReport {
     if (d.caseRelation === "ambiguous" && d.commitments.length > 0) add("ambiguous_topic_commitment");
   }
 
+  // 6b) B2.5 — horário prometido: comparado DETERMINISTICAMENTE com a autorização formal do domínio.
+  //     Saída tardia: R6 (mesma data, mesmo horário, fuso IANA do imóvel). Entrada antecipada: sem fonte.
+  if (d.promisedTimes) {
+    const tz = ctx.guest.property.timezone;
+    for (const p of d.promisedTimes) {
+      const authz = p.kind === "late_checkout" ? auth.lateCheckout : auth.earlyCheckin;
+      if (authz.status !== "authorized" || p.date !== authz.date || p.time !== authz.time || !tz || p.timezone !== tz) add("invalid_commitment_time");
+    }
+    for (const k of ["late_checkout", "early_checkin"] as const) {
+      if ((kinds ?? []).includes(k) && !d.promisedTimes.some((p) => p.kind === k)) add("promised_time_missing");
+    }
+  }
+
+  // 6c) B2.5 — o TEXTO confrontado com a estrutura e com a evidência do sistema (fail-closed).
+  const text = checkReplyAgainstDecision(d, input.officialTimes ?? { officialCheckin: null, officialCheckout: null }, {
+    credentialReleaseAllowed: auth.credentialRelease === "allow",
+    lateCheckoutAuthorizedTime: auth.lateCheckout.status === "authorized" ? auth.lateCheckout.time : null,
+    humanOwnershipActive: !!own?.active || ctx.humanOwnership.openCaseCount > 0,
+  });
+  for (const b of text.blocks) add(b);
+  // Promessa no texto de tipo não autorizado também é compromisso não autorizado.
+  for (const k of text.undeclaredKinds) if (!COMMITMENT_AUTHORIZATION[k](d, auth) && !unauthorizedKinds.includes(k)) unauthorizedKinds.push(k);
+
   // 7) Saída sensível: todo texto da decisão pelo guard (fail-closed).
   const sensitive = scanOutput(input.guard, decisionTexts(d));
   if (sensitive === null) add("output_guard_failed");
   else if (sensitive) add("output_sensitive_content");
 
-  return { verdict: blocks.length ? "block" : "pass", blocks, unauthorizedKinds, milestoneIdempotency };
+  return {
+    verdict: blocks.length ? "block" : "pass",
+    blocks,
+    unauthorizedKinds,
+    milestoneIdempotency,
+    text: { detectedKinds: text.detectedKinds, undeclaredKinds: text.undeclaredKinds, language: text.language },
+  };
 }

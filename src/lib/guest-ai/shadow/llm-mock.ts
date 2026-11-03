@@ -84,6 +84,7 @@ function decision(over: Record<string, unknown>, prompt: ComposedPrompt): Record
     hospitalityMilestone: null,
     speakerName: null,
     commitmentKinds: [],
+    promisedTimes: [],
     ...over,
   };
 }

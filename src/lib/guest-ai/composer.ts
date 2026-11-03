@@ -42,9 +42,10 @@ import { isIssuedPropertyDossier } from "./dossier/registry";
 import type { ResolvedFact } from "./dossier/authority";
 import type { StayAuthorizations } from "./policy/stay-authorizations";
 import type { HumanOwnershipSnapshot } from "./orchestrator/case-ownership";
+import type { GuestMessageBatch } from "./batch/message-batch";
 
-export const COMPOSER_VERSION = "composer.2026-11-03.4";
-export const PROMPT_VERSION = `b2.4/${COMPOSER_VERSION}/${SYSTEM_PROMPT_VERSION}/${PERSONA_VERSION}`;
+export const COMPOSER_VERSION = "composer.2026-11-03.5";
+export const PROMPT_VERSION = `b2.5/${COMPOSER_VERSION}/${SYSTEM_PROMPT_VERSION}/${PERSONA_VERSION}`;
 /** Teto de dossiês alternativos num mesmo turno (cada um é carregado sob demanda e autorizado). */
 export const MAX_CANDIDATE_DOSSIERS = 5;
 
@@ -78,7 +79,13 @@ export interface ComposeInput {
    * horário (`policy/stay-authorizations.ts`) e atendimento humano por assunto (`case-ownership.ts`).
    * Ausente ⇒ o prompt declara `nao_informado`, como antes.
    */
-  operational?: { stayAuthorizations?: StayAuthorizations | null; humanOwnership?: HumanOwnershipSnapshot | null } | null;
+  operational?: { stayAuthorizations?: StayAuthorizations | null; humanOwnership?: HumanOwnershipSnapshot | null; aiPausedByTeam?: boolean } | null;
+  /**
+   * B2.5: lote fechado de mensagens consecutivas do hóspede (um turno lógico). As mensagens do lote
+   * são marcadas no histórico (`lote_atual`), cada uma com a sua identidade e fronteira; o guard é
+   * aplicado a cada mensagem E ao conjunto (um segredo dividido entre mensagens não escapa).
+   */
+  batch?: GuestMessageBatch | null;
 }
 
 /**
@@ -252,6 +259,9 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
     { id: "ctx:fuso", valor: g.property.timezone, origem: "backend" },
     { id: "ctx:fase", valor: g.phase, origem: "backend" },
   ];
+  if (op?.aiPausedByTeam) {
+    facts.push({ id: "ctx:ia_pausada", valor: { status: "pausada_pela_equipe", resposta_ao_hospede: "proibida", permitido: "apenas_classificar_emergencia_para_alerta_interno" }, origem: "equipe" });
+  }
   if (g.stay) {
     facts.push(
       { id: "ctx:reserva_status", valor: g.stay.status, origem: "reserva" },
@@ -271,6 +281,8 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
     { id: "ctx:saida_tardia", valor: stayFact("late", op), origem: op?.stayAuthorizations ? "verificacao_formal" : "backend" },
     // Interlocutor ≠ titular (diretriz B2.1 §8): nada aqui comprova identidade de quem escreve.
     { id: "ctx:interlocutor", valor: { identidade: "nao_verificada", papel: "participante_da_conversa" }, origem: "backend" },
+    // B2.5: a voz é institucional (equipe da acomodação); a conta de envio não identifica uma pessoa.
+    { id: "ctx:voz", valor: { representa: "equipe_da_acomodacao", papel_individual: "nao_comprovado" }, origem: "backend" },
     { id: "ctx:titular_da_reserva", valor: { status: "nao_informado" }, origem: "backend" },
   );
 
@@ -299,8 +311,9 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
   };
 }
 
-function historyItem(e: HistoryEntry, guarded: Guarded, previous: string | null): Record<string, unknown> {
-  const source = `history.${e.speaker}`;
+function historyItem(e: HistoryEntry, guarded: Guarded, previous: string | null, inBatch = false): Record<string, unknown> {
+  // B2.5: mensagens do lote têm fonte técnica própria (proveniência do achado por mensagem).
+  const source = inBatch ? `batch.${e.ref}` : `history.${e.speaker}`;
   const item: Record<string, unknown> = {
     id: e.ref,
     falante: e.speaker,
@@ -317,6 +330,7 @@ function historyItem(e: HistoryEntry, guarded: Guarded, previous: string | null)
     };
   }
   if (e.current) item["atual"] = true;
+  if (inBatch) item["lote_atual"] = true;
   return item;
 }
 
@@ -483,7 +497,26 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   try {
     contextData = buildContextData(ctx, guarded, unavailable, input.operational ?? null);
     contextJson = encodeDataBlock(contextData);
-    historyJson = encodeDataBlock(history.entries.map((e, i) => historyItem(e, guarded, i > 0 ? history.entries[i - 1]!.text : null)));
+    const batchIds = new Set(input.batch ? input.batch.messages.map((m) => m.id) : []);
+    const items = history.entries.map((e, i) => historyItem(e, guarded, i > 0 ? history.entries[i - 1]!.text : null, batchIds.has(e.messageId)));
+    // B2.5: o CONJUNTO do lote também passa pelo guard (segredo dividido entre mensagens). O texto
+    // saneado de cada mensagem, unido, precisa voltar `safe` — senão a composição é recusada.
+    if (input.batch && input.batch.size > 1) {
+      const parts = items.filter((it) => it["lote_atual"] === true).map((it) => String(it["texto"]));
+      // Duas junções: por linha (fronteira preservada) e por espaço (um número partido entre
+      // mensagens — "é 44" + "71" — vira uma sequência contínua que o guard reconhece).
+      for (const joined of [parts.join("\n"), parts.join(" ")]) {
+        let agg: unknown;
+        try {
+          agg = guard.scan(joined);
+        } catch {
+          throw new GuardFailure();
+        }
+        if (!isGuardScan(agg)) throw new GuardFailure();
+        if (agg.status !== "safe" || agg.text !== joined) throw new GuardRefusal(agg.status === "blocked" ? "blocked" : "ambiguous");
+      }
+    }
+    historyJson = encodeDataBlock(items);
     if (dossiers) {
       const all = [dossiers.primary, ...(dossiers.candidates ?? [])];
       const items = all.map((d, i) => {
@@ -502,7 +535,11 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   const contextBlock = `<${CONTEXT_TAG}>\n${contextJson}\n</${CONTEXT_TAG}>`;
   const dossierBlock = dossierJson === null ? null : `<${DOSSIER_TAG} total="${dossierRefs.length}">\n${dossierJson}\n</${DOSSIER_TAG}>`;
   const historyBlock = `<${HISTORY_TAG} mensagem_atual="${last.ref}" total="${history.entries.length}">\n${historyJson}\n</${HISTORY_TAG}>`;
-  const closing = `Responda à mensagem ${last.ref} (atual: true) no formato exigido pelas instruções de sistema.`;
+  const batchRefs = input.batch ? history.entries.filter((e) => input.batch!.messages.some((m) => m.id === e.messageId)).map((e) => e.ref) : [];
+  const closing =
+    batchRefs.length > 1
+      ? `As mensagens ${batchRefs.join(", ")} (lote_atual: true) foram enviadas em sequência pelo mesmo hóspede e formam um único turno. Considere-as em conjunto e produza uma única decisão para todas, no formato exigido pelas instruções de sistema.`
+      : `Responda à mensagem ${last.ref} (atual: true) no formato exigido pelas instruções de sistema.`;
   const user = [preamble, contextBlock, ...(dossierBlock ? [dossierBlock] : []), historyBlock, closing].join("\n\n");
 
   const messages: ComposedPrompt["messages"] = [{ role: "user", content: user }];

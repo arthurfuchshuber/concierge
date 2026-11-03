@@ -115,7 +115,7 @@ describe("B2.1 · compositor injetado SÓ em teste (compatibilidade com o contra
     if (r.kind === "draft") {
       expect(r.validation.verdict).toBe("pass");
       expect(r.telemetry.mode).toBe("shadow");
-      expect(r.telemetry.promptVersion).toMatch(/^b2\.4\//); // versão do prompt avança a cada gate (B2.4)
+      expect(r.telemetry.promptVersion).toMatch(/^b2\.5\//); // versão do prompt avança a cada gate (B2.5)
     }
   });
   it("sem guard (estado real até a B2.2): composição indisponível ⇒ prompt_unavailable, sem chamada", async () => {

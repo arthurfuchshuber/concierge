@@ -131,6 +131,8 @@ export function validateDecision(input: ValidationInput): ValidationReport {
     add("commitment_kinds_inconsistent");
   }
 
+  // 9) B2.5 (v4) — todo horário prometido corresponde a um tipo de compromisso declarado.
+  if (d.promisedTimes && d.promisedTimes.some((p) => !(kinds ?? []).includes(p.kind))) add("promised_time_kind_undeclared");
   return { verdict: blocks.length ? "block" : "pass", blocks };
 }
 

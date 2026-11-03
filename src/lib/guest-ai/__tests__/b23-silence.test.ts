@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { runTurnChain, type ChainOutcome } from "@/lib/guest-ai/turn-chain";
-import { ctx, currentRef, harness, history, silence, turn, v3 } from "./helpers/b23-chain";
+import { ctx, currentRef, harness, history, silence, turn, v4 } from "./helpers/b23-chain";
 
 const run = (output: unknown, over: Parameters<typeof harness>[1] = {}) => {
   const h = harness(output, over);
@@ -49,26 +49,27 @@ describe("B2.3 · silêncio NÃO permitido quando há necessidade", () => {
     expect(h.calls.generate).toBe(1);
   });
   it("pergunta com agradecimento: a resposta à pergunta é aprovada", async () => {
-    const { r } = await run(v3({ intents: ["acknowledgment", "informational_query"] }), { loadHistory: async () => history("Valeu! E o check-in é que horas?") });
+    const { r } = await run(v4({ intents: ["acknowledgment", "informational_query"] }), { loadHistory: async () => history("Valeu! E o check-in é que horas?") });
     expect(r.kind).toBe("reply");
   });
   it("incidente com cortesia: tratado (resposta + encaminhamento), nunca silenciado", async () => {
     const { r } = await run(
-      v3({ strategy: "answer_and_handoff", intents: ["acknowledgment", "problem_report"], reply: "Sinto muito! Já acionei a equipe para verificar o chuveiro.", handoff: { needed: true, question: "Chuveiro sem água quente", urgency: "normal" } }),
+      v4({ strategy: "answer_and_handoff", intents: ["acknowledgment", "problem_report"], reply: "Sinto muito! Já acionei a equipe para verificar o chuveiro.", handoff: { needed: true, question: "Chuveiro sem água quente", urgency: "normal" } }),
     );
-    // "já acionei" sem declarar compromisso não é detectável por regra lexical (limitação registrada);
-    // declarado, o repasse é autorizado pelo encaminhamento estruturado:
-    expect(r.kind).toBe("reply");
+    // B2.5: o texto é confrontado com a estrutura — "já acionei" (execução afirmada sem evidência) é
+    // RECUSADO (antes era a limitação registrada na B2.3). Declarado como promessa, o repasse passa:
+    expect(r.kind).toBe("refused");
+    expect(r.audit.semanticBlocks).toContain("text_completion_without_evidence");
     const declared = await run(
-      v3({ strategy: "answer_and_handoff", intents: ["problem_report"], reply: "Vou repassar à equipe agora.", commitments: ["repassar à equipe"], commitmentKinds: ["team_relay"], handoff: { needed: true, question: "Chuveiro sem água quente", urgency: "normal" } }),
+      v4({ strategy: "answer_and_handoff", intents: ["problem_report"], reply: "Vou repassar à equipe agora.", commitments: ["repassar à equipe"], commitmentKinds: ["team_relay"], handoff: { needed: true, question: "Chuveiro sem água quente", urgency: "normal" } }),
     );
     expect(declared.r.kind).toBe("reply");
   });
   it("emergência: resposta com encaminhamento URGENTE; sem urgência alta é recusada", async () => {
-    const ok = await run(v3({ strategy: "answer_and_handoff", intents: ["emergency"], reply: "Saiam do imóvel e liguem 193.", handoff: { needed: true, question: "Cheiro de gás relatado", urgency: "high" } }));
+    const ok = await run(v4({ strategy: "answer_and_handoff", intents: ["emergency"], reply: "Saiam do imóvel e liguem 193.", handoff: { needed: true, question: "Cheiro de gás relatado", urgency: "high" } }));
     expect(ok.r.kind).toBe("reply");
     if (ok.r.kind === "reply") expect(ok.r.situation).toMatchObject({ emergency: true, humanAction: { needed: true, urgency: "high" } });
-    const low = await run(v3({ strategy: "answer_and_handoff", intents: ["emergency"], reply: "Vou avisar a equipe.", handoff: { needed: true, question: "Cheiro de gás relatado", urgency: "low" } }));
+    const low = await run(v4({ strategy: "answer_and_handoff", intents: ["emergency"], reply: "Vou avisar a equipe.", handoff: { needed: true, question: "Cheiro de gás relatado", urgency: "low" } }));
     expect(low.r.kind).toBe("refused");
     if (low.r.kind === "refused") expect(low.r.audit.semanticBlocks).toContain("emergency_without_escalation");
   });
@@ -91,8 +92,8 @@ describe("B2.3 · integridade de shouldReply:false", () => {
 });
 
 describe("B2.3 · marcos da estadia (evidência confiável, sem repetição)", () => {
-  const arrival = v3({ intents: ["arrival_confirmation"], reply: "Que bom que chegaram! Encontraram tudo certinho?", groundedOn: [currentRef()], hospitalityMilestone: { kind: "checkin_confirmed", evidence: [currentRef()] } });
-  const departure = v3({ intents: ["departure_confirmation"], reply: "Obrigado pela estadia e boa viagem!", groundedOn: [currentRef()], hospitalityMilestone: { kind: "checkout_confirmed", evidence: [currentRef()] } });
+  const arrival = v4({ intents: ["arrival_confirmation"], reply: "Que bom que chegaram! Encontraram tudo certinho?", groundedOn: [currentRef()], hospitalityMilestone: { kind: "checkin_confirmed", evidence: [currentRef()] } });
+  const departure = v4({ intents: ["departure_confirmation"], reply: "Obrigado pela estadia e boa viagem!", groundedOn: [currentRef()], hospitalityMilestone: { kind: "checkout_confirmed", evidence: [currentRef()] } });
   const inStay = () => ctx({ phase: "in_stay", stay: { ...ctx().guest.stay!, phase: "in_stay" } });
 
   it("confirmação confiável de entrada (mensagem atual do hóspede) ⇒ boas-vindas aprovadas", async () => {
@@ -104,7 +105,7 @@ describe("B2.3 · marcos da estadia (evidência confiável, sem repetição)", (
     expect(r.kind).toBe("reply");
   });
   it("marco sem evidência da mensagem atual (só horário/credencial/histórico) ⇒ recusado", async () => {
-    const noEvidence = v3({ intents: ["arrival_confirmation"], hospitalityMilestone: { kind: "checkin_confirmed", evidence: ["ctx:checkin_oficial"] } });
+    const noEvidence = v4({ intents: ["arrival_confirmation"], hospitalityMilestone: { kind: "checkin_confirmed", evidence: ["ctx:checkin_oficial"] } });
     const { r } = await run(noEvidence);
     expect(r.kind).toBe("refused");
     if (r.kind === "refused") expect(r.audit.structuralBlocks).toContain("milestone_without_current_guest_evidence");

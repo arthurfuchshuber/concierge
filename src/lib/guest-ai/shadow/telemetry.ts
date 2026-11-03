@@ -13,6 +13,9 @@ import { CURRENT_DECISION_VERSION, TURN_MAX_DEADLINE_MS, type IntentCategory } f
 import type { ChainAudit, ChainDecisionSummary, ChainOutcome, ChainSecurityChecks, ChainStageId, ChainTimingId } from "@/lib/guest-ai/turn-chain";
 import { STAY_AUTHORIZATION_VERSION } from "@/lib/guest-ai/policy/stay-authorizations";
 import { AUTHORITY_VERSION } from "@/lib/guest-ai/dossier/authority";
+import { SENDER_IDENTITY_VERSION } from "@/lib/guest-ai/policy/sender-identity";
+import { TEXT_COMMITMENT_VERSION } from "@/lib/guest-ai/validation/commitment-text";
+import { MESSAGE_BATCH_VERSION } from "@/lib/guest-ai/batch/message-batch";
 
 export const SHADOW_TELEMETRY_SCHEMA = "guest_ai.shadow_turn.v1";
 
@@ -31,6 +34,9 @@ export interface ShadowTurnRecord {
     semanticValidator: string;
     stayAuthorization: string;
     authority: string;
+    senderIdentity: string;
+    textCommitment: string;
+    messageBatch: string;
   };
   execution: {
     outcome: ChainOutcome["kind"];
@@ -80,6 +86,9 @@ export function buildShadowRecord(
       semanticValidator: a.semanticValidatorVersion,
       stayAuthorization: STAY_AUTHORIZATION_VERSION,
       authority: AUTHORITY_VERSION,
+      senderIdentity: SENDER_IDENTITY_VERSION,
+      textCommitment: TEXT_COMMITMENT_VERSION,
+      messageBatch: MESSAGE_BATCH_VERSION,
     },
     execution: {
       outcome: outcome.kind,
@@ -93,7 +102,15 @@ export function buildShadowRecord(
       aborted: a.interruption === "aborted",
     },
     decision: a.decision ? { ...a.decision, intents: [...a.decision.intents], unauthorizedKinds: [...a.decision.unauthorizedKinds], commitmentKinds: a.decision.commitmentKinds ? [...a.decision.commitmentKinds] : null, handoff: { ...a.decision.handoff }, structuralBlocks: [...a.structuralBlocks], semanticBlocks: [...a.semanticBlocks] } : null,
-    security: { ...a.checks, guard: a.checks.guard ? { ...a.checks.guard } : null, stayAuthorizations: a.checks.stayAuthorizations ? { ...a.checks.stayAuthorizations } : null },
+    security: {
+      ...a.checks,
+      guard: a.checks.guard ? { ...a.checks.guard } : null,
+      stayAuthorizations: a.checks.stayAuthorizations ? { ...a.checks.stayAuthorizations } : null,
+      batch: a.checks.batch ? { ...a.checks.batch } : null,
+      senderIdentity: a.checks.senderIdentity ? { ...a.checks.senderIdentity } : null,
+      promisedTimes: a.checks.promisedTimes.map((p) => ({ ...p })),
+      text: a.checks.text ? { ...a.checks.text, detectedKinds: [...a.checks.text.detectedKinds], undeclaredKinds: [...a.checks.text.undeclaredKinds] } : null,
+    },
     delivery: "not_sent",
     effectsExecuted: false,
   });

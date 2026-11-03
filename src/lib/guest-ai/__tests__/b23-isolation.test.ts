@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import { runTurnChain, type ChainAudit } from "@/lib/guest-ai/turn-chain";
 import { NO_COMPOSER } from "@/lib/guest-ai/orchestrator/orchestrator.server";
 import { parseDecisionText } from "@/lib/guest-ai/orchestrator/decision";
-import { harness, history, turn, v3 } from "./helpers/b23-chain";
+import { harness, history, turn, v4 } from "./helpers/b23-chain";
 
 const ROOT = path.resolve(__dirname, "..");
 const SRC = path.resolve(ROOT, "..", "..");
@@ -30,7 +30,7 @@ const SECRETS = ["4821", "Praia2024", "7391", "sk-live-SYNTHETIC0123456789abcdef
 describe("B2.3 · nenhum segredo em auditoria, recusa ou erro", () => {
   it("histórico com segredos + saída do modelo com segredo ⇒ recusa; auditoria e resultado sem nenhum segredo", async () => {
     const logs: ChainAudit[] = [];
-    const out = v3({ reply: "Seu acesso: código do cofre 7391.", handoff: { needed: true, question: "Token sk-live-SYNTHETIC0123456789abcdef vazou?", urgency: "high" }, strategy: "answer_and_handoff" });
+    const out = v4({ reply: "Seu acesso: código do cofre 7391.", handoff: { needed: true, question: "Token sk-live-SYNTHETIC0123456789abcdef vazou?", urgency: "high" }, strategy: "answer_and_handoff" });
     const h = harness(out, {
       loadHistory: async () => history("A senha 5530 não abre", [{ content: "A senha da porta é 4821." }, { content: "A senha do Wi-Fi é Praia2024" }]),
       log: (a) => logs.push(a),
@@ -44,7 +44,7 @@ describe("B2.3 · nenhum segredo em auditoria, recusa ou erro", () => {
     for (const s of ["4821", "Praia2024", "5530"]) expect(sent, s).not.toContain(s);
   });
   it("auditoria é lista branca: só códigos, versões, contagens e duração", async () => {
-    const h = harness(v3());
+    const h = harness(v4());
     await runTurnChain({ turn: turn(), traceId: "sec-2" }, h.deps);
     const a = h.calls.logs[0]!;
     expect(Object.keys(a).sort()).toEqual(
@@ -61,12 +61,12 @@ describe("B2.3 · nenhum segredo em auditoria, recusa ou erro", () => {
     }
   });
   it("log que lança não derruba a cadeia nem muda o resultado", async () => {
-    const h = harness(v3(), { log: () => { throw new Error("log"); } });
+    const h = harness(v4(), { log: () => { throw new Error("log"); } });
     expect((await runTurnChain({ turn: turn(), traceId: "sec-3" }, h.deps)).kind).toBe("reply");
   });
   it("nada é enviado nem chamado fora das dependências injetadas (sem fetch)", async () => {
     const spy = vi.spyOn(globalThis, "fetch");
-    const h = harness(v3());
+    const h = harness(v4());
     const r = await runTurnChain({ turn: turn(), traceId: "sec-4" }, h.deps);
     expect(spy).not.toHaveBeenCalled();
     expect(r).toMatchObject({ delivery: "not_sent", effectsExecuted: false });

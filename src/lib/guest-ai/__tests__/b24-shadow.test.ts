@@ -10,9 +10,11 @@ import { DIVERGENCE_CATEGORIES, DIVERGENCE_CLASS, compareShadowDecision, hasCrit
 import { CHAIN_STAGE_IDS } from "@/lib/guest-ai/turn-chain";
 import { SECRET_SCRUBBER } from "@/lib/guest-ai/secret-scrub";
 import { CONV, ctx, history, turn } from "./helpers/b23-chain";
+import { operationalPorts } from "./helpers/b25-fixtures";
 
 const T0 = Date.parse("2026-11-03T12:00:00Z");
-const ports = (over: Partial<ShadowHarnessDeps["ports"]> = {}): ShadowHarnessDeps["ports"] => ({ loadContext: async () => ctx(), loadHistory: async () => history(), ...over });
+// B2.5: o harness exige TODAS as portas operacionais (nenhuma etapa pode ser pulada).
+const ports = (over: Partial<ShadowHarnessDeps["ports"]> = {}): ShadowHarnessDeps["ports"] => operationalPorts(over);
 const deps = (scenario: MockScenario, over: Partial<ShadowHarnessDeps> = {}): ShadowHarnessDeps => ({ ports: ports(), model: createLlmMock({ scenario }), guard: SECRET_SCRUBBER, now: () => T0, ...over });
 const passive = (r: ShadowTurnResult) => {
   expect(r.delivery).toBe("not_sent");
@@ -52,8 +54,8 @@ describe("B2.4 · pipeline completo (todos os cenários) — sempre passivo", ()
     fabricated_credential: { kind: "refused", code: "structural_block" },
     emergency: { kind: "reply" },
     context_inconsistent: { kind: "refused", code: "semantic_block" },
-    // Limitação conhecida (B2.3 risco 1): promessa só no texto não é detectada — medido no shadow.
-    natural_language_promise: { kind: "reply" },
+    // B2.5: promessa só no texto passa a ser RECUSADA (verificação do texto contra a estrutura).
+    natural_language_promise: { kind: "refused", code: "semantic_block" },
     timeout: { kind: "technical_error", code: "stage_timeout" },
     technical_error: { kind: "technical_error", code: "model_call_failed" },
     over_budget: { kind: "refused", code: "parse_output_too_large" },
@@ -117,6 +119,12 @@ describe("B2.4 · barreira passiva ESTRUTURAL (não é flag)", () => {
     expect(checkPassiveBarrier({ ...deps("valid_reply"), ports: { ...ports(), sendMessage: vi.fn() } })).toBe("unexpected_port");
     expect(checkPassiveBarrier({ ...deps("valid_reply"), ports: { ...ports(), loadDossiers: "x" } })).toBe("port_not_function");
     expect(checkPassiveBarrier({ ...deps("valid_reply"), ports: { loadContext: vi.fn() } })).toBe("missing_port");
+    // B2.5: cada porta operacional é obrigatória
+    for (const k of ["loadDossiers", "loadStayAuthorizationSource", "loadConversationOwnership", "loadSenderIdentitySource"] as const) {
+      const p: Record<string, unknown> = { ...ports() };
+      delete p[k];
+      expect(checkPassiveBarrier({ ...deps("valid_reply"), ports: p }), k).toBe("missing_port");
+    }
   });
   it("gerador que não é LlmMock emitido (função, cópia, objeto parecido com Gateway) ⇒ recusado", async () => {
     const gateway = vi.fn(async () => "{}");
@@ -152,7 +160,7 @@ describe("B2.4 · telemetria passiva", () => {
     if (r.kind !== "executed") throw new Error();
     expect(r.record.decision).toMatchObject({ shouldReply: true, intents: ["emergency"], commitmentKinds: [], handoff: { needed: true, urgency: "high" }, structuralBlocks: [], semanticBlocks: [] });
     expect(r.record.security).toMatchObject({ context: "ok", dossierScope: "not_provided", credentialPolicy: "deny", guard: { ambiguous: 0, blocked: 0 } });
-    expect(r.record.versions).toMatchObject({ decisionContract: 3, guard: { id: "secret-scrub" } });
+    expect(r.record.versions).toMatchObject({ decisionContract: 4, guard: { id: "secret-scrub" } });
   });
   it("falha de telemetria (lança ou rejeita) não altera nem atrasa a decisão", async () => {
     const base = await run(deps("valid_reply"));

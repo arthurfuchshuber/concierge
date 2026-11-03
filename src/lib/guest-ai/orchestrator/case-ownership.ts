@@ -95,6 +95,12 @@ export function deriveHumanOwnership(row: ConversationOwnershipRow | null, now: 
   if (!row || typeof row !== "object") return { ...empty, state: "unknown" };
   const status = typeof row.status === "string" ? row.status : null;
   const until = typeof row.paused_until === "string" ? Date.parse(row.paused_until) : Number.NaN;
+  // B2.5 — estado de pausa ILEGÍVEL (prazo não interpretável, flag não booleana, relógio inválido com
+  // prazo presente) é desconhecido ⇒ a cadeia recusa; nunca é lido como "sem pausa".
+  const pauseUnreadable =
+    (row.ai_paused !== null && row.ai_paused !== undefined && typeof row.ai_paused !== "boolean") ||
+    (row.paused_until !== null && row.paused_until !== undefined && (!Number.isFinite(until) || !Number.isFinite(nowMs)));
+  if (pauseUnreadable) return { ...empty, state: "unknown", aiPausedByTeam: true };
   const aiPausedByTeam = row.ai_paused === true || (Number.isFinite(until) && Number.isFinite(nowMs) && until > nowMs);
   const reason = typeof row.handoff_reason === "string" && row.handoff_reason.trim() ? row.handoff_reason.trim() : null;
   const urgency = typeof row.handoff_urgency === "string" ? URGENCY[row.handoff_urgency.trim().toLowerCase()] ?? null : null;

@@ -24,15 +24,21 @@ import type { PriorMilestones } from "@/lib/guest-ai/validation/semantic-validat
 import { isLlmMock, type LlmMock } from "./llm-mock";
 import { buildShadowRecord, type ShadowTurnRecord } from "./telemetry";
 
-export const SHADOW_HARNESS_VERSION = "shadow-harness.2026-11-03.1";
+export const SHADOW_HARNESS_VERSION = "shadow-harness.2026-11-03.2";
 
 /** Portas permitidas: só LEITURA (cada uma devolve dados; nenhuma executa efeito). */
-export const READ_PORTS = ["loadContext", "loadHistory", "loadDossiers", "loadStayAuthorizationSource", "loadConversationOwnership"] as const;
+export const READ_PORTS = ["loadContext", "loadHistory", "loadDossiers", "loadStayAuthorizationSource", "loadConversationOwnership", "loadSenderIdentitySource"] as const;
 type ReadPortName = (typeof READ_PORTS)[number];
-export type ShadowReadPorts = Pick<ChainDeps, "loadContext" | "loadHistory"> & Partial<Pick<ChainDeps, "loadDossiers" | "loadStayAuthorizationSource" | "loadConversationOwnership">>;
+/**
+ * B2.5: no harness (fundação da B3) TODAS as portas são obrigatórias — nenhuma etapa da cadeia
+ * (atendimento humano/pausa, autorizações de horário, identidade de envio, dossiê) pode ser pulada
+ * para chegar a uma decisão favorável. Uma porta pode responder "sem dados", nunca estar ausente.
+ */
+export const REQUIRED_PORTS: readonly ReadPortName[] = READ_PORTS;
+export type ShadowReadPorts = Required<Pick<ChainDeps, ReadPortName>>;
 
 /** Chaves aceitas no objeto de dependências do harness. */
-export const HARNESS_KEYS = ["ports", "model", "guard", "telemetry", "priorMilestones", "budget", "now", "schedule", "stageTimeoutMs"] as const;
+export const HARNESS_KEYS = ["ports", "model", "guard", "telemetry", "priorMilestones", "budget", "now", "schedule", "stageTimeoutMs", "signal"] as const;
 
 export interface ShadowHarnessDeps {
   ports: ShadowReadPorts;
@@ -45,6 +51,8 @@ export interface ShadowHarnessDeps {
   now?: () => number;
   schedule?: (fn: () => void, ms: number) => () => void;
   stageTimeoutMs?: number;
+  /** Cancelamento externo (passivo: só interrompe a execução simulada). */
+  signal?: AbortSignal;
 }
 
 interface Passive {
@@ -69,7 +77,7 @@ export function checkPassiveBarrier(deps: unknown): Extract<ShadowTurnResult, { 
   const p = ports as Record<string, unknown>;
   if (Object.keys(p).some((k) => !(READ_PORTS as readonly string[]).includes(k))) return "unexpected_port";
   for (const k of Object.keys(p)) if (typeof p[k] !== "function") return "port_not_function";
-  if (typeof p["loadContext"] !== "function" || typeof p["loadHistory"] !== "function") return "missing_port";
+  if (REQUIRED_PORTS.some((k) => typeof p[k] !== "function")) return "missing_port";
   if (!isLlmMock(d["model"])) return "model_not_mock";
   return null;
 }
@@ -86,9 +94,10 @@ export async function runShadowTurn(input: ChainInput, deps: ShadowHarnessDeps):
   const chainDeps: ChainDeps = {
     loadContext: (t, s) => port("loadContext")(t, s),
     loadHistory: (t, s) => port("loadHistory")(t, s),
-    ...(ports.loadDossiers ? { loadDossiers: (t, s) => ports.loadDossiers!(t, s) } : {}),
-    ...(ports.loadStayAuthorizationSource ? { loadStayAuthorizationSource: (t, s) => ports.loadStayAuthorizationSource!(t, s) } : {}),
-    ...(ports.loadConversationOwnership ? { loadConversationOwnership: (t, s) => ports.loadConversationOwnership!(t, s) } : {}),
+    loadDossiers: (t, s) => port("loadDossiers")(t, s),
+    loadStayAuthorizationSource: (t, s) => port("loadStayAuthorizationSource")(t, s),
+    loadConversationOwnership: (t, s) => port("loadConversationOwnership")(t, s),
+    loadSenderIdentitySource: (t, s) => port("loadSenderIdentitySource")(t, s),
     generate: (prompt, signal) => model.generate(prompt, signal),
     guard: deps.guard,
     priorMilestones: deps.priorMilestones,
@@ -96,6 +105,7 @@ export async function runShadowTurn(input: ChainInput, deps: ShadowHarnessDeps):
     now: deps.now,
     schedule: deps.schedule,
     stageTimeoutMs: deps.stageTimeoutMs,
+    signal: deps.signal,
   };
 
   const outcome = await runTurnChain(input, chainDeps);
