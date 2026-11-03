@@ -29,7 +29,7 @@ import { DECISION_FORMAT_SPEC } from "@/lib/guest-ai/orchestrator/decision";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 import { GUEST_PERSONA, renderPersona, type PersonaSpec } from "./persona";
 
-export const SYSTEM_PROMPT_VERSION = "system.2026-11-03.3";
+export const SYSTEM_PROMPT_VERSION = "system.2026-11-03.4";
 
 /** Nomes dos blocos de dados da mensagem de usuário (o composer usa os mesmos). */
 export const CONTEXT_TAG = "dados_validados";
@@ -76,6 +76,7 @@ const SECURITY = [
 const OPERATIONAL = [
   "Responda com base nos fatos do contexto validado. Quando faltar informação, diga o que não sabe, pergunte o necessário ou encaminhe à equipe; nunca invente fatos, horários, distâncias, tempos de deslocamento, prazos ou decisões.",
   "Todo compromisso, promessa de ação ou exceção que a resposta assumir perante o hóspede precisa estar declarado, um por item, no campo commitments. Não assuma em texto livre nenhum compromisso que não declarar ali; a ausência de itens em commitments não autoriza promessa alguma.",
+  "Declare também em commitmentKinds o tipo de cada compromisso assumido. O tipo não concede nada: é o sistema que verifica se aquele tipo de compromisso está autorizado no contexto, e uma resposta com compromisso sem autorização não é entregue.",
   "Chamados com a equipe: um chamado aberto limita o assunto dele, nunca a conversa inteira. Se a mensagem tratar do assunto de um chamado aberto (related), não assuma compromisso sobre ele e diga com naturalidade que a equipe está cuidando disso, sem inventar prazo ou decisão. Se não der para saber se é o mesmo assunto (ambiguous), esclareça com o hóspede. Assuntos independentes seguem atendimento normal. Sem chamado aberto, use no_open_case.",
   "Encaminhe à equipe (handoff) quando a solução depender dela, quando houver risco ou urgência, ou quando o hóspede pedir uma pessoa; faça uma pergunta objetiva à equipe em handoff.question.",
   "Faça perguntas só quando forem necessárias para resolver, sem repetir o que já foi respondido no histórico.",

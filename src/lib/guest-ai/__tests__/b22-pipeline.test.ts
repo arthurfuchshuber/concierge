@@ -130,7 +130,9 @@ describe("B2.2 · pipeline completo isolado: fontes → projeções → normaliz
     for (const s of [...PLANTED_SECRETS, "MARCADOR", "Padaria"]) expect(json).not.toContain(s);
   });
 
-  it("valor dividido entre mensagens no histórico é removido (hint da mensagem anterior)", async () => {
+  // B2.3 (§6.1): a detecção continua (o guard marca `ambiguous`), mas a POLÍTICA mudou de
+  // "compõe com o texto saneado" para "recusa a composição". Nada é composto e nada vaza.
+  it("valor dividido entre mensagens no histórico é detectado (hint) e, sendo ambíguo, RECUSA a composição", async () => {
     const h = normalizeHistory(
       [
         row({ created_at: "2026-11-03T10:00:00Z", role: "assistant", sender_type: "human", content: "A senha do cofre é" }),
@@ -139,10 +141,10 @@ describe("B2.2 · pipeline completo isolado: fontes → projeções → normaliz
       ],
       { conversationId: CONV, currentMessageId: MSG },
     );
+    expect(SECRET_SCRUBBER.scan("7351", { previous: "A senha do cofre é" }).status).toBe("ambiguous");
     const r = composeTurnPrompt({ context: ctx(), history: h }, { guard: SECRET_SCRUBBER });
-    if (r.kind !== "prompt") throw new Error(r.kind);
-    expect(r.prompt.messages[0]!.content).not.toContain("7351");
-    expect(r.guardMetrics.byStatus.ambiguous).toBe(1);
+    expect(r).toEqual({ kind: "unavailable", reason: "guard_ambiguous" });
+    expect(JSON.stringify(r)).not.toContain("7351");
   });
 });
 

@@ -12,11 +12,15 @@
  *    intenções, pedidos de alteração formal e marcos de hospitalidade. Nenhuma regra lê o texto da
  *    resposta para julgar estilo; e nenhuma garante detectar promessa escrita só em linguagem natural
  *    sem declaração em `commitments` (limitação registrada para as próximas etapas).
+ * B2.3: campos de encaminhamento incompatíveis e coerência dos tipos de compromisso (v3). A
+ * validação SEMÂNTICA (autorização de compromissos, contexto, dossiê, marcos, saída sensível) é
+ * camada independente: `validation/semantic-validator.ts`.
  * Falhas do provedor (truncada, filtrada, vazia) já chegam como falha do Gateway.
  */
 import {
   CREDENTIAL_MARKER,
   SILENCE_COMPATIBLE_INTENTS,
+  commitmentKindsOf,
   decisionSignals,
   type ModelDecision,
   type ValidationBlock,
@@ -72,6 +76,8 @@ export function validateDecision(input: ValidationInput): ValidationReport {
   const wantsHandoff = d.strategy === "handoff" || d.strategy === "answer_and_handoff";
   if (wantsHandoff !== d.handoff.needed) add("handoff_inconsistent");
   if (d.handoff.needed && !d.handoff.question) add("handoff_inconsistent");
+  // B2.3: campos mutuamente incompatíveis — pergunta/urgência à equipe sem encaminhamento.
+  if (!d.handoff.needed && (d.handoff.question !== null || d.handoff.urgency !== null)) add("handoff_fields_without_need");
 
   // 2) Credenciais (o modelo nunca vê códigos)
   const markerCount = d.reply.split(CREDENTIAL_MARKER).length - 1;
@@ -116,6 +122,13 @@ export function validateDecision(input: ValidationInput): ValidationReport {
     const current = currentGuestRef(sourceIds);
     const allGuest = m.evidence.every((id) => GUEST_REF.test(id) && !!sourceIds && sourceIds.has(id));
     if (!current || !allGuest || !m.evidence.includes(current)) add("milestone_without_current_guest_evidence");
+  }
+
+  // 8) B2.3 (v3) — tipos de compromisso coerentes com a lista de compromissos (estrutural).
+  //    A AUTORIZAÇÃO de cada tipo é do Validador Semântico (`semantic-validator.ts`).
+  const kinds = commitmentKindsOf(d);
+  if (kinds !== null && ((kinds.length > 0) !== (d.commitments.length > 0) || kinds.length > d.commitments.length)) {
+    add("commitment_kinds_inconsistent");
   }
 
   return { verdict: blocks.length ? "block" : "pass", blocks };

@@ -67,7 +67,9 @@ describe("B2.2 · módulos novos isolados", () => {
 
 describe("B2.2 · nada de produção usa a capacidade multipropriedade ou o guard", () => {
   const prod = allSources(SRC).filter((f) => !f.includes(`${path.sep}__tests__${path.sep}`));
-  const allowed = new Set(NEW_FILES.map((f) => path.join(ROOT, f)).concat([path.join(ROOT, "composer.ts")]));
+  // B2.3: `turn-chain.ts` (cadeia fail-closed isolada) usa os tipos do dossiê; ela própria é
+  // proibida em qualquer código de produção pelo `b23-isolation.test.ts`.
+  const allowed = new Set(NEW_FILES.map((f) => path.join(ROOT, f)).concat([path.join(ROOT, "composer.ts"), path.join(ROOT, "turn-chain.ts")]));
   it("nenhum arquivo fora dos módulos B2.2/composer importa dossiê, autorização de candidato ou secret-scrub", () => {
     const importers = prod
       .filter((f) => !allowed.has(f))

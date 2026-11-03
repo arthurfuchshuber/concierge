@@ -79,7 +79,35 @@ export interface ModelDecision {
   hospitalityMilestone?: { kind: HospitalityMilestoneKind; evidence: string[] } | null;
   /** Nome que o interlocutor declarou (tratamento cordial). NÃO é identidade comprovada nem autorização. */
   speakerName?: string | null;
+  // ── B2.3 (decisão v3 = v2 + `commitmentKinds`). Aditivo: v1 e v2 continuam válidas no parser.
+  /**
+   * TIPOS de compromisso que o `reply` assume (conjunto, sem repetição). Classificação semântica
+   * feita pelo MODELO; a AUTORIZAÇÃO de cada tipo é decidida pelo sistema (`semantic-validator.ts`).
+   * Vazio ⇔ `commitments` vazio. Ausente (v1/v2) ⇒ compromissos não verificáveis.
+   */
+  commitmentKinds?: CommitmentKind[];
 }
+
+// ─────────────────────────── B2.3 — tipos de compromisso (decisão v3) ───────────────────────────
+
+/**
+ * Tipos de compromisso operacional. São categorias para o SISTEMA autorizar ou recusar, não frases:
+ * nada aqui restringe vocabulário. Na F2-B nenhuma fonte de autorização existe para alterações,
+ * exceções, benefícios ou ações executadas (B2.4+), então esses tipos nunca são autorizados.
+ */
+export const COMMITMENT_KINDS = [
+  "reservation_change",
+  "early_checkin",
+  "late_checkout",
+  "availability",
+  "service_or_benefit",
+  "credential_release",
+  "action_completed",
+  "resolution",
+  "team_relay",
+  "information_followup",
+] as const;
+export type CommitmentKind = (typeof COMMITMENT_KINDS)[number];
 
 // ─────────────────────────── B2.1 — sinais da conversa (decisão v2) ───────────────────────────
 
@@ -107,7 +135,7 @@ export type HospitalityMilestoneKind = (typeof HOSPITALITY_MILESTONES)[number];
 
 /** Sinais B2.1 normalizados (v1 ⇒ padrões conservadores). Fonte única para validador e render. */
 export interface DecisionSignals {
-  version: 1 | 2;
+  version: DecisionContractVersion;
   shouldReply: boolean;
   intents: IntentCategory[];
   formalChangeRequests: FormalChangeKind[];
@@ -115,18 +143,29 @@ export interface DecisionSignals {
   speakerName: string | null;
 }
 
+/** Versões do contrato da decisão aceitas pelo parser (compatibilidade preservada). */
+export const DECISION_CONTRACT_VERSIONS = [1, 2, 3] as const;
+export type DecisionContractVersion = (typeof DECISION_CONTRACT_VERSIONS)[number];
+/** Versão que o prompt atual (B2.3) pede ao modelo e que a cadeia fail-closed exige. */
+export const CURRENT_DECISION_VERSION: DecisionContractVersion = 3;
+
 export function decisionSignals(d: ModelDecision): DecisionSignals {
   if (d.shouldReply === undefined) {
     return { version: 1, shouldReply: true, intents: ["other"], formalChangeRequests: [], hospitalityMilestone: null, speakerName: null };
   }
   return {
-    version: 2,
+    version: d.commitmentKinds === undefined ? 2 : 3,
     shouldReply: d.shouldReply,
     intents: [...(d.intents ?? [])],
     formalChangeRequests: [...(d.formalChangeRequests ?? [])],
     hospitalityMilestone: d.hospitalityMilestone ? { kind: d.hospitalityMilestone.kind, evidence: [...d.hospitalityMilestone.evidence] } : null,
     speakerName: d.speakerName ?? null,
   };
+}
+
+/** B2.3: tipos de compromisso declarados (v3). `null` = não declarados (v1/v2) ⇒ não verificáveis. */
+export function commitmentKindsOf(d: ModelDecision): CommitmentKind[] | null {
+  return d.commitmentKinds === undefined ? null : [...d.commitmentKinds];
 }
 
 // ─────────────────────────── Contexto do turno ───────────────────────────
@@ -191,7 +230,10 @@ export type ValidationBlock =
   | "formal_change_inconsistent"
   | "formal_change_commitment"
   | "milestone_inconsistent"
-  | "milestone_without_current_guest_evidence";
+  | "milestone_without_current_guest_evidence"
+  // B2.3 (estruturais)
+  | "handoff_fields_without_need"
+  | "commitment_kinds_inconsistent";
 
 export interface ValidationReport {
   verdict: "pass" | "block";

@@ -63,7 +63,10 @@ describe("B2.1 · nada de produção ativa a composição", () => {
   const prod = allSources(SRC).filter((f) => !f.includes(`${path.sep}__tests__${path.sep}`));
 
   it("nenhum arquivo de produção fora dos módulos B2.1 importa composer/render (NO_COMPOSER segue o padrão)", () => {
+    // B2.3: `turn-chain.ts` é a cadeia fail-closed ISOLADA (não ligada a nada); ela própria é
+    // proibida em qualquer código de produção pelo `b23-isolation.test.ts`.
     const importers = prod
+      .filter((f) => path.relative(ROOT, f) !== "turn-chain.ts")
       .filter((f) => /guest-ai\/(composer|render)["']/.test(readFileSync(f, "utf8")))
       .map((f) => path.relative(ROOT, f));
     expect(importers).toEqual([]);
@@ -111,7 +114,7 @@ describe("B2.1 · compositor injetado SÓ em teste (compatibilidade com o contra
     if (r.kind === "draft") {
       expect(r.validation.verdict).toBe("pass");
       expect(r.telemetry.mode).toBe("shadow");
-      expect(r.telemetry.promptVersion).toMatch(/^b2\.2\//); // versão do prompt avança a cada gate (B2.2)
+      expect(r.telemetry.promptVersion).toMatch(/^b2\.3\//); // versão do prompt avança a cada gate (B2.3)
     }
   });
   it("sem guard (estado real até a B2.2): composição indisponível ⇒ prompt_unavailable, sem chamada", async () => {

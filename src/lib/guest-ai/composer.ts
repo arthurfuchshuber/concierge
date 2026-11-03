@@ -19,6 +19,7 @@
  * por ele; o composer usa o texto devolvido e o RE-VERIFICA (uma segunda varredura precisa dar
  * `safe` sem alterar nada). Guard ausente, inválido, que lança, devolve resultado inválido ou não se
  * confirma ⇒ composição recusada. O conteúdo original nunca é usado como alternativa.
+ * B2.3 (§6.1): `ambiguous` e `blocked` também RECUSAM a composição (`GUARD_POLICY`), sem exceção.
  *
  * B2.2 — dossiês (`dossier/`): bloco `<dossies>` com o imóvel PRINCIPAL (o do turno) e, se houver,
  * CANDIDATOS alternativos do mesmo tenant, cada um identificado (ref `principal`, `alt1`…) e com ids
@@ -39,8 +40,8 @@ import { defaultBudgetConfig, evaluateBudget, type BudgetConfig, type BudgetMetr
 import { assertAvailabilityFor, type PropertyDossier } from "./dossier/contracts";
 import { isIssuedPropertyDossier } from "./dossier/registry";
 
-export const COMPOSER_VERSION = "composer.2026-11-03.2";
-export const PROMPT_VERSION = `b2.2/${COMPOSER_VERSION}/${SYSTEM_PROMPT_VERSION}/${PERSONA_VERSION}`;
+export const COMPOSER_VERSION = "composer.2026-11-03.3";
+export const PROMPT_VERSION = `b2.3/${COMPOSER_VERSION}/${SYSTEM_PROMPT_VERSION}/${PERSONA_VERSION}`;
 /** Teto de dossiês alternativos num mesmo turno (cada um é carregado sob demanda e autorizado). */
 export const MAX_CANDIDATE_DOSSIERS = 5;
 
@@ -96,6 +97,9 @@ export type ComposeUnavailableReason =
   | "credentials_present"
   | "free_text_guard_missing"
   | "guard_failed"
+  /** B2.3 (§6.1): o guard não conseguiu sanear com segurança — recusa, nunca tag de contenção. */
+  | "guard_ambiguous"
+  | "guard_blocked"
   | "history_unavailable"
   | "context_scope_mismatch"
   | "surface_invalid"
@@ -136,6 +140,34 @@ export function encodeDataBlock(value: unknown): string {
 }
 
 class GuardFailure extends Error {}
+/** B2.3: status `ambiguous`/`blocked` ⇒ recusa da composição (fail-closed, sem exceção). */
+class GuardRefusal extends Error {
+  constructor(readonly status: "ambiguous" | "blocked") {
+    super(status);
+  }
+}
+
+/**
+ * POLÍTICA DEFINITIVA DO FREETEXTGUARD (diretriz B2.3 §6.1), aplicada a CADA texto livre:
+ *  - safe       ⇒ segue (texto devolvido idêntico ao original);
+ *  - sanitized  ⇒ segue SÓ com o texto saneado, que precisa ser diferente do original e passar na
+ *                 re-varredura confirmatória (`safe`, sem alteração);
+ *  - ambiguous  ⇒ composição recusada (`guard_ambiguous`);
+ *  - blocked    ⇒ composição recusada (`guard_blocked`);
+ *  - guard ausente, exceção, retorno inválido, canário ou re-varredura reprovados ⇒ recusa.
+ * Nunca há tag de contenção no lugar da recusa, nem recuperação do texto original.
+ */
+export const GUARD_POLICY = Object.freeze({
+  safe: "proceed",
+  sanitized: "proceed_with_sanitized_text_after_rescan",
+  ambiguous: "refuse",
+  blocked: "refuse",
+  missing: "refuse",
+  exception: "refuse",
+  invalid_result: "refuse",
+  canary_failed: "refuse",
+  rescan_failed: "refuse",
+} as const);
 
 type Guarded = (text: string, source: string, previous?: string | null) => string;
 
@@ -161,6 +193,9 @@ function makeGuarded(guard: FreeTextGuard, metrics: GuardMetrics): Guarded {
       throw new GuardFailure();
     }
     if (!isGuardScan(second) || second.status !== "safe" || second.text !== first.text) throw new GuardFailure();
+    // Coerência status × texto: `safe` não altera; `sanitized` precisa ter alterado.
+    if (first.status === "safe" && first.text !== text) throw new GuardFailure();
+    if (first.status === "sanitized" && first.text === text) throw new GuardFailure();
     metrics.examined += 1;
     metrics.byStatus[first.status] += 1;
     for (const f of first.findings) metrics.byCategory[f.category] = (metrics.byCategory[f.category] ?? 0) + 1;
@@ -168,6 +203,7 @@ function makeGuarded(guard: FreeTextGuard, metrics: GuardMetrics): Guarded {
     src.examined += 1;
     if (first.status !== "safe") src.changed += 1;
     if (first.status === "blocked") src.blocked += 1;
+    if (first.status === "ambiguous" || first.status === "blocked") throw new GuardRefusal(first.status);
     return first.text;
   };
 }
@@ -399,6 +435,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
       dossierJson = encodeDataBlock(items);
     }
   } catch (e) {
+    if (e instanceof GuardRefusal) return { kind: "unavailable", reason: e.status === "ambiguous" ? "guard_ambiguous" : "guard_blocked" };
     return { kind: "unavailable", reason: e instanceof GuardFailure ? "guard_failed" : "compose_failed" };
   }
 

@@ -5,16 +5,24 @@
  * Estrito = chaves exatas (nenhuma a mais, nenhuma a menos), tipos exatos, enums fechados e
  * limites de tamanho. Qualquer divergência ⇒ `null` (o Orchestrator cai no fallback
  * `invalid_decision`). O parse não interpreta intenção nem corrige o modelo.
+ *
+ * B2.3: `parseDecision` devolve ERRO TIPADO (`DECISION_PARSE_ERRORS`, sem valores da saída),
+ * aceita v1/v2/v3 (compatibilidade preservada), recusa chaves de escopo/identidade em qualquer nível
+ * e pode exigir a versão que o prompt pediu. `parseDecisionText` cobre JSON malformado/truncado/vazio.
+ * `parseModelDecision` (B1) continua com o mesmo comportamento para seus consumidores.
  */
 import { CAPABILITY_IDS, isCapabilityId } from "./capabilities";
 import {
   CASE_RELATIONS,
+  COMMITMENT_KINDS,
   CREDENTIAL_MARKER,
   FORMAL_CHANGE_KINDS,
   HANDOFF_URGENCIES,
   HOSPITALITY_MILESTONES,
   INTENT_CATEGORIES,
   STRATEGIES,
+  type CommitmentKind,
+  type DecisionContractVersion,
   type FormalChangeKind,
   type IntentCategory,
   type ModelDecision,
@@ -35,16 +43,82 @@ export const DECISION_LIMITS = {
 const TOP_KEYS = ["strategy", "reply", "handoff", "caseRelation", "groundedOn", "missingInformation", "capabilityNeeds", "credentialIntent", "commitments"] as const;
 /** B2.1 (decisão v2): todas juntas ou nenhuma. */
 const V2_KEYS = ["shouldReply", "intents", "formalChangeRequests", "hospitalityMilestone", "speakerName"] as const;
+/** B2.3 (decisão v3): exige TODAS as chaves v2 + estas. */
+const V3_KEYS = ["commitmentKinds"] as const;
+const KNOWN_KEYS: readonly string[] = [...TOP_KEYS, ...V2_KEYS, ...V3_KEYS];
 const MILESTONE_KEYS = ["kind", "evidence"] as const;
 const HANDOFF_KEYS = ["needed", "question", "urgency"] as const;
 const NEED_KEYS = ["capability", "reason"] as const;
 
+/** Versão do parser (registrada na auditoria da cadeia). */
+export const DECISION_PARSER_VERSION = "decision-parser.2026-11-03.3";
+/** Teto do texto bruto aceito em `parseDecisionText` (a saída do turno tem teto de 1.024 tokens). */
+export const DECISION_TEXT_MAX_CHARS = 32_000;
+
+/**
+ * Chaves de ESCOPO/IDENTIDADE que o modelo nunca pode declarar (tenant, imóvel, reserva, conversa,
+ * usuário, audiência, autorização). Comparação normalizada (minúsculas, sem `_`/`-`). Presença ⇒
+ * `scope_field_forbidden` — o escopo vem só do turno validado, nunca da saída do modelo.
+ */
+const SCOPE_KEYS: readonly string[] = [
+  "tenantid", "tenant", "ownerid", "accountid", "propertyid", "property", "reservationid", "reservation", "bookingid",
+  "conversationid", "messageid", "userid", "guestid", "sessionid", "audience", "audiences", "scope", "authorization",
+  "authorized", "permissions", "permission", "grant", "grants", "role",
+];
+const isScopeKey = (k: string) => SCOPE_KEYS.includes(k.toLowerCase().replace(/[_\-\s]/g, ""));
+
+/** Erros tipados do parser. Nunca carregam valores da saída do modelo — só código e nome de campo do CONTRATO. */
+export const DECISION_PARSE_ERRORS = [
+  "not_text",
+  "empty_output",
+  "output_too_large",
+  "malformed_json",
+  "truncated_json",
+  "not_object",
+  "scope_field_forbidden",
+  "unexpected_field",
+  "missing_field",
+  "mixed_version",
+  "version_mismatch",
+  "invalid_strategy",
+  "invalid_reply",
+  "invalid_handoff",
+  "invalid_case_relation",
+  "invalid_credential_intent",
+  "invalid_list",
+  "invalid_capability",
+  "invalid_signals",
+  "invalid_commitment_kinds",
+] as const;
+export type DecisionParseErrorCode = (typeof DECISION_PARSE_ERRORS)[number];
+
+/** Campos do contrato (nome fixo, nunca vindo da saída). */
+export type DecisionField = (typeof TOP_KEYS)[number] | (typeof V2_KEYS)[number] | (typeof V3_KEYS)[number] | null;
+
+export interface DecisionParseError {
+  code: DecisionParseErrorCode;
+  /** Campo do contrato envolvido (de lista fixa). Chaves desconhecidas NUNCA são ecoadas. */
+  field: DecisionField;
+  /** Quantas chaves desconhecidas havia (o nome delas não é registrado: poderia conter segredo). */
+  unexpectedCount?: number;
+}
+
+export type DecisionParseResult =
+  | { ok: true; decision: ModelDecision; version: DecisionContractVersion }
+  | { ok: false; error: DecisionParseError };
+
+export interface DecisionParseOptions {
+  /** Exige uma versão específica do contrato (a cadeia B2.3 exige a que o prompt pediu). */
+  expectVersion?: DecisionContractVersion;
+}
+
 type Obj = Record<string, unknown>;
-const isObj = (v: unknown): v is Obj => !!v && typeof v === "object" && !Array.isArray(v);
+const isObj = (v: unknown): v is Obj => !!v && typeof v === "object" && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
 const exactKeys = (o: Obj, keys: readonly string[]) => {
   const k = Object.keys(o);
   return k.length === keys.length && keys.every((x) => Object.prototype.hasOwnProperty.call(o, x));
 };
+const has = (o: Obj, k: string) => Object.prototype.hasOwnProperty.call(o, k);
 const inEnum = <T extends string>(v: unknown, values: readonly T[]): v is T => typeof v === "string" && (values as readonly string[]).includes(v);
 
 function stringList(v: unknown, maxItems: number, maxChars: number, pattern?: RegExp): string[] | null {
@@ -92,50 +166,83 @@ function parseV2(raw: Obj): Pick<Required<ModelDecision>, (typeof V2_KEYS)[numbe
   };
 }
 
+/** Procura chave de escopo em qualquer objeto da decisão (topo e aninhados). */
+function findScopeKey(v: unknown, depth = 0): boolean {
+  if (depth > 4 || !v || typeof v !== "object") return false;
+  if (Array.isArray(v)) return v.some((x) => findScopeKey(x, depth + 1));
+  return Object.keys(v as Obj).some((k) => isScopeKey(k) || findScopeKey((v as Obj)[k], depth + 1));
+}
+
+const fail = (code: DecisionParseErrorCode, field: DecisionField = null, extra: Partial<DecisionParseError> = {}): DecisionParseResult => ({
+  ok: false,
+  error: { code, field, ...extra },
+});
+
 /**
- * Valida e normaliza a decisão. `null` = decisão inválida.
- * Versões: v1 (B1, exatamente `TOP_KEYS`) ou v2 (B2.1, `TOP_KEYS` + TODAS as `V2_KEYS`).
- * Mistura parcial é inválida. Uma v1 com `silence` passa no parser e é bloqueada no Validator
- * (`silence_strategy_mismatch`): v1 sempre significa responder.
+ * Valida e normaliza a decisão com ERRO TIPADO. Versões (compatíveis entre si):
+ *  - v1 (B1): exatamente `TOP_KEYS`;
+ *  - v2 (B2.1): `TOP_KEYS` + TODAS as `V2_KEYS`;
+ *  - v3 (B2.3): v2 + `commitmentKinds`.
+ * Mistura parcial é inválida (`mixed_version`). Chave de escopo/identidade ⇒ `scope_field_forbidden`.
+ * O parser não interpreta intenção, não corrige o modelo e não infere autorização: coerência entre
+ * campos e autorização são do Validator (estrutural) e do Validador Semântico.
  */
-export function parseModelDecision(raw: unknown): ModelDecision | null {
-  if (!isObj(raw)) return null;
-  const isV1 = exactKeys(raw, TOP_KEYS);
-  const isV2 = !isV1 && exactKeys(raw, [...TOP_KEYS, ...V2_KEYS]);
-  if (!isV1 && !isV2) return null;
+export function parseDecision(raw: unknown, options: DecisionParseOptions = {}): DecisionParseResult {
+  if (!isObj(raw)) return fail("not_object");
+  if (findScopeKey(raw)) return fail("scope_field_forbidden");
+  const keys = Object.keys(raw);
+  const unknown = keys.filter((k) => !KNOWN_KEYS.includes(k));
+  if (unknown.length) return fail("unexpected_field", null, { unexpectedCount: unknown.length });
+  const missingTop = TOP_KEYS.find((k) => !has(raw, k));
+  if (missingTop) return fail("missing_field", missingTop);
+  const v2Present = V2_KEYS.filter((k) => has(raw, k)).length;
+  const v3Present = V3_KEYS.filter((k) => has(raw, k)).length;
+  if ((v2Present > 0 && v2Present < V2_KEYS.length) || (v3Present > 0 && v2Present !== V2_KEYS.length)) {
+    return fail("mixed_version", V2_KEYS.find((k) => !has(raw, k)) ?? null);
+  }
+  const version: DecisionContractVersion = v3Present ? 3 : v2Present ? 2 : 1;
+  if (options.expectVersion !== undefined && options.expectVersion !== version) return fail("version_mismatch");
 
   // Coerência (ex.: `silence` numa v1, que sempre significa responder) é do Validator, não do parser.
-  if (!inEnum(raw["strategy"], STRATEGIES)) return null;
-  if (typeof raw["reply"] !== "string" || raw["reply"].length > DECISION_LIMITS.replyMaxChars) return null;
+  if (!inEnum(raw["strategy"], STRATEGIES)) return fail("invalid_strategy", "strategy");
+  if (typeof raw["reply"] !== "string" || raw["reply"].length > DECISION_LIMITS.replyMaxChars) return fail("invalid_reply", "reply");
 
   const h = raw["handoff"];
-  if (!isObj(h) || !exactKeys(h, HANDOFF_KEYS) || typeof h["needed"] !== "boolean") return null;
+  if (!isObj(h) || !exactKeys(h, HANDOFF_KEYS) || typeof h["needed"] !== "boolean") return fail("invalid_handoff", "handoff");
   const question = h["question"];
-  if (question !== null && (typeof question !== "string" || question.length > DECISION_LIMITS.questionMaxChars)) return null;
+  if (question !== null && (typeof question !== "string" || question.length > DECISION_LIMITS.questionMaxChars)) return fail("invalid_handoff", "handoff");
   const urgency = h["urgency"];
-  if (urgency !== null && !inEnum(urgency, HANDOFF_URGENCIES)) return null;
+  if (urgency !== null && !inEnum(urgency, HANDOFF_URGENCIES)) return fail("invalid_handoff", "handoff");
 
-  if (!inEnum(raw["caseRelation"], CASE_RELATIONS)) return null;
-  if (raw["credentialIntent"] !== "none" && raw["credentialIntent"] !== "would_deliver") return null;
+  if (!inEnum(raw["caseRelation"], CASE_RELATIONS)) return fail("invalid_case_relation", "caseRelation");
+  if (raw["credentialIntent"] !== "none" && raw["credentialIntent"] !== "would_deliver") return fail("invalid_credential_intent", "credentialIntent");
 
   const groundedOn = stringList(raw["groundedOn"], DECISION_LIMITS.listMaxItems, 130, DECISION_LIMITS.sourceIdPattern);
+  if (!groundedOn) return fail("invalid_list", "groundedOn");
   const missing = stringList(raw["missingInformation"], DECISION_LIMITS.listMaxItems, DECISION_LIMITS.itemMaxChars);
+  if (!missing) return fail("invalid_list", "missingInformation");
   const commitments = stringList(raw["commitments"], DECISION_LIMITS.listMaxItems, DECISION_LIMITS.itemMaxChars);
-  if (!groundedOn || !missing || !commitments) return null;
+  if (!commitments) return fail("invalid_list", "commitments");
 
   const needsRaw = raw["capabilityNeeds"];
-  if (!Array.isArray(needsRaw) || needsRaw.length > DECISION_LIMITS.listMaxItems) return null;
+  if (!Array.isArray(needsRaw) || needsRaw.length > DECISION_LIMITS.listMaxItems) return fail("invalid_capability", "capabilityNeeds");
   const capabilityNeeds: ModelDecision["capabilityNeeds"] = [];
   for (const n of needsRaw) {
-    if (!isObj(n) || !exactKeys(n, NEED_KEYS) || !isCapabilityId(n["capability"])) return null;
-    if (typeof n["reason"] !== "string" || !n["reason"].trim() || n["reason"].length > DECISION_LIMITS.itemMaxChars) return null;
+    if (!isObj(n) || !exactKeys(n, NEED_KEYS) || !isCapabilityId(n["capability"])) return fail("invalid_capability", "capabilityNeeds");
+    if (typeof n["reason"] !== "string" || !n["reason"].trim() || n["reason"].length > DECISION_LIMITS.itemMaxChars) return fail("invalid_capability", "capabilityNeeds");
     capabilityNeeds.push({ capability: n["capability"], reason: n["reason"].trim() });
   }
 
-  const v2 = isV2 ? parseV2(raw) : null;
-  if (isV2 && !v2) return null;
+  const v2 = version >= 2 ? parseV2(raw) : null;
+  if (version >= 2 && !v2) return fail("invalid_signals");
+  let commitmentKinds: CommitmentKind[] | undefined;
+  if (version === 3) {
+    const kinds = uniqueEnumList<CommitmentKind>(raw["commitmentKinds"], COMMITMENT_KINDS, 0, COMMITMENT_KINDS.length);
+    if (!kinds) return fail("invalid_commitment_kinds", "commitmentKinds");
+    commitmentKinds = kinds;
+  }
 
-  return {
+  const decision: ModelDecision = {
     strategy: raw["strategy"],
     reply: raw["reply"].trim(),
     handoff: {
@@ -150,7 +257,55 @@ export function parseModelDecision(raw: unknown): ModelDecision | null {
     credentialIntent: raw["credentialIntent"],
     commitments,
     ...(v2 ?? {}),
+    ...(commitmentKinds ? { commitmentKinds } : {}),
   };
+  return { ok: true, decision, version };
+}
+
+/**
+ * Compatibilidade B1/B2.1: `null` = decisão inválida; aceita v1, v2 e v3. Consumidores atuais
+ * (Orchestrator, render) seguem usando esta função sem mudança de comportamento para v1/v2.
+ */
+export function parseModelDecision(raw: unknown): ModelDecision | null {
+  const r = parseDecision(raw);
+  return r.ok ? r.decision : null;
+}
+
+/** Heurística ESTRUTURAL de truncamento: delimitadores/aspas não fechados ao fim do texto. */
+function looksTruncated(t: string): boolean {
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (const c of t) {
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === "{" || c === "[") depth += 1;
+    else if (c === "}" || c === "]") depth -= 1;
+  }
+  return inStr || depth > 0;
+}
+
+/**
+ * Parse a partir do TEXTO bruto da saída (defesa em profundidade: o Gateway já recusa JSON
+ * inválido, mas a cadeia B2.3 não presume isso). Nunca registra trechos do texto.
+ */
+export function parseDecisionText(text: unknown, options: DecisionParseOptions = {}): DecisionParseResult {
+  if (typeof text !== "string") return fail("not_text");
+  const t = text.trim();
+  if (!t) return fail("empty_output");
+  if (t.length > DECISION_TEXT_MAX_CHARS) return fail("output_too_large");
+  let raw: unknown;
+  try {
+    raw = JSON.parse(t);
+  } catch {
+    return fail(looksTruncated(t) ? "truncated_json" : "malformed_json");
+  }
+  return parseDecision(raw, options);
 }
 
 /**
@@ -172,5 +327,6 @@ export const DECISION_FORMAT_SPEC = `Responda APENAS com um objeto JSON com exat
  "intents": [${q(INTENT_CATEGORIES)}] (de 1 a ${DECISION_LIMITS.intentsMaxItems}, sem repetir: o que o hóspede faz na mensagem atual),
  "formalChangeRequests": [${q(FORMAL_CHANGE_KINDS)}] (alterações pedidas que dependem da reserva ou de autorização formal; vazio se nenhuma),
  "hospitalityMilestone": null | {"kind": ${q(HOSPITALITY_MILESTONES)}, "evidence": [ids das mensagens do hóspede que confirmam o marco, incluindo a mensagem atual]},
- "speakerName": string|null (nome que o interlocutor declarou nesta conversa, até ${DECISION_LIMITS.speakerNameMaxChars} caracteres; não é prova de identidade)}
+ "speakerName": string|null (nome que o interlocutor declarou nesta conversa, até ${DECISION_LIMITS.speakerNameMaxChars} caracteres; não é prova de identidade),
+ "commitmentKinds": [${q(COMMITMENT_KINDS)}] (os tipos dos compromissos listados em commitments, sem repetir; vazio se e somente se commitments estiver vazio)}
 Listas com no máximo ${DECISION_LIMITS.listMaxItems} itens.`;
