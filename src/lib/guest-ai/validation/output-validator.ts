@@ -7,10 +7,21 @@
  *  - credenciais: o modelo nunca as recebe, então qualquer código de acesso no texto é fabricado;
  *    o marcador `[[CREDENCIAIS]]` precisa estar coerente com a intenção declarada e com a D9;
  *  - fundamento: ids citados precisam existir no contexto (quando a composição fornece ids);
- *  - posse humana por assunto (via `case-ownership`).
+ *  - posse humana por assunto (via `case-ownership`);
+ *  - B2.1 (decisão v2), só coerência ESTRUTURAL dos campos tipados: silêncio (`shouldReply`),
+ *    intenções, pedidos de alteração formal e marcos de hospitalidade. Nenhuma regra lê o texto da
+ *    resposta para julgar estilo; e nenhuma garante detectar promessa escrita só em linguagem natural
+ *    sem declaração em `commitments` (limitação registrada para as próximas etapas).
  * Falhas do provedor (truncada, filtrada, vazia) já chegam como falha do Gateway.
  */
-import { CREDENTIAL_MARKER, type ModelDecision, type ValidationBlock, type ValidationReport } from "@/lib/guest-ai/orchestrator/contracts";
+import {
+  CREDENTIAL_MARKER,
+  SILENCE_COMPATIBLE_INTENTS,
+  decisionSignals,
+  type ModelDecision,
+  type ValidationBlock,
+  type ValidationReport,
+} from "@/lib/guest-ai/orchestrator/contracts";
 import type { CaseOwnership } from "@/lib/guest-ai/orchestrator/case-ownership";
 import { DECISION_LIMITS } from "@/lib/guest-ai/orchestrator/decision";
 
@@ -53,8 +64,10 @@ export function validateDecision(input: ValidationInput): ValidationReport {
     if (!blocks.includes(b)) blocks.push(b);
   };
 
+  const sig = decisionSignals(d);
+
   // 1) Estrutura e coerência
-  if (d.strategy !== "handoff" && !d.reply) add("reply_missing");
+  if (d.strategy !== "handoff" && d.strategy !== "silence" && !d.reply) add("reply_missing");
   if (d.reply.length > REPLY_MAX_CHARS) add("reply_too_long");
   const wantsHandoff = d.strategy === "handoff" || d.strategy === "answer_and_handoff";
   if (wantsHandoff !== d.handoff.needed) add("handoff_inconsistent");
@@ -76,5 +89,50 @@ export function validateDecision(input: ValidationInput): ValidationReport {
   if (ownership.gate.humanOwnsTopic && d.commitments.length > 0) add("human_owned_topic_commitment");
   if (ownership.gate.needsClarification && d.strategy !== "clarify") add("ambiguous_case_requires_clarify");
 
+  // 5) B2.1 — silêncio: legítimo, explícito e só quando nada exige resposta
+  if ((d.strategy === "silence") !== !sig.shouldReply) add("silence_strategy_mismatch");
+  if (!sig.shouldReply && d.reply) add("silence_with_reply");
+  if (
+    !sig.shouldReply &&
+    (sig.intents.some((i) => !SILENCE_COMPATIBLE_INTENTS.includes(i)) ||
+      d.handoff.needed ||
+      d.commitments.length > 0 ||
+      d.credentialIntent !== "none" ||
+      sig.formalChangeRequests.length > 0 ||
+      sig.hospitalityMilestone !== null)
+  ) {
+    add("silence_not_allowed");
+  }
+
+  // 6) B2.1 — alteração formal (datas, hóspedes, valores, cancelamento, early/late…): nunca compromisso
+  if (sig.intents.includes("formal_change_request") !== sig.formalChangeRequests.length > 0) add("formal_change_inconsistent");
+  if (sig.formalChangeRequests.length > 0 && d.commitments.length > 0) add("formal_change_commitment");
+
+  // 7) B2.1 — marco de hospitalidade: coerente com a intenção e provado pela mensagem ATUAL do hóspede
+  const m = sig.hospitalityMilestone;
+  if (m) {
+    const needed = m.kind === "checkin_confirmed" ? "arrival_confirmation" : "departure_confirmation";
+    if (!sig.intents.includes(needed)) add("milestone_inconsistent");
+    const current = currentGuestRef(sourceIds);
+    const allGuest = m.evidence.every((id) => GUEST_REF.test(id) && !!sourceIds && sourceIds.has(id));
+    if (!current || !allGuest || !m.evidence.includes(current)) add("milestone_without_current_guest_evidence");
+  }
+
   return { verdict: blocks.length ? "block" : "pass", blocks };
+}
+
+/** Ids de mensagens do HÓSPEDE no histórico composto (`composer.ts` / `history.ts`): `hist:guest:hN`. */
+const GUEST_REF = /^hist:guest:h(\d+)$/;
+
+/** A mensagem atual é sempre a última do histórico e sempre do hóspede: o maior `hist:guest:hN`. */
+export function currentGuestRef(sourceIds: ReadonlySet<string> | null): string | null {
+  if (!sourceIds) return null;
+  let best: { n: number; id: string } | null = null;
+  for (const id of sourceIds) {
+    const mm = GUEST_REF.exec(id);
+    if (!mm) continue;
+    const n = Number(mm[1]);
+    if (!best || n > best.n) best = { n, id };
+  }
+  return best?.id ?? null;
 }

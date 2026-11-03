@@ -7,7 +7,18 @@
  * `invalid_decision`). O parse não interpreta intenção nem corrige o modelo.
  */
 import { CAPABILITY_IDS, isCapabilityId } from "./capabilities";
-import { CASE_RELATIONS, CREDENTIAL_MARKER, HANDOFF_URGENCIES, STRATEGIES, type ModelDecision } from "./contracts";
+import {
+  CASE_RELATIONS,
+  CREDENTIAL_MARKER,
+  FORMAL_CHANGE_KINDS,
+  HANDOFF_URGENCIES,
+  HOSPITALITY_MILESTONES,
+  INTENT_CATEGORIES,
+  STRATEGIES,
+  type FormalChangeKind,
+  type IntentCategory,
+  type ModelDecision,
+} from "./contracts";
 
 export const DECISION_LIMITS = {
   replyMaxChars: 4_000,
@@ -15,9 +26,16 @@ export const DECISION_LIMITS = {
   itemMaxChars: 300,
   listMaxItems: 20,
   sourceIdPattern: /^[a-z][a-z0-9_]*:[\w:.\-]{1,120}$/i,
+  // B2.1
+  intentsMaxItems: 5,
+  milestoneEvidenceMaxItems: 5,
+  speakerNameMaxChars: 80,
 } as const;
 
 const TOP_KEYS = ["strategy", "reply", "handoff", "caseRelation", "groundedOn", "missingInformation", "capabilityNeeds", "credentialIntent", "commitments"] as const;
+/** B2.1 (decisão v2): todas juntas ou nenhuma. */
+const V2_KEYS = ["shouldReply", "intents", "formalChangeRequests", "hospitalityMilestone", "speakerName"] as const;
+const MILESTONE_KEYS = ["kind", "evidence"] as const;
 const HANDOFF_KEYS = ["needed", "question", "urgency"] as const;
 const NEED_KEYS = ["capability", "reason"] as const;
 
@@ -42,10 +60,51 @@ function stringList(v: unknown, maxItems: number, maxChars: number, pattern?: Re
   return out;
 }
 
-/** Valida e normaliza a decisão. `null` = decisão inválida. */
-export function parseModelDecision(raw: unknown): ModelDecision | null {
-  if (!isObj(raw) || !exactKeys(raw, TOP_KEYS)) return null;
+function uniqueEnumList<T extends string>(v: unknown, values: readonly T[], min: number, max: number): T[] | null {
+  if (!Array.isArray(v) || v.length < min || v.length > max) return null;
+  if (!v.every((x) => inEnum(x, values))) return null;
+  if (new Set(v).size !== v.length) return null;
+  return [...(v as T[])];
+}
 
+/** Sinais B2.1 (v2). `null` = inválidos. */
+function parseV2(raw: Obj): Pick<Required<ModelDecision>, (typeof V2_KEYS)[number]> | null {
+  if (typeof raw["shouldReply"] !== "boolean") return null;
+  const intents = uniqueEnumList<IntentCategory>(raw["intents"], INTENT_CATEGORIES, 1, DECISION_LIMITS.intentsMaxItems);
+  const changes = uniqueEnumList<FormalChangeKind>(raw["formalChangeRequests"], FORMAL_CHANGE_KINDS, 0, FORMAL_CHANGE_KINDS.length);
+  if (!intents || !changes) return null;
+  const m = raw["hospitalityMilestone"];
+  let milestone: ModelDecision["hospitalityMilestone"] = null;
+  if (m !== null) {
+    if (!isObj(m) || !exactKeys(m, MILESTONE_KEYS) || !inEnum(m["kind"], HOSPITALITY_MILESTONES)) return null;
+    const evidence = stringList(m["evidence"], DECISION_LIMITS.milestoneEvidenceMaxItems, 130, DECISION_LIMITS.sourceIdPattern);
+    if (!evidence || evidence.length === 0) return null;
+    milestone = { kind: m["kind"], evidence: [...new Set(evidence)] };
+  }
+  const name = raw["speakerName"];
+  if (name !== null && (typeof name !== "string" || !name.trim() || name.trim().length > DECISION_LIMITS.speakerNameMaxChars)) return null;
+  return {
+    shouldReply: raw["shouldReply"],
+    intents,
+    formalChangeRequests: changes,
+    hospitalityMilestone: milestone,
+    speakerName: typeof name === "string" ? name.trim() : null,
+  };
+}
+
+/**
+ * Valida e normaliza a decisão. `null` = decisão inválida.
+ * Versões: v1 (B1, exatamente `TOP_KEYS`) ou v2 (B2.1, `TOP_KEYS` + TODAS as `V2_KEYS`).
+ * Mistura parcial é inválida. Uma v1 com `silence` passa no parser e é bloqueada no Validator
+ * (`silence_strategy_mismatch`): v1 sempre significa responder.
+ */
+export function parseModelDecision(raw: unknown): ModelDecision | null {
+  if (!isObj(raw)) return null;
+  const isV1 = exactKeys(raw, TOP_KEYS);
+  const isV2 = !isV1 && exactKeys(raw, [...TOP_KEYS, ...V2_KEYS]);
+  if (!isV1 && !isV2) return null;
+
+  // Coerência (ex.: `silence` numa v1, que sempre significa responder) é do Validator, não do parser.
   if (!inEnum(raw["strategy"], STRATEGIES)) return null;
   if (typeof raw["reply"] !== "string" || raw["reply"].length > DECISION_LIMITS.replyMaxChars) return null;
 
@@ -73,6 +132,9 @@ export function parseModelDecision(raw: unknown): ModelDecision | null {
     capabilityNeeds.push({ capability: n["capability"], reason: n["reason"].trim() });
   }
 
+  const v2 = isV2 ? parseV2(raw) : null;
+  if (isV2 && !v2) return null;
+
   return {
     strategy: raw["strategy"],
     reply: raw["reply"].trim(),
@@ -87,6 +149,7 @@ export function parseModelDecision(raw: unknown): ModelDecision | null {
     capabilityNeeds,
     credentialIntent: raw["credentialIntent"],
     commitments,
+    ...(v2 ?? {}),
   };
 }
 
@@ -104,5 +167,10 @@ export const DECISION_FORMAT_SPEC = `Responda APENAS com um objeto JSON com exat
  "missingInformation": [string],
  "capabilityNeeds": [{"capability": ${q(CAPABILITY_IDS)}, "reason": string}],
  "credentialIntent": "none"|"would_deliver" (com "would_deliver", escreva ${CREDENTIAL_MARKER} uma única vez no ponto da resposta; nunca escreva códigos ou senhas),
- "commitments": [string]}
+ "commitments": [string] (todo compromisso, promessa de ação ou exceção que a resposta assumir; um por item),
+ "shouldReply": boolean (false = não responder; só quando não houver pergunta, pedido, problema, emergência, alteração ou ação necessária; com false, use "strategy": "silence" e "reply": ""),
+ "intents": [${q(INTENT_CATEGORIES)}] (de 1 a ${DECISION_LIMITS.intentsMaxItems}, sem repetir: o que o hóspede faz na mensagem atual),
+ "formalChangeRequests": [${q(FORMAL_CHANGE_KINDS)}] (alterações pedidas que dependem da reserva ou de autorização formal; vazio se nenhuma),
+ "hospitalityMilestone": null | {"kind": ${q(HOSPITALITY_MILESTONES)}, "evidence": [ids das mensagens do hóspede que confirmam o marco, incluindo a mensagem atual]},
+ "speakerName": string|null (nome que o interlocutor declarou nesta conversa, até ${DECISION_LIMITS.speakerNameMaxChars} caracteres; não é prova de identidade)}
 Listas com no máximo ${DECISION_LIMITS.listMaxItems} itens.`;

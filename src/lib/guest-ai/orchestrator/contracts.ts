@@ -39,7 +39,8 @@ export interface TurnRequest {
 
 // ─────────────────────────── Decisão do modelo ───────────────────────────
 
-export const STRATEGIES = ["answer", "clarify", "guide", "suggest_alternatives", "handoff", "answer_and_handoff"] as const;
+/** `silence` (B2.1): resultado legítimo de não responder — só com `shouldReply: false` (decisão v2). */
+export const STRATEGIES = ["answer", "clarify", "guide", "suggest_alternatives", "handoff", "answer_and_handoff", "silence"] as const;
 export type Strategy = (typeof STRATEGIES)[number];
 
 export const CASE_RELATIONS = ["related", "independent", "ambiguous", "new", "no_open_case"] as const;
@@ -65,6 +66,67 @@ export interface ModelDecision {
   credentialIntent: "none" | "would_deliver";
   /** Compromissos/promessas que o `reply` assume perante o hóspede. */
   commitments: string[];
+  // ── B2.1 (decisão v2). Opcionais NO TIPO só para manter a decisão v1 da B1 válida; o parser
+  //    exige TODOS juntos (v2) ou NENHUM (v1). Ausentes ⇒ padrões conservadores (`decisionSignals`):
+  //    responder (nunca silêncio por omissão), sem ritual, sem alteração formal, sem nome.
+  /** `false` = não responder (afirmação/cortesia sem necessidade). Silêncio é resultado legítimo, não erro. */
+  shouldReply?: boolean;
+  /** O que o hóspede está fazendo na mensagem atual (pode ser mais de uma coisa). Nunca concede autorização. */
+  intents?: IntentCategory[];
+  /** Alterações que dependem da reserva/plataforma ou de autorização formal. Só registro: nada é aprovado. */
+  formalChangeRequests?: FormalChangeKind[];
+  /** Marco da estadia confirmado pelo hóspede NA MENSAGEM ATUAL (ritual de hospitalidade). Não altera estado operacional. */
+  hospitalityMilestone?: { kind: HospitalityMilestoneKind; evidence: string[] } | null;
+  /** Nome que o interlocutor declarou (tratamento cordial). NÃO é identidade comprovada nem autorização. */
+  speakerName?: string | null;
+}
+
+// ─────────────────────────── B2.1 — sinais da conversa (decisão v2) ───────────────────────────
+
+export const INTENT_CATEGORIES = [
+  "acknowledgment",
+  "informational_query",
+  "operational_request",
+  "problem_report",
+  "emergency",
+  "formal_change_request",
+  "arrival_confirmation",
+  "departure_confirmation",
+  "other",
+] as const;
+export type IntentCategory = (typeof INTENT_CATEGORIES)[number];
+
+/** Intenções que, sozinhas, admitem silêncio (afirmação, cortesia, confirmação de chegada/saída já reconhecida). */
+export const SILENCE_COMPATIBLE_INTENTS: readonly IntentCategory[] = ["acknowledgment", "arrival_confirmation", "departure_confirmation"];
+
+export const FORMAL_CHANGE_KINDS = ["dates", "guest_count", "price", "cancellation", "early_checkin", "late_checkout", "other_conditions"] as const;
+export type FormalChangeKind = (typeof FORMAL_CHANGE_KINDS)[number];
+
+export const HOSPITALITY_MILESTONES = ["checkin_confirmed", "checkout_confirmed"] as const;
+export type HospitalityMilestoneKind = (typeof HOSPITALITY_MILESTONES)[number];
+
+/** Sinais B2.1 normalizados (v1 ⇒ padrões conservadores). Fonte única para validador e render. */
+export interface DecisionSignals {
+  version: 1 | 2;
+  shouldReply: boolean;
+  intents: IntentCategory[];
+  formalChangeRequests: FormalChangeKind[];
+  hospitalityMilestone: { kind: HospitalityMilestoneKind; evidence: string[] } | null;
+  speakerName: string | null;
+}
+
+export function decisionSignals(d: ModelDecision): DecisionSignals {
+  if (d.shouldReply === undefined) {
+    return { version: 1, shouldReply: true, intents: ["other"], formalChangeRequests: [], hospitalityMilestone: null, speakerName: null };
+  }
+  return {
+    version: 2,
+    shouldReply: d.shouldReply,
+    intents: [...(d.intents ?? [])],
+    formalChangeRequests: [...(d.formalChangeRequests ?? [])],
+    hospitalityMilestone: d.hospitalityMilestone ? { kind: d.hospitalityMilestone.kind, evidence: [...d.hospitalityMilestone.evidence] } : null,
+    speakerName: d.speakerName ?? null,
+  };
 }
 
 // ─────────────────────────── Contexto do turno ───────────────────────────
@@ -121,7 +183,15 @@ export type ValidationBlock =
   | "grounding_unknown_source"
   | "case_relation_missing"
   | "human_owned_topic_commitment"
-  | "ambiguous_case_requires_clarify";
+  | "ambiguous_case_requires_clarify"
+  // B2.1 (estruturais; nenhum de estilo)
+  | "silence_with_reply"
+  | "silence_strategy_mismatch"
+  | "silence_not_allowed"
+  | "formal_change_inconsistent"
+  | "formal_change_commitment"
+  | "milestone_inconsistent"
+  | "milestone_without_current_guest_evidence";
 
 export interface ValidationReport {
   verdict: "pass" | "block";
