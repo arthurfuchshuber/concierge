@@ -59,6 +59,13 @@ describe("B3.1 · debounce (15 s configurável) e formação do lote", () => {
     const o = applyLeaseEvent(r, { type: "observe", messageIds: ["a", "b"], now: at(16) });
     expect(o).toMatchObject({ ok: true, effect: "applied", record: { state: "collecting", batchId: null } });
   });
+  it("B31-04b · lote só com pendentes: mark_ready com id não observado é recusado; o restante continua adiado", () => {
+    const obs = applyLeaseEvent(newLeaseRecord("c1", at(0)), { type: "observe", messageIds: ["a", "b"], now: at(0), expectedVersion: 0 });
+    if (!obs.ok) throw new Error(obs.reason);
+    expect(applyLeaseEvent(obs.record, { type: "mark_ready", batchId: "b1", messageIds: ["a", "zz"], expectedVersion: obs.record.version, now: at(1) })).toEqual({ ok: false, reason: "invalid_event" });
+    const ok = applyLeaseEvent(obs.record, { type: "mark_ready", batchId: "b1", messageIds: ["a"], expectedVersion: obs.record.version, now: at(1) });
+    expect(ok).toMatchObject({ ok: true, record: { state: "ready", messageIds: ["a"], deferredMessageIds: ["b"] } });
+  });
   it("B31-05 · mensagem depois do claim não altera o lote reivindicado (fica para o próximo ciclo)", () => {
     const claimed = claim(ready(["a"]), "w1", 0);
     const o = applyLeaseEvent(claimed, { type: "observe", messageIds: ["a", "b"], now: at(20) });

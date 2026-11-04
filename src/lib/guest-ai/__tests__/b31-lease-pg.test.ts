@@ -902,6 +902,24 @@ export const LEASE_GATE_EVIDENCE = {
         return q;
       },
     };
+    it("adiamento durante a posse tem teto explícito: a 201ª pendente é recusada como pending_overflow tipado (sem truncar, versão intacta)", async () => {
+      const store = createDistributedLeaseStore({ rpc: leaseRpcFrom(rpcClient), db });
+      const c = await newConv();
+      const v = await ready(c, [msg()]);
+      const a = await claim(c, v);
+      const st = await tr(c, "start", a.version!, { token: a.owner_token });
+      const extra: string[] = [];
+      for (let k = 0; k < 4; k++) {
+        const ids = Array.from({ length: 50 }, () => msg());
+        extra.push(...ids);
+        expect((await store.transition(c, "observe", st.version!, { messageIds: ids })).result).toBe("deferred");
+      }
+      const over = await store.transition(c, "observe", st.version!, { messageIds: [msg()] });
+      expect(over).toEqual({ result: "pending_overflow", version: st.version });
+      const r = await row(c);
+      expect(r).toMatchObject({ state: "processing", version: st.version });
+      expect(r.deferred).toEqual(extra); // as 200 adiadas intactas, na ordem
+    });
     it("fluxo completo pelo adaptador: observe → mark_ready → claim (concorrente) → start → renew → complete; projeção sem token", async () => {
       const store = createDistributedLeaseStore({ rpc: leaseRpcFrom(rpcClient), db });
       const store2 = createDistributedLeaseStore({ rpc: leaseRpcFrom(rpcClient), db });
