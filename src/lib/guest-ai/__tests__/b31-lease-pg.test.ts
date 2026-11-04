@@ -54,8 +54,9 @@ async function tr(c: string, event: string, v: number, o: { token?: string | nul
 async function claim(c: string, v: number, ttl = 30): Promise<J> {
   return JSON.parse(await pg.sql(`select public.claim_conversation_lease('${c}', ${v}, ${ttl})`, SR)) as J;
 }
-async function row(c: string): Promise<{ state: string; version: number; attempts: number; owner_token: string | null; message_ids: string[]; deferred: string[] }> {
-  const out = await pg.sql(`select json_build_object('state', state, 'version', version, 'attempts', attempts, 'owner_token', owner_token, 'message_ids', coalesce(message_ids,'{}'), 'deferred', coalesce(deferred_message_ids,'{}')) from public.guest_ai_conversation_leases where conversation_id = '${c}'`);
+async function row(c: string): Promise<{ state: string; version: number; attempts: number; owner_token: string | null; message_ids: string[]; deferred: string[]; processed: string[] }> {
+  // `processed` via to_jsonb: a mesma consulta roda contra o SQL anterior (sem a coluna) nas reproduções
+  const out = await pg.sql(`select json_build_object('state', state, 'version', version, 'attempts', attempts, 'owner_token', owner_token, 'message_ids', coalesce(message_ids,'{}'), 'deferred', coalesce(deferred_message_ids,'{}'), 'processed', coalesce(to_jsonb(l)->'processed_message_ids', '[]'::jsonb)) from public.guest_ai_conversation_leases l where conversation_id = '${c}'`);
   return JSON.parse(out);
 }
 /** Leva a conversa até `ready` com as mensagens dadas; devolve a versão. */
@@ -355,11 +356,12 @@ export const LEASE_GATE_EVIDENCE = {
       const done = await tr(c, "complete", s.version!, { token: a.owner_token });
       expect(done.state).toBe("completed");
       expect((await tr(c, "complete", done.version!, { token: a.owner_token })).result).toBe("already_processed");
-      // próximo ciclo: só as adiadas/novas, sem as já concluídas, na ordem
-      expect((await tr(c, "observe", done.version!, { ids: [m1!, m2!] })).result).toBe("noop");
-      const next = await tr(c, "observe", done.version!, { ids: [m1!, m2!, m3!, m4!] });
+      // próximo ciclo: só as adiadas/novas, sem as já concluídas, na ordem. Revisão final (ponto 4):
+      // mesmo que o coletor reapresente SÓ as concluídas, as adiadas abrem o novo ciclo (antes: noop).
+      const next = await tr(c, "observe", done.version!, { ids: [m1!, m2!] });
       expect(next).toMatchObject({ result: "applied", state: "collecting" });
       expect((await row(c))).toMatchObject({ message_ids: [m3, m4], deferred: [], attempts: 0 });
+      expect((await tr(c, "observe", next.version!, { ids: [m1!, m2!, m3!, m4!] })).result).toBe("noop"); // repetição: idempotente
       mark("deferred_no_loss_no_dup");
     });
     it("mark_ready exige coleta, versão, mensagens distintas (1–20); observação concorrente na criação: 1 vence", async () => {
@@ -368,15 +370,22 @@ export const LEASE_GATE_EVIDENCE = {
       const creators = await Promise.all([tr(c, "observe", 0, { ids: [ids[0]!] }), tr(c, "observe", 0, { ids: [ids[1]!] }), tr(c, "observe", 0, { ids: [ids[2]!] })]);
       expect(creators.filter((r) => r.result === "applied")).toHaveLength(1);
       expect(creators.filter((r) => r.result === "stale_version")).toHaveLength(2);
-      expect((await tr(c, "mark_ready", 1, { ids })).result).toBe("invalid_argument"); // 21
-      expect((await tr(c, "mark_ready", 1, { ids: [] })).result).toBe("invalid_argument");
+      const winner = (await row(c)).message_ids;
+      const all = await tr(c, "observe", 1, { ids }); // todas pendentes (as perdedoras da corrida também entram)
+      expect(all).toMatchObject({ result: "applied", version: 2 });
+      expect([...(await row(c)).message_ids].slice(0, 1)).toEqual(winner);
+      const ordered = [...winner, ...ids.filter((x) => !winner.includes(x))];
+      expect((await tr(c, "mark_ready", 2, { ids })).result).toBe("invalid_argument"); // 21
+      expect((await tr(c, "mark_ready", 2, { ids: [] })).result).toBe("invalid_argument");
       expect((await tr(c, "mark_ready", 7, { ids: [ids[0]!] })).result).toBe("stale_version");
-      const r = await tr(c, "mark_ready", 1, { ids: ids.slice(0, 20) });
+      const r = await tr(c, "mark_ready", 2, { ids: ordered.slice(0, 20) });
       expect(r).toMatchObject({ result: "applied", state: "ready" });
-      expect(r.message_ids).toEqual(ids.slice(0, 20)); // ordem preservada
+      expect(r.message_ids).toEqual(ordered.slice(0, 20)); // ordem preservada
+      expect((await row(c)).deferred).toEqual(ordered.slice(20)); // o que não coube no lote continua pendente
       expect(String(r.batch_id)).toMatch(/^[0-9a-f-]{36}$/);
       // mensagem nova antes do claim reabre a coleta (o lote pronto deixa de valer; nada se perde)
-      const re = await tr(c, "observe", r.version!, { ids: [...ids.slice(0, 20), ids[20]!] });
+      expect((await tr(c, "observe", r.version!, { ids })).result).toBe("noop"); // nada novo: lote pronto preservado
+      const re = await tr(c, "observe", r.version!, { ids: [msg()] });
       expect(re.state).toBe("collecting");
       expect((await claim(c, re.version!)).result).toBe("not_claimable");
       mark("batch_strict_closure");
@@ -384,7 +393,7 @@ export const LEASE_GATE_EVIDENCE = {
   });
 
   describe("modelo de referência (TS) × banco: mesmas sequências, mesmos resultados", () => {
-    const MAP: Record<string, string> = { acquired: "applied", recovered: "applied", conflict: "lease_held", stale_version: "version_conflict", not_claimable: "invalid_transition", attempts_exhausted: "attempts_exhausted", applied: "applied", deferred: "deferred", noop: "noop", stale_owner: "stale_owner", lease_expired: "lease_expired", invalid_transition: "invalid_transition", already_processed: "already_processed", invalid_argument: "invalid_event" };
+    const MAP: Record<string, string> = { acquired: "applied", recovered: "applied", conflict: "lease_held", stale_version: "version_conflict", not_claimable: "invalid_transition", attempts_exhausted: "attempts_exhausted", applied: "applied", deferred: "deferred", noop: "noop", stale_owner: "stale_owner", lease_expired: "lease_expired", invalid_transition: "invalid_transition", already_processed: "already_processed", invalid_argument: "invalid_event", pending_overflow: "pending_overflow" };
     const modelOutcome = (r: ReturnType<typeof applyLeaseEvent>) => (r.ok ? r.effect : r.reason);
     it("sequências representativas sem expiração produzem estado, versão, tentativas e desfecho idênticos", async () => {
       const now = () => new Date().toISOString();
@@ -422,10 +431,29 @@ export const LEASE_GATE_EVIDENCE = {
         { kind: "observe", ids: ["z", "w", "q"] },
         { kind: "renew" },
         { kind: "complete", token: "wrong" },
+        // revisão final (ponto 4): dispensa explícita, reapresentação de concluídas/dispensadas, lote ⊆ pendentes
+        { kind: "observe", ids: ["z", "w", "q", "r"] },
+        { kind: "acknowledge", ids: ["q"] },
+        { kind: "acknowledge", ids: ["q"] },
+        { kind: "observe", ids: ["q"] },
+        { kind: "mark_ready", ids: ["z", "s"] },
+        { kind: "mark_ready", ids: ["z"] },
+        { kind: "acknowledge", ids: ["z"] },
+        { kind: "observe", ids: ["z", "w", "r", "s"] },
+        { kind: "mark_ready", ids: ["z", "w"] },
+        { kind: "claim" },
+        { kind: "start" },
+        { kind: "observe", ids: ["t"] },
+        { kind: "acknowledge", ids: ["t"] },
+        { kind: "complete" },
+        { kind: "observe", ids: ["z", "w"] },
+        { kind: "observe", ids: ["z", "w", "r", "s", "t"] },
+        { kind: "acknowledge", ids: ["r", "s", "t"] },
+        { kind: "observe", ids: ["z", "w", "q", "r", "s", "t"] },
       ];
       const c = await newConv();
       const base = [msg(), msg()];
-      const alias: Record<string, string> = { x: msg(), y: msg(), z: msg(), w: msg(), q: msg() };
+      const alias: Record<string, string> = { x: msg(), y: msg(), z: msg(), w: msg(), q: msg(), r: msg(), s: msg(), t: msg() };
       const realIds = (xs: string[]) => xs.map((x) => alias[x] ?? x);
       let model: LeaseRecord = newLeaseRecord(c, now());
       let token: string | null = null;
@@ -447,6 +475,7 @@ export const LEASE_GATE_EVIDENCE = {
             : s.kind === "fail" ? { type: "fail", token: tok ?? "", retryable: !!s.retryable, expectedVersion: v, now: now() }
             : s.kind === "cancel" ? { type: "cancel", expectedVersion: v, now: now(), token: tok }
             : s.kind === "expire" ? { type: "expire", expectedVersion: v, now: now() }
+            : s.kind === "acknowledge" ? { type: "acknowledge", messageIds: ids!, expectedVersion: v, now: now() }
             : ({ type: s.kind, token: tok ?? "", expectedVersion: v, now: now() } as LeaseEvent);
         }
         const m = applyLeaseEvent(model, ev);
@@ -457,6 +486,7 @@ export const LEASE_GATE_EVIDENCE = {
         expect({ state: st.state, version: st.version, attempts: st.attempts }, `passo ${i}`).toEqual({ state: model.state, version: model.version, attempts: model.attempts });
         expect(st.message_ids).toEqual([...model.messageIds]);
         expect(st.deferred).toEqual([...model.deferredMessageIds]);
+        expect(st.processed).toEqual([...model.processedMessageIds]);
       }
       mark("model_matches_database");
     });
@@ -625,6 +655,225 @@ export const LEASE_GATE_EVIDENCE = {
         const st = await row(c);
         expect(st.state === "claimed" ? st.owner_token === rec.owner_token : st.owner_token === null).toBe(true);
       }
+    });
+  });
+
+  describe("revisão final · ponto 4 — integridade das mensagens adiadas (coletor pode reapresentar só as novas)", () => {
+    /** Pendentes reais do lease: lote fechado/em coleta + adiadas (ordem preservada). */
+    const pending = async (c: string) => {
+      const st = await row(c);
+      return { state: st.state, all: [...st.message_ids, ...st.deferred], st };
+    };
+    /** Processa o lote atual até o fim (claim → start → complete) e devolve as mensagens do lote. */
+    const drain = async (c: string) => {
+      const before = await row(c);
+      const r = await tr(c, "mark_ready", before.version, { ids: before.message_ids.slice(0, 20) });
+      expect(r.result, "mark_ready").toBe("applied");
+      const a = await claim(c, r.version!);
+      expect(a.result).toBe("acquired");
+      const s = await tr(c, "start", a.version!, { token: a.owner_token });
+      const d = await tr(c, "complete", s.version!, { token: a.owner_token });
+      expect(d.result).toBe("applied");
+      return r.message_ids as string[];
+    };
+    async function processingWith(lote: string[]) {
+      const c = await newConv();
+      const v = await ready(c, lote);
+      const a = await claim(c, v);
+      const s = await tr(c, "start", a.version!, { token: a.owner_token });
+      return { c, a, s };
+    }
+
+    it("lote concluído REAPRESENTADO pelo coletor (sem resposta entre ciclos) nunca volta a ser pendente", async () => {
+      const [m1, m2, n1] = [msg(), msg(), msg()];
+      const { c, a, s } = await processingWith([m1!, m2!]);
+      const done = await tr(c, "complete", s.version!, { token: a.owner_token });
+      const o = await tr(c, "observe", done.version!, { ids: [m1!, m2!, n1!] });
+      expect(o).toMatchObject({ result: "applied", state: "collecting" });
+      expect((await pending(c)).all).toEqual([n1]);
+      // ciclo seguinte: o coletor continua mandando as concluídas (trailing) — não podem reentrar
+      const o2 = await tr(c, "observe", o.version!, { ids: [m1!, m2!, n1!] });
+      expect(o2.result).toBe("noop");
+      expect((await pending(c)).all).toEqual([n1]);
+      expect(await drain(c)).toEqual([n1]);
+      const st = await row(c);
+      const o3 = await tr(c, "observe", st.version, { ids: [m1!, m2!, n1!] }); // tudo já concluído
+      expect(o3.result).toBe("noop");
+      expect((await row(c)).processed).toEqual([m1, m2, n1]);
+    });
+    it("acknowledge: mensagem dispensada e reapresentada pelo coletor não volta a ser pendente", async () => {
+      const [p1, g1] = [msg(), msg()];
+      const c = await newConv();
+      await tr(c, "observe", 0, { ids: [p1!, g1!] });
+      const k = await tr(c, "acknowledge", 1, { ids: [p1!] });
+      expect(k.result).toBe("applied");
+      expect((await tr(c, "observe", k.version!, { ids: [p1!, g1!] })).result).toBe("noop");
+      expect((await pending(c)).all).toEqual([g1]);
+      expect((await tr(c, "acknowledge", k.version!, { ids: [p1!] })).result).toBe("noop"); // idempotente
+    });
+    it("janela de processadas é limitada (≤ 200, sem nulos) e guarda as mais recentes", async () => {
+      const c = await newConv();
+      await tr(c, "observe", 0, { ids: [msg()] });
+      const ids201 = Array.from({ length: 201 }, () => msg());
+      await expect(pg.sql(`update public.guest_ai_conversation_leases set processed_message_ids = '{${ids201.join(",")}}' where conversation_id = '${c}'`)).rejects.toThrow(/gacl_processed_ck/);
+      await expect(pg.sql(`update public.guest_ai_conversation_leases set processed_message_ids = array[null]::uuid[] where conversation_id = '${c}'`)).rejects.toThrow(/gacl_processed_ck/);
+      // 199 já processadas + lote de 2 concluído ⇒ a mais antiga sai, as 2 do lote ficam por último
+      const old = Array.from({ length: 199 }, () => msg());
+      const c2 = await newConv();
+      const [b1, b2] = [msg(), msg()];
+      const v = await ready(c2, [b1!, b2!]);
+      await pg.sql(`update public.guest_ai_conversation_leases set processed_message_ids = '{${old.join(",")}}' where conversation_id = '${c2}'`);
+      const a = await claim(c2, v);
+      const s = await tr(c2, "start", a.version!, { token: a.owner_token });
+      expect((await tr(c2, "complete", s.version!, { token: a.owner_token })).result).toBe("applied");
+      const p = (await row(c2)).processed;
+      expect(p).toHaveLength(200);
+      expect(p).toEqual([...old.slice(1), b1, b2]);
+    });
+    it("processing → adiada → complete → observe só com OUTRA mensagem nova: a adiada entra no novo ciclo (nada se perde)", async () => {
+      const [m1, d1, n1] = [msg(), msg(), msg()];
+      const { c, a, s } = await processingWith([m1!]);
+      expect((await tr(c, "observe", s.version!, { ids: [d1!] })).result).toBe("deferred"); // coletor manda só a nova
+      const done = await tr(c, "complete", s.version!, { token: a.owner_token });
+      const o = await tr(c, "observe", done.version!, { ids: [n1!] }); // só a outra nova
+      expect(o).toMatchObject({ result: "applied", state: "collecting" });
+      expect((await pending(c)).all).toEqual([d1, n1]); // adiada preservada, na ordem de chegada
+      expect(await drain(c)).toEqual([d1, n1]);
+    });
+    it("complete e depois observe SEM nada novo: as adiadas abrem novo ciclo sozinhas", async () => {
+      const [m1, d1] = [msg(), msg()];
+      const { c, a, s } = await processingWith([m1!]);
+      await tr(c, "observe", s.version!, { ids: [m1!, d1!] });
+      const done = await tr(c, "complete", s.version!, { token: a.owner_token });
+      const o = await tr(c, "observe", done.version!, { ids: [m1!] }); // só a já concluída
+      expect(o).toMatchObject({ result: "applied", state: "collecting" });
+      expect((await pending(c)).all).toEqual([d1]);
+    });
+    it("processing → adiada → fail → recuperação do mesmo lote: lote e adiada continuam pendentes", async () => {
+      const [m1, d1] = [msg(), msg()];
+      const { c, a, s } = await processingWith([m1!]);
+      await tr(c, "observe", s.version!, { ids: [d1!] });
+      const f = await tr(c, "fail", s.version!, { token: a.owner_token, retryable: true });
+      expect(f.state).toBe("ready");
+      expect((await pending(c)).all).toEqual([m1, d1]);
+      const b = await claim(c, f.version!);
+      expect(b).toMatchObject({ result: "acquired", message_ids: [m1] }); // mesmo lote (imutável); adiada segue adiada
+      // falha definitiva + novo ciclo com só uma nova: lote não concluído + adiada + nova
+      const f2 = await tr(c, "fail", b.version!, { token: b.owner_token, retryable: false });
+      const n1 = msg();
+      await tr(c, "observe", f2.version!, { ids: [n1] });
+      expect((await pending(c)).all).toEqual([m1, d1, n1]);
+    });
+    it("processing → adiada → expiração → recuperação por outro worker: nada se perde; novo ciclo incorpora tudo", async () => {
+      const [m1, d1, n1] = [msg(), msg(), msg()];
+      const { c, s } = await processingWith([m1!]);
+      await tr(c, "observe", s.version!, { ids: [d1!] });
+      await expireNow(c);
+      const b = await claim(c, s.version!);
+      expect(b).toMatchObject({ result: "recovered", message_ids: [m1] });
+      expect((await row(c)).deferred).toEqual([d1]);
+      await expireNow(c);
+      const e = await tr(c, "expire", b.version!);
+      await tr(c, "observe", e.version!, { ids: [n1!] }); // coletor manda só a nova
+      expect((await pending(c)).all).toEqual([m1, d1, n1]);
+    });
+    it("processing → adiada → cancel → novo ciclo com só uma nova: lote cancelado + adiada + nova preservados", async () => {
+      const [m1, d1, n1] = [msg(), msg(), msg()];
+      const { c, a, s } = await processingWith([m1!]);
+      await tr(c, "observe", s.version!, { ids: [d1!] });
+      const x = await tr(c, "cancel", s.version!, { token: a.owner_token });
+      await tr(c, "observe", x.version!, { ids: [n1!] });
+      expect((await pending(c)).all).toEqual([m1, d1, n1]);
+    });
+    it("várias adiadas, observações repetidas e parcialmente sobrepostas: sem duplicar, ordem de chegada", async () => {
+      const lote = msg();
+      const [a1, a2, a3, a4] = [msg(), msg(), msg(), msg()];
+      const { c, a, s } = await processingWith([lote]);
+      for (const ids of [[a1!], [a1!, a2!], [a2!, a3!], [lote, a1!, a3!, a4!], [a4!], [a1!, a2!, a3!, a4!]]) await tr(c, "observe", s.version!, { ids });
+      expect((await row(c)).deferred).toEqual([a1, a2, a3, a4]);
+      const done = await tr(c, "complete", s.version!, { token: a.owner_token });
+      for (let k = 0; k < 3; k++) await tr(c, "observe", (await row(c)).version, { ids: [a3!, a1!] }); // repetição
+      expect((await pending(c)).all).toEqual([a1, a2, a3, a4]);
+      expect(done.state).toBe("completed");
+      expect(await drain(c)).toEqual([a1, a2, a3, a4]); // processadas uma vez cada, no próximo lote
+      const after = await tr(c, "observe", (await row(c)).version, { ids: [a1!, a2!, a3!, a4!] });
+      expect(after.result).toBe("noop"); // já concluídas: não voltam
+    });
+    it("observe concorrente com complete / fail / expire / recuperação: nenhuma mensagem perdida nem duplicada", async () => {
+      for (const op of ["complete", "fail", "expire", "recover"] as const) {
+        for (let round = 0; round < 3; round++) {
+          const m1 = msg();
+          const extra = [msg(), msg()];
+          const { c, a, s } = await processingWith([m1]);
+          if (op === "expire" || op === "recover") await expireNow(c);
+          const action =
+            op === "complete" ? tr(c, "complete", s.version!, { token: a.owner_token })
+            : op === "fail" ? tr(c, "fail", s.version!, { token: a.owner_token, retryable: false })
+            : op === "expire" ? tr(c, "expire", s.version!)
+            : claim(c, s.version!);
+          const [r1, o1, o2] = await Promise.all([action, tr(c, "observe", s.version!, { ids: [extra[0]!] }), tr(c, "observe", s.version!, { ids: [extra[1]!] })]);
+          // observação recusada por versão é repetida pelo coletor com a versão atual
+          for (const [o, id] of [[o1, extra[0]], [o2, extra[1]]] as const) {
+            if (o.result === "stale_version") await tr(c, "observe", (await row(c)).version, { ids: [id!] });
+          }
+          void r1;
+          const st = await row(c);
+          const all = [...st.message_ids, ...st.deferred];
+          expect(new Set(all).size, `${op}#${round}`).toBe(all.length);
+          for (const id of extra) expect(all.includes(id!), `${op}#${round} perdeu ${id}`).toBe(true);
+          if (op === "complete") {
+            // lote concluído: nunca volta a ficar pendente (no máximo continua como o lote concluído do registro)
+            expect(st.deferred.includes(m1) || (st.state !== "completed" && st.message_ids.includes(m1)), `${op}#${round} reprocessaria o lote`).toBe(false);
+          } else {
+            expect(all.includes(m1), `${op}#${round} perdeu o lote não concluído`).toBe(true);
+          }
+        }
+      }
+    }, 90_000);
+    it("excedente acima do limite do lote/array fica pendente (explícito); estouro total é recusado sem truncar", async () => {
+      const c = await newConv();
+      const first = Array.from({ length: 30 }, () => msg());
+      expect((await tr(c, "observe", 0, { ids: first })).result).toBe("applied");
+      // lote fechado com 20; os 10 restantes continuam pendentes (adiados), não somem
+      const r = await tr(c, "mark_ready", 1, { ids: first.slice(0, 20) });
+      expect(r.result).toBe("applied");
+      expect((await pending(c)).all).toEqual(first);
+      const a = await claim(c, r.version!);
+      const s = await tr(c, "start", a.version!, { token: a.owner_token });
+      const more = Array.from({ length: 45 }, () => msg());
+      await tr(c, "observe", s.version!, { ids: more });
+      const done = await tr(c, "complete", s.version!, { token: a.owner_token });
+      const o = await tr(c, "observe", done.version!, { ids: [msg()] });
+      expect(o.state).toBe("collecting");
+      const p = await pending(c);
+      expect(p.all).toHaveLength(56); // 10 restantes + 45 + 1, nenhuma perdida
+      expect(p.st.message_ids.length).toBeLessThanOrEqual(50); // limite do array respeitado; excedente em deferred
+      expect(p.all.slice(0, 10)).toEqual(first.slice(20));
+      // lote só com mensagens pendentes (não aceita id estranho)
+      expect((await tr(c, "mark_ready", o.version!, { ids: [msg()] })).result).toBe("invalid_argument");
+      // estouro do teto total de pendentes ⇒ recusa explícita, nada muda
+      const big = Array.from({ length: 50 }, () => msg());
+      let v = o.version!;
+      let last: J = { result: "" };
+      for (let k = 0; k < 4; k++) {
+        last = await tr(c, "observe", v, { ids: big.map(() => msg()) });
+        if (last.result !== "applied") break;
+        v = last.version!;
+      }
+      expect(last.result).toBe("pending_overflow");
+      expect((await pending(c)).all.length).toBeLessThanOrEqual(200);
+    });
+    it("acknowledge: remoção EXPLÍCITA (ex.: mensagens da pausa já tratadas pela equipe) — nunca implícita", async () => {
+      const c = await newConv();
+      const [b1, b2, n1] = [msg(), msg(), msg()];
+      await tr(c, "observe", 0, { ids: [b1!, b2!, n1!] });
+      const k = await tr(c, "acknowledge", 1, { ids: [b1!, b2!] });
+      expect(k).toMatchObject({ result: "applied", state: "collecting" });
+      expect((await pending(c)).all).toEqual([n1]);
+      const v = (await row(c)).version;
+      const r = await tr(c, "mark_ready", v, { ids: [n1!] });
+      const a = await claim(c, r.version!);
+      expect((await tr(c, "acknowledge", a.version!, { ids: [n1!] })).result).toBe("invalid_transition"); // lote reivindicado é imutável
     });
   });
 

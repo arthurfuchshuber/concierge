@@ -26,7 +26,7 @@ const uuids = (v: unknown): string[] | null => (Array.isArray(v) && v.every((x) 
 
 const CLAIM_FAILS = ["conflict", "unavailable", "stale_version", "not_claimable", "attempts_exhausted", "not_found", "invalid_argument"] as const;
 const TRANSITION_OKS = ["applied", "deferred", "noop", "already_processed"] as const;
-const TRANSITION_FAILS = ["stale_version", "stale_owner", "lease_expired", "invalid_transition", "not_found", "invalid_argument"] as const;
+const TRANSITION_FAILS = ["stale_version", "stale_owner", "lease_expired", "invalid_transition", "not_found", "invalid_argument", "pending_overflow"] as const;
 
 export function parseClaim(data: unknown): StoreClaimResult {
   const d = data as Record<string, unknown> | null;

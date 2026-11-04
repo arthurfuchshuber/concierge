@@ -55,8 +55,7 @@ describe("B3.1 · debounce (15 s configurável) e formação do lote", () => {
   it("B31-04 · mensagem depois da elegibilidade e antes do claim ⇒ lote reavaliado (pronto volta a coletar)", () => {
     expect(ev(win([cm("a", 0)], 16)).state).toBe("ready");
     expect(ev(win([cm("a", 0), cm("b", 16)], 17))).toMatchObject({ state: "collecting", eligibleAt: at(31) });
-    let r = newLeaseRecord("c1", at(0));
-    r = (applyLeaseEvent(r, { type: "mark_ready", batchId: "batch:1", messageIds: ["a"], expectedVersion: r.version, now: at(16) }) as { record: LeaseRecord }).record;
+    const r = ready(["a"], 16);
     const o = applyLeaseEvent(r, { type: "observe", messageIds: ["a", "b"], now: at(16) });
     expect(o).toMatchObject({ ok: true, effect: "applied", record: { state: "collecting", batchId: null } });
   });
@@ -166,8 +165,10 @@ describe("B3.1 · reconciliação de atrasos de webhook e pausa", () => {
 
 // ─────────────── Lease (máquina de estados) ───────────────
 const ready = (ids: string[], at0 = 0): LeaseRecord => {
-  const r = newLeaseRecord("c1", at(at0));
-  const o = applyLeaseEvent(r, { type: "mark_ready", batchId: "batch:x", messageIds: ids, expectedVersion: r.version, now: at(at0) });
+  // protocolo: observar as pendentes e fechar o lote com elas (o lote só aceita mensagens pendentes)
+  const obs = applyLeaseEvent(newLeaseRecord("c1", at(at0)), { type: "observe", messageIds: ids, now: at(at0), expectedVersion: 0 });
+  if (!obs.ok) throw new Error(obs.reason);
+  const o = applyLeaseEvent(obs.record, { type: "mark_ready", batchId: "batch:x", messageIds: ids, expectedVersion: obs.record.version, now: at(at0) });
   if (!o.ok) throw new Error(o.reason);
   return o.record;
 };
@@ -238,9 +239,10 @@ describe("B3.1 · lease por conversa — máquina de estados (compare-and-swap, 
       r = (f as { record: LeaseRecord }).record;
     }
     expect(r.state).toBe("failed");
-    expect(applyLeaseEvent(ready(["a"]), { type: "start", token: "w", expectedVersion: 1, now: at(1) })).toEqual({ ok: false, reason: "invalid_transition" });
+    const rd = ready(["a"]);
+    expect(applyLeaseEvent(rd, { type: "start", token: "w", expectedVersion: rd.version, now: at(1) })).toEqual({ ok: false, reason: "invalid_transition" });
     expect(applyLeaseEvent(newLeaseRecord("c1", at(0)), { type: "claim", token: "w", ttlMs: 1, expectedVersion: 0, now: at(1) })).toEqual({ ok: false, reason: "invalid_transition" });
-    const cancelled = applyLeaseEvent(ready(["a"]), { type: "cancel", expectedVersion: 1, now: at(1) });
+    const cancelled = applyLeaseEvent(rd, { type: "cancel", expectedVersion: rd.version, now: at(1) });
     expect(cancelled).toMatchObject({ ok: true, record: { state: "cancelled" } });
   });
   it("B31-27 · sem armazenamento transacional: backend indisponível e claim sempre recusado (nada em memória substitui o banco)", async () => {

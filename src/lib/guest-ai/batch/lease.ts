@@ -41,11 +41,22 @@ export interface LeaseRecord {
   attempts: number;
   /** Mensagens que chegaram depois do claim (ficam para o próximo ciclo). */
   deferredMessageIds: readonly string[];
+  /** Concluídas/dispensadas (janela das 200 mais recentes): nunca voltam a ser pendentes. */
+  processedMessageIds: readonly string[];
   updatedAt: string;
 }
 
 export const MAX_ATTEMPTS = 3;
 export const MAX_BATCH_MESSAGES = 20;
+/** Teto de pendentes por conversa (50 em coleta + excedente adiado). Acima: recusa explícita. */
+export const MAX_PENDING_MESSAGES = 200;
+export const MAX_COLLECTING_ARRAY = 50;
+/** Janela de ids processados lembrados (> 40 linhas que o coletor reapresenta). */
+export const MAX_PROCESSED_REMEMBERED = 200;
+const remember = (r: LeaseRecord, ids: readonly string[]) => {
+  const all = [...r.processedMessageIds, ...ids.filter((id) => !r.processedMessageIds.includes(id))];
+  return all.slice(Math.max(all.length - MAX_PROCESSED_REMEMBERED, 0));
+};
 /** Prazo inicial do lease (diretriz B3.1: 30 s; o banco aceita 5–300 s). */
 export const DEFAULT_LEASE_TTL_SECONDS = 30;
 
@@ -58,7 +69,8 @@ export type LeaseEvent =
   | { type: "complete"; token: string; expectedVersion: number; now: string }
   | { type: "fail"; token: string; retryable: boolean; expectedVersion: number; now: string }
   | { type: "cancel"; expectedVersion: number; now: string; token?: string | null }
-  | { type: "expire"; now: string; expectedVersion?: number };
+  | { type: "expire"; now: string; expectedVersion?: number }
+  | { type: "acknowledge"; messageIds: readonly string[]; expectedVersion: number; now: string };
 
 export type LeaseRejection =
   | "version_conflict"
@@ -68,12 +80,13 @@ export type LeaseRejection =
   | "lease_expired"
   | "invalid_event"
   | "already_processed"
-  | "attempts_exhausted";
+  | "attempts_exhausted"
+  | "pending_overflow";
 
 export type LeaseResult = { ok: true; record: LeaseRecord; effect: "applied" | "deferred" | "noop" } | { ok: false; reason: LeaseRejection };
 
 export function newLeaseRecord(conversationId: string, now: string): LeaseRecord {
-  return { conversationId, state: "collecting", version: 0, batchId: null, messageIds: [], ownerToken: null, leaseExpiresAt: null, attempts: 0, deferredMessageIds: [], updatedAt: now };
+  return { conversationId, state: "collecting", version: 0, batchId: null, messageIds: [], ownerToken: null, leaseExpiresAt: null, attempts: 0, deferredMessageIds: [], processedMessageIds: [], updatedAt: now };
 }
 
 const t = (v: string | null) => (v ? Date.parse(v) : Number.NaN);
@@ -95,29 +108,56 @@ export function applyLeaseEvent(r: LeaseRecord, e: LeaseEvent): LeaseResult {
     case "observe": {
       // CAS também na observação quando a versão é informada (o banco sempre exige)
       if (e.expectedVersion !== undefined && !checkVersion(e.expectedVersion)) return no("version_conflict");
-      const ids = [...new Set(e.messageIds)];
-      if (ids.length === 0) return no("invalid_event");
+      if (new Set(e.messageIds).size === 0) return no("invalid_event");
+      // já concluídas/dispensadas nunca voltam a ser pendentes (o coletor pode reapresentá-las)
+      const ids = [...new Set(e.messageIds)].filter((id) => !r.processedMessageIds.includes(id));
       if (holding(r)) {
         // Nunca altera retroativamente o lote reivindicado: guarda para o próximo ciclo.
         const fresh = ids.filter((id) => !r.messageIds.includes(id) && !r.deferredMessageIds.includes(id));
         if (!fresh.length) return { ok: true, effect: "noop", record: r };
+        if (r.deferredMessageIds.length + fresh.length > MAX_PENDING_MESSAGES) return no("pending_overflow");
         // Adiamento NÃO muda a versão: a versão de posse do dono continua válida.
         return { ok: true, effect: "deferred", record: { ...r, deferredMessageIds: [...r.deferredMessageIds, ...fresh], updatedAt: e.now } };
       }
-      let carry = ids;
-      if (r.state === "completed") {
-        carry = ids.filter((id) => !r.messageIds.includes(id));
-        if (!carry.length) return { ok: true, effect: "noop", record: r }; // retentativa/duplicata
-      }
-      // Orçamento de tentativas é do LOTE: zera só com mensagem fora do lote anterior (novo lote).
-      const newBatch = r.state === "completed" || carry.some((id) => !r.messageIds.includes(id));
-      return next({ state: "collecting", batchId: null, messageIds: carry, ownerToken: null, leaseExpiresAt: null, deferredMessageIds: [], attempts: newBatch ? 0 : r.attempts });
+      // Pendentes = lote não concluído ∪ adiadas ∪ observadas (ordem de chegada, sem duplicar).
+      // Não depende de o coletor reapresentar tudo; só o lote CONCLUÍDO sai.
+      const prev = [...r.messageIds, ...r.deferredMessageIds];
+      const base = r.state === "completed" ? r.deferredMessageIds : prev;
+      const pending = [...new Set([...base, ...ids])];
+      if (!pending.length) return { ok: true, effect: "noop", record: r };
+      const hasNew = pending.some((id) => !prev.includes(id));
+      if ((r.state === "collecting" || r.state === "ready") && !hasNew) return { ok: true, effect: "noop", record: r };
+      if (pending.length > MAX_PENDING_MESSAGES) return no("pending_overflow");
+      // Orçamento de tentativas é do LOTE: zera com ciclo concluído ou com mensagem que não estava pendente.
+      return next({
+        state: "collecting",
+        batchId: null,
+        messageIds: pending.slice(0, MAX_COLLECTING_ARRAY),
+        deferredMessageIds: pending.slice(MAX_COLLECTING_ARRAY),
+        ownerToken: null,
+        leaseExpiresAt: null,
+        attempts: r.state === "completed" || hasNew ? 0 : r.attempts,
+      });
     }
-    case "mark_ready":
+    case "mark_ready": {
       if (!checkVersion(e.expectedVersion)) return no("version_conflict");
       if (r.state !== "collecting") return no("invalid_transition");
       if (!e.batchId || e.messageIds.length === 0 || e.messageIds.length > MAX_BATCH_MESSAGES) return no("invalid_event");
-      return next({ state: "ready", batchId: e.batchId, messageIds: [...e.messageIds] });
+      const prev = [...r.messageIds, ...r.deferredMessageIds];
+      if (e.messageIds.some((id) => !prev.includes(id))) return no("invalid_event"); // lote só com pendentes
+      return next({ state: "ready", batchId: e.batchId, messageIds: [...e.messageIds], deferredMessageIds: prev.filter((id) => !e.messageIds.includes(id)) });
+    }
+    case "acknowledge": {
+      if (!checkVersion(e.expectedVersion)) return no("version_conflict");
+      if (e.messageIds.length === 0) return no("invalid_event");
+      if (holding(r) || ((r.state === "ready" || r.state === "completed") && e.messageIds.some((id) => r.messageIds.includes(id)))) return no("invalid_transition");
+      const deferred = r.deferredMessageIds.filter((id) => !e.messageIds.includes(id));
+      const open = r.state === "collecting" || r.state === "failed" || r.state === "cancelled" || r.state === "expired";
+      const messages = open ? r.messageIds.filter((id) => !e.messageIds.includes(id)) : r.messageIds;
+      const newlyHandled = e.messageIds.filter((id) => !r.processedMessageIds.includes(id));
+      if (deferred.length === r.deferredMessageIds.length && messages.length === r.messageIds.length && newlyHandled.length === 0) return { ok: true, effect: "noop", record: r };
+      return next({ messageIds: messages, deferredMessageIds: deferred, processedMessageIds: remember(r, e.messageIds) });
+    }
     case "claim": {
       if (!checkVersion(e.expectedVersion)) return no("version_conflict");
       if (!e.token || !(e.ttlMs > 0)) return no("invalid_event");
@@ -138,7 +178,7 @@ export function applyLeaseEvent(r: LeaseRecord, e: LeaseEvent): LeaseResult {
       if (!liveAt(r, now)) return no("lease_expired");
       if (e.type === "start") return r.state === "claimed" ? next({ state: "processing" }) : no("invalid_transition");
       if (e.type === "renew") return e.ttlMs > 0 ? next({ leaseExpiresAt: new Date(now + e.ttlMs).toISOString() }) : no("invalid_event");
-      if (e.type === "complete") return r.state === "processing" ? next({ state: "completed", ownerToken: null, leaseExpiresAt: null }) : no("invalid_transition");
+      if (e.type === "complete") return r.state === "processing" ? next({ state: "completed", ownerToken: null, leaseExpiresAt: null, processedMessageIds: remember(r, r.messageIds) }) : no("invalid_transition");
       return next({ state: e.retryable && r.attempts < MAX_ATTEMPTS ? "ready" : "failed", ownerToken: null, leaseExpiresAt: null });
     }
     case "cancel":
@@ -178,7 +218,7 @@ export type StoreClaimResult =
 export type TransitionEvent = "observe" | "mark_ready" | "start" | "renew" | "complete" | "fail" | "cancel" | "expire";
 export type StoreTransitionResult =
   | { result: "applied" | "deferred" | "noop" | "already_processed"; version: number; state: LeaseState; batchId?: string | null; messageIds?: readonly string[] }
-  | { result: "stale_version" | "stale_owner" | "lease_expired" | "invalid_transition" | "not_found" | "invalid_argument" | "store_error"; version: number | null };
+  | { result: "stale_version" | "stale_owner" | "lease_expired" | "invalid_transition" | "not_found" | "invalid_argument" | "pending_overflow" | "store_error"; version: number | null };
 
 /**
  * Armazenamento transacional: cada operação é UMA chamada a uma função do Postgres que trava a linha,

@@ -9,7 +9,12 @@
 --   claimed|processing --fail(retryable, tentativas < 3)--> ready ; --fail(definitiva ou 3ª)--> failed
 --   claimed|processing com prazo vencido --expire/claim--> expired --claim--> claimed (nova posse, nova versão)
 --   collecting|ready|claimed|processing|expired --cancel--> cancelled
---   completed|failed|cancelled|expired --observe (mensagens novas)--> collecting (novo ciclo)
+--   completed|failed|cancelled|expired --observe--> collecting (novo ciclo): pendentes = lote não concluído
+--     ∪ adiadas ∪ observadas, sem duplicar, na ordem de chegada (independe de o coletor reapresentar tudo);
+--     só o lote CONCLUÍDO sai (vai para processed_message_ids e nunca volta, mesmo reapresentado); excedente além de 50 fica em deferred_message_ids; teto total 200 ⇒ recusa
+--   mark_ready: o lote (1–20) precisa ser subconjunto das pendentes; o resto continua adiado
+--   acknowledge: remoção explícita de pendentes que não serão processadas (nunca do lote fechado); também
+--     vão para processed_message_ids
 --   claimed|processing --observe--> mesmo estado, mensagens novas só em deferred_message_ids (versão inalterada)
 -- Tentativas: orçamento por LOTE — novo ciclo zera só se trouxer mensagem fora do lote anterior.
 -- Toda escrita: uma transação, linha travada, compare-and-swap de `version` (+ `owner_token` quando há
@@ -27,6 +32,9 @@ create table public.guest_ai_conversation_leases (
   lease_expires_at     timestamptz,
   attempts             integer not null default 0,
   deferred_message_ids uuid[],
+  -- ids já concluídos/dispensados (janela das 200 mais recentes, > 40 que o coletor reapresenta):
+  -- nunca voltam a ser pendentes, mesmo que o coletor os reapresente
+  processed_message_ids uuid[] not null default '{}',
   updated_at           timestamptz not null default now(),
 
   constraint gacl_state_ck check (state in ('collecting', 'ready', 'claimed', 'processing', 'completed', 'failed', 'cancelled', 'expired')),
@@ -47,7 +55,8 @@ create table public.guest_ai_conversation_leases (
     or state in ('failed', 'cancelled', 'expired')
   ),
   constraint gacl_messages_ck check (message_ids is null or (cardinality(message_ids) <= 50 and array_position(message_ids, null) is null)),
-  constraint gacl_deferred_ck check (deferred_message_ids is null or (cardinality(deferred_message_ids) <= 200 and array_position(deferred_message_ids, null) is null))
+  constraint gacl_deferred_ck check (deferred_message_ids is null or (cardinality(deferred_message_ids) <= 200 and array_position(deferred_message_ids, null) is null)),
+  constraint gacl_processed_ck check (cardinality(processed_message_ids) <= 200 and array_position(processed_message_ids, null) is null)
 );
 
 comment on table public.guest_ai_conversation_leases is
@@ -154,11 +163,14 @@ declare
   r public.guest_ai_conversation_leases%rowtype;
   v_ids uuid[];
   v_fresh uuid[];
+  v_prev uuid[];
+  v_rem uuid[];
+  v_obs uuid[];
   v_live boolean;
   v_owner_ok boolean;
 begin
   if p_conversation_id is null or p_expected_version is null or p_expected_version < 0
-     or p_event is null or p_event not in ('observe', 'mark_ready', 'start', 'renew', 'complete', 'fail', 'cancel', 'expire')
+     or p_event is null or p_event not in ('observe', 'mark_ready', 'start', 'renew', 'complete', 'fail', 'cancel', 'expire', 'acknowledge')
      or (p_owner_token is not null and p_owner_token !~ '^[0-9a-f]{64}$')
      or (p_message_ids is not null and (cardinality(p_message_ids) > 50 or array_position(p_message_ids, null) is not null
           or cardinality(p_message_ids) <> (select count(distinct x) from unnest(p_message_ids) x)))
@@ -217,13 +229,20 @@ begin
     if p_message_ids is null or cardinality(p_message_ids) = 0 then
       return jsonb_build_object('result', 'invalid_argument');
     end if;
+    -- já concluídas/dispensadas nunca voltam a ser pendentes (o coletor pode reapresentá-las)
+    select coalesce(array_agg(x order by o), '{}') into v_obs
+      from unnest(p_message_ids) with ordinality t(x, o) where not (x = any (r.processed_message_ids));
     if r.state in ('claimed', 'processing') then
       -- lote reivindicado é imutável: mensagens novas só no adiamento (sem perda, sem duplicação)
       select coalesce(array_agg(x order by o), '{}') into v_fresh
-        from unnest(p_message_ids) with ordinality t(x, o)
+        from unnest(v_obs) with ordinality t(x, o)
        where not (x = any (coalesce(r.message_ids, '{}'))) and not (x = any (coalesce(r.deferred_message_ids, '{}')));
       if cardinality(v_fresh) = 0 then
         return jsonb_build_object('result', 'noop', 'version', r.version, 'state', r.state);
+      end if;
+      -- teto explícito de pendentes: nunca trunca; recusa e o chamador escala
+      if cardinality(coalesce(r.deferred_message_ids, '{}')) + cardinality(v_fresh) > 200 then
+        return jsonb_build_object('result', 'pending_overflow', 'version', r.version, 'state', r.state);
       end if;
       -- o adiamento NÃO muda a versão: a versão de posse do dono continua válida (só ele a altera
       -- com start/renew/complete/fail, ou a perde por expiração/recuperação). Linha travada ⇒ observações
@@ -233,24 +252,36 @@ begin
        where conversation_id = p_conversation_id returning * into r;
       return jsonb_build_object('result', 'deferred', 'version', r.version, 'state', r.state, 'deferred_message_ids', to_jsonb(r.deferred_message_ids));
     end if;
-    if r.state = 'completed' then
-      select coalesce(array_agg(x order by o), '{}') into v_ids
-        from unnest(p_message_ids) with ordinality t(x, o)
-       where not (x = any (r.message_ids));
-      if cardinality(v_ids) = 0 then
-        return jsonb_build_object('result', 'noop', 'version', r.version, 'state', r.state);
-      end if;
-    else
-      v_ids := p_message_ids;
+    -- Pendentes do novo ciclo = lote NÃO concluído ∪ adiadas ∪ reapresentadas/novas: sem duplicar, na
+    -- ordem de chegada. Não depende de o coletor reapresentar tudo (ele pode mandar só as novas).
+    -- Lote concluído sai; nada mais sai sem 'acknowledge' explícito.
+    v_prev := coalesce(r.message_ids, '{}') || coalesce(r.deferred_message_ids, '{}');
+    select coalesce(array_agg(x order by o), '{}') into v_ids
+      from (select x, min(o) as o
+              from unnest(case when r.state = 'completed' then coalesce(r.deferred_message_ids, '{}') else v_prev end || v_obs)
+                   with ordinality t(x, o)
+             group by x) s;
+    if cardinality(v_ids) = 0 then
+      return jsonb_build_object('result', 'noop', 'version', r.version, 'state', r.state);
+    end if;
+    -- observação repetida sem nada novo não reabre coleta nem desfaz lote pronto (idempotente)
+    if r.state in ('collecting', 'ready') and not exists (select 1 from unnest(v_ids) x where not (x = any (v_prev))) then
+      return jsonb_build_object('result', 'noop', 'version', r.version, 'state', r.state);
+    end if;
+    -- teto explícito de pendentes (50 no array em coleta + excedente adiado): nunca trunca
+    if cardinality(v_ids) > 200 then
+      return jsonb_build_object('result', 'pending_overflow', 'version', r.version, 'state', r.state);
     end if;
     update public.guest_ai_conversation_leases
-       set state = 'collecting', batch_id = null, message_ids = v_ids, owner_token = null, lease_expires_at = null,
-           deferred_message_ids = '{}',
-           -- orçamento de tentativas é do LOTE: zera só quando entra mensagem que o lote anterior não
-           -- tinha (novo lote); mesmas mensagens (recuperação do mesmo lote) preservam o contador
+       set state = 'collecting', batch_id = null,
+           message_ids = v_ids[1:50],
+           deferred_message_ids = coalesce(v_ids[51:cardinality(v_ids)], '{}'),
+           owner_token = null, lease_expires_at = null,
+           -- orçamento de tentativas é do LOTE: zera quando o ciclo anterior concluiu ou quando entra
+           -- mensagem que não estava pendente; mesmas pendentes (recuperação do mesmo lote) preservam o contador
            attempts = case
              when r.state = 'completed' then 0
-             when exists (select 1 from unnest(v_ids) x where not (x = any (coalesce(r.message_ids, '{}')))) then 0
+             when exists (select 1 from unnest(v_ids) x where not (x = any (v_prev))) then 0
              else r.attempts
            end,
            version = r.version + 1, updated_at = now()
@@ -265,10 +296,52 @@ begin
     if p_message_ids is null or cardinality(p_message_ids) < 1 or cardinality(p_message_ids) > 20 then
       return jsonb_build_object('result', 'invalid_argument');
     end if;
+    -- o lote só pode conter mensagens pendentes; o que não entra no lote continua pendente (adiado)
+    v_prev := coalesce(r.message_ids, '{}') || coalesce(r.deferred_message_ids, '{}');
+    if exists (select 1 from unnest(p_message_ids) x where not (x = any (v_prev))) then
+      return jsonb_build_object('result', 'invalid_argument');
+    end if;
+    select coalesce(array_agg(x order by o), '{}') into v_rem
+      from unnest(v_prev) with ordinality t(x, o) where not (x = any (p_message_ids));
     update public.guest_ai_conversation_leases
-       set state = 'ready', batch_id = gen_random_uuid(), message_ids = p_message_ids, version = r.version + 1, updated_at = now()
+       set state = 'ready', batch_id = gen_random_uuid(), message_ids = p_message_ids, deferred_message_ids = v_rem,
+           version = r.version + 1, updated_at = now()
      where conversation_id = p_conversation_id returning * into r;
     return jsonb_build_object('result', 'applied', 'version', r.version, 'state', r.state, 'batch_id', r.batch_id, 'message_ids', to_jsonb(r.message_ids));
+  end if;
+
+  -- remoção EXPLÍCITA de pendentes que não serão processadas (ex.: mensagens da pausa já tratadas pela
+  -- equipe). Nunca toca um lote fechado (ready/claimed/processing/completed) nem age durante a posse.
+  if p_event = 'acknowledge' then
+    if p_message_ids is null or cardinality(p_message_ids) = 0 then
+      return jsonb_build_object('result', 'invalid_argument');
+    end if;
+    if r.state in ('claimed', 'processing')
+       or (r.state in ('ready', 'completed') and exists (select 1 from unnest(p_message_ids) x where x = any (coalesce(r.message_ids, '{}')))) then
+      return jsonb_build_object('result', 'invalid_transition', 'version', r.version, 'state', r.state);
+    end if;
+    select coalesce(array_agg(x order by o), '{}') into v_rem
+      from unnest(coalesce(r.deferred_message_ids, '{}')) with ordinality t(x, o) where not (x = any (p_message_ids));
+    if r.state in ('collecting', 'failed', 'cancelled', 'expired') then
+      select coalesce(array_agg(x order by o), '{}') into v_ids
+        from unnest(coalesce(r.message_ids, '{}')) with ordinality t(x, o) where not (x = any (p_message_ids));
+    else
+      v_ids := r.message_ids;
+    end if;
+    -- dispensadas entram na janela de processadas (não voltam se o coletor as reapresentar)
+    select coalesce(array_agg(x order by o), '{}') into v_obs
+      from unnest(p_message_ids) with ordinality t(x, o) where not (x = any (r.processed_message_ids));
+    if cardinality(v_rem) = cardinality(coalesce(r.deferred_message_ids, '{}')) and cardinality(coalesce(v_ids, '{}')) = cardinality(coalesce(r.message_ids, '{}'))
+       and cardinality(v_obs) = 0 then
+      return jsonb_build_object('result', 'noop', 'version', r.version, 'state', r.state);
+    end if;
+    v_obs := r.processed_message_ids || v_obs;
+    update public.guest_ai_conversation_leases
+       set message_ids = v_ids, deferred_message_ids = v_rem,
+           processed_message_ids = v_obs[greatest(cardinality(v_obs) - 199, 1):cardinality(v_obs)],
+           version = r.version + 1, updated_at = now()
+     where conversation_id = p_conversation_id returning * into r;
+    return jsonb_build_object('result', 'applied', 'version', r.version, 'state', r.state);
   end if;
 
   if p_event = 'cancel' then
@@ -310,8 +383,12 @@ begin
     if r.state <> 'processing' then
       return jsonb_build_object('result', 'invalid_transition', 'version', r.version, 'state', r.state);
     end if;
+    -- o lote concluído entra na janela de processadas (as 200 mais recentes)
+    v_obs := r.processed_message_ids || r.message_ids;
     update public.guest_ai_conversation_leases
-       set state = 'completed', owner_token = null, lease_expires_at = null, version = r.version + 1, updated_at = now()
+       set state = 'completed', owner_token = null, lease_expires_at = null,
+           processed_message_ids = v_obs[greatest(cardinality(v_obs) - 199, 1):cardinality(v_obs)],
+           version = r.version + 1, updated_at = now()
      where conversation_id = p_conversation_id returning * into r;
   elsif p_event = 'fail' then
     if p_retryable is null then

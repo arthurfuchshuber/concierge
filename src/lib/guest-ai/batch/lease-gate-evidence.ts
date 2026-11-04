@@ -4,10 +4,10 @@
  * ao adaptador exatos que foram testados; `b31-lease-gate.test.ts` falha se divergirem.
  */
 export const LEASE_GATE_EVIDENCE = {
-  generatedAt: "2026-11-04T04:05:33.081Z",
+  generatedAt: "2026-11-04T04:54:36.427Z",
   postgres: "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
-  migrationSha256: "eb0d39fa9c4bd07b54a4503ee5f01774a703afe57ae44217f054cbe6d24a793c",
-  storeSha256: "01db9826d50b334d1953d82528d8c4015bf722d5b07795c4364cee8e1bc17299",
+  migrationSha256: "4501bf5ecde0907cacd66b190299837888c9da96021b8fc349cfae10b6144de3",
+  storeSha256: "f52b1a5b22b5c8c1de8e75ecfbc38244ec24749ca3fd0afb0130485158491298",
   criteria: {
     "migration_applied": true,
     "rls_and_privileges": true,
