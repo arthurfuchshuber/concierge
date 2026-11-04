@@ -182,6 +182,11 @@ export type ExtraBreakdownItem = {
   count: number;
   totalCents: number;
 };
+/** Só é serviço extra tarifado quem tem custo informado maior que zero. */
+export function isChargedExtra(cents: number | null | undefined): boolean {
+  return (cents ?? 0) > 0;
+}
+
 export type ExtrasStats = {
   /** Todas as ocorrências (todas as situações não-limpeza) do período. O recorte
    * por situação é feito no cliente — assim o filtro troca na hora, sem nova ida
@@ -299,7 +304,7 @@ export const getServiceExtras = createServerFn({ method: "GET" })
     for (const t of (tasks ?? []) as T[]) {
       if (!t.property_id || !t.completed_at) continue;
       // Só é serviço tarifado quem tem custo informado (> 0).
-      if (t.amount_spent_cents == null || t.amount_spent_cents <= 0) continue;
+      if (!isChargedExtra(t.amount_spent_cents)) continue;
       rows.push({
         id: t.id,
         title: t.title,
@@ -316,7 +321,7 @@ export const getServiceExtras = createServerFn({ method: "GET" })
     for (const c of compRows) {
       const p = parents.get(c.task_id);
       if (!p || !p.property_id || !c.completed_at) continue;
-      if (c.amount_spent_cents == null || c.amount_spent_cents <= 0) continue;
+      if (!isChargedExtra(c.amount_spent_cents)) continue;
       if ((p.situation ?? "other") === "cleaning") continue;
       if (!allowedProps.has(p.property_id)) continue;
       rows.push({

@@ -19,8 +19,8 @@ import {
 import { setCleaningPriceOverride, setCleaningType } from "@/lib/cleaning-price.functions";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
-import { ClampName } from "@/components/ui/clamp-name";
 import { ownerPropertyLabel } from "@/lib/owner-gender";
+import { ClampName } from "@/components/ui/clamp-name";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
 import type { ExtraServiceItem } from "@/lib/service-situations";
@@ -132,7 +132,7 @@ function PropertyCell({
   return (
     <td className={`${TD} pr-2`} style={{ maxWidth: 0, width: "60%" }}>
       <ClampName text={name} className="font-bold" />
-      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" />
+      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" label="Pr:" />
     </td>
   );
 }
@@ -501,7 +501,7 @@ export function CleaningDayDetailContent({
         <span className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground">
           {source.mode === "done" && pending.length > 0
             ? `Total · ${counted.length + xrows.length} no custo`
-            : "Total do dia"}
+            : "VALOR TOTAL"}
         </span>
         <span className="text-right">
           <span className="block font-display text-[15px] font-bold tabular-nums">

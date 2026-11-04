@@ -2316,7 +2316,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       .map((id) => ({ id, label: situationNames[id] ?? "Serviço", count: counts.get(id) ?? 0 }))
       .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"))
       .forEach((r) => rows.push(r));
-    return [{ id: null, label: "Todas as situações", count: rows.reduce((n, r) => n + r.count, 0) }, ...rows];
+    return [{ id: null, label: "Todos os serviços", count: rows.reduce((n, r) => n + r.count, 0) }, ...rows];
   }, [extrasAll, cleaningScreen.countValue, sel, situationNames]);
 
   const extrasCount = extrasSel.length;
@@ -2426,23 +2426,28 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   );
 
   // Textos que dependem da situação. A Limpeza mantém os dela.
-  const periodShort = cleaningPeriodLabel.replace(/^Período /, "");
+  // Período ativo abreviado ao lado do título: "dd/MM/yy a dd/MM/yy".
+  const titleRange = cleaningPeriod ?? cleaningStatsRange;
+  const titleRangeLabel = `${format(parseISODateLocal(titleRange.start), "dd/MM/yy", { locale: ptBR })} a ${format(
+    parseISODateLocal(titleRange.end),
+    "dd/MM/yy",
+    { locale: ptBR },
+  )}`;
   const onlyCleaningTexts = sel === "cleaning";
   // Mockups aprovados (Limpeza-Danos / -Taxa / Filtro-Situacao): título da
   // página = só o nome da situação; gráficos "{Nome} · Qtde/Custo";
   // linha dourada "Últimos 7 Dias - Visão …" sob cada título.
-  const svcName = sel === null ? "Todas as situações" : (selName ?? "");
-  const svcWindow = cleaningPeriodView ? periodShort : cleaningWindow === "past" ? "Últimos 7 Dias" : "Próximos 7 Dias";
+  const svcName = sel === null ? "Todos os serviços" : (selName ?? "");
   const servicesTexts = {
-    pageTitle: onlyCleaningTexts ? null : sel === null ? "Todas as Situações" : (selName ?? ""),
+    pageTitle: onlyCleaningTexts ? null : sel === null ? "Todos os Serviços" : (selName ?? ""),
     pageSubtitle: onlyCleaningTexts
       ? null
       : sel === null
-        ? "Histórico e custos de todas as situações."
+        ? "Histórico e custos de todos os serviços."
         : `Histórico e custos de ${selName ?? ""}.`,
     barTitle: onlyCleaningTexts ? cleaningScreen.barTitle : `${svcName} · Qtde`,
     areaTitle: onlyCleaningTexts ? cleaningScreen.areaTitle : `${svcName} · Custo`,
-    topSub: onlyCleaningTexts ? undefined : `${svcWindow} - Visão por Imóvel`,
+    topSub: undefined as string | undefined,
     unit: (onlyCleaningTexts ? "limpeza" : "serviço") as "limpeza" | "serviço",
   };
 
@@ -3538,14 +3543,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
            dele. Um botão de filtro que não filtra a tela seria pior do que
            não ter botão. */
         title={
-          view === "limpeza" && servicesTexts.pageTitle
-            ? servicesTexts.pageTitle
-            : view === "limpeza"
-            ? cleaningPeriodView
-              ? cleaningPeriodLabel
-              : cleaningWindow === "past"
-                ? "Limpezas Últimos 7d"
-                : "Limpezas Próximos 7d"
+          view === "limpeza"
+            ? `${servicesTexts.pageTitle ?? "Limpezas"} · ${titleRangeLabel}`
             : undefined
         }
         subtitle={
@@ -3913,6 +3912,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="ds-card-grid grid-cols-1 lg:grid-cols-2 items-stretch">
               <div>
                 <CleaningTopProperties
+                  days={cleaningChartDaily?.length ?? 0}
                   items={servicesBreakdown}
                   loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
                   series={cleaningScreen.series}
@@ -4356,7 +4356,7 @@ export function OperationShell({
               relação ao título (print de 09/09/2026). Dentro da mesma linha do
               h1, o alinhamento passa a ser exato por construção, sem depender
               de medida nenhuma — e o subtítulo volta a ter a largura inteira. */}
-          <h1 className="ds-page-title !text-lg truncate">{title ?? copy.title}</h1>
+          <h1 className="ds-page-title !text-lg break-words">{title ?? copy.title}</h1>
           <p className="ds-page-subtitle truncate">{subtitle ?? copy.subtitle}</p>
         </div>
 
@@ -6021,8 +6021,11 @@ function CleaningTopProperties({
   series = "done",
   unit = "limpeza",
   subtitle,
+  days = 0,
 }: {
   subtitle?: string;
+  /** Dias da série atual — mesmo "(N dias)" do card de Custo. */
+  days?: number;
   items: CleaningTopItem[] | undefined;
   loading: boolean;
   /** "limpeza" ou "serviço" — só muda os textos da aba Serviços. */
@@ -6036,7 +6039,7 @@ function CleaningTopProperties({
   return (
     <div className={`${PANEL_SHELL} h-full w-full px-3.5 py-3.5`}>
       <PanelHeading
-        title="Top 5 imóveis"
+        title={days > 0 ? `Top 5 imóveis (${days} ${days === 1 ? "dia" : "dias"})` : "Top 5 imóveis"}
         dotColor={cleaningSeriesColor(series)}
         className="mb-2.5"
         right={<span className="text-[10px] text-muted-foreground">{unit === "limpeza" ? "nº de limpezas" : "nº de serviços"}</span>}

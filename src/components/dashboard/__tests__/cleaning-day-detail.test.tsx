@@ -154,8 +154,8 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
       />,
     );
     const t = text(html);
-    expect(t).toContain("Proprietária do Imóvel: Patrícia");
-    expect(t).toContain("Proprietário do Imóvel: Clayton");
+    expect(t).toContain("Pr: Patrícia");
+    expect(t).toContain("Pr: Clayton");
     expect(t).toContain("17/09/2026 · 14:20 · Maria");
     expect(t).toContain("Tipo da Limpeza: Normal");
     // O único botão é o "Fechar detalhe"; sem permissão não há nenhum botão de edição.
