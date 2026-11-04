@@ -1,18 +1,22 @@
 /**
  * F2-B · B3.3 — WORKER SHADOW: uma conversa candidata, ponta a ponta, sob o prazo absoluto de 15 s.
  *
- * Sequência (§13 da diretriz da Entrega 2):
- *   1 prazo global → 2 chave mestra + estado global + configuração + medição dos disjuntores →
- *   3 manifesto → 4 escopo (`validateTurnScope`, dono esperado = tenant do manifesto) → 5 tenant/imóvel →
- *   6–7 janela do coletor + debounce/reconciliação (pausa lida para o coletor) → 8 lease
- *   (observe → [acknowledge do que antecede a resposta da equipe] → mark_ready → claim → start) →
- *   9 pausa humana RELIDA depois do claim + posse humana → 10–13 cadeia com contexto, composição,
- *   estimativa, orçamento e reserva (no gerador) → 14 estado relido → 15 Gateway só com tudo autorizado →
- *   16 parser/validadores → 17 descarte (o outcome nunca sai do executor) → 18 registro tipado →
- *   19 liquidação → 20 lease finalizado → 21 telemetria.
- * Nota de ordem: o lease é finalizado ANTES de gravar a telemetria para que o registro diga a verdade
- * sobre a integridade do lease (falha ⇒ `lease_integrity_failure`); a finalização e a gravação usam
- * o sinal de FINALIZAÇÃO (1,5 s reservados), nunca um relógio novo.
+ * Sequência (§13 da diretriz da Entrega 2, revista na Entrega 3.1):
+ *   1 prazo global → 2 chave mestra + estado global + configuração + medição dos disjuntores (a leitura
+ *   do estado traz o INSTANTE DO BANCO: todo instante de parede do worker — pausa, coletor, posse, cadeia,
+ *   registro — é ancorado nele, F-09/F-03) → 3 manifesto → 4 escopo → 5 tenant/imóvel → 6–7 pausa +
+ *   janela do coletor → 8 lease (sela sobras de lote encerrado → observe → [acknowledge do que antecede a
+ *   equipe] → mark_ready → `shadow_claim_execution`, que reivindica E inicia numa transação, só a partir
+ *   de `ready` e só com a trava do tick) → 9 pausa RELIDA + posse humana → 10–15 cadeia, orçamento e
+ *   Gateway → 16–17 parser/validadores/descarte → 18 RECHECAGEM de soberania humana imediatamente antes de
+ *   persistir um candidato (F-06) → 19 `shadow_finalize_execution`: lease (com cerca de versão/token/prazo)
+ *   + liquidação pelo uso real + registro + disjuntores numa ÚNICA transação idempotente (F-01/F-02/F-11).
+ *
+ * D8 REVISADA (Entrega 3.1 · F-05): lote encerrado — concluído, em falha ou descartado — NUNCA é
+ * reprocessado. A falha sela o lote (mensagens vão para as processadas; o identificador do lote e o
+ * registro ficam no histórico). Não há nova tentativa por varredura, reinício de worker, recuperação de
+ * lease (o lote de worker perdido é selado pela reconciliação, não reivindicado de novo) nem recuperação
+ * de orçamento. Uma nova avaliação só acontece quando entra uma NOVA mensagem do hóspede.
  *
  * Nunca lança, nunca envia, nunca escreve fora das RPCs do lease e do Shadow. Nenhum texto sai daqui.
  */
@@ -34,6 +38,7 @@ import { type IntegrityCode, type ShadowBlockCode, type ShadowChannel, type Shad
 import { ShadowDeadline } from "./deadline";
 import { buildExecutionRecord, NO_GATEWAY, validateExecutionRecord, type ExecutionMeta, type NarrowOutcome } from "./extract";
 import { runShadowExecution } from "./executor";
+import { parseUsd8 } from "./money";
 import { createShadowGatewayGenerator, defaultMasterSwitch, issueShadowPreflight } from "./gateway-generator.server";
 
 /** Erros do escopo que indicam divergência de identidade (⇒ integridade global). */
@@ -49,21 +54,21 @@ export interface ShadowWorkerIo {
   fetchCollectorWindow(turn: ValidatedTurn, signal: AbortSignal, nowMs: number): Promise<CollectorWindowSource>;
   loadHumanPauseSource(turn: ValidatedTurn, signal: AbortSignal, nowMs: number): Promise<HumanPauseSource>;
   loadOwnership(turn: ValidatedTurn, signal: AbortSignal, nowIso: string): Promise<OwnershipLoad>;
-  /** Portas de leitura da cadeia (a de posse humana devolve a linha já conferida). */
-  portsFor(turn: ValidatedTurn, ownershipRow: Extract<OwnershipLoad, { row: unknown }>["row"]): ShadowReadPorts;
+  /** Portas de leitura da cadeia (a de posse humana devolve a linha já conferida); `dbClock` = relógio do banco. */
+  portsFor(turn: ValidatedTurn, ownershipRow: Extract<OwnershipLoad, { row: unknown }>["row"], dbClock: () => number): ShadowReadPorts;
+  /** Token da trava GLOBAL do tick (F-07); sem ele nenhuma execução é reivindicada. */
+  tickToken: string | null;
   masterSwitchOn?: () => boolean;
   provider?: LlmProvider;
   log?: LlmLogger;
-  /** Relógio monotônico (ms) do prazo. */
+  /** Relógio monotônico (ms) do prazo; o relógio de parede é sempre o do BANCO + deslocamento monotônico. */
   now?: () => number;
-  /** Relógio de parede (ms epoch) para instantes gravados e para o coletor. */
-  wallNow?: () => number;
   schedule?: (fn: () => void, ms: number) => () => void;
   newId?: () => string;
 }
 
 export type ShadowWorkerOutcome =
-  | { status: "skipped"; code: ShadowBlockCode | "collector_not_ready" | "lease_concurrency" | "lease_overflow" | "measurement_unavailable" | "breaker_open" }
+  | { status: "skipped"; code: ShadowBlockCode | "collector_not_ready" | "lease_concurrency" | "lease_overflow" | "measurement_unavailable" | "breaker_open" | "tick_not_held" }
   | { status: "recorded"; decision: ShadowDecision }
   | { status: "record_failed"; decision: ShadowDecision };
 
@@ -88,16 +93,21 @@ export async function runShadowWorker(candidate: ShadowCandidate, io: ShadowWork
 }
 
 async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: ShadowDeadline): Promise<ShadowWorkerOutcome> {
-  const wall = io.wallNow ?? (() => Date.now());
+  const mono = io.now ?? (() => performance.now());
   const switchOn = io.masterSwitchOn ?? defaultMasterSwitch;
   const executionId = (io.newId ?? (() => crypto.randomUUID()))();
-  const startedAt = new Date(wall()).toISOString();
+  const monoStart = mono();
   const store = io.storeFor(deadline.signal);
 
   // 2) chave mestra + estado global + configuração + medição
   if (switchOn() !== true) return { status: "skipped", code: "master_switch_off" };
   const control = await store.readControl();
   if (!control) return { status: "skipped", code: "state_unreadable" };
+  // Relógio de PAREDE = instante do banco na leitura + deslocamento monotônico (F-09/F-03): nenhum
+  // instante de pausa, coletor, posse, cadeia ou registro vem do relógio da máquina do worker.
+  const monoAtRead = mono();
+  const dbClock = (): number => control.dbNowMs + (mono() - monoAtRead);
+  const startedAt = new Date(control.dbNowMs - Math.max(0, monoAtRead - monoStart)).toISOString();
   if (control.state !== "running") return { status: "skipped", code: "state_not_running" };
   const verdict = validateShadowControl(control);
   if (!verdict.ok) return { status: "skipped", code: verdict.code };
@@ -125,7 +135,7 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
     leaseVersion: null,
     modelId: limits.modelId,
     startedAt,
-    finishedAt: new Date(wall()).toISOString(),
+    finishedAt: new Date(Math.max(dbClock(), Date.parse(startedAt))).toISOString(),
     totalMs: Math.min(2_147_483_647, Math.round(deadline.elapsedMs())),
     leaseMs: Math.round(leaseMs),
     contextMs: Math.round(contextMs),
@@ -144,16 +154,20 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
     ...over,
   });
   const fin = () => io.storeFor(deadline.finalizationSignal);
+  /** Registro SEM lote (antes da reivindicação). Resposta perdida ⇒ UMA repetição idempotente. */
   const finish = async (narrow: NarrowOutcome | null, m: ExecutionMeta): Promise<ShadowWorkerOutcome> => {
-    const record = validateExecutionRecord(buildExecutionRecord(narrow, m, TURN_CHAIN_VERSION));
+    const built = buildExecutionRecord(narrow, { ...m, batchId: null, leaseVersion: null }, TURN_CHAIN_VERSION);
+    const record = validateExecutionRecord(built);
     const finalStore = fin();
     if (!record) {
       await finalStore.trip("technical_failure", "telemetry_failure");
-      return { status: "record_failed", decision: m.forcedDecision ?? "technical_failure" };
+      return { status: "record_failed", decision: built.decision };
     }
-    const r = await finalStore.record(record as ShadowExecutionRecord);
+    let r = await finalStore.record(record as ShadowExecutionRecord);
+    if (r.kind === "error" && !deadline.finalizationSignal.aborted) r = await finalStore.record(record as ShadowExecutionRecord);
     if (r.kind === "recorded" || r.kind === "duplicate") return { status: "recorded", decision: record.decision };
-    await finalStore.trip("technical_failure", "telemetry_failure");
+    // registro recusado pelo banco (formato) ⇒ medição comprometida; erro de transporte repetido ⇒ só não grava
+    if (r.kind === "invalid") await finalStore.trip("technical_failure", "telemetry_failure");
     return { status: "record_failed", decision: record.decision };
   };
   const integrity = async (code: IntegrityCode, turn: ValidatedTurn | null, extra: Partial<ExecutionMeta> = {}): Promise<ShadowWorkerOutcome> => {
@@ -185,8 +199,8 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
   if (turn.tenantId !== entry.tenantId) return integrity("manifest_tenant_mismatch", turn);
   if (turn.propertyId !== entry.propertyId || turn.conversationId !== candidate.conversationId) return integrity("manifest_property_mismatch", turn);
 
-  // 6–7) pausa (para o coletor) + janela do coletor
-  const nowMs = wall();
+  // 6–7) pausa (para o coletor) + janela do coletor — instante do BANCO
+  const nowMs = dbClock();
   let pause: HumanPauseState;
   let window: CollectorWindowSource;
   try {
@@ -208,12 +222,19 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
   }
   if (decision.state !== "ready") return { status: "skipped", code: "collector_not_ready" };
 
-  // 8) lease (sinal único; semântica B3.1 intacta)
+  // 8) lease (sinal único). F-05: sobras de um lote ENCERRADO (falha/descarte/expiração) são seladas
+  //    antes de observar — nunca voltam a ser pendentes sem mensagem nova.
   const lease = io.leaseFor(deadline.signal);
   const tLease = deadline.elapsedMs();
   const conv = turn.conversationId;
   let snap = await lease.load(conv).catch(() => undefined);
   if (snap === undefined) return technical("lease_integrity_failure", turn);
+  if (snap && (snap.state === "failed" || snap.state === "cancelled" || snap.state === "expired") && snap.batchId !== null && snap.messageIds.length > 0) {
+    const seal = await lease.transition(conv, "acknowledge", snap.version, { messageIds: [...snap.messageIds] });
+    if (seal.result !== "applied" && seal.result !== "noop") return { status: "skipped", code: "lease_concurrency" };
+    snap = await lease.load(conv).catch(() => undefined);
+    if (!snap) return technical("lease_integrity_failure", turn);
+  }
   const batchIds = decision.batch.messages.map((m) => m.id);
   const obs = await lease.transition(conv, "observe", snap?.version ?? 0, { messageIds: batchIds });
   if (obs.result === "deferred" || obs.result === "stale_version") return { status: "skipped", code: "lease_concurrency" };
@@ -249,37 +270,63 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
   } else if (snap.state !== "ready" || snap.messageIds.join() !== lote.join()) {
     return { status: "skipped", code: "lease_concurrency" };
   }
-  const claim = await lease.claim(conv, snap.version);
-  if (claim.result !== "acquired" && claim.result !== "recovered") return { status: "skipped", code: "lease_concurrency" };
-  if (claim.messageIds.join() !== lote.join()) return technical("lease_integrity_failure", turn, { batchId: claim.batchId, leaseVersion: claim.version });
-  const started = await lease.transition(conv, "start", claim.version, { ownerToken: claim.ownerToken });
-  if (started.result !== "applied") return technical("lease_integrity_failure", turn, { batchId: claim.batchId, leaseVersion: claim.version });
-  let leaseVersion = started.version;
+  // reivindica E inicia numa transação (só de `ready`; trava do tick; manifesto); resposta perdida ⇒
+  // UMA repetição idempotente com a MESMA execução (devolve a mesma posse, nunca uma segunda)
+  if (!io.tickToken) return { status: "skipped", code: "tick_not_held" };
+  const claimArgs = { tickToken: io.tickToken, executionId, conversationId: conv, expectedVersion: snap.version, tenantId: turn.tenantId, propertyId: turn.propertyId, channel: CHANNEL[turn.surface] };
+  let claim = await store.claimExecution(claimArgs);
+  if (claim.kind === "error" && !deadline.signal.aborted) claim = await store.claimExecution(claimArgs);
+  if (claim.kind === "rejected") {
+    if (claim.code === "tick_not_held") return { status: "skipped", code: "tick_not_held" };
+    if (claim.code === "state_not_running") return { status: "skipped", code: "state_not_running" };
+    return { status: "skipped", code: "lease_concurrency" };
+  }
+  // sem resposta legível: a posse pode ter sido confirmada; a reconciliação a sela (nunca reprocessa)
+  if (claim.kind !== "claimed") return { status: "skipped", code: "lease_concurrency" };
+  const ownerToken = claim.ownerToken;
+  const leaseVersion = claim.version;
   const batchId = claim.batchId;
   leaseMs += deadline.elapsedMs() - tLease;
 
-  /** Finaliza o lease (sinal de finalização). Sucesso/política/pausa ⇒ complete; técnico ⇒ fail definitivo. */
-  const finalizeLease = async (ok: boolean): Promise<boolean> => {
-    const l = io.leaseFor(deadline.finalizationSignal);
-    const r = ok
-      ? await l.transition(conv, "complete", leaseVersion, { ownerToken: claim.ownerToken })
-      : await l.transition(conv, "fail", leaseVersion, { ownerToken: claim.ownerToken, retryable: false });
-    const applied = r.result === "applied";
-    leaseVersion = applied ? r.version : leaseVersion;
-    return applied;
-  };
-  const close = async (narrow: NarrowOutcome | null, m: ExecutionMeta): Promise<ShadowWorkerOutcome> => {
-    // complete SÓ quando a cadeia avaliou o lote (ou bloqueio por pausa, D8); qualquer outro desfecho
-    // (técnico, orçamento, desligamento, integridade, posse indeterminada) ⇒ fail definitivo: nenhuma
-    // mensagem é marcada como processada sem ter sido avaliada.
+  /**
+   * Finaliza a execução numa transação (lease + liquidação + registro + disjuntores). complete SÓ quando
+   * a cadeia avaliou o lote (ou bloqueio por pausa/posse, D8); qualquer outro desfecho ⇒ fail SELADO.
+   * Cerca violada no banco ⇒ o registro de fallback (`lease_integrity_failure`) é o que fica.
+   */
+  const close = async (narrow: NarrowOutcome | null, m0: ExecutionMeta): Promise<ShadowWorkerOutcome> => {
+    const m: ExecutionMeta = { ...m0, batchId, leaseVersion };
     const evaluated = m.forcedDecision === "human_pause_active" || (m.forcedDecision === null && narrow !== null && narrow.kind !== "technical_error" && m.gateway.error === null);
-    const leaseOk = await finalizeLease(evaluated);
-    const merged = leaseOk ? m : { ...m, forcedDecision: "technical_failure" as const, technicalCode: "lease_integrity_failure" as const, executionState: "failed" as const };
-    return finish(narrow, { ...merged, batchId, leaseVersion });
+    const record = validateExecutionRecord(buildExecutionRecord(narrow, m, TURN_CHAIN_VERSION));
+    const fenced = validateExecutionRecord(
+      buildExecutionRecord(null, { ...m, forcedDecision: "technical_failure", technicalCode: "lease_integrity_failure", executionState: "failed", integrityCode: null, blockCode: null }, TURN_CHAIN_VERSION),
+    );
+    const finalStore = fin();
+    if (!record || !fenced) {
+      await finalStore.trip("technical_failure", "telemetry_failure");
+      return { status: "record_failed", decision: m.forcedDecision ?? "technical_failure" };
+    }
+    const args = {
+      executionId,
+      ownerToken,
+      outcome: evaluated ? ("complete" as const) : ("fail" as const),
+      settlement: { tokens: m.gateway.totalTokens, costUsd: m.gateway.costUsd, calls: m.gateway.calls },
+      record: record as ShadowExecutionRecord,
+      fencedRecord: fenced as ShadowExecutionRecord,
+    };
+    let r = await finalStore.finalizeExecution(args);
+    // resposta perdida (F-11/F-12): UMA repetição idempotente; nunca um disparo de disjuntor por isso
+    if (r.kind === "error" && !deadline.finalizationSignal.aborted) r = await finalStore.finalizeExecution(args);
+    if (r.kind === "finalized") return { status: "recorded", decision: r.decision as ShadowDecision };
+    if (r.kind === "duplicate") return { status: "recorded", decision: record.decision };
+    if (r.kind === "reconciled") return { status: "recorded", decision: "technical_failure" };
+    if (r.kind === "invalid") await finalStore.trip("technical_failure", "telemetry_failure");
+    // sem confirmação: a execução segue em andamento no banco e a reconciliação a encerra (pior caso)
+    return { status: "record_failed", decision: record.decision };
   };
+  if (claim.messageIds.join() !== lote.join()) return close(null, meta({ executionState: "failed", forcedDecision: "technical_failure", technicalCode: "lease_integrity_failure" }, turn));
 
-  // 9) pausa RELIDA depois do claim + posse humana
-  const nowMs2 = wall();
+  // 9) pausa RELIDA depois do claim + posse humana — instante do BANCO
+  const nowMs2 = dbClock();
   let pause2: HumanPauseState;
   let ownership: OwnershipLoad;
   const tCtx = deadline.elapsedMs();
@@ -309,24 +356,24 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
   // 10–15) pré-autorização → gerador emitido → cadeia (o Gateway só roda com todas as barreiras)
   const preflight = issueShadowPreflight({ executionId, tenantId: turn.tenantId, propertyId: turn.propertyId, conversationId: conv, stateVersion: control.stateVersion, manifestOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true });
   const generator = preflight
-    ? createShadowGatewayGenerator({ preflight, limits, deadline, store, masterSwitchOn: io.masterSwitchOn, provider: io.provider, log: io.log, now: io.now })
+    ? createShadowGatewayGenerator({ preflight, limits, deadline, store, masterSwitchOn: io.masterSwitchOn, provider: io.provider, log: io.log, now: mono })
     : null;
   if (!generator) return close(null, meta({ executionState: "blocked", forcedDecision: "technical_failure", technicalCode: "postprocess_failed", pauseState }, turn));
   const tChain = deadline.elapsedMs();
   const exec = await runShadowExecution(
     { turn, traceId: executionId, batch: decision.batch },
-    { ports: io.portsFor(turn, ownership.row), generator, signal: deadline.signal, remainingMs: () => deadline.processingRemainingMs(), now: io.now, schedule: io.schedule },
+    { ports: io.portsFor(turn, ownership.row, dbClock), generator, signal: deadline.signal, remainingMs: () => deadline.processingRemainingMs(), now: dbClock, schedule: io.schedule },
   );
   const g = generator.telemetry();
   const gateway: ExecutionMeta["gateway"] = { calls: g.calls, inputTokens: g.inputTokens, outputTokens: g.outputTokens, reasoningTokens: g.reasoningTokens, totalTokens: g.totalTokens, usageSource: g.usageSource, costUsd: g.costUsd, error: g.error };
   const chainMs = Math.max(0, deadline.elapsedMs() - tChain);
 
-  // 19) liquidação do orçamento (uso real; reserva aberta continua contada se falhar)
+  // uso real acima dos tetos por turno ⇒ violação (a liquidação, na finalização, conta o uso real)
   let tokenViolation = false;
   let budgetExceeded: ExecutionMeta["budgetExceeded"] = g.budgetLimit;
-  if (g.reservationId) {
-    await fin().settle(g.reservationId, { tokens: g.totalTokens, costUsd: g.costUsd, calls: g.calls });
-    const violation = actualUsageViolation(limits, g, g.calls, g.costUsd);
+  // só uso INFORMADO pelo provedor é conferido contra os tetos; uso desconhecido já é liquidado pelo pior caso reservado
+  if (g.calls > 0 && g.usageSource !== "none") {
+    const violation = actualUsageViolation(limits, g, g.calls, parseUsd8(g.costUsd));
     if (violation) {
       tokenViolation = true;
       budgetExceeded = violation;
@@ -343,7 +390,9 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
     forced = "technical_failure";
     technicalCode = exec.reason === "deadline_expired" ? "shadow_timeout" : "postprocess_failed";
     executionState = exec.reason === "deadline_expired" ? "timed_out" : "failed";
-  } else if (deadline.reason !== null) {
+  } else if (deadline.reason !== null || (g.status === "failed" && g.error === "timeout")) {
+    // o tempo-limite do Gateway É o prazo de processamento restante (`timeoutMs`): os dois relógios
+    // disparam no mesmo instante e qualquer um que chegue primeiro é o mesmo desfecho (determinístico)
     forced = "technical_failure";
     technicalCode = "shadow_timeout";
     executionState = "timed_out";
@@ -368,6 +417,31 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
   if (narrow && !forced && (narrow.senderIntegrityCode || (narrow.refusalCode && isIntegrityCode(narrow.refusalCode)))) {
     await fin().trip("integrity_violation", "integrity_divergence");
   }
+  // 18) F-06: RECHECAGEM de soberania humana imediatamente antes de persistir um candidato — pausa e posse
+  //     relidas agora (instante do banco, sinal da finalização). Equipe assumiu ⇒ o candidato é descartado
+  //     (pausa ⇒ `human_pause_active`; posse mudou ⇒ restrição operacional); leitura falhou ⇒ falha técnica.
+  let finalPause = pauseState;
+  if (!forced && narrow && narrow.kind !== "technical_error" && buildExecutionRecord(narrow, meta({ executionState: "completed" }, turn), TURN_CHAIN_VERSION).decision === "answer_candidate") {
+    const nowMs3 = dbClock();
+    try {
+      const p3 = deriveHumanPause({ ...(await io.loadHumanPauseSource(turn, deadline.finalizationSignal, nowMs3)), now: new Date(nowMs3).toISOString() });
+      const o3 = await io.loadOwnership(turn, deadline.finalizationSignal, new Date(nowMs3).toISOString());
+      finalPause = pauseStateOf(p3);
+      if (p3.state !== "active") {
+        forced = "human_pause_active";
+        blockCode = p3.state === "unknown" ? "pause_unreadable" : p3.indefinite ? "pause_indefinite" : "pause_active";
+        executionState = "blocked";
+      } else if (o3.status !== ownership.status) {
+        forced = "operational_restriction";
+        blockCode = "ownership_indeterminate";
+        executionState = "blocked";
+      }
+    } catch {
+      forced = "technical_failure";
+      technicalCode = "read_failed";
+      executionState = "failed";
+    }
+  }
   return close(
     narrow,
     meta(
@@ -376,7 +450,7 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
         forcedDecision: forced,
         technicalCode,
         blockCode,
-        pauseState,
+        pauseState: finalPause,
         gateway,
         gatewayMs: g.latencyMs,
         validationMs: Math.max(0, Math.round(chainMs - g.latencyMs)),
@@ -419,7 +493,8 @@ export async function productionWorkerIo(): Promise<ShadowWorkerIo> {
     fetchCollectorWindow: (turn, signal, nowMs) => collector.fetchCollectorWindow(turn, { db, signal, nowMs }),
     loadHumanPauseSource: (turn, signal, nowMs) => pauseLoader.loadHumanPauseSource(turn, { db, signal, nowMs }),
     loadOwnership: (turn, signal, nowIso) => ownershipLoader.loadConversationOwnership(turn, { db, signal, nowIso }),
-    portsFor: (_turn, ownershipRow) => {
+    tickToken: null,
+    portsFor: (_turn, ownershipRow, dbClock) => {
       // o contexto carregado pela cadeia (etapa 2) informa as audiências do dossiê (etapa 3)
       let audiences: readonly string[] | null = null;
       return {
@@ -440,7 +515,7 @@ export async function productionWorkerIo(): Promise<ShadowWorkerIo> {
         loadStayAuthorizationSource: (t, s) => stay.loadStayAuthorizationSource(t, { db, signal: s }),
         loadConversationOwnership: async (t) => (t.conversationId === ownershipRow.id ? ownershipRow : null),
         loadSenderIdentitySource: (t, s) => sender.loadSenderIdentitySource(t, { db, signal: s }),
-        loadHumanPause: (t, s) => pauseLoader.loadHumanPauseSource(t, { db, signal: s, nowMs: Date.now() }),
+        loadHumanPause: (t, s) => pauseLoader.loadHumanPauseSource(t, { db, signal: s, nowMs: dbClock() }),
       };
     },
   };

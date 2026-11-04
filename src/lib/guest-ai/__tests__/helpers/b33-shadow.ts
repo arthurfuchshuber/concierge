@@ -8,12 +8,13 @@ import type { ValidatedTurn } from "@/lib/guest-ai/types";
 import { applyLeaseEvent, newLeaseRecord, type DistributedLeaseStore, type LeaseRecord, type StoreClaimResult, type StoreTransitionResult } from "@/lib/guest-ai/batch/lease";
 import type { LlmProvider, ProviderOutcome } from "@/lib/guest-ai/llm/providers/types";
 import type { LlmCallLogEvent } from "@/lib/guest-ai/llm/telemetry";
-import type { ManifestSnapshot, RecordResult, ReserveResult, ShadowStore } from "@/lib/guest-ai/data/shadow-store.server";
+import type { ClaimArgs, ClaimResult, FinalizeArgs, FinalizeResult, ManifestSnapshot, RecordResult, ReserveResult, ShadowStore, TickResult } from "@/lib/guest-ai/data/shadow-store.server";
 import type { OwnershipLoad } from "@/lib/guest-ai/data/conversation-ownership.server";
 import type { CollectorWindowSource } from "@/lib/guest-ai/data/collector.server";
 import type { ShadowCandidate } from "@/lib/guest-ai/data/shadow-candidates.server";
 import type { ShadowControl, ShadowExecutionRecord, ShadowFailureState, ShadowTransitionReason } from "@/lib/guest-ai/shadow-exec/contracts";
-import { evaluateErrorBreaker, isEvaluable, isTechnicalError, type ErrorBreakerVerdict } from "@/lib/guest-ai/shadow-exec/breakers";
+import { evaluateErrorBreaker, isEvaluable, isTechnicalError, type ErrorBreakerVerdict, type TurnReservation } from "@/lib/guest-ai/shadow-exec/breakers";
+import { parseUsd8 } from "@/lib/guest-ai/shadow-exec/money";
 import type { ShadowWorkerIo } from "@/lib/guest-ai/shadow-exec/worker.server";
 import { conversationContext } from "./b21-fixtures";
 import { CONV, MSG, TURN_FIELDS, history } from "./b23-chain";
@@ -38,16 +39,21 @@ export function shadowCtx() {
 
 export const candidate = (over: Partial<ShadowCandidate> = {}): ShadowCandidate => ({ conversationId: CONV, propertyId: P_ID, tenantId: T_ID, surface: "guide_chat", messageId: MSG, ...over });
 
+export const T0 = Date.parse("2026-11-03T10:01:00Z");
+/** Token da trava do tick nos testes em memória. */
+export const TICK = "c".repeat(64);
+
+/** Configuração completa com os parâmetros HOMOLOGADOS da Entrega 3.1 (pior caso US$ 0,13072/turno). */
 export function fullControl(over: Partial<ShadowControl> = {}): ShadowControl {
   return {
     state: "running",
     stateVersion: 7,
     modelId: "openai/gpt-5.6-sol",
     reasoningEffort: "low",
-    maxInputTokens: 60_000,
-    maxOutputTokens: 1_024,
-    maxTotalTokens: 70_000,
-    maxTurnCostUsd: 0.5,
+    maxInputTokens: 40_000,
+    maxOutputTokens: 1_536,
+    maxTotalTokens: 42_000,
+    maxTurnCostUsd: 0.15,
     dailyCostLimitUsd: 1,
     maxDailyTokens: 5_000_000,
     maxDailyCalls: 500,
@@ -56,10 +62,11 @@ export function fullControl(over: Partial<ShadowControl> = {}): ShadowControl {
     budgetDayTimezone: "America/Sao_Paulo",
     telemetryRetentionDays: 30,
     tickIntervalSeconds: 60,
-    maxConversationsPerTick: 5,
+    maxConversationsPerTick: 3,
     manifestVersion: 1,
     retentionAuthorized: true,
     retentionScope: "openai_responses",
+    dbNowMs: T0,
     ...over,
   };
 }
@@ -69,18 +76,28 @@ export const manifestOf = (entries: Array<{ tenantId: string; propertyId: string
   entries: entries.map((e) => ({ manifestVersion: version, tenantId: e.tenantId, propertyId: e.propertyId, selectionReason: "highest_volume", twinStatus: "verified", historyStatus: "verified" })),
 });
 
-/** Store Shadow em memória com as MESMAS regras do SQL (reserva atômica, disjuntores, CAS de estado). */
+const usd = (u: bigint) => Number(u) / 1e8;
+
+/**
+ * Store Shadow em memória com as MESMAS regras do SQL (reserva atômica e idempotente, reivindicação só de
+ * `ready` com a trava do tick, finalização atômica com cerca, disjuntores, CAS de estado).
+ */
 export class MemoryShadowStore implements ShadowStore {
   control: ShadowControl | null = fullControl();
   manifest: ManifestSnapshot | null = manifestOf();
   records: ShadowExecutionRecord[] = [];
   trips: Array<{ to: ShadowFailureState; reason: ShadowTransitionReason }> = [];
-  reservations = new Map<string, { tokens: number; cost: number; calls: number; settled: boolean }>();
+  reservations = new Map<string, { executionId: string; tokens: number; cost: number; calls: number; settled: boolean; settledCost: number | null }>();
   reservedCost = 0;
   settledCost = 0;
   breaker: ErrorBreakerVerdict | null = null;
-  fail: Partial<Record<"readControl" | "readManifest" | "reserve" | "settle" | "record" | "evaluate" | "trip", boolean>> = {};
+  fail: Partial<Record<"readControl" | "readManifest" | "reserve" | "finalize" | "record" | "evaluate" | "trip" | "claim" | "tick" | "reconcile", boolean>> = {};
   calls: string[] = [];
+  /** Lease usado pela reivindicação/finalização (o mesmo do worker). */
+  lease: ModelLeaseStore | null = null;
+  tickToken: string | null = TICK;
+  inflight = new Map<string, { conversationId: string; version: number; batchId: string; status: "running" | "finalized" | "reconciled" }>();
+  finalizations: FinalizeArgs[] = [];
   private n = 0;
   async readControl() {
     this.calls.push("readControl");
@@ -97,30 +114,24 @@ export class MemoryShadowStore implements ShadowStore {
     if (this.control && (this.control.state === "running" || to === "integrity_violation")) this.control = { ...this.control, state: to, stateVersion: this.control.stateVersion + 1 };
     return "applied" as const;
   }
-  async reserve(executionId: string, r: { tokens: number; costUsd: number; calls: number }): Promise<ReserveResult> {
+  async reserve(executionId: string, r: TurnReservation): Promise<ReserveResult> {
     this.calls.push("reserve");
     if (this.fail.reserve) return { kind: "error" };
+    const existing = [...this.reservations.entries()].find(([, x]) => x.executionId === executionId);
+    if (existing) return { kind: "reserved", reservationId: existing[0] };
+    if (this.inflight.size > 0 && this.inflight.get(executionId)?.status !== "running") return { kind: "blocked", code: "not_claimed" };
     if (!this.control || this.control.state !== "running") return { kind: "blocked", code: "state_not_running" };
-    if (r.costUsd > (this.control.maxTurnCostUsd ?? 0)) return { kind: "exceeded", limit: "turn_cost" };
-    if (this.settledCost + this.reservedCost + r.costUsd > (this.control.dailyCostLimitUsd ?? 0)) {
+    const cost = usd(r.costUsd8);
+    if (r.costUsd8 > (parseUsd8(this.control.maxTurnCostUsd) ?? 0n)) return { kind: "exceeded", limit: "turn_cost" };
+    if (this.settledCost + this.reservedCost + cost > (this.control.dailyCostLimitUsd ?? 0) + 1e-12) {
       await this.trip("budget_exhausted", "budget_limit_reached");
       return { kind: "exceeded", limit: "daily_cost" };
     }
     this.n++;
     const id = `7f000000-0000-4000-8000-${String(this.n).padStart(12, "0")}`;
-    this.reservations.set(id, { tokens: r.tokens, cost: r.costUsd, calls: r.calls, settled: false });
-    this.reservedCost += r.costUsd;
-    void executionId;
+    this.reservations.set(id, { executionId, tokens: r.tokens, cost, calls: r.calls, settled: false, settledCost: null });
+    this.reservedCost += cost;
     return { kind: "reserved", reservationId: id };
-  }
-  async settle(id: string, a: { tokens: number; costUsd: number; calls: number }) {
-    this.calls.push("settle");
-    const r = this.reservations.get(id);
-    if (this.fail.settle || !r || r.settled) return "error" as const;
-    r.settled = true;
-    this.reservedCost -= r.cost;
-    this.settledCost += a.costUsd;
-    return "settled" as const;
   }
   async evaluateBreakers(): Promise<ErrorBreakerVerdict> {
     this.calls.push("evaluate");
@@ -134,9 +145,62 @@ export class MemoryShadowStore implements ShadowStore {
   async record(r: ShadowExecutionRecord): Promise<RecordResult> {
     this.calls.push("record");
     if (this.fail.record) return { kind: "error" };
-    if (r.batchId && this.records.some((x) => x.batchId === r.batchId)) return { kind: "duplicate" };
+    if (r.batchId !== null) return { kind: "invalid" };
+    if (this.records.some((x) => x.executionId === r.executionId)) return { kind: "duplicate" };
     this.records.push(r);
     return { kind: "recorded", breaker: "ok" };
+  }
+  async acquireTick(): Promise<TickResult> {
+    this.calls.push("acquireTick");
+    if (this.fail.tick) return { kind: "error" };
+    if (!this.control || this.control.state !== "running") return { kind: "blocked", code: "state_not_running" };
+    return { kind: "acquired", token: TICK, dbNowMs: this.control.dbNowMs, expiresMs: this.control.dbNowMs + 55_000 };
+  }
+  async releaseTick() {
+    this.calls.push("releaseTick");
+    return "released" as const;
+  }
+  async reconcile() {
+    this.calls.push("reconcile");
+    return this.fail.reconcile ? { kind: "error" as const } : { kind: "ok" as const, reconciled: 0 };
+  }
+  async claimExecution(a: ClaimArgs): Promise<ClaimResult> {
+    this.calls.push("claim");
+    if (this.fail.claim) return { kind: "error" };
+    const prev = this.inflight.get(a.executionId);
+    if (prev) return { kind: "rejected", code: "duplicate" };
+    if (!this.control || this.control.state !== "running") return { kind: "rejected", code: "state_not_running" };
+    if (a.tickToken !== this.tickToken) return { kind: "rejected", code: "tick_not_held" };
+    if (!this.lease) return { kind: "error" };
+    const c = await this.lease.claim(a.conversationId, a.expectedVersion);
+    if (c.result !== "acquired") return { kind: "rejected", code: c.result === "stale_version" ? "stale_version" : "not_claimable" };
+    const st = await this.lease.transition(a.conversationId, "start", c.version, { ownerToken: c.ownerToken });
+    if (st.result !== "applied") return { kind: "error" };
+    this.inflight.set(a.executionId, { conversationId: a.conversationId, version: st.version!, batchId: c.batchId, status: "running" });
+    return { kind: "claimed", version: st.version!, ownerToken: c.ownerToken, batchId: c.batchId, messageIds: c.messageIds, repeated: false };
+  }
+  async finalizeExecution(a: FinalizeArgs): Promise<FinalizeResult> {
+    this.calls.push("finalize");
+    this.finalizations.push(a);
+    if (this.fail.finalize) return { kind: "error" };
+    const f = this.inflight.get(a.executionId);
+    if (!f) return { kind: "not_claimed" };
+    if (f.status === "finalized") return { kind: "duplicate" };
+    if (f.status === "reconciled") return { kind: "reconciled" };
+    const t = await this.lease!.transition(f.conversationId, a.outcome, f.version, { ownerToken: a.ownerToken, retryable: false });
+    const live = t.result === "applied";
+    if (live && a.outcome === "fail" && this.lease!.rec) this.lease!.rec = { ...this.lease!.rec, processedMessageIds: [...this.lease!.rec.processedMessageIds, ...this.lease!.rec.messageIds], messageIds: [] };
+    const rec = live ? a.record : a.fencedRecord;
+    this.records.push(rec);
+    const res = [...this.reservations.values()].find((x) => x.executionId === a.executionId && !x.settled);
+    if (res) {
+      res.settled = true;
+      res.settledCost = Number(a.settlement.costUsd);
+      this.reservedCost -= res.cost;
+      this.settledCost += res.settledCost;
+    }
+    f.status = "finalized";
+    return { kind: "finalized", lease: live ? (a.outcome === "complete" ? "completed" : "failed") : "fenced_foreign", decision: rec.decision };
   }
 }
 
@@ -194,8 +258,6 @@ export function fakeProvider(outcome: ProviderOutcome | ((n: number) => Provider
 }
 export const okJson = (body: unknown, usage = { inputTokens: 900, outputTokens: 120, totalTokens: 1020 }): ProviderOutcome => ({ kind: "ok", text: JSON.stringify(body), finishReason: "stop", usage, requestId: "req-1" });
 
-export const T0 = Date.parse("2026-11-03T10:01:00Z");
-
 /** Janela do coletor com UMA mensagem do hóspede (a do histórico de teste), já fora do debounce. */
 export function windowOf(turn: ValidatedTurn = shadowTurn(), over: Partial<CollectorWindowSource> = {}): CollectorWindowSource {
   return {
@@ -218,6 +280,7 @@ export interface Captured {
 export function makeIo(over: Partial<ShadowWorkerIo> & { store?: MemoryShadowStore; lease?: ModelLeaseStore; provider?: LlmProvider } = {}) {
   const store = over.store ?? new MemoryShadowStore();
   const lease = over.lease ?? new ModelLeaseStore(() => new Date(T0).toISOString());
+  store.lease = lease;
   const captured: Captured = { logs: [], scopeCalls: 0, ownershipCalls: 0 };
   let mono = 0;
   const io: ShadowWorkerIo = {
@@ -243,7 +306,7 @@ export function makeIo(over: Partial<ShadowWorkerIo> & { store?: MemoryShadowSto
     provider: over.provider,
     log: (e) => void captured.logs.push(e),
     now: () => (mono += 5),
-    wallNow: () => T0,
+    tickToken: TICK,
     newId: () => EXEC_ID,
     ...over,
   };

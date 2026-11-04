@@ -53,7 +53,7 @@ const record = (r: ShadowExecutionRecord | Record<string, unknown>) => rpc("shad
 
 /** Volta ao estado inicial da migration (só o dono, no teste). */
 async function reset() {
-  await pg.sql(`truncate public.guest_ai_shadow_executions, public.guest_ai_shadow_budget_reservations, public.guest_ai_shadow_budget_days, public.guest_ai_shadow_transitions, public.guest_ai_shadow_access_log, public.guest_ai_shadow_manifest`);
+  await pg.sql(`truncate public.guest_ai_shadow_executions, public.guest_ai_shadow_budget_reservations, public.guest_ai_shadow_budget_days, public.guest_ai_shadow_transitions, public.guest_ai_shadow_access_log, public.guest_ai_shadow_manifest, public.guest_ai_shadow_inflight`);
   await pg.sql(`delete from public.guest_ai_shadow_control; insert into public.guest_ai_shadow_control (id, state, daily_cost_limit_usd) values (1, 'disabled', 1.00)`);
 }
 /** Leva até `running` pelo caminho AUTORIZADO (manifesto → configuração → retenção → ready → running). */
@@ -61,9 +61,9 @@ async function toRunning(over: Record<string, unknown> = {}) {
   await rpc("shadow_manifest_add", { p_actor: ACTOR, p_manifest_version: 1, p_tenant_id: T_ID, p_property_id: P_ID, p_selection_reason: "highest_volume", p_twin_status: "verified", p_history_status: "verified" });
   let v = Number((await control()).state_version);
   const cfg = await rpc("shadow_configure", {
-    p_expected_version: v, p_actor: ACTOR, p_model_id: "openai/gpt-5.6-sol", p_reasoning_effort: "low", p_max_input_tokens: 60000, p_max_output_tokens: 1024,
-    p_max_total_tokens: 70000, p_max_turn_cost_usd: 0.5, p_daily_cost_limit_usd: 1.0, p_max_daily_tokens: 5000000, p_max_daily_calls: 500, p_error_window_minutes: 60,
-    p_error_min_sample: 20, p_budget_day_timezone: "America/Sao_Paulo", p_telemetry_retention_days: 30, p_tick_interval_seconds: 60, p_max_conversations_per_tick: 5,
+    p_expected_version: v, p_actor: ACTOR, p_model_id: "openai/gpt-5.6-sol", p_reasoning_effort: "low", p_max_input_tokens: 40000, p_max_output_tokens: 1536,
+    p_max_total_tokens: 42000, p_max_turn_cost_usd: 0.15, p_daily_cost_limit_usd: 1.0, p_max_daily_tokens: 5000000, p_max_daily_calls: 500, p_error_window_minutes: 60,
+    p_error_min_sample: 20, p_budget_day_timezone: "America/Sao_Paulo", p_telemetry_retention_days: 30, p_tick_interval_seconds: 60, p_max_conversations_per_tick: 3,
     p_manifest_version: 1, ...over,
   });
   expect(cfg.result).toBe("applied");
@@ -76,9 +76,15 @@ async function toRunning(over: Record<string, unknown> = {}) {
   expect(run.result).toBe("applied");
 }
 
-const TABLES = ["guest_ai_shadow_control", "guest_ai_shadow_transitions", "guest_ai_shadow_manifest", "guest_ai_shadow_executions", "guest_ai_shadow_budget_days", "guest_ai_shadow_budget_reservations", "guest_ai_shadow_access_log"];
-const RPCS = ["shadow_get_control", "shadow_get_manifest", "shadow_manifest_add", "shadow_configure", "shadow_authorize_retention", "shadow_transition", "shadow_trip", "shadow_reserve_budget", "shadow_settle_budget", "shadow_evaluate_breakers", "shadow_record_execution", "shadow_report", "shadow_purge_expired"];
-const INTERNAL = ["guest_ai_shadow_config_problem", "guest_ai_shadow_error_verdict", "guest_ai_shadow_trip_locked"];
+const TABLES = ["guest_ai_shadow_control", "guest_ai_shadow_transitions", "guest_ai_shadow_manifest", "guest_ai_shadow_executions", "guest_ai_shadow_budget_days", "guest_ai_shadow_budget_reservations", "guest_ai_shadow_access_log", "guest_ai_shadow_inflight"];
+const RPCS = ["shadow_get_control", "shadow_get_manifest", "shadow_manifest_add", "shadow_configure", "shadow_authorize_retention", "shadow_transition", "shadow_trip", "shadow_reserve_budget", "shadow_evaluate_breakers", "shadow_record_execution", "shadow_acquire_tick", "shadow_release_tick", "shadow_claim_execution", "shadow_finalize_execution", "shadow_reconcile", "shadow_report", "shadow_purge_expired"];
+const INTERNAL = ["guest_ai_shadow_config_problem", "guest_ai_shadow_error_verdict", "guest_ai_shadow_trip_locked", "guest_ai_shadow_settle_locked", "guest_ai_shadow_insert_execution", "guest_ai_shadow_breakers_locked", "guest_ai_shadow_seal_lease"];
+/** Execução EM ANDAMENTO (fixture do dono): a reserva só existe para execução reivindicada (E3.1). */
+const inflight = async (id: string) => {
+  await pg.sql(`insert into public.guest_ai_shadow_inflight (execution_id, conversation_id, tenant_id, property_id, channel, batch_id, lease_version) values ('${id}', gen_random_uuid(), '${T_ID}', '${P_ID}', 'web', gen_random_uuid(), 2)`);
+  return id;
+};
+const claimed = async () => inflight(uid());
 
 describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () => {
   beforeAll(async () => {
@@ -137,10 +143,11 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
 
   describe("registro de execução: chaves exatas, vocabulário fechado, canários nunca gravados", () => {
     beforeEach(() => toRunning());
-    it("registro válido gravado; duplicata do mesmo lote não entra duas vezes", async () => {
-      const batch = uid("b1000000");
-      expect(await record(recordOf("answer_candidate", { batchId: batch }))).toMatchObject({ result: "recorded", breaker: "ok" });
-      expect(await record(recordOf("answer_candidate", { batchId: batch }))).toEqual({ result: "duplicate" });
+    it("registro válido gravado; duplicata da mesma execução não entra duas vezes; registro COM lote só pela finalização atômica", async () => {
+      const r = recordOf("answer_candidate");
+      expect(await record(r)).toMatchObject({ result: "recorded", breaker: "ok" });
+      expect(await record(r)).toEqual({ result: "duplicate" });
+      expect(await record(recordOf("answer_candidate", { batchId: uid("b1000000"), leaseVersion: 3 }))).toEqual({ result: "invalid_argument" });
       expect(await one("select count(*) from public.guest_ai_shadow_executions")).toBe("1");
     });
     it("canário em QUALQUER coluna textual, chave a mais/a menos, objeto aninhado ⇒ invalid_argument e NADA gravado", async () => {
@@ -241,8 +248,9 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
       expect((await rpc("shadow_authorize_retention", { p_expected_version: 1, p_actor: ACTOR, p_scope: "openai_responses", p_evidence_sha256: EVID })).result).toBe("stale_version");
     });
     it("configuração recusa modelo Google, teto diário acima de US$ 1,00, fuso inexistente e manifesto inexistente", async () => {
-      const base = { p_expected_version: 1, p_actor: ACTOR, p_model_id: "openai/gpt-5.6-sol", p_reasoning_effort: "low", p_max_input_tokens: 1, p_max_output_tokens: 1, p_max_total_tokens: 1, p_max_turn_cost_usd: 0.1, p_daily_cost_limit_usd: 1, p_max_daily_tokens: 1, p_max_daily_calls: 1, p_error_window_minutes: 1, p_error_min_sample: 2, p_budget_day_timezone: "America/Sao_Paulo", p_telemetry_retention_days: 1, p_tick_interval_seconds: 1, p_max_conversations_per_tick: 1, p_manifest_version: null };
-      for (const bad of [{ p_model_id: "google/gemini-3.8-flash" }, { p_daily_cost_limit_usd: 1.01 }, { p_max_output_tokens: 5000 }, { p_error_min_sample: 1 }, { p_budget_day_timezone: "Mars/Olympus" }, { p_manifest_version: 3 }, { p_max_daily_calls: -1 }, { p_actor: null }]) {
+      const base = { p_expected_version: 1, p_actor: ACTOR, p_model_id: "openai/gpt-5.6-sol", p_reasoning_effort: "low", p_max_input_tokens: 1, p_max_output_tokens: 1, p_max_total_tokens: 1, p_max_turn_cost_usd: 0.1, p_daily_cost_limit_usd: 1, p_max_daily_tokens: 1, p_max_daily_calls: 1, p_error_window_minutes: 1, p_error_min_sample: 20, p_budget_day_timezone: "America/Sao_Paulo", p_telemetry_retention_days: 1, p_tick_interval_seconds: 60, p_max_conversations_per_tick: 1, p_manifest_version: null };
+      // E3.1: parâmetros homologados são TETOS no banco (custo/turno ≤ 0,15; ≤ 3/tick; tick = 60 s; amostra = 20; fuso de São Paulo)
+      for (const bad of [{ p_model_id: "google/gemini-3.8-flash" }, { p_daily_cost_limit_usd: 1.01 }, { p_max_output_tokens: 5000 }, { p_error_min_sample: 1 }, { p_error_min_sample: 19 }, { p_error_min_sample: 21 }, { p_budget_day_timezone: "Mars/Olympus" }, { p_budget_day_timezone: "UTC" }, { p_manifest_version: 3 }, { p_max_daily_calls: -1 }, { p_actor: null }, { p_max_turn_cost_usd: 0.15000001 }, { p_max_conversations_per_tick: 4 }, { p_max_conversations_per_tick: 0 }, { p_tick_interval_seconds: 30 }, { p_tick_interval_seconds: 61 }]) {
         expect((await rpc("shadow_configure", { ...base, ...bad })).result, JSON.stringify(bad)).toBe("invalid_argument");
       }
       expect((await rpc("shadow_configure", { ...base, p_expected_version: 5 })).result).toBe("stale_version");
@@ -251,21 +259,28 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
   });
 
   describe("orçamento: reserva atômica, teto de US$ 1,00, órfã nunca libera, liquidação", () => {
-    it("fora de running ⇒ state_not_running; argumentos inválidos recusados; limites por turno", async () => {
-      expect((await rpc("shadow_reserve_budget", { p_execution_id: uid(), p_tokens: 10, p_cost: 0.01, p_calls: 1 })).result).toBe("state_not_running");
+    it("sem execução reivindicada ⇒ not_claimed; fora de running ⇒ state_not_running; argumentos inválidos recusados; limites por turno; repetição idempotente", async () => {
+      expect((await rpc("shadow_reserve_budget", { p_execution_id: uid(), p_tokens: 10, p_cost: 0.01, p_calls: 1 })).result).toBe("not_claimed");
+      expect((await rpc("shadow_reserve_budget", { p_execution_id: await claimed(), p_tokens: 10, p_cost: 0.01, p_calls: 1 })).result).toBe("state_not_running");
       await toRunning();
-      for (const bad of [{ p_tokens: 0 }, { p_cost: 0 }, { p_calls: 3 }, { p_execution_id: null }]) {
-        expect((await rpc("shadow_reserve_budget", { p_execution_id: uid(), p_tokens: 10, p_cost: 0.01, p_calls: 1, ...bad })).result).toBe("invalid_argument");
+      for (const bad of [{ p_tokens: 0 }, { p_cost: 0 }, { p_calls: 3 }, { p_execution_id: null }, { p_cost: 0.123456789 }]) {
+        expect((await rpc("shadow_reserve_budget", { p_execution_id: await claimed(), p_tokens: 10, p_cost: 0.01, p_calls: 1, ...bad })).result).toBe("invalid_argument");
       }
-      expect(await rpc("shadow_reserve_budget", { p_execution_id: uid(), p_tokens: 10, p_cost: 0.6, p_calls: 2 })).toEqual({ result: "exceeded", limit: "turn_cost" });
-      expect(await rpc("shadow_reserve_budget", { p_execution_id: uid(), p_tokens: 140001, p_cost: 0.01, p_calls: 2 })).toEqual({ result: "exceeded", limit: "turn_total_tokens" });
-      const id = uid();
-      expect((await rpc("shadow_reserve_budget", { p_execution_id: id, p_tokens: 10, p_cost: 0.01, p_calls: 1 })).result).toBe("reserved");
-      expect((await rpc("shadow_reserve_budget", { p_execution_id: id, p_tokens: 10, p_cost: 0.01, p_calls: 1 })).result).toBe("duplicate");
+      expect(await rpc("shadow_reserve_budget", { p_execution_id: await claimed(), p_tokens: 10, p_cost: 0.16, p_calls: 2 })).toEqual({ result: "exceeded", limit: "turn_cost" });
+      expect(await rpc("shadow_reserve_budget", { p_execution_id: await claimed(), p_tokens: 84001, p_cost: 0.01, p_calls: 2 })).toEqual({ result: "exceeded", limit: "turn_total_tokens" });
+      const id = await claimed();
+      const first = await rpc("shadow_reserve_budget", { p_execution_id: id, p_tokens: 10, p_cost: 0.01, p_calls: 1 });
+      expect(first.result).toBe("reserved");
+      // F-11: repetição (resposta perdida) devolve a MESMA reserva; nada é contado duas vezes
+      expect(await rpc("shadow_reserve_budget", { p_execution_id: id, p_tokens: 10, p_cost: 0.01, p_calls: 1 })).toMatchObject({ result: "reserved", reservation_id: first.reservation_id, repeated: true });
+      expect((await rpc("shadow_reserve_budget", { p_execution_id: id, p_tokens: 11, p_cost: 0.01, p_calls: 1 })).result).toBe("duplicate");
+      expect(await one(`select count(*) || '|' || sum(cost_usd) from public.guest_ai_shadow_budget_reservations where execution_id = '${id}'`)).toBe("1|0.01000000");
+      expect(await one(`select open_reservations || '|' || reserved_cost from public.guest_ai_shadow_budget_days`)).toBe("1|0.01000000");
     });
     it("40 reservas CONCORRENTES de US$ 0,05: exatamente 20 cabem; o total nunca passa de US$ 1,00; estouro ⇒ budget_exhausted", async () => {
       await toRunning();
-      const results = await Promise.all(Array.from({ length: 40 }, () => rpc("shadow_reserve_budget", { p_execution_id: uid(), p_tokens: 100, p_cost: 0.05, p_calls: 1 })));
+      const ids = await Promise.all(Array.from({ length: 40 }, () => claimed()));
+      const results = await Promise.all(ids.map((id) => rpc("shadow_reserve_budget", { p_execution_id: id, p_tokens: 100, p_cost: 0.05, p_calls: 1 })));
       const reserved = results.filter((r) => r.result === "reserved").length;
       expect(reserved).toBe(20);
       expect(results.filter((r) => !["reserved", "exceeded", "state_not_running"].includes(String(r.result)))).toEqual([]);
@@ -274,23 +289,19 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
     });
     it("reserva órfã (worker morto) continua contada: não libera saldo", async () => {
       await toRunning();
-      for (let i = 0; i < 19; i++) expect((await rpc("shadow_reserve_budget", { p_execution_id: uid(), p_tokens: 100, p_cost: 0.05, p_calls: 1 })).result).toBe("reserved");
+      for (let i = 0; i < 19; i++) expect((await rpc("shadow_reserve_budget", { p_execution_id: await claimed(), p_tokens: 100, p_cost: 0.05, p_calls: 1 })).result).toBe("reserved");
       // nenhuma liquidação: as 19 ficam abertas; só cabe mais 0,05
-      expect((await rpc("shadow_reserve_budget", { p_execution_id: uid(), p_tokens: 100, p_cost: 0.05, p_calls: 1 })).result).toBe("reserved");
-      expect(await rpc("shadow_reserve_budget", { p_execution_id: uid(), p_tokens: 100, p_cost: 0.01, p_calls: 1 })).toEqual({ result: "exceeded", limit: "daily_cost" });
+      expect((await rpc("shadow_reserve_budget", { p_execution_id: await claimed(), p_tokens: 100, p_cost: 0.05, p_calls: 1 })).result).toBe("reserved");
+      expect(await rpc("shadow_reserve_budget", { p_execution_id: await claimed(), p_tokens: 100, p_cost: 0.01, p_calls: 1 })).toEqual({ result: "exceeded", limit: "daily_cost" });
       expect(await one(`select open_reservations from public.guest_ai_shadow_budget_days`)).toBe("20");
     });
-    it("liquidação troca a reserva pelo real, uma vez só; real que atinge o teto ⇒ budget_exhausted", async () => {
-      await toRunning();
-      const r = await rpc("shadow_reserve_budget", { p_execution_id: uid(), p_tokens: 1000, p_cost: 0.4, p_calls: 2 });
-      expect(await rpc("shadow_settle_budget", { p_reservation_id: r.reservation_id, p_tokens: 300, p_cost: 0.1, p_calls: 1 })).toEqual({ result: "settled", budget: "available" });
-      expect(await one(`select reserved_cost::text || '|' || settled_cost::text || '|' || open_reservations from public.guest_ai_shadow_budget_days`)).toBe("0.00000000|0.10000000|0");
-      expect(await rpc("shadow_settle_budget", { p_reservation_id: r.reservation_id, p_tokens: 1, p_cost: 0.1, p_calls: 1 })).toEqual({ result: "already_settled" });
-      expect(await rpc("shadow_settle_budget", { p_reservation_id: uid(), p_tokens: 1, p_cost: 0.1, p_calls: 1 })).toEqual({ result: "not_found" });
-      expect((await rpc("shadow_settle_budget", { p_reservation_id: r.reservation_id, p_tokens: -1, p_cost: 0.1, p_calls: 1 })).result).toBe("invalid_argument");
-      const r2 = await rpc("shadow_reserve_budget", { p_execution_id: uid(), p_tokens: 1000, p_cost: 0.5, p_calls: 2 });
-      expect(await rpc("shadow_settle_budget", { p_reservation_id: r2.reservation_id, p_tokens: 1000, p_cost: 0.9, p_calls: 2 })).toEqual({ result: "settled", budget: "exhausted" });
-      expect((await control()).state).toBe("budget_exhausted");
+    it("E3.1 · liquidação AVULSA não existe como RPC: só dentro da finalização atômica / reconciliação (função interna sem EXECUTE)", async () => {
+      expect(await one(`select count(*) from pg_proc where proname = 'shadow_settle_budget'`)).toBe("0");
+      expect((await pg.trySql(`select public.shadow_settle_budget(gen_random_uuid(), 1, 0.1, 1)`, SR)).ok).toBe(false);
+      for (const role of ["anon", "authenticated", "service_role"]) {
+        const r = await pg.trySql(`select public.guest_ai_shadow_settle_locked(c, gen_random_uuid(), 'actual', 1, 0.1, 1) from public.guest_ai_shadow_control c`, { role });
+        expect(r.ok, role).toBe(false);
+      }
     });
   });
 
@@ -328,23 +339,24 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
       expect(await record(recordOf("answer_candidate"))).toMatchObject({ breaker: "measurement_unavailable", trip: "applied" });
       expect((await control()).state).toBe("technical_failure");
     });
-    it("paridade TS × SQL do disjuntor em sequências aleatórias", async () => {
-      const decisions: ShadowDecision[] = ["answer_candidate", "technical_failure", "human_pause_active", "silence", "budget_blocked"];
+    it("paridade TS × SQL do disjuntor em sequências aleatórias (amostra mínima homologada = 20; janela pelo relógio do banco)", async () => {
+      const decisions: ShadowDecision[] = ["answer_candidate", "technical_failure", "human_pause_active", "silence", "budget_blocked", "answer_candidate", "answer_candidate"];
       let rnd = 7;
       const next = () => (rnd = (rnd * 1103515245 + 12345) % 2147483648) / 2147483648;
-      for (let round = 0; round < 6; round++) {
-        await pg.sql(`truncate public.guest_ai_shadow_executions; update public.guest_ai_shadow_control set state = 'running', error_min_sample = ${3 + round}`);
+      for (let round = 0; round < 4; round++) {
+        await pg.sql(`truncate public.guest_ai_shadow_executions; update public.guest_ai_shadow_control set state = 'running'`);
         const seqd: ShadowDecision[] = [];
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 26; i++) {
           const d = decisions[Math.floor(next() * decisions.length)]!;
           seqd.push(d);
           await pg.sql(`update public.guest_ai_shadow_control set state = 'running'`);
-          const sql = await record(recordOf(d, { finishedAt: new Date(Date.now() - (100 - i) * 1000).toISOString() }));
-          const ts = evaluateErrorBreaker([...seqd].reverse().map((x) => ({ evaluable: isEvaluable(x), technicalError: isTechnicalError(x) })), 3 + round);
+          // F-03: `finished_at` do worker propositalmente fora de ordem — a ordem/janela é a do banco
+          const sql = await record(recordOf(d, { finishedAt: new Date(Date.now() - ((i * 7919) % 50) * 1000).toISOString() }));
+          const ts = evaluateErrorBreaker([...seqd].reverse().map((x) => ({ evaluable: isEvaluable(x), technicalError: isTechnicalError(x) })), 20);
           expect(sql.breaker, `rodada ${round} passo ${i}`).toBe(ts);
         }
       }
-    });
+    }, 120_000);
   });
 
   describe("manifesto, relatório auditado, expurgo", () => {
@@ -389,11 +401,12 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
       const s = store();
       expect(await s.readControl()).toMatchObject({ state: "disabled", retentionAuthorized: false, dailyCostLimitUsd: 1 });
       await toRunning();
-      expect(await s.readControl()).toMatchObject({ state: "running", modelId: "openai/gpt-5.6-sol", maxTurnCostUsd: 0.5, retentionAuthorized: true, retentionScope: "openai_responses" });
+      expect(await s.readControl()).toMatchObject({ state: "running", modelId: "openai/gpt-5.6-sol", maxTurnCostUsd: 0.15, retentionAuthorized: true, retentionScope: "openai_responses" });
+      // F-09/F-03: o instante do banco vem junto com o estado
+      expect(Math.abs((await s.readControl())!.dbNowMs - Date.now())).toBeLessThan(60_000);
       expect((await s.readManifest())!.entries).toEqual([{ manifestVersion: 1, tenantId: T_ID, propertyId: P_ID, selectionReason: "highest_volume", twinStatus: "verified", historyStatus: "verified" }]);
-      const res = await s.reserve(uid(), { tokens: 1000, costUsd: 0.01, calls: 2 });
+      const res = await s.reserve(await claimed(), { tokens: 1000, costUsd8: 1_000_000n, calls: 2 });
       expect(res.kind).toBe("reserved");
-      expect(await s.settle((res as { reservationId: string }).reservationId, { tokens: 100, costUsd: 0.001, calls: 1 })).toBe("settled");
       expect(await s.evaluateBreakers()).toBe("ok");
       expect(await s.record(recordOf("answer_candidate"))).toEqual({ kind: "recorded", breaker: "ok" });
       expect(await s.trip("circuit_open", "error_rate_exceeded")).toBe("applied");

@@ -140,7 +140,19 @@ export const LEASE_GATE_EVIDENCE = {
         expect(acl).not.toMatch(/anon|authenticated|sandbox_exec|=X\/postgres,=X|^=X/);
         expect(acl).toMatch(/service_role=X/);
       }
-      expect(await pg.sql(`select array_to_string(relacl, ',') from pg_class where relname = 'guest_ai_conversation_leases'`)).toBe("postgres=arwdDxt/postgres,service_role=r/postgres");
+      // F-13 (E3.1): ACL conferida POR BENEFICIÁRIO, independente da versão do Postgres (o PG 17 acrescenta o
+      // privilégio MAINTAIN — letra `m` — ao dono). Nada fica mais fraco: o dono é `postgres`; o ÚNICO outro
+      // beneficiário é service_role, com EXATAMENTE SELECT (sem MAINTAIN, sem escrita); PUBLIC nada.
+      expect(await pg.sql(`select pg_get_userbyid(relowner) from pg_class where relname = 'guest_ai_conversation_leases'`)).toBe("postgres");
+      const grants = await pg.sql(`select coalesce(string_agg(case when a.grantee = 0 then 'PUBLIC' else pg_get_userbyid(a.grantee) end || ':' || a.privilege_type || ':' || pg_get_userbyid(a.grantor), ',' order by 1), '') from pg_class c, aclexplode(c.relacl) a where c.relname = 'guest_ai_conversation_leases' and a.grantee <> c.relowner`);
+      expect(grants).toBe("service_role:SELECT:postgres");
+      for (const priv of ["INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", ...(Number(pg.version.split(".")[0]) >= 17 ? ["MAINTAIN"] : [])]) {
+        expect(await pg.sql(`select has_table_privilege('service_role', 'public.guest_ai_conversation_leases', '${priv}')`), priv).toBe("f");
+        for (const role of ["anon", "authenticated"]) expect(await pg.sql(`select has_table_privilege('${role}', 'public.guest_ai_conversation_leases', '${priv}')`), `${role} ${priv}`).toBe("f");
+      }
+      for (const role of ["anon", "authenticated"]) expect(await pg.sql(`select has_table_privilege('${role}', 'public.guest_ai_conversation_leases', 'SELECT')`), role).toBe("f");
+      // a ACL textual continua a forma conhecida de cada versão (dono com todos os privilégios da versão)
+      expect(await pg.sql(`select array_to_string(relacl, ',') from pg_class where relname = 'guest_ai_conversation_leases'`)).toMatch(/^postgres=arwdDxtm?\/postgres,service_role=r\/postgres$/);
       security.add("rls");
     });
     it("argumentos manipulados não elevam privilégio nem passam da validação", async () => {

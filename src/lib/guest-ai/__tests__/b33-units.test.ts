@@ -48,29 +48,49 @@ describe("B3.3 · disjuntores (puros)", () => {
     ];
     for (const o of invalid) expect(validateShadowControl(fullControl(o)), JSON.stringify(o)).toEqual({ ok: false, code: "limits_invalid" });
   });
-  it("orçamento por turno: pior caso com 2 tentativas; cada limite tem código", () => {
+  it("E3.1 · parâmetros homologados são TETOS: acima deles (ou fora do valor fixo) ⇒ limits_invalid; instante do banco ilegível ⇒ ilegível", () => {
+    const over: Array<Partial<ReturnType<typeof fullControl>>> = [
+      { maxTurnCostUsd: 0.15000001 }, { maxTurnCostUsd: 0.2 }, { maxTurnCostUsd: 0.123456789 }, { dailyCostLimitUsd: 0.000000001 }, { maxConversationsPerTick: 4 }, { tickIntervalSeconds: 30 }, { tickIntervalSeconds: 61 },
+      { errorMinSample: 19 }, { errorMinSample: 21 }, { budgetDayTimezone: "UTC" }, { budgetDayTimezone: "America/New_York" },
+    ];
+    for (const o of over) expect(validateShadowControl(fullControl(o)), JSON.stringify(o)).toEqual({ ok: false, code: "limits_invalid" });
+    for (const o of [{ maxTurnCostUsd: 0.15 }, { maxTurnCostUsd: 0.01 }, { maxConversationsPerTick: 1 }, { dailyCostLimitUsd: 0.5 }]) expect(validateShadowControl(fullControl(o)).ok, JSON.stringify(o)).toBe(true);
+    expect(validateShadowControl(fullControl({ dbNowMs: Number.NaN }))).toEqual({ ok: false, code: "state_unreadable" });
+    const v = validateShadowControl(fullControl());
+    expect(v.ok && [v.limits.maxTurnCostUsd8, v.limits.dailyCostLimitUsd8]).toEqual([15_000_000n, 100_000_000n]);
+  });
+  it("orçamento por turno (E3.1 · F-04): pior caso ESTRITO = tetos configurados × 2 tentativas, em unidades exatas; cada limite tem código", () => {
     const l = limits();
+    // aprovado: 2 × (40.000 × 125 + 1.536 × 1.000) = 13.072.000 unidades = US$ 0,13072 ≤ 0,15
     const ok = evaluateTurnBudget(l, SPEC, 1000);
-    expect(ok).toEqual({ ok: true, reservation: { tokens: (1000 + 1024) * 2, costUsd: costUsd(SPEC, 2000, 2048), calls: 2 } });
+    expect(ok).toEqual({ ok: true, reservation: { tokens: (40_000 + 1_536) * 2, costUsd8: 13_072_000n, calls: 2 } });
+    // a reserva NÃO depende do tamanho do prompt (nunca subestima)
+    expect(evaluateTurnBudget(l, SPEC, 39_999)).toEqual(ok);
+    expect(evaluateTurnBudget(l, SPEC, l.maxInputTokens)).toEqual(ok);
     expect(evaluateTurnBudget(l, SPEC, 0)).toEqual({ ok: false, limit: "turn_input_tokens" });
     expect(evaluateTurnBudget(l, SPEC, 1.5)).toEqual({ ok: false, limit: "turn_input_tokens" });
     expect(evaluateTurnBudget(l, SPEC, l.maxInputTokens + 1)).toEqual({ ok: false, limit: "turn_input_tokens" });
     expect(evaluateTurnBudget({ ...l, maxOutputTokens: 5000 }, SPEC, 10)).toEqual({ ok: false, limit: "turn_output_tokens" });
-    expect(evaluateTurnBudget({ ...l, maxTotalTokens: 1000 }, SPEC, 100)).toEqual({ ok: false, limit: "turn_total_tokens" });
-    expect(evaluateTurnBudget({ ...l, maxTurnCostUsd: 0.00001 }, SPEC, 100)).toEqual({ ok: false, limit: "turn_cost" });
+    expect(evaluateTurnBudget({ ...l, maxTotalTokens: 41_535 }, SPEC, 100)).toEqual({ ok: false, limit: "turn_total_tokens" });
+    expect(evaluateTurnBudget({ ...l, maxTotalTokens: 41_536 }, SPEC, 100).ok).toBe(true);
+    expect(evaluateTurnBudget({ ...l, maxTurnCostUsd8: 13_071_999n }, SPEC, 100)).toEqual({ ok: false, limit: "turn_cost" });
     // limite EXATO é permitido (≤)
-    const exact = costUsd(SPEC, 200, 2048);
-    expect(evaluateTurnBudget({ ...l, maxTurnCostUsd: exact }, SPEC, 100).ok).toBe(true);
+    expect(evaluateTurnBudget({ ...l, maxTurnCostUsd8: 13_072_000n }, SPEC, 100).ok).toBe(true);
+    // preço sem representação exata em 1e-8 por token ⇒ bloqueio (nunca arredonda dinheiro)
+    expect(evaluateTurnBudget(l, { pricePerMTok: { input: 1.255, output: 10 } }, 100)).toEqual({ ok: false, limit: "turn_cost" });
+    expect(costUsd(SPEC, 900, 120)).toBe(0.002325);
   });
-  it("uso real acima do limite ⇒ violação; dentro ⇒ nada", () => {
+  it("uso real acima do limite ⇒ violação; dentro ⇒ nada (custo em unidades exatas)", () => {
     const l = limits();
-    expect(actualUsageViolation(l, { inputTokens: 10, outputTokens: 10, totalTokens: 20 }, 1, 0.001)).toBeNull();
-    expect(actualUsageViolation(l, { inputTokens: l.maxInputTokens + 1, outputTokens: 0, totalTokens: 0 }, 1, 0)).toBe("turn_input_tokens");
-    expect(actualUsageViolation(l, { inputTokens: l.maxInputTokens * 2, outputTokens: 0, totalTokens: 0 }, 2, 0)).toBeNull();
-    expect(actualUsageViolation(l, { inputTokens: 0, outputTokens: l.maxOutputTokens + 1, totalTokens: 0 }, 0, 0)).toBe("turn_output_tokens");
-    expect(actualUsageViolation(l, { inputTokens: 0, outputTokens: 0, totalTokens: l.maxTotalTokens + 1 }, 1, 0)).toBe("turn_total_tokens");
-    expect(actualUsageViolation(l, { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, 1, l.maxTurnCostUsd + 0.01)).toBe("turn_cost");
-    expect(actualUsageViolation(l, { inputTokens: Number.NaN, outputTokens: 0, totalTokens: 0 }, 1, 0)).toBe("turn_input_tokens");
+    expect(actualUsageViolation(l, { inputTokens: 10, outputTokens: 10, totalTokens: 20 }, 1, 100_000n)).toBeNull();
+    expect(actualUsageViolation(l, { inputTokens: l.maxInputTokens + 1, outputTokens: 0, totalTokens: 0 }, 1, 0n)).toBe("turn_input_tokens");
+    expect(actualUsageViolation(l, { inputTokens: l.maxInputTokens * 2, outputTokens: 0, totalTokens: 0 }, 2, 0n)).toBeNull();
+    expect(actualUsageViolation(l, { inputTokens: 0, outputTokens: l.maxOutputTokens + 1, totalTokens: 0 }, 0, 0n)).toBe("turn_output_tokens");
+    expect(actualUsageViolation(l, { inputTokens: 0, outputTokens: 0, totalTokens: l.maxTotalTokens + 1 }, 1, 0n)).toBe("turn_total_tokens");
+    expect(actualUsageViolation(l, { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, 1, 15_000_001n)).toBe("turn_cost");
+    expect(actualUsageViolation(l, { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, 1, 15_000_000n)).toBeNull();
+    expect(actualUsageViolation(l, { inputTokens: Number.NaN, outputTokens: 0, totalTokens: 0 }, 1, 0n)).toBe("turn_input_tokens");
+    expect(actualUsageViolation(l, { inputTokens: 0, outputTokens: 0, totalTokens: 0 }, 1, null)).toBe("turn_cost"); // custo ilegível ⇒ fail-closed
   });
   const win = (errors: number, ok: number, extra: Array<{ evaluable: boolean; technicalError: boolean }> = []) => [
     ...Array.from({ length: errors }, () => ({ evaluable: true, technicalError: true })),
@@ -292,10 +312,13 @@ describe("B3.3 · adaptador do store (respostas lidas por lista branca)", () => 
   const rawControl = (over: Record<string, unknown> = {}) => ({
     result: "ok", state: "running", state_version: 3, model_id: "openai/gpt-6-astra", reasoning_effort: "low", max_input_tokens: 1, max_output_tokens: 2, max_total_tokens: 3,
     max_turn_cost_usd: "0.5", daily_cost_limit_usd: 1, max_daily_tokens: 4, max_daily_calls: 5, error_window_minutes: 6, error_min_sample: 7, budget_day_timezone: "America/Sao_Paulo",
-    telemetry_retention_days: 8, tick_interval_seconds: 9, max_conversations_per_tick: 10, manifest_version: 11, retention_scope: "openai_responses", retention_authorized: true, ...over,
+    telemetry_retention_days: 8, tick_interval_seconds: 9, max_conversations_per_tick: 10, manifest_version: 11, retention_scope: "openai_responses", retention_authorized: true,
+    db_now: "2026-11-04T12:00:00.123456Z", ...over,
   });
   it("estado lido; qualquer campo fora do formato ⇒ ilegível (null)", () => {
-    expect(parseControl(rawControl())).toMatchObject({ state: "running", maxTurnCostUsd: 0.5, retentionAuthorized: true, retentionScope: "openai_responses" });
+    expect(parseControl(rawControl())).toMatchObject({ state: "running", maxTurnCostUsd: 0.5, retentionAuthorized: true, retentionScope: "openai_responses", dbNowMs: Date.parse("2026-11-04T12:00:00.123Z") });
+    // E3.1: sem o instante do banco (ou fora do formato UTC) ⇒ ilegível
+    for (const db_now of [undefined, null, "2026-11-04 12:00:00", "2026-11-04T12:00:00+03:00", "2026-13-40T99:00:00Z", 1730721600000]) expect(parseControl(rawControl({ db_now })), String(db_now)).toBeNull();
     expect(parseControl(rawControl({ retention_scope: null, retention_authorized: true }))!.retentionAuthorized).toBe(false);
     for (const o of [{ result: "x" }, { state: "on" }, { state_version: "3" }, { max_input_tokens: 1.5 }, { max_turn_cost_usd: "abc" }, { daily_cost_limit_usd: {} }, { model_id: "google/gemini-3.8-flash" }, { reasoning_effort: "x" }, { budget_day_timezone: 5 }, { retention_scope: "x" }, { retention_authorized: "true" }]) {
       expect(parseControl(rawControl(o)), JSON.stringify(o)).toBeNull();
@@ -323,8 +346,9 @@ describe("B3.3 · adaptador do store (respostas lidas por lista branca)", () => 
     expect(await s.readControl()).toBeNull();
     expect(await s.readManifest()).toBeNull();
     expect(await s.trip("circuit_open", "error_rate_exceeded")).toBe("error");
-    expect(await s.reserve(EXEC_ID, { tokens: 1, costUsd: 1, calls: 1 })).toEqual({ kind: "error" });
-    expect(await s.settle(EXEC_ID, { tokens: 1, costUsd: 1, calls: 1 })).toBe("error");
+    expect(await s.reserve(EXEC_ID, { tokens: 1, costUsd8: 1n, calls: 1 })).toEqual({ kind: "error" });
+    // valor monetário impossível (negativo) nunca sai do processo
+    expect(await s.reserve(EXEC_ID, { tokens: 1, costUsd8: -1n, calls: 1 })).toEqual({ kind: "error" });
     expect(await s.evaluateBreakers()).toBe("measurement_unavailable");
     expect(await s.record({} as never)).toEqual({ kind: "invalid" });
     replies.shadow_trip = { result: "applied" };
@@ -343,15 +367,14 @@ describe("B3.3 · adaptador do store (respostas lidas por lista branca)", () => 
       [{ result: "config_incomplete" }, { kind: "blocked", code: "config_incomplete" }],
       [{ result: "duplicate" }, { kind: "blocked", code: "duplicate" }],
       [{ result: "invalid_argument" }, { kind: "blocked", code: "invalid_argument" }],
+      [{ result: "not_claimed" }, { kind: "blocked", code: "not_claimed" }],
       [{ result: CANARY }, { kind: "error" }],
     ] as const) {
       replies.shadow_reserve_budget = reply;
-      expect(await s.reserve(EXEC_ID, { tokens: 1, costUsd: 1, calls: 1 })).toEqual(expected);
+      expect(await s.reserve(EXEC_ID, { tokens: 1, costUsd8: 13_072_000n, calls: 1 })).toEqual(expected);
     }
-    replies.shadow_settle_budget = { result: "settled", budget: "exhausted" };
-    expect(await s.settle(rid, { tokens: 1, costUsd: 1, calls: 1 })).toBe("exhausted");
-    replies.shadow_settle_budget = { result: "settled", budget: "available" };
-    expect(await s.settle(rid, { tokens: 1, costUsd: 1, calls: 1 })).toBe("settled");
+    // o custo sai como decimal EXATO de 8 casas (nunca ponto flutuante)
+    expect(rpc.call).toHaveBeenLastCalledWith("shadow_reserve_budget", { p_execution_id: EXEC_ID, p_tokens: 1, p_cost: "0.13072000", p_calls: 1 });
     replies.shadow_evaluate_breakers = { result: "consecutive_failures" };
     expect(await s.evaluateBreakers()).toBe("consecutive_failures");
     replies.shadow_evaluate_breakers = { result: CANARY };
@@ -412,7 +435,12 @@ describe("B3.3 · portas RPC de lista fechada (lease com sinal retrocompatível 
     expect(await leaseRpcFrom(plain, new AbortController().signal).call("claim_conversation_lease", {})).toEqual({ data: 1, error: null });
   });
   it("porta do Shadow: só as 7 funções do worker; administrativas recusadas antes de sair", async () => {
-    expect(SHADOW_RPC_FUNCTIONS).toEqual(["shadow_get_control", "shadow_get_manifest", "shadow_trip", "shadow_reserve_budget", "shadow_settle_budget", "shadow_evaluate_breakers", "shadow_record_execution"]);
+    expect(SHADOW_RPC_FUNCTIONS).toEqual([
+      "shadow_get_control", "shadow_get_manifest", "shadow_trip", "shadow_reserve_budget", "shadow_evaluate_breakers", "shadow_record_execution",
+      "shadow_acquire_tick", "shadow_release_tick", "shadow_claim_execution", "shadow_finalize_execution", "shadow_reconcile",
+    ]);
+    // a liquidação avulsa não existe mais na porta: só dentro da finalização atômica do banco
+    expect(await shadowRpcFrom(client()).call("shadow_settle_budget" as never, {})).toEqual({ data: null, error: { code: "shadow_rpc_not_allowed" } });
     const c = client();
     const ac = new AbortController();
     await shadowRpcFrom(c, ac.signal).call("shadow_get_control", {});

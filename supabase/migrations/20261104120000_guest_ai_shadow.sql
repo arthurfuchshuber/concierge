@@ -17,6 +17,19 @@
 --  * Orçamento diário transacional (linha do dia travada); reserva órfã nunca é liberada.
 --  * Tabela extra em relação ao desenho: `guest_ai_shadow_budget_reservations` — sem ela a liquidação
 --    teria de confiar no valor reservado informado pelo cliente; com ela o banco sabe o que liberar.
+--
+-- Entrega 3.1 (corretiva, 04/11/2026):
+--  * F-07: trava GLOBAL de tick (token de cerca + prazo do banco) — um único worker ativo; nenhuma
+--    execução começa sem tempo de tick suficiente para terminar (15 s).
+--  * F-01/F-05: `guest_ai_shadow_inflight` + `shadow_claim_execution` (reivindica E inicia numa transação,
+--    só a partir de `ready`, nunca recupera lote vencido) + `shadow_reconcile` (assume lote de worker
+--    perdido: SELA o lote — nunca o reprocessa —, liquida a reserva órfã pelo pior caso e registra a falha).
+--  * F-02/F-11/F-12: `shadow_finalize_execution` — liquidação + fechamento do lease (com cerca de versão e
+--    token) + registro + disjuntores numa ÚNICA transação idempotente por execução.
+--  * F-03: janela e ordem do disjuntor pelo relógio do BANCO (`recorded_at`).
+--  * F-04: reserva idempotente; liquidação só por função interna auditável (`settlement_kind`).
+--  * Parâmetros aprovados como TETOS (não como ativação): custo por turno ≤ US$ 0,15; ≤ 3 conversas por tick;
+--    tick de 60 s; amostra mínima 20; fuso America/Sao_Paulo; teto diário ≤ US$ 1,00.
 
 -- ───────────────────────── Controle global (linha única) ─────────────────────────
 create table public.guest_ai_shadow_control (
@@ -46,6 +59,9 @@ create table public.guest_ai_shadow_control (
   changed_at                  timestamptz not null default now(),
   changed_by                  uuid,
   reason_code                 text not null default 'initial',
+  -- F-07: trava global do tick (token gerado pelo banco; prazo pelo relógio do banco)
+  tick_owner_token            text,
+  tick_expires_at             timestamptz,
 
   constraint gasc_singleton_ck check (id = 1),
   constraint gasc_state_ck check (state in ('disabled', 'ready', 'running', 'paused', 'circuit_open', 'budget_exhausted', 'integrity_violation', 'technical_failure')),
@@ -55,16 +71,17 @@ create table public.guest_ai_shadow_control (
   constraint gasc_input_ck check (max_input_tokens is null or max_input_tokens > 0),
   constraint gasc_output_ck check (max_output_tokens is null or (max_output_tokens > 0 and max_output_tokens <= 4096)),
   constraint gasc_total_ck check (max_total_tokens is null or max_total_tokens > 0),
-  constraint gasc_turn_cost_ck check (max_turn_cost_usd is null or max_turn_cost_usd > 0),
+  constraint gasc_turn_cost_ck check (max_turn_cost_usd is null or (max_turn_cost_usd > 0 and max_turn_cost_usd <= 0.15)),
   constraint gasc_daily_cost_ck check (daily_cost_limit_usd is null or (daily_cost_limit_usd > 0 and daily_cost_limit_usd <= 1.00)),
   constraint gasc_daily_tokens_ck check (max_daily_tokens is null or max_daily_tokens > 0),
   constraint gasc_daily_calls_ck check (max_daily_calls is null or max_daily_calls > 0),
   constraint gasc_window_ck check (error_window_minutes is null or error_window_minutes > 0),
-  constraint gasc_sample_ck check (error_min_sample is null or error_min_sample >= 2),
-  constraint gasc_tz_ck check (budget_day_timezone is null or budget_day_timezone ~ '^[A-Za-z]+(/[A-Za-z0-9_+-]+){0,2}$'),
+  constraint gasc_sample_ck check (error_min_sample is null or error_min_sample = 20),
+  constraint gasc_tz_ck check (budget_day_timezone is null or (budget_day_timezone ~ '^[A-Za-z]+(/[A-Za-z0-9_+-]+){0,2}$' and budget_day_timezone = 'America/Sao_Paulo')),
   constraint gasc_retention_days_ck check (telemetry_retention_days is null or telemetry_retention_days > 0),
-  constraint gasc_tick_ck check (tick_interval_seconds is null or tick_interval_seconds > 0),
-  constraint gasc_per_tick_ck check (max_conversations_per_tick is null or max_conversations_per_tick > 0),
+  constraint gasc_tick_ck check (tick_interval_seconds is null or tick_interval_seconds = 60),
+  constraint gasc_per_tick_ck check (max_conversations_per_tick is null or max_conversations_per_tick between 1 and 3),
+  constraint gasc_tick_owner_ck check ((tick_owner_token is null) = (tick_expires_at is null) and (tick_owner_token is null or tick_owner_token ~ '^[0-9a-f]{64}$')),
   constraint gasc_manifest_ck check (manifest_version is null or manifest_version > 0),
   constraint gasc_retention_scope_ck check (retention_scope is null or retention_scope in ('openai_responses')),
   constraint gasc_retention_ck check (
@@ -238,7 +255,8 @@ create table public.guest_ai_shadow_executions (
   )),
   constraint gase_technical_ck check (technical_code is null or technical_code in (
     'stage_timeout', 'stage_aborted', 'stage_failed', 'model_call_failed', 'validator_exception', 'gateway_error', 'shadow_timeout',
-    'postprocess_failed', 'telemetry_failed', 'lease_integrity_failure', 'finalization_failed', 'measurement_unavailable', 'read_failed'
+    'postprocess_failed', 'telemetry_failed', 'lease_integrity_failure', 'finalization_failed', 'measurement_unavailable', 'read_failed',
+    'worker_lost'
   )),
   constraint gase_block_ck check (block_code is null or block_code in (
     'master_switch_off', 'not_released', 'state_not_running', 'state_unreadable', 'manifest_unreadable', 'not_in_manifest',
@@ -259,7 +277,8 @@ create table public.guest_ai_shadow_executions (
     and (decision <> 'technical_failure' or technical_code is not null)
   )
 );
-create index guest_ai_shadow_executions_window_idx on public.guest_ai_shadow_executions (finished_at desc) where evaluable;
+-- F-03: a janela do disjuntor é medida pelo relógio do BANCO (`recorded_at`), nunca pelo do worker
+create index guest_ai_shadow_executions_window_idx on public.guest_ai_shadow_executions (recorded_at desc) where evaluable;
 create index guest_ai_shadow_executions_tenant_idx on public.guest_ai_shadow_executions (tenant_id, finished_at desc);
 
 -- ───────────────────────── Orçamento diário e reservas ─────────────────────────
@@ -288,13 +307,37 @@ create table public.guest_ai_shadow_budget_reservations (
   settled_tokens  bigint,
   settled_cost    numeric(14, 8),
   settled_calls   smallint,
+  -- F-04: como a reserva foi encerrada — uso real informado pelo worker, ou PIOR CASO (órfã reconciliada)
+  settlement_kind text,
   constraint gasr_amounts_ck check (tokens > 0 and cost_usd > 0 and calls between 1 and 2),
   constraint gasr_status_ck check (status in ('open', 'settled')),
+  constraint gasr_kind_ck check (settlement_kind is null or settlement_kind in ('actual', 'orphan_worst_case')),
   constraint gasr_settle_ck check (
-    (status = 'open' and settled_at is null and settled_tokens is null and settled_cost is null and settled_calls is null)
-    or (status = 'settled' and settled_at is not null and settled_tokens >= 0 and settled_cost >= 0 and settled_calls between 0 and 2)
+    (status = 'open' and settled_at is null and settled_tokens is null and settled_cost is null and settled_calls is null and settlement_kind is null)
+    or (status = 'settled' and settled_at is not null and settled_tokens >= 0 and settled_cost >= 0 and settled_calls between 0 and 2 and settlement_kind is not null)
   )
 );
+
+-- ───────────────────────── Execuções em andamento (F-01/F-02) ─────────────────────────
+-- Uma linha por execução que chegou a reivindicar o lote. Fecha por `shadow_finalize_execution` (worker)
+-- ou por `shadow_reconcile` (worker perdido). No máximo UMA em andamento por conversa.
+create table public.guest_ai_shadow_inflight (
+  execution_id    uuid primary key,
+  conversation_id uuid not null,
+  tenant_id       uuid not null,
+  property_id     uuid not null,
+  channel         text not null,
+  batch_id        uuid not null,
+  lease_version   integer not null,
+  started_at      timestamptz not null default now(),
+  status          text not null default 'running',
+  closed_at       timestamptz,
+  constraint gasi_channel_ck check (channel in ('airbnb', 'whatsapp', 'web')),
+  constraint gasi_status_ck check (status in ('running', 'finalized', 'reconciled')),
+  constraint gasi_closed_ck check ((closed_at is null) = (status not in ('finalized', 'reconciled'))),
+  constraint gasi_version_ck check (lease_version >= 1)
+);
+create unique index guest_ai_shadow_inflight_one_running_idx on public.guest_ai_shadow_inflight (conversation_id) where status = 'running';
 
 -- ───────────────────────── Auditoria de acesso à telemetria ─────────────────────────
 create table public.guest_ai_shadow_access_log (
@@ -314,7 +357,8 @@ do $$
 declare t text;
 begin
   foreach t in array array['guest_ai_shadow_control', 'guest_ai_shadow_transitions', 'guest_ai_shadow_manifest', 'guest_ai_shadow_executions',
-                           'guest_ai_shadow_budget_days', 'guest_ai_shadow_budget_reservations', 'guest_ai_shadow_access_log'] loop
+                           'guest_ai_shadow_budget_days', 'guest_ai_shadow_budget_reservations', 'guest_ai_shadow_access_log',
+                           'guest_ai_shadow_inflight'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on table public.%I from public, anon, authenticated, service_role', t);
     if exists (select 1 from pg_roles where rolname = 'sandbox_exec') then
@@ -366,14 +410,14 @@ begin
   end if;
   select count(*), count(*) filter (where technical_error) into v_n, v_errors
     from public.guest_ai_shadow_executions
-   where evaluable and finished_at > now() - make_interval(mins => p_window_minutes);
+   where evaluable and recorded_at > now() - make_interval(mins => p_window_minutes);
   if v_n >= p_min_sample then
     return jsonb_build_object('result', case when v_errors * 100 > v_n * 5 then 'error_rate_exceeded' else 'ok' end, 'n', v_n, 'errors', v_errors);
   end if;
-  select array_agg(technical_error order by finished_at desc, recorded_at desc) into v_last2
-    from (select technical_error, finished_at, recorded_at from public.guest_ai_shadow_executions
-           where evaluable and finished_at > now() - make_interval(mins => p_window_minutes)
-           order by finished_at desc, recorded_at desc limit 2) s;
+  select array_agg(technical_error order by recorded_at desc, execution_id desc) into v_last2
+    from (select technical_error, recorded_at, execution_id from public.guest_ai_shadow_executions
+           where evaluable and recorded_at > now() - make_interval(mins => p_window_minutes)
+           order by recorded_at desc, execution_id desc limit 2) s;
   return jsonb_build_object(
     'result', case when coalesce(cardinality(v_last2), 0) = 2 and v_last2[1] and v_last2[2] then 'consecutive_failures' else 'ok' end,
     'n', v_n, 'errors', v_errors);
@@ -426,7 +470,9 @@ begin
     'budget_day_timezone', c.budget_day_timezone, 'telemetry_retention_days', c.telemetry_retention_days,
     'tick_interval_seconds', c.tick_interval_seconds, 'max_conversations_per_tick', c.max_conversations_per_tick,
     'manifest_version', c.manifest_version, 'retention_scope', c.retention_scope,
-    'retention_authorized', c.retention_scope is not null and c.retention_authorized_at is not null);
+    'retention_authorized', c.retention_scope is not null and c.retention_authorized_at is not null,
+    -- F-09/F-03: o instante do BANCO; o worker ancora nele todo instante de parede (pausa, coletor, registro)
+    'db_now', to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
 end;
 $function$;
 
@@ -629,7 +675,9 @@ begin
 end;
 $function$;
 
--- 8) Reserva ATÔMICA de orçamento (pior caso), só com estado running e configuração completa.
+-- 8) Reserva ATÔMICA de orçamento (pior caso), só para uma execução EM ANDAMENTO (reivindicada pelo
+--    `shadow_claim_execution`), com estado running e configuração completa. Idempotente por execução
+--    (F-11): repetir a chamada depois de uma resposta perdida devolve a MESMA reserva, sem contar duas vezes.
 create or replace function public.shadow_reserve_budget(p_execution_id uuid, p_tokens bigint, p_cost numeric, p_calls integer)
 returns jsonb
 language plpgsql
@@ -639,16 +687,29 @@ as $function$
 declare
   c public.guest_ai_shadow_control%rowtype;
   d public.guest_ai_shadow_budget_days%rowtype;
+  ex public.guest_ai_shadow_budget_reservations%rowtype;
   v_day date;
   v_res uuid;
   v_problem text;
   v_limit text;
 begin
-  if p_execution_id is null or p_tokens is null or p_tokens <= 0 or p_cost is null or p_cost <= 0 or p_calls is null or p_calls < 1 or p_calls > 2 then
+  if p_execution_id is null or p_tokens is null or p_tokens <= 0 or p_cost is null or p_cost <= 0 or p_cost <> round(p_cost, 8)
+     or p_calls is null or p_calls < 1 or p_calls > 2 then
     return jsonb_build_object('result', 'invalid_argument');
   end if;
-  -- trava o controle (serializa reservas com transições e disparos)
+  -- trava o controle (serializa reservas com transições, disparos, finalizações e reconciliações)
   select * into c from public.guest_ai_shadow_control where id = 1 for update;
+  -- repetição idempotente: a reserva já confirmada é devolvida tal como está (nunca uma segunda)
+  select * into ex from public.guest_ai_shadow_budget_reservations where execution_id = p_execution_id;
+  if found then
+    if ex.status = 'open' and ex.tokens = p_tokens and ex.cost_usd = p_cost and ex.calls = p_calls then
+      return jsonb_build_object('result', 'reserved', 'reservation_id', ex.reservation_id, 'budget_day', ex.budget_day, 'repeated', true);
+    end if;
+    return jsonb_build_object('result', 'duplicate');
+  end if;
+  if not exists (select 1 from public.guest_ai_shadow_inflight where execution_id = p_execution_id and status = 'running') then
+    return jsonb_build_object('result', 'not_claimed');
+  end if;
   if c.state <> 'running' then return jsonb_build_object('result', 'state_not_running', 'state', c.state); end if;
   v_problem := public.guest_ai_shadow_config_problem(c);
   if v_problem is not null then return jsonb_build_object('result', 'config_incomplete', 'problem', v_problem); end if;
@@ -667,12 +728,8 @@ begin
     perform public.guest_ai_shadow_trip_locked(c, 'budget_exhausted', 'budget_limit_reached');
     return jsonb_build_object('result', 'exceeded', 'limit', v_limit);
   end if;
-  begin
-    insert into public.guest_ai_shadow_budget_reservations (execution_id, budget_day, tokens, cost_usd, calls)
-    values (p_execution_id, v_day, p_tokens, p_cost, p_calls) returning reservation_id into v_res;
-  exception when unique_violation then
-    return jsonb_build_object('result', 'duplicate');
-  end;
+  insert into public.guest_ai_shadow_budget_reservations (execution_id, budget_day, tokens, cost_usd, calls)
+  values (p_execution_id, v_day, p_tokens, p_cost, p_calls) returning reservation_id into v_res;
   update public.guest_ai_shadow_budget_days
      set reserved_cost = reserved_cost + p_cost, reserved_tokens = reserved_tokens + p_tokens, reserved_calls = reserved_calls + p_calls,
          open_reservations = open_reservations + 1
@@ -681,41 +738,46 @@ begin
 end;
 $function$;
 
--- 9) Liquidação: troca a reserva pelo uso real (uma vez só). Real acima do teto diário ⇒ budget_exhausted.
-create or replace function public.shadow_settle_budget(p_reservation_id uuid, p_tokens bigint, p_cost numeric, p_calls integer)
+-- 9) Liquidação INTERNA (controle já travado pelo chamador; sem EXECUTE para ninguém): troca a reserva
+--    aberta da execução pelo uso informado — real (`actual`) ou o PIOR CASO reservado (`orphan_worst_case`).
+--    Uma vez só (a linha da reserva é travada). Devolve o desfecho para os disjuntores do chamador.
+create or replace function public.guest_ai_shadow_settle_locked(c public.guest_ai_shadow_control, p_execution_id uuid, p_kind text, p_tokens bigint, p_cost numeric, p_calls integer)
 returns jsonb
 language plpgsql
 security definer
 set search_path = pg_catalog, pg_temp
 as $function$
 declare
-  c public.guest_ai_shadow_control%rowtype;
   res public.guest_ai_shadow_budget_reservations%rowtype;
   d public.guest_ai_shadow_budget_days%rowtype;
+  v_tokens bigint;
+  v_cost numeric;
+  v_calls integer;
 begin
-  if p_reservation_id is null or p_tokens is null or p_tokens < 0 or p_cost is null or p_cost < 0 or p_calls is null or p_calls < 0 or p_calls > 2 then
-    return jsonb_build_object('result', 'invalid_argument');
-  end if;
-  select * into c from public.guest_ai_shadow_control where id = 1 for update;
-  select * into res from public.guest_ai_shadow_budget_reservations where reservation_id = p_reservation_id for update;
-  if not found then return jsonb_build_object('result', 'not_found'); end if;
+  select * into res from public.guest_ai_shadow_budget_reservations where execution_id = p_execution_id for update;
+  if not found then return jsonb_build_object('result', 'no_reservation'); end if;
   if res.status = 'settled' then return jsonb_build_object('result', 'already_settled'); end if;
+  if p_kind = 'orphan_worst_case' then
+    v_tokens := res.tokens; v_cost := res.cost_usd; v_calls := res.calls;
+  else
+    v_tokens := p_tokens; v_cost := p_cost; v_calls := p_calls;
+  end if;
   update public.guest_ai_shadow_budget_reservations
-     set status = 'settled', settled_at = now(), settled_tokens = p_tokens, settled_cost = p_cost, settled_calls = p_calls
-   where reservation_id = p_reservation_id;
+     set status = 'settled', settled_at = now(), settled_tokens = v_tokens, settled_cost = v_cost, settled_calls = v_calls, settlement_kind = p_kind
+   where reservation_id = res.reservation_id;
   update public.guest_ai_shadow_budget_days
      set reserved_cost = reserved_cost - res.cost_usd, reserved_tokens = reserved_tokens - res.tokens, reserved_calls = reserved_calls - res.calls,
-         settled_cost = settled_cost + p_cost, settled_tokens = settled_tokens + p_tokens, settled_calls = settled_calls + p_calls,
+         settled_cost = settled_cost + v_cost, settled_tokens = settled_tokens + v_tokens, settled_calls = settled_calls + v_calls,
          open_reservations = open_reservations - 1
    where budget_day = res.budget_day
    returning * into d;
-  if c.daily_cost_limit_usd is null or d.settled_cost + d.reserved_cost >= c.daily_cost_limit_usd
-     or (c.max_daily_tokens is not null and d.settled_tokens + d.reserved_tokens >= c.max_daily_tokens)
-     or (c.max_daily_calls is not null and d.settled_calls + d.reserved_calls >= c.max_daily_calls) then
-    perform public.guest_ai_shadow_trip_locked(c, 'budget_exhausted', 'budget_limit_reached');
-    return jsonb_build_object('result', 'settled', 'budget', 'exhausted');
-  end if;
-  return jsonb_build_object('result', 'settled', 'budget', 'available');
+  return jsonb_build_object(
+    'result', 'settled',
+    -- uso real ACIMA do reservado: o limite estrito falhou ⇒ violação (o chamador desarma o Shadow)
+    'over_reservation', v_cost > res.cost_usd or v_tokens > res.tokens or v_calls > res.calls,
+    'day_exhausted', c.daily_cost_limit_usd is null or d.settled_cost + d.reserved_cost >= c.daily_cost_limit_usd
+       or (c.max_daily_tokens is not null and d.settled_tokens + d.reserved_tokens >= c.max_daily_tokens)
+       or (c.max_daily_calls is not null and d.settled_calls + d.reserved_calls >= c.max_daily_calls));
 end;
 $function$;
 
@@ -734,16 +796,14 @@ begin
 end;
 $function$;
 
--- 11) Registro de execução: chaves EXATAS, valores pelas CHECK da tabela; mesma transação avalia os
---     disjuntores (taxa > 5 %, duas falhas consecutivas em amostra pequena, integridade).
-create or replace function public.shadow_record_execution(p_record jsonb)
+-- Inserção INTERNA de um registro de execução: chaves EXATAS, valores pelas CHECK da tabela.
+create or replace function public.guest_ai_shadow_insert_execution(p_record jsonb)
 returns jsonb
 language plpgsql
 security definer
 set search_path = pg_catalog, pg_temp
 as $function$
 declare
-  c public.guest_ai_shadow_control%rowtype;
   v_keys text[];
   v_expected constant text[] := array[
     'batch_id', 'budget_exceeded', 'candidate_available', 'chain_version', 'channel', 'commitment_kinds', 'composer_version', 'concurrency_detected',
@@ -756,8 +816,6 @@ declare
     'timing_sender_identity', 'timing_stay_authorizations', 'timing_structural_validation', 'token_limit_violation', 'total_ms', 'total_tokens',
     'usage_source', 'validation_ms'];
   v_decision text;
-  v_verdict jsonb;
-  v_trip jsonb := null;
 begin
   if p_record is null or jsonb_typeof(p_record) <> 'object' then return jsonb_build_object('result', 'invalid_argument'); end if;
   select array_agg(k order by k) into v_keys from jsonb_object_keys(p_record) k;
@@ -771,7 +829,6 @@ begin
                  or (e.key in ('intents', 'commitment_kinds') and jsonb_typeof(e.value) <> 'array')) then
     return jsonb_build_object('result', 'invalid_argument');
   end if;
-  select * into c from public.guest_ai_shadow_control where id = 1 for update;
   begin
     insert into public.guest_ai_shadow_executions (
       execution_id, tenant_id, property_id, conversation_id, batch_id, lease_version, channel, chain_version, shadow_version, composer_version,
@@ -796,12 +853,27 @@ begin
   exception
     when unique_violation then return jsonb_build_object('result', 'duplicate');
     when check_violation or not_null_violation or invalid_text_representation or datetime_field_overflow or numeric_value_out_of_range
-         or invalid_datetime_format then
+         or invalid_datetime_format or invalid_parameter_value then
       return jsonb_build_object('result', 'invalid_argument');
   end;
-  if v_decision = 'integrity_violation' then
+  return jsonb_build_object('result', 'inserted', 'decision', v_decision);
+end;
+$function$;
+
+-- Disjuntores depois de um registro (controle travado pelo chamador): integridade, taxa, consecutivas.
+create or replace function public.guest_ai_shadow_breakers_locked(c public.guest_ai_shadow_control, p_decision text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $function$
+declare
+  v_verdict jsonb;
+  v_trip jsonb := null;
+begin
+  if p_decision = 'integrity_violation' then
     v_trip := public.guest_ai_shadow_trip_locked(c, 'integrity_violation', 'integrity_divergence');
-    return jsonb_build_object('result', 'recorded', 'breaker', 'integrity_violation', 'trip', v_trip->>'result');
+    return jsonb_build_object('breaker', 'integrity_violation', 'trip', v_trip->>'result');
   end if;
   v_verdict := public.guest_ai_shadow_error_verdict(c.error_window_minutes, c.error_min_sample);
   if v_verdict->>'result' = 'error_rate_exceeded' then
@@ -811,7 +883,355 @@ begin
   elsif v_verdict->>'result' = 'measurement_unavailable' then
     v_trip := public.guest_ai_shadow_trip_locked(c, 'technical_failure', 'measurement_unavailable');
   end if;
-  return jsonb_build_object('result', 'recorded', 'breaker', v_verdict->>'result', 'n', v_verdict->'n', 'errors', v_verdict->'errors', 'trip', v_trip->>'result');
+  return jsonb_build_object('breaker', v_verdict->>'result', 'n', v_verdict->'n', 'errors', v_verdict->'errors', 'trip', v_trip->>'result');
+end;
+$function$;
+
+-- 11) Registro de execução SEM lote (desfechos anteriores à reivindicação: fora do manifesto, pausa,
+--     integridade, leitura). Execução com lote só fecha por `shadow_finalize_execution` (mesma transação
+--     do lease e da liquidação). Mesma transação avalia os disjuntores.
+create or replace function public.shadow_record_execution(p_record jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $function$
+declare
+  c public.guest_ai_shadow_control%rowtype;
+  v_ins jsonb;
+  v_br jsonb;
+begin
+  if p_record is null or jsonb_typeof(p_record) <> 'object' or jsonb_typeof(p_record->'batch_id') is distinct from 'null' then
+    return jsonb_build_object('result', 'invalid_argument');
+  end if;
+  select * into c from public.guest_ai_shadow_control where id = 1 for update;
+  v_ins := public.guest_ai_shadow_insert_execution(p_record);
+  if v_ins->>'result' <> 'inserted' then return v_ins; end if;
+  v_br := public.guest_ai_shadow_breakers_locked(c, v_ins->>'decision');
+  return jsonb_build_object('result', 'recorded') || v_br;
+end;
+$function$;
+
+-- ───────────────────────── Tick único, reivindicação, finalização e reconciliação (E3.1) ─────────────────────────
+
+-- 14) Trava GLOBAL do tick (F-07): um único worker ativo. O prazo cobre o tick inteiro
+--     (conversas × 15 s + 10 s) pelo relógio do banco; trava vencida pode ser assumida.
+create or replace function public.shadow_acquire_tick()
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $function$
+declare
+  c public.guest_ai_shadow_control%rowtype;
+  v_token text;
+  v_problem text;
+begin
+  select * into c from public.guest_ai_shadow_control where id = 1 for update;
+  if not found then return jsonb_build_object('result', 'not_found'); end if;
+  if c.state <> 'running' then return jsonb_build_object('result', 'state_not_running', 'state', c.state); end if;
+  v_problem := public.guest_ai_shadow_config_problem(c);
+  if v_problem is not null then return jsonb_build_object('result', 'config_incomplete', 'problem', v_problem); end if;
+  if c.tick_owner_token is not null and c.tick_expires_at > now() then
+    return jsonb_build_object('result', 'busy');
+  end if;
+  v_token := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
+  update public.guest_ai_shadow_control
+     set tick_owner_token = v_token, tick_expires_at = now() + make_interval(secs => c.max_conversations_per_tick * 15 + 10)
+   where id = 1
+   returning * into c;
+  return jsonb_build_object('result', 'acquired', 'tick_token', v_token,
+    'tick_expires_at', to_char(c.tick_expires_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+    'db_now', to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
+end;
+$function$;
+
+-- 15) Libera a trava do tick (só o dono; idempotente).
+create or replace function public.shadow_release_tick(p_tick_token text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $function$
+begin
+  if p_tick_token is null or p_tick_token !~ '^[0-9a-f]{64}$' then return jsonb_build_object('result', 'invalid_argument'); end if;
+  update public.guest_ai_shadow_control set tick_owner_token = null, tick_expires_at = null
+   where id = 1 and tick_owner_token = p_tick_token;
+  return jsonb_build_object('result', case when found then 'released' else 'noop' end);
+end;
+$function$;
+
+-- 16) Reivindica E inicia o lote numa transação (F-01/F-05): só a partir de `ready` (NUNCA recupera um
+--     lote vencido — esse é selado pela reconciliação), só com a trava do tick e tempo de tick para a
+--     execução inteira (15 s), só para imóvel do manifesto ativo. Abre a linha em andamento (cerca:
+--     execução ↔ versão do lease). Idempotente por execução (F-11).
+create or replace function public.shadow_claim_execution(
+  p_tick_token text, p_execution_id uuid, p_conversation_id uuid, p_expected_version integer,
+  p_tenant_id uuid, p_property_id uuid, p_channel text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $function$
+declare
+  c public.guest_ai_shadow_control%rowtype;
+  r public.guest_ai_conversation_leases%rowtype;
+  f public.guest_ai_shadow_inflight%rowtype;
+  v_token text;
+begin
+  if p_tick_token is null or p_tick_token !~ '^[0-9a-f]{64}$' or p_execution_id is null or p_conversation_id is null
+     or p_expected_version is null or p_expected_version < 1 or p_tenant_id is null or p_property_id is null
+     or p_channel is null or p_channel not in ('airbnb', 'whatsapp', 'web') then
+    return jsonb_build_object('result', 'invalid_argument');
+  end if;
+  select * into c from public.guest_ai_shadow_control where id = 1 for update;
+  -- repetição idempotente (resposta perdida depois do commit): devolve a MESMA posse, se ainda vigente
+  select * into f from public.guest_ai_shadow_inflight where execution_id = p_execution_id;
+  if found then
+    select * into r from public.guest_ai_conversation_leases where conversation_id = f.conversation_id;
+    if f.status = 'running' and f.conversation_id = p_conversation_id and r.version = f.lease_version and r.state = 'processing' and r.lease_expires_at > now() then
+      return jsonb_build_object('result', 'claimed', 'repeated', true, 'version', r.version, 'owner_token', r.owner_token, 'batch_id', r.batch_id,
+        'message_ids', to_jsonb(r.message_ids), 'attempts', r.attempts);
+    end if;
+    return jsonb_build_object('result', 'duplicate');
+  end if;
+  if c.state <> 'running' then return jsonb_build_object('result', 'state_not_running', 'state', c.state); end if;
+  if c.tick_owner_token is distinct from p_tick_token or c.tick_expires_at < now() + interval '15 seconds' then
+    return jsonb_build_object('result', 'tick_not_held');
+  end if;
+  if not exists (select 1 from public.guest_ai_shadow_manifest m
+                  where m.manifest_version = c.manifest_version and m.tenant_id = p_tenant_id and m.property_id = p_property_id) then
+    return jsonb_build_object('result', 'not_in_manifest');
+  end if;
+  select * into r from public.guest_ai_conversation_leases where conversation_id = p_conversation_id for update;
+  if not found then return jsonb_build_object('result', 'not_found'); end if;
+  if r.version <> p_expected_version then return jsonb_build_object('result', 'stale_version', 'version', r.version, 'state', r.state); end if;
+  if r.state <> 'ready' or r.batch_id is null or r.message_ids is null or cardinality(r.message_ids) = 0 then
+    return jsonb_build_object('result', 'not_claimable', 'version', r.version, 'state', r.state);
+  end if;
+  if r.attempts >= 3 then return jsonb_build_object('result', 'attempts_exhausted', 'version', r.version, 'state', r.state); end if;
+  if exists (select 1 from public.guest_ai_shadow_inflight where conversation_id = p_conversation_id and status = 'running') then
+    return jsonb_build_object('result', 'conflict', 'version', r.version, 'state', r.state);
+  end if;
+  v_token := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
+  update public.guest_ai_conversation_leases
+     set state = 'processing', owner_token = v_token, lease_expires_at = now() + interval '30 seconds',
+         attempts = r.attempts + 1, version = r.version + 1, updated_at = now()
+   where conversation_id = p_conversation_id
+   returning * into r;
+  insert into public.guest_ai_shadow_inflight (execution_id, conversation_id, tenant_id, property_id, channel, batch_id, lease_version)
+  values (p_execution_id, p_conversation_id, p_tenant_id, p_property_id, p_channel, r.batch_id, r.version);
+  return jsonb_build_object('result', 'claimed', 'version', r.version, 'owner_token', r.owner_token, 'batch_id', r.batch_id,
+    'message_ids', to_jsonb(r.message_ids), 'attempts', r.attempts);
+end;
+$function$;
+
+-- Sela INTERNAMENTE o lote encerrado (F-05): as mensagens do lote entram na janela de processadas e saem
+-- das pendentes — nenhuma reabertura sem mensagem NOVA. O identificador do lote é preservado (histórico).
+create or replace function public.guest_ai_shadow_seal_lease(r public.guest_ai_conversation_leases, p_to text)
+returns public.guest_ai_conversation_leases
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $function$
+declare
+  v_obs uuid[];
+  o public.guest_ai_conversation_leases%rowtype;
+begin
+  select r.processed_message_ids || coalesce(array_agg(x order by i), '{}') into v_obs
+    from unnest(coalesce(r.message_ids, '{}')) with ordinality t(x, i) where not (x = any (r.processed_message_ids));
+  update public.guest_ai_conversation_leases
+     set state = p_to, owner_token = null, lease_expires_at = null,
+         -- concluído mantém o lote (CHECK de completed); falha sela: lote sai das pendentes
+         message_ids = case when p_to = 'completed' then r.message_ids else '{}'::uuid[] end,
+         processed_message_ids = v_obs[greatest(cardinality(v_obs) - 199, 1):cardinality(v_obs)],
+         version = r.version + 1, updated_at = now()
+   where conversation_id = r.conversation_id
+   returning * into o;
+  return o;
+end;
+$function$;
+
+-- 17) FINALIZAÇÃO ATÔMICA (F-02/F-01/F-11/F-12): numa única transação — cerca do lease (versão + token +
+--     prazo), fechamento do lease (complete / fail selado), liquidação pelo uso real, registro e
+--     disjuntores. Cerca violada ⇒ o registro de fallback (`lease_integrity_failure`) substitui o normal e
+--     o lease de outro dono nunca é tocado. Idempotente por execução: repetir depois de resposta perdida
+--     devolve `duplicate` sem liquidar nem registrar de novo.
+create or replace function public.shadow_finalize_execution(
+  p_execution_id uuid, p_owner_token text, p_outcome text, p_settlement jsonb, p_record jsonb, p_fenced_record jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $function$
+declare
+  c public.guest_ai_shadow_control%rowtype;
+  f public.guest_ai_shadow_inflight%rowtype;
+  r public.guest_ai_conversation_leases%rowtype;
+  v_tokens bigint;
+  v_cost numeric;
+  v_calls integer;
+  v_live boolean;
+  v_same boolean;
+  v_lease text;
+  v_rec jsonb;
+  v_set jsonb;
+  v_ins jsonb;
+  v_br jsonb;
+  v_rr jsonb;
+begin
+  if p_execution_id is null or p_owner_token is null or p_owner_token !~ '^[0-9a-f]{64}$' or p_outcome not in ('complete', 'fail')
+     or p_settlement is null or jsonb_typeof(p_settlement) <> 'object'
+     or (select array_agg(k order by k) from jsonb_object_keys(p_settlement) k) is distinct from array['calls', 'cost_usd', 'tokens']
+     or jsonb_typeof(p_settlement->'tokens') <> 'number' or jsonb_typeof(p_settlement->'calls') <> 'number' or jsonb_typeof(p_settlement->'cost_usd') <> 'string'
+     or p_record is null or jsonb_typeof(p_record) <> 'object' or p_fenced_record is null or jsonb_typeof(p_fenced_record) <> 'object' then
+    return jsonb_build_object('result', 'invalid_argument');
+  end if;
+  begin
+    v_tokens := (p_settlement->>'tokens')::bigint;
+    v_calls := (p_settlement->>'calls')::integer;
+    v_cost := (p_settlement->>'cost_usd')::numeric;
+  exception when others then
+    return jsonb_build_object('result', 'invalid_argument');
+  end;
+  if v_tokens < 0 or v_calls < 0 or v_calls > 2 or v_cost < 0 or v_cost <> round(v_cost, 8) or (p_settlement->>'tokens')::numeric <> v_tokens then
+    return jsonb_build_object('result', 'invalid_argument');
+  end if;
+  -- ordem de travas: controle → em andamento → lease → reserva → dia (igual à reconciliação)
+  select * into c from public.guest_ai_shadow_control where id = 1 for update;
+  select * into f from public.guest_ai_shadow_inflight where execution_id = p_execution_id for update;
+  if not found then return jsonb_build_object('result', 'not_claimed'); end if;
+  if f.status = 'finalized' then return jsonb_build_object('result', 'duplicate'); end if;
+  if f.status = 'reconciled' then return jsonb_build_object('result', 'reconciled'); end if;
+  -- os dois registros pertencem a ESTA execução, a ESTE lote e contam o MESMO uso liquidado
+  for v_rr in select x from (values (p_record), (p_fenced_record)) v(x) loop
+    if v_rr->>'execution_id' is distinct from f.execution_id::text or v_rr->>'conversation_id' is distinct from f.conversation_id::text
+       or v_rr->>'tenant_id' is distinct from f.tenant_id::text or v_rr->>'property_id' is distinct from f.property_id::text
+       or v_rr->>'channel' is distinct from f.channel or v_rr->>'batch_id' is distinct from f.batch_id::text
+       or v_rr->>'lease_version' is distinct from f.lease_version::text
+       or jsonb_typeof(v_rr->'cost_usd') is distinct from 'string' or (v_rr->>'cost_usd')::numeric is distinct from v_cost
+       or (v_rr->>'gateway_calls')::integer is distinct from v_calls or (v_rr->>'total_tokens')::bigint is distinct from v_tokens then
+      return jsonb_build_object('result', 'invalid_argument');
+    end if;
+  end loop;
+  if p_fenced_record->>'decision' <> 'technical_failure' or p_fenced_record->>'technical_code' <> 'lease_integrity_failure' then
+    return jsonb_build_object('result', 'invalid_argument');
+  end if;
+  select * into r from public.guest_ai_conversation_leases where conversation_id = f.conversation_id for update;
+  v_same := found and r.version = f.lease_version and r.state = 'processing' and r.owner_token = p_owner_token and r.batch_id = f.batch_id;
+  v_live := v_same and r.lease_expires_at > now();
+  if v_live then
+    r := public.guest_ai_shadow_seal_lease(r, case when p_outcome = 'complete' then 'completed' else 'failed' end);
+    v_lease := r.state;
+    v_rec := p_record;
+  elsif v_same then
+    -- prazo vencido, mas o lote ainda é desta execução: selado como falha (nunca concluído fora do prazo)
+    r := public.guest_ai_shadow_seal_lease(r, 'failed');
+    v_lease := 'fenced_expired';
+    v_rec := p_fenced_record;
+  else
+    -- outro dono/versão: o lease NÃO é tocado
+    v_lease := 'fenced_foreign';
+    v_rec := p_fenced_record;
+  end if;
+  v_ins := public.guest_ai_shadow_insert_execution(v_rec);
+  if v_ins->>'result' <> 'inserted' then
+    -- registro inválido ⇒ nada desta transação persiste (o lease volta ao estado anterior)
+    raise exception using errcode = 'P0001', message = 'shadow_finalize_record_rejected';
+  end if;
+  v_set := public.guest_ai_shadow_settle_locked(c, p_execution_id, 'actual', v_tokens, v_cost, v_calls);
+  if v_set->>'result' = 'no_reservation' and v_calls > 0 then
+    -- Gateway chamado sem reserva: divergência de integridade
+    perform public.guest_ai_shadow_trip_locked(c, 'integrity_violation', 'integrity_divergence');
+    select * into c from public.guest_ai_shadow_control where id = 1;
+  elsif (v_set->>'over_reservation')::boolean then
+    perform public.guest_ai_shadow_trip_locked(c, 'budget_exhausted', 'token_limit_violation');
+    select * into c from public.guest_ai_shadow_control where id = 1;
+  elsif (v_set->>'day_exhausted')::boolean then
+    perform public.guest_ai_shadow_trip_locked(c, 'budget_exhausted', 'budget_limit_reached');
+    select * into c from public.guest_ai_shadow_control where id = 1;
+  end if;
+  update public.guest_ai_shadow_inflight set status = 'finalized', closed_at = now() where execution_id = p_execution_id;
+  v_br := public.guest_ai_shadow_breakers_locked(c, v_ins->>'decision');
+  return jsonb_build_object('result', 'finalized', 'lease', v_lease, 'decision', v_ins->>'decision', 'settlement', v_set->>'result') || v_br;
+exception
+  when raise_exception then
+    if sqlerrm = 'shadow_finalize_record_rejected' then return jsonb_build_object('result', 'invalid_argument'); end if;
+    raise;
+end;
+$function$;
+
+-- 18) RECONCILIAÇÃO (F-01/F-04/F-05): assume ATOMICAMENTE cada execução cujo worker se perdeu (o lease
+--     da execução venceu ou mudou de dono), sem nunca reprocessar: sela o lote, liquida a reserva órfã
+--     pelo PIOR CASO reservado e registra `technical_failure / worker_lost`. Só com a trava do tick.
+--     Idempotente: execução já finalizada/reconciliada não é tocada de novo.
+create or replace function public.shadow_reconcile(p_tick_token text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $function$
+declare
+  c public.guest_ai_shadow_control%rowtype;
+  f public.guest_ai_shadow_inflight%rowtype;
+  r public.guest_ai_conversation_leases%rowtype;
+  v_set jsonb;
+  v_ins jsonb;
+  v_n integer := 0;
+  v_ms bigint;
+  v_last text := null;
+begin
+  if p_tick_token is null or p_tick_token !~ '^[0-9a-f]{64}$' then return jsonb_build_object('result', 'invalid_argument'); end if;
+  select * into c from public.guest_ai_shadow_control where id = 1 for update;
+  if c.tick_owner_token is distinct from p_tick_token or c.tick_expires_at <= now() then
+    return jsonb_build_object('result', 'tick_not_held');
+  end if;
+  for f in select * from public.guest_ai_shadow_inflight where status = 'running' order by started_at for update loop
+    select * into r from public.guest_ai_conversation_leases where conversation_id = f.conversation_id for update;
+    -- worker vivo dentro do prazo do lease: não é órfão
+    continue when found and r.version = f.lease_version and r.state = 'processing' and r.lease_expires_at > now();
+    if found and r.batch_id = f.batch_id and (
+         (r.version = f.lease_version and r.state = 'processing')
+         or (r.state in ('expired', 'cancelled', 'failed') and cardinality(coalesce(r.message_ids, '{}')) > 0)) then
+      perform public.guest_ai_shadow_seal_lease(r, 'failed');
+    end if;
+    v_set := public.guest_ai_shadow_settle_locked(c, f.execution_id, 'orphan_worst_case', null, null, null);
+    v_ms := least(2147483647, greatest(0, floor(extract(epoch from (now() - f.started_at)) * 1000)))::bigint;
+    v_ins := public.guest_ai_shadow_insert_execution(jsonb_build_object(
+      'execution_id', f.execution_id, 'tenant_id', f.tenant_id, 'property_id', f.property_id, 'conversation_id', f.conversation_id,
+      'batch_id', f.batch_id, 'lease_version', f.lease_version, 'channel', f.channel,
+      'chain_version', 'db-reconcile.2026-11-04.1', 'shadow_version', 'db-reconcile.2026-11-04.1', 'composer_version', null,
+      'model_id', c.model_id, 'started_at', f.started_at, 'finished_at', now(), 'total_ms', v_ms, 'lease_ms', 0, 'context_ms', 0,
+      'gateway_ms', 0, 'validation_ms', 0, 'timing_context', null, 'timing_dossier', null, 'timing_history', null, 'timing_scope_check', null,
+      'timing_stay_authorizations', null, 'timing_human_ownership', null, 'timing_human_pause', null, 'timing_sender_identity', null,
+      'timing_guard', null, 'timing_compose', null, 'timing_model_output', null, 'timing_parse', null, 'timing_structural_validation', null,
+      'timing_semantic_validation', null, 'timing_final_decision', null) || jsonb_build_object(
+      -- uso desconhecido: o registro conta o que foi LIQUIDADO (pior caso), nunca menos
+      'input_tokens', 0, 'output_tokens', 0, 'reasoning_tokens', 0,
+      'total_tokens', coalesce((select settled_tokens from public.guest_ai_shadow_budget_reservations where execution_id = f.execution_id), 0),
+      'usage_source', 'none',
+      'cost_usd', coalesce((select settled_cost from public.guest_ai_shadow_budget_reservations where execution_id = f.execution_id), 0),
+      'gateway_calls', coalesce((select settled_calls from public.guest_ai_shadow_budget_reservations where execution_id = f.execution_id), 0),
+      'estimated_input_tokens', null, 'candidate_available', false, 'decision', 'technical_failure', 'strategy', null,
+      'intents', '[]'::jsonb, 'intent_count', 0, 'commitment_kinds', '[]'::jsonb, 'human_intervention_needed', false, 'handoff_urgency', null,
+      'pause_state', 'not_evaluated', 'context_check', 'not_run', 'execution_state', 'failed', 'response_discarded', true, 'timeout', false,
+      'token_limit_violation', false, 'concurrency_detected', false, 'gateway_error', null, 'budget_exceeded', null, 'refusal_code', null,
+      'technical_code', 'worker_lost', 'block_code', null, 'integrity_code', null));
+    if v_ins->>'result' <> 'inserted' then
+      raise exception using errcode = 'P0001', message = 'shadow_reconcile_record_rejected';
+    end if;
+    update public.guest_ai_shadow_inflight set status = 'reconciled', closed_at = now() where execution_id = f.execution_id;
+    v_n := v_n + 1;
+    if (v_set->>'day_exhausted')::boolean then
+      perform public.guest_ai_shadow_trip_locked(c, 'budget_exhausted', 'budget_limit_reached');
+      select * into c from public.guest_ai_shadow_control where id = 1;
+    end if;
+    v_last := 'technical_failure';
+  end loop;
+  if v_n > 0 then
+    return jsonb_build_object('result', 'ok', 'reconciled', v_n) || public.guest_ai_shadow_breakers_locked(c, v_last);
+  end if;
+  return jsonb_build_object('result', 'ok', 'reconciled', 0);
 end;
 $function$;
 
@@ -871,6 +1291,10 @@ begin
     'public.guest_ai_shadow_config_problem(public.guest_ai_shadow_control)',
     'public.guest_ai_shadow_error_verdict(integer, integer)',
     'public.guest_ai_shadow_trip_locked(public.guest_ai_shadow_control, text, text)',
+    'public.guest_ai_shadow_settle_locked(public.guest_ai_shadow_control, uuid, text, bigint, numeric, integer)',
+    'public.guest_ai_shadow_insert_execution(jsonb)',
+    'public.guest_ai_shadow_breakers_locked(public.guest_ai_shadow_control, text)',
+    'public.guest_ai_shadow_seal_lease(public.guest_ai_conversation_leases, text)',
     'public.shadow_get_control()',
     'public.shadow_get_manifest()',
     'public.shadow_manifest_add(uuid, integer, uuid, uuid, text, text, text)',
@@ -879,9 +1303,13 @@ begin
     'public.shadow_transition(integer, text, uuid, text, text)',
     'public.shadow_trip(text, text)',
     'public.shadow_reserve_budget(uuid, bigint, numeric, integer)',
-    'public.shadow_settle_budget(uuid, bigint, numeric, integer)',
     'public.shadow_evaluate_breakers()',
     'public.shadow_record_execution(jsonb)',
+    'public.shadow_acquire_tick()',
+    'public.shadow_release_tick(text)',
+    'public.shadow_claim_execution(text, uuid, uuid, integer, uuid, uuid, text)',
+    'public.shadow_finalize_execution(uuid, text, text, jsonb, jsonb, jsonb)',
+    'public.shadow_reconcile(text)',
     'public.shadow_report(uuid, text, uuid, timestamptz, timestamptz)',
     'public.shadow_purge_expired()'] loop
     execute format('revoke all on function %s from public, anon, authenticated, service_role', f);
@@ -899,9 +1327,13 @@ begin
     'public.shadow_transition(integer, text, uuid, text, text)',
     'public.shadow_trip(text, text)',
     'public.shadow_reserve_budget(uuid, bigint, numeric, integer)',
-    'public.shadow_settle_budget(uuid, bigint, numeric, integer)',
     'public.shadow_evaluate_breakers()',
     'public.shadow_record_execution(jsonb)',
+    'public.shadow_acquire_tick()',
+    'public.shadow_release_tick(text)',
+    'public.shadow_claim_execution(text, uuid, uuid, integer, uuid, uuid, text)',
+    'public.shadow_finalize_execution(uuid, text, text, jsonb, jsonb, jsonb)',
+    'public.shadow_reconcile(text)',
     'public.shadow_report(uuid, text, uuid, timestamptz, timestamptz)',
     'public.shadow_purge_expired()'] loop
     execute format('grant execute on function %s to service_role', f);

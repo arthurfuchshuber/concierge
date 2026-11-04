@@ -1,7 +1,7 @@
 /**
  * B3.3 · E3 — Fase 6: PRAZO E DISJUNTORES sob concorrência real, PostgreSQL 17.6.
  */
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { runShadowWorker } from "@/lib/guest-ai/shadow-exec/worker.server";
 import { SHADOW_DEADLINE_MS, SHADOW_PROCESSING_BUDGET_MS } from "@/lib/guest-ai/shadow-exec/contracts";
 import { buildExecutionRecord, validateExecutionRecord, NO_GATEWAY } from "@/lib/guest-ai/shadow-exec/extract";
@@ -40,8 +40,9 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · Fase 6 — prazo e disjuntores (Postgre
   }, 60_000);
   afterAll(() => db?.stop());
 
-  it("20 workers concorrentes com falha técnica (amostra pequena): o disjuntor desarma UMA vez; nenhuma chamada nova depois do desarme", async () => {
-    const specs = await Promise.all(Array.from({ length: 20 }, () => conv()));
+  // E3.1: 7 = ⌊US$ 1,00 / US$ 0,13072⌋ — o máximo de reservas de pior caso simultâneas que cabem no teto diário
+  it("7 workers concorrentes com falha técnica (amostra pequena): o disjuntor desarma UMA vez; nenhuma chamada nova depois do desarme", async () => {
+    const specs = await Promise.all(Array.from({ length: 7 }, () => conv()));
     await shadowToRunning(db, specs);
     const provider = failing(200);
     const outs = await Promise.all(specs.map((s) => runShadowWorker(candidateOf(s), worldIo(specs, { db, ctl: controller(), provider }))));
@@ -156,15 +157,25 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · Fase 6 — prazo e disjuntores (Postgre
     expect(st.state).toBe("ready");
   }, 60_000);
 
-  it("CRÍTICO · janela do disjuntor não pode depender do relógio do worker: falhas com relógio do worker 2 h atrasado ainda desarmam", async () => {
+  it("CRÍTICO · F-03: janela do disjuntor não depende do relógio do worker: falhas com `finished_at` 2 h atrasado ainda desarmam (janela e ordem por `recorded_at`, relógio do banco)", async () => {
     const specs = await Promise.all(Array.from({ length: 3 }, () => conv()));
     await shadowToRunning(db, specs, { p_error_min_sample: 20, p_error_window_minutes: 60 });
-    const skewed = () => Date.now() - 2 * 3600_000;
-    for (const s of specs) await runShadowWorker(candidateOf(s), worldIo(specs, { db, ctl: controller(), provider: failing(), wallNow: skewed }));
+    // registro com o instante do worker 2 h atrasado (relógio da máquina errado) — conta na janela do banco
+    expect((await seedRecord(specs[0]!, "fail", new Date(Date.now() - 2 * 3600_000).toISOString())).breaker).toBe("ok");
+    // e o worker real, com Date.now da máquina 2 h atrasado: o instante gravado vem do banco
+    const realNow = Date.now.bind(Date);
+    const spy = vi.spyOn(Date, "now").mockImplementation(() => realNow() - 2 * 3600_000);
+    try {
+      await runShadowWorker(candidateOf(specs[1]!), worldIo(specs, { db, ctl: controller(), provider: failing() }));
+    } finally {
+      spy.mockRestore();
+    }
     const ex = await executions(db);
-    recordResult("breaker-clock-skew", { technicalFailures: ex.filter((e) => e.decision === "technical_failure").length, trips: await automaticTrips(db), state: (await shadowState(db)).state });
-    expect(ex.filter((e) => e.decision === "technical_failure").length).toBe(3);
-    expect((await shadowState(db)).state).toBe("circuit_open");
+    const [w] = await db.rows<{ worker_fin_age_s: number }>(`select extract(epoch from now() - finished_at)::int worker_fin_age_s from public.guest_ai_shadow_executions where conversation_id = '${specs[1]!.conv}'`);
+    recordResult("breaker-clock-skew", { technicalFailures: ex.filter((e) => e.decision === "technical_failure").length, trips: await automaticTrips(db), state: (await shadowState(db)).state, workerFinishedAgeSeconds: w });
+    expect(ex.filter((e) => e.decision === "technical_failure").length).toBe(2);
+    expect(Math.abs(w!.worker_fin_age_s)).toBeLessThan(60); // instante do worker = relógio do banco, não o da máquina
+    expect(await automaticTrips(db)).toEqual([{ from_state: "running", to_state: "circuit_open", reason_code: "consecutive_failures" }]);
   }, 60_000);
 
   it("prazo REAL: Gateway lento (14 s) ⇒ o processamento é cortado em 13,5 s; finalização dentro de 1,5 s; registro timed_out; lease em fail; total < 15 s", async () => {
@@ -191,35 +202,55 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · Fase 6 — prazo e disjuntores (Postgre
     await shadowToRunning(db, [s]);
     const timers: Array<{ fn: () => void; ms: number }> = [];
     const schedule = (fn: () => void, ms: number) => (timers.push({ fn, ms }), () => undefined);
-    // a RPC `start` trava no banco; o prazo de processamento vence durante ela
+    // a reivindicação (`shadow_claim_execution`, que também inicia) trava; o prazo de processamento vence durante ela
     const ctl = controller({
-      faults: [{ fn: "transition_conversation_lease", mode: "hang", when: (a) => a.p_event === "start" }],
-      before: (fn, a) => { if (fn === "transition_conversation_lease" && a.p_event === "start") setTimeout(() => timers.find((t) => t.ms === SHADOW_PROCESSING_BUDGET_MS)!.fn(), 30); },
+      faults: [{ fn: "shadow_claim_execution", mode: "hang" }],
+      before: (fn) => { if (fn === "shadow_claim_execution") setTimeout(() => timers.find((t) => t.ms === SHADOW_PROCESSING_BUDGET_MS)!.fn(), 30); },
     });
     const provider = simProvider();
     const out = await runShadowWorker(candidateOf(s), worldIo([s], { db, ctl, provider, schedule }));
     const calls = summarizeCalls(ctl);
     recordResult("deadline-cancellation", { out, calls });
     expect(provider.calls).toBe(0);
-    expect(calls).toContain("transition_conversation_lease:start=error:aborted");
-    // depois do corte nenhuma RPC de processamento (reserva, start) chegou ao banco
+    expect(calls).toContain("shadow_claim_execution=error:aborted");
+    // abortada ⇒ sem repetição; depois do corte nenhuma RPC de processamento (reserva) chegou ao banco
+    expect(ctl.calls.filter((c) => c.fn === "shadow_claim_execution")).toHaveLength(1);
     expect(ctl.calls.filter((c) => c.fn === "shadow_reserve_budget")).toEqual([]);
-    expect(out.status === "recorded" || out.status === "record_failed").toBe(true);
+    expect(out).toEqual({ status: "skipped", code: "lease_concurrency" });
+    expect((await leaseRow(db, s.conv))!.state).toBe("ready");
   }, 60_000);
 
-  it("CRÍTICO · finalização que estoura 1,5 s: a falha de medição NUNCA é silenciosa (registro OU desarme) e o lease não fica preso", async () => {
+  it("CRÍTICO · F-02: finalização que estoura 1,5 s ⇒ fail-closed: nada é confirmado pela metade; a execução fica EM ANDAMENTO no banco e a reconciliação a encerra (registro worker_lost, lote selado, reserva pelo pior caso)", async () => {
     const s = await conv();
     await shadowToRunning(db, [s]);
     const timers: Array<{ fn: () => void; ms: number }> = [];
     const schedule = (fn: () => void, ms: number) => (timers.push({ fn, ms }), () => undefined);
-    // o prazo ABSOLUTO vence durante a finalização (banco lento)
-    const ctl = controller({ before: (fn, a) => { if (fn === "transition_conversation_lease" && a.p_event === "complete") timers.find((t) => t.ms === SHADOW_DEADLINE_MS)!.fn(); } });
-    const out = await runShadowWorker(candidateOf(s), worldIo([s], { db, ctl, provider: simProvider(), schedule }));
+    // o prazo ABSOLUTO vence imediatamente antes da finalização atômica (banco lento)
+    const ctl = controller({ before: (fn) => { if (fn === "shadow_finalize_execution") timers.find((t) => t.ms === SHADOW_DEADLINE_MS)!.fn(); } });
+    const provider = simProvider();
+    const out = await runShadowWorker(candidateOf(s), worldIo([s], { db, ctl, provider, schedule }));
+    const before = { ex: (await executions(db, s.conv)).length, lease: await leaseRow(db, s.conv), budget: await budgetTotals(db), trips: await automaticTrips(db) };
+    expect(out).toEqual({ status: "record_failed", decision: "answer_candidate" });
+    // nada pela metade: sem registro, lease ainda em processamento, reserva aberta, nenhum disjuntor por isso (F-12)
+    expect(before.ex).toBe(0);
+    expect(before.lease!.state).toBe("processing");
+    expect(before.budget.reservations).toMatchObject({ open: 1, settled: 0 });
+    expect(before.trips).toEqual([]);
+    // o lease vence (relógio do banco) e o próximo tick reconcilia
+    await db.sql(`update public.guest_ai_conversation_leases set lease_expires_at = now() - interval '1 second' where conversation_id = '${s.conv}'`);
+    expect(await rpcAsSr(db, "shadow_reconcile", { p_tick_token: db.tick })).toMatchObject({ result: "ok", reconciled: 1 });
     const ex = await executions(db, s.conv);
-    const st = await shadowState(db);
     const l = await leaseRow(db, s.conv);
-    recordResult("deadline-finalization-overrun", { out, executions: ex.length, state: st.state, lease: l, calls: summarizeCalls(ctl) });
-    expect(ex.length > 0 || st.state !== "running").toBe(true);
-    expect(["completed", "failed"]).toContain(l!.state);
+    const b = await budgetTotals(db);
+    const [res] = await db.rows<{ kind: string; cost: string }>(`select settlement_kind kind, settled_cost::text cost from public.guest_ai_shadow_budget_reservations`);
+    recordResult("deadline-finalization-overrun", { out, before, after: { executions: ex, lease: l, budget: b, reservation: res }, calls: summarizeCalls(ctl) });
+    expect(ex).toHaveLength(1);
+    expect(ex[0]).toMatchObject({ decision: "technical_failure", technical_code: "worker_lost" });
+    expect(l).toMatchObject({ state: "failed", message_ids: [] });
+    expect(l!.processed).toContain(s.msg);
+    expect(res).toEqual({ kind: "orphan_worst_case", cost: "0.13072000" });
+    expect(b.reservations).toMatchObject({ open: 0, settled: 1 });
+    expect(await budgetLedgerConsistent(db)).toBe(true);
+    expect(provider.calls).toBe(1);
   }, 60_000);
 });

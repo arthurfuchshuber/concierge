@@ -42,6 +42,8 @@ export const PG176_AVAILABLE = existsSync(`${PG176_BIN}/postgres`) && existsSync
 
 export interface E3Db {
   pg: PgCluster;
+  /** Token da trava do tick adquirida pelo `shadowToRunning` (worker direto, sem passar pelo tick). */
+  tick: string | null;
   /** SQL como dono (fixtures e inspeção). */
   sql(q: string): Promise<string>;
   /** SQL como service_role. */
@@ -60,6 +62,7 @@ export function startE3Db(): E3Db {
   const pg = startCluster([SHADOW_MIGRATION_PATH], { bin: PG176_BIN, serverOptions: ["log_statement=all", "log_min_messages=warning"] });
   return {
     pg,
+    tick: null,
     sql: (q) => pg.sql(q),
     sr: (q) => pg.sql(q, { role: "service_role" }),
     async rows<T>(q: string) {
@@ -235,14 +238,19 @@ export interface ShadowLimitsSql {
   p_tick_interval_seconds: number;
   p_max_conversations_per_tick: number;
 }
-/** Limites de TESTE (não são propostas operacionais; essas estão no relatório, seção M). */
+/**
+ * Limites dos testes = parâmetros HOMOLOGADOS da Entrega 3.1 (PARTE III) onde há valor homologado
+ * (custo por turno US$ 0,15; teto diário US$ 1,00; ≤ 3 conversas por tick; tick de 60 s; amostra mínima
+ * 20; fuso America/Sao_Paulo). Tokens: o pior caso aprovado (2 × (40.000 × 125 + 1.536 × 1.000) =
+ * US$ 0,13072 ≤ 0,15). Isto NÃO é ativação: o Shadow só existe no cluster descartável do teste.
+ */
 export const TEST_LIMITS: ShadowLimitsSql = {
   p_model_id: "openai/gpt-5.6-sol",
   p_reasoning_effort: "low",
-  p_max_input_tokens: 60_000,
-  p_max_output_tokens: 1_024,
-  p_max_total_tokens: 70_000,
-  p_max_turn_cost_usd: 0.5,
+  p_max_input_tokens: 40_000,
+  p_max_output_tokens: 1_536,
+  p_max_total_tokens: 42_000,
+  p_max_turn_cost_usd: 0.15,
   p_daily_cost_limit_usd: 1,
   p_max_daily_tokens: 5_000_000,
   p_max_daily_calls: 500,
@@ -251,8 +259,10 @@ export const TEST_LIMITS: ShadowLimitsSql = {
   p_budget_day_timezone: "America/Sao_Paulo",
   p_telemetry_retention_days: 30,
   p_tick_interval_seconds: 60,
-  p_max_conversations_per_tick: 5,
+  p_max_conversations_per_tick: 3,
 };
+/** Reserva de pior caso de UM turno com os limites homologados (unidades de 1e-8 US$ → US$). */
+export const WORST_TURN_USD = 0.13072;
 
 export async function rpcAsSr(db: E3Db, fn: string, args: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
   const named = Object.entries(args).map(([k, v]) => `${k} => ${lit(v)}`).join(", ");
@@ -262,7 +272,7 @@ export async function rpcAsSr(db: E3Db, fn: string, args: Record<string, unknown
 /** Zera o Shadow e leva até `running` pelo caminho AUTORIZADO (RPCs administrativas, com autor). */
 export async function shadowToRunning(db: E3Db, propertiesIn: Array<{ tenant: string; property: string }>, over: Partial<ShadowLimitsSql> = {}) {
   const properties = [...new Map(propertiesIn.map((p) => [p.property, p])).values()];
-  await db.sql(`truncate public.guest_ai_shadow_executions, public.guest_ai_shadow_budget_reservations, public.guest_ai_shadow_budget_days, public.guest_ai_shadow_transitions, public.guest_ai_shadow_access_log, public.guest_ai_shadow_manifest`);
+  await db.sql(`truncate public.guest_ai_shadow_executions, public.guest_ai_shadow_budget_reservations, public.guest_ai_shadow_budget_days, public.guest_ai_shadow_transitions, public.guest_ai_shadow_access_log, public.guest_ai_shadow_manifest, public.guest_ai_shadow_inflight`);
   await db.sql(`delete from public.guest_ai_shadow_control; insert into public.guest_ai_shadow_control (id, state, daily_cost_limit_usd) values (1, 'disabled', 1.00)`);
   for (const p of properties) await db.sql(`insert into public.properties(id, owner_id) values ('${p.property}', '${p.tenant}') on conflict (id) do update set owner_id = excluded.owner_id, archived_at = null`);
   for (const p of properties) {
@@ -278,6 +288,12 @@ export async function shadowToRunning(db: E3Db, propertiesIn: Array<{ tenant: st
   const r1 = await rpcAsSr(db, "shadow_transition", { p_expected_version: v, p_to: "ready", p_actor: ACTOR, p_reason: "authorized_activation" });
   const r2 = await rpcAsSr(db, "shadow_transition", { p_expected_version: Number(r1.state_version), p_to: "running", p_actor: ACTOR, p_reason: "authorized_activation" });
   if (r2.result !== "applied") throw new Error(`running:${String(r2.result)}`);
+  // trava do tick pelo caminho real (RPC); só o PRAZO é estendido (fixture) para que cenários longos que
+  // chamam o worker diretamente não dependam da duração do teste. Os testes da trava não usam isto.
+  const t = await rpcAsSr(db, "shadow_acquire_tick");
+  if (t.result !== "acquired") throw new Error(`tick:${String(t.result)}`);
+  db.tick = String(t.tick_token);
+  await db.sql(`update public.guest_ai_shadow_control set tick_expires_at = now() + interval '1 hour' where id = 1`);
 }
 
 export async function shadowState(db: E3Db): Promise<{ state: string; version: number }> {
@@ -384,19 +400,14 @@ export interface WorldOpts {
   provider: LlmProvider;
   hooks?: WorldHooks;
   log?: LlmCallLogEvent[];
-  /** Relógio de parede do worker (ms). Padrão: 1 min depois da mensagem sintética (fora do debounce). */
-  wallNow?: () => number;
+  /** Token da trava do tick (padrão: o adquirido pelo `shadowToRunning`). */
+  tickToken?: string | null;
   now?: () => number;
   schedule?: (fn: () => void, ms: number) => () => void;
   masterSwitchOn?: () => boolean;
 }
 
 export const WALL_T0 = Date.parse("2026-11-03T10:01:00Z");
-/**
- * Relógio de parede REAL por padrão: a janela dos disjuntores no banco compara `finished_at` (informado
- * pelo worker) com o `now()` do banco, então o harness usa o mesmo relógio da máquina do banco.
- */
-export const REAL_WALL = () => Date.now();
 
 /** `io` do worker com store/lease REAIS e leitura de conversa SINTÉTICA, por conversa. */
 export function worldIo(specs: ConvSpec[], o: WorldOpts): ShadowWorkerIo {
@@ -440,7 +451,8 @@ export function worldIo(specs: ConvSpec[], o: WorldOpts): ShadowWorkerIo {
           senderId: turn.guestSessionId,
           text: i === ids.length - 1 ? (s.text ?? "Qual é o horário do check-in?") : "Olá",
           tPersisted: new Date(Date.parse("2026-11-03T10:00:00Z") - (ids.length - 1 - i) * 1000).toISOString(),
-          tChannel: null,
+          // como na produção para o chat web (`collector.server.ts`: instante do canal = `created_at`)
+          tChannel: new Date(Date.parse("2026-11-03T10:00:00Z") - (ids.length - 1 - i) * 1000).toISOString(),
           tReceived: null,
           rawMatched: true,
         })),
@@ -489,7 +501,8 @@ export function worldIo(specs: ConvSpec[], o: WorldOpts): ShadowWorkerIo {
     provider: o.provider,
     log: (e) => void o.log?.push(e),
     now: o.now,
-    wallNow: o.wallNow ?? REAL_WALL,
+    // o worker ancora o relógio de parede no instante do BANCO (E3.1): o harness não injeta relógio de parede
+    tickToken: o.tickToken !== undefined ? o.tickToken : o.db.tick,
     schedule: o.schedule,
   };
 }

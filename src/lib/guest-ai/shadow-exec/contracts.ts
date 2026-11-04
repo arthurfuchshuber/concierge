@@ -200,6 +200,8 @@ export const SHADOW_TECHNICAL_CODES = [
   "finalization_failed",
   "measurement_unavailable",
   "read_failed",
+  // E3.1 (F-01/F-04): execução cujo worker se perdeu, encerrada pela reconciliação do banco
+  "worker_lost",
 ] as const;
 export type ShadowTechnicalCode = (typeof SHADOW_TECHNICAL_CODES)[number];
 
@@ -281,6 +283,15 @@ export const SHADOW_PROCESSING_BUDGET_MS = SHADOW_DEADLINE_MS - SHADOW_FINALIZAT
 export const APPROVED_DAILY_COST_CEILING_USD = 1;
 /** Tentativas máximas do Gateway (F2-A `MAX_ATTEMPTS`): o orçamento reserva o pior caso. */
 export const GATEWAY_WORST_CASE_ATTEMPTS = 2;
+/**
+ * Parâmetros HOMOLOGADOS na Entrega 3.1 (PARTE III), impostos como TETOS — não são autorização de
+ * ativação. A migration impõe os mesmos valores por CHECK; `validateShadowControl` recusa o resto.
+ */
+export const APPROVED_MAX_TURN_COST_USD = 0.15;
+export const APPROVED_MAX_CONVERSATIONS_PER_TICK = 3;
+export const APPROVED_TICK_INTERVAL_SECONDS = 60;
+export const APPROVED_ERROR_MIN_SAMPLE = 20;
+export const APPROVED_BUDGET_TIMEZONE = "America/Sao_Paulo";
 
 /**
  * Configuração lida da linha única `guest_ai_shadow_control`. TODOS os limites pendentes de aprovação
@@ -308,6 +319,8 @@ export interface ShadowControl {
   /** Autorização de retenção (independente do modelo); ausente ⇒ nenhuma chamada real. */
   retentionAuthorized: boolean;
   retentionScope: RetentionScope | null;
+  /** E3.1 (F-09/F-03): instante do BANCO no momento da leitura (ms epoch); ausente ⇒ ilegível. */
+  dbNowMs: number;
 }
 
 /** Configuração COMPLETA e válida (só existe depois de `validateShadowControl` aprovar). */
@@ -328,6 +341,9 @@ export interface ShadowLimits {
   tickIntervalSeconds: number;
   maxConversationsPerTick: number;
   manifestVersion: number;
+  /** E3.1: tetos monetários em unidades exatas de 1e-8 US$ (`money.ts`). */
+  maxTurnCostUsd8: bigint;
+  dailyCostLimitUsd8: bigint;
 }
 
 // ─────────────────────────── Manifesto ───────────────────────────
@@ -375,7 +391,8 @@ export interface ShadowExecutionRecord {
   readonly reasoningTokens: number;
   readonly totalTokens: number;
   readonly usageSource: (typeof SHADOW_USAGE_SOURCES)[number];
-  readonly costUsd: number;
+  /** E3.1: decimal exato com 8 casas (`money.ts`), igual ao valor liquidado. */
+  readonly costUsd: string;
   readonly gatewayCalls: number;
   readonly estimatedInputTokens: number | null;
   readonly candidateAvailable: boolean;
@@ -416,7 +433,7 @@ void _recordKeysExhaustive;
 
 /** Resposta da rota: só códigos e contadores. */
 export interface ShadowTickSummary {
-  readonly outcome: "not_released" | "state_not_running" | "state_unreadable" | "limits_missing" | "manifest_unreadable" | "executed" | "tick_failed";
+  readonly outcome: "not_released" | "state_not_running" | "state_unreadable" | "limits_missing" | "manifest_unreadable" | "executed" | "tick_failed" | "tick_busy";
   readonly conversationsConsidered: number;
   readonly executed: number;
   readonly blocked: number;

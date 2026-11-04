@@ -85,7 +85,49 @@ describe("B3.3 · tick (só alcançável com o portão aberto — testado com po
     s.worker.mockResolvedValueOnce({ status: "recorded", decision: "answer_candidate" }).mockResolvedValueOnce({ status: "skipped", code: "collector_not_ready" } as never).mockResolvedValueOnce({ status: "recorded", decision: "silence" } as never);
     const r = await handleShadowTick(req(), open(s));
     expect(await r.json()).toEqual({ outcome: "executed", conversationsConsidered: 3, executed: 2, blocked: 1, failed: 0 });
-    expect(s.candidates).toHaveBeenCalledWith(store.manifest!.entries, expect.objectContaining({ limit: 5, tickIntervalSeconds: 60 }));
+    // E3.1: ≤ 3 conversas por tick; instante das candidatas = relógio do BANCO; trava adquirida, reconciliação antes, trava liberada no fim
+    expect(s.candidates).toHaveBeenCalledWith(store.manifest!.entries, expect.objectContaining({ limit: 3, tickIntervalSeconds: 60, nowMs: store.control!.dbNowMs }));
+    expect(s.worker).toHaveBeenCalledWith(expect.anything(), "c".repeat(64));
+    expect(store.calls.filter((c) => ["acquireTick", "reconcile", "releaseTick"].includes(c))).toEqual(["acquireTick", "reconcile", "releaseTick"]);
+  });
+  it("E3.1 · F-07: trava do tick ocupada ⇒ `tick_busy` sem candidatas nem worker; falha da trava/reconciliação ⇒ `tick_failed`; trava sempre liberada", async () => {
+    const cases: Array<[(st: MemoryShadowStore) => void, string, boolean]> = [
+      [(st) => (st.acquireTick = async () => ({ kind: "busy" })), "tick_busy", false],
+      [(st) => (st.acquireTick = async () => ({ kind: "blocked", code: "state_not_running" })), "state_not_running", false],
+      [(st) => (st.acquireTick = async () => ({ kind: "blocked", code: "config_incomplete" })), "limits_missing", false],
+      [(st) => (st.fail.tick = true), "tick_failed", false],
+      [(st) => (st.fail.reconcile = true), "tick_failed", true],
+    ];
+    for (const [setup, outcome, released] of cases) {
+      const s = spies();
+      const st = new MemoryShadowStore();
+      setup(st);
+      s.store.mockResolvedValue(st);
+      expect((await runShadowTick(s)).outcome, outcome).toBe(outcome);
+      expect(s.candidates).not.toHaveBeenCalled();
+      expect(s.worker).not.toHaveBeenCalled();
+      expect(st.calls.includes("releaseTick"), outcome).toBe(released);
+    }
+    // candidatas acima do teto são cortadas em 3; trava perdida no meio ⇒ para
+    const s = spies();
+    const st = new MemoryShadowStore();
+    s.store.mockResolvedValue(st);
+    s.candidates.mockResolvedValue({ ok: true, candidates: [candidate(), candidate(), candidate(), candidate(), candidate()] });
+    s.worker.mockResolvedValue({ status: "recorded", decision: "silence" } as never);
+    expect(await runShadowTick(s)).toEqual({ outcome: "executed", conversationsConsidered: 3, executed: 3, blocked: 0, failed: 0 });
+    const s2 = spies();
+    s2.store.mockResolvedValue(new MemoryShadowStore());
+    s2.candidates.mockResolvedValue({ ok: true, candidates: [candidate(), candidate()] });
+    s2.worker.mockResolvedValue({ status: "skipped", code: "tick_not_held" } as never);
+    expect(await runShadowTick(s2)).toEqual({ outcome: "executed", conversationsConsidered: 2, executed: 0, blocked: 1, failed: 0 });
+    expect(s2.worker).toHaveBeenCalledTimes(1);
+    // liberação que falha nunca derruba o tick
+    const s3 = spies();
+    const st3 = new MemoryShadowStore();
+    st3.releaseTick = async () => { throw new Error(CANARY); };
+    s3.store.mockResolvedValue(st3);
+    s3.candidates.mockResolvedValue({ ok: true, candidates: [] });
+    expect((await runShadowTick(s3)).outcome).toBe("executed");
   });
   it("falha de gravação interrompe o tick (medição indisponível não continua)", async () => {
     const s = spies();

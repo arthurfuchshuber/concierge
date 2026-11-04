@@ -6,6 +6,10 @@
  * transicionar, manifesto, retenção, relatório, expurgo) NÃO estão na porta: o worker nunca se ativa,
  * nunca autoriza retenção nem altera o manifesto. Toda resposta é lida por lista branca; formato
  * inesperado ⇒ resultado de erro (fail-closed), nunca autorização.
+ *
+ * E3.1: trava do tick (`acquireTick`/`releaseTick`), reivindicação+início atômicos (`claimExecution`),
+ * finalização atômica (`finalizeExecution`: lease + liquidação + registro + disjuntores numa transação) e
+ * reconciliação (`reconcile`). A liquidação avulsa deixou de existir na porta (só dentro do banco).
  */
 import type { GuestAiShadowRpc } from "./client.server";
 import {
@@ -25,6 +29,11 @@ import {
   type ShadowTransitionReason,
 } from "@/lib/guest-ai/shadow-exec/contracts";
 import type { ErrorBreakerVerdict, TurnReservation } from "@/lib/guest-ai/shadow-exec/breakers";
+import { toDecimal8 } from "@/lib/guest-ai/shadow-exec/money";
+
+const ISO_Z = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/;
+const TOKEN_RE = /^[0-9a-f]{64}$/;
+const isoMs = (v: unknown): number | null => (typeof v === "string" && ISO_Z.test(v) && Number.isFinite(Date.parse(v)) ? Date.parse(v) : null);
 
 const inList = <T extends string>(list: readonly T[], v: unknown): v is T => typeof v === "string" && (list as readonly string[]).includes(v);
 const obj = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
@@ -54,6 +63,8 @@ export function parseControl(data: unknown): ShadowControl | null {
   if (d.budget_day_timezone !== null && typeof d.budget_day_timezone !== "string") return null;
   if (d.retention_scope !== null && !inList(RETENTION_SCOPES, d.retention_scope)) return null;
   if (typeof d.retention_authorized !== "boolean") return null;
+  const dbNowMs = isoMs(d.db_now);
+  if (dbNowMs === null) return null;
   return Object.freeze({
     state: d.state,
     stateVersion: d.state_version,
@@ -75,6 +86,7 @@ export function parseControl(data: unknown): ShadowControl | null {
     manifestVersion: iv.manifest_version ?? null,
     retentionAuthorized: d.retention_authorized === true && d.retention_scope !== null,
     retentionScope: d.retention_scope as ShadowControl["retentionScope"],
+    dbNowMs,
   });
 }
 
@@ -108,8 +120,44 @@ export function parseManifest(data: unknown): ManifestSnapshot | null {
 export type ReserveResult =
   | { kind: "reserved"; reservationId: string }
   | { kind: "exceeded"; limit: BudgetLimitId }
-  | { kind: "blocked"; code: "state_not_running" | "config_incomplete" | "duplicate" | "invalid_argument" }
+  | { kind: "blocked"; code: "state_not_running" | "config_incomplete" | "duplicate" | "invalid_argument" | "not_claimed" }
   | { kind: "error" };
+
+export type TickResult = { kind: "acquired"; token: string; dbNowMs: number; expiresMs: number } | { kind: "busy" } | { kind: "blocked"; code: "state_not_running" | "config_incomplete" } | { kind: "error" };
+
+export interface ClaimArgs {
+  tickToken: string;
+  executionId: string;
+  conversationId: string;
+  expectedVersion: number;
+  tenantId: string;
+  propertyId: string;
+  channel: ShadowExecutionRecord["channel"];
+}
+export type ClaimResult =
+  | { kind: "claimed"; version: number; ownerToken: string; batchId: string; messageIds: readonly string[]; repeated: boolean }
+  | { kind: "rejected"; code: "state_not_running" | "tick_not_held" | "not_in_manifest" | "not_found" | "stale_version" | "not_claimable" | "attempts_exhausted" | "conflict" | "duplicate" | "invalid_argument" }
+  | { kind: "error" };
+const CLAIM_REJECTIONS = ["state_not_running", "tick_not_held", "not_in_manifest", "not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument"] as const;
+
+export interface FinalizeArgs {
+  executionId: string;
+  ownerToken: string;
+  outcome: "complete" | "fail";
+  /** Uso REAL liquidado (zeros quando o Gateway não foi chamado). */
+  settlement: { tokens: number; costUsd: string; calls: number };
+  record: ShadowExecutionRecord;
+  /** Registro que substitui o normal se a cerca do lease falhar (`lease_integrity_failure`). */
+  fencedRecord: ShadowExecutionRecord;
+}
+export type FinalizeResult =
+  | { kind: "finalized"; lease: "completed" | "failed" | "fenced_expired" | "fenced_foreign"; decision: string }
+  | { kind: "duplicate" }
+  | { kind: "reconciled" }
+  | { kind: "not_claimed" }
+  | { kind: "invalid" }
+  | { kind: "error" };
+const FINAL_LEASES = ["completed", "failed", "fenced_expired", "fenced_foreign"] as const;
 
 export type RecordResult = { kind: "recorded"; breaker: ErrorBreakerVerdict | "integrity_violation" } | { kind: "duplicate" } | { kind: "invalid" } | { kind: "error" };
 
@@ -136,9 +184,14 @@ export interface ShadowStore {
   readManifest(): Promise<ManifestSnapshot | null>;
   trip(to: ShadowFailureState, reason: ShadowTransitionReason): Promise<"applied" | "noop" | "error">;
   reserve(executionId: string, reservation: TurnReservation): Promise<ReserveResult>;
-  settle(reservationId: string, actual: { tokens: number; costUsd: number; calls: number }): Promise<"settled" | "exhausted" | "error">;
   evaluateBreakers(): Promise<ErrorBreakerVerdict>;
+  /** Registro SEM lote (desfechos anteriores à reivindicação). */
   record(record: ShadowExecutionRecord): Promise<RecordResult>;
+  acquireTick(): Promise<TickResult>;
+  releaseTick(token: string): Promise<"released" | "noop" | "error">;
+  claimExecution(args: ClaimArgs): Promise<ClaimResult>;
+  finalizeExecution(args: FinalizeArgs): Promise<FinalizeResult>;
+  reconcile(tickToken: string): Promise<{ kind: "ok"; reconciled: number } | { kind: "tick_not_held" } | { kind: "error" }>;
 }
 
 const BREAKERS: readonly ErrorBreakerVerdict[] = ["ok", "error_rate_exceeded", "consecutive_failures", "measurement_unavailable"];
@@ -164,17 +217,18 @@ export function createShadowStore(rpc: GuestAiShadowRpc): ShadowStore {
       return d?.result === "applied" ? "applied" : d?.result === "noop" ? "noop" : "error";
     },
     async reserve(executionId, r) {
-      const d = await call("shadow_reserve_budget", { p_execution_id: executionId, p_tokens: r.tokens, p_cost: r.costUsd, p_calls: r.calls });
+      let cost: string;
+      try {
+        cost = toDecimal8(r.costUsd8);
+      } catch {
+        return { kind: "error" };
+      }
+      const d = await call("shadow_reserve_budget", { p_execution_id: executionId, p_tokens: r.tokens, p_cost: cost, p_calls: r.calls });
       if (!d) return { kind: "error" };
       if (d.result === "reserved" && typeof d.reservation_id === "string" && UUID_RE.test(d.reservation_id)) return { kind: "reserved", reservationId: d.reservation_id };
       if (d.result === "exceeded" && inList(BUDGET_LIMIT_IDS, d.limit)) return { kind: "exceeded", limit: d.limit };
-      if (d.result === "state_not_running" || d.result === "config_incomplete" || d.result === "duplicate" || d.result === "invalid_argument") return { kind: "blocked", code: d.result };
+      if (d.result === "state_not_running" || d.result === "config_incomplete" || d.result === "duplicate" || d.result === "invalid_argument" || d.result === "not_claimed") return { kind: "blocked", code: d.result };
       return { kind: "error" };
-    },
-    async settle(reservationId, a) {
-      const d = await call("shadow_settle_budget", { p_reservation_id: reservationId, p_tokens: a.tokens, p_cost: a.costUsd, p_calls: a.calls });
-      if (d?.result !== "settled") return "error";
-      return d.budget === "exhausted" ? "exhausted" : "settled";
     },
     async evaluateBreakers() {
       const d = await call("shadow_evaluate_breakers", {});
@@ -192,6 +246,67 @@ export function createShadowStore(rpc: GuestAiShadowRpc): ShadowStore {
       if (d.result === "duplicate") return { kind: "duplicate" };
       if (d.result === "invalid_argument") return { kind: "invalid" };
       if (d.result === "recorded" && (d.breaker === "integrity_violation" || inList(BREAKERS, d.breaker))) return { kind: "recorded", breaker: d.breaker as ErrorBreakerVerdict | "integrity_violation" };
+      return { kind: "error" };
+    },
+    async acquireTick() {
+      const d = await call("shadow_acquire_tick", {});
+      if (!d) return { kind: "error" };
+      if (d.result === "acquired") {
+        const now = isoMs(d.db_now);
+        const exp = isoMs(d.tick_expires_at);
+        if (typeof d.tick_token === "string" && TOKEN_RE.test(d.tick_token) && now !== null && exp !== null && exp > now) return { kind: "acquired", token: d.tick_token, dbNowMs: now, expiresMs: exp };
+        return { kind: "error" };
+      }
+      if (d.result === "busy") return { kind: "busy" };
+      if (d.result === "state_not_running" || d.result === "config_incomplete") return { kind: "blocked", code: d.result };
+      return { kind: "error" };
+    },
+    async releaseTick(token) {
+      const d = await call("shadow_release_tick", { p_tick_token: token });
+      return d?.result === "released" ? "released" : d?.result === "noop" ? "noop" : "error";
+    },
+    async claimExecution(a) {
+      const d = await call("shadow_claim_execution", {
+        p_tick_token: a.tickToken, p_execution_id: a.executionId, p_conversation_id: a.conversationId, p_expected_version: a.expectedVersion,
+        p_tenant_id: a.tenantId, p_property_id: a.propertyId, p_channel: a.channel,
+      });
+      if (!d) return { kind: "error" };
+      if (d.result === "claimed") {
+        const ids = d.message_ids;
+        if (
+          typeof d.version === "number" && Number.isInteger(d.version) && typeof d.owner_token === "string" && TOKEN_RE.test(d.owner_token) &&
+          typeof d.batch_id === "string" && UUID_RE.test(d.batch_id) && Array.isArray(ids) && ids.length > 0 && ids.every((x) => typeof x === "string" && UUID_RE.test(x))
+        ) return { kind: "claimed", version: d.version, ownerToken: d.owner_token, batchId: d.batch_id, messageIds: Object.freeze([...(ids as string[])]), repeated: d.repeated === true };
+        return { kind: "error" };
+      }
+      if (inList(CLAIM_REJECTIONS, d.result)) return { kind: "rejected", code: d.result };
+      return { kind: "error" };
+    },
+    async finalizeExecution(a) {
+      let record: Record<string, unknown>;
+      let fenced: Record<string, unknown>;
+      try {
+        record = recordToRow(a.record);
+        fenced = recordToRow(a.fencedRecord);
+      } catch {
+        return { kind: "invalid" };
+      }
+      const d = await call("shadow_finalize_execution", {
+        p_execution_id: a.executionId, p_owner_token: a.ownerToken, p_outcome: a.outcome,
+        p_settlement: { tokens: a.settlement.tokens, cost_usd: a.settlement.costUsd, calls: a.settlement.calls }, p_record: record, p_fenced_record: fenced,
+      });
+      if (!d) return { kind: "error" };
+      if (d.result === "finalized" && inList(FINAL_LEASES, d.lease) && typeof d.decision === "string") return { kind: "finalized", lease: d.lease, decision: d.decision };
+      if (d.result === "duplicate") return { kind: "duplicate" };
+      if (d.result === "reconciled") return { kind: "reconciled" };
+      if (d.result === "not_claimed") return { kind: "not_claimed" };
+      if (d.result === "invalid_argument") return { kind: "invalid" };
+      return { kind: "error" };
+    },
+    async reconcile(tickToken) {
+      const d = await call("shadow_reconcile", { p_tick_token: tickToken });
+      if (d?.result === "ok" && typeof d.reconciled === "number" && Number.isInteger(d.reconciled) && d.reconciled >= 0) return { kind: "ok", reconciled: d.reconciled };
+      if (d?.result === "tick_not_held") return { kind: "tick_not_held" };
       return { kind: "error" };
     },
   };

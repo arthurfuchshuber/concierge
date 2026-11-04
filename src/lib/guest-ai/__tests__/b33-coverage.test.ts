@@ -109,18 +109,71 @@ describe("B3.3 · worker × lease: cada resposta do B3.1 tem destino fechado", (
     const subset = await run((l) => { l.loadOver = (n) => (n === 2 ? { ...ready([]), deferredMessageIds: [MSG] } : undefined); });
     expect(subset.r).toEqual({ status: "skipped", code: "lease_concurrency" });
   });
-  it("claim recusado ⇒ concorrência; lote reivindicado diferente ⇒ integridade do lease; start recusado ⇒ integridade do lease", async () => {
+  it("reivindicação recusada ⇒ concorrência; lote reivindicado diferente ⇒ falha selada com lease_integrity_failure", async () => {
     expect((await run((l) => (l.claimOver = () => ({ result: "conflict", version: 3 })))).r).toEqual({ status: "skipped", code: "lease_concurrency" });
     const m = await run((l) => (l.claimOver = (r) => ({ ...(r as Extract<StoreClaimResult, { ownerToken: string }>), messageIds: ["22222222-2222-4222-8222-2222222222c3"] })));
     expect(m.store.records[0]).toMatchObject({ technicalCode: "lease_integrity_failure" });
     expect(m.store.records[0]!.batchId).not.toBeNull();
-    const s = await run((l) => (l.over.start = () => ({ result: "stale_owner", version: 4 })));
-    expect(s.store.records[0]!.technicalCode).toBe("lease_integrity_failure");
-    expect(s.provider.calls).toBe(0);
+    expect(m.store.finalizations[0]!.outcome).toBe("fail");
+    expect(m.provider.calls).toBe(0);
   });
-  it("lote em recuperação (recovered) também é processado", async () => {
+  it("E3.1 · cada resposta de `shadow_claim_execution` tem destino fechado (trava do tick, estado, rejeições, resposta perdida)", async () => {
+    const withClaim = async (impl: (n: number) => Awaited<ReturnType<MemoryShadowStore["claimExecution"]>> | "real", extra: Partial<Parameters<typeof makeIo>[0]> = {}) => {
+      const store = new MemoryShadowStore();
+      const real = store.claimExecution.bind(store);
+      let n = 0;
+      store.claimExecution = async (a) => {
+        const r = impl(++n);
+        return r === "real" ? real(a) : r;
+      };
+      const provider = fakeProvider(good());
+      const { io } = makeIo({ store, provider, ...extra });
+      return { r: await runShadowWorker(candidate(), io), n: () => n, provider, store };
+    };
+    expect((await withClaim(() => ({ kind: "rejected", code: "tick_not_held" }))).r).toEqual({ status: "skipped", code: "tick_not_held" });
+    expect((await withClaim(() => ({ kind: "rejected", code: "state_not_running" }))).r).toEqual({ status: "skipped", code: "state_not_running" });
+    for (const code of ["not_in_manifest", "not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument"] as const)
+      expect((await withClaim(() => ({ kind: "rejected", code }))).r).toEqual({ status: "skipped", code: "lease_concurrency" });
+    // sem resposta duas vezes ⇒ nada executa (a posse, se confirmada, é selada pela reconciliação)
+    const lost = await withClaim(() => ({ kind: "error" }));
+    expect(lost.r).toEqual({ status: "skipped", code: "lease_concurrency" });
+    expect(lost.n()).toBe(2);
+    expect(lost.provider.calls).toBe(0);
+    // resposta perdida UMA vez ⇒ a repetição (mesma execução) segue normalmente
+    const once = await withClaim((n) => (n === 1 ? { kind: "error" } : "real"));
+    expect(once.r).toEqual({ status: "recorded", decision: "answer_candidate" });
+    expect(once.n()).toBe(2);
+    // sem token de tick ⇒ nem tenta reivindicar
+    const none = await withClaim(() => "real", { tickToken: null });
+    expect(none.r).toEqual({ status: "skipped", code: "tick_not_held" });
+    expect(none.n()).toBe(0);
+  });
+  it("F-05 · lote vencido em processamento NUNCA é reivindicado de novo pelo worker (sem recuperação)", async () => {
     const r = await run((l) => (l.claimOver = (c) => ({ ...(c as Extract<StoreClaimResult, { ownerToken: string }>), result: "recovered" })));
-    expect(r.r).toEqual({ status: "recorded", decision: "answer_candidate" });
+    expect(r.r).toEqual({ status: "skipped", code: "lease_concurrency" });
+    expect(r.provider.calls).toBe(0);
+    const p = await run((l) => (l.loadOver = (n) => (n <= 2 ? { conversationId: CONV, state: "processing", version: 5, batchId: "b0000000-0000-4000-8000-000000000001", messageIds: [MSG], deferredMessageIds: [], attempts: 1, leaseExpiresAt: "2026-11-03T09:00:00Z" } : undefined)));
+    expect(p.r).toEqual({ status: "skipped", code: "lease_concurrency" });
+  });
+  it("F-05 · sobras de lote ENCERRADO (falha/cancelamento/expiração) são seladas antes de observar; recusa ⇒ concorrência; releitura falha ⇒ integridade", async () => {
+    const closed = (state: string) => ({ conversationId: CONV, state, version: 4, batchId: "b0000000-0000-4000-8000-000000000001", messageIds: [MSG], deferredMessageIds: [], attempts: 1, leaseExpiresAt: null });
+    for (const state of ["failed", "cancelled", "expired"]) {
+      const acks: unknown[] = [];
+      const r = await run((l) => {
+        l.loadOver = (n) => (n === 1 ? closed(state) : n === 2 ? { ...closed(state), version: 5, messageIds: [] } : undefined);
+        l.over.acknowledge = () => (acks.push(state), { result: "applied", version: 5, state } as StoreTransitionResult);
+      });
+      expect(acks).toEqual([state]);
+      expect(r.lease.inner.events[0]).toBe("observe"); // selou ANTES de observar
+    }
+    expect((await run((l) => { l.loadOver = (n) => (n === 1 ? closed("failed") : undefined); l.over.acknowledge = () => ({ result: "invalid_transition", version: 4 }); })).r).toEqual({ status: "skipped", code: "lease_concurrency" });
+    const f = await run((l) => { l.loadOver = (n) => (n === 1 ? closed("failed") : n === 2 ? "throw" : undefined); l.over.acknowledge = () => ({ result: "applied", version: 5, state: "failed" }); });
+    expect(f.store.records[0]!.technicalCode).toBe("lease_integrity_failure");
+    // lote encerrado SEM lote fechado (batch nulo) ou já selado (sem mensagens) ⇒ nada a selar
+    const acks2: unknown[] = [];
+    await run((l) => { l.loadOver = (n) => (n === 1 ? { ...closed("cancelled"), batchId: null } : undefined); l.over.acknowledge = () => (acks2.push(1), undefined); });
+    await run((l) => { l.loadOver = (n) => (n === 1 ? { ...closed("failed"), messageIds: [] } : undefined); l.over.acknowledge = () => (acks2.push(1), undefined); });
+    expect(acks2).toEqual([]);
   });
   it("fail definitivo recusado (desfecho técnico) ⇒ lease_integrity_failure", async () => {
     const r = await run((l) => (l.over.fail = () => ({ result: "stale_owner", version: 9 })), { portsFor: () => operationalPorts({ loadContext: async () => { throw new Error(CANARY); } }) });
@@ -136,7 +189,7 @@ describe("B3.3 · worker × lease: cada resposta do B3.1 tem destino fechado", (
 
 describe("B3.3 · worker — demais ramos", () => {
   it("relógio de parede e id padrão (Date.now / randomUUID) funcionam", async () => {
-    const { io, store } = makeIo({ provider: fakeProvider(good()), wallNow: undefined, newId: undefined });
+    const { io, store } = makeIo({ provider: fakeProvider(good()), newId: undefined, now: undefined });
     const r = await runShadowWorker(candidate(), io);
     expect(r).toEqual({ status: "recorded", decision: "answer_candidate" });
     expect(store.records[0]!.executionId).toMatch(/^[0-9a-f-]{36}$/);
@@ -249,7 +302,7 @@ describe("B3.3 · sinais: a cadeia recebe o sinal ÚNICO do prazo; a finalizaç�
     // como as portas reais: com o sinal abortado, NADA sai (store devolve erro; lease, store_error)
     const io = {
       ...base.io,
-      storeFor: (sig: AbortSignal) => new Proxy(store, { get: (t, k) => (k === "record" ? async (r: never) => (sig.aborted ? { kind: "error" } : t.record(r)) : k === "trip" || k === "settle" ? async (...a: never[]) => (sig.aborted ? false : (t[k] as (...x: never[]) => unknown)(...a)) : Reflect.get(t, k)) }) as never,
+      storeFor: (sig: AbortSignal) => new Proxy(store, { get: (t, k) => (k === "record" || k === "finalizeExecution" ? async (r: never) => (sig.aborted ? { kind: "error" } : (t[k] as (x: never) => unknown).call(t, r)) : k === "trip" ? async (...a: never[]) => (sig.aborted ? "error" : t.trip(...(a as unknown as Parameters<typeof t.trip>))) : Reflect.get(t, k)) }) as never,
       leaseFor: (sig: AbortSignal) => new Proxy(lease, { get: (t, k) => (k === "transition" ? async (...a: never[]) => (sig.aborted ? { result: "store_error", version: null } : (t.transition as (...x: never[]) => unknown)(...a)) : Reflect.get(t, k)) }) as never,
       portsFor: () => operationalPorts({ loadContext: async (_t, sig) => (seen.push(sig), shadowCtx()), loadHistory: async () => history(), loadStayAuthorizationSource: async () => staySource() }),
     };
@@ -291,7 +344,7 @@ describe("B3.3 · ligação de produção (cada loader recebe o banco e o SINAL 
     await io.loadHumanPauseSource(turn, sig, 1);
     await io.loadOwnership(turn, sig, "2026-11-03T10:00:00Z");
     const row = { id: CONV, status: "ai", assigned_to: null, handoff_reason: null, handoff_urgency: null, handoff_at: null, resolved_at: null, ai_paused: false, paused_until: null };
-    const ports = io.portsFor(turn, row);
+    const ports = io.portsFor(turn, row, () => Date.parse("2026-11-03T10:00:00Z"));
     await expect(ports.loadDossiers(turn, sig)).rejects.toThrow("context_not_loaded");
     await ports.loadContext(turn, sig);
     await ports.loadDossiers(turn, sig);

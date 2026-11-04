@@ -107,7 +107,7 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · ambiente PostgreSQL 17.6 — evidência
       `select c.relname tbl, c.relrowsecurity rls, (select count(*) from pg_policy p where p.polrelid = c.oid)::int policies, array_to_string(c.relacl, ',') acl from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and c.relname like 'guest_ai_%' order by 1`,
     );
     recordResult("pg176-acl", rows);
-    expect(rows).toHaveLength(8);
+    expect(rows).toHaveLength(9); // E3.1: + guest_ai_shadow_inflight
     for (const r of rows) {
       expect(r.rls, r.tbl).toBe(true);
       expect(r.policies, r.tbl).toBe(0);
@@ -124,13 +124,15 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · ambiente PostgreSQL 17.6 — evidência
     }
   });
 
-  it("funções: todas SECURITY DEFINER com search_path fixo; EXECUTE só service_role e só nas 15 RPCs (internas sem EXECUTE)", async () => {
+  it("funções: todas SECURITY DEFINER com search_path fixo; EXECUTE só service_role e só nas 19 RPCs (17 do Shadow + 2 do lease; as 7 internas sem EXECUTE)", async () => {
     const fns = await pg.rows<{ f: string; secdef: boolean; cfg: string; sr: boolean; anon: boolean; auth: boolean }>(
       `select p.proname f, p.prosecdef secdef, array_to_string(p.proconfig, ',') cfg, has_function_privilege('service_role', p.oid, 'execute') sr, has_function_privilege('anon', p.oid, 'execute') anon, has_function_privilege('authenticated', p.oid, 'execute') auth
          from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'shadow_%' or p.proname like 'guest_ai_shadow_%' or p.proname like '%conversation_lease') order by 1`,
     );
     recordResult("pg176-functions", fns);
-    expect(fns).toHaveLength(18);
+    expect(fns).toHaveLength(26);
+    expect(fns.filter((f) => f.sr)).toHaveLength(19);
+    expect(fns.map((f) => f.f)).not.toContain("shadow_settle_budget");
     for (const f of fns) {
       expect(f.secdef, f.f).toBe(true);
       expect(f.cfg, f.f).toBe("search_path=pg_catalog, pg_temp");

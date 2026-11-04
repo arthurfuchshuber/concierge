@@ -8,7 +8,9 @@
  * Antes de QUALQUER chamada de rede, nesta ordem (falha ⇒ nenhuma requisição, código fechado):
  *   chave mestra `GUEST_AI_SHADOW=on` → prazo → estado global relido (`running`, mesma versão) →
  *   configuração completa + retenção autorizada → modelo permitido (OpenAI `/responses`) →
- *   orçamento por turno (pior caso) → reserva atômica diária.
+ *   orçamento por turno (pior caso ESTRITO: tetos configurados × tentativas; entrada limitada por bytes
+ *   UTF-8) → reserva atômica diária (idempotente: resposta perdida ⇒ UMA nova tentativa com a mesma
+ *   execução devolve a mesma reserva — E3.1 · F-11).
  * Depois da resposta: estado relido de novo; mudou ⇒ resultado descartado (`shutdown_requested`).
  *
  * Descarte: o texto bruto do provedor NUNCA sai daqui. À cadeia vai só a decisão re-serializada a
@@ -20,7 +22,7 @@ import type { LlmErrorCode } from "@/lib/guest-ai/llm/contracts";
 import type { LlmLogger } from "@/lib/guest-ai/llm/telemetry";
 import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
 import { modelSpec } from "@/lib/guest-ai/llm/models";
-import { estimateTokens } from "@/lib/guest-ai/budget";
+import { costUnits, toDecimal8, ZERO_USD8, type Usd8 } from "./money";
 import type { ComposedPrompt } from "@/lib/guest-ai/orchestrator/contracts";
 import type { ShadowStore } from "@/lib/guest-ai/data/shadow-store.server";
 import { evaluateTurnBudget, validateShadowControl } from "./breakers";
@@ -60,9 +62,11 @@ export interface GeneratorTelemetry {
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly reasoningTokens: number;
+  /** Tokens LIQUIDADOS (uso do provedor; uso desconhecido depois de chamada ⇒ pior caso reservado). */
   readonly totalTokens: number;
   readonly usageSource: "provider" | "estimated" | "none";
-  readonly costUsd: number;
+  /** Custo exato (decimal, 8 casas) a liquidar — mesma regra de `totalTokens`. */
+  readonly costUsd: string;
   readonly latencyMs: number;
   readonly error: LlmErrorCode | null;
 }
@@ -102,6 +106,25 @@ export interface ShadowGeneratorDeps {
 
 export const defaultMasterSwitch = (): boolean => process.env["GUEST_AI_SHADOW"] === "on";
 
+/** Moldura por mensagem e por requisição (papéis, separadores): margem SUPERIOR, não estimativa. */
+export const INPUT_FRAME_TOKENS_PER_MESSAGE = 16;
+export const INPUT_FRAME_TOKENS_BASE = 64;
+
+/**
+ * Limite SUPERIOR de tokens de entrada (E3.1 · F-04): bytes UTF-8 de todo o conteúdo + moldura. Em BPE
+ * por bytes cada token cobre ≥ 1 byte, logo tokens ≤ bytes. Prompt ilegível ⇒ 0 (o orçamento bloqueia).
+ */
+export function inputTokenBound(prompt: ComposedPrompt): number {
+  if (!prompt || typeof prompt.system !== "string" || !Array.isArray(prompt.messages)) return 0;
+  const enc = new TextEncoder();
+  let bytes = enc.encode(prompt.system).length;
+  for (const m of prompt.messages) {
+    if (!m || typeof m.content !== "string") return 0;
+    bytes += enc.encode(m.content).length;
+  }
+  return bytes + INPUT_FRAME_TOKENS_BASE + INPUT_FRAME_TOKENS_PER_MESSAGE * (prompt.messages.length + 1);
+}
+
 export function createShadowGatewayGenerator(deps: ShadowGeneratorDeps): ShadowGatewayGenerator | null {
   if (!deps || !PREFLIGHTS.has(deps.preflight as object)) return null;
   if (!(SHADOW_ALLOWED_MODELS as readonly string[]).includes(deps.limits?.modelId)) return null;
@@ -112,7 +135,7 @@ export function createShadowGatewayGenerator(deps: ShadowGeneratorDeps): ShadowG
   let used = false;
   let t: GeneratorTelemetry = Object.freeze({
     status: "idle", blockCode: null, budgetLimit: null, estimatedInputTokens: null, reservationId: null, calls: 0, inputTokens: 0, outputTokens: 0,
-    reasoningTokens: 0, totalTokens: 0, usageSource: "none", costUsd: 0, latencyMs: 0, error: null,
+    reasoningTokens: 0, totalTokens: 0, usageSource: "none", costUsd: ZERO_USD8, latencyMs: 0, error: null,
   });
   const block = (code: ShadowBlockCode, limit: BudgetLimitId | null = null): never => {
     t = Object.freeze({ ...t, status: "blocked", blockCode: code, budgetLimit: limit });
@@ -137,12 +160,13 @@ export function createShadowGatewayGenerator(deps: ShadowGeneratorDeps): ShadowG
       if (signal.aborted || deps.deadline.processingRemainingMs() <= 0) block("deadline_expired");
       const state = await stillRunning();
       if (state) block(state);
-      const chars = (prompt?.system?.length ?? 0) + (Array.isArray(prompt?.messages) ? prompt.messages.reduce((n, m) => n + (typeof m?.content === "string" ? m.content.length : 0), 0) : 0);
-      const estimated = estimateTokens(chars);
-      t = Object.freeze({ ...t, estimatedInputTokens: estimated });
-      const turn = evaluateTurnBudget(deps.limits, spec, estimated);
+      const bound = inputTokenBound(prompt);
+      t = Object.freeze({ ...t, estimatedInputTokens: bound });
+      const turn = evaluateTurnBudget(deps.limits, spec, bound);
       if (!turn.ok) return block("budget_turn_exceeded", turn.limit);
-      const res = await deps.store.reserve(deps.preflight.executionId, turn.reservation);
+      let res = await deps.store.reserve(deps.preflight.executionId, turn.reservation);
+      // resposta perdida (rede/timeout): UMA repetição idempotente — o banco devolve a reserva já confirmada
+      if (res.kind === "error" && !signal.aborted) res = await deps.store.reserve(deps.preflight.executionId, turn.reservation);
       if (res.kind === "exceeded") block("budget_daily_exceeded", res.limit);
       if (res.kind === "blocked" && res.code === "state_not_running") block("shutdown_requested");
       if (res.kind !== "reserved") block("budget_reservation_failed");
@@ -168,16 +192,21 @@ export function createShadowGatewayGenerator(deps: ShadowGeneratorDeps): ShadowG
         { provider: deps.provider, log: deps.log },
       );
       const u = result.telemetry.usage;
+      const calls = result.telemetry.attempts;
+      // custo EXATO pelo uso informado; uso desconhecido depois de chamar ⇒ liquida o pior caso reservado
+      const known = u.source !== "none" ? costUnits(spec.pricePerMTok, u.inputTokens, u.outputTokens) : null;
+      const settleCost: Usd8 = calls === 0 ? 0n : (known ?? turn.reservation.costUsd8);
+      const settleTokens = calls === 0 ? 0 : known !== null ? u.totalTokens : turn.reservation.tokens;
       t = Object.freeze({
         ...t,
         status: "called",
-        calls: result.telemetry.attempts,
+        calls,
         inputTokens: u.inputTokens,
         outputTokens: u.outputTokens,
         reasoningTokens: u.reasoningTokens,
-        totalTokens: u.totalTokens,
-        usageSource: u.source,
-        costUsd: result.telemetry.costUsd,
+        totalTokens: settleTokens,
+        usageSource: known !== null ? u.source : "none",
+        costUsd: toDecimal8(settleCost),
         latencyMs: Math.max(0, Math.round(now() - t0)),
         error: result.ok ? null : result.error.code,
       });

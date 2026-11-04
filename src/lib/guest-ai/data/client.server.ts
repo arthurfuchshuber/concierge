@@ -65,9 +65,14 @@ export const SHADOW_RPC_FUNCTIONS = [
   "shadow_get_manifest",
   "shadow_trip",
   "shadow_reserve_budget",
-  "shadow_settle_budget",
   "shadow_evaluate_breakers",
   "shadow_record_execution",
+  // E3.1: tick único, reivindicação+início, finalização atômica e reconciliação
+  "shadow_acquire_tick",
+  "shadow_release_tick",
+  "shadow_claim_execution",
+  "shadow_finalize_execution",
+  "shadow_reconcile",
 ] as const;
 export type ShadowRpcFunction = (typeof SHADOW_RPC_FUNCTIONS)[number];
 export interface GuestAiShadowRpc {

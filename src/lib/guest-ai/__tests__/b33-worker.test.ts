@@ -10,6 +10,7 @@ import { v4 } from "./helpers/b23-chain";
 import { ownershipRow } from "./helpers/b25-fixtures";
 import { CANARY, CONV, MSG, MemoryShadowStore, ModelLeaseStore, OTHER_P, OTHER_T, T0, benignPause, candidate, fakeProvider, fullControl, makeIo, manifestOf, okJson, shadowTurn, windowOf } from "./helpers/b33-shadow";
 
+const T_OTHER_OK = "7a000000-0000-4000-8000-0000000000aa";
 const decisionWithCanary = () =>
   v4({ reply: `O check-in começa às 15h. ${CANARY}`, groundedOn: ["ctx:checkin_oficial"] });
 
@@ -41,7 +42,9 @@ describe("B3.3 · worker — caminho completo com transporte falso", () => {
     expect(lease.rec?.state).toBe("completed");
     expect(lease.events).toEqual(["observe", "mark_ready", "claim", "start", "complete"]);
     expect(store.calls).toContain("reserve");
-    expect(store.calls).toContain("settle");
+    // E3.1: liquidação dentro da finalização atômica (uma chamada: lease + liquidação + registro)
+    expect(store.calls.filter((c) => c === "finalize")).toHaveLength(1);
+    expect(store.finalizations[0]!.settlement).toEqual({ tokens: 1020, costUsd: "0.00232500", calls: 1 });
     expect([...store.reservations.values()].every((x) => x.settled)).toBe(true);
     // DESCARTE: o canário (dentro do texto da resposta) não está em nenhum destino
     expect(everything(store.records)).not.toContain(CANARY);
@@ -257,7 +260,10 @@ describe("B3.3 · worker — pausa humana, posse humana e coletor (sempre ANTES 
     expect(store.records[0]!.decision).not.toBe("technical_failure");
   });
   it("lote ainda dentro do debounce ⇒ nada (sem registro, sem lease)", async () => {
-    const { io, store, lease } = makeIo({ provider: fakeProvider(okJson({})), wallNow: () => Date.parse("2026-11-03T10:00:05Z") });
+    // E3.1: o instante é o do BANCO (lido com o estado global), nunca o relógio da máquina
+    const st = new MemoryShadowStore();
+    st.control = fullControl({ dbNowMs: Date.parse("2026-11-03T10:00:05Z") });
+    const { io, store, lease } = makeIo({ store: st, provider: fakeProvider(okJson({})) });
     expect(await runShadowWorker(candidate(), io)).toEqual({ status: "skipped", code: "collector_not_ready" });
     expect(store.records).toEqual([]);
     expect(lease.events).toEqual([]);
@@ -324,6 +330,7 @@ describe("B3.3 · worker — lease B3.1 (concorrência, adiadas, recuperação)"
       lease,
       store,
       provider,
+      newId: () => "7e000000-0000-4000-8000-0000000000b2",
       fetchCollectorWindow: async () => ({ ...w, messages: [...w.messages, { ...w.messages[0]!, id: M2, text: "e o wifi?", tPersisted: "2026-11-03T10:00:30Z" }] }),
     });
     const r = await runShadowWorker(candidate(), second.io);
@@ -421,6 +428,13 @@ describe("B3.3 · worker — Gateway, orçamento, desligamento e prazo", () => {
     expect(await runShadowWorker(candidate(), io)).toEqual({ status: "recorded", decision: "aborted_by_shutdown" });
     expect(provider.calls).toBe(0);
   });
+  it("tempo-limite do Gateway (= prazo restante) chega antes do timer do prazo ⇒ mesmo desfecho: shadow_timeout/timed_out (determinístico sob carga)", async () => {
+    const provider = fakeProvider({ kind: "error", error: { code: "timeout", retryable: false, httpStatus: null }, usage: null, requestId: null });
+    const { io, store, lease } = makeIo({ provider });
+    expect(await runShadowWorker(candidate(), io)).toEqual({ status: "recorded", decision: "technical_failure" });
+    expect(store.records[0]).toMatchObject({ technicalCode: "shadow_timeout", executionState: "timed_out", timeout: true });
+    expect(lease.rec?.state).toBe("failed");
+  });
   it("prazo de processamento (13,5 s) esgota durante o Gateway ⇒ shadow_timeout; nada parcial; finalização preservada", async () => {
     const timers: Array<{ fn: () => void; ms: number }> = [];
     const schedule = (fn: () => void, ms: number) => {
@@ -447,12 +461,48 @@ describe("B3.3 · worker — Gateway, orçamento, desligamento e prazo", () => {
     // ... e NENHUMA etapa da cadeia recebe prazo próprio maior que o que resta do processamento
     expect(Math.max(...timers.filter((t) => t.ms !== SHADOW_DEADLINE_MS).map((t) => t.ms))).toBeLessThanOrEqual(SHADOW_DEADLINE_MS - SHADOW_FINALIZATION_RESERVE_MS);
   });
-  it("gravação da telemetria falha ⇒ record_failed + technical_failure global (falha de medição nunca é sucesso)", async () => {
+  it("finalização sem resposta (transporte) ⇒ UMA repetição idempotente; record_failed SEM disparo de disjuntor (F-12)", async () => {
     const store = new MemoryShadowStore();
-    store.fail.record = true;
+    store.fail.finalize = true;
+    const { io } = makeIo({ store, provider: fakeProvider(okJson(decisionWithCanary())) });
+    expect(await runShadowWorker(candidate(), io)).toEqual({ status: "record_failed", decision: "answer_candidate" });
+    expect(store.calls.filter((c) => c === "finalize")).toHaveLength(2);
+    expect(store.trips).toEqual([]);
+  });
+  it("finalização RECUSADA pelo banco (registro inválido) ⇒ record_failed + technical_failure global (medição comprometida)", async () => {
+    const store = new MemoryShadowStore();
+    store.finalizeExecution = async () => ({ kind: "invalid" });
     const { io } = makeIo({ store, provider: fakeProvider(okJson(decisionWithCanary())) });
     expect(await runShadowWorker(candidate(), io)).toEqual({ status: "record_failed", decision: "answer_candidate" });
     expect(store.trips).toEqual([{ to: "technical_failure", reason: "telemetry_failure" }]);
+  });
+  it("resposta da finalização perdida DEPOIS do commit ⇒ a repetição recebe `duplicate` ⇒ recorded, sem disparo", async () => {
+    const store = new MemoryShadowStore();
+    const real = store.finalizeExecution.bind(store);
+    let n = 0;
+    store.finalizeExecution = async (a) => {
+      const r = await real(a);
+      return ++n === 1 ? { kind: "error" } : r;
+    };
+    const { io } = makeIo({ store, provider: fakeProvider(okJson(decisionWithCanary())) });
+    expect(await runShadowWorker(candidate(), io)).toEqual({ status: "recorded", decision: "answer_candidate" });
+    expect(store.records).toHaveLength(1);
+    expect(store.trips).toEqual([]);
+  });
+  it("gravação SEM lote (antes da reivindicação) recusada ⇒ record_failed + technical_failure; transporte ⇒ repete e não dispara", async () => {
+    const store = new MemoryShadowStore();
+    store.manifest = manifestOf([{ tenantId: T_OTHER_OK, propertyId: OTHER_P }]);
+    store.fail.record = true;
+    const { io } = makeIo({ store, provider: fakeProvider(okJson({})) });
+    expect(await runShadowWorker(candidate(), io)).toEqual({ status: "record_failed", decision: "blocked_not_authorized" });
+    expect(store.calls.filter((c) => c === "record")).toHaveLength(2);
+    expect(store.trips).toEqual([]);
+    const s2 = new MemoryShadowStore();
+    s2.manifest = manifestOf([{ tenantId: T_OTHER_OK, propertyId: OTHER_P }]);
+    s2.record = async () => ({ kind: "invalid" });
+    const b = makeIo({ store: s2, provider: fakeProvider(okJson({})) });
+    expect(await runShadowWorker(candidate(), b.io)).toEqual({ status: "record_failed", decision: "blocked_not_authorized" });
+    expect(s2.trips).toEqual([{ to: "technical_failure", reason: "telemetry_failure" }]);
   });
   it("exceção inesperada em qualquer porta nunca escapa (nem seu texto)", async () => {
     const { io } = makeIo({ provider: fakeProvider(okJson({})), storeFor: () => { throw new Error(CANARY); } });

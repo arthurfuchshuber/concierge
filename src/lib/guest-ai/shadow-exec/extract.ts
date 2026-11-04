@@ -12,6 +12,7 @@ import type { ChainOutcome } from "@/lib/guest-ai/turn-chain";
 import type { LlmErrorCode } from "@/lib/guest-ai/llm/contracts";
 import { LLM_ERROR_CODES } from "@/lib/guest-ai/llm/contracts";
 import { isIntegrityCode } from "./breakers";
+import { USD8_DECIMAL_RE, ZERO_USD8 } from "./money";
 import {
   BUDGET_LIMIT_IDS,
   CHAIN_REFUSAL_CODES,
@@ -144,7 +145,7 @@ export interface ExecutionMeta {
   contextMs: number;
   gatewayMs: number;
   validationMs: number;
-  gateway: { calls: number; inputTokens: number; outputTokens: number; reasoningTokens: number; totalTokens: number; usageSource: (typeof SHADOW_USAGE_SOURCES)[number]; costUsd: number; error: LlmErrorCode | null };
+  gateway: { calls: number; inputTokens: number; outputTokens: number; reasoningTokens: number; totalTokens: number; usageSource: (typeof SHADOW_USAGE_SOURCES)[number]; costUsd: string; error: LlmErrorCode | null };
   estimatedInputTokens: number | null;
   pauseState: ShadowPauseState;
   executionState: ShadowExecutionState;
@@ -159,7 +160,7 @@ export interface ExecutionMeta {
 }
 
 export const EMPTY_TIMINGS: ShadowTimings = Object.freeze(Object.fromEntries(SHADOW_TIMING_IDS.map((k) => [k, null])) as ShadowTimings);
-export const NO_GATEWAY: ExecutionMeta["gateway"] = Object.freeze({ calls: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, totalTokens: 0, usageSource: "none", costUsd: 0, error: null });
+export const NO_GATEWAY: ExecutionMeta["gateway"] = Object.freeze({ calls: 0, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, totalTokens: 0, usageSource: "none", costUsd: ZERO_USD8, error: null });
 
 /** Monta o registro a partir da projeção (ou `null`, quando a cadeia nem rodou). */
 export function buildExecutionRecord(narrow: NarrowOutcome | null, meta: ExecutionMeta, chainVersionFallback: string): ShadowExecutionRecord {
@@ -250,7 +251,7 @@ export function validateExecutionRecord(r: unknown): Readonly<ShadowExecutionRec
     x.gatewayCalls <= 2 &&
     timingsOk &&
     inList(SHADOW_USAGE_SOURCES, x.usageSource) &&
-    typeof x.costUsd === "number" && Number.isFinite(x.costUsd) && x.costUsd >= 0 &&
+    typeof x.costUsd === "string" && USD8_DECIMAL_RE.test(x.costUsd) &&
     nullOr(x.estimatedInputTokens, nonNegInt) &&
     typeof x.candidateAvailable === "boolean" && x.candidateAvailable === (x.decision === "answer_candidate") &&
     inList(SHADOW_DECISIONS, x.decision) &&

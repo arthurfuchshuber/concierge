@@ -2,7 +2,7 @@
  * B3.3 · E3 — Fase 5: SOBERANIA HUMANA com PostgreSQL 17.6 real (lease, orçamento e registro reais;
  * leitura de pausa/posse sintética e controlável em qualquer ponto do fluxo).
  */
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { runShadowWorker } from "@/lib/guest-ai/shadow-exec/worker.server";
 import { v4 } from "../helpers/b23-chain";
 const goodDecisionWith = (over: Record<string, unknown>) => v4({ reply: "O check-in começa às 15h.", groundedOn: ["ctx:checkin_oficial"], ...over });
@@ -109,16 +109,49 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · Fase 5 — soberania humana (PostgreSQL
     expect(provider.calls).toBe(1);
   }, 60_000);
 
-  it("DIVERGÊNCIA documentada: coluna `ai_paused=true` com prazo VENCIDO — o Shadow trata como pausa indeterminada (mais restritivo que `isPausedNow` do produto)", async () => {
+  it("F-09 (Entrega 3.1): coluna `ai_paused=true` com prazo VENCIDO pelo relógio do BANCO ⇒ IA autorizada (regra do SaaS); prazo futuro ⇒ pausa; sem prazo ⇒ indeterminada; `ai_paused=false` ⇒ autorizada", async () => {
+    const dbNow = Date.parse(await db.sql(`select to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`));
+    // a mensagem sintética do hóspede é de 2026-11-03T10:00Z
+    const cases: Array<[unknown, unknown, string, string | null]> = [
+      [true, "2026-11-03T09:00:00Z", "answer_candidate", null], // vencida (pelo banco) antes da mensagem ⇒ autorizada e a mensagem é avaliada
+      [true, new Date(dbNow - 60_000).toISOString(), "skipped", null], // vencida há 1 min, mas a mensagem chegou DURANTE a pausa ⇒ backlog da equipe, não é respondida
+
+      [true, new Date(dbNow + 3_600_000).toISOString(), "human_pause_active", "pause_active"],
+      [true, null, "human_pause_active", "pause_indefinite"],
+      [false, new Date(dbNow + 3_600_000).toISOString(), "answer_candidate", null], // `ai_paused=false` ⇒ autorizada
+    ];
+    for (const [ai, until, decision, block] of cases) {
+      const s = await conv();
+      s.human.pause = { ...s.human.pause, column: { ai_paused: ai as boolean, paused_until: until as never } };
+      await shadowToRunning(db, [s]);
+      const provider = simProvider();
+      const out = await runShadowWorker(candidateOf(s), worldIo([s], { db, ctl: controller(), provider }));
+      recordResult(`human-column-saas-rule-${String(ai)}-${until === null ? "null" : Date.parse(String(until)) > dbNow ? "future" : "past"}`, { out });
+      if (decision === "skipped") {
+        expect(out).toEqual({ status: "skipped", code: "collector_not_ready" });
+        expect(provider.calls).toBe(0);
+        continue;
+      }
+      expect(out, JSON.stringify([ai, until])).toEqual({ status: "recorded", decision });
+      expect((await executions(db, s.conv))[0]!.block_code).toBe(block);
+      expect(provider.calls).toBe(decision === "answer_candidate" ? 1 : 0);
+    }
+  }, 120_000);
+
+  it("F-09 · o relógio da MÁQUINA do worker não decide a pausa: Date.now adiantado 2 h não transforma uma pausa vigente (pelo banco) em vencida", async () => {
+    const dbNow = Date.parse(await db.sql(`select to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`));
     const s = await conv();
-    s.human.pause = { ...s.human.pause, column: { ai_paused: true, paused_until: "2026-01-01T00:00:00Z" as never } };
+    s.human.pause = { ...s.human.pause, column: { ai_paused: true, paused_until: new Date(dbNow + 30 * 60_000).toISOString() as never } };
     await shadowToRunning(db, [s]);
     const provider = simProvider();
-    const out = await runShadowWorker(candidateOf(s), worldIo([s], { db, ctl: controller(), provider }));
-    recordResult("human-expired-column-divergence", { out });
-    // comportamento observado (fail-safe): bloqueia; a regra do produto (chat/pause.ts) diria "pausa vencida"
-    expect(out).toEqual({ status: "recorded", decision: "human_pause_active" });
-    expect((await executions(db, s.conv))[0]).toMatchObject({ block_code: "pause_indefinite" });
+    const realNow = Date.now.bind(Date);
+    const spy = vi.spyOn(Date, "now").mockImplementation(() => realNow() + 2 * 3_600_000);
+    try {
+      const out = await runShadowWorker(candidateOf(s), worldIo([s], { db, ctl: controller(), provider }));
+      expect(out).toEqual({ status: "recorded", decision: "human_pause_active" });
+    } finally {
+      spy.mockRestore();
+    }
     expect(provider.calls).toBe(0);
   }, 60_000);
 
