@@ -26,6 +26,8 @@ function all(dir: string): string[] {
 }
 
 const LOADERS = ["data/airbnb-thread.server.ts", "data/human-pause.server.ts", "data/stay-authorization.server.ts", "data/sender-identity.server.ts", "data/collector.server.ts"];
+/** B3.1: adaptador do lease — escreve SÓ pelas duas funções atômicas, via porta de client.server.ts. */
+const LEASE_STORE = "data/lease-store.server.ts";
 const PURE = ["batch/collector.ts", "batch/lease.ts", "batch/telemetry.ts", "policy/human-pause.ts", "policy/timezone-source.ts"];
 
 /** Snapshot (03/11/2026, information_schema) das tabelas novas lidas pela B3. */
@@ -51,6 +53,13 @@ describe("B3 · loaders somente leitura e projeções", () => {
       if (f !== "data/airbnb-thread.server.ts") expect(c).toMatch(/assertIssued\("turn"/);
     });
   }
+  it(`${LEASE_STORE}: só as duas funções do lease (via porta fechada), sem DML direto, sem token na leitura, sem rede/LLM/envio`, () => {
+    const c = code(LEASE_STORE);
+    expect(c).not.toMatch(/\.(insert|update|upsert|delete|rpc)\s*\(/);
+    expect(c.match(/rpc\.call\("([a-z_]+)"/g)?.sort()).toEqual(['rpc.call("claim_conversation_lease"', 'rpc.call("transition_conversation_lease"']);
+    expect(c).not.toMatch(/\bfetch\(|generateGuestLlm|gateway|sendMessage|console\./i);
+    expect(c).not.toMatch(/supabaseAdmin|integrations\/supabase/);
+  });
   it("o texto da mensagem só é lido pelo coletor (necessário ao lote); pausa e identidade nunca leem texto", () => {
     expect(P.PAUSE_MESSAGE_COLUMNS as readonly string[]).not.toContain("content");
     expect(P.COLLECTOR_MESSAGE_COLUMNS as readonly string[]).toContain("content");
@@ -95,11 +104,12 @@ describe("B3 · módulos puros (coletor, lease, telemetria, pausa, fuso)", () =>
       expect(c).not.toMatch(/Date\.now|new Date\(\)|Math\.random|performance\.now/);
     });
   }
-  it("lease: nenhum armazenamento em memória como substituto; backend único devolve indisponível", () => {
+  it("lease: nenhum armazenamento em memória como substituto; sem store transacional ⇒ indisponível; gate derivado da evidência", () => {
     const c = code("batch/lease.ts");
     expect(c).not.toMatch(/new Map|new WeakMap|InMemory|memoryStore/i);
-    expect(c).toMatch(/available: false, reason: "no_compatible_schema"/);
-    expect(c).toMatch(/gateComplete: false/);
+    expect(c).toMatch(/if \(!store\) return \{ available: false, reason: "no_store"/);
+    expect(c).toMatch(/store\.guarantee !== "postgres_transactional_row_lock"/);
+    expect(c).not.toMatch(/gateComplete:\s*(true|false)\b/); // nunca literal: só derivado
   });
   it("telemetria do coletor: nenhuma chave de texto livre no contrato", () => {
     expect(code("batch/telemetry.ts")).not.toMatch(/\b(text|content|message|messageText|reply|draft|prompt|guestName|phone|token)\s*\??\s*:/i);
@@ -111,12 +121,12 @@ describe("B3 · módulos puros (coletor, lease, telemetria, pausa, fuso)", () =>
 
 describe("B3 · fluxo real intocado e nada ativado", () => {
   it("nenhum código de produção (fora de guest-ai) importa coletor, lease, telemetria ou loaders novos", () => {
-    const re = /guest-ai\/(batch\/(collector|lease|telemetry)|data\/(airbnb-thread|human-pause|stay-authorization|sender-identity|collector)\.server|policy\/(human-pause|timezone-source))/;
+    const re = /guest-ai\/(batch\/(collector|lease|telemetry)|data\/(airbnb-thread|human-pause|stay-authorization|sender-identity|collector|lease-store)\.server|policy\/(human-pause|timezone-source))/;
     const outside = all(SRC).filter((f) => !f.startsWith(ROOT + path.sep)).filter((f) => re.test(readFileSync(f, "utf8")));
     expect(outside.map((f) => path.relative(SRC, f))).toEqual([]);
   });
   it("dentro de guest-ai, os loaders novos não são importados por nenhum módulo (só testes)", () => {
-    const re = /data\/(human-pause|stay-authorization|sender-identity|collector)\.server|\.\/(human-pause|stay-authorization|sender-identity|collector)\.server/;
+    const re = /data\/(human-pause|stay-authorization|sender-identity|collector|lease-store)\.server|\.\/(human-pause|stay-authorization|sender-identity|collector|lease-store)\.server/;
     const users = all(ROOT).filter((f) => re.test(readFileSync(f, "utf8"))).map((f) => path.relative(ROOT, f));
     expect(users).toEqual([]);
   });
@@ -130,7 +140,8 @@ describe("B3 · fluxo real intocado e nada ativado", () => {
       .split("\n")
       .filter(Boolean)
       .filter((f) => !f.startsWith("src/lib/guest-ai/"));
-    expect(changed).toEqual([]);
+    // B3.1: só a migration excepcional do lease (autorizada em 03/11); nenhuma outra estrutura.
+    expect(changed).toEqual(["supabase/migrations/20261104000000_guest_ai_conversation_leases.sql"]);
   });
   it("a cadeia continua sem importar o Gateway; o harness continua só com portas de leitura", () => {
     expect(code("turn-chain.ts")).not.toMatch(/generateGuestLlm|guest-ai\/llm\/gateway|providers\//);

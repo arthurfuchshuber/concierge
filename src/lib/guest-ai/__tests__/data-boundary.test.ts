@@ -28,7 +28,16 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
   it("D13/R6 · o módulo guest-ai é somente leitura: nenhuma escrita, RPC ou função interna de autorização", () => {
     const write = /\.(insert|update|upsert|delete|rpc)\s*\(/;
     const internal = /internal_set_checkin_credentials_release|internal_set_late_checkout|conciergeia\.internal_actor/;
-    expect(files.filter((f) => write.test(code(f))).map(rel)).toEqual([]);
+    // B3.1 (migration excepcional autorizada em 03/11): a ÚNICA escrita é o RPC do lease, só em
+    // client.server.ts e só pela lista fechada LEASE_RPC_FUNCTIONS. Nenhum insert/update/upsert/delete.
+    expect(files.filter((f) => write.test(code(f))).map(rel)).toEqual(["data/client.server.ts"]);
+    const client = code(path.join(ROOT, "data/client.server.ts"));
+    expect(client).not.toMatch(/\.(insert|update|upsert|delete)\s*\(/);
+    expect(client.match(/\.rpc\s*\(/g)).toHaveLength(1);
+    expect(client).toMatch(/if \(!\(LEASE_RPC_FUNCTIONS as readonly string\[\]\)\.includes\(fn\)\) return/);
+    expect(client).toMatch(/LEASE_RPC_FUNCTIONS = \["claim_conversation_lease", "transition_conversation_lease"\] as const/);
+    // quem usa a porta de escrita: só o adaptador do lease
+    expect(files.filter((f) => /getGuestAiLeaseRpc|leaseRpcFrom|GuestAiLeaseRpc/.test(code(f))).map(rel).sort()).toEqual(["data/client.server.ts", "data/lease-store.server.ts"]);
     expect(files.filter((f) => internal.test(code(f))).map(rel)).toEqual([]);
   });
 

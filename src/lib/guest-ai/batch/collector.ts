@@ -23,7 +23,7 @@
  *  - ordem do lote = ordem de gravação (a mesma do histórico, conferida pela cadeia); diferenças com a
  *    ordem do canal são CONTADAS (`reorderedByChannelTime`), não escondidas.
  */
-import { BATCH_LIMITS, buildGuestMessageBatch, type BatchChannel, type BatchRejection, type BatchScope, type BatchSenderRole, type GuestMessageBatch } from "./message-batch";
+import { BATCH_LIMITS, DEBOUNCE_REFERENCE, buildGuestMessageBatch, type BatchChannel, type BatchRejection, type BatchScope, type BatchSenderRole, type GuestMessageBatch } from "./message-batch";
 import { guestMessageActionability, type HumanPauseState } from "@/lib/guest-ai/policy/human-pause";
 
 export const COLLECTOR_VERSION = "collector.2026-11-03.1";
@@ -45,7 +45,8 @@ export function quietWindowFor(cfg: CollectorConfig, channel: BatchChannel): num
 
 export function checkCollectorConfig(c: CollectorConfig): "ok" | "quiet_window_invalid" | "max_wait_invalid" | "grace_invalid" {
   const ws = [c.quietWindowMs, ...Object.values(c.perChannel ?? {}).map((p) => p?.quietWindowMs).filter((x): x is number => typeof x === "number")];
-  if (ws.some((w) => !Number.isFinite(w) || w < 1_000 || w > 60_000)) return "quiet_window_invalid";
+  // Diretriz B3.1: debounce configurável só entre 8 e 15 s (faixa do contrato B2.5, `DEBOUNCE_REFERENCE`).
+  if (ws.some((w) => !Number.isFinite(w) || w < DEBOUNCE_REFERENCE.minQuietWindowMs || w > DEBOUNCE_REFERENCE.maxQuietWindowMs)) return "quiet_window_invalid";
   if (!Number.isFinite(c.maxWaitMs) || c.maxWaitMs < Math.max(...ws)) return "max_wait_invalid";
   if (!Number.isFinite(c.reconciliationGraceMs) || c.reconciliationGraceMs < 0 || c.reconciliationGraceMs > 30 * 60_000) return "grace_invalid";
   return "ok";

@@ -2,9 +2,9 @@
  * B3.1 · coletor (debounce 15 s, reconciliação, pausa, limites), máquina de estados do lease,
  * telemetria por metadados e loader real da janela. Matriz B31-01..28.
  *
- * IMPORTANTE: não há backend de lease distribuído (sem schema autorizado). Os testes do lease
- * exercitam a MÁQUINA DE ESTADOS pura (compare-and-swap de versão + token + expiração), que é o que o
- * armazenamento transacional aplicará; eles NÃO comprovam exclusividade distribuída (B31-27).
+ * Os testes do lease AQUI exercitam o MODELO DE REFERÊNCIA puro (compare-and-swap de versão + token +
+ * expiração). A exclusividade distribuída é comprovada só em `b31-lease-pg.test.ts` (Postgres real,
+ * conexões independentes), que também confere que modelo e banco dão o mesmo resultado.
  */
 import { describe, expect, it } from "vitest";
 import { COLLECTOR_DEFAULTS, checkCollectorConfig, evaluateCollectorWindow, quietWindowFor, type CollectorMessage, type CollectorWindowInput } from "@/lib/guest-ai/batch/collector";
@@ -243,14 +243,17 @@ describe("B3.1 · lease por conversa — máquina de estados (compare-and-swap, 
     const cancelled = applyLeaseEvent(ready(["a"]), { type: "cancel", expectedVersion: 1, now: at(1) });
     expect(cancelled).toMatchObject({ ok: true, record: { state: "cancelled" } });
   });
-  it("B31-27 · SEM persistência distribuída: backend indisponível, claim sempre recusado, gate NÃO concluído", async () => {
+  it("B31-27 · sem armazenamento transacional: backend indisponível e claim sempre recusado (nada em memória substitui o banco)", async () => {
     const backend = resolveLeaseBackend();
-    expect(backend).toMatchObject({ available: false, reason: "no_compatible_schema" });
-    expect(await claimReadyBatch(backend, { conversationId: "c1", token: "w", ttlMs: 1000, now: at(0) })).toEqual({ ok: false, reason: "lease_backend_unavailable" });
+    expect(backend).toMatchObject({ available: false, reason: "no_store" });
+    expect(await claimReadyBatch(backend, { conversationId: "c1" })).toEqual({ ok: false, reason: "lease_backend_unavailable" });
     // um armazenamento que não declara a garantia transacional (ex.: memória) é recusado
-    const memory = { guarantee: "memory", load: async () => ready(["a"]), compareAndSwap: async () => "swapped" } as unknown as DistributedLeaseStore;
-    expect(await claimReadyBatch({ available: true, store: memory }, { conversationId: "c1", token: "w", ttlMs: 1000, now: at(0) })).toEqual({ ok: false, reason: "lease_backend_unavailable" });
-    expect(B31_LEASE_GATE).toEqual({ distributedLeaseImplemented: false, gateComplete: false });
+    const memory = { guarantee: "memory", load: async () => ready(["a"]), claim: async () => ({ result: "acquired" }), transition: async () => ({ result: "applied" }) } as unknown as DistributedLeaseStore;
+    expect(resolveLeaseBackend(memory)).toMatchObject({ available: false, reason: "store_without_transactional_guarantee" });
+    expect(await claimReadyBatch({ available: true, store: memory }, { conversationId: "c1" })).toEqual({ ok: false, reason: "lease_backend_unavailable" });
+    // o gate é DERIVADO da evidência da suíte Postgres real (b31-lease-gate.test.ts confere os hashes)
+    expect(B31_LEASE_GATE.distributedLeaseImplemented).toBe(true);
+    expect(B31_LEASE_GATE.gateComplete).toBe(Object.values(B31_LEASE_GATE.runtimeCriteria).every(Boolean));
   });
 });
 
@@ -293,10 +296,15 @@ describe("B3.1 · configuração", () => {
     expect(COLLECTOR_DEFAULTS.quietWindowMs).toBe(15_000);
     expect(Object.isFrozen(COLLECTOR_DEFAULTS)).toBe(true);
     expect(quietWindowFor(COLLECTOR_DEFAULTS, "airbnb")).toBe(15_000);
-    const cfg = { ...COLLECTOR_DEFAULTS, perChannel: { airbnb: { quietWindowMs: 20_000 } } };
-    expect(quietWindowFor(cfg, "airbnb")).toBe(20_000);
-    expect(ev({ ...win([cm("a", 0, { channel: "airbnb" })], 16, { scope: { ...SCOPE, channel: "airbnb" } }), config: cfg })).toMatchObject({ state: "collecting", eligibleAt: at(20) });
+    const cfg = { ...COLLECTOR_DEFAULTS, perChannel: { airbnb: { quietWindowMs: 10_000 } } };
+    expect(quietWindowFor(cfg, "airbnb")).toBe(10_000);
+    expect(ev({ ...win([cm("a", 0, { channel: "airbnb" })], 5, { scope: { ...SCOPE, channel: "airbnb" } }), config: cfg })).toMatchObject({ state: "collecting", eligibleAt: at(10) });
     expect(checkCollectorConfig({ ...COLLECTOR_DEFAULTS, quietWindowMs: 0 })).toBe("quiet_window_invalid");
+    // faixa da diretriz: 8–15 s (limites inclusivos)
+    expect(checkCollectorConfig({ ...COLLECTOR_DEFAULTS, quietWindowMs: 8_000 })).toBe("ok");
+    expect(checkCollectorConfig({ ...COLLECTOR_DEFAULTS, quietWindowMs: 7_999 })).toBe("quiet_window_invalid");
+    expect(checkCollectorConfig({ ...COLLECTOR_DEFAULTS, quietWindowMs: 15_001 })).toBe("quiet_window_invalid");
+    expect(checkCollectorConfig({ ...COLLECTOR_DEFAULTS, perChannel: { airbnb: { quietWindowMs: 20_000 } } })).toBe("quiet_window_invalid");
     expect(checkCollectorConfig({ ...COLLECTOR_DEFAULTS, maxWaitMs: 1000 })).toBe("max_wait_invalid");
   });
 });

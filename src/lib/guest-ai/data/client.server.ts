@@ -18,6 +18,31 @@ export async function getGuestAiDb(): Promise<GuestAiDb> {
   return supabaseAdmin as unknown as GuestAiDb;
 }
 
+/**
+ * B3.1 — ÚNICA porta de ESCRITA do módulo: as duas funções atômicas do lease distribuído
+ * (`claim_conversation_lease`, `transition_conversation_lease`; EXECUTE só para service_role). Lista
+ * fechada: qualquer outro nome é recusado aqui, antes de sair do processo. Só servidor.
+ */
+export const LEASE_RPC_FUNCTIONS = ["claim_conversation_lease", "transition_conversation_lease"] as const;
+export type LeaseRpcFunction = (typeof LEASE_RPC_FUNCTIONS)[number];
+export interface GuestAiLeaseRpc {
+  call(fn: LeaseRpcFunction, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>;
+}
+
+export function leaseRpcFrom(client: { rpc(fn: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }> }): GuestAiLeaseRpc {
+  return {
+    async call(fn, args) {
+      if (!(LEASE_RPC_FUNCTIONS as readonly string[]).includes(fn)) return { data: null, error: { code: "lease_rpc_not_allowed" } };
+      return await client.rpc(fn, args);
+    },
+  };
+}
+
+export async function getGuestAiLeaseRpc(): Promise<GuestAiLeaseRpc> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return leaseRpcFrom(supabaseAdmin as unknown as { rpc(fn: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }> });
+}
+
 /** O turno foi cancelado (prazo do Orchestrator ou cancelamento externo) antes de terminar a leitura. */
 export class GuestAiAbortedError extends Error {
   readonly code = "aborted" as const;

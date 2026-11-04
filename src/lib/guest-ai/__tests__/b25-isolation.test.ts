@@ -85,6 +85,7 @@ describe("B2.5 · fluxo real intocado", () => {
       .split("\n")
       .filter(Boolean)
       .filter((f) => !f.startsWith("src/lib/guest-ai/") && f !== "AGENTS.md");
-    expect(changed).toEqual([]);
+    // B3.1: única migration autorizada (lease distribuído, diretriz de 03/11) — nada mais fora do módulo.
+    expect(changed).toEqual(["supabase/migrations/20261104000000_guest_ai_conversation_leases.sql"]);
   });
 });
