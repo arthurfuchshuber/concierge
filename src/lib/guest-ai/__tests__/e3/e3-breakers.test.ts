@@ -178,6 +178,19 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · Fase 6 — prazo e disjuntores (Postgre
     expect(await automaticTrips(db)).toEqual([{ from_state: "running", to_state: "circuit_open", reason_code: "consecutive_failures" }]);
   }, 60_000);
 
+  it("F-03 · regra da TAXA (amostra ≥ 20) também conta pela janela do banco: 2 falhas com `finished_at` 2 h atrasado entre 19 sucessos ⇒ error_rate_exceeded", async () => {
+    const specs = await Promise.all(Array.from({ length: 21 }, () => conv()));
+    await shadowToRunning(db, specs, { p_error_window_minutes: 60 });
+    const skew = new Date(Date.now() - 2 * 3600_000).toISOString();
+    // ordem de gravação: falha, 10 sucessos, falha, 9 sucessos (as duas mais recentes NÃO são falhas)
+    const plan: Array<"ok" | "fail"> = ["fail", ...Array(10).fill("ok"), "fail", ...Array(9).fill("ok")];
+    let last: Record<string, unknown> = {};
+    for (let i = 0; i < plan.length; i++) last = await seedRecord(specs[i]!, plan[i]!, plan[i] === "fail" ? skew : new Date().toISOString());
+    recordResult("breaker-rate-db-window", { last, trips: await automaticTrips(db) });
+    expect(last).toMatchObject({ breaker: "error_rate_exceeded", n: 21, errors: 2 });
+    expect(await automaticTrips(db)).toEqual([{ from_state: "running", to_state: "circuit_open", reason_code: "error_rate_exceeded" }]);
+  }, 60_000);
+
   it("prazo REAL: Gateway lento (14 s) ⇒ o processamento é cortado em 13,5 s; finalização dentro de 1,5 s; registro timed_out; lease em fail; total < 15 s", async () => {
     const s = await conv();
     await shadowToRunning(db, [s]);

@@ -152,6 +152,8 @@ describe("B3.3 · tick (só alcançável com o portão aberto — testado com po
       s.store.mockResolvedValue(st);
       expect((await runShadowTick(s)).outcome).toBe(outcome);
       expect(s.worker).not.toHaveBeenCalled();
+      // portões ANTES de qualquer efeito: estado/configuração/manifesto inválidos nem chegam a pedir a trava do tick
+      expect(st.calls).not.toContain("acquireTick");
     }
     const s = spies();
     const st = new MemoryShadowStore();

@@ -128,7 +128,6 @@ export function deriveHumanPause(i: HumanPauseInput): HumanPauseState {
 
   // Coluna (reforço): leitura ilegível ⇒ unknown.
   let columnUntil: number | null = null;
-  let expiredUntil: number | null = null;
   let indefinite = false;
   if (i.column) {
     const ap = i.column.ai_paused;
@@ -138,11 +137,12 @@ export function deriveHumanPause(i: HumanPauseInput): HumanPauseState {
     // Regra do SaaS (`chat/pause.ts`, decisão F-09 da Entrega 3.1), com o instante do PostgreSQL:
     //  ai_paused=false (ou nulo) ⇒ a coluna autoriza; ai_paused=true e paused_until nulo ⇒ indeterminada;
     //  ai_paused=true e now ≤ paused_until ⇒ vigente; ai_paused=true e now > paused_until ⇒ expirada (autoriza).
+    // O prazo entra como fim da pausa da coluna; vigente × expirada é decidido abaixo (`now ≤ fim`), e o fim
+    // de uma pausa expirada continua delimitando o backlog da equipe (mensagens ≤ fim não são respondidas).
     // A pausa derivada do histórico (abaixo) continua valendo como sinal independente (B3.2).
     if (ap === true) {
       if (pu.ms === null) indefinite = true;
-      else if (now.getTime() <= pu.ms) columnUntil = pu.ms;
-      else expiredUntil = pu.ms;
+      else columnUntil = pu.ms;
     }
   }
 
@@ -200,12 +200,11 @@ export function deriveHumanPause(i: HumanPauseInput): HumanPauseState {
 
   const latest = instants.length ? Math.max(...instants) : null;
   const historyUntil = latest === null ? null : latest + HUMAN_PAUSE_WINDOW_MS;
-  // a pausa expirada da coluna não pausa, mas o seu fim continua delimitando o backlog (mensagens ≤ fim)
-  const until = maxMs([historyUntil, columnUntil, expiredUntil]);
+  const until = maxMs([historyUntil, columnUntil]);
   const base = { version: HUMAN_PAUSE_VERSION, interventions: counts, echoesIgnored: echoes, internalNotesIgnored: notes, automatedIgnored: automated, latestInterventionAt: latest === null ? null : new Date(latest).toISOString() };
   if (indefinite) return { ...base, state: "paused", pausedUntil: until === null ? null : new Date(until).toISOString(), indefinite: true, reason: "column_pause" };
-  const activeUntil = maxMs([historyUntil, columnUntil]);
-  if (activeUntil !== null && now.getTime() <= activeUntil) {
+  // vigente: ainda dentro do fim (inclusivo); expirada (now > fim) ⇒ ativa, com o fim registrado para o backlog
+  if (until !== null && now.getTime() <= until) {
     return { ...base, state: "paused", pausedUntil: new Date(until!).toISOString(), indefinite: false, reason: historyUntil !== null && historyUntil >= (columnUntil ?? -Infinity) ? "recent_human_intervention" : "column_pause" };
   }
   return { ...base, state: "active", pausedUntil: until === null ? null : new Date(until).toISOString(), indefinite: false, reason: "none" };

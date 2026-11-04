@@ -172,6 +172,85 @@ describe.skipIf(!PG176_AVAILABLE)("E3.1 · correções (PostgreSQL 17.6 real)", 
     expect([...winners].sort()).toEqual(["finalize", "reconcile"]);
   }, 120_000);
 
+  it("F-01 · cerca de VERSÃO: qualquer transição do lease fora da execução (mesmo pelo portador do token, ex.: renew) ⇒ finalização cercada, lease intocado", async () => {
+    const s = await conv();
+    await shadowToRunning(db, [s]);
+    const v = await readyBatch(s);
+    const exec = crypto.randomUUID();
+    const c = await rpcAsSr(db, "shadow_claim_execution", claimArgs(s, v, exec));
+    const L = realStores(db, controller()).leaseFor();
+    const rn = await L.transition(s.conv, "renew", Number(c.version), { ownerToken: String(c.owner_token) });
+    expect(rn).toMatchObject({ result: "applied", version: Number(c.version) + 1 });
+    const before = await leaseRow(db, s.conv);
+    const rec = (await import("./e31-records")).recordsFor({ exec, s, batchId: String(c.batch_id), version: Number(c.version) });
+    const r = await realStores(db, controller()).storeFor().finalizeExecution({ executionId: exec, ownerToken: String(c.owner_token), outcome: "complete", settlement: { tokens: 0, costUsd: "0.00000000", calls: 0 }, record: rec.ok, fencedRecord: rec.fenced });
+    expect(r).toEqual({ kind: "finalized", lease: "fenced_foreign", decision: "technical_failure" });
+    expect(await leaseRow(db, s.conv)).toEqual(before);
+  }, 60_000);
+
+  it("F-01/F-05 · reivindicação NUNCA parte de lote em processamento vencido, mesmo sem execução em andamento registrada (posse legada)", async () => {
+    const s = await conv();
+    await shadowToRunning(db, [s]);
+    const L = realStores(db, controller()).leaseFor();
+    await L.transition(s.conv, "observe", 0, { messageIds: [s.msg] });
+    const mr = await L.transition(s.conv, "mark_ready", 1, { messageIds: [s.msg] });
+    const c = await L.claim(s.conv, mr.version!);
+    if (c.result !== "acquired") throw new Error("claim");
+    const st = await L.transition(s.conv, "start", c.version, { ownerToken: c.ownerToken });
+    await expireLease(s.conv);
+    expect(await db.sql(`select count(*) from public.guest_ai_shadow_inflight where conversation_id = '${s.conv}'`)).toBe("0");
+    expect(await rpcAsSr(db, "shadow_claim_execution", claimArgs(s, st.version!))).toMatchObject({ result: "not_claimable", state: "processing" });
+    expect((await leaseRow(db, s.conv))!.state).toBe("processing");
+  }, 60_000);
+
+  it("F-01 · reconciliação exige a trava do tick: token alheio ou vencido ⇒ tick_not_held e NADA é tocado", async () => {
+    const s = await conv();
+    await shadowToRunning(db, [s]);
+    const v = await readyBatch(s);
+    const exec = crypto.randomUUID();
+    await rpcAsSr(db, "shadow_claim_execution", claimArgs(s, v, exec));
+    await rpcAsSr(db, "shadow_reserve_budget", { p_execution_id: exec, p_tokens: 83072, p_cost: "0.13072000", p_calls: 2 });
+    await expireLease(s.conv);
+    expect(await rpcAsSr(db, "shadow_reconcile", { p_tick_token: "e".repeat(64) })).toEqual({ result: "tick_not_held" });
+    await db.sql(`update public.guest_ai_shadow_control set tick_expires_at = now() - interval '1 second'`);
+    expect(await rpcAsSr(db, "shadow_reconcile", { p_tick_token: db.tick })).toEqual({ result: "tick_not_held" });
+    expect(await rpcAsSr(db, "shadow_reconcile", { p_tick_token: "x" })).toEqual({ result: "invalid_argument" });
+    expect(await db.sql(`select status from public.guest_ai_shadow_inflight where execution_id = '${exec}'`)).toBe("running");
+    expect(await budgetTotals(db)).toMatchObject({ reservations: { open: 1, settled: 0 } });
+    expect((await leaseRow(db, s.conv))!.state).toBe("processing");
+  }, 60_000);
+
+  it("F-04 · liquidação interna é de UMA vez por reserva (defesa em profundidade, chamada direta como dono)", async () => {
+    const s = await conv();
+    await shadowToRunning(db, [s]);
+    const v = await readyBatch(s);
+    const exec = crypto.randomUUID();
+    await rpcAsSr(db, "shadow_claim_execution", claimArgs(s, v, exec));
+    await rpcAsSr(db, "shadow_reserve_budget", { p_execution_id: exec, p_tokens: 83072, p_cost: "0.13072000", p_calls: 2 });
+    const settle = () => db.sql(`select public.guest_ai_shadow_settle_locked(c, '${exec}', 'actual', 10, 0.001, 1) from public.guest_ai_shadow_control c`);
+    expect(JSON.parse(await settle())).toMatchObject({ result: "settled", over_reservation: false });
+    expect(JSON.parse(await settle())).toEqual({ result: "already_settled" });
+    expect(await budgetTotals(db)).toMatchObject({ reservations: { open: 0, settled: 1 } });
+    expect(await db.sql(`select settled_cost::text from public.guest_ai_shadow_budget_days`)).toBe("0.00100000");
+    expect(await budgetLedgerConsistent(db)).toBe(true);
+  }, 60_000);
+
+  it("F-04 · uso real ACIMA do reservado (provedor violou o teto) ⇒ liquida o real e desarma `budget_exhausted / token_limit_violation` na mesma transação", async () => {
+    const s = await conv();
+    await shadowToRunning(db, [s]);
+    const v = await readyBatch(s);
+    const exec = crypto.randomUUID();
+    const c = await rpcAsSr(db, "shadow_claim_execution", claimArgs(s, v, exec));
+    await rpcAsSr(db, "shadow_reserve_budget", { p_execution_id: exec, p_tokens: 83072, p_cost: "0.13072000", p_calls: 2 });
+    // 40.000 × 125 + 20.000 × 1.000 = 25.000.000 unidades = US$ 0,25 > 0,13072 reservado
+    const rec = (await import("./e31-records")).recordsFor({ exec, s, batchId: String(c.batch_id), version: Number(c.version), cost: "0.25000000", tokens: 60_000, calls: 1 });
+    const r = await realStores(db, controller()).storeFor().finalizeExecution({ executionId: exec, ownerToken: String(c.owner_token), outcome: "complete", settlement: { tokens: 60_000, costUsd: "0.25000000", calls: 1 }, record: rec.ok, fencedRecord: rec.fenced });
+    expect(r).toMatchObject({ kind: "finalized", lease: "completed" });
+    expect(await automaticTrips(db)).toEqual([{ from_state: "running", to_state: "budget_exhausted", reason_code: "token_limit_violation" }]);
+    expect(await db.sql(`select settled_cost::text from public.guest_ai_shadow_budget_days`)).toBe("0.25000000");
+    expect(await budgetLedgerConsistent(db)).toBe(true);
+  }, 60_000);
+
   // ───────────────────────────── F-02 ─────────────────────────────
   it("F-02 · finalização é UMA transação: registro recusado pelo banco ⇒ NADA persiste (lease, reserva, em andamento intocados)", async () => {
     const s = await conv();
