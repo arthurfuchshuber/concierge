@@ -13,7 +13,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 const PG_ROOT = "/usr/lib/postgresql";
+/** B3.3/E3: `GUEST_AI_PG_BIN` aponta para outro diretório de binários (ex.: PostgreSQL 17.6). */
+const binOk = (bin: string | null | undefined): bin is string => !!bin && existsSync(path.join(bin, "postgres")) && existsSync(path.join(bin, "initdb"));
 function findBin(): string | null {
+  const env = process.env.GUEST_AI_PG_BIN;
+  if (env) return binOk(env) ? env : null;
   if (!existsSync(PG_ROOT)) return null;
   for (const v of readdirSync(PG_ROOT).sort().reverse()) {
     const bin = path.join(PG_ROOT, v, "bin");
@@ -57,15 +61,20 @@ export interface PgCluster {
 
 export const SHADOW_MIGRATION_PATH = path.join(REPO, "supabase/migrations/20261104120000_guest_ai_shadow.sql");
 
-/** `extraMigrations` (B3.3): migrations aplicadas DEPOIS da do lease, na ordem dada. Sem argumento, igual a antes. */
-export function startCluster(extraMigrations: readonly string[] = []): PgCluster {
-  if (!PG_AVAILABLE || !PG_BIN) throw new Error("postgres_unavailable");
+/**
+ * `extraMigrations` (B3.3): migrations aplicadas DEPOIS da do lease, na ordem dada. Sem argumento, igual a antes.
+ * `opts` (B3.3/E3): `bin` troca o diretório de binários só deste cluster; `serverOptions` acrescenta `-c` ao servidor.
+ */
+export function startCluster(extraMigrations: readonly string[] = [], opts: { bin?: string; serverOptions?: readonly string[] } = {}): PgCluster {
+  const BIN = opts.bin ?? PG_BIN;
+  if (!binOk(BIN) || !existsSync("/usr/bin/psql")) throw new Error("postgres_unavailable");
   const dir = mkdtempSync(path.join(tmpdir(), "guest-ai-lease-"));
   chmodSync(dir, 0o777);
   const data = path.join(dir, "data");
   const port = 40000 + Math.floor(Math.random() * 20000);
-  asPgUser([path.join(PG_BIN, "initdb"), "-D", data, "-U", "postgres", "--auth=trust", "-E", "UTF8"]);
-  asPgUser([path.join(PG_BIN, "pg_ctl"), "-D", data, "-w", "-l", path.join(dir, "pg.log"), "-o", `-p ${port} -k ${dir} -c listen_addresses= -c max_connections=100`, "start"]);
+  asPgUser([path.join(BIN, "initdb"), "-D", data, "-U", "postgres", "--auth=trust", "-E", "UTF8"]);
+  const extra = (opts.serverOptions ?? []).map((o) => ` -c ${o}`).join("");
+  asPgUser([path.join(BIN, "pg_ctl"), "-D", data, "-w", "-l", path.join(dir, "pg.log"), "-o", `-p ${port} -k ${dir} -c listen_addresses= -c max_connections=100${extra}`, "start"]);
   const db = "leasetest";
   const base = ["-h", dir, "-p", String(port), "-U", "postgres", "-v", "ON_ERROR_STOP=1", "-q", "-tA"];
   execFileSync("psql", [...base, "-d", "postgres", "-c", `create database ${db}`]);
@@ -101,7 +110,7 @@ export function startCluster(extraMigrations: readonly string[] = []): PgCluster
     },
     stop() {
       try {
-        asPgUser([path.join(PG_BIN!, "pg_ctl"), "-D", data, "-m", "immediate", "stop"]);
+        asPgUser([path.join(BIN, "pg_ctl"), "-D", data, "-m", "immediate", "stop"]);
       } catch {
         /* já parado */
       }
