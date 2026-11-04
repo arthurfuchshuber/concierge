@@ -215,7 +215,7 @@ export type StoreClaimResult =
   | { result: "acquired" | "recovered"; version: number; ownerToken: string; leaseExpiresAt: string; attempts: number; batchId: string; messageIds: readonly string[] }
   | { result: "conflict" | "unavailable" | "stale_version" | "not_claimable" | "attempts_exhausted" | "not_found" | "invalid_argument" | "store_error"; version: number | null };
 
-export type TransitionEvent = "observe" | "mark_ready" | "start" | "renew" | "complete" | "fail" | "cancel" | "expire";
+export type TransitionEvent = "observe" | "mark_ready" | "start" | "renew" | "complete" | "fail" | "cancel" | "expire" | "acknowledge";
 export type StoreTransitionResult =
   | { result: "applied" | "deferred" | "noop" | "already_processed"; version: number; state: LeaseState; batchId?: string | null; messageIds?: readonly string[] }
   | { result: "stale_version" | "stale_owner" | "lease_expired" | "invalid_transition" | "not_found" | "invalid_argument" | "pending_overflow" | "store_error"; version: number | null };

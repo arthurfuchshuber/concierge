@@ -14,3 +14,5 @@ alter default privileges in schema public grant select, insert on tables to sand
 alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
 -- Conversas: só o necessário para a FK (a tabela real tem mais colunas, nenhuma usada aqui).
 create table if not exists public.property_chat_conversations (id uuid primary key);
+-- B3.3: imóveis (só as colunas que o manifesto Shadow confere: id, dono e arquivamento — iguais à produção).
+create table if not exists public.properties (id uuid primary key, owner_id uuid, archived_at timestamptz);

@@ -55,7 +55,10 @@ export interface PgCluster {
   stop(): void;
 }
 
-export function startCluster(): PgCluster {
+export const SHADOW_MIGRATION_PATH = path.join(REPO, "supabase/migrations/20261104120000_guest_ai_shadow.sql");
+
+/** `extraMigrations` (B3.3): migrations aplicadas DEPOIS da do lease, na ordem dada. Sem argumento, igual a antes. */
+export function startCluster(extraMigrations: readonly string[] = []): PgCluster {
   if (!PG_AVAILABLE || !PG_BIN) throw new Error("postgres_unavailable");
   const dir = mkdtempSync(path.join(tmpdir(), "guest-ai-lease-"));
   chmodSync(dir, 0o777);
@@ -68,6 +71,7 @@ export function startCluster(): PgCluster {
   execFileSync("psql", [...base, "-d", "postgres", "-c", `create database ${db}`]);
   execFileSync("psql", [...base, "-d", db, "-f", SETUP_PATH]);
   execFileSync("psql", [...base, "-d", db, "-f", MIGRATION_PATH]);
+  for (const m of extraMigrations) execFileSync("psql", [...base, "-d", db, "-f", m]);
   const version = execFileSync("psql", [...base, "-d", db, "-c", "show server_version"], { encoding: "utf8" }).trim();
 
   const run = (query: string, opts: { role?: string; db?: string } = {}) =>

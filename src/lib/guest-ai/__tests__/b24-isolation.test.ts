@@ -50,7 +50,9 @@ describe("B2.4 · nada de produção ativa o shadow nem as novas camadas", () =>
       .filter((f) => !f.includes(`${path.sep}shadow${path.sep}`))
       .filter((f) => /guest-ai\/shadow\/(harness|llm-mock|telemetry)["']/.test(readFileSync(f, "utf8")))
       .map((f) => path.relative(ROOT, f));
-    expect(importers).toEqual([]);
+    // B3.3 (Entrega 2): só o executor/worker Shadow reaproveitam a LISTA FECHADA de portas de leitura do
+    // harness (`READ_PORTS`/`ShadowReadPorts`); o mock e a telemetria passiva continuam sem importador.
+    expect(importers.sort()).toEqual(["shadow-exec/executor.ts", "shadow-exec/worker.server.ts"]);
   });
   it("verificação de autorizações de horário só é usada pelas camadas isoladas (nunca pelo fluxo real)", () => {
     const importers = prod()

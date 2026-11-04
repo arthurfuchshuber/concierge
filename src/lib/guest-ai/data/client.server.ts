@@ -29,18 +29,65 @@ export interface GuestAiLeaseRpc {
   call(fn: LeaseRpcFunction, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>;
 }
 
-export function leaseRpcFrom(client: { rpc(fn: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }> }): GuestAiLeaseRpc {
+/** Cliente com `rpc`; o construtor devolvido pode aceitar `.abortSignal` (PostgREST). */
+export interface RpcCapableClient {
+  rpc(fn: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }> & { abortSignal?: (s: AbortSignal) => PromiseLike<{ data: unknown; error: unknown }> };
+}
+
+/**
+ * B3.3: `signal` opcional (retrocompatível — sem ele, comportamento idêntico ao B3.1). Com ele, a
+ * chamada é recusada se o prazo já acabou (nenhuma requisição sai) e o sinal é anexado ao construtor
+ * PostgREST, que aborta o `fetch` em andamento.
+ */
+export function leaseRpcFrom(client: RpcCapableClient, signal?: AbortSignal): GuestAiLeaseRpc {
   return {
     async call(fn, args) {
       if (!(LEASE_RPC_FUNCTIONS as readonly string[]).includes(fn)) return { data: null, error: { code: "lease_rpc_not_allowed" } };
-      return await client.rpc(fn, args);
+      if (signal?.aborted) return { data: null, error: { code: "aborted" } };
+      const q = client.rpc(fn, args);
+      return await (signal && typeof q.abortSignal === "function" ? q.abortSignal(signal) : q);
     },
   };
 }
 
-export async function getGuestAiLeaseRpc(): Promise<GuestAiLeaseRpc> {
+export async function getGuestAiLeaseRpc(signal?: AbortSignal): Promise<GuestAiLeaseRpc> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return leaseRpcFrom(supabaseAdmin as unknown as { rpc(fn: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }> });
+  return leaseRpcFrom(supabaseAdmin as unknown as RpcCapableClient, signal);
+}
+
+/**
+ * B3.3 — porta das funções do Shadow (migration `20261104120000_guest_ai_shadow`, EXECUTE só
+ * service_role). Lista FECHADA; qualquer outro nome é recusado antes de sair do processo. Só o
+ * adaptador `data/shadow-store.server.ts` a usa. Nenhuma escrita direta em tabela existe no módulo.
+ */
+export const SHADOW_RPC_FUNCTIONS = [
+  "shadow_get_control",
+  "shadow_get_manifest",
+  "shadow_trip",
+  "shadow_reserve_budget",
+  "shadow_settle_budget",
+  "shadow_evaluate_breakers",
+  "shadow_record_execution",
+] as const;
+export type ShadowRpcFunction = (typeof SHADOW_RPC_FUNCTIONS)[number];
+export interface GuestAiShadowRpc {
+  call(fn: ShadowRpcFunction, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>;
+}
+
+export function shadowRpcFrom(client: RpcCapableClient, signal?: AbortSignal): GuestAiShadowRpc {
+  return {
+    async call(fn, args) {
+      if (!(SHADOW_RPC_FUNCTIONS as readonly string[]).includes(fn)) return { data: null, error: { code: "shadow_rpc_not_allowed" } };
+      if (signal?.aborted) return { data: null, error: { code: "aborted" } };
+      const q = client.rpc(fn, args);
+      return await (signal && typeof q.abortSignal === "function" ? q.abortSignal(signal) : q);
+    },
+  };
+}
+
+export async function getGuestAiShadowRpc(signal?: AbortSignal): Promise<GuestAiShadowRpc> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return shadowRpcFrom(supabaseAdmin as unknown as RpcCapableClient, signal);
 }
 
 /** O turno foi cancelado (prazo do Orchestrator ou cancelamento externo) antes de terminar a leitura. */

@@ -86,6 +86,13 @@ describe("B2.5 · fluxo real intocado", () => {
       .filter(Boolean)
       .filter((f) => !f.startsWith("src/lib/guest-ai/") && f !== "AGENTS.md");
     // B3.1: única migration autorizada (lease distribuído, diretriz de 03/11) — nada mais fora do módulo.
-    expect(changed).toEqual(["supabase/migrations/20261104000000_guest_ai_conversation_leases.sql"]);
+    // B3.3 (Entrega 2, diretriz de 04/11): migration LOCAL do Shadow (não aplicada), a rota desligada e o
+    // registro de rotas gerado pelo build. Nada mais fora do módulo.
+    expect(changed.sort()).toEqual([
+      "src/routeTree.gen.ts",
+      "src/routes/api/public/guest-ai.shadow-tick.ts",
+      "supabase/migrations/20261104000000_guest_ai_conversation_leases.sql",
+      "supabase/migrations/20261104120000_guest_ai_shadow.sql",
+    ]);
   });
 });

@@ -83,6 +83,7 @@ import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/p
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
 import { Route as ApiPublicCronReindexSystemKnowledgeRouteImport } from './routes/api/public/cron.reindex-system-knowledge'
 import { Route as ApiPublicGuestAiLlmProbeRouteImport } from './routes/api/public/guest-ai.llm-probe'
+import { Route as ApiPublicGuestAiShadowTickRouteImport } from './routes/api/public/guest-ai.shadow-tick'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicWebhooksAsaasRouteImport } from './routes/api/public/webhooks.asaas'
 import { Route as ApiPublicWebhooksMalvoRouteImport } from './routes/api/public/webhooks.malvo'
@@ -503,6 +504,12 @@ const ApiPublicGuestAiLlmProbeRoute =
     path: '/api/public/guest-ai/llm-probe',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicGuestAiShadowTickRoute =
+  ApiPublicGuestAiShadowTickRouteImport.update({
+    id: '/api/public/guest-ai/shadow-tick',
+    path: '/api/public/guest-ai/shadow-tick',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -614,6 +621,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
   '/api/public/guest-ai/llm-probe': typeof ApiPublicGuestAiLlmProbeRoute
+  '/api/public/guest-ai/shadow-tick': typeof ApiPublicGuestAiShadowTickRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
@@ -693,6 +701,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
   '/api/public/guest-ai/llm-probe': typeof ApiPublicGuestAiLlmProbeRoute
+  '/api/public/guest-ai/shadow-tick': typeof ApiPublicGuestAiShadowTickRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
@@ -777,6 +786,7 @@ export interface FileRoutesById {
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
   '/api/public/guest-ai/llm-probe': typeof ApiPublicGuestAiLlmProbeRoute
+  '/api/public/guest-ai/shadow-tick': typeof ApiPublicGuestAiShadowTickRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
@@ -861,6 +871,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/cron/reindex-system-knowledge'
     | '/api/public/guest-ai/llm-probe'
+    | '/api/public/guest-ai/shadow-tick'
     | '/api/public/payments/webhook'
     | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
@@ -940,6 +951,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/cron/reindex-system-knowledge'
     | '/api/public/guest-ai/llm-probe'
+    | '/api/public/guest-ai/shadow-tick'
     | '/api/public/payments/webhook'
     | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
@@ -1023,6 +1035,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/cron/reindex-system-knowledge'
     | '/api/public/guest-ai/llm-probe'
+    | '/api/public/guest-ai/shadow-tick'
     | '/api/public/payments/webhook'
     | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
@@ -1078,6 +1091,7 @@ export interface RootRouteChildren {
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
   ApiPublicCronReindexSystemKnowledgeRoute: typeof ApiPublicCronReindexSystemKnowledgeRoute
   ApiPublicGuestAiLlmProbeRoute: typeof ApiPublicGuestAiLlmProbeRoute
+  ApiPublicGuestAiShadowTickRoute: typeof ApiPublicGuestAiShadowTickRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicWebhooksAsaasRoute: typeof ApiPublicWebhooksAsaasRoute
   ApiPublicWebhooksMalvoRoute: typeof ApiPublicWebhooksMalvoRoute
@@ -1607,6 +1621,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicGuestAiLlmProbeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/guest-ai/shadow-tick': {
+      id: '/api/public/guest-ai/shadow-tick'
+      path: '/api/public/guest-ai/shadow-tick'
+      fullPath: '/api/public/guest-ai/shadow-tick'
+      preLoaderRoute: typeof ApiPublicGuestAiShadowTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -1818,6 +1839,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronReindexSystemKnowledgeRoute:
     ApiPublicCronReindexSystemKnowledgeRoute,
   ApiPublicGuestAiLlmProbeRoute: ApiPublicGuestAiLlmProbeRoute,
+  ApiPublicGuestAiShadowTickRoute: ApiPublicGuestAiShadowTickRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicWebhooksAsaasRoute: ApiPublicWebhooksAsaasRoute,
   ApiPublicWebhooksMalvoRoute: ApiPublicWebhooksMalvoRoute,

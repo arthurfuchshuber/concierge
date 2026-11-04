@@ -33,11 +33,15 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     expect(files.filter((f) => write.test(code(f))).map(rel)).toEqual(["data/client.server.ts"]);
     const client = code(path.join(ROOT, "data/client.server.ts"));
     expect(client).not.toMatch(/\.(insert|update|upsert|delete)\s*\(/);
-    expect(client.match(/\.rpc\s*\(/g)).toHaveLength(1);
+    // B3.3 (Entrega 2): segunda porta, também de LISTA FECHADA (`SHADOW_RPC_FUNCTIONS`), só para as RPCs do Shadow.
+    expect(client.match(/\.rpc\s*\(/g)).toHaveLength(2);
+    expect(client).toMatch(/if \(!\(SHADOW_RPC_FUNCTIONS as readonly string\[\]\)\.includes\(fn\)\) return/);
     expect(client).toMatch(/if \(!\(LEASE_RPC_FUNCTIONS as readonly string\[\]\)\.includes\(fn\)\) return/);
     expect(client).toMatch(/LEASE_RPC_FUNCTIONS = \["claim_conversation_lease", "transition_conversation_lease"\] as const/);
     // quem usa a porta de escrita: só o adaptador do lease
-    expect(files.filter((f) => /getGuestAiLeaseRpc|leaseRpcFrom|GuestAiLeaseRpc/.test(code(f))).map(rel).sort()).toEqual(["data/client.server.ts", "data/lease-store.server.ts"]);
+    expect(files.filter((f) => /getGuestAiLeaseRpc|leaseRpcFrom|GuestAiLeaseRpc/.test(code(f))).map(rel).sort()).toEqual(["data/client.server.ts", "data/lease-store.server.ts", "shadow-exec/worker.server.ts"]);
+    // porta do Shadow: só o adaptador e a ligação de produção do worker (B3.3)
+    expect(files.filter((f) => /getGuestAiShadowRpc|shadowRpcFrom|GuestAiShadowRpc/.test(code(f))).map(rel).sort()).toEqual(["data/client.server.ts", "data/shadow-store.server.ts", "shadow-exec/worker.server.ts"]);
     expect(files.filter((f) => internal.test(code(f))).map(rel)).toEqual([]);
   });
 
@@ -64,13 +68,14 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
 
   it("F0/F1 (data, context, policy, slot, trust, types) não têm LLM, embeddings, rede nem gateway", () => {
     const re = /lib\/llm|guest-ai\/llm|ai\.gateway|openai|anthropic|generativelanguage|embedTexts|embedOne|runAgent|chatText|chatJson|\bfetch\(/i;
-    const f2b = /^(llm|orchestrator|validation|shadow)\//;
+    const f2b = /^(llm|orchestrator|validation|shadow|shadow-exec)\//; // B3.3: shadow-exec usa o Gateway (gerador emitido)
     expect(files.filter((f) => !f2b.test(rel(f)) && re.test(code(f))).map(rel)).toEqual([]);
   });
 
   it("F2-B · B1: só o orchestrator chama o Gateway; demais módulos novos usam apenas tipos/registro de llm/", () => {
     const runtime = files.filter((f) => /guest-ai\/llm\/gateway\.server|generateGuestLlm/.test(code(f)) && !rel(f).startsWith("llm/"));
-    expect(runtime.map(rel)).toEqual(["orchestrator/orchestrator.server.ts"]);
+    // B3.3 (Entrega 2): o gerador Shadow emitido é o 2º e último chamador do Gateway (barreiras fechadas).
+    expect(runtime.map(rel).sort()).toEqual(["orchestrator/orchestrator.server.ts", "shadow-exec/gateway-generator.server.ts"]);
     // fora de llm/, nada de rede direta nem de outro provedor
     expect(files.filter((f) => !rel(f).startsWith("llm/") && /\bfetch\(|ai\.gateway|openai\.com|anthropic\.com/.test(code(f))).map(rel)).toEqual([]);
   });

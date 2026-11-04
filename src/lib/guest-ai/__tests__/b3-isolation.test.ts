@@ -128,7 +128,9 @@ describe("B3 · fluxo real intocado e nada ativado", () => {
   it("dentro de guest-ai, os loaders novos não são importados por nenhum módulo (só testes)", () => {
     const re = /data\/(human-pause|stay-authorization|sender-identity|collector|lease-store)\.server|\.\/(human-pause|stay-authorization|sender-identity|collector|lease-store)\.server/;
     const users = all(ROOT).filter((f) => re.test(readFileSync(f, "utf8"))).map((f) => path.relative(ROOT, f));
-    expect(users).toEqual([]);
+    // B3.3 (Entrega 2): só o worker Shadow os liga (io de produção por imports dinâmicos, alcançado apenas
+    // com o tick liberado — hoje fechado em código). Nenhum canal, slot ou Orchestrator.
+    expect(users).toEqual(["shadow-exec/worker.server.ts"]);
   });
   it("slot.server.ts e orchestrator.server.ts sem diff desde o commit-base; slot devolve null", async () => {
     const diff = execSync(`git diff --name-only ${BASE} -- src/lib/guest-ai/slot.server.ts src/lib/guest-ai/orchestrator/orchestrator.server.ts; git diff --name-only -- src/lib/guest-ai/slot.server.ts src/lib/guest-ai/orchestrator/orchestrator.server.ts`, { cwd: REPO, encoding: "utf8" });
@@ -141,7 +143,14 @@ describe("B3 · fluxo real intocado e nada ativado", () => {
       .filter(Boolean)
       .filter((f) => !f.startsWith("src/lib/guest-ai/"));
     // B3.1: só a migration excepcional do lease (autorizada em 03/11); nenhuma outra estrutura.
-    expect(changed).toEqual(["supabase/migrations/20261104000000_guest_ai_conversation_leases.sql"]);
+    // B3.3 (Entrega 2, diretriz de 04/11): migration LOCAL do Shadow (não aplicada), a rota desligada e o
+    // registro de rotas gerado pelo build. Nada mais fora do módulo.
+    expect(changed.sort()).toEqual([
+      "src/routeTree.gen.ts",
+      "src/routes/api/public/guest-ai.shadow-tick.ts",
+      "supabase/migrations/20261104000000_guest_ai_conversation_leases.sql",
+      "supabase/migrations/20261104120000_guest_ai_shadow.sql",
+    ]);
   });
   it("a cadeia continua sem importar o Gateway; o harness continua só com portas de leitura", () => {
     expect(code("turn-chain.ts")).not.toMatch(/generateGuestLlm|guest-ai\/llm\/gateway|providers\//);
