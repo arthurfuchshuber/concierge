@@ -233,6 +233,7 @@ export const getServiceExtras = createServerFn({ method: "GET" })
       .eq("status", "done")
       .or("situation.is.null,situation.neq.cleaning")
       .in("property_id", propIds)
+      .gt("amount_spent_cents", 0)
       .gte("completed_at", from)
       .lt("completed_at", to)
       .limit(5000);
@@ -244,6 +245,7 @@ export const getServiceExtras = createServerFn({ method: "GET" })
     let cq = db
       .from("task_completions")
       .select("id, task_id, log_id, reservation_id, amount_spent_cents, completed_at, resolved_by_provider_id")
+      .gt("amount_spent_cents", 0)
       .gte("completed_at", from)
       .lt("completed_at", to)
       .limit(5000);
@@ -296,6 +298,8 @@ export const getServiceExtras = createServerFn({ method: "GET" })
     const rows: Row[] = [];
     for (const t of (tasks ?? []) as T[]) {
       if (!t.property_id || !t.completed_at) continue;
+      // Só é serviço tarifado quem tem custo informado (> 0).
+      if (t.amount_spent_cents == null || t.amount_spent_cents <= 0) continue;
       rows.push({
         id: t.id,
         title: t.title,
@@ -312,6 +316,7 @@ export const getServiceExtras = createServerFn({ method: "GET" })
     for (const c of compRows) {
       const p = parents.get(c.task_id);
       if (!p || !p.property_id || !c.completed_at) continue;
+      if (c.amount_spent_cents == null || c.amount_spent_cents <= 0) continue;
       if ((p.situation ?? "other") === "cleaning") continue;
       if (!allowedProps.has(p.property_id)) continue;
       rows.push({
