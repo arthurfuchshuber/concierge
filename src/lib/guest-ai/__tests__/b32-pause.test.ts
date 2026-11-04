@@ -86,10 +86,25 @@ describe("B3.2 · pausa derivada — política", () => {
     // bruto de hóspede não pausa
     expect(deriveHumanPause(input({ raw: [raw("r2", "guest", at(-1), at(-1))] }))).toMatchObject({ state: "active" });
   });
-  it("B32-51 · coluna mais restritiva prevalece (prazo futuro ou pausa indeterminada da equipe)", () => {
-    expect(deriveHumanPause(input({ column: { ai_paused: false, paused_until: at(30) } }))).toMatchObject({ state: "paused", pausedUntil: at(30), reason: "column_pause" });
+  it("B32-51 · coluna da equipe (pausa vigente com prazo ou indeterminada) prevalece", () => {
+    expect(deriveHumanPause(input({ column: { ai_paused: true, paused_until: at(30) } }))).toMatchObject({ state: "paused", pausedUntil: at(30), reason: "column_pause" });
     expect(deriveHumanPause(input({ column: { ai_paused: true, paused_until: null } }))).toMatchObject({ state: "paused", indefinite: true });
     expect(guestMessageActionability({ tChannel: at(1), tPersisted: at(1) }, deriveHumanPause(input({ column: { ai_paused: true, paused_until: null } })))).toBe("blocked_indefinite");
+  });
+  it("F-09 (Entrega 3.1) · regra do SaaS na coluna, com o instante informado (relógio do PostgreSQL)", () => {
+    // ai_paused=false ⇒ autorizada (mesmo com prazo futuro gravado)
+    expect(deriveHumanPause(input({ column: { ai_paused: false, paused_until: at(30) } }))).toMatchObject({ state: "active", indefinite: false });
+    expect(deriveHumanPause(input({ column: { ai_paused: false, paused_until: null } }))).toMatchObject({ state: "active", pausedUntil: null });
+    // ai_paused=true e paused_until nulo ⇒ indeterminada
+    expect(deriveHumanPause(input({ column: { ai_paused: true, paused_until: null } }))).toMatchObject({ state: "paused", indefinite: true });
+    // ai_paused=true e now ≤ paused_until ⇒ vigente (igualdade inclusive)
+    expect(deriveHumanPause(input({ column: { ai_paused: true, paused_until: at(0) } }))).toMatchObject({ state: "paused", indefinite: false, pausedUntil: at(0) });
+    expect(deriveHumanPause(input({ column: { ai_paused: true, paused_until: at(5) } }))).toMatchObject({ state: "paused", pausedUntil: at(5) });
+    // ai_paused=true e now > paused_until ⇒ expirada: autorizada; o fim da pausa ainda delimita o backlog
+    const expired = deriveHumanPause(input({ column: { ai_paused: true, paused_until: at(-1) } }));
+    expect(expired).toMatchObject({ state: "active", indefinite: false, pausedUntil: at(-1) });
+    expect(guestMessageActionability({ tChannel: at(-2), tPersisted: at(-2) }, expired)).toBe("paused_backlog");
+    expect(guestMessageActionability({ tChannel: at(0), tPersisted: at(0) }, expired)).toBe("actionable");
   });
   it("B32-52 · histórico mais restritivo que a coluna (coluna vencida/falsa) prevalece", () => {
     expect(deriveHumanPause(input({ column: { ai_paused: false, paused_until: at(-30) }, persisted: [human("h", at(-1))] }))).toMatchObject({ state: "paused", pausedUntil: at(9) });
@@ -230,5 +245,46 @@ describe("B3.2 · pausa derivada na cadeia (veto; sem Gateway, sem envio)", () =
     const r = await runTurnChain({ turn: chainTurn(), traceId: "p", batch: b.batch }, h.deps);
     expect(r).toMatchObject({ kind: "refused", code: "batch_contains_paused_messages" });
     expect(h.calls.generate).toBe(0);
+  });
+});
+
+describe("B3.2 · ramos fail-closed restantes da política (fechados na Entrega 3.1, junto com F-09)", () => {
+  it("entradas ilegíveis ⇒ unknown com o motivo certo (nunca autorização)", () => {
+    expect(deriveHumanPause(input({ column: { ai_paused: true, paused_until: "não é instante" as never } }))).toMatchObject({ state: "unknown", reason: "column_unreadable" });
+    expect(deriveHumanPause(input({ raw: [{ ...raw("r1", "property", at(-1), at(-1)), record_id: null as never }] }))).toMatchObject({ state: "unknown", reason: "history_incomplete" });
+    expect(deriveHumanPause(input({ persisted: [{ ...human("h1", at(-1)), id: 7 as never }] }))).toMatchObject({ state: "unknown", reason: "history_incomplete" });
+    // bruto casado com mensagem humana gravada e instante do canal ilegível
+    expect(deriveHumanPause(input({ persisted: [human("h1", at(-1), { external_id: "ext-r1" })], raw: [raw("r1", "property", at(-1), "x")] }))).toMatchObject({ state: "unknown", reason: "invalid_timestamp" });
+  });
+  it("mensagem humana gravada cujos brutos são TODOS automação ⇒ ignorada (não pausa); parte automação ⇒ pausa", () => {
+    const all = deriveHumanPause(input({ persisted: [human("h1", at(-1), { external_id: "ext-r1" })], raw: [raw("r1", "property", at(-1), at(-1), { automation: true } as never)] }));
+    expect(all).toMatchObject({ state: "active", automatedIgnored: 1 });
+    const mixed = deriveHumanPause(input({ persisted: [human("h1", at(-1), { external_id: "ext-r1" })], raw: [raw("r1", "property", at(-1), at(-1), { automation: true } as never), raw("r2", "property", at(-1), at(-1), { message_id: "x2", ota_message_id: "ext-r1", automation: false } as never)] }));
+    expect(mixed.state).toBe("paused");
+  });
+  it("pausa indeterminada da coluna + intervenção recente no histórico ⇒ indeterminada, com o fim do histórico registrado", () => {
+    expect(deriveHumanPause(input({ column: { ai_paused: true, paused_until: null }, persisted: [human("h1", at(-1))] }))).toMatchObject({ state: "paused", indefinite: true, reason: "column_pause", pausedUntil: at(9) });
+  });
+  it("pausa da coluna mais longa que a do histórico ⇒ motivo `column_pause`", () => {
+    const p = deriveHumanPause(input({ column: { ai_paused: true, paused_until: at(60) }, persisted: [human("h1", at(-1))] }));
+    expect(p).toMatchObject({ state: "paused", reason: "column_pause", pausedUntil: at(60) });
+  });
+  it("acionabilidade: instante de gravação ou de canal ilegível ⇒ blocked_unknown; pausa sem fim conhecido fora de `active` ⇒ blocked_unknown", () => {
+    const active = deriveHumanPause(input());
+    expect(guestMessageActionability({ tChannel: at(1), tPersisted: "x" }, active)).toBe("blocked_unknown");
+    expect(guestMessageActionability({ tChannel: "x", tPersisted: at(1) }, active)).toBe("blocked_unknown");
+    expect(guestMessageActionability({ tChannel: at(1), tPersisted: at(1) }, { ...active, state: "paused", pausedUntil: null })).toBe("blocked_unknown");
+  });
+  it("preempção: leitura ilegível antes OU depois ⇒ preempted; sem intervenção nos dois lados ⇒ unchanged", () => {
+    const a = deriveHumanPause(input());
+    const u = deriveHumanPause(input({ lookup: "failed" }));
+    expect(detectPausePreemption(u, a)).toBe("preempted");
+    expect(detectPausePreemption(a, u)).toBe("preempted");
+    expect(detectPausePreemption(null as never, a)).toBe("preempted");
+    expect(detectPausePreemption(a, a)).toBe("unchanged");
+    const h = deriveHumanPause(input({ persisted: [human("h1", at(-30))] }));
+    expect(detectPausePreemption(h, h)).toBe("unchanged");
+    expect(detectPausePreemption(a, h)).toBe("preempted");
+    expect(detectPausePreemption(h, a)).toBe("unchanged");
   });
 });

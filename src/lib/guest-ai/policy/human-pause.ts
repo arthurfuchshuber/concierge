@@ -7,7 +7,9 @@
  *  2. webhooks brutos do Airbnb (`channex_raw_records`, `webhook:message`, `sender='property'`,
  *     mesma thread) — cobrem o intervalo recebimento → gravação e mensagens do anfitrião que nunca
  *     viraram mensagem gravada (7 casos reais na reconciliação de 03/11).
- * A coluna `ai_paused`/`paused_until` é REFORÇO: vale a condição mais restritiva.
+ * A coluna `ai_paused`/`paused_until` segue a regra do SaaS (F-09, Entrega 3.1): `false` autoriza;
+ * `true` sem prazo = indeterminada; `true` com `now ≤ prazo` = vigente; `true` com `now > prazo` =
+ * expirada (autoriza). O histórico continua pausando por conta própria (mais restritivo vence).
  *
  * Instante de cada intervenção: `max(t_channel, t_received, t_persisted)` (o mais tardio conhecido),
  * para que um webhook atrasado não "coma" parte da pausa. `pausedUntil = max(instantes) + 10 min`.
@@ -126,14 +128,22 @@ export function deriveHumanPause(i: HumanPauseInput): HumanPauseState {
 
   // Coluna (reforço): leitura ilegível ⇒ unknown.
   let columnUntil: number | null = null;
+  let expiredUntil: number | null = null;
   let indefinite = false;
   if (i.column) {
     const ap = i.column.ai_paused;
     if (ap !== null && ap !== undefined && typeof ap !== "boolean") return unknown("column_unreadable");
     const pu = optInstant(i.column.paused_until);
     if (!pu.ok) return unknown("column_unreadable");
-    if (pu.ms !== null && pu.ms > now.getTime()) columnUntil = pu.ms;
-    else if (ap === true) indefinite = true;
+    // Regra do SaaS (`chat/pause.ts`, decisão F-09 da Entrega 3.1), com o instante do PostgreSQL:
+    //  ai_paused=false (ou nulo) ⇒ a coluna autoriza; ai_paused=true e paused_until nulo ⇒ indeterminada;
+    //  ai_paused=true e now ≤ paused_until ⇒ vigente; ai_paused=true e now > paused_until ⇒ expirada (autoriza).
+    // A pausa derivada do histórico (abaixo) continua valendo como sinal independente (B3.2).
+    if (ap === true) {
+      if (pu.ms === null) indefinite = true;
+      else if (now.getTime() <= pu.ms) columnUntil = pu.ms;
+      else expiredUntil = pu.ms;
+    }
   }
 
   // Índice dos brutos pelos ids do Airbnb (id e ota_message_id).
@@ -190,11 +200,13 @@ export function deriveHumanPause(i: HumanPauseInput): HumanPauseState {
 
   const latest = instants.length ? Math.max(...instants) : null;
   const historyUntil = latest === null ? null : latest + HUMAN_PAUSE_WINDOW_MS;
-  const until = maxMs([historyUntil, columnUntil]);
+  // a pausa expirada da coluna não pausa, mas o seu fim continua delimitando o backlog (mensagens ≤ fim)
+  const until = maxMs([historyUntil, columnUntil, expiredUntil]);
   const base = { version: HUMAN_PAUSE_VERSION, interventions: counts, echoesIgnored: echoes, internalNotesIgnored: notes, automatedIgnored: automated, latestInterventionAt: latest === null ? null : new Date(latest).toISOString() };
   if (indefinite) return { ...base, state: "paused", pausedUntil: until === null ? null : new Date(until).toISOString(), indefinite: true, reason: "column_pause" };
-  if (until !== null && now.getTime() <= until) {
-    return { ...base, state: "paused", pausedUntil: new Date(until).toISOString(), indefinite: false, reason: historyUntil !== null && historyUntil >= (columnUntil ?? -Infinity) ? "recent_human_intervention" : "column_pause" };
+  const activeUntil = maxMs([historyUntil, columnUntil]);
+  if (activeUntil !== null && now.getTime() <= activeUntil) {
+    return { ...base, state: "paused", pausedUntil: new Date(until!).toISOString(), indefinite: false, reason: historyUntil !== null && historyUntil >= (columnUntil ?? -Infinity) ? "recent_human_intervention" : "column_pause" };
   }
   return { ...base, state: "active", pausedUntil: until === null ? null : new Date(until).toISOString(), indefinite: false, reason: "none" };
 }
