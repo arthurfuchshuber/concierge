@@ -287,9 +287,9 @@ export const LEASE_GATE_EVIDENCE = {
       const c = await newConv();
       const v = await ready(c, [msg(), msg()]);
       const a = await claim(c, v);
-      expect((await tr(c, "expire", 0)).result).toBe("noop"); // ainda vigente
+      expect((await tr(c, "expire", a.version!)).result).toBe("noop"); // ainda vigente
       await expireNow(c);
-      const e = await tr(c, "expire", 0);
+      const e = await tr(c, "expire", a.version!);
       expect(e).toMatchObject({ result: "applied", state: "expired" });
       expect((await row(c)).owner_token).toBeNull();
       const racers = await Promise.all(Array.from({ length: 6 }, () => claim(c, e.version!)));
@@ -412,10 +412,20 @@ export const LEASE_GATE_EVIDENCE = {
         { kind: "fail", retryable: true },
         { kind: "cancel" },
         { kind: "cancel" },
+        // revisão: mesmo lote após cancelamento preserva tentativas; mensagem nova zera; expire com CAS
+        { kind: "observe", ids: ["z"] },
+        { kind: "observe", ids: ["z", "w"] },
+        { kind: "mark_ready", ids: ["z", "w"] },
+        { kind: "claim" },
+        { kind: "expire" },
+        { kind: "expire", stale: true },
+        { kind: "observe", ids: ["z", "w", "q"] },
+        { kind: "renew" },
+        { kind: "complete", token: "wrong" },
       ];
       const c = await newConv();
       const base = [msg(), msg()];
-      const alias: Record<string, string> = { x: msg(), y: msg(), z: msg() };
+      const alias: Record<string, string> = { x: msg(), y: msg(), z: msg(), w: msg(), q: msg() };
       const realIds = (xs: string[]) => xs.map((x) => alias[x] ?? x);
       let model: LeaseRecord = newLeaseRecord(c, now());
       let token: string | null = null;
@@ -436,6 +446,7 @@ export const LEASE_GATE_EVIDENCE = {
             : s.kind === "renew" ? { type: "renew", token: tok ?? "", ttlMs: 30_000, expectedVersion: v, now: now() }
             : s.kind === "fail" ? { type: "fail", token: tok ?? "", retryable: !!s.retryable, expectedVersion: v, now: now() }
             : s.kind === "cancel" ? { type: "cancel", expectedVersion: v, now: now(), token: tok }
+            : s.kind === "expire" ? { type: "expire", expectedVersion: v, now: now() }
             : ({ type: s.kind, token: tok ?? "", expectedVersion: v, now: now() } as LeaseEvent);
         }
         const m = applyLeaseEvent(model, ev);
@@ -448,6 +459,172 @@ export const LEASE_GATE_EVIDENCE = {
         expect(st.deferred).toEqual([...model.deferredMessageIds]);
       }
       mark("model_matches_database");
+    });
+  });
+
+  describe("revisão de homologação · ponto 1 — observe × worker legítimo", () => {
+    it("mensagens repetidas durante o processamento não tiram a autoridade do dono (versão de posse estável)", async () => {
+      const c = await newConv();
+      const [m1, m2, m3, m4] = [msg(), msg(), msg(), msg()];
+      const v = await ready(c, [m1!]);
+      const a = await claim(c, v);
+      const s = await tr(c, "start", a.version!, { token: a.owner_token });
+      // 3 chegadas seguidas (inclusive repetidas) com a versão que o coletor leu
+      for (const ids of [[m1!, m2!], [m1!, m2!, m3!], [m1!, m2!, m3!], [m1!, m2!, m3!, m4!]]) {
+        const o = await tr(c, "observe", s.version!, { ids });
+        expect(["deferred", "noop"]).toContain(o.result);
+        expect(o.version).toBe(s.version); // adiamento não muda a versão de posse
+      }
+      expect(await row(c)).toMatchObject({ state: "processing", message_ids: [m1], deferred: [m2, m3, m4] });
+      // o dono segue operando com a versão que conhece + token
+      const rn = await tr(c, "renew", s.version!, { token: a.owner_token });
+      expect(rn).toMatchObject({ result: "applied", state: "processing" });
+      const o2 = await tr(c, "observe", rn.version!, { ids: [m1!, m2!, m3!, m4!, msg()] });
+      expect(o2).toMatchObject({ result: "deferred", version: rn.version });
+      const done = await tr(c, "complete", rn.version!, { token: a.owner_token });
+      expect(done).toMatchObject({ result: "applied", state: "completed" });
+    });
+    it("worker antigo continua impedido mesmo com a versão recuperada por leitura (token é exigido)", async () => {
+      const c = await newConv();
+      const v = await ready(c, [msg()]);
+      const a = await claim(c, v);
+      const s = await tr(c, "start", a.version!, { token: a.owner_token });
+      await expireNow(c);
+      const b = await claim(c, s.version!);
+      expect(b.result).toBe("recovered");
+      await tr(c, "observe", b.version!, { ids: [msg(), msg()] });
+      const cur = Number(await pg.sql(`select version from public.guest_ai_conversation_leases where conversation_id = '${c}'`, SR)); // leitura como o adaptador faz
+      for (const ev of ["start", "renew", "complete"]) expect((await tr(c, ev, cur, { token: a.owner_token })).result, ev).toBe("stale_owner");
+      expect((await tr(c, "fail", cur, { token: a.owner_token, retryable: true })).result).toBe("stale_owner");
+    });
+    it("concorrência real observe × renew × complete: o dono conclui, nenhuma mensagem adiada se perde nem duplica", async () => {
+      for (let round = 0; round < 5; round++) {
+        const c = await newConv();
+        const base = msg();
+        const v = await ready(c, [base]);
+        const a = await claim(c, v);
+        const s = await tr(c, "start", a.version!, { token: a.owner_token });
+        const extra = [msg(), msg(), msg()];
+        const [o1, o2, rn, o3] = await Promise.all([
+          tr(c, "observe", s.version!, { ids: [base, extra[0]!] }),
+          tr(c, "observe", s.version!, { ids: [base, extra[0]!, extra[1]!] }),
+          tr(c, "renew", s.version!, { token: a.owner_token }),
+          tr(c, "observe", s.version!, { ids: [base, ...extra] }),
+        ]);
+        expect(rn.result).toBe("applied");
+        // observações concorrentes à renovação: aplicadas antes dela, ou recusadas por versão (o coletor relê)
+        for (const o of [o1, o2, o3]) expect(["deferred", "noop", "stale_version"]).toContain(o.result);
+        const cur = Number(await pg.sql(`select version from public.guest_ai_conversation_leases where conversation_id = '${c}'`, SR));
+        await tr(c, "observe", cur, { ids: [base, ...extra] }); // coletor relê e repete
+        const [done, late] = await Promise.all([tr(c, "complete", rn.version!, { token: a.owner_token }), tr(c, "observe", rn.version!, { ids: [base, ...extra, msg()] })]);
+        expect(done.result).toBe("applied");
+        expect(["deferred", "stale_version", "applied"]).toContain(late.result);
+        const st = await row(c);
+        expect(st.message_ids.includes(base) || st.state === "collecting").toBe(true);
+        const all = [...st.message_ids, ...st.deferred];
+        expect(new Set(all).size).toBe(all.length); // sem duplicação
+        if (st.state === "completed") expect(st.deferred.slice(0, 3)).toEqual(extra);
+      }
+    });
+  });
+
+  describe("revisão de homologação · ponto 2 — tentativas por lote", () => {
+    it("lote anterior esgotado (3) + expiração + mensagem nova ⇒ novo lote com orçamento próprio", async () => {
+      const c = await newConv();
+      const old = msg();
+      let v = await ready(c, [old]);
+      for (let k = 1; k <= 3; k++) {
+        const a = await claim(c, v);
+        await expireNow(c);
+        v = a.version!;
+      }
+      expect((await claim(c, v)).result).toBe("attempts_exhausted");
+      const e = await tr(c, "expire", v);
+      expect(e.state).toBe("expired");
+      const fresh = msg();
+      const o = await tr(c, "observe", e.version!, { ids: [old, fresh] });
+      expect(o).toMatchObject({ result: "applied", state: "collecting" });
+      expect((await row(c)).attempts).toBe(0);
+      const r = await tr(c, "mark_ready", o.version!, { ids: [old, fresh] });
+      const a = await claim(c, r.version!);
+      expect(a).toMatchObject({ result: "acquired", attempts: 1 });
+    });
+    it("recuperação do MESMO lote não zera o contador (expirado, falho ou cancelado, sem mensagem nova)", async () => {
+      for (const terminal of ["expired", "failed", "cancelled"] as const) {
+        const c = await newConv();
+        const m = msg();
+        let v = await ready(c, [m]);
+        const a1 = await claim(c, v);
+        v = a1.version!;
+        if (terminal === "expired") {
+          await expireNow(c);
+          v = (await tr(c, "expire", v)).version!;
+        } else if (terminal === "failed") {
+          v = (await tr(c, "fail", v, { token: a1.owner_token, retryable: false })).version!;
+        } else {
+          v = (await tr(c, "cancel", v, { token: a1.owner_token })).version!;
+        }
+        const o = await tr(c, "observe", v, { ids: [m] });
+        expect(o.state, terminal).toBe("collecting");
+        expect((await row(c)).attempts, terminal).toBe(1); // mesmas mensagens ⇒ mesmo lote ⇒ contador preservado
+        const r = await tr(c, "mark_ready", o.version!, { ids: [m] });
+        expect((await claim(c, r.version!)).attempts, terminal).toBe(2);
+      }
+    });
+    it("lote esgotado sem mensagem nova continua bloqueado após novo ciclo (não contorna o limite)", async () => {
+      const c = await newConv();
+      const m = msg();
+      let v = await ready(c, [m]);
+      for (let k = 1; k <= 3; k++) {
+        const a = await claim(c, v);
+        const f = await tr(c, "fail", a.version!, { token: a.owner_token, retryable: true });
+        v = f.version!;
+      }
+      expect((await row(c))).toMatchObject({ state: "failed", attempts: 3 });
+      const o = await tr(c, "observe", v, { ids: [m] });
+      const r = await tr(c, "mark_ready", o.version!, { ids: [m] });
+      expect((await claim(c, r.version!)).result).toBe("attempts_exhausted");
+    });
+  });
+
+  describe("revisão de homologação · ponto 3 — CAS no expire", () => {
+    it("versão correta expira; versão obsoleta é recusada; lease válido não expira; repetição é recusada ou noop", async () => {
+      const c = await newConv();
+      const v = await ready(c, [msg()]);
+      const a = await claim(c, v);
+      expect(await tr(c, "expire", a.version!)).toMatchObject({ result: "noop", version: a.version }); // ainda válido
+      await expireNow(c);
+      expect((await tr(c, "expire", a.version! - 1)).result).toBe("stale_version");
+      const e = await tr(c, "expire", a.version!);
+      expect(e).toMatchObject({ result: "applied", state: "expired", version: a.version! + 1 });
+      expect((await tr(c, "expire", a.version!)).result).toBe("stale_version"); // repetição com a versão antiga
+      expect(await tr(c, "expire", e.version!)).toMatchObject({ result: "noop", version: e.version }); // repetição atual: nada muda
+    });
+    it("expire concorrente com renew (dono vigente): renew vence; expire com a versão antiga é recusado", async () => {
+      for (let round = 0; round < 5; round++) {
+        const c = await newConv();
+        const v = await ready(c, [msg()]);
+        const a = await claim(c, v);
+        const [rn, ex] = await Promise.all([tr(c, "renew", a.version!, { token: a.owner_token }), tr(c, "expire", a.version!)]);
+        expect(rn.result).toBe("applied");
+        expect(["noop", "stale_version"]).toContain(ex.result); // nunca expira lease vigente
+        expect((await row(c)).state).toBe("claimed");
+      }
+    });
+    it("expire concorrente com recuperação por outro worker: uma só transição vence; nunca duas posses", async () => {
+      for (let round = 0; round < 5; round++) {
+        const c = await newConv();
+        const v = await ready(c, [msg()]);
+        const a = await claim(c, v);
+        await expireNow(c);
+        const [ex, rec] = await Promise.all([tr(c, "expire", a.version!), claim(c, a.version!)]);
+        const won = [ex.result === "applied", rec.result === "recovered"].filter(Boolean).length;
+        expect(won).toBe(1);
+        expect(["stale_version", "applied"]).toContain(ex.result);
+        expect(["recovered", "stale_version", "unavailable"]).toContain(rec.result);
+        const st = await row(c);
+        expect(st.state === "claimed" ? st.owner_token === rec.owner_token : st.owner_token === null).toBe(true);
+      }
     });
   });
 

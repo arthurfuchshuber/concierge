@@ -16,8 +16,10 @@
  * processing com prazo vencido → expired (recuperável por NOVO claim: nova posse, nova versão; o dono
  * anterior perde a autoridade e não pode renovar). Ordem das verificações nos eventos com posse
  * (start/renew/complete/fail): versão → estado com posse → token → prazo vigente → estado específico.
- * Mensagem nova depois do claim nunca entra no lote reivindicado (vai para `deferredMessageIds`).
- * Tentativas: no máximo 3 aquisições efetivas por ciclo; conflito de concorrência não conta.
+ * Mensagem nova depois do claim nunca entra no lote reivindicado (vai para `deferredMessageIds`) e
+ * NÃO muda a versão (o dono legítimo mantém a autoridade). `expire` também exige a versão lida.
+ * Tentativas: no máximo 3 aquisições efetivas por LOTE (novo ciclo zera só com mensagem fora do lote
+ * anterior; recuperação do mesmo lote preserva o contador); conflito de concorrência não conta.
  */
 import { LEASE_GATE_EVIDENCE } from "./lease-gate-evidence";
 
@@ -56,7 +58,7 @@ export type LeaseEvent =
   | { type: "complete"; token: string; expectedVersion: number; now: string }
   | { type: "fail"; token: string; retryable: boolean; expectedVersion: number; now: string }
   | { type: "cancel"; expectedVersion: number; now: string; token?: string | null }
-  | { type: "expire"; now: string };
+  | { type: "expire"; now: string; expectedVersion?: number };
 
 export type LeaseRejection =
   | "version_conflict"
@@ -99,14 +101,17 @@ export function applyLeaseEvent(r: LeaseRecord, e: LeaseEvent): LeaseResult {
         // Nunca altera retroativamente o lote reivindicado: guarda para o próximo ciclo.
         const fresh = ids.filter((id) => !r.messageIds.includes(id) && !r.deferredMessageIds.includes(id));
         if (!fresh.length) return { ok: true, effect: "noop", record: r };
-        return { ok: true, effect: "deferred", record: { ...r, deferredMessageIds: [...r.deferredMessageIds, ...fresh], version: r.version + 1, updatedAt: e.now } };
+        // Adiamento NÃO muda a versão: a versão de posse do dono continua válida.
+        return { ok: true, effect: "deferred", record: { ...r, deferredMessageIds: [...r.deferredMessageIds, ...fresh], updatedAt: e.now } };
       }
       let carry = ids;
       if (r.state === "completed") {
         carry = ids.filter((id) => !r.messageIds.includes(id));
         if (!carry.length) return { ok: true, effect: "noop", record: r }; // retentativa/duplicata
       }
-      return next({ state: "collecting", batchId: null, messageIds: carry, ownerToken: null, leaseExpiresAt: null, deferredMessageIds: [], attempts: TERMINAL.has(r.state) ? 0 : r.attempts });
+      // Orçamento de tentativas é do LOTE: zera só com mensagem fora do lote anterior (novo lote).
+      const newBatch = r.state === "completed" || carry.some((id) => !r.messageIds.includes(id));
+      return next({ state: "collecting", batchId: null, messageIds: carry, ownerToken: null, leaseExpiresAt: null, deferredMessageIds: [], attempts: newBatch ? 0 : r.attempts });
     }
     case "mark_ready":
       if (!checkVersion(e.expectedVersion)) return no("version_conflict");
@@ -143,6 +148,8 @@ export function applyLeaseEvent(r: LeaseRecord, e: LeaseEvent): LeaseResult {
       if (liveAt(r, now) && (!e.token || e.token !== r.ownerToken)) return no("stale_owner");
       return next({ state: "cancelled", ownerToken: null, leaseExpiresAt: null });
     case "expire":
+      // CAS também aqui (o banco sempre exige a versão lida)
+      if (e.expectedVersion !== undefined && !checkVersion(e.expectedVersion)) return no("version_conflict");
       if (!expiredAt(r, now)) return { ok: true, effect: "noop", record: r };
       return next({ state: "expired", ownerToken: null });
     default:

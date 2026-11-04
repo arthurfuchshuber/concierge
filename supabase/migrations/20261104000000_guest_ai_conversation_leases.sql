@@ -10,9 +10,11 @@
 --   claimed|processing com prazo vencido --expire/claim--> expired --claim--> claimed (nova posse, nova versão)
 --   collecting|ready|claimed|processing|expired --cancel--> cancelled
 --   completed|failed|cancelled|expired --observe (mensagens novas)--> collecting (novo ciclo)
---   claimed|processing --observe--> mesmo estado, mensagens novas só em deferred_message_ids
+--   claimed|processing --observe--> mesmo estado, mensagens novas só em deferred_message_ids (versão inalterada)
+-- Tentativas: orçamento por LOTE — novo ciclo zera só se trouxer mensagem fora do lote anterior.
 -- Toda escrita: uma transação, linha travada, compare-and-swap de `version` (+ `owner_token` quando há
--- posse), versão incrementada. A aquisição usa FOR UPDATE SKIP LOCKED. Instantes vêm do banco (now()).
+-- posse, inclusive no expire), versão incrementada — exceto o adiamento de mensagens durante a posse,
+-- que não muda a versão para não tirar a autoridade do dono legítimo. A aquisição usa FOR UPDATE SKIP LOCKED. Instantes vêm do banco (now()).
 -- Acesso: RLS ligada sem política; nenhum DML direto para ninguém; service_role só SELECT e EXECUTE.
 
 create table public.guest_ai_conversation_leases (
@@ -192,6 +194,12 @@ begin
   if p_event = 'complete' and r.state = 'completed' then
     return jsonb_build_object('result', 'already_processed', 'version', r.version, 'state', r.state);
   end if;
+  if r.version <> p_expected_version then
+    return jsonb_build_object('result', 'stale_version', 'version', r.version, 'state', r.state);
+  end if;
+
+  -- expire também respeita o CAS: só a partir da versão que o chamador leu, e só se o prazo
+  -- realmente venceu pelo relógio do banco (lease vigente ⇒ noop, sem mudar a versão)
   if p_event = 'expire' then
     if r.state in ('claimed', 'processing') and r.lease_expires_at <= now() then
       update public.guest_ai_conversation_leases
@@ -200,10 +208,6 @@ begin
       return jsonb_build_object('result', 'applied', 'version', r.version, 'state', r.state);
     end if;
     return jsonb_build_object('result', 'noop', 'version', r.version, 'state', r.state);
-  end if;
-
-  if r.version <> p_expected_version then
-    return jsonb_build_object('result', 'stale_version', 'version', r.version, 'state', r.state);
   end if;
 
   v_live := r.state in ('claimed', 'processing') and r.lease_expires_at > now();
@@ -221,8 +225,11 @@ begin
       if cardinality(v_fresh) = 0 then
         return jsonb_build_object('result', 'noop', 'version', r.version, 'state', r.state);
       end if;
+      -- o adiamento NÃO muda a versão: a versão de posse do dono continua válida (só ele a altera
+      -- com start/renew/complete/fail, ou a perde por expiração/recuperação). Linha travada ⇒ observações
+      -- concorrentes são serializadas e o cálculo de `v_fresh` evita perda e duplicação.
       update public.guest_ai_conversation_leases
-         set deferred_message_ids = coalesce(r.deferred_message_ids, '{}') || v_fresh, version = r.version + 1, updated_at = now()
+         set deferred_message_ids = coalesce(r.deferred_message_ids, '{}') || v_fresh, updated_at = now()
        where conversation_id = p_conversation_id returning * into r;
       return jsonb_build_object('result', 'deferred', 'version', r.version, 'state', r.state, 'deferred_message_ids', to_jsonb(r.deferred_message_ids));
     end if;
@@ -239,7 +246,13 @@ begin
     update public.guest_ai_conversation_leases
        set state = 'collecting', batch_id = null, message_ids = v_ids, owner_token = null, lease_expires_at = null,
            deferred_message_ids = '{}',
-           attempts = case when r.state in ('completed', 'failed', 'cancelled') then 0 else r.attempts end,
+           -- orçamento de tentativas é do LOTE: zera só quando entra mensagem que o lote anterior não
+           -- tinha (novo lote); mesmas mensagens (recuperação do mesmo lote) preservam o contador
+           attempts = case
+             when r.state = 'completed' then 0
+             when exists (select 1 from unnest(v_ids) x where not (x = any (coalesce(r.message_ids, '{}')))) then 0
+             else r.attempts
+           end,
            version = r.version + 1, updated_at = now()
      where conversation_id = p_conversation_id returning * into r;
     return jsonb_build_object('result', 'applied', 'version', r.version, 'state', r.state);
