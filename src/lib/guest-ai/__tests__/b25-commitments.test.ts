@@ -115,6 +115,11 @@ describe("B2.5 · promessas no texto × estrutura × autorização (cadeia compl
 describe("B2.5 · horário prometido × R6 (determinístico, fail-closed)", () => {
   const late = (time = "13:00", ptOver: Record<string, unknown> = {}, reply = `Pode sair às ${time.replace(":00", "h")}.`) =>
     v4({ reply, commitments: ["saída tardia"], commitmentKinds: ["late_checkout"], groundedOn: ["ctx:saida_tardia"], promisedTimes: [LATE(time, ptOver)] });
+  it("B3.2 · G.2 (homologada na B3.0 Rev. 2): anterior ao autorizado e posterior ao oficial ⇒ dentro do teto", async () => {
+    const r = await run(late("12:00"));
+    expect(r.kind).toBe("reply");
+    expect(r.audit.checks.promisedTimes).toEqual([{ kind: "late_checkout", result: "valid", authorizationSource: "guest_arrival_status.late_checkout" }]);
+  });
   it("igual ao R6 (data, hora e fuso) ⇒ aprovado, com fonte da autorização registrada", async () => {
     const r = await run(late());
     expect(r.kind).toBe("reply");
@@ -122,7 +127,7 @@ describe("B2.5 · horário prometido × R6 (determinístico, fail-closed)", () =
   });
   it.each<[string, Record<string, unknown>]>([
     ["posterior ao autorizado", late("14:00")],
-    ["anterior ao autorizado (diverge; regra literal da diretriz)", late("12:00")],
+    ["igual ao oficial (não é saída tardia: G.2 exige oficial < solicitado)", late("11:00")],
     ["data diferente", late("13:00", { date: "2026-11-08" })],
     ["fuso diferente", late("13:00", { timezone: "America/Manaus" })],
   ])("%s ⇒ invalid_commitment_time", async (_n, d) => {

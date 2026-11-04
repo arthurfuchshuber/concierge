@@ -24,10 +24,10 @@ import type { PriorMilestones } from "@/lib/guest-ai/validation/semantic-validat
 import { isLlmMock, type LlmMock } from "./llm-mock";
 import { buildShadowRecord, type ShadowTurnRecord } from "./telemetry";
 
-export const SHADOW_HARNESS_VERSION = "shadow-harness.2026-11-03.2";
+export const SHADOW_HARNESS_VERSION = "shadow-harness.2026-11-03.3";
 
 /** Portas permitidas: só LEITURA (cada uma devolve dados; nenhuma executa efeito). */
-export const READ_PORTS = ["loadContext", "loadHistory", "loadDossiers", "loadStayAuthorizationSource", "loadConversationOwnership", "loadSenderIdentitySource"] as const;
+export const READ_PORTS = ["loadContext", "loadHistory", "loadDossiers", "loadStayAuthorizationSource", "loadConversationOwnership", "loadSenderIdentitySource", "loadHumanPause"] as const;
 type ReadPortName = (typeof READ_PORTS)[number];
 /**
  * B2.5: no harness (fundação da B3) TODAS as portas são obrigatórias — nenhuma etapa da cadeia
@@ -98,6 +98,7 @@ export async function runShadowTurn(input: ChainInput, deps: ShadowHarnessDeps):
     loadStayAuthorizationSource: (t, s) => port("loadStayAuthorizationSource")(t, s),
     loadConversationOwnership: (t, s) => port("loadConversationOwnership")(t, s),
     loadSenderIdentitySource: (t, s) => port("loadSenderIdentitySource")(t, s),
+    loadHumanPause: (t, s) => port("loadHumanPause")(t, s),
     generate: (prompt, signal) => model.generate(prompt, signal),
     guard: deps.guard,
     priorMilestones: deps.priorMilestones,

@@ -40,7 +40,7 @@ import {
 import type { CaseOwnership } from "@/lib/guest-ai/orchestrator/case-ownership";
 import type { StayPhase } from "@/lib/guest-ai/types";
 import type { HumanOwnershipSnapshot } from "@/lib/guest-ai/orchestrator/case-ownership";
-import { unavailableStayAuthorizations, type StayAuthorization, type StayAuthorizations } from "@/lib/guest-ai/policy/stay-authorizations";
+import { checkRequestedLateCheckout, unavailableStayAuthorizations, type StayAuthorization, type StayAuthorizations } from "@/lib/guest-ai/policy/stay-authorizations";
 import { TEXT_BLOCKS, checkReplyAgainstDecision, type TextCheck, type TextContext } from "./commitment-text";
 
 /**
@@ -268,12 +268,24 @@ export function validateSemantics(input: SemanticInput): SemanticReport {
   }
 
   // 6b) B2.5 — horário prometido: comparado DETERMINISTICAMENTE com a autorização formal do domínio.
-  //     Saída tardia: R6 (mesma data, mesmo horário, fuso IANA do imóvel). Entrada antecipada: sem fonte.
+  //     Saída tardia: R6 + G.2 (mesma data, horário ≤ teto autorizado, fuso IANA do imóvel). Entrada antecipada: sem fonte.
   if (d.promisedTimes) {
     const tz = ctx.guest.property.timezone;
     for (const p of d.promisedTimes) {
+      // B3.2 — G.2: o horário autorizado é TETO (`oficial < solicitado ≤ autorizado`), comparado como
+      // instante no fuso do imóvel; entrada antecipada não tem fonte formal (sempre inválida).
       const authz = p.kind === "late_checkout" ? auth.lateCheckout : auth.earlyCheckin;
-      if (authz.status !== "authorized" || p.date !== authz.date || p.time !== authz.time || !tz || p.timezone !== tz) add("invalid_commitment_time");
+      const g2 =
+        p.kind === "late_checkout"
+          ? checkRequestedLateCheckout({
+              requested: { date: p.date, time: p.time, timezone: p.timezone },
+              authorization: authz,
+              turn: { reservationId: ctx.guest.stay?.reservationId ?? null, propertyId: ctx.guest.property.id },
+              propertyTimezone: tz,
+              officialCheckoutAt: ctx.guest.stay?.checkOutAt ?? null,
+            })
+          : null;
+      if (!g2 || g2.status !== "within_authorized") add("invalid_commitment_time");
     }
     for (const k of ["late_checkout", "early_checkin"] as const) {
       if ((kinds ?? []).includes(k) && !d.promisedTimes.some((p) => p.kind === k)) add("promised_time_missing");

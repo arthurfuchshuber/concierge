@@ -54,7 +54,9 @@ import { isIssued } from "@/lib/guest-ai/trust";
 import { deriveHumanOwnership, type ConversationOwnershipRow, type HumanOwnershipSnapshot } from "@/lib/guest-ai/orchestrator/case-ownership";
 import { isIssuedBatch, type GuestMessageBatch } from "@/lib/guest-ai/batch/message-batch";
 import { resolveSenderIdentity, type SenderIdentity, type SenderIdentitySource } from "@/lib/guest-ai/policy/sender-identity";
+import { deriveHumanPause, type HumanPauseSource, type HumanPauseState } from "@/lib/guest-ai/policy/human-pause";
 import {
+  checkRequestedLateCheckout,
   evaluateStayAuthorizations,
   unavailableStayAuthorizations,
   type StayAuthorizationInput,
@@ -115,6 +117,7 @@ export type ChainRefusalCode =
   | "batch_scope_mismatch"
   | "batch_turn_mismatch"
   | "batch_history_mismatch"
+  | "batch_contains_paused_messages"
   | "reply_during_pause"
   | "paused_decision_invalid"
   // dossiê
@@ -209,7 +212,7 @@ export interface ChainAudit {
   checks: ChainSecurityChecks;
 }
 
-export const CHAIN_TIMING_IDS = ["context", "dossier", "history", "scope_check", "stay_authorizations", "human_ownership", "sender_identity", "guard", "compose", "model_output", "parse", "structural_validation", "semantic_validation", "final_decision"] as const;
+export const CHAIN_TIMING_IDS = ["context", "dossier", "history", "scope_check", "stay_authorizations", "human_ownership", "human_pause", "sender_identity", "guard", "compose", "model_output", "parse", "structural_validation", "semantic_validation", "final_decision"] as const;
 export type ChainTimingId = (typeof CHAIN_TIMING_IDS)[number];
 
 export interface ChainDecisionSummary {
@@ -239,6 +242,8 @@ export interface ChainSecurityChecks {
   promisedTimes: Array<{ kind: string; result: "valid" | "invalid_commitment_time"; authorizationSource: string | null }>;
   text: { language: string; detectedKinds: string[]; undeclaredKinds: string[] } | null;
   pause: "not_evaluated" | "active" | "inactive";
+  /** B3.2 — pausa derivada do histórico (persistidas + brutos + coluna). */
+  derivedPause: "not_evaluated" | HumanPauseState["state"];
   alert: "none" | "raised" | "insufficient_evidence";
 }
 
@@ -301,6 +306,11 @@ export interface ChainDeps {
   loadStayAuthorizationSource?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<Omit<StayAuthorizationInput, "turn" | "now" | "lookup">>;
   /** B2.5 — fontes da identidade de envio (preferência, gêmeos, contas). Falha ⇒ não resolvida. */
   loadSenderIdentitySource?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<SenderIdentitySource>;
+  /**
+   * B3.2 — fontes da pausa humana DERIVADA (mensagens gravadas + webhooks brutos + coluna). Pausa
+   * ativa, indeterminada ou desconhecida (inclusive falha de leitura) ⇒ mesmo VETO da pausa da equipe.
+   */
+  loadHumanPause?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<HumanPauseSource>;
   /** B2.4 — estado do atendimento humano da conversa. Falha ⇒ erro técnico (fail-closed). */
   loadConversationOwnership?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<ConversationOwnershipRow | null>;
   budget?: BudgetConfig;
@@ -527,6 +537,7 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     promisedTimes: [],
     text: null,
     pause: "not_evaluated",
+    derivedPause: "not_evaluated",
     alert: "none",
   };
   const timeIt = <T>(id: ChainTimingId, fn: () => T): T => {
@@ -685,7 +696,27 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
       // para CLASSIFICAR uma possível emergência (alerta interno estruturado); nunca responde no chat.
       checks.pause = humanOwnership.aiPausedByTeam ? "active" : "inactive";
     }
-    const paused = humanOwnership?.aiPausedByTeam === true;
+    // B3.2 — pausa derivada do histórico: a condição mais restritiva prevalece; ilegível = pausada.
+    let derivedPause: HumanPauseState | null = null;
+    if (deps.loadHumanPause) {
+      const nowIso = new Date(now()).toISOString();
+      try {
+        const src = await timeAsync("human_pause", () => step((s) => deps.loadHumanPause!(turn, s)));
+        derivedPause = deriveHumanPause({ ...src, now: nowIso });
+      } catch (e) {
+        if (e instanceof StageTimeout || deps.signal?.aborted) return failure("context", e);
+        derivedPause = deriveHumanPause({ lookup: "failed", column: null, persisted: [], persistedComplete: false, raw: [], rawComplete: false, allowedSourcePropertyIds: null, now: nowIso });
+      }
+      checks.derivedPause = derivedPause.state;
+      if (batch && derivedPause.pausedUntil !== null) {
+        const until = Date.parse(derivedPause.pausedUntil);
+        // Decisão 7: nenhuma mensagem do lote pode ser da pausa (nem igual ao limite).
+        if (batch.messages.some((m) => !(Date.parse(m.createdAt) > until))) return refuse("context", "batch_contains_paused_messages");
+      }
+    }
+    const paused = humanOwnership?.aiPausedByTeam === true || (derivedPause !== null && derivedPause.state !== "active");
+    if (derivedPause && derivedPause.state !== "active") checks.pause = "active";
+    else if (derivedPause && checks.pause === "not_evaluated") checks.pause = "inactive";
 
     // B2.4 — autorizações formais de horário (fonte indisponível ⇒ nada autorizado).
     let stayAuthorizations: StayAuthorizations | null = null;
@@ -871,7 +902,15 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     checks.text = semantic.text ? { language: semantic.text.language, detectedKinds: [...semantic.text.detectedKinds], undeclaredKinds: [...semantic.text.undeclaredKinds] } : null;
     checks.promisedTimes = (decision.promisedTimes ?? []).map((pt) => {
       const a = pt.kind === "late_checkout" ? stayAuthorizations?.lateCheckout : stayAuthorizations?.earlyCheckin;
-      const ok = !!a && a.status === "authorized" && a.date === pt.date && a.time === pt.time && pt.timezone === ctx.guest.property.timezone;
+      const ok =
+        pt.kind === "late_checkout" &&
+        checkRequestedLateCheckout({
+          requested: { date: pt.date, time: pt.time, timezone: pt.timezone },
+          authorization: a,
+          turn: { reservationId: ctx.guest.stay?.reservationId ?? null, propertyId: ctx.guest.property.id },
+          propertyTimezone: ctx.guest.property.timezone,
+          officialCheckoutAt: ctx.guest.stay?.checkOutAt ?? null,
+        }).status === "within_authorized";
       return { kind: pt.kind, result: ok ? "valid" : "invalid_commitment_time", authorizationSource: a && a.status === "authorized" ? a.source : null };
     });
     if (semantic.verdict !== "pass") return refuse("semantic_validation", "semantic_block", situation);

@@ -120,7 +120,7 @@ describe("B2.4 · barreira passiva ESTRUTURAL (não é flag)", () => {
     expect(checkPassiveBarrier({ ...deps("valid_reply"), ports: { ...ports(), loadDossiers: "x" } })).toBe("port_not_function");
     expect(checkPassiveBarrier({ ...deps("valid_reply"), ports: { loadContext: vi.fn() } })).toBe("missing_port");
     // B2.5: cada porta operacional é obrigatória
-    for (const k of ["loadDossiers", "loadStayAuthorizationSource", "loadConversationOwnership", "loadSenderIdentitySource"] as const) {
+    for (const k of ["loadDossiers", "loadStayAuthorizationSource", "loadConversationOwnership", "loadSenderIdentitySource", "loadHumanPause"] as const) {
       const p: Record<string, unknown> = { ...ports() };
       delete p[k];
       expect(checkPassiveBarrier({ ...deps("valid_reply"), ports: p }), k).toBe("missing_port");

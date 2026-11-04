@@ -59,8 +59,9 @@ describe("B2.5 · módulos novos puros e passivos", () => {
 });
 
 describe("B2.5 · só as camadas isoladas usam as peças novas", () => {
-  it("lote", () => expect(importersOf("batch/message-batch")).toEqual(["composer.ts", "shadow/telemetry.ts", "turn-chain.ts"]));
-  it("identidade de envio", () => expect(importersOf("policy/sender-identity")).toEqual(["shadow/telemetry.ts", "turn-chain.ts"]));
+  // B3.1/B3.2: + coletor, telemetria do coletor e loaders reais somente leitura (diretriz de 03/11). Listas fechadas.
+  it("lote", () => expect(importersOf("batch/message-batch")).toEqual(["batch/collector.ts", "batch/telemetry.ts", "composer.ts", "data/collector.server.ts", "shadow/telemetry.ts", "turn-chain.ts"]));
+  it("identidade de envio", () => expect(importersOf("policy/sender-identity")).toEqual(["data/sender-identity.server.ts", "shadow/telemetry.ts", "turn-chain.ts"]));
   it("leitura de compromissos no texto", () => expect(importersOf("validation/commitment-text")).toEqual(["shadow/telemetry.ts", "validation/semantic-validator.ts"]));
   it("nada fora de src/lib/guest-ai importa a cadeia, o lote ou a identidade", () => {
     const outside = prod()

@@ -42,6 +42,8 @@ export const SENDER_IDENTITY_REASONS = [
   "channel_not_owned",
   "channel_other_tenant",
   "channel_inactive",
+  // B3.2 — a thread aponta para mais de um anúncio (nunca se escolhe um).
+  "listing_ambiguous",
 ] as const;
 export type SenderIdentityReason = (typeof SENDER_IDENTITY_REASONS)[number];
 
@@ -78,6 +80,8 @@ export interface SenderIdentitySource {
   lookup: "ok" | "failed";
   /** Anúncio Airbnb da conversa (fonte confiável do chamador: thread/conversa). */
   conversationListingId: string | null;
+  /** B3.2 — anúncios candidatos vistos na thread pelo loader real; mais de um ⇒ `ambiguous`. */
+  conversationListingCandidates?: readonly string[];
   /** Anúncio da reserva, quando conhecido (para conferir coerência). */
   reservationListingId: string | null;
   listings: ReadonlyArray<{ airbnb_listing_id: string | null; property_id: string | null; owner_id: string | null; channex_channel_id: string | null }>;
@@ -109,6 +113,8 @@ export function resolveSenderIdentity(i: SenderIdentityInput): SenderIdentity {
   if (!i || i.surface !== "airbnb") return fail("not_applicable", "surface_not_airbnb");
   const src = i.source;
   if (!src || src.lookup !== "ok") return fail("unavailable", "lookup_failed");
+  if (Array.isArray(src.conversationListingCandidates) && src.conversationListingCandidates.length > 1) return fail("ambiguous", "listing_ambiguous");
+  if (Array.isArray(src.conversationListingCandidates) && src.conversationListingCandidates.length === 1 && src.conversationListingCandidates[0] !== src.conversationListingId) return fail("invalid", "listing_unidentified");
   const listingId = str(src.conversationListingId);
   if (!listingId) return fail("unavailable", "listing_unidentified");
 

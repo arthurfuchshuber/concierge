@@ -57,7 +57,8 @@ describe("B2.4 · nada de produção ativa o shadow nem as novas camadas", () =>
       .filter((f) => /guest-ai\/policy\/stay-authorizations["']|\.\/policy\/stay-authorizations["']/.test(readFileSync(f, "utf8")))
       .map((f) => path.relative(ROOT, f))
       .sort();
-    expect(importers).toEqual(["composer.ts", "shadow/telemetry.ts", "turn-chain.ts", "validation/semantic-validator.ts"]);
+    // B3.2: + o loader real (somente leitura, só tipos) autorizado pela diretriz B3.1/B3.2. Lista fechada.
+    expect(importers).toEqual(["composer.ts", "data/stay-authorization.server.ts", "shadow/telemetry.ts", "turn-chain.ts", "validation/semantic-validator.ts"]);
   });
   it("Orchestrator, slot e contexto não importam nada da B2.3/B2.4; NO_COMPOSER segue o padrão", () => {
     for (const f of ["orchestrator/orchestrator.server.ts", "slot.server.ts", "context/conversation-context.server.ts", "context/builder.server.ts"]) {

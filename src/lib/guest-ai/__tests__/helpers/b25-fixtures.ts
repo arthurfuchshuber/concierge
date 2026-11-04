@@ -68,6 +68,8 @@ export function operationalPorts(over: Partial<ShadowHarnessDeps["ports"]> = {})
     loadStayAuthorizationSource: async () => staySource(),
     loadConversationOwnership: async () => ownershipRow(),
     loadSenderIdentitySource: async () => senderSource(),
+    // B3.2 — pausa derivada: sem intervenção humana recente (benigno).
+    loadHumanPause: async () => ({ lookup: "ok", column: { ai_paused: false, paused_until: null }, persisted: [], persistedComplete: true, raw: [], rawComplete: true, allowedSourcePropertyIds: null }),
     ...over,
   };
 }
