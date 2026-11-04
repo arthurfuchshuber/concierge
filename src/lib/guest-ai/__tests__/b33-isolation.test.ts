@@ -25,7 +25,8 @@ function resolveSpec(from: string, spec: string): string | null {
 function depsOf(f: string): string[] {
   const s = readFileSync(f, "utf8");
   const out: string[] = [];
-  for (const m of s.matchAll(/(?:from\s+|import\s*\(\s*)["']([^"']+)["']/g)) {
+  // `from "x"`, `import("x")` e import de efeito colateral `import "x"` (sem `from`)
+  for (const m of s.matchAll(/(?:from\s+|import\s*\(\s*|import\s+)["']([^"']+)["']/g)) {
     const r = resolveSpec(f, m[1]!);
     if (r) out.push(r);
   }

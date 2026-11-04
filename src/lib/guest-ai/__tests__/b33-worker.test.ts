@@ -160,10 +160,12 @@ describe("B3.3 · worker — manifesto, escopo e integridade (bloqueio global)",
   it("tenant do manifesto ≠ tenant da candidata ⇒ integridade global", async () => {
     const store = new MemoryShadowStore();
     store.manifest = manifestOf([{ tenantId: OTHER_T, propertyId: shadowTurn().propertyId }]);
-    const { io } = makeIo({ store, provider: fakeProvider(okJson({})) });
+    const { io, captured } = makeIo({ store, provider: fakeProvider(okJson({})) });
     expect(await runShadowWorker(candidate(), io)).toEqual({ status: "recorded", decision: "integrity_violation" });
     expect(store.trips).toEqual([{ to: "integrity_violation", reason: "integrity_divergence" }]);
     expect(store.records[0]!.integrityCode).toBe("manifest_tenant_mismatch");
+    // barrado ANTES de qualquer leitura de escopo (nem o banco da conversa é consultado)
+    expect(captured.scopeCalls).toBe(0);
   });
   it("escopo com divergência de dono/canal/imóvel ⇒ integridade global (independe da taxa de erro)", async () => {
     for (const code of ["tenant_mismatch", "surface_mismatch", "property_unresolved", "message_conversation_mismatch"]) {

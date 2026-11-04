@@ -235,6 +235,32 @@ describe("B3.3 · worker — demais ramos", () => {
   });
 });
 
+describe("B3.3 · sinais: a cadeia recebe o sinal ÚNICO do prazo; a finalização usa o sinal PRÓPRIO", () => {
+  it("prazo de processamento esgota no Gateway: portas viram o sinal abortado; store/lease da finalização seguem vivos", async () => {
+    const timers: Array<{ fn: () => void; ms: number }> = [];
+    const schedule = (fn: () => void, ms: number) => (timers.push({ fn, ms }), () => undefined);
+    const provider = fakeProvider(() => new Promise((_, reject) => {
+      setTimeout(() => timers.find((x) => x.ms === SHADOW_DEADLINE_MS - SHADOW_FINALIZATION_RESERVE_MS)!.fn(), 0);
+      setTimeout(() => reject(new Error("aborted")), 5);
+    }));
+    const seen: AbortSignal[] = [];
+    const base = makeIo({ provider, schedule });
+    const { store, lease } = base;
+    // como as portas reais: com o sinal abortado, NADA sai (store devolve erro; lease, store_error)
+    const io = {
+      ...base.io,
+      storeFor: (sig: AbortSignal) => new Proxy(store, { get: (t, k) => (k === "record" ? async (r: never) => (sig.aborted ? { kind: "error" } : t.record(r)) : k === "trip" || k === "settle" ? async (...a: never[]) => (sig.aborted ? false : (t[k] as (...x: never[]) => unknown)(...a)) : Reflect.get(t, k)) }) as never,
+      leaseFor: (sig: AbortSignal) => new Proxy(lease, { get: (t, k) => (k === "transition" ? async (...a: never[]) => (sig.aborted ? { result: "store_error", version: null } : (t.transition as (...x: never[]) => unknown)(...a)) : Reflect.get(t, k)) }) as never,
+      portsFor: () => operationalPorts({ loadContext: async (_t, sig) => (seen.push(sig), shadowCtx()), loadHistory: async () => history(), loadStayAuthorizationSource: async () => staySource() }),
+    };
+    expect(await runShadowWorker(candidate(), io)).toEqual({ status: "recorded", decision: "technical_failure" });
+    expect(store.records[0]).toMatchObject({ technicalCode: "shadow_timeout", executionState: "timed_out" });
+    expect(lease.rec?.state).toBe("failed");
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((s) => s.aborted)).toBe(true);
+  });
+});
+
 describe("B3.3 · ligação de produção (cada loader recebe o banco e o SINAL da execução)", () => {
   it("productionWorkerIo encaminha db + sinal a cada loader e às portas", async () => {
     const calls: Array<[string, unknown]> = [];

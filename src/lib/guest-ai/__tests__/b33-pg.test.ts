@@ -149,6 +149,8 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
       for (const k of ["decision", "channel", "chain_version", "shadow_version", "composer_version", "model_id", "strategy", "handoff_urgency", "pause_state", "context_check", "execution_state", "usage_source", "gateway_error", "budget_exceeded", "refusal_code", "technical_code", "block_code", "integrity_code"]) {
         variants.push({ ...good, execution_id: uid(), [k]: CANARY });
       }
+      // decisão livre num registro SEM candidata: só a CHECK de vocabulário da decisão barra
+      variants.push({ ...recordToRow(recordOf("silence")), execution_id: uid(), decision: CANARY });
       variants.push({ ...good, execution_id: uid(), intents: [CANARY] });
       variants.push({ ...good, execution_id: uid(), commitment_kinds: [CANARY] });
       variants.push({ ...good, execution_id: uid(), reply: CANARY });
