@@ -94,7 +94,7 @@ export function ChannexModeCard() {
       <Dialog open={wizard} onOpenChange={setWizard}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Ativar o Modo Full para toda a conta</DialogTitle>
+            <DialogTitle>Ativar o Modo Full para Toda a Conta</DialogTitle>
             <DialogDescription>
               ConciergeIA assume o controle de disponibilidade na Channex (com validação prévia de tarifas da sua ferramenta de precificação).
             </DialogDescription>

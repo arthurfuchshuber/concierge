@@ -102,7 +102,7 @@ export function PropertyTypeSelect({
       <Dialog open={manage} onOpenChange={setManage}>
         <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Tipos de imóvel</DialogTitle>
+            <DialogTitle>Tipos de Imóvel</DialogTitle>
             <DialogDescription>
               Crie, renomeie ou exclua as opções disponíveis para os seus imóveis.
             </DialogDescription>

@@ -100,7 +100,7 @@ export function CleaningPriceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle className="text-base font-display">Ajustar valor da limpeza</DialogTitle>
+          <DialogTitle className="text-base font-display">Ajustar Valor da Limpeza</DialogTitle>
           <p className="truncate text-[12.5px] text-muted-foreground" title={title}>{title}</p>
         </DialogHeader>
         <div className="flex items-center justify-between rounded-[0.5rem] border border-border/60 bg-muted/30 px-3 py-2 text-[12.5px]">
@@ -137,7 +137,7 @@ export function CleaningPriceDialog({
         <AlertDialog open={confirm} onOpenChange={setConfirm}>
           <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
             <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar alteração?</AlertDialogTitle>
+              <AlertDialogTitle>Confirmar Alteração?</AlertDialogTitle>
               <AlertDialogDescription className="break-words">
                 O valor desta limpeza vai passar a ser {brl(cents)}. Vale só para esta limpeza.
               </AlertDialogDescription>

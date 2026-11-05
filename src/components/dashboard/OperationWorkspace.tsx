@@ -4225,7 +4225,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       >
         <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-base font-display">Qual limpeza foi feita?</DialogTitle>
+            <DialogTitle className="text-base font-display">Qual Limpeza Foi Feita?</DialogTitle>
             {cleaningTypePrompt ? (
               <p className="text-[12.5px] text-muted-foreground break-words">
                 {cleaningTypePrompt.row.propertyName ?? titleCaseName(cleaningTypePrompt.row.guestName)}
@@ -5363,22 +5363,25 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
   const sorted = [...breakdown].sort((x, y) => y.totalCents - x.totalCents);
   return (
     <div className="pt-3">
-      <div ref={screenshotRef} className="sg-elegant-scroll max-h-[60dvh] overflow-y-auto px-3 bg-[var(--panel)]">
-        <ul className="space-y-1.5 pb-3">
+      <div ref={screenshotRef} className="sg-elegant-scroll max-h-[60dvh] overflow-y-auto bg-[var(--panel)] px-5">
+        <ul>
           {sorted.map((item) => {
             return (
-              <li key={item.propertyId} className="flex items-center gap-3 rounded-[10px] border border-border bg-muted/20 px-3 py-2.5">
-                <div className="min-w-0 flex-1">
+              <li key={item.propertyId} className="min-w-0 border-t border-border/60 py-3">
+                <div className="min-w-0">
                   {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
-                  <ClampName text={item.propertyName} className="text-[13px] font-bold leading-snug" />
+                  <ClampName text={item.propertyName} className="text-[12.5px] font-bold leading-snug" />
                   <OwnerLine
                     name={item.ownerName}
                     phone={item.ownerPhone ?? null}
                     country={item.ownerPhoneCountry ?? null}
                     phonePosition="adjacent"
                   />
+                  <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px] font-semibold text-foreground/80">
+                    <span className="shrink-0">Valor do Serviço:</span>
+                    <span>{centsToBRL(item.totalCents)}</span>
+                  </p>
                 </div>
-                <p className="shrink-0 text-right text-[13px] font-bold tabular-nums">{centsToBRL(item.totalCents)}</p>
               </li>
             );
           })}
@@ -11203,7 +11206,7 @@ function ArrivalCard({
       <Dialog open={!!confirmMsg} onOpenChange={(o) => !o && setConfirmMsg(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl">Confirmar antecipação</DialogTitle>
+            <DialogTitle className="font-display text-xl">Confirmar Antecipação</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">{confirmMsg}</p>
           <div className="flex justify-end gap-2 pt-2">

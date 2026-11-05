@@ -609,7 +609,7 @@ function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }: {
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Novas tags</DialogTitle>
+        <DialogHeader><DialogTitle>Novas Tags</DialogTitle>
           <DialogDescription>Uma por linha (ou separadas por vírgula) para criar várias de uma vez.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -688,7 +688,7 @@ function NewCategoryDialog({ onClose, onSaved }: {
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Nova categoria</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Nova Categoria</DialogTitle></DialogHeader>
         <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex: Aventura" maxLength={60} autoFocus
           onKeyDown={(e) => { if (e.key === "Enter" && label.trim()) save(); }}
         />

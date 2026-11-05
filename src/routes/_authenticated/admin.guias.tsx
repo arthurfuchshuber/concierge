@@ -1121,7 +1121,7 @@ function Dashboard() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir Guia?</AlertDialogTitle>
             <AlertDialogDescription>
               Isso removerá permanentemente "{deleteTarget?.name}" e não poderá ser desfeito.
             </AlertDialogDescription>
@@ -1155,7 +1155,7 @@ function Dashboard() {
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <DialogHeader>
-            <DialogTitle>Novo guia</DialogTitle>
+            <DialogTitle>Novo Guia</DialogTitle>
           </DialogHeader>
           {/* Mesmo padrão da barra de busca da página (cantos retos, fundo
               secondary/50, 36px de altura) — sempre visível, igual à barra
@@ -1249,7 +1249,7 @@ function Dashboard() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Duplicar guia</DialogTitle>
+            <DialogTitle>Duplicar Guia</DialogTitle>
             <DialogDescription>
               Vamos criar cópias de{" "}
               <span className="font-medium text-foreground">{dupTarget?.name}</span> com todas as

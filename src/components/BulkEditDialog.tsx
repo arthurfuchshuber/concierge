@@ -766,7 +766,7 @@ export function BulkEditDialog({
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar alteração em massa</AlertDialogTitle>
+              <AlertDialogTitle>Confirmar Alteração em Massa</AlertDialogTitle>
               <AlertDialogDescription>
                 Isso vai sobrescrever {confirmSummary?.fields ?? 0} campo{(confirmSummary?.fields ?? 0) === 1 ? "" : "s"} e{" "}
                 {confirmSummary?.lists ?? 0} lista{(confirmSummary?.lists ?? 0) === 1 ? "" : "s"} em{" "}
@@ -785,7 +785,7 @@ export function BulkEditDialog({
         <AlertDialog open={discardConfirmOpen} onOpenChange={setDiscardConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Descartar alterações não salvas?</AlertDialogTitle>
+              <AlertDialogTitle>Descartar Alterações Não Salvas?</AlertDialogTitle>
               <AlertDialogDescription>
                 Você editou campos que ainda não foram salvos. Fechar agora descarta essas alterações — elas não
                 afetarão os guias selecionados.

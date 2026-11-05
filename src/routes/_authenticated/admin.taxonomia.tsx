@@ -267,7 +267,7 @@ function MergeCategoriesDialog({ categories, saving, onClose, onConfirm }: {
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Unificar categorias</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Unificar Categorias</DialogTitle></DialogHeader>
         <p className="ds-meta">
           As tags de todas as selecionadas serão movidas para uma única categoria.
           As categorias absorvidas serão excluídas (categorias padrão não podem ser absorvidas).
@@ -322,7 +322,7 @@ function EditCategoryDialog({ cat, onClose, onSave, onDelete }: {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle>Editar categoria</DialogTitle>
+            <DialogTitle>Editar Categoria</DialogTitle>
             <PresenceAvatars users={presence.users} />
           </div>
         </DialogHeader>
@@ -391,7 +391,7 @@ function EditTagDialog({ tag, categories, onClose, onSave, onDelete }: {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle>Editar tag</DialogTitle>
+            <DialogTitle>Editar Tag</DialogTitle>
             <PresenceAvatars users={presence.users} />
           </div>
         </DialogHeader>

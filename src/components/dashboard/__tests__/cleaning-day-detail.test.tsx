@@ -132,9 +132,10 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     );
     const t = text(html);
     expect(t).toContain("1 checkout previsto");
-    expect(t).toContain("11:00");
-    expect(t).toContain("Ana");
-    expect(t).toMatch(/Estimativa · limpeza normal R\$\s120,00/);
+    expect(t).toContain("Data de Saída: 19/09/2026");
+    expect(t).toContain("Horário de Saída: 11:00");
+    expect(t).not.toContain("Ana");
+    expect(t).toMatch(/Estimativa · Limpeza Normal R\$\s120,00/);
   });
 
   it("limpezas: data + hora + quem fez e proprietário(a) do imóvel; sem permissão não há botão", () => {
@@ -154,8 +155,8 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
       />,
     );
     const t = text(html);
-    expect(t).toContain("Pr: Patrícia");
-    expect(t).toContain("Pr: Clayton");
+    expect(t).toContain("Patrícia");
+    expect(t).toContain("Clayton");
     expect(t).toContain("17/09/2026 · 14:20 · Maria");
     expect(t).toContain("Tipo da Limpeza: Normal");
     // O único botão é o "Fechar detalhe"; sem permissão não há nenhum botão de edição.

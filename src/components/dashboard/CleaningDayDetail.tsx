@@ -1,25 +1,21 @@
-import { useState } from "react";
-import { CalendarDays, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowRight, CalendarDays, Pencil, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { centsToReaisInput, parseReaisInputToCents } from "@/components/ui/money-input";
 import { CleaningProviderAvatar } from "@/components/dashboard/CleaningProviderAvatar";
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { setCleaningPriceOverride, setCleaningType } from "@/lib/cleaning-price.functions";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
-import { ownerPropertyLabel } from "@/lib/owner-gender";
 import { ClampName } from "@/components/ui/clamp-name";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
@@ -92,15 +88,20 @@ function dateSP(iso: string | null): string | null {
 }
 
 /**
- * BOTÃO DO DADO EDITÁVEL (mockup aprovado, 08/10/2026): fundo de botão no mesmo
- * padrão dos botões dos cards, para a pessoa saber que aquele dado pode ser
+ * DADO EDITÁVEL (mockup aprovado, 04/11/2026): sem fundo e sem borda, na mesma
+ * letra das demais linhas; um lápis à direita do dado avisa que ele pode ser
  * alterado. Só aparece para quem tem permissão; sem ela o dado é texto simples.
  */
-const EDIT_BTN =
-  "ds-3d ds-3d-hover inline-flex items-center rounded-[0.3rem] border border-border/70 bg-card shadow-sm transition-colors";
+const EDIT_BTN = "inline-flex min-w-0 max-w-full items-center transition-opacity hover:opacity-80";
+const EDIT_PENCIL = "ml-1.5 size-3 shrink-0 opacity-60";
 
 /** Namespace que decide quem pode alterar tipo, valor e prestador da limpeza. */
 const CLEANING_EDIT_PERMISSION = "tenant.dashboard.chegadas.limpeza";
+
+function dateISO(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
 
 function timeSP(iso: string | null): string | null {
   if (!iso) return null;
@@ -111,8 +112,7 @@ function timeSP(iso: string | null): string | null {
   });
 }
 
-const TH = "pb-2.5 text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground";
-const TD = "border-t border-border/60 py-3 align-top text-[12.5px]";
+const TD = "min-w-0 max-w-full overflow-hidden border-t border-border/60 py-3 align-top text-[12.5px]";
 
 /**
  * REGRA GLOBAL (18/10/2026): proprietário + ícone de chat acima, título do
@@ -123,25 +123,28 @@ function PropertyCell({
   owner,
   phone = null,
   country = null,
+  children,
 }: {
   name: string;
   owner: string | null;
   phone?: string | null;
   country?: string | null;
+  children?: React.ReactNode;
 }) {
   return (
-    <td className={`${TD} pr-2`} style={{ maxWidth: 0, width: "60%" }}>
+    <td className={TD}>
       <ClampName text={name} className="font-bold" />
-      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" label="Pr:" />
+      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" />
+      {children}
     </td>
   );
 }
 
 /**
  * Célula do imóvel na lista "Limpezas Realizadas": título, proprietário e a
- * linha da ação (data · hora · quem fez) SEMPRE em uma linha, com reticências
- * quando não couber (texto completo no `title`). Abaixo vem o tipo da limpeza
- * (`children`), onde só o dado é botão.
+ * tipo e valor (`children`), onde só o dado é botão. A linha da ação
+ * (data · hora · quem fez) fica no FIM do card, em uma linha, com reticências
+ * quando não couber (texto completo no `title`).
  */
 function DoneCell({
   name,
@@ -149,6 +152,7 @@ function DoneCell({
   phone = null,
   country = null,
   action,
+  tail,
   children,
 }: {
   name: string;
@@ -156,20 +160,34 @@ function DoneCell({
   phone?: string | null;
   country?: string | null;
   action: string | null;
+  /** Fim da última linha (ex.: seletor do prestador). */
+  tail?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const ownerText = ownerPropertyLabel(owner);
   return (
-    <td className={`${TD} pr-2`} style={{ maxWidth: 0, width: "100%" }}>
+    <td className={TD}>
       <ClampName text={name} className="font-bold" />
-      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" label={ownerText} />
+      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" />
+      {children}
       {action && (
-        <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-foreground/80" title={action}>
-          {action}
+        <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px] font-semibold text-foreground/80">
+          <span className="truncate" title={action}>
+            {action}
+          </span>
+          {tail}
         </span>
       )}
-      {children}
     </td>
+  );
+}
+
+/** O valor entra como uma linha comum, logo abaixo das demais informações do card. */
+function ValueLine({ label = "Valor do Serviço", children }: { label?: string; children: React.ReactNode }) {
+  return (
+    <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px] font-semibold text-foreground/80">
+      <span className="shrink-0">{label}:</span>
+      {children}
+    </span>
   );
 }
 
@@ -188,6 +206,149 @@ function TypeLabel({ type, pending }: { type: "normal" | "completa" | null; pend
         </span>
       )}
     </>
+  );
+}
+
+/**
+ * ANTI-CORTE vertical (mockup aprovado, 04/11/2026): nenhuma linha aparece
+ * cortada. A altura visível da lista é ajustada para terminar na última linha
+ * INTEIRA; o rodapé sobe logo depois dela e a próxima linha surge inteira ao
+ * rolar. Sem máscara/esmaecimento. Recalcula ao rolar e ao redimensionar.
+ */
+function SnapScroll({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const fit = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const top = el.scrollTop;
+    el.style.height = "";
+    const avail = el.clientHeight;
+    if (avail <= 0 || el.scrollHeight <= avail + 1) {
+      el.scrollTop = top;
+      return;
+    }
+    const box = el.getBoundingClientRect();
+    let best = 0;
+    el.querySelectorAll("tbody > tr").forEach((tr) => {
+      const bottom = tr.getBoundingClientRect().bottom - box.top;
+      if (bottom <= avail + 0.5 && bottom > best) best = bottom;
+    });
+    // No fim da rolagem não há o que cortar: usa a altura toda.
+    const atEnd = top + avail >= el.scrollHeight - 1;
+    if (best > 0 && !atEnd) el.style.height = `${Math.floor(best)}px`;
+    el.scrollTop = top;
+  }, []);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    fit();
+    let raf = 0;
+    const later = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(fit);
+    };
+    el.addEventListener("scroll", later, { passive: true });
+    window.addEventListener("resize", later);
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(later) : null;
+    ro?.observe(el);
+    if (el.parentElement) ro?.observe(el.parentElement);
+    return () => {
+      cancelAnimationFrame(raf);
+      el.removeEventListener("scroll", later);
+      window.removeEventListener("resize", later);
+      ro?.disconnect();
+    };
+  }, [fit]);
+  return (
+    <div
+      ref={ref}
+      className="sg-elegant-scroll min-h-0 flex-1 [scrollbar-gutter:stable] overflow-y-auto overflow-x-hidden px-5 pb-5 pt-1"
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Janela "Confirmar Alteração?" (mockup aprovado): só o nome da propriedade e
+ * dois blocos — De (valor antigo riscado) → Para (valor novo).
+ */
+function ConfirmChange({
+  open,
+  onOpenChange,
+  property,
+  from,
+  to,
+  busy,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  property: string;
+  from: string;
+  to: string;
+  busy: boolean;
+  onConfirm: () => void;
+}) {
+  const btn = "h-9 flex-1 rounded-[10px] border text-[12px] transition-colors disabled:opacity-50";
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="w-[calc(100vw-2rem)] gap-3 p-4 sm:max-w-sm">
+        <AlertDialogCancel
+          aria-label="Fechar"
+          disabled={busy}
+          className="absolute right-0 top-0 z-[5] grid size-8 place-items-center rounded-none rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] border-0 p-0 text-muted-foreground"
+          style={{ background: "color-mix(in srgb, var(--panel) 80%, white 8%)" }}
+        >
+          <X className="size-3.5" strokeWidth={2.2} />
+        </AlertDialogCancel>
+        <AlertDialogTitle className="pr-8 font-display text-[14px] font-bold leading-tight text-white">
+          Confirmar Alteração?
+        </AlertDialogTitle>
+        <AlertDialogDescription asChild>
+          <div className="min-w-0 space-y-2">
+            <p className="break-words text-[12.5px] font-bold text-foreground">{property}</p>
+            <div className="flex min-w-0 items-center gap-2">
+              <div
+                className="min-w-0 flex-1 rounded-[10px] border px-3 py-2"
+                style={{ background: "rgba(255,255,255,.04)", borderColor: "rgba(255,255,255,.05)" }}
+              >
+                <p className="text-[10.5px] font-semibold uppercase text-muted-foreground">De</p>
+                <p className="truncate text-[15px] font-semibold line-through opacity-70">{from}</p>
+              </div>
+              <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+              <div
+                className="min-w-0 flex-1 rounded-[10px] border px-3 py-2"
+                style={{ background: "rgba(255,255,255,.10)", borderColor: "rgba(255,255,255,.12)" }}
+              >
+                <p className="text-[10.5px] font-semibold uppercase text-muted-foreground">Para</p>
+                <p className="truncate text-[15px] font-bold text-white">{to}</p>
+              </div>
+            </div>
+          </div>
+        </AlertDialogDescription>
+        <div className="flex gap-2">
+          <AlertDialogCancel
+            disabled={busy}
+            className={`${btn} font-semibold text-muted-foreground`}
+            style={{ background: "rgba(255,255,255,.04)", borderColor: "rgba(255,255,255,.05)" }}
+          >
+            Cancelar
+          </AlertDialogCancel>
+          <AlertDialogAction
+            disabled={busy}
+            className={`${btn} font-bold text-white`}
+            style={{ background: "rgba(255,255,255,.10)", borderColor: "rgba(255,255,255,.12)" }}
+            onClick={(e) => {
+              e.preventDefault();
+              onConfirm();
+            }}
+          >
+            Confirmar
+          </AlertDialogAction>
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -228,6 +389,8 @@ export function CleaningDayDetailContent({
   // o dado aparece como texto simples. O servidor continua sendo quem barra.
   const access = useAreaAccess([CLEANING_EDIT_PERMISSION], "WRITE");
   const canEdit = access.ready && access.can(CLEANING_EDIT_PERMISSION);
+  // Janela de custo do período todo: "Custo por Serviço Realizado" (04/11/2026).
+  const heading = source.mode === "cost" && date === "all" ? "Custo por Serviço Realizado" : (title ?? dayTitle(date));
   let subtitle = "";
   let body: React.ReactNode = null;
   let footer: React.ReactNode = null;
@@ -240,27 +403,21 @@ export function CleaningDayDetailContent({
         ? "Nenhum checkout previsto"
         : `${rows.length} ${rows.length === 1 ? "checkout previsto" : "checkouts previstos"}`;
     body = rows.length > 0 && (
-      <table className="w-full border-collapse tabular-nums">
-        <thead>
-          <tr>
-            <th className={`${TH} text-left`}>Imóvel</th>
-            <th className={`${TH} text-left`}>Saída</th>
-            <th className={`${TH} text-right`}>Estimado</th>
-          </tr>
-        </thead>
+      <table className="w-full table-fixed border-collapse tabular-nums">
         <tbody>
           {rows.map((r) => (
             <tr key={r.id}>
-              <PropertyCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} />
-              <td className={`${TD} pr-2`}>
-                <span className="block font-bold">{r.timeLabel ?? "—"}</span>
-                {r.guestName && (
-                  <span className="block max-w-[110px] truncate text-[10.5px] text-muted-foreground">
-                    {r.guestName}
-                  </span>
-                )}
-              </td>
-              <td className={`${TD} text-right font-bold`}>{brl(r.estimateCents)}</td>
+              <PropertyCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry}>
+                <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-foreground/80">
+                  Data de Saída: {dateISO(r.date)}
+                </span>
+                <span className="block truncate text-[11.5px] font-semibold text-foreground/80">
+                  Horário de Saída: {r.timeLabel ?? "—"}
+                </span>
+                <ValueLine label="Estimado">
+                  <span>{brl(r.estimateCents)}</span>
+                </ValueLine>
+              </PropertyCell>
             </tr>
           ))}
         </tbody>
@@ -269,7 +426,7 @@ export function CleaningDayDetailContent({
     footer = rows.length > 0 && (
       <>
         <span className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground">
-          Estimativa · limpeza normal
+          Estimativa · Limpeza Normal
         </span>
         <span className="font-display text-[15px] font-bold tabular-nums">{brl(total)}</span>
       </>
@@ -298,14 +455,7 @@ export function CleaningDayDetailContent({
       body = total_ > 0 && (
         <>
           {rows.length > 0 && (
-        <table className="w-full border-collapse tabular-nums">
-          <thead>
-            <tr>
-              <th className={`${TH} text-left`}>Imóvel</th>
-              <th className={`${TH} px-0 text-center !tracking-[0.04em]`}>Prestador</th>
-              <th className={`${TH} px-0 text-center !tracking-[0.04em]`}>Valor</th>
-            </tr>
-          </thead>
+        <table className="w-full table-fixed border-collapse tabular-nums">
           <tbody>
             {rows.map((r) => {
               const action = [dateSP(r.concludedAt), timeSP(r.concludedAt), r.doneByName]
@@ -313,7 +463,23 @@ export function CleaningDayDetailContent({
                 .join(" · ");
               return (
                 <tr key={r.id}>
-                  <DoneCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} action={action}>
+                  <DoneCell
+                    name={r.propertyName}
+                    owner={r.ownerName}
+                    phone={r.ownerPhone}
+                    country={r.ownerPhoneCountry}
+                    action={action}
+                    tail={
+                      r.logId || r.reservationId ? (
+                        <CleaningProviderAvatar
+                          propertyId={r.propertyId}
+                          logId={r.logId ?? ""}
+                          reservationId={r.reservationId}
+                          look={canEdit ? "raised" : "plain"}
+                        />
+                      ) : null
+                    }
+                  >
                     <TypeToggle
                       statusId={r.id}
                       type={r.cleaningType}
@@ -321,20 +487,10 @@ export function CleaningDayDetailContent({
                       title={r.propertyName}
                       canEdit={canEdit}
                     />
+                    <ValueLine>
+                      <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} canEdit={canEdit} />
+                    </ValueLine>
                   </DoneCell>
-                  <td className={`${TD} px-0.5 text-center !align-middle`}>
-                    {(r.logId || r.reservationId) && (
-                      <CleaningProviderAvatar
-                        propertyId={r.propertyId}
-                        logId={r.logId ?? ""}
-                        reservationId={r.reservationId}
-                        look={canEdit ? "raised" : "plain"}
-                      />
-                    )}
-                  </td>
-                  <td className={`${TD} text-center !align-middle`}>
-                    <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} canEdit={canEdit} />
-                  </td>
                 </tr>
               );
             })}
@@ -342,13 +498,7 @@ export function CleaningDayDetailContent({
         </table>
           )}
           {xrows.length > 0 && (
-            <table className={`w-full border-collapse tabular-nums ${rows.length > 0 ? "mt-4" : ""}`}>
-              <thead>
-                <tr>
-                  <th className={`${TH} text-left`}>{rows.length > 0 ? "Serviços extras" : "Imóvel"}</th>
-                  <th className={`${TH} text-right`}>Valor</th>
-                </tr>
-              </thead>
+            <table className="w-full table-fixed border-collapse tabular-nums">
               <tbody>
                 {xrows.map((r) => {
                   const action = [dateSP(r.concludedAt), timeSP(r.concludedAt), r.doneByName]
@@ -366,10 +516,10 @@ export function CleaningDayDetailContent({
                         <span className="block truncate text-[11px] text-muted-foreground" title={r.title}>
                           {r.title}
                         </span>
+                        <ValueLine>
+                          <span className="whitespace-nowrap">{brl(r.priceCents ?? 0)}</span>
+                        </ValueLine>
                       </DoneCell>
-                      <td className={`${TD} text-right !align-middle font-bold`}>
-                        <span className="whitespace-nowrap">{brl(r.priceCents ?? 0)}</span>
-                      </td>
                     </tr>
                   );
                 })}
@@ -462,33 +612,29 @@ export function CleaningDayDetailContent({
           ? "Nenhum custo neste dia"
           : `${total_} ${itemWord} · do maior para o menor valor`;
       body = aggs.length > 0 && (
-        <table className="w-full border-collapse tabular-nums">
-          <thead>
-            <tr>
-              <th className={`${TH} text-left`}>Imóvel</th>
-              <th className={`${TH} px-2 text-center`}>Qtd</th>
-              <th className={`${TH} text-left`}>{hasExtras ? "Tipo / situação" : "Tipo"}</th>
-              <th className={`${TH} text-right`}>Valor</th>
-            </tr>
-          </thead>
+        <table className="w-full table-fixed border-collapse tabular-nums">
           <tbody>
             {aggs.map((a) => (
               <tr key={a.key}>
-                <PropertyCell name={a.name} owner={a.owner} phone={a.phone} country={a.country} />
-                <td className={`${TD} px-2 text-center font-bold`}>{a.count}</td>
-                <td className={`${TD} pr-2`}>
-                  {a.label ? (
-                    <span className="block font-semibold text-foreground">{a.label}</span>
-                  ) : a.types.size > 1 ? (
-                    <span className="block font-bold text-muted-foreground">Normal + completa</span>
-                  ) : (
-                    <TypeLabel
-                      type={(Array.from(a.types)[0] as "normal" | "completa" | undefined) ?? null}
-                      pending={a.pending}
-                    />
-                  )}
-                </td>
-                <td className={`${TD} text-right font-bold`}>{brl(a.cents)}</td>
+                <PropertyCell name={a.name} owner={a.owner} phone={a.phone} country={a.country}>
+                  <span className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[11.5px] font-semibold text-foreground/80">
+                    <span>Quantidade: {a.count}</span>
+                    <span aria-hidden>·</span>
+                    {a.label ? (
+                      <span>{a.label}</span>
+                    ) : a.types.size > 1 ? (
+                      <span>Normal + completa</span>
+                    ) : (
+                      <TypeLabel
+                        type={(Array.from(a.types)[0] as "normal" | "completa" | undefined) ?? null}
+                        pending={a.pending}
+                      />
+                    )}
+                  </span>
+                  <ValueLine>
+                    <span>{brl(a.cents)}</span>
+                  </ValueLine>
+                </PropertyCell>
               </tr>
             ))}
           </tbody>
@@ -524,7 +670,7 @@ export function CleaningDayDetailContent({
           <HeaderIcon className="size-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-display text-base font-bold leading-tight break-words">{title ?? dayTitle(date)}</p>
+          <p className="font-display text-base font-bold leading-tight break-words">{heading}</p>
           <p className="ds-meta mt-0.5">{subtitle}</p>
         </div>
         <button
@@ -536,17 +682,7 @@ export function CleaningDayDetailContent({
           <X className="size-3.5" strokeWidth={2.2} />
         </button>
       </div>
-      {body && (
-        /* ANTI-CORTE vertical: nenhuma linha termina seca contra o rodapé.
-           As linhas encaixam no topo ao rolar (snap), a borda de baixo
-           esmaece em vez de cortar, e a folga final garante que a última
-           linha apareça inteira quando a rolagem chega ao fim. */
-        <div
-          className="sg-elegant-scroll min-h-0 flex-1 [scrollbar-gutter:stable] snap-y snap-proximity overflow-y-auto overflow-x-hidden px-5 pb-5 pt-1 [&_tbody_tr]:snap-start"
-        >
-          {body}
-        </div>
-      )}
+      {body && <SnapScroll>{body}</SnapScroll>}
       {footer && (
         <div className="mt-1 flex shrink-0 items-baseline justify-between gap-3 border-t border-border bg-foreground/[0.03] px-5 py-3.5">
           {footer}
@@ -614,35 +750,22 @@ function TypeToggle({
           type="button"
           onClick={() => setTarget(next)}
           title={`Mudar para ${next === "completa" ? "Completa" : "Normal"}`}
-          className={`${EDIT_BTN} h-6 min-w-0 px-2 text-[11px] font-bold`}
+          className={`${EDIT_BTN} text-[11.5px] font-semibold leading-none`}
         >
           <span className="truncate">{typeText}</span>
+          <Pencil className={EDIT_PENCIL} aria-hidden />
         </button>
       </span>
       {emAnalise}
-      <AlertDialog open={!!target} onOpenChange={(v) => !v && setTarget(null)}>
-        <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar alteração?</AlertDialogTitle>
-            <AlertDialogDescription className="break-words">
-              A limpeza de {title} vai passar de {type === "completa" ? "Completa" : "Normal"} para{" "}
-              {next === "completa" ? "Completa" : "Normal"}. O valor passa a ser o cadastrado no imóvel para esse tipo.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={busy}
-              onClick={(e) => {
-                e.preventDefault();
-                void doSave();
-              }}
-            >
-              Confirmar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmChange
+        open={!!target}
+        onOpenChange={(v) => !v && setTarget(null)}
+        property={title}
+        from={typeText}
+        to={next === "completa" ? "Completa" : "Normal"}
+        busy={busy}
+        onConfirm={() => void doSave()}
+      />
     </>
   );
 }
@@ -684,7 +807,7 @@ function EditablePrice({
     }
   }
 
-  const same = "font-bold text-[12.5px] tabular-nums text-foreground";
+  const same = "font-semibold text-[11.5px] leading-none";
   // Sem permissão: valor em texto simples, sem fundo de botão e sem toque.
   if (!canEdit) return <span className={`whitespace-nowrap ${same}`}>{brl(cents)}</span>;
   if (!editing) {
@@ -696,15 +819,18 @@ function EditablePrice({
           setEditing(true);
         }}
         title="Alterar valor"
-        className={`${EDIT_BTN} h-7 whitespace-nowrap px-1.5 ${same}`}
+        className={`${EDIT_BTN} whitespace-nowrap ${same}`}
       >
         {brl(cents)}
+        <Pencil className={EDIT_PENCIL} aria-hidden />
       </button>
     );
   }
+  const pill =
+    "ds-3d ds-3d-hover inline-flex h-[18px] shrink-0 items-center rounded-[0.3rem] px-1.5 text-[11.5px] font-semibold leading-none disabled:opacity-50";
   return (
-    <div className="ml-auto flex flex-col items-end gap-1">
-      <span className={`inline-flex items-baseline rounded bg-secondary/60 px-1 -mx-1 ${same}`}>
+    <>
+      <span className={`inline-flex min-w-0 items-baseline border-b border-current ${same}`}>
         R$&nbsp;
         <input
           autoFocus
@@ -717,45 +843,31 @@ function EditablePrice({
             if (e.key === "Escape") setEditing(false);
           }}
           style={{ width: `${Math.max(text.length, 3)}ch` }}
-          className={`min-w-0 bg-transparent p-0 text-right outline-none ${same}`}
+          className={`min-w-0 bg-transparent p-0 outline-none ${same}`}
         />
       </span>
-      <div className="flex gap-1">
-        <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => setEditing(false)}>
+      <span className="ml-auto flex shrink-0 items-center gap-1">
+        <button type="button" className={`${pill} border border-border/70 bg-card`} onClick={() => setEditing(false)}>
           Cancelar
-        </Button>
-        <Button
+        </button>
+        <button
           type="button"
-          size="sm"
-          className="h-6 px-2 text-[11px]"
+          className={`${pill} bg-primary text-primary-foreground`}
           disabled={value == null || value === cents}
           onClick={() => setConfirm(true)}
         >
           OK
-        </Button>
-      </div>
-      <AlertDialog open={confirm} onOpenChange={setConfirm}>
-        <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar alteração?</AlertDialogTitle>
-            <AlertDialogDescription className="break-words">
-              O valor da limpeza de {title} vai passar de {brl(cents)} para {brl(value)}. Vale só para esta limpeza.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={busy}
-              onClick={(e) => {
-                e.preventDefault();
-                void doSave();
-              }}
-            >
-              Confirmar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+        </button>
+      </span>
+      <ConfirmChange
+        open={confirm}
+        onOpenChange={setConfirm}
+        property={title}
+        from={brl(cents)}
+        to={brl(value)}
+        busy={busy}
+        onConfirm={() => void doSave()}
+      />
+    </>
   );
 }

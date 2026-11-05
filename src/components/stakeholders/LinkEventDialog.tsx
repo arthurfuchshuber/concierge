@@ -177,7 +177,7 @@ export function LinkEventDialog({
     <Dialog open={!!target} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Vincular evento a um cadastro</DialogTitle>
+          <DialogTitle className="text-base">Vincular Evento a um Cadastro</DialogTitle>
           <DialogDescription className="text-xs">
             {target?.title}
             {target?.suggested ? ` · ${target.suggested.value}` : " · sem participantes com e-mail"}
