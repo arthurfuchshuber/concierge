@@ -3328,9 +3328,14 @@ export type Database = {
           cleaning_type: string | null
           concluded_at: string | null
           created_at: string
+          credentials_released_at: string | null
+          credentials_released_by: string | null
           done_at: string | null
           id: string
           kind: string
+          late_checkout_approved_at: string | null
+          late_checkout_by: string | null
+          late_checkout_time: string | null
           log_id: string | null
           manual: boolean
           manual_cleaning_type: string | null
@@ -3364,9 +3369,14 @@ export type Database = {
           cleaning_type?: string | null
           concluded_at?: string | null
           created_at?: string
+          credentials_released_at?: string | null
+          credentials_released_by?: string | null
           done_at?: string | null
           id?: string
           kind: string
+          late_checkout_approved_at?: string | null
+          late_checkout_by?: string | null
+          late_checkout_time?: string | null
           log_id?: string | null
           manual?: boolean
           manual_cleaning_type?: string | null
@@ -3400,9 +3410,14 @@ export type Database = {
           cleaning_type?: string | null
           concluded_at?: string | null
           created_at?: string
+          credentials_released_at?: string | null
+          credentials_released_by?: string | null
           done_at?: string | null
           id?: string
           kind?: string
+          late_checkout_approved_at?: string | null
+          late_checkout_by?: string | null
+          late_checkout_time?: string | null
           log_id?: string | null
           manual?: boolean
           manual_cleaning_type?: string | null
@@ -7362,6 +7377,10 @@ export type Database = {
         Returns: boolean
       }
       can_join_presence_topic: { Args: { _topic: string }; Returns: boolean }
+      can_manage_stay_authorizations: {
+        Args: { _property_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_read_permission_catalog: {
         Args: { _user_id: string }
         Returns: boolean
@@ -7390,6 +7409,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      internal_set_checkin_credentials_release: {
+        Args: { _actor: string; _arrival_status_id: string; _release: boolean }
+        Returns: undefined
+      }
+      internal_set_late_checkout: {
+        Args: { _actor: string; _arrival_status_id: string; _time: string }
+        Returns: undefined
       }
       is_account_member: {
         Args: { _owner_id: string; _user_id: string }
