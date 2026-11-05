@@ -6,12 +6,17 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
-import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { MiniSwitch } from "@/components/admin-pages/admin-mobile-ui";
 import { getConnectedListingsInventory } from "@/lib/channex.functions";
 import { listAirbnbAccountListings, setAirbnbListingActive } from "@/lib/airbnb-account.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
+
+/** O título vem como "nome interno · título do anúncio": a janela mostra só o título do anúncio. */
+function publicTitle(t: string) {
+  const i = t.indexOf(" · ");
+  return i >= 0 ? t.slice(i + 3).trim() || t : t;
+}
 
 /**
  * Janela "Imóveis Cobrados" (mockup aprovado, 05/11/2026): busca, proprietários em sanfona (um aberto
@@ -60,12 +65,12 @@ export function ImoveisCobradosDialog({ open, onOpenChange }: { open: boolean; o
     const twinsOf = new Map<string, number>();
     for (const l of imported) if (twinIds.has(l.listingId)) twinsOf.set(l.propertyId!, (twinsOf.get(l.propertyId!) ?? 0) + 1);
     const needle = q.trim().toLowerCase();
-    const by = new Map<string, { owner: string; phone: string | null; country: string | null; items: typeof imported }>();
+    const by = new Map<string, { owner: string; items: typeof imported }>();
     for (const l of imported) {
       if (twinIds.has(l.listingId)) continue;
       const owner = l.ownerName ?? "Sem proprietário";
       if (needle && !`${l.title} ${owner}`.toLowerCase().includes(needle)) continue;
-      const g = by.get(owner) ?? { owner, phone: l.ownerPhone ?? null, country: l.ownerPhoneCountry ?? null, items: [] };
+      const g = by.get(owner) ?? { owner, items: [] };
       g.items.push(l);
       by.set(owner, g);
     }
@@ -104,7 +109,7 @@ export function ImoveisCobradosDialog({ open, onOpenChange }: { open: boolean; o
                     className={`flex h-12 min-w-0 cursor-pointer items-center gap-2 ${gi === 0 ? "" : "border-t border-foreground/[0.11]"}`}
                   >
                     <div className="min-w-0 flex-1 text-[13px]">
-                      <OwnerLine name={g.owner} phone={g.phone} country={g.country} size={12} className="!text-[13px]" />
+                      <span className="block truncate text-[13px] font-semibold">{g.owner}</span>
                     </div>
                     <span className="shrink-0 text-[11.5px] font-semibold tabular-nums text-[var(--faint)]">
                       {g.items.length} {g.items.length === 1 ? "anúncio" : "anúncios"}
@@ -123,11 +128,11 @@ export function ImoveisCobradosDialog({ open, onOpenChange }: { open: boolean; o
                         return (
                           <div
                             key={l.listingId}
-                            className={`flex min-w-0 items-center gap-2.5 py-[9px] ${i === 0 ? "" : "border-t border-foreground/[0.11]"}`}
+                            className={`flex min-w-0 items-start gap-2.5 py-[9px] ${i === 0 ? "" : "border-t border-foreground/[0.11]"}`}
                           >
                             <div className={`min-w-0 flex-1 ${on ? "" : "opacity-50"}`}>
-                              <div className="flex min-w-0 items-center gap-1.5">
-                                <span className="min-w-0 truncate text-[13px] font-bold leading-[1.3]">{l.title}</span>
+                              <div className="flex min-h-[18px] min-w-0 items-center gap-1.5">
+                                <span className="min-w-0 truncate text-[13px] font-bold leading-[1.3]">{publicTitle(l.title)}</span>
                                 {gemeos > 0 && (
                                   <Popover>
                                     <PopoverTrigger asChild>
@@ -158,12 +163,14 @@ export function ImoveisCobradosDialog({ open, onOpenChange }: { open: boolean; o
                                 <div className="mt-0.5 truncate text-[11.5px] leading-4 text-[var(--faint)]">{l.city}</div>
                               )}
                             </div>
+                            <span className="flex h-[18px] items-center">
                             <MiniSwitch
                               on={on}
                               label={`${on ? "Desativar" : "Ativar"} anúncio`}
                               disabled={toggle.isPending}
                               onChange={(v) => toggle.mutate({ propertyId: l.propertyId!, active: v })}
                             />
+                            </span>
                           </div>
                         );
                       })}

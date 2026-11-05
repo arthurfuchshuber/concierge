@@ -28,7 +28,7 @@ import { ChannexPanel } from "@/components/admin-pages/ChannexPanel";
 import { getMyGoogleCalendarStatus } from "@/lib/google-calendar.functions";
 import { getMyWhatsappConfig } from "@/lib/whatsapp.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
-import { getChannexStatus, getConnectedListingsInventory } from "@/lib/channex.functions";
+import { getChannexStatus } from "@/lib/channex.functions";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { ActionButton } from "@/components/admin-pages/admin-mobile-ui";
 import { cn } from "@/lib/utils";
@@ -183,15 +183,8 @@ export function IntegracoesPage() {
 
   // CELULAR — mockup "Proposta · Integrações" (05/11/2026): quadradinhos compactos, sem rótulos de seção;
   // a faixa verde da esquerda marca a conectada. O WhatsApp ainda não aparece (não temos a integração).
-  const invFn = useServerFn(getConnectedListingsInventory);
-  const inv = useQuery({
-    queryKey: ["connected-listings-inventory", accountOwnerId ?? "self"],
-    queryFn: () => invFn({ data: { accountOwnerId } }),
-    retry: false,
-    enabled: channexActive,
-  });
   const [panel, setPanel] = useState<string | null>(null);
-  const mobileItems = items.filter(({ cfg }) => cfg.key !== "whatsapp").filter(({ cfg }) => {
+  const mobileItems = items.filter(({ cfg }) => cfg.key !== "whatsapp" && cfg.key !== "channex").filter(({ cfg }) => {
     const term = q.trim().toLowerCase();
     return !term || `${cfg.nome} ${cfg.descricao} ${cfg.categoria}`.toLowerCase().includes(term);
   });
@@ -213,8 +206,6 @@ export function IntegracoesPage() {
       <div className="grid grid-cols-2 gap-2.5">
         {mobileItems.map(({ cfg, statusKey }) => {
           const act = statusKey === "ativa";
-          const extra = cfg.key === "channex" && act && inv.data ? `${inv.data.totalCount} Imóveis Sincronizados` : "";
-          const nome = cfg.key === "channex" ? "Conexão com o Airbnb" : cfg.nome;
           return (
             <div
               key={cfg.key}
@@ -223,11 +214,11 @@ export function IntegracoesPage() {
               {act && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-[#7fb79a]" />}
               <div className="flex h-full flex-col">
                 <div className="min-w-0">
-                  <div className="truncate font-display text-[12.5px] font-bold leading-[1.3] tracking-[-0.01em]">{nome}</div>
+                  <div className="truncate font-display text-[12.5px] font-bold leading-[1.3] tracking-[-0.01em]">{cfg.nome}</div>
                   <div className="mt-0.5 text-[9px] font-bold uppercase leading-[1.2] tracking-[0.1em] text-[var(--faint)]">
                     {cfg.categoria}
                   </div>
-                  <div className="mt-[3px] h-[14px] truncate text-[11px] leading-[14px] text-[var(--faint)]">{extra}</div>
+                  <div className="mt-[3px] h-[14px]" />
                 </div>
                 <div className="mt-auto flex items-center gap-1.5 pt-2.5">
                   {act ? (
@@ -260,12 +251,10 @@ export function IntegracoesPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-display text-xl">
-              {panelCfg?.key === "channex" ? "Conexão com o Airbnb" : panelCfg?.nome}
+              {panelCfg?.nome}
             </DialogTitle>
           </DialogHeader>
-          {panelCfg?.key === "channex" ? (
-            <ChannexPanel />
-          ) : panelCfg?.key === "gcal" ? (
+          {panelCfg?.key === "gcal" ? (
             <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
           ) : panelCfg?.key === "clicksign" ? (
             <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />

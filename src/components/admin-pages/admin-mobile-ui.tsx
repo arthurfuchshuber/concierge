@@ -127,13 +127,13 @@ export function MiniSwitch({
       }}
       className={cn(
         "relative inline-block h-4 w-7 shrink-0 cursor-pointer rounded-full transition-colors disabled:cursor-wait disabled:opacity-60",
-        on ? "bg-foreground/30" : "bg-foreground/[0.08]",
+        on ? "bg-[rgba(127,183,154,0.35)]" : "bg-foreground/[0.08]",
       )}
     >
       <span
         className={cn(
           "absolute top-0.5 size-3 rounded-full transition-[left]",
-          on ? "left-[14px] bg-foreground" : "left-0.5 bg-muted-foreground",
+          on ? "left-[14px] bg-[#7fb79a]" : "left-0.5 bg-muted-foreground",
         )}
       />
     </button>

@@ -258,9 +258,7 @@ export function AssinaturaMobile({
                   >
                     <FileText className="size-4" strokeWidth={2} />
                   </a>
-                ) : (
-                  <span className="size-[18px]" />
-                )}
+                ) : null}
               </div>
             </div>
             <p className="mt-1 text-[11.5px] font-medium leading-[1.45] tabular-nums text-[var(--faint)]">{f.sub}</p>
