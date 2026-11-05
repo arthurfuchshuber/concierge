@@ -13,6 +13,9 @@ import {
   Plug,
   Sparkles,
   Home,
+  Filter,
+  Settings2,
+  Ellipsis,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,7 +28,9 @@ import { ChannexPanel } from "@/components/admin-pages/ChannexPanel";
 import { getMyGoogleCalendarStatus } from "@/lib/google-calendar.functions";
 import { getMyWhatsappConfig } from "@/lib/whatsapp.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
-import { getChannexStatus } from "@/lib/channex.functions";
+import { getChannexStatus, getConnectedListingsInventory } from "@/lib/channex.functions";
+import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
+import { ActionButton } from "@/components/admin-pages/admin-mobile-ui";
 import { cn } from "@/lib/utils";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
@@ -176,8 +181,99 @@ export function IntegracoesPage() {
     return `${cfg.nome} ${cfg.descricao} ${cfg.categoria}`.toLowerCase().includes(term);
   });
 
+  // CELULAR — mockup "Proposta · Integrações" (05/11/2026): quadradinhos compactos, sem rótulos de seção;
+  // a faixa verde da esquerda marca a conectada. O WhatsApp ainda não aparece (não temos a integração).
+  const invFn = useServerFn(getConnectedListingsInventory);
+  const inv = useQuery({
+    queryKey: ["connected-listings-inventory", accountOwnerId ?? "self"],
+    queryFn: () => invFn({ data: { accountOwnerId } }),
+    retry: false,
+    enabled: channexActive,
+  });
+  const [panel, setPanel] = useState<string | null>(null);
+  const mobileItems = items.filter(({ cfg }) => cfg.key !== "whatsapp").filter(({ cfg }) => {
+    const term = q.trim().toLowerCase();
+    return !term || `${cfg.nome} ${cfg.descricao} ${cfg.categoria}`.toLowerCase().includes(term);
+  });
+  const panelCfg = INTEGRATIONS.find((i) => i.key === panel) ?? null;
+
   return (
-    <div className="w-full space-y-5">
+    <>
+    <div className="ds-stack lg:hidden">
+      <SearchActionRow
+        value={q}
+        onChange={setQ}
+        placeholder="Buscar Integração…"
+        actions={
+          <span title="Filtros" className="grid w-12 place-items-center text-foreground/70">
+            <Filter className="size-4" strokeWidth={1.8} />
+          </span>
+        }
+      />
+      <div className="grid grid-cols-2 gap-2.5">
+        {mobileItems.map(({ cfg, statusKey }) => {
+          const act = statusKey === "ativa";
+          const extra = cfg.key === "channex" && act && inv.data ? `${inv.data.totalCount} Imóveis Sincronizados` : "";
+          const nome = cfg.key === "channex" ? "Conexão com o Airbnb" : cfg.nome;
+          return (
+            <div
+              key={cfg.key}
+              className="relative h-full min-w-0 overflow-hidden rounded-[12px] bg-[var(--card-surface)] py-3 pl-[15px] pr-3 shadow-[inset_0_0_0_1px_rgba(246,243,239,0.07)]"
+            >
+              {act && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-[#7fb79a]" />}
+              <div className="flex h-full flex-col">
+                <div className="min-w-0">
+                  <div className="truncate font-display text-[12.5px] font-bold leading-[1.3] tracking-[-0.01em]">{nome}</div>
+                  <div className="mt-0.5 text-[9px] font-bold uppercase leading-[1.2] tracking-[0.1em] text-[var(--faint)]">
+                    {cfg.categoria}
+                  </div>
+                  <div className="mt-[3px] h-[14px] truncate text-[11px] leading-[14px] text-[var(--faint)]">{extra}</div>
+                </div>
+                <div className="mt-auto flex items-center gap-1.5 pt-2.5">
+                  {act ? (
+                    <>
+                      <ActionButton full icon={<Settings2 className="size-3" strokeWidth={2.2} />} onClick={() => setPanel(cfg.key)}>
+                        Gerenciar
+                      </ActionButton>
+                      <button
+                        type="button"
+                        aria-label="Mais opções"
+                        title="Mais opções"
+                        onClick={() => setPanel(cfg.key)}
+                        className="grid size-7 flex-none cursor-pointer place-items-center rounded-[7px] bg-[#0e0c0b] text-muted-foreground"
+                      >
+                        <Ellipsis className="size-3.5" strokeWidth={2} />
+                      </button>
+                    </>
+                  ) : (
+                    <ActionButton kind="primary" full icon={<Plug className="size-3" strokeWidth={2.2} />} onClick={() => setPanel(cfg.key)}>
+                      Conectar
+                    </ActionButton>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <Dialog open={!!panelCfg} onOpenChange={(v) => !v && setPanel(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">
+              {panelCfg?.key === "channex" ? "Conexão com o Airbnb" : panelCfg?.nome}
+            </DialogTitle>
+          </DialogHeader>
+          {panelCfg?.key === "channex" ? (
+            <ChannexPanel />
+          ) : panelCfg?.key === "gcal" ? (
+            <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
+          ) : panelCfg?.key === "clicksign" ? (
+            <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </div>
+    <div className="hidden w-full space-y-5 lg:block">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative sm:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -302,6 +398,7 @@ export function IntegracoesPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }
 

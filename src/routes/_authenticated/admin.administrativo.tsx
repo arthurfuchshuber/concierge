@@ -45,14 +45,49 @@ function AdministrativoPage() {
     integracoes: { title: "Integrações", subtitle: "Conexões externas e canais da sua conta." },
   };
 
+  // Celular (mockups aprovados): data dourada no lugar do rótulo, títulos com iniciais maiúsculas
+  // e subtítulo da Assinatura "por imóvel". O computador segue como estava.
+  const mobileHeaders: Partial<Record<Tab, { title: string; subtitle: string }>> = {
+    perfil: { title: "Meu Perfil", subtitle: "Seus dados pessoais e preferências nesta conta." },
+    assinatura: { title: "Assinatura", subtitle: "Cobrança por imóvel, cartão e pagamentos." },
+    integracoes: { title: "Integrações", subtitle: "Conexões externas e canais da sua conta." },
+  };
+  const mobileHead = mobileHeaders[activeTab];
+  const hoje = new Date()
+    .toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "numeric", month: "long" })
+    .replace(/^\w/, (c) => c.toUpperCase());
+  const tabsMobile: Array<{ value: Tab; label: string }> = [
+    { value: "perfil", label: "Meu Perfil" },
+    ...(canSeeBilling ? [{ value: "assinatura" as Tab, label: "Assinatura" }] : []),
+    { value: "permissoes", label: "Permissões" },
+    { value: "integracoes", label: "Integrações" },
+  ];
+
   return (
     <div className="min-h-screen">
-      <div className="px-6 lg:px-10 pt-8 lg:pt-10 pb-2 max-w-[1440px] mx-auto w-full">
-        <PageHeader
-          eyebrow="Administrativo"
-          title={headers[activeTab].title}
-          subtitle={headers[activeTab].subtitle}
-        />
+      <div
+        className={`${
+          mobileHead ? "px-[14px] pt-5 pb-0 lg:px-10 lg:pt-10 lg:pb-2" : "px-6 lg:px-10 pt-8 lg:pt-10 pb-2"
+        } max-w-[1440px] mx-auto w-full`}
+      >
+        {mobileHead ? (
+          <div className="flex flex-col gap-1.5 lg:hidden">
+            <p className="ds-eyebrow ds-data truncate text-[10.5px] leading-[1.2] tracking-[0.2em]">{hoje}</p>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <h1 className="font-display text-[18px] font-bold leading-7 tracking-[-0.02em] [overflow-wrap:anywhere]">
+                {mobileHead.title}
+              </h1>
+              <p className="ds-page-subtitle truncate">{mobileHead.subtitle}</p>
+            </div>
+          </div>
+        ) : null}
+        <div className={mobileHead ? "hidden lg:block" : undefined}>
+          <PageHeader
+            eyebrow="Administrativo"
+            title={headers[activeTab].title}
+            subtitle={headers[activeTab].subtitle}
+          />
+        </div>
       </div>
 
       <Tabs
@@ -62,8 +97,28 @@ function AdministrativoPage() {
         }
         className="w-full"
       >
-        <div className="px-6 lg:px-10 max-w-[1440px] mx-auto w-full">
-          <TabsList className="ds-segmented h-auto">
+        <div className={`${mobileHead ? "px-[14px] pt-5 lg:pt-0 lg:px-10" : "px-6 lg:px-10"} max-w-[1440px] mx-auto w-full`}>
+          {/* Celular: barra `ds-tabs` do Dashboard (fatias iguais de 44px, sem ícones). */}
+          <nav className="ds-tabs lg:hidden" aria-label="Administrativo">
+            {tabsMobile.map((t) => {
+              const active = t.value === activeTab;
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() =>
+                    navigate({ to: "/admin/administrativo", search: { tab: t.value, checkout: undefined } })
+                  }
+                  className={`relative flex min-h-[44px] min-w-0 flex-1 items-center justify-center px-2 text-center text-[13px] leading-none transition-colors ${
+                    active ? "ds-tab-active font-bold" : "font-semibold text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </nav>
+          <TabsList className="ds-segmented h-auto max-lg:hidden">
             <TabsTrigger value="perfil">
               <UserIcon className="size-4" /> Meu perfil
             </TabsTrigger>
@@ -80,7 +135,11 @@ function AdministrativoPage() {
             </TabsTrigger>
           </TabsList>
         </div>
-        <div className="px-6 lg:px-10 max-w-[1440px] mx-auto w-full pt-6 pb-16">
+        <div
+          className={`${
+            mobileHead ? "px-[14px] pb-28 lg:px-10 lg:pb-16" : "px-6 lg:px-10 pb-16"
+          } max-w-[1440px] mx-auto w-full pt-6`}
+        >
           <TabsContent value="perfil" className="mt-0">
             <MeuPerfilPage />
           </TabsContent>

@@ -37,6 +37,7 @@ import { metaPixelTrack, metaPixelTrackCustom, metaPixelTrackOnce } from "@/lib/
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { PageHeader } from "@/components/ds/PageHeader";
 import { ConnectedListingsCard } from "./ConnectedListingsCard";
+import { AssinaturaMobile } from "./AssinaturaMobile";
 
 export { AssinaturaPage };
 
@@ -186,7 +187,15 @@ function AssinaturaPage() {
   const currentPlanConfig = currentPlan ? PLANS[currentPlan] : null;
 
   return (
-    <div className="w-full">
+    <>
+    <AssinaturaMobile
+      currentPeriodEnd={info.currentPeriodEnd ? String(info.currentPeriodEnd) : null}
+      isActive={info.isActive}
+      payments={paymentsQuery.data?.payments ?? []}
+      paymentMethod={paymentMethodQuery.data?.paymentMethod ?? null}
+      onOpenPortal={openPortal}
+    />
+    <div className="hidden w-full lg:block">
       <PageHeader
         title="Assinatura"
         subtitle="Gerencie seu plano, pagamentos e faturas."
@@ -513,6 +522,7 @@ function AssinaturaPage() {
         />
       )}
     </div>
+    </>
   );
 }
 
