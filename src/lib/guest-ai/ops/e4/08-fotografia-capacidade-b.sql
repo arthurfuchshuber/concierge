@@ -1,5 +1,5 @@
 -- ConciergeIA Guest AI · Entrega 4 (revisão GLOBAL) · Gate A · FOTOGRAFIA DA CAPACIDADE B (somente leitura).
--- Rodar IMEDIATAMENTE ANTES do 00-apply e IMEDIATAMENTE DEPOIS do 02-validate. Os 9 valores precisam ser
+-- Rodar IMEDIATAMENTE ANTES do gateA-bundle.sql e IMEDIATAMENTE DEPOIS do 02-validate. Os 9 valores precisam ser
 -- IDÊNTICOS. Exclui só objetos do Guest AI (guest_ai_* e as funções shadow_* / *_conversation_lease).
 -- Cobre: colunas e defaults, ACL+RLS de tabelas/visões/sequências, políticas, gatilhos, índices, constraints,
 -- funções do legado (corpo + ACL) e os jobs do pg_cron (nome, agenda, ativo, comando).
