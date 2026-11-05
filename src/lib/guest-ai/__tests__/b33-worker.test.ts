@@ -389,13 +389,15 @@ describe("B3.3 · worker — Gateway, orçamento, desligamento e prazo", () => {
     expect(store.records[0]).toMatchObject({ budgetExceeded: "turn_input_tokens", blockCode: "budget_turn_exceeded" });
     expect(provider.calls).toBe(0);
   });
-  it("teto diário (US$ 1,00) atingido ⇒ budget_blocked + budget_exhausted, nenhuma rede", async () => {
+  it("A1 · teto diário (US$ 1,00) atingido ⇒ budget_blocked SEM desarme (segue running), nenhuma rede", async () => {
     const store = new MemoryShadowStore();
     store.settledCost = 0.9999;
     const provider = fakeProvider(okJson({}));
     const { io } = makeIo({ store, provider });
     expect(await runShadowWorker(candidate(), io)).toEqual({ status: "recorded", decision: "budget_blocked" });
-    expect(store.trips).toEqual([{ to: "budget_exhausted", reason: "budget_limit_reached" }]);
+    expect(store.records[0]).toMatchObject({ decision: "budget_blocked", budgetExceeded: "daily_cost" });
+    expect(store.trips).toEqual([]);
+    expect(store.control?.state).toBe("running");
     expect(provider.calls).toBe(0);
   });
   it("falha da reserva ⇒ budget_blocked, nenhuma rede", async () => {

@@ -58,9 +58,9 @@ export interface E3Db {
  * Sobe o PostgreSQL 17.6 com as duas migrations reais. `log_statement=all` grava no log do servidor
  * TODA instrução recebida: é a prova de que nenhum texto livre chegou ao banco (varredura de canários).
  */
-export function startE3Db(): E3Db {
+export function startE3Db(opts: { env?: Readonly<Record<string, string>> } = {}): E3Db {
   // E4 global: a configuração de produção prevista = lease + Shadow + escopo global
-  const pg = startCluster([SHADOW_MIGRATION_PATH, GLOBAL_MIGRATION_PATH], { bin: PG176_BIN, serverOptions: ["log_statement=all", "log_min_messages=warning"] });
+  const pg = startCluster([SHADOW_MIGRATION_PATH, GLOBAL_MIGRATION_PATH], { bin: PG176_BIN, serverOptions: ["log_statement=all", "log_min_messages=warning"], env: opts.env });
   return {
     pg,
     tick: null,
@@ -242,7 +242,7 @@ export interface ShadowLimitsSql {
 /**
  * Limites dos testes = parâmetros HOMOLOGADOS da Entrega 3.1 (PARTE III) onde há valor homologado
  * (custo por turno US$ 0,15; teto diário US$ 1,00; ≤ 3 conversas por tick; tick de 60 s; amostra mínima
- * 20; fuso America/Sao_Paulo). Tokens: o pior caso aprovado (2 × (40.000 × 125 + 1.536 × 1.000) =
+ * 20; dia de orçamento em UTC — decisão A1). Tokens: o pior caso aprovado (2 × (40.000 × 125 + 1.536 × 1.000) =
  * US$ 0,13072 ≤ 0,15). Isto NÃO é ativação: o Shadow só existe no cluster descartável do teste.
  */
 export const TEST_LIMITS: ShadowLimitsSql = {
@@ -257,7 +257,7 @@ export const TEST_LIMITS: ShadowLimitsSql = {
   p_max_daily_calls: 500,
   p_error_window_minutes: 60,
   p_error_min_sample: 20,
-  p_budget_day_timezone: "America/Sao_Paulo",
+  p_budget_day_timezone: "UTC",
   p_telemetry_retention_days: 30,
   p_tick_interval_seconds: 60,
   p_max_conversations_per_tick: 3,

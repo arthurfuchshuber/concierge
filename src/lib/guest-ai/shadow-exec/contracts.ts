@@ -19,7 +19,11 @@ export const SHADOW_VERSION = "shadow-exec.2026-11-04.1";
 
 export const SHADOW_STATES = ["disabled", "ready", "running", "paused", "circuit_open", "budget_exhausted", "integrity_violation", "technical_failure"] as const;
 export type ShadowState = (typeof SHADOW_STATES)[number];
-/** Estados de falha: só saem por autorização explícita (nunca automaticamente). */
+/**
+ * Estados de falha: só saem por autorização explícita (nunca automaticamente). Decisão A1: `budget_exhausted`
+ * NÃO é mais causado por cota diária esgotada (a reserva é recusada, sem desarme); só por anomalia grave —
+ * uso real acima do reservado (`token_limit_violation`).
+ */
 export const SHADOW_FAILURE_STATES = ["circuit_open", "budget_exhausted", "integrity_violation", "technical_failure"] as const satisfies readonly ShadowState[];
 export type ShadowFailureState = (typeof SHADOW_FAILURE_STATES)[number];
 
@@ -33,7 +37,7 @@ export const SHADOW_TRANSITION_REASONS = [
   "authorized_recovery",
   "error_rate_exceeded",
   "consecutive_failures",
-  "budget_limit_reached",
+  // A1: não existe motivo de desarme por cota diária (`budget_limit_reached` foi removido)
   "token_limit_violation",
   "integrity_divergence",
   "measurement_unavailable",
@@ -294,7 +298,8 @@ export const APPROVED_MAX_TURN_COST_USD = 0.15;
 export const APPROVED_MAX_CONVERSATIONS_PER_TICK = 3;
 export const APPROVED_TICK_INTERVAL_SECONDS = 60;
 export const APPROVED_ERROR_MIN_SAMPLE = 20;
-export const APPROVED_BUDGET_TIMEZONE = "America/Sao_Paulo";
+/** Decisão A1: o dia de orçamento é o dia UTC (a cota renova à 0h UTC). A migration impõe o mesmo valor por CHECK. */
+export const APPROVED_BUDGET_TIMEZONE = "UTC";
 
 /**
  * Configuração lida da linha única `guest_ai_shadow_control`. TODOS os limites pendentes de aprovação

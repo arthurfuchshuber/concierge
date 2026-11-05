@@ -53,7 +53,7 @@ describe("B3.3 · disjuntores (puros)", () => {
   it("E3.1 · parâmetros homologados são TETOS: acima deles (ou fora do valor fixo) ⇒ limits_invalid; instante do banco ilegível ⇒ ilegível", () => {
     const over: Array<Partial<ReturnType<typeof fullControl>>> = [
       { maxTurnCostUsd: 0.15000001 }, { maxTurnCostUsd: 0.2 }, { maxTurnCostUsd: 0.123456789 }, { dailyCostLimitUsd: 0.000000001 }, { maxConversationsPerTick: 4 }, { tickIntervalSeconds: 30 }, { tickIntervalSeconds: 61 },
-      { errorMinSample: 19 }, { errorMinSample: 21 }, { budgetDayTimezone: "UTC" }, { budgetDayTimezone: "America/New_York" },
+      { errorMinSample: 19 }, { errorMinSample: 21 }, { budgetDayTimezone: "America/Sao_Paulo" }, { budgetDayTimezone: "Etc/UTC" }, { budgetDayTimezone: "America/New_York" },
     ];
     for (const o of over) expect(validateShadowControl(fullControl(o)), JSON.stringify(o)).toEqual({ ok: false, code: "limits_invalid" });
     for (const o of [{ maxTurnCostUsd: 0.15 }, { maxTurnCostUsd: 0.01 }, { maxConversationsPerTick: 1 }, { dailyCostLimitUsd: 0.5 }]) expect(validateShadowControl(fullControl(o)).ok, JSON.stringify(o)).toBe(true);
@@ -313,7 +313,7 @@ describe("B3.3 · extrator / descartador", () => {
 describe("B3.3 · adaptador do store (respostas lidas por lista branca)", () => {
   const rawControl = (over: Record<string, unknown> = {}) => ({
     result: "ok", state: "running", state_version: 3, model_id: "openai/gpt-6-astra", reasoning_effort: "low", max_input_tokens: 1, max_output_tokens: 2, max_total_tokens: 3,
-    max_turn_cost_usd: "0.5", daily_cost_limit_usd: 1, max_daily_tokens: 4, max_daily_calls: 5, error_window_minutes: 6, error_min_sample: 7, budget_day_timezone: "America/Sao_Paulo",
+    max_turn_cost_usd: "0.5", daily_cost_limit_usd: 1, max_daily_tokens: 4, max_daily_calls: 5, error_window_minutes: 6, error_min_sample: 7, budget_day_timezone: "UTC",
     telemetry_retention_days: 8, tick_interval_seconds: 9, max_conversations_per_tick: 10, property_scope: "all_eligible", retention_scope: "openai_responses", retention_authorized: true,
     db_now: "2026-11-04T12:00:00.123456Z", ...over,
   });

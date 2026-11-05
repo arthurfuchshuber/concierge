@@ -68,6 +68,22 @@ checks(check_name, expected, found) as (
   union all select 'ceiling_turn_cost_check', 'true', exists (select 1 from pg_constraint where conname = 'gasc_turn_cost_ck' and pg_get_constraintdef(oid) like '%0.15%')::text
   union all select 'ceiling_per_tick_check', 'true', exists (select 1 from pg_constraint where conname = 'gasc_per_tick_ck' and pg_get_constraintdef(oid) like '%3%')::text
   union all select 'ceiling_daily_check', 'true', exists (select 1 from pg_constraint where conname = 'gasc_daily_cost_ck' and pg_get_constraintdef(oid) like '%1.00%')::text
+  -- decisão A1 (cota diária em UTC, recusa sem desarme; anomalia grave continua desarmando)
+  union all select 'a1_budget_timezone_utc_only', 'CHECK (((budget_day_timezone IS NULL) OR (budget_day_timezone = ''UTC''::text)))',
+    (select pg_get_constraintdef(oid) from pg_constraint where conname = 'gasc_tz_ck')
+  union all select 'a1_reserve_refuses_without_trip', 'true',
+    (select (prosrc like '%''exceeded'', ''limit'', v_limit%' and prosrc not like '%trip_locked%') from fn where proname = 'shadow_reserve_budget')::text
+  union all select 'a1_no_daily_quota_trip_reason', '0',
+    ((select count(*) from fn where prosrc like '%budget\_limit\_reached%') + (select count(*) from pg_constraint k join tbl on tbl.oid = k.conrelid
+      where k.contype = 'c' and pg_get_constraintdef(k.oid) like '%budget\_limit\_reached%'))::text
+  union all select 'a1_budget_exhausted_only_on_over_reservation', 'shadow_finalize_execution',
+    (select string_agg(proname, ',' order by proname) from fn where prosrc ~ 'trip_locked\(c, ''budget_exhausted''')
+  union all select 'a1_over_reservation_trip_kept', 'true',
+    (select (prosrc like '%(v_set->>''over_reservation'')::boolean then%perform public.guest_ai_shadow_trip_locked(c, ''budget_exhausted'', ''token_limit_violation'')%')
+       from fn where proname = 'shadow_finalize_execution')::text
+  union all select 'a1_token_limit_violation_reason_kept', 'true',
+    (exists (select 1 from fn where proname = 'shadow_trip' and prosrc like '%''token\_limit\_violation''%')
+     and exists (select 1 from pg_constraint where conname = 'gast_reason_ck' and pg_get_constraintdef(oid) like '%token\_limit\_violation%'))::text
   -- nenhuma função Shadow escreve fora de guest_ai_* (envio ao hóspede impossível pelo banco)
   union all select 'functions_write_only_guest_ai', '0', (select count(*)::text from fn,
       regexp_matches(fn.prosrc, '(insert\s+into|update|delete\s+from)\s+public\.([a-z_]+)', 'gi') m
@@ -81,9 +97,14 @@ checks(check_name, expected, found) as (
 select check_name, expected, found, found is not distinct from expected as ok from checks
 union all
 -- impressão digital das definições (mesma da aplicação ensaiada; divergência ⇒ objeto diferente do esperado)
-select 'fingerprint_functions', e, f, f = e from (select '89cf8433c5194300ac518ab58ff67792'::text as e,
+select 'fingerprint_functions', e, f, f = e from (select 'cb6924c65a3b2728178d6724a274842b'::text as e,
   md5(string_agg(proname || ':' || md5(prosrc) || ':' || cfg, '|' order by proname)) as f from fn) x
 union all
 select 'fingerprint_tables', e, f, f = e from (select '0a94ce624d0b91f3555a937e47e8210d'::text as e,
   md5(string_agg(table_name || '.' || column_name || ':' || data_type || ':' || is_nullable || ':' || coalesce(column_default, ''), '|' order by table_name, ordinal_position)) as f
-  from information_schema.columns where table_schema = 'public' and table_name like 'guest\_ai\_%') x;
+  from information_schema.columns where table_schema = 'public' and table_name like 'guest\_ai\_%') x
+union all
+-- constraints de todas as tabelas guest_ai_* (CHECK, PK, FK, UNIQUE): inclui o fuso UTC e o vocabulário dos motivos
+select 'fingerprint_constraints', e, f, f = e from (select 'e19fa0793a32f7fe24b545d4cffe6045'::text as e,
+  md5(string_agg(tbl.relname || ':' || k.conname || ':' || pg_get_constraintdef(k.oid), '|' order by tbl.relname, k.conname)) as f
+  from pg_constraint k join tbl on tbl.oid = k.conrelid) x;

@@ -122,10 +122,7 @@ begin
     end if;
     update public.guest_ai_shadow_inflight set status = 'reconciled', closed_at = now() where execution_id = f.execution_id;
     v_n := v_n + 1;
-    if (v_set->>'day_exhausted')::boolean then
-      perform public.guest_ai_shadow_trip_locked(c, 'budget_exhausted', 'budget_limit_reached');
-      select * into c from public.guest_ai_shadow_control where id = 1;
-    end if;
+    -- A1: a liquidação pelo pior caso fica registrada; dia esgotado NÃO desarma
     v_last := 'technical_failure';
   end loop;
   if v_n > 0 then

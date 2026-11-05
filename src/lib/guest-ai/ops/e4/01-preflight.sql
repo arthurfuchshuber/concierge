@@ -9,7 +9,12 @@ with col(t, c) as (
   union all select 'executor_role', 'postgres (dono das funções SECURITY DEFINER)', current_user::text
   union all select 'executor_not_superuser_ok', 'qualquer', (select rolsuper::text from pg_roles where rolname = current_user)
   union all select 'executor_can_create_in_public', 'true', has_schema_privilege(current_user, 'public', 'CREATE')::text
-  union all select 'timezone_sao_paulo', 'true', exists (select 1 from pg_timezone_names where name = 'America/Sao_Paulo')::text
+  -- decisão A1: dia de orçamento em UTC. Prova que o banco conhece `UTC` E que `timestamptz at time zone 'UTC'`
+  -- (expressão usada pela reserva) dá o dia UTC independentemente do fuso da sessão (23:59:59 em -03 = dia seguinte UTC)
+  union all select 'budget_day_utc', 'true', (exists (select 1 from pg_timezone_names where name = 'UTC')
+    and ('2026-11-05 23:59:59-03'::timestamptz at time zone 'UTC')::date = date '2026-11-06'
+    and ('2026-11-05 23:59:59+00'::timestamptz at time zone 'UTC')::date = date '2026-11-05'
+    and ('2026-11-06 00:00:00+00'::timestamptz at time zone 'UTC')::date = date '2026-11-06')::text
   union all select 'gen_random_uuid', 'true', exists (select 1 from pg_proc where proname = 'gen_random_uuid')::text
   union all select 'role_anon', 'true', exists (select 1 from pg_roles where rolname = 'anon')::text
   union all select 'role_authenticated', 'true', exists (select 1 from pg_roles where rolname = 'authenticated')::text

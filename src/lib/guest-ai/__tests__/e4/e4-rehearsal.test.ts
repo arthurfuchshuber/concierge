@@ -196,7 +196,7 @@ async function toRunning(db: ProdLike) {
     p_max_daily_calls: 500,
     p_error_window_minutes: 60,
     p_error_min_sample: 20,
-    p_budget_day_timezone: "America/Sao_Paulo",
+    p_budget_day_timezone: "UTC",
     p_telemetry_retention_days: 30,
     p_tick_interval_seconds: 60,
     p_max_conversations_per_tick: 3,
@@ -384,7 +384,7 @@ describe.skipIf(!PG176_OK)(
           applyMs,
         });
         expect(failing(val)).toEqual([]);
-        expect(val.filter((c) => c.check_name.startsWith("fingerprint")).length).toBe(2);
+        expect(val.filter((c) => c.check_name.startsWith("fingerprint")).length).toBe(3); // funções, colunas, constraints
         // nada ativo, por qualquer caminho: a porta recusa todos os 57 imóveis com `scope_off`
         expect(
           await db.sql(
@@ -1129,12 +1129,12 @@ describe.skipIf(!PG176_OK)(
         expect(await gate(db, T.C, PC[0]!)).toBe("tenant_disabled");
       });
 
-      it("G8 · LIMITE DIÁRIO e VIRADA DE DIA em America/Sao_Paulo: o dia do orçamento é a data de São Paulo; dia anterior esgotado não bloqueia hoje; teto de hoje esgotado ⇒ budget_exhausted sem religar", async () => {
+      it("G8 · A1 · LIMITE DIÁRIO e VIRADA DE DIA em UTC: o dia do orçamento é a data UTC; dia anterior esgotado não bloqueia hoje; teto de hoje esgotado ⇒ recusa SEM desarme (segue running)", async () => {
         await resetShadow(db);
         await toRunning(db);
         await openScope(db);
         await db.sql(
-          `insert into public.guest_ai_shadow_budget_days (budget_day, settled_cost, settled_calls) values (((now() at time zone 'America/Sao_Paulo')::date - 1), 1.00, 8)`,
+          `insert into public.guest_ai_shadow_budget_days (budget_day, settled_cost, settled_calls) values (((now() at time zone 'UTC')::date - 1), 1.00, 8)`,
         );
         const k = await conv(db, 300, PA[0]!, 20);
         const v = await readyBatch(db, k.id, k.msg);
@@ -1149,11 +1149,11 @@ describe.skipIf(!PG176_OK)(
         });
         expect(res.result).toBe("reserved");
         expect(String(res.budget_day)).toBe(
-          await db.sql(`select ((now() at time zone 'America/Sao_Paulo')::date)::text`),
+          await db.sql(`select ((now() at time zone 'UTC')::date)::text`),
         );
-        // hoje quase no teto (US$ 0,90 liquidados): a próxima reserva de pior caso passaria de US$ 1,00 ⇒ recusa e desarme
+        // hoje quase no teto (US$ 0,90 liquidados): a próxima reserva de pior caso passaria de US$ 1,00 ⇒ recusa (A1: sem desarme)
         await db.sql(
-          `update public.guest_ai_shadow_budget_days set settled_cost = 0.90 where budget_day = (now() at time zone 'America/Sao_Paulo')::date`,
+          `update public.guest_ai_shadow_budget_days set settled_cost = 0.90 where budget_day = (now() at time zone 'UTC')::date`,
         );
         const k2 = await conv(db, 301, PA[1]!, 20);
         const v2 = await readyBatch(db, k2.id, k2.msg);
@@ -1167,12 +1167,13 @@ describe.skipIf(!PG176_OK)(
             p_calls: 2,
           }),
         ).toEqual({ result: "exceeded", limit: "daily_cost" });
-        expect((await sr(db, "shadow_get_control")).state).toBe("budget_exhausted");
+        expect((await sr(db, "shadow_get_control")).state).toBe("running");
         expect(
           await db.sql(
             `select count(*) from public.guest_ai_shadow_transitions where to_state = 'budget_exhausted' and automatic`,
           ),
-        ).toBe("1");
+        ).toBe("0");
+        await sr(db, "shadow_release_tick", { p_tick_token: token });
       });
 
       it("G9 · PERMISSÕES EFETIVAS (não só catálogo): quem administra, quem executa, quem lê; contornos (GRANT, ALTER, RLS, search_path, papel de login sem SET) recusados", async () => {
@@ -1523,3 +1524,202 @@ describe.skipIf(!PG176_OK)(
     }, 120_000);
   },
 );
+
+// ─────────────────────────── GATE A · BUNDLE ÚNICO (Caminho 2 ratificado) ───────────────────────────
+// O bundle é executado como a interface SQL do Lovable Cloud executa (verificado na produção, só leitura): o texto
+// INTEIRO numa única mensagem do protocolo simples (postgres.js `unsafe` sem parâmetros) ⇒ uma transação implícita.
+type Row = Record<string, string | boolean | null>;
+const BUNDLE = OPS("gateA-bundle.sql");
+async function simple(db: ProdLike, text: string): Promise<{ ok: true; rows: Row[] } | { ok: false; error: string }> {
+  const { default: postgres } = await import("postgres");
+  const c = postgres({ path: `${db.dir}/.s.PGSQL.${db.port}`, user: "postgres", database: "app", max: 1, onnotice: () => {} });
+  try {
+    const r = (await c.unsafe(text)) as unknown;
+    const last = Array.isArray(r) && Array.isArray(r[r.length - 1]) ? (r[r.length - 1] as Row[]) : (r as Row[]);
+    return { ok: true, rows: last };
+  } catch (e) {
+    return { ok: false, error: String((e as Error).message ?? e) };
+  } finally {
+    await c.end();
+  }
+}
+const objectCount = (db: ProdLike) =>
+  db.sql(`select (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r', 'S') and c.relname like 'guest\\_ai\\_%')
+      || ':' || (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'
+      and (p.proname like 'shadow\\_%' or p.proname like 'guest\\_ai\\_shadow\\_%' or p.proname like '%\\_conversation\\_lease'))`);
+const snapshotB = (db: ProdLike) => db.rows<Row>(stripSemi(readSql(OPS("08-fotografia-capacidade-b.sql"))));
+type MRow = { item: string; verificacao: string; esperado: string; encontrado: string | null; resultado: string };
+const matrix = (db: ProdLike) => db.rows<MRow>(stripSemi(readSql(OPS("07-matriz-pos-gateA.sql"))).replace(/\n\s*order by item$/, ""));
+
+describe.skipIf(!PG176_OK)("Gate A · bundle único gateA-bundle.sql (PostgreSQL 17.6, papéis e privilégios da produção)", () => {
+  it("B1 · REPRODUZÍVEL: o arquivo é idêntico à geração a partir das 3 migrations; cabeçalho com SHA-256 e ordem; cada migration integral exatamente uma vez", async () => {
+    const { createHash } = await import("node:crypto");
+    // @ts-expect-error — módulo .mjs sem tipos (gerador operacional)
+    const { buildBundle } = await import("../../ops/e4/gen-gateA-bundle.mjs");
+    const file = readSql(BUNDLE);
+    expect(buildBundle()).toBe(file);
+    expect(buildBundle()).toBe(buildBundle());
+    let at = -1;
+    for (const [i, m] of [MIG.lease, MIG.shadow, MIG.global].entries()) {
+      const text = readSql(m);
+      const sha = createHash("sha256").update(text).digest("hex");
+      expect(file).toContain(`--   ${i + 1}/3  supabase/migrations/${m.split("/").pop()}  sha256 ${sha}`);
+      const pos = file.indexOf(text);
+      expect(pos).toBeGreaterThan(at); // ordem de dependência
+      expect(file.indexOf(text, pos + 1)).toBe(-1); // uma vez só
+      at = pos;
+    }
+    expect(/^\s*(begin|commit|rollback)\s*;/im.test(file)).toBe(false);
+    expect(/^\s*\\/m.test(file)).toBe(false);
+  });
+
+  it("B2 · APLICAÇÃO em MENSAGEM ÚNICA: sonda ok ⇒ bundle ⇒ 02-validate 100% ⇒ matriz sem FALHA (41 linhas) ⇒ Capacidade B idêntica ⇒ inventário igual ⇒ nada ativo", async () => {
+    const db = startProdLike();
+    try {
+      await seedProdInventory(db);
+      expect(failing(await preflight(db))).toEqual([]);
+      const probe = await simple(db, readSql(OPS("09-sonda-transacao.sql")));
+      expect(probe).toMatchObject({ ok: true, rows: [{ mesma_transacao: true, set_local_efetivo: true, papel: "postgres", mensagem_unica: true, texto_integral_visivel: true }] });
+      const inv0 = await inventory(db);
+      const snap0 = await snapshotB(db);
+      const t0 = performance.now();
+      const r = await simple(db, readSql(BUNDLE));
+      const applyMs = Math.round(performance.now() - t0);
+      expect(r.ok, r.ok ? "" : r.error).toBe(true);
+      expect(await objectCount(db)).toBe("15:35"); // 12 tabelas + 3 sequências; 35 funções
+      const val = await validate(db);
+      expect(failing(val)).toEqual([]);
+      expect(val).toHaveLength(39);
+      const m = await matrix(db);
+      record("e4g-B2-bundle", { applyMs, probe, validate: val, matrix: m, snap0 });
+      expect(m).toHaveLength(41);
+      expect(m.filter((x) => x.resultado === "FALHA")).toEqual([]);
+      expect(m.filter((x) => x.resultado === "comparar").map((x) => x.item).sort()).toEqual(["M06.2 Elegibilidade", "M11 Slot", "M12.4 Capacidade B", "M12.5 Capacidade B"]);
+      expect(m.filter((x) => x.item.startsWith("M08")).every((x) => x.resultado === "ok")).toBe(true);
+      expect(await snapshotB(db)).toEqual(snap0);
+      expect(await inventory(db)).toEqual(inv0);
+      expect((await sr(db, "shadow_get_control")).state).toBe("disabled");
+      expect((await sr(db, "shadow_acquire_tick")).result).toBe("state_not_running");
+      // a configuração aceita SÓ UTC (A1): São Paulo é recusado pelo banco
+      const cfg = (tz: string) => db.trySql(`update public.guest_ai_shadow_control set budget_day_timezone = '${tz}' where id = 1`);
+      expect((await cfg("America/Sao_Paulo")).ok).toBe(false);
+      expect((await cfg("UTC")).ok).toBe(true);
+      await db.sql(`update public.guest_ai_shadow_control set budget_day_timezone = null where id = 1`);
+    } finally {
+      db.stop();
+    }
+  }, 180_000);
+
+  it("B3 · ATOMICIDADE: erro DEPOIS de todo o conteúdo ⇒ nada fica (0 objetos, 0 locks, Capacidade B idêntica); depois o bundle aplica limpo", async () => {
+    const db = startProdLike();
+    try {
+      await seedProdInventory(db);
+      const snap0 = await snapshotB(db);
+      const r = await simple(db, `${readSql(BUNDLE)}\nselect 1/0;\n`);
+      expect(r.ok).toBe(false);
+      expect(r.ok ? "" : r.error).toMatch(/division by zero/);
+      expect(await objectCount(db)).toBe("0:0");
+      expect(await db.sql(`select count(*) from pg_locks l join pg_stat_activity a on a.pid = l.pid where a.pid <> pg_backend_pid() and l.relation = 'public.property_chat_conversations'::regclass`)).toBe("0");
+      expect(await snapshotB(db)).toEqual(snap0);
+      expect((await simple(db, readSql(BUNDLE))).ok).toBe(true);
+      expect(failing(await validate(db))).toEqual([]);
+    } finally {
+      db.stop();
+    }
+  }, 180_000);
+
+  it("B4 · AUTOCOMMIT por comando (interface que separa os comandos) ⇒ a guarda recusa ANTES de qualquer DDL; nada aplicado", async () => {
+    const db = startProdLike();
+    try {
+      await seedProdInventory(db);
+      const r = db.file(BUNDLE, { singleTransaction: false }); // psql -f: cada comando na própria transação, ON_ERROR_STOP
+      expect(r.ok).toBe(false);
+      expect(r.ok ? "" : r.error).toMatch(/gate_a_bundle: comandos fora de uma transação única/);
+      expect(await objectCount(db)).toBe("0:0");
+      const probe = await (async () => {
+        const p = db.file(OPS("09-sonda-transacao.sql"), { singleTransaction: false });
+        return p;
+      })();
+      expect(probe.ok).toBe(true); // a sonda roda, mas não prova a transação nesse modo (o operador vê mesma_transacao = false)
+    } finally {
+      db.stop();
+    }
+  }, 180_000);
+
+  it("B5 · lock_timeout EFETIVO: outra transação segura property_chat_conversations ⇒ o bundle desiste em ~3 s sem fila e sem aplicar nada; liberado o lock, aplica", async () => {
+    const db = startProdLike();
+    try {
+      await seedProdInventory(db);
+      const { default: postgres } = await import("postgres");
+      const holder = postgres({ path: `${db.dir}/.s.PGSQL.${db.port}`, user: "postgres", database: "app", max: 1, onnotice: () => {} });
+      let release!: () => void;
+      const held = new Promise<void>((r) => (release = r));
+      const tx = holder.begin(async (t) => {
+        await t`lock table public.property_chat_conversations in share mode`;
+        await held;
+      });
+      await new Promise((r) => setTimeout(r, 300));
+      const t0 = performance.now();
+      const r = await simple(db, readSql(BUNDLE));
+      const ms = Math.round(performance.now() - t0);
+      expect(r.ok).toBe(false);
+      expect(r.ok ? "" : r.error).toMatch(/lock timeout/i);
+      expect(ms).toBeGreaterThanOrEqual(2_900);
+      expect(ms).toBeLessThan(8_000);
+      expect(await objectCount(db)).toBe("0:0");
+      release();
+      await tx;
+      await holder.end();
+      expect((await simple(db, readSql(BUNDLE))).ok).toBe(true);
+      record("e4g-B5-lock-timeout", { ms, error: r.ok ? null : r.error });
+    } finally {
+      db.stop();
+    }
+  }, 180_000);
+
+  it("B7 · INTEGRIDADE do texto recebido: cortado no fim, cortado entre comandos (marcadores preservados), sem comentários ou com CRLF ⇒ a guarda aborta ANTES de qualquer DDL", async () => {
+    const db = startProdLike();
+    try {
+      await seedProdInventory(db);
+      const full = readSql(BUNDLE);
+      const g = full.indexOf("-- ═════════════════ 3/3");
+      const variants: Array<[string, string, RegExp]> = [
+        ["cortado no fim (sem a migration global nem o marcador FIM)", full.slice(0, g), /marcadores de conteúdo ausentes/],
+        ["cortado ENTRE comandos com marcadores preservados", full.slice(0, g) + full.slice(full.indexOf("\n-- ═══ FIM DO CONTEÚDO")), /difere do gerado \(SHA-256\)/],
+        ["comentários de linha removidos pela interface", full.replace(/^--.*$/gm, ""), /marcadores de conteúdo ausentes/],
+        ["quebras de linha convertidas para CRLF", full.replace(/\n/g, "\r\n"), /marcadores de conteúdo ausentes/],
+        ["um caractere do conteúdo alterado", full.replace("'property_not_found', 'archived'", "'property_not_found', 'archivee'"), /difere do gerado \(SHA-256\)/],
+      ];
+      const out: Record<string, string> = {};
+      for (const [name, text, re] of variants) {
+        expect(text).not.toBe(full);
+        const r = await simple(db, text);
+        expect(r.ok, name).toBe(false);
+        expect(r.ok ? "" : r.error, name).toMatch(re);
+        expect(await objectCount(db), name).toBe("0:0");
+        out[name] = r.ok ? "" : r.error;
+      }
+      record("e4g-B7-integridade", out);
+      expect((await simple(db, full)).ok).toBe(true);
+      expect(await objectCount(db)).toBe("15:35");
+    } finally {
+      db.stop();
+    }
+  }, 180_000);
+
+  it("B6 · REEXECUÇÃO do bundle já aplicado ⇒ recusada sem efeito; validação e matriz continuam 100%", async () => {
+    const db = startProdLike();
+    try {
+      await seedProdInventory(db);
+      expect((await simple(db, readSql(BUNDLE))).ok).toBe(true);
+      const r = await simple(db, readSql(BUNDLE));
+      expect(r.ok).toBe(false);
+      expect(r.ok ? "" : r.error).toMatch(/already exists|já existem/);
+      expect(await objectCount(db)).toBe("15:35");
+      expect(failing(await validate(db))).toEqual([]);
+      expect((await matrix(db)).filter((x) => x.resultado === "FALHA")).toEqual([]);
+    } finally {
+      db.stop();
+    }
+  }, 180_000);
+});

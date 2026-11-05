@@ -64,7 +64,7 @@ async function toRunning(over: Record<string, unknown> = {}) {
   const cfg = await rpc("shadow_configure", {
     p_expected_version: v, p_actor: ACTOR, p_model_id: "openai/gpt-5.6-sol", p_reasoning_effort: "low", p_max_input_tokens: 40000, p_max_output_tokens: 1536,
     p_max_total_tokens: 42000, p_max_turn_cost_usd: 0.15, p_daily_cost_limit_usd: 1.0, p_max_daily_tokens: 5000000, p_max_daily_calls: 500, p_error_window_minutes: 60,
-    p_error_min_sample: 20, p_budget_day_timezone: "America/Sao_Paulo", p_telemetry_retention_days: 30, p_tick_interval_seconds: 60, p_max_conversations_per_tick: 3,
+    p_error_min_sample: 20, p_budget_day_timezone: "UTC", p_telemetry_retention_days: 30, p_tick_interval_seconds: 60, p_max_conversations_per_tick: 3,
     ...over,
   });
   expect(cfg.result).toBe("applied");
@@ -290,9 +290,9 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
       expect((await rpc("shadow_authorize_retention", { p_expected_version: 1, p_actor: ACTOR, p_scope: "openai_responses", p_evidence_sha256: EVID })).result).toBe("stale_version");
     });
     it("configuração recusa modelo Google, teto diário acima de US$ 1,00 e fuso inexistente", async () => {
-      const base = { p_expected_version: 1, p_actor: ACTOR, p_model_id: "openai/gpt-5.6-sol", p_reasoning_effort: "low", p_max_input_tokens: 1, p_max_output_tokens: 1, p_max_total_tokens: 1, p_max_turn_cost_usd: 0.1, p_daily_cost_limit_usd: 1, p_max_daily_tokens: 1, p_max_daily_calls: 1, p_error_window_minutes: 1, p_error_min_sample: 20, p_budget_day_timezone: "America/Sao_Paulo", p_telemetry_retention_days: 1, p_tick_interval_seconds: 60, p_max_conversations_per_tick: 1 };
-      // E3.1: parâmetros homologados são TETOS no banco (custo/turno ≤ 0,15; ≤ 3/tick; tick = 60 s; amostra = 20; fuso de São Paulo)
-      for (const bad of [{ p_model_id: "google/gemini-3.8-flash" }, { p_daily_cost_limit_usd: 1.01 }, { p_max_output_tokens: 5000 }, { p_error_min_sample: 1 }, { p_error_min_sample: 19 }, { p_error_min_sample: 21 }, { p_budget_day_timezone: "Mars/Olympus" }, { p_budget_day_timezone: "UTC" }, { p_max_daily_calls: -1 }, { p_actor: null }, { p_max_turn_cost_usd: 0.15000001 }, { p_max_conversations_per_tick: 4 }, { p_max_conversations_per_tick: 0 }, { p_tick_interval_seconds: 30 }, { p_tick_interval_seconds: 61 }]) {
+      const base = { p_expected_version: 1, p_actor: ACTOR, p_model_id: "openai/gpt-5.6-sol", p_reasoning_effort: "low", p_max_input_tokens: 1, p_max_output_tokens: 1, p_max_total_tokens: 1, p_max_turn_cost_usd: 0.1, p_daily_cost_limit_usd: 1, p_max_daily_tokens: 1, p_max_daily_calls: 1, p_error_window_minutes: 1, p_error_min_sample: 20, p_budget_day_timezone: "UTC", p_telemetry_retention_days: 1, p_tick_interval_seconds: 60, p_max_conversations_per_tick: 1 };
+      // E3.1: parâmetros homologados são TETOS no banco (custo/turno ≤ 0,15; ≤ 3/tick; tick = 60 s; amostra = 20); A1: dia de orçamento SÓ em UTC
+      for (const bad of [{ p_model_id: "google/gemini-3.8-flash" }, { p_daily_cost_limit_usd: 1.01 }, { p_max_output_tokens: 5000 }, { p_error_min_sample: 1 }, { p_error_min_sample: 19 }, { p_error_min_sample: 21 }, { p_budget_day_timezone: "Mars/Olympus" }, { p_budget_day_timezone: "America/Sao_Paulo" }, { p_budget_day_timezone: "Etc/UTC" }, { p_budget_day_timezone: "utc" }, { p_max_daily_calls: -1 }, { p_actor: null }, { p_max_turn_cost_usd: 0.15000001 }, { p_max_conversations_per_tick: 4 }, { p_max_conversations_per_tick: 0 }, { p_tick_interval_seconds: 30 }, { p_tick_interval_seconds: 61 }]) {
         expect((await rpc("shadow_configure", { ...base, ...bad })).result, JSON.stringify(bad)).toBe("invalid_argument");
       }
       expect((await rpc("shadow_configure", { ...base, p_expected_version: 5 })).result).toBe("stale_version");
@@ -319,15 +319,17 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
       expect(await one(`select count(*) || '|' || sum(cost_usd) from public.guest_ai_shadow_budget_reservations where execution_id = '${id}'`)).toBe("1|0.01000000");
       expect(await one(`select open_reservations || '|' || reserved_cost from public.guest_ai_shadow_budget_days`)).toBe("1|0.01000000");
     });
-    it("40 reservas CONCORRENTES de US$ 0,05: exatamente 20 cabem; o total nunca passa de US$ 1,00; estouro ⇒ budget_exhausted", async () => {
+    it("A1 · 40 reservas CONCORRENTES de US$ 0,05: exatamente 20 cabem; o total nunca passa de US$ 1,00; estouro ⇒ exceeded SEM desarme (segue running)", async () => {
       await toRunning();
       const ids = await Promise.all(Array.from({ length: 40 }, () => claimed()));
       const results = await Promise.all(ids.map((id) => rpc("shadow_reserve_budget", { p_execution_id: id, p_tokens: 100, p_cost: 0.05, p_calls: 1 })));
       const reserved = results.filter((r) => r.result === "reserved").length;
       expect(reserved).toBe(20);
-      expect(results.filter((r) => !["reserved", "exceeded", "state_not_running"].includes(String(r.result)))).toEqual([]);
+      // A1: as 20 restantes são recusadas por cota (nunca por estado: ninguém desarmou)
+      expect(results.filter((r) => r.result === "exceeded" && r.limit === "daily_cost").length).toBe(20);
       expect(Number(await one(`select sum(reserved_cost + settled_cost) from public.guest_ai_shadow_budget_days`))).toBeLessThanOrEqual(1);
-      expect((await control()).state).toBe("budget_exhausted");
+      expect((await control()).state).toBe("running");
+      expect(await one(`select count(*) from public.guest_ai_shadow_transitions where to_state = 'budget_exhausted'`)).toBe("0");
     });
     it("reserva órfã (worker morto) continua contada: não libera saldo", async () => {
       await toRunning();

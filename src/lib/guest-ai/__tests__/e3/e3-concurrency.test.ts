@@ -104,7 +104,7 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · Fase 3 — concorrência e integridade 
     expect((await shadowState(db)).state).toBe("running");
   }, 120_000);
 
-  it("teto diário sob concorrência (30 workers, reservas sobrepostas): a soma reservada+liquidada NUNCA passa do teto; bloqueados não chamam o Gateway", async () => {
+  it("A1 · teto diário sob concorrência (30 workers, reservas sobrepostas): a soma reservada+liquidada NUNCA passa do teto; recusados viram budget_blocked sem chamar o Gateway; o Shadow NÃO desarma", async () => {
     const specs = await Promise.all(Array.from({ length: 30 }, () => conv()));
     // descobre o custo de reserva de UM turno (pior caso) com uma execução de referência
     await shadowToRunning(db, specs);
@@ -132,8 +132,15 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · Fase 3 — concorrência e integridade 
     expect(peak).toBeLessThanOrEqual(limit + 1e-9);
     expect(b.reserved_cost + b.settled_cost).toBeLessThanOrEqual(limit + 1e-9);
     expect(provider.calls).toBe(b.reservations.settled + b.reservations.open);
-    expect(provider.calls).toBeLessThanOrEqual(3);
-    expect(st.state).toBe("budget_exhausted");
+    // A1: sem desarme, a sobra entre o pior caso reservado e o custo real liquidado volta a valer no mesmo dia
+    // (mais turnos cabem); a invariante é o TETO, conferido acima no pico amostrado e no total final
+    expect(provider.calls).toBeGreaterThanOrEqual(3);
+    // A1: cota esgotada é controle normal — nenhum desarme, estado preservado, cada recusa registrada como budget_blocked
+    expect(st.state).toBe("running");
+    expect(await automaticTrips(db)).toEqual([]);
+    const blocked = outs.filter((o) => o.status === "recorded" && o.decision === "budget_blocked").length;
+    expect(blocked).toBe(specs.length - 1 - provider.calls);
+    expect(Number(await db.sql(`select count(*) from public.guest_ai_shadow_executions where decision = 'budget_blocked' and gateway_calls = 0`))).toBe(blocked);
     expect(await budgetLedgerConsistent(db)).toBe(true);
   }, 180_000);
 

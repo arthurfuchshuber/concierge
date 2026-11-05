@@ -67,7 +67,10 @@ export const GLOBAL_MIGRATION_PATH = path.join(REPO, "supabase/migrations/202611
  * `extraMigrations` (B3.3): migrations aplicadas DEPOIS da do lease, na ordem dada. Sem argumento, igual a antes.
  * `opts` (B3.3/E3): `bin` troca o diretório de binários só deste cluster; `serverOptions` acrescenta `-c` ao servidor.
  */
-export function startCluster(extraMigrations: readonly string[] = [], opts: { bin?: string; serverOptions?: readonly string[] } = {}): PgCluster {
+export function startCluster(
+  extraMigrations: readonly string[] = [],
+  opts: { bin?: string; serverOptions?: readonly string[]; env?: Readonly<Record<string, string>> } = {},
+): PgCluster {
   const BIN = opts.bin ?? PG_BIN;
   if (!binOk(BIN) || !existsSync("/usr/bin/psql")) throw new Error("postgres_unavailable");
   const dir = mkdtempSync(path.join(tmpdir(), "guest-ai-lease-"));
@@ -76,7 +79,10 @@ export function startCluster(extraMigrations: readonly string[] = [], opts: { bi
   const port = 40000 + Math.floor(Math.random() * 20000);
   asPgUser([path.join(BIN, "initdb"), "-D", data, "-U", "postgres", "--auth=trust", "-E", "UTF8"]);
   const extra = (opts.serverOptions ?? []).map((o) => ` -c ${o}`).join("");
-  asPgUser([path.join(BIN, "pg_ctl"), "-D", data, "-w", "-l", path.join(dir, "pg.log"), "-o", `-p ${port} -k ${dir} -c listen_addresses= -c max_connections=100${extra}`, "start"]);
+  // `env` (A1): variáveis só do SERVIDOR (ex.: libfaketime para provar a virada do dia UTC com relógio real); vão
+  // no próprio comando do pg_ctl porque `su` descarta LD_PRELOAD do ambiente herdado
+  const envPrefix = Object.entries(opts.env ?? {}).map(([k, v]) => `${k}=${v}`);
+  asPgUser([...(envPrefix.length ? ["env", ...envPrefix] : []), path.join(BIN, "pg_ctl"), "-D", data, "-w", "-l", path.join(dir, "pg.log"), "-o", `-p ${port} -k ${dir} -c listen_addresses= -c max_connections=100${extra}`, "start"]);
   const db = "leasetest";
   const base = ["-h", dir, "-p", String(port), "-U", "postgres", "-v", "ON_ERROR_STOP=1", "-q", "-tA"];
   execFileSync("psql", [...base, "-d", "postgres", "-c", `create database ${db}`]);

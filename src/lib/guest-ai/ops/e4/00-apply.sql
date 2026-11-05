@@ -1,11 +1,9 @@
--- ConciergeIA Guest AI · Entrega 4 (revisão GLOBAL) · APLICAÇÃO INERTE = GATE A (NÃO EXECUTAR sem a autorização do
--- GATE A). Ordem obrigatória e transação ÚNICA: ou entram as três, ou nenhuma. Nada é habilitado:
--- escopo `none`, estado `disabled`, nenhum interruptor, nenhum cron (conferido por 02-validate.sql).
--- Executar a partir da raiz do repositório com psql conectado como `postgres` (dono das funções):
---   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f src/lib/guest-ai/ops/e4/00-apply.sql
--- Antes: 01-preflight.sql com todas as linhas ok. Depois: 02-validate.sql com todas as linhas ok.
--- Se a ferramenta de migrations do Lovable/Supabase aplicar arquivo por arquivo, cada um já é
--- transacional e tem guarda própria (reexecução aborta sem efeito); aplicar na MESMA ordem e validar no fim.
+-- ConciergeIA Guest AI · Entrega 4 (revisão GLOBAL) · CAMINHO 1 (psql) — NÃO É O CAMINHO RATIFICADO.
+-- O Anfitrião Sigma ratificou o CAMINHO 2: `gateA-bundle.sql` (bundle único gerado por gen-gateA-bundle.mjs),
+-- executado pela interface SQL do Lovable Cloud. Este arquivo fica só como referência do ensaio com psql
+-- (mesmas três migrations, mesma ordem, mesma transação única). NÃO EXECUTAR em produção.
+-- Proibido em qualquer caminho: `supabase db push` e aplicação arquivo por arquivo.
+--   (referência) psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f src/lib/guest-ai/ops/e4/00-apply.sql
 \set ON_ERROR_STOP on
 begin;
 -- não entra em fila de locks: se outra transação segura as tabelas referenciadas, desiste em 3 s

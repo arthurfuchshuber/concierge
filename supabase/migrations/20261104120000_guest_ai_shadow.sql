@@ -46,7 +46,11 @@
 --  * F-03: janela e ordem do disjuntor pelo relógio do BANCO (`recorded_at`).
 --  * F-04: reserva idempotente; liquidação só por função interna auditável (`settlement_kind`).
 --  * Parâmetros aprovados como TETOS (não como ativação): custo por turno ≤ US$ 0,15; ≤ 3 conversas por tick;
---    tick de 60 s; amostra mínima 20; fuso America/Sao_Paulo; teto diário ≤ US$ 1,00.
+--    tick de 60 s; amostra mínima 20; dia de orçamento em UTC; teto diário ≤ US$ 1,00.
+--  * Decisão A1 (ratificada): ao atingir o teto diário a reserva é RECUSADA (`exceeded`; o worker registra
+--    `budget_blocked`) SEM desarmar — o estado (running/ready) é preservado e a cota renova sozinha à 0h UTC
+--    (a chave do dia é `now() at time zone 'UTC'`). Só anomalia grave desarma: uso real acima do reservado
+--    (`over_reservation` ⇒ `budget_exhausted` / `token_limit_violation`). Não existe motivo de desarme por cota.
 
 -- ───────────────────────── Guarda de reexecução (E4) ─────────────────────────
 do $$
@@ -108,7 +112,7 @@ create table public.guest_ai_shadow_control (
   constraint gasc_daily_calls_ck check (max_daily_calls is null or max_daily_calls > 0),
   constraint gasc_window_ck check (error_window_minutes is null or error_window_minutes > 0),
   constraint gasc_sample_ck check (error_min_sample is null or error_min_sample = 20),
-  constraint gasc_tz_ck check (budget_day_timezone is null or (budget_day_timezone ~ '^[A-Za-z]+(/[A-Za-z0-9_+-]+){0,2}$' and budget_day_timezone = 'America/Sao_Paulo')),
+  constraint gasc_tz_ck check (budget_day_timezone is null or budget_day_timezone = 'UTC'),
   constraint gasc_retention_days_ck check (telemetry_retention_days is null or telemetry_retention_days > 0),
   constraint gasc_tick_ck check (tick_interval_seconds is null or tick_interval_seconds = 60),
   constraint gasc_per_tick_ck check (max_conversations_per_tick is null or max_conversations_per_tick between 1 and 3),
@@ -119,7 +123,7 @@ create table public.guest_ai_shadow_control (
     or (retention_scope is not null and retention_authorized_at is not null and retention_authorized_by is not null and retention_evidence_sha256 is not null)
   ),
   constraint gasc_evidence_ck check (retention_evidence_sha256 is null or retention_evidence_sha256 ~ '^[0-9a-f]{64}$'),
-  constraint gasc_reason_ck check (reason_code in ('initial', 'authorized_activation', 'authorized_pause', 'authorized_resume', 'authorized_disable', 'authorized_recovery', 'error_rate_exceeded', 'consecutive_failures', 'budget_limit_reached', 'token_limit_violation', 'integrity_divergence', 'measurement_unavailable', 'telemetry_failure', 'config_invalid'))
+  constraint gasc_reason_ck check (reason_code in ('initial', 'authorized_activation', 'authorized_pause', 'authorized_resume', 'authorized_disable', 'authorized_recovery', 'error_rate_exceeded', 'consecutive_failures', 'token_limit_violation', 'integrity_divergence', 'measurement_unavailable', 'telemetry_failure', 'config_invalid'))
 );
 
 -- Estado inicial: desligado; só o teto diário aprovado (US$ 1,00). Nenhum outro limite ou retenção.
@@ -138,7 +142,7 @@ create table public.guest_ai_shadow_transitions (
   at              timestamptz not null default now(),
   constraint gast_from_ck check (from_state in ('disabled', 'ready', 'running', 'paused', 'circuit_open', 'budget_exhausted', 'integrity_violation', 'technical_failure')),
   constraint gast_to_ck check (to_state in ('disabled', 'ready', 'running', 'paused', 'circuit_open', 'budget_exhausted', 'integrity_violation', 'technical_failure')),
-  constraint gast_reason_ck check (reason_code in ('initial', 'authorized_activation', 'authorized_pause', 'authorized_resume', 'authorized_disable', 'authorized_recovery', 'error_rate_exceeded', 'consecutive_failures', 'budget_limit_reached', 'token_limit_violation', 'integrity_divergence', 'measurement_unavailable', 'telemetry_failure', 'config_invalid')),
+  constraint gast_reason_ck check (reason_code in ('initial', 'authorized_activation', 'authorized_pause', 'authorized_resume', 'authorized_disable', 'authorized_recovery', 'error_rate_exceeded', 'consecutive_failures', 'token_limit_violation', 'integrity_divergence', 'measurement_unavailable', 'telemetry_failure', 'config_invalid')),
   constraint gast_evidence_ck check (evidence_sha256 is null or evidence_sha256 ~ '^[0-9a-f]{64}$'),
   -- manual ⇒ autor obrigatório; automática ⇒ sem autor e só para estado de falha
   constraint gast_actor_ck check (
@@ -636,7 +640,7 @@ as $function$
 declare r public.guest_ai_shadow_control%rowtype;
 begin
   if p_to is null or p_reason is null
-     or p_reason not in ('error_rate_exceeded', 'consecutive_failures', 'budget_limit_reached', 'token_limit_violation', 'integrity_divergence', 'measurement_unavailable', 'telemetry_failure', 'config_invalid') then
+     or p_reason not in ('error_rate_exceeded', 'consecutive_failures', 'token_limit_violation', 'integrity_divergence', 'measurement_unavailable', 'telemetry_failure', 'config_invalid') then
     return jsonb_build_object('result', 'invalid_argument');
   end if;
   select * into r from public.guest_ai_shadow_control where id = 1 for update;
@@ -685,8 +689,10 @@ begin
   -- limites por turno (pior caso informado pelo chamador)
   if p_cost > c.max_turn_cost_usd then return jsonb_build_object('result', 'exceeded', 'limit', 'turn_cost'); end if;
   if p_tokens > c.max_total_tokens::bigint * p_calls then return jsonb_build_object('result', 'exceeded', 'limit', 'turn_total_tokens'); end if;
+  -- dia de orçamento em UTC (CHECK `gasc_tz_ck`): `timestamptz at time zone 'UTC'` independe do fuso da sessão
   v_day := (now() at time zone c.budget_day_timezone)::date;
   insert into public.guest_ai_shadow_budget_days (budget_day) values (v_day) on conflict (budget_day) do nothing;
+  -- controle (acima) e dia travados: reservas concorrentes são serializadas e nunca somam além do teto
   select * into d from public.guest_ai_shadow_budget_days where budget_day = v_day for update;
   v_limit := case
     when d.settled_cost + d.reserved_cost + p_cost > c.daily_cost_limit_usd then 'daily_cost'
@@ -694,7 +700,8 @@ begin
     when d.settled_calls + d.reserved_calls + p_calls > c.max_daily_calls then 'daily_calls'
     else null end;
   if v_limit is not null then
-    perform public.guest_ai_shadow_trip_locked(c, 'budget_exhausted', 'budget_limit_reached');
+    -- A1: cota diária esgotada é controle NORMAL de orçamento — recusa a reserva e NÃO desarma (o estado
+    -- running/ready fica como está; o worker registra o turno como `budget_blocked`; a cota volta à 0h UTC)
     return jsonb_build_object('result', 'exceeded', 'limit', v_limit);
   end if;
   insert into public.guest_ai_shadow_budget_reservations (execution_id, budget_day, tokens, cost_usd, calls)
@@ -1114,12 +1121,11 @@ begin
     perform public.guest_ai_shadow_trip_locked(c, 'integrity_violation', 'integrity_divergence');
     select * into c from public.guest_ai_shadow_control where id = 1;
   elsif (v_set->>'over_reservation')::boolean then
+    -- anomalia grave (uso real acima do reservado): DESARMA (fail-closed)
     perform public.guest_ai_shadow_trip_locked(c, 'budget_exhausted', 'token_limit_violation');
     select * into c from public.guest_ai_shadow_control where id = 1;
-  elsif (v_set->>'day_exhausted')::boolean then
-    perform public.guest_ai_shadow_trip_locked(c, 'budget_exhausted', 'budget_limit_reached');
-    select * into c from public.guest_ai_shadow_control where id = 1;
   end if;
+  -- A1: dia esgotado (`day_exhausted`) NÃO desarma; as próximas reservas do mesmo dia UTC são recusadas
   update public.guest_ai_shadow_inflight set status = 'finalized', closed_at = now() where execution_id = p_execution_id;
   v_br := public.guest_ai_shadow_breakers_locked(c, v_ins->>'decision');
   return jsonb_build_object('result', 'finalized', 'lease', v_lease, 'decision', v_ins->>'decision', 'settlement', v_set->>'result') || v_br;
@@ -1191,10 +1197,7 @@ begin
     end if;
     update public.guest_ai_shadow_inflight set status = 'reconciled', closed_at = now() where execution_id = f.execution_id;
     v_n := v_n + 1;
-    if (v_set->>'day_exhausted')::boolean then
-      perform public.guest_ai_shadow_trip_locked(c, 'budget_exhausted', 'budget_limit_reached');
-      select * into c from public.guest_ai_shadow_control where id = 1;
-    end if;
+    -- A1: a liquidação pelo pior caso fica registrada; dia esgotado NÃO desarma
     v_last := 'technical_failure';
   end loop;
   if v_n > 0 then

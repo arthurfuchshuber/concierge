@@ -59,7 +59,7 @@ export function fullControl(over: Partial<ShadowControl> = {}): ShadowControl {
     maxDailyCalls: 500,
     errorWindowMinutes: 60,
     errorMinSample: 20,
-    budgetDayTimezone: "America/Sao_Paulo",
+    budgetDayTimezone: "UTC",
     telemetryRetentionDays: 30,
     tickIntervalSeconds: 60,
     maxConversationsPerTick: 3,
@@ -140,10 +140,8 @@ export class MemoryShadowStore implements ShadowStore {
     if (!this.control || this.control.state !== "running") return { kind: "blocked", code: "state_not_running" };
     const cost = usd(r.costUsd8);
     if (r.costUsd8 > (parseUsd8(this.control.maxTurnCostUsd) ?? 0n)) return { kind: "exceeded", limit: "turn_cost" };
-    if (this.settledCost + this.reservedCost + cost > (this.control.dailyCostLimitUsd ?? 0) + 1e-12) {
-      await this.trip("budget_exhausted", "budget_limit_reached");
-      return { kind: "exceeded", limit: "daily_cost" };
-    }
+    // A1 (espelho do banco): cota diária esgotada recusa a reserva SEM desarmar
+    if (this.settledCost + this.reservedCost + cost > (this.control.dailyCostLimitUsd ?? 0) + 1e-12) return { kind: "exceeded", limit: "daily_cost" };
     this.n++;
     const id = `7f000000-0000-4000-8000-${String(this.n).padStart(12, "0")}`;
     this.reservations.set(id, { executionId, tokens: r.tokens, cost, calls: r.calls, settled: false, settledCost: null });
