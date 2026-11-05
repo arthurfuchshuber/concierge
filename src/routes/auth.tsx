@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { MessageCircle, Sparkles, Zap, ShieldCheck } from "lucide-react";
+import { MessageCircle, Sparkles, Zap, ShieldCheck, Grid2X2 } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 
 export const Route = createFileRoute("/auth")({
@@ -24,6 +24,8 @@ export const Route = createFileRoute("/auth")({
       { name: "description", content: "Acesse o ConciergeIA e automatize o atendimento aos seus hóspedes com IA." },
       { property: "og:title", content: "Entrar — ConciergeIA" },
       { property: "og:description", content: "Acesse o ConciergeIA e automatize o atendimento aos seus hóspedes com IA." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { property: "og:url", content: "/auth" },
       { name: "robots", content: "noindex" },
     ],
@@ -61,9 +63,19 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_IN") return;
+      // Defer Auth calls until the listener's internal lock is released.
+      window.setTimeout(() => {
+        supabase.auth.getUser().then(({ data }) => {
+          if (data.user) goPostAuth();
+        });
+      }, 0);
+    });
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) goPostAuth();
     });
+    return () => subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -141,6 +153,34 @@ function AuthPage() {
       if (result.redirected) return;
       goPostAuth();
     } finally { setLoading(false); }
+  }
+
+  async function handleMicrosoft() {
+    setLoading(true);
+    try {
+      // OAuth returns to a public page; the existing validated `next` is
+      // followed only after Auth confirms the signed-in user.
+      const callback = new URL("/auth", window.location.origin);
+      if (next) callback.searchParams.set("next", next);
+      const result = await lovable.auth.signInWithOAuth("microsoft", {
+        redirect_uri: callback.href,
+      });
+      if (result.error) {
+        toast.error("Erro com Microsoft. Tente novamente.");
+        return;
+      }
+      if (result.redirected) return;
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) {
+        toast.error("Não foi possível confirmar seu login Microsoft. Tente novamente.");
+        return;
+      }
+      goPostAuth();
+    } catch {
+      toast.error("Erro com Microsoft. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -236,6 +276,17 @@ function AuthPage() {
             className="w-full rounded-full h-11 mt-3 border-black/10 bg-white text-black hover:bg-black/5"
           >
             Continuar com Apple
+          </Button>
+
+          <Button
+            type="button"
+            onClick={handleMicrosoft}
+            disabled={loading}
+            variant="outline"
+            className="w-full min-w-0 rounded-full h-11 mt-3 gap-2 text-sm"
+          >
+            <Grid2X2 className="size-4 shrink-0" aria-hidden="true" />
+            Continuar com Microsoft
           </Button>
 
           <div className="flex items-center gap-3 my-6">
