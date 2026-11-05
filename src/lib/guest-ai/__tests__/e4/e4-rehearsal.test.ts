@@ -1,11 +1,22 @@
 /**
- * ENTREGA 4 · ENSAIO INTEGRADO em PostgreSQL 17.6 descartável com papéis, privilégios padrão e estrutura
- * legada iguais aos da produção auditada (ver `prodlike.ts`). Só dados sintéticos; nenhuma credencial real;
- * nenhuma chamada externa. Os cenários de fluxo do worker (lease expirado, worker perdido, pausas, falha do
- * Gateway, orçamento, disjuntor) rodam na suíte `e3/*` contra a MESMA configuração (lease + Shadow + piloto).
+ * ENTREGA 4 · revisão GLOBAL — ENSAIO INTEGRADO em PostgreSQL 17.6 descartável com papéis, privilégios
+ * padrão, índices e estrutura legada iguais aos da produção auditada (ver `prodlike.ts`). Só dados
+ * sintéticos; nenhuma credencial real; nenhuma chamada externa (nenhum provedor, nenhum Gateway).
+ *
+ * Base global sintética = a distribuição REAL do inventário de produção (04/11/2026: 44 imóveis, 3 tenants,
+ * 43 elegíveis, 1 sem canal de hóspede) + um conjunto de casos de borda que exercita CADA motivo de
+ * inelegibilidade. Os cenários de fluxo do worker (pausas explícita/derivada, falha do Gateway, falha do
+ * banco, disjuntor, worker perdido, lease expirado) rodam na suíte `e3/*` contra a MESMA configuração
+ * (lease + Shadow + escopo global) com o worker real.
  */
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  buildExecutionRecord,
+  NO_GATEWAY,
+  validateExecutionRecord,
+} from "@/lib/guest-ai/shadow-exec/extract";
+import { recordToRow } from "@/lib/guest-ai/data/shadow-store.server";
 import { MIG, OPS, PG176_OK, readSql, startProdLike, type ProdLike } from "./prodlike";
 
 const RESULTS = process.env.E4_RESULTS_DIR ?? "/tmp/e4-results";
@@ -19,76 +30,158 @@ const record = (name: string, data: unknown) => {
 };
 const ACTOR = "ac000000-0000-4000-8000-0000000000e4";
 const EVID = "e4".repeat(32);
-const TENANT_A = "00000000-0000-4000-8000-00000000aaaa";
-const TENANT_B = "00000000-0000-4000-8000-00000000bbbb";
-const P = Array.from({ length: 7 }, (_, i) => `b4000000-0000-4000-8000-00000000000${i + 1}`);
+const hex = (n: number, w = 12) => n.toString(16).padStart(w, "0");
+const U = (prefix: string, n: number) => `${prefix}-0000-4000-8000-${hex(n)}`;
+// tenants sintéticos (A, B, C reproduzem a produção; E, X, W, V são casos de borda)
+const T = {
+  A: U("0000000a", 1),
+  B: U("0000000b", 2),
+  C: U("0000000c", 3),
+  E: U("0000000e", 4),
+  X: U("0000000f", 5),
+  W: U("0000000d", 6),
+  V: U("00000009", 7),
+};
+const PA = Array.from({ length: 11 }, (_, i) => U("a1000000", i + 1));
+const PB = Array.from({ length: 32 }, (_, i) => U("b1000000", i + 1));
+const PC = [U("c1000000", 1)];
+const PE = Array.from({ length: 10 }, (_, i) => U("e1000000", i + 1));
+const PX = U("f1000000", 1);
+const PW = U("d1000000", 1);
+const PV = U("91000000", 1);
 
 type Check = { check_name: string; expected: string; found: string; ok: boolean | null };
 const stripSemi = (s: string) => s.trim().replace(/;\s*$/, "");
-async function validate(db: ProdLike): Promise<Check[]> {
-  return db.rows<Check>(stripSemi(readSql(OPS("02-validate.sql"))));
-}
-async function preflight(db: ProdLike): Promise<Check[]> {
-  return db.rows<Check>(stripSemi(readSql(OPS("01-preflight.sql"))));
-}
-const failing = (cs: Check[]) => cs.filter((c) => c.ok === false);
-/** Impressão digital do legado: conteúdo + estrutura + ACL + políticas + gatilhos das tabelas não Shadow. */
-async function legacyFingerprint(db: ProdLike): Promise<string> {
-  return db.sql(`select md5(
-    (select coalesce(string_agg(x::text, '|' order by x::text), '') from public.properties x) ||
-    (select coalesce(string_agg(x::text, '|' order by x::text), '') from public.property_chat_conversations x) ||
-    (select coalesce(string_agg(x::text, '|' order by x::text), '') from public.property_chat_messages x) ||
-    (select string_agg(table_name || column_name || data_type || is_nullable || coalesce(column_default, ''), '|' order by table_name, column_name)
-       from information_schema.columns where table_schema = 'public' and table_name not like 'guest\\_ai\\_%') ||
-    (select string_agg(c.relname || coalesce(c.relacl::text, '') || c.relrowsecurity::text, '|' order by c.relname)
-       from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname not like 'guest\\_ai\\_%') ||
-    (select coalesce(string_agg(polname || pg_get_expr(polqual, polrelid), '|' order by polname), '') from pg_policy) ||
-    (select coalesce(string_agg(tgname, '|' order by tgname), '') from pg_trigger where not tgisinternal) ||
-    (select coalesce(string_agg(conname || pg_get_constraintdef(oid), '|' order by conname), '') from pg_constraint where conrelid in
-       (select c.oid from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname not like 'guest\\_ai\\_%')))`);
-}
-async function seedLegacy(db: ProdLike) {
-  await db.sql(`insert into public.properties (id, owner_id, name, slug) values
-    ${P.map((p, i) => `('${p}', '${i < 5 ? TENANT_A : TENANT_B}', 'Imóvel sintético ${i + 1}', 'sint-${i + 1}')`).join(",")}`);
-  await db.sql(`insert into public.property_chat_conversations (id, property_id, guest_session_id) values
-    ('c4000000-0000-4000-8000-000000000001', '${P[0]}', 'web:sintetico-1'), ('c4000000-0000-4000-8000-000000000002', '${P[5]}', 'web:sintetico-2')`);
-  await db.sql(
-    `insert into public.property_chat_messages (conversation_id, role, content) values ('c4000000-0000-4000-8000-000000000001', 'user', 'mensagem sintética')`,
+const validate = (db: ProdLike) => db.rows<Check>(stripSemi(readSql(OPS("02-validate.sql"))));
+const preflight = (db: ProdLike) => db.rows<Check>(stripSemi(readSql(OPS("01-preflight.sql"))));
+const inventory = (db: ProdLike) =>
+  db.rows<{ tenant: string; status: string; properties: number }>(
+    stripSemi(readSql(OPS("06-inventory.sql"))),
   );
-}
-const applyAll = (db: ProdLike) => [db.file(MIG.lease), db.file(MIG.shadow), db.file(MIG.pilot)];
+const failing = (cs: Check[]) => cs.filter((c) => c.ok !== true);
+const applyAll = (db: ProdLike) => [db.file(MIG.lease), db.file(MIG.shadow), db.file(MIG.global)];
+
+const lit = (v: unknown) =>
+  v === null || v === undefined
+    ? "null"
+    : typeof v === "number" || typeof v === "boolean"
+      ? String(v)
+      : typeof v === "object"
+        ? `'${JSON.stringify(v).replace(/'/g, "''")}'::jsonb`
+        : `'${String(v).replace(/'/g, "''")}'`;
 async function rpc(
   db: ProdLike,
   fn: string,
-  args: Record<string, unknown>,
+  args: Record<string, unknown> = {},
   role?: string,
 ): Promise<Record<string, unknown>> {
-  const lit = (v: unknown) =>
-    v === null || v === undefined
-      ? "null"
-      : typeof v === "number" || typeof v === "boolean"
-        ? String(v)
-        : `'${String(v).replace(/'/g, "''")}'`;
   const named = Object.entries(args)
     .map(([k, v]) => `${k} => ${lit(v)}`)
     .join(", ");
   return JSON.parse(await db.sql(`select public.${fn}(${named})`, role ? { role } : undefined));
 }
-const admin = (db: ProdLike, fn: string, args: Record<string, unknown>) => rpc(db, fn, args);
-async function toRunningWithManifest(db: ProdLike, props: Array<{ p: string; t: string }>) {
-  for (const x of props) {
-    const r = await admin(db, "shadow_manifest_add", {
-      p_actor: ACTOR,
-      p_manifest_version: 1,
-      p_tenant_id: x.t,
-      p_property_id: x.p,
-      p_selection_reason: "highest_volume",
-      p_twin_status: "verified",
-      p_history_status: "verified",
-    });
-    if (r.result !== "applied") throw new Error(`manifest:${String(r.result)}`);
-  }
-  let v = Number((await rpc(db, "shadow_get_control", {}, "service_role")).state_version);
+const sr = (db: ProdLike, fn: string, args: Record<string, unknown> = {}) =>
+  rpc(db, fn, args, "service_role");
+const admin = (db: ProdLike, fn: string, args: Record<string, unknown> = {}) => rpc(db, fn, args);
+const gate = async (db: ProdLike, t: string, p: string) =>
+  await db.sql(`select coalesce(public.guest_ai_shadow_property_gate('${t}', '${p}'), 'ACTIVE')`);
+
+/** Legado + estrutura legada da produção (só dados sintéticos). */
+async function seedProdInventory(db: ProdLike) {
+  const props: string[] = [];
+  const add = (
+    id: string,
+    owner: string,
+    o: {
+      published?: boolean;
+      guide?: boolean;
+      checkin?: string | null;
+      checkout?: string | null;
+      archived?: boolean;
+    } = {},
+  ) =>
+    props.push(
+      `('${id}', '${owner}', 'Imóvel sintético ${id.slice(0, 8)}-${id.slice(-3)}', 'sint-${id}', ${o.published ?? true}, ${o.guide ?? true}, ${lit(o.checkin === undefined ? "15:00" : o.checkin)}, ${lit(o.checkout === undefined ? "11:00" : o.checkout)}, ${o.archived ? "now()" : "null"})`,
+    );
+  PA.forEach((p, i) => add(p, T.A, { published: i < 8 }));
+  PB.forEach((p, i) => add(p, T.B, { published: i < 31 }));
+  add(PC[0]!, T.C);
+  add(PE[0]!, T.E, { archived: true });
+  add(PE[1]!, T.E);
+  add(PE[2]!, T.E);
+  add(PE[3]!, T.E);
+  add(PE[4]!, T.E);
+  add(PE[5]!, T.E, { checkin: null });
+  add(PE[6]!, T.E, { checkout: "   " });
+  add(PE[7]!, T.E, { published: false });
+  add(PE[8]!, T.E, { published: false });
+  add(PE[9]!, T.E, { guide: false });
+  add(PX, T.X);
+  add(PW, T.W, { published: false });
+  add(PV, T.V, { published: false });
+  await db.sql(
+    `insert into public.properties (id, owner_id, name, slug, published, guide_created, checkin_time, checkout_time, archived_at) values ${props.join(",")}`,
+  );
+  await db.sql(
+    `insert into public.profiles (id) values ${[T.A, T.B, T.C, T.E, T.W, T.V].map((t) => `('${t}')`).join(",")}`,
+  );
+  // anúncios: os 11 de A (consistentes); casos de borda de E
+  const l = PA.map((p, i) => `('${p}', '${T.A}', 'L-A-${i}', 'CX-A-${i}', null, null, null)`);
+  l.push(`('${PE[1]}', '${T.A}', 'L-E-1', 'CX-E-1', null, null, null)`); // anúncio de OUTRO dono
+  l.push(`('${PE[2]}', '${T.E}', 'L-E-2', 'CX-SHARED', null, null, null)`); // mesma propriedade Channex em dois imóveis
+  l.push(`('${PE[3]}', '${T.E}', 'L-E-3', 'CX-SHARED', null, null, null)`);
+  l.push(`('${PE[7]}', '${T.E}', 'L-E-7', 'CX-E-7', now(), null, null)`); // não encontrado
+  l.push(`('${PE[8]}', '${T.E}', 'L-E-8', 'CX-E-8', null, now(), 'account_disconnected')`); // conta desconectada
+  await db.sql(
+    `insert into public.property_listing_raw_data (property_id, owner_id, airbnb_listing_id, channex_property_id, not_found_at, sync_paused_at, paused_reason) values ${l.join(",")}`,
+  );
+  await db.sql(
+    `insert into public.channex_twin_links (owner_id, property_id) values ${PA.slice(0, 4)
+      .map((p) => `('${T.A}', '${p}')`)
+      .join(",")}, ('${T.A}', '${PE[4]}')`,
+  );
+  await db.sql(
+    `insert into public.host_whatsapp_config (owner_id, status) values ('${T.W}', 'active'), ('${T.V}', 'pending')`,
+  );
+}
+const EXPECTED_REASONS: Record<string, string> = {
+  [PB[31]!]: "no_guest_channel",
+  [PE[0]!]: "archived",
+  [PE[1]!]: "listing_inconsistent",
+  [PE[2]!]: "listing_inconsistent",
+  [PE[3]!]: "listing_inconsistent",
+  [PE[4]!]: "listing_inconsistent",
+  [PE[5]!]: "operational_data_missing",
+  [PE[6]!]: "operational_data_missing",
+  [PE[7]!]: "no_guest_channel",
+  [PE[8]!]: "no_guest_channel",
+  [PE[9]!]: "no_guest_channel",
+  [PX]: "tenant_unresolved",
+  [PV]: "no_guest_channel",
+};
+const ALL_PROPS = [...PA, ...PB, ...PC, ...PE, PX, PW, PV];
+const OWNER: Record<string, string> = Object.fromEntries([
+  ...PA.map((p) => [p, T.A]),
+  ...PB.map((p) => [p, T.B]),
+  ...PC.map((p) => [p, T.C]),
+  ...PE.map((p) => [p, T.E]),
+  [PX, T.X],
+  [PW, T.W],
+  [PV, T.V],
+]);
+
+/** Volta o Shadow ao estado inicial (só o dono, no teste). */
+async function resetShadow(db: ProdLike) {
+  await db.sql(`truncate public.guest_ai_shadow_executions, public.guest_ai_shadow_budget_reservations, public.guest_ai_shadow_budget_days, public.guest_ai_shadow_transitions,
+    public.guest_ai_shadow_access_log, public.guest_ai_shadow_inflight, public.guest_ai_shadow_property_switch, public.guest_ai_shadow_tenant_switch,
+    public.guest_ai_shadow_switch_log, public.guest_ai_shadow_property_eligibility, public.guest_ai_conversation_leases;
+    delete from public.guest_ai_shadow_control; insert into public.guest_ai_shadow_control (id, state, daily_cost_limit_usd) values (1, 'disabled', 1.00)`);
+  await db.sql(
+    `delete from public.property_chat_messages; delete from public.property_chat_conversations`,
+  );
+}
+async function toRunning(db: ProdLike) {
+  let v = Number((await sr(db, "shadow_get_control")).state_version);
   const cfg = await admin(db, "shadow_configure", {
     p_expected_version: v,
     p_actor: ACTOR,
@@ -107,7 +200,6 @@ async function toRunningWithManifest(db: ProdLike, props: Array<{ p: string; t: 
     p_telemetry_retention_days: 30,
     p_tick_interval_seconds: 60,
     p_max_conversations_per_tick: 3,
-    p_manifest_version: 1,
   });
   if (cfg.result !== "applied") throw new Error(`cfg:${String(cfg.result)}`);
   v = Number(cfg.state_version);
@@ -139,88 +231,206 @@ async function toRunningWithManifest(db: ProdLike, props: Array<{ p: string; t: 
   });
   if (r.result !== "applied") throw new Error(`running:${String(r.result)}`);
 }
-const enable = (db: ProdLike, p: string, t: string, version: number) =>
-  admin(db, "shadow_set_property_enabled", {
+const openScope = async (db: ProdLike, version = 0) => {
+  const r = await admin(db, "shadow_set_scope", {
     p_actor: ACTOR,
-    p_property_id: p,
-    p_tenant_id: t,
-    p_enabled: true,
-    p_expected_version: version,
-    p_reason: "pilot_enable",
+    p_expected_scope_version: version,
+    p_scope: "all_eligible",
+    p_reason: "authorized_global_activation",
     p_evidence_sha256: EVID,
   });
-const disable = (
+  if (r.result !== "applied") throw new Error(`scope:${String(r.result)}`);
+};
+/** Conversa sintética com mensagem de hóspede há `ageSeconds` (e, opcionalmente, resposta posterior da equipe). */
+async function conv(
   db: ProdLike,
-  p: string,
-  t: string,
-  version: number | null = null,
-  reason = "pilot_disable",
+  n: number,
+  property: string,
+  ageSeconds: number,
+  session = `sess-${n}`,
+) {
+  const id = U("c0000000", n);
+  const msg = U("d0000000", n);
+  await db.sql(`insert into public.property_chat_conversations (id, property_id, guest_session_id, last_message_at) values ('${id}', '${property}', '${session}', now() - interval '${ageSeconds} seconds');
+    insert into public.property_chat_messages (id, conversation_id, role, sender_type, content, created_at) values ('${msg}', '${id}', 'user', 'guest', 'mensagem sintética', now() - interval '${ageSeconds} seconds')`);
+  return { id, msg, property };
+}
+async function acquire(db: ProdLike) {
+  const t = await sr(db, "shadow_acquire_tick");
+  if (t.result !== "acquired") throw new Error(`tick:${String(t.result)}`);
+  return String(t.tick_token);
+}
+const list = (db: ProdLike, token: string, limit = 3, lookback = 240) =>
+  sr(db, "shadow_list_candidates", {
+    p_tick_token: token,
+    p_lookback_seconds: lookback,
+    p_limit: limit,
+  });
+type Cand = {
+  conversation_id: string;
+  property_id: string;
+  tenant_id: string;
+  surface: string;
+  message_id: string;
+};
+/** Registro SEM lote (desfecho bloqueado) — o que o worker grava; marca a conversa como avaliada. */
+async function recordBlocked(db: ProdLike, c: Cand) {
+  const r = validateExecutionRecord(
+    buildExecutionRecord(
+      null,
+      {
+        executionId: crypto.randomUUID(),
+        tenantId: c.tenant_id,
+        propertyId: c.property_id,
+        conversationId: c.conversation_id,
+        channel: "web",
+        batchId: null,
+        leaseVersion: null,
+        modelId: null,
+        startedAt: new Date(Date.now() + 1000).toISOString(),
+        finishedAt: new Date(Date.now() + 1100).toISOString(),
+        totalMs: 100,
+        leaseMs: 0,
+        contextMs: 0,
+        gatewayMs: 0,
+        validationMs: 0,
+        gateway: NO_GATEWAY,
+        estimatedInputTokens: null,
+        pauseState: "not_evaluated",
+        executionState: "blocked",
+        technicalCode: null,
+        blockCode: "pause_active",
+        integrityCode: null,
+        budgetExceeded: null,
+        tokenLimitViolation: false,
+        concurrencyDetected: false,
+        forcedDecision: "human_pause_active",
+      },
+      "chain.2026-11-03.3",
+    ),
+  );
+  if (!r) throw new Error("registro inválido");
+  const out = await sr(db, "shadow_record_execution", { p_record: recordToRow(r) });
+  if (out.result !== "recorded") throw new Error(`record:${String(out.result)}`);
+}
+/** Lote pronto no lease (o que o worker faz antes de reivindicar). */
+async function readyBatch(db: ProdLike, convId: string, msg: string) {
+  await db.sql(
+    `select public.transition_conversation_lease('${convId}', 'observe', 0, null, array['${msg}']::uuid[])`,
+    { role: "service_role" },
+  );
+  await db.sql(
+    `select public.transition_conversation_lease('${convId}', 'mark_ready', 1, null, array['${msg}']::uuid[])`,
+    { role: "service_role" },
+  );
+  return 2;
+}
+const claim = (
+  db: ProdLike,
+  token: string,
+  exec: string,
+  convId: string,
+  tenant: string,
+  property: string,
+  version = 2,
 ) =>
-  admin(db, "shadow_set_property_enabled", {
-    p_actor: ACTOR,
-    p_property_id: p,
-    p_tenant_id: t,
-    p_enabled: false,
+  sr(db, "shadow_claim_execution", {
+    p_tick_token: token,
+    p_execution_id: exec,
+    p_conversation_id: convId,
     p_expected_version: version,
-    p_reason: reason,
-    p_evidence_sha256: null,
+    p_tenant_id: tenant,
+    p_property_id: property,
+    p_channel: "web",
   });
 
+/** Impressão digital do legado: conteúdo + estrutura + ACL + políticas + gatilhos + índices das tabelas não Shadow. */
+async function legacyFingerprint(db: ProdLike): Promise<string> {
+  return db.sql(`select md5(
+    (select coalesce(string_agg(x::text, '|' order by x::text), '') from public.properties x) ||
+    (select coalesce(string_agg(x::text, '|' order by x::text), '') from public.property_chat_conversations x) ||
+    (select coalesce(string_agg(x::text, '|' order by x::text), '') from public.property_chat_messages x) ||
+    (select coalesce(string_agg(x::text, '|' order by x::text), '') from public.property_listing_raw_data x) ||
+    (select string_agg(table_name || column_name || data_type || is_nullable || coalesce(column_default, ''), '|' order by table_name, column_name)
+       from information_schema.columns where table_schema = 'public' and table_name not like 'guest\\_ai\\_%') ||
+    (select string_agg(c.relname || coalesce(c.relacl::text, '') || c.relrowsecurity::text, '|' order by c.relname)
+       from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname not like 'guest\\_ai\\_%') ||
+    (select coalesce(string_agg(polname || pg_get_expr(polqual, polrelid), '|' order by polname), '') from pg_policy) ||
+    (select coalesce(string_agg(tgname, '|' order by tgname), '') from pg_trigger where not tgisinternal) ||
+    (select coalesce(string_agg(indexname || indexdef, '|' order by indexname), '') from pg_indexes where schemaname = 'public' and tablename not like 'guest\\_ai\\_%') ||
+    (select coalesce(string_agg(conname || pg_get_constraintdef(oid), '|' order by conname), '') from pg_constraint where conrelid in
+       (select c.oid from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname not like 'guest\\_ai\\_%')))`);
+}
+
 describe.skipIf(!PG176_OK)(
-  "E4 · ensaio de migração (PostgreSQL 17.6, papéis e privilégios da produção)",
+  "E4 global · ensaio (PostgreSQL 17.6, papéis, privilégios e índices da produção)",
   () => {
-    it("1 · banco VAZIO de dados (estrutura legada mínima): preflight ok ⇒ aplicação ⇒ validação 100% ok; impressão digital registrada", async () => {
+    it("A1 · GATE A: inventário (antes) ⇒ preflight ⇒ aplicação inerte ⇒ validação 100% ⇒ NENHUM imóvel ativo, escopo `none`, nenhum cron", async () => {
       const db = startProdLike();
       try {
-        expect(db.version).toBe("17.6");
-        expect(
-          await db.sql(
-            `select rolsuper::text || ',' || rolcreaterole::text || ',' || rolbypassrls::text from pg_roles where rolname = current_user`,
-          ),
-        ).toBe("false,true,true");
+        await seedProdInventory(db);
+        expect(db.version.startsWith("17.6")).toBe(true);
+        const before = await inventory(db);
         const pre = await preflight(db);
         expect(failing(pre)).toEqual([]);
         const t0 = performance.now();
-        const res = applyAll(db);
-        const ms = Math.round(performance.now() - t0);
-        expect(res).toEqual([{ ok: true }, { ok: true }, { ok: true }]);
+        expect(applyAll(db)).toEqual([{ ok: true }, { ok: true }, { ok: true }]);
+        const applyMs = Math.round(performance.now() - t0);
         const val = await validate(db);
-        record("e4-01-empty", { preflight: pre, validate: val, applyMs: ms });
-        // inclui as impressões digitais: a do arquivo de validação tem de bater com a aplicação ensaiada
+        record("e4g-A1-gate-a", {
+          inventoryBefore: before,
+          preflight: pre,
+          validate: val,
+          applyMs,
+        });
         expect(failing(val)).toEqual([]);
         expect(val.filter((c) => c.check_name.startsWith("fingerprint")).length).toBe(2);
+        // nada ativo, por qualquer caminho: a porta recusa todos os 57 imóveis com `scope_off`
+        expect(
+          await db.sql(
+            `select string_agg(distinct public.guest_ai_shadow_property_gate(owner_id, id), ',') from public.properties`,
+          ),
+        ).toBe("scope_off");
+        expect((await sr(db, "shadow_get_control")).state).toBe("disabled");
+        // nenhum worker consegue começar: sem trava (estado ≠ running), sem candidatas
+        expect((await sr(db, "shadow_acquire_tick")).result).toBe("state_not_running");
+        expect((await list(db, "c".repeat(64))).result).toBe("state_not_running");
       } finally {
         db.stop();
       }
-    }, 120_000);
+    }, 180_000);
 
-    it("2 · banco com estrutura LEGADA e dados: nada legado muda (conteúdo, colunas, ACL, RLS, políticas, gatilhos, constraints)", async () => {
+    it("A2 · estrutura LEGADA com dados: nada legado muda (conteúdo, colunas, ACL, RLS, políticas, gatilhos, índices, constraints)", async () => {
       const db = startProdLike();
       try {
-        await seedLegacy(db);
+        await seedProdInventory(db);
+        await conv(db, 1, PA[0]!, 30, "airbnb:th-1");
         const before = await legacyFingerprint(db);
-        expect(applyAll(db)).toEqual([{ ok: true }, { ok: true }, { ok: true }]);
+        applyAll(db);
         expect(await legacyFingerprint(db)).toBe(before);
-        expect(failing(await validate(db))).toEqual([]);
       } finally {
         db.stop();
       }
-    }, 120_000);
+    }, 180_000);
 
-    it("3 · REEXECUÇÃO: cada migration reaplicada aborta pela guarda (ou pelo CREATE do lease) SEM nenhum efeito; impressão digital idêntica", async () => {
+    it("A3 · REEXECUÇÃO: cada migration reaplicada aborta sem efeito; ordem trocada é recusada; impressão digital idêntica", async () => {
       const db = startProdLike();
       try {
-        await seedLegacy(db);
-        applyAll(db);
+        await seedProdInventory(db);
         const fp = async () =>
           (await validate(db))
             .filter((c) => c.check_name.startsWith("fingerprint"))
             .map((c) => c.found)
-            .join("|") + (await legacyFingerprint(db));
-        const before = await fp();
+            .join("|");
+        // ordem trocada (global antes do Shadow) ⇒ recusada pela guarda
+        db.file(MIG.lease);
+        expect((db.file(MIG.global) as { error: string }).error).toContain("pré-requisito ausente");
+        db.file(MIG.shadow);
+        db.file(MIG.global);
+        const f1 = await fp();
         const again = applyAll(db);
         record(
-          "e4-03-rerun",
+          "e4g-A3-rerun",
           again.map((r) =>
             r.ok
               ? "ok"
@@ -228,63 +438,37 @@ describe.skipIf(!PG176_OK)(
           ),
         );
         expect(again.every((r) => !r.ok)).toBe(true);
-        expect((again[1] as { error: string }).error).toContain("objetos já existem");
-        expect((again[2] as { error: string }).error).toContain("objetos já existem");
-        expect(await fp()).toBe(before);
-        // preflight num banco já aplicado acusa (não deixa aplicar por cima)
-        expect(
-          failing(await preflight(db))
-            .map((c) => c.check_name)
-            .sort(),
-        ).toEqual(["no_guest_ai_relations", "no_lease_functions", "no_shadow_functions"]);
-        // aplicação fora de ordem é recusada (piloto sem Shadow; Shadow sem lease)
-        const empty = startProdLike();
-        try {
-          expect((empty.file(MIG.pilot) as { error: string }).error).toContain(
-            "migration Shadow (E3.1) ausente",
-          );
-          expect((empty.file(MIG.shadow) as { error: string }).error).toContain(
-            "pré-requisito ausente",
-          );
-          expect(
-            await empty.sql(`select count(*) from pg_class where relname like 'guest\\_ai\\_%'`),
-          ).toBe("0");
-        } finally {
-          empty.stop();
-        }
+        expect((again[2] as { error: string }).error).toContain("já existem");
+        expect(await fp()).toBe(f1);
       } finally {
         db.stop();
       }
     }, 180_000);
 
-    it("4 · ROLLBACK: só o piloto volta EXATAMENTE ao estado Shadow (E3.1); rollback total remove tudo; legado intacto; reaplicação limpa funciona", async () => {
+    it("A4 · ROLLBACK: 03a volta EXATAMENTE à base (porta FECHADA: nenhuma reivindicação passa); 03b remove tudo; legado intacto; reaplicação limpa", async () => {
       const db = startProdLike();
       try {
-        await seedLegacy(db);
+        await seedProdInventory(db);
         const legacy0 = await legacyFingerprint(db);
+        // impressão digital do estado base (lease + Shadow, sem a global)
         db.file(MIG.lease);
         db.file(MIG.shadow);
-        const shadowOnly = await db.sql(
-          `select md5(string_agg(p.proname || md5(p.prosrc) || coalesce(p.proacl::text, ''), '|' order by p.proname)) from pg_proc p where p.proname like 'shadow\\_%' or p.proname like 'guest\\_ai\\_shadow\\_%'`,
-        );
-        db.file(MIG.pilot);
+        const baseFp = async () =>
+          db.sql(`select md5(string_agg(p.proname || md5(p.prosrc) || coalesce(p.proacl::text, ''), '|' order by p.proname)) || ':' ||
+        (select md5(string_agg(table_name || '.' || column_name || ':' || data_type, '|' order by table_name, column_name)) from information_schema.columns where table_schema = 'public' and table_name like 'guest\\_ai\\_%')
+        from pg_proc p where p.proname like 'shadow\\_%' or p.proname like 'guest\\_ai\\_shadow\\_%'`);
+        const base = await baseFp();
+        db.file(MIG.global);
         // rollback recusado com o Shadow ativo
-        await toRunningWithManifest(db, [{ p: P[0]!, t: TENANT_A }]);
-        expect((db.file(OPS("03a-rollback-pilot.sql")) as { error: string }).error).toContain(
+        await toRunning(db);
+        expect((db.file(OPS("03a-rollback-global.sql")) as { error: string }).error).toContain(
           "Shadow ativo",
         );
         await admin(db, "shadow_emergency_stop", { p_actor: ACTOR });
-        expect(db.file(OPS("03a-rollback-pilot.sql"))).toEqual({ ok: true });
-        expect(
-          await db.sql(
-            `select md5(string_agg(p.proname || md5(p.prosrc) || coalesce(p.proacl::text, ''), '|' order by p.proname)) from pg_proc p where p.proname like 'shadow\\_%' or p.proname like 'guest\\_ai\\_shadow\\_%'`,
-          ),
-        ).toBe(shadowOnly);
-        expect(
-          await db.sql(
-            `select count(*) from pg_class where relname like 'guest\\_ai\\_shadow\\_property%'`,
-          ),
-        ).toBe("0");
+        expect(db.file(OPS("03a-rollback-global.sql"))).toEqual({ ok: true });
+        expect(await baseFp()).toBe(base);
+        // base sozinha é FAIL-CLOSED: a porta fecha todo imóvel e a reivindicação recusa
+        expect(await gate(db, T.A, PA[0]!)).toBe("scope_off");
         expect(db.file(OPS("03b-rollback-all.sql"))).toEqual({ ok: true });
         expect(
           await db.sql(`select count(*) from pg_class where relname like 'guest\\_ai\\_%'`),
@@ -301,364 +485,608 @@ describe.skipIf(!PG176_OK)(
       } finally {
         db.stop();
       }
-    }, 180_000);
+    }, 240_000);
 
-    describe("com as três migrations aplicadas", () => {
+    describe("com as três migrations aplicadas e a BASE GLOBAL sintética (distribuição da produção + casos de borda)", () => {
       let db: ProdLike;
       beforeAll(async () => {
         db = startProdLike();
-        await seedLegacy(db);
+        await seedProdInventory(db);
         applyAll(db);
-      }, 120_000);
+      }, 180_000);
       afterAll(() => db?.stop());
 
-      it("5 · RLS e ACL: clientes não leem, não escrevem, não usam sequências; service_role só as 13 RPCs do worker; administrativas recusadas para service_role", async () => {
-        for (const role of ["anon", "authenticated", "service_role", "sandbox_exec"]) {
-          for (const t of [
-            "guest_ai_shadow_control",
-            "guest_ai_shadow_property_switch",
-            "guest_ai_shadow_property_switch_log",
-            "guest_ai_shadow_executions",
-            "guest_ai_shadow_inflight",
-          ]) {
-            expect(
-              (await db.trySql(`select 1 from public.${t} limit 1`, { role })).ok,
-              `${role} ${t}`,
-            ).toBe(false);
-          }
-          expect(
-            (
-              await db.trySql(
-                `select nextval('public.guest_ai_shadow_property_switch_log_id_seq')`,
-                { role },
-              )
-            ).ok,
-            role,
-          ).toBe(false);
+      it("G1 · INVENTÁRIO × FOTO: todos os imóveis classificados; motivos exatos; SQL somente leitura (06) = função do banco", async () => {
+        await resetShadow(db);
+        const snap = await admin(db, "shadow_refresh_eligibility", { p_actor: ACTOR });
+        record("e4g-G1-refresh", snap);
+        expect(snap).toMatchObject({
+          result: "ok",
+          properties: 57,
+          tenants: 7,
+          eligible: 44,
+          ineligible: 13,
+          rule_version: "eligibility.2026-11-05.1",
+        });
+        expect(snap.by_reason).toEqual({
+          archived: 1,
+          tenant_unresolved: 1,
+          listing_inconsistent: 4,
+          no_guest_channel: 5,
+          operational_data_missing: 2,
+        });
+        const rows = await db.rows<{
+          property_id: string;
+          eligible: boolean;
+          reason_code: string | null;
+          tenant_id: string;
+        }>(
+          `select property_id, eligible, reason_code, tenant_id from public.guest_ai_shadow_property_eligibility`,
+        );
+        expect(rows).toHaveLength(ALL_PROPS.length);
+        for (const r of rows) {
+          expect(r.reason_code, r.property_id).toBe(EXPECTED_REASONS[r.property_id] ?? null);
+          expect(r.tenant_id).toBe(OWNER[r.property_id]);
         }
-        for (const fn of [
-          "shadow_set_property_enabled(null, null, null, null, null, null, null)",
-          "shadow_emergency_stop(null)",
-          "shadow_admin_reconcile(null)",
-          "shadow_manifest_add(null, null, null, null, null, null, null)",
-          "shadow_transition(null, null, null, null, null)",
-        ]) {
-          for (const role of ["anon", "authenticated", "service_role", "sandbox_exec"]) {
-            const r = await db.trySql(`select public.${fn}`, { role });
-            expect(r.ok, `${role} ${fn}`).toBe(false);
-            if (!r.ok) expect(r.error).toMatch(/permission denied/);
-          }
-        }
-        expect(
-          JSON.parse(await db.sql(`select public.shadow_get_control()`, { role: "service_role" }))
-            .state,
-        ).toBe("disabled");
+        // a distribuição da produção: A 11/11, B 31/32 (1 sem canal), C 1/1
+        const inv = await inventory(db);
+        const byTenant = (t: string) =>
+          Object.fromEntries(
+            inv
+              .filter((r) => r.tenant === t.slice(0, 8))
+              .map((r) => [r.status, Number(r.properties)]),
+          );
+        expect(byTenant(T.A)).toEqual({ eligible: 11 });
+        expect(byTenant(T.B)).toEqual({ eligible: 31, no_guest_channel: 1 });
+        expect(byTenant(T.C)).toEqual({ eligible: 1 });
+        // o script SQL puro (roda ANTES da aplicação) dá exatamente a foto da função
+        const fromSnap = await db.rows<{ tenant: string; status: string; properties: number }>(
+          `select left(tenant_id::text, 8) tenant, coalesce(reason_code, 'eligible') status, count(*)::int properties from public.guest_ai_shadow_property_eligibility group by 1, 2 order by 1, 2`,
+        );
+        expect(inv.map((r) => ({ ...r, properties: Number(r.properties) }))).toEqual(fromSnap);
+        // refazer é idempotente; imóvel excluído some da foto
+        expect(await admin(db, "shadow_refresh_eligibility", { p_actor: ACTOR })).toMatchObject({
+          properties: 57,
+          eligible: 44,
+        });
       });
 
-      it("6/7/8 · habilitação individual dos 5 imóveis do mesmo tenant + isolamento entre tenants + 6º imóvel recusado em todas as barreiras", async () => {
-        await toRunningWithManifest(
-          db,
-          P.slice(0, 5).map((p) => ({ p, t: TENANT_A })),
-        );
-        // estado inicial: TODOS desabilitados; o tick não vê nenhum
-        expect(
-          JSON.parse(await db.sql(`select public.shadow_get_manifest()`, { role: "service_role" }))
-            .entries,
-        ).toEqual([]);
-        // 6º imóvel: a versão ATIVA do manifesto é imutável; uma versão futura só vale depois de reconfigurar (fora de running)
+      it("G2 · ESCOPO GLOBAL sem teto: `none` bloqueia tudo; abrir exige evidência/CAS; aberto ⇒ TODOS os 44 elegíveis ativos e cada inelegível com o seu motivo", async () => {
+        await resetShadow(db);
+        for (const p of ALL_PROPS) expect(await gate(db, OWNER[p]!, p), p).toBe("scope_off");
         expect(
           (
-            await admin(db, "shadow_manifest_add", {
+            await admin(db, "shadow_set_scope", {
               p_actor: ACTOR,
-              p_manifest_version: 1,
-              p_tenant_id: TENANT_B,
-              p_property_id: P[5],
-              p_selection_reason: "highest_volume",
-              p_twin_status: "verified",
-              p_history_status: "verified",
-            })
-          ).result,
-        ).toBe("version_immutable");
-        expect(
-          (
-            await admin(db, "shadow_manifest_add", {
-              p_actor: ACTOR,
-              p_manifest_version: 2,
-              p_tenant_id: TENANT_B,
-              p_property_id: P[5],
-              p_selection_reason: "highest_volume",
-              p_twin_status: "verified",
-              p_history_status: "verified",
-            })
-          ).result,
-        ).toBe("applied");
-        // nem habilitação fora do manifesto, nem com tenant trocado
-        expect((await enable(db, P[5]!, TENANT_B, 0)).result).toBe("not_in_manifest");
-        expect((await enable(db, P[0]!, TENANT_B, 0)).result).toBe("not_in_manifest");
-        // habilitar exige referência da autorização e versão; motivo coerente
-        expect(
-          (
-            await admin(db, "shadow_set_property_enabled", {
-              p_actor: ACTOR,
-              p_property_id: P[0],
-              p_tenant_id: TENANT_A,
-              p_enabled: true,
-              p_expected_version: 0,
-              p_reason: "pilot_enable",
+              p_expected_scope_version: 0,
+              p_scope: "all_eligible",
+              p_reason: "authorized_global_activation",
               p_evidence_sha256: null,
             })
           ).result,
         ).toBe("invalid_argument");
         expect(
           (
-            await admin(db, "shadow_set_property_enabled", {
+            await admin(db, "shadow_set_scope", {
               p_actor: ACTOR,
-              p_property_id: P[0],
-              p_tenant_id: TENANT_A,
-              p_enabled: true,
-              p_expected_version: null,
-              p_reason: "pilot_enable",
+              p_expected_scope_version: null,
+              p_scope: "all_eligible",
+              p_reason: "authorized_global_activation",
               p_evidence_sha256: EVID,
             })
           ).result,
         ).toBe("invalid_argument");
-        expect((await enable(db, P[0]!, TENANT_A, 7)).result).toBe("stale_version");
-        // um a um, independentes
-        for (let i = 0; i < 5; i++) {
-          expect(await enable(db, P[i]!, TENANT_A, 0)).toEqual({
-            result: "applied",
-            enabled: true,
-            version: 1,
-          });
-          const seen = JSON.parse(
-            await db.sql(`select public.shadow_get_manifest()`, { role: "service_role" }),
-          ).entries.map((e: { property_id: string }) => e.property_id);
-          expect(seen.sort()).toEqual(P.slice(0, i + 1).sort());
-        }
-        expect((await enable(db, P[0]!, TENANT_A, 1)).result).toBe("noop");
-        // desabilitar UM não afeta os outros; desabilitar nunca é bloqueado (sem versão)
-        expect(await disable(db, P[2]!, TENANT_A)).toMatchObject({
-          result: "applied",
-          enabled: false,
-          version: 2,
-        });
         expect(
-          JSON.parse(await db.sql(`select public.shadow_get_manifest()`, { role: "service_role" }))
-            .entries,
-        ).toHaveLength(4);
-        // tenant trocado é recusado também ao DESABILITAR (nenhum efeito entre tenants em nenhuma direção)
-        expect((await disable(db, P[1]!, TENANT_B)).result).toBe("tenant_mismatch");
-        // imóvel ARQUIVADO não pode ser (re)habilitado, mesmo no manifesto e com versão correta
-        await db.sql(`update public.properties set archived_at = now() where id = '${P[2]}'`);
-        expect((await enable(db, P[2]!, TENANT_A, 2)).result).toBe("archived");
-        await db.sql(`update public.properties set archived_at = null where id = '${P[2]}'`);
-        // imóvel arquivado pela Capacidade B some do tick sem nenhuma ação no Shadow
-        await db.sql(`update public.properties set archived_at = now() where id = '${P[4]}'`);
+          (
+            await admin(db, "shadow_set_scope", {
+              p_actor: ACTOR,
+              p_expected_scope_version: 0,
+              p_scope: "all_eligible",
+              p_reason: "authorized_disable",
+              p_evidence_sha256: EVID,
+            })
+          ).result,
+        ).toBe("invalid_argument");
         expect(
-          JSON.parse(await db.sql(`select public.shadow_get_manifest()`, { role: "service_role" }))
-            .entries,
-        ).toHaveLength(3);
-        await db.sql(`update public.properties set archived_at = null where id = '${P[4]}'`);
-        // histórico auditável: quem, papel do banco, quando, antes/depois, motivo, evidência
+          (
+            await admin(db, "shadow_set_scope", {
+              p_actor: ACTOR,
+              p_expected_scope_version: 7,
+              p_scope: "all_eligible",
+              p_reason: "authorized_global_activation",
+              p_evidence_sha256: EVID,
+            })
+          ).result,
+        ).toBe("stale_version");
+        await openScope(db);
+        expect(
+          (
+            await admin(db, "shadow_set_scope", {
+              p_actor: ACTOR,
+              p_expected_scope_version: 1,
+              p_scope: "all_eligible",
+              p_reason: "authorized_global_activation",
+              p_evidence_sha256: EVID,
+            })
+          ).result,
+        ).toBe("noop");
+        const active = ALL_PROPS.filter((p) => !EXPECTED_REASONS[p]);
+        expect(active).toHaveLength(44);
+        for (const p of ALL_PROPS)
+          expect(await gate(db, OWNER[p]!, p), p).toBe(EXPECTED_REASONS[p] ?? "ACTIVE");
+        // nenhum teto: o banco aceita quantos imóveis forem elegíveis (aqui, 44 — 8,8× o antigo teto de 5)
+        expect(
+          await db.sql(
+            `select count(*) from public.properties p where public.guest_ai_shadow_property_gate(p.owner_id, p.id) is null`,
+          ),
+        ).toBe("44");
+        // tenant errado nunca vira "ativo"
+        expect(await gate(db, T.B, PA[0]!)).toBe("tenant_mismatch");
+        // fechar nunca é bloqueado (sem versão); histórico registra os dois atos
+        expect(
+          await admin(db, "shadow_set_scope", {
+            p_actor: ACTOR,
+            p_expected_scope_version: null,
+            p_scope: "none",
+            p_reason: "authorized_global_deactivation",
+          }),
+        ).toMatchObject({ result: "applied", scope: "none" });
         const log = await db.rows<{
-          property_id: string;
-          from_enabled: boolean;
-          to_enabled: boolean;
-          actor: string;
+          subject_kind: string;
+          from_value: string;
+          to_value: string;
           db_role: string;
           reason_code: string;
           evidence_sha256: string | null;
         }>(
-          `select property_id, from_enabled, to_enabled, actor, db_role, reason_code, evidence_sha256 from public.guest_ai_shadow_property_switch_log order by id`,
+          `select subject_kind, from_value, to_value, db_role, reason_code, evidence_sha256 from public.guest_ai_shadow_switch_log order by id`,
         );
-        record("e4-06-switch-log", log);
-        expect(log).toHaveLength(6);
+        expect(log).toEqual([
+          {
+            subject_kind: "global",
+            from_value: "none",
+            to_value: "all_eligible",
+            db_role: "postgres",
+            reason_code: "authorized_global_activation",
+            evidence_sha256: EVID,
+          },
+          {
+            subject_kind: "global",
+            from_value: "all_eligible",
+            to_value: "none",
+            db_role: "postgres",
+            reason_code: "authorized_global_deactivation",
+            evidence_sha256: null,
+          },
+        ]);
+      });
+
+      it("G3 · ISOLAMENTO e interruptores: tenant desligado tira só os imóveis dele; imóvel desligado tira só ele; religar exige evidência/CAS; nada cruza tenants", async () => {
+        await resetShadow(db);
+        await openScope(db);
+        expect(
+          await admin(db, "shadow_set_tenant_enabled", {
+            p_actor: ACTOR,
+            p_tenant_id: T.B,
+            p_enabled: false,
+            p_expected_version: null,
+            p_reason: "emergency_disable",
+          }),
+        ).toMatchObject({ result: "applied", enabled: false, version: 1 });
+        for (const p of PB.slice(0, 31)) expect(await gate(db, T.B, p)).toBe("tenant_disabled");
+        for (const p of [...PA, ...PC, PW]) expect(await gate(db, OWNER[p]!, p), p).toBe("ACTIVE");
+        expect(
+          await admin(db, "shadow_set_property_enabled", {
+            p_actor: ACTOR,
+            p_property_id: PA[3],
+            p_tenant_id: T.A,
+            p_enabled: false,
+            p_expected_version: null,
+            p_reason: "authorized_disable",
+          }),
+        ).toMatchObject({ result: "applied", version: 1 });
+        expect(await gate(db, T.A, PA[3]!)).toBe("property_disabled");
+        for (const p of PA.filter((x) => x !== PA[3]))
+          expect(await gate(db, T.A, p), p).toBe("ACTIVE");
+        // tenant trocado é recusado em qualquer direção; imóvel inexistente não é "religado"
+        expect(
+          (
+            await admin(db, "shadow_set_property_enabled", {
+              p_actor: ACTOR,
+              p_property_id: PA[3],
+              p_tenant_id: T.B,
+              p_enabled: true,
+              p_expected_version: 1,
+              p_reason: "authorized_enable",
+              p_evidence_sha256: EVID,
+            })
+          ).result,
+        ).toBe("tenant_mismatch");
+        expect(
+          (
+            await admin(db, "shadow_set_property_enabled", {
+              p_actor: ACTOR,
+              p_property_id: PA[5],
+              p_tenant_id: T.B,
+              p_enabled: false,
+              p_expected_version: null,
+              p_reason: "authorized_disable",
+            })
+          ).result,
+        ).toBe("tenant_mismatch");
+        expect(
+          (
+            await admin(db, "shadow_set_property_enabled", {
+              p_actor: ACTOR,
+              p_property_id: U("99999999", 9),
+              p_tenant_id: T.A,
+              p_enabled: true,
+              p_expected_version: 0,
+              p_reason: "authorized_enable",
+              p_evidence_sha256: EVID,
+            })
+          ).result,
+        ).toBe("not_found");
+        expect(
+          (
+            await admin(db, "shadow_set_tenant_enabled", {
+              p_actor: ACTOR,
+              p_tenant_id: T.X,
+              p_enabled: false,
+              p_expected_version: null,
+              p_reason: "authorized_disable",
+            })
+          ).result,
+        ).toBe("not_found");
+        // religar exige evidência, motivo coerente e versão
+        expect(
+          (
+            await admin(db, "shadow_set_tenant_enabled", {
+              p_actor: ACTOR,
+              p_tenant_id: T.B,
+              p_enabled: true,
+              p_expected_version: 1,
+              p_reason: "authorized_enable",
+              p_evidence_sha256: null,
+            })
+          ).result,
+        ).toBe("invalid_argument");
+        expect(
+          (
+            await admin(db, "shadow_set_tenant_enabled", {
+              p_actor: ACTOR,
+              p_tenant_id: T.B,
+              p_enabled: true,
+              p_expected_version: null,
+              p_reason: "authorized_enable",
+              p_evidence_sha256: EVID,
+            })
+          ).result,
+        ).toBe("invalid_argument");
+        expect(
+          (
+            await admin(db, "shadow_set_tenant_enabled", {
+              p_actor: ACTOR,
+              p_tenant_id: T.B,
+              p_enabled: true,
+              p_expected_version: 9,
+              p_reason: "authorized_enable",
+              p_evidence_sha256: EVID,
+            })
+          ).result,
+        ).toBe("stale_version");
+        expect(
+          (
+            await admin(db, "shadow_set_tenant_enabled", {
+              p_actor: ACTOR,
+              p_tenant_id: T.B,
+              p_enabled: true,
+              p_expected_version: 1,
+              p_reason: "authorized_disable",
+              p_evidence_sha256: EVID,
+            })
+          ).result,
+        ).toBe("invalid_argument");
+        expect(
+          await admin(db, "shadow_set_tenant_enabled", {
+            p_actor: ACTOR,
+            p_tenant_id: T.B,
+            p_enabled: true,
+            p_expected_version: 1,
+            p_reason: "authorized_enable",
+            p_evidence_sha256: EVID,
+          }),
+        ).toMatchObject({ result: "applied", enabled: true, version: 2 });
+        expect(await gate(db, T.B, PB[0]!)).toBe("ACTIVE");
+        expect(
+          (
+            await admin(db, "shadow_set_tenant_enabled", {
+              p_actor: ACTOR,
+              p_tenant_id: T.B,
+              p_enabled: true,
+              p_expected_version: 2,
+              p_reason: "authorized_enable",
+              p_evidence_sha256: EVID,
+            })
+          ).result,
+        ).toBe("noop");
+        const log = await db.rows<{
+          subject_kind: string;
+          tenant_id: string;
+          property_id: string | null;
+          from_value: string;
+          to_value: string;
+          version: number;
+          actor: string;
+          db_role: string;
+        }>(
+          `select subject_kind, tenant_id, property_id, from_value, to_value, version, actor, db_role from public.guest_ai_shadow_switch_log where subject_kind <> 'global' order by id`,
+        );
+        record("e4g-G3-switch-log", log);
+        expect(
+          log.map((l) => `${l.subject_kind}:${l.from_value}>${l.to_value}:v${l.version}`),
+        ).toEqual([
+          "tenant:enabled>disabled:v1",
+          "property:enabled>disabled:v1",
+          "tenant:disabled>enabled:v2",
+        ]);
         expect(log.every((l) => l.actor === ACTOR && l.db_role === "postgres")).toBe(true);
-        expect(log[5]).toMatchObject({
-          property_id: P[2],
-          from_enabled: true,
-          to_enabled: false,
-          reason_code: "pilot_disable",
-          evidence_sha256: null,
-        });
-        // histórico imutável: nem o dono altera pela via normal sem deixar rastro de função; clientes nem leem
+        // histórico imutável: ninguém além do dono escreve; nem o dono apaga pelas funções
         expect(
           (
             await db.trySql(
-              `update public.guest_ai_shadow_property_switch_log set actor = gen_random_uuid()`,
+              `update public.guest_ai_shadow_switch_log set actor = gen_random_uuid()`,
               { role: "service_role" },
             )
           ).ok,
         ).toBe(false);
       });
 
-      it("8b · teto de 5 HABILITADOS e de 5 por versão do manifesto (lista autorizada fechada)", async () => {
-        const db2 = startProdLike();
-        try {
-          await seedLegacy(db2);
-          applyAll(db2);
-          for (let i = 0; i < 5; i++)
-            expect(
-              (
-                await admin(db2, "shadow_manifest_add", {
-                  p_actor: ACTOR,
-                  p_manifest_version: 1,
-                  p_tenant_id: P.indexOf(P[i]!) < 5 ? TENANT_A : TENANT_B,
-                  p_property_id: P[i],
-                  p_selection_reason: "highest_volume",
-                  p_twin_status: "verified",
-                  p_history_status: "verified",
-                })
-              ).result,
-            ).toBe("applied");
-          expect(
-            (
-              await admin(db2, "shadow_manifest_add", {
-                p_actor: ACTOR,
-                p_manifest_version: 1,
-                p_tenant_id: TENANT_B,
-                p_property_id: P[5],
-                p_selection_reason: "highest_volume",
-                p_twin_status: "verified",
-                p_history_status: "verified",
-              })
-            ).result,
-          ).toBe("pilot_cap_reached");
-          // força (como dono, fora da função) um 6º no manifesto para provar a 2ª barreira: no máximo 5 habilitados
-          await db2.sql(
-            `insert into public.guest_ai_shadow_manifest (manifest_version, tenant_id, property_id, selection_reason, twin_status, history_status, authorized_by) values (1, '${TENANT_B}', '${P[5]}', 'highest_volume', 'verified', 'verified', '${ACTOR}')`,
-          );
-          await db2.sql(`update public.guest_ai_shadow_control set manifest_version = 1`);
-          for (let i = 0; i < 5; i++)
-            expect((await enable(db2, P[i]!, TENANT_A, 0)).result).toBe("applied");
-          expect((await enable(db2, P[5]!, TENANT_B, 0)).result).toBe("pilot_cap_reached");
-        } finally {
-          db2.stop();
+      it("G4 · CANDIDATAS no banco: só imóveis ativos, rodízio entre tenants + ordem de chegada, teto 3, só ids/códigos, exige trava, exclui avaliadas/em andamento/fora da janela", async () => {
+        await resetShadow(db);
+        await toRunning(db);
+        await openScope(db);
+        const a = [
+          await conv(db, 1, PA[0]!, 200, "airbnb:th-1"),
+          await conv(db, 2, PA[1]!, 150),
+          await conv(db, 3, PA[2]!, 100),
+          await conv(db, 4, PA[3]!, 50),
+        ];
+        const b = [
+          await conv(db, 5, PB[0]!, 180, "wa:+5545999990000"),
+          await conv(db, 6, PB[1]!, 30),
+        ];
+        const c = [await conv(db, 7, PC[0]!, 120)];
+        await conv(db, 8, PB[31]!, 60); // inelegível (sem canal)
+        await conv(db, 9, PE[0]!, 60); // arquivado
+        await conv(db, 10, PA[4]!, 400); // fora da janela de 240 s
+        const disabledProp = await conv(db, 11, PA[5]!, 90);
+        await admin(db, "shadow_set_property_enabled", {
+          p_actor: ACTOR,
+          p_property_id: PA[5],
+          p_tenant_id: T.A,
+          p_enabled: false,
+          p_expected_version: null,
+          p_reason: "authorized_disable",
+        });
+        const running = await conv(db, 12, PA[6]!, 170);
+        await db.sql(
+          `insert into public.guest_ai_shadow_inflight (execution_id, conversation_id, tenant_id, property_id, channel, batch_id, lease_version) values (gen_random_uuid(), '${running.id}', '${T.A}', '${PA[6]}', 'web', gen_random_uuid(), 2)`,
+        );
+        const token = await acquire(db);
+        const evaluated = await conv(db, 13, PA[7]!, 160);
+        await recordBlocked(db, {
+          conversation_id: evaluated.id,
+          property_id: PA[7]!,
+          tenant_id: T.A,
+          surface: "guide_chat",
+          message_id: evaluated.msg,
+        });
+        const r = await list(db, token, 10);
+        record("e4g-G4-candidates", r);
+        expect(r.result).toBe("ok");
+        const got = r.candidates as Cand[];
+        // teto do controle (3), rodízio: o mais antigo de cada tenant primeiro
+        expect(got.map((x) => x.conversation_id)).toEqual([a[0]!.id, b[0]!.id, c[0]!.id]);
+        expect(got.map((x) => x.surface)).toEqual(["airbnb", "whatsapp", "guide_chat"]);
+        expect(got.map((x) => x.tenant_id)).toEqual([T.A, T.B, T.C]);
+        for (const x of got)
+          expect(Object.keys(x).sort()).toEqual([
+            "conversation_id",
+            "message_id",
+            "property_id",
+            "surface",
+            "tenant_id",
+          ]);
+        expect(JSON.stringify(r)).not.toMatch(/sintética|\+5545|th-1|sess-/);
+        // DRENAGEM completa (cada página avaliada e registrada): o conjunto servido é EXATAMENTE o elegível —
+        // nada inelegível, desligado, em andamento, já avaliado, arquivado ou fora da janela; nada repetido
+        const drained: string[] = [];
+        for (let page = 0; page < 10; page++) {
+          const pg = (await list(db, token)).candidates as Cand[];
+          if (pg.length === 0) break;
+          for (const x of pg) {
+            drained.push(x.conversation_id);
+            await recordBlocked(db, x);
+          }
         }
-      }, 120_000);
-
-      it("10/11 · trava global: 20 aquisições concorrentes ⇒ 1; TTL = 55 s pelo relógio do banco; liberação só pelo dono", async () => {
-        const rs = await Promise.all(
-          Array.from({ length: 20 }, () => rpc(db, "shadow_acquire_tick", {}, "service_role")),
-        );
-        expect(rs.filter((r) => r.result === "acquired")).toHaveLength(1);
-        const [ttl] = await db.rows<{ s: number }>(
-          `select round(extract(epoch from tick_expires_at - now()))::int s from public.guest_ai_shadow_control`,
-        );
-        expect(ttl!.s).toBeGreaterThanOrEqual(54);
-        expect(ttl!.s).toBeLessThanOrEqual(55);
-        const tok = rs.find((r) => r.result === "acquired")!.tick_token;
+        expect([...drained].sort()).toEqual([...a, ...b, ...c].map((x) => x.id).sort());
         expect(
-          (await rpc(db, "shadow_release_tick", { p_tick_token: tok }, "service_role")).result,
-        ).toBe("released");
+          drained.some((id) =>
+            [
+              disabledProp.id,
+              running.id,
+              evaluated.id,
+              U("c0000000", 8),
+              U("c0000000", 9),
+              U("c0000000", 10),
+            ].includes(id),
+          ),
+        ).toBe(false);
+        // portões: trava alheia, escopo fechado, estado ≠ running, argumentos fora da faixa
+        expect((await list(db, "d".repeat(64))).result).toBe("tick_not_held");
+        for (const [l, lb] of [
+          [0, 240],
+          [3, 30],
+          [3, 901],
+        ] as const)
+          expect((await list(db, token, l, lb)).result).toBe("invalid_argument");
+        await admin(db, "shadow_set_scope", {
+          p_actor: ACTOR,
+          p_expected_scope_version: null,
+          p_scope: "none",
+          p_reason: "authorized_global_deactivation",
+        });
+        expect((await list(db, token)).result).toBe("scope_off");
       });
 
-      it("20 · EMERGÊNCIA: parada global imediata (sem religar), reivindicação e reserva recusadas, execução em andamento termina, abandonadas reconciliadas, imóvel desabilitado sem versão", async () => {
-        // uma execução em andamento (lote pronto e reivindicado) com reserva
-        const conv = "c4000000-0000-4000-8000-000000000001";
-        const m = "a4000000-0000-4000-8000-000000000001";
-        await db.sql(
-          `select public.transition_conversation_lease('${conv}', 'observe', 0, null, array['${m}']::uuid[])`,
-          { role: "service_role" },
+      it("G5 · PICO DE DEMANDA: 30 conversas simultâneas (20/7/3 por tenant) drenadas em 10 ticks de 3, cada uma UMA vez; o menor tenant é atendido nos 3 primeiros ticks", async () => {
+        await resetShadow(db);
+        await toRunning(db);
+        await openScope(db);
+        const plan: Array<[string, number]> = [
+          ...Array.from({ length: 20 }, (_, i) => [PA[i % 8]!, 220 - i * 5] as [string, number]),
+          ...Array.from({ length: 7 }, (_, i) => [PB[i]!, 215 - i * 15] as [string, number]),
+          ...Array.from({ length: 3 }, (_, i) => [PC[0]!, 60 - i * 10] as [string, number]),
+        ];
+        // conversas distintas no mesmo imóvel são permitidas (uma por hóspede)
+        for (const [i, [p, age]] of plan.entries()) await conv(db, 100 + i, p, age);
+        const served: string[][] = [];
+        for (let tick = 0; tick < 15; tick++) {
+          const token = await acquire(db);
+          const r = await list(db, token);
+          const got = r.candidates as Cand[];
+          if (got.length === 0) {
+            await sr(db, "shadow_release_tick", { p_tick_token: token });
+            break;
+          }
+          expect(got.length).toBeLessThanOrEqual(3);
+          for (const x of got) await recordBlocked(db, x);
+          served.push(got.map((x) => `${x.tenant_id.slice(0, 8)}:${x.conversation_id}`));
+          await sr(db, "shadow_release_tick", { p_tick_token: token });
+        }
+        record("e4g-G5-peak", { ticks: served.length, served });
+        expect(served).toHaveLength(10);
+        const flat = served.flat();
+        expect(new Set(flat).size).toBe(30);
+        const cTicks = served
+          .map((t, i) => (t.some((x) => x.startsWith(T.C.slice(0, 8))) ? i : -1))
+          .filter((i) => i >= 0);
+        expect(cTicks).toEqual([0, 1, 2]);
+        expect(
+          served.slice(0, 3).every((t) => new Set(t.map((x) => x.split(":")[0])).size === 3),
+        ).toBe(true);
+      });
+
+      it("G6 · TRAVA GLOBAL e cron concorrente: 20 aquisições simultâneas ⇒ 1; TTL 55 s pelo banco; tick interrompido (trava vencida) é retomado sem intervenção", async () => {
+        await resetShadow(db);
+        await toRunning(db);
+        const rs = await Promise.all(
+          Array.from({ length: 20 }, () => sr(db, "shadow_acquire_tick")),
         );
-        await db.sql(
-          `select public.transition_conversation_lease('${conv}', 'mark_ready', 1, null, array['${m}']::uuid[])`,
-          { role: "service_role" },
+        expect(rs.filter((r) => r.result === "acquired")).toHaveLength(1);
+        expect(rs.filter((r) => r.result === "busy")).toHaveLength(19);
+        const ttl = Number(
+          await db.sql(
+            `select extract(epoch from tick_expires_at - now()) from public.guest_ai_shadow_control`,
+          ),
         );
-        const tick = await rpc(db, "shadow_acquire_tick", {}, "service_role");
-        const exec = "e4000000-0000-4000-8000-000000000001";
-        // barreira da REIVINDICAÇÃO: imóvel no manifesto, mas desabilitado ⇒ property_disabled (nada muda no lease)
-        expect(await disable(db, P[0]!, TENANT_A, 1)).toMatchObject({
-          result: "applied",
-          enabled: false,
-          version: 2,
-        });
+        expect(ttl).toBeGreaterThan(53);
+        expect(ttl).toBeLessThanOrEqual(55);
+        expect((await sr(db, "shadow_release_tick", { p_tick_token: "f".repeat(64) })).result).toBe(
+          "noop",
+        );
+        // processo morreu com a trava: depois do prazo, o próximo tick adquire normalmente
+        await db.sql(
+          `update public.guest_ai_shadow_control set tick_expires_at = now() - interval '1 second'`,
+        );
+        expect((await sr(db, "shadow_acquire_tick")).result).toBe("acquired");
+      });
+
+      it("G7 · EMERGÊNCIA e RECUPERAÇÃO: parada global imediata; execução em curso termina; órfã reconciliada; desligar tenant/imóvel/escopo nunca bloqueado; nada religa sozinho", async () => {
+        await resetShadow(db);
+        await toRunning(db);
+        await openScope(db);
+        const k = await conv(db, 200, PA[0]!, 30);
+        const v = await readyBatch(db, k.id, k.msg);
+        const token = await acquire(db);
+        const exec = U("e4000000", 1);
+        expect((await claim(db, token, exec, k.id, T.A, PA[0]!, v)).result).toBe("claimed");
         expect(
           (
-            await rpc(
-              db,
-              "shadow_claim_execution",
-              {
-                p_tick_token: tick.tick_token,
-                p_execution_id: "e4000000-0000-4000-8000-0000000000d1",
-                p_conversation_id: conv,
-                p_expected_version: 2,
-                p_tenant_id: TENANT_A,
-                p_property_id: P[0],
-                p_channel: "web",
-              },
-              "service_role",
-            )
-          ).result,
-        ).toBe("property_disabled");
-        expect(await enable(db, P[0]!, TENANT_A, 2)).toMatchObject({
-          result: "applied",
-          enabled: true,
-          version: 3,
-        });
-        const claim = await rpc(
-          db,
-          "shadow_claim_execution",
-          {
-            p_tick_token: tick.tick_token,
-            p_execution_id: exec,
-            p_conversation_id: conv,
-            p_expected_version: 2,
-            p_tenant_id: TENANT_A,
-            p_property_id: P[0],
-            p_channel: "web",
-          },
-          "service_role",
-        );
-        expect(claim.result).toBe("claimed");
-        expect(
-          (
-            await rpc(
-              db,
-              "shadow_reserve_budget",
-              { p_execution_id: exec, p_tokens: 83072, p_cost: "0.13072000", p_calls: 2 },
-              "service_role",
-            )
+            await sr(db, "shadow_reserve_budget", {
+              p_execution_id: exec,
+              p_tokens: 83072,
+              p_cost: "0.13072000",
+              p_calls: 2,
+            })
           ).result,
         ).toBe("reserved");
+        // barreira da reivindicação: imóvel desligado entre a escolha e o claim ⇒ property_blocked
+        const k2 = await conv(db, 201, PA[1]!, 30);
+        const v2 = await readyBatch(db, k2.id, k2.msg);
+        await admin(db, "shadow_set_property_enabled", {
+          p_actor: ACTOR,
+          p_property_id: PA[1],
+          p_tenant_id: T.A,
+          p_enabled: false,
+          p_expected_version: null,
+          p_reason: "emergency_disable",
+        });
+        expect(await claim(db, token, U("e4000000", 2), k2.id, T.A, PA[1]!, v2)).toEqual({
+          result: "property_blocked",
+          reason: "property_disabled",
+        });
         // E1
-        const stop = await admin(db, "shadow_emergency_stop", { p_actor: ACTOR });
-        expect(stop).toMatchObject({ result: "stopped", from: "running", state: "paused" });
         expect(await admin(db, "shadow_emergency_stop", { p_actor: ACTOR })).toMatchObject({
-          result: "already_stopped",
+          result: "stopped",
+          from: "running",
           state: "paused",
         });
-        expect((await rpc(db, "shadow_acquire_tick", {}, "service_role")).result).toBe(
-          "state_not_running",
-        );
+        expect(await admin(db, "shadow_emergency_stop", { p_actor: ACTOR })).toMatchObject({
+          result: "already_stopped",
+        });
+        expect((await sr(db, "shadow_acquire_tick")).result).toBe("state_not_running");
+        expect((await list(db, token)).result).toBe("state_not_running");
         expect(
           (
-            await rpc(
-              db,
-              "shadow_reserve_budget",
-              {
-                p_execution_id: "e4000000-0000-4000-8000-000000000099",
-                p_tokens: 10,
-                p_cost: "0.01000000",
-                p_calls: 1,
-              },
-              "service_role",
-            )
+            await sr(db, "shadow_reserve_budget", {
+              p_execution_id: U("e4000000", 3),
+              p_tokens: 10,
+              p_cost: "0.01000000",
+              p_calls: 1,
+            })
           ).result,
         ).toBe("not_claimed");
-        // E2: imóvel desabilitado sem versão, com motivo de emergência
-        expect(await disable(db, P[1]!, TENANT_A, null, "emergency_disable")).toMatchObject({
-          result: "applied",
-          enabled: false,
-        });
-        // E5 antes do prazo do lease: a execução em andamento NÃO é tocada
+        // E1b / E2: escopo e tenant desligados sem versão (nunca bloqueados)
+        expect(
+          (
+            await admin(db, "shadow_set_scope", {
+              p_actor: ACTOR,
+              p_expected_scope_version: null,
+              p_scope: "none",
+              p_reason: "emergency_scope_off",
+            })
+          ).result,
+        ).toBe("applied");
+        expect(
+          (
+            await admin(db, "shadow_set_tenant_enabled", {
+              p_actor: ACTOR,
+              p_tenant_id: T.C,
+              p_enabled: false,
+              p_expected_version: null,
+              p_reason: "emergency_disable",
+            })
+          ).result,
+        ).toBe("applied");
+        // E5: antes do prazo do lease a execução em curso NÃO é tocada; depois (worker perdido) é selada, liquidada pelo pior caso, registrada
         expect(await admin(db, "shadow_admin_reconcile", { p_actor: ACTOR })).toEqual({
           result: "ok",
           reconciled: 0,
         });
-        // ... depois do prazo (worker perdido): sela, liquida pelo pior caso, registra; repetir é seguro
         await db.sql(
-          `update public.guest_ai_conversation_leases set lease_expires_at = now() - interval '1 second' where conversation_id = '${conv}'`,
+          `update public.guest_ai_conversation_leases set lease_expires_at = now() - interval '1 second' where conversation_id = '${k.id}'`,
         );
         expect(await admin(db, "shadow_admin_reconcile", { p_actor: ACTOR })).toMatchObject({
           result: "ok",
@@ -668,103 +1096,398 @@ describe.skipIf(!PG176_OK)(
           result: "ok",
           reconciled: 0,
         });
-        const after = await db.rows<{ decision: string; technical_code: string }>(
-          `select decision, technical_code from public.guest_ai_shadow_executions where execution_id = '${exec}'`,
-        );
-        expect(after).toEqual([{ decision: "technical_failure", technical_code: "worker_lost" }]);
+        expect(
+          await db.sql(
+            `select decision || ':' || technical_code from public.guest_ai_shadow_executions where execution_id = '${exec}'`,
+          ),
+        ).toBe("technical_failure:worker_lost");
         expect(
           await db.sql(
             `select settlement_kind || ':' || settled_cost from public.guest_ai_shadow_budget_reservations where execution_id = '${exec}'`,
           ),
         ).toBe("orphan_worst_case:0.13072000");
+        // nada religa sozinho: só transições MANUAIS com autor; retomar exige autorização explícita e o escopo de novo com evidência
         expect(
           await db.sql(
-            `select state from public.guest_ai_conversation_leases where conversation_id = '${conv}'`,
+            `select string_agg(from_state || '>' || to_state || ':' || automatic, ',' order by id) from public.guest_ai_shadow_transitions where to_state = 'paused'`,
           ),
-        ).toBe("failed");
-        // nada religa sozinho: a transição registrada é MANUAL, com autor
-        expect(
-          await db.sql(
-            `select string_agg(from_state || '>' || to_state || ':' || automatic || ':' || (actor is not null), ',' order by id) from public.guest_ai_shadow_transitions where to_state = 'paused'`,
-          ),
-        ).toBe("running>paused:false:true");
-        expect((await rpc(db, "shadow_get_control", {}, "service_role")).state).toBe("paused");
+        ).toBe("running>paused:false");
+        const st = await sr(db, "shadow_get_control");
+        expect(st).toMatchObject({ state: "paused", property_scope: "none" });
+        const resumed = await admin(db, "shadow_transition", {
+          p_expected_version: Number(st.state_version),
+          p_to: "running",
+          p_actor: ACTOR,
+          p_reason: "authorized_resume",
+        });
+        expect(resumed.result).toBe("applied");
+        const t2 = await acquire(db);
+        expect((await list(db, t2)).result).toBe("scope_off");
+        await openScope(db, 2);
+        expect((await list(db, t2)).result).toBe("ok");
+        // tenant C continua desligado depois da recuperação (desligamento não é desfeito por religar o escopo)
+        expect(await gate(db, T.C, PC[0]!)).toBe("tenant_disabled");
       });
 
-      it("21 · Capacidade B preservada: inserir/alterar/excluir imóvel e conversa (inclusive do piloto, com manifesto, habilitação e lease) funciona como antes", async () => {
-        const pid = P[0]!;
-        // conversa com lease (FK em cascata) é excluída normalmente
+      it("G8 · LIMITE DIÁRIO e VIRADA DE DIA em America/Sao_Paulo: o dia do orçamento é a data de São Paulo; dia anterior esgotado não bloqueia hoje; teto de hoje esgotado ⇒ budget_exhausted sem religar", async () => {
+        await resetShadow(db);
+        await toRunning(db);
+        await openScope(db);
+        await db.sql(
+          `insert into public.guest_ai_shadow_budget_days (budget_day, settled_cost, settled_calls) values (((now() at time zone 'America/Sao_Paulo')::date - 1), 1.00, 8)`,
+        );
+        const k = await conv(db, 300, PA[0]!, 20);
+        const v = await readyBatch(db, k.id, k.msg);
+        const token = await acquire(db);
+        const exec = U("e4000000", 30);
+        expect((await claim(db, token, exec, k.id, T.A, PA[0]!, v)).result).toBe("claimed");
+        const res = await sr(db, "shadow_reserve_budget", {
+          p_execution_id: exec,
+          p_tokens: 83072,
+          p_cost: "0.13072000",
+          p_calls: 2,
+        });
+        expect(res.result).toBe("reserved");
+        expect(String(res.budget_day)).toBe(
+          await db.sql(`select ((now() at time zone 'America/Sao_Paulo')::date)::text`),
+        );
+        // hoje quase no teto (US$ 0,90 liquidados): a próxima reserva de pior caso passaria de US$ 1,00 ⇒ recusa e desarme
+        await db.sql(
+          `update public.guest_ai_shadow_budget_days set settled_cost = 0.90 where budget_day = (now() at time zone 'America/Sao_Paulo')::date`,
+        );
+        const k2 = await conv(db, 301, PA[1]!, 20);
+        const v2 = await readyBatch(db, k2.id, k2.msg);
+        const exec2 = U("e4000000", 31);
+        expect((await claim(db, token, exec2, k2.id, T.A, PA[1]!, v2)).result).toBe("claimed");
+        expect(
+          await sr(db, "shadow_reserve_budget", {
+            p_execution_id: exec2,
+            p_tokens: 83072,
+            p_cost: "0.13072000",
+            p_calls: 2,
+          }),
+        ).toEqual({ result: "exceeded", limit: "daily_cost" });
+        expect((await sr(db, "shadow_get_control")).state).toBe("budget_exhausted");
+        expect(
+          await db.sql(
+            `select count(*) from public.guest_ai_shadow_transitions where to_state = 'budget_exhausted' and automatic`,
+          ),
+        ).toBe("1");
+      });
+
+      it("G9 · PERMISSÕES EFETIVAS (não só catálogo): quem administra, quem executa, quem lê; contornos (GRANT, ALTER, RLS, search_path, papel de login sem SET) recusados", async () => {
+        await resetShadow(db);
+        await toRunning(db);
+        const TABLES = (
+          await db.sql(
+            `select string_agg(relname, ',' order by relname) from pg_class where relkind = 'r' and relname like 'guest\\_ai\\_%'`,
+          )
+        ).split(",");
+        const ADMIN_CALLS = [
+          `shadow_set_scope('${ACTOR}', null, 'none', 'authorized_global_deactivation')`,
+          `shadow_set_tenant_enabled('${ACTOR}', '${T.A}', false, null, 'authorized_disable')`,
+          `shadow_set_property_enabled('${ACTOR}', '${PA[0]}', '${T.A}', false, null, 'authorized_disable')`,
+          `shadow_refresh_eligibility('${ACTOR}')`,
+          `shadow_emergency_stop('${ACTOR}')`,
+          `shadow_admin_reconcile('${ACTOR}')`,
+          `shadow_transition(1, 'paused', '${ACTOR}', 'authorized_pause')`,
+          `shadow_purge_expired()`,
+        ];
+        const WORKER_CALLS = [
+          `shadow_get_control()`,
+          `shadow_property_status('${T.A}', '${PA[0]}')`,
+          `shadow_list_candidates('${"c".repeat(64)}', 240, 3)`,
+          `shadow_acquire_tick()`,
+        ];
+        const matrix: Record<string, Record<string, string>> = {};
+        const mark = (who: string, what: string, ok: boolean) =>
+          ((matrix[who] ??= {})[what] = ok ? "PERMITIDO" : "negado");
+        // papéis por SET ROLE (como o PostgREST usa) e papéis de LOGIN conectando diretamente
+        const viaSet = ["anon", "authenticated", "service_role"];
+        const viaLogin = [
+          "sandbox_exec",
+          "authenticator",
+          "supabase_read_only_user",
+          "supabase_etl_admin",
+        ];
+        const run = async (who: string, q: string) =>
+          viaSet.includes(who) ? db.trySql(q, { role: who }) : db.sqlAs(who, q);
+        for (const who of [...viaSet, ...viaLogin]) {
+          for (const c of ADMIN_CALLS) {
+            const r = await run(who, `select public.${c}`);
+            mark(who, `exec ${c.split("(")[0]}`, r.ok);
+            expect(r.ok, `${who} ${c}`).toBe(false);
+          }
+          for (const c of WORKER_CALLS) {
+            const r = await run(who, `select public.${c}`);
+            mark(who, `exec ${c.split("(")[0]}`, r.ok);
+            expect(r.ok, `${who} ${c}`).toBe(who === "service_role");
+          }
+          for (const t of TABLES) {
+            const sel = await run(who, `select count(*) from public.${t}`);
+            mark(who, `select ${t}`, sel.ok);
+            // pg_read_all_data + BYPASSRLS: os papéis de leitura da plataforma LEEM (resíduo documentado; sem texto livre)
+            expect(sel.ok, `${who} select ${t}`).toBe(
+              ["supabase_read_only_user", "supabase_etl_admin"].includes(who) ||
+                (who === "service_role" && t === "guest_ai_conversation_leases"),
+            );
+            const ins = await run(who, `delete from public.${t}`);
+            mark(who, `delete ${t}`, ins.ok);
+            expect(ins.ok, `${who} delete ${t}`).toBe(false);
+          }
+          expect(
+            (await run(who, `select nextval('public.guest_ai_shadow_switch_log_id_seq')`)).ok,
+            `${who} nextval`,
+          ).toBe(false);
+          expect(
+            (
+              await run(
+                who,
+                `grant execute on function public.shadow_set_scope(uuid, integer, text, text, text) to ${who === "authenticator" ? "authenticator" : "public"}`,
+              )
+            ).ok,
+            `${who} grant`,
+          ).toBe(false);
+          expect(
+            (
+              await run(
+                who,
+                `alter table public.guest_ai_shadow_control disable row level security`,
+              )
+            ).ok,
+            `${who} alter`,
+          ).toBe(false);
+          expect(
+            (
+              await run(
+                who,
+                `create or replace function public.guest_ai_shadow_property_gate(uuid, uuid) returns text language sql as $$ select null::text $$`,
+              )
+            ).ok,
+            `${who} replace`,
+          ).toBe(false);
+          expect(
+            (
+              await run(
+                who,
+                `create function public.shadow_x() returns int language sql as $$ select 1 $$`,
+              )
+            ).ok,
+            `${who} create`,
+          ).toBe(false);
+        }
+        // authenticator (NOINHERIT): sem SET ROLE nada executa; com SET ROLE service_role vira o worker (= quem tem a chave service_role)
         expect(
           (
-            await db.trySql(
-              `delete from public.property_chat_conversations where id = 'c4000000-0000-4000-8000-000000000001'`,
-              { role: "service_role" },
+            await db.sqlAs(
+              "authenticator",
+              `set role service_role; select public.shadow_get_control()`,
             )
           ).ok,
         ).toBe(true);
         expect(
+          (
+            await db.sqlAs(
+              "authenticator",
+              `set role service_role; select public.shadow_set_scope('${ACTOR}', null, 'none', 'authorized_global_deactivation')`,
+            )
+          ).ok,
+        ).toBe(false);
+        expect((await db.sqlAs("sandbox_exec", `set role service_role`)).ok).toBe(false);
+        // RLS efetiva: mesmo que alguém conceda SELECT por engano, papel sujeito a RLS não vê linha nenhuma
+        await admin(db, "shadow_set_scope", {
+          p_actor: ACTOR,
+          p_expected_scope_version: 0,
+          p_scope: "all_eligible",
+          p_reason: "authorized_global_activation",
+          p_evidence_sha256: EVID,
+        });
+        await db.sql(`grant select on public.guest_ai_shadow_switch_log to authenticated`);
+        expect(
+          await db.sql(`select count(*) from public.guest_ai_shadow_switch_log`, {
+            role: "authenticated",
+          }),
+        ).toBe("0");
+        await db.sql(`revoke select on public.guest_ai_shadow_switch_log from authenticated`);
+        // search_path fixo: objetos temporários do chamador não desviam as funções
+        const hijack = await db.sql(
+          `create temp table guest_ai_shadow_control (id int, state text, property_scope text); insert into guest_ai_shadow_control values (1, 'running', 'all_eligible');
+        select ((public.shadow_get_control())->>'state') || ':' || ((public.shadow_property_status('${T.B}', '${PA[0]}'))->>'reason')`,
+          { role: "service_role" },
+        );
+        expect(hijack).toBe("running:tenant_mismatch");
+        // a porta interna nem é executável pelo worker (só pela RPC de status)
+        expect(
+          (
+            await db.trySql(`select public.guest_ai_shadow_property_gate('${T.A}', '${PA[0]}')`, {
+              role: "service_role",
+            })
+          ).ok,
+        ).toBe(false);
+        record("e4g-G9-permissions", matrix);
+        // catálogo coerente com o comportamento
+        expect(
           await db.sql(
-            `select count(*) from public.guest_ai_conversation_leases where conversation_id = 'c4000000-0000-4000-8000-000000000001'`,
+            `select count(*) from pg_proc where (proname like 'shadow\\_%' or proname like 'guest\\_ai\\_shadow\\_%' or proname like '%\\_conversation\\_lease') and (not prosecdef or array_to_string(proconfig, ',') <> 'search_path=pg_catalog, pg_temp' or pg_get_userbyid(proowner) <> 'postgres')`,
           ),
         ).toBe("0");
-        // imóvel do piloto (no manifesto e com habilitação) é alterado e excluído sem bloqueio
+      }, 240_000);
+
+      it("G10 · CAPACIDADE B preservada: excluir/arquivar/alterar imóvel e conversa (com interruptor, foto e lease) funciona; a porta acompanha AO VIVO", async () => {
+        await resetShadow(db);
+        await toRunning(db);
+        await openScope(db);
+        await admin(db, "shadow_refresh_eligibility", { p_actor: ACTOR });
+        const k = await conv(db, 400, PA[9]!, 20);
+        await readyBatch(db, k.id, k.msg);
+        await admin(db, "shadow_set_property_enabled", {
+          p_actor: ACTOR,
+          p_property_id: PA[10],
+          p_tenant_id: T.A,
+          p_enabled: false,
+          p_expected_version: null,
+          p_reason: "authorized_disable",
+        });
+        // arquivar (como a desconexão da conta do Airbnb faz) tira o imóvel na hora
+        await db.sql(`update public.properties set archived_at = now() where id = '${PA[9]}'`);
+        expect(await gate(db, T.A, PA[9]!)).toBe("archived");
+        await db.sql(
+          `update public.properties set archived_at = null, name = name || ' (editado)' where id = '${PA[9]}'`,
+        );
+        expect(await gate(db, T.A, PA[9]!)).toBe("ACTIVE");
+        // excluir conversa com lease e imóvel com interruptor e foto: nada do Shadow prende a operação convencional
         expect(
-          (
-            await db.trySql(`update public.properties set name = 'Renomeado' where id = '${pid}'`, {
-              role: "service_role",
-            })
-          ).ok,
+          (await db.trySql(`delete from public.property_chat_conversations where id = '${k.id}'`))
+            .ok,
         ).toBe(true);
         expect(
-          (
-            await db.trySql(`delete from public.properties where id = '${pid}'`, {
-              role: "service_role",
-            })
-          ).ok,
-        ).toBe(true);
-        // e deixa de valer para o Shadow (não existe mais), sem resíduo que reabilite outro imóvel
-        expect(
-          JSON.parse(await db.sql(`select public.shadow_get_manifest()`)).entries.map(
-            (e: { property_id: string }) => e.property_id,
+          await db.sql(
+            `select count(*) from public.guest_ai_conversation_leases where conversation_id = '${k.id}'`,
           ),
-        ).not.toContain(pid);
+        ).toBe("0");
         expect(
           (
             await db.trySql(
-              `insert into public.properties (owner_id, name) values ('${TENANT_A}', 'Novo')`,
-              { role: "service_role" },
+              `delete from public.property_listing_raw_data where property_id = '${PA[10]}'; delete from public.properties where id = '${PA[10]}'`,
             )
           ).ok,
         ).toBe(true);
-      });
-
-      it("22 · nenhuma função Shadow/lease escreve fora de guest_ai_* (nenhum caminho de envio pelo banco); nenhuma referencia tabela de mensagens", async () => {
-        const writes = await db.rows<{ proname: string; target: string }>(`
-        select p.proname, m[2] target from pg_proc p, regexp_matches(p.prosrc, '(insert\\s+into|update|delete\\s+from)\\s+public\\.([a-z_]+)', 'gi') m
-         where p.proname like 'shadow\\_%' or p.proname like 'guest\\_ai\\_shadow\\_%' or p.proname like '%\\_conversation\\_lease'`);
-        record("e4-22-writes", writes);
-        expect(writes.length).toBeGreaterThan(10);
-        expect(writes.filter((w) => !w.target.startsWith("guest_ai_"))).toEqual([]);
+        expect(await gate(db, T.A, PA[10]!)).toBe("property_not_found");
+        // imóvel já excluído: tenant trocado continua recusado (o interruptor guarda o tenant original)
+        expect(
+          (
+            await admin(db, "shadow_set_property_enabled", {
+              p_actor: ACTOR,
+              p_property_id: PA[10],
+              p_tenant_id: T.B,
+              p_enabled: false,
+              p_expected_version: null,
+              p_reason: "emergency_disable",
+            })
+          ).result,
+        ).toBe("tenant_mismatch");
+        // desligar um imóvel já excluído é aceito (registra a saída); religar não
+        expect(
+          (
+            await admin(db, "shadow_set_property_enabled", {
+              p_actor: ACTOR,
+              p_property_id: PA[10],
+              p_tenant_id: T.A,
+              p_enabled: true,
+              p_expected_version: 1,
+              p_reason: "authorized_enable",
+              p_evidence_sha256: EVID,
+            })
+          ).result,
+        ).toBe("not_found");
+        expect(await admin(db, "shadow_refresh_eligibility", { p_actor: ACTOR })).toMatchObject({
+          properties: 56,
+        });
+        // gatilho legado continua disparando
         expect(
           await db.sql(
-            `select count(*) from pg_proc where (proname like 'shadow\\_%' or proname like 'guest\\_ai\\_shadow\\_%') and prosrc ~* '(chat_messages|net\\.http|pg_notify|http_post)'`,
+            `select updated_at > created_at from public.properties where id = '${PA[9]}'`,
           ),
-        ).toBe("0");
+        ).toBe("t");
+      });
+
+      it("G11 · NENHUM caminho de envio pelo banco: nenhuma função Shadow/lease escreve fora de guest_ai_*, notifica, chama rede ou toca a fila de mensagens", async () => {
+        const fns = await db.rows<{ proname: string; prosrc: string }>(
+          `select proname, prosrc from pg_proc where proname like 'shadow\\_%' or proname like 'guest\\_ai\\_shadow\\_%' or proname like '%\\_conversation\\_lease'`,
+        );
+        expect(fns.length).toBe(35);
+        const writesOutside = fns
+          .flatMap((f) =>
+            [
+              ...f.prosrc.matchAll(/(insert\s+into|update|delete\s+from)\s+public\.([a-z_]+)/gi),
+            ].map((m) => `${f.proname}:${m[2]}`),
+          )
+          .filter((x) => !x.split(":")[1]!.startsWith("guest_ai_"));
+        expect(writesOutside).toEqual([]);
+        for (const f of fns)
+          expect(f.prosrc, f.proname).not.toMatch(
+            /pg_notify|net\.http|dblink|http_post|pgmq|copy\s|lo_export|sinch|send_|webhook|messages_app/i,
+          );
+        // a fila de mensagens só é LIDA, e só pela escolha de candidatas
+        const readers = fns
+          .filter((f) => /property_chat_messages/.test(f.prosrc))
+          .map((f) => f.proname);
+        expect(readers).toEqual(["shadow_list_candidates"]);
       });
     });
 
-    it("9 · CRON criado DESABILITADO (API do pg_cron reproduzida): job nasce inativo na mesma transação; recriação recusada; falha no meio desfaz tudo", async () => {
+    it("G12 · ESCALA: 2.000 imóveis / 200 tenants / 20.000 conversas / 40.000 mensagens — foto e escolha de candidatas dentro do tick, usando o índice de produção", async () => {
+      const db = startProdLike();
+      try {
+        await db.sql(`insert into public.profiles (id) select ('0000' || lpad(to_hex(t), 4, '0') || '-0000-4000-8000-000000000000')::uuid from generate_series(1, 200) t;
+        insert into public.properties (id, owner_id, name, slug) select ('a2' || lpad(to_hex(i), 6, '0') || '-0000-4000-8000-000000000000')::uuid, ('0000' || lpad(to_hex(1 + (i % 200)), 4, '0') || '-0000-4000-8000-000000000000')::uuid, 'Imóvel sintético ' || i, 'esc-' || i from generate_series(1, 2000) i;
+        insert into public.property_chat_conversations (id, property_id, guest_session_id, last_message_at)
+          select gen_random_uuid(), ('a2' || lpad(to_hex(1 + (j % 2000)), 6, '0') || '-0000-4000-8000-000000000000')::uuid, 'sess-' || j,
+                 case when j <= 300 then now() - make_interval(secs => (j % 200)) else now() - make_interval(days => 1 + (j % 90)) end
+            from generate_series(1, 20000) j;
+        insert into public.property_chat_messages (conversation_id, role, sender_type, content, created_at)
+          select c.id, 'user', 'guest'::public.chat_sender_type, 'sintética', c.last_message_at - interval '30 seconds' from public.property_chat_conversations c
+          union all select c.id, 'user', 'guest'::public.chat_sender_type, 'sintética', c.last_message_at from public.property_chat_conversations c;
+        analyze;`);
+        applyAll(db);
+        const t0 = performance.now();
+        const snap = await admin(db, "shadow_refresh_eligibility", { p_actor: ACTOR });
+        const refreshMs = Math.round(performance.now() - t0);
+        expect(snap).toMatchObject({ properties: 2000, tenants: 200, eligible: 2000 });
+        await toRunning(db);
+        await openScope(db);
+        const token = await acquire(db);
+        const times: number[] = [];
+        let r: Record<string, unknown> = {};
+        for (let i = 0; i < 5; i++) {
+          const s = performance.now();
+          r = await list(db, token);
+          times.push(Math.round(performance.now() - s));
+        }
+        expect((r.candidates as Cand[]).length).toBe(3);
+        const plan = await db.sql(
+          `explain select x.id from public.properties p cross join lateral (select x.id from public.property_chat_conversations x where x.property_id = p.id and x.last_message_at >= now() - interval '240 seconds' order by x.last_message_at desc limit 50) x where p.archived_at is null`,
+        );
+        record("e4g-G12-scale", { refreshMs, listMs: times, plan: plan.split("\n").slice(0, 8) });
+        expect(plan).toMatch(/idx_pcc_property/);
+        expect(Math.max(...times)).toBeLessThan(2000);
+        expect(refreshMs).toBeLessThan(10000);
+      } finally {
+        db.stop();
+      }
+    }, 300_000);
+
+    it("B1 · GATE B — CRON criado DESABILITADO (API do pg_cron reproduzida): job nasce inativo na mesma transação; recriação recusada; falha no meio desfaz tudo", async () => {
       const db = startProdLike({ legacy: false });
       try {
-        // réplica mínima da API pública do pg_cron/pg_net/vault usada pelo script (o 17.6 local não tem a extensão)
         db.admin(
           `create schema cron authorization postgres; create schema net authorization postgres; create schema vault authorization postgres;`,
         );
         await db.sql(`
-        create table cron.job (jobid bigserial primary key, jobname text unique, schedule text, command text, active boolean not null default true);
-        create function cron.schedule(n text, s text, c text) returns bigint language sql as $$ insert into cron.job (jobname, schedule, command) values (n, s, c) returning jobid $$;
-        create function cron.alter_job(id bigint, active boolean) returns void language sql as $$ update cron.job set active = alter_job.active where jobid = id $$;
-        create view vault.decrypted_secrets as select 'cron_secret'::text as name, 'segredo-sintetico'::text as decrypted_secret;`);
+      create table cron.job (jobid bigserial primary key, jobname text unique, schedule text, command text, active boolean not null default true);
+      create function cron.schedule(n text, s text, c text) returns bigint language sql as $$ insert into cron.job (jobname, schedule, command) values (n, s, c) returning jobid $$;
+      create function cron.alter_job(id bigint, active boolean) returns void language sql as $$ update cron.job set active = alter_job.active where jobid = id $$;
+      create view vault.decrypted_secrets as select 'cron_secret'::text as name, 'segredo-sintetico'::text as decrypted_secret;`);
         expect(db.file(OPS("04-cron-create-disabled.sql"), { singleTransaction: false })).toEqual({
           ok: true,
         });
@@ -783,7 +1506,6 @@ describe.skipIf(!PG176_OK)(
             }
           ).error,
         ).toContain("já existe");
-        // se a desativação falhar, a criação é desfeita (nunca fica um job ativo)
         await db.sql(
           `delete from cron.job; create or replace function cron.alter_job(id bigint, active boolean) returns void language sql as $$ select null::void $$;`,
         );

@@ -8,9 +8,8 @@ import { runShadowWorker } from "@/lib/guest-ai/shadow-exec/worker.server";
 import { SHADOW_DEADLINE_MS, SHADOW_FINALIZATION_RESERVE_MS } from "@/lib/guest-ai/shadow-exec/contracts";
 import { v4 } from "./helpers/b23-chain";
 import { ownershipRow } from "./helpers/b25-fixtures";
-import { CANARY, CONV, MSG, MemoryShadowStore, ModelLeaseStore, OTHER_P, OTHER_T, T0, benignPause, candidate, fakeProvider, fullControl, makeIo, manifestOf, okJson, shadowTurn, windowOf } from "./helpers/b33-shadow";
+import { CANARY, CONV, MSG, MemoryShadowStore, ModelLeaseStore, OTHER_P, OTHER_T, T0, benignPause, candidate, fakeProvider, fullControl, makeIo, okJson, shadowTurn, windowOf } from "./helpers/b33-shadow";
 
-const T_OTHER_OK = "7a000000-0000-4000-8000-0000000000aa";
 const decisionWithCanary = () =>
   v4({ reply: `O check-in começa às 15h. ${CANARY}`, groundedOn: ["ctx:checkin_oficial"] });
 
@@ -141,32 +140,43 @@ describe("B3.3 · worker — estado global e configuração (nada roda sem `runn
   });
 });
 
-describe("B3.3 · worker — manifesto, escopo e integridade (bloqueio global)", () => {
-  it("manifesto ilegível ou de outra versão ⇒ nada roda", async () => {
-    for (const setup of [(s: MemoryShadowStore) => (s.fail.readManifest = true), (s: MemoryShadowStore) => (s.manifest = manifestOf(undefined, 2))]) {
+describe("B3.3 · worker — porta do imóvel (E4 global), escopo e integridade (bloqueio global)", () => {
+  it("porta do imóvel ilegível ⇒ nada roda (nenhuma leitura da conversa)", async () => {
+    const store = new MemoryShadowStore();
+    store.fail.propertyStatus = true;
+    const { io, captured } = makeIo({ store, provider: fakeProvider(okJson({})) });
+    expect(await runShadowWorker(candidate(), io)).toEqual({ status: "skipped", code: "property_status_unreadable" });
+    expect(captured.scopeCalls).toBe(0);
+    expect(store.records).toEqual([]);
+  });
+  it("imóvel não ativo (escopo fechado, tenant/imóvel desligado, inelegível) ⇒ registro blocked_not_authorized com o código fechado, sem escopo nem Gateway", async () => {
+    const cases: Array<[(s: MemoryShadowStore) => void, string]> = [
+      [(s) => (s.control = fullControl({ propertyScope: "none" })), "scope_off"],
+      [(s) => s.gateBlocked.set(shadowTurn().propertyId, "tenant_disabled"), "tenant_disabled"],
+      [(s) => s.gateBlocked.set(shadowTurn().propertyId, "property_disabled"), "property_disabled"],
+      ...(["archived", "no_guest_channel", "listing_inconsistent", "tenant_unresolved", "operational_data_missing"] as const).map(
+        (r) => [(s: MemoryShadowStore) => s.gateBlocked.set(shadowTurn().propertyId, r), "property_ineligible"] as [(s: MemoryShadowStore) => void, string],
+      ),
+      [(s) => s.owners.delete(shadowTurn().propertyId), "property_ineligible"],
+    ];
+    for (const [setup, blockCode] of cases) {
       const store = new MemoryShadowStore();
       setup(store);
-      const { io, captured } = makeIo({ store, provider: fakeProvider(okJson({})) });
-      expect(await runShadowWorker(candidate(), io)).toEqual({ status: "skipped", code: "manifest_unreadable" });
-      expect(captured.scopeCalls).toBe(0);
+      const provider = fakeProvider(okJson({}));
+      const { io, captured } = makeIo({ store, provider });
+      expect(await runShadowWorker(candidate(), io)).toEqual({ status: "recorded", decision: "blocked_not_authorized" });
+      expect(store.records[0]).toMatchObject({ blockCode, executionState: "blocked", gatewayCalls: 0 });
+      expect(captured.scopeCalls + provider.calls).toBe(0);
+      expect(store.trips).toEqual([]);
     }
   });
-  it("imóvel fora do manifesto ⇒ registro blocked_not_authorized, sem escopo nem Gateway", async () => {
+  it("dono do imóvel ≠ tenant da candidata ⇒ integridade global", async () => {
     const store = new MemoryShadowStore();
-    store.manifest = manifestOf([{ tenantId: OTHER_T, propertyId: OTHER_P }]);
-    const provider = fakeProvider(okJson({}));
-    const { io, captured } = makeIo({ store, provider });
-    expect(await runShadowWorker(candidate(), io)).toEqual({ status: "recorded", decision: "blocked_not_authorized" });
-    expect(store.records[0]).toMatchObject({ blockCode: "not_in_manifest", executionState: "blocked", gatewayCalls: 0 });
-    expect(captured.scopeCalls + provider.calls).toBe(0);
-  });
-  it("tenant do manifesto ≠ tenant da candidata ⇒ integridade global", async () => {
-    const store = new MemoryShadowStore();
-    store.manifest = manifestOf([{ tenantId: OTHER_T, propertyId: shadowTurn().propertyId }]);
+    store.owners.set(shadowTurn().propertyId, OTHER_T);
     const { io, captured } = makeIo({ store, provider: fakeProvider(okJson({})) });
     expect(await runShadowWorker(candidate(), io)).toEqual({ status: "recorded", decision: "integrity_violation" });
     expect(store.trips).toEqual([{ to: "integrity_violation", reason: "integrity_divergence" }]);
-    expect(store.records[0]!.integrityCode).toBe("manifest_tenant_mismatch");
+    expect(store.records[0]!.integrityCode).toBe("candidate_tenant_mismatch");
     // barrado ANTES de qualquer leitura de escopo (nem o banco da conversa é consultado)
     expect(captured.scopeCalls).toBe(0);
   });
@@ -189,7 +199,7 @@ describe("B3.3 · worker — manifesto, escopo e integridade (bloqueio global)",
     expect(everything(store.records)).not.toContain(CANARY);
   });
   it("turno validado de outro tenant ou imóvel ⇒ integridade global", async () => {
-    for (const [over, code] of [[{ tenantId: OTHER_T }, "manifest_tenant_mismatch"], [{ propertyId: OTHER_P }, "manifest_property_mismatch"]] as const) {
+    for (const [over, code] of [[{ tenantId: OTHER_T }, "candidate_tenant_mismatch"], [{ propertyId: OTHER_P }, "candidate_property_mismatch"]] as const) {
       const store = new MemoryShadowStore();
       const { io } = makeIo({ store, provider: fakeProvider(okJson({})), validateTurnScope: async () => shadowTurn(over) });
       expect(await runShadowWorker(candidate(), io)).toEqual({ status: "recorded", decision: "integrity_violation" });
@@ -491,14 +501,14 @@ describe("B3.3 · worker — Gateway, orçamento, desligamento e prazo", () => {
   });
   it("gravação SEM lote (antes da reivindicação) recusada ⇒ record_failed + technical_failure; transporte ⇒ repete e não dispara", async () => {
     const store = new MemoryShadowStore();
-    store.manifest = manifestOf([{ tenantId: T_OTHER_OK, propertyId: OTHER_P }]);
+    store.gateBlocked.set(shadowTurn().propertyId, "no_guest_channel");
     store.fail.record = true;
     const { io } = makeIo({ store, provider: fakeProvider(okJson({})) });
     expect(await runShadowWorker(candidate(), io)).toEqual({ status: "record_failed", decision: "blocked_not_authorized" });
     expect(store.calls.filter((c) => c === "record")).toHaveLength(2);
     expect(store.trips).toEqual([]);
     const s2 = new MemoryShadowStore();
-    s2.manifest = manifestOf([{ tenantId: T_OTHER_OK, propertyId: OTHER_P }]);
+    s2.gateBlocked.set(shadowTurn().propertyId, "no_guest_channel");
     s2.record = async () => ({ kind: "invalid" });
     const b = makeIo({ store: s2, provider: fakeProvider(okJson({})) });
     expect(await runShadowWorker(candidate(), b.io)).toEqual({ status: "record_failed", decision: "blocked_not_authorized" });

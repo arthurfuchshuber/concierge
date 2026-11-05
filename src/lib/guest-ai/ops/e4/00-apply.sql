@@ -1,5 +1,6 @@
--- ConciergeIA Guest AI · Entrega 4 · APLICAÇÃO (referência; NÃO EXECUTAR sem a autorização do gate de
--- migrations). Ordem obrigatória e transação ÚNICA: ou entram as três, ou nenhuma.
+-- ConciergeIA Guest AI · Entrega 4 (revisão GLOBAL) · APLICAÇÃO INERTE = GATE A (NÃO EXECUTAR sem a autorização do
+-- GATE A). Ordem obrigatória e transação ÚNICA: ou entram as três, ou nenhuma. Nada é habilitado:
+-- escopo `none`, estado `disabled`, nenhum interruptor, nenhum cron (conferido por 02-validate.sql).
 -- Executar a partir da raiz do repositório com psql conectado como `postgres` (dono das funções):
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f src/lib/guest-ai/ops/e4/00-apply.sql
 -- Antes: 01-preflight.sql com todas as linhas ok. Depois: 02-validate.sql com todas as linhas ok.
@@ -12,5 +13,5 @@ set local lock_timeout = '3s';
 set local statement_timeout = '120s';
 \i supabase/migrations/20261104000000_guest_ai_conversation_leases.sql
 \i supabase/migrations/20261104120000_guest_ai_shadow.sql
-\i supabase/migrations/20261105120000_guest_ai_shadow_pilot.sql
+\i supabase/migrations/20261105120000_guest_ai_shadow_global.sql
 commit;

@@ -69,7 +69,7 @@ describe("E3.1 · liquidação do gerador (uso informado × desconhecido × sem 
     vi.stubGlobal("fetch", fetchSpy);
   });
   afterEach(() => vi.unstubAllGlobals());
-  const pf = () => issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 7, manifestOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })!;
+  const pf = () => issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 7, propertyActiveOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })!;
   const prompt = { system: "s", messages: [{ role: "user" as const, content: "u" }], sourceIds: new Set(["x"]) } as never;
   const gen = (provider: ReturnType<typeof fakeProvider>, store = new MemoryShadowStore()) => {
     store.inflight.set(EXEC_ID, { conversationId: CONV, version: 2, batchId: "b0000000-0000-4000-8000-000000000001", status: "running" });
@@ -136,7 +136,11 @@ describe("E3.1 · adaptador das novas RPCs (respostas por lista branca)", () => 
     expect(await store({ shadow_claim_execution: ok }).claimExecution(args)).toEqual({ kind: "claimed", version: 3, ownerToken: TOKEN, batchId: BATCH, messageIds: [M], repeated: false });
     expect(await store({ shadow_claim_execution: { ...ok, repeated: true } }).claimExecution(args)).toMatchObject({ kind: "claimed", repeated: true });
     for (const bad of [{ ...ok, version: 1.5 }, { ...ok, owner_token: "x" }, { ...ok, batch_id: "x" }, { ...ok, message_ids: [] }, { ...ok, message_ids: ["x"] }, { ...ok, message_ids: "x" }]) expect(await store({ shadow_claim_execution: bad }).claimExecution(args), JSON.stringify(bad)).toEqual({ kind: "error" });
-    for (const code of ["state_not_running", "tick_not_held", "not_in_manifest", "not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument", "property_disabled"]) expect(await store({ shadow_claim_execution: { result: code } }).claimExecution(args)).toEqual({ kind: "rejected", code });
+    // E4 global: a porta do imóvel recusou ⇒ `property_blocked` com o motivo fechado; motivo fora da lista ⇒ erro
+    for (const reason of ["scope_off", "tenant_disabled", "property_disabled", "no_guest_channel", "archived"]) expect(await store({ shadow_claim_execution: { result: "property_blocked", reason } }).claimExecution(args)).toEqual({ kind: "property_blocked", reason });
+    for (const reason of [CANARY, undefined, "not_in_manifest"]) expect(await store({ shadow_claim_execution: { result: "property_blocked", reason } }).claimExecution(args)).toEqual({ kind: "error" });
+    for (const code of ["not_in_manifest", "property_disabled"]) expect(await store({ shadow_claim_execution: { result: code } }).claimExecution(args)).toEqual({ kind: "error" });
+    for (const code of ["state_not_running", "tick_not_held", "not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument"]) expect(await store({ shadow_claim_execution: { result: code } }).claimExecution(args)).toEqual({ kind: "rejected", code });
     expect(await store({ shadow_claim_execution: { result: CANARY } }).claimExecution(args)).toEqual({ kind: "error" });
     expect(await store({}).claimExecution(args)).toEqual({ kind: "error" });
   });
@@ -240,7 +244,7 @@ describe("E3.1 · ramos restantes (finalização reconciliada; Gateway sem tenta
     vi.resetModules();
     const mod = await import("@/lib/guest-ai/shadow-exec/gateway-generator.server");
     const store = new MemoryShadowStore();
-    const pf = mod.issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 7, manifestOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })!;
+    const pf = mod.issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 7, propertyActiveOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })!;
     const g = mod.createShadowGatewayGenerator({ preflight: pf, limits: limits(), deadline: new ShadowDeadline({ now: () => 0, schedule: () => () => undefined }), store, masterSwitchOn: () => true })!;
     await expect(g.generate({ system: "s", messages: [{ role: "user", content: "u" }], sourceIds: new Set(["x"]) } as never, new AbortController().signal)).rejects.toMatchObject({ code: "gateway_failed" });
     expect(g.telemetry()).toMatchObject({ calls: 0, totalTokens: 0, costUsd: "0.00000000", status: "failed" });

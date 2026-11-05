@@ -106,8 +106,9 @@ describe("B3.3 · isolamento estrutural do Shadow (grafo transitivo)", () => {
       .filter((f) => /guest-ai\/shadow-exec\/|["']\.\/(shadow-exec|worker\.server|tick\.server|gateway-generator\.server)/.test(readFileSync(f, "utf8")))
       .map(rel)
       .sort();
-    // os adaptadores de dados DO PRÓPRIO Shadow leem os contratos (tipos/vocabulários); fora isso, só a rota
-    expect(importers).toEqual(["src/lib/guest-ai/data/shadow-candidates.server.ts", "src/lib/guest-ai/data/shadow-store.server.ts", "src/routes/api/public/guest-ai.shadow-tick.ts"]);
+    // o adaptador de dados DO PRÓPRIO Shadow lê os contratos (tipos/vocabulários); fora isso, só a rota.
+    // E4 global: o módulo de candidatas deixou de importar os contratos (só delega ao adaptador).
+    expect(importers).toEqual(["src/lib/guest-ai/data/shadow-store.server.ts", "src/routes/api/public/guest-ai.shadow-tick.ts"]);
   });
   it("nenhum canal importa a camada de dados do Shadow, o executor ou o gerador", () => {
     const channels = walk(SRC).filter((f) => /channex-messages|whatsapp|sinch|guide-chat|handoff|slot\.server/.test(f));

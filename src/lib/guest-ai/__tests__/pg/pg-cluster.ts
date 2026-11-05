@@ -60,8 +60,8 @@ export interface PgCluster {
 }
 
 export const SHADOW_MIGRATION_PATH = path.join(REPO, "supabase/migrations/20261104120000_guest_ai_shadow.sql");
-/** E4: piloto (habilitação individual, emergência, administração só pelo dono). */
-export const PILOT_MIGRATION_PATH = path.join(REPO, "supabase/migrations/20261105120000_guest_ai_shadow_pilot.sql");
+/** E4 GLOBAL: escopo global, elegibilidade, interruptores, candidatas no banco, emergência (só o dono administra). */
+export const GLOBAL_MIGRATION_PATH = path.join(REPO, "supabase/migrations/20261105120000_guest_ai_shadow_global.sql");
 
 /**
  * `extraMigrations` (B3.3): migrations aplicadas DEPOIS da do lease, na ordem dada. Sem argumento, igual a antes.

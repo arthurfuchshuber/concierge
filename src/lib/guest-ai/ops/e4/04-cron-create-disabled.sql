@@ -1,8 +1,8 @@
--- ConciergeIA Guest AI · Entrega 4 · AGENDAMENTO DO TICK — criado DESABILITADO.
--- NÃO EXECUTAR sem a autorização específica do gate de cron. Mesmo depois de executado, o job nasce
+-- ConciergeIA Guest AI · Entrega 4 (revisão GLOBAL) · AGENDAMENTO DO TICK — criado DESABILITADO (GATE B).
+-- NÃO EXECUTAR sem a autorização específica do GATE B. Mesmo depois de executado, o job nasce
 -- INATIVO (schedule + alter_job na MESMA transação: o agendador nunca vê o job ativo) e o tick continua
 -- barrado por: chave GUEST_AI_SHADOW, segredo de cron, portão SHADOW_TICK_RELEASED=false (código),
--- estado global ≠ running e nenhum imóvel habilitado.
+-- estado global ≠ running e escopo de imóveis `none`.
 -- Padrão idêntico aos crons existentes da produção (pg_cron → pg_net → rota pública com x-cron-secret
 -- lido do Vault `cron_secret`). Frequência de referência: 60 s. A trava global (55 s) impede sobreposição
 -- mesmo que dois disparos se cruzem; o próximo disparo com a trava vigente sai com `tick_busy`.

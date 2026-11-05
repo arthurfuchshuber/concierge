@@ -126,7 +126,7 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · Fase 6 — prazo e disjuntores (Postgre
     expect(provider.calls).toBeGreaterThanOrEqual(1);
   }, 60_000);
 
-  it("divergência de tenant (manifesto × candidata) e de imóvel/conversa (escopo) ⇒ desarme imediato", async () => {
+  it("divergência de tenant (dono do imóvel × candidata) e de imóvel/conversa (escopo) ⇒ desarme imediato", async () => {
     for (const kind of ["tenant", "scope"] as const) {
       const s = await conv();
       await shadowToRunning(db, [s]);

@@ -13,14 +13,18 @@ import { SHADOW_RPC_FUNCTIONS } from "@/lib/guest-ai/data/client.server";
 import { buildExecutionRecord, NO_GATEWAY } from "@/lib/guest-ai/shadow-exec/extract";
 import { CONV, EXEC_ID, P_ID, T_ID } from "./helpers/b33-shadow";
 
-const SQL = readFileSync(path.resolve(__dirname, "../../../../supabase/migrations/20261104120000_guest_ai_shadow.sql"), "utf8");
+const SQL_SHADOW = readFileSync(path.resolve(__dirname, "../../../../supabase/migrations/20261104120000_guest_ai_shadow.sql"), "utf8");
+// E4 global: o escopo, a elegibilidade e os interruptores vivem na migration global
+const SQL_GLOBAL = readFileSync(path.resolve(__dirname, "../../../../supabase/migrations/20261105120000_guest_ai_shadow_global.sql"), "utf8");
+const SQL = SQL_SHADOW;
 
 /** Valores entre aspas simples do CHECK nomeado (até a próxima constraint ou fim da tabela). */
 function checkValues(name: string): string[] {
-  const start = SQL.indexOf(`constraint ${name} check`);
+  const src = SQL_SHADOW.includes(`constraint ${name} check`) ? SQL_SHADOW : SQL_GLOBAL;
+  const start = src.indexOf(`constraint ${name} check`);
   if (start < 0) throw new Error(`constraint ausente: ${name}`);
-  const rest = SQL.slice(start + name.length + 12);
-  const end = rest.search(/\n\s*constraint |\n\);/);
+  const rest = src.slice(start + name.length + 12);
+  const end = rest.search(/\n\s*(add )?constraint |\n\);|;\n/);
   return [...new Set([...rest.slice(0, end).matchAll(/'([^']+)'/g)].map((m) => m[1]!))];
 }
 const same = (sql: string[], ts: readonly string[]) => expect([...sql].sort()).toEqual([...ts].sort());
@@ -36,9 +40,8 @@ describe("B3.3 · vocabulários SQL = TypeScript", () => {
     ["gase_model_ck", C.SHADOW_ALLOWED_MODELS],
     ["gasc_effort_ck", C.SHADOW_REASONING_EFFORTS],
     ["gasc_retention_scope_ck", C.RETENTION_SCOPES],
-    ["gasm_reason_ck", C.MANIFEST_SELECTION_REASONS],
-    ["gasm_twin_ck", C.MANIFEST_CHECK_STATUSES],
-    ["gasm_history_ck", C.MANIFEST_CHECK_STATUSES],
+    // E4 global: escopo e motivos de inelegibilidade (sem manifesto)
+    ["gaspe_reason_ck", C.ELIGIBILITY_REASONS],
     ["gase_channel_ck", C.SHADOW_CHANNELS],
     ["gase_decision_ck", C.SHADOW_DECISIONS],
     ["gase_strategy_ck", C.SHADOW_STRATEGIES],
@@ -70,20 +73,32 @@ describe("B3.3 · vocabulários SQL = TypeScript", () => {
   it("chaves exigidas por shadow_record_execution = colunas enviadas pelo adaptador", () => {
     const m = /v_expected constant text\[\] := array\[([\s\S]*?)\];/.exec(SQL)!;
     const sqlKeys = [...m[1]!.matchAll(/'([^']+)'/g)].map((x) => x[1]!);
-    const rec = buildExecutionRecord(null, { executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, channel: "web", batchId: null, leaseVersion: null, modelId: null, startedAt: "2026-11-03T10:00:00.000Z", finishedAt: "2026-11-03T10:00:00.000Z", totalMs: 0, leaseMs: 0, contextMs: 0, gatewayMs: 0, validationMs: 0, gateway: NO_GATEWAY, estimatedInputTokens: null, pauseState: "not_evaluated", executionState: "blocked", technicalCode: null, blockCode: "not_in_manifest", integrityCode: null, budgetExceeded: null, tokenLimitViolation: false, concurrencyDetected: false, forcedDecision: "blocked_not_authorized" }, "c");
+    const rec = buildExecutionRecord(null, { executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, channel: "web", batchId: null, leaseVersion: null, modelId: null, startedAt: "2026-11-03T10:00:00.000Z", finishedAt: "2026-11-03T10:00:00.000Z", totalMs: 0, leaseMs: 0, contextMs: 0, gatewayMs: 0, validationMs: 0, gateway: NO_GATEWAY, estimatedInputTokens: null, pauseState: "not_evaluated", executionState: "blocked", technicalCode: null, blockCode: "property_ineligible", integrityCode: null, budgetExceeded: null, tokenLimitViolation: false, concurrencyDetected: false, forcedDecision: "blocked_not_authorized" }, "c");
     same(sqlKeys, Object.keys(recordToRow(rec)));
     expect(new Set(sqlKeys).size).toBe(sqlKeys.length);
   });
-  it("a porta do worker só contém RPCs com EXECUTE para service_role na migration", () => {
-    const grants = /RPCs da lista fechada[\s\S]*?foreach f in array array\[([\s\S]*?)\] loop/.exec(SQL)!;
-    const granted = [...grants[1]!.matchAll(/public\.(\w+)\(/g)].map((x) => x[1]!);
+  it("escopo global: vocabulário do controle = PROPERTY_SCOPES; motivos da porta = PROPERTY_GATE_REASONS", () => {
+    same(checkValues("gasc_scope_ck"), C.PROPERTY_SCOPES);
+    const gate = /function public\.guest_ai_shadow_property_gate[\s\S]*?\$function\$;/.exec(SQL_GLOBAL)![0];
+    const elig = /function public\.guest_ai_shadow_eligibility_reason[\s\S]*?\$function\$;/.exec(SQL_GLOBAL)![0];
+    const returned = [...`${gate}\n${elig}`.matchAll(/return '([a-z_]+)'/g)].map((m) => m[1]!);
+    same([...new Set(returned)], C.PROPERTY_GATE_REASONS);
+  });
+  it("a porta do worker só contém RPCs com EXECUTE para service_role nas migrations", () => {
+    const grants = /RPCs do WORKER \(lista fechada\)[\s\S]*?foreach f in array array\[([\s\S]*?)\] loop/.exec(SQL_SHADOW)!;
+    const grantsGlobal = /RPCs do WORKER \(novas ou redefinidas\)[\s\S]*?foreach f in array array\[([\s\S]*?)\] loop/.exec(SQL_GLOBAL)!;
+    const granted = [...`${grants[1]!}${grantsGlobal[1]!}`.matchAll(/public\.(\w+)\(/g)].map((x) => x[1]!);
     for (const fn of SHADOW_RPC_FUNCTIONS) expect(granted, fn).toContain(fn);
   });
-  it("estado inicial da migration: disabled, sem manifesto, sem retenção, só o teto aprovado", () => {
+  it("estado inicial da migration: disabled, nenhum imóvel ativo, sem retenção, só o teto aprovado", () => {
     expect(SQL).toMatch(/insert into public\.guest_ai_shadow_control \(id, state, daily_cost_limit_usd\) values \(1, 'disabled', 1\.00\);/);
-    // só o que a migration EXECUTA (fora dos corpos de função): nenhum manifesto, nenhum ready/running
+    // só o que a migration EXECUTA (fora dos corpos de função): nenhum ready/running, nenhum escopo aberto
     const topLevel = SQL.replace(/\$function\$[\s\S]*?\$function\$/g, "");
-    expect(topLevel).not.toMatch(/insert into public\.guest_ai_shadow_manifest/i);
+    expect(SQL).not.toMatch(/guest_ai_shadow_manifest/);
+    const globalTop = SQL_GLOBAL.replace(/\$function\$[\s\S]*?\$function\$/g, "");
+    expect(globalTop.match(/insert into /gi)).toBeNull();
+    expect(globalTop).toMatch(/add column property_scope\s+text not null default 'none'/);
+    expect(globalTop).not.toMatch(/'all_eligible'\s*[,)]\s*;|property_scope\s*=\s*'all_eligible'/);
     expect(topLevel).not.toMatch(/insert into public\.guest_ai_shadow_(executions|budget|transitions|access_log)/i);
     expect(topLevel.match(/insert into /gi)).toHaveLength(1);
     expect(topLevel).not.toMatch(/'running'\)|'ready'\)|retention_scope\s*=\s*'/);

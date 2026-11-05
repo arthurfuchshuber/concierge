@@ -17,7 +17,7 @@
  */
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { startCluster, SHADOW_MIGRATION_PATH, PILOT_MIGRATION_PATH, type PgCluster } from "../pg/pg-cluster";
+import { startCluster, SHADOW_MIGRATION_PATH, GLOBAL_MIGRATION_PATH, type PgCluster } from "../pg/pg-cluster";
 import { createShadowStore, type ShadowStore } from "@/lib/guest-ai/data/shadow-store.server";
 import { createDistributedLeaseStore } from "@/lib/guest-ai/data/lease-store.server";
 import { leaseRpcFrom, shadowRpcFrom, type GuestAiDb, type RpcCapableClient } from "@/lib/guest-ai/data/client.server";
@@ -59,8 +59,8 @@ export interface E3Db {
  * TODA instrução recebida: é a prova de que nenhum texto livre chegou ao banco (varredura de canários).
  */
 export function startE3Db(): E3Db {
-  // E4: a configuração de produção prevista = lease + Shadow + piloto
-  const pg = startCluster([SHADOW_MIGRATION_PATH, PILOT_MIGRATION_PATH], { bin: PG176_BIN, serverOptions: ["log_statement=all", "log_min_messages=warning"] });
+  // E4 global: a configuração de produção prevista = lease + Shadow + escopo global
+  const pg = startCluster([SHADOW_MIGRATION_PATH, GLOBAL_MIGRATION_PATH], { bin: PG176_BIN, serverOptions: ["log_statement=all", "log_min_messages=warning"] });
   return {
     pg,
     tick: null,
@@ -279,15 +279,15 @@ export async function rpcAsAdmin(db: E3Db, fn: string, args: Record<string, unkn
 /** Zera o Shadow e leva até `running` pelo caminho AUTORIZADO (RPCs administrativas, com autor). */
 export async function shadowToRunning(db: E3Db, propertiesIn: Array<{ tenant: string; property: string }>, over: Partial<ShadowLimitsSql> = {}) {
   const properties = [...new Map(propertiesIn.map((p) => [p.property, p])).values()];
-  await db.sql(`truncate public.guest_ai_shadow_executions, public.guest_ai_shadow_budget_reservations, public.guest_ai_shadow_budget_days, public.guest_ai_shadow_transitions, public.guest_ai_shadow_access_log, public.guest_ai_shadow_manifest, public.guest_ai_shadow_inflight, public.guest_ai_shadow_property_switch, public.guest_ai_shadow_property_switch_log`);
+  await db.sql(`truncate public.guest_ai_shadow_executions, public.guest_ai_shadow_budget_reservations, public.guest_ai_shadow_budget_days, public.guest_ai_shadow_transitions, public.guest_ai_shadow_access_log, public.guest_ai_shadow_inflight, public.guest_ai_shadow_property_switch, public.guest_ai_shadow_tenant_switch, public.guest_ai_shadow_switch_log, public.guest_ai_shadow_property_eligibility`);
   await db.sql(`delete from public.guest_ai_shadow_control; insert into public.guest_ai_shadow_control (id, state, daily_cost_limit_usd) values (1, 'disabled', 1.00)`);
-  for (const p of properties) await db.sql(`insert into public.properties(id, owner_id) values ('${p.property}', '${p.tenant}') on conflict (id) do update set owner_id = excluded.owner_id, archived_at = null`);
+  // E4 global: tenant com conta (perfil) e imóvel elegível (guia publicado, horários) — sem lista de imóveis
   for (const p of properties) {
-    const r = await rpcAsAdmin(db, "shadow_manifest_add", { p_actor: ACTOR, p_manifest_version: 1, p_tenant_id: p.tenant, p_property_id: p.property, p_selection_reason: "highest_volume", p_twin_status: "verified", p_history_status: "verified" });
-    if (r.result !== "applied") throw new Error(`manifest:${String(r.result)}`);
+    await db.sql(`insert into public.profiles(id) values ('${p.tenant}') on conflict (id) do nothing`);
+    await db.sql(`insert into public.properties(id, owner_id) values ('${p.property}', '${p.tenant}') on conflict (id) do update set owner_id = excluded.owner_id, archived_at = null, published = true, guide_created = true, checkin_time = '15:00', checkout_time = '11:00'`);
   }
   let v = Number((await rpcAsSr(db, "shadow_get_control")).state_version);
-  const cfg = await rpcAsAdmin(db, "shadow_configure", { p_expected_version: v, p_actor: ACTOR, ...TEST_LIMITS, ...over, p_manifest_version: 1 });
+  const cfg = await rpcAsAdmin(db, "shadow_configure", { p_expected_version: v, p_actor: ACTOR, ...TEST_LIMITS, ...over });
   if (cfg.result !== "applied") throw new Error(`configure:${String(cfg.result)}`);
   v = Number(cfg.state_version);
   const ret = await rpcAsAdmin(db, "shadow_authorize_retention", { p_expected_version: v, p_actor: ACTOR, p_scope: "openai_responses", p_evidence_sha256: EVID });
@@ -295,11 +295,9 @@ export async function shadowToRunning(db: E3Db, propertiesIn: Array<{ tenant: st
   const r1 = await rpcAsAdmin(db, "shadow_transition", { p_expected_version: v, p_to: "ready", p_actor: ACTOR, p_reason: "authorized_activation" });
   const r2 = await rpcAsAdmin(db, "shadow_transition", { p_expected_version: Number(r1.state_version), p_to: "running", p_actor: ACTOR, p_reason: "authorized_activation" });
   if (r2.result !== "applied") throw new Error(`running:${String(r2.result)}`);
-  // E4: cada imóvel do teste é HABILITADO individualmente pelo caminho administrativo (estado inicial: desabilitado)
-  for (const p of properties) {
-    const e = await rpcAsAdmin(db, "shadow_set_property_enabled", { p_actor: ACTOR, p_property_id: p.property, p_tenant_id: p.tenant, p_enabled: true, p_expected_version: 0, p_reason: "pilot_enable", p_evidence_sha256: EVID });
-    if (e.result !== "applied") throw new Error(`enable:${String(e.result)}`);
-  }
+  // E4 global: abre o ESCOPO (todos os imóveis elegíveis) pelo caminho administrativo, com evidência
+  const sc = await rpcAsAdmin(db, "shadow_set_scope", { p_actor: ACTOR, p_expected_scope_version: 0, p_scope: "all_eligible", p_reason: "authorized_global_activation", p_evidence_sha256: EVID });
+  if (sc.result !== "applied") throw new Error(`scope:${String(sc.result)}`);
   // trava do tick pelo caminho real (RPC); só o PRAZO é estendido (fixture) para que cenários longos que
   // chamam o worker diretamente não dependam da duração do teste. Os testes da trava não usam isto.
   const t = await rpcAsSr(db, "shadow_acquire_tick");

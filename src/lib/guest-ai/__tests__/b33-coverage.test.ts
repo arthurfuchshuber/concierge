@@ -8,7 +8,7 @@ import type { DistributedLeaseStore, StoreClaimResult, StoreTransitionResult } f
 import { runShadowWorker } from "@/lib/guest-ai/shadow-exec/worker.server";
 import { handleShadowTick } from "@/lib/guest-ai/shadow-exec/tick.server";
 import { narrowOutcome, buildExecutionRecord, NO_GATEWAY } from "@/lib/guest-ai/shadow-exec/extract";
-import { createShadowStore } from "@/lib/guest-ai/data/shadow-store.server";
+import { createShadowStore, parseCandidates } from "@/lib/guest-ai/data/shadow-store.server";
 import { listShadowCandidates } from "@/lib/guest-ai/data/shadow-candidates.server";
 import { SHADOW_DEADLINE_MS, SHADOW_FINALIZATION_RESERVE_MS } from "@/lib/guest-ai/shadow-exec/contracts";
 import type { ChainOutcome } from "@/lib/guest-ai/turn-chain";
@@ -16,7 +16,7 @@ import { v4, history } from "./helpers/b23-chain";
 import { operationalPorts, staySource } from "./helpers/b25-fixtures";
 import { conversationContext } from "./helpers/b21-fixtures";
 import { fakeDb } from "./helpers/b3-fake-db";
-import { CANARY, CONV, EXEC_ID, MSG, MemoryShadowStore, ModelLeaseStore, OTHER_T, P_ID, T0, T_ID, benignPause, candidate, fakeProvider, makeIo, manifestOf, okJson, shadowCtx, shadowTurn } from "./helpers/b33-shadow";
+import { CANARY, CONV, EXEC_ID, MSG, MemoryShadowStore, ModelLeaseStore, candidateRow, OTHER_T, P_ID, T0, T_ID, benignPause, candidate, fakeProvider, makeIo, okJson, shadowCtx, shadowTurn } from "./helpers/b33-shadow";
 
 afterEach(() => {
   vi.doUnmock("@/integrations/supabase/client.server");
@@ -132,8 +132,8 @@ describe("B3.3 · worker × lease: cada resposta do B3.1 tem destino fechado", (
     };
     expect((await withClaim(() => ({ kind: "rejected", code: "tick_not_held" }))).r).toEqual({ status: "skipped", code: "tick_not_held" });
     expect((await withClaim(() => ({ kind: "rejected", code: "state_not_running" }))).r).toEqual({ status: "skipped", code: "state_not_running" });
-    // E4: imóvel desabilitado/fora do manifesto na reivindicação ⇒ pulado como "não autorizado" (nada executa)
-    for (const code of ["property_disabled", "not_in_manifest"] as const) expect((await withClaim(() => ({ kind: "rejected", code }))).r).toEqual({ status: "skipped", code: "not_in_manifest" });
+    // E4 global: o banco recusou a reivindicação porque o imóvel deixou de estar ativo ⇒ pulado (nada executa)
+    for (const reason of ["scope_off", "property_disabled", "tenant_disabled", "archived"] as const) expect((await withClaim(() => ({ kind: "property_blocked", reason }))).r).toEqual({ status: "skipped", code: "property_not_active" });
     for (const code of ["not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument"] as const)
       expect((await withClaim(() => ({ kind: "rejected", code }))).r).toEqual({ status: "skipped", code: "lease_concurrency" });
     // sem resposta duas vezes ⇒ nada executa (a posse, se confirmada, é selada pela reconciliação)
@@ -198,7 +198,7 @@ describe("B3.3 · worker — demais ramos", () => {
   });
   it("registro que não passa na validação ⇒ não é gravado; record_failed + disjuntor (com e sem decisão forçada)", async () => {
     const a = makeIo({ provider: fakeProvider(good()), newId: () => "id-invalido" });
-    a.store.manifest = manifestOf([{ tenantId: OTHER_T, propertyId: "7b000000-0000-4000-8000-0000000000ee" }]);
+    a.store.gateBlocked.set(P_ID, "no_guest_channel");
     expect(await runShadowWorker(candidate(), a.io)).toEqual({ status: "record_failed", decision: "blocked_not_authorized" });
     expect(a.store.records).toEqual([]);
     expect(a.store.trips).toEqual([{ to: "technical_failure", reason: "telemetry_failure" }]);
@@ -398,7 +398,7 @@ describe("B3.3 · gerador: prazo esgotado DURANTE a chamada de rede ⇒ resposta
     const provider = fakeProvider(good());
     const read = store.readControl.bind(store);
     store.readControl = async () => { const c = await read(); if (provider.calls > 0) timers.find((t) => t.ms === SHADOW_DEADLINE_MS - SHADOW_FINALIZATION_RESERVE_MS)!.fn(); return c; };
-    const preflight = issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: store.control.stateVersion, manifestOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })!;
+    const preflight = issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: store.control.stateVersion, propertyActiveOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })!;
     const gen = createShadowGatewayGenerator({ preflight, limits: v.limits, deadline, store, masterSwitchOn: () => true, provider })!;
     await expect(gen.generate({ system: "s", messages: [{ role: "user" as const, content: "oi" }], sourceIds: new Set(["x"]) } as never, deadline.signal)).rejects.toThrow();
     expect(gen.telemetry()).toMatchObject({ status: "discarded", blockCode: "deadline_expired" });
@@ -408,12 +408,13 @@ describe("B3.3 · gerador: prazo esgotado DURANTE a chamada de rede ⇒ resposta
 describe("B3.3 · adaptador, candidatas e projeção (ramos restantes)", () => {
   it("record: erro da RPC com registro válido ⇒ error", async () => {
     const s = createShadowStore({ call: async () => ({ data: null, error: { code: "x" } }) });
-    const rec = buildExecutionRecord(null, { executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, channel: "web", batchId: null, leaseVersion: null, modelId: null, startedAt: "2026-11-03T10:00:00.000Z", finishedAt: "2026-11-03T10:00:00.000Z", totalMs: 0, leaseMs: 0, contextMs: 0, gatewayMs: 0, validationMs: 0, gateway: NO_GATEWAY, estimatedInputTokens: null, pauseState: "not_evaluated", executionState: "blocked", technicalCode: null, blockCode: "not_in_manifest", integrityCode: null, budgetExceeded: null, tokenLimitViolation: false, concurrencyDetected: false, forcedDecision: "blocked_not_authorized" }, "c");
+    const rec = buildExecutionRecord(null, { executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, channel: "web", batchId: null, leaseVersion: null, modelId: null, startedAt: "2026-11-03T10:00:00.000Z", finishedAt: "2026-11-03T10:00:00.000Z", totalMs: 0, leaseMs: 0, contextMs: 0, gatewayMs: 0, validationMs: 0, gateway: NO_GATEWAY, estimatedInputTokens: null, pauseState: "not_evaluated", executionState: "blocked", technicalCode: null, blockCode: "property_ineligible", integrityCode: null, budgetExceeded: null, tokenLimitViolation: false, concurrencyDetected: false, forcedDecision: "blocked_not_authorized" }, "c");
     expect(await s.record(rec)).toEqual({ kind: "error" });
   });
-  it("candidatas: property_id não textual ⇒ integridade", async () => {
-    const db = { from: () => ({ select: () => ({ in: () => ({ gte: () => ({ order: () => ({ limit: async () => ({ data: [{ id: CONV, property_id: 7, guest_session_id: "x" }], error: null }) }) }) }) }) }) };
-    expect(await listShadowCandidates(manifestOf().entries, { limit: 1, tickIntervalSeconds: 60, nowMs: T0, db: db as never })).toEqual({ ok: false, integrity: true });
+  it("candidatas: lista acima do teto pedido ⇒ integridade (o banco nunca devolve mais que o teto)", async () => {
+    const two = [candidateRow(), candidateRow({ conversationId: "7c000000-0000-4000-8000-0000000000c2" })];
+    const store = { listCandidates: async (_t: string, _l: number, limit: number) => parseCandidates({ result: "ok", candidates: two.map((c) => ({ conversation_id: c.conversationId, property_id: c.propertyId, tenant_id: c.tenantId, surface: c.surface, message_id: c.messageId })) }, limit) };
+    expect(await listShadowCandidates(store, { tickToken: "c".repeat(64), limit: 1, tickIntervalSeconds: 60 })).toEqual({ ok: false, integrity: true });
   });
   it("projeção: erro técnico com código fora da lista ⇒ código nulo (o registro será recusado)", () => {
     const n = narrowOutcome({ kind: "technical_error", code: CANARY, audit: { checks: {} } } as unknown as ChainOutcome);

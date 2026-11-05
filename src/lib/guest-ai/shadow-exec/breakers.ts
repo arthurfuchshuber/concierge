@@ -49,7 +49,7 @@ export function validateShadowControl(c: ShadowControl | null | undefined): Cont
   if (c.modelId === null || !(SHADOW_ALLOWED_MODELS as readonly string[]).includes(c.modelId)) return { ok: false, code: "model_not_allowed" };
   const required = [
     c.reasoningEffort, c.maxInputTokens, c.maxOutputTokens, c.maxTotalTokens, c.maxTurnCostUsd, c.dailyCostLimitUsd, c.maxDailyTokens, c.maxDailyCalls,
-    c.errorWindowMinutes, c.errorMinSample, c.budgetDayTimezone, c.telemetryRetentionDays, c.tickIntervalSeconds, c.maxConversationsPerTick, c.manifestVersion,
+    c.errorWindowMinutes, c.errorMinSample, c.budgetDayTimezone, c.telemetryRetentionDays, c.tickIntervalSeconds, c.maxConversationsPerTick,
   ];
   if (required.some((v) => v === null || v === undefined)) return { ok: false, code: "limits_missing" };
   const turnCost8 = parseUsd8(c.maxTurnCostUsd);
@@ -81,8 +81,7 @@ export function validateShadowControl(c: ShadowControl | null | undefined): Cont
     IANA_ZONE_RE.test(c.budgetDayTimezone) &&
     posInt(c.telemetryRetentionDays) &&
     posInt(c.tickIntervalSeconds) &&
-    posInt(c.maxConversationsPerTick) &&
-    posInt(c.manifestVersion);
+    posInt(c.maxConversationsPerTick);
   if (!valid) return { ok: false, code: "limits_invalid" };
   return {
     ok: true,
@@ -102,7 +101,6 @@ export function validateShadowControl(c: ShadowControl | null | undefined): Cont
       telemetryRetentionDays: c.telemetryRetentionDays as number,
       tickIntervalSeconds: c.tickIntervalSeconds as number,
       maxConversationsPerTick: c.maxConversationsPerTick as number,
-      manifestVersion: c.manifestVersion as number,
       maxTurnCostUsd8: turnCost8 as Usd8,
       dailyCostLimitUsd8: daily8 as Usd8,
     }),

@@ -8,10 +8,11 @@
  *  2. Segredo de cron (`verifyCronSecret`) — inválido ⇒ 401.
  *  3. Portão de LIBERAÇÃO em código (`SHADOW_TICK_RELEASED`, literal `false`): mesmo com a chave ligada
  *     e o segredo válido, nada executa até uma mudança de código revisada (Entrega 4).
- *  4. (liberado) estado global + configuração + manifesto → TRAVA GLOBAL do tick (F-07: um único worker
- *     ativo; outro tick simultâneo sai com `tick_busy`) → reconciliação de execuções de workers perdidos
- *     (F-01/F-04/F-05: sela, liquida pelo pior caso, registra) → até 3 candidatas pelo relógio do BANCO →
- *     worker, em série, com o token da trava → liberação da trava.
+ *  4. (liberado) estado global + configuração + ESCOPO GLOBAL de imóveis (E4 global: `none` ⇒ nada a
+ *     fazer, sem trava) → TRAVA GLOBAL do tick (F-07: um único worker ativo; outro tick simultâneo sai com
+ *     `tick_busy`) → reconciliação de execuções de workers perdidos (F-01/F-04/F-05: sela, liquida pelo
+ *     pior caso, registra) → até 3 candidatas ESCOLHIDAS NO BANCO entre TODOS os imóveis ativos (rodízio
+ *     entre tenants; sem lista nem teto de imóveis) → worker, em série, com o token da trava → liberação.
  * A resposta tem SÓ códigos e contadores (`ShadowTickSummary`). Exceção ⇒ código fixo, sem conteúdo.
  */
 import { verifyCronSecret } from "@/lib/cron-auth.server";
@@ -30,7 +31,7 @@ export interface TickIo {
   verifySecret: (request: Request) => boolean;
   released: boolean;
   store: () => Promise<ShadowStore>;
-  candidates: (entries: Parameters<typeof import("@/lib/guest-ai/data/shadow-candidates.server").listShadowCandidates>[0], opts: { limit: number; tickIntervalSeconds: number; nowMs: number }) => Promise<CandidatesResult>;
+  candidates: (store: ShadowStore, opts: { tickToken: string; limit: number; tickIntervalSeconds: number }) => Promise<CandidatesResult>;
   worker: (c: ShadowCandidate, tickToken: string) => Promise<ShadowWorkerOutcome>;
 }
 
@@ -48,10 +49,8 @@ export async function runShadowTick(io: Pick<TickIo, "store" | "candidates" | "w
     if (control.state !== "running") return empty("state_not_running");
     const v = validateShadowControl(control);
     if (!v.ok) return empty("limits_missing");
-    const manifest = await store.readManifest();
-    if (!manifest || manifest.manifestVersion !== v.limits.manifestVersion) return empty("manifest_unreadable");
-    // E4: o manifesto devolve só imóveis HABILITADOS individualmente; nenhum ⇒ nada a fazer (sem trava, sem leitura)
-    if (manifest.entries.length === 0) return empty("no_enabled_properties");
+    // E4 global: escopo fechado ⇒ nenhum imóvel participa; nada a fazer (sem trava, sem leitura)
+    if (control.propertyScope !== "all_eligible") return empty("scope_off");
     const tick = await store.acquireTick();
     if (tick.kind === "busy") return empty("tick_busy");
     if (tick.kind === "blocked") return empty(tick.code === "state_not_running" ? "state_not_running" : "limits_missing");
@@ -60,8 +59,9 @@ export async function runShadowTick(io: Pick<TickIo, "store" | "candidates" | "w
     // workers perdidos primeiro: nada novo começa enquanto houver execução órfã sem encerramento
     const rec = await store.reconcile(token);
     if (rec.kind !== "ok") return empty("tick_failed");
-    const found = await io.candidates(manifest.entries, { limit: v.limits.maxConversationsPerTick, tickIntervalSeconds: v.limits.tickIntervalSeconds, nowMs: tick.dbNowMs });
+    const found = await io.candidates(store, { tickToken: token, limit: v.limits.maxConversationsPerTick, tickIntervalSeconds: v.limits.tickIntervalSeconds });
     if (!found.ok) {
+      if (found.code === "scope_off") return empty("scope_off");
       if (found.integrity) await store.trip("integrity_violation", "integrity_divergence");
       return empty("tick_failed");
     }
@@ -111,7 +111,7 @@ async function productionTickIo(): Promise<Pick<TickIo, "store" | "candidates" |
   const workerIo = await productionWorkerIo();
   return {
     store: () => getShadowStore(),
-    candidates: (entries, opts) => listShadowCandidates(entries, opts),
+    candidates: (store, opts) => listShadowCandidates(store, opts),
     worker: (c, tickToken) => runShadowWorker(c, { ...workerIo, tickToken }),
   };
 }

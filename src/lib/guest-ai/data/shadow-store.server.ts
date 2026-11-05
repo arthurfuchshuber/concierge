@@ -3,8 +3,9 @@
  *
  * ÚNICA escrita do Shadow, e só pela porta de lista fechada `SHADOW_RPC_FUNCTIONS` (client.server.ts).
  * Nenhum `.insert/.update/.upsert/.delete` (teste estático). As RPCs administrativas (configurar,
- * transicionar, manifesto, retenção, relatório, expurgo) NÃO estão na porta: o worker nunca se ativa,
- * nunca autoriza retenção nem altera o manifesto. Toda resposta é lida por lista branca; formato
+ * transicionar, escopo, interruptores, elegibilidade, retenção, relatório, expurgo) NÃO estão na porta e,
+ * no banco, só o dono as executa: o worker nunca se ativa, nunca abre o escopo, nunca liga imóvel nem
+ * autoriza retenção. Toda resposta é lida por lista branca; formato
  * inesperado ⇒ resultado de erro (fail-closed), nunca autorização.
  *
  * E3.1: trava do tick (`acquireTick`/`releaseTick`), reivindicação+início atômicos (`claimExecution`),
@@ -14,15 +15,15 @@
 import type { GuestAiShadowRpc } from "./client.server";
 import {
   BUDGET_LIMIT_IDS,
-  MANIFEST_CHECK_STATUSES,
-  MANIFEST_SELECTION_REASONS,
+  PROPERTY_GATE_REASONS,
+  PROPERTY_SCOPES,
   RETENTION_SCOPES,
   SHADOW_ALLOWED_MODELS,
   SHADOW_REASONING_EFFORTS,
   SHADOW_STATES,
   UUID_RE,
   type BudgetLimitId,
-  type ManifestEntry,
+  type PropertyGateReason,
   type ShadowControl,
   type ShadowExecutionRecord,
   type ShadowFailureState,
@@ -48,7 +49,7 @@ const numOrNull = (v: unknown): number | null | undefined => {
 export function parseControl(data: unknown): ShadowControl | null {
   const d = obj(data);
   if (!d || d.result !== "ok" || !inList(SHADOW_STATES, d.state) || typeof d.state_version !== "number" || !Number.isInteger(d.state_version)) return null;
-  const ints = ["max_input_tokens", "max_output_tokens", "max_total_tokens", "max_daily_tokens", "max_daily_calls", "error_window_minutes", "error_min_sample", "telemetry_retention_days", "tick_interval_seconds", "max_conversations_per_tick", "manifest_version"] as const;
+  const ints = ["max_input_tokens", "max_output_tokens", "max_total_tokens", "max_daily_tokens", "max_daily_calls", "error_window_minutes", "error_min_sample", "telemetry_retention_days", "tick_interval_seconds", "max_conversations_per_tick"] as const;
   const iv: Partial<Record<(typeof ints)[number], number | null>> = {};
   for (const k of ints) {
     const v = intOrNull(d[k]);
@@ -63,6 +64,7 @@ export function parseControl(data: unknown): ShadowControl | null {
   if (d.budget_day_timezone !== null && typeof d.budget_day_timezone !== "string") return null;
   if (d.retention_scope !== null && !inList(RETENTION_SCOPES, d.retention_scope)) return null;
   if (typeof d.retention_authorized !== "boolean") return null;
+  if (!inList(PROPERTY_SCOPES, d.property_scope)) return null;
   const dbNowMs = isoMs(d.db_now);
   if (dbNowMs === null) return null;
   return Object.freeze({
@@ -83,38 +85,53 @@ export function parseControl(data: unknown): ShadowControl | null {
     telemetryRetentionDays: iv.telemetry_retention_days ?? null,
     tickIntervalSeconds: iv.tick_interval_seconds ?? null,
     maxConversationsPerTick: iv.max_conversations_per_tick ?? null,
-    manifestVersion: iv.manifest_version ?? null,
+    propertyScope: d.property_scope,
     retentionAuthorized: d.retention_authorized === true && d.retention_scope !== null,
     retentionScope: d.retention_scope as ShadowControl["retentionScope"],
     dbNowMs,
   });
 }
 
-export interface ManifestSnapshot {
-  manifestVersion: number | null;
-  entries: readonly ManifestEntry[];
-}
+/** E4 global: a porta do banco disse se o imóvel pode participar AGORA. */
+export type PropertyStatusResult = { kind: "active" } | { kind: "blocked"; reason: PropertyGateReason } | { kind: "error" };
 
-/** Manifesto ativo: qualquer entrada fora do formato invalida o manifesto INTEIRO (`null`). */
-export function parseManifest(data: unknown): ManifestSnapshot | null {
+/** Candidata escolhida pelo banco (`shadow_list_candidates`): só ids e o código da superfície. */
+export interface ShadowCandidateRow {
+  conversationId: string;
+  propertyId: string;
+  tenantId: string;
+  surface: "airbnb" | "whatsapp" | "guide_chat";
+  messageId: string;
+}
+export type CandidatesListResult =
+  | { kind: "ok"; candidates: readonly ShadowCandidateRow[] }
+  | { kind: "blocked"; code: "state_not_running" | "tick_not_held" | "scope_off" | "config_incomplete" }
+  | { kind: "error"; integrity: boolean };
+const SURFACES = ["airbnb", "whatsapp", "guide_chat"] as const;
+
+/** Lista de candidatas: qualquer item fora do formato invalida a lista INTEIRA (fail-closed). */
+export function parseCandidates(data: unknown, limit: number): CandidatesListResult {
   const d = obj(data);
-  if (!d || d.result !== "ok" || !Array.isArray(d.entries)) return null;
-  const version = intOrNull(d.manifest_version);
-  if (version === undefined) return null;
-  const entries: ManifestEntry[] = [];
-  for (const raw of d.entries) {
+  if (!d) return { kind: "error", integrity: false };
+  if (d.result === "state_not_running" || d.result === "tick_not_held" || d.result === "scope_off" || d.result === "config_incomplete") return { kind: "blocked", code: d.result };
+  if (d.result !== "ok" || !Array.isArray(d.candidates)) return { kind: "error", integrity: false };
+  // o banco nunca devolve mais que o teto pedido: mais que isso é divergência
+  if (d.candidates.length > limit) return { kind: "error", integrity: true };
+  const out: ShadowCandidateRow[] = [];
+  for (const raw of d.candidates) {
     const e = obj(raw);
     if (
-      !e || version === null ||
-      typeof e.tenant_id !== "string" || !UUID_RE.test(e.tenant_id) ||
+      !e ||
+      typeof e.conversation_id !== "string" || !UUID_RE.test(e.conversation_id) ||
       typeof e.property_id !== "string" || !UUID_RE.test(e.property_id) ||
-      !inList(MANIFEST_SELECTION_REASONS, e.selection_reason) ||
-      !inList(MANIFEST_CHECK_STATUSES, e.twin_status) || !inList(MANIFEST_CHECK_STATUSES, e.history_status)
-    ) return null;
-    entries.push(Object.freeze({ manifestVersion: version, tenantId: e.tenant_id, propertyId: e.property_id, selectionReason: e.selection_reason, twinStatus: e.twin_status, historyStatus: e.history_status }));
+      typeof e.tenant_id !== "string" || !UUID_RE.test(e.tenant_id) ||
+      typeof e.message_id !== "string" || !UUID_RE.test(e.message_id) ||
+      !inList(SURFACES, e.surface)
+    ) return { kind: "error", integrity: false };
+    out.push(Object.freeze({ conversationId: e.conversation_id, propertyId: e.property_id, tenantId: e.tenant_id, surface: e.surface, messageId: e.message_id }));
   }
-  if (new Set(entries.map((e) => e.propertyId)).size !== entries.length) return null;
-  return Object.freeze({ manifestVersion: version, entries: Object.freeze(entries) });
+  if (new Set(out.map((c) => c.conversationId)).size !== out.length) return { kind: "error", integrity: true };
+  return { kind: "ok", candidates: Object.freeze(out) };
 }
 
 export type ReserveResult =
@@ -136,9 +153,10 @@ export interface ClaimArgs {
 }
 export type ClaimResult =
   | { kind: "claimed"; version: number; ownerToken: string; batchId: string; messageIds: readonly string[]; repeated: boolean }
-  | { kind: "rejected"; code: "state_not_running" | "tick_not_held" | "not_in_manifest" | "not_found" | "stale_version" | "not_claimable" | "attempts_exhausted" | "conflict" | "duplicate" | "invalid_argument" | "property_disabled" }
+  | { kind: "rejected"; code: "state_not_running" | "tick_not_held" | "not_found" | "stale_version" | "not_claimable" | "attempts_exhausted" | "conflict" | "duplicate" | "invalid_argument" }
+  | { kind: "property_blocked"; reason: PropertyGateReason }
   | { kind: "error" };
-const CLAIM_REJECTIONS = ["state_not_running", "tick_not_held", "not_in_manifest", "not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument", "property_disabled"] as const;
+const CLAIM_REJECTIONS = ["state_not_running", "tick_not_held", "not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument"] as const;
 
 export interface FinalizeArgs {
   executionId: string;
@@ -181,7 +199,10 @@ export function recordToRow(r: ShadowExecutionRecord): Record<string, unknown> {
 
 export interface ShadowStore {
   readControl(): Promise<ShadowControl | null>;
-  readManifest(): Promise<ManifestSnapshot | null>;
+  /** E4 global: porta do imóvel (escopo, dono, interruptores, elegibilidade) — consultada antes de qualquer leitura. */
+  propertyStatus(tenantId: string, propertyId: string): Promise<PropertyStatusResult>;
+  /** E4 global: candidatas do tick, escolhidas no banco (exige a trava do tick). */
+  listCandidates(tickToken: string, lookbackSeconds: number, limit: number): Promise<CandidatesListResult>;
   trip(to: ShadowFailureState, reason: ShadowTransitionReason): Promise<"applied" | "noop" | "error">;
   reserve(executionId: string, reservation: TurnReservation): Promise<ReserveResult>;
   evaluateBreakers(): Promise<ErrorBreakerVerdict>;
@@ -209,8 +230,15 @@ export function createShadowStore(rpc: GuestAiShadowRpc): ShadowStore {
     async readControl() {
       return parseControl(await call("shadow_get_control", {}));
     },
-    async readManifest() {
-      return parseManifest(await call("shadow_get_manifest", {}));
+    async propertyStatus(tenantId, propertyId) {
+      const d = await call("shadow_property_status", { p_tenant_id: tenantId, p_property_id: propertyId });
+      if (d?.result === "active") return { kind: "active" };
+      if (d?.result === "blocked" && inList(PROPERTY_GATE_REASONS, d.reason)) return { kind: "blocked", reason: d.reason };
+      return { kind: "error" };
+    },
+    async listCandidates(tickToken, lookbackSeconds, limit) {
+      const d = await call("shadow_list_candidates", { p_tick_token: tickToken, p_lookback_seconds: lookbackSeconds, p_limit: limit });
+      return d ? parseCandidates(d, limit) : { kind: "error", integrity: false };
     },
     async trip(to, reason) {
       const d = await call("shadow_trip", { p_to: to, p_reason: reason });
@@ -280,6 +308,7 @@ export function createShadowStore(rpc: GuestAiShadowRpc): ShadowStore {
         return { kind: "error" };
       }
       if (inList(CLAIM_REJECTIONS, d.result)) return { kind: "rejected", code: d.result };
+      if (d.result === "property_blocked" && inList(PROPERTY_GATE_REASONS, d.reason)) return { kind: "property_blocked", reason: d.reason };
       return { kind: "error" };
     },
     async finalizeExecution(a) {

@@ -3,13 +3,15 @@
  * store, gerador emitido (barreiras antes da rede), loader real de posse humana, candidatas, portas RPC.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { actualUsageViolation, costUsd, evaluateErrorBreaker, evaluateTurnBudget, GATEWAY_MAX_OUTPUT_TOKENS, isEvaluable, isIntegrityCode, isTechnicalError, validateShadowControl } from "@/lib/guest-ai/shadow-exec/breakers";
 import { ShadowDeadline } from "@/lib/guest-ai/shadow-exec/deadline";
 import { buildExecutionRecord, classifyNarrow, EMPTY_TIMINGS, narrowOutcome, NO_GATEWAY, validateExecutionRecord, type ExecutionMeta, type NarrowOutcome } from "@/lib/guest-ai/shadow-exec/extract";
 import { SHADOW_DEADLINE_MS, SHADOW_FINALIZATION_RESERVE_MS, SHADOW_RECORD_KEYS, SHADOW_VERSION, type ShadowLimits } from "@/lib/guest-ai/shadow-exec/contracts";
 import { createShadowGatewayGenerator, defaultMasterSwitch, isShadowGatewayGenerator, issueShadowPreflight, ShadowGeneratorStop } from "@/lib/guest-ai/shadow-exec/gateway-generator.server";
 import { checkExecutorBarrier, runShadowExecution } from "@/lib/guest-ai/shadow-exec/executor";
-import { createShadowStore, parseControl, parseManifest, recordToRow, getShadowStore } from "@/lib/guest-ai/data/shadow-store.server";
+import { createShadowStore, parseCandidates, parseControl, recordToRow, getShadowStore } from "@/lib/guest-ai/data/shadow-store.server";
 import { loadConversationOwnership } from "@/lib/guest-ai/data/conversation-ownership.server";
 import { candidateLookbackMs, listShadowCandidates } from "@/lib/guest-ai/data/shadow-candidates.server";
 import { leaseRpcFrom, shadowRpcFrom, SHADOW_RPC_FUNCTIONS } from "@/lib/guest-ai/data/client.server";
@@ -17,7 +19,7 @@ import { modelSpec } from "@/lib/guest-ai/llm/models";
 import type { ChainOutcome } from "@/lib/guest-ai/turn-chain";
 import { fakeDb } from "./helpers/b3-fake-db";
 import { operationalPorts } from "./helpers/b25-fixtures";
-import { CANARY, CONV, EXEC_ID, MSG, MemoryShadowStore, OTHER_P, OTHER_T, P_ID, T_ID, fakeProvider, fullControl, manifestOf, okJson, shadowTurn } from "./helpers/b33-shadow";
+import { CANARY, CONV, EXEC_ID, MSG, MemoryShadowStore, OTHER_P, OTHER_T, P_ID, T_ID, fakeProvider, fullControl, okJson, shadowTurn } from "./helpers/b33-shadow";
 
 const SPEC = modelSpec("openai/gpt-5.6-sol")!;
 const limits = (): ShadowLimits => {
@@ -38,13 +40,13 @@ describe("B3.3 · disjuntores (puros)", () => {
     expect(validateShadowControl(fullControl({ retentionScope: "google" as never }))).toEqual({ ok: false, code: "retention_not_authorized" });
     expect(validateShadowControl(fullControl({ modelId: null }))).toEqual({ ok: false, code: "model_not_allowed" });
     expect(validateShadowControl(fullControl({ modelId: "google/gemini-3.8-flash" as never }))).toEqual({ ok: false, code: "model_not_allowed" });
-    for (const k of ["reasoningEffort", "maxInputTokens", "maxOutputTokens", "maxTotalTokens", "maxTurnCostUsd", "dailyCostLimitUsd", "maxDailyTokens", "maxDailyCalls", "errorWindowMinutes", "errorMinSample", "budgetDayTimezone", "telemetryRetentionDays", "tickIntervalSeconds", "maxConversationsPerTick", "manifestVersion"] as const) {
+    for (const k of ["reasoningEffort", "maxInputTokens", "maxOutputTokens", "maxTotalTokens", "maxTurnCostUsd", "dailyCostLimitUsd", "maxDailyTokens", "maxDailyCalls", "errorWindowMinutes", "errorMinSample", "budgetDayTimezone", "telemetryRetentionDays", "tickIntervalSeconds", "maxConversationsPerTick"] as const) {
       expect(validateShadowControl(fullControl({ [k]: null })), k).toEqual({ ok: false, code: "limits_missing" });
     }
     const invalid: Array<Partial<ReturnType<typeof fullControl>>> = [
       { reasoningEffort: "max" as never }, { maxInputTokens: 0 }, { maxOutputTokens: GATEWAY_MAX_OUTPUT_TOKENS + 1 }, { maxOutputTokens: -1 }, { maxTotalTokens: 1.5 },
       { maxTurnCostUsd: 0 }, { maxTurnCostUsd: Number.POSITIVE_INFINITY }, { dailyCostLimitUsd: 1.01 }, { dailyCostLimitUsd: -1 }, { maxDailyTokens: 0 }, { maxDailyCalls: -1 },
-      { errorWindowMinutes: 0 }, { errorMinSample: 1 }, { budgetDayTimezone: "UTC+3" }, { telemetryRetentionDays: 0 }, { tickIntervalSeconds: 0 }, { maxConversationsPerTick: 0 }, { manifestVersion: 0 },
+      { errorWindowMinutes: 0 }, { errorMinSample: 1 }, { budgetDayTimezone: "UTC+3" }, { telemetryRetentionDays: 0 }, { tickIntervalSeconds: 0 }, { maxConversationsPerTick: 0 },
     ];
     for (const o of invalid) expect(validateShadowControl(fullControl(o)), JSON.stringify(o)).toEqual({ ok: false, code: "limits_invalid" });
   });
@@ -312,7 +314,7 @@ describe("B3.3 · adaptador do store (respostas lidas por lista branca)", () => 
   const rawControl = (over: Record<string, unknown> = {}) => ({
     result: "ok", state: "running", state_version: 3, model_id: "openai/gpt-6-astra", reasoning_effort: "low", max_input_tokens: 1, max_output_tokens: 2, max_total_tokens: 3,
     max_turn_cost_usd: "0.5", daily_cost_limit_usd: 1, max_daily_tokens: 4, max_daily_calls: 5, error_window_minutes: 6, error_min_sample: 7, budget_day_timezone: "America/Sao_Paulo",
-    telemetry_retention_days: 8, tick_interval_seconds: 9, max_conversations_per_tick: 10, manifest_version: 11, retention_scope: "openai_responses", retention_authorized: true,
+    telemetry_retention_days: 8, tick_interval_seconds: 9, max_conversations_per_tick: 10, property_scope: "all_eligible", retention_scope: "openai_responses", retention_authorized: true,
     db_now: "2026-11-04T12:00:00.123456Z", ...over,
   });
   it("estado lido; qualquer campo fora do formato ⇒ ilegível (null)", () => {
@@ -320,6 +322,10 @@ describe("B3.3 · adaptador do store (respostas lidas por lista branca)", () => 
     // E3.1: sem o instante do banco (ou fora do formato UTC) ⇒ ilegível
     for (const db_now of [undefined, null, "2026-11-04 12:00:00", "2026-11-04T12:00:00+03:00", "2026-13-40T99:00:00Z", 1730721600000]) expect(parseControl(rawControl({ db_now })), String(db_now)).toBeNull();
     expect(parseControl(rawControl({ retention_scope: null, retention_authorized: true }))!.retentionAuthorized).toBe(false);
+    // E4 global: escopo de imóveis lido por lista fechada; ausente ou fora do vocabulário ⇒ ilegível
+    expect(parseControl(rawControl())!.propertyScope).toBe("all_eligible");
+    expect(parseControl(rawControl({ property_scope: "none" }))!.propertyScope).toBe("none");
+    for (const property_scope of [undefined, null, "all", CANARY, 1]) expect(parseControl(rawControl({ property_scope })), String(property_scope)).toBeNull();
     for (const o of [{ result: "x" }, { state: "on" }, { state_version: "3" }, { max_input_tokens: 1.5 }, { max_turn_cost_usd: "abc" }, { daily_cost_limit_usd: {} }, { model_id: "google/gemini-3.8-flash" }, { reasoning_effort: "x" }, { budget_day_timezone: 5 }, { retention_scope: "x" }, { retention_authorized: "true" }]) {
       expect(parseControl(rawControl(o)), JSON.stringify(o)).toBeNull();
     }
@@ -327,24 +333,41 @@ describe("B3.3 · adaptador do store (respostas lidas por lista branca)", () => 
     expect(parseControl([])).toBeNull();
     expect(parseControl(rawControl({ model_id: null, reasoning_effort: null, budget_day_timezone: null, max_turn_cost_usd: null }))).toMatchObject({ modelId: null, maxTurnCostUsd: null });
   });
-  it("manifesto: uma entrada inválida (ou repetida) invalida o manifesto inteiro", () => {
-    const e = { tenant_id: T_ID, property_id: P_ID, selection_reason: "highest_volume", twin_status: "verified", history_status: "verified" };
-    expect(parseManifest({ result: "ok", manifest_version: 2, entries: [e] })!.entries).toHaveLength(1);
-    expect(parseManifest({ result: "ok", manifest_version: null, entries: [] })).toEqual({ manifestVersion: null, entries: [] });
-    for (const bad of [{ ...e, tenant_id: "x" }, { ...e, property_id: 1 }, { ...e, selection_reason: CANARY }, { ...e, twin_status: "ok" }, { ...e, history_status: null }, null]) {
-      expect(parseManifest({ result: "ok", manifest_version: 2, entries: [bad] })).toBeNull();
+  it("candidatas (E4 global): uma linha inválida, repetida ou acima do teto invalida a lista inteira", () => {
+    const e = { conversation_id: CONV, property_id: P_ID, tenant_id: T_ID, surface: "airbnb", message_id: MSG };
+    expect(parseCandidates({ result: "ok", candidates: [e] }, 3)).toEqual({ kind: "ok", candidates: [{ conversationId: CONV, propertyId: P_ID, tenantId: T_ID, surface: "airbnb", messageId: MSG }] });
+    expect(parseCandidates({ result: "ok", candidates: [] }, 3)).toEqual({ kind: "ok", candidates: [] });
+    for (const surface of ["airbnb", "whatsapp", "guide_chat"]) expect(parseCandidates({ result: "ok", candidates: [{ ...e, surface }] }, 3).kind).toBe("ok");
+    for (const bad of [{ ...e, conversation_id: "x" }, { ...e, property_id: 1 }, { ...e, tenant_id: CANARY }, { ...e, message_id: null }, { ...e, surface: "web" }, { ...e, surface: CANARY }, null, []]) {
+      expect(parseCandidates({ result: "ok", candidates: [bad] }, 3), JSON.stringify(bad)).toEqual({ kind: "error", integrity: false });
     }
-    expect(parseManifest({ result: "ok", manifest_version: null, entries: [e] })).toBeNull();
-    expect(parseManifest({ result: "ok", manifest_version: 2, entries: [e, e] })).toBeNull();
-    expect(parseManifest({ result: "ok", manifest_version: "2", entries: [] })).toBeNull();
-    expect(parseManifest({ result: "no", entries: [] })).toBeNull();
+    // repetida ou acima do teto pedido ⇒ divergência (integridade)
+    expect(parseCandidates({ result: "ok", candidates: [e, e] }, 3)).toEqual({ kind: "error", integrity: true });
+    expect(parseCandidates({ result: "ok", candidates: [e, { ...e, conversation_id: "7c000000-0000-4000-8000-0000000000c2" }] }, 1)).toEqual({ kind: "error", integrity: true });
+    for (const code of ["state_not_running", "tick_not_held", "scope_off", "config_incomplete"]) expect(parseCandidates({ result: code }, 3)).toEqual({ kind: "blocked", code });
+    for (const d of [{ result: "ok" }, { result: "ok", candidates: {} }, { result: "x", candidates: [] }, null, [], "ok"]) expect(parseCandidates(d, 3), JSON.stringify(d)).toEqual({ kind: "error", integrity: false });
   });
   it("cada RPC: resposta inesperada/erro/exceção ⇒ erro (nunca autorização)", async () => {
     const replies: Record<string, unknown> = {};
     const rpc = { call: vi.fn(async (fn: string) => (fn in replies ? (replies[fn] instanceof Error ? Promise.reject(replies[fn]) : { data: replies[fn], error: null }) : { data: null, error: { code: "x" } })) };
     const s = createShadowStore(rpc as never);
     expect(await s.readControl()).toBeNull();
-    expect(await s.readManifest()).toBeNull();
+    expect(await s.propertyStatus(T_ID, P_ID)).toEqual({ kind: "error" });
+    expect(await s.listCandidates("c".repeat(64), 240, 3)).toEqual({ kind: "error", integrity: false });
+    // E4 global: porta do imóvel por lista fechada (motivo fora do vocabulário ⇒ erro, nunca "ativo")
+    replies.shadow_property_status = { result: "active" };
+    expect(await s.propertyStatus(T_ID, P_ID)).toEqual({ kind: "active" });
+    replies.shadow_property_status = { result: "blocked", reason: "no_guest_channel" };
+    expect(await s.propertyStatus(T_ID, P_ID)).toEqual({ kind: "blocked", reason: "no_guest_channel" });
+    for (const r of [{ result: "blocked", reason: CANARY }, { result: "blocked" }, { result: "ok" }, { result: "invalid_argument" }]) {
+      replies.shadow_property_status = r;
+      expect(await s.propertyStatus(T_ID, P_ID), JSON.stringify(r)).toEqual({ kind: "error" });
+    }
+    replies.shadow_list_candidates = { result: "ok", candidates: [] };
+    expect(await s.listCandidates("c".repeat(64), 240, 3)).toEqual({ kind: "ok", candidates: [] });
+    expect(rpc.call).toHaveBeenCalledWith("shadow_list_candidates", { p_tick_token: "c".repeat(64), p_lookback_seconds: 240, p_limit: 3 });
+    replies.shadow_list_candidates = { result: "scope_off" };
+    expect(await s.listCandidates("c".repeat(64), 240, 3)).toEqual({ kind: "blocked", code: "scope_off" });
     expect(await s.trip("circuit_open", "error_rate_exceeded")).toBe("error");
     expect(await s.reserve(EXEC_ID, { tokens: 1, costUsd8: 1n, calls: 1 })).toEqual({ kind: "error" });
     // valor monetário impossível (negativo) nunca sai do processo
@@ -387,12 +410,12 @@ describe("B3.3 · adaptador do store (respostas lidas por lista branca)", () => 
       [{ result: "invalid_argument" }, { kind: "invalid" }],
     ] as const) {
       replies.shadow_record_execution = reply;
-      const rec = buildExecutionRecord(null, { executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, channel: "web", batchId: null, leaseVersion: null, modelId: null, startedAt: "2026-11-03T10:00:00.000Z", finishedAt: "2026-11-03T10:00:00.000Z", totalMs: 0, leaseMs: 0, contextMs: 0, gatewayMs: 0, validationMs: 0, gateway: NO_GATEWAY, estimatedInputTokens: null, pauseState: "not_evaluated", executionState: "blocked", technicalCode: null, blockCode: "not_in_manifest", integrityCode: null, budgetExceeded: null, tokenLimitViolation: false, concurrencyDetected: false, forcedDecision: "blocked_not_authorized" }, "chain.x");
+      const rec = buildExecutionRecord(null, { executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, channel: "web", batchId: null, leaseVersion: null, modelId: null, startedAt: "2026-11-03T10:00:00.000Z", finishedAt: "2026-11-03T10:00:00.000Z", totalMs: 0, leaseMs: 0, contextMs: 0, gatewayMs: 0, validationMs: 0, gateway: NO_GATEWAY, estimatedInputTokens: null, pauseState: "not_evaluated", executionState: "blocked", technicalCode: null, blockCode: "property_ineligible", integrityCode: null, budgetExceeded: null, tokenLimitViolation: false, concurrencyDetected: false, forcedDecision: "blocked_not_authorized" }, "chain.x");
       expect(await s.record(rec)).toEqual(expected);
     }
   });
   it("linha gravada = colunas snake_case exatas (tempos achatados em timing_*)", () => {
-    const rec = buildExecutionRecord(null, { executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, channel: "web", batchId: null, leaseVersion: null, modelId: null, startedAt: "2026-11-03T10:00:00.000Z", finishedAt: "2026-11-03T10:00:00.000Z", totalMs: 0, leaseMs: 0, contextMs: 0, gatewayMs: 0, validationMs: 0, gateway: NO_GATEWAY, estimatedInputTokens: null, pauseState: "not_evaluated", executionState: "blocked", technicalCode: null, blockCode: "not_in_manifest", integrityCode: null, budgetExceeded: null, tokenLimitViolation: false, concurrencyDetected: false, forcedDecision: "blocked_not_authorized" }, "chain.x");
+    const rec = buildExecutionRecord(null, { executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, channel: "web", batchId: null, leaseVersion: null, modelId: null, startedAt: "2026-11-03T10:00:00.000Z", finishedAt: "2026-11-03T10:00:00.000Z", totalMs: 0, leaseMs: 0, contextMs: 0, gatewayMs: 0, validationMs: 0, gateway: NO_GATEWAY, estimatedInputTokens: null, pauseState: "not_evaluated", executionState: "blocked", technicalCode: null, blockCode: "property_ineligible", integrityCode: null, budgetExceeded: null, tokenLimitViolation: false, concurrencyDetected: false, forcedDecision: "blocked_not_authorized" }, "chain.x");
     const row = recordToRow(rec);
     expect(Object.keys(row)).toHaveLength(62);
     expect(row).toMatchObject({ timing_context: null, timing_final_decision: null, decision: "blocked_not_authorized" });
@@ -434,10 +457,11 @@ describe("B3.3 · portas RPC de lista fechada (lease com sinal retrocompatível 
     const plain = { rpc: async () => ({ data: 1, error: null }) };
     expect(await leaseRpcFrom(plain, new AbortController().signal).call("claim_conversation_lease", {})).toEqual({ data: 1, error: null });
   });
-  it("porta do Shadow: só as 7 funções do worker; administrativas recusadas antes de sair", async () => {
+  it("porta do Shadow: só as funções do worker; administrativas recusadas antes de sair", async () => {
     expect(SHADOW_RPC_FUNCTIONS).toEqual([
-      "shadow_get_control", "shadow_get_manifest", "shadow_trip", "shadow_reserve_budget", "shadow_evaluate_breakers", "shadow_record_execution",
+      "shadow_get_control", "shadow_trip", "shadow_reserve_budget", "shadow_evaluate_breakers", "shadow_record_execution",
       "shadow_acquire_tick", "shadow_release_tick", "shadow_claim_execution", "shadow_finalize_execution", "shadow_reconcile",
+      "shadow_property_status", "shadow_list_candidates",
     ]);
     // a liquidação avulsa não existe mais na porta: só dentro da finalização atômica do banco
     expect(await shadowRpcFrom(client()).call("shadow_settle_budget" as never, {})).toEqual({ data: null, error: { code: "shadow_rpc_not_allowed" } });
@@ -445,12 +469,13 @@ describe("B3.3 · portas RPC de lista fechada (lease com sinal retrocompatível 
     const ac = new AbortController();
     await shadowRpcFrom(c, ac.signal).call("shadow_get_control", {});
     expect(c.calls[0]!.signal).toBe(ac.signal);
-    for (const fn of ["shadow_transition", "shadow_configure", "shadow_authorize_retention", "shadow_manifest_add", "shadow_report", "shadow_purge_expired", "transition_conversation_lease"]) {
+    for (const fn of ["shadow_transition", "shadow_configure", "shadow_authorize_retention", "shadow_manifest_add", "shadow_get_manifest", "shadow_report", "shadow_purge_expired", "transition_conversation_lease",
+                      "shadow_set_scope", "shadow_set_tenant_enabled", "shadow_set_property_enabled", "shadow_refresh_eligibility", "shadow_emergency_stop", "shadow_admin_reconcile"]) {
       expect(await shadowRpcFrom(c).call(fn as never, {})).toEqual({ data: null, error: { code: "shadow_rpc_not_allowed" } });
     }
     ac.abort();
     expect(await shadowRpcFrom(c, ac.signal).call("shadow_get_control", {})).toEqual({ data: null, error: { code: "aborted" } });
-    expect(await shadowRpcFrom(c).call("shadow_get_manifest", {})).toEqual({ data: { result: "ok" }, error: null });
+    expect(await shadowRpcFrom(c).call("shadow_list_candidates", {})).toEqual({ data: { result: "ok" }, error: null });
     expect(c.calls).toHaveLength(2);
   });
 });
@@ -462,13 +487,13 @@ describe("B3.3 · gerador emitido (barreiras antes da rede, transporte falso)", 
     vi.stubGlobal("fetch", fetchSpy);
   });
   afterEach(() => vi.unstubAllGlobals());
-  const pf = (stateVersion = 7) => issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion, manifestOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })!;
+  const pf = (stateVersion = 7) => issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion, propertyActiveOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })!;
   const prompt = { system: "s", messages: [{ role: "user" as const, content: "u" }], sourceIds: new Set(["x"]) } as never;
   const deadline = () => new ShadowDeadline({ now: () => 0, schedule: () => () => undefined });
   it("pré-autorização só com todas as provas e ids válidos; gerador só com pré-autorização emitida e modelo /responses", () => {
-    expect(issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 1, manifestOk: false as never, integrityOk: true, pauseInactive: true, ownershipOk: true })).toBeNull();
-    expect(issueShadowPreflight({ executionId: "x", tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 1, manifestOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })).toBeNull();
-    expect(issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 1.2, manifestOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })).toBeNull();
+    expect(issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 1, propertyActiveOk: false as never, integrityOk: true, pauseInactive: true, ownershipOk: true })).toBeNull();
+    expect(issueShadowPreflight({ executionId: "x", tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 1, propertyActiveOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })).toBeNull();
+    expect(issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 1.2, propertyActiveOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })).toBeNull();
     const store = new MemoryShadowStore();
     const forged = { executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 7 };
     expect(createShadowGatewayGenerator({ preflight: forged, limits: limits(), deadline: deadline(), store })).toBeNull();
@@ -579,7 +604,7 @@ describe("B3.3 · gerador emitido (barreiras antes da rede, transporte falso)", 
 
 describe("B3.3 · executor (barreira estrutural)", () => {
   const issued = () => {
-    const pf = issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 7, manifestOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })!;
+    const pf = issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 7, propertyActiveOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })!;
     return createShadowGatewayGenerator({ preflight: pf, limits: limits(), deadline: new ShadowDeadline({ now: () => 0, schedule: () => () => undefined }), store: new MemoryShadowStore(), provider: fakeProvider(okJson({})), masterSwitchOn: () => true })!;
   };
   it("recusa dependência extra, porta desconhecida/ausente/não função, gerador não emitido e sinal ausente", () => {
@@ -671,53 +696,40 @@ describe("B3.3 · loader REAL da posse humana", () => {
   });
 });
 
-describe("B3.3 · candidatas (só imóveis do manifesto, só leitura)", () => {
-  const entries = manifestOf().entries;
-  const conv = (over: Record<string, unknown> = {}) => ({ id: CONV, property_id: P_ID, guest_session_id: "airbnb:th1", last_message_at: "2026-11-03T10:00:00Z", ...over });
-  const msg = (over: Record<string, unknown> = {}) => ({ id: MSG, conversation_id: CONV, created_at: "2026-11-03T10:00:00Z", sender_type: "guest", role: "user", ...over });
-  const now = Date.parse("2026-11-03T10:01:00Z");
+describe("B3.3 · candidatas (E4 global: escolhidas no banco, sem lista de imóveis no processo)", () => {
+  const TOKEN = "c".repeat(64);
+  const store = (r: Awaited<ReturnType<MemoryShadowStore["listCandidates"]>> | Error) => {
+    const calls: Array<[string, number, number]> = [];
+    return { calls, listCandidates: async (t: string, l: number, n: number) => { calls.push([t, l, n]); if (r instanceof Error) throw r; return r; } };
+  };
   it("janela derivada SÓ de valores aprovados (coletor + cadência)", () => {
     expect(candidateLookbackMs(60)).toBe(120_000 + 60_000 + 60_000);
   });
-  it("lista conversas do manifesto com a última mensagem de hóspede; superfície pelo prefixo da sessão", async () => {
-    const ac = new AbortController();
-    const f = fakeDb({ property_chat_conversations: [conv(), conv({ id: "22222222-0000-4000-8000-000000000009", guest_session_id: "wa:55", property_id: P_ID })], property_chat_messages: [msg(), msg({ id: "33333333-0000-4000-8000-000000000001", conversation_id: "22222222-0000-4000-8000-000000000009" })] });
-    const r = await listShadowCandidates(entries, { limit: 5, tickIntervalSeconds: 60, nowMs: now, db: f.db, signal: ac.signal });
-    expect(r.ok && r.candidates.map((c) => c.surface)).toEqual(["airbnb", "whatsapp"]);
-    expect(r.ok && r.candidates[0]).toMatchObject({ conversationId: CONV, propertyId: P_ID, tenantId: T_ID, messageId: MSG });
-    expect(f.calls[0]!.filters).toContainEqual(["in", "property_id", [P_ID]]);
-    expect(f.calls[0]!.limit).toBe(5);
-    expect(f.calls.every((c) => c.signal === ac.signal)).toBe(true);
-    expect(f.calls.map((c) => (c.select ?? "").replace(/\s/g, ""))).toEqual(["id,property_id,guest_session_id,last_message_at", "id,conversation_id,created_at", "id,conversation_id,created_at"]);
-    expect(f.writes).toEqual([]);
+  it("pede ao banco com o token da trava, a janela em segundos e o teto por tick; devolve as linhas do banco", async () => {
+    const row = { conversationId: CONV, propertyId: P_ID, tenantId: T_ID, surface: "airbnb" as const, messageId: MSG };
+    const s = store({ kind: "ok", candidates: [row] });
+    expect(await listShadowCandidates(s, { tickToken: TOKEN, limit: 3, tickIntervalSeconds: 60 })).toEqual({ ok: true, candidates: [row] });
+    expect(s.calls).toEqual([[TOKEN, 240, 3]]);
   });
-  it("guia (sem prefixo) ⇒ guide_chat; conversa sem mensagem de hóspede é ignorada", async () => {
-    const f = fakeDb({ property_chat_conversations: [conv({ guest_session_id: "sess-1" })], property_chat_messages: [msg()] });
-    const r = await listShadowCandidates(entries, { limit: 5, tickIntervalSeconds: 60, nowMs: now, db: f.db });
-    expect(r.ok && r.candidates[0]!.surface).toBe("guide_chat");
-    const f2 = fakeDb({ property_chat_conversations: [conv()], property_chat_messages: [] });
-    expect(await listShadowCandidates(entries, { limit: 5, tickIntervalSeconds: 60, nowMs: now, db: f2.db })).toEqual({ ok: true, candidates: [] });
+  it("bloqueio do banco (escopo fechado, trava perdida, estado, configuração) ⇒ falha com o código, sem integridade", async () => {
+    for (const code of ["scope_off", "tick_not_held", "state_not_running", "config_incomplete"] as const) {
+      expect(await listShadowCandidates(store({ kind: "blocked", code }), { tickToken: TOKEN, limit: 3, tickIntervalSeconds: 60 })).toEqual({ ok: false, integrity: false, code });
+    }
   });
-  it("entradas/limites inválidos, erro de leitura ou formato ⇒ falha (nada executa)", async () => {
-    const f = fakeDb({ property_chat_conversations: [conv()], property_chat_messages: [msg()] });
-    expect(await listShadowCandidates([], { limit: 5, tickIntervalSeconds: 60, nowMs: now, db: f.db })).toEqual({ ok: false, integrity: false });
-    expect(await listShadowCandidates(entries, { limit: 0, tickIntervalSeconds: 60, nowMs: now, db: f.db })).toEqual({ ok: false, integrity: false });
-    expect(await listShadowCandidates(entries, { limit: 5, tickIntervalSeconds: 60, nowMs: Number.NaN, db: f.db })).toEqual({ ok: false, integrity: false });
-    expect(await listShadowCandidates(entries, { limit: 5, tickIntervalSeconds: 60, nowMs: now, db: fakeDb({}, { fail: { property_chat_conversations: true } }).db })).toEqual({ ok: false, integrity: false });
-    expect(await listShadowCandidates(entries, { limit: 5, tickIntervalSeconds: 60, nowMs: now, db: fakeDb({ property_chat_conversations: [conv()] }, { fail: { property_chat_messages: true } }).db })).toEqual({ ok: false, integrity: false });
-    expect(await listShadowCandidates(entries, { limit: 5, tickIntervalSeconds: 60, nowMs: now, db: fakeDb({ property_chat_conversations: [conv({ id: "x" })] }).db })).toEqual({ ok: false, integrity: false });
-    expect(await listShadowCandidates(entries, { limit: 5, tickIntervalSeconds: 60, nowMs: now, db: fakeDb({ property_chat_conversations: [conv({ guest_session_id: null })] }).db })).toEqual({ ok: false, integrity: false });
-    expect(await listShadowCandidates(entries, { limit: 5, tickIntervalSeconds: 60, nowMs: now, db: fakeDb({}, { throwOn: ["property_chat_conversations"] }).db })).toEqual({ ok: false, integrity: false });
+  it("erro (com ou sem integridade), exceção, limites inválidos ⇒ falha (nada executa; o texto da exceção não sai)", async () => {
+    expect(await listShadowCandidates(store({ kind: "error", integrity: true }), { tickToken: TOKEN, limit: 3, tickIntervalSeconds: 60 })).toEqual({ ok: false, integrity: true });
+    expect(await listShadowCandidates(store({ kind: "error", integrity: false }), { tickToken: TOKEN, limit: 3, tickIntervalSeconds: 60 })).toEqual({ ok: false, integrity: false });
+    const r = await listShadowCandidates(store(new Error(CANARY)), { tickToken: TOKEN, limit: 3, tickIntervalSeconds: 60 });
+    expect(r).toEqual({ ok: false, integrity: false });
+    expect(JSON.stringify(r)).not.toContain(CANARY);
+    for (const o of [{ limit: 0, tickIntervalSeconds: 60 }, { limit: 1.5, tickIntervalSeconds: 60 }, { limit: 3, tickIntervalSeconds: 0 }, { limit: 3, tickIntervalSeconds: Number.NaN }]) {
+      const s = store({ kind: "ok", candidates: [] });
+      expect(await listShadowCandidates(s, { tickToken: TOKEN, ...o }), JSON.stringify(o)).toEqual({ ok: false, integrity: false });
+      expect(s.calls).toEqual([]);
+    }
   });
-  it("linha de imóvel fora do manifesto ou mensagem de outra conversa ⇒ integridade", async () => {
-    const wrongProp = { from: () => ({ select: () => ({ in: () => ({ gte: () => ({ order: () => ({ limit: async () => ({ data: [conv({ property_id: OTHER_P })], error: null }) }) }) }) }) }) };
-    expect(await listShadowCandidates(entries, { limit: 5, tickIntervalSeconds: 60, nowMs: now, db: wrongProp as never })).toEqual({ ok: false, integrity: true });
-    const f = fakeDb({ property_chat_conversations: [conv()], property_chat_messages: [msg({ id: "x" })] });
-    expect(await listShadowCandidates(entries, { limit: 5, tickIntervalSeconds: 60, nowMs: now, db: f.db })).toEqual({ ok: false, integrity: true });
-  });
-  it("sem `db` usa o cliente administrativo", async () => {
-    vi.doMock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: fakeDb({}).db }));
-    expect(await listShadowCandidates(entries, { limit: 5, tickIntervalSeconds: 60, nowMs: now })).toEqual({ ok: true, candidates: [] });
-    vi.doUnmock("@/integrations/supabase/client.server");
+  it("o módulo de candidatas não lê tabela nenhuma (nenhum cliente de banco, nenhum IN de imóveis)", () => {
+    const src = readFileSync(path.resolve(__dirname, "../data/shadow-candidates.server.ts"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(src).not.toMatch(/getGuestAiDb|\.from\(|\.in\(|supabase/);
   });
 });

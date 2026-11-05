@@ -1,6 +1,7 @@
--- ConciergeIA Guest AI · Entrega 4 · VALIDAÇÃO PÓS-APLICAÇÃO (somente leitura).
--- Confere estrutura, RLS, ACL (tabelas, sequências, funções), estado inicial e a impressão digital das
--- definições. Critério: TODAS as linhas com ok = true. Qualquer false ⇒ rollback (03-rollback-*.sql).
+-- ConciergeIA Guest AI · Entrega 4 (revisão GLOBAL) · VALIDAÇÃO PÓS-APLICAÇÃO (somente leitura).
+-- Confere estrutura, RLS, ACL (tabelas, sequências, funções), estado INERTE (escopo `none`, nenhum imóvel
+-- ativo, nenhum interruptor, nenhum cron) e a impressão digital das definições.
+-- Critério: TODAS as linhas com ok = true. Qualquer false ⇒ rollback (03-rollback-*.sql).
 with
 rel as (
   select c.oid, c.relname, c.relkind, c.relrowsecurity, c.relacl
@@ -16,18 +17,20 @@ fn as (
          pg_get_userbyid(p.proowner) owner
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and (p.proname like 'shadow\_%' or p.proname like 'guest\_ai\_shadow\_%' or p.proname like '%\_conversation\_lease')),
-worker_rpcs(f) as (values ('claim_conversation_lease'), ('transition_conversation_lease'), ('shadow_get_control'), ('shadow_get_manifest'),
+worker_rpcs(f) as (values ('claim_conversation_lease'), ('transition_conversation_lease'), ('shadow_get_control'),
   ('shadow_trip'), ('shadow_reserve_budget'), ('shadow_evaluate_breakers'), ('shadow_record_execution'), ('shadow_acquire_tick'),
-  ('shadow_release_tick'), ('shadow_claim_execution'), ('shadow_finalize_execution'), ('shadow_reconcile')),
+  ('shadow_release_tick'), ('shadow_claim_execution'), ('shadow_finalize_execution'), ('shadow_reconcile'),
+  ('shadow_property_status'), ('shadow_list_candidates')),
 checks(check_name, expected, found) as (
-  select 'tables', '11', (select count(*)::text from tbl)
-  union all select 'tables_rls_on', '11', (select count(*)::text from tbl where relrowsecurity)
+  select 'tables', '12', (select count(*)::text from tbl)
+  union all select 'tables_rls_on', '12', (select count(*)::text from tbl where relrowsecurity)
+  union all select 'no_manifest_table', 'true', (to_regclass('public.guest_ai_shadow_manifest') is null)::text
   union all select 'tables_policies', '0', (select count(*)::text from pg_policy p join tbl on tbl.oid = p.polrelid)
   union all select 'sequences', '3', (select count(*)::text from seq)
-  union all select 'functions', '31', (select count(*)::text from fn)
-  union all select 'functions_security_definer', '31', (select count(*)::text from fn where prosecdef)
-  union all select 'functions_fixed_search_path', '31', (select count(*)::text from fn where cfg = 'search_path=pg_catalog, pg_temp')
-  union all select 'functions_owner_executor', '31', (select count(*)::text from fn where owner = current_user)
+  union all select 'functions', '35', (select count(*)::text from fn)
+  union all select 'functions_security_definer', '35', (select count(*)::text from fn where prosecdef)
+  union all select 'functions_fixed_search_path', '35', (select count(*)::text from fn where cfg = 'search_path=pg_catalog, pg_temp')
+  union all select 'functions_owner_executor', '35', (select count(*)::text from fn where owner = current_user)
   union all select 'service_role_execute_exactly_worker_rpcs', 'true',
     ((select coalesce(array_agg(proname::text order by proname::text), '{}') from fn where sr) = (select array_agg(f::text order by f::text) from worker_rpcs))::text
   union all select 'clients_execute_none', '0', (select count(*)::text from fn where anon or auth)
@@ -52,8 +55,12 @@ checks(check_name, expected, found) as (
   -- estado inicial: nada ativo, nada habilitado
   union all select 'initial_state_disabled', 'disabled', (select state from public.guest_ai_shadow_control where id = 1)
   union all select 'initial_daily_ceiling', '1.00000000', (select daily_cost_limit_usd::text from public.guest_ai_shadow_control where id = 1)
-  union all select 'initial_no_manifest', '0', (select count(*)::text from public.guest_ai_shadow_manifest)
-  union all select 'initial_no_property_enabled', '0', (select count(*)::text from public.guest_ai_shadow_property_switch where enabled)
+  -- E4 global: escopo FECHADO e nenhum imóvel ativo (a porta recusa TODO imóvel existente)
+  union all select 'initial_scope_none', 'none:0', (select property_scope || ':' || scope_version from public.guest_ai_shadow_control where id = 1)
+  union all select 'initial_effective_active_properties', '0',
+    (select count(*)::text from public.properties p where public.guest_ai_shadow_property_gate(p.owner_id, p.id) is null)
+  union all select 'initial_no_switches', '0:0:0', (select (select count(*) from public.guest_ai_shadow_tenant_switch)::text || ':' ||
+    (select count(*) from public.guest_ai_shadow_property_switch)::text || ':' || (select count(*) from public.guest_ai_shadow_switch_log)::text)
   union all select 'initial_no_tick_lock', 'true', (select (tick_owner_token is null)::text from public.guest_ai_shadow_control where id = 1)
   union all select 'initial_no_executions', '0', (select count(*)::text from public.guest_ai_shadow_executions)
   union all select 'initial_no_inflight', '0', (select count(*)::text from public.guest_ai_shadow_inflight)
@@ -74,9 +81,9 @@ checks(check_name, expected, found) as (
 select check_name, expected, found, found is not distinct from expected as ok from checks
 union all
 -- impressão digital das definições (mesma da aplicação ensaiada; divergência ⇒ objeto diferente do esperado)
-select 'fingerprint_functions', e, f, f = e from (select '3b80c795cd743e7f42ffc5be4b655fc3'::text as e,
+select 'fingerprint_functions', e, f, f = e from (select '89cf8433c5194300ac518ab58ff67792'::text as e,
   md5(string_agg(proname || ':' || md5(prosrc) || ':' || cfg, '|' order by proname)) as f from fn) x
 union all
-select 'fingerprint_tables', e, f, f = e from (select '7da743b42e0188af8223e8debf15278f'::text as e,
+select 'fingerprint_tables', e, f, f = e from (select '0a94ce624d0b91f3555a937e47e8210d'::text as e,
   md5(string_agg(table_name || '.' || column_name || ':' || data_type || ':' || is_nullable || ':' || coalesce(column_default, ''), '|' order by table_name, ordinal_position)) as f
   from information_schema.columns where table_schema = 'public' and table_name like 'guest\_ai\_%') x;

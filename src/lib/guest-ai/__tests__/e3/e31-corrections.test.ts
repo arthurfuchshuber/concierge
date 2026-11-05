@@ -379,12 +379,12 @@ describe.skipIf(!PG176_AVAILABLE)("E3.1 · correções (PostgreSQL 17.6 real)", 
   }, 60_000);
 
   // ───────────────────────────── isolamento ─────────────────────────────
-  it("isolamento · reivindicação recusa par tenant/imóvel fora do manifesto ativo (o banco confere, não só o worker)", async () => {
+  it("isolamento · reivindicação recusa par tenant/imóvel que a porta não aceita (o banco confere, não só o worker)", async () => {
     const s = await conv();
     await shadowToRunning(db, [s]);
     const v = await readyBatch(s);
-    expect((await rpcAsSr(db, "shadow_claim_execution", { ...claimArgs(s, v), p_tenant_id: "7a000000-0000-4000-8000-00000000beef" })).result).toBe("not_in_manifest");
-    expect((await rpcAsSr(db, "shadow_claim_execution", { ...claimArgs(s, v), p_property_id: "7b000000-0000-4000-8000-00000000beef" })).result).toBe("not_in_manifest");
+    expect(await rpcAsSr(db, "shadow_claim_execution", { ...claimArgs(s, v), p_tenant_id: "7a000000-0000-4000-8000-00000000beef" })).toEqual({ result: "property_blocked", reason: "tenant_mismatch" });
+    expect(await rpcAsSr(db, "shadow_claim_execution", { ...claimArgs(s, v), p_property_id: "7b000000-0000-4000-8000-00000000beef" })).toEqual({ result: "property_blocked", reason: "property_not_found" });
     expect((await leaseRow(db, s.conv))!.state).toBe("ready");
   }, 60_000);
 

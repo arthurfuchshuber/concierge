@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleShadowTick, runShadowTick, SHADOW_TICK_RELEASED } from "@/lib/guest-ai/shadow-exec/tick.server";
 import { Route } from "@/routes/api/public/guest-ai.shadow-tick";
-import { CANARY, MemoryShadowStore, candidate, fullControl, manifestOf } from "./helpers/b33-shadow";
+import { CANARY, MemoryShadowStore, candidate, fullControl } from "./helpers/b33-shadow";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -86,7 +86,8 @@ describe("B3.3 · tick (só alcançável com o portão aberto — testado com po
     const r = await handleShadowTick(req(), open(s));
     expect(await r.json()).toEqual({ outcome: "executed", conversationsConsidered: 3, executed: 2, blocked: 1, failed: 0 });
     // E3.1: ≤ 3 conversas por tick; instante das candidatas = relógio do BANCO; trava adquirida, reconciliação antes, trava liberada no fim
-    expect(s.candidates).toHaveBeenCalledWith(store.manifest!.entries, expect.objectContaining({ limit: 3, tickIntervalSeconds: 60, nowMs: store.control!.dbNowMs }));
+    // E4 global: candidatas pedidas ao BANCO com o token da trava; nenhuma lista de imóveis sai do processo
+    expect(s.candidates).toHaveBeenCalledWith(store, { tickToken: "c".repeat(64), limit: 3, tickIntervalSeconds: 60 });
     expect(s.worker).toHaveBeenCalledWith(expect.anything(), "c".repeat(64));
     expect(store.calls.filter((c) => ["acquireTick", "reconcile", "releaseTick"].includes(c))).toEqual(["acquireTick", "reconcile", "releaseTick"]);
   });
@@ -136,14 +137,13 @@ describe("B3.3 · tick (só alcançável com o portão aberto — testado com po
     expect(await runShadowTick(s)).toEqual({ outcome: "executed", conversationsConsidered: 2, executed: 0, blocked: 0, failed: 1 });
     expect(s.worker).toHaveBeenCalledTimes(1);
   });
-  it("estado/configuração/manifesto inválidos ⇒ nada; candidatas com integridade ⇒ disjuntor global", async () => {
+  it("estado/configuração inválidos ou escopo fechado ⇒ nada; candidatas com integridade ⇒ disjuntor global", async () => {
     const cases: Array<[(st: MemoryShadowStore) => void, string]> = [
       [(st) => (st.fail.readControl = true), "state_unreadable"],
       [(st) => (st.control = fullControl({ state: "ready" })), "state_not_running"],
       [(st) => (st.control = fullControl({ maxConversationsPerTick: null })), "limits_missing"],
-      [(st) => (st.fail.readManifest = true), "manifest_unreadable"],
-      [(st) => (st.manifest = manifestOf(undefined, 9)), "manifest_unreadable"],
-      [(st) => (st.manifest = manifestOf([])), "no_enabled_properties"], // E4: nenhum imóvel habilitado
+      // E4 global: escopo `none` (estado inicial) ⇒ nenhum imóvel participa; nem a trava é pedida
+      [(st) => (st.control = fullControl({ propertyScope: "none" })), "scope_off"],
     ];
     for (const [setup, outcome] of cases) {
       const s = spies();
@@ -152,7 +152,7 @@ describe("B3.3 · tick (só alcançável com o portão aberto — testado com po
       s.store.mockResolvedValue(st);
       expect((await runShadowTick(s)).outcome).toBe(outcome);
       expect(s.worker).not.toHaveBeenCalled();
-      // portões ANTES de qualquer efeito: estado/configuração/manifesto inválidos nem chegam a pedir a trava do tick
+      // portões ANTES de qualquer efeito: estado/configuração inválidos ou escopo fechado nem chegam a pedir a trava do tick
       expect(st.calls).not.toContain("acquireTick");
     }
     const s = spies();
@@ -165,6 +165,12 @@ describe("B3.3 · tick (só alcançável com o portão aberto — testado com po
     s.candidates.mockResolvedValue({ ok: false, integrity: false } as never);
     expect((await runShadowTick(s)).outcome).toBe("tick_failed");
     expect(st.trips).toHaveLength(1);
+    // E4 global: o escopo fechou entre a leitura do estado e a escolha das candidatas (corrida) ⇒ scope_off,
+    // nenhum worker, nenhum disparo; a trava é liberada
+    s.candidates.mockResolvedValue({ ok: false, integrity: false, code: "scope_off" } as never);
+    expect((await runShadowTick(s)).outcome).toBe("scope_off");
+    expect(st.trips).toHaveLength(1);
+    expect(st.calls.filter((c) => c === "releaseTick").length).toBeGreaterThan(0);
   });
   it("exceção em qualquer ponto ⇒ `tick_failed` sem conteúdo", async () => {
     const s = spies();

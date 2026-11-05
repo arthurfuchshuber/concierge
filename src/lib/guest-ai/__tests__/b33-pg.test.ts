@@ -3,11 +3,11 @@
  * temporário; cada consulta = conexão independente). Nada toca a produção. Cobre: RLS/privilégios,
  * vocabulários fechados (texto livre impossível), RPC de registro com canários, CAS e matriz de
  * transições, reserva atômica concorrente sob o teto de US$ 1,00, reserva órfã, liquidação, disjuntores
- * (5 % exato × acima, consecutivas, integridade, medição), paridade TS × SQL, manifesto, relatório
+ * (5 % exato × acima, consecutivas, integridade, medição), paridade TS × SQL, escopo global, relatório
  * auditado, expurgo e o adaptador `createShadowStore` contra o banco.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { PG_AVAILABLE, SHADOW_MIGRATION_PATH, startCluster, type PgCluster } from "./pg/pg-cluster";
+import { PG_AVAILABLE, SHADOW_MIGRATION_PATH, GLOBAL_MIGRATION_PATH, startCluster, type PgCluster } from "./pg/pg-cluster";
 import { buildExecutionRecord, NO_GATEWAY, validateExecutionRecord, type ExecutionMeta } from "@/lib/guest-ai/shadow-exec/extract";
 import { createShadowStore, recordToRow } from "@/lib/guest-ai/data/shadow-store.server";
 import { evaluateErrorBreaker, isEvaluable, isTechnicalError } from "@/lib/guest-ai/shadow-exec/breakers";
@@ -27,9 +27,11 @@ const lit = (v: unknown): string => {
   if (typeof v === "object") return `'${JSON.stringify(v).replace(/'/g, "''")}'::jsonb`;
   return `'${String(v).replace(/'/g, "''")}'`;
 };
-const rpc = async (fn: string, args: Record<string, unknown> = {}, role = SR): Promise<J> => {
+/** E4: as RPCs ADMINISTRATIVAS só o dono executa (operador no SQL do banco); as do worker, service_role. */
+const ADMIN_RPCS = ["shadow_configure", "shadow_authorize_retention", "shadow_transition", "shadow_report", "shadow_purge_expired", "shadow_set_scope", "shadow_set_tenant_enabled", "shadow_set_property_enabled", "shadow_refresh_eligibility", "shadow_emergency_stop", "shadow_admin_reconcile"];
+const rpc = async (fn: string, args: Record<string, unknown> = {}, role?: { role: string }): Promise<J> => {
   const a = Object.entries(args).map(([k, v]) => `${k} => ${lit(v)}`).join(", ");
-  return JSON.parse(await pg.sql(`select public.${fn}(${a})`, role)) as J;
+  return JSON.parse(await pg.sql(`select public.${fn}(${a})`, role ?? (ADMIN_RPCS.includes(fn) ? undefined : SR))) as J;
 };
 const one = async (q: string) => pg.sql(q);
 const control = () => rpc("shadow_get_control");
@@ -53,18 +55,17 @@ const record = (r: ShadowExecutionRecord | Record<string, unknown>) => rpc("shad
 
 /** Volta ao estado inicial da migration (só o dono, no teste). */
 async function reset() {
-  await pg.sql(`truncate public.guest_ai_shadow_executions, public.guest_ai_shadow_budget_reservations, public.guest_ai_shadow_budget_days, public.guest_ai_shadow_transitions, public.guest_ai_shadow_access_log, public.guest_ai_shadow_manifest, public.guest_ai_shadow_inflight`);
+  await pg.sql(`truncate public.guest_ai_shadow_executions, public.guest_ai_shadow_budget_reservations, public.guest_ai_shadow_budget_days, public.guest_ai_shadow_transitions, public.guest_ai_shadow_access_log, public.guest_ai_shadow_inflight, public.guest_ai_shadow_property_switch, public.guest_ai_shadow_tenant_switch, public.guest_ai_shadow_switch_log, public.guest_ai_shadow_property_eligibility`);
   await pg.sql(`delete from public.guest_ai_shadow_control; insert into public.guest_ai_shadow_control (id, state, daily_cost_limit_usd) values (1, 'disabled', 1.00)`);
 }
-/** Leva até `running` pelo caminho AUTORIZADO (manifesto → configuração → retenção → ready → running). */
+/** Leva até `running` pelo caminho AUTORIZADO (configuração → retenção → ready → running), SEM abrir o escopo de imóveis. */
 async function toRunning(over: Record<string, unknown> = {}) {
-  await rpc("shadow_manifest_add", { p_actor: ACTOR, p_manifest_version: 1, p_tenant_id: T_ID, p_property_id: P_ID, p_selection_reason: "highest_volume", p_twin_status: "verified", p_history_status: "verified" });
   let v = Number((await control()).state_version);
   const cfg = await rpc("shadow_configure", {
     p_expected_version: v, p_actor: ACTOR, p_model_id: "openai/gpt-5.6-sol", p_reasoning_effort: "low", p_max_input_tokens: 40000, p_max_output_tokens: 1536,
     p_max_total_tokens: 42000, p_max_turn_cost_usd: 0.15, p_daily_cost_limit_usd: 1.0, p_max_daily_tokens: 5000000, p_max_daily_calls: 500, p_error_window_minutes: 60,
     p_error_min_sample: 20, p_budget_day_timezone: "America/Sao_Paulo", p_telemetry_retention_days: 30, p_tick_interval_seconds: 60, p_max_conversations_per_tick: 3,
-    p_manifest_version: 1, ...over,
+    ...over,
   });
   expect(cfg.result).toBe("applied");
   v = Number(cfg.state_version);
@@ -76,9 +77,12 @@ async function toRunning(over: Record<string, unknown> = {}) {
   expect(run.result).toBe("applied");
 }
 
-const TABLES = ["guest_ai_shadow_control", "guest_ai_shadow_transitions", "guest_ai_shadow_manifest", "guest_ai_shadow_executions", "guest_ai_shadow_budget_days", "guest_ai_shadow_budget_reservations", "guest_ai_shadow_access_log", "guest_ai_shadow_inflight"];
-const RPCS = ["shadow_get_control", "shadow_get_manifest", "shadow_manifest_add", "shadow_configure", "shadow_authorize_retention", "shadow_transition", "shadow_trip", "shadow_reserve_budget", "shadow_evaluate_breakers", "shadow_record_execution", "shadow_acquire_tick", "shadow_release_tick", "shadow_claim_execution", "shadow_finalize_execution", "shadow_reconcile", "shadow_report", "shadow_purge_expired"];
-const INTERNAL = ["guest_ai_shadow_config_problem", "guest_ai_shadow_error_verdict", "guest_ai_shadow_trip_locked", "guest_ai_shadow_settle_locked", "guest_ai_shadow_insert_execution", "guest_ai_shadow_breakers_locked", "guest_ai_shadow_seal_lease"];
+const TABLES = ["guest_ai_shadow_control", "guest_ai_shadow_transitions", "guest_ai_shadow_executions", "guest_ai_shadow_budget_days", "guest_ai_shadow_budget_reservations", "guest_ai_shadow_access_log", "guest_ai_shadow_inflight"];
+/** RPCs do WORKER (EXECUTE só service_role). */
+const RPCS = ["shadow_get_control", "shadow_trip", "shadow_reserve_budget", "shadow_evaluate_breakers", "shadow_record_execution", "shadow_acquire_tick", "shadow_release_tick", "shadow_claim_execution", "shadow_finalize_execution", "shadow_reconcile", "shadow_property_status", "shadow_list_candidates"];
+const INTERNAL = ["guest_ai_shadow_config_problem", "guest_ai_shadow_error_verdict", "guest_ai_shadow_trip_locked", "guest_ai_shadow_settle_locked", "guest_ai_shadow_insert_execution", "guest_ai_shadow_breakers_locked", "guest_ai_shadow_seal_lease", "guest_ai_shadow_property_gate", "guest_ai_shadow_eligibility_reason", "guest_ai_shadow_reconcile_core"];
+/** Administrativas (E4): só o dono — nem service_role. */
+const ADMIN = ADMIN_RPCS;;
 /** Execução EM ANDAMENTO (fixture do dono): a reserva só existe para execução reivindicada (E3.1). */
 const inflight = async (id: string) => {
   await pg.sql(`insert into public.guest_ai_shadow_inflight (execution_id, conversation_id, tenant_id, property_id, channel, batch_id, lease_version) values ('${id}', gen_random_uuid(), '${T_ID}', '${P_ID}', 'web', gen_random_uuid(), 2)`);
@@ -88,7 +92,7 @@ const claimed = async () => inflight(uid());
 
 describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () => {
   beforeAll(async () => {
-    pg = startCluster([SHADOW_MIGRATION_PATH]);
+    pg = startCluster([SHADOW_MIGRATION_PATH, GLOBAL_MIGRATION_PATH]);
     await pg.sql(`insert into public.properties (id, owner_id) values ('${P_ID}', '${T_ID}'), ('b0000000-0000-4000-8000-0000000000aa', '${T_ID}')`);
     await pg.sql(`insert into public.properties (id, owner_id, archived_at) values ('b0000000-0000-4000-8000-0000000000bb', '${T_ID}', now())`);
   }, 120_000);
@@ -96,10 +100,11 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
   beforeEach(reset);
 
   describe("segurança do banco", () => {
-    it("estado inicial: disabled, versão 1, só o teto aprovado (US$ 1,00), sem manifesto nem retenção", async () => {
+    it("estado inicial: disabled, versão 1, só o teto aprovado (US$ 1,00), escopo `none` (nenhum imóvel), sem retenção", async () => {
       const c = await control();
-      expect(c).toMatchObject({ result: "ok", state: "disabled", state_version: 1, daily_cost_limit_usd: 1, manifest_version: null, retention_authorized: false, model_id: null, max_turn_cost_usd: null, max_daily_calls: null });
-      expect(await one("select count(*) from public.guest_ai_shadow_manifest")).toBe("0");
+      expect(c).toMatchObject({ result: "ok", state: "disabled", state_version: 1, daily_cost_limit_usd: 1, property_scope: "none", scope_version: 0, retention_authorized: false, model_id: null, max_turn_cost_usd: null, max_daily_calls: null });
+      expect(c).not.toHaveProperty("manifest_version");
+      expect(await one("select to_regclass('public.guest_ai_shadow_manifest') is null")).toBe("t");
     });
     it("RLS ligada em todas as tabelas, sem política; nenhuma coluna json/jsonb", async () => {
       for (const t of TABLES) {
@@ -148,28 +153,12 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
         (await pg.trySql(`select setval('public.${seqs[0]}', 999999)`, { role: "anon" })).ok,
       ).toBe(false);
     });
-    it("E4 · manifesto NÃO prende a exclusão de imóvel pela operação convencional (Capacidade B): sem FK RESTRICT", async () => {
+    it("E4 · nenhuma tabela Shadow tem FK para `properties`: a exclusão de imóvel pela Capacidade B nunca é presa", async () => {
       const pid = "b0000000-0000-4000-8000-0000000000dd";
       await pg.sql(`insert into public.properties (id, owner_id) values ('${pid}', '${T_ID}')`);
-      expect(
-        (
-          await rpc("shadow_manifest_add", {
-            p_actor: ACTOR,
-            p_manifest_version: 1,
-            p_tenant_id: T_ID,
-            p_property_id: pid,
-            p_selection_reason: "highest_volume",
-            p_twin_status: "verified",
-            p_history_status: "verified",
-          })
-        ).result,
-      ).toBe("applied");
+      expect((await rpc("shadow_set_property_enabled", { p_actor: ACTOR, p_property_id: pid, p_tenant_id: T_ID, p_enabled: false, p_expected_version: null, p_reason: "authorized_disable" })).result).toBe("applied");
       expect((await pg.trySql(`delete from public.properties where id = '${pid}'`)).ok).toBe(true);
-      expect(
-        await one(
-          `select count(*) from pg_constraint where conrelid = 'public.guest_ai_shadow_manifest'::regclass and contype = 'f'`,
-        ),
-      ).toBe("0");
+      expect(await one(`select count(*) from pg_constraint k join pg_class c on c.oid = k.conrelid where c.relname like 'guest_ai_shadow_%' and k.contype = 'f' and k.confrelid = 'public.properties'::regclass`)).toBe("0");
     });
     it("RPCs: EXECUTE só service_role; internas sem EXECUTE para ninguém; todas SECURITY DEFINER com search_path fixo", async () => {
       for (const fn of RPCS) {
@@ -178,11 +167,18 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
         expect(await one(`select has_function_privilege('service_role', oid, 'execute') from pg_proc where proname = '${fn}'`), fn).toBe("t");
         for (const role of ["anon", "authenticated"]) expect(await one(`select has_function_privilege('${role}', oid, 'execute') from pg_proc where proname = '${fn}'`), `${role} ${fn}`).toBe("f");
       }
-      for (const fn of INTERNAL) {
+      for (const fn of [...INTERNAL, ...ADMIN]) {
+        expect(await one(`select prosecdef from pg_proc where proname = '${fn}'`), fn).toBe("t");
+        expect(await one(`select array_to_string(proconfig, ',') from pg_proc where proname = '${fn}'`), fn).toBe("search_path=pg_catalog, pg_temp");
         for (const role of ["anon", "authenticated", "service_role"]) expect(await one(`select has_function_privilege('${role}', oid, 'execute') from pg_proc where proname = '${fn}'`), `${role} ${fn}`).toBe("f");
       }
+      // comportamento EFETIVO (não só o catálogo): service_role chamando administrativa ⇒ permissão negada
+      for (const call of ["shadow_set_scope('${ACTOR}', 0, 'all_eligible', 'authorized_global_activation', repeat('a', 64))", "shadow_emergency_stop('${ACTOR}')", "shadow_refresh_eligibility('${ACTOR}')"]) {
+        const r = await pg.trySql(`select public.${call.replace("${ACTOR}", ACTOR)}`, SR);
+        expect(r.ok, call).toBe(false);
+      }
       expect((await pg.trySql(`select public.shadow_get_control()`, { role: "anon" })).ok).toBe(false);
-    });
+    }, 60_000);
   });
 
   describe("registro de execução: chaves exatas, vocabulário fechado, canários nunca gravados", () => {
@@ -224,17 +220,19 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
     it("INSERT direto (como dono) com texto livre também é recusado pelas CHECK", async () => {
       const r = await pg.trySql(`insert into public.guest_ai_shadow_transitions (from_state, to_state, state_version, actor, automatic, reason_code) values ('running', 'circuit_open', 2, null, true, '${CANARY}')`);
       expect(r.ok).toBe(false);
-      const r2 = await pg.trySql(`insert into public.guest_ai_shadow_manifest (manifest_version, tenant_id, property_id, selection_reason, twin_status, history_status, authorized_by) values (9, '${T_ID}', '${P_ID}', '${CANARY}', 'verified', 'verified', '${ACTOR}')`);
+      const r2 = await pg.trySql(`insert into public.guest_ai_shadow_switch_log (subject_kind, tenant_id, property_id, from_value, to_value, version, actor, db_role, reason_code) values ('property', '${T_ID}', '${P_ID}', 'enabled', 'disabled', 1, '${ACTOR}', 'postgres', '${CANARY}')`);
       expect(r2.ok).toBe(false);
+      const r3 = await pg.trySql(`insert into public.guest_ai_shadow_property_eligibility (property_id, tenant_id, eligible, reason_code, rule_version, evaluated_by) values ('${P_ID}', '${T_ID}', false, '${CANARY}', 'eligibility.2026-11-05.1', '${ACTOR}')`);
+      expect(r3.ok).toBe(false);
     });
   });
 
   describe("estado global: CAS, matriz de transições, nenhuma saída automática de falha", () => {
-    it("ready/running exigem configuração COMPLETA (retenção, modelo, limites, manifesto)", async () => {
+    it("ready/running exigem configuração COMPLETA (retenção, modelo, limites)", async () => {
       expect(await rpc("shadow_transition", { p_expected_version: 1, p_to: "ready", p_actor: ACTOR, p_reason: "authorized_activation" })).toEqual({ result: "config_incomplete", problem: "retention_not_authorized" });
       expect((await rpc("shadow_authorize_retention", { p_expected_version: 1, p_actor: ACTOR, p_scope: "openai_responses", p_evidence_sha256: EVID })).result).toBe("applied");
       expect(await rpc("shadow_transition", { p_expected_version: 2, p_to: "ready", p_actor: ACTOR, p_reason: "authorized_activation" })).toEqual({ result: "config_incomplete", problem: "model_not_allowed" });
-      const cfg = await rpc("shadow_configure", { p_expected_version: 2, p_actor: ACTOR, p_model_id: "openai/gpt-5.6-sol", p_reasoning_effort: null, p_max_input_tokens: null, p_max_output_tokens: null, p_max_total_tokens: null, p_max_turn_cost_usd: null, p_daily_cost_limit_usd: 1, p_max_daily_tokens: null, p_max_daily_calls: null, p_error_window_minutes: null, p_error_min_sample: null, p_budget_day_timezone: null, p_telemetry_retention_days: null, p_tick_interval_seconds: null, p_max_conversations_per_tick: null, p_manifest_version: null });
+      const cfg = await rpc("shadow_configure", { p_expected_version: 2, p_actor: ACTOR, p_model_id: "openai/gpt-5.6-sol", p_reasoning_effort: null, p_max_input_tokens: null, p_max_output_tokens: null, p_max_total_tokens: null, p_max_turn_cost_usd: null, p_daily_cost_limit_usd: 1, p_max_daily_tokens: null, p_max_daily_calls: null, p_error_window_minutes: null, p_error_min_sample: null, p_budget_day_timezone: null, p_telemetry_retention_days: null, p_tick_interval_seconds: null, p_max_conversations_per_tick: null });
       expect(cfg.result).toBe("applied");
       expect(await rpc("shadow_transition", { p_expected_version: 3, p_to: "ready", p_actor: ACTOR, p_reason: "authorized_activation" })).toEqual({ result: "config_incomplete", problem: "limits_missing" });
     });
@@ -278,7 +276,7 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
     it("pausa/retomada autorizadas; configuração e retenção nunca mudam em ready/running; revogar retenção em running desliga", async () => {
       await toRunning();
       let v = Number((await control()).state_version);
-      expect((await rpc("shadow_configure", { p_expected_version: v, p_actor: ACTOR, p_model_id: null, p_reasoning_effort: null, p_max_input_tokens: null, p_max_output_tokens: null, p_max_total_tokens: null, p_max_turn_cost_usd: null, p_daily_cost_limit_usd: null, p_max_daily_tokens: null, p_max_daily_calls: null, p_error_window_minutes: null, p_error_min_sample: null, p_budget_day_timezone: null, p_telemetry_retention_days: null, p_tick_interval_seconds: null, p_max_conversations_per_tick: null, p_manifest_version: null })).result).toBe("invalid_transition");
+      expect((await rpc("shadow_configure", { p_expected_version: v, p_actor: ACTOR, p_model_id: null, p_reasoning_effort: null, p_max_input_tokens: null, p_max_output_tokens: null, p_max_total_tokens: null, p_max_turn_cost_usd: null, p_daily_cost_limit_usd: null, p_max_daily_tokens: null, p_max_daily_calls: null, p_error_window_minutes: null, p_error_min_sample: null, p_budget_day_timezone: null, p_telemetry_retention_days: null, p_tick_interval_seconds: null, p_max_conversations_per_tick: null })).result).toBe("invalid_transition");
       expect((await rpc("shadow_authorize_retention", { p_expected_version: v, p_actor: ACTOR, p_scope: "openai_responses", p_evidence_sha256: EVID })).result).toBe("invalid_transition");
       const p = await rpc("shadow_transition", { p_expected_version: v, p_to: "paused", p_actor: ACTOR, p_reason: "authorized_pause" });
       expect(p.state).toBe("paused");
@@ -291,10 +289,10 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
       expect((await rpc("shadow_authorize_retention", { p_expected_version: v + 1, p_actor: ACTOR, p_scope: "google", p_evidence_sha256: EVID })).result).toBe("invalid_argument");
       expect((await rpc("shadow_authorize_retention", { p_expected_version: 1, p_actor: ACTOR, p_scope: "openai_responses", p_evidence_sha256: EVID })).result).toBe("stale_version");
     });
-    it("configuração recusa modelo Google, teto diário acima de US$ 1,00, fuso inexistente e manifesto inexistente", async () => {
-      const base = { p_expected_version: 1, p_actor: ACTOR, p_model_id: "openai/gpt-5.6-sol", p_reasoning_effort: "low", p_max_input_tokens: 1, p_max_output_tokens: 1, p_max_total_tokens: 1, p_max_turn_cost_usd: 0.1, p_daily_cost_limit_usd: 1, p_max_daily_tokens: 1, p_max_daily_calls: 1, p_error_window_minutes: 1, p_error_min_sample: 20, p_budget_day_timezone: "America/Sao_Paulo", p_telemetry_retention_days: 1, p_tick_interval_seconds: 60, p_max_conversations_per_tick: 1, p_manifest_version: null };
+    it("configuração recusa modelo Google, teto diário acima de US$ 1,00 e fuso inexistente", async () => {
+      const base = { p_expected_version: 1, p_actor: ACTOR, p_model_id: "openai/gpt-5.6-sol", p_reasoning_effort: "low", p_max_input_tokens: 1, p_max_output_tokens: 1, p_max_total_tokens: 1, p_max_turn_cost_usd: 0.1, p_daily_cost_limit_usd: 1, p_max_daily_tokens: 1, p_max_daily_calls: 1, p_error_window_minutes: 1, p_error_min_sample: 20, p_budget_day_timezone: "America/Sao_Paulo", p_telemetry_retention_days: 1, p_tick_interval_seconds: 60, p_max_conversations_per_tick: 1 };
       // E3.1: parâmetros homologados são TETOS no banco (custo/turno ≤ 0,15; ≤ 3/tick; tick = 60 s; amostra = 20; fuso de São Paulo)
-      for (const bad of [{ p_model_id: "google/gemini-3.8-flash" }, { p_daily_cost_limit_usd: 1.01 }, { p_max_output_tokens: 5000 }, { p_error_min_sample: 1 }, { p_error_min_sample: 19 }, { p_error_min_sample: 21 }, { p_budget_day_timezone: "Mars/Olympus" }, { p_budget_day_timezone: "UTC" }, { p_manifest_version: 3 }, { p_max_daily_calls: -1 }, { p_actor: null }, { p_max_turn_cost_usd: 0.15000001 }, { p_max_conversations_per_tick: 4 }, { p_max_conversations_per_tick: 0 }, { p_tick_interval_seconds: 30 }, { p_tick_interval_seconds: 61 }]) {
+      for (const bad of [{ p_model_id: "google/gemini-3.8-flash" }, { p_daily_cost_limit_usd: 1.01 }, { p_max_output_tokens: 5000 }, { p_error_min_sample: 1 }, { p_error_min_sample: 19 }, { p_error_min_sample: 21 }, { p_budget_day_timezone: "Mars/Olympus" }, { p_budget_day_timezone: "UTC" }, { p_max_daily_calls: -1 }, { p_actor: null }, { p_max_turn_cost_usd: 0.15000001 }, { p_max_conversations_per_tick: 4 }, { p_max_conversations_per_tick: 0 }, { p_tick_interval_seconds: 30 }, { p_tick_interval_seconds: 61 }]) {
         expect((await rpc("shadow_configure", { ...base, ...bad })).result, JSON.stringify(bad)).toBe("invalid_argument");
       }
       expect((await rpc("shadow_configure", { ...base, p_expected_version: 5 })).result).toBe("stale_version");
@@ -403,22 +401,7 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
     }, 120_000);
   });
 
-  describe("manifesto, relatório auditado, expurgo", () => {
-    it("inclusão exige gêmeo/histórico verificados, imóvel real, ativo e do tenant; versão ativa é imutável", async () => {
-      const add = (o: Record<string, unknown> = {}) => rpc("shadow_manifest_add", { p_actor: ACTOR, p_manifest_version: 1, p_tenant_id: T_ID, p_property_id: P_ID, p_selection_reason: "highest_volume", p_twin_status: "verified", p_history_status: "verified", ...o });
-      expect((await add({ p_twin_status: "failed" })).result).toBe("not_verified");
-      expect((await add({ p_history_status: "not_checked" })).result).toBe("not_verified");
-      expect((await add({ p_tenant_id: OTHER_T })).result).toBe("tenant_mismatch");
-      expect((await add({ p_property_id: "b0000000-0000-4000-8000-0000000000bb" })).result).toBe("archived");
-      expect((await add({ p_property_id: "b0000000-0000-4000-8000-0000000000cc" })).result).toBe("not_found");
-      expect((await add({ p_selection_reason: CANARY })).result).toBe("invalid_argument");
-      expect((await add({ p_actor: null })).result).toBe("invalid_argument");
-      expect((await add()).result).toBe("applied");
-      expect((await add()).result).toBe("duplicate");
-      await pg.sql(`update public.guest_ai_shadow_control set manifest_version = 1`);
-      expect((await add({ p_property_id: "b0000000-0000-4000-8000-0000000000aa" })).result).toBe("version_immutable");
-      expect(await rpc("shadow_get_manifest")).toMatchObject({ result: "ok", manifest_version: 1, entries: [{ tenant_id: T_ID, property_id: P_ID, selection_reason: "highest_volume" }] });
-    });
+  describe("relatório auditado, expurgo", () => {
     it("relatório só agregados do tenant pedido e cada leitura é auditada", async () => {
       await toRunning();
       await record(recordOf("answer_candidate"));
@@ -441,14 +424,20 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
 
   describe("adaptador createShadowStore contra o banco real", () => {
     const store = () => createShadowStore({ call: async (fn, args) => ({ data: await rpc(fn, args), error: null }) });
-    it("lê estado/manifesto, reserva, liquida, avalia, registra e dispara pelas RPCs reais", async () => {
+    it("lê estado e escopo, consulta a porta do imóvel, reserva, liquida, avalia, registra e dispara pelas RPCs reais", async () => {
       const s = store();
       expect(await s.readControl()).toMatchObject({ state: "disabled", retentionAuthorized: false, dailyCostLimitUsd: 1 });
       await toRunning();
       expect(await s.readControl()).toMatchObject({ state: "running", modelId: "openai/gpt-5.6-sol", maxTurnCostUsd: 0.15, retentionAuthorized: true, retentionScope: "openai_responses" });
       // F-09/F-03: o instante do banco vem junto com o estado
       expect(Math.abs((await s.readControl())!.dbNowMs - Date.now())).toBeLessThan(60_000);
-      expect((await s.readManifest())!.entries).toEqual([{ manifestVersion: 1, tenantId: T_ID, propertyId: P_ID, selectionReason: "highest_volume", twinStatus: "verified", historyStatus: "verified" }]);
+      // E4 global: escopo fechado ⇒ a porta bloqueia; depois de aberto, o imóvel elegível fica ativo
+      expect((await s.readControl())!.propertyScope).toBe("none");
+      expect(await s.propertyStatus(T_ID, P_ID)).toEqual({ kind: "blocked", reason: "scope_off" });
+      await pg.sql(`insert into public.profiles (id) values ('${T_ID}') on conflict do nothing`);
+      expect((await rpc("shadow_set_scope", { p_actor: ACTOR, p_expected_scope_version: 0, p_scope: "all_eligible", p_reason: "authorized_global_activation", p_evidence_sha256: EVID })).result).toBe("applied");
+      expect(await s.propertyStatus(T_ID, P_ID)).toEqual({ kind: "active" });
+      expect(await s.propertyStatus(OTHER_T, P_ID)).toEqual({ kind: "blocked", reason: "tenant_mismatch" });
       const res = await s.reserve(await claimed(), { tokens: 1000, costUsd8: 1_000_000n, calls: 2 });
       expect(res.kind).toBe("reserved");
       expect(await s.evaluateBreakers()).toBe("ok");

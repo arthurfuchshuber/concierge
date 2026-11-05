@@ -20,7 +20,7 @@ describe("B3.3 · gerador × registro de modelos", () => {
   const deps = () => {
     const v = validateShadowControl(fullControl());
     if (!v.ok) throw new Error("fixture");
-    const preflight = issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 7, manifestOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })!;
+    const preflight = issueShadowPreflight({ executionId: EXEC_ID, tenantId: T_ID, propertyId: P_ID, conversationId: CONV, stateVersion: 7, propertyActiveOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true })!;
     return { preflight, limits: v.limits, deadline: new ShadowDeadline({ now: () => 0, schedule: () => () => undefined }), store: new MemoryShadowStore() };
   };
   it("modelo permitido servido por /chat (sem store:false) ⇒ gerador recusado", () => {

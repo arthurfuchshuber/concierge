@@ -13,9 +13,76 @@ export interface GuestAiDb {
   from(table: string): any;
 }
 
+/**
+ * E4 GLOBAL — FACHADA SOMENTE LEITURA (decisão D9: obrigatória antes do primeiro tick real).
+ *
+ * O cliente administrativo (service_role, BYPASSRLS) NUNCA sai deste módulo com capacidade de escrita:
+ *  - só as tabelas de `GUEST_AI_READ_TABLES` (as que o módulo lê hoje; qualquer outra é recusada antes
+ *    de qualquer requisição);
+ *  - do construtor de consulta só `select` existe; `insert`, `update`, `upsert`, `delete` e qualquer
+ *    outro método lançam `GuestAiReadOnlyError` sem tocar no cliente subjacente (nenhuma requisição sai);
+ *  - nenhum acesso a `rpc`, `schema`, `storage`, `auth`, `functions` ou `channel`: a fachada só tem `from`.
+ * As ÚNICAS escritas do módulo continuam sendo as duas portas de RPC de lista fechada (lease e Shadow).
+ * Limite honesto: protege contra DEFEITO do código; não protege contra o vazamento da chave service_role
+ * (para isso, o papel dedicado no banco — pendência D9b).
+ */
+export const GUEST_AI_READ_TABLES = [
+  "airbnb_accounts",
+  "audit_logs",
+  "channex_raw_records",
+  "channex_twin_links",
+  "guest_ai_conversation_leases",
+  "guest_arrival_status",
+  "guide_access_logs",
+  "properties",
+  "property_chat_conversations",
+  "property_chat_messages",
+  "property_checkout_items",
+  "property_emergency_contacts",
+  "property_faqs",
+  "property_listing_raw_data",
+  "property_manual_items",
+  "property_playbook_entries",
+  "property_recommendations",
+  "property_reservations",
+] as const;
+export type GuestAiReadTable = (typeof GUEST_AI_READ_TABLES)[number];
+
+export class GuestAiReadOnlyError extends Error {
+  readonly code: "table_not_allowed" | "write_not_allowed";
+  constructor(code: "table_not_allowed" | "write_not_allowed") {
+    super(code);
+    this.name = "GuestAiReadOnlyError";
+    this.code = code;
+  }
+}
+
+/** Envolve QUALQUER cliente com `from` numa fachada só de leitura (exportada para os testes). */
+export function readOnlyGuestAiDb(client: GuestAiDb): GuestAiDb {
+  return Object.freeze({
+    from(table: string) {
+      if (!(GUEST_AI_READ_TABLES as readonly string[]).includes(table)) throw new GuestAiReadOnlyError("table_not_allowed");
+      const builder = client.from(table);
+      return new Proxy(builder, {
+        get(target, prop) {
+          if (prop === "select") return (Reflect.get(target, prop, target) as (...a: unknown[]) => unknown).bind(target);
+          // não é "thenable" nem expõe símbolos do construtor (nada além de `select` sai da fachada)
+          if (prop === "then" || typeof prop === "symbol") return undefined;
+          return () => {
+            throw new GuestAiReadOnlyError("write_not_allowed");
+          };
+        },
+        set() {
+          return false;
+        },
+      });
+    },
+  });
+}
+
 export async function getGuestAiDb(): Promise<GuestAiDb> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin as unknown as GuestAiDb;
+  return readOnlyGuestAiDb(supabaseAdmin as unknown as GuestAiDb);
 }
 
 /**
@@ -62,7 +129,6 @@ export async function getGuestAiLeaseRpc(signal?: AbortSignal): Promise<GuestAiL
  */
 export const SHADOW_RPC_FUNCTIONS = [
   "shadow_get_control",
-  "shadow_get_manifest",
   "shadow_trip",
   "shadow_reserve_budget",
   "shadow_evaluate_breakers",
@@ -73,6 +139,9 @@ export const SHADOW_RPC_FUNCTIONS = [
   "shadow_claim_execution",
   "shadow_finalize_execution",
   "shadow_reconcile",
+  // E4 global: porta do imóvel e candidatas escolhidas no banco (só leitura)
+  "shadow_property_status",
+  "shadow_list_candidates",
 ] as const;
 export type ShadowRpcFunction = (typeof SHADOW_RPC_FUNCTIONS)[number];
 export interface GuestAiShadowRpc {

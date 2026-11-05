@@ -4,7 +4,7 @@
  * Orchestrator e slot intocados; NO_COMPOSER segue ativo; nenhuma peça da B3 foi antecipada.
  */
 import { execSync } from "node:child_process";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { NO_COMPOSER } from "@/lib/guest-ai/orchestrator/orchestrator.server";
@@ -88,14 +88,15 @@ describe("B2.5 · fluxo real intocado", () => {
     // B3.1: única migration autorizada (lease distribuído, diretriz de 03/11) — nada mais fora do módulo.
     // B3.3 (Entrega 2, diretriz de 04/11): migration LOCAL do Shadow (não aplicada), a rota desligada e o
     // registro de rotas gerado pelo build. Nada mais fora do módulo.
-    // B3.3 (Entrega 4, ordem formal de 04/11): correção da migration Shadow NÃO aplicada e a migration
-    // LOCAL do piloto (interruptor por imóvel; não aplicada). Nada mais fora do módulo.
-    expect([...new Set(changed)].sort()).toEqual([
+    // B3.3 (Entrega 4 + revisão GLOBAL de 04/11): migration Shadow NÃO aplicada (manifesto removido) e a
+    // migration LOCAL de escopo global (não aplicada). Arquivos apagados no caminho (a migration do piloto,
+    // substituída) não contam como alteração. Nada mais fora do módulo.
+    expect([...new Set(changed)].filter((f) => existsSync(path.resolve(__dirname, "../../../..", f))).sort()).toEqual([
       "src/routeTree.gen.ts",
       "src/routes/api/public/guest-ai.shadow-tick.ts",
       "supabase/migrations/20261104000000_guest_ai_conversation_leases.sql",
       "supabase/migrations/20261104120000_guest_ai_shadow.sql",
-      "supabase/migrations/20261105120000_guest_ai_shadow_pilot.sql",
+      "supabase/migrations/20261105120000_guest_ai_shadow_global.sql",
     ]);
   });
 });

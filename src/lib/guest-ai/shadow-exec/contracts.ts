@@ -96,8 +96,11 @@ export const SHADOW_BLOCK_CODES = [
   "not_released",
   "state_not_running",
   "state_unreadable",
-  "manifest_unreadable",
-  "not_in_manifest",
+  // E4 global: imóvel fora do escopo / inelegível / desligado (a porta do banco decide)
+  "scope_off",
+  "property_ineligible",
+  "property_disabled",
+  "tenant_disabled",
   "retention_not_authorized",
   "limits_missing",
   "limits_invalid",
@@ -212,9 +215,9 @@ export const INTEGRITY_CODES = [
   "property_unresolved",
   "surface_mismatch",
   "message_conversation_mismatch",
-  // manifesto × turno / lease / posse humana
-  "manifest_tenant_mismatch",
-  "manifest_property_mismatch",
+  // candidata (tenant/imóvel escolhidos pelo banco) × turno / lease / posse humana
+  "candidate_tenant_mismatch",
+  "candidate_property_mismatch",
   "lease_conversation_mismatch",
   "ownership_tenant_mismatch",
   "ownership_property_mismatch",
@@ -315,7 +318,8 @@ export interface ShadowControl {
   telemetryRetentionDays: number | null;
   tickIntervalSeconds: number | null;
   maxConversationsPerTick: number | null;
-  manifestVersion: number | null;
+  /** E4 global: escopo de imóveis (`none` ⇒ nenhum imóvel participa; `all_eligible` ⇒ todos os elegíveis). */
+  propertyScope: PropertyScope;
   /** Autorização de retenção (independente do modelo); ausente ⇒ nenhuma chamada real. */
   retentionAuthorized: boolean;
   retentionScope: RetentionScope | null;
@@ -340,26 +344,29 @@ export interface ShadowLimits {
   telemetryRetentionDays: number;
   tickIntervalSeconds: number;
   maxConversationsPerTick: number;
-  manifestVersion: number;
   /** E3.1: tetos monetários em unidades exatas de 1e-8 US$ (`money.ts`). */
   maxTurnCostUsd8: bigint;
   dailyCostLimitUsd8: bigint;
 }
 
-// ─────────────────────────── Manifesto ───────────────────────────
+// ─────────────────────────── Escopo global e elegibilidade (E4 global) ───────────────────────────
 
-export const MANIFEST_SELECTION_REASONS = ["highest_volume", "high_human_intervention", "reservation_linked_volume", "typology_diversity", "single_channel_diversity", "approved_substitute"] as const;
-export type ManifestSelectionReason = (typeof MANIFEST_SELECTION_REASONS)[number];
-export const MANIFEST_CHECK_STATUSES = ["verified", "failed", "not_checked"] as const;
-export type ManifestCheckStatus = (typeof MANIFEST_CHECK_STATUSES)[number];
+/** Escopo de imóveis do controle global (`guest_ai_shadow_control.property_scope`). */
+export const PROPERTY_SCOPES = ["none", "all_eligible"] as const;
+export type PropertyScope = (typeof PROPERTY_SCOPES)[number];
 
-export interface ManifestEntry {
-  manifestVersion: number;
-  tenantId: string;
-  propertyId: string;
-  selectionReason: ManifestSelectionReason;
-  twinStatus: ManifestCheckStatus;
-  historyStatus: ManifestCheckStatus;
+/** Motivos de INELEGIBILIDADE técnica (`guest_ai_shadow_eligibility_reason`, regra eligibility.2026-11-05.1). */
+export const ELIGIBILITY_REASONS = ["property_not_found", "archived", "tenant_unresolved", "listing_inconsistent", "no_guest_channel", "operational_data_missing"] as const;
+export type EligibilityReason = (typeof ELIGIBILITY_REASONS)[number];
+
+/** Motivos fechados da porta de imóvel (`guest_ai_shadow_property_gate`): escopo, dono, interruptores e elegibilidade. */
+export const PROPERTY_GATE_REASONS = ["scope_off", "tenant_mismatch", "tenant_disabled", "property_disabled", ...ELIGIBILITY_REASONS] as const;
+export type PropertyGateReason = (typeof PROPERTY_GATE_REASONS)[number];
+
+/** Código de bloqueio do REGISTRO correspondente a cada motivo da porta (o registro não guarda o detalhe). */
+export function blockCodeForGate(reason: PropertyGateReason): Extract<ShadowBlockCode, "scope_off" | "property_ineligible" | "property_disabled" | "tenant_disabled"> {
+  if (reason === "scope_off" || reason === "tenant_disabled" || reason === "property_disabled") return reason;
+  return "property_ineligible";
 }
 
 // ─────────────────────────── Registro de execução (sem texto livre) ───────────────────────────
@@ -433,7 +440,7 @@ void _recordKeysExhaustive;
 
 /** Resposta da rota: só códigos e contadores. */
 export interface ShadowTickSummary {
-  readonly outcome: "not_released" | "state_not_running" | "state_unreadable" | "limits_missing" | "manifest_unreadable" | "executed" | "tick_failed" | "tick_busy" | "no_enabled_properties";
+  readonly outcome: "not_released" | "state_not_running" | "state_unreadable" | "limits_missing" | "scope_off" | "executed" | "tick_failed" | "tick_busy";
   readonly conversationsConsidered: number;
   readonly executed: number;
   readonly blocked: number;

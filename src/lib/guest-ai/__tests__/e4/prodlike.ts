@@ -7,7 +7,12 @@
  *  - DEFAULT PRIVILEGES de `postgres` no schema public IGUAIS aos da produção (tabelas arwdDxtm,
  *    sequências rwU e funções X para anon/authenticated/service_role; sandbox_exec ar/rU);
  *  - estrutura legada das tabelas que as migrations referenciam (colunas, PK, FK em cascata, RLS com
- *    política, gatilho) e uma tabela operacional extra com dados, para provar que nada legado muda.
+ *    política, gatilho) e uma tabela operacional extra com dados, para provar que nada legado muda;
+ *  - E4 GLOBAL: as tabelas lidas pela elegibilidade (perfis, anúncios, vínculos gêmeos, WhatsApp do
+ *    dono) com as colunas e constraints auditadas, e os papéis de plataforma da produção:
+ *    `authenticator` NOINHERIT (membro de anon/authenticated/service_role só com SET),
+ *    `supabase_read_only_user` e `supabase_etl_admin` (BYPASSRLS + pg_read_all_data) — leem tudo,
+ *    independentemente de REVOKE —, e `postgres` membro de sandbox_exec sem herança e sem SET.
  * Mundo sintético; nenhuma credencial real.
  */
 import { execFileSync, spawn } from "node:child_process";
@@ -21,7 +26,7 @@ const REPO = path.resolve(__dirname, "..", "..", "..", "..", "..");
 export const MIG = {
   lease: path.join(REPO, "supabase/migrations/20261104000000_guest_ai_conversation_leases.sql"),
   shadow: path.join(REPO, "supabase/migrations/20261104120000_guest_ai_shadow.sql"),
-  pilot: path.join(REPO, "supabase/migrations/20261105120000_guest_ai_shadow_pilot.sql"),
+  global: path.join(REPO, "supabase/migrations/20261105120000_guest_ai_shadow_global.sql"),
 };
 export const OPS = (f: string) => path.join(REPO, "src/lib/guest-ai/ops/e4", f);
 
@@ -49,6 +54,10 @@ create table public.properties (
   name text not null,
   slug text unique,
   archived_at timestamptz,
+  published boolean not null default true,
+  guide_created boolean not null default true,
+  checkin_time text default '15:00',
+  checkout_time text default '11:00',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -63,13 +72,47 @@ create table public.property_chat_conversations (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+create type public.chat_sender_type as enum ('guest', 'ai', 'human', 'system');
 create table public.property_chat_messages (
   id uuid primary key default gen_random_uuid(),
   conversation_id uuid not null references public.property_chat_conversations(id) on delete cascade,
   role text not null,
+  sender_type public.chat_sender_type not null default 'guest',
   content text not null,
   created_at timestamptz not null default now()
 );
+create table public.profiles (id uuid primary key, created_at timestamptz not null default now());
+create table public.property_listing_raw_data (
+  id uuid primary key default gen_random_uuid(),
+  property_id uuid not null unique,
+  owner_id uuid not null,
+  source text not null default 'channex',
+  airbnb_listing_id text not null,
+  channex_property_id text,
+  not_found_at timestamptz,
+  sync_paused_at timestamptz,
+  paused_reason text check (paused_reason = any (array['manual', 'account_disconnected']))
+);
+create table public.channex_twin_links (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid,
+  property_id uuid,
+  status text not null default 'active'
+);
+create table public.host_whatsapp_config (
+  owner_id uuid primary key,
+  status text not null check (status = any (array['pending', 'testing', 'active', 'error']))
+);
+-- índices da produção que a escolha de candidatas e a elegibilidade usam (definições auditadas)
+create index idx_properties_owner on public.properties (owner_id);
+create index idx_pcc_property on public.property_chat_conversations (property_id, last_message_at desc);
+create index idx_chat_msg_conv on public.property_chat_messages (conversation_id, created_at);
+create unique index uq_plrd_airbnb_listing_id on public.property_listing_raw_data (airbnb_listing_id);
+create index idx_plrd_channex_property on public.property_listing_raw_data (channex_property_id);
+alter table public.profiles enable row level security;
+alter table public.property_listing_raw_data enable row level security;
+alter table public.channex_twin_links enable row level security;
+alter table public.host_whatsapp_config enable row level security;
 create or replace function public.touch_updated_at() returns trigger language plpgsql as $$ begin new.updated_at := now(); return new; end $$;
 create trigger properties_touch before update on public.properties for each row execute function public.touch_updated_at();
 create trigger trg_pcc_updated_at before update on public.property_chat_conversations for each row execute function public.touch_updated_at();
@@ -97,6 +140,8 @@ export interface ProdLike {
     p: string,
     opts?: { singleTransaction?: boolean },
   ): { ok: true } | { ok: false; error: string };
+  /** Conecta como OUTRO papel de login (sem SET ROLE), p.ex. supabase_read_only_user. */
+  sqlAs(user: string, q: string): Promise<{ ok: true; out: string } | { ok: false; error: string }>;
   /** Superusuário (só montagem do ambiente). */
   admin(q: string): string;
   rows<T = Record<string, unknown>>(q: string): Promise<T[]>;
@@ -155,8 +200,12 @@ export function startProdLike(opts: { legacy?: boolean } = {}): ProdLike {
     create role postgres login createrole bypassrls;
     create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
     create role sandbox_exec login bypassrls; create role authenticator login noinherit;
-    grant anon, authenticated, service_role to authenticator;
-    grant anon, authenticated, service_role to postgres;`,
+    create role supabase_read_only_user login bypassrls; create role supabase_etl_admin login bypassrls replication;
+    grant anon, authenticated, service_role to authenticator with inherit false, set true;
+    grant anon, authenticated, service_role to postgres with admin true, inherit true;
+    grant sandbox_exec to postgres with admin true, inherit false, set false;
+    grant pg_read_all_data to supabase_read_only_user, supabase_etl_admin;
+    grant pg_monitor to supabase_read_only_user, supabase_etl_admin;`,
   ]);
   execFileSync("psql", [
     ...base("supabase_admin"),
@@ -188,10 +237,10 @@ export function startProdLike(opts: { legacy?: boolean } = {}): ProdLike {
     [...base("postgres"), "-d", "app", "-c", "show server_version"],
     { encoding: "utf8" },
   ).trim();
-  const run = (q: string, o: { role?: string } = {}) =>
+  const run = (q: string, o: { role?: string; user?: string } = {}) =>
     new Promise<{ code: number; out: string; err: string }>((resolve) => {
       const p = spawn("psql", [
-        ...base("postgres"),
+        ...base(o.user ?? "postgres"),
         "-d",
         "app",
         "-c",
@@ -234,6 +283,10 @@ export function startProdLike(opts: { legacy?: boolean } = {}): ProdLike {
       } catch (e) {
         return { ok: false, error: String((e as { stderr?: unknown }).stderr ?? e) };
       }
+    },
+    async sqlAs(user, q) {
+      const r = await run(q, { user });
+      return r.code === 0 ? { ok: true, out: r.out } : { ok: false, error: r.err };
     },
     admin: (q) => admin(q),
     async rows<T>(q: string) {

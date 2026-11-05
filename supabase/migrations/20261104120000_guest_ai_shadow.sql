@@ -1,4 +1,4 @@
--- ConciergeIA Guest AI · Gate B3.3 (Entrega 2) — Shadow Mode: controle global, manifesto, orçamento,
+-- ConciergeIA Guest AI · Gate B3.3 (Entrega 2) — Shadow Mode: controle global, orçamento,
 -- telemetria estruturada e auditoria de acesso. Migration LOCAL (autorizada em 04/11/2026 só como
 -- arquivo); NÃO aplicar em produção sem autorização específica (Entrega 4).
 --
@@ -8,8 +8,9 @@
 --    (UUID, versão, SHA-256, fuso IANA). Arrays validam cada elemento. Nenhum `jsonb` em tabela.
 --  * Nenhum prompt, resposta, pergunta, mensagem, contexto, histórico, justificativa ou erro livre.
 --  * RLS ligada sem política; todos os privilégios revogados; escrita SÓ pelas funções abaixo
---    (SECURITY DEFINER, `search_path = pg_catalog, pg_temp`, EXECUTE só para service_role).
---  * Estado global inicial `disabled`; nenhum manifesto ativo; nenhuma autorização de retenção; só o
+--    (SECURITY DEFINER, `search_path = pg_catalog, pg_temp`; EXECUTE de service_role SÓ nas RPCs do worker;
+--    as administrativas só para o dono das funções — ver "Entrega 4 · escopo global").
+--  * Estado global inicial `disabled`; nenhum imóvel ativo; nenhuma autorização de retenção; só o
 --    teto diário APROVADO (US$ 1,00) vem preenchido — todos os demais limites nascem nulos e
 --    impedem `ready`/`running` até serem configurados e válidos.
 --  * Transições manuais exigem CAS de `state_version`, autor e motivo; transições automáticas só levam
@@ -23,7 +24,16 @@
 --    (a transação inteira é desfeita; nenhum objeto existente é sobrescrito).
 --  * A produção concede SEQUÊNCIAS novas do schema public a anon/authenticated/service_role por DEFAULT
 --    PRIVILEGES: as identidades das tabelas Shadow têm os privilégios revogados explicitamente.
---  * Manifesto sem FK RESTRICT para `properties` (não bloqueia a exclusão de imóveis pela Capacidade B).
+--
+-- Entrega 4 · escopo GLOBAL (diretriz complementar de 04/11/2026; ainda não aplicada):
+--  * O MANIFESTO (lista fechada e versionada de imóveis) foi REMOVIDO: não existe mais lista nem teto de
+--    imóveis. Quem decide se um imóvel participa é `guest_ai_shadow_property_gate` (escopo global +
+--    elegibilidade técnica + interruptores por tenant e por imóvel), definida pela migration
+--    `20261105120000_guest_ai_shadow_global.sql`. AQUI ela nasce FECHADA (devolve `scope_off` para
+--    qualquer imóvel): sem a migration global, nenhuma reivindicação passa.
+--  * RPCs administrativas (configurar, autorizar retenção, transicionar, relatório, expurgo) só para o
+--    DONO das funções: service_role (a chave do servidor da aplicação) não as executa.
+--  * Nenhuma FK para `properties`: nada aqui bloqueia a exclusão de imóveis pela Capacidade B.
 --
 -- Entrega 3.1 (corretiva, 04/11/2026):
 --  * F-07: trava GLOBAL de tick (token de cerca + prazo do banco) — um único worker ativo; nenhuma
@@ -73,7 +83,6 @@ create table public.guest_ai_shadow_control (
   telemetry_retention_days    integer,
   tick_interval_seconds       integer,
   max_conversations_per_tick  integer,
-  manifest_version            integer,
   retention_scope             text,
   retention_authorized_at     timestamptz,
   retention_authorized_by     uuid,
@@ -104,7 +113,6 @@ create table public.guest_ai_shadow_control (
   constraint gasc_tick_ck check (tick_interval_seconds is null or tick_interval_seconds = 60),
   constraint gasc_per_tick_ck check (max_conversations_per_tick is null or max_conversations_per_tick between 1 and 3),
   constraint gasc_tick_owner_ck check ((tick_owner_token is null) = (tick_expires_at is null) and (tick_owner_token is null or tick_owner_token ~ '^[0-9a-f]{64}$')),
-  constraint gasc_manifest_ck check (manifest_version is null or manifest_version > 0),
   constraint gasc_retention_scope_ck check (retention_scope is null or retention_scope in ('openai_responses')),
   constraint gasc_retention_ck check (
     (retention_scope is null and retention_authorized_at is null and retention_authorized_by is null and retention_evidence_sha256 is null)
@@ -114,7 +122,7 @@ create table public.guest_ai_shadow_control (
   constraint gasc_reason_ck check (reason_code in ('initial', 'authorized_activation', 'authorized_pause', 'authorized_resume', 'authorized_disable', 'authorized_recovery', 'error_rate_exceeded', 'consecutive_failures', 'budget_limit_reached', 'token_limit_violation', 'integrity_divergence', 'measurement_unavailable', 'telemetry_failure', 'config_invalid'))
 );
 
--- Estado inicial: desligado; só o teto diário aprovado (US$ 1,00). Nenhum outro limite, manifesto ou retenção.
+-- Estado inicial: desligado; só o teto diário aprovado (US$ 1,00). Nenhum outro limite ou retenção.
 insert into public.guest_ai_shadow_control (id, state, daily_cost_limit_usd) values (1, 'disabled', 1.00);
 
 -- ───────────────────────── Histórico imutável de transições ─────────────────────────
@@ -137,26 +145,6 @@ create table public.guest_ai_shadow_transitions (
     (automatic = false and actor is not null)
     or (automatic = true and actor is null and to_state in ('circuit_open', 'budget_exhausted', 'integrity_violation', 'technical_failure'))
   )
-);
-
--- ───────────────────────── Manifesto versionado (só inserção) ─────────────────────────
-create table public.guest_ai_shadow_manifest (
-  manifest_version integer not null,
-  tenant_id        uuid not null,
-  -- E4: sem FK para `properties` — uma FK RESTRICT impediria a operação convencional (Capacidade B) de
-  -- excluir um imóvel do piloto. Existência, dono e arquivamento são conferidos em `shadow_manifest_add`
-  -- e de novo a cada reivindicação (migration do piloto).
-  property_id      uuid not null,
-  selection_reason text not null,
-  twin_status      text not null,
-  history_status   text not null,
-  authorized_at    timestamptz not null default now(),
-  authorized_by    uuid not null,
-  primary key (manifest_version, property_id),
-  constraint gasm_version_ck check (manifest_version > 0),
-  constraint gasm_reason_ck check (selection_reason in ('highest_volume', 'high_human_intervention', 'reservation_linked_volume', 'typology_diversity', 'single_channel_diversity', 'approved_substitute')),
-  constraint gasm_twin_ck check (twin_status in ('verified', 'failed', 'not_checked')),
-  constraint gasm_history_ck check (history_status in ('verified', 'failed', 'not_checked'))
 );
 
 -- ───────────────────────── Execuções (telemetria sem texto) ─────────────────────────
@@ -284,14 +272,14 @@ create table public.guest_ai_shadow_executions (
     'worker_lost'
   )),
   constraint gase_block_ck check (block_code is null or block_code in (
-    'master_switch_off', 'not_released', 'state_not_running', 'state_unreadable', 'manifest_unreadable', 'not_in_manifest',
+    'master_switch_off', 'not_released', 'state_not_running', 'state_unreadable', 'scope_off', 'property_ineligible', 'property_disabled', 'tenant_disabled',
     'retention_not_authorized', 'limits_missing', 'limits_invalid', 'model_not_allowed', 'generator_not_issued', 'budget_turn_exceeded',
     'budget_daily_exceeded', 'budget_reservation_failed', 'deadline_expired', 'pause_active', 'pause_indefinite', 'pause_unreadable',
     'ownership_indeterminate', 'ownership_unreadable', 'shutdown_requested'
   )),
   constraint gase_integrity_ck check (integrity_code is null or integrity_code in (
-    'tenant_mismatch', 'property_unresolved', 'surface_mismatch', 'message_conversation_mismatch', 'manifest_tenant_mismatch',
-    'manifest_property_mismatch', 'lease_conversation_mismatch', 'ownership_tenant_mismatch', 'ownership_property_mismatch',
+    'tenant_mismatch', 'property_unresolved', 'surface_mismatch', 'message_conversation_mismatch', 'candidate_tenant_mismatch',
+    'candidate_property_mismatch', 'lease_conversation_mismatch', 'ownership_tenant_mismatch', 'ownership_property_mismatch',
     'ownership_identity_inconsistent', 'tenant_unknown', 'property_tenant_mismatch', 'property_identity_mismatch',
     'conversation_identity_mismatch', 'reservation_conversation_mismatch', 'dossier_out_of_scope', 'history_scope_mismatch',
     'batch_scope_mismatch', 'listing_other_tenant', 'listing_property_mismatch', 'twin_inconsistent', 'preference_other_tenant',
@@ -381,7 +369,7 @@ create table public.guest_ai_shadow_access_log (
 do $$
 declare t text;
 begin
-  foreach t in array array['guest_ai_shadow_control', 'guest_ai_shadow_transitions', 'guest_ai_shadow_manifest', 'guest_ai_shadow_executions',
+  foreach t in array array['guest_ai_shadow_control', 'guest_ai_shadow_transitions', 'guest_ai_shadow_executions',
                            'guest_ai_shadow_budget_days', 'guest_ai_shadow_budget_reservations', 'guest_ai_shadow_access_log',
                            'guest_ai_shadow_inflight'] loop
     execute format('alter table public.%I enable row level security', t);
@@ -415,12 +403,10 @@ begin
   if c.reasoning_effort is null or c.max_input_tokens is null or c.max_output_tokens is null or c.max_total_tokens is null
      or c.max_turn_cost_usd is null or c.daily_cost_limit_usd is null or c.max_daily_tokens is null or c.max_daily_calls is null
      or c.error_window_minutes is null or c.error_min_sample is null or c.budget_day_timezone is null
-     or c.telemetry_retention_days is null or c.tick_interval_seconds is null or c.max_conversations_per_tick is null
-     or c.manifest_version is null then
+     or c.telemetry_retention_days is null or c.tick_interval_seconds is null or c.max_conversations_per_tick is null then
     return 'limits_missing';
   end if;
   if not exists (select 1 from pg_catalog.pg_timezone_names where name = c.budget_day_timezone) then return 'limits_invalid'; end if;
-  if not exists (select 1 from public.guest_ai_shadow_manifest m where m.manifest_version = c.manifest_version) then return 'limits_missing'; end if;
   return null;
 end;
 $function$;
@@ -502,71 +488,24 @@ begin
     'max_daily_calls', c.max_daily_calls, 'error_window_minutes', c.error_window_minutes, 'error_min_sample', c.error_min_sample,
     'budget_day_timezone', c.budget_day_timezone, 'telemetry_retention_days', c.telemetry_retention_days,
     'tick_interval_seconds', c.tick_interval_seconds, 'max_conversations_per_tick', c.max_conversations_per_tick,
-    'manifest_version', c.manifest_version, 'retention_scope', c.retention_scope,
+    'retention_scope', c.retention_scope,
     'retention_authorized', c.retention_scope is not null and c.retention_authorized_at is not null,
     -- F-09/F-03: o instante do BANCO; o worker ancora nele todo instante de parede (pausa, coletor, registro)
     'db_now', to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
 end;
 $function$;
 
--- 2) Manifesto ATIVO (ids e códigos fechados; nunca nomes).
-create or replace function public.shadow_get_manifest()
-returns jsonb
-language plpgsql
+-- 2) Porta de IMÓVEL (interna): devolve NULL se o imóvel pode participar, ou o motivo fechado do bloqueio.
+--    FECHADA nesta migration (todo imóvel ⇒ `scope_off`); a migration de escopo global a redefine com a
+--    regra real. Sem ela, nenhuma reivindicação passa (fail-closed).
+create or replace function public.guest_ai_shadow_property_gate(p_tenant_id uuid, p_property_id uuid)
+returns text
+language sql
 stable
 security definer
 set search_path = pg_catalog, pg_temp
 as $function$
-declare v integer;
-begin
-  select manifest_version into v from public.guest_ai_shadow_control where id = 1;
-  if v is null then return jsonb_build_object('result', 'ok', 'manifest_version', null, 'entries', '[]'::jsonb); end if;
-  return jsonb_build_object('result', 'ok', 'manifest_version', v, 'entries', coalesce((
-    select jsonb_agg(jsonb_build_object('tenant_id', m.tenant_id, 'property_id', m.property_id, 'selection_reason', m.selection_reason,
-                                        'twin_status', m.twin_status, 'history_status', m.history_status) order by m.property_id)
-      from public.guest_ai_shadow_manifest m where m.manifest_version = v), '[]'::jsonb));
-end;
-$function$;
-
--- 3) Inclusão no manifesto (versão ainda não ativada; imóvel real, ativo, do tenant; gêmeo e histórico verificados).
-create or replace function public.shadow_manifest_add(
-  p_actor uuid, p_manifest_version integer, p_tenant_id uuid, p_property_id uuid,
-  p_selection_reason text, p_twin_status text, p_history_status text
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = pg_catalog, pg_temp
-as $function$
-declare
-  c public.guest_ai_shadow_control%rowtype;
-  v_owner uuid;
-  v_archived timestamptz;
-begin
-  if p_actor is null or p_manifest_version is null or p_manifest_version <= 0 or p_tenant_id is null or p_property_id is null then
-    return jsonb_build_object('result', 'invalid_argument');
-  end if;
-  if p_twin_status is distinct from 'verified' or p_history_status is distinct from 'verified' then
-    return jsonb_build_object('result', 'not_verified');
-  end if;
-  select * into c from public.guest_ai_shadow_control where id = 1 for update;
-  -- versão ativa (ou anterior) é imutável
-  if c.manifest_version is not null and p_manifest_version <= c.manifest_version then
-    return jsonb_build_object('result', 'version_immutable');
-  end if;
-  select owner_id, archived_at into v_owner, v_archived from public.properties where id = p_property_id;
-  if not found then return jsonb_build_object('result', 'not_found'); end if;
-  if v_owner is null or v_owner <> p_tenant_id then return jsonb_build_object('result', 'tenant_mismatch'); end if;
-  if v_archived is not null then return jsonb_build_object('result', 'archived'); end if;
-  begin
-    insert into public.guest_ai_shadow_manifest (manifest_version, tenant_id, property_id, selection_reason, twin_status, history_status, authorized_by)
-    values (p_manifest_version, p_tenant_id, p_property_id, p_selection_reason, p_twin_status, p_history_status, p_actor);
-  exception
-    when unique_violation then return jsonb_build_object('result', 'duplicate');
-    when check_violation then return jsonb_build_object('result', 'invalid_argument');
-  end;
-  return jsonb_build_object('result', 'applied');
-end;
+  select 'scope_off'::text;
 $function$;
 
 -- 4) Configuração (CAS; nunca em ready/running; valores validados pelas CHECK; fuso real).
@@ -575,7 +514,7 @@ create or replace function public.shadow_configure(
   p_model_id text, p_reasoning_effort text, p_max_input_tokens integer, p_max_output_tokens integer, p_max_total_tokens integer,
   p_max_turn_cost_usd numeric, p_daily_cost_limit_usd numeric, p_max_daily_tokens bigint, p_max_daily_calls integer,
   p_error_window_minutes integer, p_error_min_sample integer, p_budget_day_timezone text, p_telemetry_retention_days integer,
-  p_tick_interval_seconds integer, p_max_conversations_per_tick integer, p_manifest_version integer
+  p_tick_interval_seconds integer, p_max_conversations_per_tick integer
 )
 returns jsonb
 language plpgsql
@@ -591,16 +530,13 @@ begin
   if p_budget_day_timezone is not null and not exists (select 1 from pg_catalog.pg_timezone_names where name = p_budget_day_timezone) then
     return jsonb_build_object('result', 'invalid_argument');
   end if;
-  if p_manifest_version is not null and not exists (select 1 from public.guest_ai_shadow_manifest where manifest_version = p_manifest_version) then
-    return jsonb_build_object('result', 'invalid_argument');
-  end if;
   begin
     update public.guest_ai_shadow_control set
       model_id = p_model_id, reasoning_effort = p_reasoning_effort, max_input_tokens = p_max_input_tokens, max_output_tokens = p_max_output_tokens,
       max_total_tokens = p_max_total_tokens, max_turn_cost_usd = p_max_turn_cost_usd, daily_cost_limit_usd = p_daily_cost_limit_usd,
       max_daily_tokens = p_max_daily_tokens, max_daily_calls = p_max_daily_calls, error_window_minutes = p_error_window_minutes,
       error_min_sample = p_error_min_sample, budget_day_timezone = p_budget_day_timezone, telemetry_retention_days = p_telemetry_retention_days,
-      tick_interval_seconds = p_tick_interval_seconds, max_conversations_per_tick = p_max_conversations_per_tick, manifest_version = p_manifest_version,
+      tick_interval_seconds = p_tick_interval_seconds, max_conversations_per_tick = p_max_conversations_per_tick,
       state_version = r.state_version + 1, changed_at = now(), changed_by = p_actor
      where id = 1;
   exception when check_violation then
@@ -920,7 +856,7 @@ begin
 end;
 $function$;
 
--- 11) Registro de execução SEM lote (desfechos anteriores à reivindicação: fora do manifesto, pausa,
+-- 11) Registro de execução SEM lote (desfechos anteriores à reivindicação: imóvel não ativo, pausa,
 --     integridade, leitura). Execução com lote só fecha por `shadow_finalize_execution` (mesma transação
 --     do lease e da liquidação). Mesma transação avalia os disjuntores.
 create or replace function public.shadow_record_execution(p_record jsonb)
@@ -996,7 +932,7 @@ $function$;
 
 -- 16) Reivindica E inicia o lote numa transação (F-01/F-05): só a partir de `ready` (NUNCA recupera um
 --     lote vencido — esse é selado pela reconciliação), só com a trava do tick e tempo de tick para a
---     execução inteira (15 s), só para imóvel do manifesto ativo. Abre a linha em andamento (cerca:
+--     execução inteira (15 s), só para imóvel ATIVO (`guest_ai_shadow_property_gate`). Abre a linha em andamento (cerca:
 --     execução ↔ versão do lease). Idempotente por execução (F-11).
 create or replace function public.shadow_claim_execution(
   p_tick_token text, p_execution_id uuid, p_conversation_id uuid, p_expected_version integer,
@@ -1011,6 +947,7 @@ declare
   r public.guest_ai_conversation_leases%rowtype;
   f public.guest_ai_shadow_inflight%rowtype;
   v_token text;
+  v_gate text;
 begin
   if p_tick_token is null or p_tick_token !~ '^[0-9a-f]{64}$' or p_execution_id is null or p_conversation_id is null
      or p_expected_version is null or p_expected_version < 1 or p_tenant_id is null or p_property_id is null
@@ -1032,10 +969,9 @@ begin
   if c.tick_owner_token is distinct from p_tick_token or c.tick_expires_at < now() + interval '15 seconds' then
     return jsonb_build_object('result', 'tick_not_held');
   end if;
-  if not exists (select 1 from public.guest_ai_shadow_manifest m
-                  where m.manifest_version = c.manifest_version and m.tenant_id = p_tenant_id and m.property_id = p_property_id) then
-    return jsonb_build_object('result', 'not_in_manifest');
-  end if;
+  -- imóvel ATIVO: escopo global, elegibilidade, interruptores e dono conferidos no banco (fail-closed)
+  v_gate := public.guest_ai_shadow_property_gate(p_tenant_id, p_property_id);
+  if v_gate is not null then return jsonb_build_object('result', 'property_blocked', 'reason', v_gate); end if;
   select * into r from public.guest_ai_conversation_leases where conversation_id = p_conversation_id for update;
   if not found then return jsonb_build_object('result', 'not_found'); end if;
   if r.version <> p_expected_version then return jsonb_build_object('result', 'stale_version', 'version', r.version, 'state', r.state); end if;
@@ -1328,10 +1264,9 @@ begin
     'public.guest_ai_shadow_insert_execution(jsonb)',
     'public.guest_ai_shadow_breakers_locked(public.guest_ai_shadow_control, text)',
     'public.guest_ai_shadow_seal_lease(public.guest_ai_conversation_leases, text)',
+    'public.guest_ai_shadow_property_gate(uuid, uuid)',
     'public.shadow_get_control()',
-    'public.shadow_get_manifest()',
-    'public.shadow_manifest_add(uuid, integer, uuid, uuid, text, text, text)',
-    'public.shadow_configure(integer, uuid, text, text, integer, integer, integer, numeric, numeric, bigint, integer, integer, integer, text, integer, integer, integer, integer)',
+    'public.shadow_configure(integer, uuid, text, text, integer, integer, integer, numeric, numeric, bigint, integer, integer, integer, text, integer, integer, integer)',
     'public.shadow_authorize_retention(integer, uuid, text, text)',
     'public.shadow_transition(integer, text, uuid, text, text)',
     'public.shadow_trip(text, text)',
@@ -1350,14 +1285,10 @@ begin
       execute format('revoke all on function %s from sandbox_exec', f);
     end if;
   end loop;
-  -- RPCs da lista fechada: EXECUTE só para service_role (as internas ficam sem EXECUTE para ninguém)
+  -- RPCs do WORKER (lista fechada): EXECUTE só para service_role. Internas e ADMINISTRATIVAS
+  -- (configurar, retenção, transição, relatório, expurgo) ficam sem EXECUTE para ninguém além do dono.
   foreach f in array array[
     'public.shadow_get_control()',
-    'public.shadow_get_manifest()',
-    'public.shadow_manifest_add(uuid, integer, uuid, uuid, text, text, text)',
-    'public.shadow_configure(integer, uuid, text, text, integer, integer, integer, numeric, numeric, bigint, integer, integer, integer, text, integer, integer, integer, integer)',
-    'public.shadow_authorize_retention(integer, uuid, text, text)',
-    'public.shadow_transition(integer, text, uuid, text, text)',
     'public.shadow_trip(text, text)',
     'public.shadow_reserve_budget(uuid, bigint, numeric, integer)',
     'public.shadow_evaluate_breakers()',
@@ -1366,9 +1297,7 @@ begin
     'public.shadow_release_tick(text)',
     'public.shadow_claim_execution(text, uuid, uuid, integer, uuid, uuid, text)',
     'public.shadow_finalize_execution(uuid, text, text, jsonb, jsonb, jsonb)',
-    'public.shadow_reconcile(text)',
-    'public.shadow_report(uuid, text, uuid, timestamptz, timestamptz)',
-    'public.shadow_purge_expired()'] loop
+    'public.shadow_reconcile(text)'] loop
     execute format('grant execute on function %s to service_role', f);
   end loop;
 end $$;

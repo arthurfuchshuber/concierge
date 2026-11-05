@@ -8,11 +8,11 @@ import type { ValidatedTurn } from "@/lib/guest-ai/types";
 import { applyLeaseEvent, newLeaseRecord, type DistributedLeaseStore, type LeaseRecord, type StoreClaimResult, type StoreTransitionResult } from "@/lib/guest-ai/batch/lease";
 import type { LlmProvider, ProviderOutcome } from "@/lib/guest-ai/llm/providers/types";
 import type { LlmCallLogEvent } from "@/lib/guest-ai/llm/telemetry";
-import type { ClaimArgs, ClaimResult, FinalizeArgs, FinalizeResult, ManifestSnapshot, RecordResult, ReserveResult, ShadowStore, TickResult } from "@/lib/guest-ai/data/shadow-store.server";
+import type { CandidatesListResult, ClaimArgs, ClaimResult, FinalizeArgs, FinalizeResult, PropertyStatusResult, RecordResult, ReserveResult, ShadowCandidateRow, ShadowStore, TickResult } from "@/lib/guest-ai/data/shadow-store.server";
 import type { OwnershipLoad } from "@/lib/guest-ai/data/conversation-ownership.server";
 import type { CollectorWindowSource } from "@/lib/guest-ai/data/collector.server";
 import type { ShadowCandidate } from "@/lib/guest-ai/data/shadow-candidates.server";
-import type { ShadowControl, ShadowExecutionRecord, ShadowFailureState, ShadowTransitionReason } from "@/lib/guest-ai/shadow-exec/contracts";
+import type { PropertyGateReason, ShadowControl, ShadowExecutionRecord, ShadowFailureState, ShadowTransitionReason } from "@/lib/guest-ai/shadow-exec/contracts";
 import { evaluateErrorBreaker, isEvaluable, isTechnicalError, type ErrorBreakerVerdict, type TurnReservation } from "@/lib/guest-ai/shadow-exec/breakers";
 import { parseUsd8 } from "@/lib/guest-ai/shadow-exec/money";
 import type { ShadowWorkerIo } from "@/lib/guest-ai/shadow-exec/worker.server";
@@ -63,7 +63,7 @@ export function fullControl(over: Partial<ShadowControl> = {}): ShadowControl {
     telemetryRetentionDays: 30,
     tickIntervalSeconds: 60,
     maxConversationsPerTick: 3,
-    manifestVersion: 1,
+    propertyScope: "all_eligible",
     retentionAuthorized: true,
     retentionScope: "openai_responses",
     dbNowMs: T0,
@@ -71,10 +71,8 @@ export function fullControl(over: Partial<ShadowControl> = {}): ShadowControl {
   };
 }
 
-export const manifestOf = (entries: Array<{ tenantId: string; propertyId: string }> = [{ tenantId: T_ID, propertyId: P_ID }], version = 1): ManifestSnapshot => ({
-  manifestVersion: version,
-  entries: entries.map((e) => ({ manifestVersion: version, tenantId: e.tenantId, propertyId: e.propertyId, selectionReason: "highest_volume", twinStatus: "verified", historyStatus: "verified" })),
-});
+/** E4 global: linha de candidata como o banco devolve (`shadow_list_candidates`). */
+export const candidateRow = (over: Partial<ShadowCandidateRow> = {}): ShadowCandidateRow => ({ conversationId: CONV, propertyId: P_ID, tenantId: T_ID, surface: "guide_chat", messageId: MSG, ...over });
 
 const usd = (u: bigint) => Number(u) / 1e8;
 
@@ -84,14 +82,17 @@ const usd = (u: bigint) => Number(u) / 1e8;
  */
 export class MemoryShadowStore implements ShadowStore {
   control: ShadowControl | null = fullControl();
-  manifest: ManifestSnapshot | null = manifestOf();
+  /** E4 global: dono de cada imóvel e bloqueios da porta (mesma regra de `guest_ai_shadow_property_gate`). */
+  owners = new Map<string, string>([[P_ID, T_ID]]);
+  gateBlocked = new Map<string, PropertyGateReason>();
+  candidates: CandidatesListResult = { kind: "ok", candidates: [] };
   records: ShadowExecutionRecord[] = [];
   trips: Array<{ to: ShadowFailureState; reason: ShadowTransitionReason }> = [];
   reservations = new Map<string, { executionId: string; tokens: number; cost: number; calls: number; settled: boolean; settledCost: number | null }>();
   reservedCost = 0;
   settledCost = 0;
   breaker: ErrorBreakerVerdict | null = null;
-  fail: Partial<Record<"readControl" | "readManifest" | "reserve" | "finalize" | "record" | "evaluate" | "trip" | "claim" | "tick" | "reconcile", boolean>> = {};
+  fail: Partial<Record<"readControl" | "propertyStatus" | "listCandidates" | "reserve" | "finalize" | "record" | "evaluate" | "trip" | "claim" | "tick" | "reconcile", boolean>> = {};
   calls: string[] = [];
   /** Lease usado pela reivindicação/finalização (o mesmo do worker). */
   lease: ModelLeaseStore | null = null;
@@ -103,9 +104,25 @@ export class MemoryShadowStore implements ShadowStore {
     this.calls.push("readControl");
     return this.fail.readControl ? null : this.control;
   }
-  async readManifest() {
-    this.calls.push("readManifest");
-    return this.fail.readManifest ? null : this.manifest;
+  gate(tenantId: string, propertyId: string): PropertyGateReason | null {
+    if (this.control?.propertyScope !== "all_eligible") return "scope_off";
+    const owner = this.owners.get(propertyId);
+    if (!owner) return "property_not_found";
+    if (owner !== tenantId) return "tenant_mismatch";
+    return this.gateBlocked.get(propertyId) ?? null;
+  }
+  async propertyStatus(tenantId: string, propertyId: string): Promise<PropertyStatusResult> {
+    this.calls.push("propertyStatus");
+    if (this.fail.propertyStatus) return { kind: "error" };
+    const g = this.gate(tenantId, propertyId);
+    return g === null ? { kind: "active" } : { kind: "blocked", reason: g };
+  }
+  async listCandidates(tickToken: string, _lookbackSeconds: number, limit: number): Promise<CandidatesListResult> {
+    this.calls.push("listCandidates");
+    if (this.fail.listCandidates) return { kind: "error", integrity: false };
+    if (tickToken !== this.tickToken) return { kind: "blocked", code: "tick_not_held" };
+    if (this.candidates.kind !== "ok") return this.candidates;
+    return { kind: "ok", candidates: this.candidates.candidates.slice(0, limit) };
   }
   async trip(to: ShadowFailureState, reason: ShadowTransitionReason) {
     this.calls.push(`trip:${to}`);
@@ -171,6 +188,8 @@ export class MemoryShadowStore implements ShadowStore {
     if (prev) return { kind: "rejected", code: "duplicate" };
     if (!this.control || this.control.state !== "running") return { kind: "rejected", code: "state_not_running" };
     if (a.tickToken !== this.tickToken) return { kind: "rejected", code: "tick_not_held" };
+    const g = this.gate(a.tenantId, a.propertyId);
+    if (g !== null) return { kind: "property_blocked", reason: g };
     if (!this.lease) return { kind: "error" };
     const c = await this.lease.claim(a.conversationId, a.expectedVersion);
     if (c.result !== "acquired") return { kind: "rejected", code: c.result === "stale_version" ? "stale_version" : "not_claimable" };

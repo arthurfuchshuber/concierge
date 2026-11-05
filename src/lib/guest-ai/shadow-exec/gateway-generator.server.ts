@@ -2,7 +2,7 @@
  * F2-B · B3.3 — GERADOR SHADOW ligado ao Gateway real (capacidade EMITIDA e verificável).
  *
  * Só `createShadowGatewayGenerator` cria um gerador válido (registro WeakSet, como o `LlmMock`), e só
- * com uma PRÉ-AUTORIZAÇÃO emitida pelo worker (`issueShadowPreflight`) depois de manifesto, integridade,
+ * com uma PRÉ-AUTORIZAÇÃO emitida pelo worker (`issueShadowPreflight`) depois da porta do imóvel, integridade,
  * pausa e posse humana conferidos. O executor recusa qualquer outro gerador.
  *
  * Antes de QUALQUER chamada de rede, nesta ordem (falha ⇒ nenhuma requisição, código fechado):
@@ -33,7 +33,7 @@ import type { ShadowDeadline } from "./deadline";
 
 const PREFLIGHTS = new WeakSet<object>();
 
-/** Prova de que o worker conferiu manifesto, integridade, pausa e posse humana desta execução. */
+/** Prova de que o worker conferiu a porta do imóvel (escopo/elegibilidade), integridade, pausa e posse humana desta execução. */
 export interface ShadowPreflight {
   readonly executionId: string;
   readonly tenantId: string;
@@ -42,8 +42,8 @@ export interface ShadowPreflight {
   readonly stateVersion: number;
 }
 
-export function issueShadowPreflight(p: { executionId: string; tenantId: string; propertyId: string; conversationId: string; stateVersion: number; manifestOk: true; integrityOk: true; pauseInactive: true; ownershipOk: true }): Readonly<ShadowPreflight> | null {
-  if (p.manifestOk !== true || p.integrityOk !== true || p.pauseInactive !== true || p.ownershipOk !== true) return null;
+export function issueShadowPreflight(p: { executionId: string; tenantId: string; propertyId: string; conversationId: string; stateVersion: number; propertyActiveOk: true; integrityOk: true; pauseInactive: true; ownershipOk: true }): Readonly<ShadowPreflight> | null {
+  if (p.propertyActiveOk !== true || p.integrityOk !== true || p.pauseInactive !== true || p.ownershipOk !== true) return null;
   if (![p.executionId, p.tenantId, p.propertyId, p.conversationId].every((v) => typeof v === "string" && UUID_RE.test(v)) || !Number.isInteger(p.stateVersion)) return null;
   const pf = Object.freeze({ executionId: p.executionId, tenantId: p.tenantId, propertyId: p.propertyId, conversationId: p.conversationId, stateVersion: p.stateVersion });
   PREFLIGHTS.add(pf);

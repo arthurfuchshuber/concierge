@@ -1,5 +1,5 @@
 -- ConciergeIA Guest AI · Entrega 4 · ROLLBACK
--- 03b · DESFAZ TUDO (piloto + Shadow + lease B3.1). Transacional: rodar inteiro dentro de BEGIN/COMMIT.
+-- 03b · DESFAZ TUDO (escopo global + Shadow + lease B3.1). Transacional: rodar inteiro dentro de BEGIN/COMMIT.
 -- Remove SÓ objetos guest_ai_*/shadow_* e as 2 funções do lease (nomes conferidos pelo preflight antes da
 -- aplicação); SEM CASCADE (qualquer dependência inesperada interrompe). Não toca em tabela legada.
 -- Perde: telemetria do Shadow (códigos e números; sem dado pessoal), orçamento, leases.
@@ -29,14 +29,16 @@ begin
     execute format('drop function %s', r.sig);
   end loop;
 end $$;
-drop table if exists public.guest_ai_shadow_property_switch_log;
+-- E4 global (existem se a migration global foi aplicada; ausentes se o 03a já rodou)
+drop table if exists public.guest_ai_shadow_property_eligibility;
+drop table if exists public.guest_ai_shadow_switch_log;
 drop table if exists public.guest_ai_shadow_property_switch;
+drop table if exists public.guest_ai_shadow_tenant_switch;
 drop table public.guest_ai_shadow_inflight;
 drop table public.guest_ai_shadow_access_log;
 drop table public.guest_ai_shadow_executions;
 drop table public.guest_ai_shadow_budget_reservations;
 drop table public.guest_ai_shadow_budget_days;
-drop table public.guest_ai_shadow_manifest;
 drop table public.guest_ai_shadow_transitions;
 drop table public.guest_ai_shadow_control;
 drop table public.guest_ai_conversation_leases;

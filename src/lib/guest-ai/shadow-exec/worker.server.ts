@@ -4,7 +4,8 @@
  * Sequência (§13 da diretriz da Entrega 2, revista na Entrega 3.1):
  *   1 prazo global → 2 chave mestra + estado global + configuração + medição dos disjuntores (a leitura
  *   do estado traz o INSTANTE DO BANCO: todo instante de parede do worker — pausa, coletor, posse, cadeia,
- *   registro — é ancorado nele, F-09/F-03) → 3 manifesto → 4 escopo → 5 tenant/imóvel → 6–7 pausa +
+ *   registro — é ancorado nele, F-09/F-03) → 3 PORTA DO IMÓVEL no banco (E4 global: escopo, dono,
+ *   interruptores, elegibilidade — antes de ler qualquer dado) → 4 escopo → 5 tenant/imóvel → 6–7 pausa +
  *   janela do coletor → 8 lease (sela sobras de lote encerrado → observe → [acknowledge do que antecede a
  *   equipe] → mark_ready → `shadow_claim_execution`, que reivindica E inicia numa transação, só a partir
  *   de `ready` e só com a trava do tick) → 9 pausa RELIDA + posse humana → 10–15 cadeia, orçamento e
@@ -28,13 +29,13 @@ import type { ShadowReadPorts } from "@/lib/guest-ai/shadow/harness";
 import { TURN_CHAIN_VERSION } from "@/lib/guest-ai/turn-chain";
 import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
 import type { LlmLogger } from "@/lib/guest-ai/llm/telemetry";
-import type { ManifestSnapshot, ShadowStore } from "@/lib/guest-ai/data/shadow-store.server";
+import type { ShadowStore } from "@/lib/guest-ai/data/shadow-store.server";
 import type { OwnershipLoad } from "@/lib/guest-ai/data/conversation-ownership.server";
 import type { CollectorWindowSource } from "@/lib/guest-ai/data/collector.server";
 import type { HumanPauseSource } from "@/lib/guest-ai/policy/human-pause";
 import type { ShadowCandidate } from "@/lib/guest-ai/data/shadow-candidates.server";
 import { actualUsageViolation, isIntegrityCode, validateShadowControl } from "./breakers";
-import { type IntegrityCode, type ShadowBlockCode, type ShadowChannel, type ShadowDecision, type ShadowExecutionRecord, type ShadowLimits, type ShadowPauseState, type ShadowTechnicalCode } from "./contracts";
+import { blockCodeForGate, type IntegrityCode, type ShadowBlockCode, type ShadowChannel, type ShadowDecision, type ShadowExecutionRecord, type ShadowLimits, type ShadowPauseState, type ShadowTechnicalCode } from "./contracts";
 import { ShadowDeadline } from "./deadline";
 import { buildExecutionRecord, NO_GATEWAY, validateExecutionRecord, type ExecutionMeta, type NarrowOutcome } from "./extract";
 import { runShadowExecution } from "./executor";
@@ -68,7 +69,7 @@ export interface ShadowWorkerIo {
 }
 
 export type ShadowWorkerOutcome =
-  | { status: "skipped"; code: ShadowBlockCode | "collector_not_ready" | "lease_concurrency" | "lease_overflow" | "measurement_unavailable" | "breaker_open" | "tick_not_held" }
+  | { status: "skipped"; code: ShadowBlockCode | "collector_not_ready" | "lease_concurrency" | "lease_overflow" | "measurement_unavailable" | "breaker_open" | "tick_not_held" | "property_not_active" | "property_status_unreadable" }
   | { status: "recorded"; decision: ShadowDecision }
   | { status: "record_failed"; decision: ShadowDecision };
 
@@ -177,27 +178,30 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
   const technical = (code: ShadowTechnicalCode, turn: ValidatedTurn | null, extra: Partial<ExecutionMeta> = {}) =>
     finish(null, meta({ executionState: deadline.reason ? "timed_out" : "failed", forcedDecision: "technical_failure", technicalCode: deadline.reason ? "shadow_timeout" : code, ...extra }, turn));
 
-  // 3) manifesto
-  const manifest: ManifestSnapshot | null = await store.readManifest();
-  if (!manifest || manifest.manifestVersion !== limits.manifestVersion) return { status: "skipped", code: "manifest_unreadable" };
-  const entry = manifest.entries.find((e) => e.propertyId === candidate.propertyId);
-  if (!entry) return finish(null, meta({ executionState: "blocked", forcedDecision: "blocked_not_authorized", blockCode: "not_in_manifest" }, null));
-  if (entry.tenantId !== candidate.tenantId) return integrity("manifest_tenant_mismatch", null);
+  // 3) porta do imóvel (E4 global): escopo global, dono, interruptores de tenant/imóvel e elegibilidade,
+  //    conferidos AO VIVO no banco ANTES de ler qualquer dado da conversa. Ilegível ⇒ nada acontece.
+  const gate = await store.propertyStatus(candidate.tenantId, candidate.propertyId);
+  if (gate.kind === "error") return { status: "skipped", code: "property_status_unreadable" };
+  if (gate.kind === "blocked") {
+    // o dono do imóvel não é o tenant que o banco acabou de indicar: divergência, nunca adivinhar
+    if (gate.reason === "tenant_mismatch") return integrity("candidate_tenant_mismatch", null);
+    return finish(null, meta({ executionState: "blocked", forcedDecision: "blocked_not_authorized", blockCode: blockCodeForGate(gate.reason) }, null));
+  }
 
-  // 4) escopo, conferido no banco, com o dono esperado = tenant do manifesto
+  // 4) escopo, conferido no banco, com o dono esperado = tenant da candidata (derivado do dono do imóvel)
   let turn: ValidatedTurn;
   const tScope = deadline.elapsedMs();
   try {
-    turn = await io.validateTurnScope({ surface: candidate.surface, conversationId: candidate.conversationId, messageId: candidate.messageId, expectedOwnerId: entry.tenantId }, deadline.signal);
+    turn = await io.validateTurnScope({ surface: candidate.surface, conversationId: candidate.conversationId, messageId: candidate.messageId, expectedOwnerId: candidate.tenantId }, deadline.signal);
   } catch (e) {
     const code = (e as { code?: unknown })?.code;
     if ((SCOPE_INTEGRITY as readonly unknown[]).includes(code)) return integrity(code as IntegrityCode, null);
     return technical("read_failed", null);
   }
   contextMs += deadline.elapsedMs() - tScope;
-  // 5) tenant e imóvel do turno = os do manifesto
-  if (turn.tenantId !== entry.tenantId) return integrity("manifest_tenant_mismatch", turn);
-  if (turn.propertyId !== entry.propertyId || turn.conversationId !== candidate.conversationId) return integrity("manifest_property_mismatch", turn);
+  // 5) tenant e imóvel do turno = os da candidata
+  if (turn.tenantId !== candidate.tenantId) return integrity("candidate_tenant_mismatch", turn);
+  if (turn.propertyId !== candidate.propertyId || turn.conversationId !== candidate.conversationId) return integrity("candidate_property_mismatch", turn);
 
   // 6–7) pausa (para o coletor) + janela do coletor — instante do BANCO
   const nowMs = dbClock();
@@ -270,18 +274,18 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
   } else if (snap.state !== "ready" || snap.messageIds.join() !== lote.join()) {
     return { status: "skipped", code: "lease_concurrency" };
   }
-  // reivindica E inicia numa transação (só de `ready`; trava do tick; manifesto); resposta perdida ⇒
+  // reivindica E inicia numa transação (só de `ready`; trava do tick; porta do imóvel); resposta perdida ⇒
   // UMA repetição idempotente com a MESMA execução (devolve a mesma posse, nunca uma segunda)
   if (!io.tickToken) return { status: "skipped", code: "tick_not_held" };
   const claimArgs = { tickToken: io.tickToken, executionId, conversationId: conv, expectedVersion: snap.version, tenantId: turn.tenantId, propertyId: turn.propertyId, channel: CHANNEL[turn.surface] };
   let claim = await store.claimExecution(claimArgs);
   if (claim.kind === "error" && !deadline.signal.aborted) claim = await store.claimExecution(claimArgs);
+  // E4 global: o imóvel deixou de estar ativo (escopo fechado, desligado, arquivado…) entre a porta e a
+  // reivindicação — o banco recusou; nada executa (o lote fica pronto para quando voltar a estar ativo)
+  if (claim.kind === "property_blocked") return { status: "skipped", code: "property_not_active" };
   if (claim.kind === "rejected") {
     if (claim.code === "tick_not_held") return { status: "skipped", code: "tick_not_held" };
     if (claim.code === "state_not_running") return { status: "skipped", code: "state_not_running" };
-    // E4: imóvel desabilitado individualmente (ou deixou de ser válido) entre a leitura do manifesto e a reivindicação
-    if (claim.code === "property_disabled" || claim.code === "not_in_manifest")
-      return { status: "skipped", code: "not_in_manifest" };
     return { status: "skipped", code: "lease_concurrency" };
   }
   // sem resposta legível: a posse pode ter sido confirmada; a reconciliação a sela (nunca reprocessa)
@@ -357,7 +361,7 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
   }
 
   // 10–15) pré-autorização → gerador emitido → cadeia (o Gateway só roda com todas as barreiras)
-  const preflight = issueShadowPreflight({ executionId, tenantId: turn.tenantId, propertyId: turn.propertyId, conversationId: conv, stateVersion: control.stateVersion, manifestOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true });
+  const preflight = issueShadowPreflight({ executionId, tenantId: turn.tenantId, propertyId: turn.propertyId, conversationId: conv, stateVersion: control.stateVersion, propertyActiveOk: true, integrityOk: true, pauseInactive: true, ownershipOk: true });
   const generator = preflight
     ? createShadowGatewayGenerator({ preflight, limits, deadline, store, masterSwitchOn: io.masterSwitchOn, provider: io.provider, log: io.log, now: mono })
     : null;
