@@ -136,7 +136,7 @@ describe("E3.1 · adaptador das novas RPCs (respostas por lista branca)", () => 
     expect(await store({ shadow_claim_execution: ok }).claimExecution(args)).toEqual({ kind: "claimed", version: 3, ownerToken: TOKEN, batchId: BATCH, messageIds: [M], repeated: false });
     expect(await store({ shadow_claim_execution: { ...ok, repeated: true } }).claimExecution(args)).toMatchObject({ kind: "claimed", repeated: true });
     for (const bad of [{ ...ok, version: 1.5 }, { ...ok, owner_token: "x" }, { ...ok, batch_id: "x" }, { ...ok, message_ids: [] }, { ...ok, message_ids: ["x"] }, { ...ok, message_ids: "x" }]) expect(await store({ shadow_claim_execution: bad }).claimExecution(args), JSON.stringify(bad)).toEqual({ kind: "error" });
-    for (const code of ["state_not_running", "tick_not_held", "not_in_manifest", "not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument"]) expect(await store({ shadow_claim_execution: { result: code } }).claimExecution(args)).toEqual({ kind: "rejected", code });
+    for (const code of ["state_not_running", "tick_not_held", "not_in_manifest", "not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument", "property_disabled"]) expect(await store({ shadow_claim_execution: { result: code } }).claimExecution(args)).toEqual({ kind: "rejected", code });
     expect(await store({ shadow_claim_execution: { result: CANARY } }).claimExecution(args)).toEqual({ kind: "error" });
     expect(await store({}).claimExecution(args)).toEqual({ kind: "error" });
   });

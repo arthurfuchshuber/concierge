@@ -18,6 +18,13 @@
 --  * Tabela extra em relação ao desenho: `guest_ai_shadow_budget_reservations` — sem ela a liquidação
 --    teria de confiar no valor reservado informado pelo cliente; com ela o banco sabe o que liberar.
 --
+-- Entrega 4 (preparação, 04/11/2026; achados da auditoria de produção, ainda não aplicada):
+--  * Guarda de reexecução: se qualquer objeto Shadow já existir, aborta ANTES de tocar em qualquer coisa
+--    (a transação inteira é desfeita; nenhum objeto existente é sobrescrito).
+--  * A produção concede SEQUÊNCIAS novas do schema public a anon/authenticated/service_role por DEFAULT
+--    PRIVILEGES: as identidades das tabelas Shadow têm os privilégios revogados explicitamente.
+--  * Manifesto sem FK RESTRICT para `properties` (não bloqueia a exclusão de imóveis pela Capacidade B).
+--
 -- Entrega 3.1 (corretiva, 04/11/2026):
 --  * F-07: trava GLOBAL de tick (token de cerca + prazo do banco) — um único worker ativo; nenhuma
 --    execução começa sem tempo de tick suficiente para terminar (15 s).
@@ -30,6 +37,21 @@
 --  * F-04: reserva idempotente; liquidação só por função interna auditável (`settlement_kind`).
 --  * Parâmetros aprovados como TETOS (não como ativação): custo por turno ≤ US$ 0,15; ≤ 3 conversas por tick;
 --    tick de 60 s; amostra mínima 20; fuso America/Sao_Paulo; teto diário ≤ US$ 1,00.
+
+-- ───────────────────────── Guarda de reexecução (E4) ─────────────────────────
+do $$
+begin
+  if exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public' and c.relname like 'guest\_ai\_shadow\_%')
+     or exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                 where n.nspname = 'public' and (p.proname like 'shadow\_%' or p.proname like 'guest\_ai\_shadow\_%')) then
+    raise exception 'guest_ai_shadow: objetos já existem; migration não reaplicada (conferir com o script de validação)'
+      using errcode = 'P0001';
+  end if;
+  if to_regclass('public.guest_ai_conversation_leases') is null or to_regclass('public.properties') is null then
+    raise exception 'guest_ai_shadow: pré-requisito ausente (lease B3.1 ou properties)' using errcode = 'P0001';
+  end if;
+end $$;
 
 -- ───────────────────────── Controle global (linha única) ─────────────────────────
 create table public.guest_ai_shadow_control (
@@ -121,7 +143,10 @@ create table public.guest_ai_shadow_transitions (
 create table public.guest_ai_shadow_manifest (
   manifest_version integer not null,
   tenant_id        uuid not null,
-  property_id      uuid not null references public.properties(id) on delete restrict,
+  -- E4: sem FK para `properties` — uma FK RESTRICT impediria a operação convencional (Capacidade B) de
+  -- excluir um imóvel do piloto. Existência, dono e arquivamento são conferidos em `shadow_manifest_add`
+  -- e de novo a cada reivindicação (migration do piloto).
+  property_id      uuid not null,
   selection_reason text not null,
   twin_status      text not null,
   history_status   text not null,
@@ -363,6 +388,14 @@ begin
     execute format('revoke all on table public.%I from public, anon, authenticated, service_role', t);
     if exists (select 1 from pg_roles where rolname = 'sandbox_exec') then
       execute format('revoke all on table public.%I from sandbox_exec', t);
+    end if;
+  end loop;
+  -- E4: identidades (sequências) recebem DEFAULT PRIVILEGES de clientes na produção ⇒ revogação explícita
+  for t in select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'public' and c.relkind = 'S' and c.relname like 'guest\_ai\_shadow\_%' loop
+    execute format('revoke all on sequence public.%I from public, anon, authenticated, service_role', t);
+    if exists (select 1 from pg_roles where rolname = 'sandbox_exec') then
+      execute format('revoke all on sequence public.%I from sandbox_exec', t);
     end if;
   end loop;
 end $$;

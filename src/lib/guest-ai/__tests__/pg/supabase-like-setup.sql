@@ -12,6 +12,10 @@ grant usage on schema public to anon, authenticated, service_role, sandbox_exec;
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public grant select, insert on tables to sandbox_exec;
 alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
+-- E4 (auditoria de produção, 04/11/2026): a produção também concede SEQUÊNCIAS novas a clientes
+-- (`anon=rwU, authenticated=rwU, service_role=rwU, sandbox_exec=rU`). Reproduzido para provar a revogação.
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+alter default privileges in schema public grant select, usage on sequences to sandbox_exec;
 -- Conversas: só o necessário para a FK (a tabela real tem mais colunas, nenhuma usada aqui).
 create table if not exists public.property_chat_conversations (id uuid primary key);
 -- B3.3: imóveis (só as colunas que o manifesto Shadow confere: id, dono e arquivamento — iguais à produção).

@@ -9,7 +9,7 @@ import { recordToRow } from "@/lib/guest-ai/data/shadow-store.server";
 import type { ProviderOutcome } from "@/lib/guest-ai/llm/providers/types";
 import {
   PG176_AVAILABLE, startE3Db, controller, worldIo, convSpec, candidateOf, simProvider, shadowToRunning, shadowState, seedConversation, leaseRow, executions,
-  automaticTrips, budgetTotals, budgetLedgerConsistent, rpcAsSr, recordResult, summarizeCalls, ACTOR, type E3Db, type ConvSpec,
+  automaticTrips, budgetTotals, budgetLedgerConsistent, rpcAsSr, rpcAsAdmin, recordResult, summarizeCalls, ACTOR, type E3Db, type ConvSpec,
 } from "./harness";
 
 let db: E3Db;
@@ -148,10 +148,10 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · Fase 6 — prazo e disjuntores (Postgre
     expect(await runShadowWorker(candidateOf(s), worldIo([s], { db, ctl: controller(), provider: simProvider() }))).toEqual({ status: "skipped", code: "state_not_running" });
     // disparo automático para running é recusado; transição direta para running é recusada
     expect((await rpcAsSr(db, "shadow_trip", { p_to: "running", p_reason: "error_rate_exceeded" })).result).toBe("invalid_argument");
-    expect((await rpcAsSr(db, "shadow_transition", { p_expected_version: st.version, p_to: "running", p_actor: ACTOR, p_reason: "authorized_resume" })).result).toBe("invalid_transition");
+    expect((await rpcAsAdmin(db, "shadow_transition", { p_expected_version: st.version, p_to: "running", p_actor: ACTOR, p_reason: "authorized_resume" })).result).toBe("invalid_transition");
     // ready sem evidência é recusado; com evidência, aceito; só depois running
-    expect((await rpcAsSr(db, "shadow_transition", { p_expected_version: st.version, p_to: "ready", p_actor: ACTOR, p_reason: "authorized_recovery" })).result).toBe("invalid_transition");
-    const r = await rpcAsSr(db, "shadow_transition", { p_expected_version: st.version, p_to: "ready", p_actor: ACTOR, p_reason: "authorized_recovery", p_evidence_sha256: "f".repeat(64) });
+    expect((await rpcAsAdmin(db, "shadow_transition", { p_expected_version: st.version, p_to: "ready", p_actor: ACTOR, p_reason: "authorized_recovery" })).result).toBe("invalid_transition");
+    const r = await rpcAsAdmin(db, "shadow_transition", { p_expected_version: st.version, p_to: "ready", p_actor: ACTOR, p_reason: "authorized_recovery", p_evidence_sha256: "f".repeat(64) });
     expect(r.result).toBe("applied");
     st = await shadowState(db);
     expect(st.state).toBe("ready");

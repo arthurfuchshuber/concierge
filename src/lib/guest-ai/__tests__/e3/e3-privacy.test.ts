@@ -15,7 +15,7 @@ import { runShadowTick } from "@/lib/guest-ai/shadow-exec/tick.server";
 import { v4 } from "../helpers/b23-chain";
 import type { LlmCallLogEvent } from "@/lib/guest-ai/llm/telemetry";
 import {
-  PG176_AVAILABLE, startE3Db, controller, worldIo, convSpec, candidateOf, simProvider, shadowToRunning, seedConversation, realStores, rpcAsSr, recordResult, ACTOR,
+  PG176_AVAILABLE, startE3Db, controller, worldIo, convSpec, candidateOf, simProvider, shadowToRunning, seedConversation, realStores, rpcAsSr, rpcAsAdmin, recordResult, ACTOR,
   type E3Db, type ConvSpec,
 } from "./harness";
 
@@ -159,7 +159,7 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · Fase 4 — privacidade e descarte (Post
     // o tick adquire a SUA trava (a do harness é liberada antes)
     await rpcAsSr(db, "shadow_release_tick", { p_tick_token: db.tick });
     const summary = await runShadowTick({ store: async () => w.storeFor(new AbortController().signal), candidates: async () => ({ ok: true, candidates: [candidateOf(s)] }), worker: (c, tickToken) => runShadowWorker(c, { ...w, tickToken }) });
-    const report = await rpcAsSr(db, "shadow_report", { p_actor: ACTOR, p_report: "decision_summary", p_tenant_id: s.tenant, p_from: "2026-01-01T00:00:00Z", p_to: "2030-01-01T00:00:00Z" });
+    const report = await rpcAsAdmin(db, "shadow_report", { p_actor: ACTOR, p_report: "decision_summary", p_tenant_id: s.tenant, p_from: "2026-01-01T00:00:00Z", p_to: "2030-01-01T00:00:00Z" });
     const text = [JSON.stringify(summary), JSON.stringify(report), captured.join("\n"), db.log()].join("\n");
     recordResult("privacy-tick-report", { summary, reportRows: (report.rows as unknown[])?.length ?? 0, retryCalls: provider.calls });
     expect(provider.calls).toBe(2);

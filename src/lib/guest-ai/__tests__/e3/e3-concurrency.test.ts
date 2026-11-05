@@ -71,12 +71,13 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · Fase 3 — concorrência e integridade 
     expect(await budgetLedgerConsistent(db)).toBe(true);
   }, 120_000);
 
-  it("tenants diferentes (2 tenants × 3 imóveis × 2 workers por conversa) ⇒ cada execução carrega o tenant/imóvel da SUA conversa; nenhuma mistura", async () => {
+  it("tenants diferentes (2 tenants, 5 imóveis — teto do piloto — × 2 workers por conversa) ⇒ cada execução carrega o tenant/imóvel da SUA conversa; nenhuma mistura", async () => {
     const tA = synthUuid("7a300000");
     const tB = synthUuid("7a300000");
     const specs: ConvSpec[] = [];
+    // E4: teto do piloto = 5 imóveis no manifesto ⇒ 3 do tenant A + 2 do tenant B
     for (const t of [tA, tB])
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < (t === tA ? 3 : 2); i++) {
         const marker = `Imovel-Sintetico-${t.slice(-4)}-${i}`;
         specs.push(await conv({ tenant: t, property: synthUuid("7b300000"), contextPatch: (ctx) => ({ ...ctx, guest: { ...ctx.guest, property: { ...ctx.guest.property, name: marker } } }) as typeof ctx }));
       }
@@ -87,8 +88,8 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · Fase 3 — concorrência e integridade 
     await Promise.all(runs);
     const ex = await executions(db);
     recordResult("concurrency-multi-tenant", { executions: ex.map((e) => ({ t: e.tenant_id, p: e.property_id, c: e.conversation_id, d: e.decision })), gateway: provider.calls });
-    expect(ex).toHaveLength(6);
-    expect(provider.calls).toBe(6);
+    expect(ex).toHaveLength(5);
+    expect(provider.calls).toBe(5);
     for (const e of ex) {
       const s = specs.find((x) => x.conv === e.conversation_id)!;
       expect(e.tenant_id).toBe(s.tenant);

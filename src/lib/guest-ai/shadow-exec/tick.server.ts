@@ -49,7 +49,9 @@ export async function runShadowTick(io: Pick<TickIo, "store" | "candidates" | "w
     const v = validateShadowControl(control);
     if (!v.ok) return empty("limits_missing");
     const manifest = await store.readManifest();
-    if (!manifest || manifest.manifestVersion !== v.limits.manifestVersion || manifest.entries.length === 0) return empty("manifest_unreadable");
+    if (!manifest || manifest.manifestVersion !== v.limits.manifestVersion) return empty("manifest_unreadable");
+    // E4: o manifesto devolve só imóveis HABILITADOS individualmente; nenhum ⇒ nada a fazer (sem trava, sem leitura)
+    if (manifest.entries.length === 0) return empty("no_enabled_properties");
     const tick = await store.acquireTick();
     if (tick.kind === "busy") return empty("tick_busy");
     if (tick.kind === "blocked") return empty(tick.code === "state_not_running" ? "state_not_running" : "limits_missing");

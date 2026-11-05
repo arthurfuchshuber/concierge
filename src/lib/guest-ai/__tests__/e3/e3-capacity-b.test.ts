@@ -107,7 +107,7 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · ambiente PostgreSQL 17.6 — evidência
       `select c.relname tbl, c.relrowsecurity rls, (select count(*) from pg_policy p where p.polrelid = c.oid)::int policies, array_to_string(c.relacl, ',') acl from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and c.relname like 'guest_ai_%' order by 1`,
     );
     recordResult("pg176-acl", rows);
-    expect(rows).toHaveLength(9); // E3.1: + guest_ai_shadow_inflight
+    expect(rows).toHaveLength(11); // E3.1: + guest_ai_shadow_inflight; E4: + property_switch e property_switch_log
     for (const r of rows) {
       expect(r.rls, r.tbl).toBe(true);
       expect(r.policies, r.tbl).toBe(0);
@@ -124,20 +124,23 @@ describe.skipIf(!PG176_AVAILABLE)("E3 · ambiente PostgreSQL 17.6 — evidência
     }
   });
 
-  it("funções: todas SECURITY DEFINER com search_path fixo; EXECUTE só service_role e só nas 19 RPCs (17 do Shadow + 2 do lease; as 7 internas sem EXECUTE)", async () => {
+  it("funções: todas SECURITY DEFINER com search_path fixo; EXECUTE de service_role SÓ nas 13 RPCs do worker (11 do Shadow + 2 do lease); administrativas e internas só para o dono (E4)", async () => {
     const fns = await pg.rows<{ f: string; secdef: boolean; cfg: string; sr: boolean; anon: boolean; auth: boolean }>(
       `select p.proname f, p.prosecdef secdef, array_to_string(p.proconfig, ',') cfg, has_function_privilege('service_role', p.oid, 'execute') sr, has_function_privilege('anon', p.oid, 'execute') anon, has_function_privilege('authenticated', p.oid, 'execute') auth
          from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'shadow_%' or p.proname like 'guest_ai_shadow_%' or p.proname like '%conversation_lease') order by 1`,
     );
     recordResult("pg176-functions", fns);
-    expect(fns).toHaveLength(26);
-    expect(fns.filter((f) => f.sr)).toHaveLength(19);
+    expect(fns).toHaveLength(31);
+    expect(fns.filter((f) => f.sr).map((f) => f.f).sort()).toEqual([
+      "claim_conversation_lease", "shadow_acquire_tick", "shadow_claim_execution", "shadow_evaluate_breakers", "shadow_finalize_execution", "shadow_get_control", "shadow_get_manifest",
+      "shadow_reconcile", "shadow_record_execution", "shadow_release_tick", "shadow_reserve_budget", "shadow_trip", "transition_conversation_lease",
+    ]);
     expect(fns.map((f) => f.f)).not.toContain("shadow_settle_budget");
     for (const f of fns) {
       expect(f.secdef, f.f).toBe(true);
       expect(f.cfg, f.f).toBe("search_path=pg_catalog, pg_temp");
       expect(f.anon || f.auth, f.f).toBe(false);
-      expect(f.sr, f.f).toBe(!f.f.startsWith("guest_ai_shadow_"));
+      if (f.f.startsWith("guest_ai_shadow_")) expect(f.sr, f.f).toBe(false);
     }
   });
 

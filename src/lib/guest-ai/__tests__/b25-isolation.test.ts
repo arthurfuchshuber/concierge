@@ -88,11 +88,14 @@ describe("B2.5 · fluxo real intocado", () => {
     // B3.1: única migration autorizada (lease distribuído, diretriz de 03/11) — nada mais fora do módulo.
     // B3.3 (Entrega 2, diretriz de 04/11): migration LOCAL do Shadow (não aplicada), a rota desligada e o
     // registro de rotas gerado pelo build. Nada mais fora do módulo.
-    expect(changed.sort()).toEqual([
+    // B3.3 (Entrega 4, ordem formal de 04/11): correção da migration Shadow NÃO aplicada e a migration
+    // LOCAL do piloto (interruptor por imóvel; não aplicada). Nada mais fora do módulo.
+    expect([...new Set(changed)].sort()).toEqual([
       "src/routeTree.gen.ts",
       "src/routes/api/public/guest-ai.shadow-tick.ts",
       "supabase/migrations/20261104000000_guest_ai_conversation_leases.sql",
       "supabase/migrations/20261104120000_guest_ai_shadow.sql",
+      "supabase/migrations/20261105120000_guest_ai_shadow_pilot.sql",
     ]);
   });
 });

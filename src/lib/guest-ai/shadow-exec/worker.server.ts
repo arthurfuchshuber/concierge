@@ -279,6 +279,9 @@ async function work(candidate: ShadowCandidate, io: ShadowWorkerIo, deadline: Sh
   if (claim.kind === "rejected") {
     if (claim.code === "tick_not_held") return { status: "skipped", code: "tick_not_held" };
     if (claim.code === "state_not_running") return { status: "skipped", code: "state_not_running" };
+    // E4: imóvel desabilitado individualmente (ou deixou de ser válido) entre a leitura do manifesto e a reivindicação
+    if (claim.code === "property_disabled" || claim.code === "not_in_manifest")
+      return { status: "skipped", code: "not_in_manifest" };
     return { status: "skipped", code: "lease_concurrency" };
   }
   // sem resposta legível: a posse pode ter sido confirmada; a reconciliação a sela (nunca reprocessa)

@@ -127,6 +127,50 @@ describe.skipIf(!PG_AVAILABLE)("B3.3 · migration Shadow — Postgres real", () 
         expect((await pg.trySql(`insert into public.guest_ai_shadow_access_log (actor, report, tenant_id, from_at, to_at) values ('${ACTOR}', 'daily_cost', '${T_ID}', now(), now() + interval '1 h')`, { role })).ok).toBe(false);
       }
     });
+    it("E4 · sequências das tabelas Shadow (identidades) sem NENHUM privilégio para clientes (a produção concede por padrão)", async () => {
+      const seqs = (
+        await one(
+          `select string_agg(c.relname, ',' order by c.relname) from pg_class c where c.relkind = 'S' and c.relname like 'guest_ai_shadow_%'`,
+        )
+      )
+        .split(",")
+        .filter(Boolean);
+      expect(seqs.length).toBeGreaterThanOrEqual(2);
+      for (const sq of seqs)
+        for (const role of ["anon", "authenticated", "service_role", "sandbox_exec"])
+          for (const priv of ["USAGE", "SELECT", "UPDATE"]) {
+            expect(
+              await one(`select has_sequence_privilege('${role}', 'public.${sq}', '${priv}')`),
+              `${role} ${priv} ${sq}`,
+            ).toBe("f");
+          }
+      expect(
+        (await pg.trySql(`select setval('public.${seqs[0]}', 999999)`, { role: "anon" })).ok,
+      ).toBe(false);
+    });
+    it("E4 · manifesto NÃO prende a exclusão de imóvel pela operação convencional (Capacidade B): sem FK RESTRICT", async () => {
+      const pid = "b0000000-0000-4000-8000-0000000000dd";
+      await pg.sql(`insert into public.properties (id, owner_id) values ('${pid}', '${T_ID}')`);
+      expect(
+        (
+          await rpc("shadow_manifest_add", {
+            p_actor: ACTOR,
+            p_manifest_version: 1,
+            p_tenant_id: T_ID,
+            p_property_id: pid,
+            p_selection_reason: "highest_volume",
+            p_twin_status: "verified",
+            p_history_status: "verified",
+          })
+        ).result,
+      ).toBe("applied");
+      expect((await pg.trySql(`delete from public.properties where id = '${pid}'`)).ok).toBe(true);
+      expect(
+        await one(
+          `select count(*) from pg_constraint where conrelid = 'public.guest_ai_shadow_manifest'::regclass and contype = 'f'`,
+        ),
+      ).toBe("0");
+    });
     it("RPCs: EXECUTE só service_role; internas sem EXECUTE para ninguém; todas SECURITY DEFINER com search_path fixo", async () => {
       for (const fn of RPCS) {
         expect(await one(`select prosecdef from pg_proc where proname = '${fn}'`), fn).toBe("t");

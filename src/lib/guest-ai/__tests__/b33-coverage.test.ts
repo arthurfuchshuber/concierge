@@ -132,7 +132,9 @@ describe("B3.3 · worker × lease: cada resposta do B3.1 tem destino fechado", (
     };
     expect((await withClaim(() => ({ kind: "rejected", code: "tick_not_held" }))).r).toEqual({ status: "skipped", code: "tick_not_held" });
     expect((await withClaim(() => ({ kind: "rejected", code: "state_not_running" }))).r).toEqual({ status: "skipped", code: "state_not_running" });
-    for (const code of ["not_in_manifest", "not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument"] as const)
+    // E4: imóvel desabilitado/fora do manifesto na reivindicação ⇒ pulado como "não autorizado" (nada executa)
+    for (const code of ["property_disabled", "not_in_manifest"] as const) expect((await withClaim(() => ({ kind: "rejected", code }))).r).toEqual({ status: "skipped", code: "not_in_manifest" });
+    for (const code of ["not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument"] as const)
       expect((await withClaim(() => ({ kind: "rejected", code }))).r).toEqual({ status: "skipped", code: "lease_concurrency" });
     // sem resposta duas vezes ⇒ nada executa (a posse, se confirmada, é selada pela reconciliação)
     const lost = await withClaim(() => ({ kind: "error" }));

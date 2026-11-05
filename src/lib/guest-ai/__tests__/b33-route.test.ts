@@ -143,7 +143,7 @@ describe("B3.3 · tick (só alcançável com o portão aberto — testado com po
       [(st) => (st.control = fullControl({ maxConversationsPerTick: null })), "limits_missing"],
       [(st) => (st.fail.readManifest = true), "manifest_unreadable"],
       [(st) => (st.manifest = manifestOf(undefined, 9)), "manifest_unreadable"],
-      [(st) => (st.manifest = manifestOf([])), "manifest_unreadable"],
+      [(st) => (st.manifest = manifestOf([])), "no_enabled_properties"], // E4: nenhum imóvel habilitado
     ];
     for (const [setup, outcome] of cases) {
       const s = spies();

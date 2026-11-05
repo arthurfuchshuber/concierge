@@ -136,9 +136,9 @@ export interface ClaimArgs {
 }
 export type ClaimResult =
   | { kind: "claimed"; version: number; ownerToken: string; batchId: string; messageIds: readonly string[]; repeated: boolean }
-  | { kind: "rejected"; code: "state_not_running" | "tick_not_held" | "not_in_manifest" | "not_found" | "stale_version" | "not_claimable" | "attempts_exhausted" | "conflict" | "duplicate" | "invalid_argument" }
+  | { kind: "rejected"; code: "state_not_running" | "tick_not_held" | "not_in_manifest" | "not_found" | "stale_version" | "not_claimable" | "attempts_exhausted" | "conflict" | "duplicate" | "invalid_argument" | "property_disabled" }
   | { kind: "error" };
-const CLAIM_REJECTIONS = ["state_not_running", "tick_not_held", "not_in_manifest", "not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument"] as const;
+const CLAIM_REJECTIONS = ["state_not_running", "tick_not_held", "not_in_manifest", "not_found", "stale_version", "not_claimable", "attempts_exhausted", "conflict", "duplicate", "invalid_argument", "property_disabled"] as const;
 
 export interface FinalizeArgs {
   executionId: string;

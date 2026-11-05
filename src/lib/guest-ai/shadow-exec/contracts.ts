@@ -433,7 +433,7 @@ void _recordKeysExhaustive;
 
 /** Resposta da rota: só códigos e contadores. */
 export interface ShadowTickSummary {
-  readonly outcome: "not_released" | "state_not_running" | "state_unreadable" | "limits_missing" | "manifest_unreadable" | "executed" | "tick_failed" | "tick_busy";
+  readonly outcome: "not_released" | "state_not_running" | "state_unreadable" | "limits_missing" | "manifest_unreadable" | "executed" | "tick_failed" | "tick_busy" | "no_enabled_properties";
   readonly conversationsConsidered: number;
   readonly executed: number;
   readonly blocked: number;
