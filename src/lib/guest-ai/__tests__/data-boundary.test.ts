@@ -34,7 +34,11 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     const client = code(path.join(ROOT, "data/client.server.ts"));
     expect(client).not.toMatch(/\.(insert|update|upsert|delete)\s*\(/);
     // B3.3 (Entrega 2): segunda porta, também de LISTA FECHADA (`SHADOW_RPC_FUNCTIONS`), só para as RPCs do Shadow.
-    expect(client.match(/\.rpc\s*\(/g)).toHaveLength(2);
+    // COPILOTO (diretriz de 05/11/2026): terceira porta, também de LISTA FECHADA, só para as RPCs de GERAÇÃO
+    // de sugestões (EXECUTE só service_role). As ações do atendente correm com o cliente da sessão, fora do módulo.
+    expect(client.match(/\.rpc\s*\(/g)).toHaveLength(3);
+    expect(client).toMatch(/if \(!\(COPILOT_RPC_FUNCTIONS as readonly string\[\]\)\.includes\(fn\)\) return/);
+    expect(client).toMatch(/COPILOT_RPC_FUNCTIONS = \["copilot_claim_generation", "copilot_generation_state", "copilot_store_result", "copilot_purge_expired"\] as const/);
     expect(client).toMatch(/if \(!\(SHADOW_RPC_FUNCTIONS as readonly string\[\]\)\.includes\(fn\)\) return/);
     expect(client).toMatch(/if \(!\(LEASE_RPC_FUNCTIONS as readonly string\[\]\)\.includes\(fn\)\) return/);
     expect(client).toMatch(/LEASE_RPC_FUNCTIONS = \["claim_conversation_lease", "transition_conversation_lease"\] as const/);
@@ -42,6 +46,8 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     expect(files.filter((f) => /getGuestAiLeaseRpc|leaseRpcFrom|GuestAiLeaseRpc/.test(code(f))).map(rel).sort()).toEqual(["data/client.server.ts", "data/lease-store.server.ts", "shadow-exec/worker.server.ts"]);
     // porta do Shadow: só o adaptador e a ligação de produção do worker (B3.3)
     expect(files.filter((f) => /getGuestAiShadowRpc|shadowRpcFrom|GuestAiShadowRpc/.test(code(f))).map(rel).sort()).toEqual(["data/client.server.ts", "data/shadow-store.server.ts", "shadow-exec/worker.server.ts"]);
+    // porta do Copiloto: só o adaptador e o serviço de geração
+    expect(files.filter((f) => /getGuestAiCopilotRpc|copilotRpcFrom|GuestAiCopilotRpc/.test(code(f))).map(rel).sort()).toEqual(["copilot/generate.server.ts", "copilot/store.server.ts", "data/client.server.ts"]);
     expect(files.filter((f) => internal.test(code(f))).map(rel)).toEqual([]);
   });
 
@@ -68,14 +74,16 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
 
   it("F0/F1 (data, context, policy, slot, trust, types) não têm LLM, embeddings, rede nem gateway", () => {
     const re = /lib\/llm|guest-ai\/llm|ai\.gateway|openai|anthropic|generativelanguage|embedTexts|embedOne|runAgent|chatText|chatJson|\bfetch\(/i;
-    const f2b = /^(llm|orchestrator|validation|shadow|shadow-exec)\//; // B3.3: shadow-exec usa o Gateway (gerador emitido)
+    // B3.3: shadow-exec usa o Gateway (gerador emitido). Copiloto (05/11): gerador ligado ao Gateway + registro de modelos.
+    const f2b = /^(llm|orchestrator|validation|shadow|shadow-exec|copilot)\//;
     expect(files.filter((f) => !f2b.test(rel(f)) && re.test(code(f))).map(rel)).toEqual([]);
   });
 
   it("F2-B · B1: só o orchestrator chama o Gateway; demais módulos novos usam apenas tipos/registro de llm/", () => {
     const runtime = files.filter((f) => /guest-ai\/llm\/gateway\.server|generateGuestLlm/.test(code(f)) && !rel(f).startsWith("llm/"));
     // B3.3 (Entrega 2): o gerador Shadow emitido é o 2º e último chamador do Gateway (barreiras fechadas).
-    expect(runtime.map(rel).sort()).toEqual(["orchestrator/orchestrator.server.ts", "shadow-exec/gateway-generator.server.ts"]);
+    // Copiloto (05/11/2026): o gerador do Copiloto é o 3º chamador (uma chamada por sugestão, custo por turno limitado).
+    expect(runtime.map(rel).sort()).toEqual(["copilot/generator.server.ts", "orchestrator/orchestrator.server.ts", "shadow-exec/gateway-generator.server.ts"]);
     // fora de llm/, nada de rede direta nem de outro provedor
     expect(files.filter((f) => !rel(f).startsWith("llm/") && /\bfetch\(|ai\.gateway|openai\.com|anthropic\.com/.test(code(f))).map(rel)).toEqual([]);
   });

@@ -61,7 +61,8 @@ describe("B2.5 · módulos novos puros e passivos", () => {
 describe("B2.5 · só as camadas isoladas usam as peças novas", () => {
   // B3.1/B3.2: + coletor, telemetria do coletor e loaders reais somente leitura (diretriz de 03/11). Listas fechadas.
   it("lote", () => expect(importersOf("batch/message-batch")).toEqual(["batch/collector.ts", "batch/telemetry.ts", "composer.ts", "data/collector.server.ts", "shadow/telemetry.ts", "turn-chain.ts"]));
-  it("identidade de envio", () => expect(importersOf("policy/sender-identity")).toEqual(["data/sender-identity.server.ts", "shadow/telemetry.ts", "turn-chain.ts"]));
+  // Copiloto (05/11/2026): a guarda de ENVIO resolve a identidade com a MESMA política antes da rotina humana.
+  it("identidade de envio", () => expect(importersOf("policy/sender-identity")).toEqual(["copilot/send-guard.server.ts", "data/sender-identity.server.ts", "shadow/telemetry.ts", "turn-chain.ts"]));
   it("leitura de compromissos no texto", () => expect(importersOf("validation/commitment-text")).toEqual(["shadow/telemetry.ts", "validation/semantic-validator.ts"]));
   it("nada fora de src/lib/guest-ai importa a cadeia, o lote ou a identidade", () => {
     const outside = prod()
@@ -92,11 +93,29 @@ describe("B2.5 · fluxo real intocado", () => {
     // migration LOCAL de escopo global (não aplicada). Arquivos apagados no caminho (a migration do piloto,
     // substituída) não contam como alteração. Nada mais fora do módulo.
     expect([...new Set(changed)].filter((f) => existsSync(path.resolve(__dirname, "../../../..", f))).sort()).toEqual([
+      // COPILOTO (diretriz definitiva de 05/11/2026): cartão na tela de Atendimento, server functions de
+      // aprovação/envio, extração das rotinas humanas de envio (sem mudar o fluxo), remetente estrito no Airbnb,
+      // disparo em segundo plano nos três canais e a migration LOCAL das sugestões (não aplicada).
+      "src/components/handoff/AiSuggestionCard.tsx",
+      "src/components/handoff/ConversationView.tsx",
+      "src/components/handoff/__tests__/ai-suggestion-card.test.tsx",
+      "src/lib/__tests__/copilot-send.test.ts",
+      "src/lib/airbnb-direct-sender.server.ts",
+      "src/lib/channex-messages.server.ts",
+      "src/lib/copilot-send.server.ts",
+      "src/lib/copilot.functions.ts",
+      "src/lib/handoff-send.server.ts",
+      "src/lib/handoff.functions.ts",
+      "src/lib/whatsapp-send.server.ts",
+      "src/lib/whatsapp.functions.ts",
       "src/routeTree.gen.ts",
       "src/routes/api/public/guest-ai.shadow-tick.ts",
+      "src/routes/api/public/guide-chat.ts",
+      "src/routes/api/public/whatsapp/sinch-webhook.ts",
       "supabase/migrations/20261104000000_guest_ai_conversation_leases.sql",
       "supabase/migrations/20261104120000_guest_ai_shadow.sql",
       "supabase/migrations/20261105120000_guest_ai_shadow_global.sql",
+      "supabase/migrations/20261105150000_guest_ai_copilot_suggestions.sql",
     ]);
   });
 });

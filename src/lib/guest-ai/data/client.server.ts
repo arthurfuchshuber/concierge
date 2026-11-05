@@ -22,7 +22,8 @@ export interface GuestAiDb {
  *  - do construtor de consulta só `select` existe; `insert`, `update`, `upsert`, `delete` e qualquer
  *    outro método lançam `GuestAiReadOnlyError` sem tocar no cliente subjacente (nenhuma requisição sai);
  *  - nenhum acesso a `rpc`, `schema`, `storage`, `auth`, `functions` ou `channel`: a fachada só tem `from`.
- * As ÚNICAS escritas do módulo continuam sendo as duas portas de RPC de lista fechada (lease e Shadow).
+ * As ÚNICAS escritas do módulo continuam sendo as portas de RPC de lista fechada (lease, Shadow e, desde
+ * 05/11/2026, a geração do Copiloto).
  * Limite honesto: protege contra DEFEITO do código; não protege contra o vazamento da chave service_role
  * (para isso, o papel dedicado no banco — pendência D9b).
  */
@@ -162,6 +163,34 @@ export function shadowRpcFrom(client: RpcCapableClient, signal?: AbortSignal): G
 export async function getGuestAiShadowRpc(signal?: AbortSignal): Promise<GuestAiShadowRpc> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return shadowRpcFrom(supabaseAdmin as unknown as RpcCapableClient, signal);
+}
+
+/**
+ * COPILOTO (diretriz de 05/11/2026) — terceira porta de escrita, também de LISTA FECHADA: só as RPCs de
+ * GERAÇÃO da migration `20261105150000_guest_ai_copilot_suggestions` (EXECUTE só service_role). As ações do
+ * atendente (editar, descartar, enviar) NÃO passam por aqui: correm com o cliente da SESSÃO do usuário
+ * (`copilot.functions.ts`), para que a autoria seja `auth.uid()`. Só o adaptador `copilot/store.server.ts` usa esta porta.
+ */
+export const COPILOT_RPC_FUNCTIONS = ["copilot_claim_generation", "copilot_generation_state", "copilot_store_result", "copilot_purge_expired"] as const;
+export type CopilotRpcFunction = (typeof COPILOT_RPC_FUNCTIONS)[number];
+export interface GuestAiCopilotRpc {
+  call(fn: CopilotRpcFunction, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>;
+}
+
+export function copilotRpcFrom(client: RpcCapableClient, signal?: AbortSignal): GuestAiCopilotRpc {
+  return {
+    async call(fn, args) {
+      if (!(COPILOT_RPC_FUNCTIONS as readonly string[]).includes(fn)) return { data: null, error: { code: "copilot_rpc_not_allowed" } };
+      if (signal?.aborted) return { data: null, error: { code: "aborted" } };
+      const q = client.rpc(fn, args);
+      return await (signal && typeof q.abortSignal === "function" ? q.abortSignal(signal) : q);
+    },
+  };
+}
+
+export async function getGuestAiCopilotRpc(signal?: AbortSignal): Promise<GuestAiCopilotRpc> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return copilotRpcFrom(supabaseAdmin as unknown as RpcCapableClient, signal);
 }
 
 /** O turno foi cancelado (prazo do Orchestrator ou cancelamento externo) antes de terminar a leitura. */

@@ -130,7 +130,9 @@ describe("B3 · fluxo real intocado e nada ativado", () => {
     const users = all(ROOT).filter((f) => re.test(readFileSync(f, "utf8"))).map((f) => path.relative(ROOT, f));
     // B3.3 (Entrega 2): só o worker Shadow os liga (io de produção por imports dinâmicos, alcançado apenas
     // com o tick liberado — hoje fechado em código). Nenhum canal, slot ou Orchestrator.
-    expect(users).toEqual(["shadow-exec/worker.server.ts"]);
+    // Copiloto (05/11/2026): a geração liga os loaders reais (só leitura) à cadeia e a guarda de envio lê a
+    // identidade de envio. Nenhum canal, slot ou Orchestrator.
+    expect(users.sort()).toEqual(["copilot/generate.server.ts", "copilot/send-guard.server.ts", "shadow-exec/worker.server.ts"]);
   });
   it("slot.server.ts e orchestrator.server.ts sem diff desde o commit-base; slot devolve null", async () => {
     const diff = execSync(`git diff --name-only ${BASE} -- src/lib/guest-ai/slot.server.ts src/lib/guest-ai/orchestrator/orchestrator.server.ts; git diff --name-only -- src/lib/guest-ai/slot.server.ts src/lib/guest-ai/orchestrator/orchestrator.server.ts`, { cwd: REPO, encoding: "utf8" });
@@ -149,11 +151,29 @@ describe("B3 · fluxo real intocado e nada ativado", () => {
     // migration LOCAL de escopo global (não aplicada). Arquivos apagados no caminho (a migration do piloto,
     // substituída) não contam como alteração. Nada mais fora do módulo.
     expect([...new Set(changed)].filter((f) => existsSync(path.resolve(__dirname, "../../../..", f))).sort()).toEqual([
+      // COPILOTO (diretriz definitiva de 05/11/2026): cartão na tela de Atendimento, server functions de
+      // aprovação/envio, extração das rotinas humanas de envio (sem mudar o fluxo), remetente estrito no Airbnb,
+      // disparo em segundo plano nos três canais e a migration LOCAL das sugestões (não aplicada).
+      "src/components/handoff/AiSuggestionCard.tsx",
+      "src/components/handoff/ConversationView.tsx",
+      "src/components/handoff/__tests__/ai-suggestion-card.test.tsx",
+      "src/lib/__tests__/copilot-send.test.ts",
+      "src/lib/airbnb-direct-sender.server.ts",
+      "src/lib/channex-messages.server.ts",
+      "src/lib/copilot-send.server.ts",
+      "src/lib/copilot.functions.ts",
+      "src/lib/handoff-send.server.ts",
+      "src/lib/handoff.functions.ts",
+      "src/lib/whatsapp-send.server.ts",
+      "src/lib/whatsapp.functions.ts",
       "src/routeTree.gen.ts",
       "src/routes/api/public/guest-ai.shadow-tick.ts",
+      "src/routes/api/public/guide-chat.ts",
+      "src/routes/api/public/whatsapp/sinch-webhook.ts",
       "supabase/migrations/20261104000000_guest_ai_conversation_leases.sql",
       "supabase/migrations/20261104120000_guest_ai_shadow.sql",
       "supabase/migrations/20261105120000_guest_ai_shadow_global.sql",
+      "supabase/migrations/20261105150000_guest_ai_copilot_suggestions.sql",
     ]);
   });
   it("a cadeia continua sem importar o Gateway; o harness continua só com portas de leitura", () => {

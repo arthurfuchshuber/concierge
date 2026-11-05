@@ -231,6 +231,22 @@ async function runGuideChat(
       })
       .eq("id", conversationId);
 
+    // ─── Copiloto (05/11/2026): sugestão de resposta para a EQUIPE aprovar, gerada em segundo plano.
+    // Não bloqueia, não responde ao hóspede e não altera o fluxo abaixo (slot, fallback humano, push).
+    if (!body.demo && guestMsg?.id) {
+      try {
+        const { triggerCopilotSuggestion } = await import("@/lib/guest-ai/copilot/trigger.server");
+        triggerCopilotSuggestion({
+          surface: "guide_chat",
+          conversationId,
+          messageId: guestMsg.id,
+          expectedOwnerId: prop.owner_id ? String(prop.owner_id) : null,
+        });
+      } catch (e) {
+        console.error("[guide-chat] copiloto não disparado", e instanceof Error ? e.name : "");
+      }
+    }
+
     // Se um humano assumiu a conversa (ai_paused), a mensagem é apenas
     // persistida para o atendente responder. Push pra CADA mensagem do hóspede
     // numa conversa já assumida: se há um responsável específico, só ele

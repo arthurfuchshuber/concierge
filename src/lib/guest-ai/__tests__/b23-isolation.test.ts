@@ -98,7 +98,8 @@ describe("B2.3 · isolamento estático", () => {
     // B2.4: o harness passivo do shadow reutiliza a cadeia (sem segunda cadeia); ele próprio é proibido em produção.
     // B3.3 (Entrega 2): o executor Shadow reutiliza a MESMA cadeia (sem segunda cadeia); contratos/extrator só
     // tipos, worker só a versão. Todos fora do slot e dos canais (b33-isolation prova o grafo transitivo).
-    expect(importers.sort()).toEqual(["shadow-exec/contracts.ts", "shadow-exec/executor.ts", "shadow-exec/extract.ts", "shadow-exec/worker.server.ts", "shadow/harness.ts", "shadow/telemetry.ts", "turn-chain.ts"]);
+    // Copiloto (05/11/2026): a geração de sugestões reutiliza a MESMA cadeia (sem segunda cadeia, sem envio).
+    expect(importers.sort()).toEqual(["copilot/generate.server.ts", "shadow-exec/contracts.ts", "shadow-exec/executor.ts", "shadow-exec/extract.ts", "shadow-exec/worker.server.ts", "shadow/harness.ts", "shadow/telemetry.ts", "turn-chain.ts"]);
   });
   it("Orchestrator e slot seguem sem a cadeia; NO_COMPOSER continua o padrão", () => {
     for (const f of ["orchestrator/orchestrator.server.ts", "slot.server.ts", "context/conversation-context.server.ts"]) {

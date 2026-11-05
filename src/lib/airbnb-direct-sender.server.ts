@@ -63,35 +63,66 @@ async function channelToken(channelId: string): Promise<string | null> {
 }
 
 /**
- * Tenta enviar pela conta escolhida. Retorna o id da mensagem no Airbnb, ou
- * null quando o envio direto não se aplica/falha (o chamador usa a Channex).
+ * Resultado DETALHADO do envio pela conta escolhida (Copiloto, 05/11/2026). Quem precisa saber POR QUE o
+ * envio direto não aconteceu — para recusar o fallback pela Channex — usa este; `trySendAsPreferredSender`
+ * continua com o contrato antigo (id ou null) para o fluxo humano existente.
+ *
+ *  - `sent`: enviado pela conta preferida (id da mensagem no Airbnb);
+ *  - `no_preference`: sem preferência gravada para o anúncio ⇒ a Channex envia pelo canal da thread;
+ *  - `preferred_is_mapped`: a preferida É o canal mapeado da thread ⇒ a Channex envia (mesma conta);
+ *  - `failed`: havia preferência e o envio direto por ela NÃO aconteceu (token, anúncio divergente, recusa,
+ *    rede). O fluxo humano cai na Channex; o Copiloto NÃO (recusa o fallback silencioso).
  */
-export async function trySendAsPreferredSender(channexThreadId: string, text: string): Promise<string | null> {
+export type PreferredSendOutcome =
+  | { outcome: "sent"; messageId: string; channelId: string }
+  | { outcome: "no_preference"; threadChannelId: string | null }
+  | { outcome: "preferred_is_mapped"; channelId: string }
+  | { outcome: "failed"; reason: "thread_unresolved" | "token_unavailable" | "listing_mismatch" | "preference_mismatch" | "airbnb_rejected" | "network"; channelId: string | null };
+
+/**
+ * `expectedChannelId` (modo estrito do Copiloto): a conta que a política de identidade resolveu. Se existir
+ * preferência gravada e ela for OUTRA conta, nada é enviado (`preference_mismatch`) — conferido ANTES da rede do Airbnb.
+ */
+export async function sendAsPreferredSenderDetailed(channexThreadId: string, text: string, expectedChannelId?: string): Promise<PreferredSendOutcome> {
+  let prefChannel: string | null = null;
   try {
     const t = await cx<{ data?: any }>(`/message_threads/${channexThreadId}`);
     const attrs = t?.data?.attributes ?? {};
     const otaThreadId = attrs.ota_message_thread_id ? String(attrs.ota_message_thread_id) : null;
-    const channelOfThread = t?.data?.relationships?.channel?.data?.id ?? null;
+    const channelOfThread: string | null = t?.data?.relationships?.channel?.data?.id ? String(t.data.relationships.channel.data.id) : null;
     const listingId = String(attrs.meta?.listing_id ?? attrs.listing_id ?? "") || null;
-    if (!otaThreadId) return null;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
 
-    if (!listingId) return null; // sem anúncio certo → Channex envia
-    const prefChannel = (await readSenderPrefs(db, [listingId])).get(listingId) ?? null;
-    if (!prefChannel) return null;
-    if (prefChannel === channelOfThread) return null; // já é a conta mapeada: Channex envia
+    // Sem anúncio identificado não há como saber se existe preferência: o fluxo humano envia pela Channex.
+    if (!listingId) return { outcome: "no_preference", threadChannelId: channelOfThread };
+    prefChannel = (await readSenderPrefs(db, [listingId])).get(listingId) ?? null;
+    if (!prefChannel) return { outcome: "no_preference", threadChannelId: channelOfThread };
+    if (expectedChannelId && prefChannel !== expectedChannelId) return { outcome: "failed", reason: "preference_mismatch", channelId: prefChannel };
+    if (prefChannel === channelOfThread) return { outcome: "preferred_is_mapped", channelId: prefChannel };
+    if (!otaThreadId) return { outcome: "failed", reason: "thread_unresolved", channelId: prefChannel };
     const token = await channelToken(prefChannel);
-    if (!token) return null;
+    if (!token) return { outcome: "failed", reason: "token_unavailable", channelId: prefChannel };
     // Blindagem: a conversa vista pela conta escolhida precisa ser do mesmo anúncio.
     const seen = await threadListing(otaThreadId, token);
-    if (!seen || seen !== listingId) return null;
-    return await postDirect(otaThreadId, text, token);
+    if (!seen || seen !== listingId) return { outcome: "failed", reason: "listing_mismatch", channelId: prefChannel };
+    const id = await postDirect(otaThreadId, text, token);
+    return id ? { outcome: "sent", messageId: id, channelId: prefChannel } : { outcome: "failed", reason: "airbnb_rejected", channelId: prefChannel };
   } catch (e) {
-    console.error("[airbnb-direct] envio direto indisponível, usando Channex", e instanceof Error ? e.message : e);
-    return null;
+    console.error("[airbnb-direct] envio direto indisponível", e instanceof Error ? e.message : e);
+    return { outcome: "failed", reason: "network", channelId: prefChannel };
   }
+}
+
+/**
+ * Tenta enviar pela conta escolhida. Retorna o id da mensagem no Airbnb, ou
+ * null quando o envio direto não se aplica/falha (o chamador usa a Channex).
+ */
+export async function trySendAsPreferredSender(channexThreadId: string, text: string): Promise<string | null> {
+  const r = await sendAsPreferredSenderDetailed(channexThreadId, text);
+  if (r.outcome === "failed") console.error("[airbnb-direct] envio direto falhou, usando Channex", r.reason);
+  return r.outcome === "sent" ? r.messageId : null;
 }
 
 async function threadListing(otaThreadId: string, token: string): Promise<string | null> {

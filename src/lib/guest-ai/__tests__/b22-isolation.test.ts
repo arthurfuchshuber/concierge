@@ -72,7 +72,9 @@ describe("B2.2 · nada de produção usa a capacidade multipropriedade ou o guar
   const allowed = new Set(NEW_FILES.map((f) => path.join(ROOT, f)).concat([path.join(ROOT, "composer.ts"), path.join(ROOT, "turn-chain.ts"), path.join(ROOT, "shadow/telemetry.ts"),
     // B3.3 (Entrega 2): o executor Shadow usa o guard REAL (secret-scrub) e o io de produção do worker
     // carrega o dossiê do imóvel do turno (imports dinâmicos, só com o tick liberado). Lista nominal.
-    path.join(ROOT, "shadow-exec/executor.ts"), path.join(ROOT, "shadow-exec/worker.server.ts")]));
+    path.join(ROOT, "shadow-exec/executor.ts"), path.join(ROOT, "shadow-exec/worker.server.ts"),
+    // Copiloto (05/11/2026): a geração usa o guard REAL e carrega o Dossiê do imóvel do turno validado. Lista nominal.
+    path.join(ROOT, "copilot/generate.server.ts")]));
   // B2.4: `shadow/telemetry.ts` só lê a VERSÃO da resolução de autoridade; proibido em produção (b24-isolation).
   it("nenhum arquivo fora dos módulos B2.2/composer importa dossiê, autorização de candidato ou secret-scrub", () => {
     const importers = prod

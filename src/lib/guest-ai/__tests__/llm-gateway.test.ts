@@ -377,7 +377,9 @@ describe("F2-A · isolamento no repositório", () => {
     const offenders = walk(SRC)
       .filter((f) => !f.includes(`${path.sep}guest-ai${path.sep}llm${path.sep}`))
       .filter((f) => /guest-ai\/llm/.test(readFileSync(f, "utf8")));
-    const allowed = [/guest-ai[\\/]orchestrator[\\/]/, /guest-ai[\\/]shadow[\\/]contracts\.ts$/, /routes[\\/]api[\\/]public[\\/]guest-ai\.llm-probe\.ts$/, /[\\/]routeTree\.gen\.ts$/, /guest-ai[\\/]shadow-exec[\\/]/]; // B3.3: Shadow (tipos + gerador emitido)
+    const allowed = [/guest-ai[\\/]orchestrator[\\/]/, /guest-ai[\\/]shadow[\\/]contracts\.ts$/, /routes[\\/]api[\\/]public[\\/]guest-ai\.llm-probe\.ts$/, /[\\/]routeTree\.gen\.ts$/, /guest-ai[\\/]shadow-exec[\\/]/,
+      // Copiloto (05/11/2026): registro de modelos (contratos), tipos do transporte (geração) e o gerador — lista nominal
+      /guest-ai[\\/]copilot[\\/](contracts\.ts|generate\.server\.ts|generator\.server\.ts)$/]; // B3.3: Shadow (tipos + gerador emitido)
     expect(offenders.filter((f) => !allowed.some((re) => re.test(f))).map((f) => path.relative(SRC, f))).toEqual([]);
   });
   it("o gateway convencional do SaaS (src/lib/llm) não importa o do Guest AI", () => {
