@@ -473,7 +473,7 @@ export function CleaningDayDetailContent({
                   <span className="block truncate text-[11.5px] font-semibold text-foreground/80">
                     Horário de Saída: {r.timeLabel ?? "—"}
                   </span>
-                  <ValueLine label="Estimado">
+                  <ValueLine label="Previsto">
                     <span>{brl(r.estimateCents)}</span>
                   </ValueLine>
                 </Reveal>
