@@ -2159,6 +2159,8 @@ type OccupancyStay = {
   checkoutDone: boolean;
   // Bloqueio manual do ConciergeIA (fecha o anúncio e os gêmeos via API).
   blocked?: boolean;
+  /** Id do bloqueio manual (`property_reservations.id`), para liberar ao tocar na barra. */
+  blockId?: string | null;
   /** Anúncio (room type / listing da Channex) em que a reserva foi de fato realizada — vem do payload da reserva. */
   roomTypeId?: string | null;
   listingId?: string | null;
@@ -2374,6 +2376,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         checkinDone: false,
         checkoutDone: false,
         blocked: true,
+        blockId: b.id,
         note: b.raw_summary?.trim() || null,
       });
     }

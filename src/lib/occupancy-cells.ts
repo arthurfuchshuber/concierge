@@ -15,13 +15,19 @@
  *   · havendo mais de uma candidata, vale a PRIMEIRA da lista (como `find`);
  *   · junção (corte de 4 px) no dia `d` quando duas peças DISTINTAS se encontram nele: reserva que sai ↔ reserva que
  *     entra, reserva ↔ bloqueio (nos dois sentidos) e, desde 03/11/2026, bloqueio que termina em `d` ↔ outro
- *     bloqueio que começa em `d` (ex.: o anúncio gêmeo, onde duas reservas do giro viram dois bloqueios cinza).
+ *     bloqueio que começa em `d` — SÓ quando um dos dois é do anúncio gêmeo (`twin`), onde duas reservas do giro
+ *     viram dois bloqueios cinza contíguos (05/11/2026: bloqueios MANUAIS diretos seguidos ficam numa barra sólida).
  *     Um mesmo bloqueio que só atravessa o dia NÃO cria junção.
  */
 export type CellPart = "in" | "out" | "busy" | "blocked" | "free";
 
 export type OccStay = { checkin: string; checkout: string | null };
-export type OccBlock = { from: string; to: string };
+export type OccBlock = {
+  from: string;
+  to: string;
+  /** Bloqueio espelhado do anúncio gêmeo (automático). Só ele ganha divisória de 4 px ao encostar noutro bloqueio. */
+  twin?: boolean;
+};
 
 export type PropertyCells<S extends OccStay> = {
   /** [manhã do dia 0, tarde do dia 0, manhã do dia 1, …] — mesmo formato do `flatMap(cellHalves)` antigo. */
@@ -70,6 +76,9 @@ export function computePropertyCells<S extends OccStay>(
   /** Há um bloqueio que TERMINA / que COMEÇA exatamente neste dia (para detectar bloqueio↔bloqueio). */
   const blockEndsOn = new Array<boolean>(n).fill(false);
   const blockStartsOn = new Array<boolean>(n).fill(false);
+  /** O bloqueio que termina / começa neste dia é do gêmeo? (bloqueio MANUAL direto nunca tem divisória). */
+  const endTwin = new Array<boolean>(n).fill(false);
+  const startTwin = new Array<boolean>(n).fill(false);
   const index = new Map<string, number>();
   dayList.forEach((d, i) => index.set(d, i));
 
@@ -89,9 +98,15 @@ export function computePropertyCells<S extends OccStay>(
   for (const b of blocks) {
     if (!(b.to > b.from)) continue; // sem noites: não pinta nada nem cria junção
     const ie = index.get(b.to);
-    if (ie !== undefined) blockEndsOn[ie] = true;
+    if (ie !== undefined) {
+      blockEndsOn[ie] = true;
+      if (b.twin) endTwin[ie] = true;
+    }
     const is = index.get(b.from);
-    if (is !== undefined) blockStartsOn[is] = true;
+    if (is !== undefined) {
+      blockStartsOn[is] = true;
+      if (b.twin) startTwin[is] = true;
+    }
     // Manhã: from < dia <= to (a noite anterior está bloqueada).
     for (let i = upper(dayList, b.from), stop = upper(dayList, b.to); i < stop; i++) amBlocked[i] = true;
     // Tarde: from <= dia < to (a noite do dia está bloqueada).
@@ -118,7 +133,7 @@ export function computePropertyCells<S extends OccStay>(
       (!!outS && !!inS) ||
       (!!outS && b === "blocked") ||
       (a === "blocked" && !!inS) ||
-      (blockEndsOn[i]! && blockStartsOn[i]!);
+      (blockEndsOn[i]! && blockStartsOn[i]! && (endTwin[i]! || startTwin[i]!));
   }
   return { halves, stays: stayOf, junction };
 }

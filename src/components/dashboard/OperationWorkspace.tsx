@@ -7616,11 +7616,11 @@ function OccupancyPanel({
   }, [stays]);
   // Bloqueios manuais do ConciergeIA: pintam só as metades livres do dia.
   const blocksByProperty = useMemo(() => {
-    const map = new Map<string, Array<{ from: string; to: string; twin?: boolean; origin?: string; note?: string | null }>>();
+    const map = new Map<string, Array<{ id?: string | null; from: string; to: string; twin?: boolean; origin?: string; note?: string | null }>>();
     for (const s of stays) {
       if (!(s as { blocked?: boolean }).blocked) continue;
       const arr = map.get(s.propertyId) ?? [];
-      arr.push({ from: s.checkin, to: s.checkout ?? s.checkin, twin: !!(s as { twinBlock?: boolean }).twinBlock, origin: (s as { twinOriginId?: string }).twinOriginId, note: (s as { note?: string | null }).note ?? null });
+      arr.push({ id: (s as { blockId?: string | null }).blockId ?? null, from: s.checkin, to: s.checkout ?? s.checkin, twin: !!(s as { twinBlock?: boolean }).twinBlock, origin: (s as { twinOriginId?: string }).twinOriginId, note: (s as { note?: string | null }).note ?? null });
       map.set(s.propertyId, arr);
     }
     return map;
@@ -7641,18 +7641,55 @@ function OccupancyPanel({
    *  o que antes recolocava a rolagem em "hoje" ou deslocava as datas; pedido explícito, 17/10/2026). */
   const leftDateRef = useRef<string | null>(null);
   const prevStartRef = useRef<string | null>(null);
+  /** Rola o calendário até o dia vigente. `smooth` = botão "Hoje"; sem ele = posicionamento inicial. */
+  function scrollToToday(smooth = true) {
+    const scroller = outerEl?.firstElementChild as HTMLElement | null | undefined;
+    if (!scroller) return;
+    const idx = dayList.indexOf(todayISO);
+    const left = Math.max(0, idx * dayW);
+    if (smooth) scroller.scrollTo({ left, behavior: "smooth" });
+    else scroller.scrollLeft = left;
+  }
   useLayoutEffect(() => {
     const scroller = outerEl?.firstElementChild as HTMLElement | null | undefined;
     if (!scroller) return;
     const key = `${dayW}`;
     if (scrolledKeyRef.current === null || scrolledKeyRef.current !== key) {
-      // 1ª abertura (ou mudou a largura da coluna): abre em hoje.
-      scrolledKeyRef.current = key;
-      prevStartRef.current = start;
+      // 1ª abertura (ou mudou a largura da coluna): abre em hoje. Só dá a abertura por feita quando o dia de
+      // hoje existe no intervalo E o trilho já tem largura final (scrollWidth > clientWidth) — no celular este
+      // efeito rodava antes do cálculo do trilho e a tela ficava no marco zero do passado.
       const idx = dayList.indexOf(todayISO);
-      scroller.scrollLeft = idx > 0 ? idx * dayW : 0;
-      leftDateRef.current = dayList[Math.max(0, Math.round(scroller.scrollLeft / dayW))] ?? null;
-      return;
+      if (idx < 0) return;
+      let cancelled = false;
+      let tries = 0;
+      let timer = 0;
+      let raf = 0;
+      const apply = () => {
+        if (cancelled) return;
+        if (scroller.scrollWidth <= scroller.clientWidth && tries++ < 40) {
+          raf = requestAnimationFrame(apply);
+          return;
+        }
+        const left = Math.max(0, idx * dayW);
+        scroller.scrollLeft = left;
+        scrolledKeyRef.current = key;
+        prevStartRef.current = start;
+        leftDateRef.current = dayList[Math.max(0, Math.round(scroller.scrollLeft / dayW))] ?? null;
+        // Confirmação: o navegador pode ajustar a largura do trilho logo depois do 1º posicionamento.
+        raf = requestAnimationFrame(() => {
+          timer = window.setTimeout(() => {
+            if (cancelled) return;
+            if (Math.abs(scroller.scrollLeft - left) > 1) scroller.scrollLeft = left;
+            leftDateRef.current = dayList[Math.max(0, Math.round(scroller.scrollLeft / dayW))] ?? null;
+          }, 50);
+        });
+      };
+      apply();
+      return () => {
+        cancelled = true;
+        cancelAnimationFrame(raf);
+        window.clearTimeout(timer);
+      };
     }
     if (prevStartRef.current !== start) {
       // O intervalo mudou: volta EXATAMENTE para a mesma data que estava à esquerda.
@@ -7728,12 +7765,24 @@ function OccupancyPanel({
   function twinBlockAt(propertyId: string, day: string) {
     return (blocksByProperty.get(propertyId) ?? []).find((b) => b.twin && b.from <= day && day < b.to) ?? null;
   }
+  /** Bloqueio manual que cobre a noite: vem da lista de bloqueios OU, se ela ainda não carregou/está velha, da própria
+   *  barra do calendário (`property_reservations` com source 'manual' e status 'blocked'). */
+  function manualBlockAt(propertyId: string, day: string): { id: string; from: string; to: string; note?: string | null } | null {
+    const real = baseId(propertyId);
+    const listed = (blockPermQ.data?.blocks ?? []).find((b) => b.propertyId === real && b.from <= day && day < b.to);
+    if (listed) return listed;
+    const bar = (blocksByProperty.get(propertyId) ?? []).find((b) => !b.twin && b.from <= day && day < b.to);
+    if (!bar) return null;
+    const match = (blockPermQ.data?.blocks ?? []).find((b) => b.propertyId === real && b.from === bar.from && b.to === bar.to);
+    const id = bar.id ?? match?.id ?? null;
+    return id ? { id, from: bar.from, to: bar.to, note: bar.note ?? null } : null;
+  }
   function blockPointerDown(propertyId: string, day: string, ev: React.PointerEvent) {
     if (!canBlock || ev.button !== 0 || !ev.isPrimary) return;
     if (twinBlockAt(propertyId, day)) return;
     if (justClearedRef.current) return;
     if (day < todayISO) return;
-    if ((blockPermQ.data?.blocks ?? []).some((b) => b.propertyId === baseId(propertyId) && b.from <= day && day < b.to)) return;
+    if (manualBlockAt(propertyId, day)) return;
     const stays = reservationStays(propertyId);
     if (firstBlockConflict(stays, day, blockAddDays(day, 1))) return;
     // Toque no celular: nenhum timer, nenhum ouvinte — a rolagem nativa da tela segue livre.
@@ -7879,7 +7928,7 @@ function OccupancyPanel({
     // Clique numa reserva abre o histórico dela — não mexe na seleção.
     if (target?.closest('[role="button"]') && target !== target.closest("[data-bc]")) return;
     // Tocar numa noite JÁ bloqueada à mão (mockup 6): abre a barra "Bloqueado" com "Liberar datas".
-    const tapped = (blockPermQ.data?.blocks ?? []).find((b) => b.propertyId === baseId(propertyId) && b.from <= day && day < b.to);
+    const tapped = manualBlockAt(propertyId, day);
     if (tapped) {
       setBlockSel(null);
       setBlockOpen(false);
@@ -8714,7 +8763,17 @@ function OccupancyPanel({
                             className={`sticky left-0 z-10 flex shrink-0 items-center pb-2 pr-3 ${hdrBg}`}
                             style={{ width: nameColW, minWidth: nameColW }}
                           >
-                            <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
+                            <span className="ds-eyebrow block min-w-0 flex-1 truncate pl-[10px]">Imóvel</span>
+                            <button
+                              type="button"
+                              onClick={() => scrollToToday()}
+                              className="mr-1 inline-flex shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                              title="Rolar para o dia vigente"
+                              aria-label="Rolar calendário para o dia de hoje"
+                            >
+                              <span className="size-1.5 rounded-full bg-primary" />
+                              Hoje
+                            </button>
                             {/* Fio da coluna fixa: estica 4 px além do rodapé para encostar na linha de baixo. */}
                             <span aria-hidden className="pointer-events-none absolute -bottom-1 right-0 top-0 w-px bg-[var(--grid-line-v)]" />
                           </div>

@@ -8,7 +8,8 @@ import type { CellPart, PropertyCells, OccStay } from "./occupancy-cells";
  * metades já pré-calculado (`computePropertyCells`) nas barras — mesma regra visual de antes:
  *   · a barra vai do MEIO do dia de check-in ao MEIO do dia de checkout (as metades "in"/"busy"/"out" da estadia);
  *   · a barra se parte onde a estadia muda, onde muda de reserva para bloqueio, e dentro do dia de "junção"
- *     (checkout + check-in no mesmo dia), onde a cada ponta entra um corte limpo de 2 px (4 px entre as barras);
+ *     (checkout + check-in no mesmo dia, ou dois bloqueios contíguos do anúncio GÊMEO), onde a cada ponta entra um corte
+ *     limpo de 2 px (4 px entre as barras) — bloqueios MANUAIS diretos seguidos formam uma barra sólida, sem corte;
  *   · as pontas só são arredondadas onde não há outra barra encostada (mesma conta de `occL`/`occR` de antes).
  */
 export type BarEdge = {

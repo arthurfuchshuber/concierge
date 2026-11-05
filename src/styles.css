@@ -548,7 +548,11 @@ body::-webkit-scrollbar {
   background: transparent;
 }
 .sg-elegant-scroll {
-  /* mesma barra global — mantido só por compatibilidade de classe */
+  /* mesma barra global (fina, ::-webkit-scrollbar acima). `scrollbar-width` NÃO vai aqui: no Chrome ele
+     desliga o estilo ::-webkit-scrollbar; o Firefox já recebe `thin` no @supports lá em cima.
+     Reserva a calha da barra (o conteúdo não pula quando ela aparece) e liga a rolagem por inércia do iOS. */
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Reflexo diagonal que atravessa um texto (usado sobre o texto em degradê). */
