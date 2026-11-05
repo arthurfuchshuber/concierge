@@ -17,7 +17,9 @@ export type Info = {
   geladeira: number;
   frigobar: number;
   fogao: number;
+  fogaoBocas: number;
   mesa: number;
+  mesaLugares: number;
 };
 
 export const INFO_PADRAO: Info = {
@@ -31,7 +33,9 @@ export const INFO_PADRAO: Info = {
   geladeira: 1,
   frigobar: 0,
   fogao: 1,
+  fogaoBocas: 4,
   mesa: 1,
+  mesaLugares: 6,
 };
 
 export type Item = { id: string; nome: string; regra: string; qtd: number; cor?: string };

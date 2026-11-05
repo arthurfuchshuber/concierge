@@ -45,12 +45,16 @@ export const Route = createFileRoute("/checklist")({
 
 type Saved = { info: Info; marcados: string[]; etapa: "info" | "lista" };
 const VAZIO: Saved = { info: INFO_PADRAO, marcados: [], etapa: "info" };
+/** Completa dados salvos por versões anteriores com os valores padrão. */
+function normalizar(x: Partial<Saved>): Saved {
+  return { ...VAZIO, ...x, info: { ...INFO_PADRAO, ...(x.info ?? {}) } };
+}
 const chave = (uid: string) => `sigma-checklist:${uid}`;
 
 function lerLocal(uid: string): Saved | null {
   try {
     const raw = window.localStorage.getItem(chave(uid));
-    return raw ? ({ ...VAZIO, ...JSON.parse(raw) } as Saved) : null;
+    return raw ? normalizar(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
@@ -70,7 +74,7 @@ function ChecklistPage() {
   }, []);
 
   return (
-    <div className="ckm">
+    <div className={`ckm${pronto && !session ? " ckm-login" : ""}`}>
       {!pronto ? <div className="ckm-load">Carregando…</div> : session ? <App session={session} /> : <Login />}
     </div>
   );
@@ -104,23 +108,24 @@ function Login() {
   }
 
   const Btn = ({ p, letra, nome }: { p: "google" | "apple" | "microsoft"; letra: string; nome: string }) => (
-    <button className="ckm-oauth" disabled={busy} onClick={() => entrar(p)}>
+    <button className="lgb2" disabled={busy} onClick={() => entrar(p)}>
       <span className="ic">{letra}</span>
       <b>Continuar com {nome}</b>
     </button>
   );
 
   return (
-    <div className="ckm-lp">
-      <div className="ckm-lc">
-        <div className="ckm-mk">σ</div>
+    <div className="lgp">
+      <div className="lgc">
+        <div className="mk">σ</div>
         <h2>Entrar</h2>
         <p className="ls">Acesse o CheckList de Imóvel com a sua conta.</p>
         <Btn p="google" letra="G" nome="Gmail" />
-        <Btn p="microsoft" letra="O" nome="Outlook ou Hotmail" />
+        <Btn p="microsoft" letra="O" nome="Outlook" />
+        <Btn p="microsoft" letra="H" nome="Hotmail" />
         <Btn p="apple" letra="A" nome="Apple" />
         {erro && <p className="ckm-err">{erro}</p>}
-        <p className="lt">Ao continuar, você concorda com os Termos de Uso e a Política de Privacidade.</p>
+        <p className="lgt2">Ao continuar, você concorda com os Termos de Uso e a Política de Privacidade.</p>
       </div>
     </div>
   );
@@ -137,7 +142,7 @@ function App({ session }: { session: Session }) {
   useEffect(() => {
     const local = lerLocal(uid);
     const nuvem = (session.user.user_metadata?.sigma_checklist ?? null) as Saved | null;
-    setDados(local ?? (nuvem ? { ...VAZIO, ...nuvem } : VAZIO));
+    setDados(local ?? (nuvem ? normalizar(nuvem) : VAZIO));
   }, [uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const salvar = useCallback(
@@ -159,27 +164,26 @@ function App({ session }: { session: Session }) {
   if (!dados) return <div className="ckm-load">Carregando…</div>;
 
   return (
-    <div className="ckm-fr">
-      <TopBar email={email} />
+    <>
       {dados.etapa === "lista" && infoValida(dados.info) ? (
-        <Lista dados={dados} salvar={salvar} />
+        <Lista dados={dados} salvar={salvar} email={email} />
       ) : (
-        <Informacoes dados={dados} salvar={salvar} />
+        <Informacoes dados={dados} salvar={salvar} email={email} />
       )}
-    </div>
+    </>
   );
 }
 
 function TopBar({ email }: { email: string }) {
   const [aberto, setAberto] = useState(false);
   return (
-    <div className="ckm-tb">
+    <div className="tb">
       <div className="lg">σ</div>
       <b>Checklist Master</b>
       <span>Anfitrião Sigma</span>
       <div className="pfw">
         <button className="pf" aria-label="Perfil" onClick={() => setAberto((v) => !v)}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+          <svg viewBox="0 0 24 24">
             <circle cx="12" cy="8.5" r="3.6" />
             <path d="M4.8 20c.6-3.6 3.5-5.6 7.2-5.6s6.6 2 7.2 5.6" />
           </svg>
@@ -195,72 +199,90 @@ function TopBar({ email }: { email: string }) {
   );
 }
 
-const Chevron = ({ aberto }: { aberto: boolean }) => (
-  <i className={`cv${aberto ? " o" : ""}`}>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  </i>
+const Chev = () => (
+  <svg viewBox="0 0 16 16">
+    <path d="M3 6l5 5 5-5" />
+  </svg>
 );
+
+/** Seletor no visual do mockup: caixa `.sel` com <select> nativo por cima. */
+function Sel({ valor, onChange, min = 0, max = 30 }: { valor: number; onChange: (n: number) => void; min?: number; max?: number }) {
+  const ops: number[] = [];
+  for (let n = min; n <= max; n++) ops.push(n);
+  return (
+    <div className="sel">
+      <span>{valor}</span>
+      <Chev />
+      <select value={valor} onChange={(e) => onChange(Number(e.target.value))} aria-label="Quantidade">
+        {ops.map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 /* ─────────────────── Informações do Imóvel ─────────────────── */
 
 const TIPOS: Info["tipo"][] = ["Studio", "Apartamento", "Casa", "Quarto/Suíte"];
 
-function Stepper({ valor, onChange, min = 0 }: { valor: number; onChange: (n: number) => void; min?: number }) {
-  return (
-    <div className="stp">
-      <button aria-label="Diminuir" disabled={valor <= min} onClick={() => onChange(valor - 1)}>
-        −
-      </button>
-      <b>{valor}</b>
-      <button aria-label="Aumentar" onClick={() => onChange(valor + 1)}>
-        +
-      </button>
-    </div>
-  );
-}
-
-function Informacoes({ dados, salvar }: { dados: Saved; salvar: (d: Saved) => void }) {
+function Informacoes({ dados, salvar, email }: { dados: Saved; salvar: (d: Saved) => void; email: string }) {
   const { info } = dados;
-  const [abertos, setAbertos] = useState<string[]>(["t", "h", "e"]);
-  const alt = (v: boolean, id: string) =>
-    setAbertos((a) => (v ? a.filter((x) => x !== id) : [...a, id]));
   const set = (p: Partial<Info>) => salvar({ ...dados, info: { ...info, ...p } });
-
   const lugares = lugaresDeDormir(info);
   const camas = totalCamas(info);
   const saldo = saldoDeLugares(info);
   const ok = infoValida(info);
+  const er = saldo !== 0;
 
-  const Ac = ({ id, titulo, resumo, children }: { id: string; titulo: string; resumo?: string; children: React.ReactNode }) => {
-    const o = abertos.includes(id);
-    return (
-      <div className={`ac${o ? " o" : ""}`}>
-        <div className="hd" onClick={() => alt(o, id)}>
-          <div className="nm">
-            <h3>{titulo}</h3>
-            {!o && resumo && <small>{resumo}</small>}
-          </div>
-          <Chevron aberto={o} />
+  const Ac = ({ titulo, children }: { titulo: string; children: React.ReactNode }) => (
+    <div className="ac o">
+      <div className="hd">
+        <div className="nm">
+          <h3>{titulo}</h3>
         </div>
-        {o && <div className="bd">{children}</div>}
+        <div className="cv">
+          <i>
+            <Chev />
+          </i>
+        </div>
       </div>
-    );
-  };
-  const Lin = ({ n, sub, v, k, min = 0, erro }: { n: string; sub: string; v: number; k: keyof Info; min?: number; erro?: boolean }) => (
+      <div className="bd">{children}</div>
+    </div>
+  );
+  const R1 = ({ n, sub, v, k, min = 0, erro }: { n: string; sub: string; v: number; k: keyof Info; min?: number; erro?: boolean }) => (
     <div className={`rw${erro ? " er" : ""}`}>
       <div>
         <b>{n}</b>
         <small>{sub}</small>
       </div>
-      <Stepper valor={v} min={min} onChange={(x) => set({ [k]: x } as Partial<Info>)} />
+      <Sel valor={v} min={min} onChange={(x) => set({ [k]: x } as Partial<Info>)} />
     </div>
   );
-  const er = saldo !== 0;
+  const R2 = ({ n, sub, c1, v1, k1, c2, v2, k2, max2 = 30 }: { n: string; sub: string; c1: string; v1: number; k1: keyof Info; c2: string; v2: number; k2: keyof Info; max2?: number }) => (
+    <div className="rw">
+      <div>
+        <b>{n}</b>
+        <small>{sub}</small>
+      </div>
+      <div className="sels">
+        <div className="sw">
+          <small>{c1}</small>
+          <Sel valor={v1} onChange={(x) => set({ [k1]: x } as Partial<Info>)} />
+        </div>
+        <div className="sw">
+          <small>{c2}</small>
+          <Sel valor={v2} max={max2} onChange={(x) => set({ [k2]: x } as Partial<Info>)} />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <>
+    <div className="fr">
+      <TopBar email={email} />
       <h1>Informações do Imóvel</h1>
       <p className="sb">Selecione as quantidades. Todo o checklist é calculado a partir delas.</p>
       {er && (
@@ -276,28 +298,28 @@ function Informacoes({ dados, salvar }: { dados: Saved; salvar: (d: Saved) => vo
         </div>
       )}
       <div className="acs">
-        <Ac id="t" titulo="Tipo de imóvel" resumo={info.tipo}>
+        <Ac titulo="Tipo de imóvel">
           <div className="tp">
             {TIPOS.map((t) => (
-              <button key={t} className={t === info.tipo ? "s" : ""} onClick={() => set({ tipo: t })}>
+              <i key={t} className={t === info.tipo ? "s" : ""} onClick={() => set({ tipo: t })}>
                 {t}
-              </button>
+              </i>
             ))}
           </div>
         </Ac>
-        <Ac id="h" titulo="Hóspedes e camas" resumo={`${info.hospedes} hóspedes · ${info.dormitorios} dormitórios · ${info.banheiros} banheiros · ${camas} camas`}>
-          <Lin n="Hóspedes" sub="Capacidade máxima do imóvel" v={info.hospedes} k="hospedes" min={1} erro={er} />
-          <Lin n="Dormitórios" sub="Ambientes de dormir" v={info.dormitorios} k="dormitorios" min={1} />
-          <Lin n="Banheiros" sub="Completos e lavabos" v={info.banheiros} k="banheiros" min={1} />
-          <Lin n="Camas Queen" sub="2 lugares cada. Prioridade quando o quarto comportar" v={info.queen} k="queen" erro={er} />
-          <Lin n="Camas de solteiro" sub="1 lugar cada" v={info.solteiro} k="solteiro" erro={er} />
-          <Lin n="Sofás-cama" sub="2 lugares cada (casal)" v={info.sofaCama} k="sofaCama" erro={er} />
+        <Ac titulo="Hóspedes e camas">
+          <R1 n="Hóspedes" sub="Capacidade máxima do imóvel" v={info.hospedes} k="hospedes" min={1} erro={er} />
+          <R1 n="Dormitórios" sub="Ambientes de dormir" v={info.dormitorios} k="dormitorios" min={1} />
+          <R1 n="Banheiros" sub="Completos e lavabos" v={info.banheiros} k="banheiros" min={1} />
+          <R1 n="Camas Queen" sub="2 lugares cada. Prioridade quando o quarto comportar" v={info.queen} k="queen" erro={er} />
+          <R1 n="Camas de solteiro" sub="1 lugar cada" v={info.solteiro} k="solteiro" erro={er} />
+          <R1 n="Sofás-cama" sub="2 lugares cada (casal)" v={info.sofaCama} k="sofaCama" erro={er} />
         </Ac>
-        <Ac id="e" titulo="Equipamentos" resumo={`${info.geladeira} geladeira · ${info.fogao} fogão · ${info.mesa} mesa`}>
-          <Lin n="Geladeira" sub="Quantas?" v={info.geladeira} k="geladeira" />
-          <Lin n="Frigobar" sub="Quantos?" v={info.frigobar} k="frigobar" />
-          <Lin n="Fogão" sub="Quantos?" v={info.fogao} k="fogao" />
-          <Lin n="Mesa de jantar" sub="Quantas?" v={info.mesa} k="mesa" />
+        <Ac titulo="Equipamentos">
+          <R1 n="Geladeira" sub="Quantas?" v={info.geladeira} k="geladeira" />
+          <R1 n="Frigobar" sub="Quantos?" v={info.frigobar} k="frigobar" />
+          <R2 n="Fogão" sub="Quantos e bocas" c1="Qtd." v1={info.fogao} k1="fogao" c2="Bocas" v2={info.fogaoBocas} k2="fogaoBocas" max2={8} />
+          <R2 n="Mesa de jantar" sub="Quantas e lugares" c1="Qtd." v1={info.mesa} k1="mesa" c2="Lugares" v2={info.mesaLugares} k2="mesaLugares" />
         </Ac>
       </div>
       <div className="sm">
@@ -307,19 +329,23 @@ function Informacoes({ dados, salvar }: { dados: Saved; salvar: (d: Saved) => vo
           <div><b>{lugares}</b><span>Lugares de dormir</span></div>
         </div>
         <div className="ax">
-          {ok ? <div className="okc"><i>✓</i>Camas atendem a capacidade</div> : <div className="bad"><i>✕</i>{saldo < 0 ? `Faltam ${-saldo} lugares` : `Sobram ${saldo} lugares`}</div>}
-          <button className="btn" disabled={!ok} onClick={() => salvar({ ...dados, etapa: "lista" })}>
+          {ok ? (
+            <div className="ok"><i>✓</i>Camas atendem a capacidade</div>
+          ) : (
+            <div className="bad"><i>✕</i>{saldo < 0 ? `Faltam ${-saldo} lugares` : `Sobram ${saldo} lugares`}</div>
+          )}
+          <button className={`btn${ok ? "" : " off"}`} disabled={!ok} onClick={() => salvar({ ...dados, etapa: "lista" })}>
             Continuar para o checklist
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
 /* ─────────────────────── CheckList de Imóvel ─────────────────────── */
 
-function Lista({ dados, salvar }: { dados: Saved; salvar: (d: Saved) => void }) {
+function Lista({ dados, salvar, email }: { dados: Saved; salvar: (d: Saved) => void; email: string }) {
   const cats = useMemo(() => montarChecklist(dados.info), [dados.info]);
   const marcados = useMemo(() => new Set(dados.marcados), [dados.marcados]);
   const [abertos, setAbertos] = useState<string[]>([]);
@@ -335,7 +361,8 @@ function Lista({ dados, salvar }: { dados: Saved; salvar: (d: Saved) => void }) 
   };
 
   return (
-    <>
+    <div className="fr">
+      <TopBar email={email} />
       <h1>CheckList de Imóvel</h1>
       <p className="sb">Quantidades mínimas por ambiente, calculadas a partir das informações do imóvel.</p>
       <div className="lbr">
@@ -361,7 +388,7 @@ function Lista({ dados, salvar }: { dados: Saved; salvar: (d: Saved) => void }) 
                     </div>
                   )}
                 </div>
-                <Chevron aberto={o} />
+                <div className="cv"><i><Chev /></i></div>
               </div>
               {o && (
                 <div className="bd">
@@ -383,6 +410,6 @@ function Lista({ dados, salvar }: { dados: Saved; salvar: (d: Saved) => void }) 
           );
         })}
       </div>
-    </>
+    </div>
   );
 }
