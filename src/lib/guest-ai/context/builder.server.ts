@@ -121,7 +121,11 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
   const getReservation = deps.fetchReservationState ?? fetchReservationState;
   const getListing = deps.fetchListingFacts ?? fetchListingFacts;
   const getDossier = deps.fetchDossierKnowledge ?? fetchDossierKnowledge;
-  const getCredentials = deps.fetchSensitiveCredentials ?? ((g: CredentialGrant) => fetchSensitiveCredentials(g, { db }));
+  // O grant é emitido com o relógio do builder (`clock`); a validade (TTL de 30 s) tem de ser conferida pelo
+  // MESMO relógio, nunca por `Date.now()` solto. Em produção os dois são o relógio real; em teste, o relógio
+  // injetado — sem isso a fixture com instante fixo "vence" quando a data real passa dela (achado T-1).
+  const getCredentials =
+    deps.fetchSensitiveCredentials ?? ((g: CredentialGrant) => fetchSensitiveCredentials(g, { db, nowMs: clock().getTime() }));
   const loadProp = deps.loadPropertyScope ?? defaultLoadPropertyScope;
 
   const uncertainties: string[] = [];
