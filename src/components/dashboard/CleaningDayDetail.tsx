@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ArrowRight, CalendarDays, ChevronDown, Pencil, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
@@ -265,67 +265,6 @@ function TypeLabel({ type, pending }: { type: "normal" | "completa" | null; pend
 }
 
 /**
- * ANTI-CORTE vertical (mockup aprovado, 04/11/2026): nenhuma linha aparece
- * cortada. A altura visível da lista é ajustada para terminar na última linha
- * INTEIRA; o rodapé sobe logo depois dela e a próxima linha surge inteira ao
- * rolar. Sem máscara/esmaecimento. Recalcula ao rolar e ao redimensionar.
- */
-function SnapScroll({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const fit = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    const top = el.scrollTop;
-    el.style.height = "";
-    const avail = el.clientHeight;
-    if (avail <= 0 || el.scrollHeight <= avail + 1) {
-      el.scrollTop = top;
-      return;
-    }
-    const box = el.getBoundingClientRect();
-    let best = 0;
-    el.querySelectorAll("tbody > tr").forEach((tr) => {
-      const bottom = tr.getBoundingClientRect().bottom - box.top;
-      if (bottom <= avail + 0.5 && bottom > best) best = bottom;
-    });
-    // No fim da rolagem não há o que cortar: usa a altura toda.
-    const atEnd = top + avail >= el.scrollHeight - 1;
-    if (best > 0 && !atEnd) el.style.height = `${Math.floor(best)}px`;
-    el.scrollTop = top;
-  }, []);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    fit();
-    let raf = 0;
-    const later = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(fit);
-    };
-    el.addEventListener("scroll", later, { passive: true });
-    window.addEventListener("resize", later);
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(later) : null;
-    ro?.observe(el);
-    if (el.parentElement) ro?.observe(el.parentElement);
-    if (el.firstElementChild) ro?.observe(el.firstElementChild);
-    return () => {
-      cancelAnimationFrame(raf);
-      el.removeEventListener("scroll", later);
-      window.removeEventListener("resize", later);
-      ro?.disconnect();
-    };
-  }, [fit]);
-  return (
-    <div
-      ref={ref}
-      className="sg-elegant-scroll min-h-0 shrink [scrollbar-gutter:stable] overflow-y-auto overflow-x-hidden px-5 pb-0 pt-1"
-    >
-      {children}
-    </div>
-  );
-}
-
-/**
  * Janela "Confirmar Alteração?" (mockup aprovado): só o nome da propriedade e
  * dois blocos — De (valor antigo riscado) → Para (valor novo).
  */
@@ -464,7 +403,7 @@ export function CleaningDayDetailContent({
       <table className="w-full table-fixed border-collapse tabular-nums">
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id}>
+            <tr key={r.id} className="snap-start">
               <PropertyCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry}>
                 <RowToggle open={openKey === `f:${r.id}`} onToggle={() => toggle(`f:${r.id}`)}>
                   Data de Saída: {dateISO(r.date)}
@@ -522,7 +461,7 @@ export function CleaningDayDetailContent({
                 .filter(Boolean)
                 .join(" · ");
               return (
-                <tr key={r.id}>
+                <tr key={r.id} className="snap-start">
                   <DoneCell
                     name={r.propertyName}
                     owner={r.ownerName}
@@ -569,7 +508,7 @@ export function CleaningDayDetailContent({
                     .filter(Boolean)
                     .join(" · ");
                   return (
-                    <tr key={r.id}>
+                    <tr key={r.id} className="snap-start">
                       <DoneCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} action={action}>
                         <RowToggle
                           open={openKey === `x:${r.id}`}
@@ -682,7 +621,7 @@ export function CleaningDayDetailContent({
         <table className="w-full table-fixed border-collapse tabular-nums">
           <tbody>
             {aggs.map((a) => (
-              <tr key={a.key}>
+              <tr key={a.key} className="snap-start">
                 <PropertyCell name={a.name} owner={a.owner} phone={a.phone} country={a.country}>
                   <RowToggle open={openKey === `k:${a.key}`} onToggle={() => toggle(`k:${a.key}`)}>
                     Quantidade: {a.count} ·{" "}
@@ -732,7 +671,7 @@ export function CleaningDayDetailContent({
   }
 
   return (
-    <div aria-label={`Detalhe de ${title ?? dayTitle(date)}`} className="flex min-h-0 shrink flex-col">
+    <div aria-label={`Detalhe de ${title ?? dayTitle(date)}`} className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex shrink-0 items-center justify-between gap-3 px-5 pb-3 pt-5">
         <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-foreground/[0.06] text-muted-foreground">
           <HeaderIcon className="size-5" />
@@ -750,7 +689,13 @@ export function CleaningDayDetailContent({
           <X className="size-3.5" strokeWidth={2.2} />
         </button>
       </div>
-      {body && <SnapScroll>{body}</SnapScroll>}
+      {/* Rolagem NATIVA (sem JS mexendo na altura): o iOS não congela e o rodapé nunca sai da tela.
+          Anti-corte: `snap-start` nas linhas faz a lista parar numa linha inteira. */}
+      {body && (
+        <div className="sg-elegant-scroll min-h-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain touch-pan-y px-5 pb-1 pt-1 [scrollbar-gutter:stable]">
+          {body}
+        </div>
+      )}
       {footer && (
         <div className="flex shrink-0 items-baseline justify-between gap-3 border-t border-border bg-foreground/[0.03] px-5 py-3.5">
           {footer}
