@@ -79,9 +79,47 @@ export const COPILOT_DEADLINE_MS = 25_000;
 export const COPILOT_MAX_OUTPUT_TOKENS = 1_536;
 export const COPILOT_REASONING_EFFORT = "low" as const;
 
-/** Chave mestra: o Copiloto só gera com `GUEST_AI_COPILOT=on` (ativação é configuração explícita, nunca padrão). */
-export const copilotEnabled = (env: Record<string, string | undefined> = process.env): boolean =>
-  env["GUEST_AI_COPILOT"] === "on";
+/**
+ * TRÊS CONTROLES INDEPENDENTES (não existe chave única que ligue tudo). Cada um só vale com o literal `on`;
+ * ausente, vazio ou qualquer outro valor ⇒ desligado. Lidos SEMPRE no servidor, a cada chamada:
+ *  - `GUEST_AI_COPILOT_UI`: o cartão existe e o atendente pode ver/editar/descartar sugestões já gravadas;
+ *  - `GUEST_AI_COPILOT_GENERATION`: o servidor pode reivindicar e gerar sugestões (chamada ao Gateway);
+ *  - `GUEST_AI_COPILOT_SEND`: o servidor aceita enviar uma sugestão aprovada pela rotina humana.
+ * Geração e envio NÃO dependem da UI ligada e vice-versa: cada porta confere a sua própria chave. A interface
+ * só recebe o estado para se adaptar; nenhuma decisão de bloqueio é tomada no navegador.
+ */
+export const COPILOT_FLAG_ENV = {
+  ui: "GUEST_AI_COPILOT_UI",
+  generation: "GUEST_AI_COPILOT_GENERATION",
+  send: "GUEST_AI_COPILOT_SEND",
+} as const;
+export type CopilotFlag = keyof typeof COPILOT_FLAG_ENV;
+export interface CopilotFlags {
+  ui: boolean;
+  generation: boolean;
+  send: boolean;
+}
+
+export function copilotFlags(env: Record<string, string | undefined> = process.env): CopilotFlags {
+  return {
+    ui: env[COPILOT_FLAG_ENV.ui] === "on",
+    generation: env[COPILOT_FLAG_ENV.generation] === "on",
+    send: env[COPILOT_FLAG_ENV.send] === "on",
+  };
+}
+
+export const copilotFlagOn = (
+  flag: CopilotFlag,
+  env: Record<string, string | undefined> = process.env,
+): boolean => copilotFlags(env)[flag];
+
+/** Erro fechado de porta desligada (a server function devolve sem efeito; nada é lido, reivindicado ou enviado). */
+export class CopilotFlagOffError extends Error {
+  constructor(readonly flag: CopilotFlag) {
+    super(`copilot_${flag}_off`);
+    this.name = "CopilotFlagOffError";
+  }
+}
 
 /** Modelo do Copiloto: `GUEST_AI_COPILOT_MODEL` se estiver no registro; senão o padrão da Guest AI. */
 export function copilotModelId(env: Record<string, string | undefined> = process.env): string {

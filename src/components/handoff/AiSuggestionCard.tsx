@@ -194,7 +194,9 @@ export function AiSuggestionCard({
       return st === "generating" || st === "sending" ? 3000 : 15000;
     },
   });
-  const enabled = q.data?.enabled ?? false;
+  // estado das três chaves, lido no SERVIDOR; aqui só adapta a tela (os bloqueios são do backend)
+  const flags = q.data?.flags ?? { ui: false, generation: false, send: false };
+  const enabled = flags.ui;
   const suggestion = q.data?.suggestion ?? null;
 
   // realtime: a linha muda (geração concluída, envio encerrado em outra aba) ⇒ recarrega
@@ -226,13 +228,19 @@ export function AiSuggestionCard({
     onSettled: () => qc.invalidateQueries({ queryKey: ["copilot-suggestion", conversationId] }),
   });
   useEffect(() => {
-    if (!enabled || !latestGuestMessageId || q.isLoading) return;
+    if (!enabled || !flags.generation || !latestGuestMessageId || q.isLoading) return;
     if (suggestion && suggestion.trigger_message_id === latestGuestMessageId) return;
     if (requested.current === latestGuestMessageId) return;
     requested.current = latestGuestMessageId;
     ensure.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, latestGuestMessageId, suggestion?.trigger_message_id, q.isLoading]);
+  }, [
+    enabled,
+    flags.generation,
+    latestGuestMessageId,
+    suggestion?.trigger_message_id,
+    q.isLoading,
+  ]);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -291,7 +299,11 @@ export function AiSuggestionCard({
         <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-secondary px-2.5 py-1.5 text-[11.5px] text-muted-foreground">
           <Sparkles className="size-3" />
           <span>Sugestão da IA</span>
-          {ensure.isPending ? (
+          {!flags.generation ? (
+            <span data-testid="ai-suggestion-generation-off" className="ml-auto">
+              geração desativada nesta fase
+            </span>
+          ) : ensure.isPending ? (
             <span className="inline-flex items-center gap-1">
               <Loader2 className="size-3 animate-spin" /> gerando…
             </span>
@@ -469,6 +481,11 @@ export function AiSuggestionCard({
             Envio já em andamento (outra aba ou clique repetido).
           </p>
         )}
+        {lastSend?.status === "send_disabled" && (
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            Envio pela sugestão desativado no servidor.
+          </p>
+        )}
         {lastSend?.status === "unknown_result" && (
           <p className="mt-1.5 text-[11px] text-destructive">{SEND_ERROR_LABEL.unknown_result}</p>
         )}
@@ -503,8 +520,14 @@ export function AiSuggestionCard({
             <button
               type="button"
               data-testid="ai-suggestion-send"
-              disabled={busy || !canSend || !(editing ? draft.trim() : finalText)}
-              title={canSend ? undefined : "Assuma a conversa para enviar"}
+              disabled={busy || !canSend || !flags.send || !(editing ? draft.trim() : finalText)}
+              title={
+                !flags.send
+                  ? "Envio pela sugestão desativado nesta fase"
+                  : canSend
+                    ? undefined
+                    : "Assuma a conversa para enviar"
+              }
               onClick={() => {
                 if (sendingRef.current) return;
                 sendingRef.current = true;
@@ -519,10 +542,19 @@ export function AiSuggestionCard({
               )}
               {state === "send_failed" ? "Tentar novamente" : "Enviar ao Hóspede"}
             </button>
-            {!canSend && (
-              <span className="w-full text-[10.5px] text-muted-foreground">
-                Assuma a conversa para poder enviar a sugestão.
+            {!flags.send ? (
+              <span
+                data-testid="ai-suggestion-send-off"
+                className="w-full text-[10.5px] text-muted-foreground"
+              >
+                Envio pela sugestão desativado nesta fase.
               </span>
+            ) : (
+              !canSend && (
+                <span className="w-full text-[10.5px] text-muted-foreground">
+                  Assuma a conversa para poder enviar a sugestão.
+                </span>
+              )
             )}
           </div>
         )}

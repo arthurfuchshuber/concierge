@@ -33,6 +33,9 @@ const T1 = "a1000000-0000-4000-8000-000000000001"; // dono (tenant) 1
 const T2 = "a2000000-0000-4000-8000-000000000002"; // dono (tenant) 2
 const MEMBER = "a3000000-0000-4000-8000-000000000003"; // membro do imóvel 1
 const STRANGER = "a4000000-0000-4000-8000-000000000004"; // autenticado sem acesso
+const ALLPROPS = "a5000000-0000-4000-8000-000000000005"; // membro de T1 com acesso a todos os imóveis
+const P1B = "b1000000-0000-4000-8000-0000000000b1"; // segundo imóvel de T1 (MEMBER não é atribuído)
+const C1B = "c1000000-0000-4000-8000-0000000000b1";
 const P1 = "b1000000-0000-4000-8000-000000000001";
 const P2 = "b2000000-0000-4000-8000-000000000002";
 const C1 = "c1000000-0000-4000-8000-000000000001";
@@ -130,10 +133,14 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · migration contra PostgreSQL real", (
   afterAll(() => pg?.stop());
   beforeEach(async () => {
     await pg.sql(`truncate public.guest_ai_copilot_suggestions, public.property_chat_messages, public.property_chat_conversations cascade;
-      delete from public.properties; delete from public.test_property_members;
-      insert into public.properties (id, owner_id) values ('${P1}', '${T1}'), ('${P2}', '${T2}');
-      insert into public.property_chat_conversations (id, property_id, guest_session_id) values ('${C1}', '${P1}', 'sess-1'), ('${C2}', '${P2}', 'sess-2');
-      insert into public.test_property_members (user_id, property_id) values ('${MEMBER}', '${P1}');`);
+      delete from public.property_assignments; delete from public.account_members; delete from public.properties;
+      insert into public.properties (id, owner_id) values ('${P1}', '${T1}'), ('${P2}', '${T2}'), ('${P1B}', '${T1}');
+      insert into public.property_chat_conversations (id, property_id, guest_session_id) values ('${C1}', '${P1}', 'sess-1'), ('${C2}', '${P2}', 'sess-2'), ('${C1B}', '${P1B}', 'sess-1b');
+      -- modelo REAL: dono como membro 'owner'; MEMBER restrito a P1 por atribuição; ALLPROPS com todos os imóveis de T1
+      insert into public.account_members (owner_id, member_user_id, role, status, all_properties) values
+        ('${T1}', '${T1}', 'owner', 'active', true), ('${T2}', '${T2}', 'owner', 'active', true),
+        ('${T1}', '${MEMBER}', 'agent', 'active', false), ('${T1}', '${ALLPROPS}', 'agent', 'active', true);
+      insert into public.property_assignments (tenant_id, property_id, user_id, status) values ('${T1}', '${P1}', '${MEMBER}', 'active');`);
     MSG_A = await guestMessage();
   });
 
@@ -189,6 +196,58 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · migration contra PostgreSQL real", (
       expect(await count(MEMBER)).toBe(1);
       expect(await count(T2)).toBe(0);
       expect(await count(STRANGER)).toBe(0);
+    });
+
+    it("modelo de acesso REAL do SaaS: atribuição por imóvel, todos os imóveis, membro inativo e atribuição inativa", async () => {
+      const idP1 = await available("P1");
+      const mB = await guestMessage(C1B);
+      const cB = await sr(
+        "copilot_claim_generation",
+        claimArgs({ p_conversation_id: C1B, p_property_id: P1B, p_trigger_message_id: mB }),
+      );
+      await sr("copilot_store_result", storeArgs(String(cB.suggestion_id), 1, { p_text: "P1B" }));
+      const visible = async (who: string) =>
+        (
+          await pg.sql(
+            `${as(who)}select coalesce(string_agg(suggested_text, ',' order by suggested_text), '(nenhuma)') from public.guest_ai_copilot_suggestions`,
+            { role: "authenticated" },
+          )
+        )
+          .split("\n")
+          .pop();
+      expect(await visible(T1)).toBe("P1,P1B"); // dono: todos os imóveis da conta
+      expect(await visible(ALLPROPS)).toBe("P1,P1B"); // membro com todos os imóveis
+      expect(await visible(MEMBER)).toBe("P1"); // membro restrito: só o imóvel atribuído
+      expect(await visible(T2)).toBe("(nenhuma)"); // outro tenant
+      // membro restrito não age na sugestão de imóvel não atribuído da MESMA conta
+      expect(
+        (
+          await user(MEMBER, "copilot_claim_send", {
+            p_suggestion_id: cB.suggestion_id,
+            p_text: null,
+          })
+        ).result,
+      ).toBe("not_found");
+      expect(
+        (await user(ALLPROPS, "copilot_edit", { p_suggestion_id: cB.suggestion_id, p_text: "ok" }))
+          .result,
+      ).toBe("edited");
+      // atribuição inativa ⇒ perde acesso; membro inativo ⇒ perde acesso mesmo com todos os imóveis
+      await pg.sql(
+        `update public.property_assignments set status = 'inactive' where user_id = '${MEMBER}'`,
+      );
+      expect(await visible(MEMBER)).toBe("(nenhuma)");
+      expect((await user(MEMBER, "copilot_discard", { p_suggestion_id: idP1 })).result).toBe(
+        "not_found",
+      );
+      await pg.sql(
+        `update public.account_members set status = 'inactive' where member_user_id = '${ALLPROPS}'`,
+      );
+      expect(await visible(ALLPROPS)).toBe("(nenhuma)");
+      expect(
+        (await user(ALLPROPS, "copilot_claim_send", { p_suggestion_id: idP1, p_text: null }))
+          .result,
+      ).toBe("not_found");
     });
 
     it("funções de geração só para service_role; ações do atendente só para authenticated", async () => {

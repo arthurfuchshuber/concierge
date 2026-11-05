@@ -12,6 +12,7 @@
  *     rotina ⇒ reconciliação ANTES de marcar falha (erro depois da gravação não leva a segundo envio).
  */
 import type { GuestSurface } from "@/lib/guest-ai/types";
+import { copilotFlagOn } from "@/lib/guest-ai/copilot/contracts";
 
 type Rpc = Record<string, unknown> & { result?: string };
 interface RpcClient {
@@ -56,9 +57,12 @@ export type CopilotSendOutcome =
   | { status: "reconciled_sent"; messageId: string | null }
   | { status: "unknown_result" }
   | { status: "send_failed"; code: string; message: string | null }
-  | { status: "invalid_state"; state: string | null };
+  | { status: "invalid_state"; state: string | null }
+  | { status: "send_disabled" };
 
 export interface CopilotSendDeps {
+  /** Ambiente lido para a chave `GUEST_AI_COPILOT_SEND` (padrão `process.env`, no servidor). */
+  env?: Record<string, string | undefined>;
   guard?: typeof import("@/lib/guest-ai/copilot/send-guard.server").guardCopilotSend;
   sendHuman?: typeof import("@/lib/handoff-send.server").sendHumanMessageToConversation;
   sendWhatsapp?: typeof import("@/lib/whatsapp-send.server").sendWhatsappMessageToConversation;
@@ -71,6 +75,9 @@ export async function sendCopilotSuggestionCore(
   data: { suggestionId: string; text?: string | null },
   deps: CopilotSendDeps = {},
 ): Promise<CopilotSendOutcome> {
+  // 0) porta do ENVIO, conferida no servidor ANTES de qualquer efeito (nem a reivindicação acontece).
+  //    A UI ligada não liga o envio; um pedido forjado do navegador cai aqui.
+  if (!copilotFlagOn("send", deps.env)) return { status: "send_disabled" };
   // 1) reivindica o envio (estado + token). Nada abaixo acontece sem `claimed`.
   const claim = await rpc(supabase, "copilot_claim_send", {
     p_suggestion_id: data.suggestionId,

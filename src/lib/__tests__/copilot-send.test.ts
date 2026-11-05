@@ -15,6 +15,7 @@ import {
   type CopilotSendDeps,
 } from "@/lib/copilot-send.server";
 
+const SEND_ON = { GUEST_AI_COPILOT_SEND: "on" };
 const SID = "5a000000-0000-4000-8000-000000000001";
 const CONV = "5b000000-0000-4000-8000-000000000002";
 const claimOk = (over: Record<string, unknown> = {}) => ({
@@ -81,6 +82,7 @@ function sendDeps(over: Partial<CopilotSendDeps> = {}) {
   return {
     sendHuman,
     sendWhatsapp,
+    env: SEND_ON,
     guard: guardOk("guide_chat"),
     ...over,
   } as Required<CopilotSendDeps> & {
@@ -346,6 +348,7 @@ describe("Copiloto · envio pela rotina humana existente", () => {
     const read = (f: string) => readFileSync(path.resolve(__dirname, "..", f), "utf8");
     const pairs = [
       ["copilot.functions.ts", "copilot-send.server"],
+      ["copilot.functions.ts", "copilot-actions.server"],
       ["handoff.functions.ts", "handoff-send.server"],
       ["whatsapp.functions.ts", "whatsapp-send.server"],
     ] as const;
@@ -353,7 +356,7 @@ describe("Copiloto · envio pela rotina humana existente", () => {
       const src = read(file);
       const esc = mod.replace(".", "\\.");
       expect(src, file).not.toMatch(new RegExp(`^import[^;]*${esc}`, "m"));
-      expect(src, file).toMatch(new RegExp(`await import\\("@/lib/${esc}"\\)`));
+      expect(src, file).toMatch(new RegExp(`[^\\w.]import\\("@/lib/${esc}"\\)`));
     }
     expect(read("handoff.functions.ts")).not.toMatch(
       /export async function sendHumanMessageToConversation/,

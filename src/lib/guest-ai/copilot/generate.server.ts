@@ -52,7 +52,7 @@ import {
   COPILOT_MAX_TURN_COST_USD,
   COPILOT_REASONING_EFFORT,
   copilotDailyLimitUsd,
-  copilotEnabled,
+  copilotFlagOn,
   copilotModelId,
   type CopilotGenerationRequest,
   type CopilotWarning,
@@ -103,8 +103,6 @@ export interface CopilotGenerateDeps {
   schedule?: (fn: () => void, ms: number) => () => void;
   env?: Record<string, string | undefined>;
   deadlineMs?: number;
-  /** `true` ignora a chave mestra (uso do pedido explícito da UI, que já exige sessão e permissão). */
-  force?: boolean;
 }
 
 export type CopilotGenerateResult =
@@ -120,7 +118,7 @@ export type CopilotGenerateResult =
   | {
       status: "skipped";
       code:
-        | "copilot_off"
+        | "generation_off"
         | "scope_refused"
         | "claim_invalid"
         | "claim_failed"
@@ -328,8 +326,9 @@ export async function generateCopilotSuggestion(
   deps: CopilotGenerateDeps = {},
 ): Promise<CopilotGenerateResult> {
   const env = deps.env ?? process.env;
-  if (!deps.force && !copilotEnabled(env))
-    return { status: "skipped", code: "copilot_off", detail: null };
+  // porta da GERAÇÃO: conferida aqui, no servidor, para QUALQUER chamador (canal ou tela). Sem desvio.
+  if (!copilotFlagOn("generation", env))
+    return { status: "skipped", code: "generation_off", detail: null };
   // relógio de PAREDE (ms desde a época): a cadeia o usa para datas (fase da estadia, janela D9, pausa) e o
   // prazo global é medido pelo mesmo relógio. Nunca `performance.now` aqui (origem ≠ época).
   const now = deps.now ?? (() => Date.now());

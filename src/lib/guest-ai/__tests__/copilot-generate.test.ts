@@ -23,7 +23,7 @@ import {
 import { triggerCopilotSuggestion } from "@/lib/guest-ai/copilot/trigger.server";
 import {
   copilotDailyLimitUsd,
-  copilotEnabled,
+  copilotFlags,
   copilotModelId,
   COPILOT_STATES,
   COPILOT_WARNINGS,
@@ -42,7 +42,7 @@ import type { OwnershipLoad } from "@/lib/guest-ai/data/conversation-ownership.s
 import { CONV, ctx, history, turn, v4, silence } from "./helpers/b23-chain";
 import { fakeProvider, okJson } from "./helpers/b33-shadow";
 
-const ON = { GUEST_AI_COPILOT: "on" };
+const ON = { GUEST_AI_COPILOT_GENERATION: "on" };
 const REQ = {
   surface: "guide_chat" as const,
   conversationId: "c1",
@@ -200,7 +200,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     const d = deps(p, { env: {} });
     expect(await generateCopilotSuggestion(REQ, d)).toEqual({
       status: "skipped",
-      code: "copilot_off",
+      code: "generation_off",
       detail: null,
     });
     expect(d.store.claims).toHaveLength(0);
@@ -542,7 +542,7 @@ describe("Copiloto · gerador (limites próprios sobre o Gateway)", () => {
       "google/gemini-3.1-flash-lite",
     );
     expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "x/y" })).toBe(GUEST_AI_DEFAULT_MODEL);
-    expect(copilotEnabled({ GUEST_AI_COPILOT: "1" })).toBe(false);
+    expect(copilotFlags({ GUEST_AI_COPILOT_GENERATION: "1" }).generation).toBe(false);
   });
 });
 

@@ -39,6 +39,7 @@ vi.mock("@/integrations/supabase/client", () => {
 
 import { AiSuggestionCard, STATE_LABEL, contextSummary } from "../AiSuggestionCard";
 
+const ALL_ON = { ui: true, generation: true, send: true };
 const CONV = "c0000000-0000-4000-8000-000000000001";
 const MSG = "m0000000-0000-4000-8000-000000000001";
 const row = (over: Partial<CopilotSuggestionRow> = {}): CopilotSuggestionRow => ({
@@ -114,7 +115,7 @@ afterEach(cleanup);
 
 describe("Cartão Sugestão da IA", () => {
   it("Disponível: rótulo IA, 'rascunho — não enviado', texto integral, intenção, contexto, avisos e as três ações", async () => {
-    fns.get.mockResolvedValue({ enabled: true, suggestion: row() });
+    fns.get.mockResolvedValue({ flags: ALL_ON, suggestion: row() });
     mount();
     expect((await screen.findByTestId("ai-suggestion-text")).textContent).toContain(
       "O check-in é às 15h, no horário do imóvel.",
@@ -138,7 +139,7 @@ describe("Cartão Sugestão da IA", () => {
   });
 
   it("Enviar ao Hóspede: chama o envio do backend UMA vez, mesmo com cliques repetidos; sucesso avisa a conversa", async () => {
-    fns.get.mockResolvedValue({ enabled: true, suggestion: row() });
+    fns.get.mockResolvedValue({ flags: ALL_ON, suggestion: row() });
     let resolve!: (v: unknown) => void;
     fns.send.mockReturnValue(new Promise((r) => (resolve = r)));
     const { onSent } = mount();
@@ -152,7 +153,7 @@ describe("Cartão Sugestão da IA", () => {
     expect(fns.send).toHaveBeenCalledTimes(1);
     expect(fns.send).toHaveBeenCalledWith({ data: { suggestionId: row().id } });
     fns.get.mockResolvedValue({
-      enabled: true,
+      flags: ALL_ON,
       suggestion: row({ state: "sent", sent_at: "2026-11-05T12:01:00Z", sent_by: "u" }),
     });
     await act(async () =>
@@ -165,7 +166,7 @@ describe("Cartão Sugestão da IA", () => {
   });
 
   it("Editar: abre o editor com o texto; salvar envia o texto editado; enviar durante a edição usa o texto editado", async () => {
-    fns.get.mockResolvedValue({ enabled: true, suggestion: row() });
+    fns.get.mockResolvedValue({ flags: ALL_ON, suggestion: row() });
     fns.edit.mockResolvedValue({ ok: true, suggestion: null });
     fns.send.mockResolvedValue({ outcome: { status: "send_in_progress" }, suggestion: null });
     mount();
@@ -194,7 +195,7 @@ describe("Cartão Sugestão da IA", () => {
 
   it("Editada mostra o texto editado e o estado 'Editada'", async () => {
     fns.get.mockResolvedValue({
-      enabled: true,
+      flags: ALL_ON,
       suggestion: row({ state: "edited", edited_text: "Versão da equipe", edited_by: "u" }),
     });
     mount();
@@ -205,7 +206,7 @@ describe("Cartão Sugestão da IA", () => {
   });
 
   it("Descartar chama o backend; Descartada fica riscada e sem ações", async () => {
-    fns.get.mockResolvedValue({ enabled: true, suggestion: row() });
+    fns.get.mockResolvedValue({ flags: ALL_ON, suggestion: row() });
     fns.discard.mockResolvedValue({ ok: true, suggestion: null });
     mount();
     fireEvent.click(await screen.findByTestId("ai-suggestion-discard"));
@@ -213,7 +214,7 @@ describe("Cartão Sugestão da IA", () => {
       expect(fns.discard).toHaveBeenCalledWith({ data: { suggestionId: row().id } }),
     );
     cleanup();
-    fns.get.mockResolvedValue({ enabled: true, suggestion: row({ state: "discarded" }) });
+    fns.get.mockResolvedValue({ flags: ALL_ON, suggestion: row({ state: "discarded" }) });
     mount();
     expect((await screen.findByTestId("ai-suggestion-state")).textContent).toContain("Descartada");
     expect(screen.getByTestId("ai-suggestion-text").className).toContain("line-through");
@@ -221,7 +222,7 @@ describe("Cartão Sugestão da IA", () => {
   });
 
   it("sem poder compor (outro responsável): envio desabilitado com orientação; editar/descartar seguem", async () => {
-    fns.get.mockResolvedValue({ enabled: true, suggestion: row() });
+    fns.get.mockResolvedValue({ flags: ALL_ON, suggestion: row() });
     mount({ canSend: false });
     expect(((await screen.findByTestId("ai-suggestion-send")) as HTMLButtonElement).disabled).toBe(
       true,
@@ -232,7 +233,7 @@ describe("Cartão Sugestão da IA", () => {
 
   it("Gerando e Enviando: indicador de processamento, sem ações de envio duplicado", async () => {
     fns.get.mockResolvedValue({
-      enabled: true,
+      flags: ALL_ON,
       suggestion: row({ state: "generating", suggested_text: null }),
     });
     mount();
@@ -241,7 +242,7 @@ describe("Cartão Sugestão da IA", () => {
     expect(screen.queryByTestId("ai-suggestion-send")).toBeNull();
     cleanup();
     fns.get.mockResolvedValue({
-      enabled: true,
+      flags: ALL_ON,
       suggestion: row({ state: "sending", send_claimed_at: "2026-11-05T12:01:00Z" }),
     });
     mount();
@@ -252,7 +253,7 @@ describe("Cartão Sugestão da IA", () => {
 
   it("Falha no envio: motivo legível (remetente do Airbnb) e 'Tentar novamente'", async () => {
     fns.get.mockResolvedValue({
-      enabled: true,
+      flags: ALL_ON,
       suggestion: row({
         state: "send_failed",
         send_error: "sender_identity_preference_other_tenant",
@@ -269,7 +270,7 @@ describe("Cartão Sugestão da IA", () => {
 
   it("sem sugestão / não gerada: explicação fechada e pergunta interna da IA à equipe", async () => {
     fns.get.mockResolvedValue({
-      enabled: true,
+      flags: ALL_ON,
       suggestion: row({
         state: "no_suggestion",
         suggested_text: null,
@@ -286,7 +287,7 @@ describe("Cartão Sugestão da IA", () => {
     expect(screen.queryByTestId("ai-suggestion-send")).toBeNull();
     cleanup();
     fns.get.mockResolvedValue({
-      enabled: true,
+      flags: ALL_ON,
       suggestion: row({
         state: "generation_failed",
         suggested_text: null,
@@ -298,7 +299,7 @@ describe("Cartão Sugestão da IA", () => {
   });
 
   it("mensagem mais nova do hóspede: pede UMA geração e avisa que a sugestão é da mensagem anterior", async () => {
-    fns.get.mockResolvedValue({ enabled: true, suggestion: row({ trigger_message_id: "antiga" }) });
+    fns.get.mockResolvedValue({ flags: ALL_ON, suggestion: row({ trigger_message_id: "antiga" }) });
     mount();
     expect(await screen.findByText(/O hóspede enviou mensagem mais nova/)).toBeTruthy();
     await waitFor(() => expect(fns.ensure).toHaveBeenCalledTimes(1));
@@ -309,14 +310,17 @@ describe("Cartão Sugestão da IA", () => {
   });
 
   it("Copiloto desligado ⇒ nada é renderizado nem pedido; sem mensagem do hóspede ⇒ nada", async () => {
-    fns.get.mockResolvedValue({ enabled: false, suggestion: null });
+    fns.get.mockResolvedValue({
+      flags: { ui: false, generation: true, send: true },
+      suggestion: null,
+    });
     mount();
     await waitFor(() => expect(fns.get).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByTestId("ai-suggestion-card")).toBeNull();
     expect(fns.ensure).not.toHaveBeenCalled();
     cleanup();
-    fns.get.mockResolvedValue({ enabled: true, suggestion: null });
+    fns.get.mockResolvedValue({ flags: ALL_ON, suggestion: null });
     mount({ latestGuestMessageId: null });
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByTestId("ai-suggestion-card")).toBeNull();
@@ -338,5 +342,28 @@ describe("Cartão Sugestão da IA", () => {
       "equipe no comando",
     );
     expect(contextSummary(row({ surface: "whatsapp" })).join(" ")).not.toContain("remetente");
+  });
+
+  it("MODO VISUAL (UI on, geração off, envio off): mostra o cartão, não pede geração e não oferece envio", async () => {
+    const VISUAL = { ui: true, generation: false, send: false };
+    fns.get.mockResolvedValue({ flags: VISUAL, suggestion: null });
+    mount();
+    expect(await screen.findByTestId("ai-suggestion-generation-off")).toBeTruthy();
+    expect(screen.queryByText("Gerar sugestão")).toBeNull();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(fns.ensure).not.toHaveBeenCalled();
+    cleanup();
+    fns.get.mockResolvedValue({ flags: VISUAL, suggestion: row() });
+    mount();
+    expect(((await screen.findByTestId("ai-suggestion-send")) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(screen.getByTestId("ai-suggestion-send-off").textContent).toContain(
+      "Envio pela sugestão desativado",
+    );
+    expect((screen.getByTestId("ai-suggestion-edit") as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByTestId("ai-suggestion-send"));
+    expect(fns.send).not.toHaveBeenCalled();
+    expect(fns.ensure).not.toHaveBeenCalled();
   });
 });
