@@ -321,11 +321,34 @@ export function toAirbnbPlainText(text: string): string {
     .trim();
 }
 
-export async function sendChannexThreadMessage(threadId: string, text: string): Promise<string | null> {
-  // Conta escolhida no seletor de assinatura: envio direto no Airbnb; qualquer falha cai na Channex.
-  const { trySendAsPreferredSender } = await import("@/lib/airbnb-direct-sender.server");
-  const direct = await trySendAsPreferredSender(threadId, text);
-  if (direct) return direct;
+/**
+ * Remetente ESTRITO (Copiloto, 05/11/2026): `expectedChannelId` é a conta resolvida e validada pela política
+ * de identidade de envio (`airbnb_sender_pref` do próprio tenant, anúncio do imóvel da conversa). Em modo
+ * estrito NÃO existe fallback silencioso: se a preferida falhar, ou se a conta que de fato enviaria (preferida
+ * ou canal da thread) não for a esperada, a função LANÇA e nada é enviado.
+ */
+export interface StrictSenderOptions {
+  expectedChannelId: string;
+}
+
+export class StrictSenderError extends Error {
+  constructor(readonly code: "preferred_sender_failed" | "sender_mismatch", readonly detail: string | null) {
+    super(code);
+    this.name = "StrictSenderError";
+  }
+}
+
+export async function sendChannexThreadMessage(threadId: string, text: string, strict?: StrictSenderOptions): Promise<string | null> {
+  // Conta escolhida no seletor de assinatura: envio direto no Airbnb; no fluxo humano qualquer falha cai na Channex.
+  const { sendAsPreferredSenderDetailed } = await import("@/lib/airbnb-direct-sender.server");
+  const direct = await sendAsPreferredSenderDetailed(threadId, text, strict?.expectedChannelId);
+  if (direct.outcome === "sent") return direct.messageId;
+  if (!strict && direct.outcome === "failed") console.error("[airbnb-direct] envio direto falhou, usando Channex", direct.reason);
+  if (strict) {
+    if (direct.outcome === "failed") throw new StrictSenderError("preferred_sender_failed", direct.reason);
+    const channelThatSends = direct.outcome === "preferred_is_mapped" ? direct.channelId : direct.threadChannelId;
+    if (channelThatSends !== strict.expectedChannelId) throw new StrictSenderError("sender_mismatch", channelThatSends);
+  }
   const res = await channex<{ data?: { id?: string } }>(`/message_threads/${threadId}/messages`, {
     method: "POST",
     body: JSON.stringify({ message: { message: text } }),
@@ -348,16 +371,20 @@ export async function deliverToAirbnbThread(
     senderType: "ai" | "human";
     senderUserId?: string | null;
     skipInsert?: boolean;
+    /** Copiloto: remetente estrito (sem fallback silencioso de conta). Ausente = fluxo humano inalterado. */
+    strictSender?: StrictSenderOptions;
   },
-): Promise<{ ok: boolean; messageId?: string; text: string }> {
+): Promise<{ ok: boolean; messageId?: string; externalId: string | null; text: string; failure?: string }> {
   const text = toAirbnbPlainText(p.text);
-  if (!text) return { ok: false, text };
+  if (!text) return { ok: false, externalId: null, text };
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
+  let failure: string | undefined;
   try {
-    externalId = await sendChannexThreadMessage(p.threadId, text);
+    externalId = await sendChannexThreadMessage(p.threadId, text, p.strictSender);
   } catch (e) {
     status = "failed";
+    failure = e instanceof StrictSenderError ? e.code : "delivery_failed";
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[channex-messages] entrega ao Airbnb falhou", msg);
     try {
@@ -398,7 +425,7 @@ export async function deliverToAirbnbThread(
       .update({ last_message_at: new Date().toISOString() })
       .eq("id", p.conversationId);
   }
-  return { ok: status === "sent", messageId, text };
+  return { ok: status === "sent", messageId, externalId, text, failure };
 }
 
 /**
@@ -529,6 +556,20 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     .from("property_chat_conversations")
     .update({ last_message_at: new Date().toISOString() })
     .eq("id", convId);
+
+  // ─── Copiloto (05/11/2026): sugestão para a EQUIPE aprovar, em segundo plano (não bloqueia, não responde
+  // ao hóspede, não altera o fluxo abaixo). Dono do anúncio resolvido com certeza por `resolveListing`.
+  {
+    const triggerId = (guestMsg as { id?: string } | null)?.id;
+    if (triggerId) {
+      try {
+        const { triggerCopilotSuggestion } = await import("@/lib/guest-ai/copilot/trigger.server");
+        triggerCopilotSuggestion({ surface: "airbnb", conversationId: convId, messageId: triggerId, expectedOwnerId: listing.owner_id });
+      } catch (e) {
+        console.error("[channex-messages] copiloto não disparado", e instanceof Error ? e.name : "");
+      }
+    }
+  }
 
   // Código da reserva liga a conversa à reserva oficial, mesmo com a IA pausada.
   try {
