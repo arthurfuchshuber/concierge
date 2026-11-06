@@ -8,10 +8,10 @@ import {
   removeMyAvatar,
   requestEmailChange,
 } from "@/lib/profile.functions";
-import { Camera, Check, Clock, Loader2, Trash2, User as UserIcon, Mail, ShieldCheck, Lock, CalendarDays, ChevronDown } from "lucide-react";
+import { Camera, Check, Clock, Loader2, Trash2, User as UserIcon, Mail, ShieldCheck, Lock, CalendarDays, Info } from "lucide-react";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ActionButton, DENSE_INPUT, DenseField, Tag } from "@/components/admin-pages/admin-mobile-ui";
+import { ActionButton } from "@/components/admin-pages/admin-mobile-ui";
 import { toast } from "sonner";
 import { formatCPF } from "@/lib/masks";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -158,7 +158,6 @@ export function MeuPerfilPage() {
 
   // Salvamento instantâneo (mesma regra do editor de guia): qualquer alteração
   // válida é persistida sozinha, sem depender do botão "Salvar".
-  const [aba, setAba] = useState<"dados" | "contato">("dados");
   const autosave = useAutosave(
     { fullName, tradeName, birthDate, jobTitle, phone, phoneCountry },
     async (v) => {
@@ -398,9 +397,9 @@ export function MeuPerfilPage() {
 
     {/* CELULAR — mockups "Meu Perfil" e "Meu Perfil · novo e-mail pendente" (aprovados 05/11/2026). */}
     <div className="ds-stack lg:hidden">
-      {/* Identidade: uma linha só. A câmera fica no centro da foto: tocar nela troca, remove ou adiciona. */}
-      <section className={`${PANEL_SHELL} px-[14px] py-3`}>
-        <div className="flex items-center gap-3">
+      {/* Meu Perfil no celular — direção E (aprovada em 05/11/2026): tudo numa tela, campos sem caixa. */}
+      <section className={`${PANEL_SHELL} px-4 pb-[18px] pt-4`}>
+          <div className="flex items-center gap-3">
           {avatar ? (
             <Popover>
               <PopoverTrigger asChild>
@@ -456,174 +455,142 @@ export function MeuPerfilPage() {
             <div className="mt-px truncate text-[12px] text-muted-foreground">{emailOriginal || email}</div>
           </div>
         </div>
-      </section>
 
-      {/* Um assunto por vez: "Dados | Contato" (direção C aprovada em 05/11/2026). */}
-      <div role="tablist" className="flex gap-1 rounded-[11px] bg-foreground/[0.04] p-[3px]">
-        {([
-          ["dados", "Dados"],
-          ["contato", "Contato"],
-        ] as const).map(([k, l]) => (
-          <button
-            key={k}
-            type="button"
-            role="tab"
-            aria-selected={aba === k}
-            onClick={() => setAba(k)}
-            className={`flex h-8 min-w-0 flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-[8px] text-[12.5px] ${
-              aba === k
-                ? "bg-foreground/10 font-bold text-foreground shadow-[inset_0_0_0_1px_rgba(246,243,239,0.12)]"
-                : "font-semibold text-muted-foreground"
-            }`}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
+        <div className={`mb-1 mt-4 border-t ${UHAIR}`} />
 
-      {aba === "dados" && (
-        <section className={`${PANEL_SHELL} p-[14px]`}>
-          <div className="flex flex-col gap-3.5">
-          <DenseField label="Nome Completo" required>
+        <div className="flex flex-col gap-3">
+          <UField label="Nome Completo" required>
             <input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               maxLength={120}
-              className={DENSE_INPUT}
+              className={UINPUT}
               placeholder="Como aparece nos documentos"
             />
-          </DenseField>
-          <DenseField
-            label="Nome Fantasia"
-            optional
-            info="Se preenchido, substitui o nome completo no cabeçalho."
-          >
+          </UField>
+          <UField label="Nome Fantasia" optional info="Se preenchido, substitui o nome completo no cabeçalho.">
             <input
               value={tradeName}
               onChange={(e) => setTradeName(e.target.value)}
               maxLength={120}
-              className={DENSE_INPUT}
+              className={UINPUT}
               placeholder="Ex.: Sigma Turismo"
             />
-          </DenseField>
-            <div className="grid grid-cols-2 gap-3">
-          <DenseField label="Número do CPF">
-            <div
-              aria-disabled="true"
-              className={`${DENSE_INPUT} flex cursor-not-allowed items-center gap-2 bg-foreground/[0.03] text-muted-foreground tabular-nums`}
-            >
-              <span className="min-w-0 truncate">{cpfDigits ? formatCPF(cpfDigits) : "—"}</span>
-              <span
-                role="button"
-                aria-label="Alteração apenas via suporte"
-                title="Alteração apenas via suporte"
-                className="ml-auto flex cursor-help text-muted-foreground"
-              >
-                <Lock className="size-3.5" />
-              </span>
-            </div>
-          </DenseField>
-          <DenseField label="Nascimento" required>
-            <div className="relative">
-              <input
-                type="date"
-                value={birthDate}
-                max={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setBirthDate(e.target.value)}
-                className={`${DENSE_INPUT} pr-9 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0`}
-              />
-              <CalendarDays className="pointer-events-none absolute right-[11px] top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            </div>
-          </DenseField>
-            </div>
-          <DenseField label="Cargo" optional>
+          </UField>
+          <div className="grid grid-cols-2 gap-[18px]">
+            <UField label="Número do CPF">
+              <div aria-disabled="true" className={`${UROW} cursor-not-allowed text-muted-foreground`}>
+                <span className="min-w-0 flex-1 truncate">{cpfDigits ? formatCPF(cpfDigits) : "—"}</span>
+                <span
+                  role="button"
+                  aria-label="Alteração apenas via suporte"
+                  title="Alteração apenas via suporte"
+                  className="flex cursor-help text-[var(--faint)]"
+                >
+                  <Lock className="size-3.5" />
+                </span>
+              </div>
+            </UField>
+            <UField label="Nascimento" required>
+              <div className={`${UROW} relative`}>
+                <input
+                  type="date"
+                  value={birthDate}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  className={`${UINPUT_BARE} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0`}
+                />
+                <CalendarDays className="pointer-events-none size-3.5 shrink-0 text-[var(--faint)]" />
+              </div>
+            </UField>
+          </div>
+          <UField label="Cargo" optional>
             <input
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
               maxLength={80}
-              className={DENSE_INPUT}
+              className={UINPUT}
               placeholder="Ex.: Gerente de Reservas"
             />
-          </DenseField>
-          </div>
-        </section>
-      )}
+          </UField>
+        </div>
 
-      {aba === "contato" && (
-        <section className={`${PANEL_SHELL} p-[14px]`}>
-          <div className="flex flex-col gap-3.5">
-            <DenseField
-              label="E-mail"
-              right={
-                email !== emailOriginal ? (
-                  <Tag tone="amber" icon={<Clock className="size-2.5" strokeWidth={2.4} />}>
-                    Não Confirmado
-                  </Tag>
-                ) : (
-                  <Tag tone="sage" icon={<Check className="size-2.5" strokeWidth={2.4} />}>
-                    Verificado
-                  </Tag>
-                )
-              }
-            >
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-[11px] top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground opacity-70" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={`${DENSE_INPUT} pl-[33px]`}
-                  placeholder="voce@exemplo.com"
-                  aria-label="E-mail"
-                />
-              </div>
-              {email !== emailOriginal && (
-                <>
-                  <p className="mt-2 text-[11.5px] font-medium leading-[1.45] text-[var(--faint)]">
-                    Enviaremos um link para confirmar o novo e-mail. Até lá, o atual continua valendo.
-                  </p>
-                  <div className="mt-2.5 flex min-w-0 items-center gap-1.5">
-                    <ActionButton
-                      kind="primary"
-                      full
-                      icon={save.isPending ? <Loader2 className="size-3 animate-spin" /> : <Mail className="size-3" strokeWidth={2.2} />}
-                      disabled={!canSave || save.isPending}
-                      onClick={() => save.mutate()}
-                    >
-                      Confirmar Novo E-mail
-                    </ActionButton>
-                    <ActionButton onClick={() => setEmail(emailOriginal)}>Descartar</ActionButton>
-                  </div>
-                </>
-              )}
-            </DenseField>
-          <DenseField label="Telefone">
-            <div className="grid grid-cols-[112px_minmax(0,1fr)] gap-2">
-              <div className="relative">
-                <input
-                  value={phoneCountry}
-                  onChange={(e) => setPhoneCountry(e.target.value)}
-                  maxLength={8}
-                  className={`${DENSE_INPUT} pr-8`}
-                  placeholder="BR +55"
-                  aria-label="País / DDI"
-                />
-                <ChevronDown className="pointer-events-none absolute right-[11px] top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              </div>
+        <div className="mt-3 flex flex-col gap-3">
+          <UField label="Telefone">
+            <div className={UROW}>
+              <input
+                value={phoneCountry}
+                onChange={(e) => setPhoneCountry(e.target.value)}
+                maxLength={8}
+                className={`${UINPUT_BARE} w-[58px] flex-none`}
+                placeholder="BR +55"
+                aria-label="País / DDI"
+              />
               <input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 maxLength={30}
-                className={DENSE_INPUT}
+                className={UINPUT_BARE}
                 placeholder="(11) 98888-7766"
                 aria-label="Telefone"
               />
             </div>
-          </DenseField>
-          </div>
-        </section>
-      )}
+          </UField>
+          <UField
+            label="E-mail"
+            badge={
+              email !== emailOriginal ? (
+                <span
+                  title="Não Confirmado"
+                  aria-label="Não Confirmado"
+                  className="grid size-3.5 place-items-center rounded-full bg-[rgba(201,169,98,0.16)] text-[#c9a962]"
+                >
+                  <Clock className="size-[9px]" strokeWidth={2.8} />
+                </span>
+              ) : (
+                <span
+                  title="Verificado"
+                  aria-label="Verificado"
+                  className="grid size-3.5 place-items-center rounded-full bg-[rgba(127,183,154,0.16)] text-[#7fb79a]"
+                >
+                  <Check className="size-[9px]" strokeWidth={2.8} />
+                </span>
+              )
+            }
+          >
+            <div className={UROW}>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={UINPUT_BARE}
+                placeholder="voce@exemplo.com"
+                aria-label="E-mail"
+              />
+            </div>
+            {email !== emailOriginal && (
+              <>
+                <p className="mt-2 text-[11.5px] font-medium leading-[1.45] text-[var(--faint)]">
+                  Enviaremos um link para confirmar o novo e-mail. Até lá, o atual continua valendo.
+                </p>
+                <div className="mt-2.5 flex min-w-0 items-center gap-1.5">
+                  <ActionButton
+                    kind="primary"
+                    full
+                    icon={save.isPending ? <Loader2 className="size-3 animate-spin" /> : <Mail className="size-3" strokeWidth={2.2} />}
+                    disabled={!canSave || save.isPending}
+                    onClick={() => save.mutate()}
+                  >
+                    Confirmar Novo E-mail
+                  </ActionButton>
+                  <ActionButton onClick={() => setEmail(emailOriginal)}>Descartar</ActionButton>
+                </div>
+              </>
+            )}
+          </UField>
+        </div>
+      </section>
 
       {/* O "Salvo" saiu a pedido; só aparece o que exige atenção. */}
       {autosave.status === "saving" ? (
@@ -643,6 +610,55 @@ export function MeuPerfilPage() {
       />
     </div>
     </>
+  );
+}
+
+/** Campos "sem caixa" do celular (direção E): rótulo pequeno em cima, valor em texto e só um fio embaixo. */
+const UHAIR = "border-foreground/[0.07]";
+const UROW = `flex h-[34px] min-w-0 items-center gap-2 border-b ${UHAIR} text-[14px] text-foreground tabular-nums focus-within:border-foreground/40`;
+const UINPUT_BARE =
+  "h-full w-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-foreground outline-none placeholder:text-[var(--faint)]";
+const UINPUT = `${UINPUT_BARE} border-b ${UHAIR} focus:border-foreground/40`;
+
+function UField({
+  label,
+  required,
+  optional,
+  info,
+  badge,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  optional?: boolean;
+  info?: string;
+  badge?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="flex min-h-4 items-center gap-1.5">
+        <label className="text-[11.5px] font-semibold text-[var(--faint)]">
+          {label}
+          {optional ? <span className="font-medium"> (Opcional)</span> : null}
+          {required ? <span className="text-[#c98c8c]"> *</span> : null}
+        </label>
+        {badge}
+        {info ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" aria-label="Mais informações" className="ml-auto flex cursor-pointer text-[var(--faint)]">
+                <Info className="size-[13px]" strokeWidth={2} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[260px] max-w-[calc(100vw-32px)] p-3 text-[12px] leading-[1.45] text-muted-foreground">
+              {info}
+            </PopoverContent>
+          </Popover>
+        ) : null}
+      </div>
+      {children}
+    </div>
   );
 }
 
