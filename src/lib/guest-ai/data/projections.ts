@@ -90,6 +90,11 @@ export const PROPERTY_CREDENTIAL_COLUMNS = [
 ] as const;
 
 export const CONVERSATION_COLUMNS = ["id", "property_id", "guest_session_id", "status", "reservation_id"] as const;
+/**
+ * B2.4 — estado do atendimento humano da conversa (só leitura; preparado para integração, sem
+ * loader instalado). `handoff_reason` é texto da equipe: passa pelo FreeTextGuard antes do prompt.
+ */
+export const CONVERSATION_OWNERSHIP_COLUMNS = ["id", "status", "assigned_to", "handoff_reason", "handoff_urgency", "handoff_at", "resolved_at", "ai_paused", "paused_until"] as const;
 export const MESSAGE_COLUMNS = ["id", "conversation_id", "role", "sender_type", "channel", "is_internal_note", "created_at"] as const;
 /** Sem `guest_contacts` (telefone/PII) nem valores financeiros. */
 export const RESERVATION_COLUMNS = ["id", "property_id", "status", "source", "checkin_date", "checkout_date"] as const;
@@ -117,6 +122,31 @@ export const EMERGENCY_COLUMNS = ["id", "label", "number"] as const;
 export const MANUAL_COLUMNS = ["id", "title", "body"] as const;
 export const ENTRY_COLUMNS = ["id", "field_key", "value", "note", "custom_label", "custom_audience", "section_num"] as const;
 
+// ─────────────── B2.2 — Dossiê multipropriedade ───────────────
+
+/** Identidade e posse do imóvel (autorização por imóvel: dono = tenant, não arquivado). */
+export const PROPERTY_ACCESS_COLUMNS = ["id", "owner_id", "archived_at"] as const;
+/** Manuais COM descrição e referências de imagem (faltavam na projeção F1, que segue intacta). */
+export const MANUAL_DOSSIER_COLUMNS = ["id", "title", "description", "body", "images"] as const;
+/**
+ * Recomendações do entorno. FORA de propósito: `walk_minutes`, `drive_minutes` e `distance_text`
+ * (minutos derivados de velocidade presumida — decisão D5) e `image_url`/`maps_url`/`last_synced_at`.
+ * `distance_meters` = linha reta.
+ */
+export const RECOMMENDATION_PUBLIC_COLUMNS = [
+  "id",
+  "property_id",
+  "name",
+  "category",
+  "type",
+  "rating",
+  "user_ratings_total",
+  "distance_meters",
+  "opening_hours",
+  "note",
+  "position",
+] as const;
+
 /** Junta as colunas na forma aceita por `.select()`. Recusa "*" e lista vazia. */
 export function cols(list: readonly string[]): string {
   if (list.length === 0 || list.includes("*")) throw new Error("projeção inválida");
@@ -134,3 +164,24 @@ export const CREDENTIAL_ROW_KEYS: ReadonlySet<string> = new Set([
   "fechadura_eletronica",
   "bateria_da_fechadura",
 ]);
+
+// ─────────────── B3.2 — loaders reais (somente leitura) ───────────────
+
+/**
+ * Metadados de um webhook bruto de mensagem do Airbnb (`channex_raw_records`, `webhook:message`).
+ * Só caminhos JSON escalares: NUNCA o `payload` inteiro (que contém o texto da mensagem).
+ */
+export const RAW_MESSAGE_META_SELECT =
+  "id, first_seen_at, channex_property_id, sender:payload->payload->>sender, inserted_at:payload->payload->>inserted_at, message_id:payload->payload->>id, ota_message_id:payload->payload->>ota_message_id";
+/** Cartão de estadia para o R6 com `id` (liga o histórico) e imóvel; sem credenciais. */
+export const STAY_AUTH_CARD_COLUMNS = ["id", "property_id", ...ARRIVAL_STATUS_COLUMNS] as const;
+/** Histórico do R6 em `audit_logs`: só ação, entidade e instante (sem metadata, ip, e-mail). */
+export const STAY_AUTH_AUDIT_COLUMNS = ["id", "action", "entity_id", "created_at"] as const;
+/** Imóvel para fuso com origem declarada e horário oficial (sem nada sensível). */
+export const PROPERTY_TIMEZONE_COLUMNS = ["id", "owner_id", "country", "state", "checkout_time"] as const;
+/** Identidade de envio (B2.5): anúncios, gêmeos, contas — só as colunas do contrato. */
+export const SENDER_LISTING_COLUMNS = ["property_id", "owner_id", "airbnb_listing_id", "channex_channel_id", "channex_property_id"] as const;
+export const SENDER_TWIN_COLUMNS = ["owner_id", "property_id", "primary_listing_id", "twin_listing_id", "twin_channex_property_id", "status"] as const;
+export const SENDER_ACCOUNT_COLUMNS = ["owner_id", "channex_channel_id", "status"] as const;
+/** Preferência do anfitrião (`airbnb_sender_pref`): só os campos usados, por caminho JSON. */
+export const SENDER_PREF_SELECT = "channex_id, owner_id:payload->>owner_id, channel_id:payload->>channel_id, updated_at:payload->>updated_at";
