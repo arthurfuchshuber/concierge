@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { ConnectedListing } from "@/lib/billing/connected-listings.server";
 
 /**
  * Integração Channex (staging) — importação dos anúncios do Airbnb.
@@ -69,12 +70,6 @@ export const importarAnunciosAirbnb = createServerFn({ method: "POST" })
     }
   });
 
-type ConnectedListing = {
-  listingId: string;
-  name: string;
-  kind: "primary" | "twin";
-  propertyName: string;
-};
 export type ConnectedListingsInventory = {
   totalCount: number;
   primaryCount: number;
@@ -83,9 +78,8 @@ export type ConnectedListingsInventory = {
 };
 
 /**
- * Inventário de anúncios conectados ativos da conta (base da futura cobrança
- * por anúncio). Gêmeos contam individualmente. Sempre derivado do banco, então
- * anúncios entram/saem automaticamente. Não altera preços.
+ * Inventário de anúncios conectados ativos da conta — a mesma lista que a Stripe cobra
+ * (`loadConnectedListings`). Gêmeos contam individualmente. Sempre derivado do banco.
  */
 export const getConnectedListingsInventory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -99,38 +93,9 @@ export const getConnectedListingsInventory = createServerFn({ method: "GET" })
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const userId = await resolveAuthorizedAccountOwnerId(ctx.supabase, ctx.userId, data.accountOwnerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Só conta anúncio ATIVO: sem pausa de sincronização e imóvel não arquivado.
-    const [{ data: prim }, { data: twins }] = await Promise.all([
-      (supabaseAdmin as any)
-        .from("property_listing_raw_data")
-        .select("property_id, airbnb_listing_id, properties!inner(name, owner_id, archived_at)")
-        .eq("properties.owner_id", userId)
-        .is("properties.archived_at", null)
-        .is("sync_paused_at", null)
-        .not("airbnb_listing_id", "is", null),
-      (supabaseAdmin as any)
-        .from("channex_twin_links")
-        .select("property_id, twin_listing_id, twin_title")
-        .eq("owner_id", userId)
-        .eq("status", "active"),
-    ]);
-    const nameByProp = new Map<string, string>();
-    const items: ConnectedListing[] = [];
-    for (const r of (prim ?? []) as any[]) {
-      const n = r.properties?.name ?? "Imóvel";
-      nameByProp.set(r.property_id, n);
-      items.push({ listingId: String(r.airbnb_listing_id ?? r.property_id), name: n, kind: "primary", propertyName: n });
-    }
-    const seen = new Set(items.map((i) => i.listingId));
-    for (const t of (twins ?? []) as any[]) {
-      const id = String(t.twin_listing_id);
-      // Gêmeo de imóvel pausado/arquivado não está ativo.
-      if (seen.has(id) || !nameByProp.has(t.property_id)) continue;
-      seen.add(id);
-      const pn = nameByProp.get(t.property_id) ?? "Imóvel";
-      items.push({ listingId: id, name: t.twin_title ?? `Anúncio ${id}`, kind: "twin", propertyName: pn });
-    }
-    items.sort((a, b) => a.propertyName.localeCompare(b.propertyName, "pt-BR") || (a.kind === "primary" ? -1 : 1));
+    // Só conta anúncio ATIVO (mesma regra da cobrança na Stripe).
+    const { loadConnectedListings } = await import("@/lib/billing/connected-listings.server");
+    const items = await loadConnectedListings(supabaseAdmin, userId);
     const twinCount = items.filter((i) => i.kind === "twin").length;
     return { totalCount: items.length, primaryCount: items.length - twinCount, twinCount, items };
   });

@@ -102,10 +102,10 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
 
     const { resolveUserPlan } = await import("@/lib/plan-guard.server");
     const plan = await resolveUserPlan(supabase, ownerId);
-    if (plan.plan !== "business" && plan.plan !== "enterprise") {
-      throw new Error("Liberar acesso ao sistema requer plano Business ou Enterprise.");
+    if (!plan.hasAccess) {
+      throw new Error("Liberar acesso ao sistema requer uma assinatura ativa.");
     }
-    // Business e Enterprise: pessoas com acesso ilimitadas (pedido 28/09/2026).
+    // Assinatura ativa: pessoas com acesso ilimitadas.
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 

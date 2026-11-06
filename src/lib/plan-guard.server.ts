@@ -1,47 +1,50 @@
 // Server-side plan/quota enforcement. Loaded inside server-fn handlers only.
+//
+// 06/11/2026: plano único cobrado por anúncio (Stripe). Assinatura que concede acesso = TODOS os
+// recursos e guias ilimitados (salvo `max_guides_override` definido pelo admin).
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { PLANS, type PlanKey, planFromProductId } from "@/lib/payments.functions";
-import type { PlanFeatures } from "@/lib/payments.shared";
+import {
+  ALL_FEATURES,
+  NO_FEATURES,
+  PLAN_KEY,
+  UNLIMITED_GUIDES,
+  type PlanFeatures,
+  type PlanKey,
+} from "@/lib/billing/plan";
 
-export type PaddleEnv = "sandbox" | "live";
+export type BillingEnv = "sandbox" | "live";
 
 export type ResolvedPlan = {
   plan: PlanKey | null;
+  hasAccess: boolean;
   status: string | null;
   maxGuides: number;
   features: PlanFeatures;
 };
 
-const FREE_FEATURES: PlanFeatures = {
-  guestChat: false,
-  autoImport: false,
-  advancedIntake: false,
-  ai: false,
-  humanHandoff: false,
-  team: false,
-  customBrand: false,
-  externalIntegration: false,
-};
-
 const FREE: ResolvedPlan = {
   plan: null,
+  hasAccess: false,
   status: null,
   maxGuides: 0,
-  features: FREE_FEATURES,
+  features: NO_FEATURES,
 };
 
-// Runtime env: production build → live; preview/dev → sandbox. Mirrors how
-// the frontend derives env from the Paddle client token, but is evaluated
-// server-side so sandbox subscriptions can never grant access in production.
-function getRuntimeEnv(): PaddleEnv {
-  return import.meta.env.PROD ? "live" : "sandbox";
+const SUB_FIELDS =
+  "status, current_period_end, trial_ends_at, environment, is_manual, max_guides_override, created_at, stripe_subscription_id";
+
+// Ambiente da cobrança: o da chave da Stripe; sem chave, produção → live, preview → sandbox.
+// Assinatura de teste nunca libera acesso em produção.
+async function getRuntimeEnv(): Promise<BillingEnv> {
+  const { stripeEnvOrNull } = await import("@/lib/billing/stripe.server");
+  return stripeEnvOrNull() ?? (import.meta.env.PROD ? "live" : "sandbox");
 }
 
+const TRIAL_MAX_DAYS = 7;
 
 /**
- * Uma assinatura só concede acesso se o período for válido. Para trials, o
- * limite é `trial_ends_at` (o `current_period_end` costuma vir nulo em trials
- * do Paddle — sem esse teto o trial nunca expiraria).
+ * Uma assinatura só concede acesso se o período for válido. Para trials (liberação manual do
+ * admin), o limite é `trial_ends_at`.
  */
 function subscriptionGrantsAccess(sub: {
   status?: string | null;
@@ -68,48 +71,39 @@ function subscriptionGrantsAccess(sub: {
   return false;
 }
 
-const TRIAL_MAX_DAYS = 7;
-
-// Resolves the active plan for the authenticated user using their RLS-scoped
-// supabase client. Only honours subscriptions in the current runtime env so
-// a sandbox-signed webhook cannot unlock paid features in production.
-export async function resolveUserPlan(
-  supabase: SupabaseClient,
-  userId: string,
-): Promise<ResolvedPlan> {
-  const runtimeEnv = getRuntimeEnv();
-  const { data: subs } = await supabase
-    .from("subscriptions")
-    .select("status, product_id, current_period_end, trial_ends_at, environment, max_guides_override, created_at")
-    .eq("user_id", userId)
-    .eq("environment", runtimeEnv)
-    .order("created_at", { ascending: false });
-
-  const candidates = subs ?? [];
+function grantFrom(rows: any[], runtimeEnv: BillingEnv): ResolvedPlan {
+  const candidates = [
+    ...rows.filter((s) => s.environment === runtimeEnv),
+    // Entre ambientes, só liberação manual criada pelo painel admin (sem cobrança na Stripe).
+    ...rows.filter((s) => s.environment !== runtimeEnv && s.is_manual === true && !s.stripe_subscription_id),
+  ];
   for (const sub of candidates) {
-    const status = (sub.status as string) ?? null;
-    if (!subscriptionGrantsAccess(sub as never)) continue;
-    const plan = planFromProductId(sub.product_id as string | null);
-    if (!plan) continue;
-    const cfg = PLANS[plan];
+    if (!subscriptionGrantsAccess(sub)) continue;
     const override = (sub.max_guides_override as number | null) ?? null;
-    return { plan, status, maxGuides: override ?? cfg.maxGuides, features: { ...cfg.features } };
+    return {
+      plan: PLAN_KEY,
+      hasAccess: true,
+      status: (sub.status as string) ?? null,
+      maxGuides: override ?? UNLIMITED_GUIDES,
+      features: { ...ALL_FEATURES },
+    };
   }
   return FREE;
 }
 
+// Plano do próprio usuário pelo cliente com RLS.
+export async function resolveUserPlan(supabase: SupabaseClient, userId: string): Promise<ResolvedPlan> {
+  const { data: subs } = await supabase
+    .from("subscriptions")
+    .select(SUB_FIELDS)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  return grantFrom((subs ?? []) as any[], await getRuntimeEnv());
+}
 
 /**
- * Resolve o plano EFETIVO para uma operação. Diferente de `resolveUserPlan`
- * (que sempre olha a assinatura do próprio caller), este helper considera o
- * contexto da operação:
- *
- *  - Se `ownerId` (ou `propertyId`) apontar para outra conta e o caller for
- *    membro ativo dessa conta, retornamos o plano do DONO daquela conta.
- *  - Caso contrário, retornamos o plano do próprio caller.
- *
- * Isso garante que membros convidados operem sob o plano da conta
- * (Enterprise / Business / Pro) — nunca caindo em Free silenciosamente.
+ * Resolve o plano EFETIVO para uma operação: se `ownerId` (ou `propertyId`) aponta para outra
+ * conta e o caller é membro ativo dela, vale o plano do DONO daquela conta.
  */
 export async function resolveEffectivePlan(
   supabase: SupabaseClient,
@@ -152,6 +146,8 @@ export async function resolveEffectivePlan(
   return await resolveUserPlan(supabase, userId);
 }
 
+const NO_PLAN_MESSAGE = "Você precisa de uma assinatura ativa para usar este recurso. Assine em Administrativo › Assinatura.";
+
 export async function assertCanCreateGuide(
   supabase: SupabaseClient,
   userId: string,
@@ -159,9 +155,8 @@ export async function assertCanCreateGuide(
 ): Promise<void> {
   const targetOwner = opts?.ownerId ?? userId;
   const plan = await resolveEffectivePlan(supabase, userId, { ownerId: targetOwner });
-  if (!plan.plan) {
-    throw new Error("Você precisa de um plano ativo para criar guias. Assine em /precos.");
-  }
+  if (!plan.hasAccess) throw new Error(NO_PLAN_MESSAGE);
+  if (plan.maxGuides >= UNLIMITED_GUIDES) return;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const client = targetOwner !== userId ? supabaseAdmin : supabase;
   const { count, error } = await client
@@ -170,9 +165,7 @@ export async function assertCanCreateGuide(
     .eq("owner_id", targetOwner);
   if (error) return; // soft-fail on count errors
   if ((count ?? 0) >= plan.maxGuides) {
-    throw new Error(
-      `Limite de guias do plano ${plan.plan} atingido (${plan.maxGuides}). Faça upgrade em /precos.`,
-    );
+    throw new Error(`Limite de ${plan.maxGuides} guias definido para esta conta foi atingido. Fale com o suporte.`);
   }
 }
 
@@ -183,28 +176,12 @@ export async function assertFeature(
   opts?: { ownerId?: string | null; propertyId?: string | null },
 ): Promise<void> {
   const plan = await resolveEffectivePlan(supabase, userId, opts);
-  if (!plan.features[feature]) {
-    const labels: Record<string, string> = {
-      autoImport: "Importação automática (Airbnb)",
-      ai: "Concierge IA",
-      customBrand: "Marca personalizada",
-      guestChat: "Chat com o hóspede",
-      humanHandoff: "Atendimento humano",
-      team: "Equipe & permissões",
-      externalIntegration: "Integrações externas",
-      advancedIntake: "Captação avançada de dados",
-    };
-    throw new Error(
-      `${labels[feature] ?? "Este recurso"} não está disponível no seu plano. Faça upgrade em /precos.`,
-    );
-  }
+  if (!plan.features[feature]) throw new Error(NO_PLAN_MESSAGE);
 }
 
-
 /**
- * Resolves a property owner's plan using the service role client. For use in
- * unauthenticated public routes (guide page, public chat). Mirrors
- * resolveUserPlan but bypasses RLS by querying through supabaseAdmin.
+ * Plano do dono de uma conta pelo service role (rotas públicas: guia, chat). Cache curto,
+ * invalidado pelo webhook da Stripe e pela sincronização de anúncios.
  */
 const ownerPlanCache = new Map<string, { at: number; value: ResolvedPlan }>();
 const OWNER_PLAN_TTL = 20_000;
@@ -214,50 +191,15 @@ export function invalidateOwnerPlanCache(ownerId?: string): void {
   else ownerPlanCache.clear();
 }
 
-export async function resolveOwnerPlanAdmin(
-  supabaseAdmin: SupabaseClient,
-  ownerId: string,
-): Promise<ResolvedPlan> {
+export async function resolveOwnerPlanAdmin(supabaseAdmin: SupabaseClient, ownerId: string): Promise<ResolvedPlan> {
   const hit = ownerPlanCache.get(ownerId);
   if (hit && Date.now() - hit.at < OWNER_PLAN_TTL) return hit.value;
-  const runtimeEnv = getRuntimeEnv();
   const { data: subs } = await supabaseAdmin
     .from("subscriptions")
-    .select("status, product_id, current_period_end, trial_ends_at, environment, is_manual, max_guides_override, created_at, paddle_subscription_id")
+    .select(SUB_FIELDS)
     .eq("user_id", ownerId)
     .order("created_at", { ascending: false });
-  const list = subs ?? [];
-  const remember = (value: ResolvedPlan) => {
-    ownerPlanCache.set(ownerId, { at: Date.now(), value });
-    return value;
-  };
-  const candidates = [
-    ...list.filter((sub) => sub.environment === runtimeEnv),
-    // Concessão entre ambientes só vale para liberações manuais (evita que uma
-    // assinatura de sandbox destrave produção).
-    //
-    // 16/09/2026: `is_manual` também é gravado pelo webhook do Paddle quando o
-    // `customData.admin_created` do checkout vem true — e `customData` é
-    // montado no navegador. Um checkout de SANDBOX (cartão de teste) com essa
-    // flag virava plano pago em produção. Liberação manual de verdade é a
-    // criada pelo painel admin, cujo id sempre começa com `manual_`.
-    ...list.filter(
-      (sub) =>
-        sub.environment !== runtimeEnv &&
-        sub.is_manual === true &&
-        String(
-          (sub as { paddle_subscription_id?: string | null }).paddle_subscription_id ?? "",
-        ).startsWith("manual_"),
-    ),
-  ];
-  for (const sub of candidates) {
-    const status = (sub.status as string) ?? null;
-    if (!subscriptionGrantsAccess(sub as never)) continue;
-    const plan = planFromProductId(sub.product_id as string | null);
-    if (!plan) continue;
-    const cfg = PLANS[plan];
-    const override = (sub.max_guides_override as number | null) ?? null;
-    return remember({ plan, status, maxGuides: override ?? cfg.maxGuides, features: { ...cfg.features } });
-  }
-  return remember(FREE);
+  const value = grantFrom((subs ?? []) as any[], await getRuntimeEnv());
+  ownerPlanCache.set(ownerId, { at: Date.now(), value });
+  return value;
 }

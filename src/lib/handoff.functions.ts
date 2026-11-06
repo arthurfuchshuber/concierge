@@ -1361,7 +1361,7 @@ export const countPendingHandoffs = createServerFn({ method: "GET" })
   });
 
 // -------- Check whether current user has access to central de atendimento --------
-// (Owner com plano business/enterprise, ou membro ativo de tal owner)
+// (Owner com assinatura ativa, ou membro ativo de tal owner)
 
 export const getAtendimentoAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -1373,10 +1373,11 @@ export const getAtendimentoAccess = createServerFn({ method: "GET" })
   }))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { PLAN_KEY } = await import("@/lib/billing/plan");
     // Admin do SaaS: acesso total (inclusive ao impersonar uma conta de cliente).
     const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
     if (isAdmin === true) {
-      return { allowed: true as const, as: "admin" as const, plan: "enterprise" as const };
+      return { allowed: true as const, as: "admin" as const, plan: PLAN_KEY };
     }
     const { resolveUserPlan } = await import("@/lib/plan-guard.server");
     // Conta ativa (impersonação): o plano consultado é o dela, desde que autorizada.
@@ -1386,12 +1387,11 @@ export const getAtendimentoAccess = createServerFn({ method: "GET" })
       planOwnerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
     }
     const ownPlan = await resolveUserPlan(supabase, planOwnerId);
-    const isOwnerEligible = ownPlan.plan === "business" || ownPlan.plan === "enterprise";
-    if (isOwnerEligible) {
+    if (ownPlan.hasAccess) {
       return {
         allowed: true as const,
         as: (planOwnerId === userId ? "owner" : "member") as "owner" | "member",
-        plan: ownPlan.plan,
+        plan: PLAN_KEY,
       };
     }
     // Membro? Verifica se algum owner ativo tem plano elegível.
@@ -1409,8 +1409,8 @@ export const getAtendimentoAccess = createServerFn({ method: "GET" })
         supabaseAdmin as unknown as typeof supabase,
         m.owner_id as string,
       );
-      if (p.plan === "business" || p.plan === "enterprise") {
-        return { allowed: true as const, as: "member" as const, plan: p.plan };
+      if (p.hasAccess) {
+        return { allowed: true as const, as: "member" as const, plan: PLAN_KEY };
       }
     }
     return { allowed: false as const, as: null, plan: null };
