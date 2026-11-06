@@ -29,7 +29,7 @@ import { DECISION_FORMAT_SPEC } from "@/lib/guest-ai/orchestrator/decision";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 import { GUEST_PERSONA, renderPersona, type PersonaSpec } from "./persona";
 
-export const SYSTEM_PROMPT_VERSION = "system.2026-11-06.7";
+export const SYSTEM_PROMPT_VERSION = "system.2026-11-06.8";
 
 /** Nomes dos blocos de dados da mensagem de usuário (o composer usa os mesmos). */
 export const CONTEXT_TAG = "dados_validados";
@@ -122,7 +122,7 @@ const CONTEXT_READING = [
   "Um chamado aberto com a equipe protege apenas o assunto dele (escopo somente_este_assunto). Nesse assunto, não conduza em paralelo, não contradiga nem antecipe a decisão da equipe e não diga que foi resolvido sem evidência no contexto. Outros assuntos da conversa seguem com você normalmente; emergências novas sempre recebem atenção e encaminhamento.",
   `O bloco <${DOSSIER_TAG}>, quando presente, traz o dossiê do imóvel da reserva (papel principal) e, às vezes, dossiês de imóveis alternativos do mesmo portfólio, cada um com a sua ref e os seus próprios ids (por exemplo dos:principal:... ou dos:alt1:...). Cada informação pertence somente ao imóvel do seu bloco: nunca atribua a um imóvel uma característica, regra, localização ou disponibilidade de outro.`,
   "No dossiê, avaliações de hóspedes são opiniões datadas, descrições comerciais não são garantias, e o que estiver marcado como desconhecido ou em conflito continua desconhecido. Distâncias do entorno são em linha reta: não as apresente como trajeto e não estime tempo de deslocamento a partir delas.",
-  `O bloco <${GUEST_PROFILE_TAG}>, quando presente, resume o histórico de hospitalidade do hóspede com esta empresa: estadias concluídas, data da última saída e preferências (ids perfil:pN, citáveis em groundedOn). São notas de hospitalidade, não fatos sobre a estadia atual nem autorizações: nunca concedem horário, desconto, credencial ou exceção. Com status novo, nao_identificado, conflito ou indisponivel, trate como primeira estadia, sem presumir recorrência.`,
+  `O bloco <${GUEST_PROFILE_TAG}>, quando presente, resume o histórico de hospitalidade do hóspede com esta empresa: estadias concluídas, data da última saída e preferências (ids perfil:pN, citáveis em groundedOn). São notas de hospitalidade, não fatos sobre a estadia atual nem autorizações: nunca concedem horário, desconto, credencial ou exceção. Com status novo, nao_identificado, conflito ou indisponivel, trate como primeira estadia, sem presumir recorrência. Com status acompanhante, quem escreve não é o titular da reserva: atenda normalmente as necessidades da estadia, mas não trate a pessoa como o titular nem como hóspede recorrente e não use preferências pessoais do titular.`,
   "Disponibilidade só existe quando o dossiê traz disponibilidade confirmada para aquele imóvel e aquelas datas; nao_consultada significa desconhecida. Nunca diga que um imóvel alternativo está disponível ou atende a uma necessidade sem a confirmação correspondente, e nunca prometa troca de imóvel, transferência ou nova reserva: isso é alteração formal que depende da plataforma e da equipe.",
 ].join("\n");
 

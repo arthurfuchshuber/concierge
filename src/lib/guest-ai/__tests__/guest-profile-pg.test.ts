@@ -125,6 +125,16 @@ describe.skipIf(!PG_AVAILABLE)("Memória do hóspede · migration contra Postgre
     });
   });
 
+  it("mesmo telefone, mesmo primeiro nome e sobrenome diferente ⇒ conflito (não unifica perfis)", async () => {
+    const a = await profile(T1, "Carlos Silva");
+    const b = await profile(T1, "Carlos Junior");
+    await link(T1, a, "phone", "+5547999990010", "Carlos Silva");
+    expect(await link(T1, b, "phone", "+5547999990010", "Carlos Junior")).toEqual({
+      result: "conflict",
+    });
+    expect(await resolve(T1, null, ["+5547999990010"])).toEqual({ result: "conflict" });
+  });
+
   it("mesmo telefone com nome compatível ⇒ aponta o perfil existente (não cria vínculo duplo)", async () => {
     const a = await profile(T1, "João Pedro Alves");
     const b = await profile(T1, "joao pedro");
@@ -164,10 +174,14 @@ describe.skipIf(!PG_AVAILABLE)("Memória do hóspede · migration contra Postgre
     });
   });
 
-  it("compatibilidade de nomes: acento e caixa ignorados; palavra inteira; nome ausente nunca é compatível", async () => {
+  it("compatibilidade de nomes: correspondência substancial; só primeiro nome não basta; nome ausente nunca é compatível", async () => {
     const c = async (a: string | null, b: string | null) =>
       (await pg.sql(`select public.guest_ai_guest_name_compatible(${q(a)}, ${q(b)})`)) === "t";
     expect(await c("José Antônio", "jose antonio silva")).toBe(true);
+    expect(await c("Ana Paula Ribeiro", "Ana Souza Ribeiro")).toBe(true); // primeiro nome + sobrenome em comum
+    expect(await c("Carlos Silva", "Carlos Junior")).toBe(false); // só o primeiro nome igual não basta
+    expect(await c("Carlos", "Carlos Silva")).toBe(false); // uma palavra só não prova
+    expect(await c("Ana", "Ana")).toBe(false);
     expect(await c("Ana", "Mariana")).toBe(false);
     expect(await c("Ana Lima", "Bruno Lima")).toBe(false);
     expect(await c(null, "Ana")).toBe(false);
@@ -189,6 +203,15 @@ describe.skipIf(!PG_AVAILABLE)("Memória do hóspede · migration contra Postgre
       `insert into public.guest_ai_guest_identities (tenant_id, kind, value, canonical_id) values ('${T1}', 'phone', '47999', '${id}')`,
     );
     expect(r.ok).toBe(false);
+    for (const bad of [`internal_assessment = '[]'::jsonb`, `stay_summaries = '{}'::jsonb`])
+      expect(
+        (
+          await pg.trySql(
+            `update public.guest_ai_guest_profiles set ${bad} where canonical_id = '${id}'`,
+          )
+        ).ok,
+        bad,
+      ).toBe(false);
     const notes = await pg.trySql(
       `update public.guest_ai_guest_profiles set behavioral_notes = '{"x":1}'::jsonb where canonical_id = '${id}'`,
     );

@@ -4,13 +4,14 @@
  * Só o necessário para a hospitalidade: se o hóspede é recorrente, quantas estadias concluídas, a data da
  * última saída e as preferências consolidadas (cada uma com id citável `perfil:pN`). Nenhum nome,
  * telefone, conta, e-mail, documento ou dado financeiro. Conflito, ausência de âncora ou falha de leitura
- * ⇒ status explícito, sem preferências: o modelo trata como primeira estadia.
+ * ⇒ status explícito, sem preferências: o modelo trata como primeira estadia. Acompanhante (WhatsApp de
+ * outro número numa reserva vinculada) ⇒ sem preferências do titular e sem saudação de recorrente.
  * Notas são CONTEXTO, não autorização: nunca concedem horário, desconto, credencial ou exceção.
  */
 import type { GuestNoteCategory, GuestProfileLoad } from "@/lib/guest-ai/data/guest-profile.server";
 
 export type GuestProfileStatus =
-  "recorrente" | "novo" | "nao_identificado" | "conflito" | "indisponivel";
+  "recorrente" | "novo" | "acompanhante" | "nao_identificado" | "conflito" | "indisponivel";
 
 export interface GuestProfileContext {
   status: GuestProfileStatus;
@@ -43,6 +44,8 @@ export function buildGuestProfileContext(
       };
     case "not_found":
       return load.reason === "no_anchor" ? empty("nao_identificado") : empty("novo");
+    case "companion":
+      return empty("acompanhante");
     case "conflict":
       return empty("conflito");
     default:

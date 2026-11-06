@@ -161,47 +161,66 @@ describe("Memória do hóspede · fetchGuestProfile (duas portas)", () => {
     expect(await fetchGuestProfile(turn(), { db })).toMatchObject({ status: "found", via: "ota" });
   });
 
-  it("Porta 2 no WhatsApp: telefone da sessão identifica; número novo só pela reserva vinculada (código)", async () => {
-    const wa = turn({
-      surface: "whatsapp",
-      guestSessionId: "wa:5547999990002",
-      reservationId: null,
+  it("WhatsApp: é o titular só se o número da sessão for EXATAMENTE o telefone oficial do titular da reserva", async () => {
+    const titular = fakeDb({
+      reservation: { data: { ota_guest_id: "airbnb:777", phones: ["+55 47 99999-0002"] } },
+      identities: { data: [ident(P1, "ota", "airbnb:777")] },
+      profile: { data: profileRow() },
     });
-    const a = fakeDb({
+    const wa = turn({ surface: "whatsapp", guestSessionId: "wa:5547999990002" });
+    expect(await fetchGuestProfile(wa, { db: titular.db })).toMatchObject({
+      status: "found",
+      via: "ota",
+    });
+    // o telefone da sessão nunca é usado para procurar perfil: só as identidades do titular
+    expect(titular.calls[1]!.in).toEqual([["value", ["airbnb:777", "+5547999990002"]]]);
+  });
+
+  it("WhatsApp de outro número numa reserva vinculada pelo código ⇒ acompanhante: nenhum perfil é consultado", async () => {
+    const { db, calls } = fakeDb({
+      reservation: { data: { ota_guest_id: "airbnb:777", phones: ["5547999990002"] } },
+      identities: { data: [ident(P1, "ota", "airbnb:777"), ident(P2, "phone", "+5547900000000")] },
+      profile: { data: profileRow() },
+    });
+    const acompanhante = turn({ surface: "whatsapp", guestSessionId: "wa:5547900000000" });
+    expect(await fetchGuestProfile(acompanhante, { db })).toEqual({ status: "companion" });
+    expect(calls.map((c) => c.table)).toEqual(["property_reservations"]);
+    // reserva sem telefone do titular: ninguém pode provar ser o titular pelo WhatsApp
+    const semTelefone = fakeDb({
+      reservation: { data: { ota_guest_id: "airbnb:777", phones: [] } },
+    });
+    expect(await fetchGuestProfile(acompanhante, { db: semTelefone.db })).toEqual({
+      status: "companion",
+    });
+  });
+
+  it("WhatsApp sem reserva vinculada ⇒ sem âncora (o número da conversa nunca identifica o perfil sozinho)", async () => {
+    const { db, calls } = fakeDb({
       identities: { data: [ident(P1, "phone", "+5547999990002")] },
       profile: { data: profileRow() },
     });
-    expect(await fetchGuestProfile(wa, { db: a.db })).toMatchObject({
-      status: "found",
-      via: "phone",
-    });
-    expect(a.calls.map((c) => c.table)).toEqual([
-      "guest_ai_guest_identities",
-      "guest_ai_guest_profiles",
-    ]);
-
-    // número novo, conversa SEM reserva vinculada ⇒ não identifica
-    const b = fakeDb({ identities: { data: [] } });
     expect(
       await fetchGuestProfile(
-        turn({ surface: "whatsapp", guestSessionId: "wa:5547900000000", reservationId: null }),
-        { db: b.db },
+        turn({ surface: "whatsapp", guestSessionId: "wa:5547999990002", reservationId: null }),
+        { db },
       ),
     ).toEqual({
       status: "not_found",
-      reason: "no_profile",
+      reason: "no_anchor",
     });
-    // número novo, conversa vinculada pela reserva (código validado) ⇒ identifica pelos dados da reserva
-    const c = fakeDb({
-      reservation: { data: { ota_guest_id: null, phones: ["+55 47 99999-0002"] } },
+    expect(calls).toEqual([]);
+  });
+
+  it("Airbnb: telefone oficial do titular resolve quando a conta OTA ainda não tem identidade", async () => {
+    const { db } = fakeDb({
+      reservation: { data: { ota_guest_id: "airbnb:888", phones: ["5547999990002"] } },
       identities: { data: [ident(P1, "phone", "+5547999990002")] },
       profile: { data: profileRow() },
     });
-    expect(
-      await fetchGuestProfile(turn({ surface: "whatsapp", guestSessionId: "wa:5547900000000" }), {
-        db: c.db,
-      }),
-    ).toMatchObject({ status: "found" });
+    expect(await fetchGuestProfile(turn(), { db })).toMatchObject({
+      status: "found",
+      via: "phone",
+    });
   });
 
   it("número reciclado (identidade em conflito) ou telefones de perfis diferentes ⇒ conflict, sem perfil", async () => {
@@ -364,6 +383,7 @@ describe("Memória do hóspede · bloco do prompt", () => {
     expect(sys).toContain(`<${GUEST_PROFILE_TAG}>`);
     expect(sys).toMatch(/recorrente/);
     expect(sys).toMatch(/nunca concedem horário, desconto, credencial ou exceção/);
+    expect(sys).toMatch(/status acompanhante, quem escreve não é o titular/);
   });
 });
 

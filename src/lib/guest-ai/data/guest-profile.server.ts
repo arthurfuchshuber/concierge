@@ -1,16 +1,21 @@
 /**
- * MEMÓRIA DO HÓSPEDE — LEITURA do perfil canônico do hóspede (somente leitura, projeções próprias).
+ * MEMÓRIA DO HÓSPEDE — LEITURA do perfil canônico do TITULAR da reserva (somente leitura, projeções próprias).
  *
- * Regra das duas portas (diretriz do titular, 06/11/2026), sempre DENTRO da conta do turno (`tenantId`):
- *  - Porta 1 (plataforma): a conta do hóspede na OTA (`guest_contacts.ota_guest_id`, ex. `airbnb:<id>`) da
- *    reserva VINCULADA à conversa. Tem prioridade: identifica mesmo com outro telefone.
- *  - Porta 2 (fora da plataforma): telefones em E.164 — os da reserva vinculada e, no WhatsApp, o da sessão.
- *    Um número novo no WhatsApp só leva ao perfil quando a conversa está vinculada à reserva, e o vínculo
- *    só nasce pelo código oficial da reserva (`linkConversationByCode`). Nunca por nome ou coincidência.
- *  - Telefone marcado como conflito (número reciclado) não identifica ninguém; telefones que apontam para
- *    perfis diferentes ⇒ `conflict` (nunca se escolhe um).
- * Devolve só contagem de estadias, última saída e notas de hospitalidade: nada de nome, telefone, conta,
- * documento, e-mail ou dado financeiro. Falha de leitura (inclusive tabela ainda não criada) ⇒
+ * O perfil é exclusivo do titular (contratante). Identidades válidas são só as que a Channex entrega para
+ * ele: a conta na OTA (`guest_contacts.ota_guest_id`, ex. `airbnb:<id>`) e o telefone oficial
+ * (`guest_contacts.phones`, o `customer.phone`). Tudo dentro da conta do turno (`tenantId`).
+ *  - Âncoras SEMPRE da reserva vinculada à conversa (mesmo imóvel do turno). Sem reserva ⇒ sem âncora.
+ *  - Airbnb: quem escreve na conversa da plataforma é a conta do titular ⇒ resolve pela conta OTA e,
+ *    em seguida, pelo telefone oficial.
+ *  - WhatsApp: só é o titular se o telefone da sessão for EXATAMENTE um telefone oficial do titular da
+ *    reserva. Conversa vinculada pelo código, mas de outro número ⇒ `companion` (acompanhante): a estadia é
+ *    atendida normalmente, sem preferências pessoais e sem tratar o contato como o titular. O telefone da
+ *    sessão nunca é usado para procurar perfil nem gravado como identidade.
+ *  - Telefone em conflito (número reciclado) não identifica ninguém; telefones que apontam para perfis
+ *    diferentes ⇒ `conflict` (nunca se escolhe um).
+ * Devolve só contagem de estadias, última saída e notas de hospitalidade. A avaliação interna
+ * (`internal_assessment`) e os resumos por estadia NÃO são lidos aqui: são só para a equipe. Nada de nome,
+ * telefone, conta, e-mail ou dado financeiro. Falha de leitura (inclusive tabela ainda não criada) ⇒
  * `unavailable`, sem derrubar o turno. Só o cancelamento interrompe (`GuestAiAbortedError`).
  */
 import type { ValidatedTurn } from "@/lib/guest-ai/types";
@@ -53,6 +58,8 @@ export type GuestProfileLoad =
       notes: GuestProfileNote[];
     }
   | { status: "not_found"; reason: "no_anchor" | "no_profile" }
+  /** WhatsApp de número diferente do telefone oficial do titular da reserva vinculada. */
+  | { status: "companion" }
   | { status: "conflict" }
   | { status: "unavailable" };
 
@@ -98,31 +105,33 @@ export async function fetchGuestProfile(
     return { status: "unavailable" };
   };
   try {
-    // 1) âncoras: reserva vinculada à conversa (mesmo imóvel do turno) + telefone da sessão do WhatsApp
+    // 1) âncoras: só do TITULAR, pela reserva vinculada à conversa (mesmo imóvel do turno)
+    if (!turn.reservationId) return { status: "not_found", reason: "no_anchor" };
     let ota: string | null = null;
     const phones = new Set<string>();
-    if (turn.reservationId) {
-      const res = await db
-        .from("property_reservations")
-        .select(cols(GUEST_PROFILE_ANCHOR_COLUMNS))
-        .eq("id", turn.reservationId)
-        .eq("property_id", turn.propertyId)
-        .maybeSingle();
-      if (res.error) return unavailable();
-      const row = res.data as { ota_guest_id?: unknown; phones?: unknown } | null;
-      if (row) {
-        const o = typeof row.ota_guest_id === "string" ? row.ota_guest_id.trim().toLowerCase() : "";
-        if (OTA_ID.test(o)) ota = o;
-        if (Array.isArray(row.phones))
-          for (const p of row.phones) {
-            const n = normalizeGuestPhone(p);
-            if (n) phones.add(n);
-          }
-      }
+    const res = await db
+      .from("property_reservations")
+      .select(cols(GUEST_PROFILE_ANCHOR_COLUMNS))
+      .eq("id", turn.reservationId)
+      .eq("property_id", turn.propertyId)
+      .maybeSingle();
+    if (res.error) return unavailable();
+    const row = res.data as { ota_guest_id?: unknown; phones?: unknown } | null;
+    if (row) {
+      const o = typeof row.ota_guest_id === "string" ? row.ota_guest_id.trim().toLowerCase() : "";
+      if (OTA_ID.test(o)) ota = o;
+      if (Array.isArray(row.phones))
+        for (const p of row.phones) {
+          const n = normalizeGuestPhone(p);
+          if (n) phones.add(n);
+        }
     }
-    if (turn.surface === "whatsapp" && turn.guestSessionId.startsWith("wa:")) {
-      const n = normalizeGuestPhone(turn.guestSessionId.slice(3));
-      if (n) phones.add(n);
+    // WhatsApp: titular só se o número da sessão for um telefone oficial do titular; senão, acompanhante
+    if (turn.surface === "whatsapp") {
+      const session = turn.guestSessionId.startsWith("wa:")
+        ? normalizeGuestPhone(turn.guestSessionId.slice(3))
+        : null;
+      if (!session || !phones.has(session)) return { status: "companion" };
     }
     if (!ota && phones.size === 0) return { status: "not_found", reason: "no_anchor" };
 

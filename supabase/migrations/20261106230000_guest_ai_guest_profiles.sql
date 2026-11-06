@@ -5,10 +5,18 @@
 -- para dois perfis:
 --   · Porta 1 (dentro da plataforma): conta do hóspede na OTA, `ota` = '<ota>:<id>'. No Airbnb é o
 --     `reservation.guest_id` do payload bruto da reserva (id da conta, não da reserva).
---   · Porta 2 (fora da plataforma): telefone em E.164 (`phone` = '+<DDI><número>'), vindo da reserva.
---     Número reciclado: o mesmo telefone em perfis com nomes incompatíveis vira `conflict` e deixa de
---     identificar qualquer pessoa. Número novo no WhatsApp só entra com o código oficial da reserva
---     (resolvido pela reserva vinculada à conversa; nunca por nome ou coincidência parcial).
+--   · Porta 2 (fora da plataforma): telefone OFICIAL DO TITULAR em E.164 (`phone` = '+<DDI><número>'),
+--     o `customer.phone` da reserva na Channex. Número reciclado: o mesmo telefone em perfis com nomes
+--     incompatíveis vira `conflict` e deixa de identificar qualquer pessoa.
+-- O perfil é EXCLUSIVO DO TITULAR (contratante). Só entram identidades entregues pela Channex para o
+-- titular. Telefone de WhatsApp de quem conversa NUNCA vira identidade do perfil, nem com o código da
+-- reserva: pode ser um acompanhante. Esse número pertence só à conversa.
+-- Memória em um único registro, com partes DISTINTAS que conversam entre si:
+--   · `behavioral_notes`: notas de hospitalidade consolidadas (vão ao prompt de atendimento);
+--   · `internal_assessment`: avaliação interna consolidada (comunicação, regras e horários, cuidado com o
+--     imóvel, incidentes), SÓ para a equipe, nunca ao prompt de atendimento;
+--   · `stay_summaries`: resumo de cada estadia, gravado somente depois do checkout confirmado, com as duas
+--     partes separadas; a consolidação sempre considera este histórico.
 -- Nada de dado financeiro, pagamento, documento, e-mail ou endereço. As notas são resumo de hospitalidade.
 -- Acesso: RLS ligada e NENHUMA política; nada para anon/authenticated. Só service_role (servidor).
 -- Funções: SECURITY DEFINER, search_path fixo, EXECUTE só service_role.
@@ -20,12 +28,18 @@ create table if not exists public.guest_ai_guest_profiles (
   phones text[] not null default '{}',
   guest_name text,
   behavioral_notes jsonb not null default '[]'::jsonb,
+  internal_assessment jsonb not null default '{}'::jsonb,
+  stay_summaries jsonb not null default '[]'::jsonb,
   stay_count integer not null default 0,
   last_stay_checkout date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint guest_ai_guest_profiles_notes_shape check (
     jsonb_typeof(behavioral_notes) = 'array' and jsonb_array_length(behavioral_notes) <= 20
+  ),
+  constraint guest_ai_guest_profiles_assessment_shape check (jsonb_typeof(internal_assessment) = 'object'),
+  constraint guest_ai_guest_profiles_stays_shape check (
+    jsonb_typeof(stay_summaries) = 'array' and jsonb_array_length(stay_summaries) <= 100
   ),
   constraint guest_ai_guest_profiles_stay_count check (stay_count >= 0),
   constraint guest_ai_guest_profiles_name_len check (guest_name is null or char_length(guest_name) <= 200)
@@ -70,8 +84,10 @@ as $$
   from (select regexp_replace(regexp_replace(coalesce(p_phone, ''), '\D', '', 'g'), '^00', '') as d) s
 $$;
 
--- Nomes compatíveis: mesmo primeiro nome (sem acento, sem caixa), ou as palavras de um nome estão todas
--- no outro. Comparação por PALAVRA inteira ("Ana" não casa com "Mariana"). Nome ausente ⇒ incompatível.
+-- Nomes compatíveis só com correspondência SUBSTANCIAL (sem acento, sem caixa, por palavra inteira):
+--   · as palavras do nome menor (pelo menos duas) estão todas no outro ("João Pedro" ⊂ "João Pedro Alves"); ou
+--   · mesmo primeiro nome E pelo menos um sobrenome em comum ("Ana Paula Ribeiro" × "Ana Souza Ribeiro").
+-- Só o primeiro nome igual NÃO basta ("Carlos Silva" × "Carlos Junior"). Nome ausente ⇒ incompatível.
 create or replace function public.guest_ai_guest_name_compatible(a text, b text)
 returns boolean
 language sql
@@ -89,8 +105,9 @@ as $$
   )
   select case
     when cardinality(x) = 0 or cardinality(y) = 0 then false
-    when length(x[1]) >= 2 and x[1] = y[1] then true
-    when x <@ y or y <@ x then true
+    when least(cardinality(x), cardinality(y)) >= 2 and (x <@ y or y <@ x) then true
+    when cardinality(x) >= 2 and cardinality(y) >= 2 and x[1] = y[1]
+         and x[2:cardinality(x)] && y[2:cardinality(y)] then true
     else false
   end
   from n
