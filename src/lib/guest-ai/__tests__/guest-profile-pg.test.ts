@@ -4,6 +4,7 @@
  * por conta (tenant) e privilégios (nada para anon/authenticated). Pulado sem binários do Postgres.
  */
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PG_AVAILABLE, startCluster, type PgCluster } from "./pg/pg-cluster";
 
@@ -247,7 +248,10 @@ describe.skipIf(!PG_AVAILABLE)("Memória do hóspede · migration contra Postgre
     ).toBe("0");
   });
 
-  describe("carga do titular e resumo pós-checkout", () => {
+  describe("carga do titular, aquisição exclusiva e resumo pós-checkout", () => {
+    const PROPA = "b1000000-0000-4000-8000-0000000000a1";
+    const PROPB = "b2000000-0000-4000-8000-0000000000b2";
+    const R = (n: number) => `d0000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
     const upsert = async (
       tenant: string,
       ota: string | null,
@@ -262,38 +266,77 @@ describe.skipIf(!PG_AVAILABLE)("Memória do hóspede · migration contra Postgre
           },
         ),
       ) as { result: string; canonical_id?: string; created?: boolean; reason?: string };
+    const claim = async (res: string, tenant = T1, cap = 1, lease = 300) =>
+      JSON.parse(
+        await pg.sql(
+          `select public.guest_ai_claim_stay_memory('${res}', '${tenant}', ${lease}, 0.02, ${cap})`,
+          { role: "service_role" },
+        ),
+      ) as { result: string; token?: string; attempt?: number };
+    const finish = async (res: string, token: string, status = "done", spent = 0.001) =>
+      JSON.parse(
+        await pg.sql(
+          `select public.guest_ai_finish_stay_memory('${res}', '${token}', '${status}', 'x', ${spent})`,
+          { role: "service_role" },
+        ),
+      ) as { result: string };
     const record = async (
       tenant: string,
       id: string,
       res: string,
       checkout: string,
+      token: string | null,
       notes = "[]",
       assessment = "{}",
     ) =>
       JSON.parse(
         await pg.sql(
-          `select public.guest_ai_record_stay_summary('${tenant}', '${id}', '${res}', '${checkout}', '{"hospitalidade":[],"avaliacao":{}}'::jsonb, '${notes}'::jsonb, '${assessment}'::jsonb)`,
+          `select public.guest_ai_record_stay_summary('${tenant}', '${id}', '${res}', '${checkout}', '{"hospitalidade":[],"avaliacao":{}}'::jsonb, '${notes}'::jsonb, '${assessment}'::jsonb, ${token ? `'${token}'` : "null"})`,
           { role: "service_role" },
         ),
       ) as { result: string };
+    const pending = async () =>
+      (await pg.sql(
+        `select string_agg(reservation_id::text, ',' order by reservation_id) from public.guest_ai_pending_stay_memories(10)`,
+        {
+          role: "service_role",
+        },
+      )) || "";
 
-    it("titular novo cria perfil; a mesma conta OTA em outra reserva reaproveita (mesmo com outro telefone)", async () => {
+    beforeEach(async () => {
+      await pg.sql(`
+        create table if not exists public.property_reservations (id uuid primary key, property_id uuid, status text, checkout_date date);
+        create table if not exists public.guest_arrival_status (id uuid primary key default gen_random_uuid(), reservation_id uuid, kind text, status text, done_at timestamptz, concluded_at timestamptz, updated_at timestamptz default now());
+        truncate public.guest_arrival_status, public.property_reservations, public.guest_ai_stay_memory_runs, public.guest_ai_stay_memory_attempts;
+        delete from public.properties where id in ('${PROPA}', '${PROPB}');
+        insert into public.properties (id, owner_id) values ('${PROPA}', '${T1}'), ('${PROPB}', '${T2}');
+        insert into public.property_reservations
+          select ('d0000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, case when n = 9 then '${PROPB}'::uuid else '${PROPA}'::uuid end,
+                 case when n = 3 then 'cancelled' else 'confirmed' end, date '2026-02-01' + n
+            from generate_series(1, 9) n;
+        insert into public.guest_arrival_status (reservation_id, kind, status, done_at)
+          select id, 'checkout', 'done', checkout_date::timestamptz + interval '12 hours' from public.property_reservations;
+        update public.guest_arrival_status set status = 'pending', done_at = null where reservation_id = '${R(2)}';
+        update public.guest_arrival_status set status = 'no_show' where reservation_id = '${R(4)}';
+        update public.guest_arrival_status set kind = 'checkin' where reservation_id = '${R(5)}';`);
+    });
+
+    it("titular novo cria perfil; mesma conta OTA reaproveita (mesmo com outro telefone); outro tenant isolado", async () => {
       const a = await upsert(T1, "airbnb:555", ["5547999991001"], "Paula Nogueira");
       expect(a).toMatchObject({ result: "ok", created: true });
       const b = await upsert(T1, "airbnb:555", ["5511988880000"], "Paula Nogueira");
       expect(b).toMatchObject({ result: "ok", created: false, canonical_id: a.canonical_id });
-      expect(await resolve(T1, null, ["+5511988880000"])).toMatchObject({
-        canonical_id: a.canonical_id,
-      });
+      const c = await upsert(T2, "airbnb:555", ["5547999991001"], "Paula Nogueira");
+      expect(c).toMatchObject({ result: "ok", created: true });
+      expect(c.canonical_id).not.toBe(a.canonical_id);
     });
 
-    it("mesmo telefone com nome incompatível ⇒ perfil novo e o telefone vira conflito (número reciclado)", async () => {
+    it("número reciclado na carga: nome incompatível ⇒ perfil novo e telefone em conflito; sem âncora válida ⇒ skipped", async () => {
       const a = await upsert(T1, null, ["5547999991002"], "Renata Gomes");
       const b = await upsert(T1, null, ["5547999991002"], "Felipe Araujo");
       expect(b).toMatchObject({ result: "ok", created: true });
       expect(b.canonical_id).not.toBe(a.canonical_id);
       expect(await resolve(T1, null, ["+5547999991002"])).toEqual({ result: "conflict" });
-      // sem conta OTA e só com telefone em conflito: não cria perfil órfão
       expect(await upsert(T1, null, ["5547999991002"], "Outra Pessoa")).toEqual({
         result: "skipped",
         reason: "conflict",
@@ -304,81 +347,130 @@ describe.skipIf(!PG_AVAILABLE)("Memória do hóspede · migration contra Postgre
       });
     });
 
-    it("resumo por estadia: idempotente por reserva, contagem e última saída; partes separadas", async () => {
+    it("fila: só checkout CONFIRMADO (pendente, no-show, cancelada e cartão de check-in fora)", async () => {
+      expect(await pending()).toBe([1, 6, 7, 8, 9].map(R).join(","));
+    });
+
+    it("CONCORRÊNCIA: 8 aquisições simultâneas da mesma estadia ⇒ exatamente UMA adquire", async () => {
+      const results = await Promise.all(Array.from({ length: 8 }, () => claim(R(1))));
+      expect(results.filter((r) => r.result === "claimed")).toHaveLength(1);
+      expect(results.filter((r) => r.result === "busy")).toHaveLength(7);
+      expect(await pg.sql(`select count(*) from public.guest_ai_stay_memory_attempts`)).toBe("1");
+      expect(await pending()).not.toContain(R(1)); // em processamento com posse válida: fora da lista
+    });
+
+    it("CONCORRÊNCIA × teto diário: reservas simultâneas nunca ultrapassam o teto", async () => {
+      // teto 0,05 ⇒ no máximo 2 reservas de 0,02 em curso ao mesmo tempo
+      const results = await Promise.all([1, 6, 7, 8].map((n) => claim(R(n), T1, 0.05)));
+      expect(results.filter((r) => r.result === "claimed")).toHaveLength(2);
+      expect(results.filter((r) => r.result === "budget_daily_exceeded")).toHaveLength(2);
+      expect(
+        await pg.sql(`select sum(reserved_usd) from public.guest_ai_stay_memory_attempts`),
+      ).toBe("0.040000");
+    });
+
+    it("posse: só quem tem o token grava/encerra; posse vencida é recuperada e o atrasado não grava", async () => {
       const { canonical_id: id } = await upsert(T1, "airbnb:556", [], "Tiago Prado");
-      const r1 = "c1000000-0000-4000-8000-000000000001";
-      const r2 = "c1000000-0000-4000-8000-000000000002";
+      const first = await claim(R(1));
+      expect(await finish(R(1), "00000000-0000-4000-8000-000000000000")).toEqual({
+        result: "lease_lost",
+      });
+      expect(await record(T1, id!, R(1), "2026-02-02", null)).toEqual({ result: "lease_lost" });
+      // worker 1 travou: posse vence
+      await pg.sql(
+        `update public.guest_ai_stay_memory_runs set lease_expires_at = now() - interval '1 second' where reservation_id = '${R(1)}'`,
+      );
+      expect(await pending()).toContain(R(1));
+      const second = await claim(R(1));
+      expect(second).toMatchObject({ result: "claimed", attempt: 2 });
+      expect(
+        await pg.sql(
+          `select string_agg(outcome || ':' || spent_usd, ',' order by attempt) from public.guest_ai_stay_memory_attempts`,
+        ),
+      ).toBe("abandoned:0.020000");
+      expect(await record(T1, id!, R(1), "2026-02-02", first.token!)).toEqual({
+        result: "lease_lost",
+      });
+      expect(await record(T1, id!, R(1), "2026-02-02", second.token!)).toEqual({
+        result: "recorded",
+      });
+      expect(await finish(R(1), second.token!)).toEqual({ result: "finished" });
+      expect(await claim(R(1))).toEqual({ result: "completed" });
+      expect(await pending()).not.toContain(R(1));
+      expect(
+        await pg.sql(
+          `select stay_count from public.guest_ai_guest_profiles where canonical_id = '${id}'`,
+        ),
+      ).toBe("1");
+    });
+
+    it("idempotência: mesma estadia nunca gera duas memórias; contagem e última saída; partes separadas", async () => {
+      const { canonical_id: id } = await upsert(T1, "airbnb:557", [], "Lia Prado");
+      const a = await claim(R(6));
       expect(
         await record(
           T1,
           id!,
-          r1,
-          "2026-03-10",
+          R(6),
+          "2026-02-07",
+          a.token!,
           '[{"categoria":"preferencia","texto":"Gosta de café"}]',
           '{"comunicacao":{"nivel":"positivo"}}',
         ),
       ).toEqual({ result: "recorded" });
-      expect(await record(T1, id!, r1, "2026-03-10")).toEqual({ result: "exists" });
-      expect(await record(T1, id!, r2, "2026-01-05")).toEqual({ result: "recorded" });
+      expect(await record(T1, id!, R(6), "2026-02-07", a.token!)).toEqual({ result: "exists" });
+      await finish(R(6), a.token!);
+      const b = await claim(R(1));
+      expect(await record(T1, id!, R(1), "2026-02-02", b.token!)).toEqual({ result: "recorded" });
       expect(
         await pg.sql(
-          `select stay_count || '|' || last_stay_checkout || '|' || jsonb_array_length(stay_summaries) from public.guest_ai_guest_profiles where canonical_id = '${id}'`,
+          `select stay_count || '|' || last_stay_checkout || '|' || jsonb_array_length(stay_summaries) || '|' || (behavioral_notes = '[]'::jsonb) || '|' || (internal_assessment ? 'comunicacao') from public.guest_ai_guest_profiles where canonical_id = '${id}'`,
         ),
-      ).toBe("2|2026-03-10|2");
-      expect(await record(T2, id!, r1, "2026-03-10")).toEqual({
-        result: "invalid",
-        reason: "profile",
-      });
-      expect(
-        await record(T1, id!, "c1000000-0000-4000-8000-000000000003", "2026-03-11", '{"x":1}'),
-      ).toMatchObject({ result: "invalid" });
+      ).toBe("2|2026-02-07|2|true|false"); // o consolidado é substituído a cada estadia pelo que o processo reconsolidou
+      expect(await record(T2, id!, R(1), "2026-02-02", b.token!)).toEqual({ result: "lease_lost" });
     });
 
-    it("fila: só checkout CONFIRMADO (no-show e cancelada fora), uma vez; falha tenta até 3 vezes", async () => {
-      await pg.sql(`
-        create table if not exists public.property_reservations (id uuid primary key, property_id uuid, status text, checkout_date date);
-        create table if not exists public.guest_arrival_status (id uuid primary key default gen_random_uuid(), reservation_id uuid, kind text, status text, done_at timestamptz, concluded_at timestamptz, updated_at timestamptz default now());
-        truncate public.guest_arrival_status, public.property_reservations, public.guest_ai_stay_memory_runs;
-        delete from public.properties where id in ('b1000000-0000-4000-8000-0000000000a1');
-        insert into public.properties (id, owner_id) values ('b1000000-0000-4000-8000-0000000000a1', '${T1}');
-        insert into public.property_reservations values
-          ('d0000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-0000000000a1', 'confirmed', '2026-02-01'),
-          ('d0000000-0000-4000-8000-000000000002', 'b1000000-0000-4000-8000-0000000000a1', 'confirmed', '2026-02-02'),
-          ('d0000000-0000-4000-8000-000000000003', 'b1000000-0000-4000-8000-0000000000a1', 'cancelled', '2026-02-03'),
-          ('d0000000-0000-4000-8000-000000000004', 'b1000000-0000-4000-8000-0000000000a1', 'confirmed', '2026-02-04'),
-          ('d0000000-0000-4000-8000-000000000005', 'b1000000-0000-4000-8000-0000000000a1', 'confirmed', '2026-02-05');
-        insert into public.guest_arrival_status (reservation_id, kind, status, done_at) values
-          ('d0000000-0000-4000-8000-000000000001', 'checkout', 'done', '2026-02-01 12:00+00'),
-          ('d0000000-0000-4000-8000-000000000002', 'checkout', 'pending', null),
-          ('d0000000-0000-4000-8000-000000000003', 'checkout', 'done', '2026-02-03 12:00+00'),
-          ('d0000000-0000-4000-8000-000000000004', 'checkout', 'no_show', '2026-02-04 12:00+00'),
-          ('d0000000-0000-4000-8000-000000000005', 'checkin', 'done', '2026-02-05 12:00+00');`);
-      const pending = async () =>
-        (await pg.sql(
-          `select string_agg(reservation_id::text || ':' || tenant_id::text, ',') from public.guest_ai_pending_stay_memories(10)`,
-          { role: "service_role" },
-        )) || "";
-      expect(await pending()).toBe(`d0000000-0000-4000-8000-000000000001:${T1}`);
-      const mark = (status: string) =>
-        pg.sql(
-          `select public.guest_ai_mark_stay_memory('d0000000-0000-4000-8000-000000000001', '${T1}', '${status}', 'x')`,
-          { role: "service_role" },
-        );
-      await mark("failed");
-      await mark("failed");
-      expect(await pending()).not.toBe("");
-      await mark("failed");
-      expect(await pending()).toBe(""); // 3 tentativas
-      await pg.sql(`delete from public.guest_ai_stay_memory_runs`);
-      await mark("done");
-      expect(await pending()).toBe("");
-      expect(
-        (
-          await pg.trySql(`select * from public.guest_ai_pending_stay_memories(10)`, {
-            role: "authenticated",
-          })
-        ).ok,
-      ).toBe(false);
+    it("no máximo 3 tentativas; reserva de outro tenant é recusada; argumentos inválidos recusados", async () => {
+      for (let i = 0; i < 3; i++) {
+        const c = await claim(R(7));
+        expect(c.result).toBe("claimed");
+        await finish(R(7), c.token!, "failed", 0.001);
+      }
+      expect(await claim(R(7))).toEqual({ result: "exhausted" });
+      expect(await pending()).not.toContain(R(7));
+      expect(await claim(R(9), T1)).toEqual({ result: "invalid", reason: "scope" }); // R9 é de T2
+      expect((await claim(R(8), T1, 1, 5)).result).toBe("invalid"); // lease < 60 s
+      const big = JSON.parse(
+        await pg.sql(`select public.guest_ai_claim_stay_memory('${R(8)}', '${T1}', 300, 0.5, 1)`, {
+          role: "service_role",
+        }),
+      );
+      expect(big.result).toBe("invalid"); // reserva acima do teto por estadia
+    });
+
+    it("privilégios: anon/authenticated não adquirem, não gravam e não leem a fila", async () => {
+      for (const role of ["anon", "authenticated"]) {
+        expect(
+          (
+            await pg.trySql(
+              `select public.guest_ai_claim_stay_memory('${R(1)}', '${T1}', 300, 0.02, 1)`,
+              { role },
+            )
+          ).ok,
+        ).toBe(false);
+        expect(
+          (await pg.trySql(`select * from public.guest_ai_pending_stay_memories(10)`, { role })).ok,
+        ).toBe(false);
+        expect(
+          (await pg.trySql(`select count(*) from public.guest_ai_stay_memory_attempts`, { role }))
+            .ok,
+        ).toBe(false);
+      }
+    });
+
+    it("a migration estrutural NÃO agenda nem ativa nada (sem cron, sem net.http, sem chamada ao worker)", () => {
+      const sql = readFileSync(MIGRATION, "utf8").replace(/^--.*$/gm, "");
+      expect(sql).not.toMatch(/cron\.|net\.http|pg_net|http_post|guest-memory/i);
     });
   });
 });

@@ -78,11 +78,65 @@ export const LIMITS = Object.freeze({
 });
 
 /**
- * Rede de segurança do ISOLAMENTO: a parte de hospitalidade nunca pode carregar julgamento, incidente, dano,
- * cobrança ou avaliação (isso é da equipe). Notas com esses termos são descartadas da hospitalidade.
+ * Rede de segurança do ISOLAMENTO (conservadora). A hospitalidade não pode carregar julgamento, incidente,
+ * dano, problema operacional, acusação, conflito, dado financeiro, credencial ou contato. O texto é
+ * normalizado (sem acento, minúsculas) e comparado por FAMÍLIAS de radicais em português, inglês e espanhol
+ * (paráfrases e flexões), além de números longos e valores. Qualquer acerto ⇒ a nota NÃO entra em
+ * `behavioral_notes` (na dúvida, não registra).
  */
-export const ASSESSMENT_LEAK =
-  /\b(dano|danos|danific\w*|quebr(ou|ado|ada|aram)\w*|incidente\w*|multa\w*|reclama\w*|infra[cç][aã]o|advert\w*|avalia[cç][aã]o|n[aã]o recomend\w*|problem[aá]tic\w*|cobran[cç]a\w*|preju[ií]zo\w*|desrespeit\w*|mal[- ]educad\w*|grosseir\w*|agressiv\w*|insistent\w*|sem avisar)\b/i;
+const RISK_FAMILIES: ReadonlyArray<readonly [string, RegExp]> = [
+  [
+    "dano",
+    /\b(dan[oi]\w*|danific\w*|estrag\w*|quebr\w*|rachad\w*|trinc\w*|amass\w*|risc(ou|ado|ada|aram)\b|manch\w*|rasg\w*|avari\w*|conserto\w*|reparo\w*|repar(ar|ou)\b|ressarc\w*|indeniz\w*|prejuiz\w*|perd(eu|ido|ida)\b|sumi(u|ram|do|da)\b|extravi\w*|damag\w*|broke\w*|broken|stain\w*|ruin\w*|da[nñ]ad\w*|romp\w*|rot[oa]s?\b)/,
+  ],
+  [
+    "incidente",
+    /\b(incident\w*|ocorrenci\w*|problem\w*|confus\w*|transtorn\w*|imprevist\w*|festa\w*|barulh\w*|ruido\w*|vizinh\w*|policia\w*|seguranca do condominio|sindic\w*|portaria reclam\w*|noise|party|complain\w*|issue\w*|trouble\w*|incidencia\w*)/,
+  ],
+  [
+    "operacional",
+    /\b(vazament\w*|infiltra\w*|goteira\w*|entupi\w*|sem (agua|luz|energia|internet)|falta de (agua|luz|energia)|queda de (energia|internet)|nao funcion\w*|parou de funcionar|defeit\w*|pane\w*|chuveiro frio|leak\w*|outage)/,
+  ],
+  [
+    "acusacao",
+    /\b(acus\w*|culp\w*|suspeit\w*|roub\w*|furt\w*|levou (o|a|os|as)\b|mentiu|mentira\w*|fraud\w*|golpe\w*|desonest\w*|steal\w*|stole\w*|thief|accus\w*|blame\w*)/,
+  ],
+  [
+    "conflito",
+    /\b(conflit\w*|desentend\w*|discuss(ao|oes|iu|ao)\b|brig\w*|hostil\w*|agressiv\w*|grosse\w*|rude\w*|mal[- ]?educad\w*|ofens\w*|ameac\w*|xing\w*|desrespeit\w*|insistent\w*|insistiu|exigent\w*|dificil|chat[oa]s?\b|reclamao|reclam\w*|irritad\w*|nervos[oa]\w*|abusiv\w*|argument\w*|angry|rude|hostile|threat\w*)/,
+  ],
+  [
+    "avaliacao",
+    /\b(avalia\w*|nota\b|recomend\w*|bloque\w*|evitar|cuidado com (ele|ela|este|esta|o hospede|a hospede)|nao aceitar|nao hospedar|lista negra|problemati\w*|advert\w*|penalid\w*|infrac\w*|infrin\w*|violou|descumpri\w*|sem avis\w*|nao avis\w*|atras(o|ou|ada|ado)\b|fora do horario|antes do horario|depois do horario|review\w*|rating\w*|blacklist\w*|warning\w*)/,
+  ],
+  [
+    "financeiro",
+    /(r\$|us\$|u\$s|€|\$\s?\d|\b\d+[.,]?\d*\s?(reais|real|dolares|dolar|euros?|usd|brl)\b|\b(pag(ou|ar|amento|o)\w*|cobr\w*|multa\w*|taxa\w*|tarifa\w*|caucao|deposito\w*|reembols\w*|estorn\w*|divida\w*|devendo|inadimpl\w*|desconto\w*|preco\w*|valor(es)?\b|cartao\w*|pix\b|boleto\w*|fatura\w*|gorjeta\w*|dinheiro|refund\w*|charge\w*|fee\b|fees\b|paid|payment\w*|discount\w*|price\w*))/,
+  ],
+  [
+    "credencial",
+    /\b(senha\w*|codigo\w*|pin\b|password\w*|passcode\w*|chave(s)? (da|do|de) (porta|portao|cofre|caixa)|cofre\w*|lockbox|token\w*|contrasena\w*|clave\w*)/,
+  ],
+  [
+    "contato",
+    /(@|https?:\/\/|www\.|\b(telefone|celular|whats\s?app|e-?mail|cpf|rg|passaporte|documento|endereco)\b)/,
+  ],
+  ["numero_longo", /\d[\d\s.-]{3,}\d/],
+];
+
+function normalizeForRisk(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+/** Família de risco encontrada no texto (ou `null`). Usada para barrar a hospitalidade. */
+export function hospitalityRisk(text: string): string | null {
+  const t = normalizeForRisk(text);
+  for (const [name, re] of RISK_FAMILIES) if (re.test(t)) return name;
+  return null;
+}
 
 const str = (v: unknown, max: number): string =>
   typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "";
@@ -133,7 +187,7 @@ export function sanitizeHospitalityNotes(raw: unknown): HospitalityNote[] {
     if (out.length >= LIMITS.notes) break;
     const o = n && typeof n === "object" ? (n as Record<string, unknown>) : null;
     const text = scrubText(str(o?.["texto"], LIMITS.noteChars));
-    if (!text || ASSESSMENT_LEAK.test(text)) continue;
+    if (!text || hospitalityRisk(text)) continue;
     out.push({ categoria: category(o?.["categoria"]), texto: text });
   }
   return out;
@@ -174,7 +228,7 @@ export function validateStayMemoryOutput(
     const o = item && typeof item === "object" ? (item as Record<string, unknown>) : null;
     const ev = evidence(o?.["evidencias"], refs);
     const text = scrubText(str(o?.["texto"], LIMITS.noteChars));
-    if (!text || ev.length === 0 || ASSESSMENT_LEAK.test(text)) continue;
+    if (!text || ev.length === 0 || hospitalityRisk(text)) continue;
     hospitalidade.push({ categoria: category(o?.["categoria"]), texto: text, evidencias: ev });
   }
 

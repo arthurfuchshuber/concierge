@@ -1,18 +1,21 @@
 /**
  * MEMÓRIA DO HÓSPEDE · processo ASSÍNCRONO pós-checkout (diretriz do titular, 06/11/2026).
  *
- * Cada execução (cron horário + carga retroativa, o mesmo caminho idempotente):
- *  1. pega as estadias com CHECKOUT CONFIRMADO no sistema ainda sem memória (`guest_ai_pending_stay_memories`,
- *     mais antigas primeiro, até `limit`);
- *  2. garante o perfil do TITULAR pelas identidades da Channex (conta OTA e telefone oficial); a conta OTA de
- *     reservas antigas é recuperada do payload bruto da Channex e gravada em `guest_contacts.ota_guest_id`;
- *  3. lê a conversa da reserva (titular, acompanhante, equipe, notas internas) e os fatos objetivos;
- *  4. UMA chamada ao modelo, com custo por chamada limitado ANTES da rede, resume a estadia e reconsolida a
- *     memória com o histórico do hóspede;
- *  5. grava atomicamente: resumo da estadia (duas partes separadas), `behavioral_notes` (hospitalidade) e
- *     `internal_assessment` (só equipe).
+ * Cada execução (o mesmo caminho idempotente serve à carga retroativa, quando autorizada):
+ *  1. FAIL-CLOSED: só executa com `GUEST_MEMORY_WORKER=on` (exatamente) e teto diário válido em
+ *     `GUEST_MEMORY_DAILY_COST_USD`; a configuração é validada antes de qualquer consulta ou chamada;
+ *  2. lista estadias com CHECKOUT CONFIRMADO ainda sem memória (até 10, mais antigas primeiro);
+ *  3. ADQUIRE cada estadia de forma exclusiva e atômica (`guest_ai_claim_stay_memory`): posse com prazo,
+ *     recuperação de posse abandonada, até 3 tentativas, reserva do pior caso de custo no teto diário do
+ *     banco (inclusive de tentativas concorrentes e interrompidas) e teto por execução;
+ *  4. garante o perfil do TITULAR pelas identidades da Channex; reservas antigas recuperam a conta OTA do
+ *     payload bruto da Channex (só o id; nada mais do payload é usado);
+ *  5. lê a conversa da reserva (titular, acompanhante, equipe, notas internas) e os fatos de horário;
+ *  6. UMA chamada ao modelo, com teto do pior caso conferido ANTES da rede;
+ *  7. grava (só quem detém a posse vigente) o resumo da estadia e a memória consolidada, com
+ *     `behavioral_notes` (hospitalidade) e `internal_assessment` (só equipe) separados.
  * Roda mesmo com a equipe no comando (`ai_paused`): é resumo, não resposta ao hóspede. Nunca envia nada a
- * ninguém. `GUEST_MEMORY_WORKER=off` desliga. Falha de uma estadia não para as outras (até 3 tentativas).
+ * ninguém. Logs só com códigos (nunca conteúdo da conversa, das notas ou da avaliação).
  */
 import { generateGuestLlm } from "@/lib/guest-ai/llm/gateway.server";
 import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
@@ -38,10 +41,58 @@ import {
   type StaySpeaker,
 } from "./prompt";
 
+/** Teto do PIOR CASO por estadia, já contando a nova tentativa interna do Gateway (2 tentativas). */
 export const GUEST_MEMORY_MAX_CALL_COST_USD = 0.02;
+export const GUEST_MEMORY_GATEWAY_ATTEMPTS = 2;
 export const GUEST_MEMORY_MAX_OUTPUT_TOKENS = 2_048;
+/** Até 10 estadias por execução (limite homologado). */
 export const GUEST_MEMORY_DEFAULT_LIMIT = 10;
+export const GUEST_MEMORY_MAX_LIMIT = 10;
 export const GUEST_MEMORY_MAX_MESSAGES = 400;
+/** Prazo de posse de uma estadia (s). Vencido, outro worker pode recuperar (a tentativa conta). */
+export const GUEST_MEMORY_LEASE_SECONDS = 300;
+export const GUEST_MEMORY_MAX_DAILY_CAP_USD = 10;
+
+export interface GuestMemoryConfig {
+  enabled: true;
+  dailyCapUsd: number;
+  limit: number;
+  runBudgetUsd: number;
+}
+
+/**
+ * Configuração FAIL-CLOSED: `null` ⇒ não executa. Habilita só com `GUEST_MEMORY_WORKER` exatamente `on` e
+ * `GUEST_MEMORY_DAILY_COST_USD` numérico em (0, 10]. Ausente, vazio, `off`, `ON`, `true`, ` on`… ⇒ desligado.
+ */
+export function guestMemoryConfig(
+  env: Record<string, string | undefined>,
+  limit?: number,
+): GuestMemoryConfig | null {
+  if (env["GUEST_MEMORY_WORKER"] !== "on") return null;
+  const rawCap = env["GUEST_MEMORY_DAILY_COST_USD"];
+  if (typeof rawCap !== "string" || !/^\d+(\.\d+)?$/.test(rawCap)) return null;
+  const cap = Number(rawCap);
+  if (!Number.isFinite(cap) || cap <= 0 || cap > GUEST_MEMORY_MAX_DAILY_CAP_USD) return null;
+  const want =
+    typeof limit === "number" && Number.isFinite(limit)
+      ? Math.floor(limit)
+      : GUEST_MEMORY_DEFAULT_LIMIT;
+  const n = Math.max(1, Math.min(GUEST_MEMORY_MAX_LIMIT, want));
+  return {
+    enabled: true,
+    dailyCapUsd: cap,
+    limit: n,
+    runBudgetUsd: Math.min(cap, n * GUEST_MEMORY_MAX_CALL_COST_USD),
+  };
+}
+
+/** WhatsApp de número que não é telefone oficial do titular ⇒ acompanhante (nunca vira preferência do titular). */
+export function isCompanionSession(sessionId: string, titularPhones: readonly string[]): boolean {
+  if (!sessionId.startsWith("wa:")) return false;
+  const norm = (v: string) => v.replace(/\D/g, "").replace(/^00/, "");
+  const session = norm(sessionId.slice(3));
+  return !session || !titularPhones.some((p) => norm(p) === session);
+}
 
 export interface PendingStay {
   reservationId: string;
@@ -71,9 +122,18 @@ export interface ProfileMemory {
   stays: Array<Pick<StaySummary, "hospitalidade" | "avaliacao"> & { checkout_date?: string }>;
 }
 
+export type ClaimResult =
+  | { kind: "claimed"; token: string; attempt: number }
+  | { kind: "completed" | "busy" | "exhausted" | "budget_daily_exceeded" | "invalid" };
+
 /** Acesso a dados do processo (Supabase em produção; memória nos testes). */
 export interface GuestMemoryStore {
   pending(limit: number): Promise<PendingStay[]>;
+  /** Aquisição exclusiva e atômica, com reserva de custo no teto diário. */
+  claim(
+    stay: PendingStay,
+    opts: { leaseSeconds: number; reserveUsd: number; dailyCapUsd: number },
+  ): Promise<ClaimResult>;
   material(stay: PendingStay): Promise<StayMaterial | null>;
   upsertTitular(
     tenantId: string,
@@ -87,14 +147,16 @@ export interface GuestMemoryStore {
     canonicalId: string;
     reservationId: string;
     checkoutDate: string;
+    token: string;
     result: StayMemoryResult;
-  }): Promise<"recorded" | "exists" | "invalid">;
-  mark(
+  }): Promise<"recorded" | "exists" | "lease_lost" | "invalid">;
+  finish(
     reservationId: string,
-    tenantId: string,
+    token: string,
     status: "done" | "skipped" | "failed",
     reason: string,
-  ): Promise<void>;
+    spentUsd: number,
+  ): Promise<"finished" | "lease_lost" | "invalid">;
 }
 
 export interface GuestMemoryCycleDeps {
@@ -112,6 +174,8 @@ export interface GuestMemoryCycleResult {
   recorded: number;
   skipped: number;
   failed: number;
+  notClaimed: number;
+  stoppedBy: "none" | "run_budget" | "daily_budget";
   costUsd: number;
 }
 
@@ -119,30 +183,61 @@ export interface GuestMemoryCycleResult {
 export async function runGuestMemoryCycle(
   deps: GuestMemoryCycleDeps,
 ): Promise<GuestMemoryCycleResult> {
-  const env = deps.env ?? process.env;
   const result: GuestMemoryCycleResult = {
     status: "ran",
     processed: 0,
     recorded: 0,
     skipped: 0,
     failed: 0,
+    notClaimed: 0,
+    stoppedBy: "none",
     costUsd: 0,
   };
-  if (env["GUEST_MEMORY_WORKER"] === "off") return { ...result, status: "off" };
+  // FAIL-CLOSED: nada é consultado, adquirido ou chamado sem configuração explícita e válida
+  const cfg = guestMemoryConfig(deps.env ?? process.env, deps.limit);
+  if (!cfg) return { ...result, status: "off" };
   const log = deps.log ?? ((e) => console.info("[guest-memory]", JSON.stringify(e)));
   const modelId = deps.modelId ?? GUEST_AI_DEFAULT_MODEL;
-  const limit = Math.max(1, Math.min(50, Math.floor(deps.limit ?? GUEST_MEMORY_DEFAULT_LIMIT)));
-  const pending = await deps.store.pending(limit);
+  const pending = await deps.store.pending(cfg.limit);
+  let reservedThisRun = 0;
 
-  for (const stay of pending) {
+  for (const stay of pending.slice(0, cfg.limit)) {
+    // teto por execução: reserva o pior caso ANTES de adquirir a estadia
+    if (reservedThisRun + GUEST_MEMORY_MAX_CALL_COST_USD > cfg.runBudgetUsd + 1e-9) {
+      result.stoppedBy = "run_budget";
+      break;
+    }
+    let claim: ClaimResult;
+    try {
+      claim = await deps.store.claim(stay, {
+        leaseSeconds: GUEST_MEMORY_LEASE_SECONDS,
+        reserveUsd: GUEST_MEMORY_MAX_CALL_COST_USD,
+        dailyCapUsd: cfg.dailyCapUsd,
+      });
+    } catch {
+      claim = { kind: "invalid" };
+    }
+    if (claim.kind === "budget_daily_exceeded") {
+      result.stoppedBy = "daily_budget";
+      log({ reservation: stay.reservationId, status: "not_claimed", reason: claim.kind });
+      break;
+    }
+    if (claim.kind !== "claimed") {
+      result.notClaimed += 1;
+      log({ reservation: stay.reservationId, status: "not_claimed", reason: claim.kind });
+      continue;
+    }
+    const lease = claim;
+    reservedThisRun += GUEST_MEMORY_MAX_CALL_COST_USD;
     result.processed += 1;
+    let spent = 0;
     const done = async (status: "done" | "skipped" | "failed", reason: string) => {
       if (status === "done") result.recorded += 1;
       else if (status === "skipped") result.skipped += 1;
       else result.failed += 1;
-      log({ reservation: stay.reservationId, status, reason });
+      log({ reservation: stay.reservationId, attempt: lease.attempt, status, reason });
       await deps.store
-        .mark(stay.reservationId, stay.tenantId, status, reason)
+        .finish(stay.reservationId, lease.token, status, reason, Math.round(spent * 1e6) / 1e6)
         .catch(() => undefined);
     };
     try {
@@ -189,20 +284,20 @@ export async function runGuestMemoryCycle(
           },
         };
       } else {
-        const facts = deriveStayFacts(m);
         const prompt = buildStayMemoryPrompt(
           {
             previousNotes: profile.notes,
             previousAssessment: profile.assessment,
             previousStays: profile.stays,
             stay: { checkinDate: m.checkinDate, checkoutDate: m.checkoutDate },
-            facts,
+            facts: deriveStayFacts(m),
             messages: m.messages.slice(-GUEST_MEMORY_MAX_MESSAGES),
           },
           {
             modelId,
             maxOutputTokens: GUEST_MEMORY_MAX_OUTPUT_TOKENS,
-            maxCallCostUsd: GUEST_MEMORY_MAX_CALL_COST_USD,
+            // o teto vale para o pior caso das DUAS tentativas que o Gateway pode fazer
+            maxCallCostUsd: GUEST_MEMORY_MAX_CALL_COST_USD / GUEST_MEMORY_GATEWAY_ATTEMPTS,
           },
         );
         if (!prompt) {
@@ -221,7 +316,8 @@ export async function runGuestMemoryCycle(
           },
           { provider: deps.provider },
         );
-        result.costUsd += llm.telemetry.costUsd;
+        spent = llm.telemetry.costUsd;
+        result.costUsd += spent;
         if (!llm.ok) {
           await done("failed", `llm_${llm.error.code}`);
           continue;
@@ -241,9 +337,10 @@ export async function runGuestMemoryCycle(
         canonicalId: titular.canonicalId,
         reservationId: stay.reservationId,
         checkoutDate: stay.checkoutDate,
+        token: lease.token,
         result: memory,
       });
-      await done(rec === "invalid" ? "failed" : "done", rec);
+      await done(rec === "recorded" || rec === "exists" ? "done" : "failed", rec);
     } catch {
       await done("failed", "internal_error");
     }
@@ -325,12 +422,8 @@ export function createSupabaseGuestMemoryStore(admin: Admin): GuestMemoryStore {
         ota = raw
           ? otaGuestAccountId({ ota_name: raw.ota_name, raw_message: raw.raw_message })
           : null;
-        if (ota) {
-          await admin
-            .from("property_reservations")
-            .update({ guest_contacts: { ...contacts, ota_guest_id: ota } })
-            .eq("id", stay.reservationId);
-        }
+        // a conta recuperada é usada só neste processamento: a reserva NÃO é regravada (evita corrida com o
+        // webhook da Channex, que já grava `ota_guest_id` nas reservas novas)
       }
       const phones = Array.isArray(contacts["phones"])
         ? (contacts["phones"] as unknown[]).filter((p): p is string => typeof p === "string")
@@ -358,7 +451,6 @@ export function createSupabaseGuestMemoryStore(admin: Admin): GuestMemoryStore {
         .select("id, guest_session_id")
         .eq("reservation_id", stay.reservationId)
         .eq("property_id", stay.propertyId);
-      const titularPhones = new Set(phones.map((p) => p.replace(/\D/g, "").replace(/^00/, "")));
       const companionConv = new Set<string>();
       const channelOf = new Map<string, string>();
       for (const c of (convs ?? []) as Array<{ id: string; guest_session_id: string | null }>) {
@@ -367,12 +459,7 @@ export function createSupabaseGuestMemoryStore(admin: Admin): GuestMemoryStore {
           c.id,
           sid.startsWith("wa:") ? "whatsapp" : sid.startsWith("airbnb:") ? "airbnb" : "guia",
         );
-        // WhatsApp de número que não é o telefone oficial do titular ⇒ acompanhante
-        if (
-          sid.startsWith("wa:") &&
-          !titularPhones.has(sid.slice(3).replace(/\D/g, "").replace(/^00/, ""))
-        )
-          companionConv.add(c.id);
+        if (isCompanionSession(sid, phones)) companionConv.add(c.id);
       }
       let messages: StayMessage[] = [];
       const ids = [...channelOf.keys()];
@@ -460,7 +547,29 @@ export function createSupabaseGuestMemoryStore(admin: Admin): GuestMemoryStore {
       };
     },
 
-    async record({ tenantId, canonicalId, reservationId, checkoutDate, result }) {
+    async claim(stay, opts) {
+      const { data, error } = await admin.rpc("guest_ai_claim_stay_memory", {
+        p_reservation_id: stay.reservationId,
+        p_tenant_id: stay.tenantId,
+        p_lease_seconds: opts.leaseSeconds,
+        p_reserve_usd: opts.reserveUsd,
+        p_daily_cap_usd: opts.dailyCapUsd,
+      });
+      if (error || !data || typeof data !== "object") return { kind: "invalid" };
+      const d = data as { result?: string; token?: string; attempt?: number };
+      if (d.result === "claimed" && typeof d.token === "string")
+        return { kind: "claimed", token: d.token, attempt: Number(d.attempt ?? 0) };
+      if (
+        d.result === "completed" ||
+        d.result === "busy" ||
+        d.result === "exhausted" ||
+        d.result === "budget_daily_exceeded"
+      )
+        return { kind: d.result };
+      return { kind: "invalid" };
+    },
+
+    async record({ tenantId, canonicalId, reservationId, checkoutDate, token, result }) {
       const { data, error } = await admin.rpc("guest_ai_record_stay_summary", {
         p_tenant_id: tenantId,
         p_canonical_id: canonicalId,
@@ -469,19 +578,24 @@ export function createSupabaseGuestMemoryStore(admin: Admin): GuestMemoryStore {
         p_summary: result.summary,
         p_behavioral_notes: result.behavioralNotes,
         p_internal_assessment: result.internalAssessment,
+        p_lease_token: token,
       });
       if (error || !data) return "invalid";
       const r = (data as { result?: string }).result;
-      return r === "recorded" || r === "exists" ? r : "invalid";
+      return r === "recorded" || r === "exists" || r === "lease_lost" ? r : "invalid";
     },
 
-    async mark(reservationId, tenantId, status, reason) {
-      await admin.rpc("guest_ai_mark_stay_memory", {
+    async finish(reservationId, token, status, reason, spentUsd) {
+      const { data, error } = await admin.rpc("guest_ai_finish_stay_memory", {
         p_reservation_id: reservationId,
-        p_tenant_id: tenantId,
+        p_token: token,
         p_status: status,
         p_reason: reason,
+        p_spent_usd: spentUsd,
       });
+      if (error || !data) return "invalid";
+      const r = (data as { result?: string }).result;
+      return r === "finished" || r === "lease_lost" ? r : "invalid";
     },
   };
 }
