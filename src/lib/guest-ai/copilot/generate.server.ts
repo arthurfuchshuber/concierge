@@ -35,6 +35,7 @@ import {
 import { loadConversationContext } from "@/lib/guest-ai/context/conversation-context.server";
 import { fetchConversationHistory } from "@/lib/guest-ai/data/history.server";
 import { fetchGuestImages, type GuestImage } from "@/lib/guest-ai/data/guest-images.server";
+import { fetchGuestProfile } from "@/lib/guest-ai/data/guest-profile.server";
 import type { HistoryResult } from "@/lib/guest-ai/history";
 import { fetchPropertyDossier } from "@/lib/guest-ai/data/property-dossier.server";
 import { primaryDossierTarget } from "@/lib/guest-ai/data/property-access.server";
@@ -78,7 +79,8 @@ export type CopilotPorts = Required<
     | "loadStayAuthorizationSource"
     | "loadSenderIdentitySource"
   >
->;
+> &
+  Pick<ChainDeps, "loadGuestProfile">;
 
 export interface CopilotGenerateDeps {
   db?: GuestAiDb;
@@ -181,6 +183,7 @@ function productionPorts(
     },
     loadStayAuthorizationSource: (t, s) => loadStayAuthorizationSource(t, { db, signal: s }),
     loadSenderIdentitySource: (t, s) => loadSenderIdentitySource(t, { db, signal: s }),
+    loadGuestProfile: (t, s) => fetchGuestProfile(t, { db, signal: s }),
   };
 }
 
@@ -487,6 +490,7 @@ export async function generateCopilotSuggestion(
       loadDossiers: ports.loadDossiers,
       loadStayAuthorizationSource: ports.loadStayAuthorizationSource,
       loadSenderIdentitySource: ports.loadSenderIdentitySource,
+      loadGuestProfile: ports.loadGuestProfile,
       generate: (prompt, sg) => generator.generate(prompt, sg),
       guard: SECRET_SCRUBBER,
       stageTimeoutMs: Math.max(1_000, Math.min(15_000, Math.floor(remainingMs()))),

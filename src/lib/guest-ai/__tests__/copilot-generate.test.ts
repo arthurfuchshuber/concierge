@@ -905,3 +905,67 @@ describe("Copiloto · visão (fotos do hóspede na cadeia real)", () => {
     );
   });
 });
+
+describe("Copiloto · memória do hóspede recorrente na cadeia real", () => {
+  const capture = () => {
+    const seen: ProviderRequest[] = [];
+    const p = fakeProvider(okJson(v4()));
+    const orig = p.complete.bind(p);
+    p.complete = async (req: ProviderRequest, s?: AbortSignal) => {
+      seen.push(req);
+      return orig(req as never, s as never);
+    };
+    return { p, seen };
+  };
+  const text = (req: ProviderRequest) =>
+    req.messages.map((m) => llmMessageText(m.content)).join("\n");
+
+  it("hóspede recorrente ⇒ o prompt leva o bloco do perfil com estadias e preferências", async () => {
+    const { p, seen } = capture();
+    const d = deps(p, {
+      ports: ports({
+        loadGuestProfile: async () => ({
+          status: "found",
+          via: "ota",
+          stayCount: 2,
+          lastStayCheckout: "2026-05-10",
+          notes: [{ categoria: "preferencia", texto: "Pede travesseiros extras" }],
+        }),
+      }),
+    });
+    expect(await generateCopilotSuggestion(REQ, d)).toMatchObject({
+      status: "stored",
+      state: "available",
+    });
+    const t = text(seen[0]!);
+    expect(t).toContain("<perfil_do_hospede>");
+    expect(t).toContain('"status":"recorrente"');
+    expect(t).toContain("Pede travesseiros extras");
+  });
+
+  it("falha ao ler o perfil ⇒ sugestão gerada mesmo assim, perfil `indisponivel`", async () => {
+    const { p, seen } = capture();
+    const d = deps(p, {
+      ports: ports({
+        loadGuestProfile: async () => {
+          throw new Error("tabela ausente");
+        },
+      }),
+    });
+    expect(await generateCopilotSuggestion(REQ, d)).toMatchObject({
+      status: "stored",
+      state: "available",
+    });
+    expect(text(seen[0]!)).toContain('"status":"indisponivel"');
+  });
+
+  it("sem porta de perfil (comportamento anterior) ⇒ nenhum bloco de perfil", async () => {
+    const { p, seen } = capture();
+    await generateCopilotSuggestion(REQ, deps(p));
+    const user = seen[0]!.messages
+      .filter((m) => m.role === "user")
+      .map((m) => llmMessageText(m.content))
+      .join("\n");
+    expect(user).not.toContain("<perfil_do_hospede>");
+  });
+});

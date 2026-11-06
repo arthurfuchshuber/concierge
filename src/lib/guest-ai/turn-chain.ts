@@ -49,6 +49,8 @@ import {
 } from "@/lib/guest-ai/validation/semantic-validator";
 import { COMPOSER_VERSION, composeTurnPrompt, type ComposeUnavailableReason, type FreeTextGuard } from "@/lib/guest-ai/composer";
 import type { HistoryResult } from "@/lib/guest-ai/history";
+import { buildGuestProfileContext, type GuestProfileContext } from "@/lib/guest-ai/context/guest-profile";
+import type { GuestProfileLoad } from "@/lib/guest-ai/data/guest-profile.server";
 import type { AvailabilityState, PropertyDossier } from "@/lib/guest-ai/dossier/contracts";
 import { isIssued } from "@/lib/guest-ai/trust";
 import { deriveHumanOwnership, type ConversationOwnershipRow, type HumanOwnershipSnapshot } from "@/lib/guest-ai/orchestrator/case-ownership";
@@ -306,6 +308,11 @@ export interface ChainDeps {
   loadStayAuthorizationSource?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<Omit<StayAuthorizationInput, "turn" | "now" | "lookup">>;
   /** B2.5 — fontes da identidade de envio (preferência, gêmeos, contas). Falha ⇒ não resolvida. */
   loadSenderIdentitySource?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<SenderIdentitySource>;
+  /**
+   * Memória do hóspede recorrente — perfil canônico (só leitura). Enriquecimento: falha ou ausência ⇒
+   * `indisponivel` no prompt, nunca recusa o turno. Cancelamento externo continua encerrando o turno.
+   */
+  loadGuestProfile?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<GuestProfileLoad>;
   /**
    * B3.2 — fontes da pausa humana DERIVADA (mensagens gravadas + webhooks brutos + coluna). Pausa
    * ativa, indeterminada ou desconhecida (inclusive falha de leitura) ⇒ mesmo VETO da pausa da equipe.
@@ -746,6 +753,16 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
       senderIdentity = resolveSenderIdentity({ tenantId: turn.tenantId, propertyId: turn.propertyId, surface: turn.surface, source: src, now: new Date(now()).toISOString() });
       checks.senderIdentity = { status: senderIdentity.status, source: senderIdentity.source, reason: senderIdentity.reason };
     }
+    // Memória do hóspede (enriquecimento; nunca recusa o turno)
+    let guestProfile: GuestProfileContext | null = null;
+    if (deps.loadGuestProfile) {
+      try {
+        guestProfile = buildGuestProfileContext(await timeAsync("context", () => step((s) => deps.loadGuestProfile!(turn, s))));
+      } catch (e) {
+        if (deps.signal?.aborted) return failure("context", e);
+        guestProfile = buildGuestProfileContext({ status: "unavailable" });
+      }
+    }
     completed.push("context");
 
     // 3) Dossiê (opcional; quando há, é crítico)
@@ -786,7 +803,7 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     const composeStart = now();
     const guardBefore = timings.guard ?? 0;
     const composed = composeTurnPrompt(
-      { context: ctx, history, dossiers, batch, operational: { stayAuthorizations, humanOwnership, aiPausedByTeam: paused } },
+      { context: ctx, history, dossiers, batch, guestProfile, operational: { stayAuthorizations, humanOwnership, aiPausedByTeam: paused } },
       { guard: timedGuard, budget: deps.budget },
     );
     timings.compose = Math.max(0, Math.round(now() - composeStart) - ((timings.guard ?? 0) - guardBefore));

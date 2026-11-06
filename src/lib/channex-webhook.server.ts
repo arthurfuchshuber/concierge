@@ -1,4 +1,5 @@
 import { richReservationFields } from "@/lib/reservation-rich";
+import { otaGuestAccountId } from "@/lib/channex-guest-identity";
 /**
  * Processamento da fila de webhooks do Channex.
  *
@@ -127,6 +128,8 @@ async function gravarReservaOficial(admin: SupabaseAdmin, booking: ResolvedBooki
     emails: txt(c.mail) ? [txt(c.mail)] : [],
     language: txt(c.language),
     ota_thread_id: txt(a.meta?.thread_id),
+    // Porta 1 da memória do hóspede: conta do hóspede na OTA (repete entre reservas)
+    ota_guest_id: otaGuestAccountId(a),
   };
   const { error } = await admin.from("property_reservations").upsert(
     {

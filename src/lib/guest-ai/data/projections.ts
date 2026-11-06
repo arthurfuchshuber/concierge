@@ -102,6 +102,22 @@ export const MESSAGE_COLUMNS = ["id", "conversation_id", "role", "sender_type", 
  * storage: usada só por `data/guest-images.server.ts`, que baixa a foto pelo acesso de leitura restrito ao
  * bucket `chat-attachments` (`client.server.ts`). O caminho nunca vai ao prompt, a log nem ao resultado.
  */
+/**
+ * MEMÓRIA DO HÓSPEDE — âncoras de identidade da reserva do turno: só a conta do hóspede na OTA e os
+ * telefones, extraídos de `guest_contacts` por caminho JSON (nada de nome, e-mail, código, valores).
+ * Usada só por `data/guest-profile.server.ts`; os valores nunca vão ao prompt.
+ */
+export const GUEST_PROFILE_ANCHOR_COLUMNS = [
+  "id",
+  "property_id",
+  "ota_guest_id:guest_contacts->>ota_guest_id",
+  "phones:guest_contacts->phones",
+] as const;
+
+/** Perfil do hóspede: só contagens, última saída e notas de hospitalidade (sem nome, telefone ou conta). */
+export const GUEST_PROFILE_COLUMNS = ["canonical_id", "tenant_id", "stay_count", "last_stay_checkout", "behavioral_notes"] as const;
+export const GUEST_IDENTITY_COLUMNS = ["canonical_id", "kind", "value", "status"] as const;
+
 export const GUEST_IMAGE_MESSAGE_COLUMNS = [
   "id",
   "conversation_id",
