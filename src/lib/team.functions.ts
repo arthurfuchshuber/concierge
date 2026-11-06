@@ -100,10 +100,10 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
     // Check plan limit
     const { resolveUserPlan } = await import("@/lib/plan-guard.server");
     const plan = await resolveUserPlan(supabase, ownerId);
-    if (plan.plan !== "business" && plan.plan !== "enterprise") {
-      throw new Error("Convidar atendentes requer plano Business ou Enterprise.");
+    if (!plan.hasAccess) {
+      throw new Error("Convidar atendentes requer uma assinatura ativa.");
     }
-    // Business e Enterprise: atendentes ilimitados (pedido 28/09/2026).
+    // Assinatura ativa: atendentes ilimitados.
     const { data: inserted, error } = await supabase
       .from("account_member_invites")
       .insert({ owner_id: ownerId, email: data.email, role: data.role, invited_by: userId })

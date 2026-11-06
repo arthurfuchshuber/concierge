@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { missingPublishFields } from "@/lib/publish-requirements";
-import { PLANS } from "@/lib/payments.shared";
+import { ALL_FEATURES } from "@/lib/billing/plan";
 
 /**
  * Anúncio do Airbnb obrigatório (01/10/2026): exigido para PUBLICAR.
@@ -17,9 +17,8 @@ describe("anúncio do Airbnb obrigatório para publicar", () => {
   });
 });
 
-describe("plano Starter excluído", () => {
-  it("não existe mais, e todo plano à venda tem a importação do Airbnb", () => {
-    expect(Object.keys(PLANS)).toEqual(["pro", "business", "enterprise"]);
-    for (const plan of Object.values(PLANS)) expect(plan.features.autoImport).toBe(true);
+describe("plano único por anúncio (06/11/2026)", () => {
+  it("toda assinatura ativa tem a importação do Airbnb", () => {
+    expect(ALL_FEATURES.autoImport).toBe(true);
   });
 });

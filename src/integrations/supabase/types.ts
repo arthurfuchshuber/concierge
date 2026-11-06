@@ -6985,75 +6985,129 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_sync_queue: {
+        Row: {
+          attempts: number
+          last_error: string | null
+          locked_until: string | null
+          next_attempt_at: string
+          owner_id: string
+          requested_at: string
+        }
+        Insert: {
+          attempts?: number
+          last_error?: string | null
+          locked_until?: string | null
+          next_attempt_at?: string
+          owner_id: string
+          requested_at?: string
+        }
+        Update: {
+          attempts?: number
+          last_error?: string | null
+          locked_until?: string | null
+          next_attempt_at?: string
+          owner_id?: string
+          requested_at?: string
+        }
+        Relationships: []
+      }
+      billing_terms: {
+        Row: {
+          billing_starts_at: string | null
+          courtesy: boolean
+          created_at: string
+          min_units: number | null
+          notes: string | null
+          owner_id: string
+          unit_cents: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          billing_starts_at?: string | null
+          courtesy?: boolean
+          created_at?: string
+          min_units?: number | null
+          notes?: string | null
+          owner_id: string
+          unit_cents?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          billing_starts_at?: string | null
+          courtesy?: boolean
+          created_at?: string
+          min_units?: number | null
+          notes?: string | null
+          owner_id?: string
+          unit_cents?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           admin_notes: string | null
-          billing_anchor_day: number | null
           billing_paused: boolean
           cancel_at_period_end: boolean | null
           created_at: string | null
           current_period_end: string | null
           current_period_start: string | null
-          custom_currency: string | null
-          custom_price_cents: number | null
-          enterprise_request: boolean | null
           environment: string
           id: string
           is_manual: boolean
+          listing_quantity: number | null
           max_guides_override: number | null
-          paddle_customer_id: string
-          paddle_subscription_id: string
           price_id: string
           product_id: string
           status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           trial_ends_at: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           admin_notes?: string | null
-          billing_anchor_day?: number | null
           billing_paused?: boolean
           cancel_at_period_end?: boolean | null
           created_at?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
-          custom_currency?: string | null
-          custom_price_cents?: number | null
-          enterprise_request?: boolean | null
           environment?: string
           id?: string
           is_manual?: boolean
+          listing_quantity?: number | null
           max_guides_override?: number | null
-          paddle_customer_id: string
-          paddle_subscription_id: string
           price_id: string
           product_id: string
           status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           trial_ends_at?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           admin_notes?: string | null
-          billing_anchor_day?: number | null
           billing_paused?: boolean
           cancel_at_period_end?: boolean | null
           created_at?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
-          custom_currency?: string | null
-          custom_price_cents?: number | null
-          enterprise_request?: boolean | null
           environment?: string
           id?: string
           is_manual?: boolean
+          listing_quantity?: number | null
           max_guides_override?: number | null
-          paddle_customer_id?: string
-          paddle_subscription_id?: string
           price_id?: string
           product_id?: string
           status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           trial_ends_at?: string | null
           updated_at?: string | null
           user_id?: string
@@ -7360,6 +7414,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_billing_sync: {
+        Args: { _limit?: number }
+        Returns: { owner_id: string; requested_at: string }[]
+      }
+      enqueue_billing_sync: { Args: { _owner_id: string }; Returns: undefined }
+      finish_billing_sync: {
+        Args: { _error: string | null; _owner_id: string; _requested_at: string }
+        Returns: undefined
+      }
       accept_my_account_invite: {
         Args: { _invite_id: string }
         Returns: boolean

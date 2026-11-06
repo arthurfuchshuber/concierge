@@ -24,8 +24,8 @@ export function ConnectedListingsCard() {
         {d.primaryCount} principal(is) · {d.twinCount} gêmeo(s). Cada anúncio conta individualmente.
       </p>
       <p className="text-[11px] text-muted-foreground">
-        Inventário ativo apurado para a futura cobrança por anúncio conectado. Não altera os valores nem as
-        condições do seu plano atual.
+        É esta contagem que define a sua cobrança. Ela se atualiza sozinha a cada sincronização, sem
+        precisar informar quantidade.
       </p>
       {d.items.length > 0 && (
         <ul className="space-y-1">

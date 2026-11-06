@@ -112,7 +112,6 @@ import {
 type StatusFilter = "all" | "published" | "draft";
 type AccessFilter = "all" | "public" | "pin";
 import { useSubscription } from "@/hooks/useSubscription";
-import { PLANS } from "@/lib/payments.functions";
 import { BulkEditDialog } from "@/components/BulkEditDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { adminListUserPropertiesFull } from "@/lib/admin-subs.functions";
@@ -387,11 +386,11 @@ function Dashboard() {
       if (res.created > 0) {
         toast.success(
           res.skipped > 0
-            ? `${res.created} cópia(s) criada(s). ${res.skipped} não coube(ram) no seu plano.`
+            ? `${res.created} cópia(s) criada(s). ${res.skipped} não coube(ram) no limite da conta.`
             : `${res.created} cópia(s) criada(s) como rascunho.`,
         );
       } else {
-        toast.error("Nenhuma cópia criada — limite do plano atingido.");
+        toast.error("Nenhuma cópia criada — limite de guias da conta atingido.");
       }
       setDupTarget(null);
       setDupCopies(1);
@@ -416,31 +415,9 @@ function Dashboard() {
   const { isOwner } = useMyPermissions();
   const canSeePlan = isOwner || isSaasAdmin;
 
-  const planConfig = sub.plan ? PLANS[sub.plan] : null;
-  const planName = planConfig?.name ?? "Sem plano";
-  const hasCustomPrice = sub.customPriceCents != null;
-  const customCurrency = sub.customCurrency || "BRL";
-  const planPrice = hasCustomPrice
-    ? (sub.customPriceCents! / 100).toLocaleString("pt-BR", {
-        style: "currency",
-        currency: customCurrency,
-      })
-    : (planConfig?.priceLabel ?? "—");
   const planLimit = sub.maxGuides;
   const remaining = Math.max(0, planLimit - count);
-  const pct = planLimit > 0 ? Math.min(100, (count / planLimit) * 100) : 0;
   const reachedLimit = planLimit > 0 && count >= planLimit;
-  const fmtDate = (iso: string | null) =>
-    iso
-      ? new Date(iso).toLocaleDateString("pt-BR", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })
-      : null;
-  const renewalLabel = fmtDate(sub.currentPeriodEnd);
-  const trialLabel = sub.isTrialing ? fmtDate(sub.trialEndsAt ?? sub.currentPeriodEnd) : null;
-
   // Só entram na aba Guias os imóveis que já têm um guia efetivamente criado
   // (guide_created) — um imóvel recém-cadastrado via "Criar nova residência"
   // (Proprietários) fica de fora desta lista até alguém clicar
@@ -689,11 +666,11 @@ function Dashboard() {
                   aria-label="Novo guia"
                   title={
                     !sub.plan
-                      ? "Assine um plano para criar guias"
+                      ? "Assine o ConciergeIA para criar guias"
                       : noOwners
                         ? "Cadastre um proprietário em Proprietários antes de criar guias"
                         : reachedLimit
-                          ? "Limite do seu plano atingido. Faça upgrade."
+                          ? "Limite de guias desta conta atingido."
                           : "Novo guia"
                   }
                   className={`${ACTION_SEGMENT} text-accent disabled:opacity-40`}
@@ -934,7 +911,7 @@ function Dashboard() {
                 disabled={!sub.plan || noOwners}
                 title={
                   !sub.plan
-                    ? "Assine um plano para criar guias"
+                    ? "Assine o ConciergeIA para criar guias"
                     : noOwners
                       ? "Cadastre um proprietário em Proprietários antes de criar guias"
                       : "Criar meu primeiro guia"
@@ -1273,12 +1250,12 @@ function Dashboard() {
             />
             <p className="text-xs text-muted-foreground">
               {planLimit >= 9999
-                ? "Seu plano não tem limite de guias."
-                : `Você tem ${remaining} guia(s) disponíveis no plano ${planName}.`}
+                ? "Sua conta não tem limite de guias."
+                : `Você tem ${remaining} guia(s) disponíveis nesta conta.`}
             </p>
             {planLimit < 9999 && dupCopies > remaining && (
               <p className="text-xs text-amber-500">
-                Apenas {remaining} cópia(s) serão criadas — o restante excede o limite do plano.
+                Apenas {remaining} cópia(s) serão criadas — o restante excede o limite da conta.
               </p>
             )}
           </div>

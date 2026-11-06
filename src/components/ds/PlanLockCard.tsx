@@ -6,14 +6,14 @@ import { cn } from "@/lib/utils";
  * Estado padrão de recurso bloqueado por plano (ref.: mockup
  * 12_formularios_e_estados/03_limite_plano_atingido).
  * Cadeado âmbar, título âmbar, texto de apoio, bullets do que libera,
- * botão gradiente "Fazer upgrade" e legenda com o plano atual.
+ * botão gradiente "Ativar assinatura". Plano único (06/11/2026): só aparece sem assinatura.
  */
 export function PlanLockCard({
   title,
   description,
   bullets,
   currentPlan,
-  ctaLabel = "Fazer upgrade",
+  ctaLabel = "Ativar assinatura",
   ctaHref = "/admin/administrativo?tab=assinatura",
   className,
 }: {

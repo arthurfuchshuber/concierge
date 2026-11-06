@@ -13,7 +13,7 @@ const FAQ_ITEMS: Array<{ q: string; a: string }> = [
   },
   {
     q: "Quais subprocessadores o ConciergeIA utiliza?",
-    a: "Hospedagem na Lovable (Cloudflare edge), banco e autenticação no Supabase, pagamentos na Paddle (Merchant of Record), Google Maps Platform para mapas e fotos, e provedores de IA via Lovable AI Gateway.",
+    a: "Hospedagem na Lovable (Cloudflare edge), banco e autenticação no Supabase, pagamentos processados pela Stripe, Google Maps Platform para mapas e fotos, e provedores de IA via Lovable AI Gateway.",
   },
   {
     q: "Como excluo minha conta e meus dados?",
@@ -144,7 +144,7 @@ function TrustPage() {
             <ul className="list-disc pl-6 space-y-1.5">
               <li>Hospedagem da aplicação: Lovable (Cloudflare edge).</li>
               <li>Banco de dados, autenticação e armazenamento: Supabase.</li>
-              <li>Pagamentos e gestão de assinaturas: Paddle (Merchant of Record).</li>
+              <li>Pagamentos e gestão de assinaturas: Stripe (processadora de pagamentos; os dados do cartão nunca passam pelos nossos servidores).</li>
               <li>Mapas e fotos de pontos de referência: Google Maps Platform.</li>
               <li>Assistente de IA: provedores acessados via Lovable AI Gateway.</li>
             </ul>

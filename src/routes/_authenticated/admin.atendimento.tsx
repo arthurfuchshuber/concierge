@@ -82,10 +82,10 @@ function AtendimentoPage() {
             <h1 className="font-display text-2xl">Central de atendimento</h1>
           </div>
           <p className="text-sm text-muted-foreground mb-4">
-            A Central de Atendimento humano com handoff da IA está disponível nos planos <strong>Business</strong> e <strong>Enterprise</strong>.
+            A Central de Atendimento humano com handoff da IA faz parte da assinatura ConciergeIA, com todos os recursos incluídos.
           </p>
           <a href="/admin/assinatura" className="inline-flex items-center rounded-xl px-4 py-2 bg-primary text-primary-foreground font-medium">
-            Fazer upgrade
+            Ativar assinatura
           </a>
         </div>
       </div>

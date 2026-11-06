@@ -7,7 +7,6 @@ import {
   adminUpdateSubscription,
   adminUpdateCustomerProfile,
   adminListUserProperties,
-  adminApplyCustomTrial,
   adminDeleteCustomer,
   checkIsAdmin,
   type AdminCustomerRow,
@@ -17,12 +16,7 @@ import {
   setTenantMigrationMode,
 } from "@/lib/permissions/permission.migration.functions";
 
-import {
-  adminCreateEnterpriseSubscription,
-  adminAnchorSubscriptionToDay1,
-  adminCancelEnterpriseSubscription,
-} from "@/lib/admin-enterprise.functions";
-import { PLANS, type PlanKey } from "@/lib/payments.functions";
+import { CondicaoComercialSection } from "@/components/admin/CondicaoComercialSection";
 import { PageHeader } from "@/components/ds/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,13 +38,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Users, Pencil, Loader2, Shield, Crown, Anchor, Ban, Calendar, Filter, MessageCircle, Trash2 } from "lucide-react";
+import { Search, Users, Pencil, Loader2, Shield, Filter, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
 import { formatCPF, onlyDigits, isValidCPF, isValidEmail, titleCaseName, formatIntlPhone, toE164, toWhatsappNumber, isValidIntlPhone } from "@/lib/masks";
 import PhoneInput, { type Country } from "react-phone-number-input";
@@ -69,9 +62,8 @@ export const Route = createFileRoute("/_authenticated/admin/clientes")({
   component: ClientesPage,
 });
 
-const PLAN_OPTIONS: PlanKey[] = ["pro", "business", "enterprise"];
-const STATUS_OPTIONS = ["trialing", "active", "past_due", "paused", "canceled"];
-const ENV_OPTIONS = ["sandbox", "live"];
+const brlCents = (cents: number) =>
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function WhatsAppLink({
   phone,
@@ -88,7 +80,7 @@ function WhatsAppLink({
 
 
 type StatusFilter = "all" | "active" | "trialing" | "canceled" | "past_due" | "incomplete";
-type PlanFilter = "all" | PlanKey | "none";
+type PlanFilter = "all" | "official" | "custom" | "courtesy" | "manual" | "none";
 
 function isIncomplete(c: AdminCustomerRow) {
   return !c.subscription;
@@ -118,7 +110,7 @@ function ClientesPage() {
     const q = search.trim().toLowerCase();
     return customers.filter((c) => {
       if (q) {
-        const hay = `${c.email ?? ""} ${c.fullName ?? ""} ${c.subscription?.plan ?? ""} ${c.phone ?? ""}`.toLowerCase();
+        const hay = `${c.email ?? ""} ${c.fullName ?? ""} ${c.subscription?.planLabel ?? ""} ${c.phone ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       if (statusFilter !== "all") {
@@ -129,7 +121,7 @@ function ClientesPage() {
       if (planFilter !== "all") {
         if (planFilter === "none") {
           if (c.subscription) return false;
-        } else if (c.subscription?.plan !== planFilter) return false;
+        } else if (c.subscription?.kind !== planFilter) return false;
       }
       if (churnOnly && !c.churnRisk) return false;
       return true;
@@ -147,7 +139,7 @@ function ClientesPage() {
             <Users className="size-6 text-muted-foreground" /> Clientes
           </span>
         }
-        subtitle="Gerencie planos, valores e períodos de teste de cada cliente."
+        subtitle="Cobrança e condição comercial de cada cliente."
         actions={
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -155,8 +147,9 @@ function ClientesPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por email, nome, plano ou telefone…"
-              className="pl-9 w-72"
+              placeholder="Buscar cliente"
+              aria-label="Buscar por e-mail, nome ou telefone"
+              className="pl-9 w-40 sm:w-72"
             />
           </div>
           <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
@@ -190,7 +183,7 @@ function ClientesPage() {
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="active">Ativos</SelectItem>
-                      <SelectItem value="trialing">Em trial</SelectItem>
+                      <SelectItem value="trialing">Em carência</SelectItem>
                       <SelectItem value="past_due">Atrasados</SelectItem>
                       <SelectItem value="canceled">Cancelados</SelectItem>
                       <SelectItem value="incomplete">Cadastro incompleto</SelectItem>
@@ -198,15 +191,16 @@ function ClientesPage() {
                   </Select>
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Plano</label>
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Condição</label>
                   <Select value={planFilter} onValueChange={(v) => setPlanFilter(v as PlanFilter)}>
                     <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="none">Sem plano</SelectItem>
-                      {PLAN_OPTIONS.map((p) => (
-                        <SelectItem key={p} value={p}>{PLANS[p].name}</SelectItem>
-                      ))}
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="none">Sem assinatura</SelectItem>
+                      <SelectItem value="official">Tabela oficial</SelectItem>
+                      <SelectItem value="custom">Condição negociada</SelectItem>
+                      <SelectItem value="courtesy">Cortesia</SelectItem>
+                      <SelectItem value="manual">Liberação manual</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -245,7 +239,7 @@ function ClientesPage() {
           tone="emerald"
         />
         <StatCard
-          label="Em trial"
+          label="Em carência"
           value={filtered.filter((c) => c.subscription?.status === "trialing").length}
           tone="amber"
         />
@@ -285,22 +279,15 @@ function ClientesPage() {
             <ul className="sm:hidden divide-y divide-border/60">
               {filtered.map((c) => {
                 const s = c.subscription;
-                const planName = s?.plan ? PLANS[s.plan].name : null;
+                const planName = s?.planLabel ?? null;
                 const initials = (c.fullName || c.email || "?")
                   .split(/\s+/)
                   .map((p) => p[0])
                   .slice(0, 2)
                   .join("")
                   .toUpperCase();
-                const hasCustom = s?.customPriceCents != null;
-                const price = hasCustom
-                  ? (s!.customPriceCents! / 100).toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: s!.customCurrency || "BRL",
-                    })
-                  : s?.plan
-                    ? PLANS[s.plan].priceLabel
-                    : null;
+                const hasCustom = s?.kind === "custom" || s?.kind === "courtesy";
+                const price = s?.monthlyCents != null ? brlCents(s.monthlyCents) : null;
                 return (
                   <li key={c.userId} className="p-4">
                     <div className="flex items-start gap-3">
@@ -331,7 +318,7 @@ function ClientesPage() {
                           {planName ? (
                             <span className="text-[11px] font-semibold">{planName}</span>
                           ) : (
-                            <span className="text-[11px] text-muted-foreground/60">Sem plano</span>
+                            <span className="text-[11px] text-muted-foreground/60">Sem assinatura</span>
                           )}
                           <StatusBadge status={s?.status} userStatus={c.userStatus} />
                           {s?.billingPaused && (
@@ -370,7 +357,7 @@ function ClientesPage() {
                 <thead className="bg-secondary/30 text-[10px] uppercase tracking-[0.14em] text-muted-foreground border-b border-border">
                   <tr>
                     <th className="text-left font-semibold px-5 py-3.5">Cliente</th>
-                    <th className="text-left font-semibold px-4 py-3.5">Plano</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Condição</th>
                     <th className="text-left font-semibold px-4 py-3.5">Status</th>
                     <th className="text-right font-semibold px-4 py-3.5">Valor</th>
                     <th className="text-left font-semibold px-4 py-3.5">Guias</th>
@@ -382,22 +369,15 @@ function ClientesPage() {
                 <tbody>
                   {filtered.map((c, idx) => {
                     const s = c.subscription;
-                    const planName = s?.plan ? PLANS[s.plan].name : null;
+                    const planName = s?.planLabel ?? null;
                     const initials = (c.fullName || c.email || "?")
                       .split(/\s+/)
                       .map((p) => p[0])
                       .slice(0, 2)
                       .join("")
                       .toUpperCase();
-                    const hasCustom = s?.customPriceCents != null;
-                    const price = hasCustom
-                      ? (s!.customPriceCents! / 100).toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: s!.customCurrency || "BRL",
-                        })
-                      : s?.plan
-                        ? PLANS[s.plan].priceLabel
-                        : null;
+                    const hasCustom = s?.kind === "custom" || s?.kind === "courtesy";
+                    const price = s?.monthlyCents != null ? brlCents(s.monthlyCents) : null;
                     return (
                       <tr
                         key={c.userId}
@@ -426,7 +406,7 @@ function ClientesPage() {
                               )}
                             </div>
                           ) : (
-                            <span className="text-muted-foreground/70 italic">Sem plano</span>
+                            <span className="text-muted-foreground/70 italic">Sem assinatura</span>
                           )}
                         </td>
                         <td className="px-4 py-4">
@@ -438,7 +418,7 @@ function ClientesPage() {
                               {price}
                               {hasCustom && (
                                 <div className="text-[10px] uppercase tracking-wider text-accent font-semibold">
-                                  personalizado
+                                  negociado
                                 </div>
                               )}
                             </div>
@@ -518,11 +498,10 @@ function ClientesPage() {
           onClose={() => setEditing(null)}
           onSave={async (values) => {
             try {
-              const { fullName, cpf, phone, phoneCountry, plan, ...rest } = values;
+              const { fullName, cpf, phone, phoneCountry, ...rest } = values;
               await profileUpdater({ data: { userId: editing.userId, fullName, cpf, phone, phoneCountry } });
-
-              if (plan) {
-                await updater({ data: { userId: editing.userId, plan, ...rest } });
+              if (editing.subscription) {
+                await updater({ data: { userId: editing.userId, ...rest } });
               }
               toast.success("Cliente atualizado");
               qc.invalidateQueries({ queryKey: ["admin-customers"] });
@@ -621,31 +600,20 @@ type EditValues = {
   cpf: string | null;
   phone: string | null;
   phoneCountry: string | null;
-  plan: PlanKey | null;
-  status: string;
-  environment: "sandbox" | "live";
-  trialEndsAt: string | null;
-  currentPeriodEnd: string | null;
-  customPriceCents: number | null;
-  customCurrency: string | null;
   cancelAtPeriodEnd: boolean;
   adminNotes: string | null;
   maxGuidesOverride: number | null;
-  billingPaused: boolean;
 };
 
-
-function toDateInput(iso: string | null | undefined) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 10);
-}
-
-function fromDateInput(s: string) {
-  if (!s) return null;
-  return new Date(`${s}T23:59:59Z`).toISOString();
-}
+const STATUS_LABEL: Record<string, string> = {
+  active: "Ativa",
+  trialing: "Em carência",
+  past_due: "Pagamento atrasado",
+  unpaid: "Não paga",
+  canceled: "Cancelada",
+  incomplete: "Aguardando pagamento",
+};
+const fmtBr = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—");
 
 function EditDialog({
   customer,
@@ -666,26 +634,11 @@ function EditDialog({
       ? (customer.phoneCountry.toUpperCase() as Country)
       : "BR"),
   );
-  // null = "Sem plano" (não cria/atualiza assinatura). Quando o usuário não
-  // tem assinatura, o padrão é "Sem plano" — coerente com o pedido do
-  // anfitrião de não forçar plano em quem ainda não contratou.
-  const [plan, setPlan] = useState<PlanKey | null>(s?.plan ?? null);
-  const [status, setStatus] = useState<string>(s?.status ?? "active");
-  const [environment, setEnvironment] = useState<"sandbox" | "live">(
-    (s?.environment as "sandbox" | "live") ?? "live",
-  );
-  const [trialEndsAt, setTrialEndsAt] = useState(toDateInput(s?.trialEndsAt));
-  const [currentPeriodEnd, setCurrentPeriodEnd] = useState(toDateInput(s?.currentPeriodEnd));
-  const [customPrice, setCustomPrice] = useState(
-    s?.customPriceCents != null ? (s.customPriceCents / 100).toString() : "",
-  );
-  const [customCurrency, setCustomCurrency] = useState(s?.customCurrency ?? "BRL");
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(!!s?.cancelAtPeriodEnd);
   const [adminNotes, setAdminNotes] = useState(s?.adminNotes ?? "");
   const [maxGuidesOverride, setMaxGuidesOverride] = useState(
     s?.maxGuidesOverride != null ? String(s.maxGuidesOverride) : "",
   );
-  const [billingPaused, setBillingPaused] = useState(!!s?.billingPaused);
 
   const [saving, setSaving] = useState(false);
 
@@ -711,12 +664,6 @@ function EditDialog({
       return;
     }
     setSaving(true);
-    const price = customPrice.trim() ? Math.round(Number(customPrice) * 100) : null;
-    if (price != null && (Number.isNaN(price) || price < 0)) {
-      toast.error("Valor inválido");
-      setSaving(false);
-      return;
-    }
     const maxGuides = maxGuidesOverride.trim() ? Math.trunc(Number(maxGuidesOverride)) : null;
     if (maxGuides != null && (Number.isNaN(maxGuides) || maxGuides < 1)) {
       toast.error("Limite de guias inválido");
@@ -729,17 +676,9 @@ function EditDialog({
         cpf: cpfDigits,
         phone: phoneE164,
         phoneCountry,
-        plan,
-        status,
-        environment,
-        trialEndsAt: fromDateInput(trialEndsAt),
-        currentPeriodEnd: fromDateInput(currentPeriodEnd),
-        customPriceCents: price,
-        customCurrency: price != null ? customCurrency.toUpperCase() : null,
         cancelAtPeriodEnd,
         adminNotes: adminNotes.trim() || null,
         maxGuidesOverride: maxGuides,
-        billingPaused,
       });
     } finally {
       setSaving(false);
@@ -817,86 +756,35 @@ function EditDialog({
 
 
 
-          <div className="space-y-1.5">
-            <Label>Plano</Label>
-            <Select
-              value={plan ?? "__none__"}
-              onValueChange={(v) => setPlan(v === "__none__" ? null : (v as PlanKey))}
-            >
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Sem plano</SelectItem>
-                {PLAN_OPTIONS.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {PLANS[p].name} — {PLANS[p].priceLabel}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Ambiente</Label>
-            <Select value={environment} onValueChange={(v) => setEnvironment(v as "sandbox" | "live")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {ENV_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s}>{s === "sandbox" ? "Teste" : "Produção"}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Trial gratuito até</Label>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <DatePicker
-                  value={trialEndsAt}
-                  onChange={setTrialEndsAt}
-                  placeholder="Sem trial"
-                />
+          <div className="sm:col-span-2 rounded-xl border border-border bg-secondary/20 p-3">
+            <div className="ds-eyebrow mb-2">Assinatura na Stripe</div>
+            {s ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Situação</div>
+                  <div className="text-sm font-medium">{s.billingPaused ? "Pausada (zero anúncios)" : (STATUS_LABEL[s.status] ?? s.status)}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Próxima cobrança</div>
+                  <div className="text-sm font-medium tabular-nums">{s.billingPaused ? "—" : fmtBr(s.status === "trialing" ? s.trialEndsAt : s.currentPeriodEnd)}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Anúncios cobrados</div>
+                  <div className="text-sm font-medium tabular-nums">{s.listingQuantity ?? "—"}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Valor do mês</div>
+                  <div className="text-sm font-medium tabular-nums">{s.monthlyCents != null ? brlCents(s.monthlyCents) : "—"}</div>
+                </div>
               </div>
-              <ApplyCustomTrialButton
-                userId={customer.userId}
-                trialEndsAt={trialEndsAt}
-                hasRealPaddleSub={
-                  !!s?.paddleSubscriptionId &&
-                  !s.paddleSubscriptionId.startsWith("manual_")
-                }
-                onApplied={(paused) => {
-                  // Sincroniza o estado local para o "Salvar" não desfazer
-                  // a pausa (ou retomada) que acabou de ser aplicada no Paddle.
-                  setBillingPaused(paused);
-                }}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              "Aplicar ao Paddle" pausa a cobrança agora e retoma automaticamente na data escolhida —
-              enquanto isso, o cliente não é cobrado.
-            </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Ainda não assinou. A condição comercial abaixo já vale no cadastro do cartão.
+              </p>
+            )}
           </div>
 
-
-          {plan === "enterprise" && (
-            <EnterpriseSection
-              customer={customer}
-              environment={environment}
-              defaultAmountCents={s?.customPriceCents ?? null}
-            />
-          )}
+          <CondicaoComercialSection ownerId={customer.userId} />
 
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Limite de guias (override)</Label>
@@ -904,26 +792,25 @@ function EditDialog({
               type="number"
               step="1"
               min="1"
-              placeholder={plan ? `Padrão do plano: ${PLANS[plan].maxGuides >= 9999 ? "ilimitado" : PLANS[plan].maxGuides}` : "Selecione um plano primeiro"}
+              placeholder="Padrão: ilimitado"
               value={maxGuidesOverride}
               onChange={(e) => setMaxGuidesOverride(e.target.value)}
+              disabled={!s}
             />
-            <p className="text-xs text-muted-foreground">
-              Deixe em branco para usar o limite padrão do plano. Use para contratos Enterprise com limite customizado.
-            </p>
+            <p className="text-xs text-muted-foreground">Deixe em branco para guias ilimitados.</p>
           </div>
 
-          <div className="space-y-1.5 sm:col-span-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
-            <Label className="flex items-center justify-between text-amber-700 dark:text-amber-400">
-              Pausar cobranças deste cliente
-              <Switch checked={billingPaused} onCheckedChange={setBillingPaused} />
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Quando ativo, o cliente mantém o acesso mas <strong>nenhuma cobrança</strong> é feita.
-              Desative para retomar as cobranças.
-            </p>
-          </div>
-
+          {s?.hasStripeBilling ? (
+            <div className="space-y-1.5 sm:col-span-2 rounded-xl border border-border p-3">
+              <Label className="flex items-center justify-between">
+                Cancelar no fim do ciclo
+                <Switch checked={cancelAtPeriodEnd} onCheckedChange={setCancelAtPeriodEnd} />
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                O cliente mantém o acesso até {fmtBr(s.currentPeriodEnd)} e não é cobrado de novo.
+              </p>
+            </div>
+          ) : null}
 
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Anotações internas</Label>
@@ -971,68 +858,6 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone?:
   );
 }
 
-function ApplyCustomTrialButton({
-  userId,
-  trialEndsAt,
-  hasRealPaddleSub,
-  onApplied,
-}: {
-  userId: string;
-  trialEndsAt: string;
-  hasRealPaddleSub: boolean;
-  onApplied?: (paused: boolean) => void;
-}) {
-  const applyTrial = useServerFn(adminApplyCustomTrial);
-  const qc = useQueryClient();
-  const [busy, setBusy] = useState(false);
-
-  const iso = trialEndsAt ? fromDateInput(trialEndsAt) : null;
-  const isFuture = iso ? new Date(iso).getTime() > Date.now() : false;
-
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      disabled={busy || !hasRealPaddleSub}
-      title={
-        !hasRealPaddleSub
-          ? "Disponível apenas para assinaturas ativas do Paddle (não manuais)"
-          : isFuture
-            ? "Pausa a cobrança no Paddle e retoma nesta data"
-            : "Encerra o trial custom (retoma cobrança imediatamente)"
-      }
-      onClick={async () => {
-        setBusy(true);
-        try {
-          const res = await applyTrial({ data: { userId, trialEndsAt: iso } });
-          toast.success(
-            res.paused
-              ? "Trial aplicado no Paddle — cobrança pausada até a data escolhida."
-              : "Trial customizado encerrado — cobrança normal retomada.",
-          );
-          onApplied?.(!!res.paused);
-          qc.invalidateQueries({ queryKey: ["admin-customers"] });
-        } catch (e) {
-          toast.error(e instanceof Error ? e.message : "Erro ao aplicar trial");
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Calendar className="size-3.5" />}
-      Aplicar ao Paddle
-    </Button>
-  );
-}
-
-// Modo do motor de permissões (FASE 3.8): a máquina de estados já existia
-// (legacy → monitoring → enforced → completed) mas nenhuma tela chamava as
-// transições, então nenhuma conta nunca saía de "legacy" (novo motor rodando
-// só para diagnóstico, nunca bloqueando de verdade). Este bloco é a primeira
-// tela a operar essas transições — sempre um passo por vez, com o mesmo
-// aviso de risco (divergências/atribuições) que já existia no relatório de
-// migração, só que agora visível antes de o admin confirmar.
 const MIGRATION_MODE_LABEL: Record<string, string> = {
   legacy: "Legado",
   monitoring: "Monitorando",
@@ -1144,7 +969,7 @@ function StatusBadge({
 }) {
   const map: Record<string, { label: string; className: string; dot: string }> = {
     active: { label: "Ativo", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" },
-    trialing: { label: "Trial", className: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20", dot: "bg-sky-500" },
+    trialing: { label: "Carência", className: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20", dot: "bg-sky-500" },
     past_due: { label: "Atrasado", className: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20", dot: "bg-amber-500" },
     paused: { label: "Pausado", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground" },
     canceled: { label: "Cancelado", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground/60" },
@@ -1170,179 +995,6 @@ function StatusBadge({
       <span className={`size-1.5 rounded-full ${info.dot}`} />
       {info.label}
     </span>
-  );
-}
-
-function EnterpriseSection({
-  customer,
-  environment,
-  defaultAmountCents,
-}: {
-  customer: AdminCustomerRow;
-  environment: "sandbox" | "live";
-  defaultAmountCents: number | null;
-}) {
-  const createFn = useServerFn(adminCreateEnterpriseSubscription);
-  const anchorFn = useServerFn(adminAnchorSubscriptionToDay1);
-  const cancelFn = useServerFn(adminCancelEnterpriseSubscription);
-
-  const s = customer.subscription;
-  const paddleSubId = s?.paddleSubscriptionId ?? "";
-  const hasRealSub = paddleSubId.startsWith("sub_");
-
-  const [amount, setAmount] = useState(
-    defaultAmountCents != null ? (defaultAmountCents / 100).toString() : "",
-  );
-  const [trial, setTrial] = useState("7");
-  const [busy, setBusy] = useState<"create" | "anchor" | "cancel-soft" | "cancel-now" | null>(null);
-
-  async function handleCreate() {
-    if (!customer.email) {
-      toast.error("Cliente sem email cadastrado.");
-      return;
-    }
-    const cents = Math.round(parseFloat(amount.replace(",", ".")) * 100);
-    if (!cents || cents < 70) {
-      toast.error("Valor inválido (mínimo R$ 0,70)");
-      return;
-    }
-    const trialDays = parseInt(trial, 10);
-    if (Number.isNaN(trialDays) || trialDays < 0 || trialDays > 90) {
-      toast.error("Trial inválido (0-90 dias)");
-      return;
-    }
-    setBusy("create");
-    try {
-      const res = await createFn({
-        data: {
-          email: customer.email,
-          monthlyAmountBRLCents: cents,
-          trialDays,
-          environment,
-        },
-      });
-      toast.success(`Assinatura Enterprise criada. Transaction ${res.transactionId}.`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao criar assinatura");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function handleAnchor() {
-    setBusy("anchor");
-    try {
-      const r = await anchorFn({ data: { paddleSubscriptionId: paddleSubId, environment } });
-      toast.success(`Cobrança ancorada para ${new Date(r.anchoredTo).toLocaleDateString("pt-BR")}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao ancorar");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function handleCancel(immediate: boolean) {
-    if (!confirm(immediate ? "Cancelar imediatamente?" : "Cancelar no fim do período atual?")) return;
-    setBusy(immediate ? "cancel-now" : "cancel-soft");
-    try {
-      await cancelFn({ data: { paddleSubscriptionId: paddleSubId, environment, immediate } });
-      toast.success("Cancelamento solicitado");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao cancelar");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  return (
-    <div className="sm:col-span-2 rounded-xl border border-accent/30 bg-accent/5 p-4 space-y-3">
-      <div className="flex items-center gap-2 text-accent font-semibold text-sm">
-        <Crown className="size-4" /> Regras Enterprise
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Cobrança recorrente todo dia 1 do mês. A primeira cobrança após o trial é proporcional aos dias até o próximo dia 1.
-        O cliente precisa ter cartão cadastrado no Paddle antes de criar a assinatura.
-      </p>
-
-      {!hasRealSub && (
-        <div className="space-y-3 pt-1">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Valor mensal (R$)</Label>
-              <Input
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="230.00"
-                inputMode="decimal"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Trial (dias)</Label>
-              <Input
-                type="number"
-                min="0"
-                max="90"
-                value={trial}
-                onChange={(e) => setTrial(e.target.value)}
-              />
-            </div>
-          </div>
-          <Button
-            type="button"
-            onClick={handleCreate}
-            disabled={busy === "create"}
-            className="w-full"
-          >
-            {busy === "create" ? (
-              <Loader2 className="size-4 animate-spin mr-1.5" />
-            ) : (
-              <Crown className="size-4 mr-1.5" />
-            )}
-            Criar assinatura Enterprise no Paddle
-          </Button>
-        </div>
-      )}
-
-      {hasRealSub && (
-        <div className="space-y-2 pt-1">
-          <div className="text-xs text-muted-foreground font-mono break-all">
-            {paddleSubId}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAnchor}
-              disabled={busy === "anchor"}
-            >
-              {busy === "anchor" ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <Anchor className="size-3 mr-1.5" />}
-              Ancorar dia 1
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleCancel(false)}
-              disabled={busy === "cancel-soft" || s?.status === "canceled"}
-            >
-              {busy === "cancel-soft" ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <Calendar className="size-3 mr-1.5" />}
-              Cancelar fim do período
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleCancel(true)}
-              disabled={busy === "cancel-now" || s?.status === "canceled"}
-            >
-              {busy === "cancel-now" ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <Ban className="size-3 mr-1.5" />}
-              Cancelar agora
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
   );
 }
 

@@ -1342,8 +1342,8 @@ export const duplicateProperty = createServerFn({ method: "POST" })
 
     // Plan gate — usa o plano do DONO da propriedade fonte (para membros de equipe).
     const plan = await resolveEffectivePlan(supabase, userId, { ownerId: sourceOwnerId });
-    if (!plan.plan) {
-      throw new Error("Você precisa de um plano ativo para duplicar guias.");
+    if (!plan.hasAccess) {
+      throw new Error("Você precisa de uma assinatura ativa para duplicar guias.");
     }
     const { count: currentCount, error: countErr } = await supabaseAdmin
       .from("properties")
@@ -1354,7 +1354,7 @@ export const duplicateProperty = createServerFn({ method: "POST" })
     const remaining = Math.max(0, plan.maxGuides - used);
     if (remaining <= 0) {
       throw new Error(
-        `Limite do plano ${plan.plan} atingido (${plan.maxGuides}). Faça upgrade em Administrativo > Assinatura.`,
+        `Limite de ${plan.maxGuides} guias definido para esta conta foi atingido. Fale com o suporte.`,
       );
     }
     const toCreate = Math.min(data.copies, remaining);

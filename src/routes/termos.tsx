@@ -8,12 +8,12 @@ export const Route = createFileRoute("/termos")({
       {
         name: "description",
         content:
-          "Leia os termos e condições de uso do ConciergeIA: contas, pagamentos via Paddle, limites de responsabilidade e suporte.",
+          "Leia os termos e condições de uso do ConciergeIA: contas, assinatura por anúncio, pagamentos, limites de responsabilidade e suporte.",
       },
       { property: "og:title", content: "Termos e Condições — ConciergeIA" },
       {
         property: "og:description",
-        content: "Termos de uso do ConciergeIA, incluindo assinatura, pagamentos via Paddle e suporte.",
+        content: "Termos de uso do ConciergeIA, incluindo assinatura por anúncio, pagamentos e suporte.",
       },
       { property: "og:url", content: siteUrl("/termos") },
     ],
@@ -61,25 +61,22 @@ function TermsPage() {
 
           <h2 className="font-display text-2xl mt-6">5. Pagamentos e assinatura</h2>
           <p>
-            Nosso processo de pedido é conduzido pelo nosso revendedor online <strong>Paddle.com</strong>. A Paddle.com
-            é o <strong>Comerciante de Registro (Merchant of Record)</strong> de todos os nossos pedidos. A Paddle
-            gerencia consultas de suporte ao cliente relacionadas a cobrança e processa reembolsos.
+            A assinatura é vendida pelo próprio <strong>ConciergeIA</strong> e cobrada no cartão de crédito por meio da{" "}
+            <strong>Stripe</strong>, nossa processadora de pagamentos. Os dados do cartão ficam com a Stripe e nunca passam
+            pelos nossos servidores. Um cartão de crédito válido é obrigatório para usar o serviço.
           </p>
           <p>
-            Os termos de pagamento, cobrança, tributação e cancelamento são regidos pelos Termos do Comprador da Paddle:{" "}
-            <a
-              className="underline"
-              href="https://www.paddle.com/legal/checkout-buyer-terms"
-              target="_blank"
-              rel="noreferrer"
-            >
-              paddle.com/legal/checkout-buyer-terms
-            </a>
-            .
+            O valor é mensal e calculado por anúncio conectado ativo, conforme a tabela publicada em{" "}
+            <a className="underline" href="/#planos">
+              Preços
+            </a>{" "}
+            (valores com impostos inclusos). O vencimento é todo dia 25: na contratação é cobrado o valor proporcional até
+            o dia 25 seguinte. Anúncios ativados no meio do ciclo são cobrados de forma proporcional na hora; anúncios
+            desativados deixam de ser cobrados a partir do ciclo seguinte, sem devolução do ciclo já pago.
           </p>
           <p>
-            Assinaturas são renovadas automaticamente conforme o ciclo de cobrança escolhido. Você pode cancelar a
-            qualquer momento pelo portal do cliente.
+            A assinatura renova automaticamente todo dia 25. Você pode cancelar a qualquer momento; o acesso continua até
+            o fim do período já pago.
           </p>
 
           <h2 className="font-display text-2xl mt-6">6. Nível de serviço</h2>

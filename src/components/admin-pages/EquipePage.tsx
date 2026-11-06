@@ -80,7 +80,6 @@ function EquipePage() {
   const scope = acctId ? { accountOwnerId: acctId } : {};
   const { info: sub } = useSubscription();
   const planFeatures = sub.features;
-  const planName = sub.plan ? sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1) : "atual";
 
   const access = useQuery({
     queryKey: ["handoff-access"],
@@ -288,14 +287,13 @@ function EquipePage() {
   if (access.data?.allowed !== true) {
     return (
       <PlanLockCard
-        title="Permissões disponíveis no Business e Enterprise"
-        description="Convidar atendentes e controlar quem acessa o quê faz parte dos planos superiores."
+        title="Equipe e permissões fazem parte da assinatura"
+        description="Ative a assinatura ConciergeIA para convidar atendentes e controlar quem acessa o quê. Todos os recursos vêm incluídos."
         bullets={[
           "Convite e gestão de atendentes",
           "Permissões por área e por imóvel",
           "Permissões detalhadas por recurso",
         ]}
-        currentPlan={planName}
       />
     );
   }
@@ -387,7 +385,7 @@ function EquipePage() {
               )}
               {feedback && <p className="text-xs text-primary mt-2">{feedback}</p>}
               <p className="text-[11px] text-muted-foreground mt-2">
-                Business e Enterprise: ilimitado. O convidado
+                Convites ilimitados. O convidado
                 precisa se cadastrar com o mesmo e-mail para ativar.
               </p>
             </div>
@@ -492,7 +490,7 @@ function EquipePage() {
                                         className={`flex items-center gap-3 px-3 py-2 ${locked ? "opacity-60" : ""}`}
                                         title={
                                           locked
-                                            ? `Disponível em planos superiores ao ${planName}`
+                                            ? "Disponível com a assinatura ativa"
                                             : area.description
                                         }
                                       >

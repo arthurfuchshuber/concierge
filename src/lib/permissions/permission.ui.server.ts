@@ -154,15 +154,15 @@ async function resolvePlan(
   ctx: Ctx,
   tenantId: string,
 ): Promise<{ plan: string | null; label: string }> {
-  if (ctx.kind === "saas") return { plan: "enterprise", label: "Admin do SaaS" };
+  const { PLAN_KEY, PLAN_NAME } = await import("@/lib/billing/plan");
+  if (ctx.kind === "saas") return { plan: PLAN_KEY, label: "Admin do SaaS" };
   const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   try {
     const resolved = await resolveOwnerPlanAdmin(supabaseAdmin, tenantId);
-    const plan = resolved.plan ?? null;
-    return { plan, label: plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "Gratuito" };
+    return resolved.hasAccess ? { plan: PLAN_KEY, label: PLAN_NAME } : { plan: null, label: "Sem assinatura" };
   } catch {
-    return { plan: null, label: "Gratuito" };
+    return { plan: null, label: "Sem assinatura" };
   }
 }
 

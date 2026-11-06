@@ -219,8 +219,6 @@ const SAAS_CLIENTES: Def[] = [
   act("admin.clientes.lista.abrir-guias", "Abrir guias do cliente", 20),
   tab("admin.clientes.assinatura", "Assinatura do cliente", 20),
   act("admin.clientes.assinatura.editar", "Editar assinatura", 10),
-  act("admin.clientes.assinatura.trial", "Aplicar trial personalizado", 20),
-  act("admin.clientes.assinatura.enterprise", "Criar assinatura Enterprise", 30),
   act("admin.clientes.assinatura.cancelar", "Cancelar assinatura", 40),
 ];
 

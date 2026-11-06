@@ -73,6 +73,7 @@ import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminRecomendacoesSigmaIndexRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.index'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
+import { Route as ApiPublicCronBillingSyncRouteImport } from './routes/api/public/cron.billing-sync'
 import { Route as ApiPublicCronChannexAriRetryRouteImport } from './routes/api/public/cron.channex-ari-retry'
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
 import { Route as ApiPublicCronMalvoSyncRouteImport } from './routes/api/public/cron.malvo-sync'
@@ -82,9 +83,9 @@ import { Route as ApiPublicCronRefreshAirbnbListingsRouteImport } from './routes
 import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
 import { Route as ApiPublicCronReindexSystemKnowledgeRouteImport } from './routes/api/public/cron.reindex-system-knowledge'
-import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicWebhooksAsaasRouteImport } from './routes/api/public/webhooks.asaas'
 import { Route as ApiPublicWebhooksMalvoRouteImport } from './routes/api/public/webhooks.malvo'
+import { Route as ApiPublicWebhooksStripeRouteImport } from './routes/api/public/webhooks.stripe'
 import { Route as ApiPublicWhatsappSinchWebhookRouteImport } from './routes/api/public/whatsapp/sinch-webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
@@ -444,6 +445,12 @@ const ApiPublicCronAutoCheckoutRoute =
     path: '/api/public/cron/auto-checkout',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronBillingSyncRoute =
+  ApiPublicCronBillingSyncRouteImport.update({
+    id: '/api/public/cron/billing-sync',
+    path: '/api/public/cron/billing-sync',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronChannexAriRetryRoute =
   ApiPublicCronChannexAriRetryRouteImport.update({
     id: '/api/public/cron/channex-ari-retry',
@@ -496,12 +503,6 @@ const ApiPublicCronReindexSystemKnowledgeRoute =
     path: '/api/public/cron/reindex-system-knowledge',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicPaymentsWebhookRoute =
-  ApiPublicPaymentsWebhookRouteImport.update({
-    id: '/api/public/payments/webhook',
-    path: '/api/public/payments/webhook',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicWebhooksAsaasRoute = ApiPublicWebhooksAsaasRouteImport.update({
   id: '/api/public/webhooks/asaas',
   path: '/api/public/webhooks/asaas',
@@ -510,6 +511,11 @@ const ApiPublicWebhooksAsaasRoute = ApiPublicWebhooksAsaasRouteImport.update({
 const ApiPublicWebhooksMalvoRoute = ApiPublicWebhooksMalvoRouteImport.update({
   id: '/api/public/webhooks/malvo',
   path: '/api/public/webhooks/malvo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWebhooksStripeRoute = ApiPublicWebhooksStripeRouteImport.update({
+  id: '/api/public/webhooks/stripe',
+  path: '/api/public/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicWhatsappSinchWebhookRoute =
@@ -597,6 +603,7 @@ export interface FileRoutesByFullPath {
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
+  '/api/public/cron/billing-sync': typeof ApiPublicCronBillingSyncRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
@@ -606,9 +613,9 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
-  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
+  '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -675,6 +682,7 @@ export interface FileRoutesByTo {
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
+  '/api/public/cron/billing-sync': typeof ApiPublicCronBillingSyncRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
@@ -684,9 +692,9 @@ export interface FileRoutesByTo {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
-  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
+  '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -758,6 +766,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
+  '/api/public/cron/billing-sync': typeof ApiPublicCronBillingSyncRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
@@ -767,9 +776,9 @@ export interface FileRoutesById {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
   '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
-  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
+  '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
   '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -841,6 +850,7 @@ export interface FileRouteTypes {
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
+    | '/api/public/cron/billing-sync'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/malvo-sync'
@@ -850,9 +860,9 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/cron/reindex-system-knowledge'
-    | '/api/public/payments/webhook'
     | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
+    | '/api/public/webhooks/stripe'
     | '/api/public/whatsapp/sinch-webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -919,6 +929,7 @@ export interface FileRouteTypes {
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
+    | '/api/public/cron/billing-sync'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/malvo-sync'
@@ -928,9 +939,9 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/cron/reindex-system-knowledge'
-    | '/api/public/payments/webhook'
     | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
+    | '/api/public/webhooks/stripe'
     | '/api/public/whatsapp/sinch-webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -1001,6 +1012,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
+    | '/api/public/cron/billing-sync'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/malvo-sync'
@@ -1010,9 +1022,9 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-recommendations'
     | '/api/public/cron/reindex-system-knowledge'
-    | '/api/public/payments/webhook'
     | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
+    | '/api/public/webhooks/stripe'
     | '/api/public/whatsapp/sinch-webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -1055,6 +1067,7 @@ export interface RootRouteChildren {
   LovableEmailEventsRoute: typeof LovableEmailEventsRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
+  ApiPublicCronBillingSyncRoute: typeof ApiPublicCronBillingSyncRoute
   ApiPublicCronChannexAriRetryRoute: typeof ApiPublicCronChannexAriRetryRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
   ApiPublicCronMalvoSyncRoute: typeof ApiPublicCronMalvoSyncRoute
@@ -1064,9 +1077,9 @@ export interface RootRouteChildren {
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
   ApiPublicCronReindexSystemKnowledgeRoute: typeof ApiPublicCronReindexSystemKnowledgeRoute
-  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicWebhooksAsaasRoute: typeof ApiPublicWebhooksAsaasRoute
   ApiPublicWebhooksMalvoRoute: typeof ApiPublicWebhooksMalvoRoute
+  ApiPublicWebhooksStripeRoute: typeof ApiPublicWebhooksStripeRoute
   ApiPublicWhatsappSinchWebhookRoute: typeof ApiPublicWhatsappSinchWebhookRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
@@ -1523,6 +1536,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronAutoCheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/billing-sync': {
+      id: '/api/public/cron/billing-sync'
+      path: '/api/public/cron/billing-sync'
+      fullPath: '/api/public/cron/billing-sync'
+      preLoaderRoute: typeof ApiPublicCronBillingSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/channex-ari-retry': {
       id: '/api/public/cron/channex-ari-retry'
       path: '/api/public/cron/channex-ari-retry'
@@ -1586,13 +1606,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronReindexSystemKnowledgeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/payments/webhook': {
-      id: '/api/public/payments/webhook'
-      path: '/api/public/payments/webhook'
-      fullPath: '/api/public/payments/webhook'
-      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/webhooks/asaas': {
       id: '/api/public/webhooks/asaas'
       path: '/api/public/webhooks/asaas'
@@ -1605,6 +1618,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/webhooks/malvo'
       fullPath: '/api/public/webhooks/malvo'
       preLoaderRoute: typeof ApiPublicWebhooksMalvoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/stripe': {
+      id: '/api/public/webhooks/stripe'
+      path: '/api/public/webhooks/stripe'
+      fullPath: '/api/public/webhooks/stripe'
+      preLoaderRoute: typeof ApiPublicWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/whatsapp/sinch-webhook': {
@@ -1783,6 +1803,7 @@ const rootRouteChildren: RootRouteChildren = {
   LovableEmailEventsRoute: LovableEmailEventsRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicCronAutoCheckoutRoute: ApiPublicCronAutoCheckoutRoute,
+  ApiPublicCronBillingSyncRoute: ApiPublicCronBillingSyncRoute,
   ApiPublicCronChannexAriRetryRoute: ApiPublicCronChannexAriRetryRoute,
   ApiPublicCronConversationRemindersRoute:
     ApiPublicCronConversationRemindersRoute,
@@ -1796,9 +1817,9 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicCronRefreshRecommendationsRoute,
   ApiPublicCronReindexSystemKnowledgeRoute:
     ApiPublicCronReindexSystemKnowledgeRoute,
-  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicWebhooksAsaasRoute: ApiPublicWebhooksAsaasRoute,
   ApiPublicWebhooksMalvoRoute: ApiPublicWebhooksMalvoRoute,
+  ApiPublicWebhooksStripeRoute: ApiPublicWebhooksStripeRoute,
   ApiPublicWhatsappSinchWebhookRoute: ApiPublicWhatsappSinchWebhookRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,

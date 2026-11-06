@@ -1,53 +1,53 @@
 /**
  * Permission Features — declaração das funcionalidades comercializáveis.
  *
- * Mapeia Plano → Funcionalidade usando exatamente os mesmos planos do SaaS.
- * Serve para o gating automático da árvore de permissões (FASE 3).
- * NÃO altera o `plan-guard.server.ts`, que continua sendo a fonte em uso
- * para autorização real.
+ * Plano único (06/11/2026): toda funcionalidade é liberada pela assinatura ativa do
+ * ConciergeIA (cobrança por anúncio). Serve para o gating automático da árvore de permissões;
+ * a autorização real continua no `plan-guard.server.ts`.
  */
+import { PLAN_KEY } from "@/lib/billing/plan";
 import { featureAccess, type FeatureDefinition } from "./feature.access";
 
 const PERMISSION_FEATURES: FeatureDefinition[] = [
   {
     key: "guestChat",
     name: "Chat com IA para hóspedes",
-    plans: ["pro", "business", "enterprise"],
+    plans: [PLAN_KEY],
   },
   {
     key: "autoImport",
     name: "Importação automática (Airbnb + Maps)",
-    plans: ["pro", "business", "enterprise"],
+    plans: [PLAN_KEY],
   },
   {
     key: "advancedIntake",
     name: "Captação avançada + validação por IA",
-    plans: ["pro", "business", "enterprise"],
+    plans: [PLAN_KEY],
   },
   {
     key: "ai",
     name: "Ensinar a IA (base de conhecimento própria)",
-    plans: ["business", "enterprise"],
+    plans: [PLAN_KEY],
   },
   {
     key: "humanHandoff",
     name: "Atendimento humano ao vivo",
-    plans: ["business", "enterprise"],
+    plans: [PLAN_KEY],
   },
   {
     key: "team",
     name: "Gestão de equipe + edição em massa",
-    plans: ["business", "enterprise"],
+    plans: [PLAN_KEY],
   },
   {
     key: "customBrand",
     name: "Marca própria",
-    plans: ["enterprise"],
+    plans: [PLAN_KEY],
   },
   {
     key: "externalIntegration",
     name: "Integração com sistemas externos",
-    plans: ["enterprise"],
+    plans: [PLAN_KEY],
   },
 ];
 
