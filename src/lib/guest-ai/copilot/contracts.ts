@@ -113,6 +113,26 @@ export const copilotFlagOn = (
   env: Record<string, string | undefined> = process.env,
 ): boolean => copilotFlags(env)[flag];
 
+/**
+ * ALLOWLIST DE IMÓVEIS da geração (backend, fail-closed). Mesmo com `GUEST_AI_COPILOT_GENERATION=on`, só gera
+ * para imóveis listados em `GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS` (ids separados por vírgula). Vazia ou
+ * ausente ⇒ NENHUM imóvel. A conferência usa o imóvel RE-DERIVADO do banco para o turno validado — nunca um
+ * id enviado pelo navegador ou pelo canal. Não existe geração global.
+ */
+export const COPILOT_GENERATION_PROPERTIES_ENV = "GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS";
+const PROPERTY_TOKEN = /^[A-Za-z0-9-]{1,64}$/;
+export function copilotGenerationProperties(
+  env: Record<string, string | undefined> = process.env,
+): ReadonlySet<string> {
+  const raw = env[COPILOT_GENERATION_PROPERTIES_ENV] ?? "";
+  return new Set(
+    raw
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => PROPERTY_TOKEN.test(t)),
+  );
+}
+
 /** Erro fechado de porta desligada (a server function devolve sem efeito; nada é lido, reivindicado ou enviado). */
 export class CopilotFlagOffError extends Error {
   constructor(readonly flag: CopilotFlag) {

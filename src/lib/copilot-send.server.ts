@@ -105,6 +105,9 @@ export async function sendCopilotSuggestionCore(
     }
     case "invalid_state":
       return { status: "invalid_state", state: (claim["state"] as string | null) ?? null };
+    case "forbidden":
+      // tem acesso ao imóvel, mas não a permissão `chat_respond` (conferida no banco, pela sessão)
+      throw new Error("Sem permissão para responder nesta conta.");
     case "not_found":
     case "unauthenticated":
       throw new Error("Sugestão não encontrada.");

@@ -4,7 +4,7 @@
  * Vive logo acima do campo de resposta de `ConversationView`. É um RASCUNHO: nunca aparece na lista de
  * mensagens, tem rótulo "IA" e selo "não enviado", e só vira mensagem quando o atendente clica em
  * "Enviar ao Hóspede" — que invoca a rotina humana de envio do canal (backend). A geração acontece em segundo
- * plano quando chega mensagem do hóspede; este cartão só a acompanha (realtime + refetch) e, se a mensagem
+ * plano quando chega mensagem do hóspede; este cartão só a acompanha (consulta periódica: 3 s gerando/enviando, 15 s parado) e, se a mensagem
  * mais recente ainda não tem sugestão, pede uma (idempotente no banco).
  * Estados: Gerando · Disponível · Editada · Enviando · Enviada · Falha no envio · Descartada (+ "sem sugestão"
  * e "não foi possível gerar", informativos).
@@ -23,7 +23,6 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import {
   discardCopilotSuggestion,
   editCopilotSuggestion,
@@ -198,28 +197,6 @@ export function AiSuggestionCard({
   const flags = q.data?.flags ?? { ui: false, generation: false, send: false };
   const enabled = flags.ui;
   const suggestion = q.data?.suggestion ?? null;
-
-  // realtime: a linha muda (geração concluída, envio encerrado em outra aba) ⇒ recarrega
-  useEffect(() => {
-    const ch = supabase
-      .channel(`copilot-${conversationId}-${Math.random().toString(36).slice(2)}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "guest_ai_copilot_suggestions",
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        () => {
-          qc.invalidateQueries({ queryKey: ["copilot-suggestion", conversationId] });
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, [conversationId, qc]);
 
   // mensagem nova do hóspede sem sugestão ⇒ pede UMA vez por mensagem (o banco é idempotente com o disparo do canal)
   const requested = useRef<string | null>(null);

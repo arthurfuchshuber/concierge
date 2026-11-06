@@ -169,6 +169,7 @@ export async function editCopilotSuggestionCore(
     p_suggestion_id: data.suggestionId,
     p_text: data.text,
   });
+  if (r.result === "forbidden") throw new Error("Sem permissão para responder nesta conta.");
   if (r.result === "not_found" || r.result === "unauthenticated")
     throw new Error("Sugestão não encontrada.");
   if (r.result === "invalid_state") throw new Error("Esta sugestão já não pode ser editada.");
@@ -183,6 +184,7 @@ export async function discardCopilotSuggestionCore(
 ): Promise<{ ok: true; suggestion: CopilotSuggestionRow | null }> {
   if (!copilotFlags(env).ui) throw new Error("Sugestões da IA desativadas.");
   const r = await rpc(supabase, "copilot_discard", { p_suggestion_id: data.suggestionId });
+  if (r.result === "forbidden") throw new Error("Sem permissão para responder nesta conta.");
   if (r.result === "not_found" || r.result === "unauthenticated")
     throw new Error("Sugestão não encontrada.");
   if (r.result === "invalid_state") throw new Error("Esta sugestão já não pode ser descartada.");

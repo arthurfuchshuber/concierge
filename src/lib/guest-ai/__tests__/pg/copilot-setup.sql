@@ -92,6 +92,40 @@ AS $function$
       )
   );
 $function$;
+-- ── literal (produção, 05/11/2026): enum e permissões de membro; deny por padrão ──
+DO $e$ BEGIN
+  IF to_regtype('public.member_permission') IS NULL THEN
+    CREATE TYPE public.member_permission AS ENUM ('chat_respond','ai_train','library_edit','clients_manage','trial_manage','pricing_override','library_view','ai_view','chat_view','operation_view','operation_edit','guests_view','guests_edit');
+  END IF;
+END $e$;
+create table if not exists public.account_member_permissions (
+  owner_id uuid not null, member_user_id uuid not null, permission public.member_permission not null, granted boolean not null default false,
+  primary key (owner_id, member_user_id, permission)
+);
+CREATE OR REPLACE FUNCTION public.has_member_permission(_user_id uuid, _owner_id uuid, _permission public.member_permission)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+SET search_path = public
+AS $function$
+DECLARE
+  v_row public.account_member_permissions%ROWTYPE;
+BEGIN
+  IF _user_id IS NULL OR _owner_id IS NULL THEN RETURN false; END IF;
+  IF _user_id = _owner_id THEN RETURN true; END IF;
+  IF NOT public.is_account_member(_user_id, _owner_id) THEN RETURN false; END IF;
+
+  SELECT * INTO v_row FROM public.account_member_permissions
+    WHERE owner_id = _owner_id AND member_user_id = _user_id AND permission = _permission;
+
+  IF FOUND THEN RETURN COALESCE(v_row.granted, false); END IF;
+
+  -- Deny por padrão: nenhuma permissão é herdada sem concessão explícita.
+  RETURN false;
+END;
+$function$;
+GRANT EXECUTE ON FUNCTION public.has_member_permission(uuid, uuid, public.member_permission) TO authenticated, service_role;
+
 REVOKE EXECUTE ON FUNCTION public.user_can_access_property(uuid, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.user_can_access_property(uuid, uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_account_member(uuid, uuid) TO authenticated, service_role;
@@ -102,3 +136,13 @@ alter table public.property_chat_messages add column if not exists delivery_stat
 alter table public.property_chat_messages add column if not exists is_internal_note boolean not null default false;
 alter table public.property_chat_messages add column if not exists channel text not null default 'web';
 alter table public.property_chat_messages add column if not exists external_id text;
+
+-- ── privilégios PADRÃO como na produção (pg_default_acl do postgres em public, conferido em 05/11/2026):
+--    objetos novos nascem concedidos a anon/authenticated/service_role (e tabelas a sandbox_exec). O bundle
+--    precisa revogar tudo isso; aqui o teste exercita exatamente esse caminho.
+DO $r$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sandbox_exec') THEN CREATE ROLE sandbox_exec NOLOGIN; END IF;
+END $r$;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT SELECT, INSERT ON TABLES TO sandbox_exec;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;

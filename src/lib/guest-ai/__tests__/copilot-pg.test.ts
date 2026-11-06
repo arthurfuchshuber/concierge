@@ -6,6 +6,7 @@
  * vigente, edição/descarte, envio com token (cliques repetidos/abas simultâneas ⇒ UM envio), reconciliação
  * de resultado ambíguo (nunca reenvia sozinho), retenção de 14 dias e paridade de vocabulário TS × SQL.
  */
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { PG_AVAILABLE, startCluster, type PgCluster } from "./pg/pg-cluster";
@@ -34,6 +35,7 @@ const T2 = "a2000000-0000-4000-8000-000000000002"; // dono (tenant) 2
 const MEMBER = "a3000000-0000-4000-8000-000000000003"; // membro do imóvel 1
 const STRANGER = "a4000000-0000-4000-8000-000000000004"; // autenticado sem acesso
 const ALLPROPS = "a5000000-0000-4000-8000-000000000005"; // membro de T1 com acesso a todos os imóveis
+const READONLY = "a6000000-0000-4000-8000-000000000006"; // membro de T1 com acesso a P1 mas SEM chat_respond
 const P1B = "b1000000-0000-4000-8000-0000000000b1"; // segundo imóvel de T1 (MEMBER não é atribuído)
 const C1B = "c1000000-0000-4000-8000-0000000000b1";
 const P1 = "b1000000-0000-4000-8000-000000000001";
@@ -140,7 +142,12 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · migration contra PostgreSQL real", (
       insert into public.account_members (owner_id, member_user_id, role, status, all_properties) values
         ('${T1}', '${T1}', 'owner', 'active', true), ('${T2}', '${T2}', 'owner', 'active', true),
         ('${T1}', '${MEMBER}', 'agent', 'active', false), ('${T1}', '${ALLPROPS}', 'agent', 'active', true);
-      insert into public.property_assignments (tenant_id, property_id, user_id, status) values ('${T1}', '${P1}', '${MEMBER}', 'active');`);
+      insert into public.property_assignments (tenant_id, property_id, user_id, status) values ('${T1}', '${P1}', '${MEMBER}', 'active'), ('${T1}', '${P1}', '${READONLY}', 'active');
+      insert into public.account_members (owner_id, member_user_id, role, status, all_properties) values ('${T1}', '${READONLY}', 'agent', 'active', false);
+      -- permissões explícitas (deny por padrão, como na produção): MEMBER e ALLPROPS podem responder; READONLY não
+      delete from public.account_member_permissions;
+      insert into public.account_member_permissions (owner_id, member_user_id, permission, granted) values
+        ('${T1}', '${MEMBER}', 'chat_respond', true), ('${T1}', '${ALLPROPS}', 'chat_respond', true), ('${T1}', '${READONLY}', 'chat_view', true);`);
     MSG_A = await guestMessage();
   });
 
@@ -248,6 +255,84 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · migration contra PostgreSQL real", (
         (await user(ALLPROPS, "copilot_claim_send", { p_suggestion_id: idP1, p_text: null }))
           .result,
       ).toBe("not_found");
+    });
+
+    it("membro com permissão insuficiente (sem chat_respond): LÊ como as mensagens, mas não edita, descarta nem envia", async () => {
+      const id = await available();
+      const seen = await pg.sql(
+        `${as(READONLY)}select count(*) from public.guest_ai_copilot_suggestions`,
+        { role: "authenticated" },
+      );
+      expect(seen.split("\n").pop()).toBe("1");
+      expect(
+        (await user(READONLY, "copilot_edit", { p_suggestion_id: id, p_text: "x" })).result,
+      ).toBe("forbidden");
+      expect((await user(READONLY, "copilot_discard", { p_suggestion_id: id })).result).toBe(
+        "forbidden",
+      );
+      expect(
+        (await user(READONLY, "copilot_claim_send", { p_suggestion_id: id, p_text: null })).result,
+      ).toBe("forbidden");
+      expect(
+        (
+          await user(READONLY, "copilot_reconcile_send", {
+            p_suggestion_id: id,
+            p_attempt_finished: true,
+            p_error_code: null,
+          })
+        ).result,
+      ).toBe("forbidden");
+      expect(
+        await pg.sql(
+          `select state || ':' || send_attempts from public.guest_ai_copilot_suggestions where id = '${id}'`,
+        ),
+      ).toBe("available:0");
+      // concessão explícita revogada também tira o envio de quem tinha
+      await pg.sql(
+        `update public.account_member_permissions set granted = false where member_user_id = '${MEMBER}'`,
+      );
+      expect(
+        (await user(MEMBER, "copilot_claim_send", { p_suggestion_id: id, p_text: null })).result,
+      ).toBe("forbidden");
+      // o dono nunca precisa de concessão
+      expect(
+        (await user(T1, "copilot_claim_send", { p_suggestion_id: id, p_text: null })).result,
+      ).toBe("claimed");
+    });
+
+    it("DML direto por tenant: nem o dono, nem membro, nem outro tenant, nem service_role escrevem ou leem fora das RPCs", async () => {
+      const id = await available();
+      for (const who of [T1, MEMBER, T2]) {
+        for (const stmt of [
+          `insert into public.guest_ai_copilot_suggestions (tenant_id, property_id, conversation_id, trigger_message_id, surface) values ('${T1}', '${P1}', '${C1}', '${MSG_A}', 'guide_chat')`,
+          `update public.guest_ai_copilot_suggestions set state = 'sent' where id = '${id}'`,
+          `delete from public.guest_ai_copilot_suggestions where id = '${id}'`,
+        ]) {
+          expect(
+            (await pg.trySql(`${as(who)}${stmt}`, { role: "authenticated" })).ok,
+            `${who}: ${stmt.slice(0, 20)}`,
+          ).toBe(false);
+        }
+      }
+      expect(
+        (
+          await pg.trySql(`select count(*) from public.guest_ai_copilot_suggestions`, {
+            role: "service_role",
+          })
+        ).ok,
+      ).toBe(false);
+      expect(
+        await pg.sql(`select state from public.guest_ai_copilot_suggestions where id = '${id}'`),
+      ).toBe("available");
+    });
+
+    it("caminho administrativo: a ÚNICA política é de leitura por acesso ao imóvel (sem leitura global de admin do SaaS)", async () => {
+      const pols = await pg.sql(
+        `select string_agg(polcmd::text || ' ' || pg_get_expr(polqual, polrelid), ' | ') from pg_policy where polrelid = 'public.guest_ai_copilot_suggestions'::regclass`,
+      );
+      expect(pols).toBe(
+        "r ((expires_at > now()) AND user_can_access_property(auth.uid(), property_id))",
+      );
     });
 
     it("funções de geração só para service_role; ações do atendente só para authenticated", async () => {
@@ -711,16 +796,30 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · migration contra PostgreSQL real", (
       ).toBe("t");
     });
 
-    it("conversa apagada ⇒ sugestões apagadas (cascade); nenhuma FK para imóveis", async () => {
-      await available();
-      await pg.sql(`delete from public.property_chat_conversations where id = '${C1}'`);
-      expect(Number(await pg.sql(`select count(*) from public.guest_ai_copilot_suggestions`))).toBe(
-        0,
-      );
+    it("sem FK para tabelas operacionais: conversa apagada não é tocada pela tabela nova; a órfã some na retenção", async () => {
+      const id = await available();
       const fks = await pg.sql(
-        `select string_agg(confrelid::regclass::text, ',') from pg_constraint where conrelid = 'public.guest_ai_copilot_suggestions'::regclass and contype = 'f'`,
+        `select count(*) from pg_constraint where conrelid = 'public.guest_ai_copilot_suggestions'::regclass and contype = 'f'`,
       );
-      expect(fks).toBe("property_chat_conversations");
+      expect(fks).toBe("0");
+      // nenhuma trigger (nem interna de FK) em lugar algum aponta para a tabela nova
+      const trg = await pg.sql(
+        `select count(*) from pg_trigger where tgconstrrelid = 'public.guest_ai_copilot_suggestions'::regclass or tgrelid = 'public.guest_ai_copilot_suggestions'::regclass`,
+      );
+      expect(trg).toBe("0");
+      await pg.sql(`delete from public.property_chat_conversations where id = '${C1}'`);
+      // a sugestão órfã continua só até expirar e é expurgada pela retenção
+      await pg.sql(
+        `update public.guest_ai_copilot_suggestions set expires_at = now() - interval '1 second' where id = '${id}'`,
+      );
+      await sr("copilot_purge_expired", {});
+      expect(
+        Number(
+          await pg.sql(
+            `select count(*) from public.guest_ai_copilot_suggestions where id = '${id}'`,
+          ),
+        ),
+      ).toBe(0);
     });
   });
 
@@ -755,6 +854,51 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · migration contra PostgreSQL real", (
         `p_daily_cost_limit_usd > ${COPILOT_DAILY_COST_CEILING_USD.toFixed(2)}`,
       );
       expect(src).toContain(`p_turn_cost_ceiling_usd > ${COPILOT_MAX_TURN_COST_USD}`);
+    });
+  });
+
+  describe("bundle: idempotente, transacional e fail-closed", () => {
+    it("reaplicar o bundle sobre a estrutura idêntica não altera nada (no-op)", async () => {
+      const id = await available();
+      const fp = async () =>
+        pg.sql(
+          `select md5(string_agg(oid::text || proname || md5(prosrc), ',' order by proname)) from pg_proc where proname like 'copilot\\_%'`,
+        );
+      const before = await fp();
+      await pg.sql(readFileSync(MIGRATION, "utf8"));
+      expect(await fp()).toBe(before);
+      expect(
+        await pg.sql(`select state from public.guest_ai_copilot_suggestions where id = '${id}'`),
+      ).toBe("available");
+    });
+
+    it("estrutura divergente ou aplicação parcial ⇒ COPILOT_CONFLITO e nada é alterado", async () => {
+      await pg.sql(
+        `create index guest_ai_copilot_tmp_divergencia on public.guest_ai_copilot_suggestions (surface)`,
+      );
+      const r1 = await pg.trySql(readFileSync(MIGRATION, "utf8"));
+      expect(r1.ok).toBe(false);
+      expect(!r1.ok && r1.error).toMatch(/COPILOT_(CONFLITO|PREFLIGHT)/);
+      await pg.sql(`drop index public.guest_ai_copilot_tmp_divergencia`);
+      // aplicação parcial (função faltando)
+      await pg.sql(`alter function public.copilot_purge_expired() rename to zz_copilot_tmp_fora`);
+      const r2 = await pg.trySql(readFileSync(MIGRATION, "utf8"));
+      expect(!r2.ok && r2.error).toMatch(/COPILOT_CONFLITO: aplicação parcial/);
+      await pg.sql(`alter function public.zz_copilot_tmp_fora() rename to copilot_purge_expired`);
+      // de volta ao idêntico ⇒ no-op de novo
+      expect((await pg.trySql(readFileSync(MIGRATION, "utf8"))).ok).toBe(true);
+    });
+
+    it("o bundle é um ÚNICO comando (bloco DO) e não altera nada fora da tabela nova", () => {
+      const sql = readFileSync(MIGRATION, "utf8")
+        .replace(/^--.*$/gm, "")
+        .trim();
+      expect(sql.startsWith("DO $bundle$")).toBe(true);
+      expect(sql.endsWith("$bundle$;")).toBe(true);
+      expect(sql).not.toMatch(
+        /alter publication|references public\.|create trigger|alter table public\.(?!guest_ai_copilot_suggestions)|drop (table|function|policy)/i,
+      );
+      expect(sql).toMatch(/COPILOT_POS: o catálogo operacional mudou/);
     });
   });
 });

@@ -53,6 +53,7 @@ import {
   COPILOT_REASONING_EFFORT,
   copilotDailyLimitUsd,
   copilotFlagOn,
+  copilotGenerationProperties,
   copilotModelId,
   type CopilotGenerationRequest,
   type CopilotWarning,
@@ -119,6 +120,7 @@ export type CopilotGenerateResult =
       status: "skipped";
       code:
         | "generation_off"
+        | "property_not_allowlisted"
         | "scope_refused"
         | "claim_invalid"
         | "claim_failed"
@@ -365,6 +367,11 @@ export async function generateCopilotSuggestion(
         code: "scope_refused",
         detail: e instanceof GuestAiScopeError ? e.code : "lookup_failed",
       };
+    }
+
+    // 1b) allowlist de imóveis (backend): o imóvel do turno VALIDADO precisa estar listado; vazia ⇒ nenhum
+    if (!copilotGenerationProperties(env).has(turn.propertyId)) {
+      return { status: "skipped", code: "property_not_allowlisted", detail: null };
     }
 
     // 2) reivindicação idempotente (uma sugestão por mensagem; teto diário; anteriores ⇒ superseded)

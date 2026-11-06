@@ -105,6 +105,7 @@ const ENV = {
   GUEST_AI_COPILOT_UI: "on",
   GUEST_AI_COPILOT_GENERATION: "on",
   GUEST_AI_COPILOT_SEND: "on",
+  GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "p1",
 };
 const fetchMock = vi.fn(async (url: string) =>
   url.includes("/message_threads/")
@@ -407,6 +408,7 @@ const CONFIG_FASE_A = {
   GUEST_AI_COPILOT_UI: "on",
   GUEST_AI_COPILOT_GENERATION: "on",
   GUEST_AI_COPILOT_SEND: "off",
+  GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "p1",
 };
 
 describe.each(CHANNELS)(

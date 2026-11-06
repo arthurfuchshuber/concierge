@@ -25,18 +25,6 @@ vi.mock("@/lib/copilot.functions", () => ({
   discardCopilotSuggestion: fns.discard,
   sendCopilotSuggestion: fns.send,
 }));
-const channel = vi.hoisted(() => ({ handlers: [] as Array<() => void> }));
-vi.mock("@/integrations/supabase/client", () => {
-  const ch = {
-    on: (_e: string, _f: unknown, cb: () => void) => {
-      channel.handlers.push(cb);
-      return ch;
-    },
-    subscribe: () => ch,
-  };
-  return { supabase: { channel: () => ch, removeChannel: () => {} } };
-});
-
 import { AiSuggestionCard, STATE_LABEL, contextSummary } from "../AiSuggestionCard";
 
 const ALL_ON = { ui: true, generation: true, send: true };
@@ -108,7 +96,6 @@ function mount(props: Partial<Parameters<typeof AiSuggestionCard>[0]> = {}) {
 
 beforeEach(() => {
   for (const f of Object.values(fns)) f.mockReset();
-  channel.handlers.length = 0;
   fns.ensure.mockResolvedValue({ status: "exists", suggestion: null });
 });
 afterEach(cleanup);
@@ -300,11 +287,14 @@ describe("Cartão Sugestão da IA", () => {
 
   it("mensagem mais nova do hóspede: pede UMA geração e avisa que a sugestão é da mensagem anterior", async () => {
     fns.get.mockResolvedValue({ flags: ALL_ON, suggestion: row({ trigger_message_id: "antiga" }) });
-    mount();
+    const { qc } = mount();
     expect(await screen.findByText(/O hóspede enviou mensagem mais nova/)).toBeTruthy();
     await waitFor(() => expect(fns.ensure).toHaveBeenCalledTimes(1));
     expect(fns.ensure).toHaveBeenCalledWith({ data: { conversationId: CONV } });
-    act(() => channel.handlers.forEach((h) => h()));
+    // nova consulta periódica da mesma sugestão não repete o pedido
+    await act(async () => {
+      await qc.invalidateQueries({ queryKey: ["copilot-suggestion", CONV] });
+    });
     await new Promise((r) => setTimeout(r, 30));
     expect(fns.ensure).toHaveBeenCalledTimes(1);
   });

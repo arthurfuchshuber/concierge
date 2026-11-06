@@ -42,7 +42,7 @@ import type { OwnershipLoad } from "@/lib/guest-ai/data/conversation-ownership.s
 import { CONV, ctx, history, turn, v4, silence } from "./helpers/b23-chain";
 import { fakeProvider, okJson } from "./helpers/b33-shadow";
 
-const ON = { GUEST_AI_COPILOT_GENERATION: "on" };
+const ON = { GUEST_AI_COPILOT_GENERATION: "on", GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "p1" };
 const REQ = {
   surface: "guide_chat" as const,
   conversationId: "c1",
@@ -221,6 +221,32 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     const again = await generateCopilotSuggestion(REQ, deps(p, { store }));
     expect(again.status).toBe("exists");
     expect(p.calls).toBe(1);
+  });
+
+  it("allowlist de imóveis (backend): geração ligada sem o imóvel do turno validado na lista ⇒ nada é reivindicado nem chamado", async () => {
+    for (const list of [undefined, "", " , ", "p2", "p2,p3", "P1"]) {
+      const p = fakeProvider(okJson(v4()));
+      const env: Record<string, string> = { GUEST_AI_COPILOT_GENERATION: "on" };
+      if (list !== undefined) env.GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS = list;
+      const d = deps(p, { env });
+      expect(await generateCopilotSuggestion(REQ, d)).toEqual({
+        status: "skipped",
+        code: "property_not_allowlisted",
+        detail: null,
+      });
+      expect(d.store.claims).toHaveLength(0);
+      expect(p.calls).toBe(0);
+    }
+    // o id vem do turno re-derivado do banco, não do pedido: pedido com outro imóvel no "expectedOwnerId" não importa
+    const p = fakeProvider(okJson(v4()));
+    const d = deps(p, {
+      env: {
+        GUEST_AI_COPILOT_GENERATION: "on",
+        GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "p2, p1",
+      },
+    });
+    expect((await generateCopilotSuggestion(REQ, d)).status).toBe("stored");
+    expect(d.store.claims[0]).toMatchObject({ propertyId: "p1" });
   });
 
   it("teto diário atingido ⇒ nenhuma chamada; teto efetivo nunca acima do aprovado", async () => {
