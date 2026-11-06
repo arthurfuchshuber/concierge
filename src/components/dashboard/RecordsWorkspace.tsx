@@ -29,6 +29,8 @@ import {
   ListChecks,
   CalendarRange,
   Users,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
@@ -110,7 +112,6 @@ import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard
 import { PENDING_CATEGORIES } from "@/lib/record-pending";
 import { VideoFrame } from "@/components/dashboard/VideoFrame";
 import { useAntiClipRows } from "@/hooks/useAntiClipRows";
-import { PendingSummary } from "@/components/dashboard/PendingSummary";
 import { stableMediaUrl, warmImages } from "@/lib/stable-media-url";
 import { listTaskLinkOptions, restoreTask, setTaskStatus } from "@/lib/tasks.functions";
 import {
@@ -395,6 +396,12 @@ export function RecordsWorkspace() {
   const [openPending, setOpenPending] = useState<string | null>(null);
   const [opened, setOpened] = useState<AccountRecord | null>(null);
   const [resolving, setResolving] = useState<AccountRecord | null>(null);
+  /**
+   * JANELA DO CONTADOR (mockups aprovados, 06/11/2026): tocar num dos quatro
+   * contadores tem o MESMO efeito dos cards do Operacional — abre a janela
+   * padrão daquela categoria, com tudo o que está em aberto nela.
+   */
+  const [counterOpen, setCounterOpen] = useState<RecordCategory | null>(null);
 
   // Imóveis e proprietários da conta — a MESMA função que alimenta o
   // vínculo das Pendências, já recortada por perfil.
@@ -524,8 +531,6 @@ export function RecordsWorkspace() {
   );
   const counts = q.data?.counts;
 
-  /** Imóvel escolhido no tooltip de pendências (desfeito junto com "Ver tudo"). */
-  const [pendingFocus, setPendingFocus] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
@@ -630,20 +635,6 @@ export function RecordsWorkspace() {
               }
             })
       : groups;
-  // O NÚMERO DA FAIXA vem do servidor (mesma leitura dos cartões): não depende
-  // do que coube na lista, da categoria escolhida nem da busca. Sem o campo
-  // (servidor antigo), cai para o que a lista mostra.
-  // Com uma categoria escolhida, a faixa e o resumo falam SÓ dela (filtro estrito).
-  const pendingItemsShown = (q.data?.pendingItems ?? []).filter((i) =>
-    category ? i.category === category : true,
-  );
-  const pendingOpen = category
-    ? (q.data?.openCounts?.[category] ?? pendingItemsShown.length)
-    : (q.data?.pendingOpen ?? attentionGroups.reduce((n, g) => n + g.pending.length, 0));
-  const pendingProperties = category
-    ? new Set(pendingItemsShown.map((i) => i.propertyId)).size
-    : (q.data?.pendingProperties ?? attentionGroups.length);
-
   // Aquece o cache com as imagens dos primeiros cartões (sem mudar o visual).
   useEffect(() => {
     const urls = [...attentionGroups, ...calmGroups]
@@ -698,7 +689,6 @@ export function RecordsWorkspace() {
     setGroupBy("property");
     setOwnerFilters([]);
     setPropertyFilters([]);
-    setPendingFocus(null);
   }
 
   const pageTitle = (() => {
@@ -769,12 +759,13 @@ export function RecordsWorkspace() {
         <OperationShell view="registros" title={pageTitle} subtitle={pageSubtitle} />
 
         <div className="ds-card-grid">
-          {/* STATUS EM FAIXA ÚNICA (mockup C+D, aprovado 03/10/2026): acima da busca
-              e dos botões de filtro. Uma peça só, quatro células iguais — cabe
-              na largura (sem rolagem, nada cortado) e usa as mesmas laterais do
+          {/* CONTADORES (mockup C+D, 03/10/2026): quatro células iguais — cabem
+              na largura (sem rolagem, nada cortado) e usam as mesmas laterais do
               resto da tela. O número é o de pendências ABERTAS; o histórico não
-              aparece aqui. Tocar de novo na célula ativa limpa a categoria. A cor
-              é só a do status, no ícone. */}
+              aparece aqui. Tocar numa célula abre a janela da categoria, com o
+              mesmo efeito dos cards do Operacional (mockups de 06/11/2026); o
+              recorte da lista por categoria continua no botão de Filtros. A faixa
+              "N pendências em M imóveis · Ver só elas" saiu (06/11/2026). */}
           <SearchActionRow
             value={search}
             onChange={setSearch}
@@ -790,84 +781,11 @@ export function RecordsWorkspace() {
                 open={q.data?.openCounts?.[c.key] ?? 0}
                 loading={q.isLoading}
                 active={category === c.key}
-                onClick={() => setCategory(category === c.key ? null : c.key)}
+                onClick={() => setCounterOpen(c.key)}
               />
             ))}
           </div>
 
-
-          {/* RESUMO DO QUE ESTÁ ABERTO (mockup A1, 03/10/2026): a primeira coisa
-              que a pessoa precisa saber — quanto trabalho há — com o atalho para
-              ver só isso. O NÚMERO é o do servidor (dano + manutenção +
-              incidente em aberto) e as etiquetas embaixo o decompõem: a soma
-              delas é exatamente o total, e bate com o "em aberto" de cada
-              cartão acima. Reaproveita o filtro "só em aberto". */}
-          {(pendingOpen > 0 || onlyOpen) && (
-            <div className="ds-3d flex min-h-11 items-center gap-2.5 rounded-[12px] border border-[#c98c8c]/35 bg-[#c98c8c]/20 py-2 pl-3.5 pr-2 dark:border-[#d49a9c]/[0.22] dark:bg-[#2d2124]">
-              {/* UMA LINHA (mockup aprovado, 30/10/2026): ícone de alerta + "N pendências em M imóveis"
-                  + botão suave à direita. Saiu o "esperando solução em". */}
-              <CircleAlert className="size-[15px] shrink-0 text-[#c98c8c]" strokeWidth={2} aria-hidden />
-              <p className="min-w-0 flex-1 truncate text-[12.5px] leading-snug">
-                {pendingOpen > 0 ? (
-                  <>
-                    <b className="font-bold">
-                      {pendingOpen} {pendingOpen === 1 ? "pendência" : "pendências"}
-                      {category ? ` de ${CATEGORY_BY_KEY.get(category)?.short ?? ""}` : ""}
-                    </b>{" "}
-                    em{" "}
-                    <b className="font-bold">
-                      {pendingProperties} {pendingProperties === 1 ? "imóvel" : "imóveis"}
-                    </b>
-                  </>
-                ) : (
-                  "Nada em aberto por aqui."
-                )}
-              </p>
-              {onlyOpen ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOnlyOpen(false);
-                    // Se o filtro nasceu de um imóvel escolhido no tooltip, "Ver
-                    // tudo" desfaz os dois.
-                    if (pendingFocus) {
-                      setPropertyFilters([]);
-                      setPendingFocus(null);
-                    }
-                  }}
-                  aria-pressed
-                  className="inline-flex h-7 shrink-0 items-center rounded-[8px] border border-[#c98c8c]/45 bg-[#c98c8c]/25 px-3 text-[11.5px] font-semibold text-foreground transition-colors hover:bg-[#c98c8c]/35 dark:border-transparent dark:bg-[#58424a] dark:hover:bg-[#654b54]"
-                >
-                  Ver tudo
-                </button>
-              ) : (
-                <PendingSummary
-                  items={pendingItemsShown}
-                  tones={CARD_ICON_TONE}
-                  viewerOpen={!!opened}
-                  onOpenItem={(it) => {
-                    const rec = records.find((r) => r.id === it.id);
-                    if (rec) {
-                      setOpened(rec);
-                      return true;
-                    }
-                    // Fora da lista carregada: mostra o imóvel filtrado para achá-la.
-                    setOnlyOpen(true);
-                    setPropertyFilters([it.propertyId]);
-                    setPendingFocus(it.propertyId);
-                    return false;
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="inline-flex h-7 shrink-0 items-center rounded-[8px] border border-[#c98c8c]/45 bg-[#c98c8c]/25 px-3 text-[11.5px] font-semibold text-foreground transition-colors hover:bg-[#c98c8c]/35 dark:border-transparent dark:bg-[#58424a] dark:hover:bg-[#654b54]"
-                  >
-                    Ver só elas
-                  </button>
-                </PendingSummary>
-              )}
-            </div>
-          )}
 
           {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
           {q.isLoading ? (
@@ -937,6 +855,16 @@ export function RecordsWorkspace() {
         }}
       />
 
+      <CategoryPendingDialog
+        category={counterOpen}
+        onClose={() => setCounterOpen(null)}
+        ownerId={activeOwnerId}
+        period={period}
+        propertyIds={propertyIds}
+        onOpen={setOpened}
+        onResolve={setResolving}
+      />
+
       <ResolveDialog
         record={resolving}
         owners={optionsQ.data?.owners ?? []}
@@ -946,6 +874,320 @@ export function RecordsWorkspace() {
           setResolving(null);
           void qc.invalidateQueries({ queryKey: ["account-records"] });
         }}
+      />
+    </div>
+  );
+}
+
+/**
+ * JANELA DO CONTADOR (mockups aprovados, 06/11/2026 — "Registros · toque em
+ * Manutenção"). Mesmo efeito dos cards do Operacional: a janela padrão do
+ * sistema (`DialogContent`: véu com desfoque, centralizada, X de canto, fio de
+ * luz no topo), com título = nome do contador e subtítulo "N pendências · M
+ * proprietários".
+ *
+ * Por dentro, TUDO o que está em aberto naquela categoria, agrupado por
+ * PROPRIETÁRIO (nome + ícone de mensagem + contagem). Embaixo de cada um, os
+ * imóveis dele FORA de card, numa linha só: "+" à esquerda, título com
+ * reticências e a contagem em rosa à direita. O "+" abre a lista de pendências
+ * daquele imóvel num card compacto (miniatura de 36px, título, "autor · data" e
+ * o quadradinho que resolve) e vira "−". UM IMÓVEL ABERTO POR VEZ: abrir outro
+ * fecha o anterior. A janela cresce com o conteúdo até 90% da tela; passou
+ * disso, só a lista rola (barra fina do sistema) e a parte visível termina
+ * sempre numa linha inteira (`useAntiClipRows`) — o cabeçalho de um
+ * proprietário nunca fica sozinho na borda, por isso só imóveis e pendências
+ * são `data-clip-row`. Rodapé: fio discreto + 12px.
+ *
+ * Os dados são a MESMA leitura da tela (`listAccountRecords`), recortada na
+ * categoria e em "só em aberto", com o período e os imóveis do filtro atual —
+ * o total sempre fecha com o número do contador. A chave começa com
+ * "account-records", então o aviso ao vivo (`useRealtimeInvalidate`) também
+ * atualiza a janela aberta.
+ */
+function CategoryPendingDialog({
+  category,
+  onClose,
+  ownerId,
+  period,
+  propertyIds,
+  onOpen,
+  onResolve,
+}: {
+  category: RecordCategory | null;
+  onClose: () => void;
+  ownerId: string | null;
+  period: PeriodRange | null;
+  propertyIds: string[] | null;
+  onOpen: (r: AccountRecord) => void;
+  onResolve: (r: AccountRecord) => void;
+}) {
+  const listFn = useServerFn(listAccountRecords);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  // Cada abertura começa com todos os imóveis recolhidos.
+  useEffect(() => {
+    if (!category) setExpanded(null);
+  }, [category]);
+
+  const q = useQuery({
+    queryKey: [
+      "account-records",
+      ownerId ?? "self",
+      category ?? "none",
+      true,
+      period ? `${period.start}_${period.end}` : "all",
+      (propertyIds ?? []).join(","),
+    ] as const,
+    queryFn: () =>
+      listFn({
+        data: {
+          ownerId,
+          category,
+          onlyOpen: true,
+          fromDate: period?.start ?? null,
+          toDate: period?.end ?? null,
+          propertyIds,
+        },
+      }),
+    enabled: !!category,
+    staleTime: 0,
+  });
+
+  type PropGroup = { id: string; name: string; items: AccountRecord[] };
+  type OwnerGroup = {
+    key: string;
+    name: string | null;
+    phone: string | null;
+    country: string | null;
+    props: PropGroup[];
+    total: number;
+  };
+  const owners = useMemo<OwnerGroup[]>(() => {
+    const items = (q.data?.records ?? [])
+      .filter((r) => r.category === category && r.taskStatus === "pending")
+      .map((r) => ({
+        ...r,
+        media: (Array.isArray(r.media) ? r.media : []).map((m) => ({
+          ...m,
+          url: stableMediaUrl(m.storagePath, m.url),
+        })),
+      }));
+    const byOwner = new Map<string, OwnerGroup>();
+    for (const r of items) {
+      const okey = r.ownerName ?? "";
+      let o = byOwner.get(okey);
+      if (!o) {
+        o = {
+          key: okey,
+          name: r.ownerName,
+          phone: r.ownerPhone,
+          country: r.ownerPhoneCountry,
+          props: [],
+          total: 0,
+        };
+        byOwner.set(okey, o);
+      }
+      let p = o.props.find((x) => x.id === r.propertyId);
+      if (!p) {
+        p = { id: r.propertyId, name: r.propertyName, items: [] };
+        o.props.push(p);
+      }
+      p.items.push(r);
+      o.total += 1;
+    }
+    const list = Array.from(byOwner.values());
+    for (const o of list) {
+      for (const p of o.props) p.items.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      o.props.sort(
+        (a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name, "pt-BR"),
+      );
+    }
+    // Sem proprietário fica por último.
+    const last = (n: string | null) => n ?? "\uffff";
+    return list.sort(
+      (a, b) => b.total - a.total || last(a.name).localeCompare(last(b.name), "pt-BR"),
+    );
+  }, [q.data, category]);
+
+  const total = owners.reduce((n, o) => n + o.total, 0);
+  const ownerCount = owners.filter((o) => o.name).length;
+  const meta = category ? CATEGORY_BY_KEY.get(category) : undefined;
+  const bodyRef = useAntiClipRows<HTMLDivElement>([expanded, total, q.isLoading]);
+
+  return (
+    <Dialog open={!!category} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent
+        aria-describedby={undefined}
+        className="flex max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md"
+      >
+        <DialogHeader className="shrink-0 px-4 pb-2 pr-14 pt-3.5 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-6">
+            {meta?.short ?? "Pendências"}
+          </DialogTitle>
+          <div className="!mt-0 text-xs leading-5 text-muted-foreground">
+            {q.isLoading
+              ? "Carregando…"
+              : `${total} ${total === 1 ? "pendência" : "pendências"} · ${ownerCount} ${
+                  ownerCount === 1 ? "proprietário" : "proprietários"
+                }`}
+          </div>
+        </DialogHeader>
+        <div
+          ref={bodyRef}
+          className="sg-elegant-scroll grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] content-start gap-3 overflow-y-auto overscroll-contain px-4 pt-1"
+        >
+          {q.isLoading ? (
+            <div className="grid place-items-center py-10 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          ) : total === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nenhuma pendência de {meta?.short ?? "nesta categoria"} em aberto.
+            </p>
+          ) : (
+            owners.map((o) => (
+              <section key={o.key} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5">
+                <div className="flex min-w-0 items-center gap-1 pb-0.5 text-[12.5px]">
+                  {o.name ? (
+                    <OwnerLine
+                      name={o.name}
+                      phone={o.phone}
+                      country={o.country}
+                      phonePosition="adjacent"
+                      className="!w-auto shrink !text-[12.5px] [&>span:first-child]:font-bold"
+                    />
+                  ) : (
+                    <span className="min-w-0 truncate font-bold text-muted-foreground">
+                      Sem proprietário
+                    </span>
+                  )}
+                  <span className="shrink-0 tabular-nums text-muted-foreground/70">
+                    · {o.total}
+                  </span>
+                  <i aria-hidden className="ml-1.5 h-px min-w-3 flex-1 bg-foreground/[0.08]" />
+                </div>
+                {o.props.map((p) => {
+                  const isOpen = expanded === p.id;
+                  return (
+                    <div key={p.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5">
+                      <button
+                        type="button"
+                        data-clip-row
+                        onClick={() => setExpanded((cur) => (cur === p.id ? null : p.id))}
+                        aria-expanded={isOpen}
+                        className="flex min-h-[30px] min-w-0 items-center gap-2.5 text-left"
+                      >
+                        <span className="grid size-5 shrink-0 place-items-center rounded-[5px] border border-foreground/20 bg-foreground/[0.04] text-foreground/80">
+                          {isOpen ? (
+                            <Minus className="size-3" strokeWidth={2.2} />
+                          ) : (
+                            <Plus className="size-3" strokeWidth={2.2} />
+                          )}
+                        </span>
+                        <span
+                          className="min-w-0 flex-1 truncate text-[13px] font-semibold"
+                          title={p.name}
+                        >
+                          {p.name}
+                        </span>
+                        <span className="shrink-0 rounded-full bg-[#c98c8c]/12 px-2 text-[11px] font-bold leading-5 tabular-nums text-[#c98c8c]">
+                          {p.items.length}
+                        </span>
+                      </button>
+                      {isOpen && (
+                        <div className="mb-1 overflow-hidden rounded-[12px] border border-border bg-[var(--card-surface)]">
+                          {p.items.map((r, i) => (
+                            <CompactPendingRow
+                              key={r.id}
+                              record={r}
+                              first={i === 0}
+                              onOpen={() => onOpen(r)}
+                              onResolve={() => onResolve(r)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </section>
+            ))
+          )}
+        </div>
+        <div aria-hidden className="mx-4 mt-2 h-3 shrink-0 border-t border-[var(--panel-div)]" />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Linha compacta da janela do contador: miniatura 36px, título, "autor · data" e o quadradinho. */
+function CompactPendingRow({
+  record,
+  first,
+  onOpen,
+  onResolve,
+}: {
+  record: AccountRecord;
+  first: boolean;
+  onOpen: () => void;
+  onResolve: () => void;
+}) {
+  const visual = (record.media ?? []).filter(
+    (m) => m.url && (m.kind === "photo" || m.kind === "video"),
+  );
+  const m = visual[0];
+  return (
+    <div
+      data-clip-row
+      className={`flex min-w-0 items-center gap-2.5 px-2.5 py-2 ${
+        first ? "" : "border-t border-[var(--panel-div)]"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 items-center gap-2.5 text-left transition-opacity hover:opacity-80"
+      >
+        <span className="relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-[9px] bg-secondary/60">
+          {m?.kind === "photo" ? (
+            <img
+              src={m.url!}
+              alt=""
+              loading="lazy"
+              className="absolute inset-0 size-full object-cover"
+            />
+          ) : m?.kind === "video" ? (
+            <VideoFrame url={m.url!} />
+          ) : (
+            <RecordCover record={record} size="xs" />
+          )}
+          {visual.length > 1 && (
+            <span
+              className="absolute bottom-0.5 right-0.5 rounded-[4px] bg-black/65 px-1 text-[8.5px] font-semibold leading-[12px] text-white"
+              aria-label={`${visual.length} mídias`}
+            >
+              {visual.length}
+            </span>
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span
+            className={`block truncate text-[13px] font-semibold leading-tight ${
+              hasTitle(record) ? "" : "italic text-muted-foreground"
+            }`}
+          >
+            {recordTitle(record)}
+          </span>
+          <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">
+            {record.createdByName ?? "Equipe"} · {fmtShortDate(record.createdAt)}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onResolve}
+        aria-label="Marcar como resolvido"
+        title="Marcar como resolvido"
+        className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border-[1.5px] border-foreground/25 transition-colors hover:border-emerald-500 hover:bg-emerald-500/15"
       />
     </div>
   );
@@ -1010,6 +1252,7 @@ function StatusCell({
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      aria-haspopup="dialog"
       aria-label={`${label}: ${open} em aberto`}
       className="ds-3d ds-3d-hover relative flex h-full w-full flex-col gap-1 overflow-hidden rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       style={

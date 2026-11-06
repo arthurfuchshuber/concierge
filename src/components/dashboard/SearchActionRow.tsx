@@ -21,7 +21,14 @@ import { Search, X } from "lucide-react";
  * DESKTOP IGUAL AO CELULAR (pedido explícito, 15/10/2026, mockup "Main"
  * aprovado): no computador também é UMA casca só — 44px de altura (a da barra
  * de abas), raio 13px (o do ACTION_BAR), busca + botões separados por fios,
- * botões de 52px (o "wide" continua automático). Antes eram dois objetos. */
+ * botões de 52px (o "wide" continua automático). Antes eram dois objetos.
+ *
+ * VARIANTE "inset" (mockup aprovado, 06/11/2026): DENTRO de um card (a barra do
+ * Calendário de Ocupação) a casca elevada brigava com o card — brilho, contorno
+ * e sombra próprios faziam a barra "saltar para frente". Ali ela vira um campo
+ * rebaixado: sem `ds-3d`, sem sombra e sem contorno, fundo um tom abaixo do card
+ * e divisórias CURTAS (18px) entre a busca e cada botão, em vez dos fios de
+ * ponta a ponta. Mesma altura, mesmos botões, mesma posição. */
 export function SearchActionRow({
   value,
   onChange,
@@ -30,6 +37,7 @@ export function SearchActionRow({
   className = "",
   onInputFocus,
   inputRef,
+  variant = "raised",
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -38,10 +46,17 @@ export function SearchActionRow({
   className?: string;
   onInputFocus?: () => void;
   inputRef?: React.Ref<HTMLInputElement>;
+  /** "inset": campo rebaixado para quando a barra mora DENTRO de um card. */
+  variant?: "raised" | "inset";
 }) {
+  const inset = variant === "inset";
   return (
     <div
-      className={`flex min-w-0 items-stretch ds-3d ds-3d-hover h-10 overflow-hidden rounded-[9px] bg-card !shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border),0_8px_14px_-8px_rgb(0_0_0/0.55)] lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px] ${className}`}
+      className={`flex min-w-0 items-stretch h-10 overflow-hidden rounded-[9px] lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px] ${
+        inset
+          ? "bg-[color-mix(in_oklab,var(--card),var(--background)_55%)]"
+          : "ds-3d ds-3d-hover bg-card !shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border),0_8px_14px_-8px_rgb(0_0_0/0.55)]"
+      } ${className}`}
     >
       <div className="relative min-w-0 flex-1">
         <Search className="pointer-events-none absolute left-3 top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60" />
@@ -65,7 +80,13 @@ export function SearchActionRow({
         )}
       </div>
       {actions && (
-        <div className="ds-icon-actions flex shrink-0 divide-x divide-[color-mix(in_oklab,var(--foreground)_11%,transparent)] border-l border-[color-mix(in_oklab,var(--foreground)_11%,transparent)] [&>*:not([data-action-wide])]:!w-12 lg:[&>*:not([data-action-wide])]:!w-[52px] [&>*]:!flex-none [&>*:not([data-action-wide])]:!px-0 [&>[data-action-wide]]:!w-auto [&>[data-action-wide]]:!px-2.5 lg:[&>[data-action-wide]]:!px-3.5">
+        <div
+          className={`ds-icon-actions flex shrink-0 ${
+            inset
+              ? "[&>*]:relative [&>*]:before:pointer-events-none [&>*]:before:absolute [&>*]:before:left-0 [&>*]:before:top-1/2 [&>*]:before:h-[18px] [&>*]:before:w-px [&>*]:before:-translate-y-1/2 [&>*]:before:bg-[color-mix(in_oklab,var(--foreground)_9%,transparent)] [&>*]:before:content-['']"
+              : "divide-x divide-[color-mix(in_oklab,var(--foreground)_11%,transparent)] border-l border-[color-mix(in_oklab,var(--foreground)_11%,transparent)]"
+          } [&>*:not([data-action-wide])]:!w-12 lg:[&>*:not([data-action-wide])]:!w-[52px] [&>*]:!flex-none [&>*:not([data-action-wide])]:!px-0 [&>[data-action-wide]]:!w-auto [&>[data-action-wide]]:!px-2.5 lg:[&>[data-action-wide]]:!px-3.5`}
+        >
           {actions}
         </div>
       )}
