@@ -8595,7 +8595,9 @@ function OccupancyPanel({
             expande/recolhe; clicar no botão de filtros não. */}
       {/* CABEÇALHO (mockup 31/10/2026, "Dashboard — Calendário/Busca"): título 14 px negrito centralizado e UMA barra
           (busca + Período + Filtros, mesmo padrão da tela Registros). Com a busca aberta, a barra encolhe, aparece
-          "Cancelar" e os resultados ficam num painel flutuante sobre o fundo desfocado. */}
+          "Cancelar" e os resultados ficam num painel flutuante sobre o fundo desfocado. Dentro do card a barra é
+          um campo REBAIXADO (`variant="inset"`, mockup aprovado em 06/11/2026): sem brilho, contorno nem sombra
+          próprios, para não "saltar para frente" do calendário. */}
       {searchOpen && (
         <div
           aria-hidden
@@ -8610,6 +8612,7 @@ function OccupancyPanel({
         <div className="mt-3 flex items-center gap-2.5">
           <SearchActionRow
             className="min-w-0 flex-1"
+            variant="inset"
             value={query}
             onChange={(v) => {
               setQuery(v);

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
@@ -155,11 +155,11 @@ describe("Aba Registros", () => {
   });
 
   /**
-   * 03/10/2026: a faixa dizia "13 pendências" ao lado de cartões que somavam
-   * 8 + 14 + 1. O número da faixa agora vem do servidor (a mesma leitura dos
-   * cartões) e as etiquetas o decompõem.
+   * 06/11/2026 (mockups aprovados): a faixa "N pendências em M imóveis · Ver só elas" saiu da tela, e
+   * tocar num contador abre a janela da categoria — o mesmo efeito dos cards do Operacional —,
+   * agrupada por proprietário, com os imóveis recolhidos e UM aberto por vez.
    */
-  it("a faixa de alerta usa o total do servidor", async () => {
+  it("não há mais a faixa de pendências acima dos cartões", async () => {
     listMock.mockResolvedValue({
       records: [rec()],
       counts: { forgotten: 0, damage: 14, incident: 1, cleaning_audit: 73, maintenance: 8, other: 0 },
@@ -172,8 +172,61 @@ describe("Aba Registros", () => {
     });
     optionsMock.mockResolvedValue({ properties: [], owners: [], providers: [] });
     render(<RecordsWorkspace />, { wrapper });
-    await waitFor(() => expect(screen.getByText("13 pendências")).toBeTruthy());
-    expect(screen.getByText("6 imóveis")).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText(/Casa Charmosa/).length).toBeGreaterThan(0));
+    expect(screen.queryByText("13 pendências")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Ver só elas/ })).toBeNull();
+  });
+
+  it("o contador abre a janela da categoria, por proprietário, com um imóvel aberto por vez", async () => {
+    const records = [
+      rec(),
+      rec({ id: "r2", groupId: "r2", body: "Mancha no sofá" }),
+      rec({
+        id: "r3",
+        groupId: "r3",
+        body: "Porta riscada",
+        propertyId: "prop2",
+        propertyName: "Studio 105",
+        ownerName: "Clayton",
+      }),
+      // Resolvida: não entra na janela.
+      rec({ id: "r4", groupId: "r4", body: "Já resolvido", taskStatus: "done" }),
+    ];
+    listMock.mockResolvedValue({
+      records,
+      counts: { forgotten: 0, damage: 4, incident: 0, cleaning_audit: 0, maintenance: 0, other: 0 },
+      openCounts: { forgotten: 0, damage: 3, incident: 0, cleaning_audit: 0, maintenance: 0, other: 0 },
+      total: 4,
+      totalOpen: 3,
+      truncated: false,
+    });
+    optionsMock.mockResolvedValue({ properties: [], owners: [], providers: [] });
+    render(<RecordsWorkspace />, { wrapper });
+    fireEvent.click(await screen.findByRole("button", { name: "Danos: 3 em aberto" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Danos")).toBeTruthy();
+    await waitFor(() =>
+      expect(within(dialog).getByText("3 pendências · 2 proprietários")).toBeTruthy(),
+    );
+    expect(within(dialog).getByText("Arthur")).toBeTruthy();
+    expect(within(dialog).getByText("Clayton")).toBeTruthy();
+    // Recolhidos: os imóveis aparecem, as pendências não.
+    expect(within(dialog).queryByText("Cobre-leito manchado")).toBeNull();
+    expect(within(dialog).queryByText("Já resolvido")).toBeNull();
+    const casa = within(dialog).getByRole("button", { name: /Casa Charmosa/ });
+    fireEvent.click(casa);
+    expect(casa.getAttribute("aria-expanded")).toBe("true");
+    expect(within(dialog).getByText("Cobre-leito manchado")).toBeTruthy();
+    expect(within(dialog).getByText("Mancha no sofá")).toBeTruthy();
+    expect(within(dialog).getAllByRole("button", { name: "Marcar como resolvido" })).toHaveLength(2);
+    // Abrir outro imóvel fecha o anterior.
+    fireEvent.click(within(dialog).getByRole("button", { name: /Studio 105/ }));
+    expect(within(dialog).queryByText("Cobre-leito manchado")).toBeNull();
+    expect(within(dialog).getByText("Porta riscada")).toBeTruthy();
+    // A janela lê só o que está em aberto naquela categoria.
+    expect(listMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ category: "damage", onlyOpen: true }) }),
+    );
   });
 
   /**
