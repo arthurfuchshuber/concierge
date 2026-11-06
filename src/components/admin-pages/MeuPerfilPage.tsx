@@ -9,7 +9,7 @@ import {
   requestEmailChange,
 } from "@/lib/profile.functions";
 import { Camera, Check, Clock, Loader2, Trash2, User as UserIcon, Mail, ShieldCheck, Lock, CalendarDays, ChevronDown } from "lucide-react";
-import { PANEL_SHELL, PanelHeading } from "@/components/dashboard/panel-chrome";
+import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ActionButton, DENSE_INPUT, DenseField, Tag } from "@/components/admin-pages/admin-mobile-ui";
 import { toast } from "sonner";
@@ -158,6 +158,7 @@ export function MeuPerfilPage() {
 
   // Salvamento instantâneo (mesma regra do editor de guia): qualquer alteração
   // válida é persistida sozinha, sem depender do botão "Salvar".
+  const [aba, setAba] = useState<"dados" | "contato">("dados");
   const autosave = useAutosave(
     { fullName, tradeName, birthDate, jobTitle, phone, phoneCountry },
     async (v) => {
@@ -457,29 +458,32 @@ export function MeuPerfilPage() {
         </div>
       </section>
 
-      {/* Dados Cadastrais */}
-      <section className={`${PANEL_SHELL} p-[14px]`}>
-        <PanelHeading
-          title="Dados Cadastrais"
-          className="mb-3"
-          titleClassName="text-[10px] tracking-[0.2em]"
-          right={
-            autosave.status === "saving" ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
-                <Loader2 className="size-3 animate-spin" /> Salvando…
-              </span>
-            ) : autosave.status === "error" ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#c98c8c]">
-                Falha ao salvar
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#7fb79a]">
-                <Check className="size-3" strokeWidth={2.4} /> Alterações Salvas
-              </span>
-            )
-          }
-        />
-        <div className="grid grid-cols-1 gap-3">
+      {/* Um assunto por vez: "Dados | Contato" (direção C aprovada em 05/11/2026). */}
+      <div role="tablist" className="flex gap-1 rounded-[11px] bg-foreground/[0.04] p-[3px]">
+        {([
+          ["dados", "Dados"],
+          ["contato", "Contato"],
+        ] as const).map(([k, l]) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={aba === k}
+            onClick={() => setAba(k)}
+            className={`flex h-8 min-w-0 flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-[8px] text-[12.5px] ${
+              aba === k
+                ? "bg-foreground/10 font-bold text-foreground shadow-[inset_0_0_0_1px_rgba(246,243,239,0.12)]"
+                : "font-semibold text-muted-foreground"
+            }`}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {aba === "dados" && (
+        <section className={`${PANEL_SHELL} p-[14px]`}>
+          <div className="flex flex-col gap-3.5">
           <DenseField label="Nome Completo" required>
             <input
               value={fullName}
@@ -492,7 +496,7 @@ export function MeuPerfilPage() {
           <DenseField
             label="Nome Fantasia"
             optional
-            hint="Se preenchido, substitui o nome completo no cabeçalho."
+            info="Se preenchido, substitui o nome completo no cabeçalho."
           >
             <input
               value={tradeName}
@@ -502,7 +506,8 @@ export function MeuPerfilPage() {
               placeholder="Ex.: Sigma Turismo"
             />
           </DenseField>
-          <DenseField label="CPF">
+            <div className="grid grid-cols-2 gap-3">
+          <DenseField label="Número do CPF">
             <div
               aria-disabled="true"
               className={`${DENSE_INPUT} flex cursor-not-allowed items-center gap-2 bg-foreground/[0.03] text-muted-foreground tabular-nums`}
@@ -518,7 +523,7 @@ export function MeuPerfilPage() {
               </span>
             </div>
           </DenseField>
-          <DenseField label="Data de Nascimento" required>
+          <DenseField label="Nascimento" required>
             <div className="relative">
               <input
                 type="date"
@@ -530,6 +535,68 @@ export function MeuPerfilPage() {
               <CalendarDays className="pointer-events-none absolute right-[11px] top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             </div>
           </DenseField>
+            </div>
+          <DenseField label="Cargo" optional>
+            <input
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              maxLength={80}
+              className={DENSE_INPUT}
+              placeholder="Ex.: Gerente de Reservas"
+            />
+          </DenseField>
+          </div>
+        </section>
+      )}
+
+      {aba === "contato" && (
+        <section className={`${PANEL_SHELL} p-[14px]`}>
+          <div className="flex flex-col gap-3.5">
+            <DenseField
+              label="E-mail"
+              right={
+                email !== emailOriginal ? (
+                  <Tag tone="amber" icon={<Clock className="size-2.5" strokeWidth={2.4} />}>
+                    Não Confirmado
+                  </Tag>
+                ) : (
+                  <Tag tone="sage" icon={<Check className="size-2.5" strokeWidth={2.4} />}>
+                    Verificado
+                  </Tag>
+                )
+              }
+            >
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-[11px] top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground opacity-70" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`${DENSE_INPUT} pl-[33px]`}
+                  placeholder="voce@exemplo.com"
+                  aria-label="E-mail"
+                />
+              </div>
+              {email !== emailOriginal && (
+                <>
+                  <p className="mt-2 text-[11.5px] font-medium leading-[1.45] text-[var(--faint)]">
+                    Enviaremos um link para confirmar o novo e-mail. Até lá, o atual continua valendo.
+                  </p>
+                  <div className="mt-2.5 flex min-w-0 items-center gap-1.5">
+                    <ActionButton
+                      kind="primary"
+                      full
+                      icon={save.isPending ? <Loader2 className="size-3 animate-spin" /> : <Mail className="size-3" strokeWidth={2.2} />}
+                      disabled={!canSave || save.isPending}
+                      onClick={() => save.mutate()}
+                    >
+                      Confirmar Novo E-mail
+                    </ActionButton>
+                    <ActionButton onClick={() => setEmail(emailOriginal)}>Descartar</ActionButton>
+                  </div>
+                </>
+              )}
+            </DenseField>
           <DenseField label="Telefone">
             <div className="grid grid-cols-[112px_minmax(0,1fr)] gap-2">
               <div className="relative">
@@ -554,67 +621,18 @@ export function MeuPerfilPage() {
               />
             </div>
           </DenseField>
-          <DenseField label="Cargo" optional>
-            <input
-              value={jobTitle}
-              onChange={(e) => setJobTitle(e.target.value)}
-              maxLength={80}
-              className={DENSE_INPUT}
-              placeholder="Ex.: Gerente de Reservas"
-            />
-          </DenseField>
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
-      {/* E-mail: quadrante isolado */}
-      <section className={`${PANEL_SHELL} p-[14px]`}>
-        <PanelHeading
-          title="E-mail"
-          className="mb-3"
-          titleClassName="text-[10px] tracking-[0.2em]"
-          right={
-            email !== emailOriginal ? (
-              <Tag tone="amber" icon={<Clock className="size-2.5" strokeWidth={2.4} />}>
-                Não Confirmado
-              </Tag>
-            ) : (
-              <Tag tone="sage" icon={<Check className="size-2.5" strokeWidth={2.4} />}>
-                Verificado
-              </Tag>
-            )
-          }
-        />
-        <div className="relative">
-          <Mail className="pointer-events-none absolute left-[11px] top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground opacity-70" />
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={`${DENSE_INPUT} pl-[33px]`}
-            placeholder="voce@exemplo.com"
-            aria-label="E-mail"
-          />
-        </div>
-        {email !== emailOriginal && (
-          <>
-            <p className="mt-2 text-[11.5px] font-medium leading-[1.45] text-[var(--faint)]">
-              Enviaremos um link para confirmar o novo e-mail. Até lá, o atual continua valendo.
-            </p>
-            <div className="mt-2.5 flex min-w-0 items-center gap-1.5">
-              <ActionButton
-                kind="primary"
-                full
-                icon={save.isPending ? <Loader2 className="size-3 animate-spin" /> : <Mail className="size-3" strokeWidth={2.2} />}
-                disabled={!canSave || save.isPending}
-                onClick={() => save.mutate()}
-              >
-                Confirmar Novo E-mail
-              </ActionButton>
-              <ActionButton onClick={() => setEmail(emailOriginal)}>Descartar</ActionButton>
-            </div>
-          </>
-        )}
-      </section>
+      {/* O "Salvo" saiu a pedido; só aparece o que exige atenção. */}
+      {autosave.status === "saving" ? (
+        <p className="inline-flex items-center justify-center gap-1 text-[11px] font-bold text-muted-foreground">
+          <Loader2 className="size-3 animate-spin" /> Salvando…
+        </p>
+      ) : autosave.status === "error" ? (
+        <p className="text-center text-[11px] font-bold text-[#c98c8c]">Falha ao salvar</p>
+      ) : null}
 
       <input
         ref={fileRef}

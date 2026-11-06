@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { Info } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 /**
@@ -45,12 +47,18 @@ export function DenseField({
   required,
   optional,
   hint,
+  info,
+  right,
   children,
 }: {
   label: string;
   required?: boolean;
   optional?: boolean;
   hint?: string;
+  /** Explicação curta atrás de um (i) ao lado do rótulo (toque abre). */
+  info?: string;
+  /** Selo à direita do rótulo. */
+  right?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -61,6 +69,19 @@ export function DenseField({
           {optional ? <span className="font-medium text-[var(--faint)]"> (Opcional)</span> : null}
           {required ? <span className="text-[#c98c8c]"> *</span> : null}
         </label>
+        {info ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" aria-label="Mais informações" className="ml-auto flex cursor-pointer text-[var(--faint)]">
+                <Info className="size-[13px]" strokeWidth={2} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[260px] max-w-[calc(100vw-32px)] p-3 text-[12px] leading-[1.45] text-muted-foreground">
+              {info}
+            </PopoverContent>
+          </Popover>
+        ) : null}
+        {right ? <span className="ml-auto">{right}</span> : null}
       </div>
       {children}
       {hint ? <p className="mt-1.5 text-[11.5px] font-medium leading-[1.4] text-[var(--faint)]">{hint}</p> : null}
