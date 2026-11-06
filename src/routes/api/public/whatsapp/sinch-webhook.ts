@@ -228,6 +228,17 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
           .update({ last_message_at: new Date().toISOString() })
           .eq("id", convId);
 
+        // ─── Copiloto (05/11/2026): sugestão para a EQUIPE aprovar, em segundo plano (não bloqueia, não
+        // responde ao hóspede, não altera o fluxo abaixo). Dono provado pela assinatura HMAC do webhook.
+        if (guestMsg?.id) {
+          try {
+            const { triggerCopilotSuggestion } = await import("@/lib/guest-ai/copilot/trigger.server");
+            triggerCopilotSuggestion({ surface: "whatsapp", conversationId: convId as string, messageId: guestMsg.id as string, expectedOwnerId: ownerId });
+          } catch (e) {
+            console.error("[sinch-webhook] copiloto não disparado", e instanceof Error ? e.name : "");
+          }
+        }
+
         const { data: propRow } = await supabaseAdmin
           .from("properties")
           .select("name")

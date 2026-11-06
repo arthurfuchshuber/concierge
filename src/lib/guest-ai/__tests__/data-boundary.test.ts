@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -27,7 +28,19 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
   it("D13/R6 · o módulo guest-ai é somente leitura: nenhuma escrita, RPC ou função interna de autorização", () => {
     const write = /\.(insert|update|upsert|delete|rpc)\s*\(/;
     const internal = /internal_set_checkin_credentials_release|internal_set_late_checkout|conciergeia\.internal_actor/;
-    expect(files.filter((f) => write.test(code(f))).map(rel)).toEqual([]);
+    // COPILOTO (diretriz de 05/11/2026): a ÚNICA escrita é o RPC de GERAÇÃO de sugestões, só em
+    // client.server.ts e só pela lista FECHADA COPILOT_RPC_FUNCTIONS (EXECUTE só service_role). Nenhum
+    // insert/update/upsert/delete. As ações do atendente correm com o cliente da sessão, fora do módulo.
+    expect(files.filter((f) => write.test(code(f))).map(rel)).toEqual(["data/client.server.ts"]);
+    const client = code(path.join(ROOT, "data/client.server.ts"));
+    expect(client).not.toMatch(/\.(insert|update|upsert|delete)\s*\(/);
+    expect(client.match(/\.rpc\s*\(/g)).toHaveLength(1);
+    expect(client).toMatch(/if \(!\(COPILOT_RPC_FUNCTIONS as readonly string\[\]\)\.includes\(fn\)\) return/);
+    expect(client).toMatch(/COPILOT_RPC_FUNCTIONS = \["copilot_claim_generation", "copilot_generation_state", "copilot_store_result", "copilot_purge_expired"\] as const/);
+    // nenhuma porta de lease ou Shadow existe nesta entrega
+    expect(files.filter((f) => /LEASE_RPC_FUNCTIONS|SHADOW_RPC_FUNCTIONS|LeaseRpc|ShadowRpc/.test(code(f))).map(rel)).toEqual([]);
+    // porta do Copiloto: só o adaptador e o serviço de geração
+    expect(files.filter((f) => /getGuestAiCopilotRpc|copilotRpcFrom|GuestAiCopilotRpc/.test(code(f))).map(rel).sort()).toEqual(["copilot/generate.server.ts", "copilot/store.server.ts", "data/client.server.ts"]);
     expect(files.filter((f) => internal.test(code(f))).map(rel)).toEqual([]);
   });
 
@@ -52,9 +65,70 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     expect(offenders).toEqual(["data/credentials.server.ts", "data/projections.ts"]);
   });
 
-  it("F0/F1 não têm LLM, embeddings, rede nem gateway", () => {
-    const re = /lib\/llm|ai\.gateway|openai|anthropic|generativelanguage|embedTexts|embedOne|runAgent|chatText|chatJson|\bfetch\(/i;
-    expect(files.filter((f) => re.test(code(f))).map(rel)).toEqual([]);
+  it("F0/F1 (data, context, policy, slot, trust, types) não têm LLM, embeddings, rede nem gateway", () => {
+    const re = /lib\/llm|guest-ai\/llm|ai\.gateway|openai|anthropic|generativelanguage|embedTexts|embedOne|runAgent|chatText|chatJson|\bfetch\(/i;
+    // B3.3: shadow-exec usa o Gateway (gerador emitido). Copiloto (05/11): gerador ligado ao Gateway + registro de modelos.
+    const f2b = /^(llm|orchestrator|validation|shadow|shadow-exec|copilot)\//;
+    expect(files.filter((f) => !f2b.test(rel(f)) && re.test(code(f))).map(rel)).toEqual([]);
+  });
+
+  it("F2-B · B1: só o gerador do Copiloto chama o Gateway; demais módulos novos usam apenas tipos/registro de llm/", () => {
+    const runtime = files.filter((f) => /guest-ai\/llm\/gateway\.server|generateGuestLlm/.test(code(f)) && !rel(f).startsWith("llm/"));
+    // Copiloto (05/11/2026): o gerador do Copiloto é o ÚNICO chamador do Gateway (uma chamada por sugestão, custo por turno limitado).
+    expect(runtime.map(rel).sort()).toEqual(["copilot/generator.server.ts"]);
+    // fora de llm/, nada de rede direta nem de outro provedor
+    expect(files.filter((f) => !rel(f).startsWith("llm/") && /\bfetch\(|ai\.gateway|openai\.com|anthropic\.com/.test(code(f))).map(rel)).toEqual([]);
+  });
+
+  it("F2-B · B1: orchestrator/validation/shadow não acessam banco, credenciais, canais de envio nem tabelas legadas", () => {
+    const LEGACY = /\b(ai_agent_evaluations|ai_agent_learning_metrics|ai_agent_logs|ai_agent_metrics|ai_channel_connections|ai_conversation_channels|ai_conversation_summaries|ai_conversations|ai_messages|ai_global_intelligence|ai_guest_memory|ai_host_corrections|ai_human_escalations|ai_kb_chunks|ai_knowledge_gaps|ai_learning_candidates|ai_learning_impact_logs|ai_memories|ai_operational_memory|ai_precedents|ai_proactive_actions|ai_prompt_change_candidates|ai_property_playbooks|ai_tenant_knowledge|ai_usage_events|chat_message_feedback|host_behavior|host_faqs|host_knowledge)\b/;
+    const scoped = files.filter((f) => /^(orchestrator|validation|shadow)\//.test(rel(f)));
+    // nesta entrega: orchestrator/ (capabilities, case-ownership, contracts, decision) + validation/ (3)
+    expect(scoped.length).toBeGreaterThanOrEqual(7);
+    for (const f of scoped) {
+      const c = code(f);
+      expect(c, rel(f)).not.toMatch(/supabase|getGuestAiDb|client\.server|\.from\(\s*["'`]/);
+      expect(c, rel(f)).not.toMatch(/fetchSensitiveCredentials|credentials\.server|issueCredentialGrant|PROPERTY_CREDENTIAL_COLUMNS|SENSITIVE_PROPERTY_COLUMNS/);
+      expect(c, rel(f)).not.toMatch(/deliverToAirbnbThread|sinch|property_chat_messages|sendHandoffPush|sendGuestReplyPush|handoff\.server/i);
+      expect(c, rel(f)).not.toMatch(LEGACY);
+      expect(c, rel(f)).not.toMatch(/\btools\s*:|tool_choice|function_call/);
+    }
+    // a única porta para o banco no caminho do turno é o Context Engine F1 (via loader de contexto)
+    const ctxLoader = code(path.join(ROOT, "context/conversation-context.server.ts"));
+    expect(ctxLoader).toMatch(/credentials: "skip"/);
+    expect(ctxLoader).not.toMatch(LEGACY);
+  });
+
+  it("F2-B · B1: slot.server.ts byte a byte igual ao da main (homologada)", () => {
+    const hash = createHash("sha256").update(readFileSync(path.join(ROOT, "slot.server.ts"))).digest("hex");
+    expect(hash).toBe("39228fefe061fa64fa46e19242e2dc21b3078ab668ac5e354a27413f8b212917");
+  });
+
+  it("F2-A · gateway isolado: rede só no transporte do Lovable; sem src/lib/llm; sem banco, contexto ou credenciais", () => {
+    const llm = files.filter((f) => rel(f).startsWith("llm/"));
+    expect(llm.map(rel).sort()).toEqual([
+      "llm/contracts.ts",
+      "llm/errors.ts",
+      "llm/gateway.server.ts",
+      "llm/models.ts",
+      "llm/providers/lovable-gateway.server.ts",
+      "llm/providers/types.ts",
+      "llm/telemetry.ts",
+    ]);
+    expect(llm.filter((f) => /\bfetch\(|ai\.gateway/.test(code(f))).map(rel)).toEqual(["llm/providers/lovable-gateway.server.ts"]);
+    for (const f of llm) {
+      const c = code(f);
+      expect(c, rel(f)).not.toMatch(/@\/lib\/llm|lib\/llm\/|guest-ai\/(data|context|policy)|credentials|CredentialGrant|supabase|slot\.server|\.\.\/(data|context|policy)\//);
+      // F2-A não executa nem registra ferramentas (tool calling) nem envia a canais.
+      expect(c, rel(f)).not.toMatch(/\btools\s*:|tool_choice|function_call|sinch|whatsapp|channex|airbnb/i);
+    }
+  });
+
+  it("F2-A · o slot continua desligado: não importa o gateway e devolve fallback humano (null)", async () => {
+    const slot = code(path.join(ROOT, "slot.server.ts"));
+    expect(slot).not.toMatch(/llm|generateGuestLlm|buildGuestContext/);
+    const { requestGuestAiReply } = await import("@/lib/guest-ai/slot.server");
+    await expect(requestGuestAiReply({ surface: "guide_chat" as never, conversationId: "c", messageId: "m" })).resolves.toBeNull();
   });
 
   it("o slot não importa nem expõe cliente de banco", () => {

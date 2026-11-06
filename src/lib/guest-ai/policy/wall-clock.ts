@@ -98,6 +98,28 @@ export function wallClockToInstant(
   return pick === undefined ? null : new Date(pick);
 }
 
+/**
+ * B3.2 — classificação do horário local num fuso: `valid` (um único instante), `nonexistent`
+ * (salto do horário de verão), `ambiguous` (repetido no fim do horário de verão) ou `invalid`
+ * (data, hora ou fuso inválidos). Usada pela G.2 para NEGAR horários sem referencial único.
+ */
+export function wallClockStatus(dateIso: unknown, hm: unknown, tz: unknown): "valid" | "nonexistent" | "ambiguous" | "invalid" {
+  const date = parseIsoDate(dateIso);
+  const time = parseHm(hm);
+  if (!date || !time || !isValidIanaTimezone(tz)) return "invalid";
+  const [y, mo, d] = date;
+  const [h, mi] = time;
+  const naive = Date.UTC(y, mo - 1, d, h, mi, 0);
+  const DAY = 86_400_000;
+  const offsets = Array.from(new Set([offsetAt(naive - DAY, tz), offsetAt(naive, tz), offsetAt(naive + DAY, tz)]));
+  const valid = Array.from(new Set(offsets.map((o) => naive - o))).filter((ms) => {
+    const p = partsInTZ(new Date(ms), tz);
+    return p.y === y && p.mo === mo && p.d === d && p.h === h && p.mi === mi;
+  });
+  if (valid.length === 0) return "nonexistent";
+  return valid.length > 1 ? "ambiguous" : "valid";
+}
+
 /** "2026-11-02" + n dias, no calendário (sem fuso). */
 export function addDaysIso(dateIso: string, days: number): string | null {
   const date = parseIsoDate(dateIso);

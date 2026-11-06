@@ -16,7 +16,8 @@ import {
 } from "@/lib/handoff.schemas";
 
 // Resolve the owner_id of the property behind a conversation, then enforce chat_respond.
-async function requireChatRespondForConversation(
+// Exportada para o núcleo de envio humano (`handoff-send.server.ts`).
+export async function requireChatRespondForConversation(
   supabase: SupabaseClient,
   userId: string,
   conversationId: string,
@@ -1226,115 +1227,9 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
   .inputValidator(parseHandoffSendInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-
-    // Antes: até 3 consultas separadas buscavam a MESMA conversa+imóvel em
-    // momentos diferentes (permissão, checagem de assigned_to, expansão de
-    // tags) — cada uma é uma ida e volta de rede ao banco, em série. Isso
-    // sozinho já explicava vários segundos de demora sentidos ao enviar.
-    // Agora é uma consulta só, com todos os campos que qualquer uma das
-    // etapas abaixo precisa.
-    const { data: cur } = await supabase
-      .from("property_chat_conversations")
-      .select(
-        "assigned_to, handoff_reason, property_id, guest_session_id, properties:property_id(owner_id, name, slug, checkin_time, checkin_time_max, checkout_time, checkout_time_min, wifi_ssid, wifi_password, gate_code, lock_code, pin_code, address, host_name, host_phone, house_rules, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, marketplace_links)",
-      )
-      .eq("id", data.conversationId)
-      .maybeSingle();
-    const joinedProperties = cur?.properties as
-      Record<string, unknown> | Record<string, unknown>[] | null;
-    const propRow = Array.isArray(joinedProperties)
-      ? (joinedProperties[0] ?? null)
-      : joinedProperties;
-    const ownerId = (propRow?.owner_id as string | undefined) ?? null;
-
-    await requireChatRespondForConversation(supabase, userId, data.conversationId, ownerId);
-
-    if (cur?.assigned_to && cur.assigned_to !== userId) {
-      throw new Error(
-        "Esta conversa está sendo atendida por outro membro. Solicite acesso ou peça uma transferência.",
-      );
-    }
-
-    // Expande [[info:...]] com valores da propriedade e [[tag:...]] em links do guia.
-    let content = data.content;
-    try {
-      const slug = (propRow?.slug as string | undefined) ?? null;
-      const { expandInfoTags, expandTagsAsMarkdown } = await import("@/lib/guide-tags");
-      content = expandInfoTags(content, propRow as never, { markdownLinks: true });
-      if (slug) content = expandTagsAsMarkdown(content, { slug });
-    } catch {
-      // Se algo falhar, envia o texto original.
-    }
-    const session = String((cur as { guest_session_id?: string | null } | null)?.guest_session_id ?? "");
-    if (!data.internalNote && session.startsWith("airbnb:")) {
-      // Hóspede do Airbnb: a resposta sai pela Channex para o chat dele.
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { deliverToAirbnbThread, purgePendingChatForThread } = await import("@/lib/channex-messages.server");
-      await purgePendingChatForThread(supabaseAdmin, session.slice("airbnb:".length));
-      const r = await deliverToAirbnbThread(supabaseAdmin, {
-        conversationId: data.conversationId,
-        threadId: session.slice("airbnb:".length),
-        propertyId: String(cur?.property_id ?? ""),
-        text: content,
-        senderType: "human",
-        senderUserId: userId,
-      });
-      if (!r.ok) throw new Error("O Airbnb recusou a mensagem. A equipe foi avisada.");
-    } else {
-      const { error } = await supabase.from("property_chat_messages").insert({
-        conversation_id: data.conversationId,
-        role: "assistant",
-        content,
-        sender_type: "human",
-        sender_user_id: userId,
-        is_internal_note: data.internalNote,
-      });
-      if (error) throw new Error(error.message);
-    }
-    // Ensure conversation status stays assigned + ai paused when agent replies
-    if (!data.internalNote) {
-      await supabase
-        .from("property_chat_conversations")
-        .update({
-          // FALAR DIRETO é o que silencia a IA — e agora com prazo: 10 minutos,
-          // renovados a cada nova mensagem do atendente. Ver `lib/chat/pause.ts`.
-          ...pausePatch(),
-          status: "assigned",
-          assigned_to: userId,
-          last_message_at: new Date().toISOString(),
-        })
-        .eq("id", data.conversationId);
-
-      // Dispara push para o hóspede (se ele tiver ativado notificações).
-      // Fire-and-forget: isto inclui uma consulta extra e uma chamada de rede
-      // externa ao serviço de push — não faz sentido nenhum o envio da
-      // mensagem esperar por isso.
-      void (async () => {
-        try {
-          const { data: conv } = await supabase
-            .from("property_chat_conversations")
-            .select("id, properties:property_id(name, slug)")
-            .eq("id", data.conversationId)
-            .maybeSingle();
-          const propName = (conv?.properties as { name?: string } | null)?.name ?? "Anfitrião";
-          const slug = (conv?.properties as { slug?: string } | null)?.slug ?? "";
-          const { sendPushToGuest } = await import("@/lib/guest-push.server");
-          const preview =
-            data.content.length > 120 ? `${data.content.slice(0, 117)}…` : data.content;
-          await sendPushToGuest(data.conversationId, {
-            title: `Nova mensagem — ${propName}`,
-            body: preview,
-            data: {
-              url: slug ? `/g/${slug}?chat=1` : "/",
-              conversationId: data.conversationId,
-              tag: `guest-reply-${data.conversationId}`,
-            },
-          });
-        } catch (e) {
-          console.error("[handoff] falha ao enviar push para o hóspede", e);
-        }
-      })();
-    }
+    // núcleo único de envio humano (servidor; também usado pelo Copiloto para a sugestão APROVADA)
+    const { sendHumanMessageToConversation } = await import("@/lib/handoff-send.server");
+    await sendHumanMessageToConversation(supabase, userId, data);
     return { ok: true };
   });
 
