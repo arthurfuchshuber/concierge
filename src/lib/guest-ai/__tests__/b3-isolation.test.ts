@@ -139,8 +139,11 @@ describe("B3 · fluxo real intocado e nada ativado", () => {
     expect(diff.trim()).toBe("");
     await expect(requestGuestAiReply({ surface: "airbnb" as never, conversationId: "c", messageId: "m" })).resolves.toBeNull();
   });
+  // Alterações DO BRANCH: commits da linha principal do branch (first-parent, sem merges) + resoluções de
+  // conflito feitas em commits de merge (--cc) + árvore de trabalho. Commits que chegaram da `main` por merge
+  // (só alcançáveis pelo 2º pai) NÃO são alterações deste trabalho e ficam fora da lista (integração de 05/11).
   it("nenhuma migration nova e nenhuma alteração fora de src/lib/guest-ai desde o commit-base", () => {
-    const changed = execSync(`git diff --name-only ${BASE} HEAD; git diff --name-only; git ls-files --others --exclude-standard`, { cwd: REPO, encoding: "utf8" })
+    const changed = execSync(`git log --first-parent --no-merges --name-only --format= ${BASE}..HEAD; git log --first-parent --merges --cc --name-only --format= ${BASE}..HEAD; git diff --name-only; git ls-files --others --exclude-standard`, { cwd: REPO, encoding: "utf8" })
       .split("\n")
       .filter(Boolean)
       .filter((f) => !f.startsWith("src/lib/guest-ai/"));

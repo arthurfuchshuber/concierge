@@ -396,3 +396,160 @@ describe.each(CHANNELS)("Copiloto · canal $label", ({ surface, session, channel
     if (channel === "airbnb") expect(fetchMock).not.toHaveBeenCalled(); // sem fallback silencioso pela Channex
   });
 });
+
+// ─────────────────────────── configurações de liberação ───────────────────────────
+const CONFIG_INICIAL = {
+  GUEST_AI_COPILOT_UI: "on",
+  GUEST_AI_COPILOT_GENERATION: "off",
+  GUEST_AI_COPILOT_SEND: "off",
+};
+const CONFIG_FASE_A = {
+  GUEST_AI_COPILOT_UI: "on",
+  GUEST_AI_COPILOT_GENERATION: "on",
+  GUEST_AI_COPILOT_SEND: "off",
+};
+
+describe.each(CHANNELS)(
+  "Copiloto · configurações de liberação no canal $label",
+  ({ surface, session }) => {
+    const genDeps = (
+      env: Record<string, string>,
+      store: MemStore,
+      p: ReturnType<typeof fakeProvider>,
+      validate = vi.fn(async () => turn({ surface, guestSessionId: session })),
+    ) => ({
+      env,
+      store,
+      db: {
+        from: () => {
+          throw new Error("sem banco real");
+        },
+      },
+      validateTurnScope: validate,
+      loadOwnership: async () => ({
+        status: "none" as const,
+        row: {
+          id: CONV,
+          status: "ai",
+          assigned_to: null,
+          handoff_reason: null,
+          handoff_urgency: null,
+          handoff_at: null,
+          resolved_at: null,
+          ai_paused: false,
+          paused_until: null,
+        } as never,
+      }),
+      ports: () => ({
+        loadContext: async () =>
+          ctx({ interlocutor: { ...ctx().guest.interlocutor, surface } } as never),
+        loadHistory: async () => history(),
+        loadDossiers: async () => null,
+        loadStayAuthorizationSource: async () => {
+          throw new Error("sem fonte");
+        },
+        loadSenderIdentitySource: async () => ({
+          lookup: "ok" as const,
+          conversationListingId: null,
+          reservationListingId: null,
+          listings: [],
+          twins: [],
+          prefs: [],
+          accounts: [],
+        }),
+      }),
+      provider: p,
+      log: () => {},
+    });
+    const guard = vi.fn(async () => ({
+      ok: true as const,
+      surface,
+      turn: {} as never,
+      senderChannelId: surface === "airbnb" ? "chan-ok" : null,
+      senderSource: null,
+    }));
+    const sendHuman = vi.fn();
+
+    it("INICIAL (UI on, geração off, envio off): nenhuma geração nem envio por nenhum caminho", async () => {
+      const store = new MemStore();
+      const p = fakeProvider(okJson(v4()));
+      const validate = vi.fn(async () => turn({ surface, guestSessionId: session }));
+      const r = await generateCopilotSuggestion(
+        { surface, conversationId: CONV, messageId: "m1" },
+        genDeps(CONFIG_INICIAL, store, p, validate) as never,
+      );
+      expect(r).toEqual({ status: "skipped", code: "generation_off", detail: null });
+      expect(validate).not.toHaveBeenCalled();
+      expect(p.calls).toBe(0);
+      const s = sessionRpc("x", surface);
+      expect(
+        await sendCopilotSuggestionCore(s.client, USER, { suggestionId: SID }, {
+          env: CONFIG_INICIAL,
+          guard,
+          sendHuman,
+          sendWhatsapp: sendHuman,
+        } as never),
+      ).toEqual({ status: "send_disabled" });
+      expect(s.calls).toEqual([]);
+      expect(guard).not.toHaveBeenCalled();
+      expect(sendHuman).not.toHaveBeenCalled();
+      expect(db.inserts).toHaveLength(0);
+      expect(db.sinch).toHaveLength(0);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("FASE A (UI on, geração on, envio off): gera pelo Gateway com contexto D9, grava associada ao turno; envio bloqueado no backend", async () => {
+      const store = new MemStore();
+      const p = fakeProvider(okJson(v4()));
+      const r = await generateCopilotSuggestion(
+        { surface, conversationId: CONV, messageId: "m1" },
+        genDeps(CONFIG_FASE_A, store, p) as never,
+      );
+      expect(r).toMatchObject({ status: "stored", suggestionId: SID, state: "available" });
+      expect(p.calls).toBe(1);
+      expect(store.result).toMatchObject({
+        suggestionId: SID,
+        attempt: 1,
+        state: "available",
+        context: { credentialPolicy: "deny" },
+      });
+      // envio: nem reivindicação, nem guarda, nem rotina, nem rede
+      setConvFor(surface, session);
+      const s = sessionRpc(store.result!.text!, surface);
+      for (let i = 0; i < 3; i++) {
+        expect(
+          await sendCopilotSuggestionCore(s.client, USER, { suggestionId: SID, text: "editado" }, {
+            env: CONFIG_FASE_A,
+            guard,
+          } as never),
+        ).toEqual({ status: "send_disabled" });
+      }
+      expect(s.calls).toEqual([]);
+      expect(guard).not.toHaveBeenCalled();
+      expect(db.inserts).toHaveLength(0);
+      expect(db.sinch).toHaveLength(0);
+      expect(airbnb.calls).toHaveLength(0);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  },
+);
+
+function setConvFor(surface: GuestSurface, session: string) {
+  db.conv = {
+    id: CONV,
+    assigned_to: null,
+    property_id: "p1",
+    guest_session_id: session,
+    guest_name: "Hóspede Teste",
+    properties: { id: "p1", owner_id: "t1", name: "Casa Teste", slug: "casa-teste" },
+  };
+  db.waConfig = {
+    provider: "sinch",
+    sender_number: "+5500000000999",
+    service_plan_id: "proj",
+    app_id: "app",
+    api_token_encrypted: "enc",
+    status: "active",
+  };
+  void surface;
+}

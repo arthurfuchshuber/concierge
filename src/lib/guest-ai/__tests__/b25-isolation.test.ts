@@ -81,8 +81,11 @@ describe("B2.5 · fluxo real intocado", () => {
     expect(NO_COMPOSER(null as never, null as never)).toBeNull();
     expect(code(path.join(ROOT, "slot.server.ts"))).not.toMatch(/turn-chain|composer|shadow\/|batch\/|sender-identity|commitment-text/);
   });
+  // Alterações DO BRANCH: commits da linha principal do branch (first-parent, sem merges) + resoluções de
+  // conflito feitas em commits de merge (--cc) + árvore de trabalho. Commits que chegaram da `main` por merge
+  // (só alcançáveis pelo 2º pai) NÃO são alterações deste trabalho e ficam fora da lista (integração de 05/11).
   it("nenhuma migration nova ou alteração fora de src/lib/guest-ai desde a B2.4", () => {
-    const changed = execSync("git diff --name-only 4c1adb5307147ef4998ab4fd735acf21304e4f7b HEAD; git diff --name-only; git ls-files --others --exclude-standard", { cwd: path.resolve(SRC, ".."), encoding: "utf8" })
+    const changed = execSync("git log --first-parent --no-merges --name-only --format= 4c1adb5307147ef4998ab4fd735acf21304e4f7b..HEAD; git log --first-parent --merges --cc --name-only --format= 4c1adb5307147ef4998ab4fd735acf21304e4f7b..HEAD; git diff --name-only; git ls-files --others --exclude-standard", { cwd: path.resolve(SRC, ".."), encoding: "utf8" })
       .split("\n")
       .filter(Boolean)
       .filter((f) => !f.startsWith("src/lib/guest-ai/") && f !== "AGENTS.md");
