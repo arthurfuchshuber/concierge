@@ -53,7 +53,7 @@ import {
   COPILOT_REASONING_EFFORT,
   copilotDailyLimitUsd,
   copilotFlagOn,
-  copilotGenerationProperties,
+  copilotPropertyAllowed,
   copilotModelId,
   type CopilotGenerationRequest,
   type CopilotWarning,
@@ -369,8 +369,8 @@ export async function generateCopilotSuggestion(
       };
     }
 
-    // 1b) allowlist de imóveis (backend): o imóvel do turno VALIDADO precisa estar listado; vazia ⇒ nenhum
-    if (!copilotGenerationProperties(env).has(turn.propertyId)) {
+    // 1b) escopo de imóveis (backend): sem lista ⇒ todos; com lista ⇒ só os listados (imóvel do turno VALIDADO)
+    if (!copilotPropertyAllowed(turn.propertyId, env)) {
       return { status: "skipped", code: "property_not_allowlisted", detail: null };
     }
 

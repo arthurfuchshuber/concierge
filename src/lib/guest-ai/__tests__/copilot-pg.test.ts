@@ -14,7 +14,6 @@ import {
   COPILOT_STATES,
   COPILOT_WARNINGS,
   COPILOT_ROW_COLUMNS,
-  COPILOT_DAILY_COST_CEILING_USD,
   COPILOT_MAX_TURN_COST_USD,
 } from "@/lib/guest-ai/copilot/contracts";
 import {
@@ -28,6 +27,11 @@ const SETUP = path.join(__dirname, "pg", "copilot-setup.sql");
 const MIGRATION = path.join(
   REPO,
   "supabase/migrations/20261105150000_guest_ai_copilot_suggestions.sql",
+);
+/** 06/11/2026: teto diário opcional (NULL ⇒ sem teto; sem limite superior). */
+const BUDGET_MIGRATION = path.join(
+  REPO,
+  "supabase/migrations/20261106200000_copilot_optional_daily_budget.sql",
 );
 
 const T1 = "a1000000-0000-4000-8000-000000000001"; // dono (tenant) 1
@@ -128,28 +132,30 @@ const storeArgs = (id: string, attempt: number, over: Record<string, unknown> = 
   ...over,
 });
 
+async function seed(): Promise<void> {
+  await pg.sql(`truncate public.guest_ai_copilot_suggestions, public.property_chat_messages, public.property_chat_conversations cascade;
+    delete from public.property_assignments; delete from public.account_members; delete from public.properties;
+    insert into public.properties (id, owner_id) values ('${P1}', '${T1}'), ('${P2}', '${T2}'), ('${P1B}', '${T1}');
+    insert into public.property_chat_conversations (id, property_id, guest_session_id) values ('${C1}', '${P1}', 'sess-1'), ('${C2}', '${P2}', 'sess-2'), ('${C1B}', '${P1B}', 'sess-1b');
+    -- modelo REAL: dono como membro 'owner'; MEMBER restrito a P1 por atribuição; ALLPROPS com todos os imóveis de T1
+    insert into public.account_members (owner_id, member_user_id, role, status, all_properties) values
+      ('${T1}', '${T1}', 'owner', 'active', true), ('${T2}', '${T2}', 'owner', 'active', true),
+      ('${T1}', '${MEMBER}', 'agent', 'active', false), ('${T1}', '${ALLPROPS}', 'agent', 'active', true);
+    insert into public.property_assignments (tenant_id, property_id, user_id, status) values ('${T1}', '${P1}', '${MEMBER}', 'active'), ('${T1}', '${P1}', '${READONLY}', 'active');
+    insert into public.account_members (owner_id, member_user_id, role, status, all_properties) values ('${T1}', '${READONLY}', 'agent', 'active', false);
+    -- permissões explícitas (deny por padrão, como na produção): MEMBER e ALLPROPS podem responder; READONLY não
+    delete from public.account_member_permissions;
+    insert into public.account_member_permissions (owner_id, member_user_id, permission, granted) values
+      ('${T1}', '${MEMBER}', 'chat_respond', true), ('${T1}', '${ALLPROPS}', 'chat_respond', true), ('${T1}', '${READONLY}', 'chat_view', true);`);
+  MSG_A = await guestMessage();
+}
+
 describe.skipIf(!PG_AVAILABLE)("Copiloto · migration contra PostgreSQL real", () => {
   beforeAll(() => {
     pg = startCluster([SETUP, MIGRATION], { bin: process.env.GUEST_AI_PG_BIN });
   }, 120_000);
   afterAll(() => pg?.stop());
-  beforeEach(async () => {
-    await pg.sql(`truncate public.guest_ai_copilot_suggestions, public.property_chat_messages, public.property_chat_conversations cascade;
-      delete from public.property_assignments; delete from public.account_members; delete from public.properties;
-      insert into public.properties (id, owner_id) values ('${P1}', '${T1}'), ('${P2}', '${T2}'), ('${P1B}', '${T1}');
-      insert into public.property_chat_conversations (id, property_id, guest_session_id) values ('${C1}', '${P1}', 'sess-1'), ('${C2}', '${P2}', 'sess-2'), ('${C1B}', '${P1B}', 'sess-1b');
-      -- modelo REAL: dono como membro 'owner'; MEMBER restrito a P1 por atribuição; ALLPROPS com todos os imóveis de T1
-      insert into public.account_members (owner_id, member_user_id, role, status, all_properties) values
-        ('${T1}', '${T1}', 'owner', 'active', true), ('${T2}', '${T2}', 'owner', 'active', true),
-        ('${T1}', '${MEMBER}', 'agent', 'active', false), ('${T1}', '${ALLPROPS}', 'agent', 'active', true);
-      insert into public.property_assignments (tenant_id, property_id, user_id, status) values ('${T1}', '${P1}', '${MEMBER}', 'active'), ('${T1}', '${P1}', '${READONLY}', 'active');
-      insert into public.account_members (owner_id, member_user_id, role, status, all_properties) values ('${T1}', '${READONLY}', 'agent', 'active', false);
-      -- permissões explícitas (deny por padrão, como na produção): MEMBER e ALLPROPS podem responder; READONLY não
-      delete from public.account_member_permissions;
-      insert into public.account_member_permissions (owner_id, member_user_id, permission, granted) values
-        ('${T1}', '${MEMBER}', 'chat_respond', true), ('${T1}', '${ALLPROPS}', 'chat_respond', true), ('${T1}', '${READONLY}', 'chat_view', true);`);
-    MSG_A = await guestMessage();
-  });
+  beforeEach(seed);
 
   it("versão do servidor (evidência)", () => expect(pg.version).toMatch(/^1[5-9]\./));
 
@@ -850,9 +856,8 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · migration contra PostgreSQL real", (
       const src = await pg.sql(
         `select prosrc from pg_proc where proname = 'copilot_claim_generation'`,
       );
-      expect(src).toContain(
-        `p_daily_cost_limit_usd > ${COPILOT_DAILY_COST_CEILING_USD.toFixed(2)}`,
-      );
+      // bundle original: teto diário ≤ 1,00 (removido pela migration 20261106200000, testada abaixo)
+      expect(src).toContain(`p_daily_cost_limit_usd > 1.00`);
       expect(src).toContain(`p_turn_cost_ceiling_usd > ${COPILOT_MAX_TURN_COST_USD}`);
     });
   });
@@ -900,5 +905,87 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · migration contra PostgreSQL real", (
       );
       expect(sql).toMatch(/COPILOT_POS: o catálogo operacional mudou/);
     });
+  });
+});
+
+describe.skipIf(!PG_AVAILABLE)("Copiloto · teto diário opcional (migration 20261106200000)", () => {
+  beforeAll(() => {
+    pg = startCluster([SETUP, MIGRATION, BUDGET_MIGRATION], { bin: process.env.GUEST_AI_PG_BIN });
+  }, 120_000);
+  afterAll(() => pg?.stop());
+  beforeEach(seed);
+
+  it("NULL ⇒ sem teto diário: gerações em curso não bloqueiam (o mesmo gasto bloqueia com teto)", async () => {
+    const targets: Array<Record<string, unknown>> = [
+      { p_tenant_id: T1, p_property_id: P1, p_conversation_id: C1, p_trigger_message_id: MSG_A },
+      {
+        p_tenant_id: T1,
+        p_property_id: P1B,
+        p_conversation_id: C1B,
+        p_trigger_message_id: await guestMessage(C1B),
+      },
+      {
+        p_tenant_id: T2,
+        p_property_id: P2,
+        p_conversation_id: C2,
+        p_trigger_message_id: await guestMessage(C2),
+      },
+    ];
+    for (const t of targets)
+      expect(
+        (await sr("copilot_claim_generation", claimArgs({ ...t, p_daily_cost_limit_usd: null })))
+          .result,
+      ).toBe("claimed");
+    // 3 gerações em curso = 0,45 no pior caso: com teto de 0,20 a próxima seria bloqueada
+    const m = await guestMessage(C1);
+    expect(
+      (
+        await sr(
+          "copilot_claim_generation",
+          claimArgs({ p_trigger_message_id: m, p_daily_cost_limit_usd: 0.2 }),
+        )
+      ).result,
+    ).toBe("daily_budget_exceeded");
+  });
+
+  it("valor acima de 1,00 é aceito; teto positivo continua sendo respeitado", async () => {
+    expect(
+      (await sr("copilot_claim_generation", claimArgs({ p_daily_cost_limit_usd: 50 }))).result,
+    ).toBe("claimed");
+    const m = await guestMessage(C1B);
+    const c = await sr(
+      "copilot_claim_generation",
+      claimArgs({
+        p_property_id: P1B,
+        p_conversation_id: C1B,
+        p_trigger_message_id: m,
+        p_daily_cost_limit_usd: 0.2,
+      }),
+    );
+    expect(c.result).toBe("daily_budget_exceeded");
+  });
+
+  it("argumentos inválidos continuam recusados; teto por turno mantido; ACL preservada", async () => {
+    for (const over of [
+      { p_daily_cost_limit_usd: 0 },
+      { p_daily_cost_limit_usd: -1 },
+      { p_turn_cost_ceiling_usd: 0.5 },
+      { p_turn_cost_ceiling_usd: null },
+    ])
+      expect(await sr("copilot_claim_generation", claimArgs(over))).toMatchObject({
+        result: "invalid",
+        reason: "arguments",
+      });
+    const src = await pg.sql(
+      `select prosrc from pg_proc where proname = 'copilot_claim_generation'`,
+    );
+    expect(src).not.toContain("1.00");
+    expect(src).toContain(`p_turn_cost_ceiling_usd > ${COPILOT_MAX_TURN_COST_USD}`);
+    const acl = await pg.sql(
+      `select array_to_string(proacl, ',') || '|' || prosecdef::text from pg_proc where proname = 'copilot_claim_generation'`,
+    );
+    expect(acl).toContain("service_role=X");
+    expect(acl).not.toContain("authenticated=X");
+    expect(acl.endsWith("|true")).toBe(true);
   });
 });

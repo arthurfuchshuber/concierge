@@ -12,7 +12,8 @@ export interface CopilotClaimInput {
   conversationId: string;
   triggerMessageId: string;
   surface: string;
-  dailyCostLimitUsd: number;
+  /** `null` ⇒ sem teto diário. */
+  dailyCostLimitUsd: number | null;
   turnCostCeilingUsd: number;
 }
 
