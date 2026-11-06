@@ -13,7 +13,7 @@
  *    defeituoso.
  */
 import { classifyHttpStatus, failure } from "../errors";
-import type { LlmFinishReason, LlmMessage } from "../contracts";
+import { llmMessageText, type LlmFinishReason, type LlmMessage, type LlmMessageContent } from "../contracts";
 import type { FetchLike, LlmProvider, ProviderOutcome, ProviderRequest, RawUsage } from "./types";
 
 export const LOVABLE_GATEWAY_BASE_URL = "https://ai.gateway.lovable.dev/v1";
@@ -58,10 +58,18 @@ async function readCapped(res: Response): Promise<string> {
 
 // ───────────────────────── chat/completions ─────────────────────────
 
+/** Conteúdo no formato de `/chat/completions`: texto puro ou partes `text` / `image_url`. */
+function chatContent(content: LlmMessageContent): string | Json[] {
+  if (typeof content === "string") return content;
+  return content.map((p) =>
+    p.type === "text" ? { type: "text", text: p.text } : { type: "image_url", image_url: { url: p.image_url.url } },
+  );
+}
+
 export function buildChatBody(req: ProviderRequest): Json {
   const body: Json = {
     model: req.spec.id,
-    messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
+    messages: req.messages.map((m) => ({ role: m.role, content: chatContent(m.content) })),
     max_tokens: req.maxOutputTokens,
     stream: false,
   };
@@ -109,15 +117,24 @@ export function parseChatPayload(payload: unknown): Omit<Extract<ProviderOutcome
 
 // ───────────────────────── responses (streaming) ─────────────────────────
 
+/** Partes no formato de `/responses`: `input_text`/`output_text` e `input_image` (Data URL). */
+function responsesContent(m: LlmMessage): Json[] {
+  const textType = m.role === "assistant" ? "output_text" : "input_text";
+  if (typeof m.content === "string") return [{ type: textType, text: m.content }];
+  return m.content.map((p) =>
+    p.type === "text" ? { type: textType, text: p.text } : { type: "input_image", image_url: p.image_url.url },
+  );
+}
+
 export function buildResponsesBody(req: ProviderRequest): Json {
-  const system = req.messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+  const system = req.messages.filter((m) => m.role === "system").map((m) => llmMessageText(m.content)).join("\n\n");
   const rest: LlmMessage[] = req.messages.filter((m) => m.role !== "system");
   const body: Json = {
     model: req.spec.id,
     input: rest.map((m) => ({
       type: "message",
       role: m.role,
-      content: [{ type: m.role === "assistant" ? "output_text" : "input_text", text: m.content }],
+      content: responsesContent(m),
     })),
     max_output_tokens: req.maxOutputTokens,
     stream: true,

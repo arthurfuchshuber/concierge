@@ -44,6 +44,18 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     expect(files.filter((f) => internal.test(code(f))).map(rel)).toEqual([]);
   });
 
+  it("Visão · storage só pela porta restrita, e só a leitura de fotos a usa (caminho do anexo fica em data/)", () => {
+    expect(files.filter((f) => /getGuestAiAttachmentStorage|attachmentStorageFrom/.test(code(f))).map(rel).sort()).toEqual([
+      "data/client.server.ts",
+      "data/guest-images.server.ts",
+    ]);
+    expect(files.filter((f) => /\.storage\.from\(/.test(code(f))).map(rel)).toEqual(["data/client.server.ts"]);
+    expect(files.filter((f) => /GUEST_IMAGE_MESSAGE_COLUMNS|attachment_path/.test(code(f))).map(rel).sort()).toEqual([
+      "data/guest-images.server.ts",
+      "data/projections.ts",
+    ]);
+  });
+
   it("só data/client.server.ts importa o cliente administrativo", () => {
     const offenders = files.filter((f) => /supabaseAdmin|integrations\/supabase\/client\.server/.test(code(f)));
     expect(offenders.map(rel)).toEqual(["data/client.server.ts"]);
@@ -177,6 +189,7 @@ describe("F0 · projeções explícitas", () => {
       ["properties", [...P.PROPERTY_SCOPE_COLUMNS, ...P.PROPERTY_PUBLIC_COLUMNS, ...P.PROPERTY_OPERATIONAL_COLUMNS, ...P.PROPERTY_DOSSIER_COLUMNS, ...P.PROPERTY_CREDENTIAL_COLUMNS]],
       ["property_chat_conversations", P.CONVERSATION_COLUMNS],
       ["property_chat_messages", P.MESSAGE_COLUMNS],
+      ["property_chat_messages", P.GUEST_IMAGE_MESSAGE_COLUMNS],
       ["property_reservations", P.RESERVATION_COLUMNS],
       ["guest_arrival_status", P.ARRIVAL_STATUS_COLUMNS],
       ["guide_access_logs", P.ACCESS_LOG_COLUMNS],

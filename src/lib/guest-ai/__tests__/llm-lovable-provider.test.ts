@@ -276,3 +276,53 @@ describe("F2-A · ponta a ponta (gateway + transporte Lovable simulado)", () => 
     }
   });
 });
+
+describe("Visão · Lovable AI Gateway — partes multimodais", () => {
+  const IMG = "data:image/jpeg;base64,/9j/AAAA";
+  const multi = preq({
+    messages: [
+      { role: "system", content: "Regras do imóvel." },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "A fechadura está assim:" },
+          { type: "image_url", image_url: { url: IMG } },
+        ],
+      },
+    ],
+  });
+
+  it("chat/completions: partes `text` e `image_url` vão como o formato OpenAI do gateway", async () => {
+    const f = fakeFetch(() => respond(JSON.stringify(CHAT_OK)));
+    await provider(f.fn).complete(multi, signal());
+    expect(f.calls[0]!.body["messages"]).toEqual([
+      { role: "system", content: "Regras do imóvel." },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "A fechadura está assim:" },
+          { type: "image_url", image_url: { url: IMG } },
+        ],
+      },
+    ]);
+  });
+
+  it("responses: imagem vira `input_image` com a Data URL; texto vira `input_text`", () => {
+    const body = buildResponsesBody({ ...multi, spec: GPT });
+    expect(body["instructions"]).toBe("Regras do imóvel.");
+    expect(body["input"]).toEqual([
+      {
+        type: "message",
+        role: "user",
+        content: [
+          { type: "input_text", text: "A fechadura está assim:" },
+          { type: "input_image", image_url: IMG },
+        ],
+      },
+    ]);
+  });
+
+  it("mensagens só de texto continuam idênticas (compatibilidade)", () => {
+    expect(buildChatBody(preq())["messages"]).toEqual(preq().messages);
+  });
+});

@@ -23,6 +23,8 @@ export interface ModelSpec {
   reasoningEfforts: readonly Exclude<ReasoningEffort, "none">[];
   supportsTemperature: boolean;
   supportsJson: boolean;
+  /** Aceita partes de imagem (visão multimodal). Modelo sem visão + imagem ⇒ `invalid_request`. */
+  supportsImages: boolean;
   /** Teto de saída do modelo neste gateway (o menor entre isto e `LIMITS.maxOutputTokens` vale). */
   maxOutputTokens: number;
   /**
@@ -46,6 +48,7 @@ const SPECS: readonly ModelSpec[] = [
     reasoningEfforts: ["low", "medium", "high"],
     supportsTemperature: true,
     supportsJson: true,
+    supportsImages: true,
     maxOutputTokens: 8_192,
     contextWindowTokens: CONSERVATIVE_CONTEXT_WINDOW,
     pricePerMTok: { input: 0.3, output: 2.5 },
@@ -58,6 +61,7 @@ const SPECS: readonly ModelSpec[] = [
     reasoningEfforts: ["low", "medium", "high"],
     supportsTemperature: true,
     supportsJson: true,
+    supportsImages: true,
     maxOutputTokens: 8_192,
     contextWindowTokens: CONSERVATIVE_CONTEXT_WINDOW,
     pricePerMTok: { input: 0.1, output: 0.4 },
@@ -71,6 +75,7 @@ const SPECS: readonly ModelSpec[] = [
     // Modelos de raciocínio da OpenAI não aceitam temperatura.
     supportsTemperature: false,
     supportsJson: true,
+    supportsImages: true,
     maxOutputTokens: 8_192,
     contextWindowTokens: CONSERVATIVE_CONTEXT_WINDOW,
     pricePerMTok: { input: 1.25, output: 10 },
@@ -83,6 +88,7 @@ const SPECS: readonly ModelSpec[] = [
     reasoningEfforts: ["low", "medium", "high"],
     supportsTemperature: false,
     supportsJson: true,
+    supportsImages: true,
     maxOutputTokens: 8_192,
     contextWindowTokens: CONSERVATIVE_CONTEXT_WINDOW,
     pricePerMTok: { input: 1.25, output: 10 },

@@ -18,8 +18,11 @@
  * mensagens a canais. Não usa `src/lib/llm/`.
  */
 import {
+  ESTIMATED_TOKENS_PER_IMAGE,
   LIMITS,
+  LLM_IMAGE_DATA_URL_PREFIXES,
   ZERO_USAGE,
+  llmMessageText,
   type LlmFailure,
   type LlmMessage,
   type LlmRequest,
@@ -68,6 +71,15 @@ export interface ValidatedRequest {
   provider: ProviderRequest;
   timeoutMs: number;
   inputChars: number;
+  /** Partes de imagem da requisição (0 = só texto). */
+  imageCount: number;
+}
+
+/** Parte de imagem válida: só Data URL base64 de JPEG/PNG/WebP, com conteúdo. */
+function validImageUrl(url: unknown): url is string {
+  if (typeof url !== "string") return false;
+  const prefix = LLM_IMAGE_DATA_URL_PREFIXES.find((p) => url.startsWith(p));
+  return !!prefix && url.length > prefix.length;
 }
 
 /** Validação pura do contrato. `null` ⇒ `invalid_request` (motivo não é exposto: código fixo). */
@@ -77,17 +89,38 @@ export function validateLlmRequest(req: LlmRequest): ValidatedRequest | null {
   if (!spec) return null;
   if (!Array.isArray(req.messages) || req.messages.length === 0 || req.messages.length > LIMITS.maxMessages) return null;
   let inputChars = 0;
+  let imageCount = 0;
+  let imageChars = 0;
   for (const m of req.messages as readonly LlmMessage[]) {
-    if (!m || !ROLES.has(m.role) || typeof m.content !== "string") return null;
-    inputChars += m.content.length;
+    if (!m || !ROLES.has(m.role)) return null;
+    if (typeof m.content === "string") {
+      inputChars += m.content.length;
+      continue;
+    }
+    // partes multimodais: lista não vazia; imagens só em mensagem do usuário
+    if (!Array.isArray(m.content) || m.content.length === 0) return null;
+    for (const part of m.content as readonly unknown[]) {
+      const p = part as { type?: unknown; text?: unknown; image_url?: { url?: unknown } } | null;
+      if (!p || typeof p !== "object") return null;
+      if (p.type === "text") {
+        if (typeof p.text !== "string") return null;
+        inputChars += p.text.length;
+      } else if (p.type === "image_url") {
+        if (m.role !== "user" || !p.image_url || !validImageUrl(p.image_url.url)) return null;
+        imageCount += 1;
+        imageChars += p.image_url.url.length;
+      } else return null;
+    }
   }
   if (inputChars === 0 || inputChars > LIMITS.maxTotalChars) return null;
+  if (imageCount > LIMITS.maxImageParts || imageChars > LIMITS.maxImageDataUrlChars) return null;
   if (!req.messages.some((m) => m.role === "user")) return null;
   const maxOut = Math.min(LIMITS.maxOutputTokens, spec.maxOutputTokens);
   if (!Number.isInteger(req.maxOutputTokens) || req.maxOutputTokens < 1 || req.maxOutputTokens > maxOut) return null;
   const effort: ReasoningEffort = req.reasoningEffort ?? "none";
   if (!EFFORTS.has(effort)) return null;
   if (effort !== "none" && !(spec.reasoningEfforts as readonly string[]).includes(effort)) return null;
+  if (imageCount > 0 && !spec.supportsImages) return null;
   const format = req.responseFormat ?? "text";
   if (format !== "text" && format !== "json") return null;
   if (format === "json" && !spec.supportsJson) return null;
@@ -105,6 +138,7 @@ export function validateLlmRequest(req: LlmRequest): ValidatedRequest | null {
     spec,
     timeoutMs,
     inputChars,
+    imageCount,
     provider: { spec, messages: req.messages, maxOutputTokens: req.maxOutputTokens, reasoningEffort: effort, responseFormat: format, temperature },
   };
 }
@@ -113,11 +147,15 @@ export function validateLlmRequest(req: LlmRequest): ValidatedRequest | null {
 export function containsForbidden(messages: readonly LlmMessage[], forbidden: readonly string[] | undefined): boolean {
   if (!forbidden || forbidden.length === 0) return false;
   const values = forbidden.filter((v) => typeof v === "string" && v.length > 0);
-  return messages.some((m) => typeof m?.content === "string" && values.some((v) => m.content.includes(v)));
+  return messages.some((m) => {
+    if (!m || (typeof m.content !== "string" && !Array.isArray(m.content))) return false;
+    const text = llmMessageText(m.content);
+    return values.some((v) => text.includes(v));
+  });
 }
 
 /** Normaliza o uso informado; sem uso confiável, estima por caracteres e marca `estimated`. */
-export function normalizeUsage(raw: RawUsage | null, inputChars: number, outputChars: number): LlmUsage {
+export function normalizeUsage(raw: RawUsage | null, inputChars: number, outputChars: number, imageCount = 0): LlmUsage {
   if (raw && raw.inputTokens !== undefined && raw.outputTokens !== undefined) {
     const reasoning = Math.min(raw.reasoningTokens ?? 0, raw.outputTokens);
     return {
@@ -128,7 +166,7 @@ export function normalizeUsage(raw: RawUsage | null, inputChars: number, outputC
       source: "provider",
     };
   }
-  const input = estimateTokensFromChars(inputChars);
+  const input = estimateTokensFromChars(inputChars) + Math.max(0, imageCount) * ESTIMATED_TOKENS_PER_IMAGE;
   const output = estimateTokensFromChars(outputChars);
   return { inputTokens: input, outputTokens: output, reasoningTokens: 0, totalTokens: input + output, source: "estimated" };
 }
@@ -281,7 +319,7 @@ export async function generateGuestLlm(request: LlmRequest, deps: GatewayDeps = 
 
         if (outcome.kind === "ok") {
           const text = outcome.text;
-          usage = addUsage(usage, normalizeUsage(outcome.usage, v.inputChars, text.length));
+          usage = addUsage(usage, normalizeUsage(outcome.usage, v.inputChars, text.length, v.imageCount));
           const t = () => telemetryBase(provider.id, v.spec.id, attempts, usage, v.spec, requestId);
           const extra = { ...extraBase, outputChars: text.length };
           if (outcome.finishReason === "length") return emit(fail(failure("truncated_response"), t()), extra);
@@ -296,7 +334,7 @@ export async function generateGuestLlm(request: LlmRequest, deps: GatewayDeps = 
           return emit({ ok: true, text: text.trim(), finishReason: "stop", telemetry: t() }, extra);
         }
 
-        if (outcome.usage) usage = addUsage(usage, normalizeUsage(outcome.usage, v.inputChars, 0));
+        if (outcome.usage) usage = addUsage(usage, normalizeUsage(outcome.usage, v.inputChars, 0, v.imageCount));
         lastError = outcome.error;
         const remaining = v.timeoutMs - (now() - started);
         if (!isTransient(outcome.error.code) || attempts >= MAX_ATTEMPTS || remaining < MIN_RETRY_BUDGET_MS) break;

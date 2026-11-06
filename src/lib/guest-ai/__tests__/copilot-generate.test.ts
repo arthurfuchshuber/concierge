@@ -38,7 +38,8 @@ import type {
 import { createCopilotStore } from "@/lib/guest-ai/copilot/store.server";
 import { copilotRpcFrom, COPILOT_RPC_FUNCTIONS } from "@/lib/guest-ai/data/client.server";
 import { GuestAiScopeError } from "@/lib/guest-ai/data/scope.server";
-import type { ProviderOutcome } from "@/lib/guest-ai/llm/providers/types";
+import type { ProviderOutcome, ProviderRequest } from "@/lib/guest-ai/llm/providers/types";
+import { llmMessageText } from "@/lib/guest-ai/llm/contracts";
 import { GUEST_AI_DEFAULT_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
 import type { OwnershipLoad } from "@/lib/guest-ai/data/conversation-ownership.server";
 import { CONV, ctx, history, turn, v4, silence } from "./helpers/b23-chain";
@@ -429,8 +430,8 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     let seen = "";
     const p = fakeProvider(okJson(v4()));
     const orig = p.complete.bind(p);
-    p.complete = async (req: { messages: readonly { content: string }[] }, s?: AbortSignal) => {
-      seen = req.messages.map((m) => m.content).join("\n");
+    p.complete = async (req: ProviderRequest, s?: AbortSignal) => {
+      seen = req.messages.map((m) => llmMessageText(m.content)).join("\n");
       return orig(req as never, s as never);
     };
     await generateCopilotSuggestion(REQ, deps(p));
@@ -803,5 +804,104 @@ describe("Copiloto · isolamento estático (a IA nunca envia)", () => {
       );
       expect(c, f).toMatch(/NO_AI_HANDOFF_REASON/);
     }
+  });
+});
+
+describe("Copiloto · visão (fotos do hóspede na cadeia real)", () => {
+  const IMG = "data:image/jpeg;base64,/9j/AAAA";
+  const withImage = () =>
+    history("A fechadura está assim, o que faço?", [
+      { role: "user", sender_type: "guest", attachment_type: "image", content: "" },
+    ]);
+  const imageEntry = () => {
+    const h = withImage();
+    if (h.status !== "available") throw new Error("histórico indisponível");
+    return { h, e: h.entries.find((x) => x.media?.kind === "image")! };
+  };
+  const capture = () => {
+    const seen: ProviderRequest[] = [];
+    const p = fakeProvider(okJson(v4()));
+    const orig = p.complete.bind(p);
+    p.complete = async (req: ProviderRequest, s?: AbortSignal) => {
+      seen.push(req);
+      return orig(req as never, s as never);
+    };
+    return { p, seen };
+  };
+  const imageParts = (req: ProviderRequest) =>
+    req.messages.flatMap((m) =>
+      typeof m.content === "string" ? [] : m.content.filter((x) => x.type === "image_url"),
+    );
+
+  it("foto do hóspede no histórico ⇒ vai ao modelo como `image_url`, legendada com o id citável da mensagem", async () => {
+    const { h, e } = imageEntry();
+    const { p, seen } = capture();
+    let calls = 0;
+    const d = deps(p, {
+      ports: ports({ loadHistory: async () => h }),
+      loadImages: async () => {
+        calls += 1;
+        return [
+          {
+            status: "loaded",
+            messageId: e.messageId,
+            at: e.at,
+            dataUrl: IMG,
+            width: 800,
+            height: 600,
+            bytes: 1000,
+            tokenBound: 1_120,
+          },
+        ];
+      },
+    });
+    const r = await generateCopilotSuggestion(REQ, d);
+    expect(r).toMatchObject({ status: "stored", state: "available" });
+    expect(calls).toBe(1);
+    expect(imageParts(seen[0]!)).toEqual([{ type: "image_url", image_url: { url: IMG } }]);
+    expect(seen[0]!.messages.map((m) => llmMessageText(m.content)).join("\n")).toContain(
+      `Foto 1 — mensagem ${e.ref}`,
+    );
+  });
+
+  it("sem foto no histórico ⇒ nenhuma consulta de imagem; prompt só texto", async () => {
+    const { p, seen } = capture();
+    let calls = 0;
+    const d = deps(p, { loadImages: async () => ((calls += 1), []) });
+    await generateCopilotSuggestion(REQ, d);
+    expect(calls).toBe(0);
+    expect(seen[0]!.messages.every((m) => typeof m.content === "string")).toBe(true);
+  });
+
+  it("falha ao carregar a foto ⇒ sugestão gerada mesmo assim, com `[imagem não carregada]` no prompt", async () => {
+    const { p, seen } = capture();
+    const d = deps(p, {
+      ports: ports({ loadHistory: async () => withImage() }),
+      loadImages: async () => {
+        throw new Error("storage fora");
+      },
+    });
+    const r = await generateCopilotSuggestion(REQ, d);
+    expect(r).toMatchObject({ status: "stored", state: "available" });
+    expect(imageParts(seen[0]!)).toEqual([]);
+    expect(seen[0]!.messages.map((m) => llmMessageText(m.content)).join("\n")).toContain(
+      "[imagem não carregada]",
+    );
+  });
+
+  it("foto com falha de leitura (`failed`) ⇒ aviso com o id citável; nenhuma imagem enviada", async () => {
+    const { h, e } = imageEntry();
+    const { p, seen } = capture();
+    const d = deps(p, {
+      ports: ports({ loadHistory: async () => h }),
+      loadImages: async () => [
+        { status: "failed", messageId: e.messageId, at: e.at, reason: "download_failed" },
+      ],
+    });
+    await generateCopilotSuggestion(REQ, d);
+    expect(imageParts(seen[0]!)).toEqual([]);
+    expect(seen[0]!.messages.map((m) => llmMessageText(m.content)).join("\n")).toContain(
+      `[imagem não carregada] — mensagem ${e.ref}`,
+    );
   });
 });
