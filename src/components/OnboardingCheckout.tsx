@@ -1,37 +1,32 @@
 import { friendlyErrorMessage } from "@/lib/friendly-error";
-import { useEffect, useMemo, useState } from "react";
-import { Check, CreditCard, Loader2, ShieldCheck, Sparkles, ArrowLeft, BadgeCheck, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CreditCard, Loader2, ShieldCheck, ArrowLeft, BadgeCheck, AlertTriangle, Lock } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
-import { onPaddleCheckoutEvent } from "@/lib/paddle";
-import { PLANS, type PlanKey } from "@/lib/payments.functions";
 import { formatCPF, formatCNPJ, onlyDigits } from "@/lib/masks";
 import { validateTaxId, type TaxIdCheck } from "@/lib/tax-id.functions";
+import { createCheckoutSession, getAccountBilling } from "@/lib/billing/billing.functions";
+import { BILLING_ANCHOR_DAY, monthlyTotalCents, nextBillingAnchor, proratedCents } from "@/lib/billing/listing-billing";
+import { PRICE_BANDS } from "@/components/pricing/ListingPricing";
 
-// Starter excluído em 01/10/2026 — o Pro é o plano de entrada.
-const PLAN_ORDER: PlanKey[] = ["pro", "business"];
+const brl = (cents: number) =>
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }).replace(/\u00a0/g, " ");
+const ddmm = (sec: number) => {
+  const d = new Date((sec - 3 * 3600) * 1000);
+  return `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+};
 
 type DocKind = "cpf" | "cnpj";
 
 export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
-  const { openCheckout } = usePaddleCheckout();
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
-  const [selected, setSelected] = useState<PlanKey>("pro");
   const [opening, setOpening] = useState(false);
-  const [opened, setOpened] = useState(false);
   const [checkoutFailed, setCheckoutFailed] = useState(false);
+  const checkoutFn = useServerFn(createCheckoutSession);
+  const billingFn = useServerFn(getAccountBilling);
 
-  // O painel de pagamento pode falhar por indisponibilidade do provedor. Nesse
-  // caso o iframe mostra um aviso em inglês; aqui damos uma saída em português.
-  useEffect(() => {
-    return onPaddleCheckoutEvent(({ name }) => {
-      if (name === "checkout.error") setCheckoutFailed(true);
-      if (name === "checkout.loaded" || name === "checkout.completed") setCheckoutFailed(false);
-    });
-  }, []);
-
-
-  // Etapa 1 (documento) → Etapa 2 (cartão + plano).
+  // Etapa 1 (documento) → Etapa 2 (cartão).
   const [step, setStep] = useState<1 | 2>(1);
   const [docKind, setDocKind] = useState<DocKind>("cpf");
   const [docValue, setDocValue] = useState("");
@@ -63,7 +58,18 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
     });
   }, []);
 
-  const plan = useMemo(() => PLANS[selected], [selected]);
+  // Condição comercial já combinada com o admin (carência/cortesia), se houver.
+  const billing = useQuery({
+    queryKey: ["onboarding-billing", user?.id],
+    enabled: !!user && step === 2,
+    queryFn: () => billingFn({ data: {} }),
+    retry: false,
+  });
+  const b = billing.data?.billing;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const anchor = nextBillingAnchor(nowSec);
+  const prevAnchor = Math.floor(Date.UTC(new Date(anchor * 1000).getUTCFullYear(), new Date(anchor * 1000).getUTCMonth() - 1, 25, 3) / 1000);
+  const todayCents = b?.courtesy || b?.courtesyUntil ? 0 : proratedCents(b?.monthlyCents || monthlyTotalCents(1), nowSec, prevAnchor, anchor);
 
   const maskedDoc = docKind === "cpf" ? formatCPF(docValue) : formatCNPJ(docValue);
   const requiredLen = docKind === "cpf" ? 11 : 14;
@@ -111,29 +117,17 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
     }
   }
 
-  async function openInlineCheckout(target: PlanKey) {
+  async function goToCheckout() {
     if (!user || !docCheck?.ok) return;
-    setSelected(target);
     setCheckoutFailed(false);
     setOpening(true);
-    setOpened(true);
     try {
-      await openCheckout({
-        priceId: PLANS[target].priceId,
-        customerEmail: user.email ?? undefined,
-        customData: {
-          userId: user.id,
-          taxId: docCheck.digits,
-          taxIdKind: docCheck.kind,
-        },
-        successUrl: `${window.location.origin}/admin?checkout=success`,
-        frameTarget: "sigma-onboarding-checkout",
-      });
+      const { url } = await checkoutFn({ data: { returnPath: "/admin" } });
+      window.location.href = url;
     } catch (e) {
-      setOpened(false);
+      setCheckoutFailed(true);
       const { toast } = await import("sonner");
-      toast.error(friendlyErrorMessage(e, "Não foi possível abrir o checkout"));
-    } finally {
+      toast.error(friendlyErrorMessage(e, "Não foi possível abrir o pagamento"));
       setOpening(false);
     }
   }
@@ -150,19 +144,13 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
             Etapa {step} de 2
           </p>
           <h1 className="ds-page-title mt-1">
-            {step === 1 ? "Confirme seu documento" : "Escolha seu plano"}
+            {step === 1 ? "Confirme seu documento" : "Cadastre seu cartão"}
           </h1>
           <p className="ds-body text-muted-foreground mt-2 max-w-lg mx-auto">
             {step === 1
               ? "Usamos isso pra identificar sua conta com segurança. Cada CPF/CNPJ só pode ter uma conta."
-              : "Pode trocar de plano quando quiser depois."}
+              : `Um plano com tudo incluso, cobrado por anúncio conectado. Vencimento todo dia ${BILLING_ANCHOR_DAY}.`}
           </p>
-          {step === 2 && (
-            <p className="ds-body mt-1 max-w-lg mx-auto">
-              <strong className="text-foreground">Você não será cobrado nos primeiros 7 dias</strong> — cancele
-              antes do fim do teste sem nenhum custo.
-            </p>
-          )}
         </div>
 
         {step === 1 ? (
@@ -240,7 +228,7 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
           </div>
         ) : (
           <div className="grid lg:grid-cols-[1fr_1.4fr] gap-5 lg:gap-6">
-            {/* Plans column */}
+            {/* Tabela por anúncio */}
             <div className="space-y-1.5">
               <button
                 onClick={() => setStep(1)}
@@ -248,47 +236,19 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
               >
                 <ArrowLeft className="size-3" /> Voltar
               </button>
-              {PLAN_ORDER.map((key) => {
-                const p = PLANS[key];
-                const isSel = selected === key;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => {
-                      setSelected(key);
-                      if (opened) {
-                        // Trocar de plano reabre o checkout com o novo priceId.
-                        setOpened(false);
-                      }
-                    }}
-                    className={`relative w-full text-left ds-surface border p-4 transition-all ${
-                      isSel
-                        ? "border-primary bg-primary/[0.06] shadow-elevated"
-                        : "border-border bg-card hover:border-foreground/40"
-                    }`}
-                  >
-                    {key === "pro" && (
-                      <span className="absolute -top-2.5 right-4 text-[10px] uppercase tracking-wider font-bold bg-gradient-to-br from-brand-purple to-brand-magenta text-white px-2.5 py-1 rounded-full">
-                        Recomendado
-                      </span>
-                    )}
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="ds-card-title">{p.name}</div>
-                      </div>
+              <div className="ds-surface border border-border bg-card px-4">
+                {PRICE_BANDS.map((band, i) => (
+                  <div key={band.label} className={`flex min-w-0 items-center gap-3 py-3 ${i ? "border-t border-border" : ""}`}>
+                    <div className="min-w-0 flex-1">
+                      <div className="ds-card-title truncate">{band.label}</div>
+                      <p className="ds-meta">{band.note}</p>
                     </div>
-                    <div className="mt-1 flex items-baseline gap-1">
-                      <span className="text-2xl font-display font-bold">{p.priceLabel}</span>
-                      <span className="text-xs text-muted-foreground">/mês</span>
-                    </div>
-                    <p className="ds-meta mt-1">
-                      {p.featureList.slice(0, 3).join(" · ")}
-                    </p>
-                  </button>
-                );
-              })}
+                    <span className="whitespace-nowrap font-display text-[15px] font-bold tabular-nums">R$ {band.unit}</span>
+                  </div>
+                ))}
+              </div>
               <div className="ds-meta flex items-center gap-1.5 px-1 pt-1.5">
-                <ShieldCheck className="size-3.5" /> Pagamento seguro · você pode trocar de plano depois
+                <ShieldCheck className="size-3.5" /> Tudo incluso · anúncio desativado deixa de ser cobrado
               </div>
               {onSignOut && (
                 <button
@@ -300,14 +260,14 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
               )}
             </div>
 
-            {/* Checkout column */}
+            {/* Pagamento */}
             <div className="ds-surface border border-border bg-card p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-2">
                   <CreditCard className="size-4 text-muted-foreground" />
-                  <span className="ds-card-title">Pagamento — {plan.name}</span>
+                  <span className="ds-card-title">Pagamento</span>
                 </div>
-                <span className="text-sm font-semibold">{plan.priceLabel}/mês</span>
+                <span className="text-sm font-semibold tabular-nums">{b?.courtesy ? "Cortesia" : "R$ 119/anúncio"}</span>
               </div>
 
               {docCheck?.ok && (
@@ -326,29 +286,34 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
                 </div>
               )}
 
-              <div className="ds-surface bg-emerald-500/5 border border-emerald-500/20 p-3 mb-3 text-xs flex items-start gap-2">
-                <ShieldCheck className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-foreground">Sem cobrança nos próximos 7 dias</p>
-                  <p className="text-muted-foreground mt-0.5">
-                    O cartão é necessário para garantir continuidade, mas só será cobrado depois do período de teste. Cancele antes e nada é debitado.
-                  </p>
+              <div className="ds-surface bg-background border border-border p-3 mb-3 text-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium text-foreground">Cobrança de hoje</span>
+                  <span className="font-display text-[15px] font-bold tabular-nums">{brl(todayCents)}</span>
                 </div>
+                <p className="text-muted-foreground mt-1">
+                  {b?.courtesy
+                    ? "Sua conta tem cortesia total combinada com a ConciergeIA. O cartão fica salvo e nada é cobrado."
+                    : b?.courtesyUntil
+                      ? `Carência combinada até ${new Date(b.courtesyUntil).toLocaleDateString("pt-BR")}. O cartão fica salvo e a primeira cobrança é nessa data.`
+                      : `Proporcional de hoje até ${ddmm(anchor)}. Depois, todo dia ${BILLING_ANCHOR_DAY}, o valor dos seus anúncios ativos (mínimo R$ 357).`}
+                </p>
               </div>
 
-              {!opened && (
-                <button
-                  onClick={() => openInlineCheckout(selected)}
-                  disabled={!user || opening}
-                  className="w-full h-11 rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-opacity"
-                >
-                  {opening ? (
-                    <><Loader2 className="size-4 animate-spin" /> Abrindo checkout…</>
-                  ) : (
-                    <><CreditCard className="size-4" /> Continuar para pagamento</>
-                  )}
-                </button>
-              )}
+              <button
+                onClick={goToCheckout}
+                disabled={!user || opening}
+                className="w-full h-11 rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-opacity"
+              >
+                {opening ? (
+                  <><Loader2 className="size-4 animate-spin" /> Abrindo pagamento…</>
+                ) : (
+                  <><Lock className="size-4" /> Cadastrar cartão e assinar</>
+                )}
+              </button>
+              <p className="ds-meta mt-2 text-center">
+                Você vai para a página segura da Stripe. O cartão de crédito é obrigatório.
+              </p>
 
               {checkoutFailed && (
                 <div className="ds-surface border border-amber-500/40 bg-amber-500/[0.06] p-3.5 mt-3 text-xs">
@@ -357,40 +322,26 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
                     O pagamento está indisponível no momento
                   </p>
                   <p className="text-muted-foreground mt-1">
-                    Não foi possível abrir a tela de cartão agora. Sua conta e seus dados já estão salvos —
-                    tente de novo em alguns minutos ou fale com a gente para liberar seu acesso na hora.
+                    Sua conta e seus dados já estão salvos. Tente de novo em alguns minutos.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
-                      onClick={() => openInlineCheckout(selected)}
+                      onClick={goToCheckout}
                       className="h-9 rounded-full border border-border px-4 text-xs font-semibold hover:border-foreground/40"
                     >
                       Tentar de novo
                     </button>
-                    <a
-                      href="https://wa.me/5545999999999?text=Quero%20ativar%20meu%20plano%20no%20ConciergeIA"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="h-9 inline-flex items-center rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta px-4 text-xs font-semibold text-white hover:opacity-90"
-                    >
-                      Falar com o suporte
-                    </a>
                   </div>
                 </div>
               )}
-
-              <div
-                id="sigma-onboarding-checkout"
-                className={`sigma-onboarding-checkout mt-3 ds-surface ${opened ? "min-h-[500px]" : "hidden"}`}
-              />
             </div>
           </div>
         )}
 
         <div className="mt-6 flex justify-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-3.5 py-1.5 border border-emerald-500/20">
-            <Sparkles className="size-3.5" />
-            <span className="text-xs font-semibold uppercase tracking-wider">7 dias grátis · sem cobrança no cadastro</span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-muted-foreground">
+            <ShieldCheck className="size-3.5" />
+            <span className="text-xs font-semibold uppercase tracking-wider">Pagamento seguro · vencimento todo dia {BILLING_ANCHOR_DAY}</span>
           </div>
         </div>
       </div>

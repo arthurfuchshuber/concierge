@@ -46,7 +46,7 @@ function base(args: BaseArgs) {
   };
 }
 
-/** Integrações externas (Google Agenda, ClickSign, WhatsApp, Airbnb, Paddle). */
+/** Integrações externas (Google Agenda, ClickSign, WhatsApp, Airbnb, Stripe). */
 export function auditIntegration(eventType: string, args: BaseArgs & { integration: string }) {
   return write({
     ...base(args),

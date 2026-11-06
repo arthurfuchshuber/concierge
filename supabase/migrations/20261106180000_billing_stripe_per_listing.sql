@@ -33,7 +33,10 @@ alter table public.subscriptions
   drop column if exists paddle_subscription_id,
   drop column if exists paddle_customer_id,
   drop column if exists billing_anchor_day,
-  drop column if exists enterprise_request;
+  drop column if exists enterprise_request,
+  -- Substituídas por `billing_terms` (condição comercial por conta).
+  drop column if exists custom_price_cents,
+  drop column if exists custom_currency;
 
 alter table public.subscriptions
   add constraint subscriptions_stripe_subscription_id_key unique (stripe_subscription_id);
@@ -42,6 +45,28 @@ create index if not exists idx_subscriptions_stripe_customer on public.subscript
 comment on column public.subscriptions.stripe_subscription_id is 'Assinatura na Stripe (null = liberação manual do admin).';
 comment on column public.subscriptions.listing_quantity is 'Quantidade cobrada na Stripe (anúncios conectados ativos; nunca 0).';
 comment on column public.subscriptions.billing_paused is 'Cobrança pausada na Stripe (conta com zero anúncios ativos) ou pausa manual.';
+
+-- ───────────────────────── 1b. condição comercial por conta ─────────────────────────
+-- Sem linha = tabela oficial. Vale antes e depois de a conta assinar. Vencimento é sempre dia 25.
+create table if not exists public.billing_terms (
+  owner_id uuid primary key references auth.users(id) on delete cascade,
+  unit_cents integer check (unit_cents is null or unit_cents between 100 and 1000000),
+  min_units integer check (min_units is null or min_units between 1 and 999),
+  courtesy boolean not null default false,
+  -- Fim da carência / início da cobrança: sempre um dia 25 às 00:00 de Brasília (03:00 UTC).
+  billing_starts_at timestamptz check (
+    billing_starts_at is null
+    or (extract(day from billing_starts_at at time zone 'America/Sao_Paulo') = 25
+        and (billing_starts_at at time zone 'America/Sao_Paulo')::time = '00:00')
+  ),
+  notes text,
+  updated_by uuid references auth.users(id) on delete set null,
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+alter table public.billing_terms enable row level security;
+revoke all on public.billing_terms from anon, authenticated;
+comment on table public.billing_terms is 'Condição comercial negociada (Admin SaaS): valor por anúncio, piso, cortesia total e carência até um dia 25.';
 
 -- ───────────────────────── 2. fila de sincronização ─────────────────────────
 

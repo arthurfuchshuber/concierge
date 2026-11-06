@@ -36,6 +36,13 @@ vi.mock("@/lib/billing/connected-listings.server", () => ({
     Array.from({ length: activeListings }, (_, i) => ({ listingId: `L${i}`, name: "x", kind: "primary", propertyName: "x" })),
   ),
 }));
+vi.mock("@/lib/billing/billing-terms.server", async () => {
+  const { STANDARD_TERMS } = await import("../listing-billing");
+  return {
+    loadBillingTerms: vi.fn(async () => STANDARD_TERMS),
+    applyTermsToSubscription: vi.fn(async (sub: any) => sub),
+  };
+});
 vi.mock("@/lib/audit/platform.server", () => ({ auditBilling: vi.fn(async () => undefined) }));
 vi.mock("@/lib/plan-guard.server", () => ({ invalidateOwnerPlanCache: vi.fn() }));
 vi.mock("@/integrations/supabase/client.server", () => {
@@ -125,20 +132,27 @@ describe("syncListingBilling (Stripe e banco simulados)", () => {
     expect(subscription.metadata.cycle_max_qty).toBe("6");
   });
 
-  it("zero e reativação depois de um ciclo não pago: cobra hoje e reinicia o ciclo", async () => {
+  it("zero e reativação depois de um ciclo não pago: cobra hoje o proporcional até o dia 25", async () => {
     subscription = freshSubscription(3);
     subscription.pause_collection = { behavior: "void" };
     subscription.metadata.zero_since = String(PERIOD_START - 86_400);
     activeListings = 1;
     const r = await syncListingBilling("owner-1", "test");
-    expect(r.decision).toBe("resume_new_cycle_charge_today");
-    expect(calls).toHaveLength(1);
-    expect(calls[0].params).toMatchObject({
-      pause_collection: "",
-      billing_cycle_anchor: "now",
-      proration_behavior: "none",
-      items: [{ id: "si_1", quantity: 1 }],
-    });
+    expect(r.decision).toBe("resume_charge_prorated_to_anchor");
+    expect(calls[0].params).toMatchObject({ pause_collection: "", proration_behavior: "none", items: [{ id: "si_1", quantity: 1 }] });
+    expect(calls[0].params.billing_cycle_anchor).toBeUndefined();
+    const item = calls.find((c) => c.path === "/invoiceitems");
+    // ~20 de 30 dias × R$ 357
+    expect(item?.params.amount).toBeGreaterThan(23_000);
+    expect(item?.params.amount).toBeLessThan(24_000);
+    expect(item?.params.currency).toBe("brl");
+    expect(calls.map((c) => c.path)).toEqual([
+      "/subscriptions/sub_1",
+      "/invoiceitems",
+      "/invoices",
+      expect.stringMatching(/\/finalize$/),
+      expect.stringMatching(/\/pay$/),
+    ]);
   });
 
   it("toda chamada de escrita leva chave de idempotência", async () => {
@@ -146,6 +160,6 @@ describe("syncListingBilling (Stripe e banco simulados)", () => {
     activeListings = 9;
     await syncListingBilling("owner-1", "test");
     expect(calls.length).toBeGreaterThan(0);
-    for (const c of calls) expect(c.key).toMatch(/^listing-sync:sub_1:/);
+    for (const c of calls) expect(c.key).toMatch(/^listing-(sync|charge):sub_1:/);
   });
 });

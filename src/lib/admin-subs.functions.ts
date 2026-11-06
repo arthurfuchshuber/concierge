@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { untypedTable } from "@/lib/untyped-table";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { PLANS, planFromProductId, type PlanKey } from "@/lib/payments.functions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function assertAdmin(supabase: any, userId: string) {
@@ -67,21 +66,22 @@ export type AdminCustomerRow = {
   churnRisk: boolean;
   subscription: {
     id: string;
-    plan: PlanKey | null;
-    productId: string | null;
-    priceId: string | null;
+    /** Rótulo da condição: "Tabela oficial", "Condição negociada", "Cortesia" ou "Liberação manual". */
+    planLabel: string;
+    kind: "official" | "custom" | "courtesy" | "manual";
     status: string;
     environment: string;
     currentPeriodStart: string | null;
     currentPeriodEnd: string | null;
     trialEndsAt: string | null;
     cancelAtPeriodEnd: boolean;
-    customPriceCents: number | null;
-    customCurrency: string | null;
     adminNotes: string | null;
     isManual: boolean;
+    hasStripeBilling: boolean;
+    listingQuantity: number | null;
+    /** Valor mensal pela quantidade cobrada e pela condição da conta (centavos). */
+    monthlyCents: number | null;
     maxGuidesOverride: number | null;
-    paddleSubscriptionId: string;
     billingPaused: boolean;
   } | null;
 };
@@ -105,9 +105,14 @@ export const adminListCustomers = createServerFn({ method: "GET" })
     const { data: subs } = await supabaseAdmin
       .from("subscriptions")
       .select(
-        "id, user_id, paddle_subscription_id, product_id, price_id, status, environment, current_period_start, current_period_end, cancel_at_period_end, trial_ends_at, custom_price_cents, custom_currency, admin_notes, is_manual, max_guides_override, billing_paused, created_at",
+        "id, user_id, stripe_subscription_id, status, environment, current_period_start, current_period_end, cancel_at_period_end, trial_ends_at, admin_notes, is_manual, max_guides_override, billing_paused, listing_quantity, created_at",
       )
       .order("created_at", { ascending: false });
+    const { data: termsRows } = await (supabaseAdmin as any)
+      .from("billing_terms")
+      .select("owner_id, unit_cents, min_units, courtesy, billing_starts_at");
+    const termsMap = new Map<string, any>(((termsRows ?? []) as any[]).map((t) => [t.owner_id, t]));
+    const L = await import("@/lib/billing/listing-billing");
 
     // Enrich: fetch all properties with completeness signals
     const { data: allProps } = await supabaseAdmin
@@ -209,25 +214,38 @@ export const adminListCustomers = createServerFn({ method: "GET" })
         guestAccesses30d,
         churnRisk,
         subscription: s
-          ? {
-              id: s.id,
-              plan: planFromProductId(s.product_id),
-              productId: s.product_id,
-              priceId: s.price_id,
-              status: s.status,
-              environment: s.environment,
-              currentPeriodStart: s.current_period_start,
-              currentPeriodEnd: s.current_period_end,
-              trialEndsAt: s.trial_ends_at,
-              cancelAtPeriodEnd: !!s.cancel_at_period_end,
-              customPriceCents: s.custom_price_cents,
-              customCurrency: s.custom_currency,
-              adminNotes: s.admin_notes,
-              isManual: !!s.is_manual,
-              maxGuidesOverride: s.max_guides_override ?? null,
-              paddleSubscriptionId: s.paddle_subscription_id,
-              billingPaused: !!(s as { billing_paused?: boolean }).billing_paused,
-            }
+          ? (() => {
+              const t = termsMap.get(u.id);
+              const terms = t
+                ? { unitCents: t.unit_cents ?? null, minUnits: t.min_units ?? null, courtesy: !!t.courtesy, billingStartsAt: t.billing_starts_at ?? null }
+                : L.STANDARD_TERMS;
+              const kind: "official" | "custom" | "courtesy" | "manual" = s.is_manual && !s.stripe_subscription_id
+                ? "manual"
+                : terms.courtesy
+                  ? "courtesy"
+                  : L.hasCustomPricing(terms)
+                    ? "custom"
+                    : "official";
+              const qty = (s as { listing_quantity?: number | null }).listing_quantity ?? null;
+              return {
+                id: s.id,
+                planLabel: { official: "Tabela oficial", custom: "Condição negociada", courtesy: "Cortesia", manual: "Liberação manual" }[kind],
+                kind,
+                status: s.status,
+                environment: s.environment,
+                currentPeriodStart: s.current_period_start,
+                currentPeriodEnd: s.current_period_end,
+                trialEndsAt: s.trial_ends_at,
+                cancelAtPeriodEnd: !!s.cancel_at_period_end,
+                adminNotes: s.admin_notes,
+                isManual: !!s.is_manual,
+                hasStripeBilling: !!s.stripe_subscription_id,
+                listingQuantity: qty,
+                monthlyCents: kind === "manual" ? null : L.monthlyTotalCents(s.billing_paused ? 0 : (qty ?? 0), terms),
+                maxGuidesOverride: s.max_guides_override ?? null,
+                billingPaused: !!s.billing_paused,
+              };
+            })()
           : null,
       };
     });
@@ -245,119 +263,51 @@ export const adminListCustomers = createServerFn({ method: "GET" })
     return { customers };
   });
 
-const PlanKeySchema = z.enum(["pro", "business", "enterprise"]);
-
+/**
+ * Admin › Editar Assinatura (Stripe). Status, período e valores vêm da Stripe e não são editados
+ * aqui; a condição comercial fica em `adminSaveBillingTerms`. Aqui: notas internas, limite de
+ * guias e cancelamento no fim do ciclo (aplicado na Stripe).
+ */
 export const adminUpdateSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    userId: string;
-    plan: PlanKey;
-    status: string;
-    environment: "sandbox" | "live";
-    trialEndsAt: string | null;
-    currentPeriodEnd: string | null;
-    customPriceCents: number | null;
-    customCurrency: string | null;
-    cancelAtPeriodEnd: boolean;
-    adminNotes: string | null;
-    maxGuidesOverride: number | null;
-    billingPaused: boolean;
-  }) =>
+  .inputValidator((d: { userId: string; adminNotes: string | null; maxGuidesOverride: number | null; cancelAtPeriodEnd: boolean }) =>
     z
       .object({
         userId: z.string().uuid(),
-        plan: PlanKeySchema,
-        status: z.enum(["trialing", "active", "past_due", "paused", "canceled"]),
-        environment: z.enum(["sandbox", "live"]),
-        trialEndsAt: z.string().nullable(),
-        currentPeriodEnd: z.string().nullable(),
-        customPriceCents: z.number().int().min(0).max(100_000_00).nullable(),
-        customCurrency: z.string().length(3).nullable(),
-        cancelAtPeriodEnd: z.boolean(),
         adminNotes: z.string().max(2000).nullable(),
         maxGuidesOverride: z.number().int().min(1).max(100000).nullable(),
-        billingPaused: z.boolean(),
+        cancelAtPeriodEnd: z.boolean(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
-
-    const planConfig = PLANS[data.plan];
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    // Find latest existing sub in this environment for the user
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await (supabaseAdmin as any)
       .from("subscriptions")
-      .select("id, paddle_subscription_id, paddle_customer_id, billing_paused")
+      .select("id, stripe_subscription_id, cancel_at_period_end")
       .eq("user_id", data.userId)
-      .eq("environment", data.environment)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (!existing) throw new Error("Este cliente ainda não assinou. Defina a condição comercial e envie o link de cadastro.");
 
-    const patch = {
-      product_id: planConfig.id,
-      price_id: planConfig.priceId,
-      status: data.status,
-      environment: data.environment,
-      trial_ends_at: data.trialEndsAt,
-      current_period_end: data.currentPeriodEnd,
-      custom_price_cents: data.customPriceCents,
-      custom_currency: data.customCurrency,
-      cancel_at_period_end: data.cancelAtPeriodEnd,
-      admin_notes: data.adminNotes,
-      max_guides_override: data.maxGuidesOverride,
-      billing_paused: data.billingPaused,
-    } as const;
-
-    if (existing) {
-      const { error } = await supabaseAdmin
-        .from("subscriptions")
-        .update(patch)
-        .eq("id", existing.id);
-      if (error) throw new Error("Erro ao atualizar assinatura");
-
-      // Se "Pausar cobranças" mudou e é uma assinatura real do Paddle
-      // (não manual/enterprise), sincroniza pause/resume com o Paddle. Sem
-      // isso, o toggle era apenas cosmético — o Paddle continuava cobrando.
-      const prevPaused = !!(existing as { billing_paused?: boolean }).billing_paused;
-      const nextPaused = data.billingPaused;
-      const paddleId = existing.paddle_subscription_id;
-      const isRealPaddleSub = paddleId && !paddleId.startsWith("manual_");
-      if (isRealPaddleSub && prevPaused !== nextPaused) {
-        try {
-          const { getPaddleClient } = await import("@/lib/paddle.server");
-          const paddle = getPaddleClient(data.environment as "sandbox" | "live");
-          if (nextPaused) {
-            // Pausa imediata — nenhuma nova cobrança até o resume.
-            await paddle.subscriptions.pause(paddleId, { effectiveFrom: "immediately" });
-          } else {
-            // Retoma imediatamente e cobra o proporcional dos dias restantes
-            // do ciclo atual (Paddle processa em até ~3 dias).
-            await paddle.subscriptions.resume(paddleId, { effectiveFrom: "immediately" });
-          }
-        } catch (e) {
-          console.error("Paddle pause/resume falhou:", e);
-          throw new Error(
-            nextPaused
-              ? "Não foi possível pausar a assinatura no provedor de pagamento. Tente novamente."
-              : "Não foi possível retomar a assinatura no provedor de pagamento. Tente novamente.",
-          );
-        }
-      }
-    } else {
-      const suffix = data.userId.slice(0, 8);
-      const { error } = await supabaseAdmin.from("subscriptions").insert({
-        user_id: data.userId,
-        paddle_subscription_id: `manual_${data.environment}_${suffix}_${Date.now()}`,
-        paddle_customer_id: `manual_cus_${suffix}`,
-        is_manual: true,
-        current_period_start: new Date().toISOString(),
-        ...patch,
+    if (existing.stripe_subscription_id && !!existing.cancel_at_period_end !== data.cancelAtPeriodEnd) {
+      const { stripeRequest } = await import("@/lib/billing/stripe.server");
+      const { upsertSubscriptionFromStripe } = await import("@/lib/billing/billing-sync.server");
+      const sub = await stripeRequest<any>("POST", `/subscriptions/${encodeURIComponent(existing.stripe_subscription_id)}`, {
+        cancel_at_period_end: data.cancelAtPeriodEnd,
       });
-      if (error) throw new Error("Erro ao criar assinatura manual");
+      await upsertSubscriptionFromStripe(sub);
     }
+
+    const { error } = await (supabaseAdmin as any)
+      .from("subscriptions")
+      .update({ admin_notes: data.adminNotes, max_guides_override: data.maxGuidesOverride })
+      .eq("id", existing.id);
+    if (error) throw new Error("Erro ao atualizar assinatura");
+    const { invalidateOwnerPlanCache } = await import("@/lib/plan-guard.server");
+    invalidateOwnerPlanCache(data.userId);
 
     await untypedTable(supabaseAdmin, "audit_logs").insert({
       user_id: context.userId,
@@ -366,117 +316,12 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
       entity_type: "subscriptions",
       entity_id: data.userId,
       metadata: {
-        plan: data.plan,
-        status: data.status,
-        environment: data.environment,
-        customPriceCents: data.customPriceCents,
-        billingPaused: data.billingPaused,
-        cancelAtPeriodEnd: data.cancelAtPeriodEnd,
+        adminNotes: data.adminNotes,
         maxGuidesOverride: data.maxGuidesOverride,
+        cancelAtPeriodEnd: data.cancelAtPeriodEnd,
       },
     });
-
     return { ok: true };
-  });
-
-/**
- * Aplica um trial personalizado no Paddle para uma assinatura existente:
- * pausa a cobrança agora e agenda o retorno automático em `trialEndsAt`.
- * Enquanto pausada, o Paddle não gera nenhuma cobrança. Na data definida,
- * retoma sozinho e cobra o proporcional até o próximo ciclo.
- *
- * Se `trialEndsAt` for nulo/passado e a assinatura estiver pausada,
- * despausa imediatamente (encerra o trial customizado).
- */
-export const adminApplyCustomTrial = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string; trialEndsAt: string | null }) =>
-    z.object({
-      userId: z.string().uuid(),
-      trialEndsAt: z.string().datetime().nullable(),
-    }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: sub } = await supabaseAdmin
-      .from("subscriptions")
-      .select("id, paddle_subscription_id, environment, status, is_manual")
-      .eq("user_id", data.userId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!sub) throw new Error("Cliente não tem assinatura para aplicar trial.");
-
-    const paddleId = sub.paddle_subscription_id;
-    const isRealPaddleSub =
-      paddleId && !paddleId.startsWith("manual_") && !sub.is_manual;
-
-    const resumeAt = data.trialEndsAt ? new Date(data.trialEndsAt) : null;
-    const isFuture = resumeAt && resumeAt.getTime() > Date.now();
-
-    if (isRealPaddleSub) {
-      const { gatewayFetch } = await import("@/lib/paddle.server");
-      const env = sub.environment as "sandbox" | "live";
-
-      if (isFuture) {
-        // Pausa agora + retoma automaticamente em resume_at.
-        const res = await gatewayFetch(env, `/subscriptions/${paddleId}/pause`, {
-          method: "POST",
-          body: JSON.stringify({
-            effective_from: "immediately",
-            resume_at: resumeAt!.toISOString(),
-          }),
-        });
-        if (!res.ok) {
-          const j = await res.json().catch(() => ({}));
-          throw new Error(
-            `Não foi possível aplicar o trial no provedor de pagamento: ${
-              j.error?.detail ?? "erro desconhecido"
-            }`,
-          );
-        }
-      } else {
-        // Sem data futura → despausa (se estava pausada) para encerrar trial custom.
-        if (sub.status === "paused") {
-          const res = await gatewayFetch(env, `/subscriptions/${paddleId}/resume`, {
-            method: "POST",
-            body: JSON.stringify({ effective_from: "immediately" }),
-          });
-          if (!res.ok) {
-            const j = await res.json().catch(() => ({}));
-            throw new Error(
-              `Não foi possível retomar a assinatura: ${j.error?.detail ?? "erro desconhecido"}`,
-            );
-          }
-        }
-      }
-    }
-
-    // Reflete no banco. billing_paused acompanha o estado real; status vira
-    // 'trialing' enquanto durar o trial customizado (webhook do Paddle
-    // sobrescreve depois com a verdade final).
-    await supabaseAdmin
-      .from("subscriptions")
-      .update({
-        trial_ends_at: data.trialEndsAt,
-        billing_paused: !!isFuture,
-        status: isFuture ? "trialing" : sub.status === "paused" ? "active" : sub.status,
-      })
-      .eq("id", sub.id);
-
-    await untypedTable(supabaseAdmin, "audit_logs").insert({
-      user_id: context.userId,
-      user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
-      action: "subscription.trial_applied",
-      entity_type: "subscriptions",
-      entity_id: data.userId,
-      metadata: { trialEndsAt: data.trialEndsAt, paused: !!isFuture },
-    });
-
-    return { ok: true, paused: !!isFuture, resumeAt: resumeAt?.toISOString() ?? null };
   });
 
 // Atualiza o nome do cliente (profiles.full_name) — usado dentro do diálogo
@@ -920,35 +765,6 @@ export const adminListUserPropertiesFull = createServerFn({ method: "POST" })
     const { attachOwnerNames } = await import("@/lib/property-owner-names.server");
     return await attachOwnerNames(supabaseAdmin as never, signed);
   });
-
-export const adminGetUserSubscription = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) =>
-    z.object({
-      userId: z.string().uuid(),
-      environment: z.enum(["sandbox", "live"]),
-    }).parse(i),
-  )
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows, error } = await supabaseAdmin
-      .from("subscriptions")
-      .select(
-        "id, paddle_subscription_id, paddle_customer_id, product_id, price_id, status, current_period_start, current_period_end, cancel_at_period_end, environment, is_manual, custom_price_cents, custom_currency, trial_ends_at, max_guides_override, admin_notes, created_at",
-      )
-      .eq("user_id", data.userId)
-      .order("created_at", { ascending: false });
-    if (error) throw new Error("Não foi possível carregar a assinatura deste cliente.");
-    const list = rows ?? [];
-    const match =
-      list.find((r) => r.environment === data.environment) ??
-      list.find((r) => r.is_manual) ??
-      null;
-    if (!match) return { subscription: null, plan: null as PlanKey | null };
-    return { subscription: match, plan: planFromProductId(match.product_id) };
-  });
-
 
 // ───────────────── Exclusão total de cliente ─────────────────
 

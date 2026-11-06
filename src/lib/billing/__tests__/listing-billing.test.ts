@@ -4,7 +4,12 @@ import {
   decideBillingAction,
   displayUnitCents,
   monthlyTotalCents,
+  nextBillingAnchor,
+  proratedCents,
+  stripeTiersFor,
+  STANDARD_TERMS,
   type BillingSubscriptionState,
+  type BillingTerms,
 } from "../listing-billing";
 
 const NOW = 1_800_000_000;
@@ -17,6 +22,7 @@ function state(p: Partial<BillingSubscriptionState> = {}): BillingSubscriptionSt
     paused: false,
     zeroSince: null,
     periodStart: PERIOD,
+    periodEnd: PERIOD + 30 * 86_400,
     cycleMaxPaid: 5,
     ...p,
   };
@@ -76,14 +82,28 @@ describe("reativação", () => {
     expect(d.kind).toBe("resume_same_cycle");
     expect(d.steps[0].pause).toBe(false);
     expect(d.steps.some((s) => s.prorationBehavior === "always_invoice")).toBe(false);
-    expect(d.steps.some((s) => s.billingCycleAnchorNow)).toBe(false);
+    expect(d.charge).toBeUndefined();
   });
 
-  it("depois que um ciclo não pago começou: cobra hoje e reinicia o ciclo", () => {
+  it("depois que um ciclo não pago começou: cobra hoje só o proporcional até o próximo dia 25", () => {
     const d = decideBillingAction(2, state({ paused: true, zeroSince: PERIOD - 86_400 }), NOW);
-    expect(d.kind).toBe("resume_new_cycle_charge_today");
-    expect(d.steps).toHaveLength(1);
-    expect(d.steps[0]).toMatchObject({ pause: false, quantity: 2, billingCycleAnchorNow: true, prorationBehavior: "none" });
+    expect(d.kind).toBe("resume_charge_prorated_to_anchor");
+    expect(d.steps).toEqual([
+      expect.objectContaining({ pause: false, quantity: 2, prorationBehavior: "none" }),
+    ]);
+    // 20 de 30 dias restantes × R$ 357 (piso) = R$ 238,00
+    expect(d.charge).toMatchObject({ amountCents: 23_800, periodStart: NOW, periodEnd: PERIOD + 30 * 86_400 });
+  });
+
+  it("reativação com cortesia total não gera cobrança avulsa", () => {
+    const d = decideBillingAction(2, state({ paused: true, zeroSince: PERIOD - 86_400 }), NOW, { ...STANDARD_TERMS, courtesy: true });
+    expect(d.kind).toBe("resume_charge_prorated_to_anchor");
+    expect(d.charge).toBeUndefined();
+  });
+
+  it("durante a carência só acompanha a quantidade, sem cobrança proporcional", () => {
+    const d = decideBillingAction(9, state({ status: "trialing" }), NOW);
+    expect(d.steps).toEqual([{ quantity: 9, prorationBehavior: "none" }]);
   });
 
   it("dentro do ciclo, acima do já pago: cobra só a diferença", () => {
@@ -138,5 +158,77 @@ describe("máximo pago no ciclo", () => {
     expect(cycleMaxFromMetadata({ cycle_start: String(PERIOD), cycle_max_qty: "9" }, PERIOD, 4)).toBe(9);
     expect(cycleMaxFromMetadata({ cycle_start: String(PERIOD - 1), cycle_max_qty: "9" }, PERIOD, 4)).toBe(4);
     expect(cycleMaxFromMetadata(null, PERIOD, 4)).toBe(4);
+  });
+});
+
+describe("vencimento único no dia 25 (00:00 de Brasília = 03:00 UTC)", () => {
+  const at = (iso: string) => Date.parse(iso) / 1000;
+  it.each([
+    ["2026-11-20T15:00:00Z", "2026-11-25T03:00:00Z"],
+    ["2026-11-25T02:59:59Z", "2026-11-25T03:00:00Z"],
+    ["2026-11-25T03:00:00Z", "2026-12-25T03:00:00Z"],
+    ["2026-11-26T10:00:00Z", "2026-12-25T03:00:00Z"],
+    ["2026-12-31T12:00:00Z", "2027-01-25T03:00:00Z"],
+  ])("de %s → %s", (from, to) => {
+    expect(nextBillingAnchor(at(from))).toBe(at(to));
+  });
+
+  it("contratou dia 20: paga hoje o proporcional de 5 dias até o dia 25", () => {
+    const start = at("2026-10-25T03:00:00Z");
+    const end = at("2026-11-25T03:00:00Z");
+    const from = at("2026-11-20T03:00:00Z");
+    expect(proratedCents(35_700, from, start, end)).toBe(Math.round((35_700 * 5) / 31));
+  });
+});
+
+describe("condição comercial negociada", () => {
+  const T = (t: Partial<BillingTerms>): BillingTerms => ({ ...STANDARD_TERMS, ...t });
+
+  it("valor fixo por anúncio: anúncios × valor, respeitando o piso", () => {
+    expect(monthlyTotalCents(10, T({ unitCents: 7_500 }))).toBe(75_000);
+    expect(monthlyTotalCents(2, T({ unitCents: 7_500 }))).toBe(22_500); // piso padrão 3
+    expect(monthlyTotalCents(2, T({ unitCents: 7_500, minUnits: 1 }))).toBe(15_000);
+    expect(monthlyTotalCents(2, T({ unitCents: 7_500, minUnits: 5 }))).toBe(37_500);
+    expect(displayUnitCents(2, T({ unitCents: 7_500 }))).toBe(7_500);
+  });
+
+  it("tabela oficial com piso diferente", () => {
+    expect(monthlyTotalCents(1, T({ minUnits: 1 }))).toBe(11_900);
+    expect(monthlyTotalCents(3, T({ minUnits: 5 }))).toBe(59_500);
+    expect(monthlyTotalCents(35, T({ minUnits: 5 }))).toBe(346_500);
+  });
+
+  it("cortesia total: nada a pagar", () => {
+    expect(monthlyTotalCents(12, T({ courtesy: true }))).toBe(0);
+  });
+
+  // A tabela que vai para a Stripe precisa cobrar exatamente o que a tela mostra.
+  function stripeVolumeTotal(tiers: ReturnType<typeof stripeTiersFor>, qty: number): number {
+    const t = tiers.find((x) => x.up_to === "inf" || qty <= x.up_to)!;
+    return (t.flat_amount ?? 0) + t.unit_amount * qty;
+  }
+  it.each([
+    [STANDARD_TERMS],
+    [T({ unitCents: 7_500 })],
+    [T({ unitCents: 7_500, minUnits: 1 })],
+    [T({ unitCents: 9_000, minUnits: 8 })],
+    [T({ minUnits: 1 })],
+    [T({ minUnits: 5 })],
+    [T({ minUnits: 33 })],
+  ])("faixas da Stripe = valor da tela para %o", (terms) => {
+    const tiers = stripeTiersFor(terms);
+    for (const q of [1, 2, 3, 4, 5, 8, 29, 30, 33, 39, 40, 49, 50, 80]) {
+      expect(stripeVolumeTotal(tiers, q)).toBe(monthlyTotalCents(q, terms));
+    }
+  });
+
+  it("a tabela oficial gera exatamente as faixas do preço vigente na Stripe", () => {
+    expect(stripeTiersFor(STANDARD_TERMS)).toEqual([
+      { up_to: 3, unit_amount: 0, flat_amount: 35_700 },
+      { up_to: 29, unit_amount: 11_900 },
+      { up_to: 39, unit_amount: 9_900 },
+      { up_to: 49, unit_amount: 9_600 },
+      { up_to: "inf", unit_amount: 8_900 },
+    ]);
   });
 });

@@ -21,7 +21,6 @@ export type BillingSubscription = {
   /** Assinatura com cobrança real na Stripe (liberação manual = false). */
   hasStripeBilling: boolean;
   trialEndsAt: string | null;
-  customPriceCents: number | null;
   maxGuidesOverride: number | null;
   adminNotes: string | null;
   environment: string;
@@ -51,7 +50,7 @@ export type PaymentMethodSummary = {
 const OwnerInput = z.object({ ownerId: z.string().uuid().nullish() }).optional();
 
 const SUB_COLUMNS =
-  "id, status, current_period_start, current_period_end, cancel_at_period_end, billing_paused, listing_quantity, is_manual, stripe_subscription_id, trial_ends_at, custom_price_cents, max_guides_override, admin_notes, environment, created_at";
+  "id, status, current_period_start, current_period_end, cancel_at_period_end, billing_paused, listing_quantity, is_manual, stripe_subscription_id, trial_ends_at, max_guides_override, admin_notes, environment, created_at";
 
 function toBillingSubscription(r: any): BillingSubscription {
   return {
@@ -65,7 +64,6 @@ function toBillingSubscription(r: any): BillingSubscription {
     isManual: !!r.is_manual,
     hasStripeBilling: !!r.stripe_subscription_id,
     trialEndsAt: r.trial_ends_at ?? null,
-    customPriceCents: r.custom_price_cents ?? null,
     maxGuidesOverride: r.max_guides_override ?? null,
     adminNotes: r.admin_notes ?? null,
     environment: r.environment,
@@ -105,13 +103,44 @@ export const getAccountBilling = createServerFn({ method: "POST" })
     const env = stripeEnvOrNull();
     const list = (rows ?? []) as any[];
     const match = list.find((r) => r.environment === env && r.stripe_subscription_id) ?? list.find((r) => r.is_manual) ?? list[0] ?? null;
+
+    const { loadBillingTerms } = await import("@/lib/billing/billing-terms.server");
+    const { loadConnectedListings } = await import("@/lib/billing/connected-listings.server");
+    const L = await import("@/lib/billing/listing-billing");
+    const [terms, listings] = await Promise.all([
+      loadBillingTerms(supabaseAdmin, ownerId),
+      loadConnectedListings(supabaseAdmin, ownerId),
+    ]);
+    const count = listings.length;
+    const sub = match ? toBillingSubscription(match) : null;
+    const now = Date.now();
+    const trialUntil = sub?.status === "trialing" && sub.trialEndsAt && Date.parse(sub.trialEndsAt) > now ? sub.trialEndsAt : null;
+    const courtesyUntil = trialUntil ?? (terms.billingStartsAt && Date.parse(terms.billingStartsAt) > now ? terms.billingStartsAt : null);
+    const nextChargeAt = sub?.hasStripeBilling
+      ? (trialUntil ?? (sub.billingPaused ? null : sub.currentPeriodEnd))
+      : null;
     return {
       ownerId,
-      subscription: match ? toBillingSubscription(match) : null,
+      subscription: sub,
       hasAccess: plan.hasAccess,
       status: plan.status,
       maxGuides: plan.maxGuides,
       features: plan.features as PlanFeatures,
+      billing: {
+        activeListings: count,
+        billedUnits: count > 0 ? L.billedUnits(count, terms) : 0,
+        unitCents: L.displayUnitCents(Math.max(1, count), terms),
+        monthlyCents: L.monthlyTotalCents(count, terms),
+        /** Condição negociada (mostra "Condição Especial Negociada"). */
+        custom: L.hasCustomPricing(terms) || terms.courtesy,
+        courtesy: terms.courtesy,
+        minUnits: terms.minUnits ?? L.MIN_BILLABLE_LISTINGS,
+        /** Carência: sem cobrança até esta data (sempre um dia 25). */
+        courtesyUntil,
+        /** Próxima cobrança real (dia 25 do ciclo; null com a cobrança pausada por zero anúncios). */
+        nextChargeAt,
+        anchorDay: L.BILLING_ANCHOR_DAY,
+      },
     };
   });
 
@@ -190,7 +219,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     const ownerId = await ownerFor(context, data?.ownerId);
     await assertTitularOrAdmin(context, ownerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { stripeRequest, stripeEnv, getListingPrice } = await import("@/lib/billing/stripe.server");
+    const { stripeRequest, stripeEnv } = await import("@/lib/billing/stripe.server");
     const { loadConnectedListings } = await import("@/lib/billing/connected-listings.server");
 
     const { data: live } = await (supabaseAdmin as any)
@@ -203,11 +232,18 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       .limit(1);
     if ((live ?? []).length) throw new Error("A conta já tem uma assinatura ativa. Gerencie pelo botão de cartão.");
 
-    const [price, customer, listings] = await Promise.all([
-      getListingPrice(),
+    const { loadBillingTerms, priceIdForTerms, ensureCourtesyCoupon, courtesyEndSeconds } = await import(
+      "@/lib/billing/billing-terms.server"
+    );
+    const { nextBillingAnchor } = await import("@/lib/billing/listing-billing");
+    const terms = await loadBillingTerms(supabaseAdmin, ownerId);
+    const [priceId, customer, listings] = await Promise.all([
+      priceIdForTerms(ownerId, terms),
       ensureStripeCustomer(ownerId),
       loadConnectedListings(supabaseAdmin, ownerId),
     ]);
+    const now = Math.floor(Date.now() / 1000);
+    const trialEnd = courtesyEndSeconds(terms, now);
     const back = data?.returnPath ?? "/admin/assinatura";
     const sep = back.includes("?") ? "&" : "?";
     const session = await stripeRequest<{ url: string }>("POST", "/checkout/sessions", {
@@ -215,8 +251,17 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       customer,
       client_reference_id: ownerId,
       locale: "pt-BR",
-      line_items: [{ price: price.id, quantity: Math.max(1, listings.length) }],
-      subscription_data: { metadata: { user_id: ownerId, app: "conciergeia" } },
+      // Cartão válido é obrigatório em qualquer situação (cortesia e carência inclusive).
+      payment_method_collection: "always",
+      line_items: [{ price: priceId, quantity: Math.max(1, listings.length) }],
+      ...(terms.courtesy ? { discounts: [{ coupon: await ensureCourtesyCoupon() }] } : {}),
+      subscription_data: {
+        metadata: { user_id: ownerId, app: "conciergeia" },
+        // Vencimento único no dia 25: hoje paga o proporcional até o dia 25 (ou nada, na carência).
+        ...(trialEnd
+          ? { trial_end: trialEnd }
+          : { billing_cycle_anchor: nextBillingAnchor(now), proration_behavior: "create_prorations" }),
+      },
       metadata: { user_id: ownerId },
       success_url: await originUrl(`${back}${sep}checkout=success`),
       cancel_url: await originUrl(`${back}${sep}checkout=canceled`),

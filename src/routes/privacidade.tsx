@@ -60,7 +60,7 @@ function PrivacyPage() {
           <h2 className="font-display text-2xl mt-6">3. Finalidades</h2>
           <ul className="list-disc pl-6 space-y-1">
             <li>Criação de conta e prestação do serviço (execução de contrato).</li>
-            <li>Cobrança, gestão da assinatura e tratamento de impostos (obrigação legal, via Paddle).</li>
+            <li>Cobrança, gestão da assinatura e cumprimento de obrigações fiscais (obrigação legal).</li>
             <li>Segurança, prevenção a fraudes e melhoria do produto (legítimo interesse).</li>
             <li>Suporte ao cliente e comunicações operacionais.</li>
             <li>Marketing apenas mediante seu consentimento.</li>
@@ -72,8 +72,8 @@ function PrivacyPage() {
               <strong>Provedores de infraestrutura</strong> (hospedagem, banco de dados, analytics).
             </li>
             <li>
-              <strong>Paddle.com</strong> — Merchant of Record para venda, gestão de assinaturas, pagamentos, tributos e
-              emissão de notas.
+              <strong>Stripe</strong> — processadora de pagamentos: guarda os dados do cartão e realiza as cobranças da
+              assinatura.
             </li>
             <li>
               <strong>Assessores profissionais</strong> (jurídicos, contábeis), quando necessário.

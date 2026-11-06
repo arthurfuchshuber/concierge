@@ -2,17 +2,14 @@ import { useEffect, useId, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getPaddleEnvironment } from "@/lib/paddle";
-import {
-  getMySubscription,
-  getAccountSubscription,
-  PLANS,
-  type PlanKey,
-} from "@/lib/payments.functions";
-import type { PlanFeatures } from "@/lib/payments.shared";
+import { getAccountBilling } from "@/lib/billing/billing.functions";
+import { NO_FEATURES, type PlanFeatures, type PlanKey } from "@/lib/billing/plan";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
-type SubscriptionInfo = {
+type BillingSummary = NonNullable<Awaited<ReturnType<typeof getAccountBilling>>>["billing"];
+
+export type SubscriptionInfo = {
+  /** Plano único quando a conta tem acesso; null = sem assinatura ativa. */
   plan: PlanKey | null;
   status: string | null;
   cancelAtPeriodEnd: boolean;
@@ -21,56 +18,36 @@ type SubscriptionInfo = {
   isActive: boolean;
   isTrialing: boolean;
   isPastDue: boolean;
+  /** Liberação manual antiga (sem cobrança na Stripe). */
   isManual: boolean;
+  /** Assinatura com cobrança na Stripe. */
+  hasStripeBilling: boolean;
+  /** Cobrança pausada (conta com zero anúncios ativos). */
+  billingPaused: boolean;
   maxGuides: number;
   maxGuidesOverride: number | null;
-  customPriceCents: number | null;
-  customCurrency: string | null;
   adminNotes: string | null;
   features: PlanFeatures;
-};
-
-const FREE_FEATURES: PlanFeatures = {
-  guestChat: false,
-  autoImport: false,
-  advancedIntake: false,
-  ai: false,
-  humanHandoff: false,
-  team: false,
-  customBrand: false,
-  externalIntegration: false,
+  billing: BillingSummary | null;
 };
 
 /**
- * Retorna a assinatura efetiva da CONTA ativa do usuário logado:
- *  - Se ele estiver "impersonando" (SaaS admin) ou for membro de equipe de
- *    outra conta (via account_members / AccountSwitcher), usamos o plano do
- *    dono daquela conta.
- *  - Caso contrário, usamos a assinatura do próprio usuário.
- *
- * Isso garante que membros convidados enxerguem as features contratadas pelo
- * dono da conta (IA, biblioteca, etc.) em vez de caírem no plano Free.
+ * Assinatura efetiva da CONTA ativa: a do titular para membros de equipe e para o admin SaaS que
+ * impersona, senão a do próprio usuário. Atualiza sozinha quando a linha da assinatura muda.
  */
 export function useSubscription(opts?: { impersonateUserId?: string | null }) {
-  const fetchSelf = useServerFn(getMySubscription);
-  const fetchAccount = useServerFn(getAccountSubscription);
+  const fetchBilling = useServerFn(getAccountBilling);
   const qc = useQueryClient();
-  const env = getPaddleEnvironment();
   const channelId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [userId, setUserId] = useState<string | null>(null);
   const { impersonation } = useImpersonation();
-  const explicitImpersonate = opts?.impersonateUserId ?? null;
-  // Fonte da conta ativa: parâmetro explícito > impersonação global.
-  const activeOwnerId = explicitImpersonate ?? impersonation?.userId ?? null;
+  const activeOwnerId = opts?.impersonateUserId ?? impersonation?.userId ?? null;
 
   useEffect(() => {
     let mounted = true;
-    const sync = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-      setUserId(data.session?.access_token ? data.session.user.id : null);
-    };
-    sync();
+    supabase.auth.getSession().then(({ data }) => {
+      if (mounted) setUserId(data.session?.access_token ? data.session.user.id : null);
+    });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserId(session?.access_token ? session.user.id : null);
     });
@@ -80,84 +57,50 @@ export function useSubscription(opts?: { impersonateUserId?: string | null }) {
     };
   }, []);
 
-  // Se activeOwnerId == userId ou não houver impersonação, buscamos self.
   const ownerForQuery = activeOwnerId && activeOwnerId !== userId ? activeOwnerId : null;
-
+  const queryKey = ["my-subscription", userId, ownerForQuery] as const;
   const query = useQuery({
-    queryKey: ["my-subscription", env, userId, ownerForQuery],
+    queryKey,
     enabled: !!userId,
-    queryFn: () =>
-      ownerForQuery
-        ? fetchAccount({ data: { ownerId: ownerForQuery, environment: env } })
-        : fetchSelf({ data: { environment: env } }),
+    queryFn: () => fetchBilling({ data: { ownerId: ownerForQuery } }),
   });
-
 
   useEffect(() => {
     const target = ownerForQuery ?? userId;
     if (!target) return;
     const channel = supabase
       .channel(`subscriptions:${target}:${channelId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${target}` },
-        () => {
-          qc.invalidateQueries({ queryKey: ["my-subscription", env, userId, ownerForQuery] });
-        },
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${target}` }, () => {
+        qc.invalidateQueries({ queryKey: ["my-subscription", userId, ownerForQuery] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, env, qc, channelId, ownerForQuery]);
-
+  }, [userId, qc, channelId, ownerForQuery]);
 
   const data = query.data;
   const sub = data?.subscription ?? null;
-  const plan = data?.plan ?? null;
-
   const status = sub?.status ?? null;
-  const periodEnd = sub?.current_period_end ?? null;
-  const periodEndDate = periodEnd ? new Date(periodEnd) : null;
-  const periodValid = !periodEndDate || periodEndDate > new Date();
-
-  const isTrialing = status === "trialing" && periodValid;
-  const isActive =
-    (status === "active" && periodValid) ||
-    isTrialing ||
-    (status === "past_due" && periodValid) ||
-    (status === "canceled" && !!periodEndDate && periodEndDate > new Date());
-  const isPastDue = status === "past_due";
-
-  const planConfig = plan ? PLANS[plan] : null;
-
-  const subAny = sub as (typeof sub & {
-    custom_price_cents?: number | null;
-    custom_currency?: string | null;
-    trial_ends_at?: string | null;
-    max_guides_override?: number | null;
-    admin_notes?: string | null;
-    is_manual?: boolean | null;
-  }) | null;
-  const override = subAny?.max_guides_override ?? null;
-  const baseMax = planConfig ? planConfig.maxGuides : 0;
+  const hasAccess = !!data?.hasAccess;
 
   const info: SubscriptionInfo = {
-    plan: isActive ? plan : null,
+    plan: hasAccess ? ("conciergeia" as PlanKey) : null,
     status,
-    cancelAtPeriodEnd: !!sub?.cancel_at_period_end,
-    currentPeriodEnd: periodEnd,
-    trialEndsAt: subAny?.trial_ends_at ?? null,
-    isActive,
-    isTrialing,
-    isPastDue,
-    isManual: !!subAny?.is_manual,
-    maxGuides: isActive ? (override ?? baseMax) : 0,
-    maxGuidesOverride: override,
-    customPriceCents: subAny?.custom_price_cents ?? null,
-    customCurrency: subAny?.custom_currency ?? null,
-    adminNotes: subAny?.admin_notes ?? null,
-    features: isActive && planConfig ? planConfig.features : FREE_FEATURES,
+    cancelAtPeriodEnd: !!sub?.cancelAtPeriodEnd,
+    currentPeriodEnd: sub?.currentPeriodEnd ?? null,
+    trialEndsAt: sub?.trialEndsAt ?? null,
+    isActive: hasAccess,
+    isTrialing: hasAccess && status === "trialing",
+    isPastDue: status === "past_due",
+    isManual: !!sub?.isManual,
+    hasStripeBilling: !!sub?.hasStripeBilling,
+    billingPaused: !!sub?.billingPaused,
+    maxGuides: hasAccess ? (data?.maxGuides ?? 0) : 0,
+    maxGuidesOverride: sub?.maxGuidesOverride ?? null,
+    adminNotes: sub?.adminNotes ?? null,
+    features: hasAccess && data ? data.features : NO_FEATURES,
+    billing: data?.billing ?? null,
   };
 
   return { ...query, info };

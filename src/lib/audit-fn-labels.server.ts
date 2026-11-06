@@ -82,7 +82,7 @@ const FN_LABELS: Record<string, string> = {
 };
 
 const VERBS: Array<[RegExp, string]> = [
-  [/^(get|list|count|search|preview|lookup|explain|compare|resolvePaddlePrice|check)/, "Consultou"],
+  [/^(get|list|count|search|preview|lookup|explain|compare|check)/, "Consultou"],
   [/^(create|add|invite|start)/, "Criou"],
   [/^(update|save|set|upsert|edit|rename|reorder|toggle|mark|unmark|assign|apply)/, "Atualizou"],
   [/^(delete|remove|revoke|archive|cancel|disconnect|unlink|unsubscribe)/, "Removeu"],

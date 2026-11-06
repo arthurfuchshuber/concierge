@@ -35,10 +35,9 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
  *
  * Nenhuma resposta do app trazia esses cabeçalhos. Ficaram de fora, de
  * propósito, os que podem quebrar algo sem teste no navegador real:
- * `Content-Security-Policy` (Meta Pixel, Google Fonts, mapas, Paddle) e
+ * `Content-Security-Policy` (Meta Pixel, Google Fonts, mapas) e
  * `X-Frame-Options`/`frame-ancestors` (a landing mostra o guia num iframe e o
- * editor do Lovable também enquadra o app) e `Permissions-Policy` (o checkout
- * do Paddle roda em iframe e pode usar a API de pagamento). Só entra aqui o que não muda
+ * editor do Lovable também enquadra o app) e `Permissions-Policy`. Só entra aqui o que não muda
  * comportamento. Um cabeçalho que a rota já definiu nunca é sobrescrito.
  */
 const SECURITY_HEADERS: Record<string, string> = {

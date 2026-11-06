@@ -139,7 +139,7 @@ export function ClientSwitcher() {
               {filtered.map((c) => {
                 const name = c.fullName || c.email || "(sem nome)";
                 const subStatus = c.subscription?.status ?? "—";
-                const plan = c.subscription?.plan ?? "—";
+                const plan = c.subscription?.planLabel ?? "—";
                 const active = impersonation?.userId === c.userId;
                 return (
                   <li key={c.userId}>

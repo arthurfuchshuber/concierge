@@ -112,7 +112,7 @@ import {
 type StatusFilter = "all" | "published" | "draft";
 type AccessFilter = "all" | "public" | "pin";
 import { useSubscription } from "@/hooks/useSubscription";
-import { PLANS } from "@/lib/payments.functions";
+import { PLAN_NAME } from "@/lib/billing/plan";
 import { BulkEditDialog } from "@/components/BulkEditDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { adminListUserPropertiesFull } from "@/lib/admin-subs.functions";
@@ -416,31 +416,10 @@ function Dashboard() {
   const { isOwner } = useMyPermissions();
   const canSeePlan = isOwner || isSaasAdmin;
 
-  const planConfig = sub.plan ? PLANS[sub.plan] : null;
-  const planName = planConfig?.name ?? "Sem plano";
-  const hasCustomPrice = sub.customPriceCents != null;
-  const customCurrency = sub.customCurrency || "BRL";
-  const planPrice = hasCustomPrice
-    ? (sub.customPriceCents! / 100).toLocaleString("pt-BR", {
-        style: "currency",
-        currency: customCurrency,
-      })
-    : (planConfig?.priceLabel ?? "—");
+  const planName = sub.plan ? PLAN_NAME : "Sem assinatura";
   const planLimit = sub.maxGuides;
   const remaining = Math.max(0, planLimit - count);
-  const pct = planLimit > 0 ? Math.min(100, (count / planLimit) * 100) : 0;
   const reachedLimit = planLimit > 0 && count >= planLimit;
-  const fmtDate = (iso: string | null) =>
-    iso
-      ? new Date(iso).toLocaleDateString("pt-BR", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })
-      : null;
-  const renewalLabel = fmtDate(sub.currentPeriodEnd);
-  const trialLabel = sub.isTrialing ? fmtDate(sub.trialEndsAt ?? sub.currentPeriodEnd) : null;
-
   // Só entram na aba Guias os imóveis que já têm um guia efetivamente criado
   // (guide_created) — um imóvel recém-cadastrado via "Criar nova residência"
   // (Proprietários) fica de fora desta lista até alguém clicar
@@ -689,11 +668,11 @@ function Dashboard() {
                   aria-label="Novo guia"
                   title={
                     !sub.plan
-                      ? "Assine um plano para criar guias"
+                      ? "Assine o ConciergeIA para criar guias"
                       : noOwners
                         ? "Cadastre um proprietário em Proprietários antes de criar guias"
                         : reachedLimit
-                          ? "Limite do seu plano atingido. Faça upgrade."
+                          ? "Limite de guias desta conta atingido."
                           : "Novo guia"
                   }
                   className={`${ACTION_SEGMENT} text-accent disabled:opacity-40`}
@@ -934,7 +913,7 @@ function Dashboard() {
                 disabled={!sub.plan || noOwners}
                 title={
                   !sub.plan
-                    ? "Assine um plano para criar guias"
+                    ? "Assine o ConciergeIA para criar guias"
                     : noOwners
                       ? "Cadastre um proprietário em Proprietários antes de criar guias"
                       : "Criar meu primeiro guia"

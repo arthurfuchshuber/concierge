@@ -43,20 +43,11 @@ function RefundPage() {
           </p>
 
           <h2 className="font-display text-2xl mt-6">Como solicitar</h2>
-          <p>Reembolsos são processados pelo nosso provedor de pagamentos, a Paddle. Para solicitar:</p>
-          <ul className="list-disc pl-6 space-y-1">
-            <li>
-              Acesse{" "}
-              <a className="underline" href="https://paddle.net" target="_blank" rel="noreferrer">
-                paddle.net
-              </a>{" "}
-              e localize seu pedido pelo e-mail usado na compra; ou
-            </li>
-            <li>
-              Entre em contato conosco em <strong>sigma@anfitriaosigma.com.br</strong> que encaminharemos sua
-              solicitação.
-            </li>
-          </ul>
+          <p>
+            Para solicitar, entre em contato conosco em <strong>sigma@anfitriaosigma.com.br</strong> informando o e-mail
+            da conta. O estorno é feito no mesmo cartão usado no pagamento, por meio da Stripe, nossa processadora de
+            pagamentos.
+          </p>
 
           <h2 className="font-display text-2xl mt-6">Cancelamento de assinatura</h2>
           <p>

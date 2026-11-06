@@ -29,6 +29,7 @@ import { PlanLockCard } from "@/components/ds/PlanLockCard";
 import { getAtendimentoAccess } from "@/lib/handoff.functions";
 
 import { useSubscription } from "@/hooks/useSubscription";
+import { PLAN_NAME } from "@/lib/billing/plan";
 import {
   enablePush,
   disablePush,
@@ -80,7 +81,7 @@ function EquipePage() {
   const scope = acctId ? { accountOwnerId: acctId } : {};
   const { info: sub } = useSubscription();
   const planFeatures = sub.features;
-  const planName = sub.plan ? sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1) : "atual";
+  const planName = sub.plan ? PLAN_NAME : "atual";
 
   const access = useQuery({
     queryKey: ["handoff-access"],

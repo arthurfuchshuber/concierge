@@ -610,7 +610,7 @@ export function AudienceSection() {
  * Perguntas frequentes (17/09/2026). Cada resposta foi conferida no código:
  * guia abre no navegador (link/QR), senhas só com código de reserva ativo ou
  * PIN (`guest-access.server.ts`), edição manual sem Airbnb, bilíngue PT/EN,
- * gestão de equipe no Business, cancelamento pelo Paddle.
+ * gestão de equipe incluída na assinatura, cancelamento a qualquer momento.
  */
 const FAQ = [
   {
@@ -634,7 +634,7 @@ const FAQ = [
   {
     q: "Minha equipe consegue usar junto?",
     qShort: "Minha equipe usa junto?",
-    a: "Sim. No plano Business você convida a equipe e define o que cada pessoa pode ver e fazer.",
+    a: "Sim. A assinatura inclui equipe: você convida as pessoas e define o que cada uma pode ver e fazer.",
   },
   {
     q: "Posso cancelar quando quiser?",
@@ -682,7 +682,7 @@ export function FaqSection() {
 
 const LINKS_PRODUTO = [
   { href: "#como", label: "Como funciona" },
-  { href: "#planos", label: "Planos" },
+  { href: "#planos", label: "Preços" },
   { href: "#faq", label: "Dúvidas" },
 ];
 

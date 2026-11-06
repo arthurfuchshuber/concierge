@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import type { PlanFeatures } from "@/lib/payments.shared";
+import type { PlanFeatures } from "@/lib/billing/plan";
 
 export const MEMBER_PERMISSIONS = [
   "library_view",

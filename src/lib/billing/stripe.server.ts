@@ -126,6 +126,7 @@ export type StripeSubscription = {
   metadata: Record<string, string>;
   cancel_at_period_end: boolean;
   pause_collection: { behavior: string; resumes_at: number | null } | null;
+  trial_end?: number | null;
   current_period_start?: number;
   current_period_end?: number;
   default_payment_method?: any;

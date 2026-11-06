@@ -1,25 +1,22 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { siteUrl } from "@/lib/site-url";
-import { Check, Sparkles, ArrowRight, X } from "lucide-react";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Sparkles, ArrowRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
-import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
-import { PLAN_COMPARISON_GROUPS, type PlanKey } from "@/lib/payments.shared";
 import { metaPixelTrack, metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
-import { toast } from "sonner";
+import { IncludedList, PriceBands, PriceSimulator } from "@/components/pricing/ListingPricing";
 
 export const Route = createFileRoute("/precos")({
   head: () => ({
     meta: [
-      { title: "Planos e preços — ConciergeIA" },
+      { title: "Preços — ConciergeIA" },
       {
         name: "description",
         content:
-          "Escolha o plano ideal para criar guias digitais para seus hóspedes. 7 dias grátis em todos os planos pagos.",
+          "Um único plano com tudo incluso, cobrado por anúncio conectado: R$ 119 por anúncio, com desconto a partir de 30 anúncios.",
       },
-      { property: "og:title", content: "Planos ConciergeIA" },
-      { property: "og:description", content: "Pro, Business e Enterprise. 7 dias grátis." },
+      { property: "og:title", content: "Preços ConciergeIA" },
+      { property: "og:description", content: "Tudo incluso, cobrado por anúncio conectado. A partir de R$ 89 por anúncio." },
       { property: "og:url", content: siteUrl("/precos") },
     ],
     links: [{ rel: "canonical", href: siteUrl("/precos") }],
@@ -27,86 +24,13 @@ export const Route = createFileRoute("/precos")({
   component: PricingPage,
 });
 
-type Plan = {
-  key: PlanKey;
-  name: string;
-  price: string;
-  priceSuffix: string;
-  priceId?: string;
-  description: string;
-  features: string[];
-  lockedNext?: string;
-  cta: string;
-  featured?: boolean;
-  dark?: boolean;
-};
-
-const PLANS_UI: Plan[] = [
-  {
-    key: "pro",
-    name: "Pro",
-    price: "R$ 199",
-    priceSuffix: "/mês",
-    priceId: "pro_monthly",
-    description: "Automatize a rotina e deixe a IA responder seus hóspedes.",
-    // Plano de entrada desde a exclusão do Starter (01/10/2026): a lista é a
-    // mesma do card Pro da landing (canvas aprovado em 17/09/2026).
-    features: [
-      "Até 20 guias digitais",
-      "Chat com IA dentro do guia",
-      "Importação automática do Airbnb",
-      "Bilíngue (PT + EN)",
-      "QR code e PIN por imóvel",
-      "Captação e validação de documentos",
-    ],
-    lockedNext: "Atendimento humano ao vivo",
-    cta: "Começar agora",
-    featured: true,
-  },
-  {
-    key: "business",
-    name: "Business",
-    price: "R$ 399",
-    priceSuffix: "/mês",
-    priceId: "business_monthly",
-    description: "Pra gestores com equipe e atendimento ao vivo.",
-    features: [
-      "Tudo do Pro, mais:",
-      "Até 50 guias",
-      "Atendimento humano ao vivo",
-      "Ensinar a IA com sua base de conhecimento",
-      "Gestão de equipe + edição em massa",
-    ],
-    lockedNext: "Marca própria (white label)",
-    cta: "Começar agora",
-  },
-  {
-    key: "enterprise",
-    name: "Enterprise",
-    price: "Sob consulta",
-    priceSuffix: "",
-    description: "Volume alto, marca própria e integrações sob medida.",
-    features: [
-      "Tudo do Business, mais:",
-      "Guias ilimitados",
-      "Marca própria (logo e nome)",
-      "Integração com sistemas externos",
-      "Onboarding dedicado e SLA 24/7",
-    ],
-    cta: "Falar com vendas",
-    dark: true,
-  },
-];
-
 function PricingPage() {
-  const { openCheckout, loading } = usePaddleCheckout();
-  const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
+  const navigate = useNavigate();
+  const [logged, setLogged] = useState(false);
   const plansRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setUser({ id: data.user.id, email: data.user.email ?? null });
-    });
+    supabase.auth.getUser().then(({ data }) => setLogged(!!data.user));
   }, []);
 
   // ViewPlans: fire once per page-session when the plans grid enters the viewport.
@@ -132,38 +56,14 @@ function PricingPage() {
     return () => obs.disconnect();
   }, []);
 
-  async function handleSubscribe(plan: Plan) {
-    // Meta Pixel: standard InitiateCheckout event on any plan CTA click.
-    metaPixelTrack("InitiateCheckout", { plan: plan.name });
-    if (plan.key === "enterprise") {
-      window.open(
-        "https://wa.me/5547996759381?text=" +
-          encodeURIComponent("Olá! Tenho interesse no plano Enterprise do ConciergeIA."),
-        "_blank",
-        "noopener,noreferrer",
-      );
-      return;
-    }
-    if (!plan.priceId) return;
-    if (!user) {
-      window.location.href = `/auth?next=${encodeURIComponent("/precos")}`;
-      return;
-    }
-    try {
-      await openCheckout({
-        priceId: plan.priceId,
-        customerEmail: user.email ?? undefined,
-        customData: { userId: user.id },
-        successUrl: `${window.location.origin}/admin/assinatura?checkout=success`,
-      });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível abrir o checkout");
-    }
-  }
+  const start = () => {
+    metaPixelTrack("InitiateCheckout", { content_name: "conciergeia_por_anuncio", currency: "BRL" });
+    if (logged) navigate({ to: "/admin" });
+    else navigate({ to: "/auth", search: { next: "/admin" } as never });
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <PaymentTestModeBanner />
       <header className="border-b border-border">
         <div className="max-w-7xl mx-auto px-5 py-5 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
@@ -178,146 +78,34 @@ function PricingPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-5 py-16 md:py-24">
-        <div className="text-center mb-12">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">Planos</p>
-          <h1 className="font-display text-4xl md:text-5xl mt-3">Escolha o plano ideal</h1>
-          <p className="text-muted-foreground mt-3 max-w-xl mx-auto">7 dias grátis em todos os planos pagos.</p>
+      <main className="mx-auto max-w-7xl px-5 py-16 md:py-24">
+        <div className="mb-12 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Preços</p>
+          <h1 className="mt-3 font-display text-4xl md:text-5xl">Um plano, tudo incluso</h1>
+          <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+            Você paga por anúncio conectado. Quanto mais anúncios, menor o valor de cada um.
+          </p>
         </div>
 
-        {/* Cards */}
-        <div id="planos" ref={plansRef} className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {PLANS_UI.map((plan) => {
-            const isDark = plan.dark;
-            const isHi = plan.featured;
-            return (
-              <div
-                key={plan.key}
-                className={`relative rounded-2xl p-6 flex flex-col ${
-                  isDark
-                    ? "bg-foreground text-background border border-foreground"
-                    : isHi
-                      ? "border-2 border-foreground bg-card shadow-elevated"
-                      : "border border-border bg-card"
-                }`}
-              >
-                {isHi && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-wider font-semibold bg-foreground text-background px-3 py-0.5 rounded-full">
-                    Mais popular
-                  </span>
-                )}
-                <h2 className="font-display text-2xl">{plan.name}</h2>
-                <p className={`text-sm mt-1 min-h-[40px] ${isDark ? "text-background/70" : "text-muted-foreground"}`}>
-                  {plan.description}
-                </p>
-                <div className="mt-5 flex items-baseline gap-1">
-                  <span className="text-3xl font-semibold">{plan.price}</span>
-                  {plan.priceSuffix && (
-                    <span className={`text-sm ${isDark ? "text-background/60" : "text-muted-foreground"}`}>
-                      {plan.priceSuffix}
-                    </span>
-                  )}
-                </div>
-                <ul className="mt-5 space-y-2 flex-1">
-                  {plan.features.map((f, idx) => (
-                    <li key={f} className="flex items-start gap-2 text-sm">
-                      <Check
-                        className={`size-4 shrink-0 mt-0.5 ${isDark ? "text-background" : "text-accent"}`}
-                        strokeWidth={2.5}
-                      />
-                      <span
-                        className={
-                          idx === 0 && f.startsWith("Tudo do")
-                            ? `font-semibold ${isDark ? "text-background" : "text-foreground"}`
-                            : isDark
-                              ? "text-background/90"
-                              : ""
-                        }
-                      >
-                        {f}
-                      </span>
-                    </li>
-                  ))}
-                  {plan.lockedNext && (
-                    <li className="flex items-start gap-2 text-sm text-muted-foreground/60 line-through">
-                      <X className="size-4 shrink-0 mt-0.5" strokeWidth={2} />
-                      <span>{plan.lockedNext}</span>
-                    </li>
-                  )}
-                </ul>
-                <button
-                  onClick={() => handleSubscribe(plan)}
-                  disabled={loading}
-                  className={`mt-6 w-full inline-flex items-center justify-center gap-1 rounded-full py-2.5 text-sm font-medium transition-colors ${
-                    isDark
-                      ? "bg-background text-foreground hover:opacity-90"
-                      : "bg-foreground text-background hover:opacity-90"
-                  } disabled:opacity-50`}
-                >
-                  {plan.cta}
-                  <ArrowRight className="size-3.5" strokeWidth={2} />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Comparison table */}
-        <div className="mt-16 rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="p-6 border-b border-border bg-muted/30">
-            <h3 className="font-display text-xl">Comparativo detalhado</h3>
-            <p className="text-sm text-muted-foreground mt-1">Tudo em linguagem simples. Sem termos técnicos.</p>
+        <div id="planos" ref={plansRef} className="flex flex-col gap-5">
+          <PriceBands />
+          <PriceSimulator />
+          <div className="rounded-[14px] bg-card px-5 py-5 shadow-[inset_0_0_0_1px_var(--border)]">
+            <h2 className="mb-4 font-display text-[18px] font-bold">Tudo incluso em qualquer quantidade</h2>
+            <IncludedList />
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[720px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/20">
-                  <th className="p-4 text-xs uppercase tracking-wider font-semibold text-muted-foreground w-[38%]">
-                    Recurso
-                  </th>
-                  <th className="p-4 text-sm font-semibold text-center bg-muted/40">Pro</th>
-                  <th className="p-4 text-sm font-semibold text-center">Business</th>
-                  <th className="p-4 text-sm font-semibold text-center">Enterprise</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {PLAN_COMPARISON_GROUPS.map((group) => (
-                  <Fragment key={group.group}>
-                    <tr className="bg-muted/20">
-                      <td
-                        colSpan={4}
-                        className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
-                      >
-                        {group.group}
-                      </td>
-                    </tr>
-                    {group.rows.map((row) => (
-                      <tr key={row.label}>
-                        <td className="p-4 text-sm font-medium">{row.label}</td>
-                        {(["pro", "business", "enterprise"] as PlanKey[]).map((k) => {
-                          const v = row.values[k];
-                          return (
-                            <td
-                              key={k}
-                              className={`p-4 text-sm text-center ${k === "pro" ? "bg-muted/20" : ""} ${
-                                v === "—"
-                                  ? "text-muted-foreground/40"
-                                  : v === "✓"
-                                    ? "text-accent font-semibold"
-                                    : "text-foreground/80"
-                              }`}
-                            >
-                              {v}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <button
+            type="button"
+            onClick={start}
+            className="mx-auto inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-foreground px-7 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+          >
+            Começar agora
+            <ArrowRight className="size-3.5" strokeWidth={2} />
+          </button>
+          <p className="mx-auto max-w-2xl text-center text-[12.5px] leading-[1.5] text-muted-foreground">
+            O cadastro pede um cartão de crédito válido. A cobrança acompanha seus anúncios ativos: anúncio
+            desativado deixa de ser cobrado no ciclo seguinte. Valores com impostos inclusos.
+          </p>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-10">

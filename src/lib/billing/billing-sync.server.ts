@@ -15,6 +15,7 @@ import {
   type BillingDecision,
   type StripeUpdateStep,
 } from "@/lib/billing/listing-billing";
+import { applyTermsToSubscription, loadBillingTerms } from "@/lib/billing/billing-terms.server";
 import {
   customerId,
   retrieveSubscription,
@@ -57,7 +58,6 @@ function stepParams(itemId: string, step: StripeUpdateStep): Record<string, any>
   if (step.prorationBehavior) p.proration_behavior = step.prorationBehavior;
   if (step.pause === true) p.pause_collection = { behavior: "void" };
   if (step.pause === false) p.pause_collection = "";
-  if (step.billingCycleAnchorNow) p.billing_cycle_anchor = "now";
   if (step.metadata) p.metadata = step.metadata;
   return p;
 }
@@ -79,10 +79,13 @@ export async function syncListingBilling(ownerId: string, trigger: string): Prom
   }
 
   const { loadConnectedListings } = await import("@/lib/billing/connected-listings.server");
-  const [sub, listings] = await Promise.all([
+  const [initial, listings, terms] = await Promise.all([
     retrieveSubscription(row.stripe_subscription_id),
     loadConnectedListings(db, ownerId),
+    loadBillingTerms(db, ownerId),
   ]);
+  // Preço/cortesia da condição comercial vigente antes de mexer na quantidade.
+  const sub = await applyTermsToSubscription(initial, terms);
   const item = subscriptionItem(sub);
   const period = subscriptionPeriod(sub);
   const zeroSince = Number(sub.metadata?.zero_since ?? "");
@@ -96,9 +99,11 @@ export async function syncListingBilling(ownerId: string, trigger: string): Prom
       paused: !!sub.pause_collection,
       zeroSince: Number.isFinite(zeroSince) && zeroSince > 0 ? zeroSince : null,
       periodStart: period.start,
+      periodEnd: period.end,
       cycleMaxPaid: cycleMaxFromMetadata(sub.metadata, period.start, item.quantity),
     },
     now,
+    terms,
   );
 
   let latest: StripeSubscription = sub;
@@ -113,7 +118,46 @@ export async function syncListingBilling(ownerId: string, trigger: string): Prom
     );
   }
 
-  if (decision.steps.length) {
+  if (decision.charge) {
+    // Reativação após ciclo não pago: cobra hoje o proporcional até o próximo dia 25.
+    const c = decision.charge;
+    const key = `listing-charge:${sub.id}:${period.start}:${c.amountCents}`;
+    const cus = customerId(sub);
+    await stripeRequest(
+      "POST",
+      "/invoiceitems",
+      {
+        customer: cus,
+        subscription: sub.id,
+        amount: c.amountCents,
+        currency: "brl",
+        description: c.description,
+        period: { start: c.periodStart, end: c.periodEnd },
+        metadata: { app: "conciergeia", kind: "reactivation_prorated", user_id: ownerId },
+      },
+      { idempotencyKey: `${key}:item` },
+    );
+    const inv = await stripeRequest<{ id: string }>(
+      "POST",
+      "/invoices",
+      {
+        customer: cus,
+        subscription: sub.id,
+        collection_method: "charge_automatically",
+        pending_invoice_items_behavior: "include",
+        auto_advance: true,
+        metadata: { app: "conciergeia", kind: "reactivation_prorated", user_id: ownerId },
+      },
+      { idempotencyKey: `${key}:invoice` },
+    );
+    await stripeRequest("POST", `/invoices/${encodeURIComponent(inv.id)}/finalize`, {}, { idempotencyKey: `${key}:finalize` });
+    await stripeRequest("POST", `/invoices/${encodeURIComponent(inv.id)}/pay`, {}, { idempotencyKey: `${key}:pay` }).catch((err) => {
+      // Cartão recusado: a fatura fica em aberto e a Stripe segue as retentativas configuradas.
+      console.error("[billing] cobrança proporcional não paga na hora", sub.id, err instanceof Error ? err.message : err);
+    });
+  }
+
+  if (decision.steps.length || decision.charge) {
     await upsertSubscriptionFromStripe(latest);
     const { auditBilling } = await import("@/lib/audit/platform.server");
     await auditBilling("listing_quantity_synced", {
@@ -158,6 +202,7 @@ export async function upsertSubscriptionFromStripe(sub: StripeSubscription): Pro
     current_period_end: period.end ? new Date(period.end * 1000).toISOString() : null,
     cancel_at_period_end: !!sub.cancel_at_period_end,
     billing_paused: !!sub.pause_collection,
+    trial_ends_at: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
     environment: env,
     is_manual: false,
   };

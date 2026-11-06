@@ -225,10 +225,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "route:/termos",
     "kind": "route",
     "title": "Termos e Condições — ConciergeIA — tela /termos",
-    "content": "Caminho no sistema: /termos\n\nLeia os termos e condições de uso do ConciergeIA: contas, pagamentos via Paddle, limites de responsabilidade e suporte.",
+    "content": "Caminho no sistema: /termos\n\nLeia os termos e condições de uso do ConciergeIA: contas, assinatura por anúncio, pagamentos, limites de responsabilidade e suporte.",
     "source_path": "src/routes/termos.tsx",
     "audience": [],
-    "content_hash": "b3ddc4ae7717516e16239ce371788ae6"
+    "content_hash": "96d2c05d41e13d75e44b279b43ac172e"
   },
   {
     "doc_key": "rule:ACCENT_FROM",
@@ -301,15 +301,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/geo-enrich.server.ts",
     "audience": [],
     "content_hash": "b2a00562842724edc278ee68cf29e039"
-  },
-  {
-    "doc_key": "rule:adminApplyCustomTrial",
-    "kind": "rule",
-    "title": "Regra — adminApplyCustomTrial",
-    "content": "Aplica um trial personalizado no Paddle para uma assinatura existente:\npausa a cobrança agora e agenda o retorno automático em `trialEndsAt`.\nEnquanto pausada, o Paddle não gera nenhuma cobrança. Na data definida,\nretoma sozinho e cobra o proporcional até o próximo ciclo.\n\nSe `trialEndsAt` for nulo/passado e a assinatura estiver pausada,\ndespausa imediatamente (encerra o trial customizado).",
-    "source_path": "src/lib/admin-subs.functions.ts",
-    "audience": [],
-    "content_hash": "cf95a46aea198eb04a974a076be740a1"
   },
   {
     "doc_key": "rule:ADVICE",
@@ -5557,15 +5548,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/PropertyAccessButton.tsx",
     "audience": [],
     "content_hash": "62c0abe03a1ff3c254ddea1cf576f71c"
-  },
-  {
-    "doc_key": "rule:subscriptionGrantsAccess",
-    "kind": "rule",
-    "title": "Regra — subscriptionGrantsAccess",
-    "content": "Uma assinatura só concede acesso se o período for válido. Para trials, o\nlimite é `trial_ends_at` (o `current_period_end` costuma vir nulo em trials\ndo Paddle — sem esse teto o trial nunca expiraria).",
-    "source_path": "src/lib/plan-guard.server.ts",
-    "audience": [],
-    "content_hash": "74a2b56781d896125dd9775c2010fac3"
   },
   {
     "doc_key": "rule:syncAccountListing",

@@ -2,103 +2,35 @@ import { useState } from "react";
 import { CreditCard, FileText, Lock, ShieldCheck } from "lucide-react";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { getConnectedListingsInventory } from "@/lib/channex.functions";
-import { useImpersonation } from "@/hooks/useImpersonation";
-import type { PaymentMethodSummary } from "@/lib/payments.functions";
-import { Tag, SAGE, AMBER, ROSE } from "@/components/admin-pages/admin-mobile-ui";
+import type { PaymentMethodSummary } from "@/lib/billing/billing.functions";
+import { Tag, SAGE } from "@/components/admin-pages/admin-mobile-ui";
+import { PRICE_BANDS } from "@/components/pricing/ListingPricing";
 import { ImoveisCobradosDialog } from "./ImoveisCobradosDialog";
+import { brl, fmtDate, type buildAssinatura } from "./assinatura-data";
 
 /**
- * Assinatura no celular (mockups aprovados, 05/11/2026). A cobrança é por anúncio: as faixas abaixo
- * são a tabela oficial e o total é calculado na tela (a cobrança real ainda segue o plano).
+ * Assinatura no celular (mockups aprovados, 05/11/2026). Cobrança por anúncio na Stripe: todos os
+ * números vêm do servidor (`buildAssinatura`); vencimento sempre no dia 25.
  */
-const TIERS = [
-  { from: 1, to: 29, label: "1 a 29 Imóveis", price: 119, note: null as string | null },
-  { from: 30, to: 39, label: "30 a 39 Imóveis", price: 99, note: "Desconto de ~17%" },
-  { from: 40, to: 49, label: "40 a 49 Imóveis", price: 96, note: "Desconto de ~19%" },
-  { from: 50, to: null as number | null, label: "50 Imóveis ou Mais", price: 89, note: "Desconto de ~25%" },
-];
-
-const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }).replace(/ /g, " ");
-
-type Payment = {
-  id: string;
-  createdAt: string | Date;
-  amount: number | string;
-  currency?: string | null;
-  status: string;
-  invoiceUrl?: string | null;
-};
-
 const HAIR = "border-foreground/[0.07]";
 type Aba = "plano" | "cartao" | "extrato";
 
 export function AssinaturaMobile({
-  currentPeriodEnd,
-  isActive,
-  payments,
+  view,
   paymentMethod,
   onOpenPortal,
 }: {
-  currentPeriodEnd: string | null;
-  isActive: boolean;
-  payments: Payment[];
+  view: ReturnType<typeof buildAssinatura>;
   paymentMethod: PaymentMethodSummary | null;
   onOpenPortal: () => void;
 }) {
-  const { impersonation } = useImpersonation();
-  const accountOwnerId = impersonation?.userId ?? null;
-  const invFn = useServerFn(getConnectedListingsInventory);
-  const inv = useQuery({
-    queryKey: ["connected-listings-inventory", accountOwnerId ?? "self"],
-    queryFn: () => invFn({ data: { accountOwnerId } }),
-    retry: false,
-  });
   const [aba, setAba] = useState<Aba>("plano");
   const [janela, setJanela] = useState(false);
-
-  const qtd = inv.data?.totalCount ?? 0;
-  const tierIdx = Math.max(
-    0,
-    TIERS.findIndex((t) => qtd >= t.from && (t.to == null || qtd <= t.to)),
-  );
-  const total = qtd < 30 ? Math.max(qtd, 3) * TIERS[tierIdx].price : qtd * TIERS[tierIdx].price;
-  const cap = TIERS[tierIdx].to ?? Math.max(qtd, TIERS[tierIdx].from);
-  const proxima = currentPeriodEnd
-    ? new Date(currentPeriodEnd).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
-    : "—";
-
-  const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString("pt-BR");
-  const cap1 = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-  const monthLabel = (d: string | Date) =>
-    cap1(new Date(d).toLocaleDateString("pt-BR", { month: "short", year: "numeric" }).replace(".", "").replace(" de ", " "));
-
-  const faturas: { id: string; titulo: string; sub: string; valor: string; cor: string; url: string | null }[] = [];
-  if (isActive && currentPeriodEnd) {
-    faturas.push({
-      id: "previsto",
-      titulo: `Fatura ${monthLabel(currentPeriodEnd)}`,
-      sub: `Previsto para ${fmtDate(currentPeriodEnd)}`,
-      valor: brl(total),
-      cor: AMBER,
-      url: null,
-    });
-  }
-  for (const p of payments) {
-    const paid = p.status === "completed" || p.status === "paid";
-    const failed = p.status === "past_due" || p.status === "failed" || p.status === "canceled";
-    faturas.push({
-      id: p.id,
-      titulo: `Fatura ${monthLabel(p.createdAt)}`,
-      sub: `${paid ? "Pago em" : failed ? "Falhou em" : "Emitida em"} ${fmtDate(p.createdAt)}`,
-      // O valor vem em centavos.
-      valor: (Number(p.amount) / 100).toLocaleString("pt-BR", { style: "currency", currency: p.currency || "BRL" }),
-      cor: paid ? SAGE : failed ? ROSE : AMBER,
-      url: p.invoiceUrl ?? null,
-    });
-  }
+  const { qtd, faturas } = view;
+  const tierIdx = view.bandIdx;
+  const cap = view.bandCap ?? Math.max(qtd, 50);
+  const total = view.monthly;
+  const proxima = view.nextLabel;
 
   const brand = (paymentMethod?.brand ?? "").toUpperCase();
   const abas: { key: Aba; label: string }[] = [
@@ -106,6 +38,9 @@ export function AssinaturaMobile({
     { key: "cartao", label: "Cartão" },
     { key: "extrato", label: "Extrato" },
   ];
+  // Rótulos exatos do mockup aprovado (05/11/2026); valores da tabela oficial.
+  const LABELS = ["1 a 29 Imóveis", "30 a 39 Imóveis", "40 a 49 Imóveis", "50 Imóveis ou Mais"];
+  const TIERS = PRICE_BANDS.map((t, i) => ({ label: LABELS[i], price: t.unit * 100, note: i === 0 ? null : t.note }));
 
   return (
     <div className="flex flex-col gap-3 lg:hidden">
@@ -113,9 +48,27 @@ export function AssinaturaMobile({
       <section className={`${PANEL_SHELL} px-4 pb-3.5 pt-[18px]`}>
         <div className="pb-[18px] pt-1.5 text-center">
           <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Valor do Mês</div>
-          <div className="mt-2.5 font-display text-[30px] font-bold leading-none tracking-[-0.035em] tabular-nums">{brl(total)}</div>
+          <div className="mt-2.5 font-display text-[30px] font-bold leading-none tracking-[-0.035em] tabular-nums">
+            {view.courtesy ? "Cortesia" : brl(total)}
+          </div>
+          {view.custom ? (
+            <div className="mt-2.5 flex justify-center">
+              <Tag>Condição Especial Negociada</Tag>
+            </div>
+          ) : null}
           <div className="mt-2.5 text-[12.5px] text-[var(--faint)]">
-            Próxima cobrança em <span className="font-semibold text-muted-foreground tabular-nums">{proxima}</span>
+            {view.courtesyUntil ? (
+              <>
+                Carência até <span className="font-semibold text-muted-foreground tabular-nums">{fmtDate(view.courtesyUntil)}</span>
+                {" · "}Próxima cobrança em <span className="font-semibold text-muted-foreground tabular-nums">{proxima}</span>
+              </>
+            ) : view.paused ? (
+              <>Sem anúncios ativos · cobrança pausada</>
+            ) : (
+              <>
+                Próxima cobrança em <span className="font-semibold text-muted-foreground tabular-nums">{proxima}</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -141,7 +94,35 @@ export function AssinaturaMobile({
         </div>
 
         <div className="pt-0.5">
-      {aba === "plano" && (
+      {aba === "plano" && view.custom && (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Ver imóveis cobrados"
+          onClick={() => setJanela(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setJanela(true);
+            }
+          }}
+          className="flex min-w-0 cursor-pointer items-center gap-2.5 py-[13px] transition-colors active:bg-foreground/[0.04]"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="min-w-0 truncate text-[13.5px] font-bold leading-[1.3]">Valor por Imóvel</div>
+              <Tag>Plano Parceiro</Tag>
+            </div>
+            <p className="text-[11.5px] font-medium leading-[1.45] tabular-nums text-[var(--faint)]">
+              {qtd} {qtd === 1 ? "imóvel" : "imóveis"} · mínimo de {view.minUnits}
+            </p>
+          </div>
+          <span className="whitespace-nowrap font-display text-[14px] font-bold tabular-nums">
+            {view.courtesy ? "Cortesia" : brl(view.unit)}
+          </span>
+        </div>
+      )}
+      {aba === "plano" && !view.custom && (
         <div>
           {TIERS.map((t, i) => {
             const cur = i === tierIdx;
@@ -176,7 +157,7 @@ export function AssinaturaMobile({
                       {qtd} de {cap} imóveis
                     </p>
                   ) : t.note ? (
-                    <p className="text-[11.5px] font-medium leading-[1.45] text-[var(--faint)]">{t.note.replace("Desconto de ", "")} de desconto</p>
+                    <p className="text-[11.5px] font-medium leading-[1.45] text-[var(--faint)]">{t.note}</p>
                   ) : null}
                 </div>
                 <span className="whitespace-nowrap font-display text-[14px] font-bold tabular-nums">{brl(t.price)}</span>
@@ -282,3 +263,4 @@ export function AssinaturaMobile({
     </div>
   );
 }
+
