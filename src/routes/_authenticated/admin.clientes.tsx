@@ -139,7 +139,7 @@ function ClientesPage() {
             <Users className="size-6 text-muted-foreground" /> Clientes
           </span>
         }
-        subtitle="Gerencie planos, valores e períodos de teste de cada cliente."
+        subtitle="Cobrança e condição comercial de cada cliente."
         actions={
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -147,8 +147,9 @@ function ClientesPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por email, nome, plano ou telefone…"
-              className="pl-9 w-72"
+              placeholder="Buscar cliente"
+              aria-label="Buscar por e-mail, nome ou telefone"
+              className="pl-9 w-40 sm:w-72"
             />
           </div>
           <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
@@ -182,7 +183,7 @@ function ClientesPage() {
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="active">Ativos</SelectItem>
-                      <SelectItem value="trialing">Em trial</SelectItem>
+                      <SelectItem value="trialing">Em carência</SelectItem>
                       <SelectItem value="past_due">Atrasados</SelectItem>
                       <SelectItem value="canceled">Cancelados</SelectItem>
                       <SelectItem value="incomplete">Cadastro incompleto</SelectItem>
@@ -238,7 +239,7 @@ function ClientesPage() {
           tone="emerald"
         />
         <StatCard
-          label="Em trial"
+          label="Em carência"
           value={filtered.filter((c) => c.subscription?.status === "trialing").length}
           tone="amber"
         />
@@ -356,7 +357,7 @@ function ClientesPage() {
                 <thead className="bg-secondary/30 text-[10px] uppercase tracking-[0.14em] text-muted-foreground border-b border-border">
                   <tr>
                     <th className="text-left font-semibold px-5 py-3.5">Cliente</th>
-                    <th className="text-left font-semibold px-4 py-3.5">Plano</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Condição</th>
                     <th className="text-left font-semibold px-4 py-3.5">Status</th>
                     <th className="text-right font-semibold px-4 py-3.5">Valor</th>
                     <th className="text-left font-semibold px-4 py-3.5">Guias</th>
@@ -968,7 +969,7 @@ function StatusBadge({
 }) {
   const map: Record<string, { label: string; className: string; dot: string }> = {
     active: { label: "Ativo", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" },
-    trialing: { label: "Trial", className: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20", dot: "bg-sky-500" },
+    trialing: { label: "Carência", className: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20", dot: "bg-sky-500" },
     past_due: { label: "Atrasado", className: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20", dot: "bg-amber-500" },
     paused: { label: "Pausado", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground" },
     canceled: { label: "Cancelado", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground/60" },
