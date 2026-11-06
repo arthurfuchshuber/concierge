@@ -296,6 +296,44 @@ describe("F1 · GuestContextBuilder — cenários", () => {
     expect(ctx.credentials?.lockCode).toBe(SECRETS.lock);
   });
 
+  it("F2-B: modo credentials 'skip' avalia a D9 (allow) mas NUNCA busca credenciais nem emite grant", async () => {
+    const db = makeDb({ guest_arrival_status: [statusRow({ credentials_released_at: "2026-11-05T10:00:00Z", credentials_released_by: STAFF })] });
+    let fetched = 0;
+    let revalidations = 0;
+    const ctx = await buildGuestContext(
+      guide,
+      deps(db, T.beforeWindow, {
+        credentials: "skip",
+        fetchSensitiveCredentials: async () => { fetched += 1; return { lockCode: SECRETS.lock }; },
+        fetchReservationState: async (turn, d) => { revalidations += 1; return fetchReservationState(turn, d); },
+      }),
+    );
+    expect(ctx.access.policyResult).toMatchObject({ allowed: true, reason: "manual_release" });
+    expect(ctx.credentials).toBeNull();
+    expect(ctx.access.credentialsAllowed).toBe(false);
+    expect(fetched).toBe(0);
+    expect(revalidations).toBe(1); // só a leitura inicial; nenhuma revalidação de entrega
+    expect(credentialQueries(db)).toBe(0);
+    noSecrets(ctx);
+  });
+
+  it("F2-B: loadConversationContext usa 'skip', preserva a decisão da D9 e marca o que não existe como unavailable", async () => {
+    const db = makeDb({ guest_arrival_status: [statusRow({ credentials_released_at: "2026-11-05T10:00:00Z", credentials_released_by: STAFF })] });
+    const { loadConversationContext } = await import("@/lib/guest-ai/context/conversation-context.server");
+    const cc = await loadConversationContext(
+      { surface: guide.surface, conversationId: guide.conversationId, messageId: guide.messageId, expectedOwnerId: null, mode: "shadow", traceId: "t-1" },
+      { db, now: () => new Date(T.beforeWindow), fetchDossierKnowledge: (turn, aud, d) => fetchDossierKnowledge(turn, aud, { ...d, buildPlaybook: fakeBuild }) },
+    );
+    expect(cc.guest.credentials).toBeNull();
+    expect(cc.credentialPolicy).toEqual({ decision: "allow", reason: "manual_release" });
+    expect(cc.history).toEqual({ status: "unavailable", reason: "not_loaded" });
+    expect(cc.hostGuidance).toEqual({ status: "unavailable", reason: "no_governed_store" });
+    expect(cc.precedents).toEqual({ status: "unavailable", reason: "no_governed_store" });
+    expect(cc.humanOwnership).toEqual({ openCaseCount: 0, cases: [] });
+    expect(credentialQueries(db)).toBe(0);
+    noSecrets(cc);
+  });
+
   it("D13: liberação manual NÃO supera no-show nem checkout confirmado", async () => {
     const a = makeDb({ guest_arrival_status: [statusRow({ status: "no_show", credentials_released_at: "2026-11-05T10:00:00Z", credentials_released_by: STAFF })] });
     expect((await buildGuestContext(guide, deps(a, T.beforeWindow))).access.policyResult.reason).toBe("no_show");
