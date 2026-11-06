@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, CreditCard, FileText, Info, Lock, ShieldCheck } from "lucide-react";
+import { ChevronRight, CreditCard, FileText, Lock, ShieldCheck } from "lucide-react";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useQuery } from "@tanstack/react-query";
@@ -64,7 +64,6 @@ export function AssinaturaMobile({
     0,
     TIERS.findIndex((t) => qtd >= t.from && (t.to == null || qtd <= t.to)),
   );
-  const next = TIERS[tierIdx + 1] ?? null;
   const total = qtd < 30 ? Math.max(qtd, 3) * TIERS[tierIdx].price : qtd * TIERS[tierIdx].price;
   const cap = TIERS[tierIdx].to ?? Math.max(qtd, TIERS[tierIdx].from);
   const proxima = currentPeriodEnd
@@ -110,40 +109,40 @@ export function AssinaturaMobile({
 
   return (
     <div className="flex flex-col gap-3 lg:hidden">
-      {/* Valor do mês */}
-      <section className={`${PANEL_SHELL} px-4 py-5 text-center`}>
-        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Valor do Mês</div>
-        <div className="mt-2.5 font-display text-[30px] font-bold leading-none tracking-[-0.035em] tabular-nums">{brl(total)}</div>
-        <div className="mt-2.5 text-[12.5px] text-[var(--faint)]">
-          Próxima cobrança em <span className="font-semibold text-muted-foreground tabular-nums">{proxima}</span>
+      {/* Um cartão só: valor, abas em texto e o conteúdo da aba */}
+      <section className={`${PANEL_SHELL} px-4 pb-3.5 pt-[18px]`}>
+        <div className="pb-[18px] pt-1.5 text-center">
+          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Valor do Mês</div>
+          <div className="mt-2.5 font-display text-[30px] font-bold leading-none tracking-[-0.035em] tabular-nums">{brl(total)}</div>
+          <div className="mt-2.5 text-[12.5px] text-[var(--faint)]">
+            Próxima cobrança em <span className="font-semibold text-muted-foreground tabular-nums">{proxima}</span>
+          </div>
         </div>
-      </section>
 
-      {/* Um assunto por vez */}
-      <div role="tablist" className="flex gap-1 rounded-[11px] bg-foreground/[0.04] p-[3px]">
-        {abas.map((a) => {
-          const on = aba === a.key;
-          return (
-            <button
-              key={a.key}
-              type="button"
-              role="tab"
-              aria-selected={on}
-              onClick={() => setAba(a.key)}
-              className={`flex h-8 min-w-0 flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-[8px] text-[12.5px] ${
-                on
-                  ? "bg-foreground/10 font-bold text-foreground shadow-[inset_0_0_0_1px_rgba(246,243,239,0.12)]"
-                  : "font-semibold text-muted-foreground"
-              }`}
-            >
-              {a.label}
-            </button>
-          );
-        })}
-      </div>
+        <div role="tablist" className={`flex border-b ${HAIR}`}>
+          {abas.map((a) => {
+            const on = aba === a.key;
+            return (
+              <button
+                key={a.key}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => setAba(a.key)}
+                className={`relative flex h-10 min-w-0 flex-1 cursor-pointer items-center justify-center whitespace-nowrap text-[13px] ${
+                  on ? "font-bold text-foreground" : "font-semibold text-[var(--faint)]"
+                }`}
+              >
+                {a.label}
+                {on ? <span aria-hidden="true" className="absolute inset-x-0 -bottom-px h-0.5 rounded-sm bg-foreground" /> : null}
+              </button>
+            );
+          })}
+        </div>
 
+        <div className="pt-0.5">
       {aba === "plano" && (
-        <section className={`${PANEL_SHELL} px-4 pb-0 pt-0.5`}>
+        <div>
           {TIERS.map((t, i) => {
             const cur = i === tierIdx;
             return (
@@ -171,19 +170,11 @@ export function AssinaturaMobile({
               </div>
             );
           })}
-          {next && (
-            <div className={`flex items-start gap-2 border-t ${HAIR} pb-2.5 pt-3 text-[12px] leading-[1.45]`}>
-              <Info className="mt-0.5 size-[13px] shrink-0 text-[var(--faint)]" strokeWidth={2} />
-              <span>
-                Faltam <b>{next.from - qtd} imóveis</b> para garantir <b>{next.note?.replace("Desconto de ", "")} de desconto</b>.
-              </span>
-            </div>
-          )}
-        </section>
+        </div>
       )}
 
       {aba === "cartao" && (
-        <section className={`${PANEL_SHELL} px-4 py-4`}>
+        <div className="py-4">
           {paymentMethod ? (
             <div className="flex min-w-0 items-center gap-2.5">
               <span className="inline-flex h-7 shrink-0 items-center rounded-[7px] bg-foreground px-[9px] text-[10.5px] font-extrabold tracking-[0.06em] text-background">
@@ -236,11 +227,11 @@ export function AssinaturaMobile({
           ) : (
             <p className="text-center text-[12px] text-[var(--faint)]">Nenhum cartão cadastrado.</p>
           )}
-        </section>
+        </div>
       )}
 
       {aba === "extrato" && (
-        <section className={`${PANEL_SHELL} px-4 py-0.5`}>
+        <div>
           {faturas.length === 0 ? (
             <p className="py-6 text-center text-[12px] text-[var(--faint)]">Nenhum pagamento registrado ainda.</p>
           ) : (
@@ -269,8 +260,10 @@ export function AssinaturaMobile({
               </div>
             ))
           )}
-        </section>
+        </div>
       )}
+        </div>
+      </section>
 
       <ImoveisCobradosDialog open={janela} onOpenChange={setJanela} />
     </div>
