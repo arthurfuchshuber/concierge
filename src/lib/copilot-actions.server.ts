@@ -19,8 +19,13 @@ import type { GuestSurface } from "@/lib/guest-ai/types";
 type Env = Record<string, string | undefined>;
 
 /**
- * A tabela e as RPCs do Copiloto ainda não existem na produção (migration local, não aplicada), então não
- * estão em `integrations/supabase/types.ts` (gerado da produção). Acesso tipado localmente, sem alterar o gerado.
+ * Estado documentado da migration `20261105150000_guest_ai_copilot_suggestions` (não verificável a partir do código):
+ * - foi reportada como APLICADA no banco do Lovable Cloud em 05/11/2026, por autorização específica, com o
+ *   fingerprint de estrutura esperado pelo próprio bundle;
+ * - NÃO consta no histórico `supabase_migrations.schema_migrations` (a Lovable aplica pelo próprio agente, sem registro);
+ * - a tabela e as RPCs NÃO estão em `integrations/supabase/types.ts`, que não foi regenerado depois disso.
+ * O estado real do banco só se confirma com consulta autorizada. Por isso o acesso aqui é tipado localmente, sem
+ * alterar o arquivo gerado, e falha fechado: se a tabela não existir no ambiente, a leitura resulta em "sem sugestão".
  */
 interface UntypedClient {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -55,7 +60,7 @@ export async function latestSuggestion(
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
     .limit(1);
-  // tabela ainda não migrada neste ambiente ⇒ sem sugestão
+  // qualquer erro de leitura (tabela ausente no ambiente, RLS, rede) ⇒ sem sugestão (falha fechada)
   if (error) return null;
   return (data as CopilotSuggestionRow[] | null)?.[0] ?? null;
 }
