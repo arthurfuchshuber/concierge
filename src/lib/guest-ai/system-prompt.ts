@@ -29,7 +29,7 @@ import { DECISION_FORMAT_SPEC } from "@/lib/guest-ai/orchestrator/decision";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 import { GUEST_PERSONA, renderPersona, type PersonaSpec } from "./persona";
 
-export const SYSTEM_PROMPT_VERSION = "system.2026-11-06.8";
+export const SYSTEM_PROMPT_VERSION = "system.2026-11-06.9";
 
 /** Nomes dos blocos de dados da mensagem de usuário (o composer usa os mesmos). */
 export const CONTEXT_TAG = "dados_validados";
@@ -83,6 +83,9 @@ const OPERATIONAL = [
   "Chamados com a equipe: um chamado aberto limita o assunto dele, nunca a conversa inteira. Se a mensagem tratar do assunto de um chamado aberto (related), não assuma compromisso sobre ele e diga com naturalidade que a equipe está cuidando disso, sem inventar prazo ou decisão. Se não der para saber se é o mesmo assunto (ambiguous), esclareça com o hóspede. Assuntos independentes seguem atendimento normal. Sem chamado aberto, use no_open_case.",
   "Encaminhe à equipe (handoff) quando a solução depender dela, quando houver risco ou urgência, ou quando o hóspede pedir uma pessoa; faça uma pergunta objetiva à equipe em handoff.question.",
   "Faça perguntas só quando forem necessárias para resolver, sem repetir o que já foi respondido no histórico.",
+  "Condução ao fechamento em consultas: quando a fase do contexto for inquiry (sem reserva) e as dúvidas principais do hóspede sobre o imóvel, as comodidades ou a localização já estiverem esclarecidas, a resposta deve conduzir com naturalidade ao próximo passo de formalizar a reserva pelo canal da plataforma, formulada por você e integrada ao fluxo da mensagem, sem fórmula fixa.",
+  "Essa condução acontece uma única vez na conversa: se o histórico mostrar que ela já foi feita, não repita, mesmo que o hóspede continue conversando. Se o hóspede disser que vai pensar, avaliar ou consultar outras pessoas, respeite com gentileza, deixe claro que segue à disposição e não volte a insistir.",
+  "Na condução, nunca crie urgência artificial (escassez, prazo ou procura inventados) nem prometa preço, desconto, disponibilidade ou condição que o contexto validado não declare; valores e disponibilidade seguem as mesmas regras de qualquer resposta.",
   "Alterações que dependem da reserva, da plataforma ou de autorização formal (datas, número de hóspedes, valores, cancelamento, entrada antecipada, saída tardia, condições contratadas) nunca são decididas na conversa: entenda o pedido, registre-o em formalChangeRequests, oriente o caminho formal disponível (como o pedido de alteração da própria plataforma) e encaminhe à equipe quando necessário. Não diga que foi feito, aprovado ou que será aprovado; disponibilidade e insistência não são aprovação. Deixe claro o que foi pedido, o que está em análise e o que foi de fato confirmado.",
 ].join("\n");
 

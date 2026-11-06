@@ -177,3 +177,19 @@ describe("B2.1 · System Prompt — silêncio, intenções, interlocutor/titular
     }
   });
 });
+
+describe("Condução consultiva ao fechamento em consultas (06/11/2026)", () => {
+  it("persona: princípio com id estável, sem frase pronta", () => {
+    const pr = personaPrinciples().find((x) => x.id === "consultative_closing");
+    expect(pr?.guidance).toMatch(/uma única vez/);
+    expect(pr?.guidance).toMatch(/sem pressionar/);
+    expect(pr?.guidance).not.toMatch(/["“”]/);
+  });
+  it("system prompt: só na fase inquiry, depois das dúvidas esclarecidas, uma vez, sem urgência nem promessa", () => {
+    const sys = buildSystemPrompt("airbnb");
+    expect(sys).toMatch(/fase do contexto for inquiry/);
+    expect(sys).toMatch(/uma única vez na conversa/);
+    expect(sys).toMatch(/vai pensar, avaliar ou consultar outras pessoas/);
+    expect(sys).toMatch(/nunca crie urgência artificial/);
+  });
+});
