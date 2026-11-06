@@ -112,7 +112,6 @@ import {
 type StatusFilter = "all" | "published" | "draft";
 type AccessFilter = "all" | "public" | "pin";
 import { useSubscription } from "@/hooks/useSubscription";
-import { PLAN_NAME } from "@/lib/billing/plan";
 import { BulkEditDialog } from "@/components/BulkEditDialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { adminListUserPropertiesFull } from "@/lib/admin-subs.functions";
@@ -387,11 +386,11 @@ function Dashboard() {
       if (res.created > 0) {
         toast.success(
           res.skipped > 0
-            ? `${res.created} cópia(s) criada(s). ${res.skipped} não coube(ram) no seu plano.`
+            ? `${res.created} cópia(s) criada(s). ${res.skipped} não coube(ram) no limite da conta.`
             : `${res.created} cópia(s) criada(s) como rascunho.`,
         );
       } else {
-        toast.error("Nenhuma cópia criada — limite do plano atingido.");
+        toast.error("Nenhuma cópia criada — limite de guias da conta atingido.");
       }
       setDupTarget(null);
       setDupCopies(1);
@@ -416,7 +415,6 @@ function Dashboard() {
   const { isOwner } = useMyPermissions();
   const canSeePlan = isOwner || isSaasAdmin;
 
-  const planName = sub.plan ? PLAN_NAME : "Sem assinatura";
   const planLimit = sub.maxGuides;
   const remaining = Math.max(0, planLimit - count);
   const reachedLimit = planLimit > 0 && count >= planLimit;
@@ -1252,12 +1250,12 @@ function Dashboard() {
             />
             <p className="text-xs text-muted-foreground">
               {planLimit >= 9999
-                ? "Seu plano não tem limite de guias."
-                : `Você tem ${remaining} guia(s) disponíveis no plano ${planName}.`}
+                ? "Sua conta não tem limite de guias."
+                : `Você tem ${remaining} guia(s) disponíveis nesta conta.`}
             </p>
             {planLimit < 9999 && dupCopies > remaining && (
               <p className="text-xs text-amber-500">
-                Apenas {remaining} cópia(s) serão criadas — o restante excede o limite do plano.
+                Apenas {remaining} cópia(s) serão criadas — o restante excede o limite da conta.
               </p>
             )}
           </div>

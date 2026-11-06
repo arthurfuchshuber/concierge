@@ -50,7 +50,7 @@ export function PricingSection() {
                 <span className="text-[15px] text-[#a9a39b]">/anúncio</span>
               </p>
               <p className="mt-2 text-[14px] leading-relaxed text-[#a9a39b] lg:mt-3 lg:text-[15px]">
-                Tudo incluso, em qualquer quantidade de anúncios.
+                Tudo incluso. Os anúncios sincronizados são contados sozinhos.
               </p>
               <div className="my-5 h-px bg-white/[0.08] lg:my-7" />
               <ul className="flex flex-1 flex-col gap-3 text-[14.5px] text-[#d9d4ce] lg:gap-3.5 lg:text-[15px]">

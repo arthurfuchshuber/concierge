@@ -628,6 +628,11 @@ const FAQ = [
     a: "Não. A importação do Airbnb é opcional: dá para cadastrar e editar tudo manualmente.",
   },
   {
+    q: "Preciso informar quantos anúncios vou pagar?",
+    qShort: "Preciso informar quantos anúncios?",
+    a: "Não. O sistema conta sozinho os anúncios conectados e sincronizados. Anúncio novo entra na cobrança no mesmo dia, proporcional até o dia 25.",
+  },
+  {
     q: "A IA atende em outros idiomas?",
     a: "O guia e o atendimento por IA funcionam em português e inglês.",
   },

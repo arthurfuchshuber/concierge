@@ -240,7 +240,7 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
       const { resolveUserPlan } = await import("@/lib/plan-guard.server");
       const plan = await resolveUserPlan(supabase, ownerId);
       if (!plan.features[requiredFeature]) {
-        throw new Error("Esta permissão não está disponível no seu plano atual.");
+        throw new Error("Esta permissão exige uma assinatura ativa.");
       }
     }
 

@@ -4,7 +4,7 @@ import { Sparkles, ArrowRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { metaPixelTrack, metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
-import { IncludedList, PriceBands, PriceSimulator } from "@/components/pricing/ListingPricing";
+import { AutomaticCountNote, PriceBands, SystemFeatures } from "@/components/pricing/ListingPricing";
 
 export const Route = createFileRoute("/precos")({
   head: () => ({
@@ -89,10 +89,11 @@ function PricingPage() {
 
         <div id="planos" ref={plansRef} className="flex flex-col gap-5">
           <PriceBands />
-          <PriceSimulator />
+          <AutomaticCountNote />
           <div className="rounded-[14px] bg-card px-5 py-5 shadow-[inset_0_0_0_1px_var(--border)]">
-            <h2 className="mb-4 font-display text-[18px] font-bold">Tudo incluso em qualquer quantidade</h2>
-            <IncludedList />
+            <h2 className="font-display text-[18px] font-bold">O que o sistema oferece</h2>
+            <p className="mb-5 mt-1 text-[12.5px] text-muted-foreground">Tudo incluso para todo cliente, sem plano superior.</p>
+            <SystemFeatures />
           </div>
           <button
             type="button"
@@ -103,8 +104,9 @@ function PricingPage() {
             <ArrowRight className="size-3.5" strokeWidth={2} />
           </button>
           <p className="mx-auto max-w-2xl text-center text-[12.5px] leading-[1.5] text-muted-foreground">
-            O cadastro pede um cartão de crédito válido. A cobrança acompanha seus anúncios ativos: anúncio
-            desativado deixa de ser cobrado no ciclo seguinte. Valores com impostos inclusos.
+            O cadastro pede um cartão de crédito válido. Vencimento todo{" "}
+            <span className="whitespace-nowrap">dia 25:</span> na contratação você paga só os dias até o{" "}
+            <span className="whitespace-nowrap">dia 25.</span> Valores com impostos inclusos.
           </p>
         </div>
 
