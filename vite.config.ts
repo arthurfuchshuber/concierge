@@ -16,7 +16,6 @@ export default defineConfig({
     // no build (SSG). Páginas com sessão/dados por usuário continuam de fora.
     pages: [
       { path: "/" },
-      { path: "/precos" },
       { path: "/termos" },
       { path: "/privacidade" },
       { path: "/reembolso" },

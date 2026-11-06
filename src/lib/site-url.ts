@@ -43,7 +43,7 @@ export const SITE_ORIGIN = normalizar(
   doAmbiente("SITE_URL") ?? doAmbiente("PUBLIC_SITE_URL") ?? doAmbiente("VITE_APP_URL") ?? PADRAO,
 );
 
-/** URL absoluta de um caminho interno. `siteUrl("/precos")`. */
+/** URL absoluta de um caminho interno. `siteUrl("/termos")`. */
 export function siteUrl(path = "/"): string {
   if (!path || path === "/") return SITE_ORIGIN;
   return `${SITE_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`;

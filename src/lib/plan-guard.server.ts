@@ -160,7 +160,7 @@ export async function assertCanCreateGuide(
   const targetOwner = opts?.ownerId ?? userId;
   const plan = await resolveEffectivePlan(supabase, userId, { ownerId: targetOwner });
   if (!plan.plan) {
-    throw new Error("Você precisa de um plano ativo para criar guias. Assine em /precos.");
+    throw new Error("Você precisa de um plano ativo para criar guias. Assine em Administrativo > Assinatura.");
   }
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const client = targetOwner !== userId ? supabaseAdmin : supabase;
@@ -171,7 +171,7 @@ export async function assertCanCreateGuide(
   if (error) return; // soft-fail on count errors
   if ((count ?? 0) >= plan.maxGuides) {
     throw new Error(
-      `Limite de guias do plano ${plan.plan} atingido (${plan.maxGuides}). Faça upgrade em /precos.`,
+      `Limite de guias do plano ${plan.plan} atingido (${plan.maxGuides}). Faça upgrade em Administrativo > Assinatura.`,
     );
   }
 }
@@ -195,7 +195,7 @@ export async function assertFeature(
       advancedIntake: "Captação avançada de dados",
     };
     throw new Error(
-      `${labels[feature] ?? "Este recurso"} não está disponível no seu plano. Faça upgrade em /precos.`,
+      `${labels[feature] ?? "Este recurso"} não está disponível no seu plano. Faça upgrade em Administrativo > Assinatura.`,
     );
   }
 }

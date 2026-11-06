@@ -19,7 +19,6 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DefinirSenhaRouteImport } from './routes/definir-senha'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as PainelRouteImport } from './routes/painel'
-import { Route as PrecosRouteImport } from './routes/precos'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ReembolsoRouteImport } from './routes/reembolso'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -138,11 +137,6 @@ const McpRoute = McpRouteImport.update({
 const PainelRoute = PainelRouteImport.update({
   id: '/painel',
   path: '/painel',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrecosRoute = PrecosRouteImport.update({
-  id: '/precos',
-  path: '/precos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
@@ -551,7 +545,6 @@ export interface FileRoutesByFullPath {
   '/definir-senha': typeof DefinirSenhaRoute
   '/mcp': typeof McpRoute
   '/painel': typeof PainelRoute
-  '/precos': typeof PrecosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reembolso': typeof ReembolsoRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -633,7 +626,6 @@ export interface FileRoutesByTo {
   '/definir-senha': typeof DefinirSenhaRoute
   '/mcp': typeof McpRoute
   '/painel': typeof PainelRoute
-  '/precos': typeof PrecosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reembolso': typeof ReembolsoRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -714,7 +706,6 @@ export interface FileRoutesById {
   '/definir-senha': typeof DefinirSenhaRoute
   '/mcp': typeof McpRoute
   '/painel': typeof PainelRoute
-  '/precos': typeof PrecosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reembolso': typeof ReembolsoRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -798,7 +789,6 @@ export interface FileRouteTypes {
     | '/definir-senha'
     | '/mcp'
     | '/painel'
-    | '/precos'
     | '/privacidade'
     | '/reembolso'
     | '/sitemap.xml'
@@ -880,7 +870,6 @@ export interface FileRouteTypes {
     | '/definir-senha'
     | '/mcp'
     | '/painel'
-    | '/precos'
     | '/privacidade'
     | '/reembolso'
     | '/sitemap.xml'
@@ -960,7 +949,6 @@ export interface FileRouteTypes {
     | '/definir-senha'
     | '/mcp'
     | '/painel'
-    | '/precos'
     | '/privacidade'
     | '/reembolso'
     | '/sitemap.xml'
@@ -1044,7 +1032,6 @@ export interface RootRouteChildren {
   DefinirSenhaRoute: typeof DefinirSenhaRoute
   McpRoute: typeof McpRoute
   PainelRoute: typeof PainelRoute
-  PrecosRoute: typeof PrecosRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ReembolsoRoute: typeof ReembolsoRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -1156,13 +1143,6 @@ declare module '@tanstack/react-router' {
       path: '/painel'
       fullPath: '/painel'
       preLoaderRoute: typeof PainelRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/precos': {
-      id: '/precos'
-      path: '/precos'
-      fullPath: '/precos'
-      preLoaderRoute: typeof PrecosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacidade': {
@@ -1779,7 +1759,6 @@ const rootRouteChildren: RootRouteChildren = {
   DefinirSenhaRoute: DefinirSenhaRoute,
   McpRoute: McpRoute,
   PainelRoute: PainelRoute,
-  PrecosRoute: PrecosRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ReembolsoRoute: ReembolsoRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,

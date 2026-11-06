@@ -195,15 +195,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c2c95042a0de8ccc4139d72d5f32abaa"
   },
   {
-    "doc_key": "route:/precos",
-    "kind": "route",
-    "title": "Planos e preços — ConciergeIA — tela /precos",
-    "content": "Caminho no sistema: /precos\n\nEscolha o plano ideal para criar guias digitais para seus hóspedes. 7 dias grátis em todos os planos pagos.",
-    "source_path": "src/routes/precos.tsx",
-    "audience": [],
-    "content_hash": "349efc738bf11002eda82c71903fddfe"
-  },
-  {
     "doc_key": "route:/privacidade",
     "kind": "route",
     "title": "Política de Privacidade — ConciergeIA — tela /privacidade",

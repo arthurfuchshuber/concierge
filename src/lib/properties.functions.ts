@@ -1354,7 +1354,7 @@ export const duplicateProperty = createServerFn({ method: "POST" })
     const remaining = Math.max(0, plan.maxGuides - used);
     if (remaining <= 0) {
       throw new Error(
-        `Limite do plano ${plan.plan} atingido (${plan.maxGuides}). Faça upgrade em /precos.`,
+        `Limite do plano ${plan.plan} atingido (${plan.maxGuides}). Faça upgrade em Administrativo > Assinatura.`,
       );
     }
     const toCreate = Math.min(data.copies, remaining);

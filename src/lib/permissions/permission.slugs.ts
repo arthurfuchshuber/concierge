@@ -103,7 +103,6 @@ const PERMISSIONABLE_ROUTE_PREFIXES = ["/admin", "/painel"];
 const NON_PERMISSIONABLE_ROUTES = new Set([
   "/",
   "/auth",
-  "/precos",
   "/confianca",
   "/privacidade",
   "/termos",

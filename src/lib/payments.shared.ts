@@ -129,7 +129,7 @@ const FEATURE_LABELS: Record<keyof PlanFeatures, string> = {
   externalIntegration: "Integração com sistemas externos",
 };
 
-/** Rows for the comparison table on landing/precos. Order matters. */
+/** Rows for the comparison table on landing. Order matters. */
 export const PLAN_COMPARISON_GROUPS: Array<{
   group: string;
   rows: Array<{

@@ -1,5 +1,5 @@
 import { friendlyErrorMessage } from "@/lib/friendly-error";
-import { Link, useSearch } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -500,9 +500,9 @@ function AssinaturaPage() {
           {!info.isActive && (
             <div className="mt-8 text-center text-xs text-muted-foreground">
               Veja todos os detalhes na{" "}
-              <Link to="/precos" className="underline">
+              <a href="/#planos" className="underline">
                 página pública de planos
-              </Link>
+              </a>
               .
             </div>
           )}
