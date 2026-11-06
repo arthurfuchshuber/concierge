@@ -68,7 +68,7 @@ function TermsPage() {
           <p>
             O valor é mensal e calculado por anúncio conectado ativo, conforme a tabela publicada em{" "}
             <a className="underline" href="/#planos">
-              Preços
+              Planos
             </a>{" "}
             (valores com impostos inclusos). O vencimento é todo dia 25: na contratação é cobrado o valor proporcional até
             o dia 25 seguinte. Anúncios ativados no meio do ciclo são cobrados de forma proporcional na hora; anúncios
