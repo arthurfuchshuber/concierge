@@ -76,6 +76,7 @@ import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/publ
 import { Route as ApiPublicCronBillingSyncRouteImport } from './routes/api/public/cron.billing-sync'
 import { Route as ApiPublicCronChannexAriRetryRouteImport } from './routes/api/public/cron.channex-ari-retry'
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
+import { Route as ApiPublicCronGuestMemoryRouteImport } from './routes/api/public/cron.guest-memory'
 import { Route as ApiPublicCronMalvoSyncRouteImport } from './routes/api/public/cron.malvo-sync'
 import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cron.ops-push'
 import { Route as ApiPublicCronPurgeRecordTrashRouteImport } from './routes/api/public/cron.purge-record-trash'
@@ -463,6 +464,12 @@ const ApiPublicCronConversationRemindersRoute =
     path: '/api/public/cron/conversation-reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronGuestMemoryRoute =
+  ApiPublicCronGuestMemoryRouteImport.update({
+    id: '/api/public/cron/guest-memory',
+    path: '/api/public/cron/guest-memory',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronMalvoSyncRoute = ApiPublicCronMalvoSyncRouteImport.update({
   id: '/api/public/cron/malvo-sync',
   path: '/api/public/cron/malvo-sync',
@@ -606,6 +613,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/billing-sync': typeof ApiPublicCronBillingSyncRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
+  '/api/public/cron/guest-memory': typeof ApiPublicCronGuestMemoryRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
@@ -685,6 +693,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/billing-sync': typeof ApiPublicCronBillingSyncRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
+  '/api/public/cron/guest-memory': typeof ApiPublicCronGuestMemoryRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
@@ -769,6 +778,7 @@ export interface FileRoutesById {
   '/api/public/cron/billing-sync': typeof ApiPublicCronBillingSyncRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
+  '/api/public/cron/guest-memory': typeof ApiPublicCronGuestMemoryRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
@@ -853,6 +863,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/billing-sync'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
+    | '/api/public/cron/guest-memory'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/purge-record-trash'
@@ -932,6 +943,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/billing-sync'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
+    | '/api/public/cron/guest-memory'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/purge-record-trash'
@@ -1015,6 +1027,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/billing-sync'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
+    | '/api/public/cron/guest-memory'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/purge-record-trash'
@@ -1070,6 +1083,7 @@ export interface RootRouteChildren {
   ApiPublicCronBillingSyncRoute: typeof ApiPublicCronBillingSyncRoute
   ApiPublicCronChannexAriRetryRoute: typeof ApiPublicCronChannexAriRetryRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
+  ApiPublicCronGuestMemoryRoute: typeof ApiPublicCronGuestMemoryRoute
   ApiPublicCronMalvoSyncRoute: typeof ApiPublicCronMalvoSyncRoute
   ApiPublicCronOpsPushRoute: typeof ApiPublicCronOpsPushRoute
   ApiPublicCronPurgeRecordTrashRoute: typeof ApiPublicCronPurgeRecordTrashRoute
@@ -1557,6 +1571,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronConversationRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/guest-memory': {
+      id: '/api/public/cron/guest-memory'
+      path: '/api/public/cron/guest-memory'
+      fullPath: '/api/public/cron/guest-memory'
+      preLoaderRoute: typeof ApiPublicCronGuestMemoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/malvo-sync': {
       id: '/api/public/cron/malvo-sync'
       path: '/api/public/cron/malvo-sync'
@@ -1807,6 +1828,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronChannexAriRetryRoute: ApiPublicCronChannexAriRetryRoute,
   ApiPublicCronConversationRemindersRoute:
     ApiPublicCronConversationRemindersRoute,
+  ApiPublicCronGuestMemoryRoute: ApiPublicCronGuestMemoryRoute,
   ApiPublicCronMalvoSyncRoute: ApiPublicCronMalvoSyncRoute,
   ApiPublicCronOpsPushRoute: ApiPublicCronOpsPushRoute,
   ApiPublicCronPurgeRecordTrashRoute: ApiPublicCronPurgeRecordTrashRoute,

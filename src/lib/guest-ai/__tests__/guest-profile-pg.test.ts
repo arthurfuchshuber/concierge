@@ -246,4 +246,139 @@ describe.skipIf(!PG_AVAILABLE)("Memória do hóspede · migration contra Postgre
       ),
     ).toBe("0");
   });
+
+  describe("carga do titular e resumo pós-checkout", () => {
+    const upsert = async (
+      tenant: string,
+      ota: string | null,
+      phones: string[],
+      name: string | null,
+    ) =>
+      JSON.parse(
+        await pg.sql(
+          `select public.guest_ai_upsert_titular_profile('${tenant}', ${q(ota)}, ${arr(phones)}, ${q(name)})`,
+          {
+            role: "service_role",
+          },
+        ),
+      ) as { result: string; canonical_id?: string; created?: boolean; reason?: string };
+    const record = async (
+      tenant: string,
+      id: string,
+      res: string,
+      checkout: string,
+      notes = "[]",
+      assessment = "{}",
+    ) =>
+      JSON.parse(
+        await pg.sql(
+          `select public.guest_ai_record_stay_summary('${tenant}', '${id}', '${res}', '${checkout}', '{"hospitalidade":[],"avaliacao":{}}'::jsonb, '${notes}'::jsonb, '${assessment}'::jsonb)`,
+          { role: "service_role" },
+        ),
+      ) as { result: string };
+
+    it("titular novo cria perfil; a mesma conta OTA em outra reserva reaproveita (mesmo com outro telefone)", async () => {
+      const a = await upsert(T1, "airbnb:555", ["5547999991001"], "Paula Nogueira");
+      expect(a).toMatchObject({ result: "ok", created: true });
+      const b = await upsert(T1, "airbnb:555", ["5511988880000"], "Paula Nogueira");
+      expect(b).toMatchObject({ result: "ok", created: false, canonical_id: a.canonical_id });
+      expect(await resolve(T1, null, ["+5511988880000"])).toMatchObject({
+        canonical_id: a.canonical_id,
+      });
+    });
+
+    it("mesmo telefone com nome incompatível ⇒ perfil novo e o telefone vira conflito (número reciclado)", async () => {
+      const a = await upsert(T1, null, ["5547999991002"], "Renata Gomes");
+      const b = await upsert(T1, null, ["5547999991002"], "Felipe Araujo");
+      expect(b).toMatchObject({ result: "ok", created: true });
+      expect(b.canonical_id).not.toBe(a.canonical_id);
+      expect(await resolve(T1, null, ["+5547999991002"])).toEqual({ result: "conflict" });
+      // sem conta OTA e só com telefone em conflito: não cria perfil órfão
+      expect(await upsert(T1, null, ["5547999991002"], "Outra Pessoa")).toEqual({
+        result: "skipped",
+        reason: "conflict",
+      });
+      expect(await upsert(T1, null, [], "Sem Telefone")).toEqual({
+        result: "skipped",
+        reason: "no_anchor",
+      });
+    });
+
+    it("resumo por estadia: idempotente por reserva, contagem e última saída; partes separadas", async () => {
+      const { canonical_id: id } = await upsert(T1, "airbnb:556", [], "Tiago Prado");
+      const r1 = "c1000000-0000-4000-8000-000000000001";
+      const r2 = "c1000000-0000-4000-8000-000000000002";
+      expect(
+        await record(
+          T1,
+          id!,
+          r1,
+          "2026-03-10",
+          '[{"categoria":"preferencia","texto":"Gosta de café"}]',
+          '{"comunicacao":{"nivel":"positivo"}}',
+        ),
+      ).toEqual({ result: "recorded" });
+      expect(await record(T1, id!, r1, "2026-03-10")).toEqual({ result: "exists" });
+      expect(await record(T1, id!, r2, "2026-01-05")).toEqual({ result: "recorded" });
+      expect(
+        await pg.sql(
+          `select stay_count || '|' || last_stay_checkout || '|' || jsonb_array_length(stay_summaries) from public.guest_ai_guest_profiles where canonical_id = '${id}'`,
+        ),
+      ).toBe("2|2026-03-10|2");
+      expect(await record(T2, id!, r1, "2026-03-10")).toEqual({
+        result: "invalid",
+        reason: "profile",
+      });
+      expect(
+        await record(T1, id!, "c1000000-0000-4000-8000-000000000003", "2026-03-11", '{"x":1}'),
+      ).toMatchObject({ result: "invalid" });
+    });
+
+    it("fila: só checkout CONFIRMADO (no-show e cancelada fora), uma vez; falha tenta até 3 vezes", async () => {
+      await pg.sql(`
+        create table if not exists public.property_reservations (id uuid primary key, property_id uuid, status text, checkout_date date);
+        create table if not exists public.guest_arrival_status (id uuid primary key default gen_random_uuid(), reservation_id uuid, kind text, status text, done_at timestamptz, concluded_at timestamptz, updated_at timestamptz default now());
+        truncate public.guest_arrival_status, public.property_reservations, public.guest_ai_stay_memory_runs;
+        delete from public.properties where id in ('b1000000-0000-4000-8000-0000000000a1');
+        insert into public.properties (id, owner_id) values ('b1000000-0000-4000-8000-0000000000a1', '${T1}');
+        insert into public.property_reservations values
+          ('d0000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-0000000000a1', 'confirmed', '2026-02-01'),
+          ('d0000000-0000-4000-8000-000000000002', 'b1000000-0000-4000-8000-0000000000a1', 'confirmed', '2026-02-02'),
+          ('d0000000-0000-4000-8000-000000000003', 'b1000000-0000-4000-8000-0000000000a1', 'cancelled', '2026-02-03'),
+          ('d0000000-0000-4000-8000-000000000004', 'b1000000-0000-4000-8000-0000000000a1', 'confirmed', '2026-02-04'),
+          ('d0000000-0000-4000-8000-000000000005', 'b1000000-0000-4000-8000-0000000000a1', 'confirmed', '2026-02-05');
+        insert into public.guest_arrival_status (reservation_id, kind, status, done_at) values
+          ('d0000000-0000-4000-8000-000000000001', 'checkout', 'done', '2026-02-01 12:00+00'),
+          ('d0000000-0000-4000-8000-000000000002', 'checkout', 'pending', null),
+          ('d0000000-0000-4000-8000-000000000003', 'checkout', 'done', '2026-02-03 12:00+00'),
+          ('d0000000-0000-4000-8000-000000000004', 'checkout', 'no_show', '2026-02-04 12:00+00'),
+          ('d0000000-0000-4000-8000-000000000005', 'checkin', 'done', '2026-02-05 12:00+00');`);
+      const pending = async () =>
+        (await pg.sql(
+          `select string_agg(reservation_id::text || ':' || tenant_id::text, ',') from public.guest_ai_pending_stay_memories(10)`,
+          { role: "service_role" },
+        )) || "";
+      expect(await pending()).toBe(`d0000000-0000-4000-8000-000000000001:${T1}`);
+      const mark = (status: string) =>
+        pg.sql(
+          `select public.guest_ai_mark_stay_memory('d0000000-0000-4000-8000-000000000001', '${T1}', '${status}', 'x')`,
+          { role: "service_role" },
+        );
+      await mark("failed");
+      await mark("failed");
+      expect(await pending()).not.toBe("");
+      await mark("failed");
+      expect(await pending()).toBe(""); // 3 tentativas
+      await pg.sql(`delete from public.guest_ai_stay_memory_runs`);
+      await mark("done");
+      expect(await pending()).toBe("");
+      expect(
+        (
+          await pg.trySql(`select * from public.guest_ai_pending_stay_memories(10)`, {
+            role: "authenticated",
+          })
+        ).ok,
+      ).toBe(false);
+    });
+  });
 });

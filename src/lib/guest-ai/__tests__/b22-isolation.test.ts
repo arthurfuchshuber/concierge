@@ -74,7 +74,9 @@ describe("B2.2 · nada de produção usa a capacidade multipropriedade ou o guar
     // carrega o dossiê do imóvel do turno (imports dinâmicos, só com o tick liberado). Lista nominal.
     path.join(ROOT, "shadow-exec/executor.ts"), path.join(ROOT, "shadow-exec/worker.server.ts"),
     // Copiloto (05/11/2026): a geração usa o guard REAL e carrega o Dossiê do imóvel do turno validado. Lista nominal.
-    path.join(ROOT, "copilot/generate.server.ts")]));
+    path.join(ROOT, "copilot/generate.server.ts"),
+    // Memória do hóspede (06/11/2026): o processo pós-checkout passa todo texto (entrada e saída) pelo guard REAL. Lista nominal.
+    path.join(SRC, "lib/guest-memory/contracts.ts"), path.join(SRC, "lib/guest-memory/prompt.ts")]));
   // B2.4: `shadow/telemetry.ts` só lê a VERSÃO da resolução de autoridade; proibido em produção (b24-isolation).
   it("nenhum arquivo fora dos módulos B2.2/composer importa dossiê, autorização de candidato ou secret-scrub", () => {
     const importers = prod

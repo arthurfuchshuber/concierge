@@ -39,6 +39,7 @@ export const GUEST_NOTE_CATEGORIES = [
   "rotina",
   "cuidado",
   "pedido_recorrente",
+  "orientacao_operacional",
   "outro",
 ] as const;
 export type GuestNoteCategory = (typeof GUEST_NOTE_CATEGORIES)[number];

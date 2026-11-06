@@ -69,6 +69,19 @@ revoke all on public.guest_ai_guest_identities from public, anon, authenticated;
 grant select, insert, update, delete on public.guest_ai_guest_profiles to service_role;
 grant select, insert, update, delete on public.guest_ai_guest_identities to service_role;
 
+-- Fila/controle do processo pós-checkout: uma linha por reserva processada (idempotência e novas tentativas).
+create table if not exists public.guest_ai_stay_memory_runs (
+  reservation_id uuid primary key,
+  tenant_id uuid not null,
+  status text not null check (status in ('done', 'skipped', 'failed')),
+  reason text check (reason is null or char_length(reason) <= 64),
+  attempts integer not null default 0 check (attempts >= 0),
+  updated_at timestamptz not null default now()
+);
+alter table public.guest_ai_stay_memory_runs enable row level security;
+revoke all on public.guest_ai_stay_memory_runs from public, anon, authenticated;
+grant select, insert, update, delete on public.guest_ai_stay_memory_runs to service_role;
+
 -- Telefone em E.164 a partir do que a Channex entrega ('+55 47 9...', '5547...', '0055...').
 -- Sem DDI comprovado não há palpite: 8 a 15 dígitos depois de remover '00' inicial; senão NULL.
 create or replace function public.guest_ai_normalize_phone(p_phone text)
@@ -231,6 +244,167 @@ begin
 end
 $$;
 
+-- Garante o perfil do TITULAR de uma reserva da Channex (carga retroativa e processo pós-checkout).
+-- Só identidades do titular: conta OTA e telefones oficiais. Resolução: conta OTA; senão telefone ativo com
+-- nome compatível; senão cria. Telefones em conflito não criam perfil órfão (sem âncora válida ⇒ skipped).
+create or replace function public.guest_ai_upsert_titular_profile(
+  p_tenant_id uuid, p_ota_account_id text, p_phones text[], p_guest_name text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $$
+declare
+  v_ota text := nullif(lower(btrim(coalesce(p_ota_account_id, ''))), '');
+  v_phones text[];
+  v_res jsonb;
+  v_id uuid;
+  v_created boolean := false;
+  v_name text := nullif(btrim(coalesce(p_guest_name, '')), '');
+  p text;
+begin
+  if p_tenant_id is null then
+    return jsonb_build_object('result', 'invalid', 'reason', 'arguments');
+  end if;
+  if v_ota is not null and v_ota !~ '^[a-z][a-z0-9_]{1,31}:[a-z0-9_-]{1,64}$' then
+    v_ota := null;
+  end if;
+  select coalesce(array_agg(distinct x), '{}') into v_phones
+    from (select public.guest_ai_normalize_phone(ph) as x from unnest(coalesce(p_phones, '{}'::text[])) ph) s
+   where x is not null;
+  if v_ota is null and cardinality(v_phones) = 0 then
+    return jsonb_build_object('result', 'skipped', 'reason', 'no_anchor');
+  end if;
+  perform pg_advisory_xact_lock(hashtext('guest_ai_titular'), hashtext(p_tenant_id::text));
+
+  v_res := public.guest_ai_resolve_guest_profile(p_tenant_id, v_ota, v_phones);
+  if v_res ->> 'result' = 'found' then
+    v_id := (v_res ->> 'canonical_id')::uuid;
+    if v_res ->> 'via' = 'phone' and not exists (
+      select 1 from public.guest_ai_guest_profiles g
+       where g.canonical_id = v_id and public.guest_ai_guest_name_compatible(g.guest_name, v_name)) then
+      v_id := null; -- telefone de outra pessoa (nome incompatível): não reaproveita o perfil
+    end if;
+  elsif v_res ->> 'result' = 'conflict' and v_ota is null then
+    return jsonb_build_object('result', 'skipped', 'reason', 'conflict');
+  end if;
+
+  if v_id is null then
+    insert into public.guest_ai_guest_profiles (tenant_id, guest_name) values (p_tenant_id, left(v_name, 200))
+    returning canonical_id into v_id;
+    v_created := true;
+  else
+    update public.guest_ai_guest_profiles
+       set guest_name = coalesce(guest_name, left(v_name, 200)), updated_at = now()
+     where canonical_id = v_id;
+  end if;
+
+  if v_ota is not null then
+    perform public.guest_ai_link_guest_identity(p_tenant_id, v_id, 'ota', v_ota, v_name);
+  end if;
+  foreach p in array v_phones loop
+    perform public.guest_ai_link_guest_identity(p_tenant_id, v_id, 'phone', p, v_name);
+  end loop;
+  return jsonb_build_object('result', 'ok', 'canonical_id', v_id, 'created', v_created);
+end
+$$;
+
+-- Grava o resumo de UMA estadia concluída (checkout confirmado) e a memória consolidada, atomicamente.
+-- Idempotente por reserva: a mesma estadia nunca é resumida duas vezes. As duas partes ficam separadas:
+-- `behavioral_notes` (hospitalidade, vai ao prompt) e `internal_assessment` (só equipe).
+create or replace function public.guest_ai_record_stay_summary(
+  p_tenant_id uuid, p_canonical_id uuid, p_reservation_id uuid, p_checkout date,
+  p_summary jsonb, p_behavioral_notes jsonb, p_internal_assessment jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $$
+declare
+  v public.guest_ai_guest_profiles;
+  v_stays jsonb;
+begin
+  if p_tenant_id is null or p_canonical_id is null or p_reservation_id is null or p_checkout is null
+     or jsonb_typeof(p_summary) is distinct from 'object'
+     or jsonb_typeof(p_behavioral_notes) is distinct from 'array' or jsonb_array_length(p_behavioral_notes) > 20
+     or jsonb_typeof(p_internal_assessment) is distinct from 'object' then
+    return jsonb_build_object('result', 'invalid', 'reason', 'arguments');
+  end if;
+  select * into v from public.guest_ai_guest_profiles
+   where canonical_id = p_canonical_id and tenant_id = p_tenant_id for update;
+  if not found then
+    return jsonb_build_object('result', 'invalid', 'reason', 'profile');
+  end if;
+  if exists (select 1 from jsonb_array_elements(v.stay_summaries) e where e ->> 'reservation_id' = p_reservation_id::text) then
+    return jsonb_build_object('result', 'exists');
+  end if;
+  v_stays := v.stay_summaries || jsonb_build_array(
+    p_summary || jsonb_build_object('reservation_id', p_reservation_id, 'checkout_date', p_checkout, 'recorded_at', now()));
+  if jsonb_array_length(v_stays) > 100 then
+    v_stays := (select jsonb_agg(e order by ord) from jsonb_array_elements(v_stays) with ordinality t(e, ord)
+                 where ord > jsonb_array_length(v_stays) - 100);
+  end if;
+  update public.guest_ai_guest_profiles
+     set stay_summaries = v_stays,
+         behavioral_notes = p_behavioral_notes,
+         internal_assessment = p_internal_assessment,
+         stay_count = v.stay_count + 1,
+         last_stay_checkout = greatest(coalesce(v.last_stay_checkout, p_checkout), p_checkout),
+         updated_at = now()
+   where canonical_id = p_canonical_id;
+  return jsonb_build_object('result', 'recorded');
+end
+$$;
+
+-- Estadias com CHECKOUT CONFIRMADO no sistema (cartão de checkout concluído; no-show fora) ainda sem
+-- memória gravada. Mais antigas primeiro (a consolidação segue a ordem das estadias). Falhou 3 vezes ⇒ sai.
+create or replace function public.guest_ai_pending_stay_memories(p_limit integer)
+returns table (reservation_id uuid, property_id uuid, tenant_id uuid, checkout_date date, checkout_confirmed_at timestamptz)
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, pg_temp
+as $$
+begin
+  return query
+  select r.id, r.property_id, p.owner_id, r.checkout_date::date,
+         coalesce(g.concluded_at, g.done_at, g.updated_at)
+    from public.guest_arrival_status g
+    join public.property_reservations r on r.id = g.reservation_id
+    join public.properties p on p.id = r.property_id
+   where g.kind = 'checkout'
+     and coalesce(g.status, '') <> 'no_show'
+     and (g.status = 'done' or g.done_at is not null or g.concluded_at is not null)
+     and coalesce(r.status, '') <> 'cancelled'
+     and p.owner_id is not null
+     and not exists (
+       select 1 from public.guest_ai_stay_memory_runs m
+        where m.reservation_id = r.id and (m.status in ('done', 'skipped') or m.attempts >= 3))
+   order by coalesce(g.concluded_at, g.done_at, g.updated_at) asc, r.id
+   limit greatest(1, least(coalesce(p_limit, 10), 50));
+end
+$$;
+
+-- Registra o desfecho do processamento de uma estadia (done | skipped | failed, com tentativas).
+create or replace function public.guest_ai_mark_stay_memory(
+  p_reservation_id uuid, p_tenant_id uuid, p_status text, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $$
+begin
+  if p_reservation_id is null or p_tenant_id is null or p_status not in ('done', 'skipped', 'failed') then
+    raise exception 'guest_ai_mark_stay_memory: argumentos inválidos';
+  end if;
+  insert into public.guest_ai_stay_memory_runs (reservation_id, tenant_id, status, reason, attempts, updated_at)
+  values (p_reservation_id, p_tenant_id, p_status, left(p_reason, 64), 1, now())
+  on conflict (reservation_id) do update
+    set status = excluded.status, reason = excluded.reason,
+        attempts = public.guest_ai_stay_memory_runs.attempts + 1, updated_at = now();
+end
+$$;
+
 revoke all on function public.guest_ai_normalize_phone(text) from public, anon, authenticated;
 revoke all on function public.guest_ai_guest_name_compatible(text, text) from public, anon, authenticated;
 revoke all on function public.guest_ai_link_guest_identity(uuid, uuid, text, text, text) from public, anon, authenticated;
@@ -239,3 +413,38 @@ grant execute on function public.guest_ai_normalize_phone(text) to service_role;
 grant execute on function public.guest_ai_guest_name_compatible(text, text) to service_role;
 grant execute on function public.guest_ai_link_guest_identity(uuid, uuid, text, text, text) to service_role;
 grant execute on function public.guest_ai_resolve_guest_profile(uuid, text, text[]) to service_role;
+revoke all on function public.guest_ai_upsert_titular_profile(uuid, text, text[], text) from public, anon, authenticated;
+revoke all on function public.guest_ai_record_stay_summary(uuid, uuid, uuid, date, jsonb, jsonb, jsonb) from public, anon, authenticated;
+grant execute on function public.guest_ai_upsert_titular_profile(uuid, text, text[], text) to service_role;
+grant execute on function public.guest_ai_record_stay_summary(uuid, uuid, uuid, date, jsonb, jsonb, jsonb) to service_role;
+revoke all on function public.guest_ai_pending_stay_memories(integer) from public, anon, authenticated;
+revoke all on function public.guest_ai_mark_stay_memory(uuid, uuid, text, text) from public, anon, authenticated;
+grant execute on function public.guest_ai_pending_stay_memories(integer) to service_role;
+grant execute on function public.guest_ai_mark_stay_memory(uuid, uuid, text, text) to service_role;
+
+-- Agenda o processo pós-checkout (a cada hora; até 10 estadias por execução, custo por chamada limitado no
+-- código). Só se o pg_cron existir (no banco do Lovable Cloud existe); idempotente. Desligar sem mexer no
+-- banco: secret `GUEST_MEMORY_WORKER=off`.
+do $cron$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    if exists (select 1 from cron.job where jobname = 'guest-memory-hourly') then
+      perform cron.unschedule('guest-memory-hourly');
+    end if;
+    perform cron.schedule(
+      'guest-memory-hourly',
+      '17 * * * *',
+      $job$
+      select net.http_post(
+        url := 'https://project--c6a061b9-4ae8-4241-9a99-3375bda32242.lovable.app/api/public/cron/guest-memory',
+        headers := jsonb_build_object(
+          'Content-Type', 'application/json',
+          'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
+        ),
+        body := jsonb_build_object('limit', 10)
+      ) as request_id;
+      $job$
+    );
+  end if;
+end
+$cron$;
