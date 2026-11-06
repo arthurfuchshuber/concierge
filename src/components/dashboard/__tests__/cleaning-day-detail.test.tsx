@@ -132,9 +132,10 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     );
     const t = text(html);
     expect(t).toContain("1 checkout previsto");
-    expect(t).toContain("11:00");
-    expect(t).toContain("Ana");
-    expect(t).toMatch(/Estimativa · limpeza normal R\$\s120,00/);
+    expect(t).toContain("Data de Saída: 19/09/2026");
+    expect(t).toContain("Horário de Saída: 11:00");
+    expect(t).not.toContain("Ana");
+    expect(t).toMatch(/Estimativa · Limpeza Normal R\$\s120,00/);
   });
 
   it("limpezas: data + hora + quem fez e proprietário(a) do imóvel; sem permissão não há botão", () => {
@@ -154,12 +155,13 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
       />,
     );
     const t = text(html);
-    expect(t).toContain("Proprietária do Imóvel: Patrícia");
-    expect(t).toContain("Proprietário do Imóvel: Clayton");
+    expect(t).toContain("Patrícia");
+    expect(t).toContain("Clayton");
     expect(t).toContain("17/09/2026 · 14:20 · Maria");
     expect(t).toContain("Tipo da Limpeza: Normal");
-    // O único botão é o "Fechar detalhe"; sem permissão não há nenhum botão de edição.
-    expect(html.replace(/<button[^>]*aria-label="Fechar detalhe"[\s\S]*?<\/button>/, "")).not.toContain("<button");
+    // Sem permissão não há botão de edição (só a seta de recolher/expandir e o "Fechar").
+    expect(html).not.toContain("Alterar valor");
+    expect(html).not.toContain("Mudar para");
   });
 
   it("limpezas: com permissão, tipo e valor viram botão (só o dado)", () => {
@@ -176,5 +178,20 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     expect(botoes.some((b) => text(b).trim() === "Normal")).toBe(true);
     expect(botoes.some((b) => /R\$\s120,00/.test(text(b)))).toBe(true);
     acesso.liberado = false;
+  });
+
+  it("recolher/expandir: nasce tudo recolhido, com a seta ao lado do rótulo principal", () => {
+    acesso.liberado = false;
+    const html = renderToStaticMarkup(
+      <CleaningDayDetailContent
+        date="2026-09-17"
+        source={{ mode: "cost", items }}
+        caretX={null}
+        onClose={() => {}}
+      />,
+    );
+    expect(html).not.toContain('aria-expanded="true"');
+    expect(html.match(/aria-expanded="false"/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(html).toContain("grid-rows-[0fr]");
   });
 });

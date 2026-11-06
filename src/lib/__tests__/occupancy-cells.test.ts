@@ -41,7 +41,7 @@ describe("calendário de ocupação — pré-cálculo idêntico ao antigo", () =
       const blocks: OccBlock[] = [];
       for (let k = 0; k < Math.floor(r() * 4); k++) {
         const f = Math.floor(r() * (days + 10)) - 5;
-        blocks.push({ from: iso(0, f), to: iso(0, f + Math.floor(r() * 6)) });
+        blocks.push({ from: iso(0, f), to: iso(0, f + Math.floor(r() * 6)), twin: r() < 0.4 });
       }
       const todayISO = dayList[Math.floor(r() * days)]!;
       const checkedIn = r() < 0.5;
@@ -53,9 +53,48 @@ describe("calendário de ocupação — pré-cálculo idêntico ao antigo", () =
         expect(got.stays[i * 2 + 1]?.id, `tarde ${c} ${d}`).toBe(oldStayAt(stays, d, 1)?.id);
         const outS = stays.find((x) => x.checkout === d);
         const inS = stays.find((x) => x.checkin === d);
-        const junction = (!!outS && !!inS) || (!!outS && b === "blocked") || (a === "blocked" && !!inS);
+        // Bloqueio que termina no dia ↔ OUTRO bloqueio que começa nele corta SÓ se um dos dois é do gêmeo (05/11/2026).
+        const real = blocks.filter((x) => x.to > x.from);
+        const blockSwap = real.some((x) => x.to === d) && real.some((x) => x.from === d) && (real.some((x) => x.to === d && x.twin) || real.some((x) => x.from === d && x.twin));
+        const junction = (!!outS && !!inS) || (!!outS && b === "blocked") || (a === "blocked" && !!inS) || blockSwap;
         expect(got.junction[i], `junção ${c} ${d}`).toBe(junction);
       });
     }
+  });
+});
+
+describe("calendário de ocupação — junção entre peças distintas (03/11/2026)", () => {
+  const dl = Array.from({ length: 12 }, (_, i) => iso(0, i)); // 01/10 … 12/10
+  const o = { todayISO: "2026-10-01", checkedInToday: false };
+
+  it("dois bloqueios do GÊMEO seguidos: o dia do corte é junção (manhã e tarde cinza)", () => {
+    const c = computePropertyCells([], [{ from: "2026-10-03", to: "2026-10-05", twin: true }, { from: "2026-10-05", to: "2026-10-08", twin: true }], dl, o);
+    const i = dl.indexOf("2026-10-05");
+    expect(c.junction[i]).toBe(true);
+    expect([c.halves[i * 2], c.halves[i * 2 + 1]]).toEqual(["blocked", "blocked"]);
+  });
+
+  it("dois bloqueios MANUAIS diretos seguidos: sem junção (barra sólida)", () => {
+    const c = computePropertyCells([], [{ from: "2026-10-03", to: "2026-10-05" }, { from: "2026-10-05", to: "2026-10-08" }], dl, o);
+    const i = dl.indexOf("2026-10-05");
+    expect(c.junction.some(Boolean)).toBe(false);
+    expect([c.halves[i * 2], c.halves[i * 2 + 1]]).toEqual(["blocked", "blocked"]);
+  });
+
+  it("um bloqueio contínuo que só atravessa o dia NÃO cria junção", () => {
+    const c = computePropertyCells([], [{ from: "2026-10-03", to: "2026-10-09" }], dl, o);
+    expect(c.junction.some(Boolean)).toBe(false);
+  });
+
+  it("reserva que sai ↔ bloqueio que entra, e bloqueio que sai ↔ reserva que entra, são junção", () => {
+    const a = computePropertyCells([{ checkin: "2026-10-02", checkout: "2026-10-04" }], [{ from: "2026-10-04", to: "2026-10-06" }], dl, o);
+    expect(a.junction[dl.indexOf("2026-10-04")]).toBe(true);
+    const b = computePropertyCells([{ checkin: "2026-10-06", checkout: "2026-10-08" }], [{ from: "2026-10-04", to: "2026-10-06" }], dl, o);
+    expect(b.junction[dl.indexOf("2026-10-06")]).toBe(true);
+  });
+
+  it("bloqueio de 0 noite não cria junção", () => {
+    const c = computePropertyCells([], [{ from: "2026-10-03", to: "2026-10-05" }, { from: "2026-10-05", to: "2026-10-05" }], dl, o);
+    expect(c.junction[dl.indexOf("2026-10-05")]).toBe(false);
   });
 });

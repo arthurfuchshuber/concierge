@@ -154,6 +154,30 @@ export const createManualBlockFn = createServerFn({ method: "POST" })
     });
   });
 
+const UpdateBlockInput = BlockInput.extend({ id: z.string().uuid() });
+
+/** Alterar período e motivo de um bloqueio manual (03/11/2026). Mesmas travas de `createManualBlockFn`. */
+export const updateManualBlockFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => {
+    const r = UpdateBlockInput.safeParse(i);
+    if (!r.success) {
+      const campo = r.error.issues[0]?.path.join(".") || "dados";
+      console.error("[manual-block] entrada inválida (alterar):", JSON.stringify(r.error.issues), "recebido:", JSON.stringify(i));
+      throw new Error(`Dados do bloqueio incompletos (campo: ${campo}). Atualize a página e tente de novo.`);
+    }
+    return r.data;
+  })
+  .handler(async ({ data, context }) => {
+    const ids = await blockStep("permissão", () => editableProperties(context.supabase, context.userId, data.ownerId));
+    if (!ids.includes(data.propertyId)) throw new Error("Sem permissão para alterar este bloqueio.");
+    if (!(await blockStep("modo da conta", () => isFullMode(context.supabase, context.userId, data.ownerId)))) throw new Error(LIGHT_MSG);
+    return blockStep("alteração", async () => {
+      const { updateManualBlock } = await import("@/lib/manual-blocks.server");
+      return updateManualBlock({ ...data, userId: context.userId, push: false });
+    });
+  });
+
 export const removeManualBlockFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ ownerId: z.string().uuid().nullable().optional(), propertyId: z.string().uuid(), id: z.string().uuid() }).parse(i))

@@ -62,7 +62,7 @@ function Face({
     >
       {/* Pedido explícito (09/10/2026): SEMPRE as letras do prestador, nunca a
           vassoura. Sem prestador definido ainda, um "?" no mesmo traço. */}
-      <span className={`block ${look === "default" ? "text-[12px] font-extrabold" : "text-[16px] font-semibold"} leading-none tracking-[-0.02em] ${ink} [text-box:trim-both_cap_alphabetic]`}>
+      <span className={`block ${look === "default" ? "text-[12px] font-extrabold" : "text-[11.5px] font-semibold"} leading-none tracking-[-0.02em] ${ink} [text-box:trim-both_cap_alphabetic]`}>
         {name ? initials(name) : "?"}
       </span>
     </span>
@@ -143,7 +143,7 @@ export function CleaningProviderAvatar({
 
   // Sem permissão de editar: só mostra quem é o responsável, sem popover.
   if (look === "plain") {
-    return <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={28} look="plain" />;
+    return <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={18} look="plain" />;
   }
 
   return (
@@ -177,7 +177,7 @@ export function CleaningProviderAvatar({
           ) : (
           <>
           <span className="relative shrink-0">
-          <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={showName ? 26 : 28} look={look ?? "default"} />
+          <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={showName ? 26 : look ? 18 : 28} look={look ?? "default"} />
           {assignedId && (
             <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card bg-primary" />
           )}

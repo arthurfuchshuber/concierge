@@ -937,7 +937,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
       >
         <DialogContent className="max-w-xs z-[2147483600]">
           <DialogHeader>
-            <DialogTitle className="text-sm">Opções da mensagem</DialogTitle>
+            <DialogTitle className="text-sm">Opções da Mensagem</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col">
             <button
@@ -985,7 +985,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
       <Dialog open={reopenOpen} onOpenChange={setReopenOpen}>
         <DialogContent className="max-w-sm z-[2147483600]">
           <DialogHeader>
-            <DialogTitle className="text-base">Reabrir conversa</DialogTitle>
+            <DialogTitle className="text-base">Reabrir Conversa</DialogTitle>
           </DialogHeader>
           <p className="text-xs text-muted-foreground">Por onde você quer falar com o hóspede?</p>
           <div className="flex flex-col gap-2 mt-2">
@@ -1013,7 +1013,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
       <Dialog open={reasonOpen} onOpenChange={setReasonOpen}>
         <DialogContent className="max-w-md z-[2147483600]">
           <DialogHeader>
-            <DialogTitle className="text-base">Motivo do encaminhamento</DialogTitle>
+            <DialogTitle className="text-base">Motivo do Encaminhamento</DialogTitle>
           </DialogHeader>
           <div className="max-h-60 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap rounded-lg border border-amber-500/30 bg-amber-500/10 text-foreground p-3">
             {conv?.handoff_reason}

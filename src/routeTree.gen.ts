@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ChecklistRouteImport } from './routes/checklist'
 import { Route as ConfiancaRouteImport } from './routes/confianca'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DefinirSenhaRouteImport } from './routes/definir-senha'
@@ -109,6 +110,11 @@ const AppRoute = AppRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChecklistRoute = ChecklistRouteImport.update({
+  id: '/checklist',
+  path: '/checklist',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiancaRoute = ConfiancaRouteImport.update({
@@ -553,6 +559,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
   '/auth': typeof AuthRoute
+  '/checklist': typeof ChecklistRoute
   '/confianca': typeof ConfiancaRoute
   '/dashboard': typeof DashboardRoute
   '/definir-senha': typeof DefinirSenhaRoute
@@ -636,6 +643,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
   '/auth': typeof AuthRoute
+  '/checklist': typeof ChecklistRoute
   '/confianca': typeof ConfiancaRoute
   '/dashboard': typeof DashboardRoute
   '/definir-senha': typeof DefinirSenhaRoute
@@ -718,6 +726,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/app': typeof AppRoute
   '/auth': typeof AuthRoute
+  '/checklist': typeof ChecklistRoute
   '/confianca': typeof ConfiancaRoute
   '/dashboard': typeof DashboardRoute
   '/definir-senha': typeof DefinirSenhaRoute
@@ -803,6 +812,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/auth'
+    | '/checklist'
     | '/confianca'
     | '/dashboard'
     | '/definir-senha'
@@ -886,6 +896,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/auth'
+    | '/checklist'
     | '/confianca'
     | '/dashboard'
     | '/definir-senha'
@@ -967,6 +978,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/app'
     | '/auth'
+    | '/checklist'
     | '/confianca'
     | '/dashboard'
     | '/definir-senha'
@@ -1052,6 +1064,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AppRoute: typeof AppRoute
   AuthRoute: typeof AuthRoute
+  ChecklistRoute: typeof ChecklistRoute
   ConfiancaRoute: typeof ConfiancaRoute
   DashboardRoute: typeof DashboardRoute
   DefinirSenhaRoute: typeof DefinirSenhaRoute
@@ -1129,6 +1142,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checklist': {
+      id: '/checklist'
+      path: '/checklist'
+      fullPath: '/checklist'
+      preLoaderRoute: typeof ChecklistRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/confianca': {
@@ -1795,6 +1815,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AppRoute: AppRoute,
   AuthRoute: AuthRoute,
+  ChecklistRoute: ChecklistRoute,
   ConfiancaRoute: ConfiancaRoute,
   DashboardRoute: DashboardRoute,
   DefinirSenhaRoute: DefinirSenhaRoute,

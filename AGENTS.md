@@ -1,5 +1,7 @@
 # Architecture rules
 
+- Microsoft OAuth uses the managed Lovable helper and returns to public `/auth` with validated `next`; navigate to protected destinations only after Auth verifies the user, preserving existing profiles and permissions.
+
 - Every floating surface must register with `global-overlay-store`; this keeps blur and outside-click order consistent across nested UI.
 - Consecutive stays are reconciled from authoritative reservation dates; superseded open stages close without fabricating cleaning data.
 - Panel entry resolves the authenticated user's own properties and active memberships independently of active-account RLS; this prevents a circular first-login lockout.- Every access grant, account creation, password change, company link or access removal must email the recipient (template `access-notice`); users are never left unaware of changes to their own access.

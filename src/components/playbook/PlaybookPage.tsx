@@ -1394,7 +1394,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
       <Dialog open={!narrow && !!adding} onOpenChange={(v) => !v && setAdding(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Adicionar linha / campo</DialogTitle>
+            <DialogTitle>Adicionar Linha / Campo</DialogTitle>
           </DialogHeader>
           {adding ? (
             <div className="space-y-3">

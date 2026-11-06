@@ -110,7 +110,7 @@ export function CategoryPicker({
       <Dialog open={manage} onOpenChange={setManage}>
         <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Categorias de serviço</DialogTitle>
+            <DialogTitle>Categorias de Serviço</DialogTitle>
             <DialogDescription>
               Crie, renomeie ou exclua as opções disponíveis para os prestadores.
             </DialogDescription>

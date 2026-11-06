@@ -159,3 +159,79 @@ describe("createManualBlock (servidor)", () => {
     expect(rows.find((x) => x.id === c.id)?.status).toBe("cancelled");
   });
 });
+
+describe("updateManualBlock (servidor) — alterar período e motivo", () => {
+  async function update(id: string, from: string, to: string, note: string | null = null) {
+    const { updateManualBlock } = await import("@/lib/manual-blocks.server");
+    return updateManualBlock({ id, propertyId: P, from, to, note, userId: null, push: false });
+  }
+  async function seed(from: string, to: string) {
+    const { createManualBlock } = await import("@/lib/manual-blocks.server");
+    return (await createManualBlock({ propertyId: P, from, to, userId: null, push: false })).id as string;
+  }
+
+  it("muda período e motivo do próprio bloqueio (mesmo id)", async () => {
+    const id = await seed(future(5), future(8));
+    const r = await update(id, future(6), future(10), "manutenção");
+    expect(r).toMatchObject({ id, merged: false });
+    expect(rows.find((x) => x.id === id)).toMatchObject({ checkin_date: future(6), checkout_date: future(10), raw_summary: "manutenção", status: "blocked", source: "manual" });
+  });
+
+  it("recusa estender por cima de reserva ativa e não mexe no bloqueio", async () => {
+    const id = await seed(future(5), future(8));
+    rows.push(stay(future(9), future(12)));
+    await expect(update(id, future(5), future(11))).rejects.toThrow(/já tem reserva ativa/);
+    expect(rows.find((x) => x.id === id)).toMatchObject({ checkin_date: future(5), checkout_date: future(8) });
+  });
+
+  it("recusa quando a reserva só existe na Channex (gêmeo)", async () => {
+    const id = await seed(future(5), future(8));
+    channexNights = new Set([future(9)]);
+    await expect(update(id, future(5), future(11))).rejects.toThrow(/já tem reserva ativa/);
+    expect(rows.find((x) => x.id === id)).toMatchObject({ checkout_date: future(8) });
+  });
+
+  it("dia de saída/entrada de reservas vizinhas não conflita (giro)", async () => {
+    const id = await seed(future(5), future(8));
+    rows.push(stay(future(2), future(4)), stay(future(10), future(12)));
+    await expect(update(id, future(4), future(10))).resolves.toMatchObject({ id });
+  });
+
+  it("encurtar um bloqueio em andamento (início no passado inalterado) é permitido", async () => {
+    rows.push({ id: "old", property_id: P, source: "manual", status: "blocked", checkin_date: future(-2), checkout_date: future(6), raw_summary: "Bloqueio manual" });
+    await expect(update("old", future(-2), future(3))).resolves.toMatchObject({ id: "old" });
+    expect(rows.find((x) => x.id === "old")?.checkout_date).toBe(future(3));
+  });
+
+  it("início NOVO no passado continua proibido", async () => {
+    const id = await seed(future(5), future(8));
+    await expect(update(id, "2020-01-01", future(8))).rejects.toThrow(/a partir de hoje/);
+  });
+
+  it("une com bloqueio vizinho e cancela o absorvido", async () => {
+    const id = await seed(future(4), future(6));
+    const other = await seed(future(9), future(11));
+    const r = await update(id, future(4), future(9));
+    expect(r).toMatchObject({ id, merged: true });
+    expect(rows.find((x) => x.id === id)).toMatchObject({ checkin_date: future(4), checkout_date: future(11) });
+    expect(rows.find((x) => x.id === other)?.status).toBe("cancelled");
+  });
+
+  it("nunca altera reserva de hóspede nem bloqueio já liberado", async () => {
+    rows.push(stay(future(5), future(8), { id: "res-1" }));
+    await expect(update("res-1", future(6), future(9))).rejects.toThrow(/não existe mais/);
+    expect(rows.find((x) => x.id === "res-1")).toMatchObject({ checkin_date: future(5), checkout_date: future(8), status: "confirmed" });
+    const id = await seed(future(12), future(14));
+    const { removeManualBlock } = await import("@/lib/manual-blocks.server");
+    await removeManualBlock({ id, propertyId: P, userId: null, push: false });
+    await expect(update(id, future(12), future(15))).rejects.toThrow(/não existe mais/);
+  });
+
+  it("removeManualBlock não libera reserva confirmada", async () => {
+    rows.push(stay(future(5), future(8), { id: "res-2" }));
+    const { removeManualBlock } = await import("@/lib/manual-blocks.server");
+    await removeManualBlock({ id: "res-2", propertyId: P, userId: null, push: false });
+    expect(rows.find((x) => x.id === "res-2")?.status).toBe("confirmed");
+  });
+});
+

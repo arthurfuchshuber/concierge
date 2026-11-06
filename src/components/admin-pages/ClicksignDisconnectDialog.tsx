@@ -35,7 +35,7 @@ export function ClicksignDisconnectDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Desativar integração do ClickSign</DialogTitle>
+          <DialogTitle className="text-base">Desativar Integração do ClickSign</DialogTitle>
           <DialogDescription className="text-xs">
             O que fazer com os dados que a integração trouxe?
           </DialogDescription>

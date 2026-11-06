@@ -36,7 +36,7 @@ function OperationLayout() {
       <Outlet />
       <Dialog open={!!returned} onOpenChange={(o) => !o && setReturned(null)}>
         <DialogContent className="max-w-[380px]">
-          <DialogTitle>Você voltou do Airbnb</DialogTitle>
+          <DialogTitle>Você Voltou do Airbnb</DialogTitle>
           <DialogDescription asChild>
             <div className="grid gap-2 text-[13px] leading-relaxed">
               {returned === "falhou" ? (

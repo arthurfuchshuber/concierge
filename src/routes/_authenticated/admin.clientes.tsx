@@ -581,7 +581,7 @@ function DeleteCustomerDialog({
     <Dialog open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-red-600 dark:text-red-400">Excluir cliente</DialogTitle>
+          <DialogTitle className="text-red-600 dark:text-red-400">Excluir Cliente</DialogTitle>
           <DialogDescription>
             Esta ação é permanente. Todos os guias, conversas, hóspedes, integrações e o login de{" "}
             <span className="font-medium text-foreground">{customer.fullName || customer.email || "este cliente"}</span>{" "}
@@ -751,7 +751,7 @@ function EditDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar assinatura</DialogTitle>
+          <DialogTitle>Editar Assinatura</DialogTitle>
           <DialogDescription>
             {customer.fullName ?? customer.email} — alterações são imediatas.
           </DialogDescription>
@@ -1369,7 +1369,7 @@ function OpenGuidesButton({ userId, email }: { userId: string; email: string | n
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Acessar guias do cliente</DialogTitle>
+            <DialogTitle>Acessar Guias do Cliente</DialogTitle>
             <DialogDescription>
               {email ?? "Cliente"} — você acessará o painel como admin (todas as alterações ficam vinculadas ao cliente).
             </DialogDescription>

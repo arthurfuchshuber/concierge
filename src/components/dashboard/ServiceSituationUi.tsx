@@ -392,7 +392,7 @@ function SituationForm({
 /* ------------------------------------------------------------------------ */
 
 export type SituationOption = {
-  /** `null` = "Todas as situações". */
+  /** `null` = "Todos os serviços". */
   id: string | null;
   label: string;
   count: number;
@@ -437,7 +437,7 @@ export function SituationOptionRow({
 
 /**
  * DESKTOP: o segmento que fica ANTES do "+", na linha da busca. Sem escolha
- * mostra "Todas as situações"; com escolha vira o chip rosa com o nome.
+ * mostra "Todos os serviços"; com escolha vira o chip rosa com o nome.
  * No celular ele some — a mesma escolha é a primeira linha do menu Filtros.
  */
 export function SituationFilterSegment({
@@ -451,7 +451,7 @@ export function SituationFilterSegment({
 }) {
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.id === value) ?? null;
-  const label = current?.label ?? "Todas as situações";
+  const label = current?.label ?? "Todos os serviços";
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -468,7 +468,7 @@ export function SituationFilterSegment({
               {label}
             </span>
           ) : (
-            <span className="whitespace-nowrap text-xs">Todas as situações</span>
+            <span className="whitespace-nowrap text-xs">Todos os serviços</span>
           )}
         </button>
       </PopoverTrigger>

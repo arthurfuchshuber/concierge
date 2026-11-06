@@ -8,7 +8,10 @@ import {
   removeMyAvatar,
   requestEmailChange,
 } from "@/lib/profile.functions";
-import { Camera, Loader2, Trash2, User as UserIcon, Mail, ShieldCheck } from "lucide-react";
+import { Camera, Check, Clock, Loader2, Trash2, User as UserIcon, Mail, ShieldCheck, Lock, CalendarDays, ChevronDown } from "lucide-react";
+import { PANEL_SHELL, PanelHeading } from "@/components/dashboard/panel-chrome";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ActionButton, DENSE_INPUT, DenseField, Tag } from "@/components/admin-pages/admin-mobile-ui";
 import { toast } from "sonner";
 import { formatCPF } from "@/lib/masks";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -184,7 +187,8 @@ export function MeuPerfilPage() {
   }
 
   return (
-    <div className="w-full space-y-8">
+    <>
+    <div className="hidden w-full space-y-8 lg:block">
       <PageHeader
         title={
           <span className="inline-flex items-center gap-2">
@@ -390,6 +394,237 @@ export function MeuPerfilPage() {
         .input:focus { border-color: hsl(var(--primary) / 0.7); box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15); }
       `}</style>
     </div>
+
+    {/* CELULAR — mockups "Meu Perfil" e "Meu Perfil · novo e-mail pendente" (aprovados 05/11/2026). */}
+    <div className="ds-stack lg:hidden">
+      {/* Identidade: uma linha só. A câmera fica no centro da foto: tocar nela troca, remove ou adiciona. */}
+      <section className={`${PANEL_SHELL} px-[14px] py-3`}>
+        <div className="flex items-center gap-3">
+          {avatar ? (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Alterar, remover ou adicionar foto (PNG, JPG ou WEBP · até 3MB)"
+                  title="Foto: PNG, JPG ou WEBP · até 3MB"
+                  disabled={uploading}
+                  className="relative grid size-11 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full text-[#fbf6f1]"
+                >
+                  <img src={avatar} alt="Foto de perfil" className="absolute inset-0 size-full object-cover" />
+                  <span className="absolute inset-0 bg-black/40" />
+                  <span className="relative">
+                    {uploading ? <Loader2 className="size-5 animate-spin" /> : <Camera className="size-5" strokeWidth={2} />}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-auto min-w-[10rem] p-1.5">
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="ds-overlay-item flex w-full items-center gap-2 px-2.5 text-left hover:bg-foreground/[0.06]"
+                >
+                  <Camera className="size-3.5" /> Trocar foto
+                </button>
+                <button
+                  type="button"
+                  onClick={onRemoveAvatar}
+                  className="ds-overlay-item flex w-full items-center gap-2 px-2.5 text-left text-[#c98c8c] hover:bg-foreground/[0.06]"
+                >
+                  <Trash2 className="size-3.5" /> Remover foto
+                </button>
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <button
+              type="button"
+              aria-label="Alterar, remover ou adicionar foto (PNG, JPG ou WEBP · até 3MB)"
+              title="Foto: PNG, JPG ou WEBP · até 3MB"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+              className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full bg-accent text-[#fbf6f1]"
+            >
+              {uploading ? <Loader2 className="size-5 animate-spin" /> : <Camera className="size-5" strokeWidth={2} />}
+            </button>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="min-w-0 truncate font-display text-[14px] font-bold leading-[1.3]">
+                {fullName || "—"}
+              </div>
+            </div>
+            <div className="mt-px truncate text-[12px] text-muted-foreground">{emailOriginal || email}</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Dados Cadastrais */}
+      <section className={`${PANEL_SHELL} p-[14px]`}>
+        <PanelHeading
+          title="Dados Cadastrais"
+          className="mb-3"
+          titleClassName="text-[10px] tracking-[0.2em]"
+          right={
+            autosave.status === "saving" ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" /> Salvando…
+              </span>
+            ) : autosave.status === "error" ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#c98c8c]">
+                Falha ao salvar
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#7fb79a]">
+                <Check className="size-3" strokeWidth={2.4} /> Alterações Salvas
+              </span>
+            )
+          }
+        />
+        <div className="grid grid-cols-1 gap-3">
+          <DenseField label="Nome Completo" required>
+            <input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              maxLength={120}
+              className={DENSE_INPUT}
+              placeholder="Como aparece nos documentos"
+            />
+          </DenseField>
+          <DenseField
+            label="Nome Fantasia"
+            optional
+            hint="Se preenchido, substitui o nome completo no cabeçalho."
+          >
+            <input
+              value={tradeName}
+              onChange={(e) => setTradeName(e.target.value)}
+              maxLength={120}
+              className={DENSE_INPUT}
+              placeholder="Ex.: Sigma Turismo"
+            />
+          </DenseField>
+          <DenseField label="CPF">
+            <div
+              aria-disabled="true"
+              className={`${DENSE_INPUT} flex cursor-not-allowed items-center gap-2 bg-foreground/[0.03] text-muted-foreground tabular-nums`}
+            >
+              <span className="min-w-0 truncate">{cpfDigits ? formatCPF(cpfDigits) : "—"}</span>
+              <span
+                role="button"
+                aria-label="Alteração apenas via suporte"
+                title="Alteração apenas via suporte"
+                className="ml-auto flex cursor-help text-muted-foreground"
+              >
+                <Lock className="size-3.5" />
+              </span>
+            </div>
+          </DenseField>
+          <DenseField label="Data de Nascimento" required>
+            <div className="relative">
+              <input
+                type="date"
+                value={birthDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setBirthDate(e.target.value)}
+                className={`${DENSE_INPUT} pr-9 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0`}
+              />
+              <CalendarDays className="pointer-events-none absolute right-[11px] top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            </div>
+          </DenseField>
+          <DenseField label="Telefone">
+            <div className="grid grid-cols-[112px_minmax(0,1fr)] gap-2">
+              <div className="relative">
+                <input
+                  value={phoneCountry}
+                  onChange={(e) => setPhoneCountry(e.target.value)}
+                  maxLength={8}
+                  className={`${DENSE_INPUT} pr-8`}
+                  placeholder="BR +55"
+                  aria-label="País / DDI"
+                />
+                <ChevronDown className="pointer-events-none absolute right-[11px] top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              </div>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                maxLength={30}
+                className={DENSE_INPUT}
+                placeholder="(11) 98888-7766"
+                aria-label="Telefone"
+              />
+            </div>
+          </DenseField>
+          <DenseField label="Cargo" optional>
+            <input
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              maxLength={80}
+              className={DENSE_INPUT}
+              placeholder="Ex.: Gerente de Reservas"
+            />
+          </DenseField>
+        </div>
+      </section>
+
+      {/* E-mail: quadrante isolado */}
+      <section className={`${PANEL_SHELL} p-[14px]`}>
+        <PanelHeading
+          title="E-mail"
+          className="mb-3"
+          titleClassName="text-[10px] tracking-[0.2em]"
+          right={
+            email !== emailOriginal ? (
+              <Tag tone="amber" icon={<Clock className="size-2.5" strokeWidth={2.4} />}>
+                Não Confirmado
+              </Tag>
+            ) : (
+              <Tag tone="sage" icon={<Check className="size-2.5" strokeWidth={2.4} />}>
+                Verificado
+              </Tag>
+            )
+          }
+        />
+        <div className="relative">
+          <Mail className="pointer-events-none absolute left-[11px] top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground opacity-70" />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={`${DENSE_INPUT} pl-[33px]`}
+            placeholder="voce@exemplo.com"
+            aria-label="E-mail"
+          />
+        </div>
+        {email !== emailOriginal && (
+          <>
+            <p className="mt-2 text-[11.5px] font-medium leading-[1.45] text-[var(--faint)]">
+              Enviaremos um link para confirmar o novo e-mail. Até lá, o atual continua valendo.
+            </p>
+            <div className="mt-2.5 flex min-w-0 items-center gap-1.5">
+              <ActionButton
+                kind="primary"
+                full
+                icon={save.isPending ? <Loader2 className="size-3 animate-spin" /> : <Mail className="size-3" strokeWidth={2.2} />}
+                disabled={!canSave || save.isPending}
+                onClick={() => save.mutate()}
+              >
+                Confirmar Novo E-mail
+              </ActionButton>
+              <ActionButton onClick={() => setEmail(emailOriginal)}>Descartar</ActionButton>
+            </div>
+          </>
+        )}
+      </section>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={onPickFile}
+      />
+    </div>
+    </>
   );
 }
 

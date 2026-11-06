@@ -109,7 +109,7 @@ export function ClicksignImportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-base">Importar cadastros do ClickSign</DialogTitle>
+          <DialogTitle className="text-base">Importar Cadastros do ClickSign</DialogTitle>
           <DialogDescription className="text-xs">
             Identificamos os signatários dos contratos. Confirme o que deve virar cadastro — possíveis duplicados
             precisam da sua decisão.

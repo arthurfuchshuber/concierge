@@ -65,7 +65,7 @@ import { barLabelGeometry } from "@/components/dashboard/calendar-bar-geometry";
 import { CalendarBlockBar, CalendarBlockDialog } from "@/components/dashboard/CalendarBlockUI";
 import { isDawnTime, predictionDayLabel } from "@/lib/prediction-day-label";
 import { addDaysISO as blockAddDays, conflictMessage, firstBlockConflict, releaseRemainders } from "@/lib/manual-block-conflict";
-import { createManualBlockFn, listManualBlocks, removeManualBlockFn, syncBlockAvailabilityFn } from "@/lib/manual-blocks.functions";
+import { createManualBlockFn, listManualBlocks, removeManualBlockFn, syncBlockAvailabilityFn, updateManualBlockFn } from "@/lib/manual-blocks.functions";
 import { useOperationMode } from "@/components/admin-pages/ChannexModeCard";
 import { ManualCleaningCard } from "@/components/dashboard/ManualCleaningCard";
 import {
@@ -1142,7 +1142,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     const out: typeof base = [];
     for (const s of base) {
       const ts = twinsOf.get(s.propertyId);
-      if (!ts || s.blocked) {
+      if (s.blocked) {
+        // BLOQUEIO MANUAL (03/11/2026): vale para o imóvel inteiro — aparece na hora em TODAS as linhas de anúncio
+        // (principal e gêmeos), seja qual for a linha em que foi criado (o servidor grava no imóvel real).
+        // É uma cópia comum (não `twinBlock`): continua sendo bloqueio manual e se libera/altera de qualquer linha.
+        // Bloqueio que já é espelho de reserva do gêmeo (`twinBlock`) nunca é espelhado de novo.
+        out.push(s);
+        if (ts && !(s as { twinBlock?: boolean }).twinBlock) for (const t of ts) out.push({ ...s, propertyId: t.id });
+        continue;
+      }
+      if (!ts) {
         out.push(s);
         continue;
       }
@@ -2307,7 +2316,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       .map((id) => ({ id, label: situationNames[id] ?? "Serviço", count: counts.get(id) ?? 0 }))
       .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"))
       .forEach((r) => rows.push(r));
-    return [{ id: null, label: "Todas as situações", count: rows.reduce((n, r) => n + r.count, 0) }, ...rows];
+    return [{ id: null, label: "Todos os serviços", count: rows.reduce((n, r) => n + r.count, 0) }, ...rows];
   }, [extrasAll, cleaningScreen.countValue, sel, situationNames]);
 
   const extrasCount = extrasSel.length;
@@ -2417,23 +2426,28 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   );
 
   // Textos que dependem da situação. A Limpeza mantém os dela.
-  const periodShort = cleaningPeriodLabel.replace(/^Período /, "");
+  // Período ativo abreviado ao lado do título: "dd/MM/yy a dd/MM/yy".
+  const titleRange = cleaningPeriod ?? cleaningStatsRange;
+  const titleRangeLabel = `${format(parseISODateLocal(titleRange.start), "dd/MM/yy", { locale: ptBR })} a ${format(
+    parseISODateLocal(titleRange.end),
+    "dd/MM/yy",
+    { locale: ptBR },
+  )}`;
   const onlyCleaningTexts = sel === "cleaning";
   // Mockups aprovados (Limpeza-Danos / -Taxa / Filtro-Situacao): título da
   // página = só o nome da situação; gráficos "{Nome} · Qtde/Custo";
   // linha dourada "Últimos 7 Dias - Visão …" sob cada título.
-  const svcName = sel === null ? "Todas as situações" : (selName ?? "");
-  const svcWindow = cleaningPeriodView ? periodShort : cleaningWindow === "past" ? "Últimos 7 Dias" : "Próximos 7 Dias";
+  const svcName = sel === null ? "Todos os serviços" : (selName ?? "");
   const servicesTexts = {
-    pageTitle: onlyCleaningTexts ? null : sel === null ? "Todas as Situações" : (selName ?? ""),
+    pageTitle: onlyCleaningTexts ? null : sel === null ? "Todos os Serviços" : (selName ?? ""),
     pageSubtitle: onlyCleaningTexts
       ? null
       : sel === null
-        ? "Histórico e custos de todas as situações."
+        ? "Histórico e custos de todos os serviços."
         : `Histórico e custos de ${selName ?? ""}.`,
     barTitle: onlyCleaningTexts ? cleaningScreen.barTitle : `${svcName} · Qtde`,
     areaTitle: onlyCleaningTexts ? cleaningScreen.areaTitle : `${svcName} · Custo`,
-    topSub: onlyCleaningTexts ? undefined : `${svcWindow} - Visão por Imóvel`,
+    topSub: undefined as string | undefined,
     unit: (onlyCleaningTexts ? "limpeza" : "serviço") as "limpeza" | "serviço",
   };
 
@@ -3529,14 +3543,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
            dele. Um botão de filtro que não filtra a tela seria pior do que
            não ter botão. */
         title={
-          view === "limpeza" && servicesTexts.pageTitle
-            ? servicesTexts.pageTitle
-            : view === "limpeza"
-            ? cleaningPeriodView
-              ? cleaningPeriodLabel
-              : cleaningWindow === "past"
-                ? "Limpezas Últimos 7d"
-                : "Limpezas Próximos 7d"
+          view === "limpeza"
+            ? `${servicesTexts.pageTitle ?? "Limpezas"} · ${titleRangeLabel}`
             : undefined
         }
         subtitle={
@@ -3904,6 +3912,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="ds-card-grid grid-cols-1 lg:grid-cols-2 items-stretch">
               <div>
                 <CleaningTopProperties
+                  days={cleaningChartDaily?.length ?? 0}
                   items={servicesBreakdown}
                   loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
                   series={cleaningScreen.series}
@@ -4216,7 +4225,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       >
         <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-base font-display">Qual limpeza foi feita?</DialogTitle>
+            <DialogTitle className="text-base font-display">Qual Limpeza Foi Feita?</DialogTitle>
             {cleaningTypePrompt ? (
               <p className="text-[12.5px] text-muted-foreground break-words">
                 {cleaningTypePrompt.row.propertyName ?? titleCaseName(cleaningTypePrompt.row.guestName)}
@@ -4347,7 +4356,7 @@ export function OperationShell({
               relação ao título (print de 09/09/2026). Dentro da mesma linha do
               h1, o alinhamento passa a ser exato por construção, sem depender
               de medida nenhuma — e o subtítulo volta a ter a largura inteira. */}
-          <h1 className="ds-page-title !text-lg truncate">{title ?? copy.title}</h1>
+          <h1 className="ds-page-title !text-lg break-words">{title ?? copy.title}</h1>
           <p className="ds-page-subtitle truncate">{subtitle ?? copy.subtitle}</p>
         </div>
 
@@ -5354,22 +5363,25 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
   const sorted = [...breakdown].sort((x, y) => y.totalCents - x.totalCents);
   return (
     <div className="pt-3">
-      <div ref={screenshotRef} className="sg-elegant-scroll max-h-[60dvh] overflow-y-auto px-3 bg-[var(--panel)]">
-        <ul className="space-y-1.5 pb-3">
+      <div ref={screenshotRef} className="sg-elegant-scroll max-h-[60dvh] overflow-y-auto bg-[var(--panel)] px-5">
+        <ul>
           {sorted.map((item) => {
             return (
-              <li key={item.propertyId} className="flex items-center gap-3 rounded-[10px] border border-border bg-muted/20 px-3 py-2.5">
-                <div className="min-w-0 flex-1">
+              <li key={item.propertyId} className="min-w-0 border-t border-border/60 py-3">
+                <div className="min-w-0">
                   {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
-                  <ClampName text={item.propertyName} className="text-[13px] font-bold leading-snug" />
+                  <ClampName text={item.propertyName} className="text-[12.5px] font-bold leading-snug" />
                   <OwnerLine
                     name={item.ownerName}
                     phone={item.ownerPhone ?? null}
                     country={item.ownerPhoneCountry ?? null}
                     phonePosition="adjacent"
                   />
+                  <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px] font-semibold text-foreground/80">
+                    <span className="shrink-0">Valor do Serviço:</span>
+                    <span>{centsToBRL(item.totalCents)}</span>
+                  </p>
                 </div>
-                <p className="shrink-0 text-right text-[13px] font-bold tabular-nums">{centsToBRL(item.totalCents)}</p>
               </li>
             );
           })}
@@ -6012,8 +6024,11 @@ function CleaningTopProperties({
   series = "done",
   unit = "limpeza",
   subtitle,
+  days = 0,
 }: {
   subtitle?: string;
+  /** Dias da série atual — mesmo "(N dias)" do card de Custo. */
+  days?: number;
   items: CleaningTopItem[] | undefined;
   loading: boolean;
   /** "limpeza" ou "serviço" — só muda os textos da aba Serviços. */
@@ -6027,7 +6042,7 @@ function CleaningTopProperties({
   return (
     <div className={`${PANEL_SHELL} h-full w-full px-3.5 py-3.5`}>
       <PanelHeading
-        title="Top 5 imóveis"
+        title={days > 0 ? `Top 5 imóveis (${days} ${days === 1 ? "dia" : "dias"})` : "Top 5 imóveis"}
         dotColor={cleaningSeriesColor(series)}
         className="mb-2.5"
         right={<span className="text-[10px] text-muted-foreground">{unit === "limpeza" ? "nº de limpezas" : "nº de serviços"}</span>}
@@ -7348,6 +7363,7 @@ function OccupancyPanel({
   const listBlocksFn = useServerFn(listManualBlocks);
   const createBlockFn = useServerFn(createManualBlockFn);
   const removeBlockFn = useServerFn(removeManualBlockFn);
+  const updateBlockFn = useServerFn(updateManualBlockFn);
   const syncBlockFn = useServerFn(syncBlockAvailabilityFn);
   const qcBlock = useQueryClient();
   const blockPermQ = useQuery({
@@ -7365,6 +7381,10 @@ function OccupancyPanel({
   /** Liberar só um pedaço do bloqueio manual (calendário da janela "Liberar datas"); `id` amarra ao bloqueio tocado. */
   const [releaseSub, setReleaseSub] = useState<{ id: string; from: string; to: string } | null>(null);
   const releaseRange = blockTap ? (releaseSub && releaseSub.id === blockTap.id ? releaseSub : { id: blockTap.id, from: blockTap.from, to: blockTap.to }) : null;
+  /** ALTERAR o período/motivo do bloqueio tocado (03/11/2026): toque no período da barra "Bloqueado". */
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSub, setEditSub] = useState<{ id: string; from: string; to: string } | null>(null);
+  const editRange = blockTap ? (editSub && editSub.id === blockTap.id ? editSub : { id: blockTap.id, from: blockTap.from, to: blockTap.to }) : null;
   /** Célula com foco do teclado (roving tabindex: só UMA noite entra na ordem do Tab). */
   const [kbCell, setKbCell] = useState<{ propertyId: string; day: string } | null>(null);
   /** Balão resumido ao passar o mouse na barra da reserva/bloqueio (31/10/2026). Um só, flutuante, para a grade ficar leve. */
@@ -7383,6 +7403,7 @@ function OccupancyPanel({
     if (blockTap && !properties.some((x) => x.id === blockTap.propertyId)) {
       setBlockTap(null);
       setReleaseOpen(false);
+      setEditOpen(false);
     }
   }, [blockSel, blockTap, properties]);
   useEffect(() => {
@@ -7390,11 +7411,11 @@ function OccupancyPanel({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (blockSel && !blockOpen) setBlockSel(null);
-      if (blockTap && !releaseOpen) setBlockTap(null);
+      if (blockTap && !releaseOpen && !editOpen) setBlockTap(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [blockSel, blockOpen, blockTap, releaseOpen]);
+  }, [blockSel, blockOpen, blockTap, releaseOpen, editOpen]);
   const [mobileSearch, setMobileSearch] = useState(false);
   /** Primeiro dia que aparece no visor (muda ao rolar): a legenda só mostra o que existe nos dias VISÍVEIS. */
   const [firstVisIdx, setFirstVisIdx] = useState(0);
@@ -7595,11 +7616,11 @@ function OccupancyPanel({
   }, [stays]);
   // Bloqueios manuais do ConciergeIA: pintam só as metades livres do dia.
   const blocksByProperty = useMemo(() => {
-    const map = new Map<string, Array<{ from: string; to: string; twin?: boolean; origin?: string; note?: string | null }>>();
+    const map = new Map<string, Array<{ id?: string | null; from: string; to: string; twin?: boolean; origin?: string; note?: string | null }>>();
     for (const s of stays) {
       if (!(s as { blocked?: boolean }).blocked) continue;
       const arr = map.get(s.propertyId) ?? [];
-      arr.push({ from: s.checkin, to: s.checkout ?? s.checkin, twin: !!(s as { twinBlock?: boolean }).twinBlock, origin: (s as { twinOriginId?: string }).twinOriginId, note: (s as { note?: string | null }).note ?? null });
+      arr.push({ id: (s as { blockId?: string | null }).blockId ?? null, from: s.checkin, to: s.checkout ?? s.checkin, twin: !!(s as { twinBlock?: boolean }).twinBlock, origin: (s as { twinOriginId?: string }).twinOriginId, note: (s as { note?: string | null }).note ?? null });
       map.set(s.propertyId, arr);
     }
     return map;
@@ -7620,18 +7641,55 @@ function OccupancyPanel({
    *  o que antes recolocava a rolagem em "hoje" ou deslocava as datas; pedido explícito, 17/10/2026). */
   const leftDateRef = useRef<string | null>(null);
   const prevStartRef = useRef<string | null>(null);
+  /** Rola o calendário até o dia vigente. `smooth` = botão "Hoje"; sem ele = posicionamento inicial. */
+  function scrollToToday(smooth = true) {
+    const scroller = outerEl?.firstElementChild as HTMLElement | null | undefined;
+    if (!scroller) return;
+    const idx = dayList.indexOf(todayISO);
+    const left = Math.max(0, idx * dayW);
+    if (smooth) scroller.scrollTo({ left, behavior: "smooth" });
+    else scroller.scrollLeft = left;
+  }
   useLayoutEffect(() => {
     const scroller = outerEl?.firstElementChild as HTMLElement | null | undefined;
     if (!scroller) return;
     const key = `${dayW}`;
     if (scrolledKeyRef.current === null || scrolledKeyRef.current !== key) {
-      // 1ª abertura (ou mudou a largura da coluna): abre em hoje.
-      scrolledKeyRef.current = key;
-      prevStartRef.current = start;
+      // 1ª abertura (ou mudou a largura da coluna): abre em hoje. Só dá a abertura por feita quando o dia de
+      // hoje existe no intervalo E o trilho já tem largura final (scrollWidth > clientWidth) — no celular este
+      // efeito rodava antes do cálculo do trilho e a tela ficava no marco zero do passado.
       const idx = dayList.indexOf(todayISO);
-      scroller.scrollLeft = idx > 0 ? idx * dayW : 0;
-      leftDateRef.current = dayList[Math.max(0, Math.round(scroller.scrollLeft / dayW))] ?? null;
-      return;
+      if (idx < 0) return;
+      let cancelled = false;
+      let tries = 0;
+      let timer = 0;
+      let raf = 0;
+      const apply = () => {
+        if (cancelled) return;
+        if (scroller.scrollWidth <= scroller.clientWidth && tries++ < 40) {
+          raf = requestAnimationFrame(apply);
+          return;
+        }
+        const left = Math.max(0, idx * dayW);
+        scroller.scrollLeft = left;
+        scrolledKeyRef.current = key;
+        prevStartRef.current = start;
+        leftDateRef.current = dayList[Math.max(0, Math.round(scroller.scrollLeft / dayW))] ?? null;
+        // Confirmação: o navegador pode ajustar a largura do trilho logo depois do 1º posicionamento.
+        raf = requestAnimationFrame(() => {
+          timer = window.setTimeout(() => {
+            if (cancelled) return;
+            if (Math.abs(scroller.scrollLeft - left) > 1) scroller.scrollLeft = left;
+            leftDateRef.current = dayList[Math.max(0, Math.round(scroller.scrollLeft / dayW))] ?? null;
+          }, 50);
+        });
+      };
+      apply();
+      return () => {
+        cancelled = true;
+        cancelAnimationFrame(raf);
+        window.clearTimeout(timer);
+      };
     }
     if (prevStartRef.current !== start) {
       // O intervalo mudou: volta EXATAMENTE para a mesma data que estava à esquerda.
@@ -7688,17 +7746,44 @@ function OccupancyPanel({
      Safari/iOS ele impedia a página inteira de rolar e os toques de abrirem os cards. O bloqueio de rolagem
      agora só existe LOCALMENTE, no calendário, e só enquanto um arrasto de mouse/caneta está ativo (ver
      `begin`/`cleanup` em `blockPointerDown`). */
+  /** Reservas que ocupam noites desta linha: as dela + as do anúncio irmão (espelhadas como bloqueio automático).
+   *  Reserva confirmada NUNCA pode ser bloqueada, alterada ou liberada por cima (03/11/2026). */
+  function reservationStays(propertyId: string) {
+    const twinNights = (blocksByProperty.get(propertyId) ?? []).filter((b) => b.twin).map((b) => ({ checkin: b.from, checkout: b.to }));
+    return twinNights.length ? [...(byProperty.get(propertyId) ?? []), ...twinNights] : (byProperty.get(propertyId) ?? []);
+  }
+  /** Noites ocupadas para o seletor de datas: reservas (inclusive as do gêmeo) + os OUTROS bloqueios manuais do imóvel. */
+  function occupiedFor(propertyId: string, exceptBlockId?: string) {
+    return [
+      ...reservationStays(propertyId),
+      ...(blockPermQ.data?.blocks ?? [])
+        .filter((b) => b.propertyId === baseId(propertyId) && b.id !== exceptBlockId)
+        .map((b) => ({ checkin: b.from, checkout: b.to })),
+    ];
+  }
   /** Noite bloqueada pela reserva ativa no anúncio gêmeo (automático da sincronização: não se libera à mão). */
   function twinBlockAt(propertyId: string, day: string) {
     return (blocksByProperty.get(propertyId) ?? []).find((b) => b.twin && b.from <= day && day < b.to) ?? null;
+  }
+  /** Bloqueio manual que cobre a noite: vem da lista de bloqueios OU, se ela ainda não carregou/está velha, da própria
+   *  barra do calendário (`property_reservations` com source 'manual' e status 'blocked'). */
+  function manualBlockAt(propertyId: string, day: string): { id: string; from: string; to: string; note?: string | null } | null {
+    const real = baseId(propertyId);
+    const listed = (blockPermQ.data?.blocks ?? []).find((b) => b.propertyId === real && b.from <= day && day < b.to);
+    if (listed) return listed;
+    const bar = (blocksByProperty.get(propertyId) ?? []).find((b) => !b.twin && b.from <= day && day < b.to);
+    if (!bar) return null;
+    const match = (blockPermQ.data?.blocks ?? []).find((b) => b.propertyId === real && b.from === bar.from && b.to === bar.to);
+    const id = bar.id ?? match?.id ?? null;
+    return id ? { id, from: bar.from, to: bar.to, note: bar.note ?? null } : null;
   }
   function blockPointerDown(propertyId: string, day: string, ev: React.PointerEvent) {
     if (!canBlock || ev.button !== 0 || !ev.isPrimary) return;
     if (twinBlockAt(propertyId, day)) return;
     if (justClearedRef.current) return;
     if (day < todayISO) return;
-    if ((blockPermQ.data?.blocks ?? []).some((b) => b.propertyId === baseId(propertyId) && b.from <= day && day < b.to)) return;
-    const stays = byProperty.get(propertyId) ?? [];
+    if (manualBlockAt(propertyId, day)) return;
+    const stays = reservationStays(propertyId);
     if (firstBlockConflict(stays, day, blockAddDays(day, 1))) return;
     // Toque no celular: nenhum timer, nenhum ouvinte — a rolagem nativa da tela segue livre.
     if (ev.pointerType === "touch") return;
@@ -7843,7 +7928,7 @@ function OccupancyPanel({
     // Clique numa reserva abre o histórico dela — não mexe na seleção.
     if (target?.closest('[role="button"]') && target !== target.closest("[data-bc]")) return;
     // Tocar numa noite JÁ bloqueada à mão (mockup 6): abre a barra "Bloqueado" com "Liberar datas".
-    const tapped = (blockPermQ.data?.blocks ?? []).find((b) => b.propertyId === baseId(propertyId) && b.from <= day && day < b.to);
+    const tapped = manualBlockAt(propertyId, day);
     if (tapped) {
       setBlockSel(null);
       setBlockOpen(false);
@@ -7855,7 +7940,7 @@ function OccupancyPanel({
       toast.error("Não é possível bloquear", { description: "Escolha uma data a partir de hoje." });
       return;
     }
-    const stays = byProperty.get(propertyId) ?? [];
+    const stays = reservationStays(propertyId);
     const next = blockSel && blockSel.propertyId === propertyId && blockSel.anchor === blockSel.end ? blockSel : null;
     const a = next ? next.anchor : day;
     const lo = a <= day ? a : day;
@@ -7875,8 +7960,8 @@ function OccupancyPanel({
   }
   /** Depois de gravar/liberar: fecha (ou reabre) as datas em TODOS os anúncios do imóvel — o principal e o
    *  gêmeo, nos dois sentidos — pela Channex. Roda fora do pedido de gravar para a tela nunca ficar presa. */
-  async function syncListings(realPropertyId: string, release: boolean) {
-    const tid = toast.loading(release ? "Reabrindo as datas nos anúncios…" : "Fechando as datas nos anúncios…");
+  async function syncListings(realPropertyId: string, release: boolean, updated = false) {
+    const tid = toast.loading(updated ? "Atualizando as datas nos anúncios…" : release ? "Reabrindo as datas nos anúncios…" : "Fechando as datas nos anúncios…");
     try {
       const call = () => syncBlockFn({ data: { ownerId: blockOwnerId, propertyId: realPropertyId } });
       // Uma nova tentativa silenciosa antes de avisar: oscilações curtas de conexão não viram alerta.
@@ -7887,33 +7972,38 @@ function OccupancyPanel({
       }
       if (r.connected && !r.ok) {
         toast.warning(
-          release
-            ? "Datas liberadas aqui, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos."
-            : "Bloqueio salvo aqui, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.",
+          updated
+            ? "Bloqueio alterado aqui, mas não consegui atualizar as datas nos anúncios. Tente de novo em alguns minutos."
+            : release
+              ? "Datas liberadas aqui, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos."
+              : "Bloqueio salvo aqui, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.",
           { id: tid },
         );
       } else if (r.connected) {
-        toast.success(release ? "Datas liberadas em todos os anúncios." : "Datas bloqueadas em todos os anúncios.", { id: tid });
+        toast.success(updated ? "Bloqueio atualizado em todos os anúncios." : release ? "Datas liberadas em todos os anúncios." : "Datas bloqueadas em todos os anúncios.", { id: tid });
       } else {
-        toast.success(release ? "Datas liberadas." : "Bloqueio salvo.", { id: tid });
+        toast.success(updated ? "Bloqueio alterado." : release ? "Datas liberadas." : "Bloqueio salvo.", { id: tid });
       }
     } catch (e) {
       console.error("[manual-block] envio aos anúncios falhou", e);
       toast.warning(
-        release
-          ? "Datas liberadas aqui, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos."
-          : "Bloqueio salvo aqui, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.",
+        updated
+          ? "Bloqueio alterado aqui, mas não consegui atualizar as datas nos anúncios. Tente de novo em alguns minutos."
+          : release
+            ? "Datas liberadas aqui, mas não consegui reabri-las nos anúncios. Tente de novo em alguns minutos."
+            : "Bloqueio salvo aqui, mas não consegui fechar as datas nos anúncios. Tente de novo em alguns minutos.",
         { id: tid },
       );
     }
   }
-  async function releaseBlock() {
-    if (!blockTap || !releaseRange) return;
+  async function releaseBlock(whole = false) {
+    const range = whole && blockTap ? { from: blockTap.from, to: blockTap.to } : releaseRange;
+    if (!blockTap || !range) return;
     setBlockBusy(true);
     try {
       const realId = baseId(blockTap.propertyId);
       const tapped = blockTap;
-      const sub = { from: releaseRange.from, to: releaseRange.to };
+      const sub = { from: range.from, to: range.to };
       // Liberar só um pedaço: o que sobra do bloqueio original volta como 1 ou 2 bloqueios (0 = liberou tudo).
       const remainders = releaseRemainders({ from: tapped.from, to: tapped.to }, sub.from, sub.to);
       const label = tapped.note?.trim() && tapped.note.trim() !== "Bloqueio manual" ? `Bloqueado: ${tapped.note.trim()}` : "Bloqueado";
@@ -7944,6 +8034,8 @@ function OccupancyPanel({
         }
       }
       setReleaseOpen(false);
+      setEditOpen(false);
+      setEditSub(null);
       setBlockTap(null);
       setReleaseSub(null);
       // Liberou no ConciergeIA: a tela atualiza JÁ; reabrir nos anúncios segue em seguida, com aviso próprio.
@@ -7972,7 +8064,7 @@ function OccupancyPanel({
     if (!nd || nd < todayISO) return true;
     const lo = blockSel.anchor <= nd ? blockSel.anchor : nd;
     const hi = blockSel.anchor <= nd ? nd : blockSel.anchor;
-    const hit = firstBlockConflict(byProperty.get(propertyId) ?? [], lo, blockAddDays(hi, 1));
+    const hit = firstBlockConflict(reservationStays(propertyId), lo, blockAddDays(hi, 1));
     if (hit) {
       toast.error("Não é possível bloquear", { description: conflictMessage(hit, lo) });
       return true;
@@ -7997,6 +8089,57 @@ function OccupancyPanel({
     el?.focus();
     el?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
+  /** ALTERAR período e/ou motivo do bloqueio manual tocado (03/11/2026). O servidor revalida conflito com reserva
+   *  (banco + Channex) e só mexe em bloqueio manual; a tela troca a barra NA HORA em todas as linhas (principal e gêmeos)
+   *  e depois o envio aos anúncios fecha as noites novas e reabre as que saíram. */
+  async function updateBlock(note: string | null) {
+    if (!blockTap || !editRange) return;
+    const tapped = blockTap;
+    const range = { from: editRange.from, to: editRange.to };
+    const noteOf = (v: string | null | undefined) => (v?.trim() && v.trim() !== "Bloqueio manual" ? v.trim() : "");
+    if (range.from === tapped.from && range.to === tapped.to && (note?.trim() ?? "") === noteOf(tapped.note)) {
+      setEditOpen(false);
+      setEditSub(null);
+      setBlockTap(null);
+      return;
+    }
+    setBlockBusy(true);
+    try {
+      const realId = baseId(tapped.propertyId);
+      const label = note?.trim() ? `Bloqueado: ${note.trim()}` : "Bloqueado";
+      await updateBlockFn({ data: { ownerId: blockOwnerId, propertyId: realId, id: tapped.id, from: range.from, to: range.to, note } });
+      qcBlock.setQueriesData({ queryKey: ["dash-occupancy"] }, (old: unknown) => {
+        const o = old as { stays?: Array<{ propertyId: string; checkin: string; checkout: string | null; blocked?: boolean }> } | undefined;
+        if (!o || !Array.isArray(o.stays)) return old;
+        return {
+          ...o,
+          stays: [
+            ...o.stays.filter((st) => !(st.blocked && st.propertyId === realId && st.checkin === tapped.from && (st.checkout ?? st.checkin) === tapped.to)),
+            { propertyId: realId, checkin: range.from, checkout: range.to, guest: label, checkinDone: false, checkoutDone: false, blocked: true, note: note?.trim() || null },
+          ],
+        };
+      });
+      qcBlock.setQueriesData({ queryKey: ["manual-blocks"] }, (old: unknown) => {
+        const o = old as { blocks?: Array<{ id: string }> } | undefined;
+        if (!o || !Array.isArray(o.blocks)) return old;
+        return { ...o, blocks: o.blocks.map((b) => (b.id === tapped.id ? { ...b, from: range.from, to: range.to, note: note?.trim() || null } : b)) };
+      });
+      setEditOpen(false);
+      setEditSub(null);
+      setBlockTap(null);
+      void syncListings(realId, false, true).finally(() => {
+        qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }).catch(() => {});
+        qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }).catch(() => {});
+      });
+    } catch (e) {
+      console.error("[manual-block] erro ao alterar o bloqueio", e);
+      qcBlock.invalidateQueries({ queryKey: ["dash-occupancy"] }).catch(() => {});
+      qcBlock.invalidateQueries({ queryKey: ["manual-blocks"] }).catch(() => {});
+      toast.error("Não foi possível alterar o bloqueio", { description: (e instanceof Error ? e.message : "").replace(/^Não é possível bloquear — /, "") || "Tente novamente." });
+    } finally {
+      setBlockBusy(false);
+    }
+  }
   async function saveBlock(note: string | null) {
     if (!blockSel || !blockRange) return;
     setBlockBusy(true);
@@ -8015,7 +8158,7 @@ function OccupancyPanel({
           ...o,
           stays: [
             ...o.stays,
-            { propertyId: realId, checkin: range.from, checkout: range.to, guest: label, checkinDone: false, checkoutDone: false, blocked: true },
+            { propertyId: realId, checkin: range.from, checkout: range.to, guest: label, checkinDone: false, checkoutDone: false, blocked: true, note: note?.trim() || null },
           ],
         };
       });
@@ -8620,7 +8763,17 @@ function OccupancyPanel({
                             className={`sticky left-0 z-10 flex shrink-0 items-center pb-2 pr-3 ${hdrBg}`}
                             style={{ width: nameColW, minWidth: nameColW }}
                           >
-                            <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
+                            <span className="ds-eyebrow block min-w-0 flex-1 truncate pl-[10px]">Imóvel</span>
+                            <button
+                              type="button"
+                              onClick={() => scrollToToday()}
+                              className="mr-1 inline-flex shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                              title="Rolar para o dia vigente"
+                              aria-label="Rolar calendário para o dia de hoje"
+                            >
+                              <span className="size-1.5 rounded-full bg-primary" />
+                              Hoje
+                            </button>
                             {/* Fio da coluna fixa: estica 4 px além do rodapé para encostar na linha de baixo. */}
                             <span aria-hidden className="pointer-events-none absolute -bottom-1 right-0 top-0 w-px bg-[var(--grid-line-v)]" />
                           </div>
@@ -9062,10 +9215,7 @@ function OccupancyPanel({
               busy={blockBusy}
               todayISO={todayISO}
               bookingWindow={blockPermQ.data?.windows?.[baseId(blockSel.propertyId)] ?? null}
-              occupiedStays={[
-                ...(byProperty.get(blockSel.propertyId) ?? []),
-                ...(blockPermQ.data?.blocks ?? []).filter((b) => b.propertyId === baseId(blockSel.propertyId)).map((b) => ({ checkin: b.from, checkout: b.to })),
-              ]}
+              occupiedStays={occupiedFor(blockSel.propertyId)}
               onRangeChange={(f, t) => setBlockSel({ propertyId: blockSel.propertyId, anchor: f, end: blockAddDays(t, -1) })}
               onClose={() => setBlockOpen(false)}
               onSave={saveBlock}
@@ -9085,7 +9235,7 @@ function OccupancyPanel({
         };
         return (
           <>
-            {!releaseOpen && (
+            {!releaseOpen && !editOpen && (
               <CalendarBlockBar
                 mode="release"
                 ctx={ctx}
@@ -9093,8 +9243,32 @@ function OccupancyPanel({
                 to={blockTap.to}
                 onCancel={() => setBlockTap(null)}
                 onConfirm={() => setReleaseOpen(true)}
+                onEditDates={() => {
+                  setEditSub(null);
+                  setEditOpen(true);
+                }}
               />
             )}
+            <CalendarBlockDialog
+              mode="edit"
+              key={`edit:${blockTap.id}`}
+              open={editOpen}
+              ctx={ctx}
+              from={editRange?.from ?? blockTap.from}
+              to={editRange?.to ?? blockTap.to}
+              busy={blockBusy}
+              todayISO={todayISO}
+              bookingWindow={blockPermQ.data?.windows?.[baseId(blockTap.propertyId)] ?? null}
+              occupiedStays={occupiedFor(blockTap.propertyId, blockTap.id)}
+              initialNote={blockTap.note?.trim() && blockTap.note.trim() !== "Bloqueio manual" ? blockTap.note.trim() : ""}
+              onRangeChange={(f, t) => setEditSub({ id: blockTap.id, from: f, to: t })}
+              onClose={() => {
+                setEditOpen(false);
+                setEditSub(null);
+              }}
+              onSave={(note) => void updateBlock(note)}
+              onRelease={() => void releaseBlock(true)}
+            />
             <CalendarBlockDialog
               mode="release"
               key={`rel:${blockTap.id}`}
@@ -11091,7 +11265,7 @@ function ArrivalCard({
       <Dialog open={!!confirmMsg} onOpenChange={(o) => !o && setConfirmMsg(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl">Confirmar antecipação</DialogTitle>
+            <DialogTitle className="font-display text-xl">Confirmar Antecipação</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">{confirmMsg}</p>
           <div className="flex justify-end gap-2 pt-2">

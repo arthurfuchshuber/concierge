@@ -805,7 +805,7 @@ export function TaskResolveDialog({
               <AlertTriangle className="size-[17px]" />
             </span>
             <div className="min-w-0 pr-8">
-              <DialogTitle className="ds-page-title truncate">Há uma diferença de valores</DialogTitle>
+              <DialogTitle className="ds-page-title truncate">Há uma Diferença de Valores</DialogTitle>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 Antes de concluir, decida o destino dela.
               </p>

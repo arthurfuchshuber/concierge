@@ -3070,7 +3070,7 @@ function Guide({ data }: { data: GuideOk }) {
       <AlertDialog open={earlyCheckinOpen} onOpenChange={setEarlyCheckinOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Check-in fora do horário</AlertDialogTitle>
+            <AlertDialogTitle>Check-in Fora do Horário</AlertDialogTitle>
             <AlertDialogDescription>
               Seu check-in está fora do horário permitido. Confirma mesmo assim que já acessou o imóvel?
             </AlertDialogDescription>

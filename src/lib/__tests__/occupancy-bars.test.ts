@@ -87,4 +87,48 @@ describe("barras contínuas do calendário", () => {
     expect(inn).toEqual({ left: 0, width: 11 });
     expect(out!.left + out!.width).toBe(box.width);
   });
+
+  it("dois bloqueios do gêmeo seguidos: duas barras cinza, 4 px entre elas e pontas arredondadas no corte", () => {
+    const dl = days(10);
+    const c = computePropertyCells([], [{ from: "2026-11-02", to: "2026-11-05", twin: true }, { from: "2026-11-05", to: "2026-11-08", twin: true }], dl, opts);
+    expect(c.junction[4]).toBe(true); // 05/11
+    const segs = computeBarSegments(c);
+    expect(segs).toHaveLength(2);
+    const [a, b] = segs;
+    expect(a!.blocked && b!.blocked).toBe(true);
+    expect(a!.endCut).toBe(true);
+    expect(b!.startCut).toBe(true);
+    expect(a!.roundR).toBe(true);
+    expect(b!.roundL).toBe(true);
+    const ba = barBox(a!, 40);
+    const bb = barBox(b!, 40);
+    expect(bb.left - (ba.left + ba.width)).toBe(4);
+  });
+
+  it("dois bloqueios MANUAIS diretos seguidos: UMA barra sólida, sem corte", () => {
+    const dl = days(10);
+    const c = computePropertyCells([], [{ from: "2026-11-02", to: "2026-11-05" }, { from: "2026-11-05", to: "2026-11-08" }], dl, opts);
+    expect(c.junction.some(Boolean)).toBe(false);
+    const segs = computeBarSegments(c);
+    expect(segs).toHaveLength(1);
+    expect(segs[0]!.startCut || segs[0]!.endCut).toBe(false);
+  });
+
+  it("um bloqueio contínuo continua sendo UMA barra, sem corte", () => {
+    const dl = days(10);
+    const segs = computeBarSegments(computePropertyCells([], [{ from: "2026-11-02", to: "2026-11-08" }], dl, opts));
+    expect(segs).toHaveLength(1);
+    expect(segs[0]!.startCut || segs[0]!.endCut).toBe(false);
+  });
+
+  it("reserva confirmada que sai e bloqueio manual que entra no mesmo dia: junção e duas barras", () => {
+    const dl = days(10);
+    const c = computePropertyCells([stay("a", "2026-11-02", "2026-11-04")], [{ from: "2026-11-04", to: "2026-11-07" }], dl, opts);
+    expect(c.junction[3]).toBe(true); // 04/11
+    const segs = computeBarSegments(c);
+    expect(segs.map((s) => s.blocked)).toEqual([false, true]);
+    const ba = barBox(segs[0]!, 40);
+    const bb = barBox(segs[1]!, 40);
+    expect(bb.left - (ba.left + ba.width)).toBe(4);
+  });
 });

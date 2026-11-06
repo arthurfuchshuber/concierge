@@ -408,9 +408,9 @@ async function createLinkedTask(
       description: DESCRICAO_PENDENCIA_AUTOMATICA,
       category: rule.taskCategory,
       /* Situação (aba Serviços): damage→Danos, maintenance→Manutenção, o resto
-         (esquecido, incidente, outro) cai em "Outro" — a menos que o usuário
-         tenha escolhido uma situação criada por ele. */
-      situation: input.situation ?? SITUATION_BY_CATEGORY[input.category] ?? "other",
+         (esquecido, incidente, outro) fica sem situação financeira — a menos
+         que o usuário tenha escolhido uma situação criada por ele. */
+      situation: input.situation ?? SITUATION_BY_CATEGORY[input.category] ?? null,
       priority: rule.priority,
       due_date: null,
       /* "APARECE NA LIMPEZA" SEGUE A ORIGEM, NÃO SÓ A CATEGORIA (pedido
