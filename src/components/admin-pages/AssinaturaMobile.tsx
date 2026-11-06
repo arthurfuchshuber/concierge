@@ -59,8 +59,12 @@ export function AssinaturaMobile({
           <div className="mt-2.5 text-[12.5px] text-[var(--faint)]">
             {view.courtesyUntil ? (
               <>
-                Carência até <span className="font-semibold text-muted-foreground tabular-nums">{fmtDate(view.courtesyUntil)}</span>
-                {" · "}Próxima cobrança em <span className="font-semibold text-muted-foreground tabular-nums">{proxima}</span>
+                <span className="whitespace-nowrap">
+                  Carência até <span className="font-semibold text-muted-foreground tabular-nums">{fmtDate(view.courtesyUntil)}</span> ·
+                </span>{" "}
+                <span className="whitespace-nowrap">
+                  Próxima cobrança em <span className="font-semibold text-muted-foreground tabular-nums">{proxima}</span>
+                </span>
               </>
             ) : view.paused ? (
               <>Sem anúncios ativos · cobrança pausada</>

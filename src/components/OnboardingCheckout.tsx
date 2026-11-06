@@ -341,7 +341,7 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
         <div className="mt-6 flex justify-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-muted-foreground">
             <ShieldCheck className="size-3.5" />
-            <span className="text-xs font-semibold uppercase tracking-wider">Pagamento seguro · vencimento todo dia {BILLING_ANCHOR_DAY}</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Pagamento seguro · <span className="whitespace-nowrap">vence dia {BILLING_ANCHOR_DAY}</span></span>
           </div>
         </div>
       </div>
