@@ -1,4 +1,7 @@
--- ConciergeIA Guest AI · MEMÓRIA DO HÓSPEDE RECORRENTE (diretriz do titular, 06/11/2026).
+-- ConciergeIA Guest AI · MEMÓRIA DO HÓSPEDE RECORRENTE (diretriz do titular, 06/11/2026) — ETAPA A: ESTRUTURA.
+--
+-- Esta migration NÃO agenda, NÃO ativa e NÃO executa nenhum processamento. A ativação (cron, secrets,
+-- carga retroativa) é a ETAPA B, em `ops/guest-memory/`, e depende de autorização específica do titular.
 --
 -- Perfil canônico do hóspede POR CONTA (tenant_id = dono do imóvel), alimentado pela Channex (fonte da
 -- verdade). Identidades em tabela própria, com UNICIDADE por conta, para que um identificador nunca aponte
@@ -69,18 +72,45 @@ revoke all on public.guest_ai_guest_identities from public, anon, authenticated;
 grant select, insert, update, delete on public.guest_ai_guest_profiles to service_role;
 grant select, insert, update, delete on public.guest_ai_guest_identities to service_role;
 
--- Fila/controle do processo pós-checkout: uma linha por reserva processada (idempotência e novas tentativas).
+-- Controle do processo pós-checkout (ETAPA A: só estrutura; nada aqui agenda ou ativa o processamento).
+-- Uma linha por reserva (estado atual) + uma linha por TENTATIVA (auditoria e custo). A aquisição da estadia é
+-- exclusiva e atômica (`guest_ai_claim_stay_memory`), com prazo de posse (lease) e recuperação de posse
+-- abandonada; no máximo 3 tentativas por reserva; custo reservado ANTES da chamada ao modelo e somado ao teto
+-- diário, inclusive de tentativas concorrentes ou interrompidas (contadas pelo valor reservado).
 create table if not exists public.guest_ai_stay_memory_runs (
   reservation_id uuid primary key,
   tenant_id uuid not null,
-  status text not null check (status in ('done', 'skipped', 'failed')),
+  status text not null check (status in ('processing', 'done', 'skipped', 'failed')),
   reason text check (reason is null or char_length(reason) <= 64),
-  attempts integer not null default 0 check (attempts >= 0),
-  updated_at timestamptz not null default now()
+  attempts integer not null default 0 check (attempts >= 0 and attempts <= 3),
+  lease_token uuid,
+  lease_expires_at timestamptz,
+  updated_at timestamptz not null default now(),
+  constraint guest_ai_stay_memory_runs_lease check (
+    (status = 'processing') = (lease_token is not null and lease_expires_at is not null)
+  )
 );
+create table if not exists public.guest_ai_stay_memory_attempts (
+  id uuid primary key default gen_random_uuid(),
+  reservation_id uuid not null,
+  tenant_id uuid not null,
+  attempt integer not null check (attempt between 1 and 3),
+  lease_token uuid not null unique,
+  reserved_usd numeric(10, 6) not null check (reserved_usd > 0 and reserved_usd <= 0.05),
+  spent_usd numeric(10, 6) check (spent_usd is null or spent_usd >= 0),
+  outcome text check (outcome is null or outcome in ('done', 'skipped', 'failed', 'abandoned')),
+  reason text check (reason is null or char_length(reason) <= 64),
+  started_at timestamptz not null default now(),
+  finished_at timestamptz
+);
+create index if not exists guest_ai_stay_memory_attempts_day_idx on public.guest_ai_stay_memory_attempts (started_at);
+create index if not exists guest_ai_stay_memory_attempts_res_idx on public.guest_ai_stay_memory_attempts (reservation_id);
 alter table public.guest_ai_stay_memory_runs enable row level security;
+alter table public.guest_ai_stay_memory_attempts enable row level security;
 revoke all on public.guest_ai_stay_memory_runs from public, anon, authenticated;
+revoke all on public.guest_ai_stay_memory_attempts from public, anon, authenticated;
 grant select, insert, update, delete on public.guest_ai_stay_memory_runs to service_role;
+grant select, insert, update, delete on public.guest_ai_stay_memory_attempts to service_role;
 
 -- Telefone em E.164 a partir do que a Channex entrega ('+55 47 9...', '5547...', '0055...').
 -- Sem DDI comprovado não há palpite: 8 a 15 dígitos depois de remover '00' inicial; senão NULL.
@@ -314,7 +344,7 @@ $$;
 -- `behavioral_notes` (hospitalidade, vai ao prompt) e `internal_assessment` (só equipe).
 create or replace function public.guest_ai_record_stay_summary(
   p_tenant_id uuid, p_canonical_id uuid, p_reservation_id uuid, p_checkout date,
-  p_summary jsonb, p_behavioral_notes jsonb, p_internal_assessment jsonb)
+  p_summary jsonb, p_behavioral_notes jsonb, p_internal_assessment jsonb, p_lease_token uuid)
 returns jsonb
 language plpgsql
 security definer
@@ -329,6 +359,13 @@ begin
      or jsonb_typeof(p_behavioral_notes) is distinct from 'array' or jsonb_array_length(p_behavioral_notes) > 20
      or jsonb_typeof(p_internal_assessment) is distinct from 'object' then
     return jsonb_build_object('result', 'invalid', 'reason', 'arguments');
+  end if;
+  -- só grava quem detém a posse VIGENTE da estadia (worker atrasado com posse vencida não grava)
+  if p_lease_token is null or not exists (
+    select 1 from public.guest_ai_stay_memory_runs m
+     where m.reservation_id = p_reservation_id and m.tenant_id = p_tenant_id and m.status = 'processing'
+       and m.lease_token = p_lease_token and m.lease_expires_at > now()) then
+    return jsonb_build_object('result', 'lease_lost');
   end if;
   select * into v from public.guest_ai_guest_profiles
    where canonical_id = p_canonical_id and tenant_id = p_tenant_id for update;
@@ -356,8 +393,9 @@ begin
 end
 $$;
 
--- Estadias com CHECKOUT CONFIRMADO no sistema (cartão de checkout concluído; no-show fora) ainda sem
--- memória gravada. Mais antigas primeiro (a consolidação segue a ordem das estadias). Falhou 3 vezes ⇒ sai.
+-- Estadias com CHECKOUT CONFIRMADO no sistema (cartão de checkout concluído; no-show e cancelada fora) ainda
+-- sem memória concluída, sem posse ativa e com menos de 3 tentativas. Mais antigas primeiro. Só LISTA: quem
+-- processa precisa adquirir a estadia em `guest_ai_claim_stay_memory`.
 create or replace function public.guest_ai_pending_stay_memories(p_limit integer)
 returns table (reservation_id uuid, property_id uuid, tenant_id uuid, checkout_date date, checkout_confirmed_at timestamptz)
 language plpgsql
@@ -379,29 +417,113 @@ begin
      and p.owner_id is not null
      and not exists (
        select 1 from public.guest_ai_stay_memory_runs m
-        where m.reservation_id = r.id and (m.status in ('done', 'skipped') or m.attempts >= 3))
+        where m.reservation_id = r.id
+          and (m.status in ('done', 'skipped')
+               or m.attempts >= 3
+               or (m.status = 'processing' and m.lease_expires_at > now())))
    order by coalesce(g.concluded_at, g.done_at, g.updated_at) asc, r.id
-   limit greatest(1, least(coalesce(p_limit, 10), 50));
+   limit greatest(1, least(coalesce(p_limit, 10), 10));
 end
 $$;
 
--- Registra o desfecho do processamento de uma estadia (done | skipped | failed, com tentativas).
-create or replace function public.guest_ai_mark_stay_memory(
-  p_reservation_id uuid, p_tenant_id uuid, p_status text, p_reason text)
-returns void
+-- Aquisição EXCLUSIVA e atômica de uma estadia (serializada por trava global de transação):
+--   completed (já concluída) | busy (outro worker com posse válida) | exhausted (3 tentativas) |
+--   budget_daily_exceeded (teto diário somado às reservas em curso) | invalid | claimed (+ token, tentativa).
+-- Posse vencida é recuperada: a tentativa anterior fecha como `abandoned`, contada pelo valor reservado.
+create or replace function public.guest_ai_claim_stay_memory(
+  p_reservation_id uuid, p_tenant_id uuid, p_lease_seconds integer, p_reserve_usd numeric, p_daily_cap_usd numeric)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $$
+declare
+  v public.guest_ai_stay_memory_runs;
+  v_token uuid;
+  v_attempt integer;
+  v_spent numeric;
+  v_day_start timestamptz := (date_trunc('day', now() at time zone 'UTC')) at time zone 'UTC';
+begin
+  if p_reservation_id is null or p_tenant_id is null
+     or p_lease_seconds is null or p_lease_seconds < 60 or p_lease_seconds > 1800
+     or p_reserve_usd is null or p_reserve_usd <= 0 or p_reserve_usd > 0.05
+     or p_daily_cap_usd is null or p_daily_cap_usd <= 0 or p_daily_cap_usd > 10 then
+    return jsonb_build_object('result', 'invalid', 'reason', 'arguments');
+  end if;
+  -- a reserva precisa ser da conta informada
+  if not exists (select 1 from public.property_reservations r join public.properties p on p.id = r.property_id
+                  where r.id = p_reservation_id and p.owner_id = p_tenant_id) then
+    return jsonb_build_object('result', 'invalid', 'reason', 'scope');
+  end if;
+  perform pg_advisory_xact_lock(hashtext('guest_ai_stay_memory_claim'));
+
+  select * into v from public.guest_ai_stay_memory_runs where reservation_id = p_reservation_id for update;
+  if found then
+    if v.status in ('done', 'skipped') then
+      return jsonb_build_object('result', 'completed');
+    end if;
+    if v.status = 'processing' and v.lease_expires_at > now() then
+      return jsonb_build_object('result', 'busy');
+    end if;
+    if v.status = 'processing' then
+      -- posse abandonada (worker interrompido): fecha a tentativa pelo valor reservado
+      update public.guest_ai_stay_memory_attempts
+         set finished_at = now(), outcome = 'abandoned', reason = 'lease_expired', spent_usd = reserved_usd
+       where lease_token = v.lease_token and finished_at is null;
+      update public.guest_ai_stay_memory_runs
+         set status = 'failed', reason = 'lease_expired', lease_token = null, lease_expires_at = null, updated_at = now()
+       where reservation_id = p_reservation_id
+       returning * into v;
+    end if;
+    if v.attempts >= 3 then
+      return jsonb_build_object('result', 'exhausted');
+    end if;
+  end if;
+
+  select coalesce(sum(coalesce(a.spent_usd, a.reserved_usd)), 0) into v_spent
+    from public.guest_ai_stay_memory_attempts a
+   where a.started_at >= v_day_start;
+  if v_spent + p_reserve_usd > p_daily_cap_usd then
+    return jsonb_build_object('result', 'budget_daily_exceeded');
+  end if;
+
+  v_token := gen_random_uuid();
+  insert into public.guest_ai_stay_memory_runs (reservation_id, tenant_id, status, reason, attempts, lease_token, lease_expires_at, updated_at)
+  values (p_reservation_id, p_tenant_id, 'processing', null, 1, v_token, now() + make_interval(secs => p_lease_seconds), now())
+  on conflict (reservation_id) do update
+    set status = 'processing', reason = null,
+        attempts = public.guest_ai_stay_memory_runs.attempts + 1,
+        lease_token = v_token, lease_expires_at = now() + make_interval(secs => p_lease_seconds), updated_at = now()
+  returning attempts into v_attempt;
+  insert into public.guest_ai_stay_memory_attempts (reservation_id, tenant_id, attempt, lease_token, reserved_usd)
+  values (p_reservation_id, p_tenant_id, v_attempt, v_token, p_reserve_usd);
+  return jsonb_build_object('result', 'claimed', 'token', v_token, 'attempt', v_attempt);
+end
+$$;
+
+-- Encerra a posse com o desfecho e o custo real. Só quem tem o token vigente encerra (lease_lost caso contrário).
+create or replace function public.guest_ai_finish_stay_memory(
+  p_reservation_id uuid, p_token uuid, p_status text, p_reason text, p_spent_usd numeric)
+returns jsonb
 language plpgsql
 security definer
 set search_path = pg_catalog, pg_temp
 as $$
 begin
-  if p_reservation_id is null or p_tenant_id is null or p_status not in ('done', 'skipped', 'failed') then
-    raise exception 'guest_ai_mark_stay_memory: argumentos inválidos';
+  if p_reservation_id is null or p_token is null or p_status not in ('done', 'skipped', 'failed')
+     or p_spent_usd is null or p_spent_usd < 0 then
+    return jsonb_build_object('result', 'invalid', 'reason', 'arguments');
   end if;
-  insert into public.guest_ai_stay_memory_runs (reservation_id, tenant_id, status, reason, attempts, updated_at)
-  values (p_reservation_id, p_tenant_id, p_status, left(p_reason, 64), 1, now())
-  on conflict (reservation_id) do update
-    set status = excluded.status, reason = excluded.reason,
-        attempts = public.guest_ai_stay_memory_runs.attempts + 1, updated_at = now();
+  update public.guest_ai_stay_memory_runs
+     set status = p_status, reason = left(p_reason, 64), lease_token = null, lease_expires_at = null, updated_at = now()
+   where reservation_id = p_reservation_id and status = 'processing' and lease_token = p_token;
+  if not found then
+    return jsonb_build_object('result', 'lease_lost');
+  end if;
+  update public.guest_ai_stay_memory_attempts
+     set finished_at = now(), outcome = p_status, reason = left(p_reason, 64), spent_usd = p_spent_usd
+   where lease_token = p_token;
+  return jsonb_build_object('result', 'finished');
 end
 $$;
 
@@ -414,37 +536,12 @@ grant execute on function public.guest_ai_guest_name_compatible(text, text) to s
 grant execute on function public.guest_ai_link_guest_identity(uuid, uuid, text, text, text) to service_role;
 grant execute on function public.guest_ai_resolve_guest_profile(uuid, text, text[]) to service_role;
 revoke all on function public.guest_ai_upsert_titular_profile(uuid, text, text[], text) from public, anon, authenticated;
-revoke all on function public.guest_ai_record_stay_summary(uuid, uuid, uuid, date, jsonb, jsonb, jsonb) from public, anon, authenticated;
+revoke all on function public.guest_ai_record_stay_summary(uuid, uuid, uuid, date, jsonb, jsonb, jsonb, uuid) from public, anon, authenticated;
 grant execute on function public.guest_ai_upsert_titular_profile(uuid, text, text[], text) to service_role;
-grant execute on function public.guest_ai_record_stay_summary(uuid, uuid, uuid, date, jsonb, jsonb, jsonb) to service_role;
+grant execute on function public.guest_ai_record_stay_summary(uuid, uuid, uuid, date, jsonb, jsonb, jsonb, uuid) to service_role;
 revoke all on function public.guest_ai_pending_stay_memories(integer) from public, anon, authenticated;
-revoke all on function public.guest_ai_mark_stay_memory(uuid, uuid, text, text) from public, anon, authenticated;
+revoke all on function public.guest_ai_claim_stay_memory(uuid, uuid, integer, numeric, numeric) from public, anon, authenticated;
+revoke all on function public.guest_ai_finish_stay_memory(uuid, uuid, text, text, numeric) from public, anon, authenticated;
 grant execute on function public.guest_ai_pending_stay_memories(integer) to service_role;
-grant execute on function public.guest_ai_mark_stay_memory(uuid, uuid, text, text) to service_role;
-
--- Agenda o processo pós-checkout (a cada hora; até 10 estadias por execução, custo por chamada limitado no
--- código). Só se o pg_cron existir (no banco do Lovable Cloud existe); idempotente. Desligar sem mexer no
--- banco: secret `GUEST_MEMORY_WORKER=off`.
-do $cron$
-begin
-  if exists (select 1 from pg_extension where extname = 'pg_cron') then
-    if exists (select 1 from cron.job where jobname = 'guest-memory-hourly') then
-      perform cron.unschedule('guest-memory-hourly');
-    end if;
-    perform cron.schedule(
-      'guest-memory-hourly',
-      '17 * * * *',
-      $job$
-      select net.http_post(
-        url := 'https://project--c6a061b9-4ae8-4241-9a99-3375bda32242.lovable.app/api/public/cron/guest-memory',
-        headers := jsonb_build_object(
-          'Content-Type', 'application/json',
-          'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
-        ),
-        body := jsonb_build_object('limit', 10)
-      ) as request_id;
-      $job$
-    );
-  end if;
-end
-$cron$;
+grant execute on function public.guest_ai_claim_stay_memory(uuid, uuid, integer, numeric, numeric) to service_role;
+grant execute on function public.guest_ai_finish_stay_memory(uuid, uuid, text, text, numeric) to service_role;

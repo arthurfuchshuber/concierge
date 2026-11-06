@@ -293,6 +293,27 @@ describe("Memória do hóspede · fetchGuestProfile (duas portas)", () => {
     expect(r.lastStayCheckout).toBeNull();
   });
 
+  it("ISOLAMENTO: mesmo que o banco devolva avaliação interna ou resumos, nada disso sai do loader nem vai ao prompt", async () => {
+    const { db } = fakeDb({
+      reservation: { data: { ota_guest_id: "airbnb:1", phones: [] } },
+      identities: { data: [ident(P1, "ota", "airbnb:1")] },
+      profile: {
+        data: profileRow({
+          internal_assessment: {
+            cuidado_com_o_imovel: { nivel: "atencao", resumo: "Toalha manchada" },
+          },
+          stay_summaries: [{ avaliacao: { incidentes: { resumo: "Barulho" } } }],
+          guest_name: "Nome Real",
+        }),
+      },
+    });
+    const r = await fetchGuestProfile(turn(), { db });
+    const serialized = JSON.stringify(r);
+    expect(serialized).not.toMatch(/Toalha|Barulho|Nome Real|internal_assessment|stay_summaries/);
+    const ctxBlock = JSON.stringify(buildGuestProfileContext(r));
+    expect(ctxBlock).not.toMatch(/Toalha|Barulho|Nome Real/);
+  });
+
   it("exige turno emitido; cancelamento interrompe", async () => {
     await expect(
       fetchGuestProfile({ ...base } as ValidatedTurn, { db: fakeDb({}).db }),
