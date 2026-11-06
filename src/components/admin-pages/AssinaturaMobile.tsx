@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, CreditCard, FileText, Lock, ShieldCheck } from "lucide-react";
+import { CreditCard, FileText, Lock, ShieldCheck } from "lucide-react";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useQuery } from "@tanstack/react-query";
@@ -146,22 +146,35 @@ export function AssinaturaMobile({
           {TIERS.map((t, i) => {
             const cur = i === tierIdx;
             return (
-              <div key={t.label} className={`flex min-w-0 items-center gap-2.5 py-[13px] ${i === 0 ? "" : `border-t ${HAIR}`}`}>
+              <div
+                key={t.label}
+                {...(cur
+                  ? {
+                      role: "button",
+                      tabIndex: 0,
+                      "aria-label": "Ver imóveis cobrados",
+                      onClick: () => setJanela(true),
+                      onKeyDown: (e: React.KeyboardEvent) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setJanela(true);
+                        }
+                      },
+                    }
+                  : {})}
+                className={`flex min-w-0 items-center gap-2.5 py-[13px] ${i === 0 ? "" : `border-t ${HAIR}`} ${
+                  cur ? "cursor-pointer transition-colors active:bg-foreground/[0.04]" : ""
+                }`}
+              >
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-2">
                     <div className="min-w-0 truncate text-[13.5px] font-bold leading-[1.3]">{t.label}</div>
                     {cur ? <Tag>Plano Atual</Tag> : null}
                   </div>
                   {cur ? (
-                    <button
-                      type="button"
-                      onClick={() => setJanela(true)}
-                      aria-label="Ver imóveis cobrados"
-                      className="flex cursor-pointer items-center gap-0.5 text-[11.5px] font-medium leading-[1.45] tabular-nums text-[var(--faint)]"
-                    >
+                    <p className="text-[11.5px] font-medium leading-[1.45] tabular-nums text-[var(--faint)]">
                       {qtd} de {cap} imóveis
-                      <ChevronRight className="size-3" strokeWidth={2} />
-                    </button>
+                    </p>
                   ) : t.note ? (
                     <p className="text-[11.5px] font-medium leading-[1.45] text-[var(--faint)]">{t.note.replace("Desconto de ", "")} de desconto</p>
                   ) : null}

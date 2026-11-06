@@ -82,7 +82,7 @@ export function ImoveisCobradosDialog({ open, onOpenChange }: { open: boolean; o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg gap-0 p-0 sm:p-0">
+      <DialogContent className="max-w-lg gap-0 p-0 sm:p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
         <div className="flex h-12 items-center px-4 pr-12">
           <DialogTitle className="font-display text-[14px] font-bold leading-none tracking-normal">Imóveis Cobrados</DialogTitle>
         </div>

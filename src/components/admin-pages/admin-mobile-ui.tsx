@@ -110,9 +110,9 @@ export function ActionButton({
         "box-border inline-flex h-7 items-center justify-center gap-2 whitespace-nowrap px-2.5 font-semibold leading-none disabled:cursor-not-allowed disabled:opacity-50",
         full ? "min-w-0 flex-1" : "flex-none",
         kind === "primary"
-          ? "rounded-[7px] border border-transparent bg-foreground text-[11.5px] tracking-[-0.01em] text-background"
-          : "rounded-[5px] border border-white/[0.042] bg-[rgba(27,23,21,0.4)] text-[11px]",
-        kind === "danger" ? "text-[#c98c8c]" : kind === "neutral" ? "text-muted-foreground" : "",
+          ? "rounded-[8px] border border-transparent bg-foreground text-[11.5px] tracking-[-0.01em] text-background"
+          : "rounded-[8px] border border-border/60 bg-muted text-[11.5px] font-medium transition-colors hover:bg-muted/80",
+        kind === "danger" ? "text-[#c98c8c]" : kind === "neutral" ? "text-foreground" : "",
         className,
       )}
     >

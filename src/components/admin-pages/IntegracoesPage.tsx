@@ -209,13 +209,13 @@ export function IntegracoesPage() {
           return (
             <div
               key={cfg.key}
-              className="relative h-full min-w-0 overflow-hidden rounded-[12px] bg-[var(--card-surface)] py-3 pl-[15px] pr-3 shadow-[inset_0_0_0_1px_rgba(246,243,239,0.07)]"
+              className="relative h-full min-w-0 overflow-hidden rounded-[12px] border border-border/70 bg-card py-3.5 pl-[17px] pr-3.5 shadow-sm"
             >
-              {act && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-[#7fb79a]" />}
+              {act && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-500" />}
               <div className="flex h-full flex-col">
                 <div className="min-w-0">
-                  <div className="truncate font-display text-[12.5px] font-bold leading-[1.3] tracking-[-0.01em]">{cfg.nome}</div>
-                  <div className="mt-0.5 text-[9px] font-bold uppercase leading-[1.2] tracking-[0.1em] text-[var(--faint)]">
+                  <div className="truncate font-display text-[12.5px] font-bold leading-[1.3] tracking-[-0.01em] text-foreground">{cfg.nome}</div>
+                  <div className="mt-0.5 text-[9px] font-bold uppercase leading-[1.2] tracking-[0.1em] text-muted-foreground">
                     {cfg.categoria}
                   </div>
                   <div className="mt-[3px] h-[14px]" />
@@ -231,13 +231,13 @@ export function IntegracoesPage() {
                         aria-label="Mais opções"
                         title="Mais opções"
                         onClick={() => setPanel(cfg.key)}
-                        className="grid size-7 flex-none cursor-pointer place-items-center rounded-[7px] bg-[#0e0c0b] text-muted-foreground"
+                        className="grid size-7 flex-none cursor-pointer place-items-center rounded-[8px] border border-border/60 bg-muted text-[11.5px] font-medium text-foreground transition-colors hover:bg-muted/80"
                       >
                         <Ellipsis className="size-3.5" strokeWidth={2} />
                       </button>
                     </>
                   ) : (
-                    <ActionButton kind="primary" full icon={<Plug className="size-3" strokeWidth={2.2} />} onClick={() => setPanel(cfg.key)}>
+                    <ActionButton kind="primary" full className="bg-primary text-primary-foreground hover:bg-primary/90" icon={<Plug className="size-3" strokeWidth={2.2} />} onClick={() => setPanel(cfg.key)}>
                       Conectar
                     </ActionButton>
                   )}
