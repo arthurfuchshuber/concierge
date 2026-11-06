@@ -180,7 +180,7 @@ describe("Aba Registros", () => {
    * 01/11/2026 (mockup aprovado): "remova esses filtros" + "título ao centro, com o efeito do dashboard
    * operacional". O quadrante "Precisam de atenção" perdeu o botão de ordenar e ganhou o rótulo centralizado.
    */
-  it("o título 'Precisam de atenção' é um rótulo centralizado, sem botão de ordenar", async () => {
+  it("não há divisores 'Precisam de atenção' / 'Em dia' entre os cartões, nem botão de ordenar", async () => {
     listMock.mockResolvedValue({
       records: [rec()],
       counts: { forgotten: 0, damage: 1, cleaning_audit: 0, maintenance: 0, other: 0 },
@@ -191,7 +191,9 @@ describe("Aba Registros", () => {
     });
     optionsMock.mockResolvedValue({ properties: [], owners: [], providers: [] });
     render(<RecordsWorkspace />, { wrapper });
-    await waitFor(() => expect(screen.getByText("PRECISAM DE ATENÇÃO · 1")).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: /pendência/i })).toBeTruthy());
+    expect(screen.queryByText(/PRECISAM DE ATENÇÃO/i)).toBeNull();
+    expect(screen.queryByText(/EM DIA/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /ordenar/i })).toBeNull();
   });
 

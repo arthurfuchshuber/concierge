@@ -1424,7 +1424,29 @@ dd {
      busca/filtros (ACTION_BAR: 9px no celular, 13px no desktop). Era 14px. */
   border-radius: 9px;
   background: var(--card);
-  box-shadow: inset 0 0 0 1px var(--border);
+  /* 05/11/2026 (mockup A aprovado): a barra de abas ganhou a MESMA profundidade da barra de busca
+     (SearchActionRow): degradê de luz, fio de luz no topo e sombra de elevação — nos dois temas. */
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--foreground) 4.5%, transparent),
+    color-mix(in oklab, var(--foreground) 1.2%, transparent) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 7%, transparent),
+    inset 0 0 0 1px var(--border),
+    0 8px 14px -8px rgb(0 0 0 / 0.55);
+}
+/* Mesma profundidade para as barras de abas que montam a própria casca (Stepper, edição em massa). */
+@utility ds-tabs-depth {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--foreground) 4.5%, transparent),
+    color-mix(in oklab, var(--foreground) 1.2%, transparent) 55%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 7%, transparent),
+    inset 0 0 0 1px var(--border),
+    0 8px 14px -8px rgb(0 0 0 / 0.55);
 }
 @media (min-width: 1024px) {
   .ds-tabs {

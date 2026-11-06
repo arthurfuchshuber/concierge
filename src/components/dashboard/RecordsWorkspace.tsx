@@ -86,7 +86,6 @@ function fmtDDMM(iso: string): string {
 }
 import {
   PANEL_SHELL,
-  SectionLabel,
   ACTION_BAR,
   ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
@@ -899,21 +898,13 @@ export function RecordsWorkspace() {
               depois de um divisor discreto. Só vale para "Por imóvel" — em
               "Por data" a ordem do dia é a informação e não é quebrada. */}
               {attentionGroups.length > 0 && (
-                <StatusSection
-                  label="Imóveis que precisam de atenção"
-                  title="Precisam de atenção"
-                  count={attentionGroups.length}
-                >
+                <StatusSection label="Imóveis que precisam de atenção">
                   {attentionGroups.map(renderCard)}
                 </StatusSection>
               )}
 
               {calmGroups.length > 0 && (
-                <StatusSection
-                  label="Imóveis em dia"
-                  title="Em dia"
-                  count={calmGroups.length}
-                >
+                <StatusSection label="Imóveis em dia">
                   {calmGroups.map(renderCard)}
                 </StatusSection>
               )}
@@ -1314,30 +1305,11 @@ function rowSquares(records: AccountRecord[], max: number): RowSquare[] {
  * (`minmax(0,1fr)`) e os fios podem encolher até zero. O ordenar fecha a
  * linha à direita.
  */
-function StatusSection({
-  label,
-  title,
-  count,
-  children,
-}: {
-  label: string;
-  title: string;
-  count: number;
-  children: React.ReactNode;
-}) {
+function StatusSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <section aria-label={label} className="relative min-w-0">
-      <div className="ds-stack">
-        {/* CABEÇALHO DA LISTA (mockup aprovado, 01/11/2026): o título fica CENTRALIZADO, com o fio que vai
-            sumindo dos dois lados e a contagem colada ("PRECISAM DE ATENÇÃO · 5") — o mesmo rótulo de seção
-            do Dashboard Operacional (`SectionLabel`). Sem botão de ordenar e sem ponto de status. */}
-        <SectionLabel count={count} className="[&>span:nth-child(2)]:text-muted-foreground">
-          {title.toUpperCase()}
-        </SectionLabel>
-        {/* SEM QUADRANTE DE ROLAGEM (pedido explícito, 04/10/2026): os cartões ficam no fluxo da
-            página e rolam com ela. */}
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-3">{children}</div>
-      </div>
+      {/* Sem divisor com rótulo (pedido, 05/11/2026): os cartões seguem direto, no fluxo da página. */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3">{children}</div>
     </section>
   );
 }
@@ -1480,7 +1452,7 @@ function PropertyCard({
         />
       )}
       {/* `relative` mantém o conteúdo acima da faixa. */}
-      <div className="relative flex min-h-[132px] min-w-0">
+      <div className="relative flex min-h-[106px] min-w-0">
         {/* A FOTO É A CAPA DO IMÓVEL, como em Guias (escolha do cliente,
             04/10/2026). `coverUrl` só existe em "Por imóvel": em "Por data" o
             cartão reúne vários imóveis e não há uma capa que o represente. A
@@ -1490,7 +1462,7 @@ function PropertyCard({
             <CoverImage urls={[...(group.coverUrls ?? []), group.coverUrl]} />
           </div>
         )}
-        <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-3">
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5 px-3 py-2.5">
           <div className="min-w-0">
             {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário logo abaixo. */}
             <span className="ds-card-title block truncate" title={group.label}>
