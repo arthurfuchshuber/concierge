@@ -96,6 +96,39 @@ export const CONVERSATION_COLUMNS = ["id", "property_id", "guest_session_id", "s
  */
 export const CONVERSATION_OWNERSHIP_COLUMNS = ["id", "status", "assigned_to", "handoff_reason", "handoff_urgency", "handoff_at", "resolved_at", "ai_paused", "paused_until"] as const;
 export const MESSAGE_COLUMNS = ["id", "conversation_id", "role", "sender_type", "channel", "is_internal_note", "created_at"] as const;
+
+/**
+ * COPILOTO · VISÃO — mensagens do hóspede com IMAGEM. Única projeção do módulo com o caminho do anexo no
+ * storage: usada só por `data/guest-images.server.ts`, que baixa a foto pelo acesso de leitura restrito ao
+ * bucket `chat-attachments` (`client.server.ts`). O caminho nunca vai ao prompt, a log nem ao resultado.
+ */
+/**
+ * MEMÓRIA DO HÓSPEDE — âncoras de identidade da reserva do turno: só a conta do hóspede na OTA e os
+ * telefones, extraídos de `guest_contacts` por caminho JSON (nada de nome, e-mail, código, valores).
+ * Usada só por `data/guest-profile.server.ts`; os valores nunca vão ao prompt.
+ */
+export const GUEST_PROFILE_ANCHOR_COLUMNS = [
+  "id",
+  "property_id",
+  "ota_guest_id:guest_contacts->>ota_guest_id",
+  "phones:guest_contacts->phones",
+] as const;
+
+/** Perfil do hóspede: só contagens, última saída e notas de hospitalidade (sem nome, telefone ou conta). */
+export const GUEST_PROFILE_COLUMNS = ["canonical_id", "tenant_id", "stay_count", "last_stay_checkout", "behavioral_notes"] as const;
+export const GUEST_IDENTITY_COLUMNS = ["canonical_id", "kind", "value", "status"] as const;
+
+export const GUEST_IMAGE_MESSAGE_COLUMNS = [
+  "id",
+  "conversation_id",
+  "role",
+  "sender_type",
+  "is_internal_note",
+  "created_at",
+  "attachment_type",
+  "attachment_path",
+  "attachment_size_bytes",
+] as const;
 /** Sem `guest_contacts` (telefone/PII) nem valores financeiros. */
 export const RESERVATION_COLUMNS = ["id", "property_id", "status", "source", "checkin_date", "checkout_date"] as const;
 export const ARRIVAL_STATUS_COLUMNS = [

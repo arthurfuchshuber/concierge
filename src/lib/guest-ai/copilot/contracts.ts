@@ -66,11 +66,10 @@ export const COPILOT_SENDER_IDENTITY_STATES = [
 ] as const;
 
 /**
- * Controle de custos — os MESMOS tetos aprovados para a Guest AI (teto diário US$ 1,00 e custo por turno
- * ≤ US$ 0,15; ver `shadow-exec/contracts.ts`, que o Copiloto não importa por isolamento). A migration recusa
- * valores acima destes tetos; a variável de ambiente só pode APERTAR o teto diário.
+ * Controle de custos — teto POR TURNO fixo (≤ US$ 0,15, protege contra uma chamada desgovernada). O teto
+ * DIÁRIO é opcional (decisão do titular, 06/11/2026, operação comercial): só existe se
+ * `GUEST_AI_COPILOT_DAILY_COST_USD` tiver um valor positivo; ausente ou inválido ⇒ sem teto diário.
  */
-export const COPILOT_DAILY_COST_CEILING_USD = 1;
 export const COPILOT_MAX_TURN_COST_USD = 0.15;
 
 /** Prazo total da geração (contexto + Gateway ≤ 15 s + validação). Nada bloqueia o atendimento humano. */
@@ -114,24 +113,35 @@ export const copilotFlagOn = (
 ): boolean => copilotFlags(env)[flag];
 
 /**
- * ALLOWLIST DE IMÓVEIS da geração (backend, fail-closed). Mesmo com `GUEST_AI_COPILOT_GENERATION=on`, só gera
- * para imóveis listados em `GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS` (ids separados por vírgula). Vazia ou
- * ausente ⇒ NENHUM imóvel. A conferência usa o imóvel RE-DERIVADO do banco para o turno validado — nunca um
- * id enviado pelo navegador ou pelo canal. Não existe geração global.
+ * ESCOPO DE IMÓVEIS da geração (decisão do titular, 06/11/2026): com `GUEST_AI_COPILOT_GENERATION=on` o
+ * Copiloto gera para TODOS os imóveis da conta, atuais e futuros. `GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS`
+ * ausente, vazia ou `*` ⇒ todos (`null`). Uma lista de ids (separados por vírgula) só serve para RESTRINGIR.
+ * O imóvel conferido é sempre o RE-DERIVADO do banco para o turno validado — nunca um id do navegador.
  */
 export const COPILOT_GENERATION_PROPERTIES_ENV = "GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS";
 const PROPERTY_TOKEN = /^[A-Za-z0-9-]{1,64}$/;
 export function copilotGenerationProperties(
   env: Record<string, string | undefined> = process.env,
-): ReadonlySet<string> {
-  const raw = env[COPILOT_GENERATION_PROPERTIES_ENV] ?? "";
-  return new Set(
+): ReadonlySet<string> | null {
+  const raw = (env[COPILOT_GENERATION_PROPERTIES_ENV] ?? "").trim();
+  if (raw === "" || raw === "*") return null;
+  const ids = new Set(
     raw
       .split(",")
       .map((t) => t.trim())
       .filter((t) => PROPERTY_TOKEN.test(t)),
   );
+  return ids.size > 0 ? ids : null;
 }
+
+/** O imóvel pode gerar? `null` (sem restrição) ⇒ todos. */
+export const copilotPropertyAllowed = (
+  propertyId: string,
+  env: Record<string, string | undefined> = process.env,
+): boolean => {
+  const only = copilotGenerationProperties(env);
+  return only === null || only.has(propertyId);
+};
 
 /** Erro fechado de porta desligada (a server function devolve sem efeito; nada é lido, reivindicado ou enviado). */
 export class CopilotFlagOffError extends Error {
@@ -147,14 +157,13 @@ export function copilotModelId(env: Record<string, string | undefined> = process
   return requested && modelSpec(requested) ? requested : GUEST_AI_DEFAULT_MODEL;
 }
 
-/** Teto diário efetivo: `GUEST_AI_COPILOT_DAILY_COST_USD` (0 < v ≤ 1,00); inválido ou ausente ⇒ teto aprovado. */
+/** Teto diário opcional: `GUEST_AI_COPILOT_DAILY_COST_USD` > 0 ⇒ esse valor; ausente ou inválido ⇒ `null` (sem teto). */
 export function copilotDailyLimitUsd(
   env: Record<string, string | undefined> = process.env,
-): number {
+): number | null {
   const raw = env["GUEST_AI_COPILOT_DAILY_COST_USD"];
-  const v = raw === undefined ? Number.NaN : Number(raw);
-  if (!Number.isFinite(v) || v <= 0 || v > COPILOT_DAILY_COST_CEILING_USD)
-    return COPILOT_DAILY_COST_CEILING_USD;
+  const v = raw === undefined || raw.trim() === "" ? Number.NaN : Number(raw);
+  if (!Number.isFinite(v) || v <= 0) return null;
   return v;
 }
 

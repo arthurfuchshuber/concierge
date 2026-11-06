@@ -12,9 +12,51 @@
 /** Papéis aceitos. Não há papel "tool": F2-A não executa nem registra ferramentas. */
 export type LlmRole = "system" | "user" | "assistant";
 
+/** Parte de texto de uma mensagem multimodal. */
+export interface LlmContentPartText {
+  type: "text";
+  text: string;
+}
+
+/**
+ * Parte de imagem (formato compatível com OpenAI / Lovable AI Gateway). SÓ Data URL em base64 de
+ * JPEG, PNG ou WebP: URL externa é recusada (nada de o provedor buscar endereço arbitrário nem de
+ * link assinado do storage sair para fora).
+ */
+export interface LlmContentPartImage {
+  type: "image_url";
+  image_url: { url: string };
+}
+
+export type LlmContentPart = LlmContentPartText | LlmContentPartImage;
+
+/** Texto puro (caso comum) ou partes multimodais (texto + imagens; imagens só em mensagem `user`). */
+export type LlmMessageContent = string | readonly LlmContentPart[];
+
 export interface LlmMessage {
   role: LlmRole;
-  content: string;
+  content: LlmMessageContent;
+}
+
+/** Prefixos aceitos para imagem (Data URL base64). */
+export const LLM_IMAGE_DATA_URL_PREFIXES = [
+  "data:image/jpeg;base64,",
+  "data:image/png;base64,",
+  "data:image/webp;base64,",
+] as const;
+
+/** Texto de uma mensagem: o próprio texto, ou as partes de texto concatenadas (imagens ignoradas). */
+export function llmMessageText(content: LlmMessageContent): string {
+  if (typeof content === "string") return content;
+  return content
+    .filter((p): p is LlmContentPartText => !!p && p.type === "text" && typeof p.text === "string")
+    .map((p) => p.text)
+    .join("\n");
+}
+
+/** Quantas partes de imagem a mensagem carrega. */
+export function llmImageCount(content: LlmMessageContent): number {
+  return typeof content === "string" ? 0 : content.filter((p) => p && p.type === "image_url").length;
 }
 
 /** Esforço de raciocínio. `none` = não pedir raciocínio (o parâmetro não é enviado). */
@@ -58,7 +100,17 @@ export const LIMITS = {
   maxTotalChars: 200_000,
   maxOutputTokens: 4_096,
   maxTraceIdLength: 80,
+  /** Imagens por requisição (somadas todas as mensagens). */
+  maxImageParts: 3,
+  /** Soma dos tamanhos (caracteres) de todas as Data URLs de imagem da requisição (~7,5 MB de imagem). */
+  maxImageDataUrlChars: 10_000_000,
 } as const;
+
+/**
+ * Tokens de entrada ESTIMADOS por imagem, só quando o provedor não informa uso (observabilidade).
+ * O orçamento de custo do chamador usa um limite superior próprio, calculado pelas dimensões reais.
+ */
+export const ESTIMATED_TOKENS_PER_IMAGE = 1_290;
 
 export interface LlmUsage {
   inputTokens: number;

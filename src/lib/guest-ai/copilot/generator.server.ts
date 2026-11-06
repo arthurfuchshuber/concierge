@@ -13,7 +13,12 @@
  * Nunca devolve texto de erro do provedor: só códigos fechados (`CopilotGeneratorStop`).
  */
 import type { ComposedPrompt } from "@/lib/guest-ai/orchestrator/contracts";
-import type { LlmErrorCode, ReasoningEffort } from "@/lib/guest-ai/llm/contracts";
+import type {
+  LlmContentPart,
+  LlmErrorCode,
+  LlmMessage,
+  ReasoningEffort,
+} from "@/lib/guest-ai/llm/contracts";
 import { generateGuestLlm } from "@/lib/guest-ai/llm/gateway.server";
 import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
 import type { LlmLogger } from "@/lib/guest-ai/llm/telemetry";
@@ -45,7 +50,37 @@ export interface CopilotGeneratorTelemetry {
   readonly costUsd: number;
   readonly latencyMs: number;
   readonly error: LlmErrorCode | null;
+  /** Fotos do hóspede enviadas ao modelo nesta chamada. */
+  readonly imagesSent: number;
+  /** Fotos que não foram ao modelo (falha de leitura, formato, tamanho ou orçamento do turno). */
+  readonly imagesNotLoaded: number;
 }
+
+/** Foto do hóspede já preparada (Data URL) pela camada de dados, com o id citável do histórico. */
+export interface CopilotVisionImage {
+  ref: string | null;
+  at: string | null;
+  dataUrl: string;
+  tokenBound: number;
+}
+export interface CopilotVisionInput {
+  /** Da mais recente para a mais antiga. */
+  images: readonly CopilotVisionImage[];
+  /** Fotos que não puderam ser carregadas (viram o aviso `[imagem não carregada]`). */
+  failed: ReadonlyArray<{ ref: string | null; at: string | null }>;
+}
+export const NO_VISION: CopilotVisionInput = Object.freeze({ images: [], failed: [] });
+
+/** Aviso literal quando uma foto não vai ao modelo. */
+export const IMAGE_NOT_LOADED = "[imagem não carregada]";
+
+export const VISION_HEADER =
+  "Fotos enviadas pelo hóspede nesta conversa (da mais recente para a mais antiga), anexadas abaixo. " +
+  "Use apenas o que estiver claramente visível; não invente detalhes. Nunca repita códigos, senhas ou números " +
+  "de acesso que apareçam nas fotos.";
+
+const visionLabel = (i: { ref: string | null; at: string | null }) =>
+  `mensagem ${i.ref ?? "sem referência"}${i.at ? ` (${i.at})` : ""}`;
 
 export interface CopilotGenerator {
   readonly modelId: string;
@@ -67,6 +102,72 @@ export interface CopilotGeneratorDeps {
   provider?: LlmProvider;
   log?: LlmLogger;
   now?: () => number;
+  /**
+   * Fotos do hóspede para o turno (carregadas sob demanda, dentro do prazo). Ausente ⇒ só texto.
+   * Falha ao carregar nunca derruba a geração: segue só com texto e o aviso `[imagem não carregada]`.
+   */
+  loadVision?: () => Promise<CopilotVisionInput>;
+}
+
+/**
+ * Anexa as fotos à ÚLTIMA mensagem do usuário como partes multimodais, respeitando o teto de custo do
+ * turno: as fotos entram da mais recente para a mais antiga enquanto o pior caso (texto + fotos + saída)
+ * couber em `fits(tokens)`; as que não cabem viram o aviso `[imagem não carregada]`.
+ * Sem fotos nem falhas ⇒ devolve as mensagens intactas (texto puro).
+ */
+export function attachVision(
+  messages: readonly LlmMessage[],
+  vision: CopilotVisionInput,
+  baseBound: number,
+  fits: (inputTokens: number) => boolean,
+): { messages: LlmMessage[]; sent: number; notLoaded: number; bound: number } {
+  const plain = messages.map((m) => ({ ...m }));
+  if (vision.images.length === 0 && vision.failed.length === 0)
+    return { messages: plain, sent: 0, notLoaded: 0, bound: baseBound };
+  const enc = new TextEncoder();
+  const textCost = (t: string) => enc.encode(t).length + COPILOT_FRAME_TOKENS_PER_MESSAGE;
+  const notice = (i: { ref: string | null; at: string | null }) =>
+    `${IMAGE_NOT_LOADED} — ${visionLabel(i)}`;
+  const parts: LlmContentPart[] = [{ type: "text", text: VISION_HEADER }];
+  const failedLines = vision.failed.map(notice);
+  let bound =
+    baseBound + textCost(VISION_HEADER) + failedLines.reduce((n, l) => n + textCost(l), 0);
+  // reserva o aviso de cada foto ainda não decidida: se ela não couber, o aviso cabe
+  let reserve = vision.images.reduce((n, i) => n + textCost(notice(i)), 0);
+  let sent = 0;
+  const skippedLines: string[] = [];
+  for (const img of vision.images) {
+    reserve -= textCost(notice(img));
+    const caption = `Foto ${sent + 1} — ${visionLabel(img)}`;
+    const next = bound + textCost(caption) + img.tokenBound;
+    if (img.tokenBound > 0 && fits(next + reserve)) {
+      parts.push(
+        { type: "text", text: caption },
+        { type: "image_url", image_url: { url: img.dataUrl } },
+      );
+      bound = next;
+      sent += 1;
+    } else {
+      skippedLines.push(notice(img));
+      bound += textCost(notice(img));
+    }
+  }
+  for (const line of [...skippedLines, ...failedLines]) parts.push({ type: "text", text: line });
+  const notLoaded = skippedLines.length + failedLines.length;
+  let idx = -1;
+  for (let i = plain.length - 1; i >= 0; i--)
+    if (plain[i].role === "user") {
+      idx = i;
+      break;
+    }
+  if (idx < 0) plain.push({ role: "user", content: parts });
+  else {
+    const original = plain[idx].content;
+    const head: LlmContentPart[] =
+      typeof original === "string" ? [{ type: "text", text: original }] : [...original];
+    plain[idx] = { role: "user", content: [...head, ...parts] };
+  }
+  return { messages: plain, sent, notLoaded, bound };
 }
 
 /** Moldura por mensagem e por requisição (papéis, separadores): margem SUPERIOR, não estimativa. */
@@ -106,6 +207,8 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
     costUsd: 0,
     latencyMs: 0,
     error: null,
+    imagesSent: 0,
+    imagesNotLoaded: 0,
   });
   const block = (code: CopilotGeneratorStopCode): never => {
     t = Object.freeze({ ...t, status: "blocked", blockCode: code });
@@ -119,11 +222,33 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       const spec = modelSpec(deps.modelId);
       if (!spec) block("model_unregistered");
       if (signal.aborted || deps.remainingMs() <= 0) block("deadline_expired");
-      const bound = copilotInputTokenBound(prompt);
-      t = Object.freeze({ ...t, estimatedInputTokens: bound });
+      const textBound = copilotInputTokenBound(prompt);
+      t = Object.freeze({ ...t, estimatedInputTokens: textBound });
       // pior caso do turno: toda a entrada (limite superior) + todo o teto de saída
-      if (bound <= 0 || estimateCostUsd(spec!, bound, deps.maxOutputTokens) > ceiling)
-        block("budget_turn_exceeded");
+      const fits = (inputTokens: number) =>
+        estimateCostUsd(spec!, inputTokens, deps.maxOutputTokens) <= ceiling;
+      if (textBound <= 0 || !fits(textBound)) block("budget_turn_exceeded");
+
+      // visão: fotos do hóspede (falha ao carregar ⇒ só texto + aviso; nunca derruba a geração)
+      let vision: CopilotVisionInput = NO_VISION;
+      if (deps.loadVision) {
+        try {
+          vision = await deps.loadVision();
+        } catch {
+          if (signal.aborted || deps.remainingMs() <= 0) block("deadline_expired");
+          vision = { images: [], failed: [{ ref: null, at: null }] };
+        }
+      }
+      const base: LlmMessage[] = [{ role: "system", content: prompt.system }, ...prompt.messages];
+      const attached = attachVision(base, vision, textBound, fits);
+      const bound = attached.bound;
+      t = Object.freeze({
+        ...t,
+        estimatedInputTokens: bound,
+        imagesSent: attached.sent,
+        imagesNotLoaded: attached.notLoaded,
+      });
+      if (!fits(bound)) block("budget_turn_exceeded");
       if (!(await deps.beforeNetwork())) block("superseded");
       if (signal.aborted || deps.remainingMs() <= 0) block("deadline_expired");
 
@@ -132,7 +257,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
         {
           purpose: "guest_reply",
           model: deps.modelId,
-          messages: [{ role: "system", content: prompt.system }, ...prompt.messages],
+          messages: attached.messages,
           maxOutputTokens: deps.maxOutputTokens,
           reasoningEffort: deps.reasoningEffort,
           responseFormat: "json",

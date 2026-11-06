@@ -95,3 +95,44 @@ export function abortableDb(db: GuestAiDb, signal?: AbortSignal): GuestAiDb {
     },
   };
 }
+
+/**
+ * COPILOTO · VISÃO — leitura de anexos do hóspede no storage, RESTRITA ao bucket `chat-attachments` e só
+ * a `download` (nenhuma escrita, listagem, URL assinada ou outro bucket). Caminho inválido (absoluto, com
+ * `..`, vazio ou longo demais) é recusado sem consulta. Falha devolve `null`; nunca lança nem registra o
+ * caminho. Só `data/guest-images.server.ts` usa esta porta.
+ */
+export const GUEST_AI_ATTACHMENT_BUCKET = "chat-attachments";
+export interface GuestAiAttachmentStorage {
+  download(path: string, signal?: AbortSignal): Promise<Uint8Array | null>;
+}
+interface StorageCapableClient {
+  storage: {
+    from(bucket: string): {
+      download(path: string, options?: unknown): Promise<{ data: Blob | null; error: unknown }>;
+    };
+  };
+}
+const SAFE_ATTACHMENT_PATH = /^[\w-][\w.\-/]{0,511}$/;
+
+export function attachmentStorageFrom(client: StorageCapableClient): GuestAiAttachmentStorage {
+  return {
+    async download(path, signal) {
+      if (typeof path !== "string" || !SAFE_ATTACHMENT_PATH.test(path) || path.includes("..") || path.includes("//"))
+        return null;
+      if (signal?.aborted) return null;
+      try {
+        const { data, error } = await client.storage.from(GUEST_AI_ATTACHMENT_BUCKET).download(path);
+        if (error || !data || signal?.aborted) return null;
+        return new Uint8Array(await data.arrayBuffer());
+      } catch {
+        return null;
+      }
+    },
+  };
+}
+
+export async function getGuestAiAttachmentStorage(): Promise<GuestAiAttachmentStorage> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return attachmentStorageFrom(supabaseAdmin as unknown as StorageCapableClient);
+}

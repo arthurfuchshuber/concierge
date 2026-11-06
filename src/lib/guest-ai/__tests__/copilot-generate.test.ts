@@ -23,6 +23,8 @@ import {
 import { triggerCopilotSuggestion } from "@/lib/guest-ai/copilot/trigger.server";
 import {
   copilotDailyLimitUsd,
+  copilotGenerationProperties,
+  copilotPropertyAllowed,
   copilotFlags,
   copilotModelId,
   COPILOT_STATES,
@@ -36,7 +38,8 @@ import type {
 import { createCopilotStore } from "@/lib/guest-ai/copilot/store.server";
 import { copilotRpcFrom, COPILOT_RPC_FUNCTIONS } from "@/lib/guest-ai/data/client.server";
 import { GuestAiScopeError } from "@/lib/guest-ai/data/scope.server";
-import type { ProviderOutcome } from "@/lib/guest-ai/llm/providers/types";
+import type { ProviderOutcome, ProviderRequest } from "@/lib/guest-ai/llm/providers/types";
+import { llmMessageText } from "@/lib/guest-ai/llm/contracts";
 import { GUEST_AI_DEFAULT_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
 import type { OwnershipLoad } from "@/lib/guest-ai/data/conversation-ownership.server";
 import { CONV, ctx, history, turn, v4, silence } from "./helpers/b23-chain";
@@ -65,7 +68,10 @@ class MemoryCopilotStore implements CopilotStore {
     const key = `${i.conversationId}:${i.triggerMessageId}`;
     const ex = this.rows.get(key);
     if (ex) return { kind: "exists" as const, suggestionId: ex.id, state: ex.state as never };
-    if (this.spentUsd + i.turnCostCeilingUsd > i.dailyCostLimitUsd) {
+    if (
+      i.dailyCostLimitUsd !== null &&
+      this.spentUsd + i.turnCostCeilingUsd > i.dailyCostLimitUsd
+    ) {
       this.rows.set(key, { id: `s-${this.rows.size + 1}`, state: "generation_failed", attempt: 1 });
       return { kind: "daily_budget_exceeded" as const, suggestionId: `s-${this.rows.size}` };
     }
@@ -190,7 +196,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       tenantId: "t1",
       propertyId: "p1",
       conversationId: CONV,
-      dailyCostLimitUsd: 1,
+      dailyCostLimitUsd: null,
       turnCostCeilingUsd: 0.15,
     });
   });
@@ -223,12 +229,20 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     expect(p.calls).toBe(1);
   });
 
-  it("allowlist de imóveis (backend): geração ligada sem o imóvel do turno validado na lista ⇒ nada é reivindicado nem chamado", async () => {
-    for (const list of [undefined, "", " , ", "p2", "p2,p3", "P1"]) {
+  it("escopo de imóveis: sem lista (ausente, vazia ou *) ⇒ TODOS os imóveis geram; lista ⇒ só os listados", async () => {
+    for (const list of [undefined, "", " ", "*", " * ", " , "]) {
       const p = fakeProvider(okJson(v4()));
       const env: Record<string, string> = { GUEST_AI_COPILOT_GENERATION: "on" };
       if (list !== undefined) env.GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS = list;
       const d = deps(p, { env });
+      expect((await generateCopilotSuggestion(REQ, d)).status, String(list)).toBe("stored");
+      expect(d.store.claims[0]).toMatchObject({ propertyId: "p1" });
+    }
+    for (const list of ["p2", "p2,p3", "P1"]) {
+      const p = fakeProvider(okJson(v4()));
+      const d = deps(p, {
+        env: { GUEST_AI_COPILOT_GENERATION: "on", GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: list },
+      });
       expect(await generateCopilotSuggestion(REQ, d)).toEqual({
         status: "skipped",
         code: "property_not_allowlisted",
@@ -237,7 +251,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       expect(d.store.claims).toHaveLength(0);
       expect(p.calls).toBe(0);
     }
-    // o id vem do turno re-derivado do banco, não do pedido: pedido com outro imóvel no "expectedOwnerId" não importa
+    // o id vem do turno re-derivado do banco, não do pedido
     const p = fakeProvider(okJson(v4()));
     const d = deps(p, {
       env: {
@@ -247,19 +261,38 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     });
     expect((await generateCopilotSuggestion(REQ, d)).status).toBe("stored");
     expect(d.store.claims[0]).toMatchObject({ propertyId: "p1" });
+    expect(copilotGenerationProperties({})).toBeNull();
+    expect(copilotPropertyAllowed("qualquer-imovel-novo", {})).toBe(true);
   });
 
-  it("teto diário atingido ⇒ nenhuma chamada; teto efetivo nunca acima do aprovado", async () => {
-    const p = fakeProvider(okJson(v4()));
-    const store = new MemoryCopilotStore();
-    store.spentUsd = 0.9;
-    expect((await generateCopilotSuggestion(REQ, deps(p, { store }))).status).toBe(
-      "daily_budget_exceeded",
-    );
-    expect(p.calls).toBe(0);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "5" })).toBe(1);
+  it("teto diário opcional: sem variável ⇒ sem teto; com variável ⇒ respeitado (sem limite superior)", async () => {
+    expect(copilotDailyLimitUsd({})).toBeNull();
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "" })).toBeNull();
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "-1" })).toBeNull();
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "abc" })).toBeNull();
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "5" })).toBe(5);
     expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "0.25" })).toBe(0.25);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "-1" })).toBe(1);
+    // sem teto: gasto alto não bloqueia
+    {
+      const p = fakeProvider(okJson(v4()));
+      const store = new MemoryCopilotStore();
+      store.spentUsd = 50;
+      const d = deps(p, { store, env: { GUEST_AI_COPILOT_GENERATION: "on" } });
+      expect((await generateCopilotSuggestion(REQ, d)).status).toBe("stored");
+      expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: null });
+    }
+    // com teto: atingido ⇒ nenhuma chamada
+    {
+      const p = fakeProvider(okJson(v4()));
+      const store = new MemoryCopilotStore();
+      store.spentUsd = 0.9;
+      const d = deps(p, {
+        store,
+        env: { GUEST_AI_COPILOT_GENERATION: "on", GUEST_AI_COPILOT_DAILY_COST_USD: "1" },
+      });
+      expect((await generateCopilotSuggestion(REQ, d)).status).toBe("daily_budget_exceeded");
+      expect(p.calls).toBe(0);
+    }
   });
 
   it("escopo recusado no backend (mensagem de outra conversa, outro tenant) ⇒ nada é reivindicado", async () => {
@@ -397,8 +430,8 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     let seen = "";
     const p = fakeProvider(okJson(v4()));
     const orig = p.complete.bind(p);
-    p.complete = async (req: { messages: readonly { content: string }[] }, s?: AbortSignal) => {
-      seen = req.messages.map((m) => m.content).join("\n");
+    p.complete = async (req: ProviderRequest, s?: AbortSignal) => {
+      seen = req.messages.map((m) => llmMessageText(m.content)).join("\n");
       return orig(req as never, s as never);
     };
     await generateCopilotSuggestion(REQ, deps(p));
@@ -601,7 +634,7 @@ describe("Copiloto · porta fechada, adaptador e disparo", () => {
       conversationId: "c",
       triggerMessageId: "m",
       surface: "airbnb",
-      dailyCostLimitUsd: 1,
+      dailyCostLimitUsd: null,
       turnCostCeilingUsd: 0.15,
     };
     expect(
@@ -771,5 +804,168 @@ describe("Copiloto · isolamento estático (a IA nunca envia)", () => {
       );
       expect(c, f).toMatch(/NO_AI_HANDOFF_REASON/);
     }
+  });
+});
+
+describe("Copiloto · visão (fotos do hóspede na cadeia real)", () => {
+  const IMG = "data:image/jpeg;base64,/9j/AAAA";
+  const withImage = () =>
+    history("A fechadura está assim, o que faço?", [
+      { role: "user", sender_type: "guest", attachment_type: "image", content: "" },
+    ]);
+  const imageEntry = () => {
+    const h = withImage();
+    if (h.status !== "available") throw new Error("histórico indisponível");
+    return { h, e: h.entries.find((x) => x.media?.kind === "image")! };
+  };
+  const capture = () => {
+    const seen: ProviderRequest[] = [];
+    const p = fakeProvider(okJson(v4()));
+    const orig = p.complete.bind(p);
+    p.complete = async (req: ProviderRequest, s?: AbortSignal) => {
+      seen.push(req);
+      return orig(req as never, s as never);
+    };
+    return { p, seen };
+  };
+  const imageParts = (req: ProviderRequest) =>
+    req.messages.flatMap((m) =>
+      typeof m.content === "string" ? [] : m.content.filter((x) => x.type === "image_url"),
+    );
+
+  it("foto do hóspede no histórico ⇒ vai ao modelo como `image_url`, legendada com o id citável da mensagem", async () => {
+    const { h, e } = imageEntry();
+    const { p, seen } = capture();
+    let calls = 0;
+    const d = deps(p, {
+      ports: ports({ loadHistory: async () => h }),
+      loadImages: async () => {
+        calls += 1;
+        return [
+          {
+            status: "loaded",
+            messageId: e.messageId,
+            at: e.at,
+            dataUrl: IMG,
+            width: 800,
+            height: 600,
+            bytes: 1000,
+            tokenBound: 1_120,
+          },
+        ];
+      },
+    });
+    const r = await generateCopilotSuggestion(REQ, d);
+    expect(r).toMatchObject({ status: "stored", state: "available" });
+    expect(calls).toBe(1);
+    expect(imageParts(seen[0]!)).toEqual([{ type: "image_url", image_url: { url: IMG } }]);
+    expect(seen[0]!.messages.map((m) => llmMessageText(m.content)).join("\n")).toContain(
+      `Foto 1 — mensagem ${e.ref}`,
+    );
+  });
+
+  it("sem foto no histórico ⇒ nenhuma consulta de imagem; prompt só texto", async () => {
+    const { p, seen } = capture();
+    let calls = 0;
+    const d = deps(p, { loadImages: async () => ((calls += 1), []) });
+    await generateCopilotSuggestion(REQ, d);
+    expect(calls).toBe(0);
+    expect(seen[0]!.messages.every((m) => typeof m.content === "string")).toBe(true);
+  });
+
+  it("falha ao carregar a foto ⇒ sugestão gerada mesmo assim, com `[imagem não carregada]` no prompt", async () => {
+    const { p, seen } = capture();
+    const d = deps(p, {
+      ports: ports({ loadHistory: async () => withImage() }),
+      loadImages: async () => {
+        throw new Error("storage fora");
+      },
+    });
+    const r = await generateCopilotSuggestion(REQ, d);
+    expect(r).toMatchObject({ status: "stored", state: "available" });
+    expect(imageParts(seen[0]!)).toEqual([]);
+    expect(seen[0]!.messages.map((m) => llmMessageText(m.content)).join("\n")).toContain(
+      "[imagem não carregada]",
+    );
+  });
+
+  it("foto com falha de leitura (`failed`) ⇒ aviso com o id citável; nenhuma imagem enviada", async () => {
+    const { h, e } = imageEntry();
+    const { p, seen } = capture();
+    const d = deps(p, {
+      ports: ports({ loadHistory: async () => h }),
+      loadImages: async () => [
+        { status: "failed", messageId: e.messageId, at: e.at, reason: "download_failed" },
+      ],
+    });
+    await generateCopilotSuggestion(REQ, d);
+    expect(imageParts(seen[0]!)).toEqual([]);
+    expect(seen[0]!.messages.map((m) => llmMessageText(m.content)).join("\n")).toContain(
+      `[imagem não carregada] — mensagem ${e.ref}`,
+    );
+  });
+});
+
+describe("Copiloto · memória do hóspede recorrente na cadeia real", () => {
+  const capture = () => {
+    const seen: ProviderRequest[] = [];
+    const p = fakeProvider(okJson(v4()));
+    const orig = p.complete.bind(p);
+    p.complete = async (req: ProviderRequest, s?: AbortSignal) => {
+      seen.push(req);
+      return orig(req as never, s as never);
+    };
+    return { p, seen };
+  };
+  const text = (req: ProviderRequest) =>
+    req.messages.map((m) => llmMessageText(m.content)).join("\n");
+
+  it("hóspede recorrente ⇒ o prompt leva o bloco do perfil com estadias e preferências", async () => {
+    const { p, seen } = capture();
+    const d = deps(p, {
+      ports: ports({
+        loadGuestProfile: async () => ({
+          status: "found",
+          via: "ota",
+          stayCount: 2,
+          lastStayCheckout: "2026-05-10",
+          notes: [{ categoria: "preferencia", texto: "Pede travesseiros extras" }],
+        }),
+      }),
+    });
+    expect(await generateCopilotSuggestion(REQ, d)).toMatchObject({
+      status: "stored",
+      state: "available",
+    });
+    const t = text(seen[0]!);
+    expect(t).toContain("<perfil_do_hospede>");
+    expect(t).toContain('"status":"recorrente"');
+    expect(t).toContain("Pede travesseiros extras");
+  });
+
+  it("falha ao ler o perfil ⇒ sugestão gerada mesmo assim, perfil `indisponivel`", async () => {
+    const { p, seen } = capture();
+    const d = deps(p, {
+      ports: ports({
+        loadGuestProfile: async () => {
+          throw new Error("tabela ausente");
+        },
+      }),
+    });
+    expect(await generateCopilotSuggestion(REQ, d)).toMatchObject({
+      status: "stored",
+      state: "available",
+    });
+    expect(text(seen[0]!)).toContain('"status":"indisponivel"');
+  });
+
+  it("sem porta de perfil (comportamento anterior) ⇒ nenhum bloco de perfil", async () => {
+    const { p, seen } = capture();
+    await generateCopilotSuggestion(REQ, deps(p));
+    const user = seen[0]!.messages
+      .filter((m) => m.role === "user")
+      .map((m) => llmMessageText(m.content))
+      .join("\n");
+    expect(user).not.toContain("<perfil_do_hospede>");
   });
 });

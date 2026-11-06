@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { LIMITS, type LlmMessage, type LlmRequest, type LlmResult } from "@/lib/guest-ai/llm/contracts";
+import { ESTIMATED_TOKENS_PER_IMAGE, LIMITS, type LlmMessage, type LlmRequest, type LlmResult } from "@/lib/guest-ai/llm/contracts";
 import { MIN_RETRY_BUDGET_MS, RETRY_BACKOFF_MS, generateGuestLlm, normalizeUsage, parseJsonText, validateLlmRequest, type GatewayDeps } from "@/lib/guest-ai/llm/gateway.server";
 import { GUEST_AI_MODELS, estimateCostUsd, modelSpec } from "@/lib/guest-ai/llm/models";
 import type { LlmProvider, ProviderOutcome, ProviderRequest } from "@/lib/guest-ai/llm/providers/types";
@@ -385,5 +385,73 @@ describe("F2-A · isolamento no repositório", () => {
   it("o gateway convencional do SaaS (src/lib/llm) não importa o do Guest AI", () => {
     const g = readFileSync(path.resolve(__dirname, "../../llm/gateway.server.ts"), "utf8");
     expect(g).not.toMatch(/guest-ai/);
+  });
+});
+
+// ───────────── visão multimodal ─────────────
+
+describe("Visão · contrato multimodal do Gateway", () => {
+  const IMG = "data:image/png;base64,iVBORw0KGgo=";
+  const withImages = (n: number, over: Partial<LlmMessage> = {}): LlmMessage[] => [
+    { role: "system", content: "Você é o concierge do imóvel." },
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "Olha a foto:" },
+        ...Array.from({ length: n }, () => ({ type: "image_url" as const, image_url: { url: IMG } })),
+      ],
+      ...over,
+    },
+  ];
+
+  it("aceita texto + até 3 imagens Data URL (JPEG/PNG/WebP) em mensagem do usuário", () => {
+    for (const url of [IMG, "data:image/jpeg;base64,/9j/", "data:image/webp;base64,UklGR"]) {
+      const v = validateLlmRequest(req({ messages: [{ role: "user", content: [{ type: "text", text: "x" }, { type: "image_url", image_url: { url } }] }] }));
+      expect(v, url).not.toBeNull();
+      expect(v!.imageCount).toBe(1);
+    }
+    expect(validateLlmRequest(req({ messages: withImages(3) }))!.imageCount).toBe(3);
+  });
+
+  it.each<[string, LlmMessage[]]>([
+    ["mais de 3 imagens", withImages(4)],
+    ["URL externa (não Data URL)", [{ role: "user", content: [{ type: "text", text: "x" }, { type: "image_url", image_url: { url: "https://exemplo.com/a.jpg" } }] }]],
+    ["Data URL de outro tipo (gif/svg)", [{ role: "user", content: [{ type: "text", text: "x" }, { type: "image_url", image_url: { url: "data:image/svg+xml;base64,PHN2Zz4=" } }] }]],
+    ["Data URL vazia", [{ role: "user", content: [{ type: "text", text: "x" }, { type: "image_url", image_url: { url: "data:image/png;base64," } }] }]],
+    ["imagem em mensagem do assistente", [{ role: "user", content: "oi" }, { role: "assistant", content: [{ type: "image_url", image_url: { url: IMG } }] }]],
+    ["só imagem, sem texto algum", [{ role: "user", content: [{ type: "image_url", image_url: { url: IMG } }] }]],
+    ["lista de partes vazia", [{ role: "user", content: [] }]],
+    ["parte de tipo desconhecido", [{ role: "user", content: [{ type: "text", text: "x" }, { type: "audio", data: "x" } as never] }]],
+  ])("recusa antes da rede: %s", async (_, messages) => {
+    expect(validateLlmRequest(req({ messages }))).toBeNull();
+    const h = harness([ok()]);
+    const r = failed(await generateGuestLlm(req({ messages }), h.deps));
+    expect(r.error.code).toBe("invalid_request");
+    expect(h.calls()).toBe(0);
+  });
+
+  it("recusa a soma de Data URLs acima do teto do gateway", () => {
+    const big = "data:image/png;base64," + "A".repeat(LIMITS.maxImageDataUrlChars);
+    expect(validateLlmRequest(req({ messages: [{ role: "user", content: [{ type: "text", text: "x" }, { type: "image_url", image_url: { url: big } }] }] }))).toBeNull();
+  });
+
+  it("valor proibido dentro de uma parte de texto bloqueia a chamada", async () => {
+    const h = harness([ok()]);
+    const messages: LlmMessage[] = [{ role: "user", content: [{ type: "text", text: "a senha é 4321" }, { type: "image_url", image_url: { url: IMG } }] }];
+    const r = failed(await generateGuestLlm(req({ messages, forbiddenValues: ["4321"] }), h.deps));
+    expect(r.error.code).toBe("sensitive_content_blocked");
+    expect(h.calls()).toBe(0);
+  });
+
+  it("as partes chegam ao transporte sem alteração; sem uso informado, a estimativa soma tokens por imagem", async () => {
+    const h = harness([ok({ usage: null })]);
+    const r = succeeded(await generateGuestLlm(req({ messages: withImages(2) }), h.deps));
+    expect(h.seen[0]!.req.messages).toEqual(withImages(2));
+    expect(r.telemetry.usage.source).toBe("estimated");
+    expect(normalizeUsage(null, 400, 0, 2).inputTokens).toBe(normalizeUsage(null, 400, 0, 0).inputTokens + 2 * ESTIMATED_TOKENS_PER_IMAGE);
+  });
+
+  it("todos os modelos registrados declaram suporte a imagem", () => {
+    for (const spec of GUEST_AI_MODELS.values()) expect(spec.supportsImages, spec.id).toBe(true);
   });
 });

@@ -34,6 +34,9 @@ import {
 } from "@/lib/guest-ai/data/client.server";
 import { loadConversationContext } from "@/lib/guest-ai/context/conversation-context.server";
 import { fetchConversationHistory } from "@/lib/guest-ai/data/history.server";
+import { fetchGuestImages, type GuestImage } from "@/lib/guest-ai/data/guest-images.server";
+import { fetchGuestProfile } from "@/lib/guest-ai/data/guest-profile.server";
+import type { HistoryResult } from "@/lib/guest-ai/history";
 import { fetchPropertyDossier } from "@/lib/guest-ai/data/property-dossier.server";
 import { primaryDossierTarget } from "@/lib/guest-ai/data/property-access.server";
 import { loadStayAuthorizationSource } from "@/lib/guest-ai/data/stay-authorization.server";
@@ -53,7 +56,7 @@ import {
   COPILOT_REASONING_EFFORT,
   copilotDailyLimitUsd,
   copilotFlagOn,
-  copilotGenerationProperties,
+  copilotPropertyAllowed,
   copilotModelId,
   type CopilotGenerationRequest,
   type CopilotWarning,
@@ -61,7 +64,9 @@ import {
 import {
   createCopilotGenerator,
   CopilotGeneratorStop,
+  NO_VISION,
   type CopilotGenerator,
+  type CopilotVisionInput,
 } from "./generator.server";
 import { createCopilotStore, type CopilotResultInput, type CopilotStore } from "./store.server";
 
@@ -74,7 +79,8 @@ export type CopilotPorts = Required<
     | "loadStayAuthorizationSource"
     | "loadSenderIdentitySource"
   >
->;
+> &
+  Pick<ChainDeps, "loadGuestProfile">;
 
 export interface CopilotGenerateDeps {
   db?: GuestAiDb;
@@ -96,7 +102,10 @@ export interface CopilotGenerateDeps {
     remainingMs: () => number;
     beforeNetwork: () => Promise<boolean>;
     traceId: string;
+    loadVision: () => Promise<CopilotVisionInput>;
   }) => CopilotGenerator;
+  /** Fotos do hóspede (produção: `fetchGuestImages`; testes: falso em memória). */
+  loadImages?: (turn: ValidatedTurn, db: GuestAiDb, signal: AbortSignal) => Promise<GuestImage[]>;
   provider?: LlmProvider;
   log?: LlmLogger;
   /** Relógio de parede em ms desde a época (padrão `Date.now`). */
@@ -174,6 +183,7 @@ function productionPorts(
     },
     loadStayAuthorizationSource: (t, s) => loadStayAuthorizationSource(t, { db, signal: s }),
     loadSenderIdentitySource: (t, s) => loadSenderIdentitySource(t, { db, signal: s }),
+    loadGuestProfile: (t, s) => fetchGuestProfile(t, { db, signal: s }),
   };
 }
 
@@ -369,8 +379,8 @@ export async function generateCopilotSuggestion(
       };
     }
 
-    // 1b) allowlist de imóveis (backend): o imóvel do turno VALIDADO precisa estar listado; vazia ⇒ nenhum
-    if (!copilotGenerationProperties(env).has(turn.propertyId)) {
+    // 1b) escopo de imóveis (backend): sem lista ⇒ todos; com lista ⇒ só os listados (imóvel do turno VALIDADO)
+    if (!copilotPropertyAllowed(turn.propertyId, env)) {
       return { status: "skipped", code: "property_not_allowlisted", detail: null };
     }
 
@@ -424,8 +434,36 @@ export async function generateCopilotSuggestion(
       const st = await s.state(c.suggestionId);
       return !!st && st.state === "generating" && st.attempt === c.attempt;
     };
+    // visão: só consulta fotos se o histórico do turno tiver imagem do hóspede; ids citáveis vêm do histórico
+    let history: HistoryResult | null = null;
+    const loadVision = async (): Promise<CopilotVisionInput> => {
+      if (!history || history.status !== "available") return NO_VISION;
+      const refs = new Map(history.entries.map((e) => [e.messageId, e.ref]));
+      if (!history.entries.some((e) => e.speaker === "guest" && e.media?.kind === "image"))
+        return NO_VISION;
+      const images = deps.loadImages
+        ? await deps.loadImages(turn, db, controller.signal)
+        : await fetchGuestImages(turn, {
+            db: abortableDb(db, controller.signal),
+            signal: controller.signal,
+          });
+      const ref = (id: string | null) => (id ? (refs.get(id) ?? null) : null);
+      return {
+        images: images
+          .filter((i): i is Extract<GuestImage, { status: "loaded" }> => i.status === "loaded")
+          .map((i) => ({
+            ref: ref(i.messageId),
+            at: i.at,
+            dataUrl: i.dataUrl,
+            tokenBound: i.tokenBound,
+          })),
+        failed: images
+          .filter((i): i is Extract<GuestImage, { status: "failed" }> => i.status === "failed")
+          .map((i) => ({ ref: ref(i.messageId), at: i.at })),
+      };
+    };
     const generator = deps.generator
-      ? deps.generator({ remainingMs, beforeNetwork, traceId: claimed.suggestionId })
+      ? deps.generator({ remainingMs, beforeNetwork, traceId: claimed.suggestionId, loadVision })
       : createCopilotGenerator({
           modelId: copilotModelId(env),
           maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
@@ -435,6 +473,7 @@ export async function generateCopilotSuggestion(
           traceId: claimed.suggestionId,
           provider: deps.provider,
           log: deps.log,
+          loadVision,
         });
     const chainDeps: ChainDeps = {
       loadContext: async (t, sg) => {
@@ -443,10 +482,15 @@ export async function generateCopilotSuggestion(
         stayPhase = ctx.guest.phase;
         return ctx;
       },
-      loadHistory: ports.loadHistory,
+      loadHistory: async (t, sg) => {
+        const h = await ports.loadHistory(t, sg);
+        history = h;
+        return h;
+      },
       loadDossiers: ports.loadDossiers,
       loadStayAuthorizationSource: ports.loadStayAuthorizationSource,
       loadSenderIdentitySource: ports.loadSenderIdentitySource,
+      loadGuestProfile: ports.loadGuestProfile,
       generate: (prompt, sg) => generator.generate(prompt, sg),
       guard: SECRET_SCRUBBER,
       stageTimeoutMs: Math.max(1_000, Math.min(15_000, Math.floor(remainingMs()))),

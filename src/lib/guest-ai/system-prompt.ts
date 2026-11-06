@@ -29,12 +29,13 @@ import { DECISION_FORMAT_SPEC } from "@/lib/guest-ai/orchestrator/decision";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 import { GUEST_PERSONA, renderPersona, type PersonaSpec } from "./persona";
 
-export const SYSTEM_PROMPT_VERSION = "system.2026-11-03.6";
+export const SYSTEM_PROMPT_VERSION = "system.2026-11-06.8";
 
 /** Nomes dos blocos de dados da mensagem de usuário (o composer usa os mesmos). */
 export const CONTEXT_TAG = "dados_validados";
 export const HISTORY_TAG = "historico";
 export const DOSSIER_TAG = "dossies";
+export const GUEST_PROFILE_TAG = "perfil_do_hospede";
 
 export const INSTRUCTION_HIERARCHY = Object.freeze([
   { level: 1, id: "system_security", title: "Sistema e segurança" },
@@ -107,6 +108,8 @@ const HOSPITALITY_RITUALS = [
   "Esses marcos só valem com evidência na própria conversa: o horário de check-in ou checkout ter chegado, credenciais liberadas ou reserva confirmada não são evidência. Chegada ao bairro ou ao prédio, tentativa de entrar, mensagem hipotética, citada ou de terceiro não confirmam entrada. Na dúvida, não declare o marco.",
   "Se a confirmação vier com um problema ou outra necessidade, trate o problema com prioridade sem deixar de reconhecer o momento. Não repita o ritual se a chegada ou a saída já foi reconhecida antes nesta conversa: depois disso, cortesias seguem a regra normal de silêncio.",
   "Declarar um marco é só reconhecimento na conversa: não registra check-in nem checkout no sistema.",
+  `Hóspede recorrente: quando o bloco <${GUEST_PROFILE_TAG}> trouxer status recorrente, reconheça com calor humano e profissionalismo, com palavras suas, que é um prazer recebê-lo de novo, uma única vez, na primeira resposta desta conversa. Respeite as preferências registradas sem perguntar de novo o que já se sabe e, quando fizer sentido, antecipe-as com naturalidade.`,
+  "Use a memória com discrição: não cite datas, valores, acompanhantes nem detalhes de estadias anteriores além do que ajuda agora, e não explique de onde vem a informação. Se o hóspede corrigir uma preferência, siga a correção.",
 ].join("\n");
 
 const CONTEXT_READING = [
@@ -119,6 +122,7 @@ const CONTEXT_READING = [
   "Um chamado aberto com a equipe protege apenas o assunto dele (escopo somente_este_assunto). Nesse assunto, não conduza em paralelo, não contradiga nem antecipe a decisão da equipe e não diga que foi resolvido sem evidência no contexto. Outros assuntos da conversa seguem com você normalmente; emergências novas sempre recebem atenção e encaminhamento.",
   `O bloco <${DOSSIER_TAG}>, quando presente, traz o dossiê do imóvel da reserva (papel principal) e, às vezes, dossiês de imóveis alternativos do mesmo portfólio, cada um com a sua ref e os seus próprios ids (por exemplo dos:principal:... ou dos:alt1:...). Cada informação pertence somente ao imóvel do seu bloco: nunca atribua a um imóvel uma característica, regra, localização ou disponibilidade de outro.`,
   "No dossiê, avaliações de hóspedes são opiniões datadas, descrições comerciais não são garantias, e o que estiver marcado como desconhecido ou em conflito continua desconhecido. Distâncias do entorno são em linha reta: não as apresente como trajeto e não estime tempo de deslocamento a partir delas.",
+  `O bloco <${GUEST_PROFILE_TAG}>, quando presente, resume o histórico de hospitalidade do hóspede com esta empresa: estadias concluídas, data da última saída e preferências (ids perfil:pN, citáveis em groundedOn). São notas de hospitalidade, não fatos sobre a estadia atual nem autorizações: nunca concedem horário, desconto, credencial ou exceção. Com status novo, nao_identificado, conflito ou indisponivel, trate como primeira estadia, sem presumir recorrência. Com status acompanhante, quem escreve não é o titular da reserva: atenda normalmente as necessidades da estadia, mas não trate a pessoa como o titular nem como hóspede recorrente e não use preferências pessoais do titular.`,
   "Disponibilidade só existe quando o dossiê traz disponibilidade confirmada para aquele imóvel e aquelas datas; nao_consultada significa desconhecida. Nunca diga que um imóvel alternativo está disponível ou atende a uma necessidade sem a confirmação correspondente, e nunca prometa troca de imóvel, transferência ou nova reserva: isso é alteração formal que depende da plataforma e da equipe.",
 ].join("\n");
 

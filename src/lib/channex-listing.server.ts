@@ -372,7 +372,7 @@ export async function syncAccountListing(args: {
   const { data: prev } = await supabaseAdmin
     .from("property_listing_raw_data" as never)
     .select(
-      "raw_settings, channex_rate_plan_id, channex_room_type_id, channex_property_id, normalized",
+      "raw_settings, channex_rate_plan_id, channex_room_type_id, channex_property_id, normalized, airbnb_listing_id",
     )
     .eq("property_id", args.propertyId)
     .maybeSingle();
@@ -382,6 +382,7 @@ export async function syncAccountListing(args: {
     channex_room_type_id?: string;
     channex_property_id?: string;
     normalized?: Record<string, unknown>;
+    airbnb_listing_id?: string | null;
   } | null;
   const live = channel.data.attributes.rate_plans.find(
     (r) => String(r.settings?.listing_id) === args.listingId,
@@ -422,6 +423,8 @@ export async function syncAccountListing(args: {
       sync_paused_at: null,
       paused_reason: null,
       not_found_at: null,
+      // Anúncio recém-conectado já nasce com a IA habilitada; numa ressincronização a escolha do painel é mantida.
+      ...(prevRow?.airbnb_listing_id ? {} : { airbnb_ai_enabled: true }),
       synced_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     } as never,

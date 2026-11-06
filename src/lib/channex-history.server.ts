@@ -1,4 +1,5 @@
 import { richReservationFields } from "@/lib/reservation-rich";
+import { otaGuestAccountId } from "@/lib/channex-guest-identity";
 /**
  * Carga retroativa (backfill) de tudo que a Channex expõe do passado para os
  * imóveis piloto: reservas (com contatos do hóspede), conversas + mensagens do
@@ -112,6 +113,8 @@ export async function backfillChannexHistory(): Promise<BackfillResult> {
       emails: Array.from(new Set([clean(c.mail)].filter(Boolean))),
       language: clean(c.language),
       ota_thread_id: clean(a.meta?.thread_id),
+      // Porta 1 da memória do hóspede: conta do hóspede na OTA (repete entre reservas)
+      ota_guest_id: otaGuestAccountId(a),
     };
     if (contacts.ota_thread_id) threadToBooking.set(contacts.ota_thread_id, contacts);
     const rooms = (a.rooms ?? []) as any[];
