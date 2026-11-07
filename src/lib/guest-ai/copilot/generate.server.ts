@@ -57,8 +57,10 @@ import {
   COPILOT_DEADLINE_MS,
   COPILOT_MAX_OUTPUT_TOKENS,
   COPILOT_MAX_TURN_COST_USD,
-  COPILOT_REASONING_EFFORT,
+  COPILOT_OUTPUT_TOKENS_BY_EFFORT,
   copilotDailyLimitUsd,
+  copilotEffortSignals,
+  copilotReasoningEffort,
   copilotFlagOn,
   copilotPropertyAllowed,
   copilotModelId,
@@ -176,7 +178,11 @@ function productionPorts(
           mode: "shadow",
           traceId: t.conversationId,
         },
-        { db },
+        // O contexto usa o MESMO turno já validado pela cadeia (07/11/2026): revalidar aqui lia a conversa de novo
+        // e, se a reserva fosse vinculada nesse meio-tempo, contexto e turno divergiam
+        // (`reservation_conversation_mismatch`). Com o mesmo retrato, conversa ainda sem reserva segue como consulta
+        // (só dados públicos, sem credenciais) em vez de travar.
+        { db, validateTurnScope: async () => t },
         s,
       );
       audiences = ctx.guest.audiences;
@@ -497,7 +503,12 @@ export async function generateCopilotSuggestion(
       : createCopilotGenerator({
           modelId: copilotModelId(env),
           maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
-          reasoningEffort: COPILOT_REASONING_EFFORT,
+          // raciocínio elástico: decidido na hora da chamada, com a rajada atual do hóspede e as fotos anexadas
+          reasoningEffort: ({ imagesSent }) => copilotReasoningEffort(copilotEffortSignals(history, imagesSent)),
+          outputTokensFor: (effort) =>
+            effort === "low" || effort === "medium" || effort === "high"
+              ? COPILOT_OUTPUT_TOKENS_BY_EFFORT[effort]
+              : COPILOT_MAX_OUTPUT_TOKENS,
           remainingMs,
           beforeNetwork,
           traceId: claimed.suggestionId,
@@ -570,7 +581,7 @@ export async function generateCopilotSuggestion(
         humanInCommand,
       },
       gateway: {
-        modelId: generator.modelId,
+        modelId: g.model ?? generator.modelId,
         inputTokens: g.calls > 0 ? g.inputTokens : null,
         outputTokens: g.calls > 0 ? g.outputTokens : null,
         costUsd: g.costUsd,

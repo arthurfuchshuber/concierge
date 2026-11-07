@@ -447,13 +447,31 @@ function dossierItem(d: PropertyDossier, ref: string, guarded: Guarded, ids: Set
  * Recomendações do Guia Digital (Google Maps) — FORA do Dossiê (Pilar 1, 06/11/2026). Distância só de trajeto
  * confirmado; tempos só como estimativa para quando o hóspede insistir. No Airbnb, sem link (o canal bloqueia).
  */
+/**
+ * Seções OPCIONAIS (recomendações, eventos): um item cujo texto o guard não consegue sanear com segurança é
+ * OMITIDO, nunca derruba a composição (07/11/2026: o Copiloto não pode emudecer por causa de um card de
+ * restaurante ou de uma notícia). Nada do texto recusado entra; a falha técnica do próprio guard continua
+ * recusando (é sinal de guard quebrado, não de conteúdo).
+ */
+function optionalItems<T>(list: readonly T[], build: (x: T) => Record<string, unknown>): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  for (const x of list) {
+    try {
+      out.push(build(x));
+    } catch (e) {
+      if (e instanceof GuardRefusal) continue;
+      throw e;
+    }
+  }
+  return out;
+}
+
 function placesItem(d: PropertyDossier, ref: string, guarded: Guarded, ids: Set<string>, withLinks: boolean): Record<string, unknown> {
   const source = `places.${ref}`;
   return {
     ref,
-    itens: d.places.map((pl) => {
+    itens: optionalItems(d.places, (pl) => {
       const id = `gm:${ref}:${pl.id}`;
-      ids.add(id);
       const out: Record<string, unknown> = {
         id,
         nome: guarded(pl.name, source),
@@ -475,6 +493,7 @@ function placesItem(d: PropertyDossier, ref: string, guarded: Guarded, ids: Set<
       } else {
         out["distancia_trajeto_m"] = null;
       }
+      ids.add(id);
       return out;
     }),
   };
@@ -483,14 +502,20 @@ function placesItem(d: PropertyDossier, ref: string, guarded: Guarded, ids: Set<
 /** Eventos da Home do guia ("O que rola na cidade"); indisponível é declarado, nunca omitido. */
 function eventsData(ev: CityEventsLoad, guarded: Guarded, ids: Set<string>): Record<string, unknown> {
   if (ev.status !== "available") return { status: "indisponivel", motivo: ev.reason };
+  let cidade: string;
+  try {
+    cidade = guarded(ev.city, "events.city");
+  } catch (e) {
+    if (e instanceof GuardRefusal) return { status: "indisponivel", motivo: "guard_refused" };
+    throw e;
+  }
   return {
     status: "disponivel",
-    cidade: guarded(ev.city, "events.city"),
+    cidade,
     hoje: ev.today,
-    itens: ev.items.map((it) => {
+    itens: optionalItems(ev.items, (it) => {
       const id = `evt:${it.id}`;
-      ids.add(id);
-      return {
+      const item = {
         id,
         titulo: guarded(it.title, "events"),
         categoria: it.category,
@@ -499,6 +524,8 @@ function eventsData(ev: CityEventsLoad, guarded: Guarded, ids: Set<string>): Rec
         local: it.venue === null ? null : guarded(it.venue, "events"),
         descricao: it.summary === null ? null : guarded(it.summary, "events"),
       };
+      ids.add(id);
+      return item;
     }),
   };
 }

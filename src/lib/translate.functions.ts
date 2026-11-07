@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { AI_MODELS } from "@/lib/llm/models";
+import { AI_MODELS, TASK_REASONING_EFFORT } from "@/lib/llm/models";
 
 // Idiomas suportados pela UI. Restringir o alvo evita que o endpoint seja
 // usado como proxy genérico de LLM com instruções arbitrárias.
@@ -145,6 +145,7 @@ export const translateMessage = createServerFn({ method: "POST" })
       headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
       body: JSON.stringify({
         model: AI_MODELS.translate,
+        reasoning_effort: TASK_REASONING_EFFORT.translate,
         messages: [
           {
             role: "system",

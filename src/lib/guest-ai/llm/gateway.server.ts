@@ -32,7 +32,7 @@ import {
   type ReasoningEffort,
 } from "./contracts";
 import { failure, isTransient, type ClassifiedError } from "./errors";
-import { estimateCostUsd, estimateTokensFromChars, modelSpec, type ModelSpec } from "./models";
+import { estimateCostUsd, estimateTokensFromChars, guestFallbackModel, modelSpec, type ModelSpec } from "./models";
 import { createLovableGatewayProvider } from "./providers/lovable-gateway.server";
 import type { LlmProvider, ProviderOutcome, ProviderRequest, RawUsage } from "./providers/types";
 import { buildLogEvent, defaultLlmLogger, type LlmLogger } from "./telemetry";
@@ -298,6 +298,11 @@ export async function generateGuestLlm(request: LlmRequest, deps: GatewayDeps = 
     let attempts = 0;
     let requestId: string | null = null;
     let lastError: ClassifiedError = failure("internal_error");
+    // Reserva automática do Titular (ver `GUEST_AI_FALLBACK_MODELS`): a 2ª tentativa vai para o Reserva
+    // quando a 1ª falhou por rede, 5xx ou modelo indisponível. Mesmo prazo, mesmas travas.
+    const fallbackId = guestFallbackModel(v.spec.id);
+    const vFallback = fallbackId ? validateLlmRequest({ ...request, model: fallbackId }) : null;
+    let cur: ValidatedRequest = v;
     try {
       while (attempts < MAX_ATTEMPTS) {
         if (deadline.firedReason) {
@@ -308,7 +313,7 @@ export async function generateGuestLlm(request: LlmRequest, deps: GatewayDeps = 
         attempts += 1;
         let outcome: ProviderOutcome;
         try {
-          outcome = await deadline.race(provider.complete(v.provider, deadline.controller.signal));
+          outcome = await deadline.race(provider.complete(cur.provider, deadline.controller.signal));
         } catch {
           const reason = deadline.firedReason;
           lastError = failure(reason === "timeout" ? "timeout" : reason === "aborted" ? "aborted" : "network");
@@ -319,14 +324,14 @@ export async function generateGuestLlm(request: LlmRequest, deps: GatewayDeps = 
 
         if (outcome.kind === "ok") {
           const text = outcome.text;
-          usage = addUsage(usage, normalizeUsage(outcome.usage, v.inputChars, text.length, v.imageCount));
-          const t = () => telemetryBase(provider.id, v.spec.id, attempts, usage, v.spec, requestId);
+          usage = addUsage(usage, normalizeUsage(outcome.usage, cur.inputChars, text.length, cur.imageCount));
+          const t = () => telemetryBase(provider.id, cur.spec.id, attempts, usage, cur.spec, requestId);
           const extra = { ...extraBase, outputChars: text.length };
           if (outcome.finishReason === "length") return emit(fail(failure("truncated_response"), t()), extra);
           if (outcome.finishReason === "content_filter") return emit(fail(failure("content_filtered"), t()), extra);
           if (outcome.finishReason !== "stop") return emit(fail(failure("invalid_response"), t()), extra);
           if (!text.trim()) return emit(fail(failure("empty_response"), t()), extra);
-          if (v.provider.responseFormat === "json") {
+          if (cur.provider.responseFormat === "json") {
             const parsed = parseJsonText(text);
             if (!parsed.ok) return emit(fail(failure("invalid_response"), t()), extra);
             return emit({ ok: true, text: text.trim(), json: parsed.value, finishReason: "stop", telemetry: t() }, extra);
@@ -334,10 +339,12 @@ export async function generateGuestLlm(request: LlmRequest, deps: GatewayDeps = 
           return emit({ ok: true, text: text.trim(), finishReason: "stop", telemetry: t() }, extra);
         }
 
-        if (outcome.usage) usage = addUsage(usage, normalizeUsage(outcome.usage, v.inputChars, 0, v.imageCount));
+        if (outcome.usage) usage = addUsage(usage, normalizeUsage(outcome.usage, cur.inputChars, 0, cur.imageCount));
         lastError = outcome.error;
         const remaining = v.timeoutMs - (now() - started);
-        if (!isTransient(outcome.error.code) || attempts >= MAX_ATTEMPTS || remaining < MIN_RETRY_BUDGET_MS) break;
+        const canSwitch = cur === v && vFallback !== null && (isTransient(outcome.error.code) || outcome.error.code === "model_unavailable");
+        if ((!isTransient(outcome.error.code) && !canSwitch) || attempts >= MAX_ATTEMPTS || remaining < MIN_RETRY_BUDGET_MS) break;
+        if (canSwitch) cur = vFallback;
         try {
           await deadline.sleep(RETRY_BACKOFF_MS, schedule);
         } catch {
@@ -349,7 +356,7 @@ export async function generateGuestLlm(request: LlmRequest, deps: GatewayDeps = 
     } finally {
       deadline.dispose();
     }
-    return emit(fail(lastError, telemetryBase(provider.id, v.spec.id, attempts, usage, v.spec, requestId)), { ...extraBase, outputChars: 0 });
+    return emit(fail(lastError, telemetryBase(provider.id, cur.spec.id, attempts, usage, cur.spec, requestId)), { ...extraBase, outputChars: 0 });
   } catch {
     // Defesa final: nenhuma exceção escapa do gateway.
     return emit(fail(failure("internal_error"), telemetryBase("none", "unregistered", 0, ZERO_USAGE, null, null)), {

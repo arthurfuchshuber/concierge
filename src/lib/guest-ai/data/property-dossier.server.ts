@@ -60,19 +60,25 @@ export async function fetchPropertyDossier(target: DossierTarget, deps: Property
     db.from("city_reference_group_members").select(cols(CITY_REFERENCE_GROUP_COLUMNS)).eq("property_id", id).maybeSingle(),
   ]);
   throwIfAborted(deps.signal);
-  for (const r of [access, prop, faqs, checkout, emergency, manuals, entries, listing, recs, membership]) {
+  // Estrutura do imóvel é crítica; recomendações do guia são OPCIONAIS (07/11/2026): falha na leitura delas
+  // deixa a seção vazia, nunca derruba o dossiê (e com ele a sugestão do Copiloto).
+  for (const r of [access, prop, faqs, checkout, emergency, manuals, entries, listing]) {
     if (r?.error) throw new Error("dossier_lookup_failed");
   }
   // Referências da cidade do Explorar — mesma resolução do guia público (`getPublicGuide`): o grupo vinculado
   // do imóvel ou, sem grupo, as do próprio imóvel. Nunca por cidade (vazaria entre guias da mesma cidade).
+  // Grupo ilegível ⇒ nenhuma referência da cidade (nunca adivinhar o conjunto).
   const groupId = ((membership.data as Row | null)?.["group_id"] as string | null | undefined) ?? null;
-  const crefBase = db.from("city_references").select(cols(CITY_REFERENCE_PUBLIC_COLUMNS));
-  const cityRefs = await (groupId ? crefBase.eq("group_id", groupId) : crefBase.eq("property_id", id).is("group_id", null))
-    .eq("is_hidden", false)
-    .order("type", { ascending: true })
-    .order("display_order", { ascending: true });
+  let cityRefRows: Row[] = [];
+  if (!membership.error) {
+    const crefBase = db.from("city_references").select(cols(CITY_REFERENCE_PUBLIC_COLUMNS));
+    const cityRefs = await (groupId ? crefBase.eq("group_id", groupId) : crefBase.eq("property_id", id).is("group_id", null))
+      .eq("is_hidden", false)
+      .order("type", { ascending: true })
+      .order("display_order", { ascending: true });
+    if (!cityRefs.error) cityRefRows = (cityRefs.data ?? []) as Row[];
+  }
   throwIfAborted(deps.signal);
-  if (cityRefs.error) throw new Error("dossier_lookup_failed");
 
   // Revalidação de posse no momento da leitura (nunca confia só no alvo).
   const a = (access.data as Row | null) ?? null;
@@ -96,8 +102,8 @@ export async function fetchPropertyDossier(target: DossierTarget, deps: Property
       manuals: (manuals.data ?? []) as DossierManualRow[],
       entries: (entries.data ?? []) as Row[],
       listingNormalized: listingRows[0]?.["normalized"] ?? null,
-      recommendations: (recs.data ?? []) as Row[],
-      cityReferences: (cityRefs.data ?? []) as Row[],
+      recommendations: recs.error ? [] : ((recs.data ?? []) as Row[]),
+      cityReferences: cityRefRows,
       cityReferenceGroupId: groupId,
     },
     retrievedAt: (deps.now ?? (() => new Date()))().toISOString(),

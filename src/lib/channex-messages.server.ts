@@ -557,6 +557,16 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     .update({ last_message_at: new Date().toISOString() })
     .eq("id", convId);
 
+  // Código da reserva liga a conversa à reserva oficial, mesmo com a IA pausada. ANTES do Copiloto (07/11/2026):
+  // o vínculo concluído e gravado evita que a sugestão rode com a conversa ainda sem reserva.
+  try {
+    const link = await import("@/lib/chat/conversation-link.server");
+    const res = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => null);
+    if (res?.code) await link.linkConversationByCode(admin, { conversationId: convId, propertyId: listing.property_id, code: res.code });
+  } catch (e) {
+    console.error("[channex-messages] vínculo falhou", e);
+  }
+
   // ─── Copiloto (05/11/2026): sugestão para a EQUIPE aprovar, em segundo plano (não bloqueia, não responde
   // ao hóspede, não altera o fluxo abaixo). Dono do anúncio resolvido com certeza por `resolveListing`.
   {
@@ -569,15 +579,6 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
         console.error("[channex-messages] copiloto não disparado", e instanceof Error ? e.name : "");
       }
     }
-  }
-
-  // Código da reserva liga a conversa à reserva oficial, mesmo com a IA pausada.
-  try {
-    const link = await import("@/lib/chat/conversation-link.server");
-    const res = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => null);
-    if (res?.code) await link.linkConversationByCode(admin, { conversationId: convId, propertyId: listing.property_id, code: res.code });
-  } catch (e) {
-    console.error("[channex-messages] vínculo falhou", e);
   }
 
   const { data: prop } = await admin.from("properties").select("*").eq("id", listing.property_id).maybeSingle();

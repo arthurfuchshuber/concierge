@@ -7,6 +7,7 @@
  * `20261105150000_guest_ai_copilot_suggestions.sql` (o teste `copilot-pg` confere a paridade).
  */
 import { GUEST_AI_DEFAULT_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
+import type { HistoryEntry, HistoryResult } from "@/lib/guest-ai/history";
 import { modelSpec } from "@/lib/guest-ai/llm/models";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 
@@ -81,9 +82,74 @@ export const COPILOT_DEADLINE_MS = 25_000;
  * se outra do hóspede chegar nesse meio-tempo, só a mais nova gera (ela vê o conjunto). Dentro de 5–8 s.
  */
 export const COPILOT_BURST_QUIET_MS = 6_000;
-/** Teto de saída do modelo (a resposta ao hóspede é curta; o teto protege o custo por turno). */
+/** Teto de saída BASE do modelo (a resposta ao hóspede é curta; o teto protege o custo por turno). */
 export const COPILOT_MAX_OUTPUT_TOKENS = 1_536;
-export const COPILOT_REASONING_EFFORT = "low" as const;
+
+/**
+ * RACIOCÍNIO ELÁSTICO (Diretiva Global, 07/11/2026) — substitui a antiga trava fixa em `low`.
+ *  - `low`: cortesia e rotina (saudação, agradecimento, confirmação curta);
+ *  - `medium`: perguntas factuais (Dossiê, regras da casa, horários, curadoria do guia, City Pulse);
+ *  - `high`: foto do hóspede (visão de danos), documentos/anexos, incidentes, cobranças e contratos.
+ * Prazo do turno e teto de custo continuam valendo: o teto de saída cresce com o esforço (os tokens de
+ * raciocínio contam como saída), sempre dentro de `LIMITS.maxOutputTokens` e de `COPILOT_MAX_TURN_COST_USD`.
+ */
+export type CopilotReasoningEffort = "low" | "medium" | "high";
+export const COPILOT_OUTPUT_TOKENS_BY_EFFORT: Readonly<Record<CopilotReasoningEffort, number>> = Object.freeze({
+  low: COPILOT_MAX_OUTPUT_TOKENS,
+  medium: 3_072,
+  high: 4_096,
+});
+
+export interface CopilotEffortSignals {
+  /** Texto das mensagens do hóspede que este turno responde (a rajada atual). */
+  guestText: string;
+  /** Fotos do hóspede efetivamente anexadas ao pedido. */
+  imagesSent: number;
+  /** A rajada traz anexo que não é foto (PDF, documento, áudio). */
+  hasAttachment?: boolean;
+}
+
+const fold = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/** Incidentes, danos, segurança, cobranças, documentos e contratos ⇒ `high`. */
+const HIGH_SIGNAL =
+  /\b(vazament\w*|vazando|alag\w*|inund\w*|goteir\w*|infiltra\w*|quebr\w*|danific\w*|estrag\w*|rachad\w*|trincad\w*|entupi\w*|mofo|cheiro de gas|gas vazando|fumaca|incendio|fogo|curto|choque|faisca|emergencia|urgente|socorro|machuc\w*|acidente|ferid\w*|roub\w*|furt\w*|assalt\w*|policia|invasa\w*|arrombad\w*|preso|trancad\w*|sem (agua|luz|energia|internet|gas)|nao (funciona|liga|abre|fecha|esquenta|gela)|parou de funcionar|barata|percevejo|rato|contrato|clausula|reembolso|estorno|cobranca|cobrad\w*|multa|caucao|indeniza\w*|prejuizo|nota fiscal|recibo|comprovante|documento|reclama\w*|processo|procon)\b/;
+
+/** Cortesia/rotina: mensagem curta sem pergunta, só saudação, agradecimento ou confirmação ⇒ `low`. */
+const COURTESY =
+  /^(?:(?:oi+|ola|opa|e ai|bom dia|boa tarde|boa noite|tudo bem|tudo bom|tudo certo|tudo otimo|td bem|obrigad[oa]s?|muito obrigad[oa]|obg|valeu|vlw|grat[oa]|agradeco|ok(?:ay)?|blz|beleza|perfeito|otimo|show|combinado|certo|entendi|ta bom|ta|sim|nao|claro|maravilha|top|hi|hello|thanks?(?: you)?|thank you|great|perfect|gracias|hola|[\s!?.,;:)(\p{Extended_Pictographic}-]+)[\s!?.,;:]*)+$/u;
+
+/**
+ * Sinais do esforço a partir do histórico do turno: a RAJADA atual do hóspede (mensagens dele depois da
+ * última fala da equipe) e o que foi anexado. Histórico indisponível ⇒ só as fotos decidem.
+ */
+export function copilotEffortSignals(history: HistoryResult | null, imagesSent: number): CopilotEffortSignals {
+  if (!history || history.status !== "available") return { guestText: "", imagesSent };
+  const burst: HistoryEntry[] = [];
+  for (let i = history.entries.length - 1; i >= 0; i -= 1) {
+    const e = history.entries[i]!;
+    if (e.speaker !== "guest") {
+      if (e.speaker === "system") continue;
+      break;
+    }
+    burst.unshift(e);
+  }
+  return {
+    guestText: burst.map((e) => e.text ?? "").join("\n"),
+    imagesSent,
+    hasAttachment: burst.some((e) => e.media?.kind === "file"),
+  };
+}
+
+/** Escolha PURA do esforço de raciocínio do Copiloto para o turno. */
+export function copilotReasoningEffort(sig: CopilotEffortSignals): CopilotReasoningEffort {
+  if (sig.imagesSent > 0 || sig.hasAttachment) return "high";
+  const text = fold(sig.guestText ?? "").replace(/\u200d|\ufe0f|[\u{1F3FB}-\u{1F3FF}]/gu, "").trim();
+  if (!text) return "low";
+  if (HIGH_SIGNAL.test(text)) return "high";
+  if (text.length <= 60 && COURTESY.test(text)) return "low";
+  return "medium";
+}
 
 /**
  * TRÊS CONTROLES INDEPENDENTES (não existe chave única que ligue tudo). Cada um só vale com o literal `on`;

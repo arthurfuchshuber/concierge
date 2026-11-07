@@ -8,7 +8,7 @@
  * diretamente. NÃO faz parte da IA de atendimento ao hóspede (removida em
  * 01/11/2026); a nova arquitetura de atendimento não deve nascer daqui.
  */
-import { estimateCostUsd, fallbackModel, isResponsesModel, modelFor, shouldFallback, type AiTask } from "./models";
+import { estimateCostUsd, fallbackModel, isResponsesModel, modelFor, reasoningEffortFor, shouldFallback, type AiTask } from "./models";
 import { cached, cacheKeyOf } from "./cache.server";
 
 const BASE = "https://ai.gateway.lovable.dev/v1";
@@ -114,6 +114,7 @@ async function chatTextOnce(
         })),
       tools: [],
       maxSteps: 1,
+      reasoningEffort: reasoningEffortFor(task) ?? "low",
       signal: opts?.signal,
       modelOverride: model,
     });
@@ -131,6 +132,8 @@ async function chatTextOnce(
     body: JSON.stringify({
       model,
       messages,
+      // Raciocínio elástico por tarefa (ver `TASK_REASONING_EFFORT`).
+      ...(reasoningEffortFor(task) ? { reasoning_effort: reasoningEffortFor(task) } : {}),
       ...(opts?.json ? { response_format: { type: "json_object" } } : {}),
     }),
   });
@@ -569,8 +572,10 @@ async function runAgentOnce(params: {
 export { isResponsesModel };
 
 /**
- * Agente com modelo reserva: se o principal cair ANTES de começar a escrever para o hóspede, refaz uma vez
- * no reserva (mesma família, mantém tool calling). Se já havia texto em andamento, não troca no meio.
+ * Agente com modelo reserva: se o principal cair ANTES de começar a escrever, refaz uma vez no reserva —
+ * desde que o reserva também seja servido pela Responses API (só ela tem tool calling aqui). Com o catálogo
+ * de dois modelos, o reserva do titular é Gemini: nesse caso o agente NÃO troca, e quem chamou decide
+ * (`chatText` refaz no reserva por /chat/completions). Se já havia texto em andamento, não troca no meio.
  */
 export async function runAgent(params: Parameters<typeof runAgentOnce>[0]): Promise<AgentRun> {
   let streamed = false;
@@ -583,7 +588,7 @@ export async function runAgent(params: Parameters<typeof runAgentOnce>[0]): Prom
     const status = err instanceof AiGatewayError ? err.status : undefined;
     const primary = params.modelOverride ?? modelFor(params.task ?? "internal");
     const backup = fallbackModel(primary);
-    if (!backup || streamed || params.signal?.aborted || !shouldFallback(status)) throw err;
+    if (!backup || !isResponsesModel(backup) || streamed || params.signal?.aborted || !shouldFallback(status)) throw err;
     console.error("[ai-gateway] agente principal falhou, usando reserva", primary, "→", backup);
     return runAgentOnce({ ...params, modelOverride: backup });
   }

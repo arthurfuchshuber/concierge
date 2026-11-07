@@ -54,19 +54,6 @@ const SPECS: readonly ModelSpec[] = [
     pricePerMTok: { input: 0.3, output: 2.5 },
   },
   {
-    id: "google/gemini-3.1-flash-lite",
-    provider: "lovable-gateway",
-    vendor: "google",
-    wire: "chat",
-    reasoningEfforts: ["low", "medium", "high"],
-    supportsTemperature: true,
-    supportsJson: true,
-    supportsImages: true,
-    maxOutputTokens: 8_192,
-    contextWindowTokens: CONSERVATIVE_CONTEXT_WINDOW,
-    pricePerMTok: { input: 0.1, output: 0.4 },
-  },
-  {
     id: "openai/gpt-6-astra",
     provider: "lovable-gateway",
     vendor: "openai",
@@ -80,22 +67,22 @@ const SPECS: readonly ModelSpec[] = [
     contextWindowTokens: CONSERVATIVE_CONTEXT_WINDOW,
     pricePerMTok: { input: 1.25, output: 10 },
   },
-  {
-    id: "openai/gpt-5.6-sol",
-    provider: "lovable-gateway",
-    vendor: "openai",
-    wire: "responses",
-    reasoningEfforts: ["low", "medium", "high"],
-    supportsTemperature: false,
-    supportsJson: true,
-    supportsImages: true,
-    maxOutputTokens: 8_192,
-    contextWindowTokens: CONSERVATIVE_CONTEXT_WINDOW,
-    pricePerMTok: { input: 1.25, output: 10 },
-  },
 ];
 
 export const GUEST_AI_MODELS: ReadonlyMap<string, ModelSpec> = new Map(SPECS.map((s) => [s.id, Object.freeze(s)]));
+
+/**
+ * Reserva automática (Diretiva Global, 07/11/2026): o Titular (`openai/gpt-6-astra`) cai direto no Reserva
+ * (`google/gemini-3.8-flash`) em falha de rede, 5xx ou modelo indisponível — na segunda tentativa, dentro do
+ * mesmo prazo do turno. O Reserva não tem reserva (refaz nele mesmo, como antes).
+ */
+export const GUEST_AI_FALLBACK_MODELS: Readonly<Record<string, string>> = Object.freeze({
+  "openai/gpt-6-astra": "google/gemini-3.8-flash",
+});
+
+export function guestFallbackModel(id: string): string | null {
+  return GUEST_AI_FALLBACK_MODELS[id] ?? null;
+}
 
 export function modelSpec(id: string): ModelSpec | null {
   return GUEST_AI_MODELS.get(id) ?? null;

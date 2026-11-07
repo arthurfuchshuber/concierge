@@ -54,6 +54,12 @@ export interface CopilotGeneratorTelemetry {
   readonly imagesSent: number;
   /** Fotos que não foram ao modelo (falha de leitura, formato, tamanho ou orçamento do turno). */
   readonly imagesNotLoaded: number;
+  /** Esforço de raciocínio efetivo da chamada (raciocínio elástico); ausente antes de decidir. */
+  readonly reasoningEffort?: ReasoningEffort;
+  /** Teto de saída efetivo da chamada (cresce com o esforço, dentro do teto de custo do turno). */
+  readonly maxOutputTokens?: number;
+  /** Modelo que de fato respondeu (o Reserva, se o Titular caiu). Ausente antes da chamada. */
+  readonly model?: string;
 }
 
 /** Foto do hóspede já preparada (Data URL) pela camada de dados, com o id citável do histórico. */
@@ -92,7 +98,13 @@ export interface CopilotGenerator {
 export interface CopilotGeneratorDeps {
   modelId: string;
   maxOutputTokens: number;
-  reasoningEffort: ReasoningEffort;
+  /**
+   * Esforço de raciocínio: fixo, ou escolhido no momento da chamada (raciocínio elástico) a partir do que
+   * foi de fato anexado (`imagesSent`). Ver `copilotReasoningEffort`.
+   */
+  reasoningEffort: ReasoningEffort | ((signals: { imagesSent: number }) => ReasoningEffort);
+  /** Teto de saída por esforço (os tokens de raciocínio contam como saída). Ausente ⇒ `maxOutputTokens`. */
+  outputTokensFor?: (effort: ReasoningEffort) => number;
   /** Tempo (ms) que resta do prazo global da geração. */
   remainingMs: () => number;
   /** Conferido IMEDIATAMENTE antes da rede: `false` ⇒ a sugestão deixou de ser a vigente (nada é chamado). */
@@ -250,6 +262,21 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
         imagesNotLoaded: attached.notLoaded,
       });
       if (!fits(bound)) block("budget_turn_exceeded");
+      // raciocínio elástico: o esforço (e o teto de saída que ele exige) só é decidido agora, com as fotos
+      // já anexadas; o orçamento do turno é reconferido com o teto efetivo.
+      let effort: ReasoningEffort;
+      try {
+        effort =
+          typeof deps.reasoningEffort === "function"
+            ? deps.reasoningEffort({ imagesSent: attached.sent })
+            : deps.reasoningEffort;
+      } catch {
+        effort = "low";
+      }
+      let outputTokens = Math.max(deps.maxOutputTokens, deps.outputTokensFor?.(effort) ?? deps.maxOutputTokens);
+      // esforço mais alto que não cabe no teto do turno ⇒ volta ao teto base (nunca estoura o custo)
+      if (estimateCostUsd(spec!, bound, outputTokens) > ceiling) outputTokens = deps.maxOutputTokens;
+      t = Object.freeze({ ...t, reasoningEffort: effort, maxOutputTokens: outputTokens });
       if (!(await deps.beforeNetwork())) block("superseded");
       if (signal.aborted || deps.remainingMs() <= 0) block("deadline_expired");
 
@@ -259,8 +286,8 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
           purpose: "guest_reply",
           model: deps.modelId,
           messages: attached.messages,
-          maxOutputTokens: deps.maxOutputTokens,
-          reasoningEffort: deps.reasoningEffort,
+          maxOutputTokens: outputTokens,
+          reasoningEffort: effort,
           responseFormat: "json",
           timeoutMs: Math.max(1_000, Math.min(15_000, Math.floor(deps.remainingMs()))),
           signal,
@@ -272,6 +299,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       t = Object.freeze({
         ...t,
         status: result.ok ? "called" : "failed",
+        model: result.telemetry.model,
         calls: result.telemetry.attempts,
         inputTokens: u.inputTokens,
         outputTokens: u.outputTokens,
@@ -280,7 +308,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
           result.telemetry.attempts === 0
             ? 0
             : u.source === "none"
-              ? estimateCostUsd(spec!, bound, deps.maxOutputTokens)
+              ? estimateCostUsd(spec!, bound, outputTokens)
               : result.telemetry.costUsd,
         latencyMs: Math.max(0, Math.round(now() - t0)),
         error: result.ok ? null : result.error.code,

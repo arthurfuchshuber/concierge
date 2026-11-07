@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { AI_MODELS } from "@/lib/llm/models";
+import { AI_MODELS, TASK_REASONING_EFFORT } from "@/lib/llm/models";
 
 const Input = z.object({
   propertyId: z.string().uuid(),
@@ -82,6 +82,7 @@ Retorne JSON estrito no formato: {"greeting":"...","title":"...","body":"..."}.
     headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
     body: JSON.stringify({
       model: AI_MODELS.content,
+      reasoning_effort: TASK_REASONING_EFFORT.content,
       messages: [
         { role: "system", content: sys },
         { role: "user", content: user },
