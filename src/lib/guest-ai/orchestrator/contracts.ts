@@ -11,8 +11,13 @@ import type { CapabilityId } from "./capabilities";
 
 // ─────────────────────────── Configuração vinculante ───────────────────────────
 
-/** Modelo padrão da F2-B (decisão de 02/11/2026). Sem roteamento entre modelos nesta fase. */
-export const GUEST_AI_DEFAULT_MODEL = "google/gemini-3.8-flash";
+/**
+ * Catálogo único (Diretiva Global, 07/11/2026): Titular `openai/gpt-6-astra` (atendimento e copiloto) e
+ * Reserva `google/gemini-3.8-flash` (reserva automática do Titular e rotinas de fundo de baixo custo, como a
+ * extração de memória do hóspede). Nenhum outro modelo de texto é registrado (`llm/models.ts`).
+ */
+export const GUEST_AI_DEFAULT_MODEL = "openai/gpt-6-astra";
+export const GUEST_AI_RESERVE_MODEL = "google/gemini-3.8-flash";
 export const GUEST_AI_DEFAULT_REASONING: ReasoningEffort = "low";
 /** Prazo total de um turno (contexto + modelo + validação). Máximo absoluto do produto: 15 s. */
 export const TURN_MAX_DEADLINE_MS = 15_000;

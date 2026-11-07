@@ -41,7 +41,7 @@
  */
 
 export const SECRET_SCRUB_ID = "secret-scrub";
-export const SECRET_SCRUB_VERSION = "2026-11-03.1";
+export const SECRET_SCRUB_VERSION = "2026-11-07.1";
 export const SECRET_MARKER = "[segredo removido]";
 export const BLOCK_MARKER = "[conteúdo retido por segurança]";
 
@@ -56,10 +56,12 @@ export const SECRET_CATEGORIES = [
   "token",
   "url_credential",
   "private_key",
+  /** Caractere invisível suspeito removido (bidi, espaço de largura zero fora de emoji…): não é segredo. */
+  "hidden_character",
 ] as const;
 export type SecretCategory = (typeof SECRET_CATEGORIES)[number];
 
-export type SecretDetector = "structural" | "label_value" | "action_verb" | "reverse" | "split_message" | "entropy" | "url";
+export type SecretDetector = "structural" | "label_value" | "action_verb" | "reverse" | "split_message" | "entropy" | "url" | "normalization";
 
 export interface ScrubFinding {
   category: SecretCategory;
@@ -84,7 +86,17 @@ export const MAX_FINDINGS_BEFORE_BLOCK = 12;
 
 // ───────────────────────────── 0. Normalização ─────────────────────────────
 
-const INVISIBLE = /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u206F\u3164\uFE00-\uFE0D\uFEFF\uFFA0]/g;
+/**
+ * Invisíveis removidos (controles bidi, espaços de largura zero, preenchimentos Hangul, seletores de variação
+ * FE00–FE0D…). NÃO entram (07/11/2026, emojis reais quebravam a composição com `guard_failed`):
+ *  - U+FE0E / U+FE0F (seletores de apresentação texto/emoji: ☀️, 🗓️, ❤️);
+ *  - U+200D (ZWJ) quando liga partes de um emoji composto (👩‍🍳, famílias, 🏳️‍🌈) — fora de emoji, sai;
+ *  - modificadores de tom de pele (U+1F3FB–1F3FF), indicadores regionais (bandeiras), tags de bandeira
+ *    (U+E0020–E007F) e o keycap U+20E3, que nem são invisíveis aqui.
+ */
+const INVISIBLE = /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B\u200C\u200E\u200F\u202A-\u202E\u2060-\u206F\u3164\uFE00-\uFE0D\uFEFF\uFFA0]/g;
+/** ZWJ que NÃO está entre duas partes de emoji (emoji opcionalmente com FE0F ou tom de pele, depois emoji). */
+const STRAY_ZWJ = /(?<![\p{Extended_Pictographic}\u{1F3FB}-\u{1F3FF}\uFE0F])\u200D|\u200D(?!\p{Extended_Pictographic})/gu;
 /** Sentinelas (área de uso privado) que protegem os marcadores durante a varredura. */
 const S_SECRET = "\uE000";
 const S_BLOCK = "\uE001";
@@ -95,7 +107,7 @@ const S_BLOCK = "\uE001";
  * (`detectionView`), com mapeamento de posições: o texto devolvido mantém "12º", ligaduras etc.
  */
 export function normalizeForScan(text: string): string {
-  return text.normalize("NFC").replace(INVISIBLE, "");
+  return text.normalize("NFC").replace(INVISIBLE, "").replace(STRAY_ZWJ, "");
 }
 
 /** Cópia de varredura em NFKC, caractere a caractere, com o mapa de volta para o texto leve. */
@@ -322,7 +334,15 @@ export class SecretScrubber {
     }
     out += light.slice(at);
     const text = out.split(S_SECRET).join(SECRET_MARKER).split(S_BLOCK).join(BLOCK_MARKER);
-    const status: ScrubStatus = spans.length === 0 ? "safe" : spans.some((s) => s.certainty === "uncertain") ? "ambiguous" : "sanitized";
+    if (spans.length === 0) {
+      // Nada encontrado: o texto legítimo volta BYTE A BYTE (inclusive emojis e forma NFD). Só quando um
+      // invisível suspeito (ou sentinela forjada) foi removido a resposta é `sanitized`, com o texto limpo —
+      // nunca uma falha: a composição segue com o texto sem o caractere escondido.
+      const removed = clean !== input.normalize("NFC");
+      if (!removed) return { status: "safe", text: input, findings: [] };
+      return { status: "sanitized", text, findings: [{ category: "hidden_character", detector: "normalization" }] };
+    }
+    const status: ScrubStatus = spans.some((s) => s.certainty === "uncertain") ? "ambiguous" : "sanitized";
     return { status, text, findings: spans.map(({ category, detector }) => ({ category, detector })) };
   }
 

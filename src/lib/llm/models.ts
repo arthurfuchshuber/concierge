@@ -13,7 +13,7 @@
 
 export const AI_MODELS = {
   /** Tradução bidirecional de mensagens (Atendimento, chat do guia). */
-  translate: "google/gemini-3.1-flash-lite",
+  translate: "google/gemini-3.8-flash",
   /** City Pulse: clima, eventos, notícias, informações locais. */
   cityPulse: "google/gemini-3.8-flash",
   /** Extração inteligente de documentos (RG, passaporte, CNH, comprovantes). */
@@ -43,16 +43,29 @@ export function modelFor(task: AiTask): string {
 }
 
 /**
- * MODELOS RESERVA (31/10/2026): se o modelo principal estiver fora do ar (5xx, rede, modelo indisponível),
- * a mesma tarefa é refeita uma vez no reserva. Modelos OpenAI → outro OpenAI (continua com tool calling);
- * Gemini → versão mais leve. Embeddings não têm reserva (trocar de modelo mudaria o espaço de busca).
- * 429 (limite) e 402 (créditos) NÃO caem no reserva: trocar de modelo não resolve e mascararia o problema.
+ * CATÁLOGO ÚNICO (07/11/2026, Diretiva Global): só dois modelos de texto no sistema inteiro.
+ *  - Titular: `openai/gpt-6-astra` (atendimento, copiloto, contratos, assistente do painel).
+ *  - Reserva: `google/gemini-3.8-flash` (tarefas rápidas e reserva do titular).
+ *  - Embeddings: `google/gemini-embedding-2` (sem reserva: trocar de modelo mudaria o espaço de busca).
+ */
+export const AUTHORIZED_TEXT_MODELS = ["openai/gpt-6-astra", "google/gemini-3.8-flash"] as const;
+export const AUTHORIZED_EMBEDDING_MODEL = "google/gemini-embedding-2";
+
+/**
+ * MODELOS RESERVA: se o principal estiver fora do ar (5xx, rede, modelo indisponível), a mesma tarefa
+ * é refeita uma vez no outro modelo do catálogo. 429 (limite) e 402 (créditos) NÃO caem no reserva:
+ * trocar de modelo não resolve e mascararia o problema. Caminhos com tool calling (`runAgent`) só aceitam
+ * reserva servida pela Responses API (ver `isResponsesModel`).
  */
 export const FALLBACK_MODELS: Record<string, string> = {
-  "openai/gpt-6-astra": "openai/gpt-5.6-sol",
-  "google/gemini-3.8-flash": "google/gemini-3.1-flash-lite",
-  "google/gemini-3.1-flash-lite": "google/gemini-3.8-flash",
+  "openai/gpt-6-astra": "google/gemini-3.8-flash",
+  "google/gemini-3.8-flash": "openai/gpt-6-astra",
 };
+
+/**
+ * RACIOCÍNIO ELÁSTICO NATIVO (ajuste fino do PR #11): não há tabela de esforço por tarefa. Nenhuma chamada
+ * convencional fixa `reasoning_effort`; o modelo dosa sozinho (`auto`). Custo contido pelos tetos de cada rota.
+ */
 
 export function fallbackModel(model: string): string | null {
   return FALLBACK_MODELS[model] ?? null;
@@ -72,9 +85,7 @@ export function isResponsesModel(model: string): boolean {
 /** Custo estimado em USD por 1M de tokens (aproximado, apenas para observabilidade). */
 const COST_PER_MTOK: Record<string, { input: number; output: number }> = {
   "openai/gpt-6-astra": { input: 1.25, output: 10 },
-  "openai/gpt-5.6-sol": { input: 1.25, output: 10 },
   "google/gemini-3.8-flash": { input: 0.3, output: 2.5 },
-  "google/gemini-3.1-flash-lite": { input: 0.1, output: 0.4 },
   "google/gemini-embedding-2": { input: 0.15, output: 0 },
 };
 

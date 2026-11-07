@@ -204,9 +204,12 @@ describe("F2-A · sucesso, normalização e telemetria", () => {
 
   it("custo por modelo (tabela do registro) e arredondamento", () => {
     expect(estimateCostUsd(modelSpec("openai/gpt-6-astra")!, 2_000_000, 1_000_000)).toBe(12.5);
-    expect(estimateCostUsd(modelSpec("google/gemini-3.1-flash-lite")!, 1, 1)).toBe(5e-7);
+    expect(estimateCostUsd(modelSpec("google/gemini-3.8-flash")!, 1, 1)).toBe(2.8e-6);
     expect(estimateCostUsd(modelSpec("google/gemini-3.8-flash")!, 0, 0)).toBe(0);
-    expect(estimateCostUsd(modelSpec("google/gemini-3.1-flash-lite")!, 10_000, 10_000)).toBe(0.005);
+    expect(estimateCostUsd(modelSpec("google/gemini-3.8-flash")!, 10_000, 10_000)).toBe(0.028);
+    // catálogo único (07/11/2026): modelos aposentados não estão mais no registro
+    expect(modelSpec("google/gemini-3.1-flash-lite")).toBeNull();
+    expect(modelSpec("openai/gpt-5.6-sol")).toBeNull();
   });
 
   it("uso não informado ⇒ estimativa por caracteres, marcada 'estimated'", async () => {

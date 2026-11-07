@@ -664,9 +664,11 @@ describe("Copiloto · gerador (limites próprios sobre o Gateway)", () => {
   });
   it("modelo: só do registro; padrão da Guest AI", () => {
     expect(copilotModelId({})).toBe(GUEST_AI_DEFAULT_MODEL);
-    expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "google/gemini-3.1-flash-lite" })).toBe(
-      "google/gemini-3.1-flash-lite",
+    expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "google/gemini-3.8-flash" })).toBe(
+      "google/gemini-3.8-flash",
     );
+    // modelo aposentado no catálogo único ⇒ volta ao Titular
+    expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "google/gemini-3.1-flash-lite" })).toBe(GUEST_AI_DEFAULT_MODEL);
     expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "x/y" })).toBe(GUEST_AI_DEFAULT_MODEL);
     expect(copilotFlags({ GUEST_AI_COPILOT_GENERATION: "1" }).generation).toBe(false);
   });

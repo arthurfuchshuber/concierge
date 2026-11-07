@@ -114,6 +114,7 @@ async function chatTextOnce(
         })),
       tools: [],
       maxSteps: 1,
+      reasoningEffort: "auto",
       signal: opts?.signal,
       modelOverride: model,
     });
@@ -374,7 +375,8 @@ async function runAgentOnce(params: {
   input: ResponsesItem[];
   tools: AgentTool[];
   maxSteps?: number;
-  reasoningEffort?: "low" | "medium" | "high" | "xhigh" | "max";
+  /** `auto` = não fixa o esforço: o modelo dosa o raciocínio sozinho. Ausente = `max` (assistente do painel). */
+  reasoningEffort?: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
   signal?: AbortSignal;
   /**
    * Recebe o texto da resposta conforme ele é escrito, para a interface poder
@@ -430,7 +432,10 @@ async function runAgentOnce(params: {
         stream: true,
         store: false,
         ...(toolDefs.length ? { tools: toolDefs, tool_choice: "auto" } : {}),
-        reasoning: { effort: params.reasoningEffort ?? "max", summary: "auto" },
+        reasoning:
+          params.reasoningEffort === "auto"
+            ? { summary: "auto" }
+            : { effort: params.reasoningEffort ?? "max", summary: "auto" },
         include: ["reasoning.encrypted_content"],
       },
       signal,
@@ -569,8 +574,10 @@ async function runAgentOnce(params: {
 export { isResponsesModel };
 
 /**
- * Agente com modelo reserva: se o principal cair ANTES de começar a escrever para o hóspede, refaz uma vez
- * no reserva (mesma família, mantém tool calling). Se já havia texto em andamento, não troca no meio.
+ * Agente com modelo reserva: se o principal cair ANTES de começar a escrever, refaz uma vez no reserva —
+ * desde que o reserva também seja servido pela Responses API (só ela tem tool calling aqui). Com o catálogo
+ * de dois modelos, o reserva do titular é Gemini: nesse caso o agente NÃO troca, e quem chamou decide
+ * (`chatText` refaz no reserva por /chat/completions). Se já havia texto em andamento, não troca no meio.
  */
 export async function runAgent(params: Parameters<typeof runAgentOnce>[0]): Promise<AgentRun> {
   let streamed = false;
@@ -583,7 +590,7 @@ export async function runAgent(params: Parameters<typeof runAgentOnce>[0]): Prom
     const status = err instanceof AiGatewayError ? err.status : undefined;
     const primary = params.modelOverride ?? modelFor(params.task ?? "internal");
     const backup = fallbackModel(primary);
-    if (!backup || streamed || params.signal?.aborted || !shouldFallback(status)) throw err;
+    if (!backup || !isResponsesModel(backup) || streamed || params.signal?.aborted || !shouldFallback(status)) throw err;
     console.error("[ai-gateway] agente principal falhou, usando reserva", primary, "→", backup);
     return runAgentOnce({ ...params, modelOverride: backup });
   }

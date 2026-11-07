@@ -19,7 +19,7 @@
  */
 import { generateGuestLlm } from "@/lib/guest-ai/llm/gateway.server";
 import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
-import { GUEST_AI_DEFAULT_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
+import { GUEST_AI_RESERVE_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
 import { propertyTimeZoneOrNull } from "@/lib/property-timezone";
 import { otaGuestAccountId } from "@/lib/channex-guest-identity";
 import {
@@ -197,7 +197,8 @@ export async function runGuestMemoryCycle(
   const cfg = guestMemoryConfig(deps.env ?? process.env, deps.limit);
   if (!cfg) return { ...result, status: "off" };
   const log = deps.log ?? ((e) => console.info("[guest-memory]", JSON.stringify(e)));
-  const modelId = deps.modelId ?? GUEST_AI_DEFAULT_MODEL;
+  // Rotina de fundo com teto de US$ 0,01 por tentativa: roda no Reserva do catálogo (o Titular não cabe no teto).
+  const modelId = deps.modelId ?? GUEST_AI_RESERVE_MODEL;
   const pending = await deps.store.pending(cfg.limit);
   let reservedThisRun = 0;
 

@@ -140,11 +140,23 @@ describe("B2.2 · carregador sob demanda (projeções, revalidação, isolamento
     await expect(fetchPropertyDossier(d.target, { db, now: NOW, buildPlaybook: realBuild })).rejects.toBeInstanceOf(DossierError);
   });
 
-  it("falha de qualquer consulta ⇒ erro fixo (nada parcial)", async () => {
+  it("falha de consulta da estrutura do imóvel ⇒ erro fixo (nada parcial)", async () => {
     const t = primaryDossierTarget(turn(), ["P", "G"]);
-    for (const table of ["property_faqs", "property_recommendations", "property_listing_raw_data"]) {
-      await expect(fetchPropertyDossier(t, { db: portfolioDb(portfolioTables(), { failTable: table }).db, now: NOW, buildPlaybook: realBuild })).rejects.toThrow("dossier_lookup_failed");
+    for (const table of ["properties", "property_faqs", "property_checkout_items", "property_emergency_contacts", "property_manual_items", "property_playbook_entries", "property_listing_raw_data"]) {
+      await expect(fetchPropertyDossier(t, { db: portfolioDb(portfolioTables(), { failTable: table }).db, now: NOW, buildPlaybook: realBuild }), table).rejects.toThrow("dossier_lookup_failed");
     }
+  });
+
+  it("recomendações do guia são opcionais (07/11/2026): falha nelas só esvazia a seção, nunca derruba o dossiê", async () => {
+    const t = primaryDossierTarget(turn(), ["P", "G"]);
+    const noRecs = await fetchPropertyDossier(t, { db: portfolioDb(portfolioTables(), { failTable: "property_recommendations" }).db, now: NOW, buildPlaybook: realBuild });
+    expect(noRecs.places.map((p) => p.scope)).toEqual(["city"]);
+    expect(noRecs.entries.length).toBeGreaterThan(5);
+    const noCity = await fetchPropertyDossier(t, { db: portfolioDb(portfolioTables(), { failTable: "city_references" }).db, now: NOW, buildPlaybook: realBuild });
+    expect(noCity.places.every((p) => p.scope === "nearby")).toBe(true);
+    // grupo ilegível ⇒ nenhuma referência da cidade (nunca adivinha o conjunto)
+    const noGroup = await fetchPropertyDossier(t, { db: portfolioDb(portfolioTables(), { failTable: "city_reference_group_members" }).db, now: NOW, buildPlaybook: realBuild });
+    expect(noGroup.places.some((p) => p.scope === "city")).toBe(false);
   });
 
   it("dossiê emitido, congelado e sem colunas protegidas", async () => {

@@ -54,6 +54,12 @@ export interface CopilotGeneratorTelemetry {
   readonly imagesSent: number;
   /** Fotos que não foram ao modelo (falha de leitura, formato, tamanho ou orçamento do turno). */
   readonly imagesNotLoaded: number;
+  /** Esforço de raciocínio enviado (`auto` no Copiloto); ausente antes da chamada. */
+  readonly reasoningEffort?: ReasoningEffort;
+  /** Teto de saída efetivo da chamada (cheio ou recuo, sempre dentro do teto de custo do turno). */
+  readonly maxOutputTokens?: number;
+  /** Modelo que de fato respondeu (o Reserva, se o Titular caiu). Ausente antes da chamada. */
+  readonly model?: string;
 }
 
 /** Foto do hóspede já preparada (Data URL) pela camada de dados, com o id citável do histórico. */
@@ -92,7 +98,13 @@ export interface CopilotGenerator {
 export interface CopilotGeneratorDeps {
   modelId: string;
   maxOutputTokens: number;
+  /** Esforço de raciocínio enviado ao Gateway (o Copiloto usa `auto`: o modelo dosa sozinho). */
   reasoningEffort: ReasoningEffort;
+  /**
+   * Recuo do teto de saída: se `maxOutputTokens` não couber no teto de custo do turno, a chamada segue com
+   * este teto menor (ainda conferido); ausente ⇒ sem recuo (`maxOutputTokens`).
+   */
+  minOutputTokens?: number;
   /** Tempo (ms) que resta do prazo global da geração. */
   remainingMs: () => number;
   /** Conferido IMEDIATAMENTE antes da rede: `false` ⇒ a sugestão deixou de ser a vigente (nada é chamado). */
@@ -226,8 +238,9 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       const textBound = copilotInputTokenBound(prompt);
       t = Object.freeze({ ...t, estimatedInputTokens: textBound });
       // pior caso do turno: toda a entrada (limite superior) + todo o teto de saída
-      const fits = (inputTokens: number) =>
-        estimateCostUsd(spec!, inputTokens, deps.maxOutputTokens) <= ceiling;
+      const minOut = Math.min(deps.minOutputTokens ?? deps.maxOutputTokens, deps.maxOutputTokens);
+      const fitsWith = (inputTokens: number, out: number) => estimateCostUsd(spec!, inputTokens, out) <= ceiling;
+      const fits = (inputTokens: number) => fitsWith(inputTokens, minOut);
       if (textBound <= 0 || !fits(textBound)) block("budget_turn_exceeded");
 
       // visão: fotos do hóspede (falha ao carregar ⇒ só texto + aviso; nunca derruba a geração)
@@ -250,6 +263,9 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
         imagesNotLoaded: attached.notLoaded,
       });
       if (!fits(bound)) block("budget_turn_exceeded");
+      // guarda-corpo financeiro externo: teto de saída cheio se couber no teto de custo do turno; senão o recuo
+      const outputTokens = fitsWith(bound, deps.maxOutputTokens) ? deps.maxOutputTokens : minOut;
+      t = Object.freeze({ ...t, reasoningEffort: deps.reasoningEffort, maxOutputTokens: outputTokens });
       if (!(await deps.beforeNetwork())) block("superseded");
       if (signal.aborted || deps.remainingMs() <= 0) block("deadline_expired");
 
@@ -259,7 +275,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
           purpose: "guest_reply",
           model: deps.modelId,
           messages: attached.messages,
-          maxOutputTokens: deps.maxOutputTokens,
+          maxOutputTokens: outputTokens,
           reasoningEffort: deps.reasoningEffort,
           responseFormat: "json",
           timeoutMs: Math.max(1_000, Math.min(15_000, Math.floor(deps.remainingMs()))),
@@ -272,6 +288,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       t = Object.freeze({
         ...t,
         status: result.ok ? "called" : "failed",
+        model: result.telemetry.model,
         calls: result.telemetry.attempts,
         inputTokens: u.inputTokens,
         outputTokens: u.outputTokens,
@@ -280,7 +297,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
           result.telemetry.attempts === 0
             ? 0
             : u.source === "none"
-              ? estimateCostUsd(spec!, bound, deps.maxOutputTokens)
+              ? estimateCostUsd(spec!, bound, outputTokens)
               : result.telemetry.costUsd,
         latencyMs: Math.max(0, Math.round(now() - t0)),
         error: result.ok ? null : result.error.code,

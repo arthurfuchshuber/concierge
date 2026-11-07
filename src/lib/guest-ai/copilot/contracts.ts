@@ -81,9 +81,20 @@ export const COPILOT_DEADLINE_MS = 25_000;
  * se outra do hóspede chegar nesse meio-tempo, só a mais nova gera (ela vê o conjunto). Dentro de 5–8 s.
  */
 export const COPILOT_BURST_QUIET_MS = 6_000;
-/** Teto de saída do modelo (a resposta ao hóspede é curta; o teto protege o custo por turno). */
-export const COPILOT_MAX_OUTPUT_TOKENS = 1_536;
-export const COPILOT_REASONING_EFFORT = "low" as const;
+/**
+ * RACIOCÍNIO 100% ELÁSTICO (ajuste fino do PR #11, 07/11/2026): não existe tabela de esforço por assunto.
+ * O Copiloto chama o modelo em `auto` — o parâmetro de esforço não é enviado e o próprio modelo dosa a
+ * profundidade do pensamento em cada situação. O guarda-corpo financeiro é EXTERNO ao modelo:
+ *  - teto de custo por turno (`COPILOT_MAX_TURN_COST_USD`, US$ 0,15), conferido no pior caso ANTES da rede;
+ *  - teto de saída (`COPILOT_MAX_OUTPUT_TOKENS`; os tokens de raciocínio contam como saída), com recuo para
+ *    `COPILOT_MIN_OUTPUT_TOKENS` quando o teto cheio não cabe no teto de custo do turno;
+ *  - teto diário obrigatório (`copilotDailyLimitUsd`).
+ */
+export const COPILOT_REASONING_EFFORT = "auto" as const;
+/** Teto de saída da chamada (= `LIMITS.maxOutputTokens`): espaço para o modelo raciocinar quando precisar. */
+export const COPILOT_MAX_OUTPUT_TOKENS = 4_096;
+/** Recuo do teto de saída quando o teto cheio estouraria o teto de custo do turno (prompt muito grande). */
+export const COPILOT_MIN_OUTPUT_TOKENS = 1_536;
 
 /**
  * TRÊS CONTROLES INDEPENDENTES (não existe chave única que ligue tudo). Cada um só vale com o literal `on`;
