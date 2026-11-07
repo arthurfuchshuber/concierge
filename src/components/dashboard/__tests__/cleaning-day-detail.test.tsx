@@ -188,12 +188,12 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     const botoes = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
     expect(botoes.some((b) => text(b).trim() === "Normal")).toBe(true);
     expect(botoes.some((b) => /R\$\s120,00/.test(text(b)))).toBe(true);
-    // Moldura de botão editável (fundo, borda, cantos e lápis) em tipo e valor.
+    // Moldura de botão editável (fundo, borda e cantos) em tipo e valor, sem lápis.
     const editaveis = botoes.filter((b) => /Mudar para|Alterar valor/.test(b));
     expect(editaveis).toHaveLength(2);
     for (const b of editaveis) {
       for (const c of ["border", "rounded-[0.3rem]", "bg-card"]) expect(b).toContain(c);
-      expect(b).toContain("lucide-pencil");
+      expect(b).not.toContain("lucide-pencil");
     }
     acesso.liberado = false;
   });

@@ -197,9 +197,8 @@ export function CleaningProviderAvatar({
           ) : look === "raised" ? (
             <>
               {/* Janela "Limpezas Realizadas" (07/11/2026): o prestador é um dado
-                  editável como tipo e valor — moldura de botão + lápis à direita. */}
+                  editável como tipo e valor — só a moldura de botão, sem lápis. */}
               <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={14} look="plain" />
-              <Pencil className="size-3 shrink-0 opacity-60" aria-hidden />
             </>
           ) : nameOnly ? (
             <>

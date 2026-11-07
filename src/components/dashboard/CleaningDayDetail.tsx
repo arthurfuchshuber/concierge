@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, CalendarDays, Pencil, X } from "lucide-react";
+import { ArrowRight, CalendarDays, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -88,14 +88,13 @@ function dateSP(iso: string | null): string | null {
 }
 
 /**
- * DADO EDITÁVEL (07/11/2026): volta a moldura de botão — fundo suave, borda
- * sutil, cantos arredondados e lápis à direita — em tipo, valor e prestador,
- * na mesma letra das demais linhas. Só aparece para quem tem permissão; sem
+ * DADO EDITÁVEL (07/11/2026): moldura de botão — fundo suave, borda sutil e
+ * cantos arredondados, SEM lápis — em tipo, valor e prestador, na mesma letra
+ * das demais linhas. Só aparece para quem tem permissão; sem
  * ela o dado é texto simples, sem moldura.
  */
 const EDIT_BTN =
   "ds-3d ds-3d-hover inline-flex h-[20px] min-w-0 max-w-full items-center gap-1 rounded-[0.3rem] border border-border/70 bg-card px-1.5 shadow-sm transition";
-const EDIT_PENCIL = "size-3 shrink-0 opacity-60";
 
 /** Namespace que decide quem pode alterar tipo, valor e prestador da limpeza. */
 const CLEANING_EDIT_PERMISSION = "tenant.dashboard.chegadas.limpeza";
@@ -702,7 +701,6 @@ function TypeToggle({
           className={`${EDIT_BTN} text-[11.5px] font-semibold leading-none`}
         >
           <span className="truncate">{typeText}</span>
-          <Pencil className={EDIT_PENCIL} aria-hidden />
         </button>
       </span>
       {emAnalise}
@@ -771,7 +769,6 @@ function EditablePrice({
         className={`${EDIT_BTN} whitespace-nowrap ${same}`}
       >
         {brl(cents)}
-        <Pencil className={EDIT_PENCIL} aria-hidden />
       </button>
     );
   }
