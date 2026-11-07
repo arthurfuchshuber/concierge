@@ -66,9 +66,10 @@ export const COPILOT_SENDER_IDENTITY_STATES = [
 ] as const;
 
 /**
- * Controle de custos — teto POR TURNO fixo (≤ US$ 0,15, protege contra uma chamada desgovernada). O teto
- * DIÁRIO é opcional (decisão do titular, 06/11/2026, operação comercial): só existe se
- * `GUEST_AI_COPILOT_DAILY_COST_USD` tiver um valor positivo; ausente ou inválido ⇒ sem teto diário.
+ * Controle de custos — teto POR TURNO fixo (≤ US$ 0,15, protege contra uma chamada desgovernada) e teto
+ * DIÁRIO OBRIGATÓRIO (Gate G1, decisão do titular D3, 06/11/2026): `GUEST_AI_COPILOT_DAILY_COST_USD` com valor
+ * positivo ⇒ esse valor (até `COPILOT_DAILY_COST_MAX_USD`); ausente, vazio, inválido, zero ou negativo ⇒
+ * `COPILOT_DEFAULT_DAILY_COST_USD` (US$ 3,00). Não existe mais caminho "sem teto".
  */
 export const COPILOT_MAX_TURN_COST_USD = 0.15;
 
@@ -157,14 +158,19 @@ export function copilotModelId(env: Record<string, string | undefined> = process
   return requested && modelSpec(requested) ? requested : GUEST_AI_DEFAULT_MODEL;
 }
 
-/** Teto diário opcional: `GUEST_AI_COPILOT_DAILY_COST_USD` > 0 ⇒ esse valor; ausente ou inválido ⇒ `null` (sem teto). */
+/** Teto diário padrão (fail-closed) quando a variável não está configurada ou é inválida. */
+export const COPILOT_DEFAULT_DAILY_COST_USD = 3;
+/** Limite superior aceito na variável (proteção contra erro de digitação, ex. "300" em vez de "3.00"). */
+export const COPILOT_DAILY_COST_MAX_USD = 50;
+
+/** Teto diário OBRIGATÓRIO: valor positivo da variável (≤ US$ 50); senão US$ 3,00. Nunca `null`. */
 export function copilotDailyLimitUsd(
   env: Record<string, string | undefined> = process.env,
-): number | null {
+): number {
   const raw = env["GUEST_AI_COPILOT_DAILY_COST_USD"];
   const v = raw === undefined || raw.trim() === "" ? Number.NaN : Number(raw);
-  if (!Number.isFinite(v) || v <= 0) return null;
-  return v;
+  if (!Number.isFinite(v) || v <= 0) return COPILOT_DEFAULT_DAILY_COST_USD;
+  return Math.min(v, COPILOT_DAILY_COST_MAX_USD);
 }
 
 /** Pedido de geração: só identificadores (o backend re-deriva e valida tudo — F0). */

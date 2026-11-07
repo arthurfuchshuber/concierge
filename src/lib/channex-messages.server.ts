@@ -564,7 +564,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     if (triggerId) {
       try {
         const { triggerCopilotSuggestion } = await import("@/lib/guest-ai/copilot/trigger.server");
-        triggerCopilotSuggestion({ surface: "airbnb", conversationId: convId, messageId: triggerId, expectedOwnerId: listing.owner_id });
+        await triggerCopilotSuggestion({ surface: "airbnb", conversationId: convId, messageId: triggerId, expectedOwnerId: listing.owner_id });
       } catch (e) {
         console.error("[channex-messages] copiloto não disparado", e instanceof Error ? e.name : "");
       }

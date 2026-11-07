@@ -233,7 +233,7 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
         if (guestMsg?.id) {
           try {
             const { triggerCopilotSuggestion } = await import("@/lib/guest-ai/copilot/trigger.server");
-            triggerCopilotSuggestion({ surface: "whatsapp", conversationId: convId as string, messageId: guestMsg.id as string, expectedOwnerId: ownerId });
+            await triggerCopilotSuggestion({ surface: "whatsapp", conversationId: convId as string, messageId: guestMsg.id as string, expectedOwnerId: ownerId });
           } catch (e) {
             console.error("[sinch-webhook] copiloto não disparado", e instanceof Error ? e.name : "");
           }

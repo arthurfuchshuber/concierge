@@ -2,30 +2,25 @@
  * MODO COPILOTO — núcleo do ENVIO da sugestão aprovada (só servidor; carregado por import dinâmico em
  * `sendCopilotSuggestion`, para que nada daqui — guarda, rotinas de canal — entre no bundle do navegador).
  *
- *  1. `copilot_claim_send` (sessão do usuário; autoria = `auth.uid()`): estado + token. Clique repetido,
+ *  1. `copilot_actor_claim_send` (Gate G1: `service_role` + `p_actor` = usuário da sessão validada pelo
+ *     `requireSupabaseAuth`; a RPC não é executável pelo navegador): estado + token. Clique repetido,
  *     segunda aba ou nova tentativa durante o envio ⇒ `send_in_progress`; envio sem desfecho > 2 min ⇒
  *     `send_unknown` ⇒ RECONCILIA antes de qualquer nova tentativa (nunca reenvia sozinho).
  *  2. `guardCopilotSend`: escopo (conversa/mensagem/imóvel/tenant) e identidade de envio do Airbnb.
  *  3. Rotina humana EXISTENTE do canal (`handoff-send.server` / `whatsapp-send.server`), com remetente estrito
  *     no Airbnb — nenhum mecanismo paralelo de envio.
- *  4. `copilot_finish_send` com o id da mensagem; sem id ⇒ reconciliação pelo autor e instante. Erro na
+ *  4. `copilot_actor_finish_send` com o id da mensagem (o banco confere conversa, ator e instante); sem id ou
+ *     id recusado ⇒ reconciliação pelo autor e instante. Erro na
  *     rotina ⇒ reconciliação ANTES de marcar falha (erro depois da gravação não leva a segundo envio).
  */
 import type { GuestSurface } from "@/lib/guest-ai/types";
 import { copilotFlagOn } from "@/lib/guest-ai/copilot/contracts";
-
-type Rpc = Record<string, unknown> & { result?: string };
-interface RpcClient {
-  rpc(
-    fn: string,
-    args: Record<string, unknown>,
-  ): PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }>;
-}
-async function rpc(client: unknown, fn: string, args: Record<string, unknown>): Promise<Rpc> {
-  const { data, error } = await (client as RpcClient).rpc(fn, args);
-  if (error) throw new Error(`copilot_rpc_failed:${fn}`);
-  return (typeof data === "object" && data !== null ? data : {}) as Rpc;
-}
+import {
+  COPILOT_ACTOR_RPC,
+  copilotActorRpc,
+  defaultCopilotActorDb,
+  type CopilotActorDb,
+} from "@/lib/copilot-actor-rpc.server";
 
 export type CopilotSendError =
   | "assigned_to_other"
@@ -66,9 +61,15 @@ export interface CopilotSendDeps {
   guard?: typeof import("@/lib/guest-ai/copilot/send-guard.server").guardCopilotSend;
   sendHuman?: typeof import("@/lib/handoff-send.server").sendHumanMessageToConversation;
   sendWhatsapp?: typeof import("@/lib/whatsapp-send.server").sendWhatsappMessageToConversation;
+  /** Cliente das RPCs do atendente (padrão: administrativo do servidor). */
+  actorDb?: CopilotActorDb;
 }
 
-/** Corpo de `sendCopilotSuggestion` (testável com dependências injetadas). `userId` só informa logs: a autoria é `auth.uid()`. */
+/**
+ * Corpo de `sendCopilotSuggestion` (testável com dependências injetadas). `supabase` é o cliente da SESSÃO
+ * (usado pela rotina humana do canal); `userId` é o usuário dessa sessão, já validado pelo `requireSupabaseAuth`,
+ * e é o ator (`p_actor`) das RPCs do envio. Nenhum id de usuário vem do navegador.
+ */
 export async function sendCopilotSuggestionCore(
   supabase: unknown,
   userId: string,
@@ -78,8 +79,13 @@ export async function sendCopilotSuggestionCore(
   // 0) porta do ENVIO, conferida no servidor ANTES de qualquer efeito (nem a reivindicação acontece).
   //    A UI ligada não liga o envio; um pedido forjado do navegador cai aqui.
   if (!copilotFlagOn("send", deps.env)) return { status: "send_disabled" };
+  const db = deps.actorDb ?? (await defaultCopilotActorDb());
+  const rpc = (
+    fn: (typeof COPILOT_ACTOR_RPC)[keyof typeof COPILOT_ACTOR_RPC],
+    args: Record<string, unknown>,
+  ) => copilotActorRpc(db, fn, userId, args);
   // 1) reivindica o envio (estado + token). Nada abaixo acontece sem `claimed`.
-  const claim = await rpc(supabase, "copilot_claim_send", {
+  const claim = await rpc(COPILOT_ACTOR_RPC.claimSend, {
     p_suggestion_id: data.suggestionId,
     p_text: data.text ?? null,
   });
@@ -90,7 +96,7 @@ export async function sendCopilotSuggestionCore(
       return { status: "send_in_progress" };
     case "send_unknown": {
       // envio reivindicado há > 2 min sem desfecho: VERIFICA antes de qualquer nova tentativa
-      const rec = await rpc(supabase, "copilot_reconcile_send", {
+      const rec = await rpc(COPILOT_ACTOR_RPC.reconcileSend, {
         p_suggestion_id: data.suggestionId,
         p_attempt_finished: false,
         p_error_code: null,
@@ -123,7 +129,7 @@ export async function sendCopilotSuggestionCore(
   const triggerMessageId = claim["trigger_message_id"] as string | undefined;
   const finishFailed = async (code: string) => {
     // procura a mensagem gravada antes de marcar falha (erro depois da gravação ⇒ `sent`, nunca reenvio)
-    const rec = await rpc(supabase, "copilot_reconcile_send", {
+    const rec = await rpc(COPILOT_ACTOR_RPC.reconcileSend, {
       p_suggestion_id: data.suggestionId,
       p_attempt_finished: true,
       p_error_code: code,
@@ -198,7 +204,7 @@ export async function sendCopilotSuggestionCore(
 
   // 4) encerra o envio com o id da mensagem gravada (sem id ⇒ reconciliação pelo autor/instante)
   if (sent.messageId) {
-    const fin = await rpc(supabase, "copilot_finish_send", {
+    const fin = await rpc(COPILOT_ACTOR_RPC.finishSend, {
       p_suggestion_id: data.suggestionId,
       p_send_token: sendToken,
       p_outcome: "sent",
@@ -209,7 +215,7 @@ export async function sendCopilotSuggestionCore(
     });
     if (fin.result === "finished") return { status: "sent", messageId: sent.messageId };
   }
-  const rec = await rpc(supabase, "copilot_reconcile_send", {
+  const rec = await rpc(COPILOT_ACTOR_RPC.reconcileSend, {
     p_suggestion_id: data.suggestionId,
     p_attempt_finished: false,
     p_error_code: null,

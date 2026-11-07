@@ -30,6 +30,7 @@ const COMBOS = [false, true].flatMap((ui) =>
 const VISUAL = envOf(true, false, false);
 const SID = "5a000000-0000-4000-8000-000000000001";
 const CONV = "5b000000-0000-4000-8000-000000000002";
+const ACTOR = "5d000000-0000-4000-8000-000000000004";
 
 /** Cliente de sessão falso que registra TODA leitura e RPC (para provar que nada foi tocado). */
 function spyClient(rpcResult: Record<string, unknown> = {}) {
@@ -116,22 +117,42 @@ describe("Copiloto · três chaves independentes (servidor)", () => {
 
       // edição / descarte
       const r2 = spyClient({
-        copilot_edit: { result: "edited" },
-        copilot_discard: { result: "discarded" },
+        copilot_actor_edit: { result: "edited" },
+        copilot_actor_discard: { result: "discarded" },
       });
       if (ui) {
         await expect(
-          editCopilotSuggestionCore(r2.client, { suggestionId: SID, text: "x" }, env),
+          editCopilotSuggestionCore(
+            r2.client,
+            ACTOR,
+            { suggestionId: SID, text: "x" },
+            { env, actorDb: r2.client },
+          ),
         ).resolves.toMatchObject({ ok: true });
         await expect(
-          discardCopilotSuggestionCore(r2.client, { suggestionId: SID }, env),
+          discardCopilotSuggestionCore(
+            r2.client,
+            ACTOR,
+            { suggestionId: SID },
+            { env, actorDb: r2.client },
+          ),
         ).resolves.toMatchObject({ ok: true });
       } else {
         await expect(
-          editCopilotSuggestionCore(r2.client, { suggestionId: SID, text: "x" }, env),
+          editCopilotSuggestionCore(
+            r2.client,
+            ACTOR,
+            { suggestionId: SID, text: "x" },
+            { env, actorDb: r2.client },
+          ),
         ).rejects.toThrow("desativadas");
         await expect(
-          discardCopilotSuggestionCore(r2.client, { suggestionId: SID }, env),
+          discardCopilotSuggestionCore(
+            r2.client,
+            ACTOR,
+            { suggestionId: SID },
+            { env, actorDb: r2.client },
+          ),
         ).rejects.toThrow("desativadas");
         expect(r2.log).toEqual([]);
       }
@@ -161,14 +182,15 @@ describe("Copiloto · três chaves independentes (servidor)", () => {
       }
 
       // envio: só a chave de envio (antes de qualquer reivindicação)
-      const r4 = spyClient({ copilot_claim_send: { result: "send_in_progress" } });
+      const r4 = spyClient({ copilot_actor_claim_send: { result: "send_in_progress" } });
       const sendHuman = vi.fn();
       const out = await sendCopilotSuggestionCore(
         r4.client,
-        "u",
+        ACTOR,
         { suggestionId: SID },
         {
           env,
+          actorDb: r4.client,
           sendHuman: sendHuman as never,
           sendWhatsapp: sendHuman as never,
           guard: vi.fn() as never,
@@ -176,7 +198,7 @@ describe("Copiloto · três chaves independentes (servidor)", () => {
       );
       if (send) {
         expect(out).toEqual({ status: "send_in_progress" });
-        expect(r4.log).toEqual(["rpc:copilot_claim_send"]);
+        expect(r4.log).toEqual(["rpc:copilot_actor_claim_send"]);
       } else {
         expect(out).toEqual({ status: "send_disabled" });
         expect(r4.log).toEqual([]);

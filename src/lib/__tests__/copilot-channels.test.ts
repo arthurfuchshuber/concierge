@@ -98,7 +98,7 @@ import type { GuestSurface } from "@/lib/guest-ai/types";
 import { ctx, history, turn, v4 } from "../guest-ai/__tests__/helpers/b23-chain";
 import { fakeProvider, okJson } from "../guest-ai/__tests__/helpers/copilot-provider";
 
-const USER = "u5e55100-0000-4000-8000-000000000001"; // atendente da SESSÃO (único autor aceito)
+const USER = "5e551000-0000-4000-8000-000000000001"; // atendente da SESSÃO (único autor aceito)
 const CONV = "c0000000-0000-4000-8000-0000000000aa";
 const SID = "50000000-0000-4000-8000-0000000000aa";
 const ENV = {
@@ -153,7 +153,7 @@ class MemStore implements CopilotStore {
   }
 }
 
-/** RPCs do envio (sessão do usuário) com a semântica do banco: um claimed; depois send_in_progress. */
+/** RPCs do envio (Gate G1: `copilot_actor_*` como service_role) com a semântica do banco: um claimed; depois send_in_progress. */
 function sessionRpc(text: string, surface: GuestSurface) {
   const calls: Array<{ fn: string; args: Record<string, unknown> }> = [];
   let claimed = false;
@@ -161,7 +161,7 @@ function sessionRpc(text: string, surface: GuestSurface) {
     ...fakeClient("session"),
     rpc: async (fn: string, args: Record<string, unknown>) => {
       calls.push({ fn, args });
-      if (fn === "copilot_claim_send") {
+      if (fn === "copilot_actor_claim_send") {
         if (claimed) return { data: { result: "send_in_progress" }, error: null };
         claimed = true;
         return {
@@ -178,8 +178,8 @@ function sessionRpc(text: string, surface: GuestSurface) {
           error: null,
         };
       }
-      if (fn === "copilot_finish_send") return { data: { result: "finished" }, error: null };
-      if (fn === "copilot_reconcile_send")
+      if (fn === "copilot_actor_finish_send") return { data: { result: "finished" }, error: null };
+      if (fn === "copilot_actor_reconcile_send")
         return {
           data: { result: args.p_attempt_finished ? "reconciled_failed" : "send_in_progress" },
           error: null,
@@ -294,13 +294,13 @@ describe.each(CHANNELS)("Copiloto · canal $label", ({ surface, session, channel
       s.client,
       USER,
       { suggestionId: SID },
-      { env: ENV, guard },
+      { env: ENV, guard, actorDb: s.client },
     );
     const r2 = await sendCopilotSuggestionCore(
       s.client,
       USER,
       { suggestionId: SID },
-      { env: ENV, guard },
+      { env: ENV, guard, actorDb: s.client },
     );
     expect(r2).toEqual({ status: "send_in_progress" });
     const outbound = db.inserts.filter((i) => i.table === "property_chat_messages");
@@ -348,14 +348,14 @@ describe.each(CHANNELS)("Copiloto · canal $label", ({ surface, session, channel
       ),
     ).toBe(true);
     // encerramento com o token da reivindicação
-    const fin = s.calls.find((c) => c.fn === "copilot_finish_send");
+    const fin = s.calls.find((c) => c.fn === "copilot_actor_finish_send");
     if (channel === "airbnb")
       expect(fin?.args).toMatchObject({
         p_outcome: "sent",
         p_channel: "airbnb",
         p_provider_message_id: "cx-msg-1",
       });
-    else expect(s.calls.map((c) => c.fn)).toContain("copilot_reconcile_send"); // guia/WhatsApp: id reconciliado pelo autor/instante
+    else expect(s.calls.map((c) => c.fn)).toContain("copilot_actor_reconcile_send"); // guia/WhatsApp: id reconciliado pelo autor/instante
     expect(r1.status === "sent" || r1.status === "send_in_progress").toBe(true);
   });
 
@@ -368,7 +368,11 @@ describe.each(CHANNELS)("Copiloto · canal $label", ({ surface, session, channel
         s.client,
         USER,
         { suggestionId: SID },
-        { env: ENV, guard: (async () => ({ ok: false, code: "scope_mismatch" })) as never },
+        {
+          env: ENV,
+          guard: (async () => ({ ok: false, code: "scope_mismatch" })) as never,
+          actorDb: s.client,
+        },
       );
       expect(out).toMatchObject({ status: "send_failed", code: "scope_mismatch" });
       expect(db.inserts).toHaveLength(0);
@@ -382,14 +386,14 @@ describe.each(CHANNELS)("Copiloto · canal $label", ({ surface, session, channel
       s.client,
       USER,
       { suggestionId: SID },
-      { env: ENV, guard },
+      { env: ENV, guard, actorDb: s.client },
     );
     expect(out).toMatchObject({
       status: "send_failed",
       code: channel === "whatsapp" ? "whatsapp_send_failed" : "preferred_sender_failed",
     });
     expect(s.calls.at(-1)).toMatchObject({
-      fn: "copilot_reconcile_send",
+      fn: "copilot_actor_reconcile_send",
       args: { p_attempt_finished: true },
     });
     const failed = db.inserts.filter((i) => i.table === "property_chat_messages");
@@ -488,6 +492,7 @@ describe.each(CHANNELS)(
         await sendCopilotSuggestionCore(s.client, USER, { suggestionId: SID }, {
           env: CONFIG_INICIAL,
           guard,
+          actorDb: s.client,
           sendHuman,
           sendWhatsapp: sendHuman,
         } as never),
@@ -523,6 +528,7 @@ describe.each(CHANNELS)(
           await sendCopilotSuggestionCore(s.client, USER, { suggestionId: SID, text: "editado" }, {
             env: CONFIG_FASE_A,
             guard,
+            actorDb: s.client,
           } as never),
         ).toEqual({ status: "send_disabled" });
       }

@@ -18,6 +18,8 @@ import {
 const SEND_ON = { GUEST_AI_COPILOT_SEND: "on" };
 const SID = "5a000000-0000-4000-8000-000000000001";
 const CONV = "5b000000-0000-4000-8000-000000000002";
+/** Usuário da sessão validada (`context.userId`): é o `p_actor` das RPCs do envio. */
+const U = "5d000000-0000-4000-8000-000000000004";
 const claimOk = (over: Record<string, unknown> = {}) => ({
   result: "claimed",
   send_token: "5c000000-0000-4000-8000-000000000003",
@@ -30,11 +32,18 @@ const claimOk = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+/** Último cliente falso criado: serve de `actorDb` (RPCs do atendente) no mesmo registro de chamadas. */
+let lastFake: { rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown> } | null =
+  null;
+const actorDb = {
+  rpc: (fn: string, args: Record<string, unknown>) => lastFake!.rpc(fn, args) as never,
+};
+
 function fakeSupabase(
   responses: Record<string, unknown | ((args: Record<string, unknown>) => unknown)>,
 ) {
   const calls: Array<{ fn: string; args: Record<string, unknown> }> = [];
-  return {
+  const out = {
     calls,
     client: {
       rpc: async (fn: string, args: Record<string, unknown>) => {
@@ -53,6 +62,8 @@ function fakeSupabase(
       },
     },
   };
+  lastFake = out.client;
+  return out;
 }
 
 const guardOk = (
@@ -84,6 +95,7 @@ function sendDeps(over: Partial<CopilotSendDeps> = {}) {
     sendWhatsapp,
     env: SEND_ON,
     guard: guardOk("guide_chat"),
+    actorDb,
     ...over,
   } as Required<CopilotSendDeps> & {
     sendHuman: typeof sendHuman;
@@ -94,21 +106,24 @@ function sendDeps(over: Partial<CopilotSendDeps> = {}) {
 describe("Copiloto · envio pela rotina humana existente", () => {
   it("chat do guia: reivindica, confere, envia UMA vez pela rotina humana com o texto aprovado e encerra com o id", async () => {
     const sb = fakeSupabase({
-      copilot_claim_send: claimOk(),
-      copilot_finish_send: { result: "finished" },
+      copilot_actor_claim_send: claimOk(),
+      copilot_actor_finish_send: { result: "finished" },
     });
     const d = sendDeps();
-    const r = await sendCopilotSuggestionCore(sb.client, "u-session", { suggestionId: SID }, d);
+    const r = await sendCopilotSuggestionCore(sb.client, U, { suggestionId: SID }, d);
     expect(r).toEqual({ status: "sent", messageId: "msg-1" });
     expect(d.sendHuman).toHaveBeenCalledTimes(1);
     expect(d.sendHuman).toHaveBeenCalledWith(
       sb.client,
-      "u-session",
+      U,
       { conversationId: CONV, content: "O check-in é às 15h.", internalNote: false },
       {},
     );
     expect(d.sendWhatsapp).not.toHaveBeenCalled();
-    expect(sb.calls.map((c) => c.fn)).toEqual(["copilot_claim_send", "copilot_finish_send"]);
+    expect(sb.calls.map((c) => c.fn)).toEqual([
+      "copilot_actor_claim_send",
+      "copilot_actor_finish_send",
+    ]);
     expect(sb.calls[1]!.args).toMatchObject({
       p_send_token: claimOk().send_token,
       p_outcome: "sent",
@@ -119,8 +134,8 @@ describe("Copiloto · envio pela rotina humana existente", () => {
 
   it("Airbnb: impõe o remetente resolvido pela política (modo estrito) na rotina humana", async () => {
     const sb = fakeSupabase({
-      copilot_claim_send: claimOk({ surface: "airbnb" }),
-      copilot_finish_send: { result: "finished" },
+      copilot_actor_claim_send: claimOk({ surface: "airbnb" }),
+      copilot_actor_finish_send: { result: "finished" },
     });
     const sendHuman = vi.fn(async () => ({
       ok: true as const,
@@ -129,10 +144,10 @@ describe("Copiloto · envio pela rotina humana existente", () => {
       externalId: "airbnb-77",
     }));
     const d = sendDeps({ guard: guardOk("airbnb", "chan-preferido"), sendHuman });
-    await sendCopilotSuggestionCore(sb.client, "u", { suggestionId: SID }, d);
+    await sendCopilotSuggestionCore(sb.client, U, { suggestionId: SID }, d);
     expect(sendHuman).toHaveBeenCalledWith(
       sb.client,
-      "u",
+      U,
       expect.objectContaining({ internalNote: false }),
       { strictSender: { expectedChannelId: "chan-preferido" } },
     );
@@ -144,14 +159,14 @@ describe("Copiloto · envio pela rotina humana existente", () => {
 
   it("WhatsApp: só a rotina do canal oficial (Sinch) da conversa", async () => {
     const sb = fakeSupabase({
-      copilot_claim_send: claimOk({ surface: "whatsapp" }),
-      copilot_finish_send: { result: "finished" },
+      copilot_actor_claim_send: claimOk({ surface: "whatsapp" }),
+      copilot_actor_finish_send: { result: "finished" },
     });
     const d = sendDeps({ guard: guardOk("whatsapp") });
     expect(
-      await sendCopilotSuggestionCore(sb.client, "u", { suggestionId: SID, text: "editado" }, d),
+      await sendCopilotSuggestionCore(sb.client, U, { suggestionId: SID, text: "editado" }, d),
     ).toEqual({ status: "sent", messageId: "msg-wa" });
-    expect(d.sendWhatsapp).toHaveBeenCalledWith(sb.client, "u", {
+    expect(d.sendWhatsapp).toHaveBeenCalledWith(sb.client, U, {
       conversationId: CONV,
       text: "O check-in é às 15h.",
     });
@@ -166,25 +181,25 @@ describe("Copiloto · envio pela rotina humana existente", () => {
   it("guarda recusada (identidade de envio não resolvida / escopo mudou) ⇒ NADA é enviado; falha registrada", async () => {
     for (const code of ["sender_identity_preference_other_tenant", "scope_mismatch"]) {
       const sb = fakeSupabase({
-        copilot_claim_send: claimOk({ surface: "airbnb" }),
-        copilot_reconcile_send: { result: "reconciled_failed" },
+        copilot_actor_claim_send: claimOk({ surface: "airbnb" }),
+        copilot_actor_reconcile_send: { result: "reconciled_failed" },
       });
       const d = sendDeps({ guard: vi.fn(async () => ({ ok: false as const, code })) });
-      const r = await sendCopilotSuggestionCore(sb.client, "u", { suggestionId: SID }, d);
+      const r = await sendCopilotSuggestionCore(sb.client, U, { suggestionId: SID }, d);
       expect(r).toMatchObject({ status: "send_failed", code });
       expect(d.sendHuman).not.toHaveBeenCalled();
       expect(d.sendWhatsapp).not.toHaveBeenCalled();
       expect(sb.calls.at(-1)).toMatchObject({
-        fn: "copilot_reconcile_send",
+        fn: "copilot_actor_reconcile_send",
         args: { p_attempt_finished: true, p_error_code: code },
       });
     }
   });
 
   it("envio já em andamento (clique repetido, outra aba, nova tentativa) ⇒ nenhum envio", async () => {
-    const sb = fakeSupabase({ copilot_claim_send: { result: "send_in_progress" } });
+    const sb = fakeSupabase({ copilot_actor_claim_send: { result: "send_in_progress" } });
     const d = sendDeps();
-    expect(await sendCopilotSuggestionCore(sb.client, "u", { suggestionId: SID }, d)).toEqual({
+    expect(await sendCopilotSuggestionCore(sb.client, U, { suggestionId: SID }, d)).toEqual({
       status: "send_in_progress",
     });
     expect(d.sendHuman).not.toHaveBeenCalled();
@@ -198,14 +213,17 @@ describe("Copiloto · envio pela rotina humana existente", () => {
       ["send_in_progress", "send_in_progress"],
     ] as const) {
       const sb = fakeSupabase({
-        copilot_claim_send: { result: "send_unknown" },
-        copilot_reconcile_send: { result: rec, sent_message_id: "m-x" },
+        copilot_actor_claim_send: { result: "send_unknown" },
+        copilot_actor_reconcile_send: { result: rec, sent_message_id: "m-x" },
       });
       const d = sendDeps();
-      const r = await sendCopilotSuggestionCore(sb.client, "u", { suggestionId: SID }, d);
+      const r = await sendCopilotSuggestionCore(sb.client, U, { suggestionId: SID }, d);
       expect(r.status).toBe(expected);
       expect(d.sendHuman).not.toHaveBeenCalled();
-      expect(sb.calls.map((c) => c.fn)).toEqual(["copilot_claim_send", "copilot_reconcile_send"]);
+      expect(sb.calls.map((c) => c.fn)).toEqual([
+        "copilot_actor_claim_send",
+        "copilot_actor_reconcile_send",
+      ]);
     }
   });
 
@@ -214,12 +232,12 @@ describe("Copiloto · envio pela rotina humana existente", () => {
       throw new Error("O Airbnb recusou a mensagem. A equipe foi avisada.");
     });
     const sb1 = fakeSupabase({
-      copilot_claim_send: claimOk(),
-      copilot_reconcile_send: { result: "reconciled_failed" },
+      copilot_actor_claim_send: claimOk(),
+      copilot_actor_reconcile_send: { result: "reconciled_failed" },
     });
     const r1 = await sendCopilotSuggestionCore(
       sb1.client,
-      "u",
+      U,
       { suggestionId: SID },
       sendDeps({ sendHuman: boom }),
     );
@@ -229,13 +247,13 @@ describe("Copiloto · envio pela rotina humana existente", () => {
       message: "O Airbnb recusou a mensagem. A equipe foi avisada.",
     });
     expect(sb1.calls.at(-1)).toMatchObject({
-      fn: "copilot_reconcile_send",
+      fn: "copilot_actor_reconcile_send",
       args: { p_attempt_finished: true, p_error_code: "airbnb_rejected" },
     });
     // erro DEPOIS da gravação (ex.: na pausa da IA) ⇒ a reconciliação encontra a mensagem ⇒ enviada, sem reenvio
     const sb2 = fakeSupabase({
-      copilot_claim_send: claimOk(),
-      copilot_reconcile_send: { result: "reconciled_sent", sent_message_id: "msg-gravada" },
+      copilot_actor_claim_send: claimOk(),
+      copilot_actor_reconcile_send: { result: "reconciled_sent", sent_message_id: "msg-gravada" },
     });
     const late = vi.fn(async () => {
       throw new Error("falha ao pausar");
@@ -243,7 +261,7 @@ describe("Copiloto · envio pela rotina humana existente", () => {
     expect(
       await sendCopilotSuggestionCore(
         sb2.client,
-        "u",
+        U,
         { suggestionId: SID },
         sendDeps({ sendHuman: late }),
       ),
@@ -253,8 +271,8 @@ describe("Copiloto · envio pela rotina humana existente", () => {
 
   it("rotina enviou mas não devolveu o id ⇒ reconcilia pelo autor/instante; nunca reenvia", async () => {
     const sb = fakeSupabase({
-      copilot_claim_send: claimOk(),
-      copilot_reconcile_send: { result: "reconciled_sent", sent_message_id: "msg-r" },
+      copilot_actor_claim_send: claimOk(),
+      copilot_actor_reconcile_send: { result: "reconciled_sent", sent_message_id: "msg-r" },
     });
     const sendHuman = vi.fn(async () => ({
       ok: true as const,
@@ -263,42 +281,39 @@ describe("Copiloto · envio pela rotina humana existente", () => {
       externalId: null,
     }));
     expect(
-      await sendCopilotSuggestionCore(
-        sb.client,
-        "u",
-        { suggestionId: SID },
-        sendDeps({ sendHuman }),
-      ),
+      await sendCopilotSuggestionCore(sb.client, U, { suggestionId: SID }, sendDeps({ sendHuman })),
     ).toEqual({ status: "sent", messageId: "msg-r" });
     expect(sendHuman).toHaveBeenCalledTimes(1);
-    expect(sb.calls.map((c) => c.fn)).not.toContain("copilot_finish_send");
+    expect(sb.calls.map((c) => c.fn)).not.toContain("copilot_actor_finish_send");
   });
 
   it("estado inválido, não encontrada e reivindicação incompleta", async () => {
     const d = sendDeps();
     expect(
       await sendCopilotSuggestionCore(
-        fakeSupabase({ copilot_claim_send: { result: "invalid_state", state: "sent" } }).client,
-        "u",
+        fakeSupabase({ copilot_actor_claim_send: { result: "invalid_state", state: "sent" } })
+          .client,
+        U,
         { suggestionId: SID },
         d,
       ),
     ).toEqual({ status: "invalid_state", state: "sent" });
     await expect(
       sendCopilotSuggestionCore(
-        fakeSupabase({ copilot_claim_send: { result: "not_found" } }).client,
-        "u",
+        fakeSupabase({ copilot_actor_claim_send: { result: "not_found" } }).client,
+        U,
         { suggestionId: SID },
         d,
       ),
     ).rejects.toThrow("Sugestão não encontrada.");
     const sb = fakeSupabase({
-      copilot_claim_send: claimOk({ text: undefined }),
-      copilot_reconcile_send: { result: "reconciled_failed" },
+      copilot_actor_claim_send: claimOk({ text: undefined }),
+      copilot_actor_reconcile_send: { result: "reconciled_failed" },
     });
-    expect(await sendCopilotSuggestionCore(sb.client, "u", { suggestionId: SID }, d)).toMatchObject(
-      { status: "send_failed", code: "claim_incomplete" },
-    );
+    expect(await sendCopilotSuggestionCore(sb.client, U, { suggestionId: SID }, d)).toMatchObject({
+      status: "send_failed",
+      code: "claim_incomplete",
+    });
     expect(d.sendHuman).not.toHaveBeenCalled();
   });
 
@@ -329,7 +344,7 @@ describe("Copiloto · envio pela rotina humana existente", () => {
     expect(classifySendError("x")).toBe("send_failed");
   });
 
-  it("autoria: nenhum schema de entrada aceita id de usuário; a autoria vem de context.userId/auth.uid()", () => {
+  it("autoria: nenhum schema de entrada aceita id de usuário; o ator vem de context.userId (sessão validada)", () => {
     const fns = readFileSync(path.resolve(__dirname, "..", "copilot.functions.ts"), "utf8");
     const core = readFileSync(path.resolve(__dirname, "..", "copilot-send.server.ts"), "utf8");
     const schemas = [...fns.matchAll(/z\.object\(\{([^}]*)\}\)/g)].map((m) => m[1]!);
@@ -448,7 +463,7 @@ describe("Copiloto · remetente estrito na entrega ao Airbnb (sem fallback silen
       propertyId: "p",
       text: "Olá",
       senderType: "human",
-      senderUserId: "u",
+      senderUserId: U,
       strictSender: { expectedChannelId: "chan-pref" },
     });
     expect(r).toMatchObject({ ok: false, failure: "preferred_sender_failed", externalId: null });

@@ -4,6 +4,12 @@ import serverEntryModule from "@tanstack/react-start/server-entry";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { legacyHostRedirect } from "./lib/site-url";
+import {
+  createLifecycle,
+  drainLifecycle,
+  resolveWaitUntil,
+  withRequestLifecycle,
+} from "./lib/background.server";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -71,8 +77,15 @@ export default {
     const mudanca = legacyHostRedirect(request);
     if (mudanca) return mudanca;
 
+    // Gate G1 (R2): ciclo de vida da requisição para trabalho em segundo plano (`lib/background.server.ts`).
+    // Com `waitUntil` do Worker, as tarefas seguem sob ele; sem, são aguardadas aqui antes da resposta.
+    const lifecycle = createLifecycle(resolveWaitUntil(request, ctx));
     try {
-      const response = await serverEntry.fetch(request, env, ctx);
+      const response = await withRequestLifecycle(lifecycle, async () => {
+        const r = await serverEntry.fetch(request, env, ctx);
+        await drainLifecycle(lifecycle);
+        return r;
+      });
       // Navegador fechou/recarregou a página no meio do carregamento: não é erro do app.
       if (request.signal?.aborted) return response;
       return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));

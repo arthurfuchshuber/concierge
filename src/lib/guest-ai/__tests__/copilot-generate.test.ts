@@ -23,6 +23,7 @@ import {
 import { triggerCopilotSuggestion } from "@/lib/guest-ai/copilot/trigger.server";
 import {
   copilotDailyLimitUsd,
+  COPILOT_DEFAULT_DAILY_COST_USD,
   copilotGenerationProperties,
   copilotPropertyAllowed,
   copilotFlags,
@@ -68,10 +69,7 @@ class MemoryCopilotStore implements CopilotStore {
     const key = `${i.conversationId}:${i.triggerMessageId}`;
     const ex = this.rows.get(key);
     if (ex) return { kind: "exists" as const, suggestionId: ex.id, state: ex.state as never };
-    if (
-      i.dailyCostLimitUsd !== null &&
-      this.spentUsd + i.turnCostCeilingUsd > i.dailyCostLimitUsd
-    ) {
+    if (this.spentUsd + i.turnCostCeilingUsd > i.dailyCostLimitUsd) {
       this.rows.set(key, { id: `s-${this.rows.size + 1}`, state: "generation_failed", attempt: 1 });
       return { kind: "daily_budget_exceeded" as const, suggestionId: `s-${this.rows.size}` };
     }
@@ -196,7 +194,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       tenantId: "t1",
       propertyId: "p1",
       conversationId: CONV,
-      dailyCostLimitUsd: null,
+      dailyCostLimitUsd: 3,
       turnCostCeilingUsd: 0.15,
     });
   });
@@ -265,23 +263,38 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     expect(copilotPropertyAllowed("qualquer-imovel-novo", {})).toBe(true);
   });
 
-  it("teto diário opcional: sem variável ⇒ sem teto; com variável ⇒ respeitado (sem limite superior)", async () => {
-    expect(copilotDailyLimitUsd({})).toBeNull();
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "" })).toBeNull();
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "-1" })).toBeNull();
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "abc" })).toBeNull();
+  it("teto diário OBRIGATÓRIO (G1/D3): sem variável ou inválida ⇒ US$ 3,00; válida ⇒ respeitada até US$ 50", async () => {
+    expect(COPILOT_DEFAULT_DAILY_COST_USD).toBe(3);
+    expect(copilotDailyLimitUsd({})).toBe(3);
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "" })).toBe(3);
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "   " })).toBe(3);
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "0" })).toBe(3);
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "-1" })).toBe(3);
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "abc" })).toBe(3);
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "Infinity" })).toBe(3);
     expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "5" })).toBe(5);
     expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "0.25" })).toBe(0.25);
-    // sem teto: gasto alto não bloqueia
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "300" })).toBe(50);
+    // sem variável: o teto de US$ 3,00 vai ao banco e bloqueia o gasto alto (nenhuma chamada ao modelo)
     {
       const p = fakeProvider(okJson(v4()));
       const store = new MemoryCopilotStore();
       store.spentUsd = 50;
       const d = deps(p, { store, env: { GUEST_AI_COPILOT_GENERATION: "on" } });
-      expect((await generateCopilotSuggestion(REQ, d)).status).toBe("stored");
-      expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: null });
+      expect((await generateCopilotSuggestion(REQ, d)).status).toBe("daily_budget_exceeded");
+      expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: 3 });
+      expect(p.calls).toBe(0);
     }
-    // com teto: atingido ⇒ nenhuma chamada
+    // sem variável e abaixo do teto padrão ⇒ gera normalmente
+    {
+      const p = fakeProvider(okJson(v4()));
+      const store = new MemoryCopilotStore();
+      store.spentUsd = 1;
+      const d = deps(p, { store, env: { GUEST_AI_COPILOT_GENERATION: "on" } });
+      expect((await generateCopilotSuggestion(REQ, d)).status).toBe("stored");
+      expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: 3 });
+    }
+    // com teto configurado: atingido ⇒ nenhuma chamada
     {
       const p = fakeProvider(okJson(v4()));
       const store = new MemoryCopilotStore();
@@ -634,7 +647,7 @@ describe("Copiloto · porta fechada, adaptador e disparo", () => {
       conversationId: "c",
       triggerMessageId: "m",
       surface: "airbnb",
-      dailyCostLimitUsd: null,
+      dailyCostLimitUsd: 3,
       turnCostCeilingUsd: 0.15,
     };
     expect(
