@@ -90,18 +90,15 @@ async function applyEta(
 ): Promise<OpsApplyResult> {
   const kind = req.action === "eta_checkin" ? "checkin" : "checkout";
   const patch = { arrival_time_override: req.time, arrival_time_source: GUEST_AI_ARRIVAL_SOURCE };
-  // condicional no próprio UPDATE: previsão da equipe nunca é sobrescrita (mesmo em corrida)
+  // a informação mais recente do hóspede vale, mesmo sobre previsão da equipe (diretriz 07/11/2026)
   const upd = await db
     .from("guest_arrival_status")
     .update(patch)
     .eq("reservation_id", req.reservationId)
     .eq("kind", kind)
-    .or("arrival_time_source.is.null,arrival_time_source.neq.staff")
     .select("id");
   if (upd.error) return { ok: false, code: "apply_failed" };
   if (!(Array.isArray(upd.data) && upd.data.length > 0)) {
-    const existing = await snapshot(db, req.reservationId, kind);
-    if (existing.exists) return { ok: false, code: "staff_prediction_race" };
     const ins = await db
       .from("guest_arrival_status")
       .insert({ property_id: req.propertyId, reservation_id: req.reservationId, kind, ...patch });
