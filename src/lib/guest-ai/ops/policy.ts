@@ -41,6 +41,7 @@ import {
 } from "./lexical";
 import { addDaysIso } from "../policy/wall-clock";
 import { detectStaffLateCheckout } from "./late-checkout";
+import { detectStaffEarlyCheckin } from "./early-checkin";
 
 /** Entrada do histórico do turno (mesma origem do prompt; `ref` = id citável, `messageId` = id real). */
 export interface OpsHistoryEntry {
@@ -69,7 +70,6 @@ export interface OpsPolicyInput {
   defaultHandoffReason: string;
 }
 
-const BLOCKING_INTENTS = new Set(["problem_report", "emergency", "formal_change_request"]);
 
 /** Data local (YYYY-MM-DD) de um instante no fuso dado; `null` se o fuso for inválido. */
 export function localDate(instant: Date, timezone: string): string | null {
@@ -153,23 +153,12 @@ function checkEvidence(
   return { code: "quote_not_in_message", messageId: null, sentence: null };
 }
 
-/** Travas do item 6 (equipe e negociações) e do turno (problema, emergência, alteração formal). */
+/**
+ * Diretriz do titular (07/11/2026): pausa humana, atendente, chamado aberto, problema ou negociação NÃO
+ * suspendem os registros nos cards — uma situação não tem a ver com a outra. Só exige o estado da conversa.
+ */
 function teamOrNegotiationBlock(input: OpsPolicyInput): OpsRefusalCode | null {
-  const c = input.conversation;
-  if (!c) return "state_unavailable";
-  // Diretriz do titular (07/11/2026): pausa humana / atendente atribuído só calam a IA no chat; nos bastidores
-  // ela continua registrando fatos inequívocos do hóspede (check-in, check-out, previsões) nos cards.
-  if (c.status === "needs_human" || c.status === "assigned") {
-    const reason = (c.handoffReason ?? "").trim();
-    if ((reason && reason !== input.defaultHandoffReason) || c.handoffUrgency) return "open_case";
-  }
-  const d = input.decision;
-  if (d.handoff.needed) return "handoff_needed";
-  if (
-    (d.intents ?? []).some((i) => BLOCKING_INTENTS.has(i)) ||
-    (d.formalChangeRequests ?? []).length > 0
-  )
-    return "problem_or_negotiation";
+  if (!input.conversation) return "state_unavailable";
   return null;
 }
 
@@ -247,8 +236,19 @@ function evaluateDone(input: OpsPolicyInput, kind: "checkin" | "checkout"): OpsE
   if (res) return fail(res);
   if (!input.cards) return fail("state_unavailable");
   if (kind === "checkin") {
-    // item 5: só com a estadia em curso (depois do horário oficial de entrada, no fuso do imóvel)
-    if (input.phase !== "in_stay") return fail("not_in_stay");
+    // item 5: só com a estadia em curso (depois do horário oficial de entrada, no fuso do imóvel), salvo
+    // entrada antecipada combinada expressamente pela equipe no chat, no próprio dia da entrada.
+    if (input.phase !== "in_stay") {
+      const early =
+        input.phase === "pre_stay" &&
+        !!today &&
+        today === r?.checkinDate &&
+        detectStaffEarlyCheckin(
+          input.history.map((e) => ({ messageId: e.messageId, speaker: e.speaker, text: e.text, at: e.at ?? "" })),
+          { now: input.now },
+        ) !== null;
+      if (!early) return fail("not_in_stay");
+    }
   } else if (action === "early_departure") {
     // item 3: estadia em curso, já depois do dia de entrada, e fato consumado explícito no trecho
     if (input.phase !== "in_stay" || !r!.checkinDate || today! < r!.checkinDate)
@@ -295,7 +295,7 @@ function evaluateEta(input: OpsPolicyInput, eta: GuestEta): OpsEvaluation {
   if (input.phase !== "pre_stay" && input.phase !== "in_stay") return fail("eta_phase_mismatch");
   const cb = cardBlock(card, input.now);
   if (cb) return fail(cb);
-  if (card?.arrivalTimeSource === "staff") return fail("staff_prediction");
+  // a informação mais recente vale, seja da equipe, do guia ou da IA (diretriz 07/11/2026)
   const p = input.property;
   const inBounds =
     eta.card === "checkin"

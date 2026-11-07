@@ -199,7 +199,7 @@ describe("G2c · previsão com origem guest_ai", () => {
     }
   });
 
-  it("previsão da equipe (staff) nunca é sobrescrita ⇒ staff_prediction_race", async () => {
+  it("a informação mais recente do hóspede sobrescreve a previsão da equipe (staff)", async () => {
     const f = fakeDb([
       {
         reservation_id: "r1",
@@ -210,13 +210,10 @@ describe("G2c · previsão com origem guest_ai", () => {
     ]);
     expect(
       await applyOpsAction({ action: "eta_checkout", ...BASE, time: "08:00" }, { db: f.db }),
-    ).toEqual({
-      ok: false,
-      code: "staff_prediction_race",
-    });
+    ).toMatchObject({ ok: true });
     expect(f.rows[0]).toMatchObject({
-      arrival_time_override: "09:00",
-      arrival_time_source: "staff",
+      arrival_time_override: "08:00",
+      arrival_time_source: "guest_ai",
     });
   });
 

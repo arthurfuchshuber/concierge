@@ -523,9 +523,8 @@ describe("G2 · estáticos: o módulo guest-ai nunca escreve em card", () => {
     const apply = readFileSync(path.resolve(ROOT, "../guest-ai-ops-apply.server.ts"), "utf8");
     expect(apply).toMatch(/runAdvanceArrival/);
     expect(apply).toMatch(/origin: "ai"/);
-    expect(apply).toMatch(
-      /\.or\("arrival_time_source\.is\.null,arrival_time_source\.neq\.staff"\)/,
-    );
+    // diretriz 07/11/2026: a informação mais recente vale, inclusive sobre previsão da equipe
+    expect(apply).not.toMatch(/arrival_time_source\.neq\.staff/);
   });
 
   it("migrations G2a/G2c não agendam nem chamam nada externo; G2c aceita live só com claim/finish", () => {
