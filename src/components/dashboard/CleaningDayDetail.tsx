@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowRight, CalendarDays, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { centsToReaisInput, parseReaisInputToCents } from "@/components/ui/money-input";
 import { CleaningProviderAvatar, useCleaningProviderName } from "@/components/dashboard/CleaningProviderAvatar";
+import { EDIT_BTN, EDIT_INPUT } from "@/components/dashboard/edit-frame";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -86,15 +87,6 @@ function dateSP(iso: string | null): string | null {
     year: "numeric",
   });
 }
-
-/**
- * DADO EDITÁVEL (07/11/2026): moldura de botão — fundo suave, borda sutil e
- * cantos arredondados, SEM lápis — em tipo, valor e prestador, na mesma letra
- * das demais linhas. Só aparece para quem tem permissão; sem
- * ela o dado é texto simples, sem moldura.
- */
-const EDIT_BTN =
-  "ds-3d ds-3d-hover inline-flex h-[20px] min-w-0 max-w-full items-center gap-1 rounded-[0.3rem] border border-border/70 bg-card px-1.5 shadow-sm transition";
 
 /** Namespace que decide quem pode alterar tipo, valor e prestador da limpeza. */
 const CLEANING_EDIT_PERMISSION = "tenant.dashboard.chegadas.limpeza";
@@ -698,9 +690,9 @@ function TypeToggle({
           type="button"
           onClick={() => setTarget(next)}
           title={`Mudar para ${next === "completa" ? "Completa" : "Normal"}`}
-          className={`${EDIT_BTN} text-[11.5px] font-semibold leading-none`}
+          className={EDIT_BTN}
         >
-          <span className="truncate">{typeText}</span>
+          {typeText}
         </button>
       </span>
       {emAnalise}
@@ -717,8 +709,12 @@ function TypeToggle({
   );
 }
 
-/** Valor clicável: edita no mesmo lugar, com a MESMA letra, e SEMPRE pede
- * confirmação antes de gravar. */
+/**
+ * Valor clicável (07/11/2026): ao tocar, vira um campo na MESMA posição e
+ * altura, já com foco — sem botões "Cancelar"/"OK", que espremiam a data no
+ * celular. Enter ou sair do campo grava: valor alterado abre o "Confirmar
+ * Alteração?" (De → Para); valor igual ou Escape descarta sem perguntar.
+ */
 function EditablePrice({
   statusId,
   cents,
@@ -734,9 +730,22 @@ function EditablePrice({
   const [text, setText] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Escape descarta: o blur que vem logo depois não pode gravar.
+  const discarded = useRef(false);
   const save = useServerFn(setCleaningPriceOverride);
   const qc = useQueryClient();
   const value = parseReaisInputToCents(text);
+
+  function close() {
+    setConfirm(false);
+    setEditing(false);
+  }
+
+  function commit() {
+    if (discarded.current || confirm) return;
+    if (value == null || value === cents) close();
+    else setConfirm(true);
+  }
 
   async function doSave() {
     if (value == null) return;
@@ -744,8 +753,7 @@ function EditablePrice({
     try {
       await save({ data: { statusId, cents: value, reason: null } });
       toast.success(`Valor de ${title} alterado para ${brl(value)}.`);
-      setConfirm(false);
-      setEditing(false);
+      close();
       void qc.invalidateQueries();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível alterar o valor.");
@@ -754,60 +762,54 @@ function EditablePrice({
     }
   }
 
-  const same = "font-semibold text-[11.5px] leading-none";
-  // Sem permissão: valor em texto simples, sem fundo de botão e sem toque.
-  if (!canEdit) return <span className={`whitespace-nowrap ${same}`}>{brl(cents)}</span>;
+  // Sem permissão: valor em texto simples, sem moldura e sem toque.
+  if (!canEdit) return <span className="whitespace-nowrap">{brl(cents)}</span>;
   if (!editing) {
     return (
       <button
         type="button"
         onClick={() => {
+          discarded.current = false;
           setText(centsToReaisInput(cents));
           setEditing(true);
         }}
         title="Alterar valor"
-        className={`${EDIT_BTN} whitespace-nowrap ${same}`}
+        className={`${EDIT_BTN} whitespace-nowrap tabular-nums`}
       >
         {brl(cents)}
       </button>
     );
   }
-  const pill =
-    "ds-3d ds-3d-hover inline-flex h-[18px] shrink-0 items-center rounded-[0.3rem] px-1.5 text-[11.5px] font-semibold leading-none disabled:opacity-50";
   return (
     <>
-      <span className={`inline-flex min-w-0 items-baseline border-b border-current ${same}`}>
-        R$&nbsp;
-        <input
-          autoFocus
-          inputMode="decimal"
-          value={text}
-          disabled={busy}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && value != null && value !== cents) setConfirm(true);
-            if (e.key === "Escape") setEditing(false);
-          }}
-          style={{ width: `${Math.max(text.length, 3)}ch` }}
-          className={`min-w-0 bg-transparent p-0 outline-none ${same}`}
-        />
-      </span>
-      <span className="ml-auto flex shrink-0 items-center gap-1">
-        <button type="button" className={`${pill} border border-border/70 bg-card`} onClick={() => setEditing(false)}>
-          Cancelar
-        </button>
-        <button
-          type="button"
-          className={`${pill} bg-primary text-primary-foreground`}
-          disabled={value == null || value === cents}
-          onClick={() => setConfirm(true)}
-        >
-          OK
-        </button>
-      </span>
+      <input
+        autoFocus
+        aria-label={`Valor de ${title}`}
+        inputMode="decimal"
+        value={text}
+        disabled={busy}
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            discarded.current = true;
+            close();
+          }
+        }}
+        className={EDIT_INPUT}
+      />
       <ConfirmChange
         open={confirm}
-        onOpenChange={setConfirm}
+        onOpenChange={(v) => {
+          // Cancelar (ou fechar) a confirmação descarta a edição.
+          if (!v) close();
+        }}
         property={title}
         from={brl(cents)}
         to={brl(value)}
