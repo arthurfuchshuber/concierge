@@ -1788,7 +1788,10 @@ export async function runAdvanceArrival(
         : data.from === "stay" || data.from === "checkout"
           ? ("checkout" as const)
           : null;
-    if (stayStepKind && !opts?.skipStaffPush) {
+    // Baixa AUTOMÁTICA por regra de horário (cron) não gera push (pedido
+    // explícito, 07/11/2026): ninguém fez nada, e o "Aguardando Limpeza" já
+    // avisa que o imóvel entrou na fila.
+    if (stayStepKind && !opts?.skipStaffPush && opts?.origin !== "system") {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { notifyStaffArrivalStep } = await import("@/lib/ops-push.server");
       await notifyStaffArrivalStep(supabaseAdmin as never, {

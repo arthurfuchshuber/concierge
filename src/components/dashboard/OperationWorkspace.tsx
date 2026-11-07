@@ -263,6 +263,8 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 import { ConfirmActionDialog } from "@/components/permissions/ConfirmActionDialog";
 import { computePropertyCells, type CellPart, type PropertyCells } from "@/lib/occupancy-cells";
 import { barBox, computeBarSegments, edgeBox, type BarSegment } from "@/lib/occupancy-bars";
+import { usePushWindow } from "@/hooks/usePushWindow";
+import type { PushWindow } from "@/lib/push-format";
 
 function PhoneLink({ phone, country }: { phone: string | null; country: string | null }) {
   return <PhoneActionButton phone={phone} country={country} size={12} className="p-0.5" />;
@@ -682,6 +684,9 @@ const EMPTY_CELLS = { halves: [] as CellPart[], stays: [] as never[], junction: 
 const EMPTY_LABELS = { bars: new Map(), singles: new Map(), blocks: new Map() } as const;
 
 export function OperationWorkspace({ view }: { view: OperationView }) {
+  // Clique no push → `?janela=` → abre a janela certa (07/11/2026).
+  const pushWin = usePushWindow();
+  const pushSignal = (win: PushWindow) => (pushWin?.win === win ? pushWin.nonce : undefined);
   const engFn = useServerFn(getGuideEngagement);
   const batchListFn = useServerFn(listDashboardArrivalsBatch);
   // Listas pedidas no mesmo instante (abertura da tela, realtime, foco) viajam
@@ -3601,6 +3606,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="order-2 lg:order-1">
               <KpiCard
                 label="Check-ins Pendentes"
+                openSignal={pushSignal("checkins")}
                 rows={checkinPendingRows}
                 icon={LogIn}
                 tone="primary"
@@ -3618,6 +3624,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="order-3 lg:order-2">
               <KpiCard
                 label="Checkouts Pendentes"
+                openSignal={pushSignal("checkouts")}
                 rows={checkoutPendingRows}
                 icon={LogOut}
                 tone="primary"
@@ -3650,6 +3657,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="order-7 lg:order-4">
               <KpiCard
                 label="Checkouts amanhã"
+                openSignal={pushSignal("checkouts-amanha")}
                 rows={tomorrowCheckoutPendingRows}
                 icon={CalendarX}
                 tone="primary-soft"
@@ -3669,6 +3677,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               <div className="order-4 col-span-2 lg:order-5 lg:col-span-4">
                 <KpiCard
                   label="Fila de Limpeza"
+                  openSignal={pushSignal("limpeza")}
                   rows={cleaningRows}
                   icon={Sparkles}
                   tone="primary-soft"
@@ -3753,6 +3762,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               <div className="order-10 col-span-1">
                 <KpiCard
                   label="Em Estadia"
+                  openSignal={pushSignal("estadia")}
                   rows={stayRows}
                   icon={BedDouble}
                   tone="primary-soft"
@@ -4857,7 +4867,10 @@ function KpiCard({
   pinnedIds,
   cardProps,
   valueSizeClass,
+  openSignal,
 }: {
+  /** Clique no push (07/11/2026): cada valor novo abre a janela sozinha. */
+  openSignal?: number;
   /** Tamanho compartilhado por todos os números da página (ver `kpiSizeClass`). */
   valueSizeClass?: string;
   label: string;
@@ -4886,6 +4899,14 @@ function KpiCard({
   cardProps: Omit<React.ComponentProps<typeof ArrivalGroup>, "title">;
 }) {
   const [open, setOpen] = useState(false);
+  // Destino do clique no push: abre a janela (e atualiza a lista) a cada sinal.
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
+  useEffect(() => {
+    if (!openSignal) return;
+    setOpen(true);
+    onRefreshRef.current();
+  }, [openSignal]);
   // Modo "Lista" (pedido explícito) — só afeta o conteúdo do popup, não o
   // gatilho (compact/highlight) do card em si, que já usa a prop `compact`
   // pra outra coisa (faixa fina vs. quadrado).
