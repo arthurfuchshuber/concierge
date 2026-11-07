@@ -25,6 +25,7 @@ import {
 import { MessageText } from "@/components/handoff/MessageText";
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
 import { isPausedNow, minutesLeft } from "@/lib/chat/pause";
+import { messageActions } from "@/lib/chat/message-actions";
 import {
   Send,
   UserCheck,
@@ -74,6 +75,32 @@ import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/Atta
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
+
+/** Mensagem selecionada para o menu de ações (as ações dependem do canal de destino). */
+type ActionMsg = {
+  id: string;
+  content: string;
+  channel: string | null;
+  isNote: boolean;
+  isGuest: boolean;
+  senderType: string | null;
+};
+const NO_MESSAGE_ACTIONS = { copy: true, edit: false, delete: false } as const;
+function toActionMsg(m: {
+  id: string;
+  content: string | null;
+  sender_type: string | null;
+  is_internal_note: boolean | null;
+}): ActionMsg {
+  return {
+    id: m.id,
+    content: m.content ?? "",
+    channel: (m as { channel?: string | null }).channel ?? null,
+    isNote: !!m.is_internal_note,
+    isGuest: m.sender_type === "guest",
+    senderType: m.sender_type ?? null,
+  };
+}
 
 type Props = {
   conversationId: string;
@@ -195,11 +222,11 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
   const [transferOpen, setTransferOpen] = useState(false);
   const [channel, setChannel] = useState<"chat" | "whatsapp">("chat");
   const [reopenOpen, setReopenOpen] = useState(false);
-  const [actionMsg, setActionMsg] = useState<{ id: string; content: string; mine: boolean } | null>(
-    null,
-  );
+  // Mensagem selecionada (toque longo / botão direito). As ações seguem o canal de destino
+  // (`messageActions`): Airbnb só copia; WhatsApp copia e apaga; Guia e notas internas copiam, editam e apagam.
+  const [actionMsg, setActionMsg] = useState<ActionMsg | null>(null);
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const startLongPress = (m: { id: string; content: string; mine: boolean }) => {
+  const startLongPress = (m: ActionMsg) => {
     if (longPressRef.current) clearTimeout(longPressRef.current);
     longPressRef.current = setTimeout(() => setActionMsg(m), 450);
   };
@@ -467,6 +494,14 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
   });
 
   const conv = q.data?.conversation;
+  const actionAllowed = actionMsg
+    ? messageActions({
+        channel: actionMsg.channel,
+        sessionId: conv?.guest_session_id ?? null,
+        isNote: actionMsg.isNote,
+        isGuest: actionMsg.isGuest,
+      })
+    : NO_MESSAGE_ACTIONS;
   const msgs = q.data?.messages ?? [];
   /* COPILOTO (05/11/2026): a mensagem mais recente do HÓSPEDE é a referência da "Sugestão da IA" —
    * o cartão pede/acompanha a sugestão desta mensagem e avisa quando chega uma mais nova. */
@@ -801,15 +836,13 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
             <Fragment key={m.id}>
               <div className={`flex flex-col ${isGuest ? "items-start" : "items-end"}`}>
                 <div
-                  onPointerDown={() =>
-                    startLongPress({ id: m.id, content: m.content ?? "", mine: !isGuest })
-                  }
+                  onPointerDown={() => startLongPress(toActionMsg(m))}
                   onPointerUp={cancelLongPress}
                   onPointerLeave={cancelLongPress}
                   onPointerCancel={cancelLongPress}
                   onContextMenu={(e) => {
                     e.preventDefault();
-                    setActionMsg({ id: m.id, content: m.content ?? "", mine: !isGuest });
+                    setActionMsg(toActionMsg(m));
                   }}
                   className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words select-none ${
                     isNote
@@ -950,32 +983,32 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
             >
               <Copy className="size-4" /> Copiar
             </button>
-            {actionMsg?.mine && (
-              <>
-                <button
-                  type="button"
-                  className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm hover:bg-secondary text-left"
-                  onClick={() => {
-                    if (actionMsg) {
-                      setEditingId(actionMsg.id);
-                      setEditingText(actionMsg.content);
-                    }
-                    setActionMsg(null);
-                  }}
-                >
-                  <Pencil className="size-4" /> Editar
-                </button>
-                <button
-                  type="button"
-                  className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm text-destructive hover:bg-destructive/10 text-left"
-                  onClick={() => {
-                    if (actionMsg) deleteMsg.mutate(actionMsg.id);
-                    setActionMsg(null);
-                  }}
-                >
-                  <Trash2 className="size-4" /> Apagar
-                </button>
-              </>
+            {actionAllowed.edit && (
+              <button
+                type="button"
+                className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm hover:bg-secondary text-left"
+                onClick={() => {
+                  if (actionMsg) {
+                    setEditingId(actionMsg.id);
+                    setEditingText(actionMsg.content);
+                  }
+                  setActionMsg(null);
+                }}
+              >
+                <Pencil className="size-4" /> Editar
+              </button>
+            )}
+            {actionAllowed.delete && (
+              <button
+                type="button"
+                className="flex items-center gap-2 px-2 py-2.5 rounded-lg text-sm text-destructive hover:bg-destructive/10 text-left"
+                onClick={() => {
+                  if (actionMsg) deleteMsg.mutate(actionMsg.id);
+                  setActionMsg(null);
+                }}
+              >
+                <Trash2 className="size-4" /> Apagar
+              </button>
             )}
           </div>
         </DialogContent>
